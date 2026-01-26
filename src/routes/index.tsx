@@ -1,4 +1,4 @@
-import { Layout } from "@/components/layout/layout";
+import { createFileRoute } from "@tanstack/react-router";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -10,9 +10,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
-export default function Page() {
+export const Route = createFileRoute("/")({
+	component: Index,
+});
+
+function Index() {
 	return (
-		<Layout>
+		<>
 			<header className="flex h-16 shrink-0 items-center gap-2">
 				<div className="flex items-center gap-2 px-4">
 					<SidebarTrigger className="-ml-1" />
@@ -43,6 +47,6 @@ export default function Page() {
 				</div>
 				<div className="bg-muted/50 min-h-screen flex-1 rounded-xl md:min-h-min" />
 			</div>
-		</Layout>
+		</>
 	);
 }

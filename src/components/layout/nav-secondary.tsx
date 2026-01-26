@@ -55,11 +55,11 @@ function ThemeToggleItem() {
 	);
 }
 const navSecondary = [
-  {
-    title: "Activity",
-    url: "#",
-    icon: Loader,
-  },
+	{
+		title: "Activity",
+		url: "#",
+		icon: Loader,
+	},
 ];
 export function NavSecondary({
 	...props
@@ -68,17 +68,17 @@ export function NavSecondary({
 		<SidebarGroup {...props}>
 			<SidebarGroupContent>
 				<SidebarMenu>
-          {navSecondary.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <a href={item.url}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-          <ThemeToggleItem />
+					{navSecondary.map((item) => (
+						<SidebarMenuItem key={item.title}>
+							<SidebarMenuButton asChild>
+								<a href={item.url}>
+									{item.icon && <item.icon />}
+									<span>{item.title}</span>
+								</a>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					))}
+					<ThemeToggleItem />
 				</SidebarMenu>
 			</SidebarGroupContent>
 		</SidebarGroup>
