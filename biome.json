@@ -6,7 +6,8 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": ["**", "!src/components/ui"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -23,11 +24,11 @@
 			"quoteStyle": "double"
 		}
 	},
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    }
-  },
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
 	"assist": {
 		"enabled": true,
 		"actions": {
