@@ -1,4 +1,4 @@
-import { type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
+import { Loader, type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import {
 	DropdownMenu,
@@ -54,7 +54,13 @@ function ThemeToggleItem() {
 		</SidebarMenuItem>
 	);
 }
-
+const navSecondary = [
+  {
+    title: "Activity",
+    url: "#",
+    icon: Loader,
+  },
+];
 export function NavSecondary({
 	...props
 }: {} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
@@ -62,7 +68,17 @@ export function NavSecondary({
 		<SidebarGroup {...props}>
 			<SidebarGroupContent>
 				<SidebarMenu>
-					<ThemeToggleItem />
+          {navSecondary.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild>
+                <a href={item.url}>
+                  {item.icon && <item.icon />}
+                  <span>{item.title}</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+          <ThemeToggleItem />
 				</SidebarMenu>
 			</SidebarGroupContent>
 		</SidebarGroup>
