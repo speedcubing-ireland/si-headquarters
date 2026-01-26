@@ -8,8 +8,12 @@ import {
 	ListTodo,
 } from "lucide-react";
 
-import { NavSecondary } from "@/components/nav-secondary";
-import { NavUser } from "@/components/nav-user";
+import { NavSecondary } from "@/components/layout/nav-secondary";
+import {
+	NavSection,
+	type NavSectionData,
+} from "@/components/layout/nav-section";
+import { NavUser } from "@/components/layout/nav-user";
 import {
 	Sidebar,
 	SidebarContent,
@@ -19,7 +23,6 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { NavSection, type NavSectionData } from "./nav-section";
 
 const teamDropdownItems = [
 	{
