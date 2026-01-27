@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
 	Box,
 	CircleCheck,
@@ -7,7 +8,6 @@ import {
 	KanbanSquare,
 	ListTodo,
 } from "lucide-react";
-
 import { NavSecondary } from "@/components/layout/nav-secondary";
 import {
 	NavSection,
@@ -24,17 +24,6 @@ import {
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-const teamDropdownItems = [
-	{
-		title: "Tasks",
-		url: "#",
-	},
-	{
-		title: "Shared Views",
-		url: "#",
-	},
-];
-
 const navSections = [
 	{
 		title: null,
@@ -42,13 +31,13 @@ const navSections = [
 			{
 				type: "item",
 				name: "My Tasks",
-				url: "#",
+				url: ".",
 				icon: CircleCheck,
 			},
 			{
 				type: "item",
 				name: "Inbox",
-				url: "#",
+				url: ".",
 				icon: Inbox,
 			},
 		],
@@ -59,49 +48,50 @@ const navSections = [
 			{
 				type: "dropdown",
 				title: "Competitions",
-				url: "#",
 				icon: Box,
 				isActive: true,
 				items: [
 					{
 						title: "Overview",
-						url: "#",
+						url: {
+							to: "/competitions/$id",
+							params: { id: "testcompid123" },
+						},
 					},
 					{
 						title: "Calendar",
-						url: "#",
+						url: ".",
 					},
 				],
 			},
 			{
 				type: "item",
 				name: "Projects",
-				url: "#",
+				url: ".",
 				icon: KanbanSquare,
 			},
 			{
 				type: "item",
 				name: "Tasks",
-				url: "#",
+				url: ".",
 				icon: ListTodo,
 			},
 			{
 				type: "dropdown",
 				title: "Saved Views",
-				url: "#",
 				icon: ClipboardList,
 				items: [
 					{
 						title: "Needs Review",
-						url: "#",
+						url: ".",
 					},
 					{
 						title: "Certs",
-						url: "#",
+						url: ".",
 					},
 					{
 						title: "Sponsorship",
-						url: "#",
+						url: ".",
 					},
 				],
 			},
@@ -113,20 +103,44 @@ const navSections = [
 			{
 				type: "dropdown",
 				title: "Competitions",
-				url: "#",
-				items: teamDropdownItems,
+				items: [
+					{
+						title: "Tasks",
+						url: ".",
+					},
+					{
+						title: "Shared Views",
+						url: ".",
+					},
+				],
 			},
 			{
 				type: "dropdown",
 				title: "Social Media",
-				url: "#",
-				items: teamDropdownItems,
+				items: [
+					{
+						title: "Tasks",
+						url: ".",
+					},
+					{
+						title: "Shared Views",
+						url: ".",
+					},
+				],
 			},
 			{
 				type: "dropdown",
 				title: "Merchandise",
-				url: "#",
-				items: teamDropdownItems,
+				items: [
+					{
+						title: "Tasks",
+						url: ".",
+					},
+					{
+						title: "Shared Views",
+						url: ".",
+					},
+				],
 			},
 		],
 	},
@@ -145,7 +159,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
-							<a href="/">
+							<Link to="/">
 								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
 									<Earth className="size-4" />
 								</div>
@@ -155,7 +169,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 									</span>
 									<span className="truncate text-xs">Headquarters</span>
 								</div>
-							</a>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>

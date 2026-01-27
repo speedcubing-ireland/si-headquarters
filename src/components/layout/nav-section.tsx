@@ -1,3 +1,5 @@
+import type { LinkProps } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import {
@@ -16,22 +18,37 @@ import {
 	SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 
+type LinkOptions = Omit<LinkProps, "children">;
+type NavLinkUrl = string | LinkOptions;
+
+function NavLink({
+	url,
+	children,
+}: {
+	url: NavLinkUrl;
+	children: React.ReactNode;
+}) {
+	if (typeof url === "string") {
+		return <Link to={url}>{children}</Link>;
+	}
+	return <Link {...url}>{children}</Link>;
+}
+
 export type NavSectionDropdownItem = {
 	type: "dropdown";
 	title: string;
-	url: string;
 	icon?: LucideIcon;
 	isActive?: boolean;
 	items?: {
 		title: string;
-		url: string;
+		url: NavLinkUrl;
 	}[];
 };
 
 export type NavSectionItem = {
 	type: "item";
 	name: string;
-	url: string;
+	url: NavLinkUrl;
 	icon?: LucideIcon;
 };
 
@@ -56,9 +73,9 @@ function NavDropdown(item: NavSectionDropdownItem) {
 						{item.items?.map((subItem) => (
 							<SidebarMenuSubItem key={subItem.title}>
 								<SidebarMenuSubButton asChild>
-									<a href={subItem.url}>
+									<NavLink url={subItem.url}>
 										<span>{subItem.title}</span>
-									</a>
+									</NavLink>
 								</SidebarMenuSubButton>
 							</SidebarMenuSubItem>
 						))}
@@ -73,10 +90,10 @@ function NavItem(item: NavSectionItem) {
 	return (
 		<SidebarMenuItem key={item.name}>
 			<SidebarMenuButton asChild>
-				<a href={item.url}>
+				<NavLink url={item.url}>
 					{item.icon && <item.icon />}
 					<span>{item.name}</span>
-				</a>
+				</NavLink>
 			</SidebarMenuButton>
 		</SidebarMenuItem>
 	);
