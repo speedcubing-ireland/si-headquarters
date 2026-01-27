@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import {
+  Blocks,
 	Box,
 	CircleCheck,
 	ClipboardList,
-	Earth,
 	Inbox,
 	KanbanSquare,
 	ListTodo,
@@ -160,8 +160,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
 							<Link to="/">
-								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-									<Earth className="size-4" />
+								<div className="bg-sidebar-accent text-sidebar-accent-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+									<Blocks className="size-5" />
 								</div>
 								<div className="grid flex-1 text-left text-sm leading-tight">
 									<span className="truncate font-medium">
