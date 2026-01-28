@@ -142,9 +142,6 @@ export function TaskModal({
 		}
 	};
 
-	const StatusIcon = getStatusIcon(status);
-	const PriorityIcon = getPriorityIcon(priority);
-
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[600px] p-0">
@@ -180,7 +177,6 @@ export function TaskModal({
 						onValueChange={(v) => setStatus(v as TaskStatus)}
 					>
 						<SelectTrigger className="w-auto h-8 gap-1">
-							<StatusIcon className="size-4" />
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -203,7 +199,6 @@ export function TaskModal({
 						onValueChange={(v) => setPriority(v as TaskPriority)}
 					>
 						<SelectTrigger className="w-auto h-8 gap-1">
-							<PriorityIcon className="size-4" />
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -233,14 +228,6 @@ export function TaskModal({
 						}}
 					>
 						<SelectTrigger className="w-auto h-8 gap-1">
-							{assignee ? (
-								<Avatar className="size-4">
-									<AvatarImage src={assignee.avatarUrl} />
-									<AvatarFallback className="text-[8px]">
-										{getInitials(assignee.name)}
-									</AvatarFallback>
-								</Avatar>
-							) : null}
 							<SelectValue placeholder="Assignee" />
 						</SelectTrigger>
 						<SelectContent>

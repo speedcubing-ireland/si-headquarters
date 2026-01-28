@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import {
 	Table,
 	TableBody,
@@ -78,10 +78,6 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 		return [];
 	}, [ordering, groupingState]);
 
-	const [expanded, setExpanded] = useState<Record<string, boolean> | true>(
-		true,
-	);
-
 	const table = useReactTable({
 		data: filteredData,
 		columns,
@@ -90,10 +86,12 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 		getSortedRowModel: getSortedRowModel(),
 		getExpandedRowModel: getExpandedRowModel(),
 		groupedColumnMode: false,
+		initialState: {
+			expanded: true,
+		},
 		state: {
 			grouping: groupingState,
 			sorting: sortingState,
-			expanded,
 		},
 		onSortingChange: (updater) => {
 			const nextSorting =
@@ -105,16 +103,14 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 				setOrdering(null, "asc");
 			}
 		},
-		onExpandedChange: (updater) => {
-			setExpanded((prev) => {
-				const next = typeof updater === "function" ? updater(prev) : updater;
-				if (typeof next === "boolean") {
-					return next ? true : {};
-				}
-				return next;
-			});
-		},
 	});
+
+	// When grouping changes, re-expand all groups so the user sees the full breakdown.
+	useEffect(() => {
+		if (groupingState.length > 0) {
+			table.setExpanded(true);
+		}
+	}, [groupingState, table]);
 
 	return (
 		<div className="w-full overflow-auto">

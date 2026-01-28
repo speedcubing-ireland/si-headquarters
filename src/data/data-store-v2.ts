@@ -117,6 +117,23 @@ function generateTasks(
 	return Array.from({ length: count }, () => generateTask(users, labels));
 }
 
+function flattenTasks(tasks: Task[]): Task[] {
+	const result: Task[] = [];
+
+	const visit = (task: Task) => {
+		result.push(task);
+		for (const subTask of task.subTasks) {
+			visit(subTask);
+		}
+	};
+
+	for (const task of tasks) {
+		visit(task);
+	}
+
+	return result;
+}
+
 function generateCompetition(users: User[]): Competition {
 	const competitionNames = [
 		"Irish Open",
@@ -171,7 +188,7 @@ function generateCompetitions(count: number, users: User[]): Competition[] {
 const mockUsers = generateUsers(10);
 const mockTeams = generateTeams(mockUsers, 5);
 const mockLabels = [...DEFAULT_LABELS];
-const mockTasks = generateTasks(20, mockUsers, mockLabels);
+const mockTasks = flattenTasks(generateTasks(20, mockUsers, mockLabels));
 const mockCompetitions = generateCompetitions(15, mockUsers);
 
 type DataStoreV2 = {
@@ -180,6 +197,11 @@ type DataStoreV2 = {
 	labels: TaskLabel[];
 	tasks: Task[];
 	competitions: Competition[];
+
+	getTasksFlat: () => Task[];
+	getTaskChildren: (parentTaskId: string) => Task[];
+	getTaskParent: (task: Task) => Task | null;
+	getSubtaskProgress: (parentTaskId: string) => { done: number; total: number };
 
 	getUsers: () => User[];
 	getTeams: () => Team[];
@@ -219,6 +241,34 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 	labels: mockLabels,
 	tasks: mockTasks,
 	competitions: mockCompetitions,
+
+	getTasksFlat: () => get().tasks,
+
+	getTaskChildren: (parentTaskId) =>
+		get().tasks.filter(
+			(task) =>
+				task.parent?.type === "task" && task.parent.linkedId === parentTaskId,
+		),
+
+	getTaskParent: (task) => {
+		if (task.parent?.type !== "task") return null;
+		return get().tasks.find((t) => t.id === task.parent?.linkedId) ?? null;
+	},
+
+	getSubtaskProgress: (parentTaskId) => {
+		const children = get().tasks.filter(
+			(task) =>
+				task.parent?.type === "task" && task.parent.linkedId === parentTaskId,
+		);
+
+		const relevant = children.filter((task) => task.status !== "cancelled");
+		const done = relevant.filter((task) => task.status === "done").length;
+
+		return {
+			done,
+			total: relevant.length,
+		};
+	},
 
 	getUsers: () => get().users,
 	getTeams: () => get().teams,

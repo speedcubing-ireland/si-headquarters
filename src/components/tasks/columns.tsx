@@ -5,6 +5,7 @@ import type React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useDataV2 } from "@/data/data-store-v2";
 import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
 import {
 	priorityLabels,
@@ -140,6 +141,42 @@ function createSortableColumn(
 	};
 }
 
+function TaskTitleCell({ row }: { row: Row<Task> }) {
+	const task = row.original;
+	const parent = useDataV2((state) => state.getTaskParent(task));
+	// IMPORTANT: avoid returning a fresh object from the selector (can cause
+	// infinite render loops with useSyncExternalStore in React dev).
+	const done = useDataV2((state) => state.getSubtaskProgress(task.id).done);
+	const total = useDataV2((state) => state.getSubtaskProgress(task.id).total);
+
+	const showProgress = total > 0;
+
+	return (
+		<div className="flex items-center gap-2 max-w-[320px]">
+			<Link
+				to="/tasks/$id"
+				params={{ id: task.id }}
+				className="font-medium truncate hover:text-primary hover:underline"
+			>
+				<span className="truncate">
+					{task.title}
+					{parent ? (
+						<span className="text-muted-foreground">
+							{" "}
+							&gt; {parent.title}
+						</span>
+					) : null}
+				</span>
+			</Link>
+			{showProgress && (
+				<span className="ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-xs text-muted-foreground bg-muted">
+					{done}/{total}
+				</span>
+			)}
+		</div>
+	);
+}
+
 export const taskColumns: ColumnDef<Task>[] = [
 	{
 		accessorKey: "identifier",
@@ -154,19 +191,7 @@ export const taskColumns: ColumnDef<Task>[] = [
 		},
 		enableSorting: false,
 	},
-	createSortableColumn("title", "Title", ({ row }) => {
-		const title = row.getValue("title") as string;
-		const task = row.original;
-		return (
-			<Link
-				to="/tasks/$id"
-				params={{ id: task.id }}
-				className="font-medium truncate max-w-[300px] hover:text-primary hover:underline"
-			>
-				{title}
-			</Link>
-		);
-	}),
+	createSortableColumn("title", "Title", ({ row }) => <TaskTitleCell row={row} />),
 	createSortableColumn(
 		"status",
 		"Status",

@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, MoreHorizontal, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { EditableTaskStatus } from "@/components/tasks/editable-cells";
+import { TaskModal } from "@/components/tasks/task-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -240,92 +242,57 @@ function TaskProperties({
 }
 
 function SubTasksList({ task }: { task: Task }) {
-	const [isAdding, setIsAdding] = useState(false);
-	const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
-	const addTask = useDataV2((state) => state.addTask);
-
-	const handleAddSubTask = () => {
-		if (!newSubTaskTitle.trim()) return;
-
-		addTask({
-			parent: { type: "task", linkedId: task.id },
-			title: newSubTaskTitle.trim(),
-			description: "",
-			owner: null,
-			assignee: null,
-			phase: null,
-			status: "to-do",
-			priority: "medium",
-			dueDate: null,
-			requiredApprovalBy: [],
-			approvedBy: [],
-			labels: [],
-			resources: [],
-		});
-
-		setNewSubTaskTitle("");
-		setIsAdding(false);
-	};
+	const [isModalOpen, setIsModalOpen] = useState(false);
+	// Zustand v5 + React 19: selector results must be referentially stable.
+	// `getTaskChildren()` creates a new array every call, which triggers the
+	// "getSnapshot should be cached" dev error. Subscribe to `tasks` and derive.
+	const tasks = useDataV2((state) => state.tasks);
+	const subTasks = useMemo(
+		() =>
+			tasks.filter(
+				(t) => t.parent?.type === "task" && t.parent.linkedId === task.id,
+			),
+		[tasks, task.id],
+	);
 
 	return (
 		<div className="mt-6">
 			<h3 className="text-sm font-medium mb-2">Sub-tasks</h3>
 			<div className="space-y-2">
-				{task.subTasks.map((subTask) => {
-					const StatusIcon = getStatusIcon(subTask.status);
-					const isCompleted = subTask.status === "done";
+				{subTasks.map((subTask) => {
 					return (
 						<div
 							key={subTask.id}
 							className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50"
 						>
-							<StatusIcon
-								className={`size-4 ${isCompleted ? "text-green-500" : "text-muted-foreground"}`}
-							/>
-							<span
-								className={`text-sm flex-1 ${isCompleted ? "line-through text-muted-foreground" : ""}`}
+							<EditableTaskStatus status={subTask.status} taskId={subTask.id} />
+							<Link
+								to="/tasks/$id"
+								params={{ id: subTask.id }}
+								className={`text-sm flex-1 truncate hover:underline ${subTask.status === "done" ? "line-through text-muted-foreground" : ""}`}
 							>
 								{subTask.title}
-							</span>
+							</Link>
 						</div>
 					);
 				})}
 
-				{isAdding ? (
-					<div className="flex items-center gap-2">
-						<Input
-							placeholder="Sub-task title"
-							value={newSubTaskTitle}
-							onChange={(e) => setNewSubTaskTitle(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") handleAddSubTask();
-								if (e.key === "Escape") setIsAdding(false);
-							}}
-							className="h-8 flex-1"
-							autoFocus
-						/>
-						<Button size="sm" onClick={handleAddSubTask}>
-							Add
-						</Button>
-						<Button
-							size="sm"
-							variant="ghost"
-							onClick={() => setIsAdding(false)}
-						>
-							Cancel
-						</Button>
-					</div>
-				) : (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="text-muted-foreground"
-						onClick={() => setIsAdding(true)}
-					>
-						<Plus className="size-4 mr-1" />
-						Add sub-task
-					</Button>
-				)}
+				<Button
+					variant="ghost"
+					size="sm"
+					className="text-muted-foreground"
+					onClick={() => setIsModalOpen(true)}
+				>
+					<Plus className="size-4 mr-1" />
+					Add sub-task
+				</Button>
+
+				<TaskModal
+					open={isModalOpen}
+					onOpenChange={setIsModalOpen}
+					mode="create"
+					defaultParent={{ type: "task", linkedId: task.id }}
+				/>
 			</div>
 		</div>
 	);
