@@ -7,6 +7,7 @@ import {
 	type CompetitionPhase,
 	DEFAULT_LABELS,
 	DEFAULT_PHASES,
+	type ProgressUpdate,
 	TASK_PRIORITY,
 	TASK_STATUS,
 	type Task,
@@ -44,11 +45,13 @@ function generateUsers(count: number): User[] {
 	});
 }
 
-function generateTeams(users: User[], count: number): Team[] {
-	return Array.from({ length: count }, () => ({
+function generateTeams(users: User[], _count: number): Team[] {
+	const teamNames = ["Competitions", "Social Media", "Merchandise"] as const;
+
+	return teamNames.map((name) => ({
 		id: faker.string.uuid(),
-		name: faker.company.name(),
-		members: faker.helpers.arrayElements(users, { min: 2, max: 4 }),
+		name,
+		members: faker.helpers.arrayElements(users, { min: 2, max: 5 }),
 	}));
 }
 
@@ -61,13 +64,59 @@ function generatePhases(): CompetitionPhase[] {
 
 function generateTask(
 	users: User[],
+	teams: Team[],
 	labels: TaskLabel[],
 	parent: Task["parent"] = null,
 	depth = 0,
 ): Task {
 	const now = new Date().toISOString();
-	const hasDueDate = faker.datatype.boolean();
+	const hasDueDate = faker.datatype.boolean({ probability: 0.5 });
 	const hasSubTasks = depth < 2 && faker.datatype.boolean({ probability: 0.3 });
+
+	let owner: Task["owner"] = null;
+	let assignee: User | null = null;
+
+	if (teams.length > 0) {
+		// Create a healthy mix of team-owned tasks that are triaged vs. untriaged,
+		// plus some user-owned and unowned tasks.
+		const scenario = faker.helpers.arrayElement([
+			"team_untriaged",
+			"team_triaged",
+			"user_owner",
+			"no_owner",
+		] as const);
+
+		if (scenario === "team_untriaged") {
+			const team = faker.helpers.arrayElement(teams);
+			owner = team;
+			assignee = null;
+		} else if (scenario === "team_triaged") {
+			const team = faker.helpers.arrayElement(teams);
+			owner = team;
+			const pool = team.members.length > 0 ? team.members : users;
+			assignee = faker.helpers.arrayElement(pool);
+		} else if (scenario === "user_owner") {
+			const user = faker.helpers.arrayElement(users);
+			owner = user;
+			assignee = faker.datatype.boolean({ probability: 0.7 })
+				? faker.helpers.arrayElement([user, ...users])
+				: null;
+		} else {
+			owner = null;
+			assignee = faker.datatype.boolean({ probability: 0.6 })
+				? faker.helpers.arrayElement(users)
+				: null;
+		}
+	} else {
+		// Fallback if no teams exist – behave like before.
+		const currentUser = users[0];
+		owner = faker.datatype.boolean()
+			? faker.helpers.arrayElement(users)
+			: null;
+		assignee = faker.datatype.boolean({ probability: 0.8 })
+			? faker.helpers.arrayElement([currentUser, currentUser, ...users])
+			: null;
+	}
 
 	const task: Task = {
 		id: faker.string.uuid(),
@@ -75,10 +124,8 @@ function generateTask(
 		parent,
 		title: faker.company.catchPhrase(),
 		description: faker.lorem.paragraphs({ min: 1, max: 3 }),
-		owner: faker.datatype.boolean() ? faker.helpers.arrayElement(users) : null,
-		assignee: faker.datatype.boolean({ probability: 0.7 })
-			? faker.helpers.arrayElement(users)
-			: null,
+		owner,
+		assignee,
 		phase: null,
 		status: faker.helpers.arrayElement([...TASK_STATUS]),
 		priority: faker.helpers.arrayElement([...TASK_PRIORITY]),
@@ -99,6 +146,7 @@ function generateTask(
 		task.subTasks = Array.from({ length: subTaskCount }, () =>
 			generateTask(
 				users,
+				teams,
 				labels,
 				{ type: "task", linkedId: task.id },
 				depth + 1,
@@ -112,9 +160,10 @@ function generateTask(
 function generateTasks(
 	count: number,
 	users: User[],
+	teams: Team[],
 	labels: TaskLabel[],
 ): Task[] {
-	return Array.from({ length: count }, () => generateTask(users, labels));
+	return Array.from({ length: count }, () => generateTask(users, teams, labels));
 }
 
 function flattenTasks(tasks: Task[]): Task[] {
@@ -160,6 +209,27 @@ function generateCompetition(users: User[]): Competition {
 	const leadDelegate = faker.helpers.arrayElement(users);
 	const organisers = faker.helpers.arrayElements(users, { min: 2, max: 5 });
 
+	const progressUpdates: ProgressUpdate[] = [];
+	if (faker.datatype.boolean({ probability: 0.7 })) {
+		const updateCount = faker.number.int({ min: 1, max: 3 });
+		for (let i = 0; i < updateCount; i++) {
+			const author = faker.helpers.arrayElement(users);
+			progressUpdates.push({
+				id: faker.string.uuid(),
+				timestamp: faker.date
+					.recent({ days: 14, refDate: compStart })
+					.toISOString(),
+				postedBy: author,
+				status: faker.helpers.arrayElement<ProgressUpdate["status"]>([
+					"on-track",
+					"at-risk",
+					"off-track",
+				]),
+				message: faker.lorem.sentence(),
+			});
+		}
+	}
+
 	return {
 		id: faker.string.uuid(),
 		name,
@@ -171,7 +241,7 @@ function generateCompetition(users: User[]): Competition {
 		organisers,
 		phases,
 		currentPhaseIdx,
-		progressUpdates: [],
+		progressUpdates,
 		compSheet: faker.datatype.boolean()
 			? { type: "google-sheet", sheetId: faker.string.alphanumeric(32) }
 			: null,
@@ -186,9 +256,9 @@ function generateCompetitions(count: number, users: User[]): Competition[] {
 }
 
 const mockUsers = generateUsers(10);
-const mockTeams = generateTeams(mockUsers, 5);
+const mockTeams = generateTeams(mockUsers, 3);
 const mockLabels = [...DEFAULT_LABELS];
-const mockTasks = flattenTasks(generateTasks(20, mockUsers, mockLabels));
+const mockTasks = flattenTasks(generateTasks(40, mockUsers, mockTeams, mockLabels));
 const mockCompetitions = generateCompetitions(15, mockUsers);
 
 type DataStoreV2 = {

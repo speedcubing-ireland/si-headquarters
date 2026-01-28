@@ -31,6 +31,7 @@ import type {
 	TaskLabel,
 	TaskPriority,
 	TaskStatus,
+	Team,
 	User,
 } from "@/data/types-new";
 import { TASK_PRIORITY, TASK_STATUS } from "@/data/types-new";
@@ -56,6 +57,7 @@ export function TaskModal({
 	onSave,
 }: TaskModalProps) {
 	const users = useDataV2((state) => state.users);
+	const teams = useDataV2((state) => state.teams);
 	const labels = useDataV2((state) => state.labels);
 	const addTask = useDataV2((state) => state.addTask);
 	const updateTask = useDataV2((state) => state.updateTask);
@@ -67,6 +69,7 @@ export function TaskModal({
 		task?.priority ?? "medium",
 	);
 	const [assignee, setAssignee] = useState<User | null>(task?.assignee ?? null);
+	const [owner, setOwner] = useState<Team | User | null>(task?.owner ?? null);
 	const [selectedLabels, setSelectedLabels] = useState<TaskLabel[]>(
 		task?.labels ?? [],
 	);
@@ -84,6 +87,7 @@ export function TaskModal({
 			setStatus("to-do");
 			setPriority("medium");
 			setAssignee(null);
+			setOwner(null);
 			setSelectedLabels([]);
 			setDueDate(undefined);
 		} else if (open && mode === "edit" && task) {
@@ -92,6 +96,7 @@ export function TaskModal({
 			setStatus(task.status);
 			setPriority(task.priority);
 			setAssignee(task.assignee);
+			setOwner(task.owner);
 			setSelectedLabels(task.labels);
 			setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
 		}
@@ -105,7 +110,7 @@ export function TaskModal({
 				parent,
 				title: title.trim(),
 				description,
-				owner: null,
+				owner,
 				assignee,
 				phase: null,
 				status,
@@ -124,6 +129,7 @@ export function TaskModal({
 				status,
 				priority,
 				assignee,
+				owner,
 				labels: selectedLabels,
 				dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : null,
 			});
@@ -245,6 +251,77 @@ export function TaskModal({
 									</div>
 								</SelectItem>
 							))}
+						</SelectContent>
+					</Select>
+
+					<Select
+						value={
+							owner
+								? "members" in owner
+									? `team:${owner.id}`
+									: `user:${owner.id}`
+								: "unassigned"
+						}
+						onValueChange={(v) => {
+							if (v === "unassigned") {
+								setOwner(null);
+								return;
+							}
+							if (v.startsWith("team:")) {
+								const id = v.slice("team:".length);
+								const team = teams.find((t) => t.id === id) ?? null;
+								setOwner(team);
+								return;
+							}
+							if (v.startsWith("user:")) {
+								const id = v.slice("user:".length);
+								const user = users.find((u) => u.id === id) ?? null;
+								setOwner(user);
+							}
+						}}
+					>
+						<SelectTrigger className="w-auto h-8 gap-1">
+							<SelectValue placeholder="Owner" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="unassigned">Owner: Unassigned</SelectItem>
+							{teams.length > 0 && (
+								<>
+									<SelectItem value="__teams_header" disabled>
+										Teams
+									</SelectItem>
+									{teams.map((team) => (
+										<SelectItem key={team.id} value={`team:${team.id}`}>
+											<div className="flex items-center gap-2">
+												<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+													T
+												</span>
+												{team.name}
+											</div>
+										</SelectItem>
+									))}
+								</>
+							)}
+							{users.length > 0 && (
+								<>
+									<SelectItem value="__users_header" disabled>
+										Individuals
+									</SelectItem>
+									{users.map((user) => (
+										<SelectItem key={user.id} value={`user:${user.id}`}>
+											<div className="flex items-center gap-2">
+												<Avatar className="size-4">
+													<AvatarImage src={user.avatarUrl} />
+													<AvatarFallback className="text-[8px]">
+														{getInitials(user.name)}
+													</AvatarFallback>
+												</Avatar>
+												{user.name}
+											</div>
+										</SelectItem>
+									))}
+								</>
+							)}
 						</SelectContent>
 					</Select>
 

@@ -191,7 +191,7 @@ function RouteComponent() {
 	}
 
 	return (
-		<>
+		<div className="flex h-full min-h-0 flex-1 flex-col">
 			<PageHeader
 				onAddTask={() => setIsModalOpen(true)}
 				views={savedViews.views}
@@ -256,12 +256,14 @@ function RouteComponent() {
 			) : (
 				<Filters />
 			)}
-			<TasksDataTable columns={taskColumns} />
+			<div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+				<TasksDataTable columns={taskColumns} />
+			</div>
 			<TaskModal
 				open={isModalOpen}
 				onOpenChange={setIsModalOpen}
 				mode="create"
 			/>
-		</>
+		</div>
 	);
 }

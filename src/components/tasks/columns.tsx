@@ -141,6 +141,42 @@ function createSortableColumn(
 	};
 }
 
+const ownerGroupRenderer: GroupValueRenderer = (_value, row) => {
+	const leafRows = row.getLeafRows();
+	if (leafRows.length === 0) {
+		return <span className="text-muted-foreground">Unassigned</span>;
+	}
+	const firstRow = leafRows[0];
+	const owner = firstRow.original.owner;
+	if (!owner) {
+		return <span className="text-muted-foreground font-bold">Unassigned</span>;
+	}
+	if ("members" in owner) {
+		return (
+			<span className="font-bold">
+				Team:{" "}
+				<span className="inline-flex items-center gap-1">
+					<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+						T
+					</span>
+					{owner.name}
+				</span>
+			</span>
+		);
+	}
+	return (
+		<div className="flex items-center gap-1.5">
+			<Avatar className="size-5">
+				<AvatarImage src={owner.avatarUrl} alt={owner.name} />
+				<AvatarFallback className="text-[10px]">
+					{getInitials(owner.name)}
+				</AvatarFallback>
+			</Avatar>
+			<span className="font-bold">{owner.name}</span>
+		</div>
+	);
+};
+
 function TaskTitleCell({ row }: { row: Row<Task> }) {
 	const task = row.original;
 	const parent = useDataV2((state) => state.getTaskParent(task));
@@ -230,6 +266,48 @@ export const taskColumns: ColumnDef<Task>[] = [
 			} as ColumnDef<Task>["meta"],
 		},
 	),
+	{
+		accessorKey: "owner",
+		header: "Owner",
+		cell: ({ row }) => {
+			const owner = row.original.owner;
+			if (!owner) {
+				return (
+					<span className="text-xs text-muted-foreground">Unassigned</span>
+				);
+			}
+			if ("members" in owner) {
+				return (
+					<Link
+						to="/teams/$teamId"
+						params={{ teamId: owner.id }}
+						className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted"
+					>
+						<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+							T
+						</span>
+						<span className="truncate max-w-[140px]">{owner.name}</span>
+					</Link>
+				);
+			}
+			return (
+				<div className="flex items-center gap-1.5">
+					<Avatar className="size-4">
+						<AvatarImage src={owner.avatarUrl} alt={owner.name} />
+						<AvatarFallback className="text-[8px]">
+							{getInitials(owner.name)}
+						</AvatarFallback>
+					</Avatar>
+					<span className="text-xs truncate max-w-[140px]">
+						{owner.name}
+					</span>
+				</div>
+			);
+		},
+		meta: {
+			groupValueRenderer: ownerGroupRenderer,
+		} as ColumnDef<Task>["meta"],
+	},
 	{
 		accessorKey: "assignee",
 		accessorFn: (row) => row.assignee?.name ?? "Unassigned",

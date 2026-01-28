@@ -113,9 +113,9 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 	}, [groupingState, table]);
 
 	return (
-		<div className="w-full overflow-auto">
+		<div className="w-full">
 			<Table>
-				<TableHeader className="bg-background sticky top-0 z-10">
+				<TableHeader className="bg-background sticky top-0 z-0 border-b">
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow key={headerGroup.id} className="border-b">
 							{headerGroup.headers.map((header) => {

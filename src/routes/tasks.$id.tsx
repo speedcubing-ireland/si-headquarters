@@ -1,13 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, MoreHorizontal, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { EditableTaskStatus } from "@/components/tasks/editable-cells";
 import { TaskModal } from "@/components/tasks/task-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -17,7 +20,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useDataV2 } from "@/data/data-store-v2";
-import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
+import type {
+	Task,
+	TaskLabel,
+	TaskPriority,
+	TaskStatus,
+	Team,
+	User,
+} from "@/data/types-new";
 import { TASK_PRIORITY, TASK_STATUS } from "@/data/types-new";
 import {
 	priorityLabels,
@@ -49,6 +59,21 @@ function TaskHeader({ task }: { task: Task }) {
 			<span className="text-sm font-mono text-muted-foreground">
 				{task.identifier}
 			</span>
+			{task.owner && "members" in task.owner && (
+				<>
+					<Separator orientation="vertical" className="mx-2 h-4" />
+					<Link
+						to="/teams/$teamId"
+						params={{ teamId: task.owner.id }}
+						className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted ml-1"
+					>
+						<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+							T
+						</span>
+						<span className="truncate max-w-[160px]">{task.owner.name}</span>
+					</Link>
+				</>
+			)}
 			<div className="ml-auto flex items-center gap-2">
 				<Button variant="ghost" size="icon">
 					<MoreHorizontal className="size-4" />
@@ -71,6 +96,8 @@ function TaskProperties({
 	onUpdate: (updates: Partial<Task>) => void;
 }) {
 	const users = useDataV2((state) => state.users);
+	const teams = useDataV2((state) => state.teams);
+	const labels = useDataV2((state) => state.labels);
 
 	const StatusIcon = getStatusIcon(task.status);
 	const PriorityIcon = getPriorityIcon(task.priority);
@@ -106,6 +133,107 @@ function TaskProperties({
 								</SelectItem>
 							);
 						})}
+					</SelectContent>
+				</Select>
+			</div>
+
+			<div>
+				<Label className="text-xs text-muted-foreground mb-1 block">
+					Owner
+				</Label>
+				<Select
+					value={
+						task.owner
+							? "members" in task.owner
+								? `team:${task.owner.id}`
+								: `user:${task.owner.id}`
+							: "unassigned"
+					}
+					onValueChange={(v) => {
+						if (v === "unassigned") {
+							onUpdate({ owner: null });
+							return;
+						}
+						if (v.startsWith("team:")) {
+							const id = v.slice("team:".length);
+							const team: Team | null =
+								teams.find((t) => t.id === id) ?? null;
+							onUpdate({ owner: team });
+							return;
+						}
+						if (v.startsWith("user:")) {
+							const id = v.slice("user:".length);
+							const user: User | null =
+								users.find((u) => u.id === id) ?? null;
+							onUpdate({ owner: user });
+						}
+					}}
+				>
+					<SelectTrigger className="w-full h-8">
+						{task.owner ? (
+							"members" in task.owner ? (
+								<div className="flex items-center gap-2">
+									<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+										T
+									</span>
+									<span className="text-sm">{task.owner.name}</span>
+								</div>
+							) : (
+								<div className="flex items-center gap-2">
+									<Avatar className="size-4">
+										<AvatarImage src={task.owner.avatarUrl} />
+										<AvatarFallback className="text-[8px]">
+											{getInitials(task.owner.name)}
+										</AvatarFallback>
+									</Avatar>
+									<span className="text-sm">{task.owner.name}</span>
+								</div>
+							)
+						) : (
+							<span className="text-muted-foreground text-sm">
+								Unassigned
+							</span>
+						)}
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="unassigned">Unassigned</SelectItem>
+						{teams.length > 0 && (
+							<>
+								<SelectItem value="__teams_header" disabled>
+									Teams
+								</SelectItem>
+								{teams.map((team) => (
+									<SelectItem key={team.id} value={`team:${team.id}`}>
+										<div className="flex items-center gap-2">
+											<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+												T
+											</span>
+											{team.name}
+										</div>
+									</SelectItem>
+								))}
+							</>
+						)}
+						{users.length > 0 && (
+							<>
+								<SelectItem value="__users_header" disabled>
+									Individuals
+								</SelectItem>
+								{users.map((user) => (
+									<SelectItem key={user.id} value={`user:${user.id}`}>
+										<div className="flex items-center gap-2">
+											<Avatar className="size-4">
+												<AvatarImage src={user.avatarUrl} />
+												<AvatarFallback className="text-[8px]">
+													{getInitials(user.name)}
+												</AvatarFallback>
+											</Avatar>
+											{user.name}
+										</div>
+									</SelectItem>
+								))}
+							</>
+						)}
 					</SelectContent>
 				</Select>
 			</div>
@@ -197,17 +325,34 @@ function TaskProperties({
 			<div>
 				<span className="text-xs text-muted-foreground mb-1 block">Labels</span>
 				<div className="flex flex-wrap gap-1">
-					{task.labels.length > 0 ? (
-						task.labels.map((label) => (
-							<Badge
+					{labels.map((label) => {
+						const isSelected = task.labels.some((l) => l.id === label.id);
+						return (
+							<button
 								key={label.id}
-								className="text-[10px]"
-								style={{ backgroundColor: label.color, color: "#fff" }}
+								type="button"
+								onClick={() => {
+									const nextLabels: TaskLabel[] = isSelected
+										? task.labels.filter((l) => l.id !== label.id)
+										: [...task.labels, label];
+									onUpdate({ labels: nextLabels });
+								}}
+								className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
 							>
-								{label.name}
-							</Badge>
-						))
-					) : (
+								<Badge
+									className="text-[10px]"
+									style={{
+										backgroundColor: label.color,
+										color: "#fff",
+										opacity: isSelected ? 1 : 0.4,
+									}}
+								>
+									{label.name}
+								</Badge>
+							</button>
+						);
+					})}
+					{labels.length === 0 && (
 						<span className="text-sm text-muted-foreground">No labels</span>
 					)}
 				</div>
@@ -217,9 +362,38 @@ function TaskProperties({
 				<span className="text-xs text-muted-foreground mb-1 block">
 					Due date
 				</span>
-				<span className="text-sm">
-					{task.dueDate ? formatDate(task.dueDate) : "No due date"}
-				</span>
+				<Popover>
+					<PopoverTrigger asChild>
+						<Button variant="outline" size="sm" className="w-full justify-start">
+							{task.dueDate ? formatDate(task.dueDate) : "Set due date"}
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent align="end" className="p-2">
+						<div className="flex flex-col gap-2">
+							<Calendar
+								mode="single"
+								selected={
+									task.dueDate ? new Date(task.dueDate) : undefined
+								}
+								onSelect={(date) => {
+									onUpdate({
+										dueDate: date
+											? date.toISOString().split("T")[0]
+											: null,
+									});
+								}}
+							/>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="self-start"
+								onClick={() => onUpdate({ dueDate: null })}
+							>
+								Clear due date
+							</Button>
+						</div>
+					</PopoverContent>
+				</Popover>
 			</div>
 
 			<Separator />
@@ -247,6 +421,7 @@ function SubTasksList({ task }: { task: Task }) {
 	// `getTaskChildren()` creates a new array every call, which triggers the
 	// "getSnapshot should be cached" dev error. Subscribe to `tasks` and derive.
 	const tasks = useDataV2((state) => state.tasks);
+	const getSubtaskProgress = useDataV2((state) => state.getSubtaskProgress);
 	const subTasks = useMemo(
 		() =>
 			tasks.filter(
@@ -255,9 +430,18 @@ function SubTasksList({ task }: { task: Task }) {
 		[tasks, task.id],
 	);
 
+	const progress = getSubtaskProgress(task.id);
+
 	return (
 		<div className="mt-6">
-			<h3 className="text-sm font-medium mb-2">Sub-tasks</h3>
+			<div className="flex items-center justify-between mb-2">
+				<h3 className="text-sm font-medium">Sub-tasks</h3>
+				{progress.total > 0 && (
+					<span className="text-xs text-muted-foreground">
+						{progress.done}/{progress.total} done
+					</span>
+				)}
+			</div>
 			<div className="space-y-2">
 				{subTasks.map((subTask) => {
 					return (
@@ -379,7 +563,25 @@ function RouteComponent() {
 						</button>
 					)}
 
-					<div className="mt-4">
+					<div className="mt-4 space-y-2">
+						<div className="flex items-center justify-between">
+							<h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+								Description
+							</h2>
+							{!isEditingDescription && (
+								<Button
+									size="xs"
+									variant="ghost"
+									className="h-7 px-2 text-xs"
+									onClick={() => {
+										setEditedDescription(task.description);
+										setIsEditingDescription(true);
+									}}
+								>
+									Edit
+								</Button>
+							)}
+						</div>
 						{isEditingDescription ? (
 							<Textarea
 								value={editedDescription}
@@ -389,6 +591,10 @@ function RouteComponent() {
 								placeholder="Add description..."
 								autoFocus
 							/>
+						) : task.description ? (
+							<div className="prose prose-invert max-w-none text-sm">
+								<ReactMarkdown>{task.description}</ReactMarkdown>
+							</div>
 						) : (
 							<button
 								type="button"
@@ -397,15 +603,8 @@ function RouteComponent() {
 									setEditedDescription(task.description);
 									setIsEditingDescription(true);
 								}}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										setEditedDescription(task.description);
-										setIsEditingDescription(true);
-									}
-								}}
 							>
-								{task.description || "Click to add description..."}
+								Click to add description...
 							</button>
 						)}
 					</div>
@@ -416,9 +615,36 @@ function RouteComponent() {
 						<h3 className="text-sm font-medium text-muted-foreground mb-4">
 							Activity
 						</h3>
-						<p className="text-sm text-muted-foreground">
-							Activity timeline coming soon...
-						</p>
+						<ul className="space-y-2 text-sm text-muted-foreground">
+							<li>
+								<span className="font-medium text-foreground">
+									Task created
+								</span>{" "}
+								on {formatDate(task.createdAt)}
+							</li>
+							<li>
+								<span className="font-medium text-foreground">
+									Last updated
+								</span>{" "}
+								on {formatDate(task.updatedAt)}
+							</li>
+							{task.assignee && (
+								<li>
+									Assigned to{" "}
+									<span className="font-medium text-foreground">
+										{task.assignee.name}
+									</span>
+								</li>
+							)}
+							{task.dueDate && (
+								<li>
+									Due date set to{" "}
+									<span className="font-medium text-foreground">
+										{formatDate(task.dueDate)}
+									</span>
+								</li>
+							)}
+						</ul>
 					</div>
 				</div>
 

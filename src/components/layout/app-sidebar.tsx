@@ -1,13 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import {
-	Blocks,
-	Box,
-	CircleCheck,
-	ClipboardList,
-	Inbox,
-	KanbanSquare,
-	ListTodo,
-} from "lucide-react";
+import { Blocks, Box, CircleCheck, Inbox, ListTodo, Users } from "lucide-react";
 import { NavSecondary } from "@/components/layout/nav-secondary";
 import {
 	NavSection,
@@ -23,6 +15,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useDataV2 } from "@/data/data-store-v2";
 
 const navSections = [
 	{
@@ -31,13 +24,13 @@ const navSections = [
 			{
 				type: "item",
 				name: "My Tasks",
-				url: ".",
+				url: { to: "/tasks/my" },
 				icon: CircleCheck,
 			},
 			{
 				type: "item",
 				name: "Inbox",
-				url: ".",
+				url: { to: "/inbox" },
 				icon: Inbox,
 			},
 		],
@@ -59,87 +52,17 @@ const navSections = [
 					},
 					{
 						title: "Calendar",
-						url: ".",
+						url: {
+							to: "/competitions",
+						},
 					},
 				],
-			},
-			{
-				type: "item",
-				name: "Projects",
-				url: ".",
-				icon: KanbanSquare,
 			},
 			{
 				type: "item",
 				name: "Tasks",
 				url: { to: "/tasks" },
 				icon: ListTodo,
-			},
-			{
-				type: "dropdown",
-				title: "Saved Views",
-				icon: ClipboardList,
-				items: [
-					{
-						title: "Needs Review",
-						url: ".",
-					},
-					{
-						title: "Certs",
-						url: ".",
-					},
-					{
-						title: "Sponsorship",
-						url: ".",
-					},
-				],
-			},
-		],
-	},
-	{
-		title: "Teams",
-		items: [
-			{
-				type: "dropdown",
-				title: "Competitions",
-				items: [
-					{
-						title: "Tasks",
-						url: ".",
-					},
-					{
-						title: "Shared Views",
-						url: ".",
-					},
-				],
-			},
-			{
-				type: "dropdown",
-				title: "Social Media",
-				items: [
-					{
-						title: "Tasks",
-						url: ".",
-					},
-					{
-						title: "Shared Views",
-						url: ".",
-					},
-				],
-			},
-			{
-				type: "dropdown",
-				title: "Merchandise",
-				items: [
-					{
-						title: "Tasks",
-						url: ".",
-					},
-					{
-						title: "Shared Views",
-						url: ".",
-					},
-				],
 			},
 		],
 	},
@@ -152,6 +75,31 @@ const userData = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+	const teams = useDataV2((state) => state.teams);
+
+	const teamSections: NavSectionData[] =
+		teams.length === 0
+			? []
+			: [
+					{
+						title: "Teams",
+						items: teams.slice(0, 3).map((team) => ({
+							type: "dropdown",
+							title: team.name,
+							icon: Users,
+							items: [
+								{
+									title: "Tasks",
+									url: {
+										to: "/teams/$teamId",
+										params: { teamId: team.id },
+									},
+								},
+							],
+						})),
+					},
+				];
+
 	return (
 		<Sidebar variant="inset" {...props}>
 			<SidebarHeader>
@@ -175,6 +123,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarHeader>
 			<SidebarContent>
 				{navSections.map((section) => (
+					<NavSection key={section.title} {...section} />
+				))}
+				{teamSections.map((section) => (
 					<NavSection key={section.title} {...section} />
 				))}
 				<NavSecondary className="mt-auto" />
