@@ -1,3 +1,4 @@
+import { FilterOptionRow } from "@/components/competitions/filter-option-row";
 import {
 	Command,
 	CommandEmpty,
@@ -10,9 +11,7 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Priority, Status } from "@/data/types";
-import { FilterOptionRow } from "@/components/competitions/filter-option-row";
-import { useData } from "@/data/data-store";
+import { useDataV2 } from "@/data/data-store-v2";
 import {
 	type FilterType,
 	filterConfigs,
@@ -26,14 +25,14 @@ type FilterValueSelectorProps<T> = {
 	children: React.ReactNode;
 };
 
-export function FilterValueSelector<T extends Status | Priority | string>({
+export function FilterValueSelector<T extends string>({
 	type,
 	selectedValues,
 	onToggleValue,
 	children,
 }: FilterValueSelectorProps<T>) {
 	const config = filterConfigs[type];
-	const users = useData((state) => state.users);
+	const users = useDataV2((state) => state.users);
 	const options = getFilterOptions(type, users);
 
 	return (

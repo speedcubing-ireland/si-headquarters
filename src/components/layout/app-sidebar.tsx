@@ -72,7 +72,7 @@ const navSections = [
 			{
 				type: "item",
 				name: "Tasks",
-				url: ".",
+				url: { to: "/tasks" },
 				icon: ListTodo,
 			},
 			{

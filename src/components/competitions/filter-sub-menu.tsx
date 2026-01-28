@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { FilterOptionRow } from "@/components/competitions/filter-option-row";
 import {
 	Command,
 	CommandEmpty,
@@ -11,8 +12,7 @@ import {
 	DropdownMenuSubContent,
 	DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FilterOptionRow } from "@/components/competitions/filter-option-row";
-import { useData } from "@/data/data-store";
+import { useDataV2 } from "@/data/data-store-v2";
 import {
 	type FilterType,
 	filterConfigs,
@@ -37,7 +37,7 @@ export function FilterSubMenu({
 	selectedValues,
 }: FilterSubMenuProps) {
 	const config = filterConfigs[type];
-	const users = useData((state) => state.users);
+	const users = useDataV2((state) => state.users);
 	const options = getFilterOptions(type, users);
 
 	return (

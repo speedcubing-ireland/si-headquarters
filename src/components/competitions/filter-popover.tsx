@@ -1,12 +1,6 @@
-import {
-	Calendar,
-	CircleCheck,
-	ListFilter,
-	SignalHigh,
-	User,
-} from "lucide-react";
+import { Calendar, User } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { SharedFilterPopoverTrigger } from "@/components/shared/filters/filter-popover";
 import {
 	Command,
 	CommandGroup,
@@ -24,21 +18,23 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getActiveFiltersCount as getActiveFiltersCountFromFilters } from "@/lib/competitions-filters";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
-import {
-	getActiveFiltersCount as getActiveFiltersCountFromFilters,
-} from "@/lib/competitions-filters";
 import { FilterSubMenu } from "./filter-sub-menu";
 
 export function FilterPopover() {
 	const filters = useCompetitionsFilterStore((state) => state.filters);
-	const toggleFilter = useCompetitionsFilterStore((state) => state.toggleFilter);
-	const clearFilters = useCompetitionsFilterStore((state) => state.clearFilters);
+	const toggleFilter = useCompetitionsFilterStore(
+		(state) => state.toggleFilter,
+	);
+	const clearFilters = useCompetitionsFilterStore(
+		(state) => state.clearFilters,
+	);
 	const setFilter = useCompetitionsFilterStore((state) => state.setFilter);
 	const [open, setOpen] = useState(false);
 
 	const handleToggleFilter = (
-		type: "status" | "priority" | "leads",
+		type: "phase" | "compLead" | "leadDelegate" | "organisers",
 		value: string,
 	) => {
 		toggleFilter(type, value);
@@ -46,7 +42,7 @@ export function FilterPopover() {
 	};
 
 	const getSelectedValues = (
-		type: "status" | "priority" | "leads",
+		type: "phase" | "compLead" | "leadDelegate" | "organisers",
 	): string[] => {
 		return filters[type].flatMap((item) => item.values);
 	};
@@ -54,38 +50,43 @@ export function FilterPopover() {
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button size="sm" variant="ghost">
-					<ListFilter className="size-4" />
-					{getActiveFiltersCountFromFilters(filters) === 0 && (
-						<span className="ml-1">Filter</span>
-					)}
-				</Button>
+				<SharedFilterPopoverTrigger
+					count={getActiveFiltersCountFromFilters(filters)}
+				/>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-60" align="start">
 				<DropdownMenuGroup>
 					<FilterSubMenu
-						type="status"
-						icon={CircleCheck}
-						label="Status"
-						filterCount={filters.status.length}
+						type="phase"
+						icon={Calendar}
+						label="Phase"
+						filterCount={filters.phase.length}
 						onToggleFilter={handleToggleFilter}
-						selectedValues={getSelectedValues("status")}
+						selectedValues={getSelectedValues("phase")}
 					/>
 					<FilterSubMenu
-						type="priority"
-						icon={SignalHigh}
-						label="Priority"
-						filterCount={filters.priority.length}
-						onToggleFilter={handleToggleFilter}
-						selectedValues={getSelectedValues("priority")}
-					/>
-					<FilterSubMenu
-						type="leads"
+						type="compLead"
 						icon={User}
-						label="Lead"
-						filterCount={filters.leads.length}
+						label="Comp lead"
+						filterCount={filters.compLead.length}
 						onToggleFilter={handleToggleFilter}
-						selectedValues={getSelectedValues("leads")}
+						selectedValues={getSelectedValues("compLead")}
+					/>
+					<FilterSubMenu
+						type="leadDelegate"
+						icon={User}
+						label="Lead delegate"
+						filterCount={filters.leadDelegate.length}
+						onToggleFilter={handleToggleFilter}
+						selectedValues={getSelectedValues("leadDelegate")}
+					/>
+					<FilterSubMenu
+						type="organisers"
+						icon={User}
+						label="Organiser"
+						filterCount={filters.organisers.length}
+						onToggleFilter={handleToggleFilter}
+						selectedValues={getSelectedValues("organisers")}
 					/>
 					<DropdownMenuSub>
 						<DropdownMenuSubTrigger>

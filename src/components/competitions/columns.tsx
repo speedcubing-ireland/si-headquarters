@@ -1,30 +1,37 @@
 import type { Column, ColumnDef, Row } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import type React from "react";
-import { Button } from "@/components/ui/button";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarGroup,
+	AvatarGroupCount,
+	AvatarImage,
+} from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import type { Priority, Project, Status, User } from "@/data/types";
-import { priorityOrder, statusOrder } from "@/lib/filter-config";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { Competition } from "@/data/types-new";
 import {
-	formatDate,
-	getPriorityIcon,
-	priorityLabels,
-} from "@/lib/competitions-utils";
-import { getStatusClass, getStatusLabel } from "@/lib/status-config";
+	getCurrentPhaseKey,
+	getPhaseClass,
+	getPhaseLabel,
+} from "@/lib/competition-phase-config";
+import { formatDate, getInitials } from "@/lib/competitions-utils";
+import {
+	EditableCompLeadCell,
+	EditableLeadDelegateCell,
+	EditableOrganisersCell,
+	EditablePhaseCell,
+} from "./editable-phase-and-roles";
 import { LeadsDisplay } from "./leads-display";
-import {
-	DateDisplay,
-	EditableLead,
-	EditablePriority,
-	EditableStatus,
-} from "./editable-cells";
 
 // Sortable header component
 function SortableHeader({
 	column,
 	children,
 }: {
-	column: Column<Project, unknown>;
+	column: Column<Competition, unknown>;
 	children: React.ReactNode;
 }) {
 	const sorted = column.getIsSorted();
@@ -51,44 +58,24 @@ function SortableHeader({
 }
 
 type SortableColumnOptions = {
-	sortingFn?: ColumnDef<Project>["sortingFn"];
-	meta?: ColumnDef<Project>["meta"];
+	sortingFn?: ColumnDef<Competition>["sortingFn"];
+	meta?: ColumnDef<Competition>["meta"];
 };
 
-type GroupValueRenderer = (value: unknown, row: Row<Project>) => React.ReactNode;
+type GroupValueRenderer = (
+	value: unknown,
+	row: Row<Competition>,
+) => React.ReactNode;
+type TasksSummary = { open: number; total: number };
 
-const statusGroupRenderer: GroupValueRenderer = (value) => {
-	if (typeof value !== "string") return <span>{String(value)}</span>;
-	const status = value as Status;
-	return (
-		<Badge className={getStatusClass(status)}>
-			{getStatusLabel(status)}
-		</Badge>
-	);
-};
-
-const priorityGroupRenderer: GroupValueRenderer = (value) => {
-	if (typeof value !== "string") return <span>{String(value)}</span>;
-	const priority = value as Priority;
-	const Icon = getPriorityIcon(priority);
-	return (
-		<span className="flex items-center gap-1">
-			<Icon className="size-4" />
-			<span className="font-bold">{priorityLabels[priority]}</span>
-		</span>
-	);
-};
-
-const leadsGroupRenderer: GroupValueRenderer = (_value, row) => {
-	const leafRows = row.getLeafRows();
-	if (leafRows.length === 0) {
-		return <LeadsDisplay leads={[]} variant="summary" bold />;
-	}
-
-	const firstRow = leafRows[0];
-	const originalData = firstRow.original as Project;
-	const leads: User[] = originalData.leads || [];
-	return <LeadsDisplay leads={leads} variant="summary" bold />;
+const phaseGroupRenderer: GroupValueRenderer = (value, row) => {
+	// When grouped, `value` is the grouping value derived from the column accessor.
+	// Fall back to computing from a leaf row if needed.
+	const key =
+		typeof value === "string"
+			? (value as CompetitionPhaseKey)
+			: getCurrentPhaseKey(row.original);
+	return <Badge className={getPhaseClass(key)}>{getPhaseLabel(key)}</Badge>;
 };
 
 const dateGroupRenderer: GroupValueRenderer = (value) => {
@@ -106,12 +93,108 @@ const nameGroupRenderer: GroupValueRenderer = (value) => {
 	return <span className="font-bold">{value}</span>;
 };
 
+const tasksGroupRenderer: GroupValueRenderer = (_value, row) => {
+	const comp = row.original;
+	const summary = getTasksSummary(comp);
+	return (
+		<span className="font-mono text-xs">
+			{summary.open} / {summary.total} open
+		</span>
+	);
+};
+
+const organisersGroupRenderer: GroupValueRenderer = (_value, row) => {
+	const leafRows = row.getLeafRows();
+	const first = leafRows.length > 0 ? leafRows[0].original : row.original;
+	const organisers = first.organisers;
+	if (!organisers || organisers.length === 0) {
+		return <span className="text-muted-foreground">No organisers</span>;
+	}
+
+	const tooltipContent = (
+		<div className="flex flex-col gap-0.5">
+			{organisers
+				.map((o) => o.name)
+				.sort((a, b) => a.localeCompare(b))
+				.map((name) => (
+					<div key={name}>{name}</div>
+				))}
+		</div>
+	);
+
+	const avatarGroup = (
+		<AvatarGroup className="group-data-[size=sm]/avatar-group:*:data-[slot=avatar]:size-4">
+			{organisers.slice(0, 3).map((org) => (
+				<Avatar key={org.id} className="size-4">
+					<AvatarImage src={org.avatarUrl} alt={org.name} />
+					<AvatarFallback className="text-[10px]">
+						{getInitials(org.name)}
+					</AvatarFallback>
+				</Avatar>
+			))}
+			{organisers.length > 3 && (
+				<AvatarGroupCount className="size-4 text-[10px]">
+					+{organisers.length - 3}
+				</AvatarGroupCount>
+			)}
+		</AvatarGroup>
+	);
+
+	return (
+		<span className="flex items-center gap-1">
+			{organisers.length > 1 ? (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<span>{avatarGroup}</span>
+					</TooltipTrigger>
+					<TooltipContent sideOffset={6}>{tooltipContent}</TooltipContent>
+				</Tooltip>
+			) : (
+				avatarGroup
+			)}
+			{organisers.length === 1 && (
+				<span className="text-xs font-bold truncate max-w-[160px]">
+					{organisers[0].name}
+				</span>
+			)}
+		</span>
+	);
+};
+
+const ownerGroupRenderer: GroupValueRenderer = (_value, row) => {
+	const leafRows = row.getLeafRows();
+	const first = leafRows.length > 0 ? leafRows[0].original : row.original;
+	const lead = first.compLead;
+	if (!lead) {
+		return <span className="text-muted-foreground">Unassigned</span>;
+	}
+	return <LeadsDisplay leads={[lead]} variant="summary" bold />;
+};
+
+const leadDelegateGroupRenderer: GroupValueRenderer = (_value, row) => {
+	const leafRows = row.getLeafRows();
+	const first = leafRows.length > 0 ? leafRows[0].original : row.original;
+	const lead = first.leadDelegate;
+	if (!lead) {
+		return <span className="text-muted-foreground">Unassigned</span>;
+	}
+	return <LeadsDisplay leads={[lead]} variant="summary" bold />;
+};
+
+function getTasksSummary(comp: Competition): TasksSummary {
+	const total = comp.tasks.length;
+	const open = comp.tasks.filter(
+		(task) => task.status !== "done" && task.status !== "cancelled",
+	).length;
+	return { open, total };
+}
+
 function createSortableColumn(
-	accessorKey: keyof Project & string,
+	accessorKey: keyof Competition & string,
 	headerLabel: string,
-	cell: ColumnDef<Project>["cell"],
+	cell: ColumnDef<Competition>["cell"],
 	options: SortableColumnOptions = {},
-): ColumnDef<Project> {
+): ColumnDef<Competition> {
 	const { sortingFn, meta } = options;
 
 	return {
@@ -126,83 +209,120 @@ function createSortableColumn(
 	};
 }
 
-export const columns: ColumnDef<Project>[] = [
+export const columns: ColumnDef<Competition>[] = [
 	createSortableColumn(
-		"startDate",
-		"Date",
+		"compStart",
+		"Dates",
 		({ row }) => {
-			const date = row.getValue("startDate") as string | undefined;
-			return <DateDisplay date={date} />;
+			const start = row.original.compStart;
+			const end = row.original.compEnd;
+			return (
+				<span className="text-xs text-muted-foreground">
+					{formatDate(start)} – {formatDate(end)}
+				</span>
+			);
 		},
 		{
 			meta: {
 				groupValueRenderer: dateGroupRenderer,
-			} as ColumnDef<Project>["meta"],
+			} as ColumnDef<Competition>["meta"],
 		},
 	),
-	createSortableColumn("name", "Name", ({ row }) => {
-		const name = row.getValue("name") as string;
-		return <span className="font-bold truncate">{name}</span>;
-	}, {
-		meta: {
-			groupValueRenderer: nameGroupRenderer,
-		} as ColumnDef<Project>["meta"],
-	}),
-	createSortableColumn("status", "Status", ({ row }) => {
-		const status = row.getValue("status") as Status;
-		const project = row.original;
-		return <EditableStatus status={status} projectId={project.id} />;
-		}, {
-		sortingFn: (rowA, rowB) => {
-			const statusA = rowA.getValue("status") as Status;
-			const statusB = rowB.getValue("status") as Status;
-			return statusOrder[statusA] - statusOrder[statusB];
-		},
-		meta: {
-			groupValueRenderer: statusGroupRenderer,
-		} as ColumnDef<Project>["meta"],
-	}),
 	createSortableColumn(
-		"priority",
-		"Priority",
+		"name",
+		"Name",
 		({ row }) => {
-			const priority = row.getValue("priority") as Priority;
-			const project = row.original;
-			return <EditablePriority priority={priority} projectId={project.id} />;
+			const name = row.getValue("name") as string;
+			return <span className="font-bold truncate">{name}</span>;
 		},
 		{
-			sortingFn: (rowA, rowB) => {
-				const priorityA = rowA.getValue("priority") as Priority;
-				const priorityB = rowB.getValue("priority") as Priority;
-				return priorityOrder[priorityA] - priorityOrder[priorityB];
-			},
 			meta: {
-				groupValueRenderer: priorityGroupRenderer,
-			} as ColumnDef<Project>["meta"],
-		}
+				groupValueRenderer: nameGroupRenderer,
+			} as ColumnDef<Competition>["meta"],
+		},
 	),
 	{
-		accessorKey: "leads",
-		// Use accessorFn for grouping to properly compare array values
-		// Returns a sorted, comma-separated string of lead names for consistent grouping
-		accessorFn: (row) => {
-			const leads = row.leads;
-			if (!leads || leads.length === 0) return "No leads";
-			// Sort lead names to ensure consistent grouping regardless of order
-			return leads
-				.map((lead) => lead.name)
-				.sort()
-				.join(", ");
-		},
-		header: "Lead",
-		cell: ({ row }) => {
-			// Use row.original.leads since accessorFn returns a string for grouping
-			const leads = row.original.leads;
-			const project = row.original;
-			return <EditableLead leads={leads} projectId={project.id} />;
+		id: "phases",
+		accessorFn: (row) => getCurrentPhaseKey(row),
+		getGroupingValue: (row) => getCurrentPhaseKey(row),
+		header: ({ column }) => (
+			<SortableHeader column={column}>Phase</SortableHeader>
+		),
+		cell: ({ row }) => <EditablePhaseCell competition={row.original} />,
+		enableSorting: true,
+		sortingFn: (rowA, rowB) => {
+			const a = getCurrentPhaseKey(rowA.original);
+			const b = getCurrentPhaseKey(rowB.original);
+			return String(a).localeCompare(String(b));
 		},
 		meta: {
-			groupValueRenderer: leadsGroupRenderer,
-		} as ColumnDef<Project>["meta"],
+			groupValueRenderer: phaseGroupRenderer,
+		} as ColumnDef<Competition>["meta"],
+	},
+	{
+		id: "compLead",
+		accessorFn: (row) => row.compLead?.name ?? "Unassigned",
+		getGroupingValue: (row) => row.compLead?.id ?? "unassigned",
+		header: ({ column }) => (
+			<SortableHeader column={column}>Comp lead</SortableHeader>
+		),
+		cell: ({ row }) => <EditableCompLeadCell competition={row.original} />,
+		enableSorting: true,
+		meta: {
+			groupValueRenderer: ownerGroupRenderer,
+		} as ColumnDef<Competition>["meta"],
+	},
+	{
+		id: "leadDelegate",
+		accessorFn: (row) => row.leadDelegate?.name ?? "Unassigned",
+		getGroupingValue: (row) => row.leadDelegate?.id ?? "unassigned",
+		header: ({ column }) => (
+			<SortableHeader column={column}>Lead delegate</SortableHeader>
+		),
+		cell: ({ row }) => <EditableLeadDelegateCell competition={row.original} />,
+		enableSorting: true,
+		meta: {
+			groupValueRenderer: leadDelegateGroupRenderer,
+		} as ColumnDef<Competition>["meta"],
+	},
+	{
+		id: "organisers",
+		accessorFn: (row) =>
+			row.organisers.length > 0
+				? row.organisers
+						.map((u) => u.name)
+						.sort((a, b) => a.localeCompare(b))
+						.join(", ")
+				: "No organisers",
+		getGroupingValue: (row) =>
+			row.organisers.length > 0
+				? row.organisers
+						.map((u) => u.id)
+						.sort((a, b) => a.localeCompare(b))
+						.join(",")
+				: "none",
+		header: "Organisers",
+		cell: ({ row }) => <EditableOrganisersCell competition={row.original} />,
+		enableSorting: true,
+		meta: {
+			groupValueRenderer: organisersGroupRenderer,
+		} as ColumnDef<Competition>["meta"],
+	},
+	{
+		id: "tasks",
+		accessorFn: (row) => getTasksSummary(row).open,
+		header: "Tasks",
+		cell: ({ row }) => {
+			const summary = getTasksSummary(row.original);
+			return (
+				<span className="font-mono text-xs">
+					{summary.open} / {summary.total}
+				</span>
+			);
+		},
+		meta: {
+			groupValueRenderer: tasksGroupRenderer,
+		} as ColumnDef<Competition>["meta"],
+		enableSorting: true,
 	},
 ];

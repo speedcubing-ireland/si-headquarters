@@ -1,11 +1,11 @@
-import type { Status } from "@/data/types";
+import type { Competition, CompetitionPhaseKey } from "@/data/types-new";
 
-export interface StatusConfig {
+export interface PhaseConfig {
 	label: string;
 	className: string;
 }
 
-export const statusConfig: Record<Status, StatusConfig> = {
+export const phaseConfig: Record<CompetitionPhaseKey, PhaseConfig> = {
 	concept: {
 		label: "Concept",
 		className:
@@ -38,16 +38,24 @@ export const statusConfig: Record<Status, StatusConfig> = {
 	},
 };
 
-/**
- * Get status class name for styling badges
- */
-export function getStatusClass(status: Status): string {
-	return statusConfig[status].className;
+export function getPhaseClass(key: CompetitionPhaseKey): string {
+	return phaseConfig[key].className;
 }
 
-/**
- * Get status label
- */
-export function getStatusLabel(status: Status): string {
-	return statusConfig[status].label;
+export function getPhaseLabel(key: CompetitionPhaseKey): string {
+	return phaseConfig[key].label;
+}
+
+export function getCurrentPhaseKey(
+	competition: Competition,
+): CompetitionPhaseKey {
+	const phase = competition.phases[competition.currentPhaseIdx];
+	const name = phase?.name.toLowerCase() ?? "concept";
+	if (name.startsWith("concept")) return "concept";
+	if (name.startsWith("pre-announcement")) return "pre-announcement";
+	if (name.startsWith("post-announcement")) return "post-announcement";
+	if (name.startsWith("pre-competition")) return "pre-competition";
+	if (name.startsWith("post-competition")) return "post-competition";
+	if (name.startsWith("archive")) return "archive";
+	return "concept";
 }

@@ -9,10 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as CompetitionsRouteImport } from './routes/competitions'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TasksIdRouteImport } from './routes/tasks.$id'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions.$id'
 
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompetitionsRoute = CompetitionsRouteImport.update({
   id: '/competitions',
   path: '/competitions',
@@ -23,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TasksIdRoute = TasksIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TasksRoute,
+} as any)
 const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -32,34 +44,59 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/competitions': typeof CompetitionsRouteWithChildren
+  '/tasks': typeof TasksRouteWithChildren
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/competitions': typeof CompetitionsRouteWithChildren
+  '/tasks': typeof TasksRouteWithChildren
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/competitions': typeof CompetitionsRouteWithChildren
+  '/tasks': typeof TasksRouteWithChildren
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/competitions' | '/competitions/$id'
+  fullPaths:
+    | '/'
+    | '/competitions'
+    | '/tasks'
+    | '/competitions/$id'
+    | '/tasks/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/competitions' | '/competitions/$id'
-  id: '__root__' | '/' | '/competitions' | '/competitions/$id'
+  to: '/' | '/competitions' | '/tasks' | '/competitions/$id' | '/tasks/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/competitions'
+    | '/tasks'
+    | '/competitions/$id'
+    | '/tasks/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CompetitionsRoute: typeof CompetitionsRouteWithChildren
+  TasksRoute: typeof TasksRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/competitions': {
       id: '/competitions'
       path: '/competitions'
@@ -73,6 +110,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/tasks/$id': {
+      id: '/tasks/$id'
+      path: '/$id'
+      fullPath: '/tasks/$id'
+      preLoaderRoute: typeof TasksIdRouteImport
+      parentRoute: typeof TasksRoute
     }
     '/competitions/$id': {
       id: '/competitions/$id'
@@ -96,9 +140,20 @@ const CompetitionsRouteWithChildren = CompetitionsRoute._addFileChildren(
   CompetitionsRouteChildren,
 )
 
+interface TasksRouteChildren {
+  TasksIdRoute: typeof TasksIdRoute
+}
+
+const TasksRouteChildren: TasksRouteChildren = {
+  TasksIdRoute: TasksIdRoute,
+}
+
+const TasksRouteWithChildren = TasksRoute._addFileChildren(TasksRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CompetitionsRoute: CompetitionsRouteWithChildren,
+  TasksRoute: TasksRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

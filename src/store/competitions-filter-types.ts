@@ -1,22 +1,24 @@
-import type { Priority, Status } from "@/data/types";
+import type { CompetitionPhaseKey } from "@/data/types-new";
+import type {
+	DateRangeFilter,
+	FilterItem,
+	MatchMode,
+} from "@/store/shared-filter-types";
 
-export type MatchMode = "any" | "all";
-
-export type FilterItem<T> = {
-	values: T[];
-	isNot: boolean;
-};
-
-export type DateRangeFilter = {
-	start?: string;
-	end?: string;
-	isNot?: boolean;
-};
+export type { DateRangeFilter, FilterItem, MatchMode };
 
 export type CompetitionsFilters = {
-	status: FilterItem<Status>[];
-	priority: FilterItem<Priority>[];
-	leads: FilterItem<string>[];
+	phase: FilterItem<CompetitionPhaseKey>[];
+	compLead: FilterItem<string>[];
+	leadDelegate: FilterItem<string>[];
+	organisers: FilterItem<string>[];
 	dateRange?: DateRangeFilter;
 };
 
+export const emptyCompetitionsFilters: CompetitionsFilters = {
+	phase: [],
+	compLead: [],
+	leadDelegate: [],
+	organisers: [],
+	dateRange: undefined,
+};

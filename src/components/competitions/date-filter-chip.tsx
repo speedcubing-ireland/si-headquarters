@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/competitions-utils";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
+import type { DateRangeFilter } from "@/store/competitions-filter-types";
 
 interface DateFilterChipProps {
-	dateRange: { start?: string; end?: string; isNot?: boolean };
+	dateRange: DateRangeFilter;
 	onClear: () => void;
 }
 
@@ -47,7 +48,7 @@ export function DateFilterChip({ dateRange, onClear }: DateFilterChipProps) {
 							setFilter("date", {
 								...dateRange,
 								isNot: false,
-							} as { start?: string; end?: string; isNot?: boolean });
+							});
 						}}
 					>
 						is
@@ -58,7 +59,7 @@ export function DateFilterChip({ dateRange, onClear }: DateFilterChipProps) {
 							setFilter("date", {
 								...dateRange,
 								isNot: true,
-							} as { start?: string; end?: string; isNot?: boolean });
+							});
 						}}
 					>
 						is not

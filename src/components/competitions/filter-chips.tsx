@@ -1,157 +1,31 @@
-import { CheckIcon, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { SharedFilterChip } from "@/components/shared/filters/filter-chip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-	ButtonGroup,
-	ButtonGroupSeparator,
-} from "@/components/ui/button-group";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useData } from "@/data/data-store";
-import type { Priority, Status, User } from "@/data/types";
-import {
-	getInitials,
-	getPriorityIcon,
-	priorityLabels,
-} from "@/lib/competitions-utils";
+import { useDataV2 } from "@/data/data-store-v2";
+import type { CompetitionPhaseKey, User } from "@/data/types-new";
+import { getPhaseClass, getPhaseLabel } from "@/lib/competition-phase-config";
+import { hasActiveFilters as hasActiveFiltersFromFilters } from "@/lib/competitions-filters";
+import { getInitials } from "@/lib/competitions-utils";
 import { type FilterType, filterConfigs } from "@/lib/filter-config";
-import {
-	hasActiveFilters as hasActiveFiltersFromFilters,
-} from "@/lib/competitions-filters";
-import { getStatusClass, getStatusLabel } from "@/lib/status-config";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
 import { DateFilterChip } from "./date-filter-chip";
 import { FilterValueSelector } from "./filter-value-selector";
 
-function FilterChip<T extends Status | Priority | string>({
-	icon: Icon,
-	label,
-	type,
-	values,
-	isNot,
-	onToggleIsNot,
-	onToggleValue,
-	onRemove,
-	renderValue,
-}: {
-	icon: React.ComponentType<{ className?: string }>;
-	label: string;
-	type: FilterType;
-	values: T[];
-	isNot: boolean;
-	onToggleIsNot: () => void;
-	onToggleValue: (value: T) => void;
-	onRemove: () => void;
-	renderValue: (value: T) => ReactNode;
-}) {
-	const hasMultiple = values.length > 1;
-	const isNotText = hasMultiple
-		? isNot
-			? "is none"
-			: "is any"
-		: isNot
-			? "is not"
-			: "is";
-
-	return (
-		<ButtonGroup>
-			<Button variant="outline" size="xs">
-				<Icon className="size-4" />
-				{label}
-			</Button>
-			<ButtonGroupSeparator orientation="vertical" />
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="outline" size="xs">
-						{isNotText}
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start">
-					<DropdownMenuItem
-						onSelect={() => {
-							if (isNot) {
-								onToggleIsNot();
-							}
-						}}
-					>
-						{hasMultiple ? "is any" : "is"}
-						{!isNot && <CheckIcon className="ml-auto size-4" />}
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onSelect={() => {
-							if (!isNot) {
-								onToggleIsNot();
-							}
-						}}
-					>
-						{hasMultiple ? "is none" : "is not"}
-						{isNot && <CheckIcon className="ml-auto size-4" />}
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-			<ButtonGroupSeparator orientation="vertical" />
-			<FilterValueSelector
-				type={type}
-				selectedValues={values}
-				onToggleValue={onToggleValue}
-			>
-				<Button variant="outline" size="xs" className="min-w-0">
-					{values.length === 1 ? (
-						renderValue(values[0])
-					) : (
-						<span className="truncate">
-							{values.length} {label.toLowerCase()}
-						</span>
-					)}
-				</Button>
-			</FilterValueSelector>
-			<ButtonGroupSeparator orientation="vertical" />
-			<Button variant="outline" size="icon-xs" onClick={onRemove}>
-				<X />
-			</Button>
-		</ButtonGroup>
-	);
-}
-
 const filterTypeConfigs: Record<
 	FilterType,
 	{
-		renderValue: (
-			value: Status | Priority | string,
-			users?: User[],
-		) => ReactNode;
-		getIcon: (
-			value?: Status | Priority | string,
-		) => React.ComponentType<{ className?: string }>;
+		renderValue: (value: string, users?: User[]) => React.ReactNode;
+		getIcon: (value?: string) => React.ComponentType<{ className?: string }>;
 	}
 > = {
-	status: {
-		renderValue: (value) => (
-			<Badge className={getStatusClass(value as Status)}>
-				{getStatusLabel(value as Status)}
-			</Badge>
-		),
-		getIcon: () => filterConfigs.status.icon,
-	},
-	priority: {
+	phase: {
 		renderValue: (value) => {
-			const Icon = getPriorityIcon(value as Priority);
-			return (
-				<>
-					<Icon className="size-4" />
-					{priorityLabels[value as Priority]}
-				</>
-			);
+			const key = value as CompetitionPhaseKey;
+			return <Badge className={getPhaseClass(key)}>{getPhaseLabel(key)}</Badge>;
 		},
-		getIcon: (value) => getPriorityIcon((value || "low") as Priority),
+		getIcon: () => filterConfigs.phase.icon,
 	},
-	leads: {
+	compLead: {
 		renderValue: (value, users) => {
 			const user = users?.find((u) => u.name === value);
 			return (
@@ -166,7 +40,41 @@ const filterTypeConfigs: Record<
 				</>
 			);
 		},
-		getIcon: () => filterConfigs.leads.icon,
+		getIcon: () => filterConfigs.compLead.icon,
+	},
+	leadDelegate: {
+		renderValue: (value, users) => {
+			const user = users?.find((u) => u.name === value);
+			return (
+				<>
+					<Avatar className="size-4">
+						<AvatarImage src={user?.avatarUrl} alt={String(value)} />
+						<AvatarFallback className="text-[10px]">
+							{getInitials(String(value))}
+						</AvatarFallback>
+					</Avatar>
+					{value}
+				</>
+			);
+		},
+		getIcon: () => filterConfigs.leadDelegate.icon,
+	},
+	organisers: {
+		renderValue: (value, users) => {
+			const user = users?.find((u) => u.name === value);
+			return (
+				<>
+					<Avatar className="size-4">
+						<AvatarImage src={user?.avatarUrl} alt={String(value)} />
+						<AvatarFallback className="text-[10px]">
+							{getInitials(String(value))}
+						</AvatarFallback>
+					</Avatar>
+					{value}
+				</>
+			);
+		},
+		getIcon: () => filterConfigs.organisers.icon,
 	},
 };
 
@@ -181,8 +89,10 @@ export function FilterChips() {
 	const clearFilterType = useCompetitionsFilterStore(
 		(state) => state.clearFilterType,
 	);
-	const toggleFilter = useCompetitionsFilterStore((state) => state.toggleFilter);
-	const users = useData((state) => state.users);
+	const toggleFilter = useCompetitionsFilterStore(
+		(state) => state.toggleFilter,
+	);
+	const users = useDataV2((state) => state.users);
 
 	const hasActiveFilters = hasActiveFiltersFromFilters(filters);
 
@@ -190,8 +100,12 @@ export function FilterChips() {
 		return null;
 	}
 
-	// Data-driven filter chip rendering
-	const filterTypes: FilterType[] = ["status", "priority", "leads"];
+	const filterTypes: FilterType[] = [
+		"phase",
+		"compLead",
+		"leadDelegate",
+		"organisers",
+	];
 
 	return (
 		<div className="flex items-center gap-2 flex-wrap">
@@ -203,11 +117,10 @@ export function FilterChips() {
 				return filterItems.map((item, index) => {
 					const Icon = typeConfig.getIcon(item.values[0]);
 					return (
-						<FilterChip
+						<SharedFilterChip
 							key={`${type}-${index}-${item.values.join(",")}`}
 							icon={Icon}
 							label={config.label}
-							type={type}
 							values={item.values}
 							isNot={item.isNot}
 							onToggleIsNot={() => toggleFilterIsNot(type, index)}
@@ -218,6 +131,15 @@ export function FilterChips() {
 								});
 							}}
 							renderValue={(value) => typeConfig.renderValue(value, users)}
+							wrapValueButton={(button) => (
+								<FilterValueSelector
+									type={type}
+									selectedValues={item.values}
+									onToggleValue={(value) => toggleFilterValue(type, index, value)}
+								>
+									{button}
+								</FilterValueSelector>
+							)}
 						/>
 					);
 				});

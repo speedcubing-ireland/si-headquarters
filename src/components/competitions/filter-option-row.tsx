@@ -1,10 +1,8 @@
 import { CheckIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-	CommandItem,
-} from "@/components/ui/command";
+import { CommandItem } from "@/components/ui/command";
 import { getInitials } from "@/lib/competitions-utils";
-import type { FilterType, FilterOption } from "@/lib/filter-config";
+import type { FilterOption, FilterType } from "@/lib/filter-config";
 
 interface FilterOptionRowProps<T> {
 	type: FilterType;
@@ -20,7 +18,9 @@ export function FilterOptionRow<T>({
 	onSelect,
 }: FilterOptionRowProps<T>) {
 	const Icon = option.icon;
-	const showAvatar = type === "leads" && option.avatarUrl;
+	const showAvatar =
+		(type === "compLead" || type === "leadDelegate" || type === "organisers") &&
+		option.avatarUrl;
 
 	return (
 		<CommandItem
@@ -45,4 +45,3 @@ export function FilterOptionRow<T>({
 		</CommandItem>
 	);
 }
-

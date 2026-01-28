@@ -3,52 +3,51 @@ import {
 	Outlet,
 	useRouterState,
 } from "@tanstack/react-router";
-import { Box, Plus } from "lucide-react";
-import { useState } from "react";
-import { columns } from "@/components/competitions/columns";
-import { CompetitionModal } from "@/components/competitions/competition-modal";
-import { DataTable } from "@/components/competitions/data-table";
-import { DisplaySettings } from "@/components/competitions/display-settings";
-import { FilterChips } from "@/components/competitions/filter-chips";
-import { FilterPopover } from "@/components/competitions/filter-popover";
+import { ListTodo, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { SharedPageHeader } from "@/components/shared/page-header";
+import { taskColumns } from "@/components/tasks/columns";
+import { TasksDataTable } from "@/components/tasks/data-table";
+import { TasksDisplaySettings } from "@/components/tasks/display-settings";
+import { TasksFilterChips } from "@/components/tasks/filter-chips";
+import { TasksFilterPopover } from "@/components/tasks/filter-popover";
+import { TaskModal } from "@/components/tasks/task-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { hasActiveFilters as hasActiveFiltersFromFilters } from "@/lib/competitions-filters";
-import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
-import { useDisplaySettingsStore } from "@/store/display-settings-store";
-import { useCompetitionsSavedViews } from "@/store/use-competitions-saved-views";
+import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
+import { useTasksFilterStore } from "@/store/tasks-filter-store";
+import { useTasksSavedViews } from "@/store/use-tasks-saved-views";
 
-export const Route = createFileRoute("/competitions")({
+export const Route = createFileRoute("/tasks")({
 	component: RouteComponent,
 });
 
 function PageHeader({
-	onAddCompetition,
+	onAddTask,
 	views,
 	activeViewId,
 	onViewSelect,
 	onViewDelete,
 	onStartCreateView,
-	onAllComps,
+	onAllTasks,
 }: {
-	onAddCompetition: () => void;
-	views: ReturnType<typeof useCompetitionsSavedViews>["views"];
+	onAddTask: () => void;
+	views: ReturnType<typeof useTasksSavedViews>["views"];
 	activeViewId: string | null;
 	onViewSelect: (viewId: string) => void;
 	onViewDelete: (viewId: string) => void;
 	onStartCreateView: () => void;
-	onAllComps: () => void;
+	onAllTasks: () => void;
 }) {
 	return (
 		<SharedPageHeader
-			primaryIcon={Box}
-			primaryLabel="All comps"
+			primaryIcon={ListTodo}
+			primaryLabel="All tasks"
 			addIcon={Plus}
-			addLabel="Add competition"
-			onAdd={onAddCompetition}
-			onPrimaryClick={onAllComps}
+			addLabel="Add task"
+			onAdd={onAddTask}
+			onPrimaryClick={onAllTasks}
 			views={views}
 			activeViewId={activeViewId}
 			onViewSelect={onViewSelect}
@@ -59,25 +58,26 @@ function PageHeader({
 }
 
 function Filters() {
-	const matchMode = useCompetitionsFilterStore((state) => state.matchMode);
-	const toggleMatchMode = useCompetitionsFilterStore(
+	const matchMode = useTasksFilterStore((state) => state.matchMode);
+	const toggleMatchMode = useTasksFilterStore(
 		(state) => state.toggleMatchMode,
 	);
-	const filters = useCompetitionsFilterStore((state) => state.filters);
+	const hasActiveFilters = useTasksFilterStore(
+		(state) => state.hasActiveFilters,
+	);
 
 	return (
 		<div className="flex min-h-12 shrink-0 items-center gap-2 border-b py-2">
 			<div className="flex w-full items-center gap-2 px-4 lg:px-6">
 				<div className="flex items-center gap-2 shrink-0">
-					<FilterPopover />
+					<TasksFilterPopover />
 				</div>
 				<div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-					<FilterChips />
+					<TasksFilterChips />
 				</div>
-
 				<div className="flex items-center gap-2 shrink-0">
-					<DisplaySettings />
-					{hasActiveFiltersFromFilters(filters) && (
+					<TasksDisplaySettings />
+					{hasActiveFilters() && (
 						<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
 							{matchMode === "any" ? "Match any filter" : "Match all filters"}
 						</Button>
@@ -100,20 +100,41 @@ function RouteComponent() {
 		null,
 	);
 
-	const savedViews = useCompetitionsSavedViews();
-	const filterStore = useCompetitionsFilterStore;
-	const displayStore = useDisplaySettingsStore;
-	const matchMode = useCompetitionsFilterStore((state) => state.matchMode);
-	const toggleMatchMode = useCompetitionsFilterStore(
+	const savedViews = useTasksSavedViews();
+	const filterStore = useTasksFilterStore;
+	const displayStore = useTasksDisplaySettingsStore;
+	const matchMode = useTasksFilterStore((state) => state.matchMode);
+	const toggleMatchMode = useTasksFilterStore(
 		(state) => state.toggleMatchMode,
 	);
-	const filters = useCompetitionsFilterStore((state) => state.filters);
+	const hasActiveFilters = useTasksFilterStore(
+		(state) => state.hasActiveFilters,
+	);
 
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
 	});
 	const segments = pathname.split("/").filter(Boolean);
-	const isDetailRoute = segments.length > 1 && segments[0] === "competitions";
+	const isDetailRoute = segments.length > 1 && segments[0] === "tasks";
+
+	// Keyboard shortcut: C to create a new task (when focused in this route)
+	useEffect(() => {
+		const handler = (event: KeyboardEvent) => {
+			// Ignore when focused in inputs/textareas/selects to avoid interrupting typing
+			const target = event.target as HTMLElement | null;
+			if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) {
+				return;
+			}
+
+			if (event.key.toLowerCase() === "c") {
+				event.preventDefault();
+				setIsModalOpen(true);
+			}
+		};
+
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, []);
 
 	const handleStartCreateView = () => {
 		setPreviousFiltersJson(filterStore.getState().toJSON());
@@ -152,7 +173,7 @@ function RouteComponent() {
 		savedViews.applyView(viewId);
 	};
 
-	const handleAllComps = () => {
+	const handleAllTasks = () => {
 		// Reset filters + display settings, and clear active view.
 		filterStore.getState().clearFilters();
 		displayStore.getState().fromJSON(
@@ -172,13 +193,13 @@ function RouteComponent() {
 	return (
 		<>
 			<PageHeader
-				onAddCompetition={() => setIsModalOpen(true)}
+				onAddTask={() => setIsModalOpen(true)}
 				views={savedViews.views}
 				activeViewId={savedViews.activeViewId}
 				onViewSelect={handleViewSelect}
 				onViewDelete={savedViews.deleteView}
 				onStartCreateView={handleStartCreateView}
-				onAllComps={handleAllComps}
+				onAllTasks={handleAllTasks}
 			/>
 			{isCreatingView ? (
 				<div className="flex min-h-12 shrink-0 flex-col gap-3 border-b bg-background py-3 px-4 lg:px-6">
@@ -215,28 +236,28 @@ function RouteComponent() {
 					{/* Bottom row: Filters, Match mode, Display */}
 					<div className="flex w-full items-center gap-2">
 						<div className="flex items-center gap-2 shrink-0">
-							<FilterPopover />
+							<TasksFilterPopover />
 						</div>
 						<div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-							<FilterChips />
+							<TasksFilterChips />
 						</div>
 						<div className="flex items-center gap-2 shrink-0">
-							{hasActiveFiltersFromFilters(filters) && (
+							{hasActiveFilters() && (
 								<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
 									{matchMode === "any"
 										? "Match any filter"
 										: "Match all filters"}
 								</Button>
 							)}
-							<DisplaySettings />
+							<TasksDisplaySettings />
 						</div>
 					</div>
 				</div>
 			) : (
 				<Filters />
 			)}
-			<DataTable columns={columns} />
-			<CompetitionModal
+			<TasksDataTable columns={taskColumns} />
+			<TaskModal
 				open={isModalOpen}
 				onOpenChange={setIsModalOpen}
 				mode="create"

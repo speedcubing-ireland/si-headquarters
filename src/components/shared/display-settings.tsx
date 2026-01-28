@@ -26,10 +26,31 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { columnOptions } from "@/lib/competitions-constants";
-import { useDisplaySettingsStore } from "@/store/display-settings-store";
+import type { DisplaySettingsState } from "@/store/display-settings-factory";
 
-export function DisplaySettings() {
+type ColumnOption = {
+	value: string;
+	label: string;
+};
+
+type UseDisplaySettingsStore = () => DisplaySettingsState;
+
+interface SharedDisplaySettingsProps {
+	columnOptions: ColumnOption[];
+	useDisplaySettingsStore: UseDisplaySettingsStore;
+}
+
+/**
+ * Shared display settings dropdown used by table pages (competitions, tasks).
+ *
+ * Encapsulates grouping, sub-grouping, and ordering controls so that
+ * tables share the same UI while plugging into their own display settings
+ * stores and column option sets.
+ */
+export function SharedDisplaySettings({
+	columnOptions,
+	useDisplaySettingsStore,
+}: SharedDisplaySettingsProps) {
 	const grouping = useDisplaySettingsStore((state) => state.grouping);
 	const subGrouping = useDisplaySettingsStore(
 		(state) => state.subGrouping,
@@ -42,6 +63,9 @@ export function DisplaySettings() {
 		(state) => state.setSubGrouping,
 	);
 	const setOrdering = useDisplaySettingsStore((state) => state.setOrdering);
+	const toggleOrderDirection = useDisplaySettingsStore(
+		(state) => state.toggleOrderDirection,
+	);
 
 	return (
 		<DropdownMenu>
@@ -136,12 +160,7 @@ export function DisplaySettings() {
 								<Button
 									variant="outline"
 									size="icon"
-									onClick={() =>
-										setOrdering(
-											ordering.field,
-											ordering.direction === "asc" ? "desc" : "asc",
-										)
-									}
+									onClick={() => toggleOrderDirection()}
 								>
 									{ordering.direction === "asc" ? (
 										<ArrowUp className="size-4" />

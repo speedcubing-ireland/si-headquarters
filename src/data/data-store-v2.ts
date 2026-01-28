@@ -1,0 +1,321 @@
+import { identicon } from "@dicebear/collection";
+import { createAvatar } from "@dicebear/core";
+import { faker } from "@faker-js/faker";
+import { create } from "zustand";
+import {
+	type Competition,
+	type CompetitionPhase,
+	DEFAULT_LABELS,
+	DEFAULT_PHASES,
+	TASK_PRIORITY,
+	TASK_STATUS,
+	type Task,
+	type TaskLabel,
+	type TaskPriority,
+	type TaskStatus,
+	type Team,
+	type User,
+} from "./types-new";
+
+const avatarUrl = (seed: string): string => {
+	const avatar = createAvatar(identicon, {
+		seed,
+		backgroundColor: ["ffffff"],
+	});
+	return `data:image/svg+xml,${encodeURIComponent(avatar.toString())}`;
+};
+
+let taskCounter = 1;
+
+function generateTaskIdentifier(): string {
+	// Linear-style, mono-spaced identifier
+	return `HQ-${taskCounter++}`;
+}
+
+function generateUsers(count: number): User[] {
+	return Array.from({ length: count }, () => {
+		const name = faker.person.fullName();
+		const seed = name.toLowerCase().replace(/\s+/g, "");
+		return {
+			id: faker.string.uuid(),
+			name,
+			avatarUrl: avatarUrl(seed),
+		};
+	});
+}
+
+function generateTeams(users: User[], count: number): Team[] {
+	return Array.from({ length: count }, () => ({
+		id: faker.string.uuid(),
+		name: faker.company.name(),
+		members: faker.helpers.arrayElements(users, { min: 2, max: 4 }),
+	}));
+}
+
+function generatePhases(): CompetitionPhase[] {
+	return DEFAULT_PHASES.map((phase) => ({
+		id: faker.string.uuid(),
+		...phase,
+	}));
+}
+
+function generateTask(
+	users: User[],
+	labels: TaskLabel[],
+	parent: Task["parent"] = null,
+	depth = 0,
+): Task {
+	const now = new Date().toISOString();
+	const hasDueDate = faker.datatype.boolean();
+	const hasSubTasks = depth < 2 && faker.datatype.boolean({ probability: 0.3 });
+
+	const task: Task = {
+		id: faker.string.uuid(),
+		identifier: generateTaskIdentifier(),
+		parent,
+		title: faker.company.catchPhrase(),
+		description: faker.lorem.paragraphs({ min: 1, max: 3 }),
+		owner: faker.datatype.boolean() ? faker.helpers.arrayElement(users) : null,
+		assignee: faker.datatype.boolean({ probability: 0.7 })
+			? faker.helpers.arrayElement(users)
+			: null,
+		phase: null,
+		status: faker.helpers.arrayElement([...TASK_STATUS]),
+		priority: faker.helpers.arrayElement([...TASK_PRIORITY]),
+		dueDate: hasDueDate
+			? faker.date.future().toISOString().split("T")[0]
+			: null,
+		requiredApprovalBy: [],
+		approvedBy: [],
+		labels: faker.helpers.arrayElements(labels, { min: 0, max: 3 }),
+		resources: [],
+		subTasks: [],
+		createdAt: now,
+		updatedAt: now,
+	};
+
+	if (hasSubTasks) {
+		const subTaskCount = faker.number.int({ min: 1, max: 3 });
+		task.subTasks = Array.from({ length: subTaskCount }, () =>
+			generateTask(
+				users,
+				labels,
+				{ type: "task", linkedId: task.id },
+				depth + 1,
+			),
+		);
+	}
+
+	return task;
+}
+
+function generateTasks(
+	count: number,
+	users: User[],
+	labels: TaskLabel[],
+): Task[] {
+	return Array.from({ length: count }, () => generateTask(users, labels));
+}
+
+function generateCompetition(users: User[]): Competition {
+	const competitionNames = [
+		"Irish Open",
+		"Dublin Championship",
+		"Cork Speedcubing Competition",
+		"Galway Cube Challenge",
+		"Belfast Open",
+		"Limerick Championship",
+		"Waterford Speedcubing",
+		"Kilkenny Cube Fest",
+		"Wexford Open",
+		"National Championships",
+	];
+
+	const year = faker.date.future().getFullYear();
+	const name = `${faker.helpers.arrayElement(competitionNames)} ${year}`;
+	const phases = generatePhases();
+	const currentPhaseIdx = faker.number.int({ min: 0, max: phases.length - 1 });
+	const now = new Date().toISOString();
+	const compStart = faker.date.future();
+	const compEnd = faker.date.future({ refDate: compStart });
+
+	const compLead = faker.helpers.arrayElement(users);
+	const leadDelegate = faker.helpers.arrayElement(users);
+	const organisers = faker.helpers.arrayElements(users, { min: 2, max: 5 });
+
+	return {
+		id: faker.string.uuid(),
+		name,
+		description: faker.lorem.sentence(),
+		compStart: compStart.toISOString().split("T")[0],
+		compEnd: compEnd.toISOString().split("T")[0],
+		compLead,
+		leadDelegate,
+		organisers,
+		phases,
+		currentPhaseIdx,
+		progressUpdates: [],
+		compSheet: faker.datatype.boolean()
+			? { type: "google-sheet", sheetId: faker.string.alphanumeric(32) }
+			: null,
+		tasks: [],
+		createdAt: now,
+		updatedAt: now,
+	};
+}
+
+function generateCompetitions(count: number, users: User[]): Competition[] {
+	return Array.from({ length: count }, () => generateCompetition(users));
+}
+
+const mockUsers = generateUsers(10);
+const mockTeams = generateTeams(mockUsers, 5);
+const mockLabels = [...DEFAULT_LABELS];
+const mockTasks = generateTasks(20, mockUsers, mockLabels);
+const mockCompetitions = generateCompetitions(15, mockUsers);
+
+type DataStoreV2 = {
+	users: User[];
+	teams: Team[];
+	labels: TaskLabel[];
+	tasks: Task[];
+	competitions: Competition[];
+
+	getUsers: () => User[];
+	getTeams: () => Team[];
+	getLabels: () => TaskLabel[];
+	getTasks: () => Task[];
+	getCompetitions: () => Competition[];
+	getTaskById: (id: string) => Task | undefined;
+	getCompetitionById: (id: string) => Competition | undefined;
+
+	addTask: (
+		task: Omit<
+			Task,
+			"id" | "identifier" | "createdAt" | "updatedAt" | "subTasks"
+		>,
+	) => Task;
+	updateTask: (id: string, updates: Partial<Task>) => void;
+	deleteTask: (id: string) => void;
+
+	addCompetition: (
+		competition: Omit<
+			Competition,
+			"id" | "createdAt" | "updatedAt" | "tasks" | "progressUpdates"
+		>,
+	) => Competition;
+	updateCompetition: (id: string, updates: Partial<Competition>) => void;
+	deleteCompetition: (id: string) => void;
+
+	updateTaskStatus: (id: string, status: TaskStatus) => void;
+	updateTaskPriority: (id: string, priority: TaskPriority) => void;
+	updateTaskAssignee: (id: string, assignee: User | null) => void;
+	updateTaskLabels: (id: string, labels: TaskLabel[]) => void;
+};
+
+export const useDataV2 = create<DataStoreV2>((set, get) => ({
+	users: mockUsers,
+	teams: mockTeams,
+	labels: mockLabels,
+	tasks: mockTasks,
+	competitions: mockCompetitions,
+
+	getUsers: () => get().users,
+	getTeams: () => get().teams,
+	getLabels: () => get().labels,
+	getTasks: () => get().tasks,
+	getCompetitions: () => get().competitions,
+
+	getTaskById: (id: string) => {
+		const findTask = (tasks: Task[]): Task | undefined => {
+			for (const task of tasks) {
+				if (task.id === id) return task;
+				const found = findTask(task.subTasks);
+				if (found) return found;
+			}
+			return undefined;
+		};
+		return findTask(get().tasks);
+	},
+
+	getCompetitionById: (id: string) =>
+		get().competitions.find((c) => c.id === id),
+
+	addTask: (taskData) => {
+		const now = new Date().toISOString();
+		const newTask: Task = {
+			...taskData,
+			id: faker.string.uuid(),
+			identifier: generateTaskIdentifier(),
+			subTasks: [],
+			createdAt: now,
+			updatedAt: now,
+		};
+		set((state) => ({ tasks: [...state.tasks, newTask] }));
+		return newTask;
+	},
+
+	updateTask: (id, updates) => {
+		const updateInList = (tasks: Task[]): Task[] =>
+			tasks.map((task) =>
+				task.id === id
+					? { ...task, ...updates, updatedAt: new Date().toISOString() }
+					: { ...task, subTasks: updateInList(task.subTasks) },
+			);
+		set((state) => ({ tasks: updateInList(state.tasks) }));
+	},
+
+	deleteTask: (id) => {
+		const removeFromList = (tasks: Task[]): Task[] =>
+			tasks
+				.filter((task) => task.id !== id)
+				.map((task) => ({ ...task, subTasks: removeFromList(task.subTasks) }));
+		set((state) => ({ tasks: removeFromList(state.tasks) }));
+	},
+
+	addCompetition: (compData) => {
+		const now = new Date().toISOString();
+		const newComp: Competition = {
+			...compData,
+			id: faker.string.uuid(),
+			tasks: [],
+			progressUpdates: [],
+			createdAt: now,
+			updatedAt: now,
+		};
+		set((state) => ({ competitions: [...state.competitions, newComp] }));
+		return newComp;
+	},
+
+	updateCompetition: (id, updates) => {
+		set((state) => ({
+			competitions: state.competitions.map((comp) =>
+				comp.id === id
+					? { ...comp, ...updates, updatedAt: new Date().toISOString() }
+					: comp,
+			),
+		}));
+	},
+
+	deleteCompetition: (id) => {
+		set((state) => ({
+			competitions: state.competitions.filter((comp) => comp.id !== id),
+		}));
+	},
+
+	updateTaskStatus: (id, status) => {
+		get().updateTask(id, { status });
+	},
+
+	updateTaskPriority: (id, priority) => {
+		get().updateTask(id, { priority });
+	},
+
+	updateTaskAssignee: (id, assignee) => {
+		get().updateTask(id, { assignee });
+	},
+
+	updateTaskLabels: (id, labels) => {
+		get().updateTask(id, { labels });
+	},
+}));

@@ -5,7 +5,7 @@ import {
 	AvatarGroupCount,
 	AvatarImage,
 } from "@/components/ui/avatar";
-import type { User } from "@/data/types";
+import type { User } from "@/data/types-new";
 import { getInitials } from "@/lib/competitions-utils";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,9 @@ export function LeadsDisplay({
 }: LeadsDisplayProps) {
 	if (leads.length === 0) {
 		return (
-			<span className={cn("text-muted-foreground text-xs", bold && "font-bold")}>
+			<span
+				className={cn("text-muted-foreground text-xs", bold && "font-bold")}
+			>
 				No lead
 			</span>
 		);
@@ -60,4 +62,3 @@ export function LeadsDisplay({
 		</span>
 	);
 }
-
