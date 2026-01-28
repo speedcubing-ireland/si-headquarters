@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 
 type LinkOptions = Omit<LinkProps, "children">;
-type NavLinkUrl = LinkOptions | LinkOptions['to'];
+type NavLinkUrl = LinkOptions | LinkOptions["to"];
 
 function NavLink({
 	url,
@@ -30,9 +30,17 @@ function NavLink({
 	children: React.ReactNode;
 } & Omit<LinkProps, "to" | "children">) {
 	if (typeof url === "string") {
-		return <Link to={url} {...props}>{children}</Link>;
+		return (
+			<Link to={url} {...props}>
+				{children}
+			</Link>
+		);
 	}
-	return <Link {...url} {...props}>{children}</Link>;
+	return (
+		<Link {...url} {...props}>
+			{children}
+		</Link>
+	);
 }
 
 export type NavSectionDropdownItem = {

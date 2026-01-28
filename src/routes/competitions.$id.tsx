@@ -5,6 +5,6 @@ export const Route = createFileRoute("/competitions/$id")({
 });
 
 function RouteComponent() {
-  const { id } = Route.useParams()
+	const { id } = Route.useParams();
 	return <div>Hello Competition {id}!</div>;
 }

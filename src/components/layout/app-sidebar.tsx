@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
-  Blocks,
+	Blocks,
 	Box,
 	CircleCheck,
 	ClipboardList,
@@ -54,8 +54,7 @@ const navSections = [
 					{
 						title: "Overview",
 						url: {
-							to: "/competitions/$id",
-							params: { id: "testcompid123" },
+							to: "/competitions",
 						},
 					},
 					{

@@ -1,58 +1,55 @@
-type Status =
-  "backlog" |
-  "to-do" |
-  "in-progress" |
-  "blocked" |
-  "awaiting-review" |
-  "completed" | 
-  "cancelled";
+export type Status =
+	| "concept"
+	| "pre-announcement"
+	| "post-announcement"
+	| "pre-competition"
+	| "post-competition"
+	| "archive";
 
-type Priority = "low" | "medium" | "high" | "urgent";
+export type Priority = "low" | "medium" | "high" | "urgent";
 
-type Milestone = {
-  id: string;
-  name: string;
-  description: string;
-}
+export type User = {
+	name: string;
+	avatarUrl: string;
+};
 
-type User = {
-  name: string;
-}
-
-type Team = {
-  name: string;
-}
+export type Team = {
+	name: string;
+};
 
 type Label = {
-  name: string;
-  color: string;
-}
+	name: string;
+	color: string;
+};
 
 type Task = {
-  id: string;
-  name: string;
-  description: string;
-  owner: Team | User;
-  assignees: User[];
-  status: Status;
-  priority: Priority;
-  dueDate: Date;
-  needsApprovalBy: (User | Team)[];
-  approvedBy: (User | Team)[];
-  labels: Label[];
-  resources: string[];
-  comments: string[];
-  subTasks: Task[];
-  dependentTasks: Task[];
-}
+	id: string;
+	name: string;
+	description: string;
+	owner: Team | User;
+	assignees: User[];
+	status: Status;
+	priority: Priority;
+	dueDate: Date;
+	needsApprovalBy: (User | Team)[];
+	approvedBy: (User | Team)[];
+	labels: Label[];
+	resources: string[];
+	comments: string[];
+	subTasks: Task[];
+	dependentTasks: Task[];
+};
+
+type ProjectType = "competition" | "standard";
 
 export type Project = {
-  id: string;
-  name: string;
-  leads: User[];
-  owner: Team | User;
-  status: Status;
-  priority: Priority;
-  milestones: Milestone[];
-  tasks: Task[];
-}
+	id: string;
+	type: ProjectType;
+	name: string;
+	leads: User[];
+	owner: Team | User;
+	status: Status;
+	priority: Priority;
+	startDate?: string;
+	tasks: Task[];
+};
