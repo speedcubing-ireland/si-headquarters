@@ -185,20 +185,51 @@ function flattenTasks(tasks: Task[]): Task[] {
 
 function generateCompetition(users: User[]): Competition {
 	const competitionNames = [
-		"Irish Open",
-		"Dublin Championship",
-		"Cork Speedcubing Competition",
-		"Galway Cube Challenge",
-		"Belfast Open",
-		"Limerick Championship",
-		"Waterford Speedcubing",
-		"Kilkenny Cube Fest",
-		"Wexford Open",
-		"National Championships",
+		"{place} Open",
+		"{place} Championship",
+		"{place} Speedcubing Competition",
+		"{place} Cube Challenge",
+		"{place} Open",
+		"{place} Championship",
+		"{place} Speedcubing",
+		"{place} Cube Fest",
+		"{place} Open",
+		"Every Event {place}",
+		"{place} Autumn Solving",
+		"Twist and {place}",
+		"Don't DNF {place}",
+		"Cubing Around {place}",
+		"{place} Winter Warmup",
+		"{place} Spring Solves",
+		"{place} Summer Cube Jam",
+		"{place} Newcomer Open",
+		"{place} Beginners' Challenge",
+		"Solving in {place} (Open)",
+		"The {place} Cube Games",
+		"City Series: {place} Showdown",
+		"Road to Nationals: {place} Qualifier",
+		"Battle for {place}: Speed Edition",
+		"{place} Speed Weekend",
+		"{place} Cube Sprint",
+		"{place} Side Event Showdown",
+		"{place} FMC Meetup",
+		"{place} Big Cubes Bonanza",
+		"{place} One-Handed Open",
+		"{place} Blindfolded Bash",
+		"{place} Clock Clash",
+		"{place} Pyraminx Party",
+		"{place} Skewb Showdown",
+		"{place} Multi-Blind Marathon",
+		"{place} Sunday Solving Session",
+		"{place} Open Invitational",
+		"{place} Championship Series",
+		"{place} Cube Carnival",
 	];
+  
+  const place = faker.location.city();
+  const year = faker.date.future().getFullYear();
+  const name = `${faker.helpers.arrayElement(competitionNames).replace("{place}", place)} ${year}`;
 
-	const year = faker.date.future().getFullYear();
-	const name = `${faker.helpers.arrayElement(competitionNames)} ${year}`;
 	const phases = generatePhases();
 	const currentPhaseIdx = faker.number.int({ min: 0, max: phases.length - 1 });
 	const now = new Date().toISOString();
@@ -255,11 +286,11 @@ function generateCompetitions(count: number, users: User[]): Competition[] {
 	return Array.from({ length: count }, () => generateCompetition(users));
 }
 
-const mockUsers = generateUsers(10);
+const mockUsers = generateUsers(50);
 const mockTeams = generateTeams(mockUsers, 3);
 const mockLabels = [...DEFAULT_LABELS];
 const mockTasks = flattenTasks(generateTasks(40, mockUsers, mockTeams, mockLabels));
-const mockCompetitions = generateCompetitions(15, mockUsers);
+const mockCompetitions = generateCompetitions(30, mockUsers);
 
 type DataStoreV2 = {
 	users: User[];
