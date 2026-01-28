@@ -18,7 +18,12 @@ export type TasksFilters = {
 	priority: FilterItem<TaskPriority>[];
 	assignee: FilterItem<string>[];
 	labels: FilterItem<string>[];
+	owner: FilterItem<string>[];
 	parentType: FilterItem<"task" | "phase" | "competition">[];
+	/**
+	 * Optional date range applied to the task's due date. When present, tasks
+	 * must have a dueDate that falls within this range to be included.
+	 */
 	dateRange?: DateRangeFilter;
 };
 
@@ -27,6 +32,7 @@ export const emptyTasksFilters: TasksFilters = {
 	priority: [],
 	assignee: [],
 	labels: [],
+	owner: [],
 	parentType: [],
 	dateRange: undefined,
 };

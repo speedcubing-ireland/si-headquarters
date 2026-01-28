@@ -10,8 +10,12 @@ import {
 } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Competition } from "@/data/types-new";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { Competition, CompetitionPhaseKey } from "@/data/types-new";
 import {
 	getCurrentPhaseKey,
 	getPhaseClass,

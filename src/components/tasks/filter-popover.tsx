@@ -33,6 +33,7 @@ export function TasksFilterPopover() {
 		"priority",
 		"assignee",
 		"labels",
+		"owner",
 	];
 
 	const handleToggleFilter = (type: TaskFilterType, value: string) => {
@@ -61,7 +62,10 @@ export function TasksFilterPopover() {
 								type={type}
 								icon={config.icon}
 								label={config.label}
-								filterCount={(filters[type] as unknown as unknown[] | undefined)?.length ?? 0}
+								filterCount={
+									(filters[type] as unknown as unknown[] | undefined)?.length ??
+									0
+								}
 								placeholder={config.placeholder}
 								emptyMessage={config.emptyMessage}
 								options={options}

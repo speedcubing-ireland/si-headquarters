@@ -31,13 +31,9 @@ import { useDisplaySettingsStore } from "@/store/display-settings-store";
 
 export function DisplaySettings() {
 	const grouping = useDisplaySettingsStore((state) => state.grouping);
-	const subGrouping = useDisplaySettingsStore(
-		(state) => state.subGrouping,
-	);
+	const subGrouping = useDisplaySettingsStore((state) => state.subGrouping);
 	const ordering = useDisplaySettingsStore((state) => state.ordering);
-	const setGrouping = useDisplaySettingsStore(
-		(state) => state.setGrouping,
-	);
+	const setGrouping = useDisplaySettingsStore((state) => state.setGrouping);
 	const setSubGrouping = useDisplaySettingsStore(
 		(state) => state.setSubGrouping,
 	);

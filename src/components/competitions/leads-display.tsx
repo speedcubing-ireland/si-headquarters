@@ -9,7 +9,7 @@ import type { User } from "@/data/types-new";
 import { getInitials } from "@/lib/competitions-utils";
 import { cn } from "@/lib/utils";
 
-type LeadsDisplayVariant = "summary" | "detailed";
+type LeadsDisplayVariant = "summary" | "detailed" | "compact";
 
 interface LeadsDisplayProps {
 	leads: User[];
@@ -52,7 +52,7 @@ export function LeadsDisplay({
 					<AvatarGroupCount>+{leads.length - 3}</AvatarGroupCount>
 				)}
 			</AvatarGroup>
-			{variant === "summary" ? (
+			{variant === "summary" || variant === "compact" ? (
 				<span className={cn("text-xs", bold && "font-bold")}>{content}</span>
 			) : (
 				<span className={cn("text-xs hidden xl:inline", bold && "font-bold")}>

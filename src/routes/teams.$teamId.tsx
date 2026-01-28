@@ -35,6 +35,7 @@ function PageHeader({
 			secondaryLabel="Triage tasks owned by this team"
 			addIcon={ListTodo}
 			addLabel="All tasks"
+			onAdd={onAllTasks}
 			onPrimaryClick={onAllTasks}
 		/>
 	);
@@ -42,9 +43,7 @@ function PageHeader({
 
 function Filters() {
 	const matchMode = useTasksFilterStore((state) => state.matchMode);
-	const toggleMatchMode = useTasksFilterStore(
-		(state) => state.toggleMatchMode,
-	);
+	const toggleMatchMode = useTasksFilterStore((state) => state.toggleMatchMode);
 	const hasActiveFilters = useTasksFilterStore(
 		(state) => state.hasActiveFilters,
 	);
@@ -77,7 +76,8 @@ function useTeamOwnedTasks(teamId: string): Task[] {
 	return useMemo(
 		() =>
 			allTasks.filter(
-				(task) => task.owner && "members" in task.owner && task.owner.id === teamId,
+				(task) =>
+					task.owner && "members" in task.owner && task.owner.id === teamId,
 			),
 		[allTasks, teamId],
 	);
@@ -110,28 +110,24 @@ function RouteComponent() {
 		if (!state.hasActiveFilters()) {
 			state.clearFilters();
 		}
-		displayStore
-			.getState()
-			.fromJSON(
-				JSON.stringify({
-					grouping: "status",
-					subGrouping: null,
-					ordering: { field: null, direction: "asc" },
-				}),
-			);
+		displayStore.getState().fromJSON(
+			JSON.stringify({
+				grouping: "status",
+				subGrouping: null,
+				ordering: { field: null, direction: "asc" },
+			}),
+		);
 	}, []);
 
 	const handleAllTasks = () => {
 		filterStore.getState().clearFilters();
-		displayStore
-			.getState()
-			.fromJSON(
-				JSON.stringify({
-					grouping: null,
-					subGrouping: null,
-					ordering: { field: null, direction: "asc" },
-				}),
-			);
+		displayStore.getState().fromJSON(
+			JSON.stringify({
+				grouping: null,
+				subGrouping: null,
+				ordering: { field: null, direction: "asc" },
+			}),
+		);
 	};
 
 	if (!team) {
@@ -144,8 +140,8 @@ function RouteComponent() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="text-sm text-muted-foreground">
-						The team you&apos;re looking for doesn&apos;t exist. It may have been
-						renamed or removed.
+						The team you&apos;re looking for doesn&apos;t exist. It may have
+						been renamed or removed.
 					</CardContent>
 				</Card>
 			</div>
@@ -203,4 +199,3 @@ function RouteComponent() {
 		</div>
 	);
 }
-

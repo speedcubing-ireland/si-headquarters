@@ -33,7 +33,9 @@ type ColumnOption = {
 	label: string;
 };
 
-type UseDisplaySettingsStore = () => DisplaySettingsState;
+type UseDisplaySettingsStore = <T>(
+	selector: (state: DisplaySettingsState) => T,
+) => T;
 
 interface SharedDisplaySettingsProps {
 	columnOptions: ColumnOption[];
@@ -52,13 +54,9 @@ export function SharedDisplaySettings({
 	useDisplaySettingsStore,
 }: SharedDisplaySettingsProps) {
 	const grouping = useDisplaySettingsStore((state) => state.grouping);
-	const subGrouping = useDisplaySettingsStore(
-		(state) => state.subGrouping,
-	);
+	const subGrouping = useDisplaySettingsStore((state) => state.subGrouping);
 	const ordering = useDisplaySettingsStore((state) => state.ordering);
-	const setGrouping = useDisplaySettingsStore(
-		(state) => state.setGrouping,
-	);
+	const setGrouping = useDisplaySettingsStore((state) => state.setGrouping);
 	const setSubGrouping = useDisplaySettingsStore(
 		(state) => state.setSubGrouping,
 	);

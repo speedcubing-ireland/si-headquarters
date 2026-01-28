@@ -7,7 +7,12 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!src/components/ui", "!**/routeTree.gen.ts", "!project-view-interface"]
+		"includes": [
+			"**",
+			"!src/components/ui",
+			"!**/routeTree.gen.ts",
+			"!project-view-interface"
+		]
 	},
 	"formatter": {
 		"enabled": true,

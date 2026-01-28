@@ -59,9 +59,7 @@ function PageHeader({
 
 function Filters() {
 	const matchMode = useTasksFilterStore((state) => state.matchMode);
-	const toggleMatchMode = useTasksFilterStore(
-		(state) => state.toggleMatchMode,
-	);
+	const toggleMatchMode = useTasksFilterStore((state) => state.toggleMatchMode);
 	const hasActiveFilters = useTasksFilterStore(
 		(state) => state.hasActiveFilters,
 	);
@@ -104,9 +102,7 @@ function RouteComponent() {
 	const filterStore = useTasksFilterStore;
 	const displayStore = useTasksDisplaySettingsStore;
 	const matchMode = useTasksFilterStore((state) => state.matchMode);
-	const toggleMatchMode = useTasksFilterStore(
-		(state) => state.toggleMatchMode,
-	);
+	const toggleMatchMode = useTasksFilterStore((state) => state.toggleMatchMode);
 	const hasActiveFilters = useTasksFilterStore(
 		(state) => state.hasActiveFilters,
 	);
@@ -220,7 +216,11 @@ function RouteComponent() {
 							/>
 						</div>
 						<div className="flex shrink-0 items-center gap-2">
-							<Button variant="outline" size="sm" onClick={handleCancelCreateView}>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleCancelCreateView}
+							>
 								Cancel
 							</Button>
 							<Button

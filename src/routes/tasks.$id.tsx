@@ -10,7 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -156,15 +160,13 @@ function TaskProperties({
 						}
 						if (v.startsWith("team:")) {
 							const id = v.slice("team:".length);
-							const team: Team | null =
-								teams.find((t) => t.id === id) ?? null;
+							const team: Team | null = teams.find((t) => t.id === id) ?? null;
 							onUpdate({ owner: team });
 							return;
 						}
 						if (v.startsWith("user:")) {
 							const id = v.slice("user:".length);
-							const user: User | null =
-								users.find((u) => u.id === id) ?? null;
+							const user: User | null = users.find((u) => u.id === id) ?? null;
 							onUpdate({ owner: user });
 						}
 					}}
@@ -190,9 +192,7 @@ function TaskProperties({
 								</div>
 							)
 						) : (
-							<span className="text-muted-foreground text-sm">
-								Unassigned
-							</span>
+							<span className="text-muted-foreground text-sm">Unassigned</span>
 						)}
 					</SelectTrigger>
 					<SelectContent>
@@ -364,7 +364,11 @@ function TaskProperties({
 				</span>
 				<Popover>
 					<PopoverTrigger asChild>
-						<Button variant="outline" size="sm" className="w-full justify-start">
+						<Button
+							variant="outline"
+							size="sm"
+							className="w-full justify-start"
+						>
 							{task.dueDate ? formatDate(task.dueDate) : "Set due date"}
 						</Button>
 					</PopoverTrigger>
@@ -372,14 +376,10 @@ function TaskProperties({
 						<div className="flex flex-col gap-2">
 							<Calendar
 								mode="single"
-								selected={
-									task.dueDate ? new Date(task.dueDate) : undefined
-								}
+								selected={task.dueDate ? new Date(task.dueDate) : undefined}
 								onSelect={(date) => {
 									onUpdate({
-										dueDate: date
-											? date.toISOString().split("T")[0]
-											: null,
+										dueDate: date ? date.toISOString().split("T")[0] : null,
 									});
 								}}
 							/>

@@ -110,9 +110,7 @@ function generateTask(
 	} else {
 		// Fallback if no teams exist – behave like before.
 		const currentUser = users[0];
-		owner = faker.datatype.boolean()
-			? faker.helpers.arrayElement(users)
-			: null;
+		owner = faker.datatype.boolean() ? faker.helpers.arrayElement(users) : null;
 		assignee = faker.datatype.boolean({ probability: 0.8 })
 			? faker.helpers.arrayElement([currentUser, currentUser, ...users])
 			: null;
@@ -163,7 +161,9 @@ function generateTasks(
 	teams: Team[],
 	labels: TaskLabel[],
 ): Task[] {
-	return Array.from({ length: count }, () => generateTask(users, teams, labels));
+	return Array.from({ length: count }, () =>
+		generateTask(users, teams, labels),
+	);
 }
 
 function flattenTasks(tasks: Task[]): Task[] {
@@ -225,10 +225,10 @@ function generateCompetition(users: User[]): Competition {
 		"{place} Championship Series",
 		"{place} Cube Carnival",
 	];
-  
-  const place = faker.location.city();
-  const year = faker.date.future().getFullYear();
-  const name = `${faker.helpers.arrayElement(competitionNames).replace("{place}", place)} ${year}`;
+
+	const place = faker.location.city();
+	const year = faker.date.future().getFullYear();
+	const name = `${faker.helpers.arrayElement(competitionNames).replace("{place}", place)} ${year}`;
 
 	const phases = generatePhases();
 	const currentPhaseIdx = faker.number.int({ min: 0, max: phases.length - 1 });
@@ -289,7 +289,9 @@ function generateCompetitions(count: number, users: User[]): Competition[] {
 const mockUsers = generateUsers(50);
 const mockTeams = generateTeams(mockUsers, 3);
 const mockLabels = [...DEFAULT_LABELS];
-const mockTasks = flattenTasks(generateTasks(40, mockUsers, mockTeams, mockLabels));
+const mockTasks = flattenTasks(
+	generateTasks(40, mockUsers, mockTeams, mockLabels),
+);
 const mockCompetitions = generateCompetitions(30, mockUsers);
 
 type DataStoreV2 = {
@@ -334,6 +336,7 @@ type DataStoreV2 = {
 	updateTaskPriority: (id: string, priority: TaskPriority) => void;
 	updateTaskAssignee: (id: string, assignee: User | null) => void;
 	updateTaskLabels: (id: string, labels: TaskLabel[]) => void;
+	updateTaskOwner: (id: string, owner: Team | User | null) => void;
 };
 
 export const useDataV2 = create<DataStoreV2>((set, get) => ({
@@ -468,5 +471,9 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 
 	updateTaskLabels: (id, labels) => {
 		get().updateTask(id, { labels });
+	},
+
+	updateTaskOwner: (id, owner) => {
+		get().updateTask(id, { owner });
 	},
 }));

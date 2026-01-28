@@ -1,30 +1,31 @@
-import { Link } from "@tanstack/react-router";
 import type { Column, ColumnDef, Row } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import type React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useDataV2 } from "@/data/data-store-v2";
 import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
-import {
-	priorityLabels,
-	statusColors,
-	statusLabels,
-} from "@/lib/task-constants";
+import { priorityLabels, statusLabels } from "@/lib/task-constants";
 import { taskPriorityOrder, taskStatusOrder } from "@/lib/task-filter-config";
 import {
 	formatDate,
+	formatDateShort,
 	getInitials,
 	getPriorityIcon,
 	getStatusIcon,
 } from "@/lib/task-utils";
+import { cn } from "@/lib/utils";
 import {
 	EditableTaskAssignee,
 	EditableTaskLabels,
+	EditableTaskOwner,
 	EditableTaskPriority,
 	EditableTaskStatus,
-	TaskDateDisplay,
 } from "./editable-cells";
 
 function SortableHeader({
@@ -64,15 +65,23 @@ type SortableColumnOptions = {
 
 type GroupValueRenderer = (value: unknown, row: Row<Task>) => React.ReactNode;
 
+// Status colors for group headers (colored dots)
+const statusDotColors: Record<TaskStatus, string> = {
+	backlog: "bg-muted-foreground/40",
+	"to-do": "bg-blue-500",
+	"in-progress": "bg-yellow-500",
+	done: "bg-green-500",
+	cancelled: "bg-red-500",
+};
+
 const statusGroupRenderer: GroupValueRenderer = (value) => {
 	if (typeof value !== "string") return <span>{String(value)}</span>;
 	const status = value as TaskStatus;
-	const Icon = getStatusIcon(status);
 	return (
-		<Badge className={statusColors[status]}>
-			<Icon className="size-3 mr-1" />
-			{statusLabels[status]}
-		</Badge>
+		<div className="flex items-center gap-1.5">
+			<span className={cn("size-2 rounded-full", statusDotColors[status])} />
+			<span className="font-semibold text-sm">{statusLabels[status]}</span>
+		</div>
 	);
 };
 
@@ -81,22 +90,30 @@ const priorityGroupRenderer: GroupValueRenderer = (value) => {
 	const priority = value as TaskPriority;
 	const Icon = getPriorityIcon(priority);
 	return (
-		<span className="flex items-center gap-1">
-			<Icon className="size-4" />
-			<span className="font-bold">{priorityLabels[priority]}</span>
-		</span>
+		<div className="flex items-center gap-1.5">
+			<Icon className="size-4 text-muted-foreground" />
+			<span className="font-semibold text-sm">{priorityLabels[priority]}</span>
+		</div>
 	);
 };
 
 const assigneeGroupRenderer: GroupValueRenderer = (_value, row) => {
 	const leafRows = row.getLeafRows();
 	if (leafRows.length === 0) {
-		return <span className="text-muted-foreground">Unassigned</span>;
+		return (
+			<span className="text-muted-foreground font-semibold text-sm">
+				Unassigned
+			</span>
+		);
 	}
 	const firstRow = leafRows[0];
 	const assignee = firstRow.original.assignee;
 	if (!assignee) {
-		return <span className="text-muted-foreground font-bold">Unassigned</span>;
+		return (
+			<span className="text-muted-foreground font-semibold text-sm">
+				Unassigned
+			</span>
+		);
 	}
 	return (
 		<div className="flex items-center gap-1.5">
@@ -106,7 +123,7 @@ const assigneeGroupRenderer: GroupValueRenderer = (_value, row) => {
 					{getInitials(assignee.name)}
 				</AvatarFallback>
 			</Avatar>
-			<span className="font-bold">{assignee.name}</span>
+			<span className="font-semibold text-sm">{assignee.name}</span>
 		</div>
 	);
 };
@@ -118,7 +135,37 @@ const dateGroupRenderer: GroupValueRenderer = (value) => {
 	if (!value) {
 		return <span className="text-muted-foreground">No date</span>;
 	}
-	return <span className="font-bold">{formatDate(value as string)}</span>;
+	return (
+		<span className="font-semibold text-sm">{formatDate(value as string)}</span>
+	);
+};
+
+const labelsGroupRenderer: GroupValueRenderer = (value, row) => {
+	if (!value || value === "No labels") {
+		return (
+			<span className="text-muted-foreground font-semibold text-sm">
+				No label
+			</span>
+		);
+	}
+	// Get the first label from the group to show its color
+	const leafRows = row.getLeafRows();
+	if (leafRows.length === 0)
+		return <span className="font-semibold text-sm">{String(value)}</span>;
+	const firstTask = leafRows[0].original;
+	const label = firstTask.labels[0];
+	if (!label)
+		return <span className="font-semibold text-sm">{String(value)}</span>;
+
+	return (
+		<div className="flex items-center gap-1.5">
+			<span
+				className="size-2 rounded-full"
+				style={{ backgroundColor: label.color }}
+			/>
+			<span className="font-semibold text-sm">{label.name}</span>
+		</div>
+	);
 };
 
 function createSortableColumn(
@@ -144,24 +191,29 @@ function createSortableColumn(
 const ownerGroupRenderer: GroupValueRenderer = (_value, row) => {
 	const leafRows = row.getLeafRows();
 	if (leafRows.length === 0) {
-		return <span className="text-muted-foreground">Unassigned</span>;
+		return (
+			<span className="text-muted-foreground font-semibold text-sm">
+				Unassigned
+			</span>
+		);
 	}
 	const firstRow = leafRows[0];
 	const owner = firstRow.original.owner;
 	if (!owner) {
-		return <span className="text-muted-foreground font-bold">Unassigned</span>;
+		return (
+			<span className="text-muted-foreground font-semibold text-sm">
+				Unassigned
+			</span>
+		);
 	}
 	if ("members" in owner) {
 		return (
-			<span className="font-bold">
-				Team:{" "}
-				<span className="inline-flex items-center gap-1">
-					<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
-						T
-					</span>
-					{owner.name}
+			<div className="flex items-center gap-1.5">
+				<span className="inline-flex size-5 items-center justify-center rounded-full bg-muted text-[8px]">
+					T
 				</span>
-			</span>
+				<span className="font-semibold text-sm">{owner.name}</span>
+			</div>
 		);
 	}
 	return (
@@ -172,7 +224,7 @@ const ownerGroupRenderer: GroupValueRenderer = (_value, row) => {
 					{getInitials(owner.name)}
 				</AvatarFallback>
 			</Avatar>
-			<span className="font-bold">{owner.name}</span>
+			<span className="font-semibold text-sm">{owner.name}</span>
 		</div>
 	);
 };
@@ -188,68 +240,81 @@ function TaskTitleCell({ row }: { row: Row<Task> }) {
 	const showProgress = total > 0;
 
 	return (
-		<div className="flex items-center gap-2 max-w-[320px]">
-			<Link
-				to="/tasks/$id"
-				params={{ id: task.id }}
-				className="font-medium truncate hover:text-primary hover:underline"
-			>
-				<span className="truncate">
-					{task.title}
-					{parent ? (
-						<span className="text-muted-foreground">
-							{" "}
-							&gt; {parent.title}
-						</span>
-					) : null}
-				</span>
-			</Link>
+		<div className="flex items-center min-w-0">
+			<span className="min-w-0 truncate">
+				<span className="font-medium text-foreground">{task.title}</span>
+				{parent && (
+					<span className="ml-1 text-xs text-muted-foreground/80">
+						&gt; {parent.title}
+					</span>
+				)}
+			</span>
 			{showProgress && (
-				<span className="ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-xs text-muted-foreground bg-muted">
-					{done}/{total}
-				</span>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<span className="ml-1.5 inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs text-muted-foreground bg-background whitespace-nowrap">
+							<svg className="size-3" viewBox="0 0 16 16" fill="none">
+								<title>Subtask progress</title>
+								<circle
+									cx="8"
+									cy="8"
+									r="6"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeOpacity="0.3"
+								/>
+								<circle
+									cx="8"
+									cy="8"
+									r="6"
+									stroke="currentColor"
+									strokeWidth="2"
+									strokeDasharray={`${(done / total) * 37.7} 37.7`}
+									strokeLinecap="round"
+									transform="rotate(-90 8 8)"
+								/>
+							</svg>
+							<span>
+								{done}/{total}
+							</span>
+						</span>
+					</TooltipTrigger>
+					<TooltipContent side="top" sideOffset={6}>
+						<div className="space-y-1 text-xs">
+							{task.subTasks.map((subtask) => {
+								const SubStatusIcon = getStatusIcon(subtask.status);
+								return (
+									<div
+										key={subtask.id}
+										className="flex items-center gap-2 max-w-xs"
+									>
+										<SubStatusIcon className="size-3" />
+										<span className="truncate">{subtask.title}</span>
+									</div>
+								);
+							})}
+						</div>
+					</TooltipContent>
+				</Tooltip>
 			)}
 		</div>
 	);
 }
 
+// Status icon colors matching Linear
+const statusIconColors: Record<TaskStatus, string> = {
+	backlog: "text-muted-foreground/60",
+	"to-do": "text-muted-foreground",
+	"in-progress": "text-yellow-500",
+	done: "text-green-500",
+	cancelled: "text-red-500",
+};
+
 export const taskColumns: ColumnDef<Task>[] = [
-	{
-		accessorKey: "identifier",
-		header: "ID",
-		cell: ({ row }) => {
-			const identifier = row.getValue("identifier") as string;
-			return (
-				<span className="text-xs text-muted-foreground font-mono">
-					{identifier}
-				</span>
-			);
-		},
-		enableSorting: false,
-	},
-	createSortableColumn("title", "Title", ({ row }) => <TaskTitleCell row={row} />),
-	createSortableColumn(
-		"status",
-		"Status",
-		({ row }) => {
-			const status = row.getValue("status") as TaskStatus;
-			const task = row.original;
-			return <EditableTaskStatus status={status} taskId={task.id} />;
-		},
-		{
-			sortingFn: (rowA, rowB) => {
-				const statusA = rowA.getValue("status") as TaskStatus;
-				const statusB = rowB.getValue("status") as TaskStatus;
-				return taskStatusOrder[statusA] - taskStatusOrder[statusB];
-			},
-			meta: {
-				groupValueRenderer: statusGroupRenderer,
-			} as ColumnDef<Task>["meta"],
-		},
-	),
+	// Priority icon (first column - small)
 	createSortableColumn(
 		"priority",
-		"Priority",
+		"",
 		({ row }) => {
 			const priority = row.getValue("priority") as TaskPriority;
 			const task = row.original;
@@ -263,64 +328,94 @@ export const taskColumns: ColumnDef<Task>[] = [
 			},
 			meta: {
 				groupValueRenderer: priorityGroupRenderer,
+				cellClassName: "px-1 w-0",
+				headerClassName: "px-1 w-0",
 			} as ColumnDef<Task>["meta"],
 		},
 	),
-	{
-		accessorKey: "owner",
-		header: "Owner",
-		cell: ({ row }) => {
-			const owner = row.original.owner;
-			if (!owner) {
-				return (
-					<span className="text-xs text-muted-foreground">Unassigned</span>
-				);
-			}
-			if ("members" in owner) {
-				return (
-					<Link
-						to="/teams/$teamId"
-						params={{ teamId: owner.id }}
-						className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted"
-					>
-						<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
-							T
-						</span>
-						<span className="truncate max-w-[140px]">{owner.name}</span>
-					</Link>
-				);
-			}
+	// Task identifier
+	createSortableColumn(
+		"identifier",
+		"",
+		({ row }) => {
+			const identifier = row.getValue("identifier") as string;
 			return (
-				<div className="flex items-center gap-1.5">
-					<Avatar className="size-4">
-						<AvatarImage src={owner.avatarUrl} alt={owner.name} />
-						<AvatarFallback className="text-[8px]">
-							{getInitials(owner.name)}
-						</AvatarFallback>
-					</Avatar>
-					<span className="text-xs truncate max-w-[140px]">
-						{owner.name}
-					</span>
-				</div>
+				<span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+					{identifier}
+				</span>
 			);
 		},
-		meta: {
-			groupValueRenderer: ownerGroupRenderer,
-		} as ColumnDef<Task>["meta"],
-	},
-	{
-		accessorKey: "assignee",
-		accessorFn: (row) => row.assignee?.name ?? "Unassigned",
-		header: "Assignee",
-		cell: ({ row }) => {
-			const assignee = row.original.assignee;
-			const task = row.original;
-			return <EditableTaskAssignee assignee={assignee} taskId={task.id} />;
+		{
+			meta: {
+				cellClassName: "px-1 w-0",
+				headerClassName: "px-1 w-0",
+			} as ColumnDef<Task>["meta"],
 		},
+	),
+	// Status icon with time estimate
+	createSortableColumn(
+		"status",
+		"",
+		({ row }) => {
+			const status = row.getValue("status") as TaskStatus;
+			const task = row.original;
+			const StatusIcon = getStatusIcon(status);
+
+			return (
+				<EditableTaskStatus status={status} taskId={task.id}>
+					<StatusIcon className={cn("size-4", statusIconColors[status])} />
+				</EditableTaskStatus>
+			);
+		},
+		{
+			sortingFn: (rowA, rowB) => {
+				const statusA = rowA.getValue("status") as TaskStatus;
+				const statusB = rowB.getValue("status") as TaskStatus;
+				return taskStatusOrder[statusA] - taskStatusOrder[statusB];
+			},
+			meta: {
+				groupValueRenderer: statusGroupRenderer,
+				cellClassName: "px-1 w-0",
+				headerClassName: "px-1 w-0",
+			} as ColumnDef<Task>["meta"],
+		},
+	),
+	// Owner (compact)
+	createSortableColumn(
+		"owner",
+		"",
+		({ row }) => {
+			const task = row.original;
+			return <EditableTaskOwner owner={task.owner} taskId={task.id} />;
+		},
+		{
+			// Sort owners by display name, falling back to empty string for unassigned.
+			sortingFn: (rowA, rowB) => {
+				const ownerA = rowA.original.owner;
+				const ownerB = rowB.original.owner;
+				const nameA =
+					ownerA && "name" in ownerA && typeof ownerA.name === "string"
+						? ownerA.name
+						: "";
+				const nameB =
+					ownerB && "name" in ownerB && typeof ownerB.name === "string"
+						? ownerB.name
+						: "";
+				return nameA.localeCompare(nameB);
+			},
+			meta: {
+				groupValueRenderer: ownerGroupRenderer,
+				cellClassName: "px-1 w-0",
+			} as ColumnDef<Task>["meta"],
+		},
+	),
+	// Title with parent
+	createSortableColumn("title", "", ({ row }) => <TaskTitleCell row={row} />, {
 		meta: {
-			groupValueRenderer: assigneeGroupRenderer,
+			cellClassName: "min-w-0 w-full",
 		} as ColumnDef<Task>["meta"],
-	},
+	}),
+	// Labels (right side)
 	{
 		accessorKey: "labels",
 		accessorFn: (row) =>
@@ -330,24 +425,57 @@ export const taskColumns: ColumnDef<Task>[] = [
 						.sort()
 						.join(", ")
 				: "No labels",
-		header: "Labels",
+		header: "",
 		cell: ({ row }) => {
 			const labels = row.original.labels;
 			const task = row.original;
 			return <EditableTaskLabels labels={labels} taskId={task.id} />;
 		},
 		enableSorting: true,
+		meta: {
+			groupValueRenderer: labelsGroupRenderer,
+			cellClassName: "px-1 text-right w-0",
+		} as ColumnDef<Task>["meta"],
 	},
+	// Assignee avatar (right side)
+	{
+		accessorKey: "assignee",
+		accessorFn: (row) => row.assignee?.name ?? "Unassigned",
+		header: "",
+		cell: ({ row }) => {
+			const task = row.original;
+			return (
+				<EditableTaskAssignee
+					assignee={task.assignee}
+					taskId={task.id}
+					variant="icon"
+				/>
+			);
+		},
+		meta: {
+			groupValueRenderer: assigneeGroupRenderer,
+			cellClassName: "px-1 w-0",
+		} as ColumnDef<Task>["meta"],
+	},
+	// Due date (short format)
 	createSortableColumn(
 		"dueDate",
-		"Due Date",
+		"",
 		({ row }) => {
 			const date = row.getValue("dueDate") as string | null;
-			return <TaskDateDisplay date={date} />;
+			const created = row.original.createdAt;
+
+			return (
+				<div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+					<span>{created ? formatDateShort(created) : "-"}</span>
+					<span>{date ? formatDateShort(date) : "-"}</span>
+				</div>
+			);
 		},
 		{
 			meta: {
 				groupValueRenderer: dateGroupRenderer,
+				cellClassName: "px-1 text-right pr-4 w-0",
 			} as ColumnDef<Task>["meta"],
 		},
 	),

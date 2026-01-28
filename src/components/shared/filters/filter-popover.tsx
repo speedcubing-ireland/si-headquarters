@@ -31,25 +31,30 @@ type SharedFilterPopoverTriggerProps = Omit<
 export const SharedFilterPopoverTrigger = React.forwardRef<
 	React.ElementRef<typeof Button>,
 	SharedFilterPopoverTriggerProps
->(({ count, label = "Filter", icon: Icon = ListFilter, className, ...props }, ref) => {
-	return (
-		<Button
-			ref={ref}
-			variant="outline"
-			size="sm"
-			type="button"
-			className={cn("h-8 gap-1", className)}
-			{...props}
-		>
-			<Icon className="size-4" />
-			<span>{label}</span>
-			{count > 0 && (
-				<span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs">
-					{count}
-				</span>
-			)}
-			<ChevronDown className="size-4" />
-		</Button>
-	);
-});
+>(
+	(
+		{ count, label = "Filter", icon: Icon = ListFilter, className, ...props },
+		ref,
+	) => {
+		return (
+			<Button
+				ref={ref}
+				variant="outline"
+				size="sm"
+				type="button"
+				className={cn("h-8 gap-1", className)}
+				{...props}
+			>
+				<Icon className="size-4" />
+				<span>{label}</span>
+				{count > 0 && (
+					<span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs">
+						{count}
+					</span>
+				)}
+				<ChevronDown className="size-4" />
+			</Button>
+		);
+	},
+);
 SharedFilterPopoverTrigger.displayName = "SharedFilterPopoverTrigger";

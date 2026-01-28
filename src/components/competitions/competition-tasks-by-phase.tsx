@@ -65,7 +65,7 @@ export function CompetitionTasksByPhase({
 			owner: null,
 			assignee: null,
 			phase: phaseId
-				? competition.phases.find((p) => p.id === phaseId) ?? null
+				? (competition.phases.find((p) => p.id === phaseId) ?? null)
 				: null,
 			status: "to-do",
 			priority: "medium",
@@ -162,4 +162,3 @@ export function CompetitionTasksByPhase({
 		</section>
 	);
 }
-

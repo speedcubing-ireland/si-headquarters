@@ -69,7 +69,13 @@ export function useEntitySavedViews<
 	const createCurrentView = (name: string, description?: string): string => {
 		const filtersJson = filterStore.getState().toJSON();
 		const displaySettingsJson = displaySettingsStore.getState().toJSON();
-		return createView(entity, name, filtersJson, displaySettingsJson, description);
+		return createView(
+			entity,
+			name,
+			filtersJson,
+			displaySettingsJson,
+			description,
+		);
 	};
 
 	const applyView = (viewId: string): void => {
@@ -86,9 +92,9 @@ export function useEntitySavedViews<
 		// If deleting the active view, clear filters and display settings
 		if (viewId === activeViewId) {
 			filterStore.getState().clearFilters();
-			displaySettingsStore.getState().fromJSON(
-				displaySettingsStore.getState().toJSON(),
-			);
+			displaySettingsStore
+				.getState()
+				.fromJSON(displaySettingsStore.getState().toJSON());
 			setActiveView(entity, null);
 		}
 	};

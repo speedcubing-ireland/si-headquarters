@@ -40,8 +40,7 @@ export function CompetitionLatestUpdate({
 
 	const [isCreating, setIsCreating] = useState(false);
 	const [message, setMessage] = useState("");
-	const [status, setStatus] =
-		useState<ProgressUpdate["status"]>("on-track");
+	const [status, setStatus] = useState<ProgressUpdate["status"]>("on-track");
 
 	const latest = [...competition.progressUpdates].sort((a, b) =>
 		b.timestamp.localeCompare(a.timestamp),
@@ -95,7 +94,9 @@ export function CompetitionLatestUpdate({
 	}
 
 	const active = isCreating ? undefined : latest;
-	const statusInfo = active ? statusConfig[active.status] : statusConfig[status];
+	const statusInfo = active
+		? statusConfig[active.status]
+		: statusConfig[status];
 	const StatusIcon = statusInfo.icon;
 
 	return (
@@ -216,4 +217,3 @@ export function CompetitionLatestUpdate({
 		</Card>
 	);
 }
-

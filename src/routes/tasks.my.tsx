@@ -32,9 +32,7 @@ function PageHeader({ onAddTask }: { onAddTask: () => void }) {
 
 function Filters() {
 	const matchMode = useTasksFilterStore((state) => state.matchMode);
-	const toggleMatchMode = useTasksFilterStore(
-		(state) => state.toggleMatchMode,
-	);
+	const toggleMatchMode = useTasksFilterStore((state) => state.toggleMatchMode);
 	const hasActiveFilters = useTasksFilterStore(
 		(state) => state.hasActiveFilters,
 	);
@@ -108,13 +106,13 @@ function RouteComponent() {
 			}
 		}
 		// Use a simple grouping for readability
-		displayStore
-			.getState()
-			.fromJSON(JSON.stringify({
+		displayStore.getState().fromJSON(
+			JSON.stringify({
 				grouping: "status",
 				subGrouping: null,
 				ordering: { field: null, direction: "asc" },
-			}));
+			}),
+		);
 	}, []);
 
 	return (
@@ -132,4 +130,3 @@ function RouteComponent() {
 		</div>
 	);
 }
-

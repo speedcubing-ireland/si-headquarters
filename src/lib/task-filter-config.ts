@@ -3,14 +3,15 @@ import {
 	Circle,
 	CircleDashed,
 	CircleDot,
+	Dice1,
+	Dice2,
+	Dice3,
 	Folder,
 	type LucideIcon,
-	Signal,
-	SignalHigh,
-	SignalMedium,
 	Tag,
 	TriangleAlert,
 	User,
+	Users,
 	XCircle,
 } from "lucide-react";
 import type {
@@ -25,6 +26,7 @@ export type TaskFilterType =
 	| "priority"
 	| "assignee"
 	| "labels"
+	| "owner"
 	| "parentType";
 
 export interface TaskFilterOption<T = string> {
@@ -53,9 +55,9 @@ const statusOptions: TaskFilterOption<TaskStatus>[] = [
 ];
 
 const priorityOptions: TaskFilterOption<TaskPriority>[] = [
-	{ value: "low", label: "Low", icon: SignalMedium },
-	{ value: "medium", label: "Medium", icon: SignalHigh },
-	{ value: "high", label: "High", icon: Signal },
+	{ value: "low", label: "Low", icon: Dice1 },
+	{ value: "medium", label: "Medium", icon: Dice2 },
+	{ value: "high", label: "High", icon: Dice3 },
 	{ value: "urgent", label: "Urgent", icon: TriangleAlert },
 ];
 
@@ -69,6 +71,15 @@ const parentTypeOptions: TaskFilterOption<"task" | "phase" | "competition">[] =
 export function getAssigneeOptions(
 	users: UserType[],
 ): TaskFilterOption<string>[] {
+	return users.map((user) => ({
+		value: user.id,
+		label: user.name,
+		icon: null,
+		avatarUrl: user.avatarUrl,
+	}));
+}
+
+export function getOwnerOptions(users: UserType[]): TaskFilterOption<string>[] {
 	return users.map((user) => ({
 		value: user.id,
 		label: user.name,
@@ -99,7 +110,7 @@ export const taskFilterConfigs: Record<TaskFilterType, TaskFilterTypeConfig> = {
 	},
 	priority: {
 		type: "priority",
-		icon: SignalHigh,
+		icon: Dice2,
 		label: "Priority",
 		placeholder: "Search",
 		emptyMessage: "No priority found.",
@@ -111,6 +122,14 @@ export const taskFilterConfigs: Record<TaskFilterType, TaskFilterTypeConfig> = {
 		label: "Assignee",
 		placeholder: "Search",
 		emptyMessage: "No user found.",
+		getOptions: () => [],
+	},
+	owner: {
+		type: "owner",
+		icon: Users,
+		label: "Owner",
+		placeholder: "Search",
+		emptyMessage: "No owner found.",
 		getOptions: () => [],
 	},
 	labels: {
@@ -138,6 +157,9 @@ export function getTaskFilterOptions<T extends TaskFilterType>(
 ): TaskFilterOption[] {
 	if (type === "assignee") {
 		return getAssigneeOptions(users ?? []);
+	}
+	if (type === "owner") {
+		return getOwnerOptions(users ?? []);
 	}
 	if (type === "labels") {
 		return getLabelOptions(labels ?? []);

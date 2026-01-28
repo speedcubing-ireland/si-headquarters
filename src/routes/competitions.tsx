@@ -199,7 +199,11 @@ function RouteComponent() {
 							/>
 						</div>
 						<div className="flex shrink-0 items-center gap-2">
-							<Button variant="outline" size="sm" onClick={handleCancelCreateView}>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleCancelCreateView}
+							>
 								Cancel
 							</Button>
 							<Button

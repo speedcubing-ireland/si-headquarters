@@ -64,4 +64,3 @@ export function EditableText({
 		</button>
 	);
 }
-

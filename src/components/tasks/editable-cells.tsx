@@ -1,4 +1,4 @@
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, CircleDashed } from "lucide-react";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +16,17 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useDataV2 } from "@/data/data-store-v2";
 import type {
 	TaskLabel,
 	TaskPriority,
 	TaskStatus,
+	Team,
 	User,
 } from "@/data/types-new";
 import { statusColors, statusLabels } from "@/lib/task-constants";
@@ -44,6 +50,7 @@ interface EditableTaskCellProps<T extends TaskStatus | TaskPriority | string> {
 	renderOption: (option: TaskFilterOption<T>) => React.ReactNode;
 	isSelected?: (optionValue: T, currentValue: T) => boolean;
 	options: TaskFilterOption<T>[];
+	triggerClassName?: string;
 }
 
 function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
@@ -54,6 +61,7 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 	renderOption,
 	isSelected,
 	options,
+	triggerClassName,
 }: EditableTaskCellProps<T>) {
 	const [open, setOpen] = React.useState(false);
 	const config = taskFilterConfigs[type];
@@ -66,7 +74,13 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="ghost" size="sm" className="h-7 px-2 justify-start">
+				<Button
+					variant="ghost"
+					size="sm"
+					className={
+						triggerClassName ?? "h-6 px-1 justify-start hover:bg-muted/50"
+					}
+				>
 					{renderTrigger(value)}
 				</Button>
 			</DropdownMenuTrigger>
@@ -104,9 +118,11 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 export function EditableTaskStatus({
 	status,
 	taskId,
+	children,
 }: {
 	status: TaskStatus;
 	taskId: string;
+	children?: React.ReactNode;
 }) {
 	const updateTaskStatus = useDataV2((state) => state.updateTaskStatus);
 	const StatusIcon = getStatusIcon(status);
@@ -120,12 +136,17 @@ export function EditableTaskStatus({
 			value={status}
 			options={options}
 			onChange={(newStatus) => updateTaskStatus(taskId, newStatus)}
-			renderTrigger={(value) => (
-				<Badge className={statusColors[value]}>
-					<StatusIcon className="size-3 mr-1" />
-					{statusLabels[value]}
-				</Badge>
-			)}
+			triggerClassName={
+				children ? "h-6 w-6 p-0 justify-center hover:bg-muted/50" : undefined
+			}
+			renderTrigger={(value) =>
+				children ?? (
+					<Badge className={statusColors[value]}>
+						<StatusIcon className="size-3 mr-1" />
+						{statusLabels[value]}
+					</Badge>
+				)
+			}
 			renderOption={(option) => {
 				const Icon = option.icon;
 				return (
@@ -147,7 +168,6 @@ export function EditableTaskPriority({
 	taskId: string;
 }) {
 	const updateTaskPriority = useDataV2((state) => state.updateTaskPriority);
-	const Icon = getPriorityIcon(priority);
 	const options = getTaskFilterOptions(
 		"priority",
 	) as TaskFilterOption<TaskPriority>[];
@@ -158,7 +178,11 @@ export function EditableTaskPriority({
 			value={priority}
 			options={options}
 			onChange={(newPriority) => updateTaskPriority(taskId, newPriority)}
-			renderTrigger={() => <Icon className="size-4 text-muted-foreground" />}
+			triggerClassName="h-6 w-6 p-0 justify-center hover:bg-muted/50"
+			renderTrigger={(value) => {
+				const TriggerIcon = getPriorityIcon(value);
+				return <TriggerIcon className="size-4 text-muted-foreground" />;
+			}}
 			renderOption={(option) => {
 				const OptionIcon = option.icon;
 				return (
@@ -177,9 +201,11 @@ export function EditableTaskPriority({
 export function EditableTaskAssignee({
 	assignee,
 	taskId,
+	variant = "default",
 }: {
 	assignee: User | null;
 	taskId: string;
+	variant?: "default" | "icon";
 }) {
 	const users = useDataV2((state) => state.users);
 	const updateTaskAssignee = useDataV2((state) => state.updateTaskAssignee);
@@ -191,22 +217,49 @@ export function EditableTaskAssignee({
 		setOpen(false);
 	};
 
+	const isIconVariant = variant === "icon";
+
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="ghost" size="sm" className="h-7 px-2 justify-start">
+				<Button
+					variant="ghost"
+					size="sm"
+					className={
+						isIconVariant
+							? "h-6 w-6 p-0 justify-center hover:bg-muted/50"
+							: "h-7 px-2 justify-start"
+					}
+				>
 					{assignee ? (
-						<div className="flex items-center gap-1.5">
-							<Avatar className="size-5">
-								<AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
-								<AvatarFallback className="text-[10px]">
-									{getInitials(assignee.name)}
-								</AvatarFallback>
-							</Avatar>
-							<span className="text-xs truncate max-w-[80px]">
-								{assignee.name}
-							</span>
-						</div>
+						isIconVariant ? (
+							<>
+								<span className="sr-only">Assigned to {assignee.name}</span>
+								<Avatar className="size-5">
+									<AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
+									<AvatarFallback className="text-[10px]">
+										{getInitials(assignee.name)}
+									</AvatarFallback>
+								</Avatar>
+							</>
+						) : (
+							<div className="flex items-center gap-1.5">
+								<Avatar className="size-5">
+									<AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
+									<AvatarFallback className="text-[10px]">
+										{getInitials(assignee.name)}
+									</AvatarFallback>
+								</Avatar>
+								<span className="text-xs truncate max-w-[80px]">
+									{assignee.name}
+								</span>
+							</div>
+						)
+					) : isIconVariant ? (
+						<>
+							<span className="sr-only">Unassigned</span>
+							<CircleDashed className="size-4 text-muted-foreground/60" />
+						</>
 					) : (
 						<span className="text-xs text-muted-foreground">Unassigned</span>
 					)}
@@ -270,6 +323,7 @@ export function EditableTaskLabels({
 	const allLabels = useDataV2((state) => state.labels);
 	const updateTaskLabels = useDataV2((state) => state.updateTaskLabels);
 	const [open, setOpen] = React.useState(false);
+	const hiddenLabels = labels.slice(2);
 
 	const toggleLabel = (labelId: string) => {
 		const hasLabel = labels.some((l) => l.id === labelId);
@@ -289,27 +343,45 @@ export function EditableTaskLabels({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="ghost" size="sm" className="h-7 px-2 justify-start">
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-7 px-2 justify-end gap-1"
+				>
 					{labels.length > 0 ? (
-						<div className="flex items-center gap-1 flex-wrap">
+						<div className="flex items-center gap-1.5 justify-end flex-nowrap overflow-hidden">
 							{labels.slice(0, 2).map((label) => (
-								<Badge
+								<span
 									key={label.id}
-									className="text-[10px] px-1.5 py-0"
-									style={{ backgroundColor: label.color, color: "#fff" }}
+									className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs"
 								>
-									{label.name}
-								</Badge>
-							))}
-							{labels.length > 2 && (
-								<span className="text-xs text-muted-foreground">
-									+{labels.length - 2}
+									<span
+										className="size-2 rounded-full shrink-0"
+										style={{ backgroundColor: label.color }}
+									/>
+									<span className="truncate max-w-[80px]">{label.name}</span>
 								</span>
+							))}
+							{labels.length >= 3 && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+											<span className="size-2 rounded-full bg-muted-foreground/40 shrink-0" />
+											<span className="whitespace-nowrap">
+												+{labels.length - 2}{" "}
+												{labels.length - 2 === 1 ? "label" : "labels"}
+											</span>
+										</span>
+									</TooltipTrigger>
+									<TooltipContent side="top" sideOffset={6}>
+										<div className="max-w-[240px]">
+											{hiddenLabels.map((l) => l.name).join(", ")}
+										</div>
+									</TooltipContent>
+								</Tooltip>
 							)}
 						</div>
-					) : (
-						<span className="text-xs text-muted-foreground">No labels</span>
-					)}
+					) : null}
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-48 p-0" align="start">
@@ -356,5 +428,165 @@ export function TaskDateDisplay({ date }: { date?: string | null }) {
 		<span className="text-xs">{formatted}</span>
 	) : (
 		<span className="text-muted-foreground text-xs">Invalid date</span>
+	);
+}
+
+export function EditableTaskOwner({
+	owner,
+	taskId,
+}: {
+	owner: Team | User | null;
+	taskId: string;
+}) {
+	const teams = useDataV2((state) => state.teams);
+	const users = useDataV2((state) => state.users);
+	const updateTaskOwner = useDataV2((state) => state.updateTaskOwner);
+	const [open, setOpen] = React.useState(false);
+
+	const currentValue = owner
+		? "members" in owner
+			? `team:${owner.id}`
+			: `user:${owner.id}`
+		: "unassigned";
+
+	const handleChange = (value: string) => {
+		if (value === "unassigned") {
+			updateTaskOwner(taskId, null);
+			setOpen(false);
+			return;
+		}
+
+		if (value.startsWith("team:")) {
+			const id = value.slice("team:".length);
+			const team = teams.find((t) => t.id === id) ?? null;
+			updateTaskOwner(taskId, team);
+			setOpen(false);
+			return;
+		}
+
+		if (value.startsWith("user:")) {
+			const id = value.slice("user:".length);
+			const user = users.find((u) => u.id === id) ?? null;
+			updateTaskOwner(taskId, user);
+			setOpen(false);
+		}
+	};
+
+	const renderTriggerContent = () => {
+		if (owner && "members" in owner) {
+			return (
+				<div className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+					<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+						T
+					</span>
+					<span className="truncate max-w-[80px]">{owner.name}</span>
+				</div>
+			);
+		}
+
+		if (owner && "avatarUrl" in owner) {
+			return (
+				<div className="flex items-center gap-1.5">
+					<Avatar className="size-5">
+						<AvatarImage src={owner.avatarUrl} alt={owner.name} />
+						<AvatarFallback className="text-[10px]">
+							{getInitials(owner.name)}
+						</AvatarFallback>
+					</Avatar>
+				</div>
+			);
+		}
+
+		// Blank team chip when no owner
+		return (
+			<span className="inline-flex size-5 items-center justify-center rounded-full border border-dashed border-muted-foreground/40" />
+		);
+	};
+
+	return (
+		<DropdownMenu open={open} onOpenChange={setOpen}>
+			<DropdownMenuTrigger asChild>
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-6 px-1 justify-center hover:bg-muted/50"
+				>
+					{renderTriggerContent()}
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent className="w-56 p-0" align="start">
+				<Command>
+					<CommandInput placeholder="Set owner..." />
+					<CommandList>
+						<CommandEmpty>No match found.</CommandEmpty>
+						<CommandGroup>
+							<CommandItem
+								value="unassigned"
+								onSelect={() => handleChange("unassigned")}
+								className="flex items-center justify-between"
+							>
+								<span className="text-xs text-muted-foreground">
+									Owner: Unassigned
+								</span>
+								{currentValue === "unassigned" && (
+									<CheckIcon size={14} className="ml-auto" />
+								)}
+							</CommandItem>
+						</CommandGroup>
+						{teams.length > 0 && (
+							<CommandGroup heading="Teams">
+								{teams.map((team) => {
+									const value = `team:${team.id}`;
+									const selected = currentValue === value;
+									return (
+										<CommandItem
+											key={team.id}
+											value={team.name}
+											onSelect={() => handleChange(value)}
+											className="flex items-center justify-between"
+										>
+											<div className="flex items-center gap-2">
+												<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+													T
+												</span>
+												<span className="text-xs">{team.name}</span>
+											</div>
+											{selected && <CheckIcon size={14} className="ml-auto" />}
+										</CommandItem>
+									);
+								})}
+							</CommandGroup>
+						)}
+						{users.length > 0 && (
+							<CommandGroup heading="Individuals">
+								{users.map((user) => {
+									const value = `user:${user.id}`;
+									const selected = currentValue === value;
+									return (
+										<CommandItem
+											key={user.id}
+											value={user.name}
+											onSelect={() => handleChange(value)}
+											className="flex items-center justify-between"
+										>
+											<div className="flex items-center gap-2">
+												<Avatar className="size-4">
+													<AvatarImage src={user.avatarUrl} alt={user.name} />
+													<AvatarFallback className="text-[8px]">
+														{getInitials(user.name)}
+													</AvatarFallback>
+												</Avatar>
+												<span className="text-xs">{user.name}</span>
+											</div>
+											{selected && <CheckIcon size={14} className="ml-auto" />}
+										</CommandItem>
+									);
+								})}
+							</CommandGroup>
+						)}
+					</CommandList>
+				</Command>
+			</DropdownMenuContent>
+		</DropdownMenu>
 	);
 }

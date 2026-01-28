@@ -73,9 +73,7 @@ export function CompetitionDetails({
 		<section className="space-y-6">
 			<div className="flex items-start gap-4">
 				<div className="flex size-12 items-center justify-center rounded-lg border border-border bg-muted/30">
-					<span className="text-sm font-medium text-muted-foreground">
-						SC
-					</span>
+					<span className="text-sm font-medium text-muted-foreground">SC</span>
 				</div>
 
 				<div className="flex-1 space-y-2">
@@ -220,7 +218,9 @@ export function CompetitionDetails({
 							<EditableLeadDelegateCell competition={competition} />
 						) : (
 							<LeadsDisplay
-								leads={competition.leadDelegate ? [competition.leadDelegate] : []}
+								leads={
+									competition.leadDelegate ? [competition.leadDelegate] : []
+								}
 								variant="detailed"
 							/>
 						)}
@@ -230,10 +230,7 @@ export function CompetitionDetails({
 						{canEdit ? (
 							<EditableOrganisersCell competition={competition} />
 						) : (
-							<LeadsDisplay
-								leads={competition.organisers}
-								variant="detailed"
-							/>
+							<LeadsDisplay leads={competition.organisers} variant="detailed" />
 						)}
 					</div>
 				</div>
@@ -244,9 +241,7 @@ export function CompetitionDetails({
 							Core details
 						</div>
 						<div className="flex flex-wrap items-center gap-2 text-xs">
-							{canEdit && (
-								<EditablePhaseCell competition={competition} />
-							)}
+							{canEdit && <EditablePhaseCell competition={competition} />}
 							<Badge
 								variant="outline"
 								className="gap-1 border-border bg-background font-normal"
@@ -281,4 +276,3 @@ export function CompetitionDetails({
 		</section>
 	);
 }
-

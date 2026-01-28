@@ -4,10 +4,10 @@ import {
 	Circle,
 	CircleDashed,
 	CircleDot,
+	Dice1,
+	Dice2,
+	Dice3,
 	type LucideIcon,
-	Signal,
-	SignalHigh,
-	SignalMedium,
 	TriangleAlert,
 	XCircle,
 } from "lucide-react";
@@ -51,11 +51,11 @@ export function getPriorityIcon(priority: TaskPriority): LucideIcon {
 		case "urgent":
 			return TriangleAlert;
 		case "high":
-			return Signal;
+			return Dice3;
 		case "medium":
-			return SignalHigh;
+			return Dice2;
 		case "low":
-			return SignalMedium;
+			return Dice1;
 	}
 }
 

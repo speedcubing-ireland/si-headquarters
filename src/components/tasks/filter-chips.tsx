@@ -202,7 +202,9 @@ export function TasksFilterChips() {
 						<TasksFilterValueSelector
 							type="assignee"
 							selectedValues={item.values}
-							onToggleValue={(value) => toggleFilterValue("assignee", index, value)}
+							onToggleValue={(value) =>
+								toggleFilterValue("assignee", index, value)
+							}
 						>
 							{button}
 						</TasksFilterValueSelector>
@@ -229,7 +231,9 @@ export function TasksFilterChips() {
 						<TasksFilterValueSelector
 							type="labels"
 							selectedValues={item.values}
-							onToggleValue={(value) => toggleFilterValue("labels", index, value)}
+							onToggleValue={(value) =>
+								toggleFilterValue("labels", index, value)
+							}
 						>
 							{button}
 						</TasksFilterValueSelector>

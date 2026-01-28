@@ -13,7 +13,10 @@ import {
 	DropdownMenuSubContent,
 	DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { TaskFilterOption, TaskFilterType } from "@/lib/task-filter-config";
+import type {
+	TaskFilterOption,
+	TaskFilterType,
+} from "@/lib/task-filter-config";
 import { cn } from "@/lib/utils";
 
 type TasksFilterSubMenuProps = {
@@ -94,4 +97,3 @@ export function TasksFilterSubMenu({
 		</DropdownMenuSub>
 	);
 }
-

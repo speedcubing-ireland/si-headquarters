@@ -4,6 +4,7 @@ import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-sto
 const tasksColumnOptions = [
 	{ value: "status", label: "Status" },
 	{ value: "priority", label: "Priority" },
+	{ value: "owner", label: "Owner" },
 	{ value: "assignee", label: "Assignee" },
 	{ value: "labels", label: "Labels" },
 	{ value: "dueDate", label: "Due Date" },

@@ -92,4 +92,3 @@ export function TasksFilterValueSelector<TValue extends string>({
 		</DropdownMenu>
 	);
 }
-

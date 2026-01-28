@@ -8,7 +8,7 @@ import {
 	type Row,
 	useReactTable,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import type React from "react";
 import { useEffect, useMemo } from "react";
 import {
@@ -40,6 +40,9 @@ export interface SharedDataTableProps<TData, TValue, TFilterState> {
 	};
 	setOrdering: (field: string | null, direction: "asc" | "desc") => void;
 	emptyLabel?: string;
+	containerClassName?: string;
+	cellPaddingXClassName?: string;
+	showHeader?: boolean;
 }
 
 export function SharedDataTable<TData, TValue, TFilterState>({
@@ -52,6 +55,9 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 	ordering,
 	setOrdering,
 	emptyLabel = "No results.",
+	containerClassName,
+	cellPaddingXClassName = "px-2",
+	showHeader = true,
 	onRowClick,
 }: SharedDataTableProps<TData, TValue, TFilterState> & {
 	onRowClick?: (row: TData) => void;
@@ -113,43 +119,45 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 	}, [groupingState, table]);
 
 	return (
-		<div className="w-full">
+		<div className={cn("w-full", containerClassName)}>
 			<Table>
-				<TableHeader className="bg-background sticky top-0 z-0 border-b">
-					{table.getHeaderGroups().map((headerGroup) => (
-						<TableRow key={headerGroup.id} className="border-b">
-							{headerGroup.headers.map((header) => {
-								const meta =
-									(header.column.columnDef.meta as
-										| ColumnMeta<TData>
-										| undefined) ?? undefined;
-								return (
-									<TableHead
-										key={header.id}
-										className={cn(
-											"px-6 py-1.5 text-sm text-muted-foreground font-medium text-left",
-											meta?.headerClassName,
-										)}
-										aria-sort={
-											header.column.getIsSorted() === "asc"
-												? "ascending"
-												: header.column.getIsSorted() === "desc"
-													? "descending"
-													: undefined
-										}
-									>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
-								);
-							})}
-						</TableRow>
-					))}
-				</TableHeader>
+				{showHeader ? (
+					<TableHeader>
+						{table.getHeaderGroups().map((headerGroup) => (
+							<TableRow key={headerGroup.id}>
+								{headerGroup.headers.map((header) => {
+									const meta =
+										(header.column.columnDef.meta as
+											| ColumnMeta<TData>
+											| undefined) ?? undefined;
+									return (
+										<TableHead
+											key={header.id}
+											className={cn(
+												"px-2 py-1 text-xs text-muted-foreground font-medium text-left",
+												meta?.headerClassName,
+											)}
+											aria-sort={
+												header.column.getIsSorted() === "asc"
+													? "ascending"
+													: header.column.getIsSorted() === "desc"
+														? "descending"
+														: undefined
+											}
+										>
+											{header.isPlaceholder
+												? null
+												: flexRender(
+														header.column.columnDef.header,
+														header.getContext(),
+													)}
+										</TableHead>
+									);
+								})}
+							</TableRow>
+						))}
+					</TableHeader>
+				) : null}
 				<TableBody>
 					{table.getRowModel().rows.length === 0 ? (
 						<TableRow>
@@ -174,7 +182,7 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 
 							const isInteractiveTarget = (target: HTMLElement | null) => {
 								if (!target) return false;
-								
+
 								// Check for standard interactive elements
 								if (
 									target.closest(
@@ -183,7 +191,7 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 								) {
 									return true;
 								}
-								
+
 								// Check for dropdown/select/command menu items and their containers
 								// These use Radix UI with data-slot attributes and portals
 								if (
@@ -193,7 +201,7 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 								) {
 									return true;
 								}
-								
+
 								// Check for elements with menu-related roles
 								if (
 									target.closest(
@@ -202,12 +210,12 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 								) {
 									return true;
 								}
-								
+
 								// Check if element is inside a Radix Portal (dropdowns/selects render in portals)
-								if (target.closest('[data-radix-portal]')) {
+								if (target.closest("[data-radix-portal]")) {
 									return true;
 								}
-								
+
 								return false;
 							};
 
@@ -215,11 +223,11 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 								cellElement: HTMLElement | null,
 							) => {
 								if (!cellElement) return false;
-								
+
 								// Check if the cell contains any interactive elements
 								const interactiveSelector =
 									"button,[role=button],a[href],input,select,textarea,[contenteditable=true],[data-slot='dropdown-menu-trigger'],[data-slot='select-trigger'],[data-slot='command']";
-								
+
 								return !!cellElement.querySelector(interactiveSelector);
 							};
 
@@ -228,12 +236,13 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 									key={row.id}
 									data-state={row.getIsSelected() && "selected"}
 									className={cn(
-										"border-b border-muted-foreground/5 transition-colors",
+										"border-b border-border/50 transition-colors",
 										isGrouped &&
-											"bg-muted/30 border-muted-foreground/10 cursor-pointer hover:bg-muted/50",
+											"bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/40",
 										!isGrouped &&
 											isClickable &&
-											"cursor-pointer hover:bg-sidebar/50",
+											"cursor-pointer hover:bg-muted/30",
+										!isGrouped && "h-10",
 									)}
 									onClick={(e) => {
 										if (isGrouped) {
@@ -244,14 +253,17 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 
 										if (!onRowClick) return;
 										const target = e.target as HTMLElement | null;
-										
+
 										// Check if the click target itself is interactive
 										if (isInteractiveTarget(target)) return;
-										
+
 										// Check if the clicked cell contains interactive elements
 										// Find the closest table cell (td) element
 										const clickedCell = target?.closest("td");
-										if (clickedCell && cellContainsInteractiveElements(clickedCell)) {
+										if (
+											clickedCell &&
+											cellContainsInteractiveElements(clickedCell)
+										) {
 											return;
 										}
 
@@ -266,15 +278,56 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 										const isFirstCell =
 											cell.column.id === allCells[0]?.column.id;
 
+										// For grouped rows, render the first cell with full colspan
 										if (isGrouped && !isFirstCell) {
+											return null;
+										}
+
+										if (isGrouped && isFirstCell) {
 											return (
 												<TableCell
 													key={cell.id}
-													className={cn(
-														"px-6 py-2 text-sm font-medium",
-														meta?.cellClassName,
-													)}
-												/>
+													colSpan={allCells.length}
+													className={cn(cellPaddingXClassName, "py-2 text-sm")}
+												>
+													<div className="flex items-center justify-between w-full pr-2">
+														<div className="flex items-center gap-1.5">
+															{isExpanded ? (
+																<ChevronDown className="size-3.5 text-muted-foreground/50" />
+															) : (
+																<ChevronRight className="size-3.5 text-muted-foreground/50" />
+															)}
+															{(() => {
+																const groupId =
+																	(
+																		row as Row<TData> & {
+																			groupingColumnId?: string;
+																		}
+																	).groupingColumnId || cell.column.id;
+																const value = row.getGroupingValue(groupId);
+																const groupColumn = table.getColumn(
+																	groupId as string,
+																);
+																const groupMeta = groupColumn?.columnDef.meta as
+																	| ColumnMeta<TData>
+																	| undefined;
+																const renderer = groupMeta?.groupValueRenderer;
+
+																return renderer ? (
+																	renderer(value, row as Row<TData>)
+																) : value != null ? (
+																	<span className="font-semibold text-sm">
+																		{String(value)}
+																	</span>
+																) : null;
+															})()}
+															<span className="text-muted-foreground text-xs">
+																{leafCount}
+															</span>
+														</div>
+														<Plus className="size-4 text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
+													</div>
+												</TableCell>
 											);
 										}
 
@@ -282,49 +335,15 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 											<TableCell
 												key={cell.id}
 												className={cn(
-													"px-6 py-3 text-sm align-middle text-left",
+													cellPaddingXClassName,
+													"py-2 text-sm align-middle text-left",
 													meta?.cellClassName,
-													isFirstCell && depth > 0 && "pl-12",
+													isFirstCell && depth > 0 && "pl-10",
 												)}
 											>
-												{isGrouped && isFirstCell ? (
-													<div className="flex items-center gap-2">
-														{isExpanded ? (
-															<ChevronDown className="size-4 text-muted-foreground/60" />
-														) : (
-															<ChevronRight className="size-4 text-muted-foreground/60" />
-														)}
-														{(() => {
-															const groupId =
-																(
-																	row as Row<TData> & {
-																		groupingColumnId?: string;
-																	}
-																).groupingColumnId || cell.column.id;
-															const value = row.getGroupingValue(groupId);
-															const groupColumn = table.getColumn(
-																groupId as string,
-															);
-															const groupMeta = groupColumn?.columnDef.meta as
-																| ColumnMeta<TData>
-																| undefined;
-															const renderer = groupMeta?.groupValueRenderer;
-
-															return renderer ? (
-																renderer(value, row as Row<TData>)
-															) : value != null ? (
-																<span>{String(value)}</span>
-															) : null;
-														})()}
-														<span className="text-muted-foreground text-sm ml-1">
-															{leafCount}
-														</span>
-													</div>
-												) : (
-													flexRender(
-														cell.column.columnDef.cell,
-														cell.getContext(),
-													)
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
 												)}
 											</TableCell>
 										);

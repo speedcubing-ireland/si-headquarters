@@ -82,10 +82,7 @@ function RouteComponent() {
 				<div className="flex items-center gap-2 px-4 lg:px-6">
 					<Inbox className="size-4 text-muted-foreground" />
 					<h1 className="text-sm font-semibold">Inbox</h1>
-					<Separator
-						orientation="vertical"
-						className="mx-2 h-4 bg-border"
-					/>
+					<Separator orientation="vertical" className="mx-2 h-4 bg-border" />
 					<p className="text-xs text-muted-foreground">
 						Notifications from tasks and competitions assigned to you.
 					</p>
@@ -101,14 +98,17 @@ function RouteComponent() {
 							</CardTitle>
 						</CardHeader>
 						<CardContent className="text-sm text-muted-foreground">
-							There are no notifications right now. As tasks and competitions are
-							updated, they&apos;ll appear here.
+							There are no notifications right now. As tasks and competitions
+							are updated, they&apos;ll appear here.
 						</CardContent>
 					</Card>
 				) : (
 					<div className="space-y-2">
 						{items.map((item, index) => {
-							if (item.type === "task-assigned" || item.type === "task-due-soon") {
+							if (
+								item.type === "task-assigned" ||
+								item.type === "task-due-soon"
+							) {
 								const isDueSoon = item.type === "task-due-soon";
 								return (
 									<Card
@@ -141,10 +141,7 @@ function RouteComponent() {
 												size="sm"
 												className="gap-1"
 											>
-												<Link
-													to="/tasks/$id"
-													params={{ id: item.task.id }}
-												>
+												<Link to="/tasks/$id" params={{ id: item.task.id }}>
 													Open task
 													<ArrowRight className="size-3.5" />
 												</Link>
@@ -170,9 +167,7 @@ function RouteComponent() {
 												</span>
 											</div>
 											<div className="text-sm">
-												<p className="font-medium">
-													{item.competition.name}
-												</p>
+												<p className="font-medium">{item.competition.name}</p>
 												{item.update.message && (
 													<p className="text-muted-foreground text-xs">
 														{item.update.message}
@@ -180,12 +175,7 @@ function RouteComponent() {
 												)}
 											</div>
 										</div>
-										<Button
-											asChild
-											variant="ghost"
-											size="sm"
-											className="gap-1"
-										>
+										<Button asChild variant="ghost" size="sm" className="gap-1">
 											<Link
 												to="/competitions/$id"
 												params={{ id: item.competition.id }}
@@ -204,4 +194,3 @@ function RouteComponent() {
 		</div>
 	);
 }
-

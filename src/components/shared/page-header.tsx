@@ -26,6 +26,7 @@ import type { SavedView } from "@/store/saved-views-store";
 interface SharedPageHeaderProps {
 	primaryIcon: LucideIcon;
 	primaryLabel: string;
+	secondaryLabel?: string;
 	addIcon: LucideIcon;
 	addLabel: string;
 	onAdd: () => void;
@@ -40,6 +41,7 @@ interface SharedPageHeaderProps {
 export function SharedPageHeader({
 	primaryIcon: PrimaryIcon,
 	primaryLabel,
+	secondaryLabel,
 	addIcon: AddIcon,
 	addLabel,
 	onAdd,
@@ -74,6 +76,11 @@ export function SharedPageHeader({
 						<PrimaryIcon className="size-4" />
 						{primaryLabel}
 					</Button>
+					{secondaryLabel && (
+						<span className="text-xs text-muted-foreground">
+							{secondaryLabel}
+						</span>
+					)}
 					<Separator
 						orientation="vertical"
 						className="mx-2 data-[orientation=vertical]:h-4"

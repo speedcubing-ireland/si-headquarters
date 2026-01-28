@@ -49,7 +49,9 @@ export function CompetitionModal({
 	const updateCompetition = useDataV2((state) => state.updateCompetition);
 
 	const [name, setName] = useState(competition?.name ?? "");
-	const [description, setDescription] = useState(competition?.description ?? "");
+	const [description, setDescription] = useState(
+		competition?.description ?? "",
+	);
 	const [compStart, setCompStart] = useState<Date | undefined>(
 		competition?.compStart ? new Date(competition.compStart) : undefined,
 	);

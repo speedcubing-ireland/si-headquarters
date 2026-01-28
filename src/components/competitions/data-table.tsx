@@ -54,6 +54,7 @@ export function DataTable<TData, TValue>({
 			subGrouping={subGrouping}
 			ordering={ordering}
 			setOrdering={setOrdering}
+			containerClassName="px-4"
 			emptyLabel="No results."
 			onRowClick={(competition) =>
 				router.navigate({

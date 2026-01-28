@@ -135,7 +135,9 @@ export function FilterChips() {
 								<FilterValueSelector
 									type={type}
 									selectedValues={item.values}
-									onToggleValue={(value) => toggleFilterValue(type, index, value)}
+									onToggleValue={(value) =>
+										toggleFilterValue(type, index, value)
+									}
 								>
 									{button}
 								</FilterValueSelector>

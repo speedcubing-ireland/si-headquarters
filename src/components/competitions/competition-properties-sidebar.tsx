@@ -126,7 +126,9 @@ export function CompetitionPropertiesSidebar({
 							</PropertyRow>
 							<PropertyRow label="Lead delegate">
 								<LeadsDisplay
-									leads={competition.leadDelegate ? [competition.leadDelegate] : []}
+									leads={
+										competition.leadDelegate ? [competition.leadDelegate] : []
+									}
 									variant="compact"
 								/>
 							</PropertyRow>
@@ -204,4 +206,3 @@ function PropertyRow({
 		</div>
 	);
 }
-

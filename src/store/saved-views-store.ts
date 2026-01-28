@@ -25,7 +25,10 @@ interface SavedViewsState {
 		displaySettingsJson: string,
 		description?: string,
 	) => string;
-	updateView: (id: string, updates: Partial<Pick<SavedView, "name" | "description">>) => void;
+	updateView: (
+		id: string,
+		updates: Partial<Pick<SavedView, "name" | "description">>,
+	) => void;
 	deleteView: (id: string) => void;
 	setActiveView: (entity: SavedViewEntity, viewId: string | null) => void;
 	getViewsForEntity: (entity: SavedViewEntity) => SavedView[];
@@ -47,7 +50,13 @@ export const useSavedViewsStore = create<SavedViewsState>()(
 				competitions: null,
 			},
 
-			createView: (entity, name, filtersJson, displaySettingsJson, description) => {
+			createView: (
+				entity,
+				name,
+				filtersJson,
+				displaySettingsJson,
+				description,
+			) => {
 				const now = new Date().toISOString();
 				const id = generateViewId();
 				const newView: SavedView = {
