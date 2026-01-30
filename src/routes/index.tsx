@@ -1,23 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CircleCheck, Inbox, ListTodo, Trophy } from "lucide-react";
+import { ListTodo, Trophy, Bell, ArrowRight } from "lucide-react";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardAction,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useDataV2 } from "@/data/data-store-v2";
+import { ActiveCompetitionsWidget } from "@/components/dashboard/active-competitions-widget";
+import { UpcomingDeadlinesWidget } from "@/components/dashboard/upcoming-deadlines-widget";
+import { TaskPriorityChart } from "@/components/dashboard/task-priority-chart";
+import { AtRiskWidget } from "@/components/dashboard/at-risk-widget";
+import { RecentActivityWidget } from "@/components/dashboard/recent-activity-widget";
 
 export const Route = createFileRoute("/")({
 	component: Index,
@@ -26,12 +23,19 @@ export const Route = createFileRoute("/")({
 function Index() {
 	const tasks = useDataV2((state) => state.tasks);
 	const competitions = useDataV2((state) => state.competitions);
+	const users = useDataV2((state) => state.users);
+	const getUnreadCount = useDataV2((state) => state.getUnreadCount);
+
+	const currentUser = users[0];
 
 	const openTasks = tasks.filter((task) => task.status !== "done").length;
+
 	const upcomingCompetitions = competitions.filter((competition) => {
 		const today = new Date().toISOString().split("T")[0];
 		return competition.compStart >= today;
 	}).length;
+
+	const unreadNotifications = currentUser ? getUnreadCount(currentUser.id) : 0;
 
 	return (
 		<>
@@ -52,103 +56,76 @@ function Index() {
 				</div>
 			</header>
 			<div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+				{/* Quick Stats Row */}
 				<div className="grid auto-rows-min gap-4 md:grid-cols-3">
 					<Card>
-						<CardHeader>
-							<CardTitle>Get started</CardTitle>
-							<CardDescription>
-								Core views for planning and running competitions.
-							</CardDescription>
+						<CardHeader className="pb-2">
+							<CardTitle className="text-sm font-medium flex items-center gap-2">
+								<ListTodo className="size-4 text-muted-foreground" />
+								Open Tasks
+							</CardTitle>
 						</CardHeader>
-						<CardContent className="flex flex-col gap-2">
-							<Button asChild variant="outline" className="justify-start gap-2">
-								<Link to="/tasks">
-									<ListTodo className="size-4" />
-									All tasks
-								</Link>
-							</Button>
-							<Button asChild variant="outline" className="justify-start gap-2">
-								<Link to="/tasks/my">
-									<CircleCheck className="size-4" />
-									My tasks
-								</Link>
-							</Button>
-							<Button asChild variant="outline" className="justify-start gap-2">
-								<Link to="/inbox">
-									<Inbox className="size-4" />
-									Inbox
-								</Link>
-							</Button>
-							<Button asChild variant="outline" className="justify-start gap-2">
-								<Link to="/competitions">
-									<Trophy className="size-4" />
-									Competitions
-								</Link>
-							</Button>
+						<CardContent>
+							<div className="text-3xl font-bold">{openTasks}</div>
+							<Link
+								to="/tasks"
+								className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2"
+							>
+								View all tasks
+								<ArrowRight className="size-3" />
+							</Link>
 						</CardContent>
 					</Card>
+
 					<Card>
-						<CardHeader>
-							<CardTitle>At a glance</CardTitle>
-							<CardDescription>
-								Today&apos;s workload and upcoming events.
-							</CardDescription>
+						<CardHeader className="pb-2">
+							<CardTitle className="text-sm font-medium flex items-center gap-2">
+								<Trophy className="size-4 text-muted-foreground" />
+								Upcoming Competitions
+							</CardTitle>
 						</CardHeader>
-						<CardContent className="grid grid-cols-2 gap-4">
-							<div>
-								<div className="text-sm text-muted-foreground">Open tasks</div>
-								<div className="text-2xl font-semibold">{openTasks}</div>
-							</div>
-							<div>
-								<div className="text-sm text-muted-foreground">
-									Upcoming competitions
-								</div>
-								<div className="text-2xl font-semibold">
-									{upcomingCompetitions}
-								</div>
-							</div>
+						<CardContent>
+							<div className="text-3xl font-bold">{upcomingCompetitions}</div>
+							<Link
+								to="/competitions"
+								className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2"
+							>
+								View all competitions
+								<ArrowRight className="size-3" />
+							</Link>
 						</CardContent>
 					</Card>
+
 					<Card>
-						<CardHeader>
-							<CardTitle>Shortcuts</CardTitle>
-							<CardDescription>
-								A few power moves for navigating Headquarters.
-							</CardDescription>
+						<CardHeader className="pb-2">
+							<CardTitle className="text-sm font-medium flex items-center gap-2">
+								<Bell className="size-4 text-muted-foreground" />
+								Unread Notifications
+							</CardTitle>
 						</CardHeader>
-						<CardContent className="space-y-2 text-sm text-muted-foreground">
-							<p>
-								<span className="font-mono text-xs border rounded px-1 py-0.5 mr-1">
-									C
-								</span>
-								Create a new task from the current tasks view.
-							</p>
-							<p>
-								Use the sidebar to jump between tasks, inbox, and competitions.
-							</p>
+						<CardContent>
+							<div className="text-3xl font-bold">{unreadNotifications}</div>
+							<Link
+								to="/inbox"
+								className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2"
+							>
+								Go to inbox
+								<ArrowRight className="size-3" />
+							</Link>
 						</CardContent>
 					</Card>
 				</div>
-				<Card>
-					<CardHeader className="flex flex-row items-center">
-						<div>
-							<CardTitle>Recent activity</CardTitle>
-							<CardDescription>
-								This demo uses fake data, but interactions behave like the real
-								app.
-							</CardDescription>
-						</div>
-						<CardAction>
-							<Button asChild variant="outline" size="sm">
-								<Link to="/tasks">Go to tasks</Link>
-							</Button>
-						</CardAction>
-					</CardHeader>
-					<CardContent className="text-sm text-muted-foreground">
-						Explore tasks, update statuses, and link them to competitions to see
-						how everything fits together.
-					</CardContent>
-				</Card>
+
+				{/* Widgets Grid */}
+				<div className="grid auto-rows-min gap-4 md:grid-cols-2">
+					<ActiveCompetitionsWidget />
+					<UpcomingDeadlinesWidget />
+					<TaskPriorityChart />
+					<AtRiskWidget />
+				</div>
+
+				{/* Full Width Activity Widget */}
+				<RecentActivityWidget />
 			</div>
 		</>
 	);

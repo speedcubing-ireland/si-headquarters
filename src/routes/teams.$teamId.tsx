@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ListTodo, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { SharedPageHeader } from "@/components/shared/page-header";
-import { taskColumns } from "@/components/tasks/columns";
+import { BulkActionsBar } from "@/components/tasks/bulk-actions-bar";
+import { useTaskColumns } from "@/components/tasks/columns";
 import { TasksDataTable } from "@/components/tasks/data-table";
 import { TasksDisplaySettings } from "@/components/tasks/display-settings";
 import { TasksFilterChips } from "@/components/tasks/filter-chips";
@@ -14,6 +15,8 @@ import { useDataV2 } from "@/data/data-store-v2";
 import type { Task, Team } from "@/data/types-new";
 import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
 import { useTasksFilterStore } from "@/store/tasks-filter-store";
+import { useTasksSavedViews } from "@/store/use-tasks-saved-views";
+import { useListPageState } from "@/hooks/use-list-page-state";
 
 type TriageFilter = "all" | "unassigned" | "assigned";
 
@@ -84,10 +87,18 @@ function useTeamOwnedTasks(teamId: string): Task[] {
 }
 
 function RouteComponent() {
+	const columns = useTaskColumns();
 	const { teamId } = Route.useParams();
 	const teams = useDataV2((state) => state.teams);
 	const team = teams.find((t) => t.id === teamId);
 	const [triageFilter, setTriageFilter] = useState<TriageFilter>("all");
+	const savedViews = useTasksSavedViews();
+
+	const listState = useListPageState({
+		filterStore: useTasksFilterStore,
+		displayStore: useTasksDisplaySettingsStore,
+		savedViews,
+	});
 
 	const filterStore = useTasksFilterStore;
 	const displayStore = useTasksDisplaySettingsStore;
@@ -119,11 +130,35 @@ function RouteComponent() {
 		);
 	}, []);
 
+	// Keyboard shortcuts: Esc to clear selection
+	useEffect(() => {
+		const keyHandler = (event: KeyboardEvent) => {
+			const target = event.target as HTMLElement | null;
+			if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) {
+				return;
+			}
+
+			// Esc - Clear selection when tasks are selected
+			if (event.key === "Escape" && listState.hasSelection) {
+				event.preventDefault();
+				listState.clearRowSelection();
+			}
+		};
+
+		window.addEventListener("keydown", keyHandler);
+
+		return () => {
+			window.removeEventListener("keydown", keyHandler);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [listState.hasSelection, listState.clearRowSelection]);
+
 	const handleAllTasks = () => {
 		filterStore.getState().clearFilters();
+		// Reset to default team view: grouped by status
 		displayStore.getState().fromJSON(
 			JSON.stringify({
-				grouping: null,
+				grouping: "status",
 				subGrouping: null,
 				ordering: { field: null, direction: "asc" },
 			}),
@@ -194,8 +229,22 @@ function RouteComponent() {
 			</div>
 
 			<div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 lg:px-6">
-				<TasksDataTable columns={taskColumns} tasks={triagedTasks} />
+				<TasksDataTable
+					columns={columns}
+					tasks={triagedTasks}
+					enableRowSelection={true}
+					rowSelection={listState.rowSelection}
+					onRowSelectionChange={listState.setRowSelection}
+					autoHideRowSelection={true}
+				/>
 			</div>
+
+			<BulkActionsBar
+				selectedTaskIds={listState.selectedIds}
+				totalTasks={listState.selectedIds.length}
+				onClearSelection={listState.clearRowSelection}
+				onSelectAll={() => {}}
+			/>
 		</div>
 	);
 }

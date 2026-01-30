@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import {
 	CheckCircle2,
 	Circle,
@@ -18,33 +17,6 @@ import type {
 	TaskPriority,
 	TaskStatus,
 } from "@/data/types-new";
-
-export function getInitials(name: string): string {
-	return name
-		.split(" ")
-		.map((n) => n[0])
-		.join("")
-		.toUpperCase()
-		.slice(0, 2);
-}
-
-export function formatDate(date?: string | null): string {
-	if (!date) return "";
-	try {
-		return format(new Date(date), "MMM d, yyyy");
-	} catch {
-		return date;
-	}
-}
-
-export function formatDateShort(date?: string | null): string {
-	if (!date) return "";
-	try {
-		return format(new Date(date), "MMM d");
-	} catch {
-		return date;
-	}
-}
 
 export function getPriorityIcon(priority: TaskPriority): LucideIcon {
 	switch (priority) {

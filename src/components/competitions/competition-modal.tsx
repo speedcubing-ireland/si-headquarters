@@ -1,7 +1,8 @@
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TemplateSelector } from "@/components/template-selector";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -26,7 +27,6 @@ import {
 import { useDataV2 } from "@/data/data-store-v2";
 import type { Competition, CompetitionPhase, User } from "@/data/types-new";
 import { DEFAULT_PHASES } from "@/data/types-new";
-import { getInitials } from "@/lib/competitions-utils";
 import { cn } from "@/lib/utils";
 
 interface CompetitionModalProps {
@@ -47,6 +47,11 @@ export function CompetitionModal({
 	const users = useDataV2((state) => state.users);
 	const addCompetition = useDataV2((state) => state.addCompetition);
 	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const createCompetitionFromTemplate = useDataV2(
+		(state) => state.createCompetitionFromTemplate,
+	);
+
+	const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
 	const [name, setName] = useState(competition?.name ?? "");
 	const [description, setDescription] = useState(
@@ -84,6 +89,7 @@ export function CompetitionModal({
 	useEffect(() => {
 		if (!open) return;
 		if (mode === "create") {
+			setShowTemplateSelector(true);
 			setName("");
 			setDescription("");
 			setCompStart(undefined);
@@ -99,6 +105,7 @@ export function CompetitionModal({
 			setCurrentPhaseIdx(0);
 			setCompSheet("");
 		} else if (competition) {
+			setShowTemplateSelector(false);
 			setName(competition.name);
 			setDescription(competition.description);
 			setCompStart(new Date(competition.compStart));
@@ -111,6 +118,20 @@ export function CompetitionModal({
 			setCompSheet(competition.compSheet?.sheetId ?? "");
 		}
 	}, [open, mode, competition]);
+
+	const handleTemplateSelect = (templateId: string) => {
+		setShowTemplateSelector(false);
+
+		if (templateId === "") {
+			// Blank template - proceed to normal form
+			return;
+		}
+
+		// Valid template - create competition from template
+		const created = createCompetitionFromTemplate(templateId, {});
+		onSave?.(created);
+		onOpenChange(false);
+	};
 
 	const toggleOrganiser = (user: User) => {
 		const exists = organisers.some((o) => o.id === user.id);
@@ -158,16 +179,20 @@ export function CompetitionModal({
 	};
 
 	const renderUserOption = (user: User) => (
-		<div className="flex items-center gap-2">
-			<Avatar className="size-4">
-				<AvatarImage src={user.avatarUrl} />
-				<AvatarFallback className="text-[8px]">
-					{getInitials(user.name)}
-				</AvatarFallback>
-			</Avatar>
-			{user.name}
-		</div>
+		<UserAvatar user={user} size="xs" showName nameClassName="text-sm" />
 	);
+
+	// Show TemplateSelector when creating and template selector is active
+	if (mode === "create" && showTemplateSelector) {
+		return (
+			<TemplateSelector
+				type="competition"
+				open={open}
+				onOpenChange={onOpenChange}
+				onSelect={handleTemplateSelect}
+			/>
+		);
+	}
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -317,13 +342,12 @@ export function CompetitionModal({
 										className="gap-2"
 										onClick={() => toggleOrganiser(user)}
 									>
-										<Avatar className="size-4">
-											<AvatarImage src={user.avatarUrl} />
-											<AvatarFallback className="text-[8px]">
-												{getInitials(user.name)}
-											</AvatarFallback>
-										</Avatar>
-										{user.name}
+										<UserAvatar
+											user={user}
+											size="xs"
+											showName
+											nameClassName="text-sm"
+										/>
 									</Button>
 								);
 							})}

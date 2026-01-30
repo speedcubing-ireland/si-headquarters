@@ -1,15 +1,36 @@
 "use client";
 
-import { CalendarDays, CircleDot, ListChecks, Users } from "lucide-react";
-import { useCallback } from "react";
+import { CalendarDays, Circle, Users } from "lucide-react";
+import { useCallback, useState } from "react";
 
-import { LeadsDisplay } from "@/components/competitions/leads-display";
+import {
+	EditableCompLeadCell,
+	EditableLeadDelegateCell,
+	EditableOrganisersCell,
+	EditablePhaseCell,
+} from "@/components/competitions/editable-phase-and-roles";
+import { PropertyRow } from "@/components/shared/property-editors/property-row";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/components/ui/sheet";
 import { useDataV2 } from "@/data/data-store-v2";
 import type { Competition, Task } from "@/data/types-new";
-import { formatDateShort } from "@/lib/task-utils";
+import { formatDateShort } from "@/lib/format-utils";
+import { cn } from "@/lib/utils";
 
 interface CompetitionPropertiesSidebarProps {
 	competition: Competition;
@@ -21,8 +42,8 @@ export function CompetitionPropertiesSidebar({
 	tasks,
 }: CompetitionPropertiesSidebarProps) {
 	const updateCompetition = useDataV2((state) => state.updateCompetition);
-
-	const currentPhase = competition.phases[competition.currentPhaseIdx];
+	const [mobileOpen, setMobileOpen] = useState(false);
+	const [dateOpen, setDateOpen] = useState(false);
 
 	const totalTasks = tasks.length;
 	const completedTasks = tasks.filter((task) => task.status === "done").length;
@@ -30,179 +51,192 @@ export function CompetitionPropertiesSidebar({
 		(task) => task.status === "in-progress",
 	).length;
 
-	const handleSetCurrentPhase = useCallback(
-		(index: number) => {
-			updateCompetition(competition.id, { currentPhaseIdx: index });
+	const handleSetDateRange = useCallback(
+		(range: { from?: Date; to?: Date }) => {
+			updateCompetition(competition.id, {
+				compStart:
+					range.from?.toISOString().split("T")[0] || competition.compStart,
+				compEnd: range.to?.toISOString().split("T")[0] || competition.compEnd,
+			});
 		},
-		[competition.id, updateCompetition],
+		[
+			competition.id,
+			competition.compStart,
+			competition.compEnd,
+			updateCompetition,
+		],
 	);
 
-	return (
-		<aside className="w-80 border-l border-border bg-background">
-			<ScrollArea className="h-full">
-				<div className="space-y-6 p-4">
-					<section className="space-y-3">
-						<div className="text-xs font-medium text-muted-foreground">
-							Properties
-						</div>
-						<div className="space-y-2 text-sm">
-							<PropertyRow label="Status">
-								<button
-									type="button"
-									className="inline-flex items-center gap-1.5 rounded px-1 hover:bg-muted/60"
-									onClick={() => {
-										if (!currentPhase) return;
-										const idx = competition.phases.findIndex(
-											(p) => p.id === currentPhase.id,
-										);
-										if (idx >= 0) {
-											handleSetCurrentPhase(idx);
-										}
+	const sidebarContent = (
+		<div className="flex flex-col gap-6 py-5 px-5">
+			{/* Properties Section */}
+			<section className="flex flex-col gap-2">
+				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+					Properties
+				</h3>
+				<div className="flex flex-col gap-1">
+					{/* Phase - uses EditablePhaseCell */}
+					<PropertyRow label="Phase" icon={<Circle className="size-3.5" />}>
+						<EditablePhaseCell competition={competition} />
+					</PropertyRow>
+
+					{/* Date Range - inline calendar picker */}
+					<PropertyRow
+						label="Dates"
+						icon={<CalendarDays className="size-3.5" />}
+					>
+						<DropdownMenu open={dateOpen} onOpenChange={setDateOpen}>
+							<DropdownMenuTrigger asChild>
+								<Button variant="ghost" size="sm" className="h-7 px-2">
+									<span className="text-sm">
+										{formatDateShort(competition.compStart)} –{" "}
+										{formatDateShort(competition.compEnd)}
+									</span>
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent className="w-auto p-0" align="end">
+								<Calendar
+									mode="range"
+									selected={{
+										from: new Date(competition.compStart),
+										to: new Date(competition.compEnd),
 									}}
-									onKeyDown={(event) => {
-										if (event.key === "Enter" || event.key === " ") {
-											event.preventDefault();
-											if (!currentPhase) return;
-											const idx = competition.phases.findIndex(
-												(p) => p.id === currentPhase.id,
-											);
-											if (idx >= 0) {
-												handleSetCurrentPhase(idx);
-											}
+									onSelect={(range) => {
+										if (range?.from || range?.to) {
+											handleSetDateRange(range);
 										}
+										setDateOpen(false);
 									}}
-								>
-									<CircleDot className="size-3.5 text-warning" />
-									<span className="text-foreground">
-										{currentPhase ? currentPhase.name : "No phase"}
-									</span>
-								</button>
-							</PropertyRow>
-							<PropertyRow label="Date range">
-								<div className="flex items-center justify-end gap-2">
-									<div className="inline-flex items-center gap-1.5">
-										<CalendarDays className="size-3.5 text-muted-foreground" />
-										<span className="text-xs text-foreground">
-											{formatDateShort(competition.compStart)} –{" "}
-											{formatDateShort(competition.compEnd)}
-										</span>
-									</div>
-								</div>
-							</PropertyRow>
-							<PropertyRow label="Tasks">
-								<div className="inline-flex items-center gap-1.5">
-									<ListChecks className="size-3.5 text-muted-foreground" />
-									<span className="text-xs text-muted-foreground">
-										<span className="font-medium text-foreground">
-											{completedTasks}
-										</span>{" "}
-										done ·{" "}
-										<span className="font-medium text-foreground">
-											{inProgressTasks}
-										</span>{" "}
-										in progress ·{" "}
-										<span className="font-medium text-foreground">
-											{totalTasks}
-										</span>{" "}
-										total
-									</span>
-								</div>
-							</PropertyRow>
-						</div>
-					</section>
-
-					<Separator />
-
-					<section className="space-y-3">
-						<div className="text-xs font-medium text-muted-foreground">
-							People
-						</div>
-						<div className="space-y-2 text-sm">
-							<PropertyRow label="Competition lead">
-								<LeadsDisplay
-									leads={competition.compLead ? [competition.compLead] : []}
-									variant="compact"
+									numberOfMonths={1}
 								/>
-							</PropertyRow>
-							<PropertyRow label="Lead delegate">
-								<LeadsDisplay
-									leads={
-										competition.leadDelegate ? [competition.leadDelegate] : []
-									}
-									variant="compact"
-								/>
-							</PropertyRow>
-							<PropertyRow label="Organisers">
-								<div className="inline-flex items-center gap-1.5">
-									<Users className="size-3.5 text-muted-foreground" />
-									<span className="text-xs text-foreground">
-										{competition.organisers.length} organiser
-										{competition.organisers.length === 1 ? "" : "s"}
-									</span>
-								</div>
-							</PropertyRow>
-						</div>
-					</section>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</PropertyRow>
 
-					<Separator />
-
-					<section className="space-y-3">
-						<div className="text-xs font-medium text-muted-foreground">
-							Phases
-						</div>
-						<div className="space-y-1">
-							{competition.phases.map((phase, index) => {
-								const isCurrent = index === competition.currentPhaseIdx;
-
-								return (
-									<button
-										key={phase.id}
-										type="button"
-										className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs hover:bg-accent"
-										onClick={() => handleSetCurrentPhase(index)}
-									>
-										<div className="flex items-center gap-2">
-											<span className="size-1.5 rounded-full bg-muted-foreground/40" />
-											<span
-												className={
-													isCurrent
-														? "font-medium text-foreground"
-														: "text-muted-foreground"
-												}
-											>
-												{phase.name}
-											</span>
-										</div>
-										{isCurrent && (
-											<Badge
-												variant="outline"
-												className="h-4 border-border bg-background text-[10px] font-normal"
-											>
-												Current
-											</Badge>
-										)}
-									</button>
-								);
-							})}
-						</div>
-					</section>
+					{/* Task Stats (read-only) */}
+					<PropertyRow label="Tasks">
+						<span className="text-sm text-muted-foreground">
+							<span className="text-foreground font-medium">
+								{completedTasks}
+							</span>{" "}
+							done ·{" "}
+							<span className="text-foreground font-medium">
+								{inProgressTasks}
+							</span>{" "}
+							in progress ·{" "}
+							<span className="text-foreground font-medium">{totalTasks}</span>{" "}
+							total
+						</span>
+					</PropertyRow>
 				</div>
-			</ScrollArea>
-		</aside>
-	);
-}
+			</section>
 
-function PropertyRow({
-	label,
-	children,
-}: {
-	label: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<div className="flex items-center justify-between gap-2">
-			<span className="text-xs text-muted-foreground">{label}</span>
-			<div className="flex-1 text-right">{children}</div>
+			<Separator />
+
+			{/* People Section */}
+			<section className="flex flex-col gap-2">
+				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+					People
+				</h3>
+				<div className="flex flex-col gap-1">
+					{/* Competition Lead */}
+					<PropertyRow label="Competition lead">
+						<EditableCompLeadCell competition={competition} />
+					</PropertyRow>
+
+					{/* Lead Delegate */}
+					<PropertyRow label="Lead delegate">
+						<EditableLeadDelegateCell competition={competition} />
+					</PropertyRow>
+
+					{/* Organisers */}
+					<PropertyRow label="Organisers" icon={<Users className="size-3.5" />}>
+						<EditableOrganisersCell competition={competition} />
+					</PropertyRow>
+				</div>
+			</section>
+
+			<Separator />
+
+			{/* Phases Section */}
+			<section className="flex flex-col gap-2">
+				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+					All Phases
+				</h3>
+				<div className="flex flex-col gap-0.5">
+					{competition.phases.map((phase, index) => {
+						const isCurrent = index === competition.currentPhaseIdx;
+
+						return (
+							<button
+								key={phase.id}
+								type="button"
+								onClick={() => {
+									updateCompetition(competition.id, { currentPhaseIdx: index });
+								}}
+								className={cn(
+									"flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+									isCurrent
+										? "bg-accent text-foreground"
+										: "hover:bg-accent text-muted-foreground",
+								)}
+							>
+								<div className="flex items-center gap-2">
+									<Circle
+										className={cn(
+											"size-2",
+											isCurrent
+												? "text-warning fill-warning"
+												: "text-muted-foreground/40",
+										)}
+									/>
+									<span className={isCurrent ? "font-medium" : ""}>
+										{phase.name}
+									</span>
+								</div>
+								{isCurrent && (
+									<Badge
+										variant="outline"
+										className="h-5 border-border bg-background text-[10px] font-normal"
+									>
+										Current
+									</Badge>
+								)}
+							</button>
+						);
+					})}
+				</div>
+			</section>
 		</div>
+	);
+
+	return (
+		<>
+			{/* Desktop Sidebar */}
+			<aside className="hidden lg:block w-80 border-l border-border bg-background">
+				<ScrollArea className="h-full">{sidebarContent}</ScrollArea>
+			</aside>
+
+			{/* Mobile Sheet */}
+			<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+				<SheetTrigger asChild>
+					<Button
+						variant="outline"
+						size="icon"
+						className="lg:hidden fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full shadow-lg"
+					>
+						<Circle className="size-4" />
+					</Button>
+				</SheetTrigger>
+				<SheetContent side="right" className="w-80 p-0">
+					<SheetHeader className="px-5 py-4 border-b">
+						<SheetTitle className="text-sm">Properties</SheetTitle>
+					</SheetHeader>
+					<ScrollArea className="h-[calc(100vh-60px)]">
+						{sidebarContent}
+					</ScrollArea>
+				</SheetContent>
+			</Sheet>
+		</>
 	);
 }

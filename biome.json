@@ -21,7 +21,10 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"correctness": {
+				"useExhaustiveDependencies": "off"
+			}
 		}
 	},
 	"javascript": {
@@ -38,7 +41,7 @@
 		"enabled": true,
 		"actions": {
 			"source": {
-				"organizeImports": "on"
+				"organizeImports": "off"
 			}
 		}
 	}

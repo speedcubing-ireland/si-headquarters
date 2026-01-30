@@ -3,12 +3,16 @@
 import { CheckCircle2, Edit3 } from "lucide-react";
 import { useState } from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+	ReactionButton,
+	ReactionDisplay,
+} from "@/components/shared/reaction-button";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useDataV2 } from "@/data/data-store-v2";
 import type { Competition, ProgressUpdate } from "@/data/types-new";
-import { formatDateShort } from "@/lib/task-utils";
+import { formatDateShort } from "@/lib/format-utils";
 
 const statusConfig = {
 	"on-track": {
@@ -36,13 +40,19 @@ export function CompetitionLatestUpdate({
 	competition,
 }: CompetitionLatestUpdateProps) {
 	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const addUpdateReaction = useDataV2((state) => state.addUpdateReaction);
 	const users = useDataV2((state) => state.users);
+	const getCompetitionById = useDataV2((state) => state.getCompetitionById);
+
+	const currentUser = users[0];
 
 	const [isCreating, setIsCreating] = useState(false);
 	const [message, setMessage] = useState("");
 	const [status, setStatus] = useState<ProgressUpdate["status"]>("on-track");
 
-	const latest = [...competition.progressUpdates].sort((a, b) =>
+	// Get fresh competition data from store to avoid stale props
+	const freshCompetition = getCompetitionById(competition.id) ?? competition;
+	const latest = [...freshCompetition.progressUpdates].sort((a, b) =>
 		b.timestamp.localeCompare(a.timestamp),
 	)[0];
 
@@ -57,10 +67,11 @@ export function CompetitionLatestUpdate({
 			postedBy: author,
 			status,
 			message: message.trim(),
+			reactions: [],
 		};
 
 		updateCompetition(competition.id, {
-			progressUpdates: [...competition.progressUpdates, nextUpdate],
+			progressUpdates: [...freshCompetition.progressUpdates, nextUpdate],
 		});
 		setIsCreating(false);
 		setMessage("");
@@ -123,21 +134,12 @@ export function CompetitionLatestUpdate({
 							<span className={`text-sm font-medium ${statusInfo.className}`}>
 								{statusInfo.label}
 							</span>
-							<Avatar className="size-5">
-								<AvatarImage
-									src={active.postedBy.avatarUrl}
-									alt={active.postedBy.name}
-								/>
-								<AvatarFallback className="text-[10px]">
-									{active.postedBy.name
-										.split(" ")
-										.map((n) => n[0])
-										.join("")}
-								</AvatarFallback>
-							</Avatar>
-							<span className="text-sm text-foreground">
-								{active.postedBy.name}
-							</span>
+							<UserAvatar
+								user={active.postedBy}
+								size="sm"
+								showName
+								nameClassName="text-sm text-foreground"
+							/>
 							<span className="text-sm text-muted-foreground">
 								{formatDateShort(active.timestamp)}
 							</span>
@@ -148,6 +150,31 @@ export function CompetitionLatestUpdate({
 								{active.message}
 							</p>
 						)}
+
+						{/* Reactions */}
+						<div className="flex items-center gap-2 pt-2">
+							<ReactionDisplay
+								reactions={active.reactions}
+								onAddReaction={(emoji) =>
+									addUpdateReaction(
+										competition.id,
+										active.id,
+										emoji,
+										currentUser,
+									)
+								}
+							/>
+							<ReactionButton
+								onAddReaction={(emoji) =>
+									addUpdateReaction(
+										competition.id,
+										active.id,
+										emoji,
+										currentUser,
+									)
+								}
+							/>
+						</div>
 					</>
 				)}
 

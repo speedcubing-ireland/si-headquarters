@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
 import React, { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -36,7 +36,7 @@ import type {
 } from "@/data/types-new";
 import { TASK_PRIORITY, TASK_STATUS } from "@/data/types-new";
 import { priorityLabels, statusLabels } from "@/lib/task-constants";
-import { getInitials, getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
+import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
 import { cn } from "@/lib/utils";
 
 interface TaskModalProps {
@@ -167,14 +167,11 @@ export function TaskModal({
 					/>
 
 					<Textarea
-						placeholder="Add description... (Markdown supported)"
+						placeholder="Add description..."
 						value={description}
 						onChange={(e) => setDescription(e.target.value)}
 						className="min-h-[100px] resize-none border-0 px-0 focus-visible:ring-0 placeholder:text-muted-foreground"
 					/>
-					<p className="text-xs text-muted-foreground">
-						You can use basic Markdown for formatting (lists, **bold**, links).
-					</p>
 				</div>
 
 				<div className="px-6 py-4 border-t flex flex-wrap items-center gap-2">
@@ -240,15 +237,12 @@ export function TaskModal({
 							<SelectItem value="unassigned">Unassigned</SelectItem>
 							{users.map((user) => (
 								<SelectItem key={user.id} value={user.id}>
-									<div className="flex items-center gap-2">
-										<Avatar className="size-4">
-											<AvatarImage src={user.avatarUrl} />
-											<AvatarFallback className="text-[8px]">
-												{getInitials(user.name)}
-											</AvatarFallback>
-										</Avatar>
-										{user.name}
-									</div>
+									<UserAvatar
+										user={user}
+										size="xs"
+										showName
+										nameClassName="text-sm"
+									/>
 								</SelectItem>
 							))}
 						</SelectContent>
@@ -309,15 +303,12 @@ export function TaskModal({
 									</SelectItem>
 									{users.map((user) => (
 										<SelectItem key={user.id} value={`user:${user.id}`}>
-											<div className="flex items-center gap-2">
-												<Avatar className="size-4">
-													<AvatarImage src={user.avatarUrl} />
-													<AvatarFallback className="text-[8px]">
-														{getInitials(user.name)}
-													</AvatarFallback>
-												</Avatar>
-												{user.name}
-											</div>
+											<UserAvatar
+												user={user}
+												size="xs"
+												showName
+												nameClassName="text-sm"
+											/>
 										</SelectItem>
 									))}
 								</>

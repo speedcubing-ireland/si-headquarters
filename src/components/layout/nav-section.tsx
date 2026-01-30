@@ -1,5 +1,5 @@
 import type { LinkProps } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import {
@@ -96,9 +96,14 @@ function NavDropdown(item: NavSectionDropdownItem) {
 }
 
 function NavItem(item: NavSectionItem) {
+	const location = useLocation();
+	const urlString =
+		typeof item.url === "string" ? item.url : (item.url as LinkProps)?.to;
+	// Only match exact path or specific sub-routes (not sibling routes)
+	const isActive = !!urlString && location.pathname === urlString;
 	return (
 		<SidebarMenuItem key={item.name}>
-			<SidebarMenuButton asChild>
+			<SidebarMenuButton asChild isActive={isActive}>
 				<NavLink url={item.url}>
 					{item.icon && <item.icon />}
 					<span>{item.name}</span>

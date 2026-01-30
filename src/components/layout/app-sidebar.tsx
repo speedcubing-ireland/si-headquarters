@@ -53,7 +53,7 @@ const navSections = [
 					{
 						title: "Calendar",
 						url: {
-							to: "/competitions",
+							to: "/competitions/calendar",
 						},
 					},
 				],

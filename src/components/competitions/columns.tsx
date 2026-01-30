@@ -21,7 +21,7 @@ import {
 	getPhaseClass,
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
-import { formatDate, getInitials } from "@/lib/competitions-utils";
+import { formatDate, getInitials } from "@/lib/format-utils";
 import {
 	EditableCompLeadCell,
 	EditableLeadDelegateCell,

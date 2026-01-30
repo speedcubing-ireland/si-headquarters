@@ -6,7 +6,7 @@ import {
 	AvatarImage,
 } from "@/components/ui/avatar";
 import type { User } from "@/data/types-new";
-import { getInitials } from "@/lib/competitions-utils";
+import { getInitials } from "@/lib/format-utils";
 import { cn } from "@/lib/utils";
 
 type LeadsDisplayVariant = "summary" | "detailed" | "compact";

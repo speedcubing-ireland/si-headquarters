@@ -1,6 +1,7 @@
-import { CheckIcon, CircleDashed } from "lucide-react";
+import { CheckIcon, CircleDashed, Tag } from "lucide-react";
 import React from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,18 +30,14 @@ import type {
 	Team,
 	User,
 } from "@/data/types-new";
+import { formatDate } from "@/lib/format-utils";
 import { statusColors, statusLabels } from "@/lib/task-constants";
 import {
 	getTaskFilterOptions,
 	type TaskFilterOption,
 	taskFilterConfigs,
 } from "@/lib/task-filter-config";
-import {
-	formatDate,
-	getInitials,
-	getPriorityIcon,
-	getStatusIcon,
-} from "@/lib/task-utils";
+import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
 
 interface EditableTaskCellProps<T extends TaskStatus | TaskPriority | string> {
 	type: "status" | "priority" | "assignee" | "labels";
@@ -235,25 +232,15 @@ export function EditableTaskAssignee({
 						isIconVariant ? (
 							<>
 								<span className="sr-only">Assigned to {assignee.name}</span>
-								<Avatar className="size-5">
-									<AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
-									<AvatarFallback className="text-[10px]">
-										{getInitials(assignee.name)}
-									</AvatarFallback>
-								</Avatar>
+								<UserAvatar user={assignee} size="sm" />
 							</>
 						) : (
-							<div className="flex items-center gap-1.5">
-								<Avatar className="size-5">
-									<AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
-									<AvatarFallback className="text-[10px]">
-										{getInitials(assignee.name)}
-									</AvatarFallback>
-								</Avatar>
-								<span className="text-xs truncate max-w-[80px]">
-									{assignee.name}
-								</span>
-							</div>
+							<UserAvatar
+								user={assignee}
+								size="sm"
+								showName
+								nameClassName="text-xs truncate max-w-[80px]"
+							/>
 						)
 					) : isIconVariant ? (
 						<>
@@ -291,15 +278,12 @@ export function EditableTaskAssignee({
 									onSelect={() => handleChange(user.id)}
 									className="flex items-center justify-between"
 								>
-									<div className="flex items-center gap-2">
-										<Avatar className="size-4">
-											<AvatarImage src={user.avatarUrl} alt={user.name} />
-											<AvatarFallback className="text-[10px]">
-												{getInitials(user.name)}
-											</AvatarFallback>
-										</Avatar>
-										<span className="text-xs">{user.name}</span>
-									</div>
+									<UserAvatar
+										user={user}
+										size="xs"
+										showName
+										nameClassName="text-xs"
+									/>
 									{assignee?.id === user.id && (
 										<CheckIcon size={14} className="ml-auto" />
 									)}
@@ -316,9 +300,11 @@ export function EditableTaskAssignee({
 export function EditableTaskLabels({
 	labels,
 	taskId,
+	wrap = false,
 }: {
 	labels: TaskLabel[];
 	taskId: string;
+	wrap?: boolean;
 }) {
 	const allLabels = useDataV2((state) => state.labels);
 	const updateTaskLabels = useDataV2((state) => state.updateTaskLabels);
@@ -338,6 +324,7 @@ export function EditableTaskLabels({
 				updateTaskLabels(taskId, [...labels, label]);
 			}
 		}
+		setOpen(false);
 	};
 
 	return (
@@ -346,11 +333,16 @@ export function EditableTaskLabels({
 				<Button
 					variant="ghost"
 					size="sm"
-					className="h-7 px-2 justify-end gap-1"
+					className="h-7 px-2 justify-end gap-1 min-w-[40px]"
 				>
 					{labels.length > 0 ? (
-						<div className="flex items-center gap-1.5 justify-end flex-nowrap overflow-hidden">
-							{labels.slice(0, 2).map((label) => (
+						<div
+							className={cn(
+								"flex items-center gap-1.5 justify-end",
+								wrap ? "flex-wrap" : "flex-nowrap overflow-hidden",
+							)}
+						>
+							{labels.slice(0, wrap ? labels.length : 2).map((label) => (
 								<span
 									key={label.id}
 									className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs"
@@ -362,7 +354,7 @@ export function EditableTaskLabels({
 									<span className="truncate max-w-[80px]">{label.name}</span>
 								</span>
 							))}
-							{labels.length >= 3 && (
+							{!wrap && labels.length >= 3 && (
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
@@ -381,7 +373,12 @@ export function EditableTaskLabels({
 								</Tooltip>
 							)}
 						</div>
-					) : null}
+					) : (
+						<span className="text-xs text-muted-foreground flex items-center gap-1">
+							<Tag className="size-3" />
+							Add labels
+						</span>
+					)}
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-48 p-0" align="start">
@@ -485,16 +482,7 @@ export function EditableTaskOwner({
 		}
 
 		if (owner && "avatarUrl" in owner) {
-			return (
-				<div className="flex items-center gap-1.5">
-					<Avatar className="size-5">
-						<AvatarImage src={owner.avatarUrl} alt={owner.name} />
-						<AvatarFallback className="text-[10px]">
-							{getInitials(owner.name)}
-						</AvatarFallback>
-					</Avatar>
-				</div>
-			);
+			return <UserAvatar user={owner} size="sm" />;
 		}
 
 		// Blank team chip when no owner
@@ -569,15 +557,12 @@ export function EditableTaskOwner({
 											onSelect={() => handleChange(value)}
 											className="flex items-center justify-between"
 										>
-											<div className="flex items-center gap-2">
-												<Avatar className="size-4">
-													<AvatarImage src={user.avatarUrl} alt={user.name} />
-													<AvatarFallback className="text-[8px]">
-														{getInitials(user.name)}
-													</AvatarFallback>
-												</Avatar>
-												<span className="text-xs">{user.name}</span>
-											</div>
+											<UserAvatar
+												user={user}
+												size="xs"
+												showName
+												nameClassName="text-xs"
+											/>
 											{selected && <CheckIcon size={14} className="ml-auto" />}
 										</CommandItem>
 									);

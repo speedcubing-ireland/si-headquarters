@@ -1,8 +1,15 @@
-import { CheckIcon } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CommandItem } from "@/components/ui/command";
-import { getInitials } from "@/lib/competitions-utils";
+import type { SharedFilterOption } from "@/components/shared/filters/filter-option-row";
+import { SharedFilterOptionRow } from "@/components/shared/filters/filter-option-row";
 import type { FilterOption, FilterType } from "@/lib/filter-config";
+
+function toSharedOption(option: FilterOption<unknown>): SharedFilterOption {
+	return {
+		value: String(option.value),
+		label: option.label,
+		icon: option.icon,
+		avatarUrl: option.avatarUrl,
+	};
+}
 
 interface FilterOptionRowProps<T> {
 	type: FilterType;
@@ -12,36 +19,15 @@ interface FilterOptionRowProps<T> {
 }
 
 export function FilterOptionRow<T>({
-	type,
 	option,
 	isSelected,
 	onSelect,
 }: FilterOptionRowProps<T>) {
-	const Icon = option.icon;
-	const showAvatar =
-		(type === "compLead" || type === "leadDelegate" || type === "organisers") &&
-		option.avatarUrl;
-
 	return (
-		<CommandItem
-			value={String(option.value)}
+		<SharedFilterOptionRow
+			option={toSharedOption(option as FilterOption<unknown>)}
+			isSelected={isSelected}
 			onSelect={onSelect}
-			className="flex items-center justify-between"
-		>
-			<div className="flex items-center gap-2">
-				{Icon && <Icon className="size-4 text-muted-foreground" />}
-				{showAvatar && (
-					<Avatar className="size-5">
-						<AvatarImage src={option.avatarUrl} alt={option.label} />
-						<AvatarFallback className="text-xs">
-							{getInitials(option.label)}
-						</AvatarFallback>
-					</Avatar>
-				)}
-				{!Icon && !showAvatar && <span className="size-4" />}
-				{option.label}
-			</div>
-			{isSelected && <CheckIcon size={16} />}
-		</CommandItem>
+		/>
 	);
 }

@@ -15,7 +15,10 @@ import { Route as CompetitionsRouteImport } from './routes/competitions'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TeamsTeamIdRouteImport } from './routes/teams.$teamId'
 import { Route as TasksMyRouteImport } from './routes/tasks.my'
+import { Route as TasksArchivedRouteImport } from './routes/tasks.archived'
 import { Route as TasksIdRouteImport } from './routes/tasks.$id'
+import { Route as SettingsLabelsRouteImport } from './routes/settings.labels'
+import { Route as CompetitionsCalendarRouteImport } from './routes/competitions.calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions.$id'
 
 const TasksRoute = TasksRouteImport.update({
@@ -48,10 +51,25 @@ const TasksMyRoute = TasksMyRouteImport.update({
   path: '/my',
   getParentRoute: () => TasksRoute,
 } as any)
+const TasksArchivedRoute = TasksArchivedRouteImport.update({
+  id: '/archived',
+  path: '/archived',
+  getParentRoute: () => TasksRoute,
+} as any)
 const TasksIdRoute = TasksIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => TasksRoute,
+} as any)
+const SettingsLabelsRoute = SettingsLabelsRouteImport.update({
+  id: '/settings/labels',
+  path: '/settings/labels',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompetitionsCalendarRoute = CompetitionsCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => CompetitionsRoute,
 } as any)
 const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   id: '/$id',
@@ -65,7 +83,10 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof InboxRoute
   '/tasks': typeof TasksRouteWithChildren
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/settings/labels': typeof SettingsLabelsRoute
   '/tasks/$id': typeof TasksIdRoute
+  '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
 }
@@ -75,7 +96,10 @@ export interface FileRoutesByTo {
   '/inbox': typeof InboxRoute
   '/tasks': typeof TasksRouteWithChildren
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/settings/labels': typeof SettingsLabelsRoute
   '/tasks/$id': typeof TasksIdRoute
+  '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
 }
@@ -86,7 +110,10 @@ export interface FileRoutesById {
   '/inbox': typeof InboxRoute
   '/tasks': typeof TasksRouteWithChildren
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/settings/labels': typeof SettingsLabelsRoute
   '/tasks/$id': typeof TasksIdRoute
+  '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
 }
@@ -98,7 +125,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/tasks'
     | '/competitions/$id'
+    | '/competitions/calendar'
+    | '/settings/labels'
     | '/tasks/$id'
+    | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
   fileRoutesByTo: FileRoutesByTo
@@ -108,7 +138,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/tasks'
     | '/competitions/$id'
+    | '/competitions/calendar'
+    | '/settings/labels'
     | '/tasks/$id'
+    | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
   id:
@@ -118,7 +151,10 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/tasks'
     | '/competitions/$id'
+    | '/competitions/calendar'
+    | '/settings/labels'
     | '/tasks/$id'
+    | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
   fileRoutesById: FileRoutesById
@@ -128,6 +164,7 @@ export interface RootRouteChildren {
   CompetitionsRoute: typeof CompetitionsRouteWithChildren
   InboxRoute: typeof InboxRoute
   TasksRoute: typeof TasksRouteWithChildren
+  SettingsLabelsRoute: typeof SettingsLabelsRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
 }
 
@@ -175,12 +212,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksMyRouteImport
       parentRoute: typeof TasksRoute
     }
+    '/tasks/archived': {
+      id: '/tasks/archived'
+      path: '/archived'
+      fullPath: '/tasks/archived'
+      preLoaderRoute: typeof TasksArchivedRouteImport
+      parentRoute: typeof TasksRoute
+    }
     '/tasks/$id': {
       id: '/tasks/$id'
       path: '/$id'
       fullPath: '/tasks/$id'
       preLoaderRoute: typeof TasksIdRouteImport
       parentRoute: typeof TasksRoute
+    }
+    '/settings/labels': {
+      id: '/settings/labels'
+      path: '/settings/labels'
+      fullPath: '/settings/labels'
+      preLoaderRoute: typeof SettingsLabelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/competitions/calendar': {
+      id: '/competitions/calendar'
+      path: '/calendar'
+      fullPath: '/competitions/calendar'
+      preLoaderRoute: typeof CompetitionsCalendarRouteImport
+      parentRoute: typeof CompetitionsRoute
     }
     '/competitions/$id': {
       id: '/competitions/$id'
@@ -194,10 +252,12 @@ declare module '@tanstack/react-router' {
 
 interface CompetitionsRouteChildren {
   CompetitionsIdRoute: typeof CompetitionsIdRoute
+  CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
 }
 
 const CompetitionsRouteChildren: CompetitionsRouteChildren = {
   CompetitionsIdRoute: CompetitionsIdRoute,
+  CompetitionsCalendarRoute: CompetitionsCalendarRoute,
 }
 
 const CompetitionsRouteWithChildren = CompetitionsRoute._addFileChildren(
@@ -206,11 +266,13 @@ const CompetitionsRouteWithChildren = CompetitionsRoute._addFileChildren(
 
 interface TasksRouteChildren {
   TasksIdRoute: typeof TasksIdRoute
+  TasksArchivedRoute: typeof TasksArchivedRoute
   TasksMyRoute: typeof TasksMyRoute
 }
 
 const TasksRouteChildren: TasksRouteChildren = {
   TasksIdRoute: TasksIdRoute,
+  TasksArchivedRoute: TasksArchivedRoute,
   TasksMyRoute: TasksMyRoute,
 }
 
@@ -221,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompetitionsRoute: CompetitionsRouteWithChildren,
   InboxRoute: InboxRoute,
   TasksRoute: TasksRouteWithChildren,
+  SettingsLabelsRoute: SettingsLabelsRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
 }
 export const routeTree = rootRouteImport

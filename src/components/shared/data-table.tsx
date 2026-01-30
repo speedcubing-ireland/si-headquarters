@@ -1,16 +1,15 @@
 import {
-	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
 	getExpandedRowModel,
 	getGroupedRowModel,
 	getSortedRowModel,
-	type Row,
 	useReactTable,
+	type CellContext,
+	type ColumnDef,
+	type Row,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-import type React from "react";
-import { useEffect, useMemo } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Table,
 	TableBody,
@@ -20,6 +19,13 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	cellContainsInteractiveElements,
+	isInteractiveTarget,
+} from "@/lib/dom-utils";
 
 export type ColumnMeta<TData> = {
 	headerClassName?: string;
@@ -27,8 +33,8 @@ export type ColumnMeta<TData> = {
 	groupValueRenderer?: (value: unknown, row: Row<TData>) => React.ReactNode;
 };
 
-export interface SharedDataTableProps<TData, TValue, TFilterState> {
-	columns: ColumnDef<TData, TValue>[];
+export interface SharedDataTableProps<TData, TFilterState> {
+	columns: ColumnDef<TData, unknown>[];
 	data: TData[];
 	filterState: TFilterState;
 	filterFn: (rows: TData[], filterState: TFilterState) => TData[];
@@ -43,9 +49,50 @@ export interface SharedDataTableProps<TData, TValue, TFilterState> {
 	containerClassName?: string;
 	cellPaddingXClassName?: string;
 	showHeader?: boolean;
+	onRowClick?: (row: TData) => void;
+	enableRowSelection?: boolean;
+	onSelectionChange?: (selectedRows: TData[]) => void;
+	getRowId?: (row: TData) => string;
+	/** Controlled row selection state. When provided, component operates in controlled mode. */
+	rowSelection?: Record<string, boolean>;
+	/** Callback when row selection changes (for controlled mode). */
+	onRowSelectionChange?: (updater: Record<string, boolean>) => void;
+	/** When true, checkboxes are hidden until row is hovered or any row is selected */
+	autoHideRowSelection?: boolean;
 }
 
-export function SharedDataTable<TData, TValue, TFilterState>({
+function RowSelectionCheckbox<TData>({
+	row,
+	onShiftClick,
+	lastSelectedRowRef,
+}: {
+	row: Row<TData>;
+	onShiftClick?: (row: Row<TData>) => void;
+	lastSelectedRowRef: React.MutableRefObject<Row<TData> | null>;
+}) {
+	return (
+		<Checkbox
+			checked={row.getIsSelected()}
+			onCheckedChange={(value) => {
+				if (value) {
+					row.toggleSelected(true);
+					lastSelectedRowRef.current = row;
+				} else {
+					row.toggleSelected(false);
+				}
+			}}
+			onClick={(e) => {
+				e.stopPropagation();
+				if (e.shiftKey && lastSelectedRowRef.current && onShiftClick) {
+					onShiftClick(row);
+				}
+			}}
+			aria-label="Select row"
+		/>
+	);
+}
+
+export function SharedDataTable<TData, TFilterState>({
 	columns,
 	data,
 	filterState,
@@ -59,9 +106,13 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 	cellPaddingXClassName = "px-2",
 	showHeader = true,
 	onRowClick,
-}: SharedDataTableProps<TData, TValue, TFilterState> & {
-	onRowClick?: (row: TData) => void;
-}) {
+	enableRowSelection = false,
+	onSelectionChange,
+	getRowId,
+	rowSelection: controlledRowSelection,
+	onRowSelectionChange: controlledOnRowSelectionChange,
+	autoHideRowSelection = false,
+}: SharedDataTableProps<TData, TFilterState>) {
 	const filteredData = useMemo(
 		() => filterFn(data, filterState),
 		[data, filterState, filterFn],
@@ -84,20 +135,139 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 		return [];
 	}, [ordering, groupingState]);
 
+	// Use controlled row selection if provided, otherwise internal state
+	const isControlled = controlledRowSelection !== undefined;
+	const [internalRowSelection, setInternalRowSelection] = useState<
+		Record<string, boolean>
+	>({});
+	const rowSelection = isControlled
+		? controlledRowSelection
+		: internalRowSelection;
+
+	// Helper to update row selection (handles both controlled and uncontrolled modes)
+	const updateRowSelection = useCallback(
+		(
+			updater:
+				| Record<string, boolean>
+				| ((prev: Record<string, boolean>) => Record<string, boolean>),
+		) => {
+			const newSelection =
+				typeof updater === "function" ? updater(rowSelection) : updater;
+			if (isControlled) {
+				controlledOnRowSelectionChange?.(newSelection);
+			} else {
+				setInternalRowSelection(newSelection);
+			}
+		},
+		[isControlled, controlledOnRowSelectionChange, rowSelection],
+	);
+
+	const lastSelectedRowRef = useRef<Row<TData> | null>(null);
+	const tableInstanceRef = useRef<ReturnType<
+		typeof useReactTable<TData>
+	> | null>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
+	const getRowIdRef = useRef(getRowId);
+	getRowIdRef.current = getRowId;
+
+	const handleShiftClick = useCallback(
+		(clickedRow: Row<TData>) => {
+			const lastRow = lastSelectedRowRef.current;
+			if (!lastRow || !tableInstanceRef.current) return;
+
+			const allRows = tableInstanceRef.current.getRowModel().rows;
+			const lastIndex = allRows.findIndex((r) => r.id === lastRow.id);
+			const clickedIndex = allRows.findIndex((r) => r.id === clickedRow.id);
+
+			if (lastIndex === -1 || clickedIndex === -1) return;
+
+			const startIndex = Math.min(lastIndex, clickedIndex);
+			const endIndex = Math.max(lastIndex, clickedIndex);
+
+			const newSelection = { ...rowSelection };
+			for (let i = startIndex; i <= endIndex; i++) {
+				const row = allRows[i];
+				if (row && getRowIdRef.current) {
+					newSelection[getRowIdRef.current(row.original as TData)] = true;
+				} else if (row) {
+					newSelection[row.id] = true;
+				}
+			}
+			updateRowSelection(newSelection);
+		},
+		[rowSelection, updateRowSelection],
+	);
+
+	const tableColumns = useMemo(() => {
+		if (!enableRowSelection) return columns;
+
+		const checkboxColumn: ColumnDef<TData, unknown> = {
+			id: "selection",
+			header: ({ table }) => (
+				<div
+					className={cn(
+						!autoHideRowSelection || table.getIsSomePageRowsSelected()
+							? "opacity-100"
+							: "opacity-0",
+					)}
+				>
+					<Checkbox
+						checked={
+							table.getIsAllPageRowsSelected() ||
+							(table.getIsSomePageRowsSelected() && "indeterminate")
+						}
+						onCheckedChange={(value) =>
+							table.toggleAllPageRowsSelected(!!value)
+						}
+						aria-label="Select all"
+					/>
+				</div>
+			),
+			cell: ({ row }: CellContext<TData, unknown>) => {
+				const isSelected = row.getIsSelected();
+				// Each checkbox only shows if: auto-hide disabled, OR this row is selected, OR this row is hovered
+				const showCheckbox = !autoHideRowSelection || isSelected;
+				return (
+					<div
+						className={cn(
+							showCheckbox
+								? "opacity-100"
+								: "opacity-0 group-hover:opacity-100",
+						)}
+					>
+						<RowSelectionCheckbox
+							row={row as Row<TData>}
+							onShiftClick={handleShiftClick}
+							lastSelectedRowRef={lastSelectedRowRef}
+						/>
+					</div>
+				);
+			},
+			enableSorting: false,
+			enableHiding: false,
+			size: 32,
+		};
+
+		return [checkboxColumn, ...columns];
+	}, [columns, enableRowSelection, handleShiftClick, autoHideRowSelection]);
+
 	const table = useReactTable({
 		data: filteredData,
-		columns,
+		columns: tableColumns,
 		getCoreRowModel: getCoreRowModel(),
 		getGroupedRowModel: getGroupedRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getExpandedRowModel: getExpandedRowModel(),
 		groupedColumnMode: false,
+		getRowId: getRowId,
+		enableRowSelection: enableRowSelection,
 		initialState: {
 			expanded: true,
 		},
 		state: {
 			grouping: groupingState,
 			sorting: sortingState,
+			rowSelection: enableRowSelection ? rowSelection : {},
 		},
 		onSortingChange: (updater) => {
 			const nextSorting =
@@ -109,17 +279,91 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 				setOrdering(null, "asc");
 			}
 		},
+		onRowSelectionChange: (updater) => {
+			if (!enableRowSelection) return;
+			const newSelection =
+				typeof updater === "function" ? updater(rowSelection) : updater;
+			updateRowSelection(newSelection);
+
+			// Calculate and sync selected row data
+			// We need to create a temporary table with the new selection to get the selected rows
+			const selectedIds = Object.entries(newSelection)
+				.filter(([, selected]) => selected)
+				.map(([id]) => id);
+			const selectedRows = filteredData.filter((row) => {
+				const rowId = getRowId ? getRowId(row) : undefined;
+				if (rowId !== undefined) {
+					return selectedIds.includes(rowId);
+				}
+				// Fallback: use index-based id that TanStack uses by default
+				const index = filteredData.indexOf(row);
+				return selectedIds.includes(String(index));
+			});
+			onSelectionChange?.(selectedRows);
+		},
 	});
 
-	// When grouping changes, re-expand all groups so the user sees the full breakdown.
+	tableInstanceRef.current = table;
+
+	// Auto-deselect rows that are no longer visible in filtered data
+	useEffect(() => {
+		if (!enableRowSelection) return;
+
+		// Get IDs of currently visible rows
+		const visibleRowIds = new Set(
+			filteredData.map(
+				(row) => getRowId?.(row) ?? String(filteredData.indexOf(row)),
+			),
+		);
+
+		// Remove selections for rows no longer visible
+		const newSelection: Record<string, boolean> = {};
+		let hasChanges = false;
+
+		for (const [id, selected] of Object.entries(rowSelection)) {
+			if (selected && visibleRowIds.has(id)) {
+				newSelection[id] = true;
+			} else if (selected) {
+				hasChanges = true; // Row was selected but is no longer visible
+			}
+		}
+
+		if (hasChanges) {
+			updateRowSelection(newSelection);
+		}
+	}, [
+		filteredData,
+		enableRowSelection,
+		rowSelection,
+		getRowId,
+		updateRowSelection,
+	]);
+
 	useEffect(() => {
 		if (groupingState.length > 0) {
 			table.setExpanded(true);
 		}
 	}, [groupingState, table]);
 
+	// Handle Cmd/Ctrl+A select all event
+	useEffect(() => {
+		if (!enableRowSelection) return;
+
+		const container = containerRef.current;
+		if (!container) return;
+
+		const handleSelectAll = () => {
+			table.toggleAllPageRowsSelected(true);
+		};
+
+		container.addEventListener("datatable-select-all", handleSelectAll);
+		return () => {
+			container.removeEventListener("datatable-select-all", handleSelectAll);
+		};
+	}, [enableRowSelection, table]);
+
 	return (
-		<div className={cn("w-full", containerClassName)}>
+		<div ref={containerRef} className={cn("w-full", containerClassName)}>
 			<Table>
 				{showHeader ? (
 					<TableHeader>
@@ -162,7 +406,7 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 					{table.getRowModel().rows.length === 0 ? (
 						<TableRow>
 							<TableCell
-								colSpan={columns.length}
+								colSpan={tableColumns.length}
 								className="h-24 text-center text-muted-foreground"
 							>
 								{emptyLabel}
@@ -180,69 +424,19 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 							const depth = row.depth ?? 0;
 							const isClickable = !!onRowClick && !isGrouped;
 
-							const isInteractiveTarget = (target: HTMLElement | null) => {
-								if (!target) return false;
-
-								// Check for standard interactive elements
-								if (
-									target.closest(
-										"button,[role=button],a[href],input,select,textarea,[contenteditable=true]",
-									)
-								) {
-									return true;
-								}
-
-								// Check for dropdown/select/command menu items and their containers
-								// These use Radix UI with data-slot attributes and portals
-								if (
-									target.closest(
-										'[data-slot="dropdown-menu-content"],[data-slot="dropdown-menu-item"],[data-slot="select-content"],[data-slot="select-item"],[data-slot="command"],[data-slot="command-item"]',
-									)
-								) {
-									return true;
-								}
-
-								// Check for elements with menu-related roles
-								if (
-									target.closest(
-										'[role="menuitem"],[role="option"],[role="combobox"],[role="listbox"]',
-									)
-								) {
-									return true;
-								}
-
-								// Check if element is inside a Radix Portal (dropdowns/selects render in portals)
-								if (target.closest("[data-radix-portal]")) {
-									return true;
-								}
-
-								return false;
-							};
-
-							const cellContainsInteractiveElements = (
-								cellElement: HTMLElement | null,
-							) => {
-								if (!cellElement) return false;
-
-								// Check if the cell contains any interactive elements
-								const interactiveSelector =
-									"button,[role=button],a[href],input,select,textarea,[contenteditable=true],[data-slot='dropdown-menu-trigger'],[data-slot='select-trigger'],[data-slot='command']";
-
-								return !!cellElement.querySelector(interactiveSelector);
-							};
-
 							return (
 								<TableRow
 									key={row.id}
 									data-state={row.getIsSelected() && "selected"}
 									className={cn(
-										"border-b border-border/50 transition-colors",
+										"border-b border-border/50 transition-colors group",
 										isGrouped &&
 											"bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/40",
 										!isGrouped &&
 											isClickable &&
 											"cursor-pointer hover:bg-muted/30",
 										!isGrouped && "h-10",
+										row.getIsSelected() && "bg-muted/50",
 									)}
 									onClick={(e) => {
 										if (isGrouped) {
@@ -254,11 +448,8 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 										if (!onRowClick) return;
 										const target = e.target as HTMLElement | null;
 
-										// Check if the click target itself is interactive
 										if (isInteractiveTarget(target)) return;
 
-										// Check if the clicked cell contains interactive elements
-										// Find the closest table cell (td) element
 										const clickedCell = target?.closest("td");
 										if (
 											clickedCell &&
@@ -278,7 +469,6 @@ export function SharedDataTable<TData, TValue, TFilterState>({
 										const isFirstCell =
 											cell.column.id === allCells[0]?.column.id;
 
-										// For grouped rows, render the first cell with full colspan
 										if (isGrouped && !isFirstCell) {
 											return null;
 										}

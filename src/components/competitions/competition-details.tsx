@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { Competition } from "@/data/types-new";
-import { formatDate } from "@/lib/task-utils";
+import { formatDate } from "@/lib/format-utils";
 
 interface CompetitionDetailsProps {
 	competition: Competition;

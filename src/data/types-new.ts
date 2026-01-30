@@ -28,6 +28,7 @@ export type ProgressUpdate = {
 	postedBy: User;
 	status: "on-track" | "at-risk" | "off-track";
 	message?: string;
+	reactions: CommentReaction[];
 };
 
 export type CompetitionPhase = {
@@ -117,6 +118,92 @@ export type Task = {
 	subTasks: Task[];
 	createdAt: string;
 	updatedAt: string;
+	archivedAt: string | null;
+};
+
+// Comment types for task and update discussions
+export type CommentReaction = {
+	emoji: string;
+	users: User[];
+};
+
+export type CommentParentType = "task" | "update";
+
+export type Comment = {
+	id: string;
+	parentType: CommentParentType;
+	parentId: string; // taskId or updateId
+	parentCommentId: string | null; // null for top-level, set for replies
+	author: User;
+	content: string;
+	createdAt: string;
+	updatedAt: string;
+	reactions: CommentReaction[];
+};
+
+// Activity log types for tracking changes
+export type ActivityType =
+	| "created"
+	| "updated"
+	| "status_changed"
+	| "priority_changed"
+	| "assignee_changed"
+	| "due_date_changed"
+	| "label_added"
+	| "label_removed"
+	| "comment_added"
+	| "comment_edited"
+	| "comment_deleted"
+	| "archived"
+	| "unarchived";
+
+export type ActivityEntry = {
+	id: string;
+	entityType: "task" | "update" | "competition";
+	entityId: string;
+	type: ActivityType;
+	actor: User;
+	timestamp: string;
+	oldValue?: string;
+	newValue?: string;
+	metadata?: Record<string, unknown>;
+};
+
+export type ArchivedTask = Task & {
+	archivedAt: string;
+};
+
+// Template types for quick creation
+export type TemplateTask = {
+	title: string;
+	description: string;
+	status: TaskStatus;
+	priority: TaskPriority;
+	labels: string[]; // label IDs
+	ownerType: "team" | "user" | null;
+	ownerId: string | null;
+	suggestedAssigneeId: string | null;
+	phase: string | null; // phase name or null
+};
+
+export type CompetitionTemplate = {
+	id: string;
+	name: string;
+	description: string;
+	icon: string;
+	defaultTasks: TemplateTask[];
+};
+
+export type TaskTemplate = {
+	id: string;
+	name: string;
+	description: string;
+	icon: string;
+	title: string;
+	descriptionTemplate: string;
+	status: TaskStatus;
+	priority: TaskPriority;
+	labels: string[]; // label IDs
 };
 
 export type Competition = {
@@ -138,6 +225,159 @@ export type Competition = {
 	tasks: Task[];
 	createdAt: string;
 	updatedAt: string;
+};
+
+export type NonCompWeekendInfo = {
+	id: string;
+	satDate: string;
+	eventNote: string;
+	reserved: boolean;
+	announced: boolean;
+};
+
+export type Weekend = {
+	id: string;
+	satDate: string;
+} & (
+	| {
+			competition: Competition;
+			weekendInfo: null;
+	  }
+	| {
+			competition: null;
+			weekendInfo: NonCompWeekendInfo;
+	  }
+);
+
+// Notification types - designed for easy backend integration
+// Backend can push notifications via WebSocket/API with this structure
+export type NotificationType =
+	| "task_assigned" // You were assigned to a task
+	| "task_unassigned" // You were unassigned from a task
+	| "task_mentioned" // You were mentioned in a comment
+	| "task_status_changed" // Task status changed (for subscribers)
+	| "due_date_approaching" // Due date is coming up
+	| "due_date_overdue" // Task is overdue
+	| "comment_added" // New comment on subscribed task
+	| "relation_blocked" // Task you depend on is blocked
+	| "relation_unblocked" // Blocker resolved
+	| "competition_phase_changed" // Competition moved to new phase
+	| "progress_update_added" // New progress update on competition
+	| "reminder_triggered"; // Custom reminder fired
+
+export type NotificationStatus = "unread" | "read" | "archived";
+
+export type NotificationPriority = "low" | "normal" | "high" | "urgent";
+
+// Actions that can be taken directly from a notification
+export type NotificationAction = {
+	id: string;
+	label: string;
+	type: "navigate" | "dismiss" | "snooze" | "mark_done" | "custom";
+	payload?: Record<string, unknown>; // For custom handlers
+};
+
+export type Notification = {
+	id: string;
+	userId: string; // Target user - allows backend filtering
+	type: NotificationType;
+	priority: NotificationPriority;
+	status: NotificationStatus;
+
+	// Content
+	title: string;
+	message: string;
+	body?: string; // Extended markdown content
+
+	// Entity references - for navigation and context
+	entityType: "task" | "competition" | "comment" | "user" | "reminder";
+	entityId: string;
+	parentEntityId?: string; // e.g., taskId for a comment
+
+	// Metadata for rendering and actions
+	metadata: {
+		actorId?: string; // Who triggered this
+		actorName?: string;
+		actorAvatarUrl?: string;
+		oldValue?: string;
+		newValue?: string;
+		actions?: NotificationAction[];
+		// For backend integration
+		webhookUrl?: string;
+		processedAt?: string;
+		processedBy?: string;
+	};
+
+	// Timestamps
+	createdAt: string;
+	readAt?: string;
+	archivedAt?: string;
+	scheduledFor?: string; // For scheduled/digest notifications
+
+	// For batching/digest (future backend feature)
+	isBatchable: boolean;
+	batchKey?: string;
+};
+
+// Reminder types - designed for scheduler/task runner integration
+export type ReminderType = "one_time" | "recurring";
+
+export type ReminderStatus =
+	| "pending" // Scheduled but not yet triggered
+	| "triggered" // Time reached, notification created
+	| "dismissed" // User dismissed
+	| "completed"; // Task completed before reminder
+
+export type RecurringPattern = "daily" | "weekly" | "monthly" | "custom"; // For cron-like expressions (future)
+
+export type Reminder = {
+	id: string;
+	userId: string; // Who gets reminded
+	entityType: "task";
+	entityId: string; // Which task
+
+	// Scheduling
+	type: ReminderType;
+	remindAt: string; // ISO timestamp - when to trigger
+	recurringPattern?: RecurringPattern;
+	recurringConfig?: {
+		daysOfWeek?: number[]; // 0-6 for weekly
+		dayOfMonth?: number; // 1-31 for monthly
+		cronExpression?: string; // For custom (future)
+	};
+	endDate?: string; // Stop recurring after this date
+
+	// Status tracking
+	status: ReminderStatus;
+	triggeredAt?: string;
+	dismissedAt?: string;
+
+	// Content
+	message?: string; // Custom message (optional)
+	priority: NotificationPriority;
+
+	// Backend integration hooks
+	metadata: {
+		jobId?: string; // ID in task queue (e.g., Bull, Celery)
+		workerNode?: string; // Which worker processed this
+		retryCount?: number;
+		lastError?: string;
+		// For external schedulers
+		externalSchedulerId?: string;
+		webhookUrl?: string;
+	};
+
+	createdAt: string;
+	updatedAt: string;
+};
+
+// Notification preferences per user (future backend feature)
+export type NotificationPreference = {
+	userId: string;
+	notificationType: NotificationType;
+	enabled: boolean;
+	channels: ("in_app" | "email" | "push")[];
+	digestFrequency?: "immediate" | "hourly" | "daily";
 };
 
 export const DEFAULT_LABELS: TaskLabel[] = [

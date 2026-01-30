@@ -1,4 +1,12 @@
-import { Loader, type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import {
+	Archive,
+	Loader,
+	type LucideIcon,
+	Monitor,
+	Moon,
+	Sun,
+} from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import {
 	DropdownMenu,
@@ -54,13 +62,20 @@ function ThemeToggleItem() {
 		</SidebarMenuItem>
 	);
 }
+
 const navSecondary = [
+	{
+		title: "Archived",
+		to: "/tasks/archived",
+		icon: Archive,
+	},
 	{
 		title: "Activity",
 		url: "#",
 		icon: Loader,
 	},
 ];
+
 export function NavSecondary({
 	...props
 }: {} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
@@ -71,10 +86,17 @@ export function NavSecondary({
 					{navSecondary.map((item) => (
 						<SidebarMenuItem key={item.title}>
 							<SidebarMenuButton asChild>
-								<a href={item.url}>
-									{item.icon && <item.icon />}
-									<span>{item.title}</span>
-								</a>
+								{"to" in item ? (
+									<Link to={item.to}>
+										{item.icon && <item.icon />}
+										<span>{item.title}</span>
+									</Link>
+								) : (
+									<a href={item.url}>
+										{item.icon && <item.icon />}
+										<span>{item.title}</span>
+									</a>
+								)}
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					))}

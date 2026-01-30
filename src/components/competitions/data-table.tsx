@@ -36,7 +36,6 @@ export function DataTable<TData, TValue>({
 
 	const filterFn: SharedDataTableProps<
 		Competition,
-		unknown,
 		typeof filterState
 	>["filterFn"] = useMemo(
 		() => (rows: Competition[], state: typeof filterState) =>
@@ -45,8 +44,8 @@ export function DataTable<TData, TValue>({
 	);
 
 	return (
-		<SharedDataTable<Competition, TValue, typeof filterState>
-			columns={columns as ColumnDef<Competition, TValue>[]}
+		<SharedDataTable<Competition, typeof filterState>
+			columns={columns as ColumnDef<Competition, unknown>[]}
 			data={competitions}
 			filterState={filterState}
 			filterFn={filterFn}

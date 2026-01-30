@@ -1,12 +1,11 @@
 import { SharedFilterChip } from "@/components/shared/filters/filter-chip";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useDataV2 } from "@/data/data-store-v2";
 import type { CompetitionPhaseKey, User } from "@/data/types-new";
 import { getPhaseClass, getPhaseLabel } from "@/lib/competition-phase-config";
 import { hasActiveFilters as hasActiveFiltersFromFilters } from "@/lib/competitions-filters";
-import { getInitials } from "@/lib/competitions-utils";
 import { type FilterType, filterConfigs } from "@/lib/filter-config";
+import { renderUserValueForFilter } from "@/lib/user-render-utils";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
 import { DateFilterChip } from "./date-filter-chip";
 import { FilterValueSelector } from "./filter-value-selector";
@@ -26,54 +25,15 @@ const filterTypeConfigs: Record<
 		getIcon: () => filterConfigs.phase.icon,
 	},
 	compLead: {
-		renderValue: (value, users) => {
-			const user = users?.find((u) => u.name === value);
-			return (
-				<>
-					<Avatar className="size-4">
-						<AvatarImage src={user?.avatarUrl} alt={String(value)} />
-						<AvatarFallback className="text-[10px]">
-							{getInitials(String(value))}
-						</AvatarFallback>
-					</Avatar>
-					{value}
-				</>
-			);
-		},
+		renderValue: renderUserValueForFilter,
 		getIcon: () => filterConfigs.compLead.icon,
 	},
 	leadDelegate: {
-		renderValue: (value, users) => {
-			const user = users?.find((u) => u.name === value);
-			return (
-				<>
-					<Avatar className="size-4">
-						<AvatarImage src={user?.avatarUrl} alt={String(value)} />
-						<AvatarFallback className="text-[10px]">
-							{getInitials(String(value))}
-						</AvatarFallback>
-					</Avatar>
-					{value}
-				</>
-			);
-		},
+		renderValue: renderUserValueForFilter,
 		getIcon: () => filterConfigs.leadDelegate.icon,
 	},
 	organisers: {
-		renderValue: (value, users) => {
-			const user = users?.find((u) => u.name === value);
-			return (
-				<>
-					<Avatar className="size-4">
-						<AvatarImage src={user?.avatarUrl} alt={String(value)} />
-						<AvatarFallback className="text-[10px]">
-							{getInitials(String(value))}
-						</AvatarFallback>
-					</Avatar>
-					{value}
-				</>
-			);
-		},
+		renderValue: renderUserValueForFilter,
 		getIcon: () => filterConfigs.organisers.icon,
 	},
 };

@@ -1,17 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { FilterOptionRow } from "@/components/competitions/filter-option-row";
-import {
-	Command,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandList,
-} from "@/components/ui/command";
-import {
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
-} from "@/components/ui/dropdown-menu";
+import { mapToSharedFilterOptions } from "@/components/shared/filters/filter-option-row";
+import { SharedFilterSubMenu } from "@/components/shared/filters/filter-sub-menu";
 import { useDataV2 } from "@/data/data-store-v2";
 import {
 	type FilterType,
@@ -38,42 +27,18 @@ export function FilterSubMenu({
 }: FilterSubMenuProps) {
 	const config = filterConfigs[type];
 	const users = useDataV2((state) => state.users);
-	const options = getFilterOptions(type, users);
+	const options = mapToSharedFilterOptions(getFilterOptions(type, users));
 
 	return (
-		<DropdownMenuSub>
-			<DropdownMenuSubTrigger>
-				<Icon className="size-4" />
-				{label}
-				{filterCount > 0 && (
-					<span className="ml-auto text-xs text-muted-foreground">
-						{filterCount}
-					</span>
-				)}
-			</DropdownMenuSubTrigger>
-			<DropdownMenuSubContent className="w-60">
-				<Command>
-					<CommandInput placeholder={config.placeholder} />
-					<CommandList>
-						<CommandEmpty>{config.emptyMessage}</CommandEmpty>
-						<CommandGroup>
-							{options.map((option) => {
-								const optionValue = String(option.value);
-								const isSelected = selectedValues.includes(optionValue);
-								return (
-									<FilterOptionRow
-										key={optionValue}
-										type={type}
-										option={option}
-										isSelected={isSelected}
-										onSelect={() => onToggleFilter(type, optionValue)}
-									/>
-								);
-							})}
-						</CommandGroup>
-					</CommandList>
-				</Command>
-			</DropdownMenuSubContent>
-		</DropdownMenuSub>
+		<SharedFilterSubMenu
+			icon={Icon}
+			label={label}
+			filterCount={filterCount}
+			placeholder={config.placeholder}
+			emptyMessage={config.emptyMessage}
+			options={options}
+			selectedValues={selectedValues}
+			onToggleFilter={(value) => onToggleFilter(type, value)}
+		/>
 	);
 }

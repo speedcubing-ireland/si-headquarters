@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
-import { taskColumns } from "@/components/tasks/columns";
+import { useTaskColumns } from "@/components/tasks/columns";
 import { TasksDataTable } from "@/components/tasks/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -18,6 +18,7 @@ export function CompetitionTasksByPhase({
 	competition,
 	tasks,
 }: CompetitionTasksByPhaseProps) {
+	const columns = useTaskColumns();
 	const addTask = useDataV2((state) => state.addTask);
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
 		() => new Set(),
@@ -151,7 +152,7 @@ export function CompetitionTasksByPhase({
 								<>
 									<Separator />
 									<div className="rounded-md border border-border">
-										<TasksDataTable columns={taskColumns} tasks={group.tasks} />
+										<TasksDataTable columns={columns} tasks={group.tasks} />
 									</div>
 								</>
 							)}

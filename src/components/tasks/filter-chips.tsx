@@ -1,22 +1,16 @@
+import { SharedDateRangeFilterChip } from "@/components/shared/filters/date-range-filter-chip";
 import { SharedFilterChip } from "@/components/shared/filters/filter-chip";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useDataV2 } from "@/data/data-store-v2";
-import type {
-	TaskLabel,
-	TaskPriority,
-	TaskStatus,
-	User,
-} from "@/data/types-new";
+import type { TaskLabel, TaskPriority, TaskStatus } from "@/data/types-new";
 import {
 	priorityLabels,
 	statusColors,
 	statusLabels,
 } from "@/lib/task-constants";
 import { taskFilterConfigs } from "@/lib/task-filter-config";
-import { formatDate, getInitials } from "@/lib/task-utils";
+import { renderUserValueByIdForFilter } from "@/lib/user-render-utils";
 import { useTasksFilterStore } from "@/store/tasks-filter-store";
-import type { DateRangeFilter } from "@/store/tasks-filter-types";
 import { TasksFilterValueSelector } from "./filter-value-selector";
 
 function getStatusBadge(status: TaskStatus) {
@@ -26,25 +20,6 @@ function getStatusBadge(status: TaskStatus) {
 
 function getPriorityLabel(priority: TaskPriority) {
 	return priorityLabels[priority];
-}
-
-function renderAssignee(value: string, users: User[]) {
-	const user = users.find((u) => u.id === value);
-	if (!user) {
-		return <span className="text-xs text-muted-foreground">Unknown</span>;
-	}
-
-	return (
-		<>
-			<Avatar className="size-4">
-				<AvatarImage src={user.avatarUrl} alt={user.name} />
-				<AvatarFallback className="text-[10px]">
-					{getInitials(user.name)}
-				</AvatarFallback>
-			</Avatar>
-			<span className="text-xs">{user.name}</span>
-		</>
-	);
 }
 
 function renderLabel(value: string, labels: TaskLabel[]) {
@@ -64,45 +39,9 @@ function renderLabel(value: string, labels: TaskLabel[]) {
 	);
 }
 
-function TasksDateFilterChip({
-	dateRange,
-	onClear,
-}: {
-	dateRange: DateRangeFilter;
-	onClear: () => void;
-}) {
-	const setFilter = useTasksFilterStore((state) => state.setFilter);
-
-	const dateText =
-		dateRange.start && dateRange.end
-			? `${formatDate(dateRange.start)} - ${formatDate(dateRange.end)}`
-			: dateRange.start
-				? `from ${formatDate(dateRange.start)}`
-				: `until ${formatDate(dateRange.end)}`;
-
-	return (
-		<SharedFilterChip
-			icon={() => <span className="text-xs">📅</span>}
-			label="Date"
-			values={[dateText]}
-			isNot={dateRange.isNot ?? false}
-			onToggleIsNot={() =>
-				setFilter("date", {
-					...dateRange,
-					isNot: !dateRange.isNot,
-				})
-			}
-			onToggleValue={() => {
-				// No-op: date selection is currently done via quick presets in the popover.
-			}}
-			onRemove={onClear}
-			renderValue={() => dateText}
-		/>
-	);
-}
-
 export function TasksFilterChips() {
 	const filters = useTasksFilterStore((state) => state.filters);
+	const setFilter = useTasksFilterStore((state) => state.setFilter);
 	const toggleFilter = useTasksFilterStore((state) => state.toggleFilter);
 	const toggleFilterValue = useTasksFilterStore(
 		(state) => state.toggleFilterValue,
@@ -197,7 +136,7 @@ export function TasksFilterChips() {
 							toggleFilter("assignee", value);
 						});
 					}}
-					renderValue={(value) => renderAssignee(value, users)}
+					renderValue={(value) => renderUserValueByIdForFilter(value, users)}
 					wrapValueButton={(button) => (
 						<TasksFilterValueSelector
 							type="assignee"
@@ -243,9 +182,15 @@ export function TasksFilterChips() {
 
 			{filters.dateRange &&
 				(filters.dateRange.start || filters.dateRange.end) && (
-					<TasksDateFilterChip
+					<SharedDateRangeFilterChip
 						dateRange={filters.dateRange}
 						onClear={() => clearFilterType("date")}
+						onIsNotToggle={() =>
+							setFilter("date", {
+								...filters.dateRange,
+								isNot: !(filters.dateRange?.isNot ?? false),
+							})
+						}
 					/>
 				)}
 		</div>

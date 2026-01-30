@@ -27,6 +27,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useDataV2 } from "@/data/data-store-v2";
 import type { Competition, User } from "@/data/types-new";
 import {
@@ -38,7 +39,7 @@ import {
 	getPhaseClass,
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
-import { getInitials } from "@/lib/competitions-utils";
+import { getInitials } from "@/lib/format-utils";
 
 interface EditableUserCellProps {
 	emptyLabel: string;
@@ -68,20 +69,12 @@ function EditableUserCell({
 			<DropdownMenuTrigger asChild>
 				<Button variant="ghost" size="sm" className="h-7 px-2 justify-start">
 					{selectedUser ? (
-						<div className="flex items-center gap-1.5">
-							<Avatar className="size-5">
-								<AvatarImage
-									src={selectedUser.avatarUrl}
-									alt={selectedUser.name}
-								/>
-								<AvatarFallback className="text-[10px]">
-									{getInitials(selectedUser.name)}
-								</AvatarFallback>
-							</Avatar>
-							<span className="text-xs truncate max-w-[100px]">
-								{selectedUser.name}
-							</span>
-						</div>
+						<UserAvatar
+							user={selectedUser}
+							size="sm"
+							showName
+							nameClassName="text-xs truncate max-w-[100px]"
+						/>
 					) : (
 						<span className="text-xs text-muted-foreground">{emptyLabel}</span>
 					)}
@@ -110,15 +103,12 @@ function EditableUserCell({
 									onSelect={() => handleChange(user.id)}
 									className="flex items-center justify-between"
 								>
-									<div className="flex items-center gap-2">
-										<Avatar className="size-4">
-											<AvatarImage src={user.avatarUrl} alt={user.name} />
-											<AvatarFallback className="text-[10px]">
-												{getInitials(user.name)}
-											</AvatarFallback>
-										</Avatar>
-										<span className="text-xs">{user.name}</span>
-									</div>
+									<UserAvatar
+										user={user}
+										size="xs"
+										showName
+										nameClassName="text-xs"
+									/>
 									{selectedUser?.id === user.id && (
 										<CheckIcon size={14} className="ml-auto" />
 									)}
@@ -344,15 +334,12 @@ export function EditableOrganisersCell({
 										onSelect={() => toggleOrganiser(user)}
 										className="flex items-center justify-between"
 									>
-										<div className="flex items-center gap-2">
-											<Avatar className="size-4">
-												<AvatarImage src={user.avatarUrl} alt={user.name} />
-												<AvatarFallback className="text-[10px]">
-													{getInitials(user.name)}
-												</AvatarFallback>
-											</Avatar>
-											<span className="text-xs">{user.name}</span>
-										</div>
+										<UserAvatar
+											user={user}
+											size="xs"
+											showName
+											nameClassName="text-xs"
+										/>
 										{selected && <CheckIcon size={14} className="ml-auto" />}
 									</CommandItem>
 								);
