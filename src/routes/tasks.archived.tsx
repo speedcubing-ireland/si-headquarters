@@ -1,5 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Archive, ArrowLeft, Trash2 } from "lucide-react";
+import {
+	Archive,
+	ArchiveRestore,
+	ArrowLeft,
+	ChevronDown,
+	Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { ListPageLayout } from "@/components/shared/list-page-layout";
 import { TasksDataTable } from "@/components/tasks/data-table";
@@ -8,8 +14,6 @@ import { TasksDisplaySettings } from "@/components/tasks/display-settings";
 import { TasksFilterChips } from "@/components/tasks/filter-chips";
 import { TasksFilterPopover } from "@/components/tasks/filter-popover";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
 	Dialog,
 	DialogContent,
@@ -18,6 +22,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useDataV2 } from "@/data/data-store-v2";
 import { useListPageState } from "@/hooks/use-list-page-state";
 import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
@@ -34,7 +47,7 @@ function PageHeader({ onBack }: { onBack: () => void }) {
 			<div className="flex w-full min-w-0 flex-wrap items-center gap-1 px-4 py-2 lg:gap-2 lg:px-6">
 				<Button variant="outline" size="sm" onClick={onBack}>
 					<ArrowLeft className="size-4 mr-2" />
-					Back to Tasks
+					<span className="hidden sm:inline">Back to Tasks</span>
 				</Button>
 				<Separator
 					orientation="vertical"
@@ -42,7 +55,8 @@ function PageHeader({ onBack }: { onBack: () => void }) {
 				/>
 				<div className="flex items-center gap-2">
 					<Archive className="size-5 text-muted-foreground" />
-					<span className="font-medium">Archived Tasks</span>
+					<span className="font-medium hidden sm:inline">Archived Tasks</span>
+					<span className="font-medium sm:hidden">Archived</span>
 				</div>
 				<div className="ml-auto flex items-center gap-2">
 					<SidebarTrigger />
@@ -72,12 +86,14 @@ function Filters() {
 				<TasksDisplaySettings />
 				{hasActiveFilters() && (
 					<Button variant="ghost" size="sm" onClick={clearFilters}>
-						Clear filters
+						Clear
 					</Button>
 				)}
 				{hasActiveFilters() && (
 					<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
-						{matchMode === "any" ? "Match any filter" : "Match all filters"}
+						<span className="hidden sm:inline">
+							{matchMode === "any" ? "Match any" : "Match all"}
+						</span>
 					</Button>
 				)}
 			</div>
@@ -99,32 +115,76 @@ function ArchivedBulkActionsBar({
 	if (selectedTaskIds.length === 0) return null;
 
 	return (
-		<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-background border rounded-lg shadow-lg px-4 py-3 flex items-center gap-4">
-			<span className="text-sm font-medium">
-				{selectedTaskIds.length} selected
-			</span>
-			<div className="h-4 w-px bg-border" />
-			<Button
-				variant="outline"
-				size="sm"
-				onClick={onUnarchive}
-				disabled={selectedTaskIds.length === 0}
-			>
-				<Archive className="size-4 mr-2" />
-				Unarchive
-			</Button>
-			<Button
-				variant="destructive"
-				size="sm"
-				onClick={onDelete}
-				disabled={selectedTaskIds.length === 0}
-			>
-				<Trash2 className="size-4 mr-2" />
-				Delete Permanently
-			</Button>
-			<Button variant="ghost" size="sm" onClick={onClearSelection}>
-				Clear
-			</Button>
+		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
+			<div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 max-w-full">
+				{/* Selection info */}
+				<div className="flex items-center gap-2 sm:gap-3 shrink-0">
+					<span className="text-sm font-medium text-foreground">
+						{selectedTaskIds.length}{" "}
+						<span className="hidden sm:inline">
+							{selectedTaskIds.length === 1 ? "task" : "tasks"} selected
+						</span>
+					</span>
+					<button
+						type="button"
+						onClick={onClearSelection}
+						className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+					>
+						<span className="hidden sm:inline">Clear</span>
+						<span className="sm:hidden">×</span>
+					</button>
+				</div>
+
+				<div className="h-4 w-px bg-border shrink-0" />
+
+				{/* Mobile Actions Dropdown */}
+				<div className="sm:hidden flex items-center gap-1">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm" className="h-8 gap-1 px-2">
+								<span>Actions</span>
+								<ChevronDown className="size-3" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start" className="w-48">
+							<DropdownMenuItem onClick={onUnarchive}>
+								<ArchiveRestore className="size-4 mr-2" />
+								Unarchive
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={onDelete}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="size-4 mr-2" />
+								Delete Permanently
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
+
+				{/* Desktop Actions */}
+				<div className="hidden sm:flex items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={onUnarchive}
+						disabled={selectedTaskIds.length === 0}
+					>
+						<ArchiveRestore className="size-4 mr-2" />
+						Unarchive
+					</Button>
+					<Button
+						variant="destructive"
+						size="sm"
+						onClick={onDelete}
+						disabled={selectedTaskIds.length === 0}
+					>
+						<Trash2 className="size-4 mr-2" />
+						Delete Permanently
+					</Button>
+				</div>
+			</div>
 		</div>
 	);
 }

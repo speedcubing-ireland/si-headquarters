@@ -6,6 +6,7 @@ import {
 	Dice1,
 	Dice2,
 	Dice3,
+	Eye,
 	type LucideIcon,
 	TriangleAlert,
 	XCircle,
@@ -39,6 +40,8 @@ export function getStatusIcon(status: TaskStatus): LucideIcon {
 			return Circle;
 		case "in-progress":
 			return CircleDot;
+		case "awaiting-review":
+			return Eye;
 		case "done":
 			return CheckCircle2;
 		case "cancelled":

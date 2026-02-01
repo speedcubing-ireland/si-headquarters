@@ -4,8 +4,9 @@ export const statusOrder: Record<TaskStatus, number> = {
 	backlog: 0,
 	"to-do": 1,
 	"in-progress": 2,
-	done: 3,
-	cancelled: 4,
+	"awaiting-review": 3,
+	done: 4,
+	cancelled: 5,
 };
 
 export const priorityOrder: Record<TaskPriority, number> = {
@@ -19,6 +20,7 @@ export const statusLabels: Record<TaskStatus, string> = {
 	backlog: "Backlog",
 	"to-do": "To Do",
 	"in-progress": "In Progress",
+	"awaiting-review": "Awaiting Review",
 	done: "Done",
 	cancelled: "Cancelled",
 };
@@ -34,6 +36,7 @@ export const statusColors: Record<TaskStatus, string> = {
 	backlog: "bg-muted text-muted-foreground",
 	"to-do": "bg-blue-500/20 text-blue-400",
 	"in-progress": "bg-yellow-500/20 text-yellow-400",
+	"awaiting-review": "bg-purple-500/20 text-purple-400",
 	done: "bg-green-500/20 text-green-400",
 	cancelled: "bg-red-500/20 text-red-400",
 };

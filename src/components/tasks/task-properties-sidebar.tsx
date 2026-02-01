@@ -1,13 +1,22 @@
 "use client";
 
 import { format } from "date-fns";
-import { CalendarDays, Circle, Tag } from "lucide-react";
+import {
+	Check,
+	CheckCircle2,
+	Clock,
+	PanelRight,
+	Plus,
+	Shield,
+	Trash2,
+	X,
+	XCircle,
+} from "lucide-react";
 import { useState } from "react";
 
 import { PropertyRow } from "@/components/shared/property-editors/property-row";
 import {
 	EditableTaskAssignee,
-	EditableTaskLabels,
 	EditableTaskOwner,
 	EditableTaskPriority,
 	EditableTaskStatus,
@@ -15,10 +24,30 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Popover,
+	PopoverContent,
+	PopoverHeader,
+	PopoverTitle,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -29,16 +58,275 @@ import {
 	SheetTrigger,
 } from "@/components/ui/sheet";
 import { useDataV2 } from "@/data/data-store-v2";
-import type { Task } from "@/data/types-new";
+import type { Task, Team, User } from "@/data/types-new";
+import { cn } from "@/lib/utils";
 
 interface TaskPropertiesSidebarProps {
 	task: Task;
+	/**
+	 * Render mode:
+	 * - 'sidebar': Desktop sidebar + mobile FAB/Sheet (default)
+	 * - 'popover': Popover trigger for header use
+	 */
+	renderMode?: "sidebar" | "popover";
+	/** When renderMode is 'popover', this controls the popover open state */
+	open?: boolean;
+	/** When renderMode is 'popover', this is called when open state changes */
+	onOpenChange?: (open: boolean) => void;
+	/** Optional className for the popover trigger button */
+	triggerClassName?: string;
 }
 
-export function TaskPropertiesSidebar({ task }: TaskPropertiesSidebarProps) {
+function ApprovalBadge({
+	approver,
+	isApproved,
+	isCurrentUser,
+	onRemove,
+	onApprove,
+	onUnapprove,
+}: {
+	approver: Team | User;
+	isApproved: boolean;
+	isCurrentUser: boolean;
+	onRemove: () => void;
+	onApprove: () => void;
+	onUnapprove: () => void;
+}) {
+	const isTeam = "members" in approver;
+
+	return (
+		<div
+			className={cn(
+				"flex items-center gap-2 px-2 py-1.5 rounded-md border text-sm group",
+				isApproved
+					? "border-green-500/30 bg-green-500/10"
+					: "border-muted bg-muted/50",
+			)}
+		>
+			<div
+				className={cn(
+					"flex items-center justify-center w-5 h-5 rounded-full",
+					isApproved ? "bg-green-500 text-white" : "bg-muted-foreground/20",
+				)}
+			>
+				{isApproved ? (
+					<Check className="size-3" />
+				) : (
+					<Clock className="size-3 text-muted-foreground" />
+				)}
+			</div>
+
+			<div className="flex-1 min-w-0">
+				<div className="font-medium truncate">{approver.name}</div>
+				<div className="text-xs text-muted-foreground">
+					{isTeam ? "Team" : isCurrentUser ? "You" : "User"} •{" "}
+					{isApproved ? "Approved" : "Pending"}
+				</div>
+			</div>
+
+			<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+				{isCurrentUser && (
+					<>
+						{isApproved ? (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6"
+								onClick={onUnapprove}
+								title="Unapprove"
+							>
+								<XCircle className="size-3.5 text-red-500" />
+							</Button>
+						) : (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6"
+								onClick={onApprove}
+								title="Approve"
+							>
+								<CheckCircle2 className="size-3.5 text-green-500" />
+							</Button>
+						)}
+					</>
+				)}
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-6 w-6"
+					onClick={onRemove}
+					title="Remove approver"
+				>
+					<Trash2 className="size-3.5 text-muted-foreground" />
+				</Button>
+			</div>
+		</div>
+	);
+}
+
+function AddApproverDialog({
+	open,
+	onOpenChange,
+	task,
+	onAdd,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	task: Task;
+	onAdd: (approver: Team | User) => void;
+}) {
+	const users = useDataV2((state) => state.users);
+	const teams = useDataV2((state) => state.teams);
+	const [search, setSearch] = useState("");
+
+	const existingApproverIds = new Set([
+		...task.requiredApprovalBy.map((a) => a.id),
+		...(task.assignee ? [task.assignee.id] : []),
+	]);
+
+	const filteredUsers = users.filter(
+		(u) =>
+			!existingApproverIds.has(u.id) &&
+			u.name.toLowerCase().includes(search.toLowerCase()),
+	);
+
+	const filteredTeams = teams.filter(
+		(t) =>
+			!existingApproverIds.has(t.id) &&
+			t.name.toLowerCase().includes(search.toLowerCase()),
+	);
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-[400px]">
+				<DialogHeader>
+					<DialogTitle>Add Required Approver</DialogTitle>
+				</DialogHeader>
+				<Command>
+					<CommandInput
+						placeholder="Search people or teams..."
+						value={search}
+						onValueChange={setSearch}
+					/>
+					<CommandList>
+						<CommandEmpty>No results found.</CommandEmpty>
+						{filteredTeams.length > 0 && (
+							<CommandGroup heading="Teams">
+								{filteredTeams.map((team) => (
+									<CommandItem
+										key={team.id}
+										onSelect={() => {
+											onAdd(team);
+											onOpenChange(false);
+											setSearch("");
+										}}
+									>
+										<div className="flex items-center gap-2">
+											<div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs">
+												T
+											</div>
+											<span>{team.name}</span>
+										</div>
+									</CommandItem>
+								))}
+							</CommandGroup>
+						)}
+						{filteredUsers.length > 0 && (
+							<CommandGroup heading="People">
+								{filteredUsers.map((user) => (
+									<CommandItem
+										key={user.id}
+										onSelect={() => {
+											onAdd(user);
+											onOpenChange(false);
+											setSearch("");
+										}}
+									>
+										<div className="flex items-center gap-2">
+											<img
+												src={user.avatarUrl}
+												alt={user.name}
+												className="w-6 h-6 rounded-full"
+											/>
+											<span>{user.name}</span>
+										</div>
+									</CommandItem>
+								))}
+							</CommandGroup>
+						)}
+					</CommandList>
+				</Command>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+export function TaskPropertiesSidebar({
+	task,
+	renderMode = "sidebar",
+	open: controlledOpen,
+	onOpenChange,
+	triggerClassName,
+}: TaskPropertiesSidebarProps) {
 	const updateTask = useDataV2((state) => state.updateTask);
-	const [mobileOpen, setMobileOpen] = useState(false);
+	const users = useDataV2((state) => state.users);
+	const currentUser = users[0];
+	const addRequiredApprover = useDataV2((state) => state.addRequiredApprover);
+	const removeRequiredApprover = useDataV2(
+		(state) => state.removeRequiredApprover,
+	);
+	const approveTask = useDataV2((state) => state.approveTask);
+	const unapproveTask = useDataV2((state) => state.unapproveTask);
+
+	const [internalOpen, setInternalOpen] = useState(false);
 	const [dateOpen, setDateOpen] = useState(false);
+	const [addApproverOpen, setAddApproverOpen] = useState(false);
+
+	// Use controlled state for popover mode, internal state for sheet mode
+	const isOpen = renderMode === "popover" ? controlledOpen : internalOpen;
+	const setIsOpen =
+		renderMode === "popover" ? (onOpenChange ?? (() => {})) : setInternalOpen;
+
+	const approvalStatus = (() => {
+		const required = task.requiredApprovalBy;
+		const approved = task.approvedBy;
+		const approvedIds = new Set(approved.map((a) => a.id));
+
+		return {
+			required,
+			approved,
+			approvedCount: approved.length,
+			requiredCount: required.length,
+			isFullyApproved:
+				required.length > 0 && required.every((r) => approvedIds.has(r.id)),
+			pending: required.filter((r) => !approvedIds.has(r.id)),
+		};
+	})();
+
+	const isCurrentUserApprover = (approver: Team | User) => {
+		if ("members" in approver) {
+			// It's a team - check if current user is a member
+			return approver.members.some((m) => m.id === currentUser?.id);
+		}
+		// It's a user
+		return approver.id === currentUser?.id;
+	};
+
+	const handleAddApprover = (approver: Team | User) => {
+		addRequiredApprover(task.id, approver, currentUser);
+	};
+
+	const handleRemoveApprover = (approverId: string) => {
+		removeRequiredApprover(task.id, approverId, currentUser);
+	};
+
+	const handleApprove = () => {
+		approveTask(task.id, currentUser);
+	};
+
+	const handleUnapprove = () => {
+		unapproveTask(task.id, currentUser);
+	};
 
 	const sidebarContent = (
 		<div className="flex flex-col gap-6 py-5 px-5">
@@ -67,12 +355,81 @@ export function TaskPropertiesSidebar({ task }: TaskPropertiesSidebarProps) {
 					<PropertyRow label="Owner">
 						<EditableTaskOwner owner={task.owner} taskId={task.id} />
 					</PropertyRow>
+				</div>
+			</section>
 
-					{/* Due Date */}
-					<PropertyRow
-						label="Due date"
-						icon={<CalendarDays className="size-3.5" />}
-					>
+			<Separator />
+
+			{/* Approval Section */}
+			<section className="flex flex-col gap-2">
+				<div className="flex items-center justify-between">
+					<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+						<Shield className="size-3.5" />
+						Approvals
+					</h3>
+					{approvalStatus.requiredCount > 0 && (
+						<span
+							className={cn(
+								"text-xs font-medium",
+								approvalStatus.isFullyApproved
+									? "text-green-500"
+									: "text-amber-500",
+							)}
+						>
+							{approvalStatus.approvedCount}/{approvalStatus.requiredCount}
+						</span>
+					)}
+				</div>
+
+				{approvalStatus.requiredCount === 0 ? (
+					<div className="text-sm text-muted-foreground">
+						No approvals required
+					</div>
+				) : (
+					<div className="flex flex-col gap-1.5">
+						{approvalStatus.required.map((approver) => (
+							<ApprovalBadge
+								key={approver.id}
+								approver={approver}
+								isApproved={task.approvedBy.some((a) => a.id === approver.id)}
+								isCurrentUser={isCurrentUserApprover(approver)}
+								onRemove={() => handleRemoveApprover(approver.id)}
+								onApprove={handleApprove}
+								onUnapprove={handleUnapprove}
+							/>
+						))}
+					</div>
+				)}
+
+				<Button
+					variant="ghost"
+					size="sm"
+					className="justify-start text-muted-foreground hover:text-foreground mt-1"
+					onClick={() => setAddApproverOpen(true)}
+				>
+					<Plus className="size-3.5 mr-1.5" />
+					Add approver
+				</Button>
+
+				{task.status === "done" &&
+					approvalStatus.requiredCount > 0 &&
+					!approvalStatus.isFullyApproved && (
+						<div className="mt-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600">
+							Task is marked done but missing required approvals (
+							{approvalStatus.pending.length} pending)
+						</div>
+					)}
+			</section>
+
+			<Separator />
+
+			{/* Metadata Section */}
+			<section className="flex flex-col gap-2">
+				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+					Details
+				</h3>
+				<div className="flex flex-col gap-1">
+					<PropertyRow label="Due date">
 						<DropdownMenu open={dateOpen} onOpenChange={setDateOpen}>
 							<DropdownMenuTrigger asChild>
 								<Button variant="ghost" size="sm" className="h-7 px-2">
@@ -101,29 +458,7 @@ export function TaskPropertiesSidebar({ task }: TaskPropertiesSidebarProps) {
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</PropertyRow>
-				</div>
-			</section>
 
-			<Separator />
-
-			{/* Labels Section */}
-			<section className="flex flex-col gap-2">
-				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-					Labels
-				</h3>
-				<PropertyRow label="Labels" icon={<Tag className="size-3.5" />}>
-					<EditableTaskLabels labels={task.labels} taskId={task.id} wrap />
-				</PropertyRow>
-			</section>
-
-			<Separator />
-
-			{/* Metadata Section */}
-			<section className="flex flex-col gap-2">
-				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-					Details
-				</h3>
-				<div className="flex flex-col gap-1">
 					<PropertyRow label="Created">
 						<span className="text-sm text-muted-foreground">
 							{format(new Date(task.createdAt), "MMM d, yyyy")}
@@ -148,31 +483,67 @@ export function TaskPropertiesSidebar({ task }: TaskPropertiesSidebarProps) {
 
 	return (
 		<>
-			{/* Desktop Sidebar */}
-			<aside className="hidden lg:block w-80 border-l border-border bg-background">
-				<ScrollArea className="h-full">{sidebarContent}</ScrollArea>
-			</aside>
+			{/* Dialog for adding approvers */}
+			<AddApproverDialog
+				open={addApproverOpen}
+				onOpenChange={setAddApproverOpen}
+				task={task}
+				onAdd={handleAddApprover}
+			/>
 
-			{/* Mobile Sheet */}
-			<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-				<SheetTrigger asChild>
-					<Button
-						variant="outline"
-						size="icon"
-						className="lg:hidden fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full shadow-lg"
-					>
-						<Circle className="size-4" />
-					</Button>
-				</SheetTrigger>
-				<SheetContent side="right" className="w-80 p-0">
-					<SheetHeader className="px-5 py-4 border-b">
-						<SheetTitle className="text-sm">Properties</SheetTitle>
-					</SheetHeader>
-					<ScrollArea className="h-[calc(100vh-60px)]">
-						{sidebarContent}
-					</ScrollArea>
-				</SheetContent>
-			</Sheet>
+			{renderMode === "popover" ? (
+				<Popover open={isOpen} onOpenChange={setIsOpen}>
+					<PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
+						<PopoverHeader className="px-5 py-4 border-b">
+							<div className="flex items-center justify-between">
+								<PopoverTitle className="text-sm">Properties</PopoverTitle>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6 -mr-2"
+									onClick={() => setIsOpen(false)}
+								>
+									<X className="size-4" />
+								</Button>
+							</div>
+						</PopoverHeader>
+						<ScrollArea className="h-[calc(100vh-200px)] max-h-[500px]">
+							{sidebarContent}
+						</ScrollArea>
+					</PopoverContent>
+				</Popover>
+			) : (
+				<>
+					{/* Desktop Sidebar */}
+					<aside className="hidden lg:block w-80 border-l border-border bg-background">
+						<ScrollArea className="h-full">{sidebarContent}</ScrollArea>
+					</aside>
+
+					{/* Mobile Sheet */}
+					<Sheet open={isOpen} onOpenChange={setIsOpen}>
+						<SheetTrigger asChild>
+							<Button
+								variant="outline"
+								size="icon"
+								className={cn(
+									"lg:hidden fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full shadow-lg",
+									triggerClassName,
+								)}
+							>
+								<PanelRight className="size-4" />
+							</Button>
+						</SheetTrigger>
+						<SheetContent side="right" className="w-80 p-0">
+							<SheetHeader className="px-5 py-4 border-b">
+								<SheetTitle className="text-sm">Properties</SheetTitle>
+							</SheetHeader>
+							<ScrollArea className="h-[calc(100vh-60px)]">
+								{sidebarContent}
+							</ScrollArea>
+						</SheetContent>
+					</Sheet>
+				</>
+			)}
 		</>
 	);
 }

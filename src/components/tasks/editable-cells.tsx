@@ -122,38 +122,106 @@ export function EditableTaskStatus({
 	children?: React.ReactNode;
 }) {
 	const updateTaskStatus = useDataV2((state) => state.updateTaskStatus);
+	const getTaskById = useDataV2((state) => state.getTaskById);
+	const isTaskFullyApproved = useDataV2((state) => state.isTaskFullyApproved);
+	const users = useDataV2((state) => state.users);
+	const currentUser = users[0];
 	const StatusIcon = getStatusIcon(status);
 	const options = getTaskFilterOptions(
 		"status",
 	) as TaskFilterOption<TaskStatus>[];
+	const [showApprovalWarning, setShowApprovalWarning] = React.useState(false);
+	const [pendingStatus, setPendingStatus] = React.useState<TaskStatus | null>(
+		null,
+	);
+
+	const handleStatusChange = (newStatus: TaskStatus) => {
+		const task = getTaskById(taskId);
+		if (!task) return;
+
+		// Check if trying to mark as done without approvals
+		if (
+			newStatus === "done" &&
+			task.requiredApprovalBy.length > 0 &&
+			!isTaskFullyApproved(taskId)
+		) {
+			setPendingStatus(newStatus);
+			setShowApprovalWarning(true);
+			return;
+		}
+
+		updateTaskStatus(taskId, newStatus, currentUser);
+	};
+
+	const confirmStatusChange = () => {
+		if (pendingStatus) {
+			updateTaskStatus(taskId, pendingStatus, currentUser);
+			setPendingStatus(null);
+		}
+		setShowApprovalWarning(false);
+	};
+
+	const cancelStatusChange = () => {
+		setPendingStatus(null);
+		setShowApprovalWarning(false);
+	};
 
 	return (
-		<EditableTaskCell
-			type="status"
-			value={status}
-			options={options}
-			onChange={(newStatus) => updateTaskStatus(taskId, newStatus)}
-			triggerClassName={
-				children ? "h-6 w-6 p-0 justify-center hover:bg-muted/50" : undefined
-			}
-			renderTrigger={(value) =>
-				children ?? (
-					<Badge className={statusColors[value]}>
-						<StatusIcon className="size-3 mr-1" />
-						{statusLabels[value]}
-					</Badge>
-				)
-			}
-			renderOption={(option) => {
-				const Icon = option.icon;
-				return (
-					<div className="flex items-center gap-2">
-						{Icon && <Icon className="size-4 text-muted-foreground" />}
-						<span className="text-xs">{option.label}</span>
+		<>
+			<EditableTaskCell
+				type="status"
+				value={status}
+				options={options}
+				onChange={handleStatusChange}
+				triggerClassName={
+					children ? "h-6 w-6 p-0 justify-center hover:bg-muted/50" : undefined
+				}
+				renderTrigger={(value) =>
+					children ?? (
+						<Badge className={statusColors[value]}>
+							<StatusIcon className="size-3 mr-1" />
+							{statusLabels[value]}
+						</Badge>
+					)
+				}
+				renderOption={(option) => {
+					const Icon = option.icon;
+					return (
+						<div className="flex items-center gap-2">
+							{Icon && <Icon className="size-4 text-muted-foreground" />}
+							<span className="text-xs">{option.label}</span>
+						</div>
+					);
+				}}
+			/>
+			{showApprovalWarning && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+					<div className="bg-background rounded-lg p-6 max-w-sm mx-4 shadow-lg">
+						<h3 className="text-lg font-semibold mb-2">Missing Approvals</h3>
+						<p className="text-sm text-muted-foreground mb-4">
+							This task requires approvals before it can be marked as done. Are
+							you sure you want to proceed?
+						</p>
+						<div className="flex gap-2 justify-end">
+							<button
+								type="button"
+								onClick={cancelStatusChange}
+								className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+							>
+								Cancel
+							</button>
+							<button
+								type="button"
+								onClick={confirmStatusChange}
+								className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+							>
+								Proceed Anyway
+							</button>
+						</div>
 					</div>
-				);
-			}}
-		/>
+				</div>
+			)}
+		</>
 	);
 }
 

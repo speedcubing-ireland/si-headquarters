@@ -79,6 +79,7 @@ export const TASK_STATUS = [
 	"backlog",
 	"to-do",
 	"in-progress",
+	"awaiting-review",
 	"done",
 	"cancelled",
 ] as const;
@@ -381,6 +382,7 @@ export type NotificationPreference = {
 };
 
 export const DEFAULT_LABELS: TaskLabel[] = [
+	// Generic labels
 	{ id: "label-1", name: "Bug", color: "#ef4444" },
 	{ id: "label-2", name: "Feature", color: "#3b82f6" },
 	{ id: "label-3", name: "Improvement", color: "#8b5cf6" },
@@ -389,4 +391,13 @@ export const DEFAULT_LABELS: TaskLabel[] = [
 	{ id: "label-6", name: "Review Needed", color: "#eab308" },
 	{ id: "label-7", name: "Blocked", color: "#dc2626" },
 	{ id: "label-8", name: "Quick Win", color: "#22c55e" },
+	// Competition-specific labels
+	{ id: "label-venue", name: "Venue", color: "#3b82f6" },
+	{ id: "label-budget", name: "Budget", color: "#22c55e" },
+	{ id: "label-marketing", name: "Marketing", color: "#a855f7" },
+	{ id: "label-design", name: "Design", color: "#ec4899" },
+	{ id: "label-wca", name: "WCA", color: "#f97316" },
+	{ id: "label-registration", name: "Registration", color: "#06b6d4" },
+	{ id: "label-logistics", name: "Logistics", color: "#64748b" },
+	{ id: "label-sponsors", name: "Sponsors", color: "#eab308" },
 ];

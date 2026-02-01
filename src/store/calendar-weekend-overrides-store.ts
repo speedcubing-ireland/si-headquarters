@@ -10,6 +10,7 @@ type CalendarWeekendOverridesStore = {
 	overrides: Record<string, WeekendOverride>;
 	getOverride: (rowKey: string) => WeekendOverride | undefined;
 	setOverride: (rowKey: string, patch: Partial<WeekendOverride>) => void;
+	clearAll: () => void;
 };
 
 export function getCalendarWeekendRowKey(
@@ -39,5 +40,8 @@ export const useCalendarWeekendOverridesStore =
 							})(),
 				};
 			});
+		},
+		clearAll: () => {
+			set({ overrides: {} });
 		},
 	}));

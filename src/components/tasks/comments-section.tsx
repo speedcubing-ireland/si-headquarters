@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useDataV2 } from "@/data/data-store-v2";
+import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Comment, User } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
 import {
@@ -48,8 +49,26 @@ function CommentItem({
 }: CommentItemProps) {
 	const [isReplying, setIsReplying] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
-	const [replyContent, setReplyContent] = useState("");
-	const [editContent, setEditContent] = useState(comment.content);
+
+	// Use debounced form for reply content
+	const replyForm = useDebouncedForm({
+		initialValue: "",
+		onChange: () => {
+			// Reply is submitted manually, not auto-saved
+		},
+		debounceMs: 250,
+		immediateOnCommit: false,
+	});
+
+	// Use debounced form for edit content
+	const editForm = useDebouncedForm({
+		initialValue: comment.content,
+		onChange: () => {
+			// Edit is submitted manually, not auto-saved
+		},
+		debounceMs: 250,
+		immediateOnCommit: false,
+	});
 
 	const isOwnComment = comment.author.id === currentUser.id;
 
@@ -61,18 +80,28 @@ function CommentItem({
 	const hasReplies = replies.length > 0;
 
 	const handleSubmitReply = () => {
-		if (replyContent.trim()) {
-			onReply(comment.id, replyContent.trim());
-			setReplyContent("");
+		if (replyForm.value.trim()) {
+			onReply(comment.id, replyForm.value.trim());
+			replyForm.reset();
 			setIsReplying(false);
 		}
 	};
 
 	const handleSubmitEdit = () => {
-		if (editContent.trim() && editContent !== comment.content) {
-			onEdit(comment.id, editContent.trim());
+		if (editForm.value.trim() && editForm.value !== comment.content) {
+			onEdit(comment.id, editForm.value.trim());
 		}
 		setIsEditing(false);
+	};
+
+	const handleCancelEdit = () => {
+		editForm.reset();
+		setIsEditing(false);
+	};
+
+	const handleStartEdit = () => {
+		editForm.reset();
+		setIsEditing(true);
 	};
 
 	return (
@@ -99,8 +128,8 @@ function CommentItem({
 					{isEditing ? (
 						<div className="space-y-2">
 							<Textarea
-								value={editContent}
-								onChange={(e) => setEditContent(e.target.value)}
+								value={editForm.value}
+								onChange={editForm.handleChange}
 								className="min-h-[80px] text-sm"
 								autoFocus
 							/>
@@ -108,14 +137,7 @@ function CommentItem({
 								<Button size="sm" onClick={handleSubmitEdit}>
 									Save
 								</Button>
-								<Button
-									size="sm"
-									variant="ghost"
-									onClick={() => {
-										setIsEditing(false);
-										setEditContent(comment.content);
-									}}
-								>
+								<Button size="sm" variant="ghost" onClick={handleCancelEdit}>
 									Cancel
 								</Button>
 							</div>
@@ -156,7 +178,7 @@ function CommentItem({
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="start">
-											<DropdownMenuItem onClick={() => setIsEditing(true)}>
+											<DropdownMenuItem onClick={handleStartEdit}>
 												<Edit2 className="size-3.5 mr-2" />
 												Edit
 											</DropdownMenuItem>
@@ -177,8 +199,8 @@ function CommentItem({
 								<div className="mt-3 space-y-2">
 									<Textarea
 										placeholder="Write a reply..."
-										value={replyContent}
-										onChange={(e) => setReplyContent(e.target.value)}
+										value={replyForm.value}
+										onChange={replyForm.handleChange}
 										className="min-h-[80px] text-sm"
 										autoFocus
 									/>
@@ -192,7 +214,7 @@ function CommentItem({
 											variant="ghost"
 											onClick={() => {
 												setIsReplying(false);
-												setReplyContent("");
+												replyForm.reset();
 											}}
 										>
 											Cancel
@@ -232,8 +254,6 @@ interface CommentsSectionProps {
 }
 
 export function CommentsSection({ taskId }: CommentsSectionProps) {
-	const [newComment, setNewComment] = useState("");
-
 	const users = useDataV2((state) => state.users);
 	const allComments = useDataV2((state) => state.comments);
 	const comments = useMemo(
@@ -254,10 +274,26 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 	// Get current user (first user for demo)
 	const currentUser = users[0];
 
+	// Use debounced form for new comment
+	const newCommentForm = useDebouncedForm({
+		initialValue: "",
+		onChange: () => {
+			// New comments are submitted manually, not auto-saved
+		},
+		debounceMs: 250,
+		immediateOnCommit: false,
+	});
+
 	const handleSubmitComment = () => {
-		if (newComment.trim() && currentUser) {
-			addComment("task", taskId, newComment.trim(), undefined, currentUser);
-			setNewComment("");
+		if (newCommentForm.value.trim() && currentUser) {
+			addComment(
+				"task",
+				taskId,
+				newCommentForm.value.trim(),
+				undefined,
+				currentUser,
+			);
+			newCommentForm.reset();
 		}
 	};
 
@@ -288,8 +324,8 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 				<div className="flex-1 space-y-2">
 					<Textarea
 						placeholder="Leave a comment..."
-						value={newComment}
-						onChange={(e) => setNewComment(e.target.value)}
+						value={newCommentForm.value}
+						onChange={newCommentForm.handleChange}
 						className="min-h-[100px] text-sm"
 					/>
 					<div className="flex justify-between items-center">
@@ -297,7 +333,7 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 						<Button
 							size="sm"
 							onClick={handleSubmitComment}
-							disabled={!newComment.trim() || !currentUser}
+							disabled={!newCommentForm.value.trim() || !currentUser}
 						>
 							Comment
 						</Button>

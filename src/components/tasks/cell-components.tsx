@@ -20,6 +20,7 @@ const statusIconColors: Record<TaskStatus, string> = {
 	backlog: "text-muted-foreground/60",
 	"to-do": "text-muted-foreground",
 	"in-progress": "text-yellow-500",
+	"awaiting-review": "text-purple-500",
 	done: "text-green-500",
 	cancelled: "text-red-500",
 };

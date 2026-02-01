@@ -50,6 +50,7 @@ const statusOptions: TaskFilterOption<TaskStatus>[] = [
 	{ value: "backlog", label: "Backlog", icon: CircleDashed },
 	{ value: "to-do", label: "To Do", icon: Circle },
 	{ value: "in-progress", label: "In Progress", icon: CircleDot },
+	{ value: "awaiting-review", label: "Awaiting Review", icon: CircleDot },
 	{ value: "done", label: "Done", icon: CheckCircle2 },
 	{ value: "cancelled", label: "Cancelled", icon: XCircle },
 ];
@@ -171,8 +172,9 @@ export const taskStatusOrder: Record<TaskStatus, number> = {
 	backlog: 0,
 	"to-do": 1,
 	"in-progress": 2,
-	done: 3,
-	cancelled: 4,
+	"awaiting-review": 3,
+	done: 4,
+	cancelled: 5,
 };
 
 export const taskPriorityOrder: Record<TaskPriority, number> = {

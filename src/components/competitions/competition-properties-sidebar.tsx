@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Circle, Users } from "lucide-react";
+import { CalendarDays, Circle, PanelRight, Users, X } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import {
@@ -18,6 +18,12 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Popover,
+	PopoverContent,
+	PopoverHeader,
+	PopoverTitle,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -35,15 +41,36 @@ import { cn } from "@/lib/utils";
 interface CompetitionPropertiesSidebarProps {
 	competition: Competition;
 	tasks: Task[];
+	/**
+	 * Render mode:
+	 * - 'sidebar': Desktop sidebar + mobile FAB/Sheet (default)
+	 * - 'popover': Popover trigger for header use
+	 */
+	renderMode?: "sidebar" | "popover";
+	/** When renderMode is 'popover', this controls the popover open state */
+	open?: boolean;
+	/** When renderMode is 'popover', this is called when open state changes */
+	onOpenChange?: (open: boolean) => void;
+	/** Optional className for the popover trigger button */
+	triggerClassName?: string;
 }
 
 export function CompetitionPropertiesSidebar({
 	competition,
 	tasks,
+	renderMode = "sidebar",
+	open: controlledOpen,
+	onOpenChange,
+	triggerClassName,
 }: CompetitionPropertiesSidebarProps) {
 	const updateCompetition = useDataV2((state) => state.updateCompetition);
-	const [mobileOpen, setMobileOpen] = useState(false);
+	const [internalOpen, setInternalOpen] = useState(false);
 	const [dateOpen, setDateOpen] = useState(false);
+
+	// Use controlled state for popover mode, internal state for sheet mode
+	const isOpen = renderMode === "popover" ? controlledOpen : internalOpen;
+	const setIsOpen =
+		renderMode === "popover" ? (onOpenChange ?? (() => {})) : setInternalOpen;
 
 	const totalTasks = tasks.length;
 	const completedTasks = tasks.filter((task) => task.status === "done").length;
@@ -210,6 +237,31 @@ export function CompetitionPropertiesSidebar({
 		</div>
 	);
 
+	if (renderMode === "popover") {
+		return (
+			<Popover open={isOpen} onOpenChange={setIsOpen}>
+				<PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
+					<PopoverHeader className="px-5 py-4 border-b">
+						<div className="flex items-center justify-between">
+							<PopoverTitle className="text-sm">Properties</PopoverTitle>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-6 w-6 -mr-2"
+								onClick={() => setIsOpen(false)}
+							>
+								<X className="size-4" />
+							</Button>
+						</div>
+					</PopoverHeader>
+					<ScrollArea className="h-[calc(100vh-200px)] max-h-[500px]">
+						{sidebarContent}
+					</ScrollArea>
+				</PopoverContent>
+			</Popover>
+		);
+	}
+
 	return (
 		<>
 			{/* Desktop Sidebar */}
@@ -218,14 +270,17 @@ export function CompetitionPropertiesSidebar({
 			</aside>
 
 			{/* Mobile Sheet */}
-			<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+			<Sheet open={isOpen} onOpenChange={setIsOpen}>
 				<SheetTrigger asChild>
 					<Button
 						variant="outline"
 						size="icon"
-						className="lg:hidden fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full shadow-lg"
+						className={cn(
+							"lg:hidden fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full shadow-lg",
+							triggerClassName,
+						)}
 					>
-						<Circle className="size-4" />
+						<PanelRight className="size-4" />
 					</Button>
 				</SheetTrigger>
 				<SheetContent side="right" className="w-80 p-0">

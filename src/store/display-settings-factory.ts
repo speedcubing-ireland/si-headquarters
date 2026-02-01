@@ -15,6 +15,7 @@ export interface DisplaySettingsState {
 
 	toJSON: () => string;
 	fromJSON: (json: string) => void;
+	reset: () => void;
 }
 
 export function createDisplaySettingsStore() {
@@ -78,6 +79,17 @@ export function createDisplaySettingsStore() {
 			} catch (error) {
 				console.error("Failed to parse display settings JSON:", error);
 			}
+		},
+
+		reset: () => {
+			set({
+				grouping: null,
+				subGrouping: null,
+				ordering: {
+					field: null,
+					direction: "asc",
+				},
+			});
 		},
 	}));
 }

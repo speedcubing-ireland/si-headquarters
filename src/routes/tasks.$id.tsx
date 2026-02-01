@@ -7,18 +7,26 @@ import { CommentsSection } from "@/components/tasks/comments-section";
 import { EditableTaskStatus } from "@/components/tasks/editable-cells";
 import { TaskModal } from "@/components/tasks/task-modal";
 import { TaskPropertiesSidebar } from "@/components/tasks/task-properties-sidebar";
+import { TaskResourcesSection } from "@/components/tasks/task-resources";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useDataV2 } from "@/data/data-store-v2";
+import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Task } from "@/data/types-new";
 
 export const Route = createFileRoute("/tasks/$id")({
 	component: RouteComponent,
 });
 
-function TaskHeader({ task }: { task: Task }) {
+function TaskHeader({
+	task,
+	onPropertiesClick,
+}: {
+	task: Task;
+	onPropertiesClick: () => void;
+}) {
 	return (
 		<header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
 			<Link
@@ -26,19 +34,22 @@ function TaskHeader({ task }: { task: Task }) {
 				className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
 			>
 				<ArrowLeft className="size-4" />
-				<span className="text-sm">Back to Tasks</span>
+				<span className="text-sm hidden sm:inline">Back to Tasks</span>
 			</Link>
 			<Separator orientation="vertical" className="mx-2 h-4" />
-			<span className="text-sm font-mono text-muted-foreground">
+			<span className="text-sm font-mono text-muted-foreground hidden sm:block">
 				{task.identifier}
 			</span>
 			{task.owner && "members" in task.owner && (
 				<>
-					<Separator orientation="vertical" className="mx-2 h-4" />
+					<Separator
+						orientation="vertical"
+						className="mx-2 h-4 hidden sm:block"
+					/>
 					<Link
 						to="/teams/$teamId"
 						params={{ teamId: task.owner.id }}
-						className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted ml-1"
+						className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted ml-1 hidden sm:inline-flex"
 					>
 						<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
 							T
@@ -48,6 +59,15 @@ function TaskHeader({ task }: { task: Task }) {
 				</>
 			)}
 			<div className="ml-auto flex items-center gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={onPropertiesClick}
+					className="lg:hidden gap-1.5"
+				>
+					<span className="hidden sm:inline">Properties</span>
+					<MoreHorizontal className="size-4 sm:hidden" />
+				</Button>
 				<Button variant="ghost" size="icon">
 					<MoreHorizontal className="size-4" />
 				</Button>
@@ -135,8 +155,29 @@ function RouteComponent() {
 
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
-	const [editedTitle, setEditedTitle] = useState("");
-	const [editedDescription, setEditedDescription] = useState("");
+	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
+
+	// Use debounced form for title editing
+	const titleForm = useDebouncedForm({
+		initialValue: task?.title ?? "",
+		onChange: (newTitle) => {
+			if (newTitle.trim() && newTitle !== task?.title) {
+				updateTask(id, { title: newTitle.trim() });
+			}
+		},
+		debounceMs: 250,
+	});
+
+	// Use debounced form for description editing
+	const descriptionForm = useDebouncedForm({
+		initialValue: task?.description ?? "",
+		onChange: (newDescription) => {
+			if (newDescription !== task?.description) {
+				updateTask(id, { description: newDescription });
+			}
+		},
+		debounceMs: 250,
+	});
 
 	if (!task) {
 		return (
@@ -144,7 +185,7 @@ function RouteComponent() {
 				<div className="text-center">
 					<h2 className="text-lg font-medium">Task not found</h2>
 					<p className="text-muted-foreground">
-						The task you're looking for doesn't exist.
+						The task you&apos;re looking for doesn&apos;t exist.
 					</p>
 					<Link to="/tasks">
 						<Button className="mt-4">Back to Tasks</Button>
@@ -154,32 +195,41 @@ function RouteComponent() {
 		);
 	}
 
-	const handleTitleEdit = () => {
-		if (editedTitle.trim() && editedTitle !== task.title) {
-			updateTask(id, { title: editedTitle.trim() });
-		}
+	const handleTitleEditStart = () => {
+		titleForm.reset();
+		setIsEditingTitle(true);
+	};
+
+	const handleTitleEditEnd = () => {
+		titleForm.commit();
 		setIsEditingTitle(false);
 	};
 
-	const handleDescriptionEdit = () => {
-		if (editedDescription !== task.description) {
-			updateTask(id, { description: editedDescription });
-		}
+	const handleDescriptionEditStart = () => {
+		descriptionForm.reset();
+		setIsEditingDescription(true);
+	};
+
+	const handleDescriptionEditEnd = () => {
+		descriptionForm.commit();
 		setIsEditingDescription(false);
 	};
 
 	return (
 		<div className="flex flex-col h-full">
-			<TaskHeader task={task} />
+			<TaskHeader
+				task={task}
+				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
+			/>
 			<div className="flex flex-1 overflow-hidden">
 				<div className="flex-1 overflow-auto p-6">
 					{isEditingTitle ? (
 						<Input
-							value={editedTitle}
-							onChange={(e) => setEditedTitle(e.target.value)}
-							onBlur={handleTitleEdit}
+							value={titleForm.value}
+							onChange={titleForm.handleChange}
+							onBlur={handleTitleEditEnd}
 							onKeyDown={(e) => {
-								if (e.key === "Enter") handleTitleEdit();
+								if (e.key === "Enter") handleTitleEditEnd();
 								if (e.key === "Escape") setIsEditingTitle(false);
 							}}
 							className="text-2xl font-bold border-0 px-0 focus-visible:ring-0"
@@ -189,15 +239,11 @@ function RouteComponent() {
 						<button
 							type="button"
 							className="text-left text-2xl font-bold cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-							onClick={() => {
-								setEditedTitle(task.title);
-								setIsEditingTitle(true);
-							}}
+							onClick={handleTitleEditStart}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
 									e.preventDefault();
-									setEditedTitle(task.title);
-									setIsEditingTitle(true);
+									handleTitleEditStart();
 								}
 							}}
 						>
@@ -215,10 +261,7 @@ function RouteComponent() {
 									size="xs"
 									variant="ghost"
 									className="h-7 px-2 text-xs"
-									onClick={() => {
-										setEditedDescription(task.description);
-										setIsEditingDescription(true);
-									}}
+									onClick={handleDescriptionEditStart}
 								>
 									Edit
 								</Button>
@@ -226,9 +269,9 @@ function RouteComponent() {
 						</div>
 						{isEditingDescription ? (
 							<Textarea
-								value={editedDescription}
-								onChange={(e) => setEditedDescription(e.target.value)}
-								onBlur={handleDescriptionEdit}
+								value={descriptionForm.value}
+								onChange={descriptionForm.handleChange}
+								onBlur={handleDescriptionEditEnd}
 								className="min-h-[150px] resize-none"
 								placeholder="Add description..."
 								autoFocus
@@ -241,14 +284,15 @@ function RouteComponent() {
 							<button
 								type="button"
 								className="w-full text-left text-sm text-muted-foreground cursor-pointer hover:bg-muted/50 rounded p-2 -m-2 min-h-[100px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-								onClick={() => {
-									setEditedDescription(task.description);
-									setIsEditingDescription(true);
-								}}
+								onClick={handleDescriptionEditStart}
 							>
 								Click to add description...
 							</button>
 						)}
+					</div>
+
+					<div className="mt-6">
+						<TaskResourcesSection task={task} />
 					</div>
 
 					<SubTasksList task={task} />
@@ -258,8 +302,14 @@ function RouteComponent() {
 					<ActivityFeed taskId={task.id} />
 				</div>
 
-				<TaskPropertiesSidebar task={task} />
+				<TaskPropertiesSidebar task={task} renderMode="sidebar" />
 			</div>
+			<TaskPropertiesSidebar
+				task={task}
+				renderMode="popover"
+				open={propertiesPopoverOpen}
+				onOpenChange={setPropertiesPopoverOpen}
+			/>
 		</div>
 	);
 }

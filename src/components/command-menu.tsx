@@ -53,58 +53,212 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 		[deferredSearch],
 	);
 
-	// Filter results based on search - optimized for performance
+	// Get comments for searching
+	const comments = useDataV2((state) => state.comments);
+
+	// Enhanced search with scoring and context
 	const results = useMemo(() => {
 		if (!searchQuery) return [];
 
 		const results: SearchResult[] = [];
 		const query = searchQuery;
+		const queryWords = query.split(/\s+/).filter((w) => w.length > 0);
 
-		// Search tasks - limit to 5
-		let taskCount = 0;
+		// Helper to calculate match score
+		const calculateScore = (text: string, query: string): number => {
+			const lowerText = text.toLowerCase();
+			const lowerQuery = query.toLowerCase();
+
+			// Exact match gets highest score
+			if (lowerText === lowerQuery) return 100;
+
+			// Starts with query gets high score
+			if (lowerText.startsWith(lowerQuery)) return 80;
+
+			// Contains query gets medium score
+			if (lowerText.includes(lowerQuery)) return 60;
+
+			// All words match (in any order) gets lower score
+			if (queryWords.every((word) => lowerText.includes(word))) return 40;
+
+			// Some words match
+			const matchingWords = queryWords.filter((word) =>
+				lowerText.includes(word),
+			);
+			if (matchingWords.length > 0) {
+				return (matchingWords.length / queryWords.length) * 30;
+			}
+
+			return 0;
+		};
+
+		// Search tasks with enhanced matching
+		const taskScores = new Map<
+			string,
+			{ task: Task; score: number; context?: string }
+		>();
+
 		for (const task of tasks) {
-			if (taskCount >= 5) break;
-			if (
-				task.title.toLowerCase().includes(query) ||
-				task.identifier.toLowerCase().includes(query)
-			) {
-				results.push({ type: "task", item: task });
-				taskCount++;
+			let score = 0;
+			let context: string | undefined;
+
+			// Title match (highest priority)
+			const titleScore = calculateScore(task.title, query);
+			if (titleScore > 0) {
+				score += titleScore;
+			}
+
+			// Identifier match
+			if (task.identifier.toLowerCase().includes(query)) {
+				score += 70;
+			}
+
+			// Description match (lower priority, include snippet)
+			if (task.description) {
+				const descScore = calculateScore(task.description.slice(0, 200), query);
+				if (descScore > 0) {
+					score += descScore * 0.5;
+					// Extract context snippet
+					const index = task.description
+						.toLowerCase()
+						.indexOf(query.toLowerCase());
+					if (index !== -1) {
+						const start = Math.max(0, index - 30);
+						const end = Math.min(
+							task.description.length,
+							index + query.length + 30,
+						);
+						context = "..." + task.description.slice(start, end) + "...";
+					}
+				}
+			}
+
+			// Status search (e.g., "done", "in progress")
+			if (query.includes(task.status.toLowerCase())) {
+				score += 50;
+			}
+
+			// Priority search
+			if (query.includes(task.priority.toLowerCase())) {
+				score += 40;
+			}
+
+			// Assignee name match
+			if (task.assignee) {
+				const assigneeScore = calculateScore(task.assignee.name, query);
+				if (assigneeScore > 0) {
+					score += assigneeScore * 0.7;
+				}
+			}
+
+			if (score > 0) {
+				taskScores.set(task.id, { task, score, context });
 			}
 		}
 
-		// Search competitions - limit to 5
-		let compCount = 0;
+		// Search in comments for task matches
+		for (const comment of comments) {
+			if (comment.parentType !== "task") continue;
+			if (!comment.content.toLowerCase().includes(query)) continue;
+
+			const task = tasks.find((t) => t.id === comment.parentId);
+			if (!task) continue;
+
+			const existing = taskScores.get(task.id);
+			if (existing) {
+				existing.score += 20; // Boost for comment match
+			} else {
+				// Add task with lower score since only comment matched
+				taskScores.set(task.id, {
+					task,
+					score: 25,
+					context: "Mentioned in comments",
+				});
+			}
+		}
+
+		// Sort tasks by score and add to results
+		const sortedTasks = Array.from(taskScores.values())
+			.sort((a, b) => b.score - a.score)
+			.slice(0, 6);
+
+		for (const { task } of sortedTasks) {
+			results.push({ type: "task", item: task });
+		}
+
+		// Search competitions
+		const compScores = new Map<string, { comp: Competition; score: number }>();
+
 		for (const comp of competitions) {
-			if (compCount >= 5) break;
-			if (comp.name.toLowerCase().includes(query)) {
-				results.push({ type: "competition", item: comp });
-				compCount++;
+			let score = 0;
+
+			const nameScore = calculateScore(comp.name, query);
+			if (nameScore > 0) {
+				score += nameScore;
+			}
+
+			if (comp.description) {
+				const descScore = calculateScore(comp.description, query);
+				if (descScore > 0) {
+					score += descScore * 0.5;
+				}
+			}
+
+			// Phase name match
+			for (const phase of comp.phases) {
+				if (phase.name.toLowerCase().includes(query)) {
+					score += 30;
+					break;
+				}
+			}
+
+			if (score > 0) {
+				compScores.set(comp.id, { comp, score });
 			}
 		}
 
-		// Search users - limit to 3
+		const sortedComps = Array.from(compScores.values())
+			.sort((a, b) => b.score - a.score)
+			.slice(0, 5);
+
+		for (const { comp } of sortedComps) {
+			results.push({ type: "competition", item: comp });
+		}
+
+		// Search users
 		let userCount = 0;
-		for (const user of users) {
-			if (userCount >= 3) break;
-			if (user.name.toLowerCase().includes(query)) {
-				results.push({ type: "user", item: user });
-				userCount++;
-			}
+		const sortedUsers = users
+			.map((user) => ({
+				user,
+				score: calculateScore(user.name, query),
+			}))
+			.filter((u) => u.score > 0)
+			.sort((a, b) => b.score - a.score);
+
+		for (const { user } of sortedUsers.slice(0, 4)) {
+			if (userCount >= 4) break;
+			results.push({ type: "user", item: user });
+			userCount++;
 		}
 
-		// Search teams - limit to 3
+		// Search teams
 		let teamCount = 0;
-		for (const team of teams) {
+		const sortedTeams = teams
+			.map((team) => ({
+				team,
+				score: calculateScore(team.name, query),
+			}))
+			.filter((t) => t.score > 0)
+			.sort((a, b) => b.score - a.score);
+
+		for (const { team } of sortedTeams.slice(0, 3)) {
 			if (teamCount >= 3) break;
-			if (team.name.toLowerCase().includes(query)) {
-				results.push({ type: "team", item: team });
-				teamCount++;
-			}
+			results.push({ type: "team", item: team });
+			teamCount++;
 		}
 
 		return results;
-	}, [searchQuery, tasks, competitions, users, teams]);
+	}, [searchQuery, tasks, competitions, users, teams, comments]);
 
 	// Group results by type
 	const groupedResults = useMemo(() => {

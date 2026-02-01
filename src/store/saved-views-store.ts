@@ -33,6 +33,7 @@ interface SavedViewsState {
 	setActiveView: (entity: SavedViewEntity, viewId: string | null) => void;
 	getViewsForEntity: (entity: SavedViewEntity) => SavedView[];
 	getActiveView: (entity: SavedViewEntity) => SavedView | null;
+	resetAll: () => void;
 }
 
 const STORAGE_KEY = "hq_saved_views_v1";
@@ -128,6 +129,16 @@ export const useSavedViewsStore = create<SavedViewsState>()(
 				const activeId = get().activeViewByEntity[entity];
 				if (!activeId) return null;
 				return get().views.find((view) => view.id === activeId) || null;
+			},
+
+			resetAll: () => {
+				set({
+					views: [],
+					activeViewByEntity: {
+						tasks: null,
+						competitions: null,
+					},
+				});
 			},
 		}),
 		{

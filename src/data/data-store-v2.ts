@@ -207,7 +207,11 @@ function flattenTasks(tasks: Task[]): Task[] {
 	return result;
 }
 
-function generateCompetition(users: User[]): Competition {
+function generateCompetition(
+	users: User[],
+	teams: Team[],
+	template: CompetitionTemplate,
+): Competition {
 	const competitionNames = [
 		"{place} Open",
 		"{place} Championship",
@@ -251,18 +255,43 @@ function generateCompetition(users: User[]): Competition {
 	];
 
 	const place = faker.location.city();
-	const year = faker.date.future().getFullYear();
-	const name = `${faker.helpers.arrayElement(competitionNames).replace("{place}", place)} ${year}`;
+	const now = new Date();
+	const nowStr = now.toISOString();
+
+	// Generate realistic weekend dates (Saturday start)
+	const compStartDate = generateRandomSaturday(30, 365);
+	const year = compStartDate.getFullYear();
+
+	// 70% chance of weekend competition (Sat-Sun), 30% chance single-day (Sat only)
+	const isWeekendCompetition = faker.datatype.boolean({ probability: 0.7 });
+	const compEndDate = isWeekendCompetition
+		? new Date(compStartDate.getTime() + 24 * 60 * 60 * 1000) // Add 1 day for Sunday
+		: compStartDate; // Same day for single-day competitions
+
+	const nameTemplate = faker.helpers.arrayElement(competitionNames);
+	let name = nameTemplate.replace("{place}", place);
+	// If it's a championship template, make sure the name reflects that
+	if (
+		template.id === "template-championship" &&
+		!name.includes("Championship")
+	) {
+		name = `${place} Championship`;
+	}
+	name = `${name} ${year}`;
 
 	const phases = generatePhases();
 	const currentPhaseIdx = faker.number.int({ min: 0, max: phases.length - 1 });
-	const now = new Date().toISOString();
-	const compStart = faker.date.future();
-	const compEnd = faker.date.future({ refDate: compStart });
+	const compStart = compStartDate.toISOString().split("T")[0];
+	const compEnd = compEndDate.toISOString().split("T")[0];
 
 	const compLead = faker.helpers.arrayElement(users);
 	const leadDelegate = faker.helpers.arrayElement(users);
 	const organisers = faker.helpers.arrayElements(users, { min: 2, max: 5 });
+
+	// Determine completion scenario for this competition
+	const completionScenario = faker.helpers.arrayElement<
+		"on-track" | "at-risk" | "off-track"
+	>(["on-track", "on-track", "on-track", "at-risk", "off-track"]);
 
 	const progressUpdates: ProgressUpdate[] = [];
 	if (faker.datatype.boolean({ probability: 0.7 })) {
@@ -272,7 +301,7 @@ function generateCompetition(users: User[]): Competition {
 			progressUpdates.push({
 				id: faker.string.uuid(),
 				timestamp: faker.date
-					.recent({ days: 14, refDate: compStart })
+					.recent({ days: 14, refDate: compStartDate })
 					.toISOString(),
 				postedBy: author,
 				status: faker.helpers.arrayElement<ProgressUpdate["status"]>([
@@ -286,12 +315,135 @@ function generateCompetition(users: User[]): Competition {
 		}
 	}
 
-	return {
+	// Generate tasks from template
+	const tasks: Task[] = [];
+	for (const templateTask of template.defaultTasks) {
+		// Find the phase by name
+		const phase = templateTask.phase
+			? phases.find((p) => p.name === templateTask.phase) || null
+			: null;
+
+		// Find owner
+		let owner: Team | User | null = null;
+		if (templateTask.ownerType === "team" && templateTask.ownerId) {
+			owner = teams.find((t) => t.id === templateTask.ownerId) || null;
+		}
+
+		// Determine assignee - use suggested assignee if available, otherwise assign from team
+		let assignee: User | null = null;
+		if (templateTask.suggestedAssigneeId) {
+			assignee =
+				users.find((u) => u.id === templateTask.suggestedAssigneeId) || null;
+		} else if (owner && "members" in owner && owner.members.length > 0) {
+			// Assign to a random team member
+			assignee = faker.helpers.arrayElement(owner.members);
+		} else if (owner && !("members" in owner)) {
+			// Owner is an individual user
+			assignee = owner as User;
+		} else {
+			// No owner - assign to a random user
+			assignee = faker.helpers.arrayElement(users);
+		}
+
+		// Determine task status based on phase relationship
+		let taskStatus: TaskStatus = templateTask.status;
+		if (phase) {
+			const taskPhaseIdx = phases.findIndex((p) => p.id === phase.id);
+			if (taskPhaseIdx < currentPhaseIdx) {
+				// Task is in a previous phase - should be mostly done
+				const completionRate =
+					completionScenario === "on-track"
+						? 0.95
+						: completionScenario === "at-risk"
+							? 0.85
+							: 0.7;
+				const rand = Math.random();
+				if (rand < completionRate) {
+					taskStatus = "done";
+				} else if (rand < completionRate + 0.15) {
+					taskStatus = "awaiting-review";
+				} else {
+					taskStatus = "in-progress";
+				}
+			} else if (taskPhaseIdx === currentPhaseIdx) {
+				// Task is in current phase - varied completion based on scenario
+				if (completionScenario === "on-track") {
+					const rand = Math.random();
+					taskStatus =
+						rand < 0.4
+							? "in-progress"
+							: rand < 0.7
+								? "awaiting-review"
+								: rand < 0.95
+									? "done"
+									: "to-do";
+				} else if (completionScenario === "at-risk") {
+					const rand = Math.random();
+					taskStatus =
+						rand < 0.3
+							? "in-progress"
+							: rand < 0.5
+								? "to-do"
+								: rand < 0.75
+									? "awaiting-review"
+									: rand < 0.9
+										? "done"
+										: "backlog";
+				} else {
+					// Off-track
+					const rand = Math.random();
+					taskStatus =
+						rand < 0.4
+							? "to-do"
+							: rand < 0.7
+								? "in-progress"
+								: rand < 0.85
+									? "backlog"
+									: rand < 0.95
+										? "awaiting-review"
+										: "done";
+				}
+			} else {
+				// Task is in future phase
+				taskStatus = "backlog";
+			}
+		}
+
+		// Convert label IDs to TaskLabel objects
+		const taskLabels: TaskLabel[] = templateTask.labels
+			.map((labelId) => mockLabels.find((l) => l.id === labelId))
+			.filter((label): label is TaskLabel => label !== undefined);
+
+		const task: Task = {
+			id: faker.string.uuid(),
+			identifier: generateTaskIdentifier(),
+			parent: { type: "competition", linkedId: "temp" }, // Will update after comp is created
+			title: templateTask.title,
+			description: templateTask.description,
+			owner,
+			assignee,
+			phase,
+			status: taskStatus,
+			priority: templateTask.priority,
+			dueDate: null,
+			requiredApprovalBy: [],
+			approvedBy: [],
+			labels: taskLabels,
+			resources: [],
+			subTasks: [],
+			createdAt: nowStr,
+			updatedAt: nowStr,
+			archivedAt: null,
+		};
+		tasks.push(task);
+	}
+
+	const competition: Competition = {
 		id: faker.string.uuid(),
 		name,
 		description: faker.lorem.sentence(),
-		compStart: compStart.toISOString().split("T")[0],
-		compEnd: compEnd.toISOString().split("T")[0],
+		compStart,
+		compEnd,
 		compLead,
 		leadDelegate,
 		organisers,
@@ -302,13 +454,54 @@ function generateCompetition(users: User[]): Competition {
 			? { type: "google-sheet", sheetId: faker.string.alphanumeric(32) }
 			: null,
 		tasks: [],
-		createdAt: now,
-		updatedAt: now,
+		createdAt: nowStr,
+		updatedAt: nowStr,
 	};
+
+	// Update task parent references with the actual competition ID
+	for (const task of tasks) {
+		task.parent = { type: "competition", linkedId: competition.id };
+	}
+
+	competition.tasks = tasks;
+
+	return competition;
 }
 
-function generateCompetitions(count: number, users: User[]): Competition[] {
-	return Array.from({ length: count }, () => generateCompetition(users));
+function generateRandomSaturday(minDaysAhead = 30, maxDaysAhead = 365): Date {
+	const now = new Date();
+	const minDate = new Date(now);
+	minDate.setDate(minDate.getDate() + minDaysAhead);
+	const maxDate = new Date(now);
+	maxDate.setDate(maxDate.getDate() + maxDaysAhead);
+
+	// Generate a random date in the range
+	const randomTime =
+		minDate.getTime() + Math.random() * (maxDate.getTime() - minDate.getTime());
+	const randomDate = new Date(randomTime);
+
+	// Find the next Saturday (6 = Saturday)
+	const dayOfWeek = randomDate.getDay();
+	const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+	randomDate.setDate(randomDate.getDate() + daysUntilSaturday);
+
+	return randomDate;
+}
+
+function generateCompetitions(
+	count: number,
+	users: User[],
+	teams: Team[],
+): Competition[] {
+	const templates: CompetitionTemplate[] = [
+		createStandardCompetitionTemplate(teams),
+		createChampionshipTemplate(teams),
+	];
+
+	return Array.from({ length: count }, () => {
+		const template = faker.helpers.arrayElement(templates);
+		return generateCompetition(users, teams, template);
+	});
 }
 
 function generateComments(tasks: Task[], users: User[]): Comment[] {
@@ -444,7 +637,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Review and approve competition budget",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-budget", "label-5"],
 			ownerType: financeTeam ? "team" : null,
 			ownerId: financeTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -455,7 +648,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Confirm and book competition venue",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-venue", "label-5"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -466,7 +659,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Secure sponsors for the competition",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-sponsors"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -478,7 +671,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Create and schedule social media posts",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-marketing"],
 			ownerType: socialMediaTeam ? "team" : null,
 			ownerId: socialMediaTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -489,7 +682,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Design competition certificates",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-design"],
 			ownerType: graphicsTeam ? "team" : null,
 			ownerId: graphicsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -501,7 +694,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Process waiting list and send refund emails",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-registration", "label-logistics"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -512,7 +705,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Send pre-competition information email to competitors",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-logistics", "label-5"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -523,7 +716,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Prepare check-in sheets for competition day",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-logistics"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -535,7 +728,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Take and post podium photos",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-marketing"],
 			ownerType: socialMediaTeam ? "team" : null,
 			ownerId: socialMediaTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -546,7 +739,7 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Close out competition budget and reconcile expenses",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-budget", "label-5"],
 			ownerType: financeTeam ? "team" : null,
 			ownerId: financeTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -577,7 +770,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Review and approve championship budget",
 			status: "to-do",
 			priority: "urgent",
-			labels: [],
+			labels: ["label-budget", "label-5"],
 			ownerType: financeTeam ? "team" : null,
 			ownerId: financeTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -588,7 +781,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Confirm and book large championship venue",
 			status: "to-do",
 			priority: "urgent",
-			labels: [],
+			labels: ["label-venue", "label-5"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -599,7 +792,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Secure major sponsors for championship",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-sponsors"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -610,7 +803,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Negotiate hotel rates for out-of-town competitors",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-venue", "label-sponsors"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -621,7 +814,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Submit and obtain WCA approval for championship",
 			status: "to-do",
 			priority: "urgent",
-			labels: [],
+			labels: ["label-wca", "label-5"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -633,7 +826,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Launch comprehensive social media campaign",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-marketing"],
 			ownerType: socialMediaTeam ? "team" : null,
 			ownerId: socialMediaTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -644,7 +837,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Design and order championship trophies",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-design"],
 			ownerType: graphicsTeam ? "team" : null,
 			ownerId: graphicsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -655,7 +848,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Design championship certificates",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-design"],
 			ownerType: graphicsTeam ? "team" : null,
 			ownerId: graphicsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -666,7 +859,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Draft and distribute press release",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-marketing"],
 			ownerType: socialMediaTeam ? "team" : null,
 			ownerId: socialMediaTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -678,7 +871,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Process waiting list and send refund emails",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-registration", "label-logistics"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -689,7 +882,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Send detailed pre-competition information",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-logistics", "label-5"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -700,7 +893,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Prepare check-in sheets",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-logistics"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -711,7 +904,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Brief volunteers on championship procedures",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-logistics"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -722,7 +915,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Verify all equipment is ready for championship",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-logistics"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -734,7 +927,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Take and post podium photos",
 			status: "to-do",
 			priority: "medium",
-			labels: [],
+			labels: ["label-marketing"],
 			ownerType: socialMediaTeam ? "team" : null,
 			ownerId: socialMediaTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -745,7 +938,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Close out championship budget",
 			status: "to-do",
 			priority: "high",
-			labels: [],
+			labels: ["label-budget", "label-5"],
 			ownerType: financeTeam ? "team" : null,
 			ownerId: financeTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -756,7 +949,7 @@ function createChampionshipTemplate(teams: Team[]): CompetitionTemplate {
 			description: "Submit results to WCA",
 			status: "to-do",
 			priority: "urgent",
-			labels: [],
+			labels: ["label-wca", "label-5"],
 			ownerType: competitionsTeam ? "team" : null,
 			ownerId: competitionsTeam?.id || null,
 			suggestedAssigneeId: null,
@@ -1187,10 +1380,16 @@ function generateReminders(userId: string, tasks: Task[]): Reminder[] {
 const mockUsers = generateUsers(50);
 const mockTeams = generateTeams(mockUsers, 3);
 const mockLabels = [...DEFAULT_LABELS];
-const mockTasks = flattenTasks(
+let mockTasks = flattenTasks(
 	generateTasks(40, mockUsers, mockTeams, mockLabels),
 );
-const mockCompetitions = generateCompetitions(30, mockUsers);
+const mockCompetitions = generateCompetitions(30, mockUsers, mockTeams);
+
+// Extract tasks from competitions and add to global task list
+// This mirrors the pattern in createCompetitionFromTemplate()
+const competitionTasks = mockCompetitions.flatMap((comp) => comp.tasks);
+mockTasks = [...mockTasks, ...competitionTasks];
+
 const mockComments = generateComments(mockTasks, mockUsers);
 const mockActivityLog = generateActivityLog(mockTasks, mockUsers);
 
@@ -1488,6 +1687,58 @@ type DataStoreV2 = {
 	 * });
 	 */
 	checkAndTriggerReminders: () => void;
+
+	// ============================================================================
+	// APPROVAL METHODS
+	// ============================================================================
+
+	/**
+	 * Add a required approver (team or user) to a task
+	 */
+	addRequiredApprover: (
+		taskId: string,
+		approver: Team | User,
+		actor?: User,
+	) => void;
+
+	/**
+	 * Remove a required approver from a task
+	 */
+	removeRequiredApprover: (
+		taskId: string,
+		approverId: string,
+		actor?: User,
+	) => void;
+
+	/**
+	 * Approve a task (adds actor to approvedBy)
+	 */
+	approveTask: (taskId: string, actor: User) => void;
+
+	/**
+	 * Unapprove a task (removes actor from approvedBy)
+	 */
+	unapproveTask: (taskId: string, actor: User) => void;
+
+	/**
+	 * Check if all required approvals are met for a task
+	 */
+	isTaskFullyApproved: (taskId: string) => boolean;
+
+	/**
+	 * Get approval status for a task
+	 */
+	getApprovalStatus: (taskId: string) => {
+		requiredCount: number;
+		approvedCount: number;
+		isFullyApproved: boolean;
+		requiredApprovers: (Team | User)[];
+		approvedBy: (Team | User)[];
+		pendingApprovers: (Team | User)[];
+	} | null;
+
+	// Reset all demo data (keep templates, 13 users, and teams)
+	resetDemoData: () => void;
 };
 
 // ============================================================================
@@ -1925,21 +2176,19 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 		return newComp;
 	},
 
-	updateCompetition: (id, updates) => {
+	updateCompetition: (id, updates) =>
 		set((state) => ({
 			competitions: state.competitions.map((comp) =>
 				comp.id === id
 					? { ...comp, ...updates, updatedAt: new Date().toISOString() }
 					: comp,
 			),
-		}));
-	},
+		})),
 
-	deleteCompetition: (id) => {
+	deleteCompetition: (id) =>
 		set((state) => ({
 			competitions: state.competitions.filter((comp) => comp.id !== id),
-		}));
-	},
+		})),
 
 	updateTaskStatus: (id, status, actor) => {
 		const task = get().getTaskById(id);
@@ -2036,23 +2285,21 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 		}
 	},
 
-	getCommentsForTask: (taskId) => {
-		return get().comments.filter(
+	getCommentsForTask: (taskId) =>
+		get().comments.filter(
 			(comment) =>
 				comment.parentType === "task" &&
 				comment.parentId === taskId &&
 				comment.parentCommentId === null,
-		);
-	},
+		),
 
-	getCommentsForUpdate: (updateId) => {
-		return get().comments.filter(
+	getCommentsForUpdate: (updateId) =>
+		get().comments.filter(
 			(comment) =>
 				comment.parentType === "update" &&
 				comment.parentId === updateId &&
 				comment.parentCommentId === null,
-		);
-	},
+		),
 
 	addComment: (parentType, parentId, content, parentCommentId, actor) => {
 		const now = new Date().toISOString();
@@ -2267,27 +2514,25 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 		}));
 	},
 
-	getActivityForTask: (taskId) => {
-		return get()
+	getActivityForTask: (taskId) =>
+		get()
 			.activityLog.filter(
 				(entry) => entry.entityType === "task" && entry.entityId === taskId,
 			)
 			.sort(
 				(a, b) =>
 					new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-			);
-	},
+			),
 
-	getActivityForUpdate: (updateId) => {
-		return get()
+	getActivityForUpdate: (updateId) =>
+		get()
 			.activityLog.filter(
 				(entry) => entry.entityType === "update" && entry.entityId === updateId,
 			)
 			.sort(
 				(a, b) =>
 					new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-			);
-	},
+			),
 
 	// Template methods implementation
 	getCompetitionTemplates: () => get().competitionTemplates,
@@ -2337,13 +2582,40 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 				owner = get().teams.find((t) => t.id === templateTask.ownerId) || null;
 			}
 
-			// Find suggested assignee
+			// Determine assignee - use suggested assignee if available, otherwise assign from team
 			let assignee: User | null = null;
 			if (templateTask.suggestedAssigneeId) {
 				assignee =
 					get().users.find((u) => u.id === templateTask.suggestedAssigneeId) ||
 					null;
+			} else if (owner && "members" in owner && owner.members.length > 0) {
+				// Assign to first team member as default
+				assignee = owner.members[0];
+			} else if (owner && !("members" in owner)) {
+				// Owner is an individual user
+				assignee = owner as User;
 			}
+
+			// Determine task status based on phase relationship for new competition
+			let taskStatus: TaskStatus = templateTask.status;
+			if (phase) {
+				const taskPhaseIdx = newComp.phases.findIndex((p) => p.id === phase.id);
+				const currentPhaseIdx = newComp.currentPhaseIdx;
+
+				if (taskPhaseIdx < currentPhaseIdx) {
+					// Task is in a previous phase - mark as done
+					taskStatus = "done";
+				} else if (taskPhaseIdx > currentPhaseIdx) {
+					// Task is in a future phase - mark as backlog
+					taskStatus = "backlog";
+				}
+				// If in current phase, keep template status (typically "to-do")
+			}
+
+			// Convert label IDs to TaskLabel objects
+			const taskLabels: TaskLabel[] = templateTask.labels
+				.map((labelId) => get().labels.find((l) => l.id === labelId))
+				.filter((label): label is TaskLabel => label !== undefined);
 
 			const task: Task = {
 				id: faker.string.uuid(),
@@ -2354,12 +2626,12 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 				owner,
 				assignee,
 				phase,
-				status: templateTask.status,
+				status: taskStatus,
 				priority: templateTask.priority,
 				dueDate: null,
 				requiredApprovalBy: [],
 				approvedBy: [],
-				labels: [],
+				labels: taskLabels,
 				resources: [],
 				subTasks: [],
 				createdAt: now,
@@ -2426,20 +2698,18 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 	// NOTIFICATION METHODS IMPLEMENTATION
 	// ============================================================================
 
-	getNotifications: (userId) => {
-		return get()
+	getNotifications: (userId) =>
+		get()
 			.notifications.filter((n) => n.userId === userId)
 			.sort(
 				(a, b) =>
 					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-			);
-	},
+			),
 
-	getUnreadCount: (userId) => {
-		return get().notifications.filter(
+	getUnreadCount: (userId) =>
+		get().notifications.filter(
 			(n) => n.userId === userId && n.status === "unread",
-		).length;
-	},
+		).length,
 
 	markNotificationRead: (notificationId) => {
 		const now = new Date().toISOString();
@@ -2549,20 +2819,18 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 	// REMINDER METHODS IMPLEMENTATION
 	// ============================================================================
 
-	getReminders: (userId) => {
-		return get()
+	getReminders: (userId) =>
+		get()
 			.reminders.filter((r) => r.userId === userId)
 			.sort(
 				(a, b) =>
 					new Date(a.remindAt).getTime() - new Date(b.remindAt).getTime(),
-			);
-	},
+			),
 
-	getPendingReminders: (userId) => {
-		return get().reminders.filter(
+	getPendingReminders: (userId) =>
+		get().reminders.filter(
 			(r) => r.userId === userId && r.status === "pending",
-		);
-	},
+		),
 
 	setReminder: (reminder) => {
 		const now = new Date().toISOString();
@@ -2792,5 +3060,160 @@ export const useDataV2 = create<DataStoreV2>((set, get) => ({
 			`[BACKEND HOOK] - WebSocket for real-time notification delivery`,
 		);
 		console.log(`[BACKEND HOOK] - Webhook callbacks for external integrations`);
+	},
+
+	// Approval methods implementation
+	addRequiredApprover: (taskId, approver, actor) => {
+		const task = get().getTaskById(taskId);
+		if (!task) return;
+
+		const currentApprovers = task.requiredApprovalBy || [];
+		const exists = currentApprovers.some((a) => a.id === approver.id);
+
+		if (!exists) {
+			get().updateTask(taskId, {
+				requiredApprovalBy: [...currentApprovers, approver],
+			});
+		}
+
+		if (actor) {
+			get().logActivity({
+				entityType: "task",
+				entityId: taskId,
+				type: "updated",
+				actor,
+				metadata: {
+					field: "requiredApprovalBy",
+					action: "add",
+					approverId: approver.id,
+				},
+			});
+		}
+	},
+
+	removeRequiredApprover: (taskId, approverId, actor) => {
+		const task = get().getTaskById(taskId);
+		if (!task) return;
+
+		const currentApprovers = task.requiredApprovalBy || [];
+		const approvedBy = task.approvedBy || [];
+
+		get().updateTask(taskId, {
+			requiredApprovalBy: currentApprovers.filter((a) => a.id !== approverId),
+			approvedBy: approvedBy.filter((a) => a.id !== approverId),
+		});
+
+		if (actor) {
+			get().logActivity({
+				entityType: "task",
+				entityId: taskId,
+				type: "updated",
+				actor,
+				metadata: { field: "requiredApprovalBy", action: "remove", approverId },
+			});
+		}
+	},
+
+	approveTask: (taskId, actor) => {
+		const task = get().getTaskById(taskId);
+		if (!task) return;
+
+		const currentApproved = task.approvedBy || [];
+		const exists = currentApproved.some((a) => a.id === actor.id);
+
+		if (!exists) {
+			get().updateTask(taskId, {
+				approvedBy: [...currentApproved, actor],
+			});
+		}
+
+		get().logActivity({
+			entityType: "task",
+			entityId: taskId,
+			type: "updated",
+			actor,
+			metadata: { field: "approvedBy", action: "approve" },
+		});
+	},
+
+	unapproveTask: (taskId, actor) => {
+		const task = get().getTaskById(taskId);
+		if (!task) return;
+
+		const currentApproved = task.approvedBy || [];
+
+		get().updateTask(taskId, {
+			approvedBy: currentApproved.filter((a) => a.id !== actor.id),
+		});
+
+		get().logActivity({
+			entityType: "task",
+			entityId: taskId,
+			type: "updated",
+			actor,
+			metadata: { field: "approvedBy", action: "unapprove" },
+		});
+	},
+
+	isTaskFullyApproved: (taskId) => {
+		const status = get().getApprovalStatus(taskId);
+		return status?.isFullyApproved ?? false;
+	},
+
+	getApprovalStatus: (taskId) => {
+		const task = get().getTaskById(taskId);
+		if (!task) return null;
+
+		const requiredApprovers = task.requiredApprovalBy || [];
+		const approvedBy = task.approvedBy || [];
+		const approvedIds = new Set(approvedBy.map((a) => a.id));
+
+		const pendingApprovers = requiredApprovers.filter(
+			(a) => !approvedIds.has(a.id),
+		);
+
+		return {
+			requiredCount: requiredApprovers.length,
+			approvedCount: approvedBy.length,
+			isFullyApproved:
+				requiredApprovers.length > 0 &&
+				approvedBy.length >= requiredApprovers.length,
+			requiredApprovers,
+			approvedBy,
+			pendingApprovers,
+		};
+	},
+
+	resetDemoData: () => {
+		// Keep only first 13 users (first user is typically the demo user)
+		const usersToKeep = get().users.slice(0, 13);
+
+		// Keep all teams but update their members to only include kept users
+		const updatedTeams = get().teams.map((team) => ({
+			...team,
+			members: team.members.filter((member) =>
+				usersToKeep.some((user) => user.id === member.id),
+			),
+		}));
+
+		// Keep only default labels
+		const defaultLabels = [...DEFAULT_LABELS];
+
+		// Reset task counter
+		taskCounter = 1;
+
+		set({
+			users: usersToKeep,
+			teams: updatedTeams,
+			labels: defaultLabels,
+			tasks: [],
+			archivedTasks: [],
+			competitions: [],
+			comments: [],
+			activityLog: [],
+			notifications: [],
+			reminders: [],
+			// Templates are kept as-is
+		});
 	},
 }));

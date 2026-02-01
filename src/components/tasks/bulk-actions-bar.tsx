@@ -2,6 +2,7 @@ import {
 	Archive,
 	ArrowRight,
 	CheckSquare,
+	ChevronDown,
 	LayoutList,
 	MoreHorizontal,
 	Trash2,
@@ -116,17 +117,20 @@ export function BulkActionsBar({
 
 	return (
 		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
-			<div className="flex items-center gap-4 px-4 py-3 max-w-full">
+			<div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 max-w-full">
 				{/* Selection info */}
-				<div className="flex items-center gap-3 shrink-0">
+				<div className="flex items-center gap-2 sm:gap-3 shrink-0">
 					<span className="text-sm font-medium text-foreground">
-						{selectedCount} {selectedCount === 1 ? "task" : "tasks"} selected
+						{selectedCount}{" "}
+						<span className="hidden sm:inline">
+							{selectedCount === 1 ? "task" : "tasks"} selected
+						</span>
 					</span>
 					{!allSelected && (
 						<button
 							type="button"
 							onClick={onSelectAll}
-							className="text-sm text-primary hover:underline"
+							className="text-xs sm:text-sm text-primary hover:underline hidden xs:inline"
 						>
 							Select all {totalTasks}
 						</button>
@@ -134,16 +138,144 @@ export function BulkActionsBar({
 					<button
 						type="button"
 						onClick={onClearSelection}
-						className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+						className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
 					>
-						Clear selection
+						<span className="hidden sm:inline">Clear</span>
+						<span className="sm:hidden">×</span>
 					</button>
 				</div>
 
-				<div className="h-4 w-px bg-border shrink-0" />
+				<div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
 
-				{/* Actions - compact ghost buttons */}
-				<div className="flex items-center gap-1 overflow-x-auto">
+				{/* Mobile Actions Dropdown */}
+				<div className="sm:hidden flex items-center gap-1">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm" className="h-8 gap-1 px-2">
+								<span>Actions</span>
+								<ChevronDown className="size-3" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start" className="w-56">
+							{/* Status Submenu */}
+							<DropdownMenuItem
+								className="font-medium text-muted-foreground"
+								disabled
+							>
+								Set Status
+							</DropdownMenuItem>
+							{TASK_STATUS.map((status) => {
+								const Icon = getStatusIcon(status);
+								return (
+									<DropdownMenuItem
+										key={status}
+										onClick={() => handleStatusChange(status)}
+									>
+										<Icon className="size-4 mr-2" />
+										<span className="capitalize">
+											{status.replace("-", " ")}
+										</span>
+									</DropdownMenuItem>
+								);
+							})}
+
+							<DropdownMenuSeparator />
+
+							{/* Priority Submenu */}
+							<DropdownMenuItem
+								className="font-medium text-muted-foreground"
+								disabled
+							>
+								Set Priority
+							</DropdownMenuItem>
+							{TASK_PRIORITY.map((priority) => (
+								<DropdownMenuItem
+									key={priority}
+									onClick={() => handlePriorityChange(priority)}
+								>
+									<span
+										className={`size-2 rounded-full mr-2 ${
+											priority === "urgent"
+												? "bg-red-500"
+												: priority === "high"
+													? "bg-orange-500"
+													: priority === "medium"
+														? "bg-yellow-500"
+														: "bg-gray-400"
+										}`}
+									/>
+									<span className="capitalize">{priority}</span>
+								</DropdownMenuItem>
+							))}
+
+							<DropdownMenuSeparator />
+
+							{/* Assignee Submenu */}
+							<DropdownMenuItem
+								className="font-medium text-muted-foreground"
+								disabled
+							>
+								Assign to
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => handleAssigneeChange(null)}>
+								<span className="text-muted-foreground">Unassigned</span>
+							</DropdownMenuItem>
+							{users.map((user) => (
+								<DropdownMenuItem
+									key={user.id}
+									onClick={() => handleAssigneeChange(user)}
+								>
+									<img
+										src={user.avatarUrl}
+										alt=""
+										className="size-5 rounded-full mr-2"
+									/>
+									{user.name}
+								</DropdownMenuItem>
+							))}
+
+							<DropdownMenuSeparator />
+
+							{/* Labels Submenu */}
+							<DropdownMenuItem
+								className="font-medium text-muted-foreground"
+								disabled
+							>
+								Labels
+							</DropdownMenuItem>
+							{labels.map((label) => (
+								<DropdownMenuItem
+									key={label.id}
+									onClick={() => handleLabelToggle(label)}
+								>
+									<span
+										className="size-2 rounded-full mr-2"
+										style={{ backgroundColor: label.color }}
+									/>
+									{label.name}
+								</DropdownMenuItem>
+							))}
+
+							<DropdownMenuSeparator />
+
+							{/* Archive & Delete */}
+							<DropdownMenuItem onClick={handleArchive}>
+								<Archive className="size-4 mr-2" />
+								Archive
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={handleDelete}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="size-4 mr-2" />
+								Delete
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
+
+				{/* Desktop Actions - compact ghost buttons */}
+				<div className="hidden sm:flex items-center gap-1 overflow-x-auto">
 					{/* Status Dropdown */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -262,7 +394,7 @@ export function BulkActionsBar({
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-8 gap-1.5 px-2"
+						className="h-8 gap-1.5 px-2 hidden sm:flex"
 						onClick={handleArchive}
 						disabled={isArchiving}
 					>

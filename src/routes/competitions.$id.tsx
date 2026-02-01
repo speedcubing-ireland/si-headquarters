@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, MoreHorizontal } from "lucide-react";
+import { useState } from "react";
 import { CompetitionDetails } from "@/components/competitions/competition-details";
 import { CompetitionLatestUpdate } from "@/components/competitions/competition-latest-update";
 import { CompetitionPropertiesSidebar } from "@/components/competitions/competition-properties-sidebar";
@@ -15,7 +16,13 @@ export const Route = createFileRoute("/competitions/$id")({
 	component: RouteComponent,
 });
 
-function CompetitionHeader({ competition }: { competition: Competition }) {
+function CompetitionHeader({
+	competition,
+	onPropertiesClick,
+}: {
+	competition: Competition;
+	onPropertiesClick: () => void;
+}) {
 	return (
 		<header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
 			<Link
@@ -23,16 +30,28 @@ function CompetitionHeader({ competition }: { competition: Competition }) {
 				className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
 			>
 				<ArrowLeft className="size-4" />
-				<span className="text-sm">Back to Competitions</span>
+				<span className="text-sm hidden sm:inline">Back to Competitions</span>
 			</Link>
 			<Separator orientation="vertical" className="mx-2 h-4" />
-			<h1 className="truncate text-sm font-semibold">{competition.name}</h1>
+			<h1 className="truncate text-sm font-semibold max-w-[200px] sm:max-w-[300px]">
+				{competition.name}
+			</h1>
 			<div className="ml-auto flex items-center gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={onPropertiesClick}
+					className="lg:hidden gap-1.5"
+				>
+					<span className="hidden sm:inline">Properties</span>
+					<MoreHorizontal className="size-4 sm:hidden" />
+				</Button>
 				{competition.compSheet && (
 					<a
 						href={`https://docs.google.com/spreadsheets/d/${competition.compSheet.sheetId}`}
 						target="_blank"
 						rel="noreferrer"
+						className="hidden sm:block"
 					>
 						<Button variant="ghost" size="sm" className="gap-1">
 							<ExternalLink className="size-4" />
@@ -52,6 +71,7 @@ function RouteComponent() {
 		(state) => state.getCompetitionById(id) as Competition | null,
 	);
 	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
 
 	if (!competition) {
 		return (
@@ -59,7 +79,7 @@ function RouteComponent() {
 				<div className="text-center">
 					<h2 className="text-lg font-medium">Competition not found</h2>
 					<p className="text-muted-foreground">
-						The competition you're looking for doesn&apos;t exist.
+						The competition you&apos;re looking for doesn&apos;t exist.
 					</p>
 					<Link to="/competitions">
 						<Button className="mt-4">Back to Competitions</Button>
@@ -73,7 +93,10 @@ function RouteComponent() {
 
 	return (
 		<div className="flex h-full flex-col">
-			<CompetitionHeader competition={competition} />
+			<CompetitionHeader
+				competition={competition}
+				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
+			/>
 			<div className="flex flex-1 overflow-hidden">
 				<main className="flex-1 overflow-hidden">
 					<ScrollArea className="h-full">
@@ -94,13 +117,19 @@ function RouteComponent() {
 						</div>
 					</ScrollArea>
 				</main>
-				<div className="hidden lg:block">
-					<CompetitionPropertiesSidebar
-						competition={competition}
-						tasks={scopedTasks}
-					/>
-				</div>
+				<CompetitionPropertiesSidebar
+					competition={competition}
+					tasks={scopedTasks}
+					renderMode="sidebar"
+				/>
 			</div>
+			<CompetitionPropertiesSidebar
+				competition={competition}
+				tasks={scopedTasks}
+				renderMode="popover"
+				open={propertiesPopoverOpen}
+				onOpenChange={setPropertiesPopoverOpen}
+			/>
 		</div>
 	);
 }

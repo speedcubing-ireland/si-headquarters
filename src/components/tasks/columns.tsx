@@ -63,6 +63,7 @@ const statusDotColors: Record<TaskStatus, string> = {
 	backlog: "bg-muted-foreground/40",
 	"to-do": "bg-blue-500",
 	"in-progress": "bg-yellow-500",
+	"awaiting-review": "bg-purple-500",
 	done: "bg-green-500",
 	cancelled: "bg-red-500",
 };
