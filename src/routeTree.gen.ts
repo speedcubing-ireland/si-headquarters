@@ -20,6 +20,7 @@ import { Route as TasksIdRouteImport } from './routes/tasks.$id'
 import { Route as SettingsLabelsRouteImport } from './routes/settings.labels'
 import { Route as CompetitionsCalendarRouteImport } from './routes/competitions.calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions.$id'
+import { Route as NewTasksMyRouteImport } from './routes/new.tasks.my'
 
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
@@ -76,6 +77,11 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => CompetitionsRoute,
 } as any)
+const NewTasksMyRoute = NewTasksMyRouteImport.update({
+  id: '/new/tasks/my',
+  path: '/new/tasks/my',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
+  '/new/tasks/my': typeof NewTasksMyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
+  '/new/tasks/my': typeof NewTasksMyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
+  '/new/tasks/my': typeof NewTasksMyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
+    | '/new/tasks/my'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
+    | '/new/tasks/my'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
+    | '/new/tasks/my'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRouteWithChildren
   SettingsLabelsRoute: typeof SettingsLabelsRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
+  NewTasksMyRoute: typeof NewTasksMyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -247,6 +260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof CompetitionsRoute
     }
+    '/new/tasks/my': {
+      id: '/new/tasks/my'
+      path: '/new/tasks/my'
+      fullPath: '/new/tasks/my'
+      preLoaderRoute: typeof NewTasksMyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRouteWithChildren,
   SettingsLabelsRoute: SettingsLabelsRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
+  NewTasksMyRoute: NewTasksMyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
