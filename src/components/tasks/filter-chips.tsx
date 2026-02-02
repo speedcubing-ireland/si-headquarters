@@ -1,16 +1,16 @@
 import { SharedDateRangeFilterChip } from "@/components/shared/filters/date-range-filter-chip";
 import { SharedFilterChip } from "@/components/shared/filters/filter-chip";
 import { Badge } from "@/components/ui/badge";
-import { useDataV2 } from "@/data/data-store-v2";
 import type { TaskLabel, TaskPriority, TaskStatus } from "@/data/types-new";
+import { useTaskFilterContext } from "@/hooks/use-task-filter-context";
 import {
 	priorityLabels,
 	statusColors,
 	statusLabels,
 } from "@/lib/task-constants";
-import { taskFilterConfigs } from "@/lib/task-filter-config";
+import { getFilterConfig } from "@/lib/task-filter-definitions";
 import { renderUserValueByIdForFilter } from "@/lib/user-render-utils";
-import { useTasksFilterStore } from "@/store/tasks-filter-store";
+import { useTasksPageContext } from "@/store/tasks-page-context";
 import { TasksFilterValueSelector } from "./filter-value-selector";
 
 function getStatusBadge(status: TaskStatus) {
@@ -40,21 +40,15 @@ function renderLabel(value: string, labels: TaskLabel[]) {
 }
 
 export function TasksFilterChips() {
-	const filters = useTasksFilterStore((state) => state.filters);
-	const setFilter = useTasksFilterStore((state) => state.setFilter);
-	const toggleFilter = useTasksFilterStore((state) => state.toggleFilter);
-	const toggleFilterValue = useTasksFilterStore(
-		(state) => state.toggleFilterValue,
-	);
-	const toggleFilterIsNot = useTasksFilterStore(
-		(state) => state.toggleFilterIsNot,
-	);
-	const clearFilterType = useTasksFilterStore((state) => state.clearFilterType);
-	const hasActiveFilters = useTasksFilterStore((state) =>
-		state.hasActiveFilters(),
-	);
-	const users = useDataV2((state) => state.users);
-	const labels = useDataV2((state) => state.labels);
+	const { filterStore } = useTasksPageContext();
+	const filters = filterStore((state) => state.filters);
+	const setFilter = filterStore((state) => state.setFilter);
+	const toggleFilter = filterStore((state) => state.toggleFilter);
+	const toggleFilterValue = filterStore((state) => state.toggleFilterValue);
+	const toggleFilterIsNot = filterStore((state) => state.toggleFilterIsNot);
+	const clearFilterType = filterStore((state) => state.clearFilterType);
+	const hasActiveFilters = filterStore((state) => state.hasActiveFilters());
+	const filterContext = useTaskFilterContext();
 
 	if (!hasActiveFilters) return null;
 
@@ -63,7 +57,7 @@ export function TasksFilterChips() {
 			{filters.status.map((item, index) => (
 				<SharedFilterChip<TaskStatus>
 					key={`status-${index}-${item.values.join(",")}`}
-					icon={taskFilterConfigs.status.icon}
+					icon={getFilterConfig("status")?.displayIcon ?? (() => null)}
 					label="Status"
 					values={item.values as TaskStatus[]}
 					isNot={item.isNot}
@@ -92,7 +86,7 @@ export function TasksFilterChips() {
 			{filters.priority.map((item, index) => (
 				<SharedFilterChip<TaskPriority>
 					key={`priority-${index}-${item.values.join(",")}`}
-					icon={() => <span className="text-xs">⚡</span>}
+					icon={getFilterConfig("priority")?.displayIcon ?? (() => null)}
 					label="Priority"
 					values={item.values as TaskPriority[]}
 					isNot={item.isNot}
@@ -125,7 +119,7 @@ export function TasksFilterChips() {
 			{filters.assignee.map((item, index) => (
 				<SharedFilterChip<string>
 					key={`assignee-${index}-${item.values.join(",")}`}
-					icon={() => <span className="text-xs">👤</span>}
+					icon={getFilterConfig("assignee")?.displayIcon ?? (() => null)}
 					label="Assignee"
 					values={item.values}
 					isNot={item.isNot}
@@ -136,7 +130,9 @@ export function TasksFilterChips() {
 							toggleFilter("assignee", value);
 						});
 					}}
-					renderValue={(value) => renderUserValueByIdForFilter(value, users)}
+					renderValue={(value) =>
+						renderUserValueByIdForFilter(value, filterContext.users)
+					}
 					wrapValueButton={(button) => (
 						<TasksFilterValueSelector
 							type="assignee"
@@ -154,7 +150,7 @@ export function TasksFilterChips() {
 			{filters.labels.map((item, index) => (
 				<SharedFilterChip<string>
 					key={`labels-${index}-${item.values.join(",")}`}
-					icon={() => <span className="text-xs">🏷️</span>}
+					icon={getFilterConfig("labels")?.displayIcon ?? (() => null)}
 					label="Labels"
 					values={item.values}
 					isNot={item.isNot}
@@ -165,13 +161,44 @@ export function TasksFilterChips() {
 							toggleFilter("labels", value);
 						});
 					}}
-					renderValue={(value) => renderLabel(value, labels)}
+					renderValue={(value) => renderLabel(value, filterContext.labels)}
 					wrapValueButton={(button) => (
 						<TasksFilterValueSelector
 							type="labels"
 							selectedValues={item.values}
 							onToggleValue={(value) =>
 								toggleFilterValue("labels", index, value)
+							}
+						>
+							{button}
+						</TasksFilterValueSelector>
+					)}
+				/>
+			))}
+
+			{filters.owner.map((item, index) => (
+				<SharedFilterChip<string>
+					key={`owner-${index}-${item.values.join(",")}`}
+					icon={getFilterConfig("owner")?.displayIcon ?? (() => null)}
+					label="Owner"
+					values={item.values}
+					isNot={item.isNot}
+					onToggleIsNot={() => toggleFilterIsNot("owner", index)}
+					onToggleValue={(value) => toggleFilterValue("owner", index, value)}
+					onRemove={() => {
+						item.values.forEach((value) => {
+							toggleFilter("owner", value);
+						});
+					}}
+					renderValue={(value) =>
+						renderUserValueByIdForFilter(value, filterContext.users)
+					}
+					wrapValueButton={(button) => (
+						<TasksFilterValueSelector
+							type="owner"
+							selectedValues={item.values}
+							onToggleValue={(value) =>
+								toggleFilterValue("owner", index, value)
 							}
 						>
 							{button}

@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
 import { formatDate } from "@/lib/format-utils";
 import { priorityLabels, statusLabels } from "@/lib/task-constants";
-import { taskPriorityOrder, taskStatusOrder } from "@/lib/task-filter-config";
+import {
+	taskPriorityOrder,
+	taskStatusOrder,
+} from "@/lib/task-filter-definitions";
 import { getPriorityIcon } from "@/lib/task-utils";
 import { cn } from "@/lib/utils";
 import {

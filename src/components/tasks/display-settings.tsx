@@ -1,5 +1,5 @@
 import { SharedDisplaySettings } from "@/components/shared/display-settings";
-import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
+import { useTasksPageContext } from "@/store/tasks-page-context";
 
 const tasksColumnOptions = [
 	{ value: "status", label: "Status" },
@@ -12,10 +12,14 @@ const tasksColumnOptions = [
 ];
 
 export function TasksDisplaySettings() {
+	const { displayStore } = useTasksPageContext();
+
+	// The context store is already a hook-like function
+	// Cast it to match the expected type signature
 	return (
 		<SharedDisplaySettings
 			columnOptions={tasksColumnOptions}
-			useDisplaySettingsStore={useTasksDisplaySettingsStore}
+			useDisplaySettingsStore={displayStore}
 		/>
 	);
 }

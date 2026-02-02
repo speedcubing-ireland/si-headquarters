@@ -27,9 +27,9 @@ interface SharedPageHeaderProps {
 	primaryIcon: LucideIcon;
 	primaryLabel: string;
 	secondaryLabel?: string;
-	addIcon: LucideIcon;
-	addLabel: string;
-	onAdd: () => void;
+	addIcon?: LucideIcon;
+	addLabel?: string;
+	onAdd?: () => void;
 	onPrimaryClick?: () => void;
 	views?: SavedView[];
 	activeViewId?: string | null;
@@ -42,7 +42,7 @@ export function SharedPageHeader({
 	primaryIcon: PrimaryIcon,
 	primaryLabel,
 	secondaryLabel,
-	addIcon: AddIcon,
+	addIcon,
 	addLabel,
 	onAdd,
 	onPrimaryClick,
@@ -126,10 +126,15 @@ export function SharedPageHeader({
 						</Button>
 					)}
 					<div className="ml-auto flex items-center gap-2">
-						<Button variant="ghost" size="sm" onClick={onAdd}>
-							<AddIcon className="size-4" />
-							{addLabel}
-						</Button>
+						{addIcon && addLabel && onAdd && (
+							<Button variant="ghost" size="sm" onClick={onAdd}>
+								{(() => {
+									const AddIcon = addIcon;
+									return <AddIcon className="size-4" />;
+								})()}
+								{addLabel}
+							</Button>
+						)}
 						<SidebarTrigger />
 					</div>
 				</div>

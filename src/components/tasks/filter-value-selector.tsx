@@ -1,18 +1,33 @@
 import { mapToSharedFilterOptions } from "@/components/shared/filters/filter-option-row";
 import { SharedFilterValueSelector } from "@/components/shared/filters/filter-value-selector";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTaskFilterContext } from "@/hooks/use-task-filter-context";
 import {
-	getTaskFilterOptions,
-	type TaskFilterType,
-	taskFilterConfigs,
-} from "@/lib/task-filter-config";
+	getFilterValues,
+	getFilterConfig,
+} from "@/lib/task-filter-definitions";
 
 type TasksFilterValueSelectorProps<TValue extends string> = {
-	type: TaskFilterType;
+	type: string;
 	selectedValues: TValue[];
 	onToggleValue: (value: TValue) => void;
 	children: React.ReactNode;
 };
+
+// Convert new TaskFilterValue format to old format for SharedFilterValueSelector
+function mapToOldFormat(options: ReturnType<typeof getFilterValues>) {
+	return options.map((opt) => ({
+		value: opt.value,
+		label: opt.label,
+		icon:
+			opt.iconType === "icon"
+				? opt.icon
+				: opt.iconType === "avatar"
+					? null
+					: null,
+		avatarUrl: opt.iconType === "avatar" ? opt.avatarUrl : undefined,
+		color: undefined,
+	}));
+}
 
 export function TasksFilterValueSelector<TValue extends string>({
 	type,
@@ -20,18 +35,16 @@ export function TasksFilterValueSelector<TValue extends string>({
 	onToggleValue,
 	children,
 }: TasksFilterValueSelectorProps<TValue>) {
-	const users = useDataV2((state) => state.users);
-	const labels = useDataV2((state) => state.labels);
-
-	const config = taskFilterConfigs[type];
+	const filterContext = useTaskFilterContext();
+	const config = getFilterConfig(type);
 	const options = mapToSharedFilterOptions(
-		getTaskFilterOptions(type, users, labels),
+		mapToOldFormat(getFilterValues(type, filterContext)),
 	);
 
 	return (
 		<SharedFilterValueSelector
-			placeholder={config.placeholder}
-			emptyMessage={config.emptyMessage}
+			placeholder={`Search ${config?.displayName.toLowerCase() ?? "..."}`}
+			emptyMessage={`No ${config?.displayName.toLowerCase() ?? "items"} found.`}
 			options={options}
 			selectedValues={selectedValues.map(String)}
 			onToggleValue={(value) => onToggleValue(value as TValue)}

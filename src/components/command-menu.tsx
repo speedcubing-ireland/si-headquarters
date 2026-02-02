@@ -128,7 +128,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 							task.description.length,
 							index + query.length + 30,
 						);
-						context = "..." + task.description.slice(start, end) + "...";
+						context = `...${task.description.slice(start, end)}...`;
 					}
 				}
 			}

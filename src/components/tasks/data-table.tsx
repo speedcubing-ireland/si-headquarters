@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useContext } from "react";
 import {
 	SharedDataTable,
 	type SharedDataTableProps,
@@ -10,6 +10,7 @@ import type { Task } from "@/data/types-new";
 import { filterTasksWithState } from "@/lib/task-filters";
 import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
 import { useTasksFilterStore } from "@/store/tasks-filter-store";
+import { TasksPageContext } from "@/store/tasks-page-context";
 
 interface TasksDataTableProps {
 	columns: ColumnDef<Task>[];
@@ -23,11 +24,6 @@ interface TasksDataTableProps {
 	 * Enable row selection functionality.
 	 */
 	enableRowSelection?: boolean;
-	/**
-	 * Callback when selected tasks change. Returns array of selected task IDs.
-	 * @deprecated Use rowSelection and onRowSelectionChange for controlled mode
-	 */
-	onSelectionChange?: (selectedTaskIds: string[]) => void;
 	/**
 	 * Controlled row selection state (TanStack Table format: { rowId: boolean }).
 	 * When provided, component operates in controlled mode.
@@ -48,36 +44,54 @@ interface TasksDataTableProps {
 	skipClientFiltering?: boolean;
 }
 
+// Hook to safely get stores from context or fallback to global
+function useTasksStores() {
+	const context = useContext(TasksPageContext);
+
+	if (context) {
+		// Inside TasksPage - use context stores
+		return {
+			filterStore: context.filterStore,
+			displayStore: context.displayStore,
+			source: "context" as const,
+		};
+	}
+
+	// Outside TasksPage - use global stores (for backward compatibility)
+	return {
+		filterStore: useTasksFilterStore,
+		displayStore: useTasksDisplaySettingsStore,
+		source: "global" as const,
+	};
+}
+
 export function TasksDataTable({
 	columns,
 	tasks: overrideTasks,
 	enableRowSelection = false,
-	onSelectionChange,
 	rowSelection,
 	onRowSelectionChange,
 	autoHideRowSelection = false,
 	skipClientFiltering = false,
 }: TasksDataTableProps) {
-	// Use individual atomic selectors - Zustand v4+ handles multiple subscriptions efficiently
-	const filters = useTasksFilterStore((state) => state.filters);
-	const matchMode = useTasksFilterStore((state) => state.matchMode);
-	const grouping = useTasksDisplaySettingsStore((state) => state.grouping);
-	const subGrouping = useTasksDisplaySettingsStore(
-		(state) => state.subGrouping,
-	);
-	const ordering = useTasksDisplaySettingsStore((state) => state.ordering);
-	const setOrdering = useTasksDisplaySettingsStore(
-		(state) => state.setOrdering,
-	);
-	const router = useRouter();
-	const storeTasks = useDataV2((state) => state.tasks);
-	const tasks = overrideTasks ?? storeTasks;
-	const tableRef = useRef<HTMLDivElement>(null);
+	const { filterStore, displayStore } = useTasksStores();
+
+	const filters = filterStore((state) => state.filters);
+	const matchMode = filterStore((state) => state.matchMode);
+	const grouping = displayStore((state) => state.grouping);
+	const subGrouping = displayStore((state) => state.subGrouping);
+	const ordering = displayStore((state) => state.ordering);
+	const setOrdering = displayStore((state) => state.setOrdering);
 
 	const filterState = useMemo(
 		() => ({ filters, matchMode }),
 		[filters, matchMode],
 	);
+
+	const router = useRouter();
+	const storeTasks = useDataV2((state) => state.tasks);
+	const tasks = overrideTasks ?? storeTasks;
+	const tableRef = useRef<HTMLDivElement>(null);
 
 	const filterFn: SharedDataTableProps<Task, typeof filterState>["filterFn"] =
 		useMemo(
@@ -89,25 +103,12 @@ export function TasksDataTable({
 			[skipClientFiltering],
 		);
 
-	const handleSelectionChange = useCallback(
-		(selectedTasks: Task[]) => {
-			if (onSelectionChange) {
-				onSelectionChange(selectedTasks.map((task) => task.id));
-			}
-		},
-		[onSelectionChange],
-	);
-
-	const getRowId = useCallback((task: Task) => task.id, []);
-
 	// Handle Cmd/Ctrl+A to select all visible tasks
 	useEffect(() => {
 		if (!enableRowSelection) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
-			// Check for Cmd+A (Mac) or Ctrl+A (Windows/Linux)
 			if ((e.metaKey || e.ctrlKey) && e.key === "a") {
-				// Check if the table has focus or if user is not in an input
 				const activeElement = document.activeElement;
 				const isInputFocused =
 					activeElement instanceof HTMLInputElement ||
@@ -116,7 +117,6 @@ export function TasksDataTable({
 
 				if (!isInputFocused) {
 					e.preventDefault();
-					// Dispatch a custom event that SharedDataTable can listen to
 					const selectAllEvent = new CustomEvent("datatable-select-all", {
 						bubbles: true,
 					});
@@ -151,8 +151,6 @@ export function TasksDataTable({
 					})
 				}
 				enableRowSelection={enableRowSelection}
-				onSelectionChange={handleSelectionChange}
-				getRowId={getRowId}
 				rowSelection={rowSelection}
 				onRowSelectionChange={onRowSelectionChange}
 				autoHideRowSelection={autoHideRowSelection}

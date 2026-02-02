@@ -2,7 +2,6 @@ import { CheckIcon, CircleDashed, Tag } from "lucide-react";
 import React from "react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -30,14 +29,23 @@ import type {
 	Team,
 	User,
 } from "@/data/types-new";
-import { formatDate } from "@/lib/format-utils";
-import { statusColors, statusLabels } from "@/lib/task-constants";
+
+import { statusLabels } from "@/lib/task-constants";
 import {
-	getTaskFilterOptions,
-	type TaskFilterOption,
-	taskFilterConfigs,
-} from "@/lib/task-filter-config";
+	getFilterValues,
+	getFilterConfig,
+	type FilterContext,
+} from "@/lib/task-filter-definitions";
 import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
+
+// Compatibility type matching old TaskFilterOption structure
+interface TaskFilterOption<T = string> {
+	value: T;
+	label: string;
+	icon: React.ElementType | null;
+	avatarUrl?: string;
+	color?: string;
+}
 
 interface EditableTaskCellProps<T extends TaskStatus | TaskPriority | string> {
 	type: "status" | "priority" | "assignee" | "labels";
@@ -61,7 +69,7 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 	triggerClassName,
 }: EditableTaskCellProps<T>) {
 	const [open, setOpen] = React.useState(false);
-	const config = taskFilterConfigs[type];
+	const config = getFilterConfig(type);
 
 	const handleChange = (newValue: string) => {
 		onChange(newValue as T);
@@ -85,7 +93,7 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 				<Command>
 					<CommandInput placeholder="Search" />
 					<CommandList>
-						<CommandEmpty>{config.emptyMessage}</CommandEmpty>
+						<CommandEmpty>{`No ${config?.displayName.toLowerCase() ?? "items"} found.`}</CommandEmpty>
 						<CommandGroup>
 							{options.map((option) => {
 								const optionValue = option.value as T;
@@ -112,6 +120,19 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 	);
 }
 
+// Helper to convert new filter values to old format
+function mapToOldFormat(
+	values: ReturnType<typeof getFilterValues>,
+): TaskFilterOption[] {
+	return values.map((val) => ({
+		value: val.value,
+		label: val.label,
+		icon: val.iconType === "icon" ? val.icon : null,
+		avatarUrl: val.iconType === "avatar" ? val.avatarUrl : undefined,
+		color: undefined,
+	}));
+}
+
 export function EditableTaskStatus({
 	status,
 	taskId,
@@ -127,8 +148,9 @@ export function EditableTaskStatus({
 	const users = useDataV2((state) => state.users);
 	const currentUser = users[0];
 	const StatusIcon = getStatusIcon(status);
-	const options = getTaskFilterOptions(
-		"status",
+	const filterContext: FilterContext = { users, labels: [], teams: [] };
+	const options = mapToOldFormat(
+		getFilterValues("status", filterContext),
 	) as TaskFilterOption<TaskStatus>[];
 	const [showApprovalWarning, setShowApprovalWarning] = React.useState(false);
 	const [pendingStatus, setPendingStatus] = React.useState<TaskStatus | null>(
@@ -171,28 +193,25 @@ export function EditableTaskStatus({
 			<EditableTaskCell
 				type="status"
 				value={status}
-				options={options}
 				onChange={handleStatusChange}
-				triggerClassName={
-					children ? "h-6 w-6 p-0 justify-center hover:bg-muted/50" : undefined
-				}
 				renderTrigger={(value) =>
 					children ?? (
-						<Badge className={statusColors[value]}>
-							<StatusIcon className="size-3 mr-1" />
-							{statusLabels[value]}
-						</Badge>
+						<div className="flex items-center gap-1.5">
+							<StatusIcon className="size-4" />
+							<span className="text-xs">{statusLabels[value]}</span>
+						</div>
 					)
 				}
 				renderOption={(option) => {
-					const Icon = option.icon;
+					const OptionIcon = option.icon ?? CircleDashed;
 					return (
 						<div className="flex items-center gap-2">
-							{Icon && <Icon className="size-4 text-muted-foreground" />}
+							<OptionIcon className="size-4 text-muted-foreground" />
 							<span className="text-xs">{option.label}</span>
 						</div>
 					);
 				}}
+				options={options}
 			/>
 			{showApprovalWarning && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -203,20 +222,12 @@ export function EditableTaskStatus({
 							you sure you want to proceed?
 						</p>
 						<div className="flex gap-2 justify-end">
-							<button
-								type="button"
-								onClick={cancelStatusChange}
-								className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
-							>
+							<Button variant="ghost" size="sm" onClick={cancelStatusChange}>
 								Cancel
-							</button>
-							<button
-								type="button"
-								onClick={confirmStatusChange}
-								className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-							>
-								Proceed Anyway
-							</button>
+							</Button>
+							<Button variant="default" size="sm" onClick={confirmStatusChange}>
+								Continue
+							</Button>
 						</div>
 					</div>
 				</div>
@@ -228,37 +239,46 @@ export function EditableTaskStatus({
 export function EditableTaskPriority({
 	priority,
 	taskId,
+	children,
 }: {
 	priority: TaskPriority;
 	taskId: string;
+	children?: React.ReactNode;
 }) {
 	const updateTaskPriority = useDataV2((state) => state.updateTaskPriority);
-	const options = getTaskFilterOptions(
-		"priority",
+	const users = useDataV2((state) => state.users);
+	const currentUser = users[0];
+	const PriorityIcon = getPriorityIcon(priority);
+	const filterContext: FilterContext = { users, labels: [], teams: [] };
+	const options = mapToOldFormat(
+		getFilterValues("priority", filterContext),
 	) as TaskFilterOption<TaskPriority>[];
 
 	return (
 		<EditableTaskCell
 			type="priority"
 			value={priority}
-			options={options}
-			onChange={(newPriority) => updateTaskPriority(taskId, newPriority)}
-			triggerClassName="h-6 w-6 p-0 justify-center hover:bg-muted/50"
-			renderTrigger={(value) => {
-				const TriggerIcon = getPriorityIcon(value);
-				return <TriggerIcon className="size-4 text-muted-foreground" />;
-			}}
+			onChange={(newPriority) =>
+				updateTaskPriority(taskId, newPriority, currentUser)
+			}
+			renderTrigger={(value) =>
+				children ?? (
+					<div className="flex items-center gap-1.5">
+						<PriorityIcon className="size-4" />
+						<span className="text-xs capitalize">{value}</span>
+					</div>
+				)
+			}
 			renderOption={(option) => {
-				const OptionIcon = option.icon;
+				const OptionIcon = option.icon ?? (() => null);
 				return (
 					<div className="flex items-center gap-2">
-						{OptionIcon && (
-							<OptionIcon className="size-4 text-muted-foreground" />
-						)}
+						<OptionIcon className="size-4 text-muted-foreground" />
 						<span className="text-xs">{option.label}</span>
 					</div>
 				);
 			}}
+			options={options}
 		/>
 	);
 }
@@ -274,11 +294,12 @@ export function EditableTaskAssignee({
 }) {
 	const users = useDataV2((state) => state.users);
 	const updateTaskAssignee = useDataV2((state) => state.updateTaskAssignee);
+	const currentUser = useDataV2((state) => state.users)[0];
 	const [open, setOpen] = React.useState(false);
 
 	const handleChange = (userId: string) => {
 		const selectedUser = users.find((u) => u.id === userId) || null;
-		updateTaskAssignee(taskId, selectedUser);
+		updateTaskAssignee(taskId, selectedUser, currentUser);
 		setOpen(false);
 	};
 
@@ -300,15 +321,23 @@ export function EditableTaskAssignee({
 						isIconVariant ? (
 							<>
 								<span className="sr-only">Assigned to {assignee.name}</span>
-								<UserAvatar user={assignee} size="sm" />
+								<UserAvatar
+									name={assignee.name}
+									avatarUrl={assignee.avatarUrl}
+									size="sm"
+								/>
 							</>
 						) : (
-							<UserAvatar
-								user={assignee}
-								size="sm"
-								showName
-								nameClassName="text-xs truncate max-w-[80px]"
-							/>
+							<div className="flex items-center gap-1.5">
+								<UserAvatar
+									name={assignee.name}
+									avatarUrl={assignee.avatarUrl}
+									size="sm"
+								/>
+								<span className="text-xs truncate max-w-[80px]">
+									{assignee.name}
+								</span>
+							</div>
 						)
 					) : isIconVariant ? (
 						<>
@@ -329,7 +358,7 @@ export function EditableTaskAssignee({
 							<CommandItem
 								value="unassigned"
 								onSelect={() => {
-									updateTaskAssignee(taskId, null);
+									updateTaskAssignee(taskId, null, currentUser);
 									setOpen(false);
 								}}
 								className="flex items-center justify-between"
@@ -346,12 +375,14 @@ export function EditableTaskAssignee({
 									onSelect={() => handleChange(user.id)}
 									className="flex items-center justify-between"
 								>
-									<UserAvatar
-										user={user}
-										size="xs"
-										showName
-										nameClassName="text-xs"
-									/>
+									<div className="flex items-center gap-2">
+										<UserAvatar
+											name={user.name}
+											avatarUrl={user.avatarUrl}
+											size="sm"
+										/>
+										<span className="text-xs">{user.name}</span>
+									</div>
 									{assignee?.id === user.id && (
 										<CheckIcon size={14} className="ml-auto" />
 									)}
@@ -376,6 +407,8 @@ export function EditableTaskLabels({
 }) {
 	const allLabels = useDataV2((state) => state.labels);
 	const updateTaskLabels = useDataV2((state) => state.updateTaskLabels);
+	const users = useDataV2((state) => state.users);
+	const currentUser = users[0];
 	const [open, setOpen] = React.useState(false);
 	const hiddenLabels = labels.slice(2);
 
@@ -385,11 +418,12 @@ export function EditableTaskLabels({
 			updateTaskLabels(
 				taskId,
 				labels.filter((l) => l.id !== labelId),
+				currentUser,
 			);
 		} else {
 			const label = allLabels.find((l) => l.id === labelId);
 			if (label) {
-				updateTaskLabels(taskId, [...labels, label]);
+				updateTaskLabels(taskId, [...labels, label], currentUser);
 			}
 		}
 		setOpen(false);
@@ -483,19 +517,6 @@ export function EditableTaskLabels({
 	);
 }
 
-export function TaskDateDisplay({ date }: { date?: string | null }) {
-	if (!date) {
-		return <span className="text-muted-foreground text-xs">No date</span>;
-	}
-
-	const formatted = formatDate(date);
-	return formatted ? (
-		<span className="text-xs">{formatted}</span>
-	) : (
-		<span className="text-muted-foreground text-xs">Invalid date</span>
-	);
-}
-
 export function EditableTaskOwner({
 	owner,
 	taskId,
@@ -550,7 +571,9 @@ export function EditableTaskOwner({
 		}
 
 		if (owner && "avatarUrl" in owner) {
-			return <UserAvatar user={owner} size="sm" />;
+			return (
+				<UserAvatar name={owner.name} avatarUrl={owner.avatarUrl} size="sm" />
+			);
 		}
 
 		// Blank team chip when no owner
@@ -625,12 +648,14 @@ export function EditableTaskOwner({
 											onSelect={() => handleChange(value)}
 											className="flex items-center justify-between"
 										>
-											<UserAvatar
-												user={user}
-												size="xs"
-												showName
-												nameClassName="text-xs"
-											/>
+											<div className="flex items-center gap-2">
+												<UserAvatar
+													name={user.name}
+													avatarUrl={user.avatarUrl}
+													size="sm"
+												/>
+												<span className="text-xs">{user.name}</span>
+											</div>
 											{selected && <CheckIcon size={14} className="ml-auto" />}
 										</CommandItem>
 									);

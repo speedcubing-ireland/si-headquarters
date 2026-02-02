@@ -74,15 +74,16 @@ function generateTeams(users: User[], _count: number): Team[] {
 	const teams = teamNames.map((name) => ({
 		id: faker.string.uuid(),
 		name,
-		members: faker.helpers.arrayElements(users, { min: 2, max: 5 })
+		members: faker.helpers.arrayElements(users, { min: 2, max: 5 }),
 	}));
 
-  const teamIdx = [0, 1, 4];
-  teamIdx.forEach(idx => {
-    if (!teams[idx].members.includes(users[0])) teams[idx].members.push(users[0]);
-  });
-  
-  return teams;
+	const teamIdx = [0, 1, 4];
+	teamIdx.forEach((idx) => {
+		if (!teams[idx].members.includes(users[0]))
+			teams[idx].members.push(users[0]);
+	});
+
+	return teams;
 }
 
 function generatePhases(): CompetitionPhase[] {

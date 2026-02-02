@@ -125,31 +125,28 @@ function ApprovalBadge({
 			</div>
 
 			<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-				{isCurrentUser && (
-					<>
-						{isApproved ? (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-6 w-6"
-								onClick={onUnapprove}
-								title="Unapprove"
-							>
-								<XCircle className="size-3.5 text-red-500" />
-							</Button>
-						) : (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-6 w-6"
-								onClick={onApprove}
-								title="Approve"
-							>
-								<CheckCircle2 className="size-3.5 text-green-500" />
-							</Button>
-						)}
-					</>
-				)}
+				{isCurrentUser &&
+					(isApproved ? (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-6 w-6"
+							onClick={onUnapprove}
+							title="Unapprove"
+						>
+							<XCircle className="size-3.5 text-red-500" />
+						</Button>
+					) : (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-6 w-6"
+							onClick={onApprove}
+							title="Approve"
+						>
+							<CheckCircle2 className="size-3.5 text-green-500" />
+						</Button>
+					))}
 				<Button
 					variant="ghost"
 					size="icon"

@@ -14,8 +14,6 @@ import { useCalendarWeekendOverridesStore } from "@/store/calendar-weekend-overr
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
 import { useDisplaySettingsStore } from "@/store/display-settings-store";
 import { useSavedViewsStore } from "@/store/saved-views-store";
-import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
-import { useTasksFilterStore } from "@/store/tasks-filter-store";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -77,12 +75,10 @@ function ClearDemoButton() {
 		useDataV2.getState().resetDemoData();
 
 		// Reset filter stores
-		useTasksFilterStore.getState().clearFilters();
 		useCompetitionsFilterStore.getState().clearFilters();
 
 		// Reset display settings stores
 		useDisplaySettingsStore.getState().reset();
-		useTasksDisplaySettingsStore.getState().reset();
 
 		// Reset saved views store
 		useSavedViewsStore.getState().resetAll();
