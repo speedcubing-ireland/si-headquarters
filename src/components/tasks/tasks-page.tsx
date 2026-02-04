@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTasks } from "@/hooks/use-convex-data";
 import {
 	TasksPageProvider,
+	TasksListStateContext,
 	useTasksPageContext,
 } from "@/store/tasks-page-context";
 import { useListPageState } from "@/hooks/use-list-page-state";
@@ -17,7 +18,10 @@ import {
 	type MatchMode,
 	type TaskPredicate,
 } from "@/lib/task-filter-utils";
-import { SharedPageHeader } from "@/components/shared/page-header";
+import { PageHeader } from "@/components/shared/page-header";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { TasksDataTable } from "./data-table";
 import { useTaskColumns } from "./columns";
 import { TaskModal } from "./task-modal";
@@ -25,20 +29,10 @@ import { FilterBar } from "./filter-bar";
 import { BulkActionsBar } from "./bulk-actions-bar";
 import type { ReactNode } from "react";
 import type { TasksPageConfig } from "@/store/create-tasks-page-store";
-
-export interface ListState {
-	selectedIds: string[];
-	clearRowSelection: () => void;
-	setModalOpen: (open: boolean) => void;
-	modalOpen: boolean;
-	hasSelection: boolean;
-	rowSelection: Record<string, boolean>;
-	setRowSelection: (
-		updater:
-			| Record<string, boolean>
-			| ((prev: Record<string, boolean>) => Record<string, boolean>),
-	) => void;
-}
+import {
+	CreateViewProvider,
+	ListPageLayout,
+} from "@/components/shared/list-page-layout";
 
 export type TasksPageProps = {
 	// Identity
@@ -65,8 +59,8 @@ export type TasksPageProps = {
 	// Extension slot for triage bar or other controls
 	subHeader?: ReactNode;
 
-	// Custom bulk actions (replaces default BulkActionsBar)
-	renderBulkActions?: (listState: ListState) => ReactNode;
+	// Custom bulk actions slot (when provided, replaces default BulkActionsBar; component can use useTasksListStateContext())
+	bulkActions?: ReactNode;
 
 	// Route search params for URL sync
 	search?: TasksSearchParams;
@@ -136,10 +130,7 @@ function TasksPageInner(props: TasksPageProps) {
 
 	const { filterStore, displayStore, savedViews } = useTasksPageContext();
 
-	// Get data from store
-	const allTasks = useDataV2((s) =>
-		taskSource === "archived" ? s.archivedTasks : s.tasks,
-	);
+	const { tasks: allTasks } = useTasks(taskSource === "archived");
 
 	// Apply page predicates (layer 2)
 	const pageTasks = useMemo(() => {
@@ -203,30 +194,62 @@ function TasksPageInner(props: TasksPageProps) {
 
 	const columns = useTaskColumns();
 
-	return (
-		<div className="flex h-full min-h-0 flex-1 flex-col">
-			<SharedPageHeader
-				primaryIcon={pageIcon}
-				primaryLabel={pageTitle}
-				secondaryLabel={secondaryLabel}
-				addIcon={showCreateButton ? Plus : undefined}
-				addLabel={showCreateButton ? "Add task" : undefined}
-				onAdd={
-					showCreateButton ? () => listState.setModalOpen(true) : undefined
-				}
-				onPrimaryClick={handleReset}
-				views={savedViews.views}
-				activeViewId={savedViews.activeViewId}
-				onViewSelect={listState.handleViewSelect}
-				onViewDelete={savedViews.deleteView}
-				onStartCreateView={listState.handleStartCreateView}
+	const header = (
+		<PageHeader.Root>
+			<PageHeader.Primary
+				icon={pageIcon}
+				label={pageTitle}
+				onClick={handleReset}
+			/>
+			{secondaryLabel && (
+				<>
+					<Separator
+						orientation="vertical"
+						className="mx-2 data-[orientation=vertical]:h-4"
+					/>
+					<PageHeader.Secondary label={secondaryLabel} />
+				</>
+			)}
+
+			<Separator
+				orientation="vertical"
+				className="mx-2 data-[orientation=vertical]:h-4"
+			/>
+			{savedViews.views.length > 0 && (
+				<PageHeader.Views
+					views={savedViews.views}
+					activeViewId={savedViews.activeViewId ?? null}
+					onViewSelect={listState.handleViewSelect}
+					onViewDelete={savedViews.deleteView}
+				/>
+			)}
+			<PageHeader.NewView
+				onClick={listState.handleStartCreateView}
+				showLabel={savedViews.views.length === 0}
 			/>
 
+			<PageHeader.Actions>
+				{showCreateButton && (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => listState.setModalOpen(true)}
+					>
+						<Plus className="size-4" />
+						Add task
+					</Button>
+				)}
+				<SidebarTrigger />
+			</PageHeader.Actions>
+		</PageHeader.Root>
+	);
+
+	const filtersRow = <FilterBar />;
+
+	const table = (
+		<>
 			{subHeader}
-
-			<FilterBar />
-
-			<div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 lg:px-6">
+			<div className="px-4 lg:px-6">
 				<TasksDataTable
 					columns={columns}
 					tasks={pageTasks}
@@ -237,28 +260,20 @@ function TasksPageInner(props: TasksPageProps) {
 					skipClientFiltering={taskSource === "archived"}
 				/>
 			</div>
+		</>
+	);
 
+	const modal = (
+		<>
 			<TaskModal
 				open={listState.modalOpen}
 				onOpenChange={listState.setModalOpen}
 				mode="create"
 			/>
 
-			{props.renderBulkActions ? (
-				props.renderBulkActions({
-					selectedIds: listState.selectedIds,
-					clearRowSelection: listState.clearRowSelection,
-					setModalOpen: listState.setModalOpen,
-					modalOpen: listState.modalOpen,
-					hasSelection: listState.hasSelection,
-					rowSelection: listState.rowSelection,
-					setRowSelection: listState.setRowSelection,
-				})
-			) : (
+			{props.bulkActions ?? (
 				<BulkActionsBar
-					selectedTaskIds={listState.selectedIds}
 					totalTasks={pageTasks.length}
-					onClearSelection={listState.clearRowSelection}
 					onSelectAll={() => {
 						const allSelected = pageTasks.reduce(
 							(acc, task) => {
@@ -271,7 +286,30 @@ function TasksPageInner(props: TasksPageProps) {
 					}}
 				/>
 			)}
-		</div>
+		</>
+	);
+
+	return (
+		<TasksListStateContext.Provider value={listState}>
+			<CreateViewProvider
+				value={{
+					isCreatingView: listState.isCreatingView,
+					viewName: listState.viewName,
+					setViewName: listState.setViewName,
+					viewDescription: listState.viewDescription,
+					setViewDescription: listState.setViewDescription,
+					onCancelCreateView: listState.handleCancelCreateView,
+					onSaveView: listState.handleSaveView,
+				}}
+			>
+				<ListPageLayout
+					header={header}
+					filtersRow={filtersRow}
+					table={table}
+					modal={modal}
+				/>
+			</CreateViewProvider>
+		</TasksListStateContext.Provider>
 	);
 }
 

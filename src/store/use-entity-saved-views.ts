@@ -1,11 +1,9 @@
 import { useMemo } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import type { DisplaySettingsState } from "./display-settings-factory";
-import {
-	type SavedView,
-	type SavedViewEntity,
-	useSavedViewsStore,
-} from "./saved-views-store";
+import type { SavedView, SavedViewEntity } from "./saved-views-store";
 import type { BaseFilterStoreState } from "./shared-filter-factory";
 
 interface UseEntitySavedViewsOptions<
@@ -14,6 +12,7 @@ interface UseEntitySavedViewsOptions<
 	TValue,
 > {
 	entity: SavedViewEntity;
+	pageId: string;
 	filterStore: UseBoundStore<
 		StoreApi<BaseFilterStoreState<TFilters, TFilterType, TValue>>
 	>;
@@ -36,6 +35,7 @@ export function useEntitySavedViews<
 	TValue,
 >({
 	entity,
+	pageId,
 	filterStore,
 	displaySettingsStore,
 }: UseEntitySavedViewsOptions<
@@ -43,22 +43,32 @@ export function useEntitySavedViews<
 	TFilterType,
 	TValue
 >): EntitySavedViewsHook {
-	// Access state directly to avoid creating new references on each render
-	const allViews = useSavedViewsStore((state) => state.views);
-	const activeViewByEntity = useSavedViewsStore(
-		(state) => state.activeViewByEntity,
-	);
-	const setActiveView = useSavedViewsStore((state) => state.setActiveView);
-	const createView = useSavedViewsStore((state) => state.createView);
-	const deleteViewStore = useSavedViewsStore((state) => state.deleteView);
+	const listResult = useQuery(api.views.listViews, {
+		entity,
+		pageId,
+	});
 
-	// Memoize filtered views to ensure stable reference
-	const views = useMemo(
-		() => allViews.filter((view) => view.entity === entity),
-		[allViews, entity],
-	);
+	const createViewMutation = useMutation(api.views.createView);
+	const deleteViewMutation = useMutation(api.views.deleteView);
+	const touchViewMutation = useMutation(api.views.touchView);
 
-	const activeViewId = activeViewByEntity[entity] || null;
+	const views: SavedView[] =
+		listResult?.map((v) => ({
+			id: v.id as string,
+			name: v.name,
+			entity: v.entity as SavedViewEntity,
+			pageId: v.pageId,
+			filtersJson: v.filtersJson,
+			displaySettingsJson: v.displaySettingsJson,
+			description: v.description,
+			createdAt: new Date(v.createdAt).toISOString(),
+			updatedAt: new Date(v.updatedAt).toISOString(),
+			lastUsedAt: v.lastUsedAt
+				? new Date(v.lastUsedAt).toISOString()
+				: undefined,
+		})) ?? [];
+
+	const activeViewId: string | null = null;
 
 	// Memoize active view to ensure stable reference
 	const activeView = useMemo(() => {
@@ -69,13 +79,16 @@ export function useEntitySavedViews<
 	const createCurrentView = (name: string, description?: string): string => {
 		const filtersJson = filterStore.getState().toJSON();
 		const displaySettingsJson = displaySettingsStore.getState().toJSON();
-		return createView(
+		void createViewMutation({
 			entity,
+			pageId,
 			name,
+			description,
 			filtersJson,
 			displaySettingsJson,
-			description,
-		);
+		});
+		// ID is provided by Convex; we don't need it synchronously for now.
+		return "";
 	};
 
 	const applyView = (viewId: string): void => {
@@ -84,18 +97,17 @@ export function useEntitySavedViews<
 
 		filterStore.getState().fromJSON(view.filtersJson);
 		displaySettingsStore.getState().fromJSON(view.displaySettingsJson);
-		setActiveView(entity, viewId);
+		void touchViewMutation({ id: viewId as never });
 	};
 
 	const deleteView = (viewId: string): void => {
-		deleteViewStore(viewId);
+		void deleteViewMutation({ id: viewId as never });
 		// If deleting the active view, clear filters and display settings
 		if (viewId === activeViewId) {
 			filterStore.getState().clearFilters();
 			displaySettingsStore
 				.getState()
 				.fromJSON(displaySettingsStore.getState().toJSON());
-			setActiveView(entity, null);
 		}
 	};
 
@@ -103,7 +115,7 @@ export function useEntitySavedViews<
 		views,
 		activeViewId,
 		activeView,
-		setActiveView: (viewId) => setActiveView(entity, viewId),
+		setActiveView: () => {},
 		createCurrentView,
 		applyView,
 		deleteView,

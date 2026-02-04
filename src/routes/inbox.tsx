@@ -28,7 +28,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDataV2 } from "@/data/data-store-v2";
+import {
+	useUsers,
+	useNotifications,
+	useUnreadCount,
+	useNotificationMutations,
+} from "@/hooks/use-convex-data";
 import type { Notification, NotificationType } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
 
@@ -217,23 +222,18 @@ function NotificationItem({
 function RouteComponent() {
 	const [activeTab, setActiveTab] = useState("unread");
 
-	const users = useDataV2((state) => state.users);
-	const getNotifications = useDataV2((state) => state.getNotifications);
-	const getUnreadCount = useDataV2((state) => state.getUnreadCount);
-	const markNotificationRead = useDataV2((state) => state.markNotificationRead);
-	const markNotificationArchived = useDataV2(
-		(state) => state.markNotificationArchived,
-	);
-	const markAllNotificationsRead = useDataV2(
-		(state) => state.markAllNotificationsRead,
-	);
-	const dismissNotification = useDataV2((state) => state.dismissNotification);
-
+	const { users } = useUsers();
 	const currentUser = users[0];
-	const userId = currentUser?.id || "";
+	const userId = currentUser?.id ?? "";
 
-	const notifications = getNotifications(userId);
-	const unreadCount = getUnreadCount(userId);
+	const { notifications } = useNotifications(userId || null);
+	const unreadCount = useUnreadCount(userId || null);
+	const {
+		markNotificationRead,
+		markNotificationArchived,
+		markAllNotificationsRead,
+		dismissNotification,
+	} = useNotificationMutations();
 
 	const filteredNotifications = useMemo(() => {
 		switch (activeTab) {
@@ -249,19 +249,19 @@ function RouteComponent() {
 	}, [notifications, activeTab]);
 
 	const handleMarkRead = (id: string) => {
-		markNotificationRead(id);
+		void markNotificationRead(id);
 	};
 
 	const handleArchive = (id: string) => {
-		markNotificationArchived(id);
+		void markNotificationArchived(id);
 	};
 
 	const handleDismiss = (id: string) => {
-		dismissNotification(id);
+		void dismissNotification(id);
 	};
 
 	const handleMarkAllRead = () => {
-		markAllNotificationsRead(userId);
+		if (userId) void markAllNotificationsRead(userId);
 	};
 
 	return (
@@ -275,7 +275,7 @@ function RouteComponent() {
 						Notifications and updates
 					</p>
 				</div>
-				{unreadCount > 0 && (
+				{(unreadCount ?? 0) > 0 && (
 					<Button
 						variant="ghost"
 						size="sm"
@@ -293,12 +293,12 @@ function RouteComponent() {
 					<TabsList className="mb-4">
 						<TabsTrigger value="unread" className="gap-2">
 							Unread
-							{unreadCount > 0 && (
+							{(unreadCount ?? 0) > 0 && (
 								<Badge
 									variant="secondary"
 									className="text-[10px] h-4 min-w-[18px]"
 								>
-									{unreadCount}
+									{unreadCount ?? 0}
 								</Badge>
 							)}
 						</TabsTrigger>

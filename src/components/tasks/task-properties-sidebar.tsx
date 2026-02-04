@@ -57,7 +57,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useUsers, useTeams, useTaskMutations } from "@/hooks/use-convex-data";
 import type { Task, Team, User } from "@/data/types-new";
 import { cn } from "@/lib/utils";
 
@@ -172,8 +172,8 @@ function AddApproverDialog({
 	task: Task;
 	onAdd: (approver: Team | User) => void;
 }) {
-	const users = useDataV2((state) => state.users);
-	const teams = useDataV2((state) => state.teams);
+	const { users } = useUsers();
+	const { teams } = useTeams();
 	const [search, setSearch] = useState("");
 
 	const existingApproverIds = new Set([
@@ -240,11 +240,13 @@ function AddApproverDialog({
 										}}
 									>
 										<div className="flex items-center gap-2">
-											<img
-												src={user.avatarUrl}
-												alt={user.name}
-												className="w-6 h-6 rounded-full"
-											/>
+											{user.avatarUrl ? (
+												<img
+													src={user.avatarUrl}
+													alt={user.name}
+													className="w-6 h-6 rounded-full"
+												/>
+											) : null}
 											<span>{user.name}</span>
 										</div>
 									</CommandItem>
@@ -265,15 +267,15 @@ export function TaskPropertiesSidebar({
 	onOpenChange,
 	triggerClassName,
 }: TaskPropertiesSidebarProps) {
-	const updateTask = useDataV2((state) => state.updateTask);
-	const users = useDataV2((state) => state.users);
+	const {
+		updateTask,
+		addRequiredApprover,
+		removeRequiredApprover,
+		approveTask,
+		unapproveTask,
+	} = useTaskMutations();
+	const { users } = useUsers();
 	const currentUser = users[0];
-	const addRequiredApprover = useDataV2((state) => state.addRequiredApprover);
-	const removeRequiredApprover = useDataV2(
-		(state) => state.removeRequiredApprover,
-	);
-	const approveTask = useDataV2((state) => state.approveTask);
-	const unapproveTask = useDataV2((state) => state.unapproveTask);
 
 	const [internalOpen, setInternalOpen] = useState(false);
 	const [dateOpen, setDateOpen] = useState(false);
@@ -287,16 +289,27 @@ export function TaskPropertiesSidebar({
 	const approvalStatus = (() => {
 		const required = task.requiredApprovalBy;
 		const approved = task.approvedBy;
-		const approvedIds = new Set(approved.map((a) => a.id));
+		const approvedUserIds = new Set(approved.map((a) => a.id));
+
+		// Check if each required approver is satisfied
+		const isApproved = (approver: Team | User): boolean => {
+			if ("members" in approver) {
+				// Team: check if any member has approved
+				return approver.members.some((m) => approvedUserIds.has(m.id));
+			}
+			// User: check if this user has approved
+			return approvedUserIds.has(approver.id);
+		};
+
+		const approvedCount = required.filter(isApproved).length;
 
 		return {
 			required,
 			approved,
-			approvedCount: approved.length,
+			approvedCount,
 			requiredCount: required.length,
-			isFullyApproved:
-				required.length > 0 && required.every((r) => approvedIds.has(r.id)),
-			pending: required.filter((r) => !approvedIds.has(r.id)),
+			isFullyApproved: required.length > 0 && required.every(isApproved),
+			pending: required.filter((r) => !isApproved(r)),
 		};
 	})();
 
@@ -310,19 +323,27 @@ export function TaskPropertiesSidebar({
 	};
 
 	const handleAddApprover = (approver: Team | User) => {
-		addRequiredApprover(task.id, approver, currentUser);
+		if (!currentUser) return;
+		void addRequiredApprover(task.id, approver, currentUser);
 	};
 
 	const handleRemoveApprover = (approverId: string) => {
-		removeRequiredApprover(task.id, approverId, currentUser);
+		if (!currentUser) return;
+		// Encode the approver key based on whether it's a user or team
+		const approver = task.requiredApprovalBy.find((a) => a.id === approverId);
+		if (!approver) return;
+		const approverKey = "members" in approver ? `team:${approverId}` : `user:${approverId}`;
+		void removeRequiredApprover(task.id, approverKey, currentUser);
 	};
 
 	const handleApprove = () => {
-		approveTask(task.id, currentUser);
+		if (!currentUser) return;
+		void approveTask(task.id, currentUser);
 	};
 
 	const handleUnapprove = () => {
-		unapproveTask(task.id, currentUser);
+		if (!currentUser) return;
+		void unapproveTask(task.id, currentUser);
 	};
 
 	const sidebarContent = (
@@ -384,17 +405,32 @@ export function TaskPropertiesSidebar({
 					</div>
 				) : (
 					<div className="flex flex-col gap-1.5">
-						{approvalStatus.required.map((approver) => (
-							<ApprovalBadge
-								key={approver.id}
-								approver={approver}
-								isApproved={task.approvedBy.some((a) => a.id === approver.id)}
-								isCurrentUser={isCurrentUserApprover(approver)}
-								onRemove={() => handleRemoveApprover(approver.id)}
-								onApprove={handleApprove}
-								onUnapprove={handleUnapprove}
-							/>
-						))}
+						{approvalStatus.required.map((approver) => {
+							const isApproved = (() => {
+								if ("members" in approver) {
+									// Team: check if any member has approved
+									const approvedUserIds = new Set(
+										task.approvedBy.map((a) => a.id),
+									);
+									return approver.members.some((m) =>
+										approvedUserIds.has(m.id),
+									);
+								}
+								// User: check if this user has approved
+								return task.approvedBy.some((a) => a.id === approver.id);
+							})();
+							return (
+								<ApprovalBadge
+									key={approver.id}
+									approver={approver}
+									isApproved={isApproved}
+									isCurrentUser={isCurrentUserApprover(approver)}
+									onRemove={() => handleRemoveApprover(approver.id)}
+									onApprove={handleApprove}
+									onUnapprove={handleUnapprove}
+								/>
+							);
+						})}
 					</div>
 				)}
 
@@ -446,7 +482,7 @@ export function TaskPropertiesSidebar({
 									mode="single"
 									selected={task.dueDate ? new Date(task.dueDate) : undefined}
 									onSelect={(date) => {
-										updateTask(task.id, {
+										void updateTask(task.id, {
 											dueDate: date ? date.toISOString().split("T")[0] : null,
 										});
 										setDateOpen(false);

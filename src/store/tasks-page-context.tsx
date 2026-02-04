@@ -32,6 +32,33 @@ export interface TasksPageContextValue {
 	pageId: string;
 }
 
+// List state exposed to children (e.g. BulkActionsBar, custom bulk actions)
+export interface TasksListState {
+	selectedIds: string[];
+	clearRowSelection: () => void;
+	setModalOpen: (open: boolean) => void;
+	modalOpen: boolean;
+	hasSelection: boolean;
+	rowSelection: Record<string, boolean>;
+	setRowSelection: (
+		updater:
+			| Record<string, boolean>
+			| ((prev: Record<string, boolean>) => Record<string, boolean>),
+	) => void;
+}
+
+export const TasksListStateContext = createContext<TasksListState | null>(null);
+
+export function useTasksListStateContext() {
+	const context = useContext(TasksListStateContext);
+	if (!context) {
+		throw new Error(
+			"useTasksListStateContext must be used within a TasksPage (list state is provided by TasksPageInner)",
+		);
+	}
+	return context;
+}
+
 // Create context
 export const TasksPageContext = createContext<TasksPageContextValue | null>(
 	null,

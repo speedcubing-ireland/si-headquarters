@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ListTodo } from "lucide-react";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useUsers, useTeams, useCompetitions } from "@/hooks/use-convex-data";
 import { TasksPage } from "@/components/tasks/tasks-page";
 import type { TaskPredicate } from "@/lib/task-filter-utils";
 import {
@@ -18,9 +18,9 @@ export const Route = createFileRoute("/tasks/my")({
 });
 
 function RouteComponent() {
-	const users = useDataV2((state) => state.users);
-	const teams = useDataV2((state) => state.teams);
-	const competitions = useDataV2((state) => state.competitions);
+	const { users } = useUsers();
+	const { teams } = useTeams();
+	const { competitions } = useCompetitions();
 	const currentUser = users[0];
 	const search = Route.useSearch();
 
@@ -49,7 +49,15 @@ function RouteComponent() {
 		// Owned by me/my team
 		(t) => (t.owner?.id ? myIds.includes(t.owner.id) : false),
 		// Awaiting my/my team's approval
-		(t) => t.requiredApprovalBy.some((entity) => myIds.includes(entity.id)),
+		(t) =>
+			t.requiredApprovalBy.some((entity) => {
+				if ("members" in entity) {
+					// Team: check if current user is a member
+					return entity.members.some((m) => m.id === currentUser.id);
+				}
+				// User: check if it's the current user
+				return entity.id === currentUser.id;
+			}),
 		// Within my competition (as competition lead)
 		(t) =>
 			t.parent?.type === "competition" &&

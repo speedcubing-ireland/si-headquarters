@@ -20,6 +20,7 @@ import { Route as TasksIdRouteImport } from './routes/tasks.$id'
 import { Route as SettingsLabelsRouteImport } from './routes/settings.labels'
 import { Route as CompetitionsCalendarRouteImport } from './routes/competitions.calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions.$id'
+import { Route as AdminGodModeRouteImport } from './routes/admin.god-mode'
 import { Route as NewTasksMyRouteImport } from './routes/new.tasks.my'
 
 const TasksRoute = TasksRouteImport.update({
@@ -77,6 +78,11 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => CompetitionsRoute,
 } as any)
+const AdminGodModeRoute = AdminGodModeRouteImport.update({
+  id: '/admin/god-mode',
+  path: '/admin/god-mode',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NewTasksMyRoute = NewTasksMyRouteImport.update({
   id: '/new/tasks/my',
   path: '/new/tasks/my',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/competitions': typeof CompetitionsRouteWithChildren
   '/inbox': typeof InboxRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/settings/labels': typeof SettingsLabelsRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/competitions': typeof CompetitionsRouteWithChildren
   '/inbox': typeof InboxRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/settings/labels': typeof SettingsLabelsRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/competitions': typeof CompetitionsRouteWithChildren
   '/inbox': typeof InboxRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/settings/labels': typeof SettingsLabelsRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/competitions'
     | '/inbox'
     | '/tasks'
+    | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/settings/labels'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/competitions'
     | '/inbox'
     | '/tasks'
+    | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/settings/labels'
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/competitions'
     | '/inbox'
     | '/tasks'
+    | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/settings/labels'
@@ -176,6 +188,7 @@ export interface RootRouteChildren {
   CompetitionsRoute: typeof CompetitionsRouteWithChildren
   InboxRoute: typeof InboxRoute
   TasksRoute: typeof TasksRouteWithChildren
+  AdminGodModeRoute: typeof AdminGodModeRoute
   SettingsLabelsRoute: typeof SettingsLabelsRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
   NewTasksMyRoute: typeof NewTasksMyRoute
@@ -260,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof CompetitionsRoute
     }
+    '/admin/god-mode': {
+      id: '/admin/god-mode'
+      path: '/admin/god-mode'
+      fullPath: '/admin/god-mode'
+      preLoaderRoute: typeof AdminGodModeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/new/tasks/my': {
       id: '/new/tasks/my'
       path: '/new/tasks/my'
@@ -303,6 +323,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompetitionsRoute: CompetitionsRouteWithChildren,
   InboxRoute: InboxRoute,
   TasksRoute: TasksRouteWithChildren,
+  AdminGodModeRoute: AdminGodModeRoute,
   SettingsLabelsRoute: SettingsLabelsRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
   NewTasksMyRoute: NewTasksMyRoute,

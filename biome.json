@@ -9,9 +9,13 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"**",
+			"!convex/_generated",
 			"!src/components/ui",
 			"!**/routeTree.gen.ts",
-			"!project-view-interface"
+			"!project-view-interface",
+			"!.agents",
+			"!.cursor",
+			"!.opencode"
 		]
 	},
 	"formatter": {

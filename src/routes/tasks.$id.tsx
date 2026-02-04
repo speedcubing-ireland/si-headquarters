@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTask, useTasks, useTaskMutations } from "@/hooks/use-convex-data";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Task } from "@/data/types-new";
 
@@ -83,11 +83,7 @@ function TaskHeader({
 
 function SubTasksList({ task }: { task: Task }) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
-	// Zustand v5 + React 19: selector results must be referentially stable.
-	// `getTaskChildren()` creates a new array every call, which triggers the
-	// "getSnapshot should be cached" dev error. Subscribe to `tasks` and derive.
-	const tasks = useDataV2((state) => state.tasks);
-	const getSubtaskProgress = useDataV2((state) => state.getSubtaskProgress);
+	const { tasks } = useTasks(false);
 	const subTasks = useMemo(
 		() =>
 			tasks.filter(
@@ -95,8 +91,13 @@ function SubTasksList({ task }: { task: Task }) {
 			),
 		[tasks, task.id],
 	);
-
-	const progress = getSubtaskProgress(task.id);
+	const progress = useMemo(() => {
+		const relevant = subTasks.filter((t) => t.status !== "cancelled");
+		return {
+			done: relevant.filter((t) => t.status === "done").length,
+			total: relevant.length,
+		};
+	}, [subTasks]);
 
 	return (
 		<div className="mt-6">
@@ -150,8 +151,8 @@ function SubTasksList({ task }: { task: Task }) {
 
 function RouteComponent() {
 	const { id } = Route.useParams();
-	const task = useDataV2((state) => state.getTaskById(id));
-	const updateTask = useDataV2((state) => state.updateTask);
+	const task = useTask(id);
+	const { updateTask } = useTaskMutations();
 
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -162,7 +163,7 @@ function RouteComponent() {
 		initialValue: task?.title ?? "",
 		onChange: (newTitle) => {
 			if (newTitle.trim() && newTitle !== task?.title) {
-				updateTask(id, { title: newTitle.trim() });
+				void updateTask(id, { title: newTitle.trim() });
 			}
 		},
 		debounceMs: 250,
@@ -173,7 +174,7 @@ function RouteComponent() {
 		initialValue: task?.description ?? "",
 		onChange: (newDescription) => {
 			if (newDescription !== task?.description) {
-				updateTask(id, { description: newDescription });
+				void updateTask(id, { description: newDescription });
 			}
 		},
 		debounceMs: 250,

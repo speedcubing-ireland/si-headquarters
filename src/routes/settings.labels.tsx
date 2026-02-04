@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useLabels, useLabelMutations } from "@/hooks/use-convex-data";
 import type { TaskLabel } from "@/data/types-new";
 
 const PRESET_COLORS = [
@@ -126,10 +126,8 @@ function LabelRow({
 }
 
 function RouteComponent() {
-	const labels = useDataV2((state) => state.labels);
-	const createLabel = useDataV2((state) => state.createLabel);
-	const updateLabel = useDataV2((state) => state.updateLabel);
-	const deleteLabel = useDataV2((state) => state.deleteLabel);
+	const { labels } = useLabels();
+	const { createLabel, updateLabel, deleteLabel } = useLabelMutations();
 
 	const [newLabelName, setNewLabelName] = useState("");
 	const [newLabelColor, setNewLabelColor] = useState(PRESET_COLORS[0]);
@@ -137,7 +135,7 @@ function RouteComponent() {
 
 	const handleCreate = () => {
 		if (newLabelName.trim()) {
-			createLabel(newLabelName.trim(), newLabelColor);
+			void createLabel(newLabelName.trim(), newLabelColor);
 			setNewLabelName("");
 			setNewLabelColor(PRESET_COLORS[0]);
 			setIsCreating(false);
@@ -231,8 +229,8 @@ function RouteComponent() {
 								<LabelRow
 									key={label.id}
 									label={label}
-									onEdit={updateLabel}
-									onDelete={deleteLabel}
+									onEdit={(id, updates) => void updateLabel(id, updates)}
+									onDelete={(id) => void deleteLabel(id)}
 								/>
 							))
 						)}

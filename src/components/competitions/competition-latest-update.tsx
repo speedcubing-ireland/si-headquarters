@@ -10,7 +10,7 @@ import {
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useCompetition, useUsers } from "@/hooks/use-convex-data";
 import type { Competition, ProgressUpdate } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
 
@@ -39,40 +39,31 @@ interface CompetitionLatestUpdateProps {
 export function CompetitionLatestUpdate({
 	competition,
 }: CompetitionLatestUpdateProps) {
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
-	const addUpdateReaction = useDataV2((state) => state.addUpdateReaction);
-	const users = useDataV2((state) => state.users);
-	const getCompetitionById = useDataV2((state) => state.getCompetitionById);
+	const { users } = useUsers();
+	const freshCompetition = useCompetition(competition.id) ?? competition;
 
 	const currentUser = users[0];
+
+	// Stub: Phase 3 will add progress update reactions in Convex
+	const addUpdateReaction = (
+		_competitionId: string,
+		_updateId: string,
+		_emoji: string,
+		_actor: { id: string; name: string; avatarUrl: string },
+	) => {};
 
 	const [isCreating, setIsCreating] = useState(false);
 	const [message, setMessage] = useState("");
 	const [status, setStatus] = useState<ProgressUpdate["status"]>("on-track");
 
-	// Get fresh competition data from store to avoid stale props
-	const freshCompetition = getCompetitionById(competition.id) ?? competition;
-	const latest = [...freshCompetition.progressUpdates].sort((a, b) =>
+	// Phase 2: progressUpdates live in Convex as []; Phase 3 will add progress update mutations
+	const latest = [...(freshCompetition.progressUpdates ?? [])].sort((a, b) =>
 		b.timestamp.localeCompare(a.timestamp),
 	)[0];
 
 	const handleCreate = () => {
 		if (!message.trim()) return;
-		const author = users[0];
-		if (!author) return;
-
-		const nextUpdate: ProgressUpdate = {
-			id: crypto.randomUUID(),
-			timestamp: new Date().toISOString(),
-			postedBy: author,
-			status,
-			message: message.trim(),
-			reactions: [],
-		};
-
-		updateCompetition(competition.id, {
-			progressUpdates: [...freshCompetition.progressUpdates, nextUpdate],
-		});
+		// Stub: progress updates not yet in Convex (Phase 3)
 		setIsCreating(false);
 		setMessage("");
 		setStatus("on-track");

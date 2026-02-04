@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
 import { Blocks, Box, CircleCheck, Inbox, ListTodo, Users } from "lucide-react";
+import { api } from "../../../convex/_generated/api";
 import { NavSecondary } from "@/components/layout/nav-secondary";
 import {
 	NavSection,
@@ -15,7 +17,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTeams } from "@/hooks/use-convex-data";
 
 const navSections = [
 	{
@@ -68,22 +70,24 @@ const navSections = [
 	},
 ] satisfies NavSectionData[];
 
-const userData = {
-	name: "Simon Kelly",
-	email: "simon.kelly@speedcubingireland.com",
-	avatar: "/avatars/shadcn.jpg",
-};
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-	const teams = useDataV2((state) => state.teams);
+	const user = useQuery(api.users.getCurrentUser);
+	const { teams } = useTeams();
+
+	const myTeams =
+		user == null
+			? []
+			: teams.filter((team) =>
+					team.members.some((member) => member.id === user._id),
+				);
 
 	const teamSections: NavSectionData[] =
-		teams.length === 0
+		myTeams.length === 0
 			? []
 			: [
 					{
 						title: "Teams",
-						items: teams.slice(0, 3).map((team) => ({
+						items: myTeams.map((team) => ({
 							type: "dropdown",
 							title: team.name,
 							icon: Users,
@@ -131,7 +135,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				<NavSecondary className="mt-auto" />
 			</SidebarContent>
 			<SidebarFooter>
-				<NavUser user={userData} />
+				<NavUser
+					user={
+						user
+							? {
+									name: user.name ?? user.email ?? "User",
+									email: user.email ?? "",
+									avatar: user.image ?? "",
+								}
+							: null
+					}
+				/>
 			</SidebarFooter>
 		</Sidebar>
 	);

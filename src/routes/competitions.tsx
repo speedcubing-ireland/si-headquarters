@@ -7,7 +7,10 @@ import { DataTable } from "@/components/competitions/data-table";
 import { DisplaySettings } from "@/components/competitions/display-settings";
 import { FilterChips } from "@/components/competitions/filter-chips";
 import { FilterPopover } from "@/components/competitions/filter-popover";
-import { ListPageLayout } from "@/components/shared/list-page-layout";
+import {
+	CreateViewProvider,
+	ListPageLayout,
+} from "@/components/shared/list-page-layout";
 import { SharedPageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useIsDetailRoute } from "@/hooks/use-is-detail-route";
@@ -142,28 +145,8 @@ function RouteComponent() {
 	}
 
 	return (
-		<ListPageLayout
-			header={
-				<PageHeader
-					onAddCompetition={() => listState.setModalOpen(true)}
-					views={savedViews.views}
-					activeViewId={savedViews.activeViewId}
-					onViewSelect={listState.handleViewSelect}
-					onViewDelete={savedViews.deleteView}
-					onStartCreateView={listState.handleStartCreateView}
-					onAllComps={listState.handleResetAll}
-				/>
-			}
-			filtersRow={<FiltersContent />}
-			table={<DataTable columns={columns} />}
-			modal={
-				<CompetitionModal
-					open={listState.modalOpen}
-					onOpenChange={listState.setModalOpen}
-					mode="create"
-				/>
-			}
-			createView={{
+		<CreateViewProvider
+			value={{
 				isCreatingView: listState.isCreatingView,
 				viewName: listState.viewName,
 				setViewName: listState.setViewName,
@@ -172,6 +155,29 @@ function RouteComponent() {
 				onCancelCreateView: listState.handleCancelCreateView,
 				onSaveView: listState.handleSaveView,
 			}}
-		/>
+		>
+			<ListPageLayout
+				header={
+					<PageHeader
+						onAddCompetition={() => listState.setModalOpen(true)}
+						views={savedViews.views}
+						activeViewId={savedViews.activeViewId}
+						onViewSelect={listState.handleViewSelect}
+						onViewDelete={savedViews.deleteView}
+						onStartCreateView={listState.handleStartCreateView}
+						onAllComps={listState.handleResetAll}
+					/>
+				}
+				filtersRow={<FiltersContent />}
+				table={<DataTable columns={columns} />}
+				modal={
+					<CompetitionModal
+						open={listState.modalOpen}
+						onOpenChange={listState.setModalOpen}
+						mode="create"
+					/>
+				}
+			/>
+		</CreateViewProvider>
 	);
 }

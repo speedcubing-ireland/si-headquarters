@@ -11,24 +11,24 @@ export function FilterBar() {
 	const toggleMatchMode = filterStore((state) => state.toggleMatchMode);
 	const hasActiveFilters = filterStore((state) => state.hasActiveFilters);
 
+	// Match the competitions FiltersContent layout; the surrounding
+	// border/padding is handled by ListPageLayout.
 	return (
-		<div className="flex min-h-12 shrink-0 items-center gap-2 border-b py-2">
-			<div className="flex w-full items-center gap-2 px-4 lg:px-6">
-				<div className="flex items-center gap-2 shrink-0">
-					<TasksFilterPopover />
-				</div>
-				<div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-					<TasksFilterChips />
-				</div>
-				<div className="flex items-center gap-2 shrink-0">
-					<TasksDisplaySettings />
-					{hasActiveFilters() && (
-						<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
-							{matchMode === "any" ? "Match any filter" : "Match all filters"}
-						</Button>
-					)}
-				</div>
+		<>
+			<div className="flex items-center gap-2 shrink-0">
+				<TasksFilterPopover />
 			</div>
-		</div>
+			<div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+				<TasksFilterChips />
+			</div>
+			<div className="flex items-center gap-2 shrink-0">
+				<TasksDisplaySettings />
+				{hasActiveFilters() && (
+					<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
+						{matchMode === "any" ? "Match any filter" : "Match all filters"}
+					</Button>
+				)}
+			</div>
+		</>
 	);
 }

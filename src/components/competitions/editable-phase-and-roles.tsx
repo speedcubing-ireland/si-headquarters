@@ -28,7 +28,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useUsers, useCompetitionMutations } from "@/hooks/use-convex-data";
 import type { Competition, User } from "@/data/types-new";
 import {
 	COMPETITION_PHASE_KEYS,
@@ -127,15 +127,15 @@ export function EditablePhaseCell({
 }: {
 	competition: Competition;
 }) {
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const { updateCompetition } = useCompetitionMutations();
 	const [open, setOpen] = React.useState(false);
 
 	const currentKey = getCurrentPhaseKey(competition);
 
 	const handleChange = (key: CompetitionPhaseKey) => {
 		// Try to find a matching phase by name for this competition
-		const targetIndex =
-			competition.phases.findIndex((phase) => {
+		const targetPhase =
+			competition.phases.find((phase) => {
 				const phaseName = phase.name.toLowerCase();
 				const derivedKey = (() => {
 					if (phaseName.startsWith("concept")) return "concept";
@@ -150,12 +150,15 @@ export function EditablePhaseCell({
 					return "concept";
 				})();
 				return derivedKey === key;
-			}) ?? competition.currentPhaseIdx;
+			}) ?? competition.phases[competition.currentPhaseIdx];
 
-		const nextIndex =
-			targetIndex >= 0 ? targetIndex : competition.currentPhaseIdx;
+		const nextPhaseId = targetPhase?.id ?? competition.phases[0]?.id;
+		if (!nextPhaseId) {
+			setOpen(false);
+			return;
+		}
 
-		updateCompetition(competition.id, { currentPhaseIdx: nextIndex });
+		void updateCompetition(competition.id, { currentPhaseId: nextPhaseId });
 		setOpen(false);
 	};
 
@@ -201,8 +204,8 @@ export function EditableCompLeadCell({
 }: {
 	competition: Competition;
 }) {
-	const users = useDataV2((state) => state.users);
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const { users } = useUsers();
+	const { updateCompetition } = useCompetitionMutations();
 
 	return (
 		<EditableUserCell
@@ -210,7 +213,7 @@ export function EditableCompLeadCell({
 			selectedUser={competition.compLead}
 			allUsers={users}
 			onChange={(user) =>
-				updateCompetition(competition.id, {
+				void updateCompetition(competition.id, {
 					compLead: user,
 				})
 			}
@@ -223,8 +226,8 @@ export function EditableLeadDelegateCell({
 }: {
 	competition: Competition;
 }) {
-	const users = useDataV2((state) => state.users);
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const { users } = useUsers();
+	const { updateCompetition } = useCompetitionMutations();
 
 	return (
 		<EditableUserCell
@@ -232,7 +235,7 @@ export function EditableLeadDelegateCell({
 			selectedUser={competition.leadDelegate}
 			allUsers={users}
 			onChange={(user) =>
-				updateCompetition(competition.id, {
+				void updateCompetition(competition.id, {
 					leadDelegate: user,
 				})
 			}
@@ -245,8 +248,8 @@ export function EditableOrganisersCell({
 }: {
 	competition: Competition;
 }) {
-	const users = useDataV2((state) => state.users);
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const { users } = useUsers();
+	const { updateCompetition } = useCompetitionMutations();
 	const [open, setOpen] = React.useState(false);
 
 	const organiserIds = new Set(competition.organisers.map((u) => u.id));
@@ -255,7 +258,7 @@ export function EditableOrganisersCell({
 		const nextOrganisers = organiserIds.has(user.id)
 			? competition.organisers.filter((u) => u.id !== user.id)
 			: [...competition.organisers, user];
-		updateCompetition(competition.id, { organisers: nextOrganisers });
+		void updateCompetition(competition.id, { organisers: nextOrganisers });
 	};
 
 	return (

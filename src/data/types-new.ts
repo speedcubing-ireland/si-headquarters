@@ -10,6 +10,19 @@ export type Team = {
 	members: User[];
 };
 
+export const SEEDED_TEAM_NAMES = [
+	"Directors",
+	"Delegates",
+	"Competitions Team",
+	"Social Media Team",
+	"Finance Team",
+	"Merch Team",
+	"Software Team",
+	"Graphics Team",
+] as const;
+
+export type SeededTeamName = (typeof SEEDED_TEAM_NAMES)[number];
+
 export type GoogleSheetResource = {
 	type: "google-sheet";
 	sheetId: string;

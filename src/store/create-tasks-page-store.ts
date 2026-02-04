@@ -145,6 +145,7 @@ export function useTasksPageStore(
 		TaskStatus | TaskPriority | string
 	>({
 		entity: "tasks",
+		pageId,
 		filterStore: stores.useFilters,
 		displaySettingsStore: stores.useDisplay,
 	});

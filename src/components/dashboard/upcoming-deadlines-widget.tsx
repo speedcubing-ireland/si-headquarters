@@ -4,12 +4,12 @@ import { Link } from "@tanstack/react-router";
 import { Clock, AlertCircle, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTasks, useUsers } from "@/hooks/use-convex-data";
 import { formatDateShort } from "@/lib/format-utils";
 
 export function UpcomingDeadlinesWidget() {
-	const users = useDataV2((state) => state.users);
-	const tasks = useDataV2((state) => state.tasks);
+	const { users } = useUsers();
+	const { tasks } = useTasks(false);
 
 	const currentUser = users[0];
 

@@ -1,19 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import {
-	Archive,
-	Loader,
-	type LucideIcon,
-	Monitor,
-	Moon,
-	RotateCcw,
-	Sun,
-} from "lucide-react";
+import { Archive, Loader, type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { useDataV2 } from "@/data/data-store-v2";
-import { useCalendarWeekendOverridesStore } from "@/store/calendar-weekend-overrides-store";
-import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
-import { useDisplaySettingsStore } from "@/store/display-settings-store";
-import { useSavedViewsStore } from "@/store/saved-views-store";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -69,38 +56,6 @@ function ThemeToggleItem() {
 	);
 }
 
-function ClearDemoButton() {
-	const handleClearDemo = () => {
-		// Reset main data store
-		useDataV2.getState().resetDemoData();
-
-		// Reset filter stores
-		useCompetitionsFilterStore.getState().clearFilters();
-
-		// Reset display settings stores
-		useDisplaySettingsStore.getState().reset();
-
-		// Reset saved views store
-		useSavedViewsStore.getState().resetAll();
-
-		// Reset calendar overrides
-		useCalendarWeekendOverridesStore.getState().clearAll();
-	};
-
-	return (
-		<SidebarMenuItem>
-			<SidebarMenuButton
-				onClick={handleClearDemo}
-				tooltip="Clear all demo data"
-				className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-			>
-				<RotateCcw className="h-[1.2rem] w-[1.2rem]" />
-				<span>Clear Demo</span>
-			</SidebarMenuButton>
-		</SidebarMenuItem>
-	);
-}
-
 const navSecondary = [
 	{
 		title: "Archived",
@@ -138,7 +93,6 @@ export function NavSecondary({
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					))}
-					<ClearDemoButton />
 					<ThemeToggleItem />
 				</SidebarMenu>
 			</SidebarGroupContent>

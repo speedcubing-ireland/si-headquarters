@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TasksPage } from "@/components/tasks/tasks-page";
 import { TriageBar, type TriageFilter } from "@/components/tasks/triage-bar";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTeams, useTasks } from "@/hooks/use-convex-data";
 import type { Task, Team } from "@/data/types-new";
 import { createOwnerPredicate } from "@/lib/task-filter-utils";
 import type { TaskPredicate } from "@/lib/task-filter-utils";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/teams/$teamId")({
 });
 
 function useTeam(teamId: string): Team | undefined {
-	const teams = useDataV2((state) => state.teams);
+	const { teams } = useTeams();
 	return teams.find((t) => t.id === teamId);
 }
 
@@ -38,7 +38,7 @@ function RouteComponent() {
 	const { teamId } = Route.useParams();
 	const team = useTeam(teamId);
 	const [triageFilter, setTriageFilter] = useState<TriageFilter>("all");
-	const allTasks = useDataV2((state) => state.tasks);
+	const { tasks: allTasks } = useTasks(false);
 
 	// Page predicates: team ownership + triage state
 	const pagePredicates = useMemo<TaskPredicate[]>(() => {

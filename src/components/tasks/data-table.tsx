@@ -5,7 +5,7 @@ import {
 	SharedDataTable,
 	type SharedDataTableProps,
 } from "@/components/shared/data-table";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTasks } from "@/hooks/use-convex-data";
 import type { Task } from "@/data/types-new";
 import { filterTasksWithState } from "@/lib/task-filters";
 import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
@@ -89,7 +89,7 @@ export function TasksDataTable({
 	);
 
 	const router = useRouter();
-	const storeTasks = useDataV2((state) => state.tasks);
+	const { tasks: storeTasks } = useTasks(false);
 	const tasks = overrideTasks ?? storeTasks;
 	const tableRef = useRef<HTMLDivElement>(null);
 
@@ -136,6 +136,7 @@ export function TasksDataTable({
 				data={tasks}
 				filterState={filterState}
 				filterFn={filterFn}
+				getRowId={(task) => task.id}
 				grouping={grouping}
 				subGrouping={subGrouping}
 				ordering={ordering}

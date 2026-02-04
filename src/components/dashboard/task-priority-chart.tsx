@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTasks } from "@/hooks/use-convex-data";
 
 const PRIORITY_COLORS = {
 	low: "#6b7280",
@@ -12,7 +12,7 @@ const PRIORITY_COLORS = {
 };
 
 export function TaskPriorityChart() {
-	const tasks = useDataV2((state) => state.tasks);
+	const { tasks } = useTasks(false);
 
 	const data = useMemo(() => {
 		const counts: Record<string, number> = {

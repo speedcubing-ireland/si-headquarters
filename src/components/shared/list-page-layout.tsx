@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,12 +13,31 @@ export interface CreateViewState {
 	onSaveView: () => void;
 }
 
+const CreateViewContext = createContext<CreateViewState | null>(null);
+
+export function CreateViewProvider({
+	value,
+	children,
+}: {
+	value: CreateViewState;
+	children: React.ReactNode;
+}) {
+	return (
+		<CreateViewContext.Provider value={value}>
+			{children}
+		</CreateViewContext.Provider>
+	);
+}
+
+export function useCreateViewContext() {
+	return useContext(CreateViewContext);
+}
+
 export interface ListPageLayoutProps {
 	header: React.ReactNode;
 	filtersRow: React.ReactNode;
 	table: React.ReactNode;
 	modal: React.ReactNode;
-	createView: CreateViewState;
 }
 
 export function ListPageLayout({
@@ -25,20 +45,20 @@ export function ListPageLayout({
 	filtersRow,
 	table,
 	modal,
-	createView: {
-		isCreatingView,
-		viewName,
-		setViewName,
-		viewDescription,
-		setViewDescription,
-		onCancelCreateView,
-		onSaveView,
-	},
 }: ListPageLayoutProps) {
+	const createView = useCreateViewContext();
+	const isCreatingView = createView?.isCreatingView ?? false;
+	const viewName = createView?.viewName ?? "";
+	const setViewName = createView?.setViewName ?? (() => {});
+	const viewDescription = createView?.viewDescription ?? "";
+	const setViewDescription = createView?.setViewDescription ?? (() => {});
+	const onCancelCreateView = createView?.onCancelCreateView ?? (() => {});
+	const onSaveView = createView?.onSaveView ?? (() => {});
+
 	return (
 		<div className="flex h-full min-h-0 flex-1 flex-col">
 			{header}
-			{isCreatingView ? (
+			{createView && isCreatingView ? (
 				<div className="flex min-h-12 shrink-0 flex-col gap-3 border-b bg-background py-3 px-4 lg:px-6">
 					<div className="flex items-start gap-4">
 						<div className="flex flex-1 flex-col gap-2">

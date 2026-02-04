@@ -1,6 +1,6 @@
 import { mapToSharedFilterOptions } from "@/components/shared/filters/filter-option-row";
 import { SharedFilterValueSelector } from "@/components/shared/filters/filter-value-selector";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useUsers } from "@/hooks/use-convex-data";
 import {
 	type FilterType,
 	filterConfigs,
@@ -21,7 +21,7 @@ export function FilterValueSelector<T extends string>({
 	children,
 }: FilterValueSelectorProps<T>) {
 	const config = filterConfigs[type];
-	const users = useDataV2((state) => state.users);
+	const { users } = useUsers();
 	const options = mapToSharedFilterOptions(getFilterOptions(type, users));
 
 	return (

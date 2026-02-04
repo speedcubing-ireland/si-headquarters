@@ -134,30 +134,36 @@ const dateGroupRenderer: GroupValueRenderer = (value) => {
 	);
 };
 
-const labelsGroupRenderer: GroupValueRenderer = (value, row) => {
-	if (!value || value === "No labels") {
+const labelsGroupRenderer: GroupValueRenderer = (_value, row) => {
+	const leafRows = row.getLeafRows();
+	if (leafRows.length === 0) {
 		return (
 			<span className="text-muted-foreground font-semibold text-sm">
 				No label
 			</span>
 		);
 	}
-	// Get the first label from the group to show its color
-	const leafRows = row.getLeafRows();
-	if (leafRows.length === 0)
-		return <span className="font-semibold text-sm">{String(value)}</span>;
 	const firstTask = leafRows[0].original;
-	const label = firstTask.labels[0];
-	if (!label)
-		return <span className="font-semibold text-sm">{String(value)}</span>;
+	const labels = firstTask.labels;
+	if (labels.length === 0) {
+		return (
+			<span className="text-muted-foreground font-semibold text-sm">
+				No label
+			</span>
+		);
+	}
 
 	return (
-		<div className="flex items-center gap-1.5">
-			<span
-				className="size-2 rounded-full"
-				style={{ backgroundColor: label.color }}
-			/>
-			<span className="font-semibold text-sm">{label.name}</span>
+		<div className="flex items-center gap-2">
+			{labels.map((label) => (
+				<div key={label.id} className="flex items-center gap-1">
+					<span
+						className="size-2 rounded-full"
+						style={{ backgroundColor: label.color }}
+					/>
+					<span className="font-semibold text-sm">{label.name}</span>
+				</div>
+			))}
 		</div>
 	);
 };
@@ -284,33 +290,36 @@ export function useTaskColumns(): ColumnDef<Task>[] {
 				},
 			),
 			// Owner (compact)
-			createSortableColumn(
-				"owner",
-				"",
-				({ row }) => (
+			{
+				id: "owner",
+				accessorFn: (row) => {
+					if (!row.owner) return "Unassigned";
+					if ("members" in row.owner) return `team:${row.owner.id}`;
+					return `user:${row.owner.id}`;
+				},
+				header: "",
+				cell: ({ row }) => (
 					<OwnerCell owner={row.original.owner} taskId={row.original.id} />
 				),
-				{
-					// Sort owners by display name, falling back to empty string for unassigned.
-					sortingFn: (rowA, rowB) => {
-						const ownerA = rowA.original.owner;
-						const ownerB = rowB.original.owner;
-						const nameA =
-							ownerA && "name" in ownerA && typeof ownerA.name === "string"
-								? ownerA.name
-								: "";
-						const nameB =
-							ownerB && "name" in ownerB && typeof ownerB.name === "string"
-								? ownerB.name
-								: "";
-						return nameA.localeCompare(nameB);
-					},
-					meta: {
-						groupValueRenderer: ownerGroupRenderer,
-						cellClassName: "px-1 w-0",
-					} as ColumnDef<Task>["meta"],
+				enableSorting: true,
+				sortingFn: (rowA, rowB) => {
+					const ownerA = rowA.original.owner;
+					const ownerB = rowB.original.owner;
+					const nameA =
+						ownerA && "name" in ownerA && typeof ownerA.name === "string"
+							? ownerA.name
+							: "";
+					const nameB =
+						ownerB && "name" in ownerB && typeof ownerB.name === "string"
+							? ownerB.name
+							: "";
+					return nameA.localeCompare(nameB);
 				},
-			),
+				meta: {
+					groupValueRenderer: ownerGroupRenderer,
+					cellClassName: "px-1 w-0",
+				} as ColumnDef<Task>["meta"],
+			},
 			// Title with parent
 			createSortableColumn(
 				"title",
@@ -359,22 +368,26 @@ export function useTaskColumns(): ColumnDef<Task>[] {
 				} as ColumnDef<Task>["meta"],
 			},
 			// Due date (short format)
-			createSortableColumn(
-				"dueDate",
-				"",
-				({ row }) => (
+			{
+				id: "dueDate",
+				accessorFn: (row) => {
+					if (!row.dueDate) return null;
+					// Extract just the date part for consistent grouping (YYYY-MM-DD)
+					return row.dueDate.split("T")[0];
+				},
+				header: "",
+				cell: ({ row }) => (
 					<DueDateCell
-						dueDate={row.getValue("dueDate") as string | null}
+						dueDate={row.original.dueDate}
 						createdAt={row.original.createdAt}
 					/>
 				),
-				{
-					meta: {
-						groupValueRenderer: dateGroupRenderer,
-						cellClassName: "px-1 text-right pr-4 w-0",
-					} as ColumnDef<Task>["meta"],
-				},
-			),
+				enableSorting: true,
+				meta: {
+					groupValueRenderer: dateGroupRenderer,
+					cellClassName: "px-1 text-right pr-4 w-0",
+				} as ColumnDef<Task>["meta"],
+			},
 		],
 		[],
 	); // Empty deps = never recreates

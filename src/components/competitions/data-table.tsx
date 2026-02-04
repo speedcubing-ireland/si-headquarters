@@ -5,7 +5,7 @@ import {
 	SharedDataTable,
 	type SharedDataTableProps,
 } from "@/components/shared/data-table";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useCompetitions } from "@/hooks/use-convex-data";
 import type { Competition } from "@/data/types-new";
 import { filterCompetitionsWithState } from "@/lib/competitions-filters";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
@@ -25,9 +25,7 @@ export function DataTable<TData, TValue>({
 	const ordering = useDisplaySettingsStore((state) => state.ordering);
 	const setOrdering = useDisplaySettingsStore((state) => state.setOrdering);
 	const router = useRouter();
-	const competitions = useDataV2(
-		(state) => state.competitions,
-	) as unknown as Competition[];
+	const { competitions } = useCompetitions();
 
 	const filterState = useMemo(
 		() => ({ ...filters, matchMode }),

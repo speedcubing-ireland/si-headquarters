@@ -1,4 +1,4 @@
-import { useDataV2 } from "@/data/data-store-v2";
+import { useActivityForTask } from "@/hooks/use-convex-data";
 import type { ActivityEntry } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
 import { Activity } from "lucide-react";
@@ -117,8 +117,7 @@ function ActivityItem({ entry }: { entry: ActivityEntry }) {
 }
 
 export function ActivityFeed({ taskId }: ActivityFeedProps) {
-	const getActivityForTask = useDataV2((state) => state.getActivityForTask);
-	const activities = getActivityForTask("task", taskId);
+	const { activities } = useActivityForTask(taskId);
 
 	return (
 		<div className="mt-8">

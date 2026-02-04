@@ -9,7 +9,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useDataV2 } from "@/data/data-store-v2";
+import {
+	useTasks,
+	useUsers,
+	useCompetitions,
+	useUnreadCount,
+} from "@/hooks/use-convex-data";
 import { ActiveCompetitionsWidget } from "@/components/dashboard/active-competitions-widget";
 import { UpcomingDeadlinesWidget } from "@/components/dashboard/upcoming-deadlines-widget";
 import { TaskPriorityChart } from "@/components/dashboard/task-priority-chart";
@@ -21,12 +26,11 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-	const tasks = useDataV2((state) => state.tasks);
-	const competitions = useDataV2((state) => state.competitions);
-	const users = useDataV2((state) => state.users);
-	const getUnreadCount = useDataV2((state) => state.getUnreadCount);
-
+	const { tasks } = useTasks(false);
+	const { competitions } = useCompetitions();
+	const { users } = useUsers();
 	const currentUser = users[0];
+	const unreadCount = useUnreadCount(currentUser?.id ?? null);
 
 	const openTasks = tasks.filter((task) => task.status !== "done").length;
 
@@ -35,7 +39,7 @@ function Index() {
 		return competition.compStart >= today;
 	}).length;
 
-	const unreadNotifications = currentUser ? getUnreadCount(currentUser.id) : 0;
+	const unreadNotifications = unreadCount ?? 0;
 
 	return (
 		<>

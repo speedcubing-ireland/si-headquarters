@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Activity, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTasks, useUsers, useRecentActivity } from "@/hooks/use-convex-data";
 import { formatDate, getInitials } from "@/lib/format-utils";
 
 function formatRelativeTime(timestamp: string): string {
@@ -23,16 +23,15 @@ function formatRelativeTime(timestamp: string): string {
 }
 
 export function RecentActivityWidget() {
-	const users = useDataV2((state) => state.users);
-	const activityLog = useDataV2((state) => state.activityLog);
-	const tasks = useDataV2((state) => state.tasks);
+	const { users } = useUsers();
+	const { activities: activityLog } = useRecentActivity(50);
+	const { tasks } = useTasks(false);
 
 	const currentUser = users[0];
 
 	const recentActivity = useMemo(() => {
 		if (!currentUser) return [];
 
-		// Get activity related to current user's tasks or assigned tasks
 		const userTaskIds = new Set(
 			tasks.filter((t) => t.assignee?.id === currentUser.id).map((t) => t.id),
 		);
@@ -43,7 +42,6 @@ export function RecentActivityWidget() {
 					(entry.entityType === "task" && userTaskIds.has(entry.entityId)) ||
 					entry.actor.id === currentUser.id,
 			)
-			.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
 			.slice(0, 5);
 	}, [activityLog, tasks, currentUser]);
 

@@ -33,7 +33,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/components/ui/sheet";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useCompetitionMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
 import { cn } from "@/lib/utils";
@@ -63,7 +63,7 @@ export function CompetitionPropertiesSidebar({
 	onOpenChange,
 	triggerClassName,
 }: CompetitionPropertiesSidebarProps) {
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const { updateCompetition } = useCompetitionMutations();
 	const [internalOpen, setInternalOpen] = useState(false);
 	const [dateOpen, setDateOpen] = useState(false);
 
@@ -80,7 +80,7 @@ export function CompetitionPropertiesSidebar({
 
 	const handleSetDateRange = useCallback(
 		(range: { from?: Date; to?: Date }) => {
-			updateCompetition(competition.id, {
+			void updateCompetition(competition.id, {
 				compStart:
 					range.from?.toISOString().split("T")[0] || competition.compStart,
 				compEnd: range.to?.toISOString().split("T")[0] || competition.compEnd,
@@ -199,7 +199,9 @@ export function CompetitionPropertiesSidebar({
 								key={phase.id}
 								type="button"
 								onClick={() => {
-									updateCompetition(competition.id, { currentPhaseIdx: index });
+									void updateCompetition(competition.id, {
+										currentPhaseId: phase.id,
+									});
 								}}
 								className={cn(
 									"flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",

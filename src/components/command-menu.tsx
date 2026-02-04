@@ -21,7 +21,13 @@ import {
 	CommandSeparator,
 	CommandShortcut,
 } from "@/components/ui/command";
-import { useDataV2 } from "@/data/data-store-v2";
+import {
+	useTasks,
+	useUsers,
+	useTeams,
+	useCompetitions,
+	useCommentsForSearch,
+} from "@/hooks/use-convex-data";
 import type { Competition, Task, Team, User } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
 
@@ -41,20 +47,18 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search);
 
-	// Get all data from store
-	const tasks = useDataV2((state) => state.tasks);
-	const competitions = useDataV2((state) => state.competitions);
-	const users = useDataV2((state) => state.users);
-	const teams = useDataV2((state) => state.teams);
+	// Get all data from Convex
+	const { tasks } = useTasks(false);
+	const { competitions } = useCompetitions();
+	const { users } = useUsers();
+	const { teams } = useTeams();
+	const { comments } = useCommentsForSearch();
 
 	// Pre-compute lowercase search query to avoid repeated conversions
 	const searchQuery = useMemo(
 		() => deferredSearch.trim().toLowerCase(),
 		[deferredSearch],
 	);
-
-	// Get comments for searching
-	const comments = useDataV2((state) => state.comments);
 
 	// Enhanced search with scoring and context
 	const results = useMemo(() => {

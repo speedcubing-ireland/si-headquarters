@@ -8,9 +8,12 @@ import { CompetitionTasksByPhase } from "@/components/competitions/competition-t
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useDataV2 } from "@/data/data-store-v2";
-import type { Competition, Task } from "@/data/types-new";
-import { getTasksForCompetition } from "@/lib/task-utils";
+import {
+	useCompetition,
+	useTasksForCompetition,
+	useCompetitionMutations,
+} from "@/hooks/use-convex-data";
+import type { Competition } from "@/data/types-new";
 
 export const Route = createFileRoute("/competitions/$id")({
 	component: RouteComponent,
@@ -66,14 +69,20 @@ function CompetitionHeader({
 
 function RouteComponent() {
 	const { id } = Route.useParams();
-	const tasks = useDataV2((state) => state.tasks as Task[]);
-	const competition = useDataV2(
-		(state) => state.getCompetitionById(id) as Competition | null,
-	);
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
+	const competition = useCompetition(id);
+	const { tasks: scopedTasks } = useTasksForCompetition(id);
+	const { updateCompetition } = useCompetitionMutations();
 	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
 
-	if (!competition) {
+	if (competition === undefined) {
+		return (
+			<div className="flex h-full items-center justify-center">
+				<p className="text-muted-foreground">Loading...</p>
+			</div>
+		);
+	}
+
+	if (competition === null) {
 		return (
 			<div className="flex h-full items-center justify-center">
 				<div className="text-center">
@@ -89,12 +98,12 @@ function RouteComponent() {
 		);
 	}
 
-	const scopedTasks = getTasksForCompetition(tasks, competition);
+	const competitionWithTasks = { ...competition, tasks: scopedTasks };
 
 	return (
 		<div className="flex h-full flex-col">
 			<CompetitionHeader
-				competition={competition}
+				competition={competitionWithTasks}
 				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
 			/>
 			<div className="flex flex-1 overflow-hidden">
@@ -102,29 +111,29 @@ function RouteComponent() {
 					<ScrollArea className="h-full">
 						<div className="mx-auto max-w-4xl space-y-8 px-6 py-6 lg:px-8 lg:py-8">
 							<CompetitionDetails
-								competition={competition}
+								competition={competitionWithTasks}
 								isEditable
 								onUpdate={(updates) =>
 									updateCompetition(competition.id, updates)
 								}
 							/>
-							<CompetitionLatestUpdate competition={competition} />
+							<CompetitionLatestUpdate competition={competitionWithTasks} />
 							<Separator />
 							<CompetitionTasksByPhase
-								competition={competition}
+								competition={competitionWithTasks}
 								tasks={scopedTasks}
 							/>
 						</div>
 					</ScrollArea>
 				</main>
 				<CompetitionPropertiesSidebar
-					competition={competition}
+					competition={competitionWithTasks}
 					tasks={scopedTasks}
 					renderMode="sidebar"
 				/>
 			</div>
 			<CompetitionPropertiesSidebar
-				competition={competition}
+				competition={competitionWithTasks}
 				tasks={scopedTasks}
 				renderMode="popover"
 				open={propertiesPopoverOpen}

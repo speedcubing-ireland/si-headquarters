@@ -1,4 +1,3 @@
-import { faker } from "@faker-js/faker";
 import { addDays, addMonths, format, startOfWeek, subMonths } from "date-fns";
 import type { Competition, NonCompWeekendInfo, Weekend } from "./types-new";
 import type { WeekendOverride } from "@/store/calendar-weekend-overrides-store";
@@ -68,11 +67,11 @@ export function buildCalendarWeekends(competitions: Competition[]): Weekend[] {
 		const comps = compsBySatKey.get(satKey) ?? [];
 		if (comps.length === 0) {
 			rows.push({
-				id: faker.string.uuid(),
+				id: satKey,
 				satDate: satKey,
 				competition: null,
 				weekendInfo: {
-					id: faker.string.uuid(),
+					id: satKey,
 					satDate: satKey,
 					eventNote: "",
 					reserved: false,
@@ -82,7 +81,7 @@ export function buildCalendarWeekends(competitions: Competition[]): Weekend[] {
 		} else {
 			for (const comp of comps) {
 				rows.push({
-					id: faker.string.uuid(),
+					id: `${satKey}-${comp.id}`,
 					satDate: satKey,
 					competition: comp,
 					weekendInfo: null,

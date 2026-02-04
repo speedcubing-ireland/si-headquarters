@@ -2,7 +2,11 @@ import { useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useDataV2 } from "@/data/data-store-v2";
+import {
+	useUsers,
+	useCommentsForTask,
+	useCommentMutations,
+} from "@/hooks/use-convex-data";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Comment, User } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
@@ -110,7 +114,7 @@ function CommentItem({
 		>
 			<div className="flex gap-3">
 				<Avatar className="size-8 shrink-0">
-					<AvatarImage src={comment.author.avatarUrl} />
+					<AvatarImage src={comment.author.avatarUrl || undefined} />
 					<AvatarFallback className="text-xs">
 						{getInitials(comment.author.name)}
 					</AvatarFallback>
@@ -254,8 +258,8 @@ interface CommentsSectionProps {
 }
 
 export function CommentsSection({ taskId }: CommentsSectionProps) {
-	const users = useDataV2((state) => state.users);
-	const allComments = useDataV2((state) => state.comments);
+	const { users } = useUsers();
+	const { comments: allComments } = useCommentsForTask(taskId);
 	const comments = useMemo(
 		() =>
 			allComments.filter(
@@ -266,12 +270,9 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 			),
 		[allComments, taskId],
 	);
-	const addComment = useDataV2((state) => state.addComment);
-	const editComment = useDataV2((state) => state.editComment);
-	const deleteComment = useDataV2((state) => state.deleteComment);
-	const addReaction = useDataV2((state) => state.addReaction);
+	const { addComment, editComment, deleteComment, addReaction } =
+		useCommentMutations();
 
-	// Get current user (first user for demo)
 	const currentUser = users[0];
 
 	// Use debounced form for new comment
@@ -286,11 +287,11 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 
 	const handleSubmitComment = () => {
 		if (newCommentForm.value.trim() && currentUser) {
-			addComment(
+			void addComment(
 				"task",
 				taskId,
 				newCommentForm.value.trim(),
-				undefined,
+				null,
 				currentUser,
 			);
 			newCommentForm.reset();
@@ -299,8 +300,20 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 
 	const handleReply = (parentCommentId: string, content: string) => {
 		if (currentUser) {
-			addComment("task", taskId, content, parentCommentId, currentUser);
+			void addComment("task", taskId, content, parentCommentId, currentUser);
 		}
+	};
+
+	const handleEdit = (commentId: string, content: string) => {
+		void editComment(commentId, content);
+	};
+
+	const handleDelete = (commentId: string) => {
+		void deleteComment(commentId);
+	};
+
+	const handleAddReaction = (commentId: string, emoji: string) => {
+		if (currentUser) void addReaction(commentId, emoji, currentUser);
 	};
 
 	return (
@@ -316,7 +329,7 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 			{/* New Comment Input */}
 			<div className="flex gap-3 mb-6">
 				<Avatar className="size-8 shrink-0">
-					<AvatarImage src={currentUser?.avatarUrl} />
+					<AvatarImage src={currentUser?.avatarUrl || undefined} />
 					<AvatarFallback className="text-xs">
 						{currentUser ? getInitials(currentUser.name) : "?"}
 					</AvatarFallback>
@@ -355,9 +368,9 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 							allComments={allComments}
 							currentUser={currentUser}
 							onReply={handleReply}
-							onEdit={editComment}
-							onDelete={deleteComment}
-							onAddReaction={addReaction}
+							onEdit={handleEdit}
+							onDelete={handleDelete}
+							onAddReaction={handleAddReaction}
 						/>
 					))
 				)}

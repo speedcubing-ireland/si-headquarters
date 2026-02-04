@@ -5,7 +5,7 @@ import { useTaskColumns } from "@/components/tasks/columns";
 import { TasksDataTable } from "@/components/tasks/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTaskMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { groupTasksByCompetitionPhase } from "@/lib/task-utils";
 
@@ -19,7 +19,7 @@ export function CompetitionTasksByPhase({
 	tasks,
 }: CompetitionTasksByPhaseProps) {
 	const columns = useTaskColumns();
-	const addTask = useDataV2((state) => state.addTask);
+	const { addTask } = useTaskMutations();
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
 		() => new Set(),
 	);
@@ -54,27 +54,20 @@ export function CompetitionTasksByPhase({
 	};
 
 	const handleAddTaskForGroup = (_groupKey: string, phaseId?: string) => {
-		const parent: Task["parent"] =
-			phaseId != null
-				? { type: "phase", linkedId: phaseId }
-				: { type: "competition", linkedId: competition.id };
-
-		addTask({
-			parent,
+		const phase = phaseId
+			? (competition.phases.find((p) => p.id === phaseId) ?? null)
+			: null;
+		void addTask({
+			parent: { type: "competition", linkedId: competition.id },
 			title: "New task",
 			description: "",
 			owner: null,
 			assignee: null,
-			phase: phaseId
-				? (competition.phases.find((p) => p.id === phaseId) ?? null)
-				: null,
+			phase,
 			status: "to-do",
 			priority: "medium",
 			dueDate: null,
-			requiredApprovalBy: [],
-			approvedBy: [],
 			labels: [],
-			resources: [],
 		});
 	};
 

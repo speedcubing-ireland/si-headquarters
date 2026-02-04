@@ -25,7 +25,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTaskMutations } from "@/hooks/use-convex-data";
 import type { LinkedResource, Task } from "@/data/types-new";
 
 interface TaskResourcesSectionProps {
@@ -86,71 +86,30 @@ function ResourceCard({
 	};
 
 	return (
-		<div className="border rounded-lg overflow-hidden bg-card">
-			<div className="flex items-center gap-2 p-2 border-b">
-				{getResourceIcon()}
-				<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-					{getResourceLabel()}
-				</span>
-				<div className="ml-auto flex items-center gap-1">
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-6 w-6"
-						onClick={handleOpen}
-						title="Open in new tab"
-					>
-						<ExternalLink className="size-3" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-6 w-6"
-						onClick={onRemove}
-						title="Remove resource"
-					>
-						<Trash2 className="size-3 text-muted-foreground" />
-					</Button>
-				</div>
-			</div>
-
-			{/* Preview / Embed */}
-			<div className="relative">
-				{resource.type === "canva-design" && (
-					<div className="aspect-video bg-muted flex items-center justify-center">
-						<div className="text-center p-4">
-							<Palette className="size-8 mx-auto mb-2 text-pink-500/50" />
-							<p className="text-sm text-muted-foreground">Canva Design</p>
-							<Button
-								variant="outline"
-								size="sm"
-								className="mt-2"
-								onClick={handleOpen}
-							>
-								<ExternalLink className="size-3 mr-1" />
-								Open in Canva
-							</Button>
-						</div>
-					</div>
-				)}
-
-				{resource.type === "google-sheet" && (
-					<div className="aspect-[4/3] bg-muted flex items-center justify-center">
-						<div className="text-center p-4">
-							<FileSpreadsheet className="size-8 mx-auto mb-2 text-green-500/50" />
-							<p className="text-sm text-muted-foreground">Google Sheet</p>
-							<Button
-								variant="outline"
-								size="sm"
-								className="mt-2"
-								onClick={handleOpen}
-							>
-								<ExternalLink className="size-3 mr-1" />
-								Open Sheet
-							</Button>
-						</div>
-					</div>
-				)}
+		<div className="border rounded-md bg-card flex items-center gap-2 px-2 py-1.5">
+			{getResourceIcon()}
+			<span className="text-xs font-medium text-muted-foreground flex-1">
+				{getResourceLabel()}
+			</span>
+			<div className="flex items-center gap-0.5">
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-6 w-6"
+					onClick={handleOpen}
+					title="Open in new tab"
+				>
+					<ExternalLink className="size-3" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-6 w-6"
+					onClick={onRemove}
+					title="Remove resource"
+				>
+					<Trash2 className="size-3 text-muted-foreground" />
+				</Button>
 			</div>
 		</div>
 	);
@@ -169,7 +128,7 @@ function AddResourceDialog({
 	const [resourceType, setResourceType] = useState<
 		LinkedResource["type"] | "auto"
 	>("auto");
-	const updateTask = useDataV2((state) => state.updateTask);
+	const { updateTask } = useTaskMutations();
 
 	const handleAdd = () => {
 		if (!url.trim()) return;
@@ -199,7 +158,7 @@ function AddResourceDialog({
 				resource = { type: "canva-design", designId: url };
 		}
 
-		updateTask(task.id, {
+		void updateTask(task.id, {
 			resources: [...task.resources, resource],
 		});
 
@@ -274,12 +233,12 @@ function AddResourceDialog({
 
 export function TaskResourcesSection({ task }: TaskResourcesSectionProps) {
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
-	const updateTask = useDataV2((state) => state.updateTask);
+	const { updateTask } = useTaskMutations();
 
 	const handleRemoveResource = (index: number) => {
 		const newResources = [...task.resources];
 		newResources.splice(index, 1);
-		updateTask(task.id, { resources: newResources });
+		void updateTask(task.id, { resources: newResources });
 	};
 
 	return (
@@ -304,7 +263,7 @@ export function TaskResourcesSection({ task }: TaskResourcesSectionProps) {
 					No resources attached
 				</div>
 			) : (
-				<div className="grid gap-3">
+				<div className="flex flex-col gap-1.5">
 					{task.resources.map((resource, index) => (
 						<ResourceCard
 							key={`${resource.type}-${resource.type === "canva-design" ? resource.designId : resource.sheetId}`}

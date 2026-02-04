@@ -1,5 +1,5 @@
 import { Check, ChevronRight, FileText, Plus, Trophy } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -8,7 +8,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useTeams } from "@/hooks/use-convex-data";
+import { getCompetitionTemplates, getTaskTemplates } from "@/data/templates";
 
 interface TemplateSelectorProps {
 	type: "competition" | "task";
@@ -26,10 +27,12 @@ export function TemplateSelector({
 	const [search, setSearch] = useState("");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 
-	const competitionTemplates = useDataV2((state) =>
-		state.getCompetitionTemplates(),
+	const { teams } = useTeams();
+	const competitionTemplates = useMemo(
+		() => getCompetitionTemplates(teams),
+		[teams],
 	);
-	const taskTemplates = useDataV2((state) => state.getTaskTemplates());
+	const taskTemplates = useMemo(() => getTaskTemplates(), []);
 
 	const templates =
 		type === "competition" ? competitionTemplates : taskTemplates;

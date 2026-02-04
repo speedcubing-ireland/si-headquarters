@@ -1,6 +1,6 @@
 import { SharedFilterChip } from "@/components/shared/filters/filter-chip";
 import { Badge } from "@/components/ui/badge";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useUsers } from "@/hooks/use-convex-data";
 import type { CompetitionPhaseKey, User } from "@/data/types-new";
 import { getPhaseClass, getPhaseLabel } from "@/lib/competition-phase-config";
 import { hasActiveFilters as hasActiveFiltersFromFilters } from "@/lib/competitions-filters";
@@ -52,7 +52,7 @@ export function FilterChips() {
 	const toggleFilter = useCompetitionsFilterStore(
 		(state) => state.toggleFilter,
 	);
-	const users = useDataV2((state) => state.users);
+	const { users } = useUsers();
 
 	const hasActiveFilters = hasActiveFiltersFromFilters(filters);
 

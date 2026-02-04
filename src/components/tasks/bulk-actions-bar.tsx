@@ -17,7 +17,12 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDataV2 } from "@/data/data-store-v2";
+import {
+	useTasks,
+	useUsers,
+	useLabels,
+	useTaskMutations,
+} from "@/hooks/use-convex-data";
 import type {
 	TaskLabel,
 	TaskPriority,
@@ -26,28 +31,27 @@ import type {
 } from "@/data/types-new";
 import { TASK_PRIORITY, TASK_STATUS } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
+import { useTasksListStateContext } from "@/store/tasks-page-context";
 
 interface BulkActionsBarProps {
-	selectedTaskIds: string[];
 	totalTasks: number;
-	onClearSelection: () => void;
 	onSelectAll: () => void;
 }
 
 export function BulkActionsBar({
-	selectedTaskIds,
 	totalTasks,
-	onClearSelection,
 	onSelectAll,
 }: BulkActionsBarProps) {
+	const listState = useTasksListStateContext();
+	const selectedTaskIds = listState.selectedIds;
+	const onClearSelection = listState.clearRowSelection;
 	const [isArchiving, setIsArchiving] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
 
-	const tasks = useDataV2((state) => state.tasks);
-	const users = useDataV2((state) => state.users);
-	const labels = useDataV2((state) => state.labels);
-	const updateTask = useDataV2((state) => state.updateTask);
-	const archiveTasks = useDataV2((state) => state.archiveTasks);
-	const deleteTasks = useDataV2((state) => state.deleteTasks);
+	const { tasks } = useTasks(false);
+	const { users } = useUsers();
+	const { labels } = useLabels();
+	const { bulkUpdateTasks, archiveTasks, deleteTasks } = useTaskMutations();
 
 	const selectedCount = selectedTaskIds.length;
 	const allSelected = selectedCount === totalTasks && totalTasks > 0;
@@ -67,27 +71,26 @@ export function BulkActionsBar({
 	}, [selectedCount, onClearSelection]);
 
 	const handleStatusChange = (status: TaskStatus) => {
-		for (const taskId of selectedTaskIds) {
-			updateTask(taskId, { status });
-		}
-		// Selection persists after action (Linear-style)
+		void bulkUpdateTasks(selectedTaskIds, { status }).then(() => {
+			onClearSelection();
+		});
 	};
 
 	const handlePriorityChange = (priority: TaskPriority) => {
-		for (const taskId of selectedTaskIds) {
-			updateTask(taskId, { priority });
-		}
-		// Selection persists after action (Linear-style)
+		void bulkUpdateTasks(selectedTaskIds, { priority }).then(() => {
+			onClearSelection();
+		});
 	};
 
 	const handleAssigneeChange = (user: User | null) => {
-		for (const taskId of selectedTaskIds) {
-			updateTask(taskId, { assignee: user });
-		}
-		// Selection persists after action (Linear-style)
+		void bulkUpdateTasks(selectedTaskIds, { assignee: user }).then(() => {
+			onClearSelection();
+		});
 	};
 
 	const handleLabelToggle = (label: TaskLabel) => {
+		const updatedLabelsByTaskId = new Map<string, TaskLabel[]>();
+
 		for (const taskId of selectedTaskIds) {
 			const task = tasks.find((t) => t.id === taskId);
 			if (!task) continue;
@@ -97,26 +100,69 @@ export function BulkActionsBar({
 				? task.labels.filter((l) => l.id !== label.id)
 				: [...task.labels, label];
 
-			updateTask(taskId, { labels: newLabels });
+			updatedLabelsByTaskId.set(taskId, newLabels);
 		}
+
+		// If all selected tasks end up with the same label set, we can use one bulk update.
+		const uniqueLabelSets = new Map<string, TaskLabel[]>();
+		for (const [, taskLabels] of updatedLabelsByTaskId.entries()) {
+			const key = taskLabels
+				.map((l) => `${l.id}:${l.name}:${l.color}`)
+				.sort()
+				.join("|");
+			if (!uniqueLabelSets.has(key)) {
+				uniqueLabelSets.set(key, taskLabels);
+			}
+		}
+
+		const bulkPromises: Promise<void>[] = [];
+		for (const [key, labelSet] of uniqueLabelSets.entries()) {
+			const taskIdsForSet = [...updatedLabelsByTaskId.entries()]
+				.filter(([_, labelsForTask]) => {
+					const k = labelsForTask
+						.map((l) => `${l.id}:${l.name}:${l.color}`)
+						.sort()
+						.join("|");
+					return k === key;
+				})
+				.map(([taskId]) => taskId);
+			if (taskIdsForSet.length === 0) continue;
+			bulkPromises.push(
+				bulkUpdateTasks(taskIdsForSet, { labels: labelSet }),
+			);
+		}
+
+		void Promise.all(bulkPromises).then(() => {
+			onClearSelection();
+		});
 	};
 
 	const handleArchive = () => {
 		setIsArchiving(true);
-		archiveTasks(selectedTaskIds);
-		setIsArchiving(false);
-		// Selection persists after action (Linear-style)
+		void archiveTasks(selectedTaskIds)
+			.then(() => {
+				onClearSelection();
+			})
+			.finally(() => {
+				setIsArchiving(false);
+			});
 	};
 
 	const handleDelete = () => {
-		deleteTasks(selectedTaskIds);
-		// Selection persists after action (Linear-style)
+		setIsDeleting(true);
+		void deleteTasks(selectedTaskIds)
+			.then(() => {
+				onClearSelection();
+			})
+			.finally(() => {
+				setIsDeleting(false);
+			});
 	};
 
 	if (selectedCount === 0) return null;
 
 	return (
-		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
+		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-t">
 			<div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 max-w-full">
 				{/* Selection info */}
 				<div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -225,11 +271,13 @@ export function BulkActionsBar({
 									key={user.id}
 									onClick={() => handleAssigneeChange(user)}
 								>
-									<img
-										src={user.avatarUrl}
-										alt=""
-										className="size-5 rounded-full mr-2"
-									/>
+									{user.avatarUrl ? (
+										<img
+											src={user.avatarUrl}
+											alt={user.name}
+											className="size-5 rounded-full mr-2"
+										/>
+									) : null}
 									{user.name}
 								</DropdownMenuItem>
 							))}
@@ -413,6 +461,7 @@ export function BulkActionsBar({
 							<DropdownMenuItem
 								onClick={handleDelete}
 								className="text-destructive focus:text-destructive"
+								disabled={isDeleting}
 							>
 								<Trash2 className="size-4 mr-2" />
 								Delete

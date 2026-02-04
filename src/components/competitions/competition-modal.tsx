@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TemplateSelector } from "@/components/template-selector";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useDataV2 } from "@/data/data-store-v2";
+import {
+	useUsers,
+	useTeams,
+	useCompetitionMutations,
+	useTaskMutations,
+	usePhases,
+} from "@/hooks/use-convex-data";
+import { getCompetitionTemplates } from "@/data/templates";
 import type { Competition, CompetitionPhase, User } from "@/data/types-new";
 import { DEFAULT_PHASES } from "@/data/types-new";
 import { cn } from "@/lib/utils";
@@ -44,11 +51,14 @@ export function CompetitionModal({
 	competition,
 	onSave,
 }: CompetitionModalProps) {
-	const users = useDataV2((state) => state.users);
-	const addCompetition = useDataV2((state) => state.addCompetition);
-	const updateCompetition = useDataV2((state) => state.updateCompetition);
-	const createCompetitionFromTemplate = useDataV2(
-		(state) => state.createCompetitionFromTemplate,
+	const { users } = useUsers();
+	const { teams } = useTeams();
+	const { addCompetition, updateCompetition } = useCompetitionMutations();
+	const { addTask } = useTaskMutations();
+	const { phases: globalPhases } = usePhases();
+	const competitionTemplatesList = useMemo(
+		() => getCompetitionTemplates(teams),
+		[teams],
 	);
 
 	const [showTemplateSelector, setShowTemplateSelector] = useState(false);
@@ -73,11 +83,7 @@ export function CompetitionModal({
 		competition?.organisers ?? [],
 	);
 	const [phases, setPhases] = useState<CompetitionPhase[]>(
-		competition?.phases ??
-			DEFAULT_PHASES.map((p, idx) => ({
-				id: `${idx}`,
-				...p,
-			})),
+		competition?.phases ?? globalPhases ?? [],
 	);
 	const [currentPhaseIdx, setCurrentPhaseIdx] = useState<number>(
 		competition?.currentPhaseIdx ?? 0,
@@ -97,10 +103,13 @@ export function CompetitionModal({
 			setCompLead(null);
 			setLeadDelegate(null);
 			setOrganisers([]);
-			const basePhases = DEFAULT_PHASES.map((p, idx) => ({
-				id: `${idx}`,
-				...p,
-			}));
+			const basePhases =
+				globalPhases.length > 0
+					? globalPhases
+					: DEFAULT_PHASES.map((p, idx) => ({
+							id: `${idx}`,
+							...p,
+					  }));
 			setPhases(basePhases);
 			setCurrentPhaseIdx(0);
 			setCompSheet("");
@@ -119,16 +128,77 @@ export function CompetitionModal({
 		}
 	}, [open, mode, competition]);
 
-	const handleTemplateSelect = (templateId: string) => {
+	const handleTemplateSelect = async (templateId: string) => {
 		setShowTemplateSelector(false);
 
 		if (templateId === "") {
-			// Blank template - proceed to normal form
 			return;
 		}
 
-		// Valid template - create competition from template
-		const created = createCompetitionFromTemplate(templateId, {});
+		const template = competitionTemplatesList.find((t) => t.id === templateId);
+		if (!template) return;
+
+		const today = format(new Date(), "yyyy-MM-dd");
+
+		const createdBase = await addCompetition({
+			name: `${template.name} Competition`,
+			description: template.description,
+			compStart: today,
+			compEnd: today,
+			compLead: null,
+			leadDelegate: null,
+			organisers: [],
+			compSheet: null,
+		});
+
+		const competitionPhases: CompetitionPhase[] =
+			globalPhases.length > 0
+				? globalPhases
+				: DEFAULT_PHASES.map((p) => ({
+						id: crypto.randomUUID(),
+						...p,
+				  }));
+
+		const created: Competition = {
+			...createdBase,
+			phases: competitionPhases,
+			currentPhaseIdx: 0,
+		};
+
+		const phasesByName = new Map(
+			competitionPhases.map((p) => [p.name, p]),
+		);
+
+		for (const tt of template.defaultTasks) {
+			const phase =
+				tt.phase != null ? phasesByName.get(tt.phase) ?? null : null;
+			let owner: User | { id: string; name: string; members: User[] } | null =
+				null;
+			if (tt.ownerType === "team" && tt.ownerId)
+				owner = teams.find((t) => t.id === tt.ownerId) ?? null;
+			if (tt.ownerType === "user" && tt.ownerId)
+				owner = users.find((u) => u.id === tt.ownerId) ?? null;
+			let assignee: User | null = null;
+			if (tt.suggestedAssigneeId)
+				assignee = users.find((u) => u.id === tt.suggestedAssigneeId) ?? null;
+			else if (owner && "members" in owner && owner.members?.length)
+				assignee = owner.members[0] ?? null;
+			else if (owner && !("members" in owner)) assignee = owner as User;
+
+			await addTask({
+				parent: { type: "competition", linkedId: created.id },
+				title: tt.title,
+				description: tt.description,
+				owner,
+				assignee,
+				phase,
+				status: tt.status,
+				priority: tt.priority,
+				dueDate: null,
+				labels: [],
+			});
+		}
+
 		onSave?.(created);
 		onOpenChange(false);
 	};
@@ -142,7 +212,7 @@ export function CompetitionModal({
 		}
 	};
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		if (!name.trim()) return;
 		if (!compStart || !compEnd) return;
 
@@ -165,10 +235,10 @@ export function CompetitionModal({
 		};
 
 		if (mode === "create") {
-			const created = addCompetition(baseData);
+			const created = await addCompetition(baseData);
 			onSave?.(created);
 		} else if (competition) {
-			updateCompetition(competition.id, baseData);
+			await updateCompetition(competition.id, baseData);
 			onSave?.({
 				...competition,
 				...baseData,

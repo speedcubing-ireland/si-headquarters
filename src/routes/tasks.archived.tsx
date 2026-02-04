@@ -17,22 +17,22 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TasksPage, type ListState } from "@/components/tasks/tasks-page";
-import { useDataV2 } from "@/data/data-store-v2";
+import { TasksPage } from "@/components/tasks/tasks-page";
+import { useTasksListStateContext } from "@/store/tasks-page-context";
+import { useTaskMutations } from "@/hooks/use-convex-data";
 
 function ArchivedBulkActions({
-	listState,
 	onUnarchive,
 	onDelete,
 }: {
-	listState: ListState;
 	onUnarchive: () => void;
 	onDelete: () => void;
 }) {
+	const listState = useTasksListStateContext();
 	if (listState.selectedIds.length === 0) return null;
 
 	return (
-		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t">
+		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-t">
 			<div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 max-w-full">
 				{/* Selection info */}
 				<div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -141,18 +141,14 @@ function DeleteConfirmDialog({
 }
 
 function RouteComponent() {
-	const bulkUnarchiveTasks = useDataV2((state) => state.bulkUnarchiveTasks);
-	const permanentlyDeleteTasks = useDataV2(
-		(state) => state.permanentlyDeleteTasks,
-	);
-	const currentUser = useDataV2((state) => state.users[0]);
+	const { bulkUnarchiveTasks, permanentlyDeleteTasks } = useTaskMutations();
 
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
 
 	const handleUnarchive = (selectedIds: string[]) => {
 		if (selectedIds.length === 0) return;
-		bulkUnarchiveTasks(selectedIds, currentUser);
+		void bulkUnarchiveTasks(selectedIds);
 	};
 
 	const handleDeleteClick = (selectedIds: string[]) => {
@@ -162,27 +158,10 @@ function RouteComponent() {
 	};
 
 	const handleConfirmDelete = () => {
-		permanentlyDeleteTasks(pendingDeleteIds);
+		void permanentlyDeleteTasks(pendingDeleteIds);
 		setIsDeleteDialogOpen(false);
 		setPendingDeleteIds([]);
 	};
-
-	// Custom bulk actions renderer
-	const renderArchivedBulkActions = (listState: ListState) => (
-		<>
-			<ArchivedBulkActions
-				listState={listState}
-				onUnarchive={() => handleUnarchive(listState.selectedIds)}
-				onDelete={() => handleDeleteClick(listState.selectedIds)}
-			/>
-			<DeleteConfirmDialog
-				isOpen={isDeleteDialogOpen}
-				onClose={() => setIsDeleteDialogOpen(false)}
-				onConfirm={handleConfirmDelete}
-				count={pendingDeleteIds.length}
-			/>
-		</>
-	);
 
 	return (
 		<TasksPage
@@ -191,8 +170,49 @@ function RouteComponent() {
 			pageIcon={Archive}
 			taskSource="archived"
 			showCreateButton={false}
-			renderBulkActions={renderArchivedBulkActions}
+			bulkActions={
+				<ArchivedBulkActionsContainer
+					onUnarchive={handleUnarchive}
+					onDeleteClick={handleDeleteClick}
+					isDeleteDialogOpen={isDeleteDialogOpen}
+					onCloseDialog={() => setIsDeleteDialogOpen(false)}
+					onConfirmDelete={handleConfirmDelete}
+					pendingDeleteCount={pendingDeleteIds.length}
+				/>
+			}
 		/>
+	);
+}
+
+function ArchivedBulkActionsContainer({
+	onUnarchive,
+	onDeleteClick,
+	isDeleteDialogOpen,
+	onCloseDialog,
+	onConfirmDelete,
+	pendingDeleteCount,
+}: {
+	onUnarchive: (ids: string[]) => void;
+	onDeleteClick: (ids: string[]) => void;
+	isDeleteDialogOpen: boolean;
+	onCloseDialog: () => void;
+	onConfirmDelete: () => void;
+	pendingDeleteCount: number;
+}) {
+	const listState = useTasksListStateContext();
+	return (
+		<>
+			<ArchivedBulkActions
+				onUnarchive={() => onUnarchive(listState.selectedIds)}
+				onDelete={() => onDeleteClick(listState.selectedIds)}
+			/>
+			<DeleteConfirmDialog
+				isOpen={isDeleteDialogOpen}
+				onClose={onCloseDialog}
+				onConfirm={onConfirmDelete}
+				count={pendingDeleteCount}
+			/>
+		</>
 	);
 }
 

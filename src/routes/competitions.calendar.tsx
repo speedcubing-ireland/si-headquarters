@@ -6,7 +6,7 @@ import {
 	buildCalendarWeekends,
 	mergeWeekendsWithOverrides,
 } from "@/data/calendar-weekends";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useCompetitions } from "@/hooks/use-convex-data";
 import { useCalendarWeekendOverridesStore } from "@/store/calendar-weekend-overrides-store";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
 import { useDisplaySettingsStore } from "@/store/display-settings-store";
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/competitions/calendar")({
 });
 
 function CompetitionsCalendarPage() {
-	const competitions = useDataV2((state) => state.competitions);
+	const { competitions } = useCompetitions();
 	const overrides = useCalendarWeekendOverridesStore(
 		(state) => state.overrides,
 	);

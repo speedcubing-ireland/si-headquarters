@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { mapToSharedFilterOptions } from "@/components/shared/filters/filter-option-row";
 import { SharedFilterSubMenu } from "@/components/shared/filters/filter-sub-menu";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useUsers } from "@/hooks/use-convex-data";
 import {
 	type FilterType,
 	filterConfigs,
@@ -26,7 +26,7 @@ export function FilterSubMenu({
 	selectedValues,
 }: FilterSubMenuProps) {
 	const config = filterConfigs[type];
-	const users = useDataV2((state) => state.users);
+	const { users } = useUsers();
 	const options = mapToSharedFilterOptions(getFilterOptions(type, users));
 
 	return (

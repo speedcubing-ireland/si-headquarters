@@ -21,7 +21,13 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useDataV2 } from "@/data/data-store-v2";
+import {
+	useTask,
+	useUsers,
+	useTeams,
+	useLabels,
+	useTaskMutations,
+} from "@/hooks/use-convex-data";
 import type {
 	TaskLabel,
 	TaskPriority,
@@ -142,50 +148,39 @@ export function EditableTaskStatus({
 	taskId: string;
 	children?: React.ReactNode;
 }) {
-	const updateTaskStatus = useDataV2((state) => state.updateTaskStatus);
-	const getTaskById = useDataV2((state) => state.getTaskById);
-	const isTaskFullyApproved = useDataV2((state) => state.isTaskFullyApproved);
-	const users = useDataV2((state) => state.users);
-	const currentUser = users[0];
+	const { updateTask } = useTaskMutations();
+	const task = useTask(taskId);
+	const { users } = useUsers();
 	const StatusIcon = getStatusIcon(status);
 	const filterContext: FilterContext = { users, labels: [], teams: [] };
 	const options = mapToOldFormat(
 		getFilterValues("status", filterContext),
 	) as TaskFilterOption<TaskStatus>[];
-	const [showApprovalWarning, setShowApprovalWarning] = React.useState(false);
-	const [pendingStatus, setPendingStatus] = React.useState<TaskStatus | null>(
-		null,
-	);
+
+	// Check if task is fully approved (handles teams correctly)
+	const isTaskFullyApproved = (() => {
+		if (!task || task.requiredApprovalBy.length === 0) return true;
+		const approvedUserIds = new Set(task.approvedBy.map((a) => a.id));
+		return task.requiredApprovalBy.every((approver) => {
+			if ("members" in approver) {
+				// Team: check if any member has approved
+				return approver.members.some((m) => approvedUserIds.has(m.id));
+			}
+			// User: check if this user has approved
+			return approvedUserIds.has(approver.id);
+		});
+	})();
+
+	const hasRequiredApprovals = task?.requiredApprovalBy.length > 0;
 
 	const handleStatusChange = (newStatus: TaskStatus) => {
-		const task = getTaskById(taskId);
 		if (!task) return;
 
-		// Check if trying to mark as done without approvals
-		if (
-			newStatus === "done" &&
-			task.requiredApprovalBy.length > 0 &&
-			!isTaskFullyApproved(taskId)
-		) {
-			setPendingStatus(newStatus);
-			setShowApprovalWarning(true);
+		if (newStatus === "done" && hasRequiredApprovals && !isTaskFullyApproved) {
 			return;
 		}
 
-		updateTaskStatus(taskId, newStatus, currentUser);
-	};
-
-	const confirmStatusChange = () => {
-		if (pendingStatus) {
-			updateTaskStatus(taskId, pendingStatus, currentUser);
-			setPendingStatus(null);
-		}
-		setShowApprovalWarning(false);
-	};
-
-	const cancelStatusChange = () => {
-		setPendingStatus(null);
-		setShowApprovalWarning(false);
+		void updateTask(taskId, { status: newStatus });
 	};
 
 	return (
@@ -211,27 +206,11 @@ export function EditableTaskStatus({
 						</div>
 					);
 				}}
-				options={options}
+				options={options.filter(
+					(option) =>
+						!(option.value === "done" && hasRequiredApprovals && !isTaskFullyApproved),
+				)}
 			/>
-			{showApprovalWarning && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-					<div className="bg-background rounded-lg p-6 max-w-sm mx-4 shadow-lg">
-						<h3 className="text-lg font-semibold mb-2">Missing Approvals</h3>
-						<p className="text-sm text-muted-foreground mb-4">
-							This task requires approvals before it can be marked as done. Are
-							you sure you want to proceed?
-						</p>
-						<div className="flex gap-2 justify-end">
-							<Button variant="ghost" size="sm" onClick={cancelStatusChange}>
-								Cancel
-							</Button>
-							<Button variant="default" size="sm" onClick={confirmStatusChange}>
-								Continue
-							</Button>
-						</div>
-					</div>
-				</div>
-			)}
 		</>
 	);
 }
@@ -245,9 +224,8 @@ export function EditableTaskPriority({
 	taskId: string;
 	children?: React.ReactNode;
 }) {
-	const updateTaskPriority = useDataV2((state) => state.updateTaskPriority);
-	const users = useDataV2((state) => state.users);
-	const currentUser = users[0];
+	const { updateTask } = useTaskMutations();
+	const { users } = useUsers();
 	const PriorityIcon = getPriorityIcon(priority);
 	const filterContext: FilterContext = { users, labels: [], teams: [] };
 	const options = mapToOldFormat(
@@ -259,7 +237,7 @@ export function EditableTaskPriority({
 			type="priority"
 			value={priority}
 			onChange={(newPriority) =>
-				updateTaskPriority(taskId, newPriority, currentUser)
+				void updateTask(taskId, { priority: newPriority })
 			}
 			renderTrigger={(value) =>
 				children ?? (
@@ -292,14 +270,13 @@ export function EditableTaskAssignee({
 	taskId: string;
 	variant?: "default" | "icon";
 }) {
-	const users = useDataV2((state) => state.users);
-	const updateTaskAssignee = useDataV2((state) => state.updateTaskAssignee);
-	const currentUser = useDataV2((state) => state.users)[0];
+	const { users } = useUsers();
+	const { updateTask } = useTaskMutations();
 	const [open, setOpen] = React.useState(false);
 
 	const handleChange = (userId: string) => {
 		const selectedUser = users.find((u) => u.id === userId) || null;
-		updateTaskAssignee(taskId, selectedUser, currentUser);
+		void updateTask(taskId, { assignee: selectedUser });
 		setOpen(false);
 	};
 
@@ -358,7 +335,7 @@ export function EditableTaskAssignee({
 							<CommandItem
 								value="unassigned"
 								onSelect={() => {
-									updateTaskAssignee(taskId, null, currentUser);
+									void updateTask(taskId, { assignee: null });
 									setOpen(false);
 								}}
 								className="flex items-center justify-between"
@@ -405,25 +382,21 @@ export function EditableTaskLabels({
 	taskId: string;
 	wrap?: boolean;
 }) {
-	const allLabels = useDataV2((state) => state.labels);
-	const updateTaskLabels = useDataV2((state) => state.updateTaskLabels);
-	const users = useDataV2((state) => state.users);
-	const currentUser = users[0];
+	const { labels: allLabels } = useLabels();
+	const { updateTask } = useTaskMutations();
 	const [open, setOpen] = React.useState(false);
 	const hiddenLabels = labels.slice(2);
 
 	const toggleLabel = (labelId: string) => {
 		const hasLabel = labels.some((l) => l.id === labelId);
 		if (hasLabel) {
-			updateTaskLabels(
-				taskId,
-				labels.filter((l) => l.id !== labelId),
-				currentUser,
-			);
+			void updateTask(taskId, {
+				labels: labels.filter((l) => l.id !== labelId),
+			});
 		} else {
 			const label = allLabels.find((l) => l.id === labelId);
 			if (label) {
-				updateTaskLabels(taskId, [...labels, label], currentUser);
+				void updateTask(taskId, { labels: [...labels, label] });
 			}
 		}
 		setOpen(false);
@@ -524,9 +497,9 @@ export function EditableTaskOwner({
 	owner: Team | User | null;
 	taskId: string;
 }) {
-	const teams = useDataV2((state) => state.teams);
-	const users = useDataV2((state) => state.users);
-	const updateTaskOwner = useDataV2((state) => state.updateTaskOwner);
+	const { teams } = useTeams();
+	const { users } = useUsers();
+	const { updateTask } = useTaskMutations();
 	const [open, setOpen] = React.useState(false);
 
 	const currentValue = owner
@@ -537,7 +510,7 @@ export function EditableTaskOwner({
 
 	const handleChange = (value: string) => {
 		if (value === "unassigned") {
-			updateTaskOwner(taskId, null);
+			void updateTask(taskId, { owner: null });
 			setOpen(false);
 			return;
 		}
@@ -545,7 +518,7 @@ export function EditableTaskOwner({
 		if (value.startsWith("team:")) {
 			const id = value.slice("team:".length);
 			const team = teams.find((t) => t.id === id) ?? null;
-			updateTaskOwner(taskId, team);
+			void updateTask(taskId, { owner: team });
 			setOpen(false);
 			return;
 		}
@@ -553,7 +526,7 @@ export function EditableTaskOwner({
 		if (value.startsWith("user:")) {
 			const id = value.slice("user:".length);
 			const user = users.find((u) => u.id === id) ?? null;
-			updateTaskOwner(taskId, user);
+			void updateTask(taskId, { owner: user });
 			setOpen(false);
 		}
 	};

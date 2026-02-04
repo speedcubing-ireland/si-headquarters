@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Trophy, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useDataV2 } from "@/data/data-store-v2";
+import { useCompetitions } from "@/hooks/use-convex-data";
 
 export function ActiveCompetitionsWidget() {
-	const competitions = useDataV2((state) => state.competitions);
+	const { competitions } = useCompetitions();
 
 	const activeCompetitions = useMemo(() => {
 		const today = new Date().toISOString().split("T")[0];

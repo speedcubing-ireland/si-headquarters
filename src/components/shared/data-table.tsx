@@ -1,3 +1,5 @@
+"use no memo";
+
 import {
 	flexRender,
 	getCoreRowModel,
@@ -7,11 +9,13 @@ import {
 	useReactTable,
 	type CellContext,
 	type ColumnDef,
+	type ExpandedState,
 	type Row,
+	type Table as TanStackTable,
 } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-	Table,
+	Table as TableUI,
 	TableBody,
 	TableCell,
 	TableHead,
@@ -21,7 +25,16 @@ import {
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	createContext,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useContext,
+	memo,
+} from "react";
 import {
 	cellContainsInteractiveElements,
 	isInteractiveTarget,
@@ -53,12 +66,78 @@ export interface SharedDataTableProps<TData, TFilterState> {
 	enableRowSelection?: boolean;
 	onSelectionChange?: (selectedRows: TData[]) => void;
 	getRowId?: (row: TData) => string;
-	/** Controlled row selection state. When provided, component operates in controlled mode. */
 	rowSelection?: Record<string, boolean>;
-	/** Callback when row selection changes (for controlled mode). */
 	onRowSelectionChange?: (updater: Record<string, boolean>) => void;
-	/** When true, checkboxes are hidden until row is hovered or any row is selected */
 	autoHideRowSelection?: boolean;
+}
+
+export type DataTableSelectionConfig<TData> = {
+	autoHide?: boolean;
+	rowSelection?: Record<string, boolean>;
+	onRowSelectionChange?: (updater: Record<string, boolean>) => void;
+	onSelectionChange?: (selectedRows: TData[]) => void;
+};
+
+export interface DataTableProviderProps<TData, TFilterState> {
+	columns: ColumnDef<TData, unknown>[];
+	data: TData[];
+	filterState: TFilterState;
+	filterFn: (rows: TData[], filterState: TFilterState) => TData[];
+	grouping: string | null;
+	subGrouping: string | null;
+	ordering: { field: string | null; direction: "asc" | "desc" };
+	setOrdering: (field: string | null, direction: "asc" | "desc") => void;
+	emptyLabel?: string;
+	containerClassName?: string;
+	cellPaddingXClassName?: string;
+	onRowClick?: (row: TData) => void;
+	getRowId?: (row: TData) => string;
+	selection?: DataTableSelectionConfig<TData>;
+	children: React.ReactNode;
+}
+
+interface DataTableState<TData> {
+	filteredData: TData[];
+	table: TanStackTable<TData>;
+	tableColumns: ColumnDef<TData, unknown>[];
+	emptyLabel: string;
+	cellPaddingXClassName: string;
+	onRowClick?: (row: TData) => void;
+	containerRef: React.RefObject<HTMLDivElement | null>;
+}
+
+interface DataTableActions {
+	updateRowSelection: (
+		updater:
+			| Record<string, boolean>
+			| ((prev: Record<string, boolean>) => Record<string, boolean>),
+	) => void;
+}
+
+interface DataTableMeta<TData> {
+	getRowId?: (row: TData) => string;
+	selectionEnabled: boolean;
+	autoHideRowSelection: boolean;
+	lastSelectedRowRef: React.MutableRefObject<Row<unknown> | null>;
+}
+
+interface DataTableContextValue<TData> {
+	state: DataTableState<TData>;
+	actions: DataTableActions;
+	meta: DataTableMeta<TData>;
+}
+
+const DataTableContext = createContext<DataTableContextValue<unknown> | null>(
+	null,
+);
+
+function useDataTableContext<TData>() {
+	const ctx = useContext(DataTableContext);
+	if (!ctx)
+		throw new Error(
+			"DataTable compound components must be used within DataTable.Provider",
+		);
+	return ctx as DataTableContextValue<TData>;
 }
 
 function RowSelectionCheckbox<TData>({
@@ -92,7 +171,7 @@ function RowSelectionCheckbox<TData>({
 	);
 }
 
-export function SharedDataTable<TData, TFilterState>({
+function DataTableProviderInner<TData, TFilterState>({
 	columns,
 	data,
 	filterState,
@@ -104,15 +183,11 @@ export function SharedDataTable<TData, TFilterState>({
 	emptyLabel = "No results.",
 	containerClassName,
 	cellPaddingXClassName = "px-2",
-	showHeader = true,
 	onRowClick,
-	enableRowSelection = false,
-	onSelectionChange,
 	getRowId,
-	rowSelection: controlledRowSelection,
-	onRowSelectionChange: controlledOnRowSelectionChange,
-	autoHideRowSelection = false,
-}: SharedDataTableProps<TData, TFilterState>) {
+	selection,
+	children,
+}: DataTableProviderProps<TData, TFilterState>) {
 	const filteredData = useMemo(
 		() => filterFn(data, filterState),
 		[data, filterState, filterFn],
@@ -135,37 +210,41 @@ export function SharedDataTable<TData, TFilterState>({
 		return [];
 	}, [ordering, groupingState]);
 
-	// Use controlled row selection if provided, otherwise internal state
-	const isControlled = controlledRowSelection !== undefined;
+	const selectionEnabled = !!selection;
+	const isControlled = selection?.rowSelection !== undefined;
 	const [internalRowSelection, setInternalRowSelection] = useState<
 		Record<string, boolean>
 	>({});
-	const rowSelection = isControlled
-		? controlledRowSelection
-		: internalRowSelection;
+	const rowSelection = selectionEnabled
+		? isControlled && selection?.rowSelection !== undefined
+			? selection.rowSelection
+			: internalRowSelection
+		: {};
 
-	// Helper to update row selection (handles both controlled and uncontrolled modes)
 	const updateRowSelection = useCallback(
 		(
 			updater:
 				| Record<string, boolean>
 				| ((prev: Record<string, boolean>) => Record<string, boolean>),
 		) => {
+			if (!selectionEnabled) return;
 			const newSelection =
 				typeof updater === "function" ? updater(rowSelection) : updater;
-			if (isControlled) {
-				controlledOnRowSelectionChange?.(newSelection);
+			if (isControlled && selection?.onRowSelectionChange) {
+				selection.onRowSelectionChange(newSelection);
 			} else {
 				setInternalRowSelection(newSelection);
 			}
 		},
-		[isControlled, controlledOnRowSelectionChange, rowSelection],
+		[
+			selectionEnabled,
+			isControlled,
+			rowSelection,
+			selection?.onRowSelectionChange,
+		],
 	);
 
 	const lastSelectedRowRef = useRef<Row<TData> | null>(null);
-	const tableInstanceRef = useRef<ReturnType<
-		typeof useReactTable<TData>
-	> | null>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const getRowIdRef = useRef(getRowId);
 	getRowIdRef.current = getRowId;
@@ -174,16 +253,12 @@ export function SharedDataTable<TData, TFilterState>({
 		(clickedRow: Row<TData>) => {
 			const lastRow = lastSelectedRowRef.current;
 			if (!lastRow || !tableInstanceRef.current) return;
-
 			const allRows = tableInstanceRef.current.getRowModel().rows;
 			const lastIndex = allRows.findIndex((r) => r.id === lastRow.id);
 			const clickedIndex = allRows.findIndex((r) => r.id === clickedRow.id);
-
 			if (lastIndex === -1 || clickedIndex === -1) return;
-
 			const startIndex = Math.min(lastIndex, clickedIndex);
 			const endIndex = Math.max(lastIndex, clickedIndex);
-
 			const newSelection = { ...rowSelection };
 			for (let i = startIndex; i <= endIndex; i++) {
 				const row = allRows[i];
@@ -198,15 +273,21 @@ export function SharedDataTable<TData, TFilterState>({
 		[rowSelection, updateRowSelection],
 	);
 
-	const tableColumns = useMemo(() => {
-		if (!enableRowSelection) return columns;
+	const tableInstanceRef = useRef<ReturnType<
+		typeof useReactTable<TData>
+	> | null>(null);
 
+	const [expanded, setExpanded] = useState<ExpandedState>({});
+
+	const tableColumns = useMemo(() => {
+		if (!selectionEnabled) return columns;
+		const sel = selection;
 		const checkboxColumn: ColumnDef<TData, unknown> = {
 			id: "selection",
 			header: ({ table }) => (
 				<div
 					className={cn(
-						!autoHideRowSelection || table.getIsSomePageRowsSelected()
+						!sel?.autoHide || table.getIsSomePageRowsSelected()
 							? "opacity-100"
 							: "opacity-0",
 					)}
@@ -225,8 +306,7 @@ export function SharedDataTable<TData, TFilterState>({
 			),
 			cell: ({ row }: CellContext<TData, unknown>) => {
 				const isSelected = row.getIsSelected();
-				// Each checkbox only shows if: auto-hide disabled, OR this row is selected, OR this row is hovered
-				const showCheckbox = !autoHideRowSelection || isSelected;
+				const showCheckbox = !sel?.autoHide || isSelected;
 				return (
 					<div
 						className={cn(
@@ -247,9 +327,8 @@ export function SharedDataTable<TData, TFilterState>({
 			enableHiding: false,
 			size: 32,
 		};
-
 		return [checkboxColumn, ...columns];
-	}, [columns, enableRowSelection, handleShiftClick, autoHideRowSelection]);
+	}, [columns, selectionEnabled, handleShiftClick, selection?.autoHide]);
 
 	const table = useReactTable({
 		data: filteredData,
@@ -260,19 +339,19 @@ export function SharedDataTable<TData, TFilterState>({
 		getExpandedRowModel: getExpandedRowModel(),
 		groupedColumnMode: false,
 		getRowId: getRowId,
-		enableRowSelection: enableRowSelection,
-		initialState: {
-			expanded: true,
-		},
+		enableRowSelection: selectionEnabled,
+		getRowCanExpand: (row) => row.subRows.length > 0,
 		state: {
 			grouping: groupingState,
 			sorting: sortingState,
-			rowSelection: enableRowSelection ? rowSelection : {},
+			rowSelection: selectionEnabled ? rowSelection : {},
+			expanded,
 		},
+		onExpandedChange: setExpanded,
 		onSortingChange: (updater) => {
 			const nextSorting =
 				typeof updater === "function" ? updater(sortingState) : updater;
-			if (nextSorting && nextSorting.length > 0) {
+			if (nextSorting?.length) {
 				const sort = nextSorting[0];
 				setOrdering(sort.id, sort.desc ? "desc" : "asc");
 			} else {
@@ -280,270 +359,400 @@ export function SharedDataTable<TData, TFilterState>({
 			}
 		},
 		onRowSelectionChange: (updater) => {
-			if (!enableRowSelection) return;
+			if (!selectionEnabled) return;
 			const newSelection =
 				typeof updater === "function" ? updater(rowSelection) : updater;
 			updateRowSelection(newSelection);
-
-			// Calculate and sync selected row data
-			// We need to create a temporary table with the new selection to get the selected rows
 			const selectedIds = Object.entries(newSelection)
-				.filter(([, selected]) => selected)
+				.filter(([, sel]) => sel)
 				.map(([id]) => id);
 			const selectedRows = filteredData.filter((row) => {
-				const rowId = getRowId ? getRowId(row) : undefined;
-				if (rowId !== undefined) {
-					return selectedIds.includes(rowId);
-				}
-				// Fallback: use index-based id that TanStack uses by default
-				const index = filteredData.indexOf(row);
-				return selectedIds.includes(String(index));
+				const rowId = getRowId?.(row);
+				if (rowId !== undefined) return selectedIds.includes(rowId);
+				return selectedIds.includes(String(filteredData.indexOf(row)));
 			});
-			onSelectionChange?.(selectedRows);
+			selection?.onSelectionChange?.(selectedRows);
 		},
 	});
 
 	tableInstanceRef.current = table;
 
-	// Auto-deselect rows that are no longer visible in filtered data
 	useEffect(() => {
-		if (!enableRowSelection) return;
-
-		// Get IDs of currently visible rows
+		if (!selectionEnabled) return;
 		const visibleRowIds = new Set(
 			filteredData.map(
 				(row) => getRowId?.(row) ?? String(filteredData.indexOf(row)),
 			),
 		);
-
-		// Remove selections for rows no longer visible
 		const newSelection: Record<string, boolean> = {};
 		let hasChanges = false;
-
 		for (const [id, selected] of Object.entries(rowSelection)) {
-			if (selected && visibleRowIds.has(id)) {
-				newSelection[id] = true;
-			} else if (selected) {
-				hasChanges = true; // Row was selected but is no longer visible
-			}
+			if (selected && visibleRowIds.has(id)) newSelection[id] = true;
+			else if (selected) hasChanges = true;
 		}
-
-		if (hasChanges) {
-			updateRowSelection(newSelection);
-		}
+		if (hasChanges) updateRowSelection(newSelection);
 	}, [
 		filteredData,
-		enableRowSelection,
+		selectionEnabled,
 		rowSelection,
 		getRowId,
 		updateRowSelection,
 	]);
 
-	useEffect(() => {
-		if (groupingState.length > 0) {
-			table.setExpanded(true);
-		}
-	}, [groupingState, table]);
+	// Optionally, you could auto-expand once when grouping is first enabled.
+	// For now we let user interactions fully control expansion.
 
-	// Handle Cmd/Ctrl+A select all event
 	useEffect(() => {
-		if (!enableRowSelection) return;
-
+		if (!selectionEnabled) return;
 		const container = containerRef.current;
 		if (!container) return;
-
-		const handleSelectAll = () => {
-			table.toggleAllPageRowsSelected(true);
-		};
-
+		const handleSelectAll = () => table.toggleAllPageRowsSelected(true);
 		container.addEventListener("datatable-select-all", handleSelectAll);
-		return () => {
+		return () =>
 			container.removeEventListener("datatable-select-all", handleSelectAll);
-		};
-	}, [enableRowSelection, table]);
+	}, [selectionEnabled, table]);
+
+	const value = useMemo<DataTableContextValue<TData>>(
+		() => ({
+			state: {
+				filteredData,
+				table,
+				tableColumns,
+				emptyLabel,
+				cellPaddingXClassName,
+				onRowClick,
+				containerRef,
+			},
+			actions: { updateRowSelection },
+			meta: {
+				getRowId,
+				selectionEnabled,
+				autoHideRowSelection: selection?.autoHide ?? false,
+				lastSelectedRowRef,
+			},
+		}),
+		[
+			filteredData,
+			table,
+			tableColumns,
+			emptyLabel,
+			cellPaddingXClassName,
+			onRowClick,
+			updateRowSelection,
+			getRowId,
+			selectionEnabled,
+			selection?.autoHide,
+			expanded, // Required to trigger re-renders when expansion state changes
+		],
+	);
 
 	return (
-		<div ref={containerRef} className={cn("w-full", containerClassName)}>
-			<Table>
-				{showHeader ? (
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow key={headerGroup.id}>
-								{headerGroup.headers.map((header) => {
-									const meta =
-										(header.column.columnDef.meta as
-											| ColumnMeta<TData>
-											| undefined) ?? undefined;
-									return (
-										<TableHead
-											key={header.id}
-											className={cn(
-												"px-2 py-1 text-xs text-muted-foreground font-medium text-left",
-												meta?.headerClassName,
-											)}
-											aria-sort={
-												header.column.getIsSorted() === "asc"
-													? "ascending"
-													: header.column.getIsSorted() === "desc"
-														? "descending"
-														: undefined
-											}
-										>
-											{header.isPlaceholder
-												? null
-												: flexRender(
-														header.column.columnDef.header,
-														header.getContext(),
-													)}
-										</TableHead>
-									);
-								})}
-							</TableRow>
-						))}
-					</TableHeader>
-				) : null}
-				<TableBody>
-					{table.getRowModel().rows.length === 0 ? (
-						<TableRow>
-							<TableCell
-								colSpan={tableColumns.length}
-								className="h-24 text-center text-muted-foreground"
+		<DataTableContext.Provider value={value as DataTableContextValue<unknown>}>
+			<div ref={containerRef} className={cn("w-full", containerClassName)}>
+				{children}
+			</div>
+		</DataTableContext.Provider>
+	);
+}
+
+export function DataTableProvider<TData, TFilterState>(
+	props: DataTableProviderProps<TData, TFilterState>,
+) {
+	return <DataTableProviderInner {...props} />;
+}
+
+function DataTableHeaderInner<TData>() {
+	const { state } = useDataTableContext<TData>();
+	const { table } = state;
+	return (
+		<TableHeader>
+			{table.getHeaderGroups().map((headerGroup) => (
+				<TableRow key={headerGroup.id}>
+					{headerGroup.headers.map((header) => {
+						const meta =
+							(header.column.columnDef.meta as ColumnMeta<TData> | undefined) ??
+							undefined;
+						return (
+							<TableHead
+								key={header.id}
+								className={cn(
+									"px-2 py-1 text-xs text-muted-foreground font-medium text-left",
+									meta?.headerClassName,
+								)}
+								aria-sort={
+									header.column.getIsSorted() === "asc"
+										? "ascending"
+										: header.column.getIsSorted() === "desc"
+											? "descending"
+											: undefined
+								}
 							>
-								{emptyLabel}
-							</TableCell>
-						</TableRow>
-					) : (
-						table.getRowModel().rows.map((row) => {
-							const leafRows = row.getLeafRows();
-							const actualDataRows = leafRows.filter(
-								(leafRow) => !leafRow.getIsGrouped(),
-							);
-							const leafCount = actualDataRows.length;
-							const isGrouped = row.getIsGrouped();
-							const isExpanded = row.getIsExpanded();
-							const depth = row.depth ?? 0;
-							const isClickable = !!onRowClick && !isGrouped;
+								{header.isPlaceholder
+									? null
+									: flexRender(
+											header.column.columnDef.header,
+											header.getContext(),
+										)}
+							</TableHead>
+						);
+					})}
+				</TableRow>
+			))}
+		</TableHeader>
+	);
+}
 
-							return (
-								<TableRow
-									key={row.id}
-									data-state={row.getIsSelected() && "selected"}
-									className={cn(
-										"border-b border-border/50 transition-colors group",
-										isGrouped &&
-											"bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/40",
-										!isGrouped &&
-											isClickable &&
-											"cursor-pointer hover:bg-muted/30",
-										!isGrouped && "h-10",
-										row.getIsSelected() && "bg-muted/50",
-									)}
-									onClick={(e) => {
-										if (isGrouped) {
-											e.stopPropagation();
-											row.toggleExpanded();
-											return;
-										}
+export function DataTableHeader<TData>() {
+	return <DataTableHeaderInner<TData> />;
+}
 
-										if (!onRowClick) return;
-										const target = e.target as HTMLElement | null;
+interface DataTableDataRowProps<TData = unknown> {
+	row: Row<TData>;
+	onRowClick?: (row: TData) => void;
+	cellPaddingXClassName: string;
+	table: TanStackTable<TData>;
+	depth: number;
+	columnCount: number;
+}
 
-										if (isInteractiveTarget(target)) return;
+function DataTableDataRow<TData = unknown>({
+	row,
+	onRowClick,
+	cellPaddingXClassName,
+	depth,
+	columnCount,
+}: DataTableDataRowProps<TData>) {
+	const leafCount = row.subRows?.length ?? 0;
+	const isGroupedRow = row.getIsGrouped();
+	const isExpanded = row.getIsExpanded();
+	const isClickable = !!onRowClick && !isGroupedRow;
 
-										const clickedCell = target?.closest("td");
-										if (
-											clickedCell &&
-											cellContainsInteractiveElements(clickedCell)
-										) {
-											return;
-										}
+	// For grouped rows, render a single cell spanning all columns
+	if (isGroupedRow) {
+		const groupedCell = row.getVisibleCells().find((c) => c.getIsGrouped?.());
+		const metaCell = groupedCell
+			? ((groupedCell.column.columnDef.meta as ColumnMeta<TData> | undefined) ??
+				undefined)
+			: undefined;
 
-										onRowClick(row.original as TData);
-									}}
-								>
-									{row.getVisibleCells().map((cell, _index, allCells) => {
-										const meta =
-											(cell.column.columnDef.meta as
-												| ColumnMeta<TData>
-												| undefined) ?? undefined;
-										const isFirstCell =
-											cell.column.id === allCells[0]?.column.id;
+		return (
+			<TableRow
+				data-state={row.getIsSelected() && "selected"}
+				className={cn(
+					"border-b border-border/50 transition-colors group",
+					"bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/40",
+					row.getIsSelected() && "bg-muted/50",
+				)}
+				onClick={(e) => {
+					e.stopPropagation();
+					row.getToggleExpandedHandler()();
+				}}
+				role="button"
+				tabIndex={0}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						e.preventDefault();
+						e.stopPropagation();
+						row.getToggleExpandedHandler()();
+					}
+				}}
+			>
+				<TableCell
+					colSpan={columnCount}
+					className={cn(cellPaddingXClassName, "py-2 text-sm align-middle text-left")}
+				>
+					<div className="flex items-center justify-between w-full pr-2">
+						<div className="flex items-center gap-1.5">
+							{isExpanded ? (
+								<ChevronDown className="size-3.5 text-muted-foreground/50" />
+							) : (
+								<ChevronRight className="size-3.5 text-muted-foreground/50" />
+							)}
+							{groupedCell && metaCell?.groupValueRenderer ? (
+								metaCell.groupValueRenderer(
+									row.getGroupingValue(groupedCell.column.id),
+									row as Row<TData>,
+								)
+							) : (
+								<span className="font-semibold text-sm">
+									{String(groupedCell?.getValue() ?? "")}
+								</span>
+							)}
+							<span className="text-muted-foreground text-xs">
+								{leafCount}
+							</span>
+						</div>
+						<Plus className="size-4 text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
+					</div>
+				</TableCell>
+			</TableRow>
+		);
+	}
 
-										if (isGrouped && !isFirstCell) {
-											return null;
-										}
+	return (
+		<TableRow
+			data-state={row.getIsSelected() && "selected"}
+			className={cn(
+				"border-b border-border/50 transition-colors group",
+				isClickable && "cursor-pointer hover:bg-muted/30",
+				"h-10",
+				row.getIsSelected() && "bg-muted/50",
+			)}
+			onClick={(e) => {
+				const target = e.target as HTMLElement | null;
+				if (isInteractiveTarget(target)) return;
+				const clickedCell = target?.closest("td");
+				if (clickedCell && cellContainsInteractiveElements(clickedCell)) return;
+				if (!onRowClick) return;
+				onRowClick(row.original as TData);
+			}}
+		>
+			{row.getVisibleCells().map((cell) => {
+				const metaCell =
+					(cell.column.columnDef.meta as ColumnMeta<TData> | undefined) ??
+					undefined;
 
-										if (isGrouped && isFirstCell) {
-											return (
-												<TableCell
-													key={cell.id}
-													colSpan={allCells.length}
-													className={cn(cellPaddingXClassName, "py-2 text-sm")}
-												>
-													<div className="flex items-center justify-between w-full pr-2">
-														<div className="flex items-center gap-1.5">
-															{isExpanded ? (
-																<ChevronDown className="size-3.5 text-muted-foreground/50" />
-															) : (
-																<ChevronRight className="size-3.5 text-muted-foreground/50" />
-															)}
-															{(() => {
-																const groupId =
-																	(
-																		row as Row<TData> & {
-																			groupingColumnId?: string;
-																		}
-																	).groupingColumnId || cell.column.id;
-																const value = row.getGroupingValue(groupId);
-																const groupColumn = table.getColumn(
-																	groupId as string,
-																);
-																const groupMeta = groupColumn?.columnDef.meta as
-																	| ColumnMeta<TData>
-																	| undefined;
-																const renderer = groupMeta?.groupValueRenderer;
+				const isAggregated = cell.getIsAggregated?.() ?? false;
+				const isPlaceholder = cell.getIsPlaceholder?.() ?? false;
 
-																return renderer ? (
-																	renderer(value, row as Row<TData>)
-																) : value != null ? (
-																	<span className="font-semibold text-sm">
-																		{String(value)}
-																	</span>
-																) : null;
-															})()}
-															<span className="text-muted-foreground text-xs">
-																{leafCount}
-															</span>
-														</div>
-														<Plus className="size-4 text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
-													</div>
-												</TableCell>
-											);
-										}
+				if (isPlaceholder) {
+					return null;
+				}
 
-										return (
-											<TableCell
-												key={cell.id}
-												className={cn(
-													cellPaddingXClassName,
-													"py-2 text-sm align-middle text-left",
-													meta?.cellClassName,
-													isFirstCell && depth > 0 && "pl-10",
-												)}
-											>
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext(),
-												)}
-											</TableCell>
-										);
-									})}
-								</TableRow>
-							);
-						})
-					)}
-				</TableBody>
-			</Table>
-		</div>
+				return (
+					<TableCell
+						key={cell.id}
+						className={cn(
+							cellPaddingXClassName,
+							"py-2 text-sm align-middle text-left",
+							metaCell?.cellClassName,
+							depth > 0 && cell.column.id === row.getVisibleCells()[0]?.column.id && "pl-10",
+						)}
+					>
+						{isAggregated
+							? flexRender(
+									cell.column.columnDef.aggregatedCell ??
+										cell.column.columnDef.cell,
+									cell.getContext(),
+								)
+							: flexRender(cell.column.columnDef.cell, cell.getContext())}
+					</TableCell>
+				);
+			})}
+		</TableRow>
+	);
+}
+
+function DataTableBodyInner<TData>() {
+	const { state } = useDataTableContext<TData>();
+	const { table, tableColumns, emptyLabel, cellPaddingXClassName, onRowClick } =
+		state;
+
+	if (table.getRowModel().rows.length === 0) {
+		return (
+			<TableBody>
+				<TableRow>
+					<TableCell
+						colSpan={tableColumns.length}
+						className="h-24 text-center text-muted-foreground"
+					>
+						{emptyLabel}
+					</TableCell>
+				</TableRow>
+			</TableBody>
+		);
+	}
+
+	return (
+		<TableBody>
+				{table.getRowModel().rows.map((rowModel) => (
+				<DataTableDataRow
+					key={rowModel.id}
+					row={rowModel as Row<unknown>}
+					onRowClick={onRowClick as ((row: unknown) => void) | undefined}
+					cellPaddingXClassName={cellPaddingXClassName}
+					table={table as TanStackTable<unknown>}
+					depth={rowModel.depth ?? 0}
+					columnCount={tableColumns.length}
+				/>
+			))}
+		</TableBody>
+	);
+}
+
+export function DataTableBody<TData>() {
+	return <DataTableBodyInner<TData> />;
+}
+
+export function DataTableRowSelection() {
+	return null;
+}
+
+export const DataTable = {
+	Provider: DataTableProvider,
+	Header: DataTableHeader,
+	Body: DataTableBody,
+	RowSelection: DataTableRowSelection,
+};
+
+export function SharedDataTable<TData, TFilterState>({
+	columns,
+	data,
+	filterState,
+	filterFn,
+	grouping,
+	subGrouping,
+	ordering,
+	setOrdering,
+	emptyLabel = "No results.",
+	containerClassName,
+	cellPaddingXClassName = "px-2",
+	showHeader = true,
+	onRowClick,
+	enableRowSelection = false,
+	onSelectionChange,
+	getRowId,
+	rowSelection: controlledRowSelection,
+	onRowSelectionChange: controlledOnRowSelectionChange,
+	autoHideRowSelection = false,
+}: SharedDataTableProps<TData, TFilterState>) {
+	const selection: DataTableSelectionConfig<TData> | undefined =
+		enableRowSelection
+			? {
+					autoHide: autoHideRowSelection,
+					rowSelection: controlledRowSelection,
+					onRowSelectionChange: controlledOnRowSelectionChange,
+					onSelectionChange: onSelectionChange,
+				}
+			: undefined;
+
+	return (
+		<DataTable.Provider
+			columns={columns}
+			data={data}
+			filterState={filterState}
+			filterFn={filterFn}
+			grouping={grouping}
+			subGrouping={subGrouping}
+			ordering={ordering}
+			setOrdering={setOrdering}
+			emptyLabel={emptyLabel}
+			containerClassName={containerClassName}
+			cellPaddingXClassName={cellPaddingXClassName}
+			onRowClick={onRowClick}
+			getRowId={getRowId}
+			selection={selection}
+		>
+			<TableUI>
+				{showHeader ? (
+					<>
+						<DataTable.Header />
+						<DataTable.Body />
+					</>
+				) : (
+					<DataTable.Body />
+				)}
+			</TableUI>
+		</DataTable.Provider>
 	);
 }
