@@ -58,6 +58,12 @@ const navSections = [
 							to: "/competitions/calendar",
 						},
 					},
+					{
+						title: "Events",
+						url: {
+							to: "/events",
+						},
+					},
 				],
 			},
 			{
@@ -72,21 +78,42 @@ const navSections = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const user = useQuery(api.users.getCurrentUser);
+	const isVolunteer = useQuery(api.auth.isVolunteerQuery) ?? false;
 	const { teams } = useTeams();
 	const unreadCount = useUnreadCount();
 
 	const navSectionsWithBadge: NavSectionData[] = navSections.map(
-		(section, i) =>
-			i === 0
-				? {
-						...section,
-						items: section.items.map((item) =>
-							item.type === "item" && item.name === "Inbox"
-								? { ...item, badge: unreadCount ?? 0 }
-								: item,
-						),
-					}
-				: section,
+		(section, i) => {
+			if (i === 0) {
+				return {
+					...section,
+					items: section.items.map((item) =>
+						item.type === "item" && item.name === "Inbox"
+							? { ...item, badge: unreadCount ?? 0 }
+							: item,
+					),
+				};
+			}
+			if (section.title === "Organisation") {
+				return {
+					...section,
+					items: section.items.map((item) => {
+						if (
+							item.type === "dropdown" &&
+							item.title === "Competitions" &&
+							item.items
+						) {
+							const items = isVolunteer
+								? item.items
+								: item.items.filter((sub) => sub.title !== "Events");
+							return { ...item, items };
+						}
+						return item;
+					}),
+				};
+			}
+			return section;
+		},
 	);
 
 	const myTeams =

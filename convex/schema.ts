@@ -234,4 +234,22 @@ export default defineSchema({
 		announced: v.optional(v.boolean()),
 		updatedAt: v.number(),
 	}).index("by_sat_date", ["satDate"]),
+
+	googleSheetsTokens: defineTable({
+		accessToken: v.string(),
+		refreshToken: v.string(),
+		expiresAt: v.number(),
+		updatedAt: v.number(),
+	}),
+
+	sheetScheduleCache: defineTable({
+		sheetId: v.string(),
+		events: v.array(
+			v.object({
+				eventName: v.string(),
+				rounds: v.string(),
+			}),
+		),
+		fetchedAt: v.number(),
+	}).index("by_sheet_id", ["sheetId"]),
 });

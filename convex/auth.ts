@@ -1,8 +1,14 @@
 import Google from "@auth/core/providers/google";
 import type { OAuthConfig, OAuthUserConfig } from "@auth/core/providers";
 import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import {
+	internalQuery,
+	query,
+	type MutationCtx,
+	type QueryCtx,
+} from "./_generated/server";
 import { ConvexError } from "convex/values";
+import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 
 function WCA(
@@ -95,6 +101,18 @@ export async function isVolunteer(ctx: AuthCtx): Promise<boolean> {
 
 	return team.memberIds.includes(userId);
 }
+
+export const getIsVolunteer = internalQuery({
+	args: {},
+	returns: v.boolean(),
+	handler: async (ctx) => isVolunteer(ctx),
+});
+
+export const isVolunteerQuery = query({
+	args: {},
+	returns: v.boolean(),
+	handler: async (ctx) => isVolunteer(ctx),
+});
 
 export async function ensureVolunteerTeam(
 	ctx: MutationCtx,

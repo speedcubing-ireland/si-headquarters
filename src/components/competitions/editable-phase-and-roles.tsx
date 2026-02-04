@@ -164,12 +164,7 @@ export function EditablePhaseCell({
 			return;
 		}
 
-		const nextPhaseIdx = competition.phases.findIndex(
-			(p) => p.id === targetPhaseId,
-		);
-		if (nextPhaseIdx >= 0) {
-			void updateCompetition(competition.id, { currentPhaseIdx: nextPhaseIdx });
-		}
+		void updateCompetition(competition.id, { currentPhaseId: targetPhaseId });
 		setOpen(false);
 	};
 

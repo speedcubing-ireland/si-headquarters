@@ -1,7 +1,27 @@
 "use client";
 
-import { CalendarDays, Circle, PanelRight, Users, X } from "lucide-react";
+import {
+	CalendarDays,
+	Circle,
+	ExternalLink,
+	FileSpreadsheet,
+	MoreHorizontal,
+	PanelRight,
+	Users,
+	X,
+} from "lucide-react";
 import { useCallback, useState } from "react";
+
+/** Parse Google Sheet ID from a full URL or raw sheet ID. */
+function parseGoogleSheetId(input: string): string | null {
+	const trimmed = input.trim();
+	if (!trimmed) return null;
+	const urlMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+	if (urlMatch) return urlMatch[1];
+	// Treat as raw ID (Google sheet IDs are alphanumeric with - and _)
+	if (/^[a-zA-Z0-9_-]+$/.test(trimmed)) return trimmed;
+	return null;
+}
 
 import {
 	EditableCompLeadCell,
@@ -13,9 +33,12 @@ import { PropertyRow } from "@/components/shared/property-editors/property-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -23,6 +46,7 @@ import {
 	PopoverContent,
 	PopoverHeader,
 	PopoverTitle,
+	PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +90,8 @@ export function CompetitionPropertiesSidebar({
 	const { updateCompetition } = useCompetitionMutations();
 	const [internalOpen, setInternalOpen] = useState(false);
 	const [dateOpen, setDateOpen] = useState(false);
+	const [sheetInput, setSheetInput] = useState("");
+	const [sheetPopoverOpen, setSheetPopoverOpen] = useState(false);
 
 	// Use controlled state for popover mode, internal state for sheet mode
 	const isOpen = renderMode === "popover" ? controlledOpen : internalOpen;
@@ -155,6 +181,114 @@ export function CompetitionPropertiesSidebar({
 							total
 						</span>
 					</PropertyRow>
+
+					{/* Google Sheet — add or remove only */}
+					<div className="flex min-h-9 flex-col gap-2 px-3 -mx-3">
+						{competition.compSheet ? (
+							<div className="flex items-center gap-1">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 min-w-0 flex-1 justify-start gap-1.5 px-2 font-normal"
+									asChild
+								>
+									<a
+										href={`https://docs.google.com/spreadsheets/d/${competition.compSheet.sheetId}`}
+										target="_blank"
+										rel="noreferrer"
+									>
+										<FileSpreadsheet className="size-3.5 shrink-0 text-green-600" />
+										<span className="truncate">Open sheet</span>
+										<ExternalLink className="size-3 shrink-0 text-muted-foreground" />
+									</a>
+								</Button>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7 shrink-0"
+										>
+											<MoreHorizontal className="size-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end" className="w-48">
+										<DropdownMenuItem asChild>
+											<a
+												href={`https://docs.google.com/spreadsheets/d/${competition.compSheet.sheetId}`}
+												target="_blank"
+												rel="noreferrer"
+											>
+												<ExternalLink className="size-4" />
+												Open
+											</a>
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											variant="destructive"
+											onClick={() => {
+												void updateCompetition(competition.id, {
+													compSheet: null,
+												});
+											}}
+										>
+											Remove
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						) : (
+							<Popover
+								open={sheetPopoverOpen}
+								onOpenChange={(open) => {
+									setSheetPopoverOpen(open);
+									if (!open) setSheetInput("");
+								}}
+							>
+								<PopoverTrigger asChild>
+									<Button variant="outline" size="sm" className="h-7">
+										<FileSpreadsheet className="size-3.5 text-green-600" />
+										Add sheet
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent align="end" className="w-72 p-3" sideOffset={6}>
+									<PopoverHeader className="p-0 pb-2">
+										<PopoverTitle className="text-xs font-medium">
+											Link or sheet ID
+										</PopoverTitle>
+									</PopoverHeader>
+									<div className="flex gap-2">
+										<Input
+											placeholder="Paste link or ID..."
+											value={sheetInput}
+											onChange={(e) => setSheetInput(e.target.value)}
+											className="h-8 flex-1 text-sm"
+										/>
+										<Button
+											size="sm"
+											className="h-8 shrink-0"
+											disabled={!parseGoogleSheetId(sheetInput)}
+											onClick={() => {
+												const sheetId = parseGoogleSheetId(sheetInput);
+												if (sheetId) {
+													void updateCompetition(competition.id, {
+														compSheet: {
+															type: "google-sheet",
+															sheetId,
+														},
+													});
+													setSheetInput("");
+													setSheetPopoverOpen(false);
+												}
+											}}
+										>
+											Add
+										</Button>
+									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+					</div>
 				</div>
 			</section>
 
@@ -199,14 +333,9 @@ export function CompetitionPropertiesSidebar({
 								key={phase.id}
 								type="button"
 								onClick={() => {
-									const phaseIdx = competition.phases.findIndex(
-										(p) => p.id === phase.id,
-									);
-									if (phaseIdx >= 0) {
-										void updateCompetition(competition.id, {
-											currentPhaseIdx: phaseIdx,
-										});
-									}
+									void updateCompetition(competition.id, {
+										currentPhaseId: phase.id,
+									});
 								}}
 								className={cn(
 									"flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",

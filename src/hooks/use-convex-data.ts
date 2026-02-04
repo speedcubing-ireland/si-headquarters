@@ -630,10 +630,9 @@ export function useCompetitionMutations() {
 					| "compLead"
 					| "leadDelegate"
 					| "organisers"
-					| "currentPhaseIdx"
 					| "compSheet"
 				>
-			>,
+			> & { currentPhaseId?: string | null },
 		) => {
 			const patch: Record<string, unknown> = {};
 			if (updates.name !== undefined) patch.name = updates.name;
@@ -651,17 +650,10 @@ export function useCompetitionMutations() {
 					: null;
 			if (updates.organisers !== undefined)
 				patch.organiserIds = updates.organisers.map((u) => u.id as Id<"users">);
-			if (updates.currentPhaseIdx !== undefined)
-				patch.currentPhaseIdx = updates.currentPhaseIdx;
-			if (
-				(updates as { currentPhaseId?: string }).currentPhaseId !== undefined
-			) {
-				patch.currentPhaseId = (updates as { currentPhaseId?: string })
-					.currentPhaseId
-					? ((updates as { currentPhaseId?: string })
-							.currentPhaseId as Id<"phases">)
-					: null;
-			}
+			if (updates.currentPhaseId !== undefined)
+				patch.currentPhaseId = updates.currentPhaseId
+					? (updates.currentPhaseId as Id<"phases">)
+					: undefined;
 			if (updates.compSheet !== undefined)
 				patch.compSheet = updates.compSheet ?? null;
 			await updateCompetitionMutation({

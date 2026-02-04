@@ -20,6 +20,8 @@ import type * as notifications from "../notifications.js";
 import type * as phases from "../phases.js";
 import type * as reminders from "../reminders.js";
 import type * as seed from "../seed.js";
+import type * as sheets from "../sheets.js";
+import type * as sheetsQueries from "../sheetsQueries.js";
 import type * as tasks from "../tasks.js";
 import type * as teams from "../teams.js";
 import type * as updates from "../updates.js";
@@ -46,6 +48,8 @@ declare const fullApi: ApiFromModules<{
   phases: typeof phases;
   reminders: typeof reminders;
   seed: typeof seed;
+  sheets: typeof sheets;
+  sheetsQueries: typeof sheetsQueries;
   tasks: typeof tasks;
   teams: typeof teams;
   updates: typeof updates;
