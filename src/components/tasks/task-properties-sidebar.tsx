@@ -75,6 +75,8 @@ interface TaskPropertiesSidebarProps {
 	onOpenChange?: (open: boolean) => void;
 	/** Optional className for the popover trigger button */
 	triggerClassName?: string;
+	/** When provided, shows a Delete task button that calls this (e.g. to open confirm dialog) */
+	onDeleteClick?: () => void;
 }
 
 function ApprovalBadge({
@@ -266,6 +268,7 @@ export function TaskPropertiesSidebar({
 	open: controlledOpen,
 	onOpenChange,
 	triggerClassName,
+	onDeleteClick,
 }: TaskPropertiesSidebarProps) {
 	const {
 		updateTask,
@@ -512,6 +515,23 @@ export function TaskPropertiesSidebar({
 					</PropertyRow>
 				</div>
 			</section>
+
+			{onDeleteClick && (
+				<>
+					<Separator />
+					<section className="pt-1">
+						<Button
+							variant="destructive"
+							size="sm"
+							onClick={onDeleteClick}
+							className="w-full gap-2"
+						>
+							<Trash2 className="size-4" />
+							Delete task
+						</Button>
+					</section>
+				</>
+			)}
 		</div>
 	);
 

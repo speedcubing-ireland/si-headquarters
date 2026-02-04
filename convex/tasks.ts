@@ -4,6 +4,10 @@ import type { Id, Doc } from "./_generated/dataModel";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
+import {
+	collectAllTaskIdsRecursively,
+	deleteTasksAndRelatedData,
+} from "./competitions";
 
 const APPROVAL_PREFIX_USER = "user:";
 const APPROVAL_PREFIX_TEAM = "team:";
@@ -1569,17 +1573,18 @@ export const remove = mutation({
 		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const volunteer = await isVolunteer(ctx);
 
-		if (!volunteer) {
-			for (const taskId of args.taskIds) {
-				const task = await ctx.db.get("tasks", taskId);
-				if (!task) continue;
-				await requireTaskAccess(ctx, volunteer, userId, task);
-			}
+		const allTaskIds = new Set<Id<"tasks">>();
+		for (const taskId of args.taskIds) {
+			const task = await ctx.db.get("tasks", taskId);
+			if (!task) continue;
+			await requireTaskAccess(ctx, volunteer, userId, task);
+			await collectAllTaskIdsRecursively(ctx, [taskId], allTaskIds);
 		}
 
-		for (const id of args.taskIds) {
-			await ctx.db.delete("tasks", id);
-		}
+		const taskIdArray = Array.from(allTaskIds);
+		if (taskIdArray.length === 0) return null;
+
+		await deleteTasksAndRelatedData(ctx, taskIdArray);
 		return null;
 	},
 });

@@ -474,6 +474,10 @@ export function useTaskMutations() {
 			await removeTasksMutation({ taskIds: taskIds as Id<"tasks">[] });
 		},
 
+		deleteTask: async (taskId: string) => {
+			await removeTasksMutation({ taskIds: [taskId as Id<"tasks">] });
+		},
+
 		addRequiredApprover: async (
 			taskId: string,
 			approver: Team | User,

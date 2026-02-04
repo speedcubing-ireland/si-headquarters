@@ -36,12 +36,17 @@ function useSetWeekendOverride() {
 	};
 }
 
-function getTasksSummary(comp: Competition): { open: number; total: number } {
+function getTasksSummary(comp: Competition): {
+	completed: number;
+	open: number;
+	total: number;
+} {
 	const total = comp.tasks.length;
-	const open = comp.tasks.filter(
-		(task) => task.status !== "done" && task.status !== "cancelled",
+	const completed = comp.tasks.filter(
+		(task) => task.status === "done" || task.status === "cancelled",
 	).length;
-	return { open, total };
+	const open = total - completed;
+	return { completed, open, total };
 }
 
 const emptyCell = <span className="text-muted-foreground text-xs">—</span>;
@@ -256,7 +261,7 @@ export const calendarColumns: ColumnDef<Weekend>[] = [
 	{
 		id: "tasks",
 		accessorFn: (row) =>
-			row.competition ? getTasksSummary(row.competition).open : 0,
+			row.competition ? getTasksSummary(row.competition).completed : 0,
 		header: "Tasks",
 		cell: ({ row }) => {
 			const comp = row.original.competition;
@@ -264,7 +269,7 @@ export const calendarColumns: ColumnDef<Weekend>[] = [
 			const summary = getTasksSummary(comp);
 			return (
 				<span className="font-mono text-xs">
-					{summary.open} / {summary.total}
+					{summary.completed} / {summary.total}
 				</span>
 			);
 		},

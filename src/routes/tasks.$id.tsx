@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, MoreHorizontal, Plus, X } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Bell, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ActivityFeed } from "@/components/tasks/activity-feed";
@@ -10,6 +10,7 @@ import { TaskModal } from "@/components/tasks/task-modal";
 import { TaskPropertiesSidebar } from "@/components/tasks/task-properties-sidebar";
 import { TaskReminderStrip } from "@/components/tasks/task-reminder-strip";
 import { TaskResourcesSection } from "@/components/tasks/task-resources";
+import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -48,10 +49,12 @@ function TaskHeader({
 	task,
 	onPropertiesClick,
 	onRemindMeClick,
+	onDeleteClick,
 }: {
 	task: Task;
 	onPropertiesClick: () => void;
 	onRemindMeClick: () => void;
+	onDeleteClick?: () => void;
 }) {
 	const { tasks } = useTasks(false);
 	const { competitions } = useCompetitions();
@@ -133,6 +136,15 @@ function TaskHeader({
 							<Bell className="size-4 mr-2" />
 							Remind me
 						</DropdownMenuItem>
+						{onDeleteClick && (
+							<DropdownMenuItem
+								onClick={onDeleteClick}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="size-4 mr-2" />
+								Delete task
+							</DropdownMenuItem>
+						)}
 					</DropdownMenuContent>
 				</DropdownMenu>
 				<Link to="/tasks">
@@ -215,14 +227,16 @@ function SubTasksList({ task }: { task: Task }) {
 
 function RouteComponent() {
 	const { id } = Route.useParams();
+	const navigate = useNavigate();
 	const task = useTask(id);
-	const { updateTask } = useTaskMutations();
+	const { updateTask, deleteTask } = useTaskMutations();
 	const { addReminder } = useReminderMutations();
 
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
 	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
 	const [remindMeOpen, setRemindMeOpen] = useState(false);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	// Use debounced form for title editing
 	const titleForm = useDebouncedForm({
@@ -286,12 +300,24 @@ function RouteComponent() {
 		void addReminder(buildOneTimeReminderPayload(task.id, remindAt, message));
 	};
 
+	const handleDeleteConfirm = async () => {
+		setDeleteDialogOpen(false);
+		await deleteTask(task.id);
+		const parentId = task.parent?.type === "task" ? task.parent.linkedId : null;
+		navigate(
+			parentId
+				? { to: "/tasks/$id", params: { id: parentId } }
+				: { to: "/tasks" },
+		);
+	};
+
 	return (
 		<div className="flex flex-col h-full">
 			<TaskHeader
 				task={task}
 				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
 				onRemindMeClick={() => setRemindMeOpen(true)}
+				onDeleteClick={() => setDeleteDialogOpen(true)}
 			/>
 			<div className="flex flex-1 overflow-hidden">
 				<div className="flex-1 overflow-auto p-6">
@@ -375,19 +401,38 @@ function RouteComponent() {
 					<ActivityFeed taskId={task.id} />
 				</div>
 
-				<TaskPropertiesSidebar task={task} renderMode="sidebar" />
+				<TaskPropertiesSidebar
+					task={task}
+					renderMode="sidebar"
+					onDeleteClick={() => setDeleteDialogOpen(true)}
+				/>
 			</div>
 			<TaskPropertiesSidebar
 				task={task}
 				renderMode="popover"
 				open={propertiesPopoverOpen}
 				onOpenChange={setPropertiesPopoverOpen}
+				onDeleteClick={() => setDeleteDialogOpen(true)}
 			/>
 			<RemindMeDialog
 				open={remindMeOpen}
 				onOpenChange={setRemindMeOpen}
 				taskId={task.id}
 				onSetReminder={handleSetReminder}
+			/>
+			<ConfirmDeleteDialog
+				open={deleteDialogOpen}
+				onOpenChange={setDeleteDialogOpen}
+				title="Delete task?"
+				description={
+					<>
+						Are you sure you want to permanently delete &quot;{task.title}
+						&quot;? This will delete all subtasks, sub-subtasks, comments,
+						reactions, resources, reminders, and other associated data. This
+						action cannot be undone.
+					</>
+				}
+				onConfirm={handleDeleteConfirm}
 			/>
 		</div>
 	);

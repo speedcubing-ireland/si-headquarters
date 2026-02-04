@@ -12,16 +12,7 @@ import {
 } from "@/components/competitions/editable-phase-and-roles";
 import { LeadsDisplay } from "@/components/competitions/leads-display";
 import { EditableText } from "@/components/shared/editable-text";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -316,34 +307,23 @@ export function CompetitionDetails({
 						<Trash2 className="size-4" />
 						Delete Competition
 					</Button>
-					<AlertDialog
+					<ConfirmDeleteDialog
 						open={deleteDialogOpen}
 						onOpenChange={setDeleteDialogOpen}
-					>
-						<AlertDialogContent>
-							<AlertDialogHeader>
-								<AlertDialogTitle>Delete Competition?</AlertDialogTitle>
-								<AlertDialogDescription>
-									Are you sure you want to permanently delete "
-									{competition.name}"? This will delete all tasks, subtasks,
-									comments, reactions, updates, and other associated data. This
-									action cannot be undone.
-								</AlertDialogDescription>
-							</AlertDialogHeader>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction
-									variant="destructive"
-									onClick={() => {
-										setDeleteDialogOpen(false);
-										onDelete?.();
-									}}
-								>
-									Delete Permanently
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
+						title="Delete Competition?"
+						description={
+							<>
+								Are you sure you want to permanently delete &quot;
+								{competition.name}&quot;? This will delete all tasks, subtasks,
+								comments, reactions, updates, and other associated data. This
+								action cannot be undone.
+							</>
+						}
+						onConfirm={() => {
+							setDeleteDialogOpen(false);
+							onDelete?.();
+						}}
+					/>
 				</div>
 			)}
 		</section>

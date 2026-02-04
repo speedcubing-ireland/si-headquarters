@@ -70,7 +70,7 @@ type GroupValueRenderer = (
 	value: unknown,
 	row: Row<Competition>,
 ) => React.ReactNode;
-type TasksSummary = { open: number; total: number };
+type TasksSummary = { completed: number; open: number; total: number };
 
 const phaseGroupRenderer: GroupValueRenderer = (value, row) => {
 	// When grouped, `value` is the grouping value derived from the column accessor.
@@ -102,7 +102,7 @@ const tasksGroupRenderer: GroupValueRenderer = (_value, row) => {
 	const summary = getTasksSummary(comp);
 	return (
 		<span className="font-mono text-xs">
-			{summary.open} / {summary.total} open
+			{summary.completed} / {summary.total}
 		</span>
 	);
 };
@@ -187,10 +187,11 @@ const leadDelegateGroupRenderer: GroupValueRenderer = (_value, row) => {
 
 function getTasksSummary(comp: Competition): TasksSummary {
 	const total = comp.tasks.length;
-	const open = comp.tasks.filter(
-		(task) => task.status !== "done" && task.status !== "cancelled",
+	const completed = comp.tasks.filter(
+		(task) => task.status === "done" || task.status === "cancelled",
 	).length;
-	return { open, total };
+	const open = total - completed;
+	return { completed, open, total };
 }
 
 function createSortableColumn(
@@ -314,13 +315,13 @@ export const columns: ColumnDef<Competition>[] = [
 	},
 	{
 		id: "tasks",
-		accessorFn: (row) => getTasksSummary(row).open,
+		accessorFn: (row) => getTasksSummary(row).completed,
 		header: "Tasks",
 		cell: ({ row }) => {
 			const summary = getTasksSummary(row.original);
 			return (
 				<span className="font-mono text-xs">
-					{summary.open} / {summary.total}
+					{summary.completed} / {summary.total}
 				</span>
 			);
 		},

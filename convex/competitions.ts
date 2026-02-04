@@ -569,7 +569,7 @@ export const update = mutation({
 	},
 });
 
-async function collectAllTaskIdsRecursively(
+export async function collectAllTaskIdsRecursively(
 	ctx: QueryCtx,
 	parentTaskIds: Id<"tasks">[],
 	allTaskIds: Set<Id<"tasks">>,
@@ -611,7 +611,7 @@ async function collectAllCommentIdsRecursively(
 	}
 }
 
-async function deleteCommentsAndReplies(
+export async function deleteCommentsAndReplies(
 	ctx: MutationCtx,
 	parentType: "task" | "update",
 	parentId: string,
@@ -633,6 +633,55 @@ async function deleteCommentsAndReplies(
 	await Promise.all(
 		Array.from(allCommentIds).map((id) => ctx.db.delete("comments", id)),
 	);
+}
+
+export async function deleteTasksAndRelatedData(
+	ctx: MutationCtx,
+	taskIdArray: Id<"tasks">[],
+): Promise<void> {
+	if (taskIdArray.length === 0) return;
+
+	const allReminders = await ctx.db.query("reminders").collect();
+	const remindersToDelete = allReminders.filter(
+		(r) =>
+			r.entityType === "task" &&
+			taskIdArray.includes(r.entityId as Id<"tasks">),
+	);
+
+	const allNotifications = await ctx.db.query("notifications").collect();
+	const notificationsToDelete = allNotifications.filter(
+		(n) =>
+			n.entityType === "task" &&
+			taskIdArray.includes(n.entityId as Id<"tasks">),
+	);
+
+	const taskActivityLogPromises = taskIdArray.map((taskId) =>
+		ctx.db
+			.query("activityLog")
+			.withIndex("by_entity", (q) =>
+				q.eq("entityType", "task").eq("entityId", taskId),
+			)
+			.collect(),
+	);
+	const taskActivityLogs = (await Promise.all(taskActivityLogPromises)).flat();
+
+	await Promise.all([
+		...remindersToDelete.map((r) => ctx.db.delete("reminders", r._id)),
+		...notificationsToDelete.map((n) =>
+			ctx.db.delete("notifications", n._id),
+		),
+		...taskActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
+	]);
+
+	await Promise.all(
+		taskIdArray.map((taskId) =>
+			deleteCommentsAndReplies(ctx, "task", taskId),
+		),
+	);
+
+	for (const taskId of taskIdArray) {
+		await ctx.db.delete("tasks", taskId);
+	}
 }
 
 export const remove = mutation({
@@ -673,19 +722,15 @@ export const remove = mutation({
 			)
 			.collect();
 
-		const allReminders = await ctx.db.query("reminders").collect();
-		const remindersToDelete = allReminders.filter(
-			(r) =>
-				r.entityType === "task" &&
-				taskIdArray.includes(r.entityId as Id<"tasks">),
-		);
+		await deleteTasksAndRelatedData(ctx, taskIdArray);
 
-		const allNotifications = await ctx.db.query("notifications").collect();
-		const notificationsToDelete = allNotifications.filter(
+		const competitionNotifications = await ctx.db
+			.query("notifications")
+			.collect();
+		const notificationsToDelete = competitionNotifications.filter(
 			(n) =>
-				(n.entityType === "competition" && n.entityId === args.competitionId) ||
-				(n.entityType === "task" &&
-					taskIdArray.includes(n.entityId as Id<"tasks">)),
+				n.entityType === "competition" &&
+				n.entityId === args.competitionId,
 		);
 
 		const competitionActivityLogs = await ctx.db
@@ -695,44 +740,21 @@ export const remove = mutation({
 			)
 			.collect();
 
-		const taskActivityLogPromises = taskIdArray.map((taskId) =>
-			ctx.db
-				.query("activityLog")
-				.withIndex("by_entity", (q) =>
-					q.eq("entityType", "task").eq("entityId", taskId),
-				)
-				.collect(),
-		);
-		const taskActivityLogs = (
-			await Promise.all(taskActivityLogPromises)
-		).flat();
-
 		await Promise.all([
-			...remindersToDelete.map((r) => ctx.db.delete("reminders", r._id)),
 			...notificationsToDelete.map((n) =>
 				ctx.db.delete("notifications", n._id),
 			),
 			...competitionActivityLogs.map((l) =>
 				ctx.db.delete("activityLog", l._id),
 			),
-			...taskActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
 		]);
 
-		await Promise.all([
-			...taskIdArray.map((taskId) =>
-				deleteCommentsAndReplies(ctx, "task", taskId),
-			),
-			...competitionUpdates.map((update) =>
-				deleteCommentsAndReplies(ctx, "update", update._id),
-			),
-		]);
-
-		await Promise.all([
-			...taskIdArray.map((taskId) => ctx.db.delete("tasks", taskId)),
-			...competitionUpdates.map((update) =>
-				ctx.db.delete("competitionUpdates", update._id),
-			),
-		]);
+		for (const update of competitionUpdates) {
+			await deleteCommentsAndReplies(ctx, "update", update._id);
+		}
+		for (const update of competitionUpdates) {
+			await ctx.db.delete("competitionUpdates", update._id);
+		}
 
 		await ctx.db.delete("competitions", args.competitionId);
 		return null;

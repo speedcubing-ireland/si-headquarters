@@ -40,7 +40,7 @@ const RootLayout = () => (
 						Speedcubing Ireland
 					</p>
 					<p className="mt-2 text-balance text-2xl font-semibold tracking-tight">
-						Volunteer & competition dashboard
+						Volunteer & Competition Dashboard
 					</p>
 					<p className="mt-2 text-sm text-muted-foreground">
 						Sign in to access competitions, tasks, and activity insights.
@@ -48,19 +48,14 @@ const RootLayout = () => (
 				</div>
 				<SignInForm />
 				<p className="mt-6 max-w-md text-center text-xs text-muted-foreground">
-					Use your Google account associated with Speedcubing Ireland. If you
-					can&apos;t sign in, contact an admin to request access.
+					Speedcubing Ireland Volunteers sign in with Google. External
+					Organisers sign in with WCA. Contact an admin if you need access.
 				</p>
 			</div>
 		</Unauthenticated>
 	</>
 );
 
-/**
- * Component that ensures users with @speedcubingireland.com emails
- * are added to the Volunteer team on app initialization.
- * Idempotent - safe to call multiple times.
- */
 function EnsureVolunteerAccess() {
 	const ensureVolunteerAccess = useMutation(api.users.ensureVolunteerAccess);
 
@@ -78,7 +73,7 @@ function SignInForm() {
 			<CardHeader>
 				<CardTitle>Sign in</CardTitle>
 				<CardDescription>
-					Continue with Google to access the dashboard.
+					Choose the account type that applies to you.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-3">
@@ -88,7 +83,15 @@ function SignInForm() {
 					variant="outline"
 					onClick={() => void signIn("google")}
 				>
-					Sign in with Google
+					Speedcubing Ireland Volunteer (GSuite)
+				</Button>
+				<Button
+					type="button"
+					className="w-full"
+					variant="outline"
+					onClick={() => void signIn("wca")}
+				>
+					External Organiser (WCA)
 				</Button>
 			</CardContent>
 		</Card>
