@@ -332,7 +332,8 @@ export function TaskPropertiesSidebar({
 		// Encode the approver key based on whether it's a user or team
 		const approver = task.requiredApprovalBy.find((a) => a.id === approverId);
 		if (!approver) return;
-		const approverKey = "members" in approver ? `team:${approverId}` : `user:${approverId}`;
+		const approverKey =
+			"members" in approver ? `team:${approverId}` : `user:${approverId}`;
 		void removeRequiredApprover(task.id, approverKey, currentUser);
 	};
 

@@ -184,34 +184,36 @@ export function EditableTaskStatus({
 	};
 
 	return (
-		<>
-			<EditableTaskCell
-				type="status"
-				value={status}
-				onChange={handleStatusChange}
-				renderTrigger={(value) =>
-					children ?? (
-						<div className="flex items-center gap-1.5">
-							<StatusIcon className="size-4" />
-							<span className="text-xs">{statusLabels[value]}</span>
-						</div>
-					)
-				}
-				renderOption={(option) => {
-					const OptionIcon = option.icon ?? CircleDashed;
-					return (
-						<div className="flex items-center gap-2">
-							<OptionIcon className="size-4 text-muted-foreground" />
-							<span className="text-xs">{option.label}</span>
-						</div>
-					);
-				}}
-				options={options.filter(
-					(option) =>
-						!(option.value === "done" && hasRequiredApprovals && !isTaskFullyApproved),
-				)}
-			/>
-		</>
+		<EditableTaskCell
+			type="status"
+			value={status}
+			onChange={handleStatusChange}
+			renderTrigger={(value) =>
+				children ?? (
+					<div className="flex items-center gap-1.5">
+						<StatusIcon className="size-4" />
+						<span className="text-xs">{statusLabels[value]}</span>
+					</div>
+				)
+			}
+			renderOption={(option) => {
+				const OptionIcon = option.icon ?? CircleDashed;
+				return (
+					<div className="flex items-center gap-2">
+						<OptionIcon className="size-4 text-muted-foreground" />
+						<span className="text-xs">{option.label}</span>
+					</div>
+				);
+			}}
+			options={options.filter(
+				(option) =>
+					!(
+						option.value === "done" &&
+						hasRequiredApprovals &&
+						!isTaskFullyApproved
+					),
+			)}
+		/>
 	);
 }
 

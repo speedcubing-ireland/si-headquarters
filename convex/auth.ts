@@ -13,7 +13,9 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
  */
 export async function requireUserId(
 	ctx: QueryCtx | MutationCtx,
-): Promise<ReturnType<typeof getAuthUserId> extends Promise<infer T> ? T : never> {
+): Promise<
+	ReturnType<typeof getAuthUserId> extends Promise<infer T> ? T : never
+> {
 	const userId = await getAuthUserId(ctx);
 	if (userId === null) {
 		throw new ConvexError("Authentication required");

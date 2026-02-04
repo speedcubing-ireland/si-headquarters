@@ -13,6 +13,7 @@ import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as comments from "../comments.js";
 import type * as competitions from "../competitions.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as labels from "../labels.js";
 import type * as notifications from "../notifications.js";
@@ -21,8 +22,10 @@ import type * as reminders from "../reminders.js";
 import type * as seed from "../seed.js";
 import type * as tasks from "../tasks.js";
 import type * as teams from "../teams.js";
+import type * as updates from "../updates.js";
 import type * as users from "../users.js";
 import type * as views from "../views.js";
+import type * as weekendOverrides from "../weekendOverrides.js";
 
 import type {
   ApiFromModules,
@@ -36,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   comments: typeof comments;
   competitions: typeof competitions;
+  crons: typeof crons;
   http: typeof http;
   labels: typeof labels;
   notifications: typeof notifications;
@@ -44,8 +48,10 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   tasks: typeof tasks;
   teams: typeof teams;
+  updates: typeof updates;
   users: typeof users;
   views: typeof views;
+  weekendOverrides: typeof weekendOverrides;
 }>;
 
 /**

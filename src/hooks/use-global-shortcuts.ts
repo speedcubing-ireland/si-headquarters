@@ -33,11 +33,23 @@ export function useGlobalShortcuts() {
 				return;
 			}
 
-			// G + navigation shortcuts
-			if (e.key.toLowerCase() === "g") {
+			// G + navigation shortcuts — don't register when a modal is open (typing "i" etc. would navigate away)
+			const hasOpenDialog = document.querySelector('[role="dialog"]');
+			if (e.key.toLowerCase() === "g" && !hasOpenDialog) {
 				// Wait for next key
 				const handleNextKey = (nextEvent: KeyboardEvent) => {
 					window.removeEventListener("keydown", handleNextKey);
+
+					// Don't trigger navigation when typing in an input (e.g. "Ireland" in competition name)
+					const nextTarget = nextEvent.target as HTMLElement | null;
+					const nextIsInput =
+						nextTarget &&
+						["INPUT", "TEXTAREA", "SELECT"].includes(nextTarget.tagName);
+					if (nextIsInput) return;
+
+					// Don't navigate when a modal/dialog is open (e.g. competition modal)
+					const hasOpenDialog = document.querySelector('[role="dialog"]');
+					if (hasOpenDialog) return;
 
 					switch (nextEvent.key.toLowerCase()) {
 						case "i": // Go to Inbox

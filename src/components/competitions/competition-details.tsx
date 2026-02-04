@@ -1,7 +1,9 @@
 "use client";
 
-import { CalendarDays, Users } from "lucide-react";
-import { useState } from "react";
+import { glass } from "@dicebear/collection";
+import { createAvatar } from "@dicebear/core";
+import { CalendarDays, Trash2, Users } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
 	EditableCompLeadCell,
 	EditableLeadDelegateCell,
@@ -10,22 +12,37 @@ import {
 } from "@/components/competitions/editable-phase-and-roles";
 import { LeadsDisplay } from "@/components/competitions/leads-display";
 import { EditableText } from "@/components/shared/editable-text";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { Competition } from "@/data/types-new";
 import { formatDate } from "@/lib/format-utils";
 
+const COMPETITION_AVATAR_SIZE = 48;
+
 interface CompetitionDetailsProps {
 	competition: Competition;
 	isEditable?: boolean;
 	onUpdate?: (updates: Partial<Competition>) => void;
+	onDelete?: () => void;
 }
 
 export function CompetitionDetails({
 	competition,
 	isEditable = false,
 	onUpdate,
+	onDelete,
 }: CompetitionDetailsProps) {
 	const currentPhase = competition.phases[competition.currentPhaseIdx];
 
@@ -38,7 +55,10 @@ export function CompetitionDetails({
 		competition.description ?? "",
 	);
 
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
 	const canEdit = isEditable && typeof onUpdate === "function";
+	const canDelete = isEditable && typeof onDelete === "function";
 
 	const handleCommitDates = () => {
 		if (!canEdit) {
@@ -69,12 +89,23 @@ export function CompetitionDetails({
 		setIsEditingDescription(false);
 	};
 
+	const avatarDataUri = useMemo(
+		() =>
+			createAvatar(glass, {
+				seed: competition.name,
+				size: COMPETITION_AVATAR_SIZE,
+			}).toDataUri(),
+		[competition.name],
+	);
+
 	return (
 		<section className="space-y-6">
 			<div className="flex items-start gap-4">
-				<div className="flex size-12 items-center justify-center rounded-lg border border-border bg-muted/30">
-					<span className="text-sm font-medium text-muted-foreground">SC</span>
-				</div>
+				<img
+					src={avatarDataUri}
+					alt=""
+					className="size-12 shrink-0 rounded-lg border border-border object-cover"
+				/>
 
 				<div className="flex-1 space-y-2">
 					{canEdit ? (
@@ -273,6 +304,42 @@ export function CompetitionDetails({
 					</div>
 				</div>
 			</div>
+
+			{canDelete && (
+				<div className="pt-6 border-t">
+					<Button
+						variant="destructive"
+						size="sm"
+						onClick={() => setDeleteDialogOpen(true)}
+						className="gap-2"
+					>
+						<Trash2 className="size-4" />
+						Delete Competition
+					</Button>
+					<AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>Delete Competition?</AlertDialogTitle>
+								<AlertDialogDescription>
+									Are you sure you want to permanently delete "{competition.name}"? This will delete all tasks, subtasks, comments, reactions, updates, and other associated data. This action cannot be undone.
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+							<AlertDialogFooter>
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<AlertDialogAction
+									variant="destructive"
+									onClick={() => {
+										setDeleteDialogOpen(false);
+										onDelete?.();
+									}}
+								>
+									Delete Permanently
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				</div>
+			)}
 		</section>
 	);
 }

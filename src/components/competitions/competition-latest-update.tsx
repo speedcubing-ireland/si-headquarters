@@ -10,7 +10,10 @@ import {
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useCompetition, useUsers } from "@/hooks/use-convex-data";
+import {
+	useCompetition,
+	useCompetitionUpdateMutations,
+} from "@/hooks/use-convex-data";
 import type { Competition, ProgressUpdate } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
 
@@ -39,34 +42,32 @@ interface CompetitionLatestUpdateProps {
 export function CompetitionLatestUpdate({
 	competition,
 }: CompetitionLatestUpdateProps) {
-	const { users } = useUsers();
 	const freshCompetition = useCompetition(competition.id) ?? competition;
-
-	const currentUser = users[0];
-
-	// Stub: Phase 3 will add progress update reactions in Convex
-	const addUpdateReaction = (
-		_competitionId: string,
-		_updateId: string,
-		_emoji: string,
-		_actor: { id: string; name: string; avatarUrl: string },
-	) => {};
+	const { createUpdate, addReaction } = useCompetitionUpdateMutations();
 
 	const [isCreating, setIsCreating] = useState(false);
 	const [message, setMessage] = useState("");
 	const [status, setStatus] = useState<ProgressUpdate["status"]>("on-track");
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	// Phase 2: progressUpdates live in Convex as []; Phase 3 will add progress update mutations
 	const latest = [...(freshCompetition.progressUpdates ?? [])].sort((a, b) =>
 		b.timestamp.localeCompare(a.timestamp),
 	)[0];
 
-	const handleCreate = () => {
+	const handleCreate = async () => {
 		if (!message.trim()) return;
-		// Stub: progress updates not yet in Convex (Phase 3)
-		setIsCreating(false);
-		setMessage("");
-		setStatus("on-track");
+		setIsSubmitting(true);
+		try {
+			await createUpdate(competition.id, {
+				status,
+				message: message.trim(),
+			});
+			setIsCreating(false);
+			setMessage("");
+			setStatus("on-track");
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	if (!latest && !isCreating) {
@@ -146,24 +147,10 @@ export function CompetitionLatestUpdate({
 						<div className="flex items-center gap-2 pt-2">
 							<ReactionDisplay
 								reactions={active.reactions}
-								onAddReaction={(emoji) =>
-									addUpdateReaction(
-										competition.id,
-										active.id,
-										emoji,
-										currentUser,
-									)
-								}
+								onAddReaction={(emoji) => addReaction(active.id, emoji)}
 							/>
 							<ReactionButton
-								onAddReaction={(emoji) =>
-									addUpdateReaction(
-										competition.id,
-										active.id,
-										emoji,
-										currentUser,
-									)
-								}
+								onAddReaction={(emoji) => addReaction(active.id, emoji)}
 							/>
 						</div>
 					</>
@@ -225,8 +212,13 @@ export function CompetitionLatestUpdate({
 							>
 								Cancel
 							</Button>
-							<Button size="sm" className="h-7" onClick={handleCreate}>
-								Save update
+							<Button
+								size="sm"
+								className="h-7"
+								onClick={handleCreate}
+								disabled={isSubmitting}
+							>
+								{isSubmitting ? "Saving…" : "Save update"}
 							</Button>
 						</div>
 					</div>

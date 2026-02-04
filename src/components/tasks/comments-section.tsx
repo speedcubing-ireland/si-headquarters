@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
 	useUsers,
 	useCommentsForTask,
@@ -29,12 +28,14 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MentionTextarea } from "@/components/shared/mention-textarea";
 
 interface CommentItemProps {
 	comment: Comment;
 	allComments: Comment[];
 	depth?: number;
 	currentUser: User;
+	users: User[];
 	onReply: (parentCommentId: string, content: string) => void;
 	onEdit: (commentId: string, content: string) => void;
 	onDelete: (commentId: string) => void;
@@ -46,6 +47,7 @@ function CommentItem({
 	allComments,
 	depth = 0,
 	currentUser,
+	users,
 	onReply,
 	onEdit,
 	onDelete,
@@ -125,17 +127,18 @@ function CommentItem({
 						<span className="font-medium text-sm">{comment.author.name}</span>
 						<span className="text-xs text-muted-foreground">
 							{formatDate(comment.createdAt)}
-							{comment.updatedAt !== comment.createdAt && " (edited)"}
+							{comment.contentUpdatedAt != null && " (edited)"}
 						</span>
 					</div>
 
 					{isEditing ? (
 						<div className="space-y-2">
-							<Textarea
+							<MentionTextarea
 								value={editForm.value}
 								onChange={editForm.handleChange}
 								className="min-h-[80px] text-sm"
-								autoFocus
+								users={users}
+								currentUserId={currentUser.id}
 							/>
 							<div className="flex gap-2">
 								<Button size="sm" onClick={handleSubmitEdit}>
@@ -201,12 +204,13 @@ function CommentItem({
 							{/* Reply Input */}
 							{isReplying && (
 								<div className="mt-3 space-y-2">
-									<Textarea
+									<MentionTextarea
 										placeholder="Write a reply..."
 										value={replyForm.value}
 										onChange={replyForm.handleChange}
 										className="min-h-[80px] text-sm"
-										autoFocus
+										users={users}
+										currentUserId={currentUser.id}
 									/>
 									<div className="flex gap-2">
 										<Button size="sm" onClick={handleSubmitReply}>
@@ -241,6 +245,7 @@ function CommentItem({
 							allComments={allComments}
 							depth={depth + 1}
 							currentUser={currentUser}
+							users={users}
 							onReply={onReply}
 							onEdit={onEdit}
 							onDelete={onDelete}
@@ -313,7 +318,7 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 	};
 
 	const handleAddReaction = (commentId: string, emoji: string) => {
-		if (currentUser) void addReaction(commentId, emoji, currentUser);
+		void addReaction(commentId, emoji);
 	};
 
 	return (
@@ -335,11 +340,13 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 					</AvatarFallback>
 				</Avatar>
 				<div className="flex-1 space-y-2">
-					<Textarea
+					<MentionTextarea
 						placeholder="Leave a comment..."
 						value={newCommentForm.value}
 						onChange={newCommentForm.handleChange}
 						className="min-h-[100px] text-sm"
+						users={users}
+						currentUserId={currentUser?.id}
 					/>
 					<div className="flex justify-between items-center">
 						<span className="text-xs text-muted-foreground" />
@@ -367,6 +374,7 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 							comment={comment}
 							allComments={allComments}
 							currentUser={currentUser}
+							users={users}
 							onReply={handleReply}
 							onEdit={handleEdit}
 							onDelete={handleDelete}

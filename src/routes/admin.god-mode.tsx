@@ -1,12 +1,7 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Select,
 	SelectContent,
@@ -91,7 +86,9 @@ function MembersAndTeamsSection() {
 	const { users, teams, isLoading } = useAdminMembersAndTeams();
 	const { updateTeamMembers } = useAdminMemberMutations();
 
-	const [selectedTeamId, setSelectedTeamId] = useState<Id<"teams"> | null>(null);
+	const [selectedTeamId, setSelectedTeamId] = useState<Id<"teams"> | null>(
+		null,
+	);
 
 	const selectedTeam = useMemo(
 		() => teams.find((t) => t.id === selectedTeamId) ?? null,
@@ -180,14 +177,15 @@ function MembersAndTeamsSection() {
 									>
 										<span className="truncate">{user.name || "Unnamed"}</span>
 										<div className="flex items-center gap-1">
-											{isDirectorTeam && user.teamIds.includes(selectedTeam.id) && (
-												<Badge
-													variant="outline"
-													className="border-amber-500 text-amber-700 text-[10px]"
-												>
-													Director
-												</Badge>
-											)}
+											{isDirectorTeam &&
+												user.teamIds.includes(selectedTeam.id) && (
+													<Badge
+														variant="outline"
+														className="border-amber-500 text-amber-700 text-[10px]"
+													>
+														Director
+													</Badge>
+												)}
 											{isMember && (
 												<Badge
 													variant="outline"
@@ -307,7 +305,9 @@ function LabelsSection() {
 				</div>
 
 				{error && (
-					<div className="text-xs text-destructive wrap-break-word">{error}</div>
+					<div className="text-xs text-destructive wrap-break-word">
+						{error}
+					</div>
 				)}
 
 				{isLoading ? (
@@ -421,13 +421,18 @@ function PhasesSection() {
 			setNewName("");
 			setNewDescription("");
 		} catch (e) {
-		setError((e as Error).message);
+			setError((e as Error).message);
 		}
 	};
 
 	const handleUpdatePhase = async (
 		phaseId: Id<"phases">,
-		updates: { name?: string; description?: string; order?: number; archived?: boolean },
+		updates: {
+			name?: string;
+			description?: string;
+			order?: number;
+			archived?: boolean;
+		},
 	) => {
 		setSavingId(phaseId);
 		setError(null);
@@ -494,154 +499,151 @@ function PhasesSection() {
 											key={phase.id}
 											className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto] items-center gap-2"
 										>
-												<div className="truncate text-[11px] text-muted-foreground">
-													{phase.key}
-												</div>
-												<Input
-													defaultValue={phase.name}
-													className="h-7 text-xs"
-													onBlur={(e) =>
-														e.target.value !== phase.name &&
-														void handleUpdatePhase(phase.id, {
-															name: e.target.value.trim() || phase.name,
-														})
-													}
-												/>
-												<Input
-													defaultValue={phase.description}
-													className="h-7 text-xs"
-													onBlur={(e) =>
-														e.target.value !== phase.description &&
-														void handleUpdatePhase(phase.id, {
-															description:
-																e.target.value.trim() || phase.description,
-														})
-													}
-												/>
-												<div className="flex items-center justify-end gap-1">
-													<span className="text-[10px] text-muted-foreground">
-														T:{phase.taskUsageCount} C:
-														{phase.competitionUsageCount}
-													</span>
-													<div className="flex items-center gap-1">
-														<Button
-															size="sm"
-															variant="outline"
-															className="h-7 px-2 text-[11px]"
-															onClick={() => {
-																const idx = phases.findIndex(
-																	(p) => p.id === phase.id,
-																);
-																if (idx <= 0) return;
-																const above = phases[idx - 1];
-																void (async () => {
-																	setSavingId(phase.id);
-																	setError(null);
-																	try {
-																		// Swap order values with the phase above.
-																		await Promise.all([
-																			updatePhase(phase.id, {
-																				order: above.order,
-																			}),
-																			updatePhase(above.id, {
-																				order: phase.order,
-																			}),
-																		]);
-																	} catch (e) {
-																		setError((e as Error).message);
-																	} finally {
-																		setSavingId(null);
-																	}
-																})();
-															}}
-															disabled={
-																savingId === phase.id ||
-																phases.findIndex((p) => p.id === phase.id) === 0
-															}
-														>
-															↑
-														</Button>
-														<Button
-															size="sm"
-															variant="outline"
-															className="h-7 px-2 text-[11px]"
-															onClick={() => {
-																const idx = phases.findIndex(
-																	(p) => p.id === phase.id,
-																);
-																if (
-																	idx === -1 ||
-																	idx === phases.length - 1
-																)
-																	return;
-																const below = phases[idx + 1];
-																void (async () => {
-																	setSavingId(phase.id);
-																	setError(null);
-																	try {
-																		// Swap order values with the phase below.
-																		await Promise.all([
-																			updatePhase(phase.id, {
-																				order: below.order,
-																			}),
-																			updatePhase(below.id, {
-																				order: phase.order,
-																			}),
-																		]);
-																	} catch (e) {
-																		setError((e as Error).message);
-																	} finally {
-																		setSavingId(null);
-																	}
-																})();
-															}}
-															disabled={
-																savingId === phase.id ||
-																phases.findIndex((p) => p.id === phase.id) ===
-																	phases.length - 1
-															}
-														>
-															↓
-														</Button>
-													</div>
+											<div className="truncate text-[11px] text-muted-foreground">
+												{phase.key}
+											</div>
+											<Input
+												defaultValue={phase.name}
+												className="h-7 text-xs"
+												onBlur={(e) =>
+													e.target.value !== phase.name &&
+													void handleUpdatePhase(phase.id, {
+														name: e.target.value.trim() || phase.name,
+													})
+												}
+											/>
+											<Input
+												defaultValue={phase.description}
+												className="h-7 text-xs"
+												onBlur={(e) =>
+													e.target.value !== phase.description &&
+													void handleUpdatePhase(phase.id, {
+														description:
+															e.target.value.trim() || phase.description,
+													})
+												}
+											/>
+											<div className="flex items-center justify-end gap-1">
+												<span className="text-[10px] text-muted-foreground">
+													T:{phase.taskUsageCount} C:
+													{phase.competitionUsageCount}
+												</span>
+												<div className="flex items-center gap-1">
 													<Button
 														size="sm"
 														variant="outline"
 														className="h-7 px-2 text-[11px]"
-														onClick={() =>
-															void handleUpdatePhase(phase.id, {
-																archived: !phase.archived,
-															})
+														onClick={() => {
+															const idx = phases.findIndex(
+																(p) => p.id === phase.id,
+															);
+															if (idx <= 0) return;
+															const above = phases[idx - 1];
+															void (async () => {
+																setSavingId(phase.id);
+																setError(null);
+																try {
+																	// Swap order values with the phase above.
+																	await Promise.all([
+																		updatePhase(phase.id, {
+																			order: above.order,
+																		}),
+																		updatePhase(above.id, {
+																			order: phase.order,
+																		}),
+																	]);
+																} catch (e) {
+																	setError((e as Error).message);
+																} finally {
+																	setSavingId(null);
+																}
+															})();
+														}}
+														disabled={
+															savingId === phase.id ||
+															phases.findIndex((p) => p.id === phase.id) === 0
 														}
-														disabled={savingId === phase.id}
 													>
-														{phase.archived ? "Unarchive" : "Archive"}
+														↑
 													</Button>
 													<Button
 														size="sm"
 														variant="outline"
-														className="h-7 px-2 text-[11px] text-destructive border-destructive"
-														onClick={() => void handleDeletePhase(phase.id)}
+														className="h-7 px-2 text-[11px]"
+														onClick={() => {
+															const idx = phases.findIndex(
+																(p) => p.id === phase.id,
+															);
+															if (idx === -1 || idx === phases.length - 1)
+																return;
+															const below = phases[idx + 1];
+															void (async () => {
+																setSavingId(phase.id);
+																setError(null);
+																try {
+																	// Swap order values with the phase below.
+																	await Promise.all([
+																		updatePhase(phase.id, {
+																			order: below.order,
+																		}),
+																		updatePhase(below.id, {
+																			order: phase.order,
+																		}),
+																	]);
+																} catch (e) {
+																	setError((e as Error).message);
+																} finally {
+																	setSavingId(null);
+																}
+															})();
+														}}
 														disabled={
 															savingId === phase.id ||
-															phase.taskUsageCount > 0 ||
-															phase.competitionUsageCount > 0
-														}
-														title={
-															phase.taskUsageCount > 0 ||
-															phase.competitionUsageCount > 0
-																? "Cannot delete a phase that is still in use"
-																: "Delete phase"
+															phases.findIndex((p) => p.id === phase.id) ===
+																phases.length - 1
 														}
 													>
-														Delete
+														↓
 													</Button>
 												</div>
+												<Button
+													size="sm"
+													variant="outline"
+													className="h-7 px-2 text-[11px]"
+													onClick={() =>
+														void handleUpdatePhase(phase.id, {
+															archived: !phase.archived,
+														})
+													}
+													disabled={savingId === phase.id}
+												>
+													{phase.archived ? "Unarchive" : "Archive"}
+												</Button>
+												<Button
+													size="sm"
+													variant="outline"
+													className="h-7 px-2 text-[11px] text-destructive border-destructive"
+													onClick={() => void handleDeletePhase(phase.id)}
+													disabled={
+														savingId === phase.id ||
+														phase.taskUsageCount > 0 ||
+														phase.competitionUsageCount > 0
+													}
+													title={
+														phase.taskUsageCount > 0 ||
+														phase.competitionUsageCount > 0
+															? "Cannot delete a phase that is still in use"
+															: "Delete phase"
+													}
+												>
+													Delete
+												</Button>
 											</div>
-										))}
-									</div>
-								</>
-							)}
+										</div>
+									))}
+								</div>
+							</>
+						)}
 
 						<div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
 							<Input
@@ -752,4 +754,3 @@ function slugifyKey(input: string): string {
 		.replace(/\s+/g, "-")
 		.replace(/-+/g, "-");
 }
-

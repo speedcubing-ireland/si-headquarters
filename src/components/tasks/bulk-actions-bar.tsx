@@ -127,9 +127,7 @@ export function BulkActionsBar({
 				})
 				.map(([taskId]) => taskId);
 			if (taskIdsForSet.length === 0) continue;
-			bulkPromises.push(
-				bulkUpdateTasks(taskIdsForSet, { labels: labelSet }),
-			);
+			bulkPromises.push(bulkUpdateTasks(taskIdsForSet, { labels: labelSet }));
 		}
 
 		void Promise.all(bulkPromises).then(() => {

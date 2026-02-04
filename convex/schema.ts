@@ -110,12 +110,31 @@ export default defineSchema({
 		.index("by_comp_start", ["compStart"])
 		.index("by_name", ["name"]),
 
+	competitionUpdates: defineTable({
+		competitionId: v.id("competitions"),
+		authorId: v.id("users"),
+		status: v.union(
+			v.literal("on-track"),
+			v.literal("at-risk"),
+			v.literal("off-track"),
+		),
+		message: v.optional(v.string()),
+		reactions: v.array(
+			v.object({
+				emoji: v.string(),
+				userIds: v.array(v.id("users")),
+			}),
+		),
+		updatedAt: v.number(),
+	}).index("by_competition", ["competitionId"]),
+
 	comments: defineTable({
 		parentType: v.union(v.literal("task"), v.literal("update")),
 		parentId: v.string(),
 		parentCommentId: v.optional(v.id("comments")),
 		authorId: v.id("users"),
 		content: v.string(),
+		contentUpdatedAt: v.optional(v.number()),
 		reactions: v.array(
 			v.object({
 				emoji: v.string(),
@@ -190,6 +209,7 @@ export default defineSchema({
 	})
 		.index("by_user", ["userId"])
 		.index("by_user_and_status", ["userId", "status"])
+		.index("by_user_entityId_status", ["userId", "entityId", "status"])
 		.index("by_remind_at", ["remindAt"]),
 
 	savedViews: defineTable({
@@ -206,4 +226,12 @@ export default defineSchema({
 	})
 		.index("by_user", ["userId"])
 		.index("by_user_entity_page", ["userId", "entity", "pageId"]),
+
+	weekendOverrides: defineTable({
+		satDate: v.string(),
+		eventNote: v.optional(v.string()),
+		reserved: v.optional(v.boolean()),
+		announced: v.optional(v.boolean()),
+		updatedAt: v.number(),
+	}).index("by_sat_date", ["satDate"]),
 });

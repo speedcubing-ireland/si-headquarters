@@ -16,8 +16,10 @@ import type {
 } from "@/data/types-new";
 import {
 	getCalendarWeekendRowKey,
-	useCalendarWeekendOverridesStore,
+	type WeekendOverride,
 } from "@/store/calendar-weekend-overrides-store";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import {
 	getCurrentPhaseKey,
 	getPhaseClass,
@@ -26,6 +28,13 @@ import {
 import { formatDate, getInitials } from "@/lib/format-utils";
 import { cn } from "@/lib/utils";
 import { LeadsDisplay } from "./leads-display";
+
+function useSetWeekendOverride() {
+	const mutate = useMutation(api.weekendOverrides.setOverride);
+	return (satDate: string, patch: Partial<WeekendOverride>) => {
+		mutate({ satDate, ...patch });
+	};
+}
 
 function getTasksSummary(comp: Competition): { open: number; total: number } {
 	const total = comp.tasks.length;
@@ -38,7 +47,7 @@ function getTasksSummary(comp: Competition): { open: number; total: number } {
 const emptyCell = <span className="text-muted-foreground text-xs">—</span>;
 
 function NameCell({ weekend }: { weekend: Weekend }) {
-	const setOverride = useCalendarWeekendOverridesStore((s) => s.setOverride);
+	const setOverride = useSetWeekendOverride();
 	const comp = weekend.competition;
 	if (comp) {
 		return <span className="font-bold truncate">{comp.name}</span>;
@@ -55,13 +64,12 @@ function NameCell({ weekend }: { weekend: Weekend }) {
 }
 
 function CompLeadCell({ weekend }: { weekend: Weekend }) {
-	const setOverride = useCalendarWeekendOverridesStore((s) => s.setOverride);
+	const setOverride = useSetWeekendOverride();
 	const comp = weekend.competition;
 	if (comp) {
 		if (!comp.compLead) return emptyCell;
 		return <LeadsDisplay leads={[comp.compLead]} variant="summary" bold />;
 	}
-	// Non-comp: show Reserved badge
 	const rowKey = getCalendarWeekendRowKey(weekend.satDate, null);
 	const reserved = weekend.weekendInfo?.reserved ?? false;
 	return (
@@ -79,13 +87,12 @@ function CompLeadCell({ weekend }: { weekend: Weekend }) {
 }
 
 function LeadDelegateCell({ weekend }: { weekend: Weekend }) {
-	const setOverride = useCalendarWeekendOverridesStore((s) => s.setOverride);
+	const setOverride = useSetWeekendOverride();
 	const comp = weekend.competition;
 	if (comp) {
 		if (!comp.leadDelegate) return emptyCell;
 		return <LeadsDisplay leads={[comp.leadDelegate]} variant="summary" bold />;
 	}
-	// Non-comp: show Announced badge
 	const rowKey = getCalendarWeekendRowKey(weekend.satDate, null);
 	const announced = weekend.weekendInfo?.announced ?? false;
 	return (
@@ -102,7 +109,6 @@ function LeadDelegateCell({ weekend }: { weekend: Weekend }) {
 	);
 }
 
-/** Inline editable note (allows empty). Stops propagation so row click doesn't fire. */
 function EditableNoteCell({
 	value,
 	onSubmit,
@@ -138,7 +144,7 @@ function EditableNoteCell({
 					}
 				}}
 				onClick={(e) => e.stopPropagation()}
-				className={cn("h-8 text-sm", className)}
+				className={cn("h-6 text-sm", className)}
 				autoFocus
 			/>
 		);
@@ -153,7 +159,7 @@ function EditableNoteCell({
 				setIsEditing(true);
 			}}
 			className={cn(
-				"text-left text-sm w-full min-h-8 rounded px-2 -mx-2 hover:bg-muted/50 border border-transparent hover:border-input",
+				"text-left text-sm w-full h-6 rounded px-2 -mx-2 hover:bg-muted/50 border border-transparent hover:border-input flex items-center",
 				!value && "text-muted-foreground",
 				className,
 			)}

@@ -28,7 +28,13 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { useUsers, useCompetitionMutations } from "@/hooks/use-convex-data";
+import {
+	useTeams,
+	useUsers,
+	useCompetitionMutations,
+} from "@/hooks/use-convex-data";
+import { getTeamBySeededName } from "@/data/templates";
+import { getRoleSelectUsers } from "@/lib/team-utils";
 import type { Competition, User } from "@/data/types-new";
 import {
 	COMPETITION_PHASE_KEYS,
@@ -204,14 +210,19 @@ export function EditableCompLeadCell({
 }: {
 	competition: Competition;
 }) {
-	const { users } = useUsers();
+	const { teams } = useTeams();
 	const { updateCompetition } = useCompetitionMutations();
+
+	const allUsers = React.useMemo(() => {
+		const team = getTeamBySeededName(teams, "Competitions Team");
+		return getRoleSelectUsers(team, competition.compLead);
+	}, [teams, competition.compLead]);
 
 	return (
 		<EditableUserCell
 			emptyLabel="Unassigned"
 			selectedUser={competition.compLead}
-			allUsers={users}
+			allUsers={allUsers}
 			onChange={(user) =>
 				void updateCompetition(competition.id, {
 					compLead: user,
@@ -226,14 +237,19 @@ export function EditableLeadDelegateCell({
 }: {
 	competition: Competition;
 }) {
-	const { users } = useUsers();
+	const { teams } = useTeams();
 	const { updateCompetition } = useCompetitionMutations();
+
+	const allUsers = React.useMemo(() => {
+		const team = getTeamBySeededName(teams, "Delegates");
+		return getRoleSelectUsers(team, competition.leadDelegate);
+	}, [teams, competition.leadDelegate]);
 
 	return (
 		<EditableUserCell
 			emptyLabel="Unassigned"
 			selectedUser={competition.leadDelegate}
-			allUsers={users}
+			allUsers={allUsers}
 			onChange={(user) =>
 				void updateCompetition(competition.id, {
 					leadDelegate: user,

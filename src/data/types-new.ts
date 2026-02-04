@@ -117,6 +117,8 @@ export type Task = {
 	id: string;
 	identifier: string;
 	parent: TaskParent;
+	/** Resolved display name for parent (task title or competition name). Set by list/get APIs. */
+	parentDisplayName?: string | null;
 	title: string;
 	description: string;
 	owner: Team | User | null;
@@ -152,6 +154,7 @@ export type Comment = {
 	content: string;
 	createdAt: string;
 	updatedAt: string;
+	contentUpdatedAt?: string; // set only when content was edited, not on reaction
 	reactions: CommentReaction[];
 };
 
@@ -198,6 +201,10 @@ export type TemplateTask = {
 	ownerId: string | null;
 	suggestedAssigneeId: string | null;
 	phase: string | null; // phase name or null
+	/** Team names (e.g. "Graphics Team") that must approve; resolved to ids when creating task */
+	requiredApprovalByTeamNames?: string[];
+	/** Nested sub-tasks; parent is created first, then each sub-task with parentTaskId */
+	subTasks?: TemplateTask[];
 };
 
 export type CompetitionTemplate = {

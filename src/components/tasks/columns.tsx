@@ -226,7 +226,10 @@ const ownerGroupRenderer: GroupValueRenderer = (_value, row) => {
 	);
 };
 
-export function useTaskColumns(): ColumnDef<Task>[] {
+export function useTaskColumns(options?: {
+	hideParentDisplayName?: boolean;
+}): ColumnDef<Task>[] {
+	const hideParentDisplayName = options?.hideParentDisplayName ?? false;
 	return useMemo(
 		() => [
 			// Priority icon (first column - small)
@@ -324,7 +327,12 @@ export function useTaskColumns(): ColumnDef<Task>[] {
 			createSortableColumn(
 				"title",
 				"",
-				({ row }) => <TaskTitleCell task={row.original} />,
+				({ row }) => (
+					<TaskTitleCell
+						task={row.original}
+						hideParentDisplayName={hideParentDisplayName}
+					/>
+				),
 				{
 					meta: {
 						cellClassName: "min-w-0 w-full",
@@ -389,6 +397,6 @@ export function useTaskColumns(): ColumnDef<Task>[] {
 				} as ColumnDef<Task>["meta"],
 			},
 		],
-		[],
-	); // Empty deps = never recreates
+		[hideParentDisplayName],
+	);
 }

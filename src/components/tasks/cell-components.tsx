@@ -134,26 +134,24 @@ function getSubtaskProgress(task: Task): { done: number; total: number } {
 
 interface TaskTitleCellProps {
 	task: Task;
+	hideParentDisplayName?: boolean;
 }
 
 export const TaskTitleCell = memo(
-	function TaskTitleCell({ task }: TaskTitleCellProps) {
-		// Use embedded subTasks data, no store subscription needed
+	function TaskTitleCell({ task, hideParentDisplayName = false }: TaskTitleCellProps) {
 		const { done, total } = getSubtaskProgress(task);
 		const showProgress = total > 0;
-
-		// Get parent info if available - note: parent is stored in task.parent
-		// but we need the parent's title which may not be available without store
-		// For now, we skip showing parent info or can enhance data structure
-		const parentTitle = task.parent?.type === "task" ? undefined : undefined;
+		const parentDisplayName = hideParentDisplayName ? null : task.parentDisplayName;
+		const phaseName = hideParentDisplayName ? null : task.phase?.name;
 
 		return (
 			<div className="flex items-center min-w-0">
 				<span className="min-w-0 truncate">
 					<span className="font-medium text-foreground">{task.title}</span>
-					{parentTitle && (
+					{(parentDisplayName || phaseName) && (
 						<span className="ml-1 text-xs text-muted-foreground/80">
-							&gt; {parentTitle}
+							{parentDisplayName && <> · {parentDisplayName}</>}
+							{phaseName && <> · {phaseName}</>}
 						</span>
 					)}
 				</span>
@@ -208,6 +206,7 @@ export const TaskTitleCell = memo(
 			</div>
 		);
 	},
-	// Custom comparison: only re-render if task identity changes
-	(prev, next) => prev.task === next.task,
+	(prev, next) =>
+		prev.task === next.task &&
+		prev.hideParentDisplayName === next.hideParentDisplayName,
 );

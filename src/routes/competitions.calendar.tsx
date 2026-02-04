@@ -7,7 +7,8 @@ import {
 	mergeWeekendsWithOverrides,
 } from "@/data/calendar-weekends";
 import { useCompetitions } from "@/hooks/use-convex-data";
-import { useCalendarWeekendOverridesStore } from "@/store/calendar-weekend-overrides-store";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
 import { useDisplaySettingsStore } from "@/store/display-settings-store";
 import { useMemo, useState } from "react";
@@ -28,7 +29,6 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/competitions/calendar")({
 	beforeLoad: () => {
-		// Reset filters when switching between sibling routes (e.g., /competitions)
 		useCompetitionsFilterStore.getState().clearFilters();
 		useDisplaySettingsStore.getState().fromJSON(
 			JSON.stringify({
@@ -43,9 +43,20 @@ export const Route = createFileRoute("/competitions/calendar")({
 
 function CompetitionsCalendarPage() {
 	const { competitions } = useCompetitions();
-	const overrides = useCalendarWeekendOverridesStore(
-		(state) => state.overrides,
-	);
+	const overridesList = useQuery(api.weekendOverrides.list);
+	const overrides = useMemo(() => {
+		if (overridesList === undefined) return {};
+		return Object.fromEntries(
+			overridesList.map((o) => [
+				o.satDate,
+				{
+					eventNote: o.eventNote,
+					reserved: o.reserved,
+					announced: o.announced,
+				},
+			]),
+		);
+	}, [overridesList]);
 	const weekends = useMemo(
 		() => buildCalendarWeekends(competitions),
 		[competitions],

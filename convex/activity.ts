@@ -1,4 +1,4 @@
-import { v, ConvexError } from "convex/values";
+import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireUserId } from "./auth";
@@ -138,25 +138,18 @@ export const log = mutation({
 		entityType,
 		entityId: v.string(),
 		type: v.string(),
-		actorId: v.id("users"),
 		oldValue: v.optional(v.string()),
 		newValue: v.optional(v.string()),
 		metadata: v.optional(v.any()),
 	},
 	returns: v.id("activityLog"),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-
-		// Prevent clients from spoofing another actor.
-		if (args.actorId !== userId) {
-			throw new ConvexError("Cannot log activity for another user");
-		}
-
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		return await ctx.db.insert("activityLog", {
 			entityType: args.entityType,
 			entityId: args.entityId,
 			type: args.type,
-			actorId: args.actorId,
+			actorId: userId,
 			oldValue: args.oldValue,
 			newValue: args.newValue,
 			metadata: args.metadata,

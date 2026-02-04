@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ExternalLink, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { CompetitionDetails } from "@/components/competitions/competition-details";
@@ -69,10 +69,20 @@ function CompetitionHeader({
 
 function RouteComponent() {
 	const { id } = Route.useParams();
+	const navigate = useNavigate();
 	const competition = useCompetition(id);
 	const { tasks: scopedTasks } = useTasksForCompetition(id);
-	const { updateCompetition } = useCompetitionMutations();
+	const { updateCompetition, deleteCompetition } = useCompetitionMutations();
 	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
+
+	const handleDelete = async () => {
+		try {
+			await deleteCompetition(id);
+			navigate({ to: "/competitions" });
+		} catch (error) {
+			console.error("Failed to delete competition:", error);
+		}
+	};
 
 	if (competition === undefined) {
 		return (
@@ -116,6 +126,7 @@ function RouteComponent() {
 								onUpdate={(updates) =>
 									updateCompetition(competition.id, updates)
 								}
+								onDelete={handleDelete}
 							/>
 							<CompetitionLatestUpdate competition={competitionWithTasks} />
 							<Separator />

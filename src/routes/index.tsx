@@ -11,7 +11,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
 	useTasks,
-	useUsers,
 	useCompetitions,
 	useUnreadCount,
 } from "@/hooks/use-convex-data";
@@ -28,9 +27,7 @@ export const Route = createFileRoute("/")({
 function Index() {
 	const { tasks } = useTasks(false);
 	const { competitions } = useCompetitions();
-	const { users } = useUsers();
-	const currentUser = users[0];
-	const unreadCount = useUnreadCount(currentUser?.id ?? null);
+	const unreadCount = useUnreadCount();
 
 	const openTasks = tasks.filter((task) => task.status !== "done").length;
 

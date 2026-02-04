@@ -33,7 +33,6 @@ import {
 	useRef,
 	useState,
 	useContext,
-	memo,
 } from "react";
 import {
 	cellContainsInteractiveElements,
@@ -559,7 +558,10 @@ function DataTableDataRow<TData = unknown>({
 			>
 				<TableCell
 					colSpan={columnCount}
-					className={cn(cellPaddingXClassName, "py-2 text-sm align-middle text-left")}
+					className={cn(
+						cellPaddingXClassName,
+						"py-2 text-sm align-middle text-left",
+					)}
 				>
 					<div className="flex items-center justify-between w-full pr-2">
 						<div className="flex items-center gap-1.5">
@@ -578,9 +580,7 @@ function DataTableDataRow<TData = unknown>({
 									{String(groupedCell?.getValue() ?? "")}
 								</span>
 							)}
-							<span className="text-muted-foreground text-xs">
-								{leafCount}
-							</span>
+							<span className="text-muted-foreground text-xs">{leafCount}</span>
 						</div>
 						<Plus className="size-4 text-muted-foreground/40 hover:text-muted-foreground transition-colors" />
 					</div>
@@ -626,7 +626,9 @@ function DataTableDataRow<TData = unknown>({
 							cellPaddingXClassName,
 							"py-2 text-sm align-middle text-left",
 							metaCell?.cellClassName,
-							depth > 0 && cell.column.id === row.getVisibleCells()[0]?.column.id && "pl-10",
+							depth > 0 &&
+								cell.column.id === row.getVisibleCells()[0]?.column.id &&
+								"pl-10",
 						)}
 					>
 						{isAggregated
@@ -665,7 +667,7 @@ function DataTableBodyInner<TData>() {
 
 	return (
 		<TableBody>
-				{table.getRowModel().rows.map((rowModel) => (
+			{table.getRowModel().rows.map((rowModel) => (
 				<DataTableDataRow
 					key={rowModel.id}
 					row={rowModel as Row<unknown>}

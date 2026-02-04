@@ -6,7 +6,7 @@ import type {
 	SeededTeamName,
 } from "./types-new";
 
-function getTeamBySeededName(
+export function getTeamBySeededName(
 	teams: Team[],
 	name: SeededTeamName,
 ): Team | null {
@@ -17,7 +17,6 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 	const financeTeam = getTeamBySeededName(teams, "Finance Team");
 	const competitionsTeam = getTeamBySeededName(teams, "Competitions Team");
 	const socialMediaTeam = getTeamBySeededName(teams, "Social Media Team");
-	const graphicsTeam = getTeamBySeededName(teams, "Graphics Team");
 
 	const defaultTasks: TemplateTask[] = [
 		// Pre-Announcement phase tasks
@@ -67,15 +66,41 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			phase: "Post-Announcement",
 		},
 		{
-			title: "Certificates designed",
-			description: "Design competition certificates",
+			title: "Certificate ready",
+			description: "Certificates designed and ordered for the competition",
 			status: "to-do",
 			priority: "medium",
 			labels: ["label-design"],
-			ownerType: graphicsTeam ? "team" : null,
-			ownerId: graphicsTeam?.id || null,
+			ownerType: null,
+			ownerId: null,
 			suggestedAssigneeId: null,
 			phase: "Post-Announcement",
+			subTasks: [
+				{
+					title: "Certificate Designed",
+					description:
+						"Design competition certificates; requires approval from Graphics.",
+					status: "to-do",
+					priority: "medium",
+					labels: ["label-design"],
+					ownerType: competitionsTeam ? "team" : null,
+					ownerId: competitionsTeam?.id || null,
+					suggestedAssigneeId: null,
+					phase: "Post-Announcement",
+					requiredApprovalByTeamNames: ["Graphics Team"],
+				},
+				{
+					title: "Certificate Ordered",
+					description: "Order certificates for the competition",
+					status: "to-do",
+					priority: "medium",
+					labels: [],
+					ownerType: financeTeam ? "team" : null,
+					ownerId: financeTeam?.id || null,
+					suggestedAssigneeId: null,
+					phase: "Post-Announcement",
+				},
+			],
 		},
 		// Pre-Competition phase tasks
 		{
@@ -194,4 +219,3 @@ export function getCompetitionTemplates(teams: Team[]): CompetitionTemplate[] {
 export function getTaskTemplates(): TaskTemplate[] {
 	return createTaskTemplates();
 }
-

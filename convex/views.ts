@@ -41,7 +41,10 @@ export const listViews = query({
 		const docs = await ctx.db
 			.query("savedViews")
 			.withIndex("by_user_entity_page", (q) =>
-				q.eq("userId", userId).eq("entity", args.entity).eq("pageId", args.pageId),
+				q
+					.eq("userId", userId)
+					.eq("entity", args.entity)
+					.eq("pageId", args.pageId),
 			)
 			.order("asc")
 			.collect();
@@ -167,4 +170,3 @@ export const touchView = mutation({
 		return null;
 	},
 });
-

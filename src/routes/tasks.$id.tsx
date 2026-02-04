@@ -1,18 +1,42 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, MoreHorizontal, Plus, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Bell, MoreHorizontal, Plus, X } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ActivityFeed } from "@/components/tasks/activity-feed";
 import { CommentsSection } from "@/components/tasks/comments-section";
 import { EditableTaskStatus } from "@/components/tasks/editable-cells";
+import { RemindMeDialog } from "@/components/tasks/remind-me-dialog";
 import { TaskModal } from "@/components/tasks/task-modal";
 import { TaskPropertiesSidebar } from "@/components/tasks/task-properties-sidebar";
+import { TaskReminderStrip } from "@/components/tasks/task-reminder-strip";
 import { TaskResourcesSection } from "@/components/tasks/task-resources";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { useTask, useTasks, useTaskMutations } from "@/hooks/use-convex-data";
+import { getTaskBreadcrumbs } from "@/lib/task-breadcrumbs";
+import {
+	buildOneTimeReminderPayload,
+	useTask,
+	useTasks,
+	useTaskMutations,
+	useCompetitions,
+	useReminderMutations,
+} from "@/hooks/use-convex-data";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Task } from "@/data/types-new";
 
@@ -23,23 +47,48 @@ export const Route = createFileRoute("/tasks/$id")({
 function TaskHeader({
 	task,
 	onPropertiesClick,
+	onRemindMeClick,
 }: {
 	task: Task;
 	onPropertiesClick: () => void;
+	onRemindMeClick: () => void;
 }) {
+	const { tasks } = useTasks(false);
+	const { competitions } = useCompetitions();
+	const breadcrumbs = useMemo(
+		() => getTaskBreadcrumbs(task, tasks, competitions),
+		[task, tasks, competitions],
+	);
+
 	return (
 		<header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
-			<Link
-				to="/tasks"
-				className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
-			>
-				<ArrowLeft className="size-4" />
-				<span className="text-sm hidden sm:inline">Back to Tasks</span>
-			</Link>
-			<Separator orientation="vertical" className="mx-2 h-4" />
-			<span className="text-sm font-mono text-muted-foreground hidden sm:block">
-				{task.identifier}
-			</span>
+			<nav className="flex min-w-0 flex-1 items-center gap-2" aria-label="Breadcrumb">
+				<Breadcrumb>
+					<BreadcrumbList>
+						{breadcrumbs.map((entry, i) => (
+							<Fragment key={entry.to ? `${entry.to}-${entry.label}` : "current"}>
+								{i > 0 && <BreadcrumbSeparator />}
+								<BreadcrumbItem>
+									{entry.to ? (
+										<BreadcrumbLink asChild>
+											<Link
+												to={entry.to}
+												className="max-w-[140px] truncate sm:max-w-[200px]"
+											>
+												{entry.label}
+											</Link>
+										</BreadcrumbLink>
+									) : (
+										<BreadcrumbPage className="max-w-[140px] truncate sm:max-w-[200px]">
+											{entry.label}
+										</BreadcrumbPage>
+									)}
+								</BreadcrumbItem>
+							</Fragment>
+						))}
+					</BreadcrumbList>
+				</Breadcrumb>
+			</nav>
 			{task.owner && "members" in task.owner && (
 				<>
 					<Separator
@@ -68,9 +117,19 @@ function TaskHeader({
 					<span className="hidden sm:inline">Properties</span>
 					<MoreHorizontal className="size-4 sm:hidden" />
 				</Button>
-				<Button variant="ghost" size="icon">
-					<MoreHorizontal className="size-4" />
-				</Button>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="ghost" size="icon">
+							<MoreHorizontal className="size-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem onClick={onRemindMeClick}>
+							<Bell className="size-4 mr-2" />
+							Remind me
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<Link to="/tasks">
 					<Button variant="ghost" size="icon">
 						<X className="size-4" />
@@ -153,10 +212,12 @@ function RouteComponent() {
 	const { id } = Route.useParams();
 	const task = useTask(id);
 	const { updateTask } = useTaskMutations();
+	const { addReminder } = useReminderMutations();
 
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
 	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
+	const [remindMeOpen, setRemindMeOpen] = useState(false);
 
 	// Use debounced form for title editing
 	const titleForm = useDebouncedForm({
@@ -216,14 +277,20 @@ function RouteComponent() {
 		setIsEditingDescription(false);
 	};
 
+	const handleSetReminder = (remindAt: string, message?: string) => {
+		void addReminder(buildOneTimeReminderPayload(task.id, remindAt, message));
+	};
+
 	return (
 		<div className="flex flex-col h-full">
 			<TaskHeader
 				task={task}
 				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
+				onRemindMeClick={() => setRemindMeOpen(true)}
 			/>
 			<div className="flex flex-1 overflow-hidden">
 				<div className="flex-1 overflow-auto p-6">
+					<TaskReminderStrip task={task} />
 					{isEditingTitle ? (
 						<Input
 							value={titleForm.value}
@@ -310,6 +377,12 @@ function RouteComponent() {
 				renderMode="popover"
 				open={propertiesPopoverOpen}
 				onOpenChange={setPropertiesPopoverOpen}
+			/>
+			<RemindMeDialog
+				open={remindMeOpen}
+				onOpenChange={setRemindMeOpen}
+				taskId={task.id}
+				onSetReminder={handleSetReminder}
 			/>
 		</div>
 	);

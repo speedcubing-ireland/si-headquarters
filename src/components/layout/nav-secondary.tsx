@@ -1,5 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Archive, Loader, type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
+import {
+	Archive,
+	Loader,
+	type LucideIcon,
+	Monitor,
+	Moon,
+	Sun,
+} from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import {
 	DropdownMenu,

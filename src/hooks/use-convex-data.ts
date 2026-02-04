@@ -198,7 +198,9 @@ export function useTaskMutations() {
 		if (!current) return;
 
 		const currentRequired = current.requiredApprovalBy ?? [];
-		const approverExists = currentRequired.some((a) => a.id === args.approverId);
+		const approverExists = currentRequired.some(
+			(a) => a.id === args.approverId,
+		);
 		if (approverExists) return;
 
 		const next = { ...current };
@@ -226,72 +228,72 @@ export function useTaskMutations() {
 		patchTaskInQueries(localStore, args.taskId, next);
 	});
 
-	const approveTaskMutation = useMutation(api.tasks.approveTask).withOptimisticUpdate(
-		(localStore, args) => {
-			const current = localStore.getQuery(api.tasks.getForUI, {
-				taskId: args.taskId,
+	const approveTaskMutation = useMutation(
+		api.tasks.approveTask,
+	).withOptimisticUpdate((localStore, args) => {
+		const current = localStore.getQuery(api.tasks.getForUI, {
+			taskId: args.taskId,
+		});
+		if (!current) return;
+
+		// Get current user from users query
+		const users = localStore.getQuery(api.users.listUsers);
+		const currentUser = users?.[0];
+		if (!currentUser) return;
+
+		const next = { ...current };
+		const currentApproved = current.approvedBy ?? [];
+		const alreadyApproved = currentApproved.some(
+			(a) => a.id === currentUser.id,
+		);
+		if (!alreadyApproved) {
+			next.approvedBy = [...currentApproved, currentUser];
+		}
+
+		// Check if fully approved and should auto-move to done
+		const required = current.requiredApprovalBy ?? [];
+		const approvedIds = new Set(next.approvedBy.map((a) => a.id));
+		const isFullyApproved =
+			required.length > 0 &&
+			required.every((r) => {
+				if ("members" in r) {
+					// Team: check if any member approved
+					return r.members.some((m) => approvedIds.has(m.id));
+				}
+				return approvedIds.has(r.id);
 			});
-			if (!current) return;
 
-			// Get current user from users query
-			const users = localStore.getQuery(api.users.listUsers);
-			const currentUser = users?.[0];
-			if (!currentUser) return;
+		if (
+			isFullyApproved &&
+			required.length > 0 &&
+			next.status === "awaiting-review"
+		) {
+			next.status = "done";
+		}
 
-			const next = { ...current };
-			const currentApproved = current.approvedBy ?? [];
-			const alreadyApproved = currentApproved.some(
-				(a) => a.id === currentUser.id,
-			);
-			if (!alreadyApproved) {
-				next.approvedBy = [...currentApproved, currentUser];
-			}
+		next.updatedAt = new Date().toISOString();
+		patchTaskInQueries(localStore, args.taskId, next);
+	});
 
-			// Check if fully approved and should auto-move to done
-			const required = current.requiredApprovalBy ?? [];
-			const approvedIds = new Set(next.approvedBy.map((a) => a.id));
-			const isFullyApproved =
-				required.length > 0 &&
-				required.every((r) => {
-					if ("members" in r) {
-						// Team: check if any member approved
-						return r.members.some((m) => approvedIds.has(m.id));
-					}
-					return approvedIds.has(r.id);
-				});
+	const unapproveTaskMutation = useMutation(
+		api.tasks.unapproveTask,
+	).withOptimisticUpdate((localStore, args) => {
+		const current = localStore.getQuery(api.tasks.getForUI, {
+			taskId: args.taskId,
+		});
+		if (!current) return;
 
-			if (
-				isFullyApproved &&
-				required.length > 0 &&
-				next.status === "awaiting-review"
-			) {
-				next.status = "done";
-			}
+		const users = localStore.getQuery(api.users.listUsers);
+		const currentUser = users?.[0];
+		if (!currentUser) return;
 
-			next.updatedAt = new Date().toISOString();
-			patchTaskInQueries(localStore, args.taskId, next);
-		},
-	);
-
-	const unapproveTaskMutation = useMutation(api.tasks.unapproveTask).withOptimisticUpdate(
-		(localStore, args) => {
-			const current = localStore.getQuery(api.tasks.getForUI, {
-				taskId: args.taskId,
-			});
-			if (!current) return;
-
-			const users = localStore.getQuery(api.users.listUsers);
-			const currentUser = users?.[0];
-			if (!currentUser) return;
-
-			const next = { ...current };
-			next.approvedBy = (current.approvedBy ?? []).filter(
-				(a) => a.id !== currentUser.id,
-			);
-			next.updatedAt = new Date().toISOString();
-			patchTaskInQueries(localStore, args.taskId, next);
-		},
-	);
+		const next = { ...current };
+		next.approvedBy = (current.approvedBy ?? []).filter(
+			(a) => a.id !== currentUser.id,
+		);
+		next.updatedAt = new Date().toISOString();
+		patchTaskInQueries(localStore, args.taskId, next);
+	});
 
 	return {
 		addTask: async (payload: {
@@ -306,6 +308,9 @@ export function useTaskMutations() {
 			dueDate: string | null;
 			labels: TaskLabel[];
 			resources?: Task["resources"];
+			requiredApprovalIds?: string[];
+			/** For sub-tasks under a competition parent, so they appear in competition task list */
+			parentCompetitionId?: string;
 		}) => {
 			const { ownerId, ownerType } = toOwnerIdOwnerType(payload.owner);
 			const parentTaskId =
@@ -313,9 +318,10 @@ export function useTaskMutations() {
 					? (payload.parent.linkedId as Id<"tasks">)
 					: undefined;
 			const parentCompetitionId =
-				payload.parent?.type === "competition"
+				payload.parentCompetitionId ??
+				(payload.parent?.type === "competition"
 					? payload.parent.linkedId
-					: undefined;
+					: undefined);
 			const phaseId =
 				payload.phase && "id" in payload.phase ? payload.phase.id : undefined;
 			const id = await createTask({
@@ -333,6 +339,7 @@ export function useTaskMutations() {
 					? (payload.assignee.id as Id<"users">)
 					: undefined,
 				labelIds: payload.labels.map((l) => l.id as Id<"labels">),
+				requiredApprovalIds: payload.requiredApprovalIds,
 			});
 			return {
 				id,
@@ -539,7 +546,10 @@ export function useAdminMembersAndTeams(): {
 export function useAdminMemberMutations() {
 	const updateTeamMembers = useMutation(api.admin.updateTeamMembers);
 	return {
-		updateTeamMembers: async (teamId: Id<"teams">, memberIds: Id<"users">[]) => {
+		updateTeamMembers: async (
+			teamId: Id<"teams">,
+			memberIds: Id<"users">[],
+		) => {
 			await updateTeamMembers({ teamId, memberIds });
 		},
 	};
@@ -630,10 +640,13 @@ export function useCompetitionMutations() {
 				patch.organiserIds = updates.organisers.map((u) => u.id as Id<"users">);
 			if (updates.currentPhaseIdx !== undefined)
 				patch.currentPhaseIdx = updates.currentPhaseIdx;
-			if ((updates as { currentPhaseId?: string }).currentPhaseId !== undefined) {
+			if (
+				(updates as { currentPhaseId?: string }).currentPhaseId !== undefined
+			) {
 				patch.currentPhaseId = (updates as { currentPhaseId?: string })
 					.currentPhaseId
-					? ((updates as { currentPhaseId?: string }).currentPhaseId as Id<"phases">)
+					? ((updates as { currentPhaseId?: string })
+							.currentPhaseId as Id<"phases">)
 					: null;
 			}
 			if (updates.compSheet !== undefined)
@@ -649,6 +662,30 @@ export function useCompetitionMutations() {
 		deleteCompetition: async (id: string) => {
 			await removeCompetitionMutation({
 				competitionId: id as Id<"competitions">,
+			});
+		},
+	};
+}
+
+export function useCompetitionUpdateMutations() {
+	const createUpdateMutation = useMutation(api.updates.create);
+	const addReactionMutation = useMutation(api.updates.addReaction);
+
+	return {
+		createUpdate: async (
+			competitionId: string,
+			payload: { status: "on-track" | "at-risk" | "off-track"; message?: string },
+		) => {
+			await createUpdateMutation({
+				competitionId: competitionId as Id<"competitions">,
+				status: payload.status,
+				message: payload.message,
+			});
+		},
+		addReaction: async (updateId: string, emoji: string) => {
+			await addReactionMutation({
+				updateId: updateId as Id<"competitionUpdates">,
+				emoji,
 			});
 		},
 	};
@@ -699,7 +736,6 @@ export function useCommentMutations() {
 				parentCommentId: parentCommentId
 					? (parentCommentId as Id<"comments">)
 					: undefined,
-				authorId: author.id as Id<"users">,
 				content,
 			});
 			return {
@@ -726,11 +762,10 @@ export function useCommentMutations() {
 			await removeCommentMutation({ commentId: commentId as Id<"comments"> });
 		},
 
-		addReaction: async (commentId: string, emoji: string, user: User) => {
+		addReaction: async (commentId: string, emoji: string) => {
 			await toggleReactionMutation({
 				commentId: commentId as Id<"comments">,
 				emoji,
-				userId: user.id as Id<"users">,
 			});
 		},
 	};
@@ -770,7 +805,6 @@ export function useActivityMutations() {
 				entityType: entry.entityType,
 				entityId: entry.entityId,
 				type: entry.type,
-				actorId: entry.actor.id as Id<"users">,
 				oldValue: entry.oldValue,
 				newValue: entry.newValue,
 				metadata: entry.metadata,
@@ -779,25 +813,19 @@ export function useActivityMutations() {
 	};
 }
 
-export function useNotifications(userId: string | null): {
+export function useNotifications(): {
 	notifications: Notification[];
 	isLoading: boolean;
 } {
-	const data = useQuery(
-		api.notifications.listForUser,
-		userId ? { userId: userId as Id<"users"> } : "skip",
-	);
+	const data = useQuery(api.notifications.listForUser, {});
 	return {
 		notifications: (data ?? []) as Notification[],
 		isLoading: data === undefined,
 	};
 }
 
-export function useUnreadCount(userId: string | null): number | undefined {
-	const data = useQuery(
-		api.notifications.getUnreadCount,
-		userId ? { userId: userId as Id<"users"> } : "skip",
-	);
+export function useUnreadCount(): number | undefined {
+	const data = useQuery(api.notifications.getUnreadCount, {});
 	return data;
 }
 
@@ -818,8 +846,8 @@ export function useNotificationMutations() {
 				notificationId: notificationId as Id<"notifications">,
 			});
 		},
-		markAllNotificationsRead: async (userId: string) => {
-			await markAllReadMutation({ userId: userId as Id<"users"> });
+		markAllNotificationsRead: async () => {
+			await markAllReadMutation({});
 		},
 		dismissNotification: async (notificationId: string) => {
 			await dismissMutation({
@@ -829,13 +857,35 @@ export function useNotificationMutations() {
 	};
 }
 
-export function useReminders(userId: string | null): {
+export function useReminders(): {
+	reminders: Reminder[];
+	isLoading: boolean;
+} {
+	const data = useQuery(api.reminders.listForUser, {});
+	return {
+		reminders: (data ?? []) as Reminder[],
+		isLoading: data === undefined,
+	};
+}
+
+export function usePendingReminders(): {
+	reminders: Reminder[];
+	isLoading: boolean;
+} {
+	const data = useQuery(api.reminders.listPendingForUser, {});
+	return {
+		reminders: (data ?? []) as Reminder[],
+		isLoading: data === undefined,
+	};
+}
+
+export function usePendingRemindersForTask(taskId: string | null): {
 	reminders: Reminder[];
 	isLoading: boolean;
 } {
 	const data = useQuery(
-		api.reminders.listForUser,
-		userId ? { userId: userId as Id<"users"> } : "skip",
+		api.reminders.listPendingForTask,
+		taskId ? { taskId } : "skip",
 	);
 	return {
 		reminders: (data ?? []) as Reminder[],
@@ -843,17 +893,22 @@ export function useReminders(userId: string | null): {
 	};
 }
 
-export function usePendingReminders(userId: string | null): {
-	reminders: Reminder[];
-	isLoading: boolean;
-} {
-	const data = useQuery(
-		api.reminders.listPendingForUser,
-		userId ? { userId: userId as Id<"users"> } : "skip",
-	);
+const DEFAULT_REMINDER_PRIORITY = "normal";
+
+export function buildOneTimeReminderPayload(
+	taskId: string,
+	remindAt: string,
+	message?: string,
+): Omit<Reminder, "id" | "createdAt" | "updatedAt" | "userId"> {
 	return {
-		reminders: (data ?? []) as Reminder[],
-		isLoading: data === undefined,
+		entityId: taskId,
+		entityType: "task",
+		type: "one_time",
+		remindAt,
+		status: "pending",
+		priority: DEFAULT_REMINDER_PRIORITY,
+		metadata: {},
+		...(message ? { message } : {}),
 	};
 }
 
@@ -862,13 +917,13 @@ export function useReminderMutations() {
 	const cancelMutation = useMutation(api.reminders.cancel);
 	const dismissMutation = useMutation(api.reminders.dismiss);
 	const snoozeMutation = useMutation(api.reminders.snooze);
+	const rescheduleMutation = useMutation(api.reminders.reschedule);
 
 	return {
 		addReminder: async (
-			payload: Omit<Reminder, "id" | "createdAt" | "updatedAt">,
-		): Promise<Reminder> => {
-			const id = await createMutation({
-				userId: payload.userId as Id<"users">,
+			payload: Omit<Reminder, "id" | "createdAt" | "updatedAt" | "userId">,
+		): Promise<Id<"reminders">> => {
+			return await createMutation({
 				entityId: payload.entityId,
 				type: payload.type,
 				remindAt: payload.remindAt,
@@ -877,14 +932,8 @@ export function useReminderMutations() {
 				endDate: payload.endDate,
 				message: payload.message,
 				priority: payload.priority,
-				metadata: payload.metadata,
+				metadata: payload.metadata ?? {},
 			});
-			return {
-				...payload,
-				id,
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-			} as Reminder;
 		},
 		cancelReminder: async (reminderId: string) => {
 			await cancelMutation({ reminderId: reminderId as Id<"reminders"> });
@@ -898,6 +947,12 @@ export function useReminderMutations() {
 				snoozeUntil,
 			});
 		},
+		rescheduleReminder: async (reminderId: string, remindAt: string) => {
+			await rescheduleMutation({
+				reminderId: reminderId as Id<"reminders">,
+				remindAt,
+			});
+		},
 	};
 }
 
@@ -908,7 +963,9 @@ export function useLabelMutations() {
 	const adminUpdateLabelMutation = useMutation(api.admin.updateLabelAdmin);
 	const archiveLabelMutation = useMutation(api.admin.archiveLabel);
 	const unarchiveLabelMutation = useMutation(api.admin.unarchiveLabel);
-	const deleteLabelIfUnusedMutation = useMutation(api.admin.deleteLabelIfUnused);
+	const deleteLabelIfUnusedMutation = useMutation(
+		api.admin.deleteLabelIfUnused,
+	);
 
 	return {
 		createLabel: async (name: string, color: string) => {

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { TemplateSelector } from "@/components/template-selector";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,15 @@ import {
 	useTaskMutations,
 	usePhases,
 } from "@/hooks/use-convex-data";
-import { getCompetitionTemplates } from "@/data/templates";
-import type { Competition, CompetitionPhase, User } from "@/data/types-new";
+import { getCompetitionTemplates, getTeamBySeededName } from "@/data/templates";
+import { getRoleSelectUsers } from "@/lib/team-utils";
+import type {
+	Competition,
+	CompetitionPhase,
+	CompetitionTemplate,
+	TemplateTask,
+	User,
+} from "@/data/types-new";
 import { DEFAULT_PHASES } from "@/data/types-new";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +68,29 @@ export function CompetitionModal({
 		[teams],
 	);
 
+	const competitionsTeam = useMemo(
+		() => getTeamBySeededName(teams, "Competitions Team"),
+		[teams],
+	);
+	const delegatesTeam = useMemo(
+		() => getTeamBySeededName(teams, "Delegates"),
+		[teams],
+	);
+
 	const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+	const [selectedTemplate, setSelectedTemplate] =
+		useState<CompetitionTemplate | null>(null);
+
+	const getBasePhases = useMemo(
+		() =>
+			globalPhases.length > 0
+				? globalPhases
+				: DEFAULT_PHASES.map((p, idx) => ({
+						id: `${idx}`,
+						...p,
+					})),
+		[globalPhases],
+	);
 
 	const [name, setName] = useState(competition?.name ?? "");
 	const [description, setDescription] = useState(
@@ -79,6 +108,16 @@ export function CompetitionModal({
 	const [leadDelegate, setLeadDelegate] = useState<User | null>(
 		competition?.leadDelegate ?? null,
 	);
+
+	const compLeadOptions = useMemo(
+		() => getRoleSelectUsers(competitionsTeam, compLead),
+		[competitionsTeam, compLead],
+	);
+	const leadDelegateOptions = useMemo(
+		() => getRoleSelectUsers(delegatesTeam, leadDelegate),
+		[delegatesTeam, leadDelegate],
+	);
+
 	const [organisers, setOrganisers] = useState<User[]>(
 		competition?.organisers ?? [],
 	);
@@ -94,8 +133,10 @@ export function CompetitionModal({
 
 	useEffect(() => {
 		if (!open) return;
+
 		if (mode === "create") {
 			setShowTemplateSelector(true);
+			setSelectedTemplate(null);
 			setName("");
 			setDescription("");
 			setCompStart(undefined);
@@ -103,104 +144,45 @@ export function CompetitionModal({
 			setCompLead(null);
 			setLeadDelegate(null);
 			setOrganisers([]);
-			const basePhases =
-				globalPhases.length > 0
-					? globalPhases
-					: DEFAULT_PHASES.map((p, idx) => ({
-							id: `${idx}`,
-							...p,
-					  }));
-			setPhases(basePhases);
+			setPhases(getBasePhases);
 			setCurrentPhaseIdx(0);
 			setCompSheet("");
-		} else if (competition) {
-			setShowTemplateSelector(false);
-			setName(competition.name);
-			setDescription(competition.description);
-			setCompStart(new Date(competition.compStart));
-			setCompEnd(new Date(competition.compEnd));
-			setCompLead(competition.compLead);
-			setLeadDelegate(competition.leadDelegate);
-			setOrganisers(competition.organisers);
-			setPhases(competition.phases);
-			setCurrentPhaseIdx(competition.currentPhaseIdx);
-			setCompSheet(competition.compSheet?.sheetId ?? "");
 		}
+	}, [open, mode, getBasePhases]);
+
+	useEffect(() => {
+		if (!open || mode !== "edit" || !competition) return;
+
+		setShowTemplateSelector(false);
+		setName(competition.name);
+		setDescription(competition.description);
+		setCompStart(new Date(competition.compStart));
+		setCompEnd(new Date(competition.compEnd));
+		setCompLead(competition.compLead);
+		setLeadDelegate(competition.leadDelegate);
+		setOrganisers(competition.organisers);
+		setPhases(competition.phases);
+		setCurrentPhaseIdx(competition.currentPhaseIdx);
+		setCompSheet(competition.compSheet?.sheetId ?? "");
 	}, [open, mode, competition]);
 
-	const handleTemplateSelect = async (templateId: string) => {
+	const handleTemplateSelect = (templateId: string) => {
 		setShowTemplateSelector(false);
 
-		if (templateId === "") {
-			return;
-		}
+		if (templateId === "") return;
 
 		const template = competitionTemplatesList.find((t) => t.id === templateId);
 		if (!template) return;
 
-		const today = format(new Date(), "yyyy-MM-dd");
+		setSelectedTemplate(template);
 
-		const createdBase = await addCompetition({
-			name: `${template.name} Competition`,
-			description: template.description,
-			compStart: today,
-			compEnd: today,
-			compLead: null,
-			leadDelegate: null,
-			organisers: [],
-			compSheet: null,
-		});
-
-		const competitionPhases: CompetitionPhase[] =
-			globalPhases.length > 0
-				? globalPhases
-				: DEFAULT_PHASES.map((p) => ({
-						id: crypto.randomUUID(),
-						...p,
-				  }));
-
-		const created: Competition = {
-			...createdBase,
-			phases: competitionPhases,
-			currentPhaseIdx: 0,
-		};
-
-		const phasesByName = new Map(
-			competitionPhases.map((p) => [p.name, p]),
-		);
-
-		for (const tt of template.defaultTasks) {
-			const phase =
-				tt.phase != null ? phasesByName.get(tt.phase) ?? null : null;
-			let owner: User | { id: string; name: string; members: User[] } | null =
-				null;
-			if (tt.ownerType === "team" && tt.ownerId)
-				owner = teams.find((t) => t.id === tt.ownerId) ?? null;
-			if (tt.ownerType === "user" && tt.ownerId)
-				owner = users.find((u) => u.id === tt.ownerId) ?? null;
-			let assignee: User | null = null;
-			if (tt.suggestedAssigneeId)
-				assignee = users.find((u) => u.id === tt.suggestedAssigneeId) ?? null;
-			else if (owner && "members" in owner && owner.members?.length)
-				assignee = owner.members[0] ?? null;
-			else if (owner && !("members" in owner)) assignee = owner as User;
-
-			await addTask({
-				parent: { type: "competition", linkedId: created.id },
-				title: tt.title,
-				description: tt.description,
-				owner,
-				assignee,
-				phase,
-				status: tt.status,
-				priority: tt.priority,
-				dueDate: null,
-				labels: [],
-			});
-		}
-
-		onSave?.(created);
-		onOpenChange(false);
+		const today = new Date();
+		setName(`${template.name} Competition`);
+		setDescription(template.description);
+		setCompStart(today);
+		setCompEnd(today);
+		setPhases(getBasePhases);
+		setCurrentPhaseIdx(0);
 	};
 
 	const toggleOrganiser = (user: User) => {
@@ -212,9 +194,128 @@ export function CompetitionModal({
 		}
 	};
 
-	const handleSubmit = async () => {
-		if (!name.trim()) return;
-		if (!compStart || !compEnd) return;
+	const resolveOwnerAssignee = useCallback(
+		(t: TemplateTask) => {
+			let owner: User | { id: string; name: string; members: User[] } | null =
+				null;
+			if (t.ownerType === "team" && t.ownerId) {
+				owner = teams.find((team) => team.id === t.ownerId) ?? null;
+			} else if (t.ownerType === "user" && t.ownerId) {
+				owner = users.find((u) => u.id === t.ownerId) ?? null;
+			}
+
+			let assignee: User | null = null;
+			if (t.suggestedAssigneeId) {
+				assignee = users.find((u) => u.id === t.suggestedAssigneeId) ?? null;
+			} else if (owner && "members" in owner && owner.members?.length) {
+				assignee = owner.members[0] ?? null;
+			} else if (owner && !("members" in owner)) {
+				assignee = owner as User;
+			}
+			return { owner, assignee };
+		},
+		[teams, users],
+	);
+
+	const resolveRequiredApprovalIds = useCallback(
+		(teamNames: string[] | undefined) => {
+			if (!teamNames?.length) return undefined;
+			return teamNames
+				.map((name) => {
+					const team = teams.find((t) => t.name === name);
+					return team ? `team-${team.id}` : null;
+				})
+				.filter((id): id is string => id != null);
+		},
+		[teams],
+	);
+
+	const createTaskFromTemplate = useCallback(
+		async (
+			task: TemplateTask,
+			competitionId: string,
+			phasesByName: Map<string, CompetitionPhase>,
+			firstPhaseName: string | null,
+			parentId?: string,
+		) => {
+			const getPhase = (phaseName: string | null) =>
+				phaseName != null ? phasesByName.get(phaseName) ?? null : null;
+
+			const getInitialStatus = (phaseName: string | null): "to-do" | "backlog" =>
+				firstPhaseName != null && phaseName === firstPhaseName
+					? "to-do"
+					: "backlog";
+
+			const { owner, assignee } = resolveOwnerAssignee(task);
+
+			return await addTask({
+				parent: parentId
+					? { type: "task", linkedId: parentId }
+					: { type: "competition", linkedId: competitionId },
+				title: task.title,
+				description: task.description,
+				owner,
+				assignee,
+				phase: getPhase(task.phase),
+				status: getInitialStatus(task.phase),
+				priority: task.priority,
+				dueDate: null,
+				labels: [],
+				...(parentId && {
+					requiredApprovalIds: resolveRequiredApprovalIds(
+						task.requiredApprovalByTeamNames,
+					),
+					parentCompetitionId: competitionId,
+				}),
+			});
+		},
+		[addTask, resolveOwnerAssignee, resolveRequiredApprovalIds],
+	);
+
+	const createTasksFromTemplate = useCallback(
+		async (
+			competitionId: string,
+			template: CompetitionTemplate,
+			competitionPhases: CompetitionPhase[],
+		) => {
+			const phasesByName = new Map(
+				competitionPhases.map((p) => [p.name, p]),
+			);
+			const firstPhaseName = competitionPhases[0]?.name ?? null;
+
+			for (const task of template.defaultTasks) {
+				if (task.subTasks?.length) {
+					const parentResult = await createTaskFromTemplate(
+						task,
+						competitionId,
+						phasesByName,
+						firstPhaseName,
+					);
+
+					for (const subtask of task.subTasks) {
+						await createTaskFromTemplate(
+							subtask,
+							competitionId,
+							phasesByName,
+							firstPhaseName,
+							parentResult.id,
+						);
+					}
+				} else {
+					await createTaskFromTemplate(
+						task,
+						competitionId,
+						phasesByName,
+						firstPhaseName,
+					);
+				}
+			}
+		},
+		[createTaskFromTemplate],
+	);
+
+	const handleSubmit = useCallback(async () => {
+		if (!name.trim() || !compStart || !compEnd) return;
 
 		const baseData: Omit<
 			Competition,
@@ -236,6 +337,11 @@ export function CompetitionModal({
 
 		if (mode === "create") {
 			const created = await addCompetition(baseData);
+
+			if (selectedTemplate) {
+				await createTasksFromTemplate(created.id, selectedTemplate, phases);
+			}
+
 			onSave?.(created);
 		} else if (competition) {
 			await updateCompetition(competition.id, baseData);
@@ -246,7 +352,26 @@ export function CompetitionModal({
 		}
 
 		onOpenChange(false);
-	};
+	}, [
+		name,
+		compStart,
+		compEnd,
+		description,
+		compLead,
+		leadDelegate,
+		organisers,
+		phases,
+		currentPhaseIdx,
+		compSheet,
+		mode,
+		addCompetition,
+		selectedTemplate,
+		createTasksFromTemplate,
+		onSave,
+		competition,
+		updateCompetition,
+		onOpenChange,
+	]);
 
 	const renderUserOption = (user: User) => (
 		<UserAvatar user={user} size="xs" showName nameClassName="text-sm" />
@@ -355,9 +480,9 @@ export function CompetitionModal({
 								Competition lead
 							</span>
 							<Select
-								value={compLead?.id ?? ""}
+								value={compLead?.id ?? "__unassigned__"}
 								onValueChange={(id) => {
-									const user = users.find((u) => u.id === id) ?? null;
+									const user = id === "__unassigned__" ? null : compLeadOptions.find((u) => u.id === id) ?? null;
 									setCompLead(user);
 								}}
 							>
@@ -365,7 +490,10 @@ export function CompetitionModal({
 									<SelectValue placeholder="Select lead" />
 								</SelectTrigger>
 								<SelectContent>
-									{users.map((user) => (
+									<SelectItem value="__unassigned__">
+										<span className="text-xs text-muted-foreground">Unassigned</span>
+									</SelectItem>
+									{compLeadOptions.map((user) => (
 										<SelectItem key={user.id} value={user.id}>
 											{renderUserOption(user)}
 										</SelectItem>
@@ -379,9 +507,9 @@ export function CompetitionModal({
 								Lead delegate
 							</span>
 							<Select
-								value={leadDelegate?.id ?? ""}
+								value={leadDelegate?.id ?? "__unassigned__"}
 								onValueChange={(id) => {
-									const user = users.find((u) => u.id === id) ?? null;
+									const user = id === "__unassigned__" ? null : leadDelegateOptions.find((u) => u.id === id) ?? null;
 									setLeadDelegate(user);
 								}}
 							>
@@ -389,7 +517,10 @@ export function CompetitionModal({
 									<SelectValue placeholder="Select delegate" />
 								</SelectTrigger>
 								<SelectContent>
-									{users.map((user) => (
+									<SelectItem value="__unassigned__">
+										<span className="text-xs text-muted-foreground">Unassigned</span>
+									</SelectItem>
+									{leadDelegateOptions.map((user) => (
 										<SelectItem key={user.id} value={user.id}>
 											{renderUserOption(user)}
 										</SelectItem>

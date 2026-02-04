@@ -1,7 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireUserId } from "./auth";
+import { internal } from "./_generated/api";
+
+const DAYS_PER_WEEK = 7;
+const PRIORITY_NORMAL = "normal";
 
 const toISO = (ms: number) => new Date(ms).toISOString();
 
@@ -71,17 +75,13 @@ function docToReminder(d: {
 }
 
 export const listForUser = query({
-	args: { userId: v.id("users") },
+	args: {},
 	returns: v.array(reminderReturns),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-
-		if (args.userId !== userId) {
-			return [];
-		}
+	handler: async (ctx) => {
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const docs = await ctx.db
 			.query("reminders")
-			.withIndex("by_user", (q) => q.eq("userId", args.userId))
+			.withIndex("by_user", (q) => q.eq("userId", userId))
 			.order("desc")
 			.collect();
 		return docs.map(docToReminder);
@@ -89,18 +89,33 @@ export const listForUser = query({
 });
 
 export const listPendingForUser = query({
-	args: { userId: v.id("users") },
+	args: {},
 	returns: v.array(reminderReturns),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-
-		if (args.userId !== userId) {
-			return [];
-		}
+	handler: async (ctx) => {
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const docs = await ctx.db
 			.query("reminders")
 			.withIndex("by_user_and_status", (q) =>
-				q.eq("userId", args.userId).eq("status", "pending"),
+				q.eq("userId", userId).eq("status", "pending"),
+			)
+			.order("asc")
+			.collect();
+		return docs.map(docToReminder);
+	},
+});
+
+export const listPendingForTask = query({
+	args: { taskId: v.string() },
+	returns: v.array(reminderReturns),
+	handler: async (ctx, args) => {
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const docs = await ctx.db
+			.query("reminders")
+			.withIndex("by_user_entityId_status", (q) =>
+				q
+					.eq("userId", userId)
+					.eq("entityId", args.taskId)
+					.eq("status", "pending"),
 			)
 			.order("asc")
 			.collect();
@@ -110,7 +125,6 @@ export const listPendingForUser = query({
 
 export const create = mutation({
 	args: {
-		userId: v.id("users"),
 		entityId: v.string(),
 		type: v.union(v.literal("one_time"), v.literal("recurring")),
 		remindAt: v.string(),
@@ -123,19 +137,11 @@ export const create = mutation({
 	},
 	returns: v.id("reminders"),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-
-		if (args.userId !== userId) {
-			// Do not allow creating reminders for other users.
-			throw new Error("Cannot create reminder for another user");
-		}
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const now = Date.now();
-		const remindAtMs =
-			typeof args.remindAt === "string"
-				? new Date(args.remindAt).getTime()
-				: now;
+		const remindAtMs = new Date(args.remindAt).getTime();
 		return await ctx.db.insert("reminders", {
-			userId: args.userId,
+			userId,
 			entityType: "task",
 			entityId: args.entityId,
 			type: args.type,
@@ -144,7 +150,7 @@ export const create = mutation({
 			recurringConfig: args.recurringConfig,
 			endDate: args.endDate,
 			status: "pending",
-			priority: args.priority ?? "normal",
+			priority: args.priority ?? PRIORITY_NORMAL,
 			message: args.message,
 			metadata: args.metadata,
 			updatedAt: now,
@@ -200,3 +206,103 @@ export const snooze = mutation({
 		return null;
 	},
 });
+
+export const reschedule = mutation({
+	args: {
+		reminderId: v.id("reminders"),
+		remindAt: v.string(),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const userId = await requireUserId(ctx);
+		const doc = await ctx.db.get("reminders", args.reminderId);
+		if (!doc || doc.userId !== userId) return null;
+		const remindAtMs = new Date(args.remindAt).getTime();
+		await ctx.db.patch("reminders", args.reminderId, {
+			remindAt: remindAtMs,
+			updatedAt: Date.now(),
+		});
+		return null;
+	},
+});
+
+export const _checkPendingReminders = internalMutation({
+	args: {},
+	returns: v.number(),
+	handler: async (ctx) => {
+		const now = Date.now();
+		const dueReminders = await ctx.db
+			.query("reminders")
+			.withIndex("by_remind_at", (q) => q.lte("remindAt", now))
+			.collect();
+		const pendingDue = dueReminders.filter((r) => r.status === "pending");
+
+		let triggeredCount = 0;
+		for (const reminder of pendingDue) {
+			await ctx.db.patch("reminders", reminder._id, {
+				status: "triggered",
+				triggeredAt: now,
+				updatedAt: now,
+			});
+			await ctx.scheduler.runAfter(
+				0,
+				internal.notifications._notifyReminderTriggered,
+				{
+					reminderId: reminder._id,
+					userId: reminder.userId,
+					taskId: reminder.entityId,
+					message: reminder.message,
+				},
+			);
+			triggeredCount++;
+
+			if (reminder.type === "recurring" && reminder.recurringPattern) {
+				const nextRemindAt = calculateNextReminderTime(
+					reminder.remindAt,
+					reminder.recurringPattern,
+				);
+				const beforeEnd =
+					!reminder.endDate ||
+					new Date(reminder.endDate).getTime() > nextRemindAt;
+				if (beforeEnd) {
+					await ctx.db.insert("reminders", {
+						userId: reminder.userId,
+						entityType: reminder.entityType,
+						entityId: reminder.entityId,
+						type: reminder.type,
+						remindAt: nextRemindAt,
+						recurringPattern: reminder.recurringPattern,
+						recurringConfig: reminder.recurringConfig,
+						endDate: reminder.endDate,
+						status: "pending",
+						priority: reminder.priority,
+						message: reminder.message,
+						metadata: reminder.metadata,
+						updatedAt: now,
+					});
+				}
+			}
+		}
+
+		return triggeredCount;
+	},
+});
+
+function calculateNextReminderTime(
+	currentRemindAt: number,
+	pattern: string,
+): number {
+	const nextDate = new Date(currentRemindAt);
+
+	if (pattern === "daily") {
+		nextDate.setDate(nextDate.getDate() + 1);
+	} else if (pattern === "weekly") {
+		nextDate.setDate(nextDate.getDate() + DAYS_PER_WEEK);
+	} else if (pattern === "monthly") {
+		nextDate.setMonth(nextDate.getMonth() + 1);
+	} else {
+		nextDate.setDate(nextDate.getDate() + 1);
+	}
+
+	return nextDate.getTime();
+}

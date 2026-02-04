@@ -24,18 +24,24 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-	useUsers,
+	buildOneTimeReminderPayload,
 	useNotifications,
 	useUnreadCount,
 	useNotificationMutations,
+	usePendingReminders,
+	useReminderMutations,
 } from "@/hooks/use-convex-data";
 import type { Notification, NotificationType } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
+import { SNOOZE_PRESETS } from "@/lib/reminder-presets";
 
 export const Route = createFileRoute("/inbox")({
 	component: RouteComponent,
@@ -99,11 +105,13 @@ function NotificationItem({
 	onMarkRead,
 	onArchive,
 	onDismiss,
+	onSnooze,
 }: {
 	notification: Notification;
 	onMarkRead: (id: string) => void;
 	onArchive: (id: string) => void;
 	onDismiss: (id: string) => void;
+	onSnooze?: (notification: Notification, remindAt: string) => void;
 }) {
 	const isUnread = notification.status === "unread";
 	const timeAgo = formatRelativeTime(notification.createdAt);
@@ -118,6 +126,10 @@ function NotificationItem({
 					to: "/competitions/$id",
 					params: { id: notification.entityId },
 				};
+			case "reminder":
+				return notification.parentEntityId
+					? { to: "/tasks/$id", params: { id: notification.parentEntityId } }
+					: null;
 			default:
 				return null;
 		}
@@ -193,6 +205,31 @@ function NotificationItem({
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
+								{notification.type === "reminder_triggered" &&
+									onSnooze &&
+									notification.parentEntityId && (
+										<DropdownMenuSub>
+											<DropdownMenuSubTrigger>
+												<Clock className="size-4 mr-2" />
+												Snooze
+											</DropdownMenuSubTrigger>
+											<DropdownMenuSubContent>
+												{SNOOZE_PRESETS.map((preset) => (
+													<DropdownMenuItem
+														key={preset.key}
+														onClick={() => {
+															onSnooze(
+																notification,
+																preset.getRemindAt(),
+															);
+														}}
+													>
+														{preset.label}
+													</DropdownMenuItem>
+												))}
+											</DropdownMenuSubContent>
+										</DropdownMenuSub>
+									)}
 								{isUnread && (
 									<DropdownMenuItem onClick={() => onMarkRead(notification.id)}>
 										<Mail className="size-4 mr-2" />
@@ -222,18 +259,16 @@ function NotificationItem({
 function RouteComponent() {
 	const [activeTab, setActiveTab] = useState("unread");
 
-	const { users } = useUsers();
-	const currentUser = users[0];
-	const userId = currentUser?.id ?? "";
-
-	const { notifications } = useNotifications(userId || null);
-	const unreadCount = useUnreadCount(userId || null);
+	const { notifications } = useNotifications();
+	const unreadCount = useUnreadCount();
+	const { reminders } = usePendingReminders();
 	const {
 		markNotificationRead,
 		markNotificationArchived,
 		markAllNotificationsRead,
 		dismissNotification,
 	} = useNotificationMutations();
+	const { addReminder, cancelReminder } = useReminderMutations();
 
 	const filteredNotifications = useMemo(() => {
 		switch (activeTab) {
@@ -261,7 +296,16 @@ function RouteComponent() {
 	};
 
 	const handleMarkAllRead = () => {
-		if (userId) void markAllNotificationsRead(userId);
+		void markAllNotificationsRead();
+	};
+
+	const handleSnooze = (notification: Notification, remindAt: string) => {
+		if (notification.type !== "reminder_triggered" || !notification.parentEntityId)
+			return;
+		void addReminder(
+			buildOneTimeReminderPayload(notification.parentEntityId, remindAt),
+		);
+		void markNotificationRead(notification.id);
 	};
 
 	return (
@@ -304,30 +348,154 @@ function RouteComponent() {
 						</TabsTrigger>
 						<TabsTrigger value="read">Read</TabsTrigger>
 						<TabsTrigger value="archived">Archived</TabsTrigger>
+						<TabsTrigger value="reminders" className="gap-2">
+							Reminders
+							{reminders.length > 0 && (
+								<Badge
+									variant="secondary"
+									className="text-[10px] h-4 min-w-[18px]"
+								>
+									{reminders.length}
+								</Badge>
+							)}
+						</TabsTrigger>
 						<TabsTrigger value="all">All</TabsTrigger>
 					</TabsList>
 
-					<TabsContent value={activeTab} className="mt-0">
+					<TabsContent value="unread" className="mt-0">
 						{filteredNotifications.length === 0 ? (
 							<div className="text-center py-12">
 								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
 								<p className="text-sm text-muted-foreground">
-									{activeTab === "unread"
-										? "You're all caught up!"
-										: activeTab === "archived"
-											? "No archived notifications"
-											: "No notifications"}
+									You&apos;re all caught up!
 								</p>
 							</div>
 						) : (
 							<div className="space-y-0">
-								{filteredNotifications.map((notification) => (
+								{notifications
+									.filter((n) => n.status === "unread")
+									.map((notification) => (
+										<NotificationItem
+											key={notification.id}
+											notification={notification}
+											onMarkRead={handleMarkRead}
+											onArchive={handleArchive}
+											onDismiss={handleDismiss}
+											onSnooze={handleSnooze}
+										/>
+									))}
+							</div>
+						)}
+					</TabsContent>
+					<TabsContent value="read" className="mt-0">
+						{notifications.filter((n) => n.status === "read").length === 0 ? (
+							<div className="text-center py-12">
+								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
+								<p className="text-sm text-muted-foreground">
+									No read notifications
+								</p>
+							</div>
+						) : (
+							<div className="space-y-0">
+								{notifications
+									.filter((n) => n.status === "read")
+									.map((notification) => (
+										<NotificationItem
+											key={notification.id}
+											notification={notification}
+											onMarkRead={handleMarkRead}
+											onArchive={handleArchive}
+											onDismiss={handleDismiss}
+											onSnooze={handleSnooze}
+										/>
+									))}
+							</div>
+						)}
+					</TabsContent>
+					<TabsContent value="archived" className="mt-0">
+						{notifications.filter((n) => n.status === "archived").length === 0 ? (
+							<div className="text-center py-12">
+								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
+								<p className="text-sm text-muted-foreground">
+									No archived notifications
+								</p>
+							</div>
+						) : (
+							<div className="space-y-0">
+								{notifications
+									.filter((n) => n.status === "archived")
+									.map((notification) => (
+										<NotificationItem
+											key={notification.id}
+											notification={notification}
+											onMarkRead={handleMarkRead}
+											onArchive={handleArchive}
+											onDismiss={handleDismiss}
+											onSnooze={handleSnooze}
+										/>
+									))}
+							</div>
+						)}
+					</TabsContent>
+					<TabsContent value="reminders" className="mt-0">
+						{reminders.length === 0 ? (
+							<div className="text-center py-12">
+								<Calendar className="size-8 text-muted-foreground/50 mx-auto mb-3" />
+								<p className="text-sm text-muted-foreground">
+									No upcoming reminders
+								</p>
+							</div>
+						) : (
+							<div className="space-y-0">
+								{reminders.map((reminder) => (
+									<div
+										key={reminder.id}
+										className="flex items-center gap-3 py-3 border-b last:border-b-0"
+									>
+										<Calendar className="size-5 shrink-0 text-primary" />
+										<div className="flex-1 min-w-0">
+											<Link
+												to="/tasks/$id"
+												params={{ id: reminder.entityId }}
+												className="font-medium text-sm hover:underline"
+											>
+												Task reminder
+											</Link>
+											<p className="text-xs text-muted-foreground mt-0.5">
+												{formatDate(reminder.remindAt)}
+											</p>
+										</div>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 text-xs"
+											onClick={() => cancelReminder(reminder.id)}
+										>
+											Cancel
+										</Button>
+									</div>
+								))}
+							</div>
+						)}
+					</TabsContent>
+					<TabsContent value="all" className="mt-0">
+						{notifications.length === 0 ? (
+							<div className="text-center py-12">
+								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
+								<p className="text-sm text-muted-foreground">
+									No notifications
+								</p>
+							</div>
+						) : (
+							<div className="space-y-0">
+								{notifications.map((notification) => (
 									<NotificationItem
 										key={notification.id}
 										notification={notification}
 										onMarkRead={handleMarkRead}
 										onArchive={handleArchive}
 										onDismiss={handleDismiss}
+										onSnooze={handleSnooze}
 									/>
 								))}
 							</div>

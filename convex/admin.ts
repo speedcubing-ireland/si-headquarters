@@ -8,7 +8,7 @@ const DIRECTORS_TEAM_NAME = "Directors";
 
 type AuthCtx = QueryCtx | MutationCtx;
 
-async function isDirectorForCtx(ctx: AuthCtx): Promise<boolean> {
+export async function isDirectorForCtx(ctx: AuthCtx): Promise<boolean> {
 	const userId = await getAuthUserId(ctx);
 	if (userId === null) return false;
 
@@ -267,10 +267,7 @@ export const listPhasesWithUsage = query({
 			if (comp.currentPhaseId) {
 				const current =
 					competitionUsage.get(comp.currentPhaseId as Id<"phases">) ?? 0;
-				competitionUsage.set(
-					comp.currentPhaseId as Id<"phases">,
-					current + 1,
-				);
+				competitionUsage.set(comp.currentPhaseId as Id<"phases">, current + 1);
 			}
 		}
 
@@ -282,8 +279,7 @@ export const listPhasesWithUsage = query({
 			order: p.order,
 			archived: p.archived,
 			taskUsageCount: taskUsage.get(p._id as Id<"phases">) ?? 0,
-			competitionUsageCount:
-				competitionUsage.get(p._id as Id<"phases">) ?? 0,
+			competitionUsageCount: competitionUsage.get(p._id as Id<"phases">) ?? 0,
 		}));
 	},
 });
@@ -303,9 +299,7 @@ export const createPhaseAdmin = mutation({
 		const existing = await ctx.db.query("phases").collect();
 		const nextOrder =
 			args.order ??
-			(existing.length > 0
-				? Math.max(...existing.map((p) => p.order)) + 1
-				: 0);
+			(existing.length > 0 ? Math.max(...existing.map((p) => p.order)) + 1 : 0);
 
 		return await ctx.db.insert("phases", {
 			key: args.key,
@@ -332,7 +326,8 @@ export const updatePhaseAdmin = mutation({
 
 		const patch: Record<string, unknown> = {};
 		if (updates.name !== undefined) patch.name = updates.name;
-		if (updates.description !== undefined) patch.description = updates.description;
+		if (updates.description !== undefined)
+			patch.description = updates.description;
 		if (updates.order !== undefined) patch.order = updates.order;
 		if (updates.archived !== undefined) patch.archived = updates.archived;
 

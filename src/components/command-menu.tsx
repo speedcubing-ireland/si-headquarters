@@ -1,5 +1,6 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
+	Bell,
 	Calendar,
 	CheckSquare,
 	Home,
@@ -9,6 +10,7 @@ import {
 	Trophy,
 	User as UserIcon,
 	Users,
+	X,
 } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
@@ -22,14 +24,18 @@ import {
 	CommandShortcut,
 } from "@/components/ui/command";
 import {
+	buildOneTimeReminderPayload,
 	useTasks,
 	useUsers,
 	useTeams,
 	useCompetitions,
 	useCommentsForSearch,
+	usePendingRemindersForTask,
+	useReminderMutations,
 } from "@/hooks/use-convex-data";
 import type { Competition, Task, Team, User } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
+import { REMINDER_PRESETS } from "@/lib/reminder-presets";
 
 type SearchResult =
 	| { type: "task"; item: Task }
@@ -42,25 +48,40 @@ interface CommandMenuProps {
 	onOpenChange: (open: boolean) => void;
 }
 
+const TASKS_PATH_PREFIX = "/tasks/";
+const TASKS_NON_DETAIL_PATHS = new Set(["/tasks", "/tasks/my", "/tasks/archived"]);
+
+function useCurrentTaskId(): string | null {
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	if (!pathname.startsWith(TASKS_PATH_PREFIX) || TASKS_NON_DETAIL_PATHS.has(pathname)) {
+		return null;
+	}
+	const segments = pathname.split("/").filter(Boolean);
+	return segments[0] === "tasks" && segments[1] ? segments[1] : null;
+}
+
 export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 	const navigate = useNavigate();
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search);
-
-	// Get all data from Convex
+	const currentTaskId = useCurrentTaskId();
+	const { reminders: pendingForTask } = usePendingRemindersForTask(
+		currentTaskId ?? null,
+	);
+	const { addReminder, cancelReminder } = useReminderMutations();
 	const { tasks } = useTasks(false);
 	const { competitions } = useCompetitions();
 	const { users } = useUsers();
 	const { teams } = useTeams();
 	const { comments } = useCommentsForSearch();
 
-	// Pre-compute lowercase search query to avoid repeated conversions
 	const searchQuery = useMemo(
 		() => deferredSearch.trim().toLowerCase(),
 		[deferredSearch],
 	);
 
-	// Enhanced search with scoring and context
 	const results = useMemo(() => {
 		if (!searchQuery) return [];
 
@@ -68,7 +89,6 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 		const query = searchQuery;
 		const queryWords = query.split(/\s+/).filter((w) => w.length > 0);
 
-		// Helper to calculate match score
 		const calculateScore = (text: string, query: string): number => {
 			const lowerText = text.toLowerCase();
 			const lowerQuery = query.toLowerCase();
@@ -350,7 +370,6 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 		},
 	];
 
-	// Reset search when dialog closes
 	useEffect(() => {
 		if (!open) {
 			setTimeout(() => setSearch(""), 200);
@@ -372,6 +391,44 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			/>
 			<CommandList>
 				<CommandEmpty>No results found.</CommandEmpty>
+
+				{currentTaskId && (
+					<CommandGroup heading="Current task">
+						{REMINDER_PRESETS.filter((p) => p.key !== "custom").map(
+							(preset) => (
+								<CommandItem
+									key={preset.key}
+									onSelect={() => {
+										void addReminder(
+											buildOneTimeReminderPayload(
+												currentTaskId,
+												preset.getRemindAt(),
+											),
+										);
+										onOpenChange(false);
+									}}
+								>
+									<Bell className="size-4" />
+									Remind me: {preset.label}
+								</CommandItem>
+							),
+						)}
+						{pendingForTask.length > 0 && (
+							<CommandItem
+								onSelect={() => {
+									void cancelReminder(pendingForTask[0].id);
+									onOpenChange(false);
+								}}
+							>
+								<X className="size-4" />
+								Cancel reminder
+							</CommandItem>
+						)}
+					</CommandGroup>
+				)}
+				{currentTaskId && (hasResults || !searchQuery) && (
+					<CommandSeparator />
+				)}
 
 				{hasResults ? (
 					<>

@@ -1,7 +1,9 @@
-import { v, ConvexError } from "convex/values";
+import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireUserId } from "./auth";
+import { internal } from "./_generated/api";
+import { isDirectorForCtx } from "./admin";
 
 const parentType = v.union(v.literal("task"), v.literal("update"));
 
@@ -25,6 +27,7 @@ const commentForUIReturns = v.object({
 	content: v.string(),
 	createdAt: v.string(),
 	updatedAt: v.string(),
+	contentUpdatedAt: v.optional(v.string()),
 	reactions: v.array(reactionShape),
 });
 
@@ -87,6 +90,8 @@ export const listForUI = query({
 			content: d.content,
 			createdAt: toISO(d._creationTime),
 			updatedAt: toISO(d.updatedAt),
+			contentUpdatedAt:
+				d.contentUpdatedAt != null ? toISO(d.contentUpdatedAt) : undefined,
 			reactions: d.reactions.map((r) => ({
 				emoji: r.emoji,
 				users: r.userIds
@@ -99,32 +104,138 @@ export const listForUI = query({
 	},
 });
 
+function matchesMention(
+	mentionedNames: Set<string>,
+	userName: string,
+	userEmail: string,
+): boolean {
+	const normalizedName = userName.toLowerCase();
+	const normalizedEmail = userEmail.toLowerCase();
+	const firstName = normalizedName.split(" ")[0];
+	const lastName = normalizedName.split(" ").pop() ?? "";
+
+	return (
+		mentionedNames.has(normalizedName) ||
+		mentionedNames.has(normalizedEmail) ||
+		(Boolean(firstName) && mentionedNames.has(firstName)) ||
+		(Boolean(lastName) && mentionedNames.has(lastName))
+	);
+}
+
+async function extractMentions(
+	ctx: {
+		db: {
+			query: (table: "users") => {
+				collect: () => Promise<
+					Array<{ _id: Id<"users">; name?: string; email?: string }>
+				>;
+			};
+		};
+	},
+	content: string,
+): Promise<Id<"users">[]> {
+	const mentionRegex = /@(\w+)/g;
+	const matches = Array.from(content.matchAll(mentionRegex));
+	if (matches.length === 0) return [];
+
+	const mentionedNames = new Set(matches.map((m) => m[1].toLowerCase()));
+	const allUsers = await ctx.db.query("users").collect();
+	const mentionedUserIds: Id<"users">[] = [];
+
+	for (const user of allUsers) {
+		const userName = (user.name ?? "").toLowerCase();
+		const userEmail = (user.email ?? "").toLowerCase().split("@")[0];
+		if (matchesMention(mentionedNames, userName, userEmail)) {
+			mentionedUserIds.push(user._id);
+		}
+	}
+
+	return mentionedUserIds;
+}
+
 export const create = mutation({
 	args: {
 		parentType,
 		parentId: v.string(),
 		parentCommentId: v.optional(v.id("comments")),
-		authorId: v.id("users"),
 		content: v.string(),
 	},
 	returns: v.id("comments"),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-
-		// Enforce that the author is the authenticated user.
-		if (args.authorId !== userId) {
-			throw new ConvexError("Cannot create a comment as another user");
-		}
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const now = Date.now();
-		return await ctx.db.insert("comments", {
+		const commentId = await ctx.db.insert("comments", {
 			parentType: args.parentType,
 			parentId: args.parentId,
 			parentCommentId: args.parentCommentId,
-			authorId: args.authorId,
+			authorId: userId,
 			content: args.content,
 			reactions: [],
 			updatedAt: now,
 		});
+
+		if (args.parentType !== "task") return commentId;
+
+		const taskId = args.parentId as Id<"tasks">;
+		const task = await ctx.db.get("tasks", taskId);
+		if (!task) return commentId;
+
+		const mentionedUserIds = await extractMentions(ctx, args.content);
+		const notifiedUserIds = new Set<Id<"users">>();
+		const notificationPromises: Promise<unknown>[] = [];
+
+		for (const mentionedUserId of mentionedUserIds) {
+			if (mentionedUserId !== userId) {
+				notificationPromises.push(
+					ctx.scheduler.runAfter(
+						0,
+						internal.notifications._notifyTaskMentioned,
+						{
+							taskId,
+							commentId,
+							mentionedUserId,
+							actorId: userId,
+						},
+					),
+				);
+				notifiedUserIds.add(mentionedUserId);
+			}
+		}
+
+		if (
+			task.assigneeId &&
+			task.assigneeId !== userId &&
+			!notifiedUserIds.has(task.assigneeId)
+		) {
+			notificationPromises.push(
+				ctx.scheduler.runAfter(0, internal.notifications._notifyCommentAdded, {
+					taskId,
+					commentId,
+					recipientId: task.assigneeId,
+					actorId: userId,
+				}),
+			);
+		}
+
+		if (
+			task.ownerId &&
+			task.ownerType === "user" &&
+			task.ownerId !== userId &&
+			task.ownerId !== task.assigneeId &&
+			!notifiedUserIds.has(task.ownerId as Id<"users">)
+		) {
+			notificationPromises.push(
+				ctx.scheduler.runAfter(0, internal.notifications._notifyCommentAdded, {
+					taskId,
+					commentId,
+					recipientId: task.ownerId as Id<"users">,
+					actorId: userId,
+				}),
+			);
+		}
+
+		await Promise.allSettled(notificationPromises);
+		return commentId;
 	},
 });
 
@@ -140,6 +251,7 @@ export const update = mutation({
 		if (!doc || doc.authorId !== userId) return null;
 		await ctx.db.patch("comments", args.commentId, {
 			content: args.content,
+			contentUpdatedAt: Date.now(),
 			updatedAt: Date.now(),
 		});
 		return null;
@@ -150,9 +262,18 @@ export const remove = mutation({
 	args: { commentId: v.id("comments") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const doc = await ctx.db.get("comments", args.commentId);
-		if (!doc || doc.authorId !== userId) return null;
+		if (!doc) return null;
+
+		// Allow deletion if user is the comment author or a director
+		const isCommentAuthor = doc.authorId === userId;
+		const isDirector = await isDirectorForCtx(ctx);
+
+		if (!isCommentAuthor && !isDirector) {
+			return null;
+		}
+
 		await ctx.db.delete("comments", args.commentId);
 		return null;
 	},
@@ -209,6 +330,8 @@ export const listRecentForSearch = query({
 			content: d.content,
 			createdAt: toISO(d._creationTime),
 			updatedAt: toISO(d.updatedAt),
+			contentUpdatedAt:
+				d.contentUpdatedAt != null ? toISO(d.contentUpdatedAt) : undefined,
 			reactions: d.reactions.map((r) => ({
 				emoji: r.emoji,
 				users: r.userIds
@@ -225,34 +348,28 @@ export const toggleReaction = mutation({
 	args: {
 		commentId: v.id("comments"),
 		emoji: v.string(),
-		userId: v.id("users"),
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc) return null;
-
-		// Ensure the reacting user is the authenticated user.
-		if (args.userId !== userId) {
-			throw new ConvexError("Cannot react on behalf of another user");
-		}
 
 		const reactions = [...doc.reactions];
 		const idx = reactions.findIndex((r) => r.emoji === args.emoji);
 		if (idx >= 0) {
 			const userIds = [...reactions[idx].userIds];
-			const userIdx = userIds.indexOf(args.userId);
+			const userIdx = userIds.indexOf(userId);
 			if (userIdx >= 0) {
 				userIds.splice(userIdx, 1);
 				if (userIds.length === 0) reactions.splice(idx, 1);
 				else reactions[idx] = { ...reactions[idx], userIds };
 			} else {
-				userIds.push(args.userId);
+				userIds.push(userId);
 				reactions[idx] = { ...reactions[idx], userIds };
 			}
 		} else {
-			reactions.push({ emoji: args.emoji, userIds: [args.userId] });
+			reactions.push({ emoji: args.emoji, userIds: [userId] });
 		}
 
 		await ctx.db.patch("comments", args.commentId, {
