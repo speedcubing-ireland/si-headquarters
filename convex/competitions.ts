@@ -1,8 +1,8 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { requireUserId } from "./auth";
+import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 
 const phaseShape = v.object({
@@ -96,8 +96,25 @@ export const get = query({
 	args: { competitionId: v.id("competitions") },
 	returns: v.union(competitionDoc, v.null()),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
-		return await ctx.db.get("competitions", args.competitionId);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const competition = await ctx.db.get("competitions", args.competitionId);
+		if (!competition) return null;
+
+		const volunteer = await isVolunteer(ctx);
+		if (volunteer) {
+			return competition;
+		}
+
+		// Guest organizers only see competitions where they're listed as organizers
+		if (
+			competition.organiserIds.includes(userId) ||
+			competition.compLeadId === userId ||
+			competition.leadDelegateId === userId
+		) {
+			return competition;
+		}
+
+		return null;
 	},
 });
 
@@ -155,12 +172,31 @@ export const listForUI = query({
 	args: {},
 	returns: v.array(competitionForUIReturns),
 	handler: async (ctx) => {
-		await requireUserId(ctx);
-		const docs: Doc<"competitions">[] = await ctx.db
-			.query("competitions")
-			.withIndex("by_comp_start")
-			.order("asc")
-			.collect();
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		let docs: Doc<"competitions">[];
+		if (volunteer) {
+			// Volunteers see all competitions
+			docs = await ctx.db
+				.query("competitions")
+				.withIndex("by_comp_start")
+				.order("asc")
+				.collect();
+		} else {
+			// Guest organizers only see competitions where they're listed as organizers
+			const allCompetitions = await ctx.db
+				.query("competitions")
+				.withIndex("by_comp_start")
+				.order("asc")
+				.collect();
+			docs = allCompetitions.filter(
+				(comp) =>
+					comp.organiserIds.includes(userId) ||
+					comp.compLeadId === userId ||
+					comp.leadDelegateId === userId,
+			);
+		}
 
 		const phases: Doc<"phases">[] = await ctx.db
 			.query("phases")
@@ -260,9 +296,21 @@ export const getForUI = query({
 	args: { competitionId: v.id("competitions") },
 	returns: v.union(competitionForUIReturns, v.null()),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const d = await ctx.db.get("competitions", args.competitionId);
 		if (!d) return null;
+
+		const volunteer = await isVolunteer(ctx);
+		if (!volunteer) {
+			// Guest organizers only see competitions where they're listed as organizers
+			if (
+				!d.organiserIds.includes(userId) &&
+				d.compLeadId !== userId &&
+				d.leadDelegateId !== userId
+			) {
+				return null;
+			}
+		}
 
 		const phases: Doc<"phases">[] = await ctx.db
 			.query("phases")
@@ -356,7 +404,15 @@ export const create = mutation({
 	args: createArgs,
 	returns: v.id("competitions"),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+
+		if (!volunteer) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Only volunteers can create competitions",
+			});
+		}
+
 		const now = Date.now();
 
 		const phases: Doc<"phases">[] = await ctx.db
@@ -565,7 +621,15 @@ export const remove = mutation({
 	args: { competitionId: v.id("competitions") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+
+		if (!volunteer) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Only volunteers can delete competitions",
+			});
+		}
+
 		const doc = await ctx.db.get("competitions", args.competitionId);
 		if (!doc) return null;
 

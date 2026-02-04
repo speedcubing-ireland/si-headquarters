@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { requireUserId } from "./auth";
+import type { Id } from "./_generated/dataModel";
+import { requireUserId, ensureUserInVolunteerTeam } from "./auth";
 
 const userDocValidator = v.union(
 	v.null(),
@@ -50,5 +51,20 @@ export const listUsers = query({
 			name: u.name ?? "",
 			avatarUrl: u.image ?? "",
 		}));
+	},
+});
+
+/**
+ * Ensure the current user is added to the Volunteer team if they have
+ * a @speedcubingireland.com email. Idempotent - safe to call multiple times.
+ * This should be called on app initialization to auto-enroll users.
+ */
+export const ensureVolunteerAccess = mutation({
+	args: {},
+	returns: v.null(),
+	handler: async (ctx) => {
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		await ensureUserInVolunteerTeam(ctx, userId);
+		return null;
 	},
 });

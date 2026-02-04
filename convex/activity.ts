@@ -1,13 +1,40 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { requireUserId } from "./auth";
+import type { QueryCtx } from "./_generated/server";
+import { requireUserId, isVolunteer } from "./auth";
 
 const entityType = v.union(
 	v.literal("task"),
 	v.literal("update"),
 	v.literal("competition"),
 );
+
+/**
+ * Check if a user has access to a competition.
+ * Returns true if user is volunteer OR is organizer/lead/delegate of the competition.
+ */
+async function hasCompetitionAccess(
+	ctx: QueryCtx,
+	isVolunteer: boolean,
+	userId: Id<"users">,
+	competitionId: Id<"competitions"> | string | null | undefined,
+): Promise<boolean> {
+	if (isVolunteer) return true;
+	if (!competitionId) return false;
+
+	const competition = await ctx.db.get(
+		"competitions",
+		competitionId as Id<"competitions">,
+	);
+	if (!competition) return false;
+
+	return (
+		competition.organiserIds.includes(userId) ||
+		competition.compLeadId === userId ||
+		competition.leadDelegateId === userId
+	);
+}
 
 const userShape = v.object({
 	id: v.string(),
@@ -34,8 +61,51 @@ export const listForEntity = query({
 	},
 	returns: v.array(activityEntryReturns),
 	handler: async (ctx, args) => {
-		// Only authenticated users can view activity.
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		if (args.entityType === "task") {
+			const task = await ctx.db.get("tasks", args.entityId as Id<"tasks">);
+			if (!task) return [];
+
+			if (!volunteer) {
+				if (!task.parentCompetitionId) return [];
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					task.parentCompetitionId,
+				);
+				if (!hasAccess) return [];
+			}
+		} else if (args.entityType === "update") {
+			const update = await ctx.db.get(
+				"competitionUpdates",
+				args.entityId as Id<"competitionUpdates">,
+			);
+			if (!update) return [];
+
+			if (!volunteer) {
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					update.competitionId,
+				);
+				if (!hasAccess) return [];
+			}
+		} else if (args.entityType === "competition") {
+			if (!volunteer) {
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					args.entityId as Id<"competitions">,
+				);
+				if (!hasAccess) return [];
+			}
+		}
+
 		const docs = await ctx.db
 			.query("activityLog")
 			.withIndex("by_entity", (q) =>

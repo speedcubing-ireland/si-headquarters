@@ -1,11 +1,37 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { requireUserId } from "./auth";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
+import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 import { isDirectorForCtx } from "./admin";
 
 const parentType = v.union(v.literal("task"), v.literal("update"));
+
+const ERROR_COMMENT_NO_ACCESS_TASK = "You can only comment on tasks linked to competitions you are organizing";
+const ERROR_COMMENT_NO_ACCESS_UPDATE = "You can only comment on updates for competitions you are organizing";
+
+async function hasCompetitionAccess(
+	ctx: QueryCtx | MutationCtx,
+	isVolunteer: boolean,
+	userId: Id<"users">,
+	competitionId: Id<"competitions"> | string | null | undefined,
+): Promise<boolean> {
+	if (isVolunteer) return true;
+	if (!competitionId) return false;
+
+	const competition = await ctx.db.get(
+		"competitions",
+		competitionId as Id<"competitions">,
+	);
+	if (!competition) return false;
+
+	return (
+		competition.organiserIds.includes(userId) ||
+		competition.compLeadId === userId ||
+		competition.leadDelegateId === userId
+	);
+}
 
 const userShape = v.object({
 	id: v.string(),
@@ -38,8 +64,41 @@ export const listForUI = query({
 	},
 	returns: v.array(commentForUIReturns),
 	handler: async (ctx, args) => {
-		// Require authentication to view comments.
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		if (args.parentType === "task") {
+			const task = await ctx.db.get("tasks", args.parentId as Id<"tasks">);
+			if (!task) return [];
+
+			if (!volunteer) {
+				if (!task.parentCompetitionId) return [];
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					task.parentCompetitionId,
+				);
+				if (!hasAccess) return [];
+			}
+		} else if (args.parentType === "update") {
+			const update = await ctx.db.get(
+				"competitionUpdates",
+				args.parentId as Id<"competitionUpdates">,
+			);
+			if (!update) return [];
+
+			if (!volunteer) {
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					update.competitionId,
+				);
+				if (!hasAccess) return [];
+			}
+		}
+
 		const docs = await ctx.db
 			.query("comments")
 			.withIndex("by_parent", (q) =>
@@ -163,6 +222,55 @@ export const create = mutation({
 	returns: v.id("comments"),
 	handler: async (ctx, args) => {
 		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		if (args.parentType === "task") {
+			const task = await ctx.db.get("tasks", args.parentId as Id<"tasks">);
+			if (!task) throw new ConvexError("Task not found");
+
+			if (!volunteer) {
+				if (!task.parentCompetitionId) {
+					throw new ConvexError({
+						code: "FORBIDDEN",
+						message: ERROR_COMMENT_NO_ACCESS_TASK,
+					});
+				}
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					task.parentCompetitionId,
+				);
+				if (!hasAccess) {
+					throw new ConvexError({
+						code: "FORBIDDEN",
+						message: ERROR_COMMENT_NO_ACCESS_TASK,
+					});
+				}
+			}
+		} else if (args.parentType === "update") {
+			const update = await ctx.db.get(
+				"competitionUpdates",
+				args.parentId as Id<"competitionUpdates">,
+			);
+			if (!update) throw new ConvexError("Update not found");
+
+			if (!volunteer) {
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					update.competitionId,
+				);
+				if (!hasAccess) {
+					throw new ConvexError({
+						code: "FORBIDDEN",
+						message: ERROR_COMMENT_NO_ACCESS_UPDATE,
+					});
+				}
+			}
+		}
+
 		const now = Date.now();
 		const commentId = await ctx.db.insert("comments", {
 			parentType: args.parentType,

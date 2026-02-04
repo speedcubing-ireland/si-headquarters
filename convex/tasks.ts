@@ -1,7 +1,8 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
-import { requireUserId } from "./auth";
+import type { Id, Doc } from "./_generated/dataModel";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
+import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 
 const APPROVAL_PREFIX_USER = "user:";
@@ -22,6 +23,61 @@ function formatCompetitionName(name: string): string {
 	const year = yearMatches ? yearMatches[yearMatches.length - 1].slice(-2) : "";
 
 	return year ? `${initials}${year}` : initials;
+}
+
+const ERROR_TASK_NO_COMPETITION = "Only volunteers can modify tasks without a competition";
+const ERROR_TASK_NO_ACCESS = "You can only modify tasks linked to competitions you are organizing";
+const ERROR_TASK_MOVE = "You can only move tasks to competitions you are organizing";
+
+async function hasCompetitionAccess(
+	ctx: QueryCtx | MutationCtx,
+	isVolunteer: boolean,
+	userId: Id<"users">,
+	competitionId: Id<"competitions"> | string | null | undefined,
+): Promise<boolean> {
+	if (isVolunteer) return true;
+	if (!competitionId) return false;
+
+	const competition = await ctx.db.get(
+		"competitions",
+		competitionId as Id<"competitions">,
+	);
+	if (!competition) return false;
+
+	return (
+		competition.organiserIds.includes(userId) ||
+		competition.compLeadId === userId ||
+		competition.leadDelegateId === userId
+	);
+}
+
+async function requireTaskAccess(
+	ctx: MutationCtx,
+	volunteer: boolean,
+	userId: Id<"users">,
+	task: Doc<"tasks">,
+): Promise<void> {
+	if (volunteer) return;
+
+	if (!task.parentCompetitionId) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: ERROR_TASK_NO_COMPETITION,
+		});
+	}
+
+	const hasAccess = await hasCompetitionAccess(
+		ctx,
+		volunteer,
+		userId,
+		task.parentCompetitionId,
+	);
+	if (!hasAccess) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: ERROR_TASK_NO_ACCESS,
+		});
+	}
 }
 
 function encodeApprovalId(type: "user" | "team", id: string): string {
@@ -250,14 +306,59 @@ export const list = query({
 	},
 	returns: v.array(taskDoc),
 	handler: async (ctx, args) => {
-		// All task access requires authentication.
-		await requireUserId(ctx);
+		const userId = await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
 		const archived = args.archived ?? false;
-		return await ctx.db
-			.query("tasks")
-			.withIndex("by_archived", (q) => q.eq("archived", archived))
-			.order("desc")
-			.collect();
+
+		if (volunteer) {
+			// Volunteers see all tasks
+			return await ctx.db
+				.query("tasks")
+				.withIndex("by_archived", (q) => q.eq("archived", archived))
+				.order("desc")
+				.collect();
+		}
+
+		// Guest organizers only see tasks from competitions they're organizing
+		// First, get all competitions where user is organizer
+		const allCompetitions = await ctx.db.query("competitions").collect();
+		const accessibleCompetitionIds: Id<"competitions">[] = [];
+		const userIdTyped = userId as Id<"users">;
+		for (const comp of allCompetitions) {
+			if (
+				comp.organiserIds.includes(userIdTyped) ||
+				comp.compLeadId === userIdTyped ||
+				comp.leadDelegateId === userIdTyped
+			) {
+				accessibleCompetitionIds.push(comp._id);
+			}
+		}
+
+		// Query tasks for each accessible competition using the index
+		// This avoids loading all tasks and filtering in memory
+		const taskPromises = accessibleCompetitionIds.map((compId) =>
+			ctx.db
+				.query("tasks")
+				.withIndex("by_parent_competition_and_archived", (q) =>
+					q.eq("parentCompetitionId", compId).eq("archived", archived),
+				)
+				.order("desc")
+				.collect(),
+		);
+
+		const taskArrays = await Promise.all(taskPromises);
+		// Flatten and deduplicate (in case a task appears in multiple queries, though it shouldn't)
+		const taskMap = new Map<string, Doc<"tasks">>();
+		for (const taskArray of taskArrays) {
+			for (const task of taskArray) {
+				taskMap.set(task._id, task);
+			}
+		}
+
+		// Return tasks sorted by creation time (descending)
+		return Array.from(taskMap.values()).sort(
+			(a, b) => b._creationTime - a._creationTime,
+		);
 	},
 });
 
@@ -265,8 +366,27 @@ export const get = query({
 	args: { taskId: v.id("tasks") },
 	returns: v.union(taskDoc, v.null()),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
-		return await ctx.db.get("tasks", args.taskId);
+		const userId = await requireUserId(ctx);
+		const task = await ctx.db.get("tasks", args.taskId);
+		if (!task) return null;
+
+		const volunteer = await isVolunteer(ctx);
+		if (volunteer) {
+			return task;
+		}
+
+		// Guest organizers can only see tasks from competitions they're organizing
+		if (!task.parentCompetitionId) {
+			return null; // Tasks without competition parent are only accessible to volunteers
+		}
+
+		const hasAccess = await hasCompetitionAccess(
+			ctx,
+			volunteer,
+			userId as Id<"users">,
+			task.parentCompetitionId,
+		);
+		return hasAccess ? task : null;
 	},
 });
 
@@ -336,22 +456,70 @@ export const listForUI = query({
 	},
 	returns: v.array(taskForUIReturns),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
 		const archived = args.archived ?? false;
 		const competitionId = args.competitionId;
-		const tasks = competitionId
-			? await ctx.db
-					.query("tasks")
-					.withIndex("by_parent_competition_and_archived", (q) =>
-						q.eq("parentCompetitionId", competitionId).eq("archived", archived),
-					)
-					.order("desc")
-					.collect()
-			: await ctx.db
+
+		let tasks: Doc<"tasks">[];
+		if (competitionId) {
+			// If filtering by competition, check access first
+			if (!volunteer) {
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId as Id<"users">,
+					competitionId,
+				);
+				if (!hasAccess) {
+					return []; // Return empty array if no access
+				}
+			}
+			tasks = await ctx.db
+				.query("tasks")
+				.withIndex("by_parent_competition_and_archived", (q) =>
+					q.eq("parentCompetitionId", competitionId).eq("archived", archived),
+				)
+				.order("desc")
+				.collect();
+		} else {
+			// No competition filter - get all tasks and filter by access
+			if (volunteer) {
+				tasks = await ctx.db
 					.query("tasks")
 					.withIndex("by_archived", (q) => q.eq("archived", archived))
 					.order("desc")
 					.collect();
+			} else {
+				// Guest organizers only see tasks from competitions they're organizing
+				const allTasks = await ctx.db
+					.query("tasks")
+					.withIndex("by_archived", (q) => q.eq("archived", archived))
+					.order("desc")
+					.collect();
+
+				// Get all competitions where user is organizer
+				const allCompetitions = await ctx.db.query("competitions").collect();
+				const accessibleCompetitionIds = new Set<string>();
+				const userIdTyped = userId as Id<"users">;
+				for (const comp of allCompetitions) {
+					if (
+						comp.organiserIds.includes(userIdTyped) ||
+						comp.compLeadId === userIdTyped ||
+						comp.leadDelegateId === userIdTyped
+					) {
+						accessibleCompetitionIds.add(comp._id);
+					}
+				}
+
+				// Filter tasks to only those linked to accessible competitions
+				tasks = allTasks.filter(
+					(task) =>
+						!task.parentCompetitionId ||
+						accessibleCompetitionIds.has(task.parentCompetitionId),
+				);
+			}
+		}
 
 		const labelIds = new Set<Id<"labels">>();
 		const userIds = new Set<Id<"users">>();
@@ -564,7 +732,7 @@ export const listForUI = query({
 					: null;
 				const phase = t.phaseId ? (phasesMap.get(t.phaseId) ?? null) : null;
 				const labels = t.labelIds
-					.map((lid) => labelsMap.get(lid))
+					.map((lid: Id<"labels">) => labelsMap.get(lid))
 					.filter(Boolean) as { id: string; name: string; color: string }[];
 				const parent: {
 					type: "task" | "competition";
@@ -628,9 +796,27 @@ export const getForUI = query({
 	args: { taskId: v.id("tasks") },
 	returns: v.union(taskForUIReturns, v.null()),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = await requireUserId(ctx);
 		const t = await ctx.db.get("tasks", args.taskId);
 		if (!t) return null;
+
+		const volunteer = await isVolunteer(ctx);
+		if (!volunteer) {
+			// Guest organizers can only see tasks from competitions they're organizing
+			if (!t.parentCompetitionId) {
+				return null; // Tasks without competition parent are only accessible to volunteers
+			}
+
+			const hasAccess = await hasCompetitionAccess(
+				ctx,
+				volunteer,
+				userId as Id<"users">,
+				t.parentCompetitionId,
+			);
+			if (!hasAccess) {
+				return null;
+			}
+		}
 
 		// Collect approval-related IDs
 		const approvalUserIds = new Set<Id<"users">>();
@@ -890,6 +1076,30 @@ export const create = mutation({
 	returns: v.id("tasks"),
 	handler: async (ctx, args) => {
 		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		if (args.parentCompetitionId) {
+			if (!volunteer) {
+				const hasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					args.parentCompetitionId,
+				);
+				if (!hasAccess) {
+					throw new ConvexError({
+						code: "FORBIDDEN",
+						message: ERROR_TASK_NO_ACCESS,
+					});
+				}
+			}
+		} else if (!volunteer) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: ERROR_TASK_NO_COMPETITION,
+			});
+		}
+
 		const now = Date.now();
 
 		const counterDocs = await ctx.db.query("taskCounter").take(1);
@@ -970,6 +1180,28 @@ export const update = mutation({
 		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const doc = await ctx.db.get("tasks", args.taskId);
 		if (!doc) return null;
+
+		const volunteer = await isVolunteer(ctx);
+		await requireTaskAccess(ctx, volunteer, userId, doc);
+
+		if (
+			!volunteer &&
+			args.updates.parentCompetitionId !== undefined &&
+			args.updates.parentCompetitionId !== null
+		) {
+			const newHasAccess = await hasCompetitionAccess(
+				ctx,
+				volunteer,
+				userId,
+				args.updates.parentCompetitionId,
+			);
+			if (!newHasAccess) {
+				throw new ConvexError({
+					code: "FORBIDDEN",
+					message: ERROR_TASK_MOVE,
+				});
+			}
+		}
 		const now = Date.now();
 		const patch: Record<string, unknown> = { ...args.updates, updatedAt: now };
 		if (args.updates.dueDate === null) patch.dueDate = undefined;
@@ -1075,10 +1307,38 @@ export const bulkUpdate = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
 		if (args.taskIds.length === 0) {
 			return null;
 		}
+
+		for (const taskId of args.taskIds) {
+			const doc = await ctx.db.get("tasks", taskId);
+			if (!doc) continue;
+
+			await requireTaskAccess(ctx, volunteer, userId, doc);
+
+			if (
+				!volunteer &&
+				args.updates.parentCompetitionId !== undefined &&
+				args.updates.parentCompetitionId !== null
+			) {
+				const newHasAccess = await hasCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					args.updates.parentCompetitionId,
+				);
+				if (!newHasAccess) {
+					throw new ConvexError({
+						code: "FORBIDDEN",
+						message: ERROR_TASK_MOVE,
+					});
+				}
+			}
+		}
+
 		const now = Date.now();
 		for (const taskId of args.taskIds) {
 			const doc = await ctx.db.get("tasks", taskId);
@@ -1095,7 +1355,6 @@ export const bulkUpdate = mutation({
 			if (args.updates.assigneeId === null) patch.assigneeId = undefined;
 			if (args.updates.phaseId === null) patch.phaseId = undefined;
 
-			// Handle status transition to awaiting-review: auto-promote to done if already fully approved
 			if (args.updates.status === "awaiting-review") {
 				const { isFullyApproved } = await computeApprovalCompleteness(
 					ctx,
@@ -1121,7 +1380,15 @@ export const archive = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		for (const taskId of args.taskIds) {
+			const task = await ctx.db.get("tasks", taskId);
+			if (!task) continue;
+			await requireTaskAccess(ctx, volunteer, userId, task);
+		}
+
 		const archivedAt = new Date().toISOString();
 		for (const id of args.taskIds) {
 			await ctx.db.patch("tasks", id, {
@@ -1138,7 +1405,15 @@ export const unarchive = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		for (const taskId of args.taskIds) {
+			const task = await ctx.db.get("tasks", taskId);
+			if (!task) continue;
+			await requireTaskAccess(ctx, volunteer, userId, task);
+		}
+
 		for (const id of args.taskIds) {
 			await ctx.db.patch("tasks", id, {
 				archived: false,
@@ -1158,11 +1433,14 @@ export const addRequiredApprover = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
 			throw new ConvexError("Task not found");
 		}
+
+		await requireTaskAccess(ctx, volunteer, userId, task);
 
 		const encodedId = encodeApprovalId(args.approverType, args.approverId);
 		const currentIds = task.requiredApprovalIds ?? [];
@@ -1185,11 +1463,14 @@ export const removeRequiredApprover = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
 			throw new ConvexError("Task not found");
 		}
+
+		await requireTaskAccess(ctx, volunteer, userId, task);
 
 		const currentIds = task.requiredApprovalIds ?? [];
 		const filteredIds = currentIds.filter((id) => id !== args.approverKey);
@@ -1208,11 +1489,14 @@ export const approveTask = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
 			throw new ConvexError("Task not found");
 		}
+
+		await requireTaskAccess(ctx, volunteer, userId, task);
 
 		const currentApprovedIds = task.approvedByIds ?? [];
 		const userIdStr = userId as string;
@@ -1249,11 +1533,14 @@ export const unapproveTask = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
 			throw new ConvexError("Task not found");
 		}
+
+		await requireTaskAccess(ctx, volunteer, userId, task);
 
 		const currentApprovedIds = task.approvedByIds ?? [];
 		const userIdStr = userId as string;
@@ -1271,7 +1558,17 @@ export const remove = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const volunteer = await isVolunteer(ctx);
+
+		if (!volunteer) {
+			for (const taskId of args.taskIds) {
+				const task = await ctx.db.get("tasks", taskId);
+				if (!task) continue;
+				await requireTaskAccess(ctx, volunteer, userId, task);
+			}
+		}
+
 		for (const id of args.taskIds) {
 			await ctx.db.delete("tasks", id);
 		}

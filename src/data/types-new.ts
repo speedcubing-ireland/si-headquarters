@@ -19,6 +19,7 @@ export const SEEDED_TEAM_NAMES = [
 	"Merch Team",
 	"Software Team",
 	"Graphics Team",
+	"Volunteer",
 ] as const;
 
 export type SeededTeamName = (typeof SEEDED_TEAM_NAMES)[number];
