@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import {
 	SharedDataTable,
 	type SharedDataTableProps,
@@ -18,19 +18,24 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
 	columns,
 }: DataTableProps<TData, TValue>) {
+	// Use separate selectors to prevent unnecessary re-renders
 	const filters = useCompetitionsFilterStore((state) => state.filters);
 	const matchMode = useCompetitionsFilterStore((state) => state.matchMode);
-	const grouping = useDisplaySettingsStore((state) => state.grouping);
-	const subGrouping = useDisplaySettingsStore((state) => state.subGrouping);
-	const ordering = useDisplaySettingsStore((state) => state.ordering);
-	const setOrdering = useDisplaySettingsStore((state) => state.setOrdering);
-	const router = useRouter();
-	const { competitions } = useCompetitions();
-
 	const filterState = useMemo(
 		() => ({ ...filters, matchMode }),
 		[filters, matchMode],
 	);
+
+	const grouping = useDisplaySettingsStore((state) => state.grouping);
+	const subGrouping = useDisplaySettingsStore((state) => state.subGrouping);
+	const ordering = useDisplaySettingsStore((state) => state.ordering);
+	const displaySettings = useMemo(
+		() => ({ grouping, subGrouping, ordering }),
+		[grouping, subGrouping, ordering],
+	);
+	const setOrdering = useDisplaySettingsStore((state) => state.setOrdering);
+	const router = useRouter();
+	const { competitions } = useCompetitions();
 
 	const filterFn: SharedDataTableProps<
 		Competition,
@@ -41,24 +46,29 @@ export function DataTable<TData, TValue>({
 		[],
 	);
 
+	const handleRowClick = useCallback(
+		(competition: Competition) => {
+			router.navigate({
+				to: "/competitions/$id",
+				params: { id: competition.id },
+			});
+		},
+		[router],
+	);
+
 	return (
 		<SharedDataTable<Competition, typeof filterState>
 			columns={columns as ColumnDef<Competition, unknown>[]}
 			data={competitions}
 			filterState={filterState}
 			filterFn={filterFn}
-			grouping={grouping}
-			subGrouping={subGrouping}
-			ordering={ordering}
+			grouping={displaySettings.grouping}
+			subGrouping={displaySettings.subGrouping}
+			ordering={displaySettings.ordering}
 			setOrdering={setOrdering}
 			containerClassName="px-4"
 			emptyLabel="No results."
-			onRowClick={(competition) =>
-				router.navigate({
-					to: "/competitions/$id",
-					params: { id: competition.id },
-				})
-			}
+			onRowClick={handleRowClick}
 		/>
 	);
 }

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { CheckIcon } from "lucide-react";
+import React from "react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,7 @@ type SharedFilterOptionRowProps = {
 	onSelect: () => void;
 };
 
-export function SharedFilterOptionRow({
+export const SharedFilterOptionRow = React.memo(function SharedFilterOptionRow({
 	option,
 	isSelected,
 	onSelect,
@@ -72,9 +73,9 @@ export function SharedFilterOptionRow({
 			<CheckIcon
 				className={cn(
 					"size-4 text-muted-foreground",
-					!isSelected && "opacity-0",
+					!isSelected ? "opacity-0" : null,
 				)}
 			/>
 		</CommandItem>
 	);
-}
+});

@@ -63,9 +63,13 @@ export const setOverride = mutation({
 			.unique();
 
 		const eventNote =
-			args.eventNote !== undefined ? args.eventNote : (existing?.eventNote ?? "");
+			args.eventNote !== undefined
+				? args.eventNote
+				: (existing?.eventNote ?? "");
 		const reserved =
-			args.reserved !== undefined ? args.reserved : (existing?.reserved ?? false);
+			args.reserved !== undefined
+				? args.reserved
+				: (existing?.reserved ?? false);
 		const announced =
 			args.announced !== undefined
 				? args.announced

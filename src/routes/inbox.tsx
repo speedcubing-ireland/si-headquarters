@@ -218,10 +218,7 @@ function NotificationItem({
 													<DropdownMenuItem
 														key={preset.key}
 														onClick={() => {
-															onSnooze(
-																notification,
-																preset.getRemindAt(),
-															);
+															onSnooze(notification, preset.getRemindAt());
 														}}
 													>
 														{preset.label}
@@ -300,7 +297,10 @@ function RouteComponent() {
 	};
 
 	const handleSnooze = (notification: Notification, remindAt: string) => {
-		if (notification.type !== "reminder_triggered" || !notification.parentEntityId)
+		if (
+			notification.type !== "reminder_triggered" ||
+			!notification.parentEntityId
+		)
 			return;
 		void addReminder(
 			buildOneTimeReminderPayload(notification.parentEntityId, remindAt),
@@ -413,7 +413,8 @@ function RouteComponent() {
 						)}
 					</TabsContent>
 					<TabsContent value="archived" className="mt-0">
-						{notifications.filter((n) => n.status === "archived").length === 0 ? (
+						{notifications.filter((n) => n.status === "archived").length ===
+						0 ? (
 							<div className="text-center py-12">
 								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
 								<p className="text-sm text-muted-foreground">

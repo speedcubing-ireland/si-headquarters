@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "./components/theme-provider";
 import { Toaster } from "./components/ui/sonner";
 import { routeTree } from "./routeTree.gen";
+import "unfonts.css";
 import "./index.css";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";

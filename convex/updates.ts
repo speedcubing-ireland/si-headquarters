@@ -19,8 +19,7 @@ async function canManageCompetition(
 ): Promise<boolean> {
 	const comp = await ctx.db.get("competitions", competitionId);
 	if (!comp) return false;
-	if (comp.compLeadId === userId || comp.leadDelegateId === userId)
-		return true;
+	if (comp.compLeadId === userId || comp.leadDelegateId === userId) return true;
 	return comp.organiserIds.includes(userId);
 }
 
@@ -78,7 +77,10 @@ export const create = mutation({
 			userId,
 		);
 		if (!canManage) {
-			throw new ConvexError({ code: "FORBIDDEN", message: "Not allowed to post updates for this competition" });
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Not allowed to post updates for this competition",
+			});
 		}
 		const now = Date.now();
 		const id = await ctx.db.insert("competitionUpdates", {
@@ -108,8 +110,7 @@ export const update = mutation({
 	handler: async (ctx, args) => {
 		const userId = (await requireUserId(ctx)) as Id<"users">;
 		await getUpdateAndAssertAuth(ctx, args.updateId, userId, "edit");
-		const hasChanges =
-			args.status !== undefined || args.message !== undefined;
+		const hasChanges = args.status !== undefined || args.message !== undefined;
 		if (!hasChanges) return null;
 		const patch: Partial<Doc<"competitionUpdates">> = {
 			updatedAt: Date.now(),
@@ -147,11 +148,7 @@ export const addReaction = mutation({
 				message: "Update not found",
 			});
 		}
-		const nextReactions = addUserToReactions(
-			doc.reactions,
-			args.emoji,
-			userId,
-		);
+		const nextReactions = addUserToReactions(doc.reactions, args.emoji, userId);
 		await ctx.db.patch("competitionUpdates", args.updateId, {
 			reactions: nextReactions,
 			updatedAt: Date.now(),

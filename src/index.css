@@ -1,7 +1,3 @@
-@import "@fontsource/montserrat";
-@import "@fontsource/merriweather";
-@import "@fontsource/source-code-pro";
-
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";

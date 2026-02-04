@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	ButtonGroup,
@@ -32,7 +32,9 @@ type FilterChipProps<TValue extends string> = {
  * - Value selector via a child trigger
  * - Remove button
  */
-export function SharedFilterChip<TValue extends string>({
+export const SharedFilterChip = React.memo(function SharedFilterChip<
+	TValue extends string,
+>({
 	icon: Icon,
 	label,
 	values,
@@ -91,4 +93,6 @@ export function SharedFilterChip<TValue extends string>({
 			</Button>
 		</ButtonGroup>
 	);
-}
+}) as <TValue extends string>(
+	props: FilterChipProps<TValue>,
+) => React.JSX.Element;

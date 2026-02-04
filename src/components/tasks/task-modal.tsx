@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React from "react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,12 @@ import type {
 	User,
 } from "@/data/types-new";
 import { TASK_PRIORITY, TASK_STATUS } from "@/data/types-new";
-import { priorityLabels, statusLabels } from "@/lib/task-constants";
+import {
+	priorityLabels,
+	statusLabels,
+	DEFAULT_TASK_STATUS,
+	DEFAULT_TASK_PRIORITY,
+} from "@/lib/task-constants";
 import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
 import { cn } from "@/lib/utils";
 
@@ -59,45 +65,77 @@ function useTaskModalFormState(
 	task: Task | undefined,
 	defaultParent: Task["parent"] | undefined,
 ) {
-	const [title, setTitle] = useState(task?.title ?? "");
-	const [description, setDescription] = useState(task?.description ?? "");
-	const [status, setStatus] = useState<TaskStatus>(task?.status ?? "to-do");
-	const [priority, setPriority] = useState<TaskPriority>(
-		task?.priority ?? "medium",
+	// Derive initial values during render instead of syncing in useEffect
+	const initialValues = useMemo(() => {
+		if (!open) return null;
+		if (mode === "create") {
+			return {
+				title: "",
+				description: "",
+				status: DEFAULT_TASK_STATUS,
+				priority: DEFAULT_TASK_PRIORITY,
+				assignee: null as User | null,
+				owner: null as Team | User | null,
+				selectedLabels: [] as TaskLabel[],
+				dueDate: undefined as Date | undefined,
+				parent: (defaultParent ?? null) as Task["parent"],
+			};
+		}
+		if (mode === "edit" && task) {
+			return {
+				title: task.title,
+				description: task.description,
+				status: task.status,
+				priority: task.priority,
+				assignee: task.assignee,
+				owner: task.owner,
+				selectedLabels: task.labels,
+				dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+				parent: task.parent ?? defaultParent ?? null,
+			};
+		}
+		return null;
+	}, [open, mode, task, defaultParent]);
+
+	const [title, setTitle] = useState(initialValues?.title ?? "");
+	const [description, setDescription] = useState(
+		initialValues?.description ?? "",
 	);
-	const [assignee, setAssignee] = useState<User | null>(task?.assignee ?? null);
-	const [owner, setOwner] = useState<Team | User | null>(task?.owner ?? null);
+	const [status, setStatus] = useState<TaskStatus>(
+		initialValues?.status ?? "to-do",
+	);
+	const [priority, setPriority] = useState<TaskPriority>(
+		initialValues?.priority ?? "medium",
+	);
+	const [assignee, setAssignee] = useState<User | null>(
+		initialValues?.assignee ?? null,
+	);
+	const [owner, setOwner] = useState<Team | User | null>(
+		initialValues?.owner ?? null,
+	);
 	const [selectedLabels, setSelectedLabels] = useState<TaskLabel[]>(
-		task?.labels ?? [],
+		initialValues?.selectedLabels ?? [],
 	);
 	const [dueDate, setDueDate] = useState<Date | undefined>(
-		task?.dueDate ? new Date(task.dueDate) : undefined,
+		initialValues?.dueDate,
 	);
-	const [parent] = useState<Task["parent"]>(
-		task?.parent ?? defaultParent ?? null,
-	);
+	const [parent] = useState<Task["parent"]>(initialValues?.parent ?? null);
 
+	// Track previous initialValues to only update when they actually change
+	const prevInitialValuesRef = useRef(initialValues);
 	useEffect(() => {
-		if (open && mode === "create") {
-			setTitle("");
-			setDescription("");
-			setStatus("to-do");
-			setPriority("medium");
-			setAssignee(null);
-			setOwner(null);
-			setSelectedLabels([]);
-			setDueDate(undefined);
-		} else if (open && mode === "edit" && task) {
-			setTitle(task.title);
-			setDescription(task.description);
-			setStatus(task.status);
-			setPriority(task.priority);
-			setAssignee(task.assignee);
-			setOwner(task.owner);
-			setSelectedLabels(task.labels);
-			setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
+		if (initialValues && prevInitialValuesRef.current !== initialValues) {
+			setTitle(initialValues.title);
+			setDescription(initialValues.description);
+			setStatus(initialValues.status);
+			setPriority(initialValues.priority);
+			setAssignee(initialValues.assignee);
+			setOwner(initialValues.owner);
+			setSelectedLabels(initialValues.selectedLabels);
+			setDueDate(initialValues.dueDate);
+			prevInitialValuesRef.current = initialValues;
 		}
-	}, [open, mode, task]);
+	}, [initialValues]);
 
 	return useMemo(
 		() => ({
@@ -133,7 +171,7 @@ function useTaskModalFormState(
 	);
 }
 
-function TaskModalFormFields({
+const TaskModalFormFields = React.memo(function TaskModalFormFields({
 	title,
 	setTitle,
 	description,
@@ -161,9 +199,9 @@ function TaskModalFormFields({
 			/>
 		</div>
 	);
-}
+});
 
-function TaskModalPropertyBar({
+const TaskModalPropertyBar = React.memo(function TaskModalPropertyBar({
 	status,
 	setStatus,
 	priority,
@@ -336,11 +374,11 @@ function TaskModalPropertyBar({
 				<PopoverTrigger asChild>
 					<Button variant="outline" size="sm" className="h-8">
 						Labels
-						{selectedLabels.length > 0 && (
+						{selectedLabels.length > 0 ? (
 							<Badge variant="secondary" className="ml-1">
 								{selectedLabels.length}
 							</Badge>
-						)}
+						) : null}
 					</Button>
 				</PopoverTrigger>
 				<PopoverContent className="w-48 p-2" align="start">
@@ -389,9 +427,9 @@ function TaskModalPropertyBar({
 			</Popover>
 		</div>
 	);
-}
+});
 
-function TaskModalLabelsChips({
+const TaskModalLabelsChips = React.memo(function TaskModalLabelsChips({
 	selectedLabels,
 	toggleLabel,
 }: {
@@ -414,9 +452,9 @@ function TaskModalLabelsChips({
 			))}
 		</div>
 	);
-}
+});
 
-function TaskModalFooter({
+const TaskModalFooter = React.memo(function TaskModalFooter({
 	mode,
 	onClose,
 	onSubmit,
@@ -437,7 +475,7 @@ function TaskModalFooter({
 			</Button>
 		</div>
 	);
-}
+});
 
 export function TaskModal({
 	open,
@@ -541,7 +579,7 @@ export function TaskModal({
 
 				<TaskModalFooter
 					mode={mode}
-					onClose={() => onOpenChange(false)}
+					onClose={useCallback(() => onOpenChange(false), [onOpenChange])}
 					onSubmit={handleSubmit}
 					submitDisabled={!form.title.trim()}
 				/>

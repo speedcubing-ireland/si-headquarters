@@ -8,7 +8,8 @@ import {
 	Trash2,
 	User as UserIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useCallback } from "react";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -57,85 +58,90 @@ export function BulkActionsBar({
 	const allSelected = selectedCount === totalTasks && totalTasks > 0;
 
 	// Keyboard shortcuts: Escape to clear selection
-	useEffect(() => {
-		if (selectedCount === 0) return;
+	useKeyboardShortcut({
+		key: "Escape",
+		handler: useCallback(() => onClearSelection(), [onClearSelection]),
+		enabled: selectedCount > 0,
+	});
 
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
+	const handleStatusChange = useCallback(
+		(status: TaskStatus) => {
+			void bulkUpdateTasks(selectedTaskIds, { status }).then(() => {
 				onClearSelection();
+			});
+		},
+		[selectedTaskIds, bulkUpdateTasks, onClearSelection],
+	);
+
+	const handlePriorityChange = useCallback(
+		(priority: TaskPriority) => {
+			void bulkUpdateTasks(selectedTaskIds, { priority }).then(() => {
+				onClearSelection();
+			});
+		},
+		[selectedTaskIds, bulkUpdateTasks, onClearSelection],
+	);
+
+	const handleAssigneeChange = useCallback(
+		(user: User | null) => {
+			void bulkUpdateTasks(selectedTaskIds, { assignee: user }).then(() => {
+				onClearSelection();
+			});
+		},
+		[selectedTaskIds, bulkUpdateTasks, onClearSelection],
+	);
+
+	const handleLabelToggle = useCallback(
+		(label: TaskLabel) => {
+			const updatedLabelsByTaskId = new Map<string, TaskLabel[]>();
+
+			for (const taskId of selectedTaskIds) {
+				const task = tasks.find((t) => t.id === taskId);
+				if (!task) continue;
+
+				const hasLabel = task.labels.some((l) => l.id === label.id);
+				const newLabels = hasLabel
+					? task.labels.filter((l) => l.id !== label.id)
+					: [...task.labels, label];
+
+				updatedLabelsByTaskId.set(taskId, newLabels);
 			}
-		};
 
-		document.addEventListener("keydown", handleKeyDown);
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [selectedCount, onClearSelection]);
-
-	const handleStatusChange = (status: TaskStatus) => {
-		void bulkUpdateTasks(selectedTaskIds, { status }).then(() => {
-			onClearSelection();
-		});
-	};
-
-	const handlePriorityChange = (priority: TaskPriority) => {
-		void bulkUpdateTasks(selectedTaskIds, { priority }).then(() => {
-			onClearSelection();
-		});
-	};
-
-	const handleAssigneeChange = (user: User | null) => {
-		void bulkUpdateTasks(selectedTaskIds, { assignee: user }).then(() => {
-			onClearSelection();
-		});
-	};
-
-	const handleLabelToggle = (label: TaskLabel) => {
-		const updatedLabelsByTaskId = new Map<string, TaskLabel[]>();
-
-		for (const taskId of selectedTaskIds) {
-			const task = tasks.find((t) => t.id === taskId);
-			if (!task) continue;
-
-			const hasLabel = task.labels.some((l) => l.id === label.id);
-			const newLabels = hasLabel
-				? task.labels.filter((l) => l.id !== label.id)
-				: [...task.labels, label];
-
-			updatedLabelsByTaskId.set(taskId, newLabels);
-		}
-
-		// If all selected tasks end up with the same label set, we can use one bulk update.
-		const uniqueLabelSets = new Map<string, TaskLabel[]>();
-		for (const [, taskLabels] of updatedLabelsByTaskId.entries()) {
-			const key = taskLabels
-				.map((l) => `${l.id}:${l.name}:${l.color}`)
-				.sort()
-				.join("|");
-			if (!uniqueLabelSets.has(key)) {
-				uniqueLabelSets.set(key, taskLabels);
+			// If all selected tasks end up with the same label set, we can use one bulk update.
+			const uniqueLabelSets = new Map<string, TaskLabel[]>();
+			for (const [, taskLabels] of updatedLabelsByTaskId.entries()) {
+				const key = taskLabels
+					.map((l) => `${l.id}:${l.name}:${l.color}`)
+					.sort()
+					.join("|");
+				if (!uniqueLabelSets.has(key)) {
+					uniqueLabelSets.set(key, taskLabels);
+				}
 			}
-		}
 
-		const bulkPromises: Promise<void>[] = [];
-		for (const [key, labelSet] of uniqueLabelSets.entries()) {
-			const taskIdsForSet = [...updatedLabelsByTaskId.entries()]
-				.filter(([_, labelsForTask]) => {
-					const k = labelsForTask
-						.map((l) => `${l.id}:${l.name}:${l.color}`)
-						.sort()
-						.join("|");
-					return k === key;
-				})
-				.map(([taskId]) => taskId);
-			if (taskIdsForSet.length === 0) continue;
-			bulkPromises.push(bulkUpdateTasks(taskIdsForSet, { labels: labelSet }));
-		}
+			const bulkPromises: Promise<void>[] = [];
+			for (const [key, labelSet] of uniqueLabelSets.entries()) {
+				const taskIdsForSet = [...updatedLabelsByTaskId.entries()]
+					.filter(([_, labelsForTask]) => {
+						const k = labelsForTask
+							.map((l) => `${l.id}:${l.name}:${l.color}`)
+							.sort()
+							.join("|");
+						return k === key;
+					})
+					.map(([taskId]) => taskId);
+				if (taskIdsForSet.length === 0) continue;
+				bulkPromises.push(bulkUpdateTasks(taskIdsForSet, { labels: labelSet }));
+			}
 
-		void Promise.all(bulkPromises).then(() => {
-			onClearSelection();
-		});
-	};
+			void Promise.all(bulkPromises).then(() => {
+				onClearSelection();
+			});
+		},
+		[selectedTaskIds, tasks, bulkUpdateTasks, onClearSelection],
+	);
 
-	const handleArchive = () => {
+	const handleArchive = useCallback(() => {
 		setIsArchiving(true);
 		void archiveTasks(selectedTaskIds)
 			.then(() => {
@@ -144,9 +150,9 @@ export function BulkActionsBar({
 			.finally(() => {
 				setIsArchiving(false);
 			});
-	};
+	}, [selectedTaskIds, archiveTasks, onClearSelection]);
 
-	const handleDelete = () => {
+	const handleDelete = useCallback(() => {
 		setIsDeleting(true);
 		void deleteTasks(selectedTaskIds)
 			.then(() => {
@@ -155,7 +161,7 @@ export function BulkActionsBar({
 			.finally(() => {
 				setIsDeleting(false);
 			});
-	};
+	}, [selectedTaskIds, deleteTasks, onClearSelection]);
 
 	if (selectedCount === 0) return null;
 
@@ -170,7 +176,7 @@ export function BulkActionsBar({
 							{selectedCount === 1 ? "task" : "tasks"} selected
 						</span>
 					</span>
-					{!allSelected && (
+					{!allSelected ? (
 						<button
 							type="button"
 							onClick={onSelectAll}
@@ -178,7 +184,7 @@ export function BulkActionsBar({
 						>
 							Select all {totalTasks}
 						</button>
-					)}
+					) : null}
 					<button
 						type="button"
 						onClick={onClearSelection}

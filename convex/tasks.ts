@@ -25,9 +25,12 @@ function formatCompetitionName(name: string): string {
 	return year ? `${initials}${year}` : initials;
 }
 
-const ERROR_TASK_NO_COMPETITION = "Only volunteers can modify tasks without a competition";
-const ERROR_TASK_NO_ACCESS = "You can only modify tasks linked to competitions you are organizing";
-const ERROR_TASK_MOVE = "You can only move tasks to competitions you are organizing";
+const ERROR_TASK_NO_COMPETITION =
+	"Only volunteers can modify tasks without a competition";
+const ERROR_TASK_NO_ACCESS =
+	"You can only modify tasks linked to competitions you are organizing";
+const ERROR_TASK_MOVE =
+	"You can only move tasks to competitions you are organizing";
 
 async function hasCompetitionAccess(
 	ctx: QueryCtx | MutationCtx,
@@ -677,7 +680,9 @@ export const listForUI = query({
 			),
 		];
 		const competitionDocs = await Promise.all(
-			parentCompetitionIds.map((id) => ctx.db.get("competitions", id as Id<"competitions">)),
+			parentCompetitionIds.map((id) =>
+				ctx.db.get("competitions", id as Id<"competitions">),
+			),
 		);
 		const competitionIdToName = new Map<string, string>();
 		parentCompetitionIds.forEach((id, i) => {
@@ -745,8 +750,8 @@ export const listForUI = query({
 
 				const parentDisplayName: string | null = parent
 					? parent.type === "task"
-						? taskIdToTitle.get(parent.linkedId) ?? null
-						: competitionIdToName.get(parent.linkedId) ?? null
+						? (taskIdToTitle.get(parent.linkedId) ?? null)
+						: (competitionIdToName.get(parent.linkedId) ?? null)
 					: null;
 
 				const subTasks = subtaskRowsByParent.get(t._id) ?? [];
@@ -927,7 +932,10 @@ export const getForUI = query({
 		let parentDisplayName: string | null = null;
 		if (parent) {
 			if (parent.type === "task") {
-				const parentTask = await ctx.db.get("tasks", parent.linkedId as Id<"tasks">);
+				const parentTask = await ctx.db.get(
+					"tasks",
+					parent.linkedId as Id<"tasks">,
+				);
 				parentDisplayName = parentTask?.title ?? null;
 			} else {
 				const comp = await ctx.db.get(

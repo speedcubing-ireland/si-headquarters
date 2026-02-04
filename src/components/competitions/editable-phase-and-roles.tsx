@@ -158,13 +158,18 @@ export function EditablePhaseCell({
 				return derivedKey === key;
 			}) ?? competition.phases[competition.currentPhaseIdx];
 
-		const nextPhaseId = targetPhase?.id ?? competition.phases[0]?.id;
-		if (!nextPhaseId) {
+		const targetPhaseId = targetPhase?.id ?? competition.phases[0]?.id;
+		if (!targetPhaseId) {
 			setOpen(false);
 			return;
 		}
 
-		void updateCompetition(competition.id, { currentPhaseId: nextPhaseId });
+		const nextPhaseIdx = competition.phases.findIndex(
+			(p) => p.id === targetPhaseId,
+		);
+		if (nextPhaseIdx >= 0) {
+			void updateCompetition(competition.id, { currentPhaseIdx: nextPhaseIdx });
+		}
 		setOpen(false);
 	};
 

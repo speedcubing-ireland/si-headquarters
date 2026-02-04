@@ -199,9 +199,14 @@ export function CompetitionPropertiesSidebar({
 								key={phase.id}
 								type="button"
 								onClick={() => {
-									void updateCompetition(competition.id, {
-										currentPhaseId: phase.id,
-									});
+									const phaseIdx = competition.phases.findIndex(
+										(p) => p.id === phase.id,
+									);
+									if (phaseIdx >= 0) {
+										void updateCompetition(competition.id, {
+											currentPhaseIdx: phaseIdx,
+										});
+									}
 								}}
 								className={cn(
 									"flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",

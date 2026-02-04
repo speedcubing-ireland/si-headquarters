@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { useMemo } from "react";
 import {
 	Command,
 	CommandEmpty,
@@ -35,36 +36,42 @@ export function SharedFilterSubMenu({
 	selectedValues,
 	onToggleFilter,
 }: SharedFilterSubMenuProps) {
+	// Memoize the option rows to prevent unnecessary re-renders
+	const optionRows = useMemo(
+		() =>
+			options.map((option) => {
+				const value = String(option.value);
+				const isSelected = selectedValues.includes(value);
+				const handleSelect = () => onToggleFilter(value);
+				return (
+					<SharedFilterOptionRow
+						key={value}
+						option={option}
+						isSelected={isSelected}
+						onSelect={handleSelect}
+					/>
+				);
+			}),
+		[options, selectedValues, onToggleFilter],
+	);
+
 	return (
 		<DropdownMenuSub>
 			<DropdownMenuSubTrigger>
 				<Icon className="size-4" />
 				{label}
-				{filterCount > 0 && (
+				{filterCount > 0 ? (
 					<span className="ml-auto text-xs text-muted-foreground">
 						{filterCount}
 					</span>
-				)}
+				) : null}
 			</DropdownMenuSubTrigger>
 			<DropdownMenuSubContent className="w-60 p-0">
 				<Command>
 					<CommandInput placeholder={placeholder} />
 					<CommandList>
 						<CommandEmpty>{emptyMessage}</CommandEmpty>
-						<CommandGroup>
-							{options.map((option) => {
-								const value = String(option.value);
-								const isSelected = selectedValues.includes(value);
-								return (
-									<SharedFilterOptionRow
-										key={value}
-										option={option}
-										isSelected={isSelected}
-										onSelect={() => onToggleFilter(value)}
-									/>
-								);
-							})}
-						</CommandGroup>
+						<CommandGroup>{optionRows}</CommandGroup>
 					</CommandList>
 				</Command>
 			</DropdownMenuSubContent>

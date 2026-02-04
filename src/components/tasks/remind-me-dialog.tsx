@@ -106,19 +106,17 @@ export function RemindMeDialog({
 					<div className="space-y-2">
 						<Label className="text-xs text-muted-foreground">When</Label>
 						<div className="flex flex-wrap gap-2">
-							{REMINDER_PRESETS.filter((p) => p.key !== "custom").map(
-								(p) => (
-									<Button
-										key={p.key}
-										type="button"
-										variant={preset === p.key ? "secondary" : "outline"}
-										size="sm"
-										onClick={() => setPreset(p.key)}
-									>
-										{p.label}
-									</Button>
-								),
-							)}
+							{REMINDER_PRESETS.filter((p) => p.key !== "custom").map((p) => (
+								<Button
+									key={p.key}
+									type="button"
+									variant={preset === p.key ? "secondary" : "outline"}
+									size="sm"
+									onClick={() => setPreset(p.key)}
+								>
+									{p.label}
+								</Button>
+							))}
 							<Button
 								type="button"
 								variant={preset === "custom" ? "secondary" : "outline"}

@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
 
 interface MentionTextareaProps {
 	value: string;
-	onChange: ((value: string) => void) | ((e: React.ChangeEvent<HTMLTextAreaElement>) => void);
+	onChange:
+		| ((value: string) => void)
+		| ((e: React.ChangeEvent<HTMLTextAreaElement>) => void);
 	placeholder?: string;
 	className?: string;
 	users: User[];
@@ -59,10 +61,7 @@ export function MentionTextarea({
 			<MentionLabel className="sr-only">
 				Comment input with mentions
 			</MentionLabel>
-			<MentionInput
-				asChild
-				disabled={disabled}
-			>
+			<MentionInput asChild disabled={disabled}>
 				<textarea
 					value={value}
 					placeholder={placeholder}

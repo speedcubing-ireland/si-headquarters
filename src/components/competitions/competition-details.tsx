@@ -316,12 +316,18 @@ export function CompetitionDetails({
 						<Trash2 className="size-4" />
 						Delete Competition
 					</Button>
-					<AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+					<AlertDialog
+						open={deleteDialogOpen}
+						onOpenChange={setDeleteDialogOpen}
+					>
 						<AlertDialogContent>
 							<AlertDialogHeader>
 								<AlertDialogTitle>Delete Competition?</AlertDialogTitle>
 								<AlertDialogDescription>
-									Are you sure you want to permanently delete "{competition.name}"? This will delete all tasks, subtasks, comments, reactions, updates, and other associated data. This action cannot be undone.
+									Are you sure you want to permanently delete "
+									{competition.name}"? This will delete all tasks, subtasks,
+									comments, reactions, updates, and other associated data. This
+									action cannot be undone.
 								</AlertDialogDescription>
 							</AlertDialogHeader>
 							<AlertDialogFooter>

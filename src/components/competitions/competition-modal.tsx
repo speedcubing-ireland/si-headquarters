@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React from "react";
 import { TemplateSelector } from "@/components/template-selector";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,341 @@ interface CompetitionModalProps {
 	onSave?: (competition: Competition) => void;
 }
 
-export function CompetitionModal({
+// Compound component sub-components (defined first for use in main component)
+
+const CompetitionModalRoot = React.memo(function CompetitionModalRoot({
+	open,
+	onOpenChange,
+	children,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	children: React.ReactNode;
+}) {
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-[640px] p-0">{children}</DialogContent>
+		</Dialog>
+	);
+});
+
+const CompetitionModalHeader = React.memo(function CompetitionModalHeader({
+	title,
+}: {
+	title: string;
+}) {
+	return (
+		<DialogHeader className="px-6 pt-6 pb-4 border-b">
+			<DialogTitle>{title}</DialogTitle>
+		</DialogHeader>
+	);
+});
+
+const CompetitionModalContent = React.memo(function CompetitionModalContent({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	return <div className="px-6 py-4 space-y-4">{children}</div>;
+});
+
+const CompetitionModalBasicInfo = React.memo(
+	function CompetitionModalBasicInfo({
+		name,
+		description,
+		onNameChange,
+		onDescriptionChange,
+	}: {
+		name: string;
+		description: string;
+		onNameChange: (value: string) => void;
+		onDescriptionChange: (value: string) => void;
+	}) {
+		return (
+			<>
+				<Input
+					placeholder="Competition name"
+					value={name}
+					onChange={(e) => onNameChange(e.target.value)}
+					className="text-lg font-medium border-0 px-0 focus-visible:ring-0 placeholder:text-muted-foreground"
+					autoFocus
+				/>
+				<div className="space-y-1">
+					<span className="text-xs text-muted-foreground">Description</span>
+					<Input
+						placeholder="Short description (optional)"
+						value={description}
+						onChange={(e) => onDescriptionChange(e.target.value)}
+					/>
+				</div>
+			</>
+		);
+	},
+);
+
+const CompetitionModalDates = React.memo(function CompetitionModalDates({
+	compStart,
+	compEnd,
+	onCompStartChange,
+	onCompEndChange,
+}: {
+	compStart: Date | undefined;
+	compEnd: Date | undefined;
+	onCompStartChange: (date: Date | undefined) => void;
+	onCompEndChange: (date: Date | undefined) => void;
+}) {
+	return (
+		<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div className="space-y-1">
+				<span className="text-xs text-muted-foreground">Start date</span>
+				<Popover>
+					<PopoverTrigger asChild>
+						<Button
+							variant="outline"
+							size="sm"
+							className={cn(
+								"w-full justify-start gap-2",
+								!compStart && "text-muted-foreground",
+							)}
+						>
+							<CalendarIcon className="size-4" />
+							{compStart ? format(compStart, "MMM d, yyyy") : "Select date"}
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent className="w-auto p-0" align="start">
+						<Calendar
+							mode="single"
+							selected={compStart}
+							onSelect={onCompStartChange}
+							initialFocus
+						/>
+					</PopoverContent>
+				</Popover>
+			</div>
+			<div className="space-y-1">
+				<span className="text-xs text-muted-foreground">End date</span>
+				<Popover>
+					<PopoverTrigger asChild>
+						<Button
+							variant="outline"
+							size="sm"
+							className={cn(
+								"w-full justify-start gap-2",
+								!compEnd && "text-muted-foreground",
+							)}
+						>
+							<CalendarIcon className="size-4" />
+							{compEnd ? format(compEnd, "MMM d, yyyy") : "Select date"}
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent className="w-auto p-0" align="start">
+						<Calendar
+							mode="single"
+							selected={compEnd}
+							onSelect={onCompEndChange}
+							initialFocus
+						/>
+					</PopoverContent>
+				</Popover>
+			</div>
+		</div>
+	);
+});
+
+const CompetitionModalRoles = React.memo(function CompetitionModalRoles({
+	compLead,
+	leadDelegate,
+	organisers,
+	compLeadOptions,
+	leadDelegateOptions,
+	users,
+	onCompLeadChange,
+	onLeadDelegateChange,
+	onToggleOrganiser,
+	renderUserOption,
+}: {
+	compLead: User | null;
+	leadDelegate: User | null;
+	organisers: User[];
+	compLeadOptions: User[];
+	leadDelegateOptions: User[];
+	users: User[];
+	onCompLeadChange: (user: User | null) => void;
+	onLeadDelegateChange: (user: User | null) => void;
+	onToggleOrganiser: (user: User) => void;
+	renderUserOption: (user: User) => React.ReactNode;
+}) {
+	return (
+		<>
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div className="space-y-1">
+					<span className="text-xs text-muted-foreground">
+						Competition lead
+					</span>
+					<Select
+						value={compLead?.id ?? "__unassigned__"}
+						onValueChange={(id) => {
+							const user =
+								id === "__unassigned__"
+									? null
+									: (compLeadOptions.find((u) => u.id === id) ?? null);
+							onCompLeadChange(user);
+						}}
+					>
+						<SelectTrigger className="w-full h-8 gap-2">
+							<SelectValue placeholder="Select lead" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="__unassigned__">
+								<span className="text-xs text-muted-foreground">
+									Unassigned
+								</span>
+							</SelectItem>
+							{compLeadOptions.map((user) => (
+								<SelectItem key={user.id} value={user.id}>
+									{renderUserOption(user)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+				<div className="space-y-1">
+					<span className="text-xs text-muted-foreground">Lead delegate</span>
+					<Select
+						value={leadDelegate?.id ?? "__unassigned__"}
+						onValueChange={(id) => {
+							const user =
+								id === "__unassigned__"
+									? null
+									: (leadDelegateOptions.find((u) => u.id === id) ?? null);
+							onLeadDelegateChange(user);
+						}}
+					>
+						<SelectTrigger className="w-full h-8 gap-2">
+							<SelectValue placeholder="Select delegate" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="__unassigned__">
+								<span className="text-xs text-muted-foreground">
+									Unassigned
+								</span>
+							</SelectItem>
+							{leadDelegateOptions.map((user) => (
+								<SelectItem key={user.id} value={user.id}>
+									{renderUserOption(user)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+			</div>
+			<div className="space-y-1">
+				<span className="text-xs text-muted-foreground">Organisers</span>
+				<div className="flex flex-wrap gap-2">
+					{users.map((user) => {
+						const isSelected = organisers.some((o) => o.id === user.id);
+						return (
+							<Button
+								key={user.id}
+								variant={isSelected ? "secondary" : "outline"}
+								size="sm"
+								className="gap-2"
+								onClick={() => onToggleOrganiser(user)}
+							>
+								<UserAvatar
+									user={user}
+									size="xs"
+									showName
+									nameClassName="text-sm"
+								/>
+							</Button>
+						);
+					})}
+				</div>
+			</div>
+		</>
+	);
+});
+
+const CompetitionModalPhases = React.memo(function CompetitionModalPhases({
+	phases,
+	currentPhaseIdx,
+	onCurrentPhaseIdxChange,
+}: {
+	phases: CompetitionPhase[];
+	currentPhaseIdx: number;
+	onCurrentPhaseIdxChange: (idx: number) => void;
+}) {
+	return (
+		<div className="space-y-1">
+			<span className="text-xs text-muted-foreground">Current phase</span>
+			<Select
+				value={String(currentPhaseIdx)}
+				onValueChange={(idx) =>
+					onCurrentPhaseIdxChange(Number.parseInt(idx, 10))
+				}
+			>
+				<SelectTrigger className="w-full h-8">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					{phases.map((phase, idx) => (
+						<SelectItem key={phase.id} value={String(idx)}>
+							{phase.name}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+		</div>
+	);
+});
+
+const CompetitionModalSheet = React.memo(function CompetitionModalSheet({
+	compSheet,
+	onCompSheetChange,
+}: {
+	compSheet: string;
+	onCompSheetChange: (value: string) => void;
+}) {
+	return (
+		<div className="space-y-1">
+			<span className="text-xs text-muted-foreground">
+				Google Sheet ID (optional)
+			</span>
+			<Input
+				placeholder="Enter Google Sheet ID..."
+				value={compSheet}
+				onChange={(e) => onCompSheetChange(e.target.value)}
+			/>
+		</div>
+	);
+});
+
+const CompetitionModalFooter = React.memo(function CompetitionModalFooter({
+	mode,
+	onCancel,
+	onSubmit,
+	submitDisabled,
+}: {
+	mode: "create" | "edit";
+	onCancel: () => void;
+	onSubmit: () => void;
+	submitDisabled: boolean;
+}) {
+	return (
+		<div className="px-6 py-4 border-t flex justify-end gap-2">
+			<Button variant="outline" onClick={onCancel}>
+				Cancel
+			</Button>
+			<Button onClick={onSubmit} disabled={submitDisabled}>
+				{mode === "create" ? "Create competition" : "Save changes"}
+			</Button>
+		</div>
+	);
+});
+
+// Main component function
+function CompetitionModalImpl({
 	open,
 	onOpenChange,
 	mode,
@@ -77,8 +412,8 @@ export function CompetitionModal({
 		[teams],
 	);
 
-	const [showTemplateSelector, setShowTemplateSelector] = useState(false);
-	const [selectedTemplate, setSelectedTemplate] =
+	const [_showTemplateSelector, _setShowTemplateSelector] = useState(false);
+	const [_selectedTemplate, _setSelectedTemplate] =
 		useState<CompetitionTemplate | null>(null);
 
 	const getBasePhases = useMemo(
@@ -92,21 +427,66 @@ export function CompetitionModal({
 		[globalPhases],
 	);
 
-	const [name, setName] = useState(competition?.name ?? "");
+	// Derive initial values during render instead of syncing in useEffect
+	const initialValues = useMemo(() => {
+		if (!open) return null;
+		if (mode === "create") {
+			return {
+				showTemplateSelector: true,
+				selectedTemplate: null as CompetitionTemplate | null,
+				name: "",
+				description: "",
+				compStart: undefined as Date | undefined,
+				compEnd: undefined as Date | undefined,
+				compLead: null as User | null,
+				leadDelegate: null as User | null,
+				organisers: [] as User[],
+				phases: getBasePhases,
+				currentPhaseIdx: 0,
+				compSheet: "",
+			};
+		}
+		if (mode === "edit" && competition) {
+			return {
+				showTemplateSelector: false,
+				selectedTemplate: null as CompetitionTemplate | null,
+				name: competition.name,
+				description: competition.description,
+				compStart: new Date(competition.compStart),
+				compEnd: new Date(competition.compEnd),
+				compLead: competition.compLead,
+				leadDelegate: competition.leadDelegate,
+				organisers: competition.organisers,
+				phases: competition.phases,
+				currentPhaseIdx: competition.currentPhaseIdx,
+				compSheet: competition.compSheet?.sheetId ?? "",
+			};
+		}
+		return null;
+	}, [open, mode, competition, getBasePhases]);
+
+	const [showTemplateSelector, setShowTemplateSelector] = useState(
+		initialValues?.showTemplateSelector ?? false,
+	);
+	const [selectedTemplate, setSelectedTemplate] =
+		useState<CompetitionTemplate | null>(
+			initialValues?.selectedTemplate ?? null,
+		);
+	const [name, setName] = useState(initialValues?.name ?? "");
 	const [description, setDescription] = useState(
-		competition?.description ?? "",
+		initialValues?.description ?? "",
 	);
 	const [compStart, setCompStart] = useState<Date | undefined>(
-		competition?.compStart ? new Date(competition.compStart) : undefined,
+		initialValues?.compStart,
 	);
 	const [compEnd, setCompEnd] = useState<Date | undefined>(
-		competition?.compEnd ? new Date(competition.compEnd) : undefined,
+		initialValues?.compEnd,
 	);
 	const [compLead, setCompLead] = useState<User | null>(
-		competition?.compLead ?? null,
+		initialValues?.compLead ?? null,
 	);
 	const [leadDelegate, setLeadDelegate] = useState<User | null>(
-		competition?.leadDelegate ?? null,
+		initialValues?.leadDelegate ?? null,
 	);
 
 	const compLeadOptions = useMemo(
@@ -119,80 +499,71 @@ export function CompetitionModal({
 	);
 
 	const [organisers, setOrganisers] = useState<User[]>(
-		competition?.organisers ?? [],
+		initialValues?.organisers ?? [],
 	);
 	const [phases, setPhases] = useState<CompetitionPhase[]>(
-		competition?.phases ?? globalPhases ?? [],
+		initialValues?.phases ?? [],
 	);
 	const [currentPhaseIdx, setCurrentPhaseIdx] = useState<number>(
-		competition?.currentPhaseIdx ?? 0,
+		initialValues?.currentPhaseIdx ?? 0,
 	);
 	const [compSheet, setCompSheet] = useState<string>(
-		competition?.compSheet?.sheetId ?? "",
+		initialValues?.compSheet ?? "",
 	);
 
+	// Track previous initialValues to only update when they actually change
+	const prevInitialValuesRef = useRef(initialValues);
 	useEffect(() => {
-		if (!open) return;
+		if (initialValues && prevInitialValuesRef.current !== initialValues) {
+			setShowTemplateSelector(initialValues.showTemplateSelector);
+			setSelectedTemplate(initialValues.selectedTemplate);
+			setName(initialValues.name);
+			setDescription(initialValues.description);
+			setCompStart(initialValues.compStart);
+			setCompEnd(initialValues.compEnd);
+			setCompLead(initialValues.compLead);
+			setLeadDelegate(initialValues.leadDelegate);
+			setOrganisers(initialValues.organisers);
+			setPhases(initialValues.phases);
+			setCurrentPhaseIdx(initialValues.currentPhaseIdx);
+			setCompSheet(initialValues.compSheet);
+			prevInitialValuesRef.current = initialValues;
+		}
+	}, [initialValues]);
 
-		if (mode === "create") {
-			setShowTemplateSelector(true);
-			setSelectedTemplate(null);
-			setName("");
-			setDescription("");
-			setCompStart(undefined);
-			setCompEnd(undefined);
-			setCompLead(null);
-			setLeadDelegate(null);
-			setOrganisers([]);
+	const handleTemplateSelect = useCallback(
+		(templateId: string) => {
+			setShowTemplateSelector(false);
+
+			if (templateId === "") return;
+
+			const template = competitionTemplatesList.find(
+				(t) => t.id === templateId,
+			);
+			if (!template) return;
+
+			setSelectedTemplate(template);
+
+			const today = new Date();
+			setName(`${template.name} Competition`);
+			setDescription(template.description);
+			setCompStart(today);
+			setCompEnd(today);
 			setPhases(getBasePhases);
 			setCurrentPhaseIdx(0);
-			setCompSheet("");
-		}
-	}, [open, mode, getBasePhases]);
+		},
+		[competitionTemplatesList, getBasePhases],
+	);
 
-	useEffect(() => {
-		if (!open || mode !== "edit" || !competition) return;
-
-		setShowTemplateSelector(false);
-		setName(competition.name);
-		setDescription(competition.description);
-		setCompStart(new Date(competition.compStart));
-		setCompEnd(new Date(competition.compEnd));
-		setCompLead(competition.compLead);
-		setLeadDelegate(competition.leadDelegate);
-		setOrganisers(competition.organisers);
-		setPhases(competition.phases);
-		setCurrentPhaseIdx(competition.currentPhaseIdx);
-		setCompSheet(competition.compSheet?.sheetId ?? "");
-	}, [open, mode, competition]);
-
-	const handleTemplateSelect = (templateId: string) => {
-		setShowTemplateSelector(false);
-
-		if (templateId === "") return;
-
-		const template = competitionTemplatesList.find((t) => t.id === templateId);
-		if (!template) return;
-
-		setSelectedTemplate(template);
-
-		const today = new Date();
-		setName(`${template.name} Competition`);
-		setDescription(template.description);
-		setCompStart(today);
-		setCompEnd(today);
-		setPhases(getBasePhases);
-		setCurrentPhaseIdx(0);
-	};
-
-	const toggleOrganiser = (user: User) => {
-		const exists = organisers.some((o) => o.id === user.id);
-		if (exists) {
-			setOrganisers(organisers.filter((o) => o.id !== user.id));
-		} else {
-			setOrganisers([...organisers, user]);
-		}
-	};
+	const toggleOrganiser = useCallback((user: User) => {
+		setOrganisers((prev) => {
+			const exists = prev.some((o) => o.id === user.id);
+			if (exists) {
+				return prev.filter((o) => o.id !== user.id);
+			}
+			return [...prev, user];
+		});
+	}, []);
 
 	const resolveOwnerAssignee = useCallback(
 		(t: TemplateTask) => {
@@ -239,9 +610,11 @@ export function CompetitionModal({
 			parentId?: string,
 		) => {
 			const getPhase = (phaseName: string | null) =>
-				phaseName != null ? phasesByName.get(phaseName) ?? null : null;
+				phaseName != null ? (phasesByName.get(phaseName) ?? null) : null;
 
-			const getInitialStatus = (phaseName: string | null): "to-do" | "backlog" =>
+			const getInitialStatus = (
+				phaseName: string | null,
+			): "to-do" | "backlog" =>
 				firstPhaseName != null && phaseName === firstPhaseName
 					? "to-do"
 					: "backlog";
@@ -278,9 +651,7 @@ export function CompetitionModal({
 			template: CompetitionTemplate,
 			competitionPhases: CompetitionPhase[],
 		) => {
-			const phasesByName = new Map(
-				competitionPhases.map((p) => [p.name, p]),
-			);
+			const phasesByName = new Map(competitionPhases.map((p) => [p.name, p]));
 			const firstPhaseName = competitionPhases[0]?.name ?? null;
 
 			for (const task of template.defaultTasks) {
@@ -377,6 +748,10 @@ export function CompetitionModal({
 		<UserAvatar user={user} size="xs" showName nameClassName="text-sm" />
 	);
 
+	const handleCancel = useCallback(() => {
+		onOpenChange(false);
+	}, [onOpenChange]);
+
 	// Show TemplateSelector when creating and template selector is active
 	if (mode === "create" && showTemplateSelector) {
 		return (
@@ -390,213 +765,64 @@ export function CompetitionModal({
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[640px] p-0">
-				<DialogHeader className="px-6 pt-6 pb-4 border-b">
-					<DialogTitle>
-						{mode === "create" ? "Create competition" : "Edit competition"}
-					</DialogTitle>
-				</DialogHeader>
-
-				<div className="px-6 py-4 space-y-4">
-					<Input
-						placeholder="Competition name"
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-						className="text-lg font-medium border-0 px-0 focus-visible:ring-0 placeholder:text-muted-foreground"
-						autoFocus
-					/>
-
-					<div className="space-y-1">
-						<span className="text-xs text-muted-foreground">Description</span>
-						<Input
-							placeholder="Short description (optional)"
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-						/>
-					</div>
-
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-1">
-							<span className="text-xs text-muted-foreground">Start date</span>
-							<Popover>
-								<PopoverTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className={cn(
-											"w-full justify-start gap-2",
-											!compStart && "text-muted-foreground",
-										)}
-									>
-										<CalendarIcon className="size-4" />
-										{compStart
-											? format(compStart, "MMM d, yyyy")
-											: "Select date"}
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-auto p-0" align="start">
-									<Calendar
-										mode="single"
-										selected={compStart}
-										onSelect={setCompStart}
-										initialFocus
-									/>
-								</PopoverContent>
-							</Popover>
-						</div>
-
-						<div className="space-y-1">
-							<span className="text-xs text-muted-foreground">End date</span>
-							<Popover>
-								<PopoverTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className={cn(
-											"w-full justify-start gap-2",
-											!compEnd && "text-muted-foreground",
-										)}
-									>
-										<CalendarIcon className="size-4" />
-										{compEnd ? format(compEnd, "MMM d, yyyy") : "Select date"}
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent className="w-auto p-0" align="start">
-									<Calendar
-										mode="single"
-										selected={compEnd}
-										onSelect={setCompEnd}
-										initialFocus
-									/>
-								</PopoverContent>
-							</Popover>
-						</div>
-					</div>
-
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-1">
-							<span className="text-xs text-muted-foreground">
-								Competition lead
-							</span>
-							<Select
-								value={compLead?.id ?? "__unassigned__"}
-								onValueChange={(id) => {
-									const user = id === "__unassigned__" ? null : compLeadOptions.find((u) => u.id === id) ?? null;
-									setCompLead(user);
-								}}
-							>
-								<SelectTrigger className="w-full h-8 gap-2">
-									<SelectValue placeholder="Select lead" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="__unassigned__">
-										<span className="text-xs text-muted-foreground">Unassigned</span>
-									</SelectItem>
-									{compLeadOptions.map((user) => (
-										<SelectItem key={user.id} value={user.id}>
-											{renderUserOption(user)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-1">
-							<span className="text-xs text-muted-foreground">
-								Lead delegate
-							</span>
-							<Select
-								value={leadDelegate?.id ?? "__unassigned__"}
-								onValueChange={(id) => {
-									const user = id === "__unassigned__" ? null : leadDelegateOptions.find((u) => u.id === id) ?? null;
-									setLeadDelegate(user);
-								}}
-							>
-								<SelectTrigger className="w-full h-8 gap-2">
-									<SelectValue placeholder="Select delegate" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="__unassigned__">
-										<span className="text-xs text-muted-foreground">Unassigned</span>
-									</SelectItem>
-									{leadDelegateOptions.map((user) => (
-										<SelectItem key={user.id} value={user.id}>
-											{renderUserOption(user)}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
-					<div className="space-y-1">
-						<span className="text-xs text-muted-foreground">Organisers</span>
-						<div className="flex flex-wrap gap-2">
-							{users.map((user) => {
-								const isSelected = organisers.some((o) => o.id === user.id);
-								return (
-									<Button
-										key={user.id}
-										variant={isSelected ? "secondary" : "outline"}
-										size="sm"
-										className="gap-2"
-										onClick={() => toggleOrganiser(user)}
-									>
-										<UserAvatar
-											user={user}
-											size="xs"
-											showName
-											nameClassName="text-sm"
-										/>
-									</Button>
-								);
-							})}
-						</div>
-					</div>
-
-					<div className="space-y-1">
-						<span className="text-xs text-muted-foreground">Current phase</span>
-						<Select
-							value={String(currentPhaseIdx)}
-							onValueChange={(idx) =>
-								setCurrentPhaseIdx(Number.parseInt(idx, 10))
-							}
-						>
-							<SelectTrigger className="w-full h-8">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{phases.map((phase, idx) => (
-									<SelectItem key={phase.id} value={String(idx)}>
-										{phase.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					<div className="space-y-1">
-						<span className="text-xs text-muted-foreground">
-							Google Sheet ID (optional)
-						</span>
-						<Input
-							placeholder="Enter Google Sheet ID..."
-							value={compSheet}
-							onChange={(e) => setCompSheet(e.target.value)}
-						/>
-					</div>
-				</div>
-
-				<div className="px-6 py-4 border-t flex justify-end gap-2">
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
-						Cancel
-					</Button>
-					<Button onClick={handleSubmit} disabled={!name.trim()}>
-						{mode === "create" ? "Create competition" : "Save changes"}
-					</Button>
-				</div>
-			</DialogContent>
-		</Dialog>
+		<CompetitionModalRoot open={open} onOpenChange={onOpenChange}>
+			<CompetitionModalHeader
+				title={mode === "create" ? "Create competition" : "Edit competition"}
+			/>
+			<CompetitionModalContent>
+				<CompetitionModalBasicInfo
+					name={name}
+					description={description}
+					onNameChange={setName}
+					onDescriptionChange={setDescription}
+				/>
+				<CompetitionModalDates
+					compStart={compStart}
+					compEnd={compEnd}
+					onCompStartChange={setCompStart}
+					onCompEndChange={setCompEnd}
+				/>
+				<CompetitionModalRoles
+					compLead={compLead}
+					leadDelegate={leadDelegate}
+					organisers={organisers}
+					compLeadOptions={compLeadOptions}
+					leadDelegateOptions={leadDelegateOptions}
+					users={users}
+					onCompLeadChange={setCompLead}
+					onLeadDelegateChange={setLeadDelegate}
+					onToggleOrganiser={toggleOrganiser}
+					renderUserOption={renderUserOption}
+				/>
+				<CompetitionModalPhases
+					phases={phases}
+					currentPhaseIdx={currentPhaseIdx}
+					onCurrentPhaseIdxChange={setCurrentPhaseIdx}
+				/>
+				<CompetitionModalSheet
+					compSheet={compSheet}
+					onCompSheetChange={setCompSheet}
+				/>
+			</CompetitionModalContent>
+			<CompetitionModalFooter
+				mode={mode}
+				onCancel={handleCancel}
+				onSubmit={handleSubmit}
+				submitDisabled={!name.trim()}
+			/>
+		</CompetitionModalRoot>
 	);
 }
+
+// Compound component export - attach sub-components to main function
+export const CompetitionModal = Object.assign(CompetitionModalImpl, {
+	Root: CompetitionModalRoot,
+	Header: CompetitionModalHeader,
+	Content: CompetitionModalContent,
+	BasicInfo: CompetitionModalBasicInfo,
+	Dates: CompetitionModalDates,
+	Roles: CompetitionModalRoles,
+	Phases: CompetitionModalPhases,
+	Sheet: CompetitionModalSheet,
+	Footer: CompetitionModalFooter,
+});

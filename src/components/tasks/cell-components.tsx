@@ -138,10 +138,15 @@ interface TaskTitleCellProps {
 }
 
 export const TaskTitleCell = memo(
-	function TaskTitleCell({ task, hideParentDisplayName = false }: TaskTitleCellProps) {
+	function TaskTitleCell({
+		task,
+		hideParentDisplayName = false,
+	}: TaskTitleCellProps) {
 		const { done, total } = getSubtaskProgress(task);
 		const showProgress = total > 0;
-		const parentDisplayName = hideParentDisplayName ? null : task.parentDisplayName;
+		const parentDisplayName = hideParentDisplayName
+			? null
+			: task.parentDisplayName;
 		const phaseName = hideParentDisplayName ? null : task.phase?.name;
 
 		return (

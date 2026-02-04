@@ -49,13 +49,20 @@ interface CommandMenuProps {
 }
 
 const TASKS_PATH_PREFIX = "/tasks/";
-const TASKS_NON_DETAIL_PATHS = new Set(["/tasks", "/tasks/my", "/tasks/archived"]);
+const TASKS_NON_DETAIL_PATHS = new Set([
+	"/tasks",
+	"/tasks/my",
+	"/tasks/archived",
+]);
 
 function useCurrentTaskId(): string | null {
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
 	});
-	if (!pathname.startsWith(TASKS_PATH_PREFIX) || TASKS_NON_DETAIL_PATHS.has(pathname)) {
+	if (
+		!pathname.startsWith(TASKS_PATH_PREFIX) ||
+		TASKS_NON_DETAIL_PATHS.has(pathname)
+	) {
 		return null;
 	}
 	const segments = pathname.split("/").filter(Boolean);
@@ -426,9 +433,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 						)}
 					</CommandGroup>
 				)}
-				{currentTaskId && (hasResults || !searchQuery) && (
-					<CommandSeparator />
-				)}
+				{currentTaskId && (hasResults || !searchQuery) && <CommandSeparator />}
 
 				{hasResults ? (
 					<>

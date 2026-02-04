@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef, useContext } from "react";
+import { useEffect, useMemo, useRef, useContext, useCallback } from "react";
 import {
 	SharedDataTable,
 	type SharedDataTableProps,
@@ -76,17 +76,22 @@ export function TasksDataTable({
 }: TasksDataTableProps) {
 	const { filterStore, displayStore } = useTasksStores();
 
+	// Use separate selectors to prevent unnecessary re-renders
 	const filters = filterStore((state) => state.filters);
 	const matchMode = filterStore((state) => state.matchMode);
-	const grouping = displayStore((state) => state.grouping);
-	const subGrouping = displayStore((state) => state.subGrouping);
-	const ordering = displayStore((state) => state.ordering);
-	const setOrdering = displayStore((state) => state.setOrdering);
-
 	const filterState = useMemo(
 		() => ({ filters, matchMode }),
 		[filters, matchMode],
 	);
+
+	const grouping = displayStore((state) => state.grouping);
+	const subGrouping = displayStore((state) => state.subGrouping);
+	const ordering = displayStore((state) => state.ordering);
+	const displaySettings = useMemo(
+		() => ({ grouping, subGrouping, ordering }),
+		[grouping, subGrouping, ordering],
+	);
+	const setOrdering = displayStore((state) => state.setOrdering);
 
 	const router = useRouter();
 	const { tasks: storeTasks } = useTasks(false);
@@ -102,6 +107,16 @@ export function TasksDataTable({
 							filterTasksWithState(rows, state),
 			[skipClientFiltering],
 		);
+
+	const handleRowClick = useCallback(
+		(task: Task) => {
+			router.navigate({
+				to: "/tasks/$id",
+				params: { id: task.id },
+			});
+		},
+		[router],
+	);
 
 	// Handle Cmd/Ctrl+A to select all visible tasks
 	useEffect(() => {
@@ -137,20 +152,15 @@ export function TasksDataTable({
 				filterState={filterState}
 				filterFn={filterFn}
 				getRowId={(task) => task.id}
-				grouping={grouping}
-				subGrouping={subGrouping}
-				ordering={ordering}
+				grouping={displaySettings.grouping}
+				subGrouping={displaySettings.subGrouping}
+				ordering={displaySettings.ordering}
 				setOrdering={setOrdering}
 				containerClassName="px-1"
 				cellPaddingXClassName="px-1"
 				showHeader={false}
 				emptyLabel="No tasks found."
-				onRowClick={(task) =>
-					router.navigate({
-						to: "/tasks/$id",
-						params: { id: task.id },
-					})
-				}
+				onRowClick={handleRowClick}
 				enableRowSelection={enableRowSelection}
 				rowSelection={rowSelection}
 				onRowSelectionChange={onRowSelectionChange}

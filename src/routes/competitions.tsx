@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { Box, Plus } from "lucide-react";
 import { useEffect } from "react";
+import { useQueryStates } from "nuqs";
 import { columns } from "@/components/competitions/columns";
 import { CompetitionModal } from "@/components/competitions/competition-modal";
 import { DataTable } from "@/components/competitions/data-table";
@@ -19,18 +20,12 @@ import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
 import { useDisplaySettingsStore } from "@/store/display-settings-store";
 import { useCompetitionsSavedViews } from "@/store/use-competitions-saved-views";
 import {
-	competitionsSearchSchema,
 	initializeCompetitionsStoreFromSearch,
 	useSyncCompetitionsFiltersToUrl,
-	stripSearchParams,
-	defaultCompetitionsSearch,
 } from "@/lib/route-state";
+import { competitionsFilterParsers } from "@/lib/nuqs-parsers";
 
 export const Route = createFileRoute("/competitions")({
-	validateSearch: competitionsSearchSchema,
-	search: {
-		middlewares: [stripSearchParams(defaultCompetitionsSearch)],
-	},
 	onLeave: () => {
 		// Reset filters when actually leaving this route (not on hover)
 		useCompetitionsFilterStore.getState().clearFilters();
@@ -116,13 +111,13 @@ function RouteComponent() {
 		savedViews,
 	});
 
-	// Get type-safe search params from URL
-	const search = Route.useSearch();
+	// Get type-safe search params from URL using nuqs
+	const [search] = useQueryStates(competitionsFilterParsers);
 
 	// Initialize filter/display stores from URL on mount
 	useEffect(() => {
 		initializeCompetitionsStoreFromSearch(
-			search,
+			search as Parameters<typeof initializeCompetitionsStoreFromSearch>[0],
 			useCompetitionsFilterStore,
 			useDisplaySettingsStore,
 			savedViews,

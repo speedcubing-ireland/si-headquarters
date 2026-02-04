@@ -62,11 +62,16 @@ function TaskHeader({
 
 	return (
 		<header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
-			<nav className="flex min-w-0 flex-1 items-center gap-2" aria-label="Breadcrumb">
+			<nav
+				className="flex min-w-0 flex-1 items-center gap-2"
+				aria-label="Breadcrumb"
+			>
 				<Breadcrumb>
 					<BreadcrumbList>
 						{breadcrumbs.map((entry, i) => (
-							<Fragment key={entry.to ? `${entry.to}-${entry.label}` : "current"}>
+							<Fragment
+								key={entry.to ? `${entry.to}-${entry.label}` : "current"}
+							>
 								{i > 0 && <BreadcrumbSeparator />}
 								<BreadcrumbItem>
 									{entry.to ? (
@@ -98,7 +103,7 @@ function TaskHeader({
 					<Link
 						to="/teams/$teamId"
 						params={{ teamId: task.owner.id }}
-						className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted ml-1 hidden sm:inline-flex"
+						className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs hover:bg-muted ml-1 sm:inline-flex"
 					>
 						<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
 							T

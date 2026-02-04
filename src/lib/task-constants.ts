@@ -32,6 +32,11 @@ export const priorityLabels: Record<TaskPriority, string> = {
 	urgent: "Urgent",
 };
 
+// Default values for task creation
+export const DEFAULT_TASK_STATUS: TaskStatus = "to-do";
+export const DEFAULT_TASK_PRIORITY: TaskPriority = "medium";
+export const DEFAULT_PHASE_INDEX = 0;
+
 export const statusColors: Record<TaskStatus, string> = {
 	backlog: "bg-muted text-muted-foreground",
 	"to-do": "bg-blue-500/20 text-blue-400",

@@ -1,4 +1,5 @@
 import type * as React from "react";
+import { useMemo } from "react";
 import {
 	Command,
 	CommandEmpty,
@@ -31,6 +32,25 @@ export function SharedFilterValueSelector({
 	onToggleValue,
 	children,
 }: SharedFilterValueSelectorProps) {
+	// Memoize the option rows to prevent unnecessary re-renders
+	const optionRows = useMemo(
+		() =>
+			options.map((option) => {
+				const value = String(option.value);
+				const isSelected = selectedValues.includes(value);
+				const handleSelect = () => onToggleValue(value);
+				return (
+					<SharedFilterOptionRow
+						key={value}
+						option={option}
+						isSelected={isSelected}
+						onSelect={handleSelect}
+					/>
+				);
+			}),
+		[options, selectedValues, onToggleValue],
+	);
+
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
@@ -39,20 +59,7 @@ export function SharedFilterValueSelector({
 					<CommandInput placeholder={placeholder} />
 					<CommandList>
 						<CommandEmpty>{emptyMessage}</CommandEmpty>
-						<CommandGroup>
-							{options.map((option) => {
-								const value = String(option.value);
-								const isSelected = selectedValues.includes(value);
-								return (
-									<SharedFilterOptionRow
-										key={value}
-										option={option}
-										isSelected={isSelected}
-										onSelect={() => onToggleValue(value)}
-									/>
-								);
-							})}
-						</CommandGroup>
+						<CommandGroup>{optionRows}</CommandGroup>
 					</CommandList>
 				</Command>
 			</DropdownMenuContent>

@@ -8,8 +8,10 @@ import { isDirectorForCtx } from "./admin";
 
 const parentType = v.union(v.literal("task"), v.literal("update"));
 
-const ERROR_COMMENT_NO_ACCESS_TASK = "You can only comment on tasks linked to competitions you are organizing";
-const ERROR_COMMENT_NO_ACCESS_UPDATE = "You can only comment on updates for competitions you are organizing";
+const ERROR_COMMENT_NO_ACCESS_TASK =
+	"You can only comment on tasks linked to competitions you are organizing";
+const ERROR_COMMENT_NO_ACCESS_UPDATE =
+	"You can only comment on updates for competitions you are organizing";
 
 async function hasCompetitionAccess(
 	ctx: QueryCtx | MutationCtx,

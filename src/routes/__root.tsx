@@ -1,6 +1,8 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { Layout } from "@/components/layout/layout";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 import {
 	Card,
 	CardContent,
@@ -23,9 +25,13 @@ const RootLayout = () => (
 		</AuthLoading>
 		<Authenticated>
 			<EnsureVolunteerAccess />
-			<Layout>
-				<Outlet />
-			</Layout>
+			<ErrorBoundary>
+				<NuqsAdapter>
+					<Layout>
+						<Outlet />
+					</Layout>
+				</NuqsAdapter>
+			</ErrorBoundary>
 		</Authenticated>
 		<Unauthenticated>
 			<div className="flex min-h-svh flex-col items-center justify-center bg-muted/40 px-4 py-8">

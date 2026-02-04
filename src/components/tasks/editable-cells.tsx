@@ -171,7 +171,8 @@ export function EditableTaskStatus({
 		});
 	})();
 
-	const hasRequiredApprovals = task?.requiredApprovalBy.length > 0;
+	const hasRequiredApprovals =
+		task !== null && task !== undefined && task.requiredApprovalBy.length > 0;
 
 	const handleStatusChange = (newStatus: TaskStatus) => {
 		if (!task) return;

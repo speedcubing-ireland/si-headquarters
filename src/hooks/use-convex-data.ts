@@ -41,7 +41,7 @@ export function useTasks(archived = false): {
 } {
 	const data = useQuery(api.tasks.listForUI, { archived });
 	return {
-		tasks: (data ?? []) as Task[],
+		tasks: (data ?? []) as unknown as Task[],
 		isLoading: data === undefined,
 	};
 }
@@ -54,7 +54,7 @@ export function useTask(
 		taskId ? { taskId: taskId as Id<"tasks"> } : "skip",
 	);
 	if (taskId == null) return null;
-	return data === undefined ? undefined : (data as Task);
+	return data === undefined ? undefined : (data as unknown as Task);
 }
 
 export function useTasksForCompetition(competitionId: string | null): {
@@ -66,7 +66,7 @@ export function useTasksForCompetition(competitionId: string | null): {
 		competitionId ? { archived: false, competitionId } : "skip",
 	);
 	return {
-		tasks: (data ?? []) as Task[],
+		tasks: (data ?? []) as unknown as Task[],
 		isLoading: data === undefined,
 	};
 }
@@ -132,12 +132,20 @@ export function useTaskMutations() {
 
 	function patchTaskInQueries(
 		localStore: Parameters<
-			Parameters<typeof useMutation>[0]["withOptimisticUpdate"]
+			Parameters<
+				ReturnType<
+					typeof useMutation<typeof api.tasks.update>
+				>["withOptimisticUpdate"]
+			>[0]
 		>[0],
 		taskId: string,
 		updatedTask: Parameters<typeof localStore.setQuery>[2],
 	) {
-		localStore.setQuery(api.tasks.getForUI, { taskId }, updatedTask);
+		localStore.setQuery(
+			api.tasks.getForUI,
+			{ taskId: taskId as Id<"tasks"> },
+			updatedTask,
+		);
 
 		const patchList = (listArgs: {
 			archived: boolean;
@@ -322,8 +330,10 @@ export function useTaskMutations() {
 				(payload.parent?.type === "competition"
 					? payload.parent.linkedId
 					: undefined);
-			const phaseId =
-				payload.phase && "id" in payload.phase ? payload.phase.id : undefined;
+			const phaseId: Id<"phases"> | undefined =
+				payload.phase && "id" in payload.phase
+					? (payload.phase.id as Id<"phases">)
+					: undefined;
 			const id = await createTask({
 				title: payload.title,
 				description: payload.description,
@@ -504,7 +514,7 @@ export function useCompetitions(): {
 } {
 	const data = useQuery(api.competitions.listForUI);
 	return {
-		competitions: (data ?? []) as Competition[],
+		competitions: (data ?? []) as unknown as Competition[],
 		isLoading: data === undefined,
 	};
 }
@@ -565,7 +575,7 @@ export function useCompetition(
 			: "skip",
 	);
 	if (competitionId == null) return null;
-	return data === undefined ? undefined : (data as Competition);
+	return data === undefined ? undefined : (data as unknown as Competition);
 }
 
 export function useCompetitionMutations() {
@@ -617,7 +627,6 @@ export function useCompetitionMutations() {
 					| "leadDelegate"
 					| "organisers"
 					| "currentPhaseIdx"
-					| "currentPhaseId"
 					| "compSheet"
 				>
 			>,
@@ -674,7 +683,10 @@ export function useCompetitionUpdateMutations() {
 	return {
 		createUpdate: async (
 			competitionId: string,
-			payload: { status: "on-track" | "at-risk" | "off-track"; message?: string },
+			payload: {
+				status: "on-track" | "at-risk" | "off-track";
+				message?: string;
+			},
 		) => {
 			await createUpdateMutation({
 				competitionId: competitionId as Id<"competitions">,

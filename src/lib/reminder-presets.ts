@@ -30,14 +30,12 @@ export const REMINDER_PRESETS: ReminderPresetOption[] = [
 	{
 		key: "in_1h",
 		label: "In 1 hour",
-		getRemindAt: (from = defaultFrom()) =>
-			addHours(from, 1).toISOString(),
+		getRemindAt: (from = defaultFrom()) => addHours(from, 1).toISOString(),
 	},
 	{
 		key: "in_3h",
 		label: "In 3 hours",
-		getRemindAt: (from = defaultFrom()) =>
-			addHours(from, 3).toISOString(),
+		getRemindAt: (from = defaultFrom()) => addHours(from, 3).toISOString(),
 	},
 	{
 		key: "later_today",
@@ -49,13 +47,19 @@ export const REMINDER_PRESETS: ReminderPresetOption[] = [
 		key: "tomorrow",
 		label: "Tomorrow",
 		getRemindAt: (_from = defaultFrom()) =>
-			setMinutes(setHours(startOfTomorrow(), DEFAULT_REMIND_HOUR), 0).toISOString(),
+			setMinutes(
+				setHours(startOfTomorrow(), DEFAULT_REMIND_HOUR),
+				0,
+			).toISOString(),
 	},
 	{
 		key: "next_week",
 		label: "Next week",
 		getRemindAt: (from = defaultFrom()) =>
-			setMinutes(setHours(nextMonday(from), DEFAULT_REMIND_HOUR), 0).toISOString(),
+			setMinutes(
+				setHours(nextMonday(from), DEFAULT_REMIND_HOUR),
+				0,
+			).toISOString(),
 	},
 	{
 		key: "custom",
@@ -77,7 +81,9 @@ export function getRemindAtForPreset(
 		return customDate.toISOString();
 	}
 	const preset = REMINDER_PRESETS.find((p) => p.key === presetKey);
-	return preset ? preset.getRemindAt(from ?? new Date()) : new Date().toISOString();
+	return preset
+		? preset.getRemindAt(from ?? new Date())
+		: new Date().toISOString();
 }
 
 export function getPresetLabel(key: ReminderPresetKey): string {

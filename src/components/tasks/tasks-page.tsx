@@ -1,4 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback, useRef } from "react";
+import { useQueryStates } from "nuqs";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
 import { useTasks } from "@/hooks/use-convex-data";
@@ -12,7 +14,7 @@ import {
 	useSyncTasksFiltersToUrl,
 	initializeTasksStoreFromSearch,
 } from "@/lib/route-state";
-import type { TasksSearchParams } from "@/lib/route-search-params";
+import { tasksFilterParsers } from "@/lib/nuqs-parsers";
 import {
 	bulkFilterItems,
 	type MatchMode,
@@ -61,9 +63,6 @@ export type TasksPageProps = {
 
 	// Custom bulk actions slot (when provided, replaces default BulkActionsBar; component can use useTasksListStateContext())
 	bulkActions?: ReactNode;
-
-	// Route search params for URL sync
-	search?: TasksSearchParams;
 };
 
 // Hook for keyboard shortcuts
@@ -71,47 +70,39 @@ function useTasksKeyboardShortcuts(
 	listState: ReturnType<typeof useListPageState>,
 	enableCreateShortcut = true,
 ) {
+	// Cmd/Ctrl+C to create task
+	useKeyboardShortcut({
+		key: "c",
+		handler: useCallback(
+			() => listState.setModalOpen(true),
+			[listState.setModalOpen],
+		),
+		enabled: enableCreateShortcut && !listState.hasSelection,
+	});
+
+	// Escape to clear selection
+	useKeyboardShortcut({
+		key: "Escape",
+		handler: useCallback(
+			() => listState.clearRowSelection(),
+			[listState.clearRowSelection],
+		),
+		enabled: listState.hasSelection,
+	});
+
+	// Custom event handler for programmatic trigger
 	useEffect(() => {
-		const keyHandler = (event: KeyboardEvent) => {
-			const target = event.target as HTMLElement | null;
-			if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) {
-				return;
-			}
-
-			if (
-				event.key.toLowerCase() === "c" &&
-				!listState.hasSelection &&
-				enableCreateShortcut
-			) {
-				event.preventDefault();
-				listState.setModalOpen(true);
-			}
-
-			if (event.key === "Escape" && listState.hasSelection) {
-				event.preventDefault();
-				listState.clearRowSelection();
-			}
-		};
-
 		const customHandler = () => {
 			if (enableCreateShortcut) {
 				listState.setModalOpen(true);
 			}
 		};
 
-		window.addEventListener("keydown", keyHandler);
 		window.addEventListener("create-task-shortcut", customHandler);
-
 		return () => {
-			window.removeEventListener("keydown", keyHandler);
 			window.removeEventListener("create-task-shortcut", customHandler);
 		};
-	}, [
-		listState.setModalOpen,
-		listState.hasSelection,
-		listState.clearRowSelection,
-		enableCreateShortcut,
-	]);
+	}, [listState.setModalOpen, enableCreateShortcut]);
 }
 
 // Inner component that uses the context
@@ -125,12 +116,14 @@ function TasksPageInner(props: TasksPageProps) {
 		pagePredicateMode = "any",
 		showCreateButton = true,
 		subHeader,
-		search,
 	} = props;
 
 	const { filterStore, displayStore, savedViews } = useTasksPageContext();
 
 	const { tasks: allTasks } = useTasks(taskSource === "archived");
+
+	// Get URL state using nuqs
+	const [search] = useQueryStates(tasksFilterParsers);
 
 	// Apply page predicates (layer 2)
 	const pageTasks = useMemo(() => {
@@ -156,21 +149,22 @@ function TasksPageInner(props: TasksPageProps) {
 		activeViewId: savedViews.activeViewId,
 	});
 
-	// Initialize from URL search params
+	// Initialize from URL search params (only once on mount)
+	const initializedRef = useRef(false);
 	useEffect(() => {
-		if (search) {
+		if (!initializedRef.current) {
 			initializeTasksStoreFromSearch(
-				search,
+				search as Parameters<typeof initializeTasksStoreFromSearch>[0],
 				filterStore,
 				displayStore,
 				savedViews,
 			);
+			initializedRef.current = true;
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [search, filterStore, displayStore, savedViews]);
 
 	// Reset handler for primary button
-	const handleReset = () => {
+	const handleReset = useCallback(() => {
 		filterStore.getState().clearFilters();
 
 		// Restore default display settings instead of clearing
@@ -190,7 +184,7 @@ function TasksPageInner(props: TasksPageProps) {
 		}
 
 		savedViews.setActiveView(null);
-	};
+	}, [filterStore, displayStore, savedViews, props.defaultDisplaySettings]);
 
 	const columns = useTaskColumns();
 
@@ -201,7 +195,7 @@ function TasksPageInner(props: TasksPageProps) {
 				label={pageTitle}
 				onClick={handleReset}
 			/>
-			{secondaryLabel && (
+			{secondaryLabel ? (
 				<>
 					<Separator
 						orientation="vertical"
@@ -209,27 +203,27 @@ function TasksPageInner(props: TasksPageProps) {
 					/>
 					<PageHeader.Secondary label={secondaryLabel} />
 				</>
-			)}
+			) : null}
 
 			<Separator
 				orientation="vertical"
 				className="mx-2 data-[orientation=vertical]:h-4"
 			/>
-			{savedViews.views.length > 0 && (
+			{savedViews.views.length > 0 ? (
 				<PageHeader.Views
 					views={savedViews.views}
 					activeViewId={savedViews.activeViewId ?? null}
 					onViewSelect={listState.handleViewSelect}
 					onViewDelete={savedViews.deleteView}
 				/>
-			)}
+			) : null}
 			<PageHeader.NewView
 				onClick={listState.handleStartCreateView}
 				showLabel={savedViews.views.length === 0}
 			/>
 
 			<PageHeader.Actions>
-				{showCreateButton && (
+				{showCreateButton ? (
 					<Button
 						variant="ghost"
 						size="sm"
@@ -238,7 +232,7 @@ function TasksPageInner(props: TasksPageProps) {
 						<Plus className="size-4" />
 						Add task
 					</Button>
-				)}
+				) : null}
 				<SidebarTrigger />
 			</PageHeader.Actions>
 		</PageHeader.Root>
@@ -263,6 +257,17 @@ function TasksPageInner(props: TasksPageProps) {
 		</>
 	);
 
+	const handleSelectAll = useCallback(() => {
+		const allSelected = pageTasks.reduce(
+			(acc, task) => {
+				acc[task.id] = true;
+				return acc;
+			},
+			{} as Record<string, boolean>,
+		);
+		listState.setRowSelection(allSelected);
+	}, [pageTasks, listState.setRowSelection]);
+
 	const modal = (
 		<>
 			<TaskModal
@@ -274,16 +279,7 @@ function TasksPageInner(props: TasksPageProps) {
 			{props.bulkActions ?? (
 				<BulkActionsBar
 					totalTasks={pageTasks.length}
-					onSelectAll={() => {
-						const allSelected = pageTasks.reduce(
-							(acc, task) => {
-								acc[task.id] = true;
-								return acc;
-							},
-							{} as Record<string, boolean>,
-						);
-						listState.setRowSelection(allSelected);
-					}}
+					onSelectAll={handleSelectAll}
 				/>
 			)}
 		</>
