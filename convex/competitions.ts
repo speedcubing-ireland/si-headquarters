@@ -667,16 +667,12 @@ export async function deleteTasksAndRelatedData(
 
 	await Promise.all([
 		...remindersToDelete.map((r) => ctx.db.delete("reminders", r._id)),
-		...notificationsToDelete.map((n) =>
-			ctx.db.delete("notifications", n._id),
-		),
+		...notificationsToDelete.map((n) => ctx.db.delete("notifications", n._id)),
 		...taskActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
 	]);
 
 	await Promise.all(
-		taskIdArray.map((taskId) =>
-			deleteCommentsAndReplies(ctx, "task", taskId),
-		),
+		taskIdArray.map((taskId) => deleteCommentsAndReplies(ctx, "task", taskId)),
 	);
 
 	for (const taskId of taskIdArray) {
@@ -729,8 +725,7 @@ export const remove = mutation({
 			.collect();
 		const notificationsToDelete = competitionNotifications.filter(
 			(n) =>
-				n.entityType === "competition" &&
-				n.entityId === args.competitionId,
+				n.entityType === "competition" && n.entityId === args.competitionId,
 		);
 
 		const competitionActivityLogs = await ctx.db

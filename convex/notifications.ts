@@ -465,6 +465,39 @@ export const _notifyTaskStatusChanged = internalMutation({
 	},
 });
 
+export const _notifyTaskAwaitingReview = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+		recipientId: v.id("users"),
+		actorId: v.id("users"),
+	},
+	returns: v.union(v.id("notifications"), v.null()),
+	handler: async (ctx, args) => {
+		const task = await ctx.db.get("tasks", args.taskId);
+		if (!task) return null;
+
+		const actorInfo = await getActorInfo(ctx, args.actorId);
+		const actorName = actorInfo.actorName ?? "Someone";
+
+		return await ctx.db.insert("notifications", {
+			userId: args.recipientId,
+			type: "task_awaiting_review",
+			priority: "normal",
+			status: "unread",
+			title: `${task.identifier} awaiting your review`,
+			message: `${actorName} marked task ${task.identifier} as awaiting review: ${task.title}`,
+			entityType: "task",
+			entityId: args.taskId,
+			metadata: {
+				actorId: args.actorId,
+				actorName: actorInfo.actorName,
+				actorAvatarUrl: actorInfo.actorAvatarUrl,
+			},
+			isBatchable: false,
+		});
+	},
+});
+
 export const _notifyDueDateApproaching = internalMutation({
 	args: {
 		taskId: v.id("tasks"),
@@ -550,6 +583,50 @@ export const _notifyCompetitionPhaseChanged = internalMutation({
 				actorAvatarUrl: actorInfo.actorAvatarUrl,
 				oldValue: args.oldPhaseName,
 				newValue: args.newPhaseName,
+			},
+			isBatchable: false,
+		});
+	},
+});
+
+const PROGRESS_STATUS_LABELS: Record<string, string> = {
+	"on-track": "On track",
+	"at-risk": "At risk",
+	"off-track": "Off track",
+};
+
+export const _notifyProgressUpdateAdded = internalMutation({
+	args: {
+		competitionId: v.id("competitions"),
+		recipientId: v.id("users"),
+		actorId: v.id("users"),
+		competitionName: v.string(),
+		status: v.union(
+			v.literal("on-track"),
+			v.literal("at-risk"),
+			v.literal("off-track"),
+		),
+	},
+	returns: v.union(v.id("notifications"), v.null()),
+	handler: async (ctx, args) => {
+		const actorInfo = await getActorInfo(ctx, args.actorId);
+		const actorName = actorInfo.actorName ?? "Someone";
+		const statusLabel = PROGRESS_STATUS_LABELS[args.status] ?? args.status;
+
+		return await ctx.db.insert("notifications", {
+			userId: args.recipientId,
+			type: "progress_update_added",
+			priority: "normal",
+			status: "unread",
+			title: `Progress update: ${args.competitionName}`,
+			message: `${actorName} posted a ${statusLabel} update for ${args.competitionName}`,
+			entityType: "competition",
+			entityId: args.competitionId,
+			metadata: {
+				actorId: args.actorId,
+				actorName: actorInfo.actorName,
+				actorAvatarUrl: actorInfo.actorAvatarUrl,
+				newValue: args.status,
 			},
 			isBatchable: false,
 		});

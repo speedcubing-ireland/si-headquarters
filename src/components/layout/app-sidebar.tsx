@@ -17,7 +17,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useTeams } from "@/hooks/use-convex-data";
+import { useTeams, useUnreadCount } from "@/hooks/use-convex-data";
 
 const navSections = [
 	{
@@ -73,6 +73,21 @@ const navSections = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const user = useQuery(api.users.getCurrentUser);
 	const { teams } = useTeams();
+	const unreadCount = useUnreadCount();
+
+	const navSectionsWithBadge: NavSectionData[] = navSections.map(
+		(section, i) =>
+			i === 0
+				? {
+						...section,
+						items: section.items.map((item) =>
+							item.type === "item" && item.name === "Inbox"
+								? { ...item, badge: unreadCount ?? 0 }
+								: item,
+						),
+					}
+				: section,
+	);
 
 	const myTeams =
 		user == null
@@ -126,7 +141,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				</SidebarMenu>
 			</SidebarHeader>
 			<SidebarContent>
-				{navSections.map((section) => (
+				{navSectionsWithBadge.map((section) => (
 					<NavSection key={section.title} {...section} />
 				))}
 				{teamSections.map((section) => (

@@ -104,6 +104,60 @@ function decodeApprovalId(
 	return null;
 }
 
+async function getPotentialReviewerUserIds(
+	ctx: MutationCtx,
+	requiredApprovalIds: string[] | undefined,
+): Promise<Set<Id<"users">>> {
+	const userIds = new Set<Id<"users">>();
+	if (!requiredApprovalIds?.length) return userIds;
+
+	const teamIds = new Set<Id<"teams">>();
+	for (const encoded of requiredApprovalIds) {
+		const decoded = decodeApprovalId(encoded);
+		if (decoded?.type === "user") {
+			userIds.add(decoded.id as Id<"users">);
+		} else if (decoded?.type === "team") {
+			teamIds.add(decoded.id as Id<"teams">);
+		}
+	}
+	const teamDocs = await Promise.all(
+		[...teamIds].map((id) => ctx.db.get("teams", id)),
+	);
+	for (const team of teamDocs) {
+		if (team) {
+			for (const memberId of team.memberIds) {
+				userIds.add(memberId);
+			}
+		}
+	}
+	return userIds;
+}
+
+async function scheduleAwaitingReviewNotifications(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	requiredApprovalIds: string[] | undefined,
+	actorId: Id<"users">,
+): Promise<Promise<unknown>[]> {
+	if (!requiredApprovalIds?.length) return [];
+	const reviewerIds = await getPotentialReviewerUserIds(
+		ctx,
+		requiredApprovalIds,
+	);
+	reviewerIds.delete(actorId);
+	const promises: Promise<unknown>[] = [];
+	for (const recipientId of reviewerIds) {
+		promises.push(
+			ctx.scheduler.runAfter(
+				0,
+				internal.notifications._notifyTaskAwaitingReview,
+				{ taskId, recipientId, actorId },
+			),
+		);
+	}
+	return promises;
+}
+
 async function computeApprovalCompleteness(
 	ctx: {
 		db: {
@@ -1307,6 +1361,17 @@ export const update = mutation({
 			}
 		}
 
+		if (newStatus === "awaiting-review") {
+			notificationPromises.push(
+				...(await scheduleAwaitingReviewNotifications(
+					ctx,
+					args.taskId,
+					doc.requiredApprovalIds,
+					userId,
+				)),
+			);
+		}
+
 		await Promise.allSettled(notificationPromises);
 		return null;
 	},
@@ -1352,9 +1417,12 @@ export const bulkUpdate = mutation({
 		}
 
 		const now = Date.now();
+		const notificationPromises: Promise<unknown>[] = [];
+
 		for (const taskId of args.taskIds) {
 			const doc = await ctx.db.get("tasks", taskId);
 			if (!doc) continue;
+
 			const patch: Record<string, unknown> = {
 				...args.updates,
 				updatedAt: now,
@@ -1367,6 +1435,7 @@ export const bulkUpdate = mutation({
 			if (args.updates.assigneeId === null) patch.assigneeId = undefined;
 			if (args.updates.phaseId === null) patch.phaseId = undefined;
 
+			let newStatus = args.updates.status ?? doc.status;
 			if (args.updates.status === "awaiting-review") {
 				const { isFullyApproved } = await computeApprovalCompleteness(
 					ctx,
@@ -1379,11 +1448,86 @@ export const bulkUpdate = mutation({
 					doc.requiredApprovalIds.length > 0
 				) {
 					patch.status = "done";
+					newStatus = "done";
 				}
 			}
 
+			const oldAssigneeId = doc.assigneeId;
+			const newAssigneeId =
+				args.updates.assigneeId === undefined
+					? doc.assigneeId
+					: (args.updates.assigneeId ?? undefined);
+			const oldStatus = doc.status;
+
 			await ctx.db.patch("tasks", taskId, patch as Record<string, unknown>);
+
+			if (oldAssigneeId !== newAssigneeId) {
+				if (oldAssigneeId && oldAssigneeId !== userId) {
+					notificationPromises.push(
+						ctx.scheduler.runAfter(
+							0,
+							internal.notifications._notifyTaskUnassigned,
+							{
+								taskId,
+								assigneeId: oldAssigneeId,
+								actorId: userId,
+							},
+						),
+					);
+				}
+				if (newAssigneeId && newAssigneeId !== userId) {
+					notificationPromises.push(
+						ctx.scheduler.runAfter(
+							0,
+							internal.notifications._notifyTaskAssigned,
+							{
+								taskId,
+								assigneeId: newAssigneeId,
+								actorId: userId,
+							},
+						),
+					);
+				}
+			}
+
+			if (oldStatus !== newStatus && args.updates.status !== undefined) {
+				const recipients = new Set<Id<"users">>();
+				if (doc.assigneeId && doc.assigneeId !== userId) {
+					recipients.add(doc.assigneeId);
+				}
+				if (doc.ownerId && doc.ownerType === "user" && doc.ownerId !== userId) {
+					recipients.add(doc.ownerId as Id<"users">);
+				}
+				for (const recipientId of recipients) {
+					notificationPromises.push(
+						ctx.scheduler.runAfter(
+							0,
+							internal.notifications._notifyTaskStatusChanged,
+							{
+								taskId,
+								recipientId,
+								actorId: userId,
+								oldStatus,
+								newStatus,
+							},
+						),
+					);
+				}
+			}
+
+			if (newStatus === "awaiting-review") {
+				notificationPromises.push(
+					...(await scheduleAwaitingReviewNotifications(
+						ctx,
+						taskId,
+						doc.requiredApprovalIds,
+						userId,
+					)),
+				);
+			}
 		}
+
+		await Promise.allSettled(notificationPromises);
 		return null;
 	},
 });

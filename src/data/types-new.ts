@@ -278,6 +278,7 @@ export type NotificationType =
 	| "task_unassigned" // You were unassigned from a task
 	| "task_mentioned" // You were mentioned in a comment
 	| "task_status_changed" // Task status changed (for subscribers)
+	| "task_awaiting_review" // Task marked awaiting review (you are a reviewer)
 	| "due_date_approaching" // Due date is coming up
 	| "due_date_overdue" // Task is overdue
 	| "comment_added" // New comment on subscribed task

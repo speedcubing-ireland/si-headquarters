@@ -4,7 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { requireUserId } from "./auth";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 const statusValidator = v.union(
 	v.literal("on-track"),
@@ -96,6 +96,31 @@ export const create = mutation({
 			entityId: id,
 			type: "created",
 		});
+
+		const competition = await ctx.db.get("competitions", args.competitionId);
+		if (competition) {
+			const recipientIds = new Set<Id<"users">>();
+			if (competition.compLeadId) recipientIds.add(competition.compLeadId);
+			if (competition.leadDelegateId)
+				recipientIds.add(competition.leadDelegateId);
+			for (const oid of competition.organiserIds) recipientIds.add(oid);
+			recipientIds.delete(userId);
+
+			const notificationPromises = [...recipientIds].map((recipientId) =>
+				ctx.scheduler.runAfter(
+					0,
+					internal.notifications._notifyProgressUpdateAdded,
+					{
+						competitionId: args.competitionId,
+						recipientId,
+						actorId: userId,
+						competitionName: competition.name,
+						status: args.status,
+					},
+				),
+			);
+			await Promise.allSettled(notificationPromises);
+		}
 		return id;
 	},
 });

@@ -79,6 +79,8 @@ function getNotificationIcon(type: NotificationType) {
 			return <MessageCircle className="size-5 text-primary" />;
 		case "task_status_changed":
 			return <CheckCircle2 className="size-5 text-primary" />;
+		case "task_awaiting_review":
+			return <CheckCircle2 className="size-5 text-primary" />;
 		case "due_date_approaching":
 			return <Clock className="size-5 text-muted-foreground" />;
 		case "due_date_overdue":
@@ -126,6 +128,13 @@ function NotificationItem({
 					to: "/competitions/$id",
 					params: { id: notification.entityId },
 				};
+			case "comment":
+				return notification.parentEntityId
+					? {
+							to: "/tasks/$id",
+							params: { id: notification.parentEntityId },
+						}
+					: null;
 			case "reminder":
 				return notification.parentEntityId
 					? { to: "/tasks/$id", params: { id: notification.parentEntityId } }

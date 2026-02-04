@@ -1,4 +1,5 @@
 import { useAuthActions } from "@convex-dev/auth/react";
+import { Link } from "@tanstack/react-router";
 import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -91,9 +92,11 @@ export function NavUser({
 								<BadgeCheck />
 								Account
 							</DropdownMenuItem>
-							<DropdownMenuItem>
-								<Bell />
-								Notifications
+							<DropdownMenuItem asChild>
+								<Link to="/inbox" className="flex cursor-pointer items-center">
+									<Bell />
+									Notifications
+								</Link>
 							</DropdownMenuItem>
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />

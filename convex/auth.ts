@@ -33,7 +33,12 @@ function WCA(
 		clientId: options.clientId,
 		clientSecret: options.clientSecret,
 		profile(profile) {
-			type WcaMe = { id: number; name?: string; email?: string; avatar?: { url?: string; thumb_url?: string } };
+			type WcaMe = {
+				id: number;
+				name?: string;
+				email?: string;
+				avatar?: { url?: string; thumb_url?: string };
+			};
 			const wcaUser = (profile as { me?: WcaMe }).me ?? (profile as WcaMe);
 			return {
 				id: String(wcaUser.id),
@@ -47,7 +52,13 @@ function WCA(
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 	providers: [
-		Google,
+		Google({
+			authorization: {
+				params: {
+					hd: "speedcubingireland.com",
+				},
+			},
+		}),
 		WCA({
 			clientId: process.env.AUTH_WCA_ID,
 			clientSecret: process.env.AUTH_WCA_SECRET,
