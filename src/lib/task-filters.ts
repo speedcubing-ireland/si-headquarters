@@ -1,19 +1,18 @@
 import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
 import type {
 	DateRangeFilter,
-	FilterItem,
 	MatchMode,
 	TasksFilters,
 } from "@/store/tasks-filter-types";
+import {
+	buildFilterItemMatcher,
+	hasDateRangeValue,
+} from "./shared-filter-engine";
 
 type FilterState = {
 	filters: TasksFilters;
 	matchMode: MatchMode;
 };
-
-function hasDateRangeValue(dateRange?: DateRangeFilter): boolean {
-	return !!dateRange && (!!dateRange.start || !!dateRange.end);
-}
 
 export function hasActiveFilters(filters: TasksFilters): boolean {
 	return (
@@ -39,41 +38,6 @@ export function getActiveFiltersCount(filters: TasksFilters): number {
 		count += 1;
 	}
 	return count;
-}
-
-function buildFilterItemMatcher<T>(
-	filterItems: FilterItem<T>[],
-	getTaskValue: (task: Task) => T | T[] | undefined,
-	matchMode: MatchMode,
-): (task: Task) => boolean {
-	if (filterItems.length === 0) {
-		return () => true;
-	}
-
-	return (task: Task) => {
-		const raw = getTaskValue(task);
-		const taskValues: T[] =
-			raw === undefined ? ([] as T[]) : Array.isArray(raw) ? raw : [raw];
-
-		const matchesValues = (values: T[]) =>
-			taskValues.some((v) => values.includes(v));
-
-		const positiveItems = filterItems.filter((item) => !item.isNot);
-		const negativeItems = filterItems.filter((item) => item.isNot);
-
-		const positiveMatch =
-			positiveItems.length === 0
-				? true
-				: matchMode === "all"
-					? positiveItems.every((item) => matchesValues(item.values))
-					: positiveItems.some((item) => matchesValues(item.values));
-
-		const negativeMatch = negativeItems.every(
-			(item) => !matchesValues(item.values),
-		);
-
-		return positiveMatch && negativeMatch;
-	};
 }
 
 function buildDateMatcher(
@@ -133,34 +97,35 @@ export function filterTasks(
 		return tasks;
 	}
 
-	const matchesStatus = buildFilterItemMatcher<TaskStatus>(
+	const matchesStatus = buildFilterItemMatcher<TaskStatus, Task>(
 		filters.status,
 		(t) => t.status,
 		matchMode,
 	);
-	const matchesPriority = buildFilterItemMatcher<TaskPriority>(
+	const matchesPriority = buildFilterItemMatcher<TaskPriority, Task>(
 		filters.priority,
 		(t) => t.priority,
 		matchMode,
 	);
-	const matchesAssignee = buildFilterItemMatcher<string>(
+	const matchesAssignee = buildFilterItemMatcher<string, Task>(
 		filters.assignee,
 		(t) => t.assignee?.id,
 		matchMode,
 	);
-	const matchesLabels = buildFilterItemMatcher<string>(
+	const matchesLabels = buildFilterItemMatcher<string, Task>(
 		filters.labels,
 		(t) => t.labels.map((l) => l.id),
 		matchMode,
 	);
-	const matchesOwner = buildFilterItemMatcher<string>(
+	const matchesOwner = buildFilterItemMatcher<string, Task>(
 		filters.owner,
 		(t) =>
 			t.owner && "id" in t.owner ? (t.owner as { id: string }).id : undefined,
 		matchMode,
 	);
 	const matchesParentType = buildFilterItemMatcher<
-		"task" | "phase" | "competition"
+		"task" | "phase" | "competition",
+		Task
 	>(filters.parentType, (t) => t.parent?.type, matchMode);
 	const matchesDate = buildDateMatcher(filters.dateRange);
 

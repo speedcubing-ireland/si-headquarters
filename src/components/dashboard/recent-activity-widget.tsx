@@ -1,49 +1,16 @@
-import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Activity, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useTasks, useUsers, useRecentActivity } from "@/hooks/use-convex-data";
-import { formatDate, getInitials } from "@/lib/format-utils";
-
-function formatRelativeTime(timestamp: string): string {
-	const date = new Date(timestamp);
-	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffSecs = Math.floor(diffMs / 1000);
-	const diffMins = Math.floor(diffSecs / 60);
-	const diffHours = Math.floor(diffMins / 60);
-	const diffDays = Math.floor(diffHours / 24);
-
-	if (diffSecs < 60) return "just now";
-	if (diffMins < 60) return `${diffMins}m ago`;
-	if (diffHours < 24) return `${diffHours}h ago`;
-	if (diffDays < 7) return `${diffDays}d ago`;
-	return formatDate(timestamp);
-}
+import { useTasks, useRecentActivity } from "@/hooks/use-convex-data";
+import { getActivityDescription } from "@/lib/activity-utils";
+import { getInitials } from "@/lib/format-utils";
+import { formatRelativeTime } from "@/lib/activity-utils";
 
 export function RecentActivityWidget() {
-	const { users } = useUsers();
 	const { activities: activityLog } = useRecentActivity(50);
 	const { tasks } = useTasks(false);
-
-	const currentUser = users[0];
-
-	const recentActivity = useMemo(() => {
-		if (!currentUser) return [];
-
-		const userTaskIds = new Set(
-			tasks.filter((t) => t.assignee?.id === currentUser.id).map((t) => t.id),
-		);
-
-		return activityLog
-			.filter(
-				(entry) =>
-					(entry.entityType === "task" && userTaskIds.has(entry.entityId)) ||
-					entry.actor.id === currentUser.id,
-			)
-			.slice(0, 5);
-	}, [activityLog, tasks, currentUser]);
+	const recentActivity = activityLog.slice(0, 5);
 
 	return (
 		<Card>
@@ -65,14 +32,9 @@ export function RecentActivityWidget() {
 								entry.entityType === "task"
 									? tasks.find((t) => t.id === entry.entityId)
 									: undefined;
-
-							return (
-								<Link
-									key={entry.id}
-									to="/tasks/$id"
-									params={{ id: entry.entityId }}
-									className="flex items-start gap-3 py-2 border-b last:border-0 hover:bg-muted/50 rounded px-2 -mx-2 transition-colors"
-								>
+							const description = getActivityDescription(entry);
+							const content = (
+								<>
 									<Avatar className="size-6 shrink-0">
 										<AvatarImage src={entry.actor.avatarUrl} />
 										<AvatarFallback className="text-[10px]">
@@ -85,7 +47,7 @@ export function RecentActivityWidget() {
 												{entry.actor.name}
 											</span>
 											<span className="text-sm text-muted-foreground">
-												{entry.type.replace(/_/g, " ")}
+												{description}
 											</span>
 										</div>
 										{task && (
@@ -97,7 +59,24 @@ export function RecentActivityWidget() {
 											{formatRelativeTime(entry.timestamp)}
 										</div>
 									</div>
+								</>
+							);
+							const rowClass =
+								"flex items-start gap-3 py-2 border-b last:border-0 hover:bg-muted/50 rounded px-2 -mx-2 transition-colors";
+
+							return entry.entityType === "task" ? (
+								<Link
+									key={entry.id}
+									to="/tasks/$id"
+									params={{ id: entry.entityId }}
+									className={rowClass}
+								>
+									{content}
 								</Link>
+							) : (
+								<div key={entry.id} className={rowClass}>
+									{content}
+								</div>
 							);
 						})}
 					</div>

@@ -6,12 +6,11 @@ import { TemplateSelector } from "@/components/template-selector";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+	FormModalHeader,
+	FormModalFooter,
+} from "@/components/shared/form-modal-layout";
 import { Input } from "@/components/ui/input";
 import {
 	Popover,
@@ -67,18 +66,6 @@ const CompetitionModalRoot = React.memo(function CompetitionModalRoot({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[640px] p-0">{children}</DialogContent>
 		</Dialog>
-	);
-});
-
-const CompetitionModalHeader = React.memo(function CompetitionModalHeader({
-	title,
-}: {
-	title: string;
-}) {
-	return (
-		<DialogHeader className="px-6 pt-6 pb-4 border-b">
-			<DialogTitle>{title}</DialogTitle>
-		</DialogHeader>
 	);
 });
 
@@ -358,29 +345,6 @@ const CompetitionModalSheet = React.memo(function CompetitionModalSheet({
 				value={compSheet}
 				onChange={(e) => onCompSheetChange(e.target.value)}
 			/>
-		</div>
-	);
-});
-
-const CompetitionModalFooter = React.memo(function CompetitionModalFooter({
-	mode,
-	onCancel,
-	onSubmit,
-	submitDisabled,
-}: {
-	mode: "create" | "edit";
-	onCancel: () => void;
-	onSubmit: () => void;
-	submitDisabled: boolean;
-}) {
-	return (
-		<div className="px-6 py-4 border-t flex justify-end gap-2">
-			<Button variant="outline" onClick={onCancel}>
-				Cancel
-			</Button>
-			<Button onClick={onSubmit} disabled={submitDisabled}>
-				{mode === "create" ? "Create competition" : "Save changes"}
-			</Button>
 		</div>
 	);
 });
@@ -766,7 +730,7 @@ function CompetitionModalImpl({
 
 	return (
 		<CompetitionModalRoot open={open} onOpenChange={onOpenChange}>
-			<CompetitionModalHeader
+			<FormModalHeader
 				title={mode === "create" ? "Create competition" : "Edit competition"}
 			/>
 			<CompetitionModalContent>
@@ -804,11 +768,13 @@ function CompetitionModalImpl({
 					onCompSheetChange={setCompSheet}
 				/>
 			</CompetitionModalContent>
-			<CompetitionModalFooter
+			<FormModalFooter
 				mode={mode}
 				onCancel={handleCancel}
 				onSubmit={handleSubmit}
 				submitDisabled={!name.trim()}
+				createLabel="Create competition"
+				saveLabel="Save changes"
 			/>
 		</CompetitionModalRoot>
 	);
@@ -817,12 +783,12 @@ function CompetitionModalImpl({
 // Compound component export - attach sub-components to main function
 export const CompetitionModal = Object.assign(CompetitionModalImpl, {
 	Root: CompetitionModalRoot,
-	Header: CompetitionModalHeader,
+	Header: FormModalHeader,
 	Content: CompetitionModalContent,
 	BasicInfo: CompetitionModalBasicInfo,
 	Dates: CompetitionModalDates,
 	Roles: CompetitionModalRoles,
 	Phases: CompetitionModalPhases,
 	Sheet: CompetitionModalSheet,
-	Footer: CompetitionModalFooter,
+	Footer: FormModalFooter,
 });

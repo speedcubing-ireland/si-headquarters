@@ -13,7 +13,6 @@ export const list = query({
 	args: {},
 	returns: v.array(teamDoc),
 	handler: async (ctx) => {
-		// Teams are only visible to authenticated users.
 		await requireUserId(ctx);
 		return await ctx.db
 			.query("teams")

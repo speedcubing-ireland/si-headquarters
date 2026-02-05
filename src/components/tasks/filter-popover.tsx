@@ -1,13 +1,5 @@
 import { useState } from "react";
-import { SharedFilterPopoverTrigger } from "@/components/shared/filters/filter-popover";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { SharedFilterPopover } from "@/components/shared/filters/filter-popover";
 import { useTaskFilterContext } from "@/hooks/use-task-filter-context";
 import {
 	TASK_FILTER_TYPES,
@@ -40,46 +32,31 @@ export function TasksFilterPopover() {
 	};
 
 	return (
-		<DropdownMenu open={open} onOpenChange={setOpen}>
-			<DropdownMenuTrigger asChild>
-				<SharedFilterPopoverTrigger count={getActiveFiltersCount()} />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-60" align="start">
-				<DropdownMenuGroup>
-					{TASK_FILTER_TYPES.map((filterType) => {
-						const options = getFilterValues(filterType.id, filterContext);
-						return (
-							<TasksFilterSubMenu
-								key={filterType.id}
-								filterType={filterType}
-								filterCount={
-									(
-										filters[filterType.id as keyof typeof filters] as
-											| unknown[]
-											| undefined
-									)?.length ?? 0
-								}
-								options={options}
-								selectedValues={getSelectedValues(filterType.id)}
-								onToggleFilter={handleToggleFilter}
-							/>
-						);
-					})}
-				</DropdownMenuGroup>
-				{getActiveFiltersCount() > 0 && (
-					<>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							onSelect={() => {
-								clearFilters();
-								setOpen(false);
-							}}
-						>
-							Clear all filters
-						</DropdownMenuItem>
-					</>
-				)}
-			</DropdownMenuContent>
-		</DropdownMenu>
+		<SharedFilterPopover
+			count={getActiveFiltersCount()}
+			onClear={clearFilters}
+			open={open}
+			onOpenChange={setOpen}
+		>
+			{TASK_FILTER_TYPES.map((filterType) => {
+				const options = getFilterValues(filterType.id, filterContext);
+				return (
+					<TasksFilterSubMenu
+						key={filterType.id}
+						filterType={filterType}
+						filterCount={
+							(
+								filters[filterType.id as keyof typeof filters] as
+									| unknown[]
+									| undefined
+							)?.length ?? 0
+						}
+						options={options}
+						selectedValues={getSelectedValues(filterType.id)}
+						onToggleFilter={handleToggleFilter}
+					/>
+				);
+			})}
+		</SharedFilterPopover>
 	);
 }

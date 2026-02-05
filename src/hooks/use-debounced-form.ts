@@ -64,6 +64,13 @@ export function useDebouncedForm<T extends string>({
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const onChangeRef = useRef(onChange);
 
+	// Sync from initialValue when it changes (e.g. navigation, refetch), but not while user has pending edits
+	useEffect(() => {
+		if (!hasPendingChanges && localValue !== initialValue) {
+			setLocalValue(initialValue);
+		}
+	}, [initialValue, hasPendingChanges, localValue]);
+
 	// Keep callback ref up to date
 	useEffect(() => {
 		onChangeRef.current = onChange;
@@ -171,6 +178,13 @@ export function useDebouncedBooleanForm({
 	const [hasPendingChanges, setHasPendingChanges] = useState(false);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const onChangeRef = useRef(onChange);
+
+	// Sync from initialValue when it changes (e.g. navigation, refetch), but not while user has pending edits
+	useEffect(() => {
+		if (!hasPendingChanges && localValue !== initialValue) {
+			setLocalValue(initialValue);
+		}
+	}, [initialValue, hasPendingChanges, localValue]);
 
 	useEffect(() => {
 		onChangeRef.current = onChange;

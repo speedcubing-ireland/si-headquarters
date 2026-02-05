@@ -1,7 +1,19 @@
 import type { LucideIcon } from "lucide-react";
 import { ChevronDown, ListFilter } from "lucide-react";
-import React, { type ComponentPropsWithoutRef, type Ref } from "react";
+import React, {
+	type ComponentPropsWithoutRef,
+	type ReactNode,
+	type Ref,
+} from "react";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 type SharedFilterPopoverTriggerProps = Omit<
@@ -48,3 +60,55 @@ export const SharedFilterPopoverTrigger = React.memo(
 		);
 	},
 );
+
+type SharedFilterPopoverProps = {
+	/** Current active filter count (shown on trigger). */
+	count: number;
+	/** Called when "Clear all filters" is clicked. */
+	onClear: () => void;
+	/** Submenus and any extra dropdown content (e.g. date presets). */
+	children: ReactNode;
+	/** Optional controlled open state. When provided, parent can close from children (e.g. on filter select). */
+	open?: boolean;
+	onOpenChange?: (open: boolean) => void;
+};
+
+/**
+ * Shared filter dropdown shell: trigger, content area, and "Clear all filters".
+ * Use for both tasks and competitions filter popovers.
+ */
+export function SharedFilterPopover({
+	count,
+	onClear,
+	children,
+	open: controlledOpen,
+	onOpenChange: controlledOnOpenChange,
+}: SharedFilterPopoverProps) {
+	const [internalOpen, setInternalOpen] = React.useState(false);
+	const open = controlledOpen ?? internalOpen;
+	const setOpen = controlledOnOpenChange ?? setInternalOpen;
+
+	return (
+		<DropdownMenu open={open} onOpenChange={setOpen}>
+			<DropdownMenuTrigger asChild>
+				<SharedFilterPopoverTrigger count={count} />
+			</DropdownMenuTrigger>
+			<DropdownMenuContent className="w-60" align="start">
+				<DropdownMenuGroup>{children}</DropdownMenuGroup>
+				{count > 0 && (
+					<>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem
+							onSelect={() => {
+								onClear();
+								setOpen(false);
+							}}
+						>
+							Clear all filters
+						</DropdownMenuItem>
+					</>
+				)}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+}

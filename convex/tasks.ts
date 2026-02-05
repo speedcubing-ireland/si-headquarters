@@ -1,318 +1,37 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
-import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
 } from "./competitions";
-
-const APPROVAL_PREFIX_USER = "user:";
-const APPROVAL_PREFIX_TEAM = "team:";
-
-function formatCompetitionName(name: string): string {
-	const words = name.trim().split(/\s+/);
-	const initials = words
-		.map((word) => {
-			if (/^\d{4}$/.test(word)) return "";
-			const match = word.match(/[A-Z]/);
-			return match ? match[0] : word[0]?.toUpperCase() || "";
-		})
-		.filter(Boolean)
-		.join("");
-
-	const yearMatches = name.match(/\b(\d{4})\b/g);
-	const year = yearMatches ? yearMatches[yearMatches.length - 1].slice(-2) : "";
-
-	return year ? `${initials}${year}` : initials;
-}
-
-const ERROR_TASK_NO_COMPETITION =
-	"Only volunteers can modify tasks without a competition";
-const ERROR_TASK_NO_ACCESS =
-	"You can only modify tasks linked to competitions you are organizing";
-const ERROR_TASK_MOVE =
-	"You can only move tasks to competitions you are organizing";
-
-async function hasCompetitionAccess(
-	ctx: QueryCtx | MutationCtx,
-	isVolunteer: boolean,
-	userId: Id<"users">,
-	competitionId: Id<"competitions"> | string | null | undefined,
-): Promise<boolean> {
-	if (isVolunteer) return true;
-	if (!competitionId) return false;
-
-	const competition = await ctx.db.get(
-		"competitions",
-		competitionId as Id<"competitions">,
-	);
-	if (!competition) return false;
-
-	return (
-		competition.organiserIds.includes(userId) ||
-		competition.compLeadId === userId ||
-		competition.leadDelegateId === userId
-	);
-}
-
-async function requireTaskAccess(
-	ctx: MutationCtx,
-	volunteer: boolean,
-	userId: Id<"users">,
-	task: Doc<"tasks">,
-): Promise<void> {
-	if (volunteer) return;
-
-	if (!task.parentCompetitionId) {
-		throw new ConvexError({
-			code: "FORBIDDEN",
-			message: ERROR_TASK_NO_COMPETITION,
-		});
-	}
-
-	const hasAccess = await hasCompetitionAccess(
-		ctx,
-		volunteer,
-		userId,
-		task.parentCompetitionId,
-	);
-	if (!hasAccess) {
-		throw new ConvexError({
-			code: "FORBIDDEN",
-			message: ERROR_TASK_NO_ACCESS,
-		});
-	}
-}
-
-function encodeApprovalId(type: "user" | "team", id: string): string {
-	const prefix = type === "user" ? APPROVAL_PREFIX_USER : APPROVAL_PREFIX_TEAM;
-	return `${prefix}${id}`;
-}
-
-function decodeApprovalId(
-	encoded: string,
-): { type: "user" | "team"; id: string } | null {
-	if (encoded.startsWith(APPROVAL_PREFIX_USER)) {
-		return { type: "user", id: encoded.slice(APPROVAL_PREFIX_USER.length) };
-	}
-	if (encoded.startsWith(APPROVAL_PREFIX_TEAM)) {
-		return { type: "team", id: encoded.slice(APPROVAL_PREFIX_TEAM.length) };
-	}
-	return null;
-}
-
-async function getPotentialReviewerUserIds(
-	ctx: MutationCtx,
-	requiredApprovalIds: string[] | undefined,
-): Promise<Set<Id<"users">>> {
-	const userIds = new Set<Id<"users">>();
-	if (!requiredApprovalIds?.length) return userIds;
-
-	const teamIds = new Set<Id<"teams">>();
-	for (const encoded of requiredApprovalIds) {
-		const decoded = decodeApprovalId(encoded);
-		if (decoded?.type === "user") {
-			userIds.add(decoded.id as Id<"users">);
-		} else if (decoded?.type === "team") {
-			teamIds.add(decoded.id as Id<"teams">);
-		}
-	}
-	const teamDocs = await Promise.all(
-		[...teamIds].map((id) => ctx.db.get("teams", id)),
-	);
-	for (const team of teamDocs) {
-		if (team) {
-			for (const memberId of team.memberIds) {
-				userIds.add(memberId);
-			}
-		}
-	}
-	return userIds;
-}
-
-async function scheduleAwaitingReviewNotifications(
-	ctx: MutationCtx,
-	taskId: Id<"tasks">,
-	requiredApprovalIds: string[] | undefined,
-	actorId: Id<"users">,
-): Promise<Promise<unknown>[]> {
-	if (!requiredApprovalIds?.length) return [];
-	const reviewerIds = await getPotentialReviewerUserIds(
-		ctx,
-		requiredApprovalIds,
-	);
-	reviewerIds.delete(actorId);
-	const promises: Promise<unknown>[] = [];
-	for (const recipientId of reviewerIds) {
-		promises.push(
-			ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyTaskAwaitingReview,
-				{ taskId, recipientId, actorId },
-			),
-		);
-	}
-	return promises;
-}
-
-async function computeApprovalCompleteness(
-	ctx: {
-		db: {
-			get: (
-				table: "teams",
-				id: Id<"teams">,
-			) => Promise<{
-				memberIds: Id<"users">[];
-			} | null>;
-		};
-	},
-	requiredApprovalIds: string[],
-	approvedByIds: string[],
-): Promise<{ isFullyApproved: boolean; pendingKeys: string[] }> {
-	if (requiredApprovalIds.length === 0) {
-		return { isFullyApproved: true, pendingKeys: [] };
-	}
-
-	const approvingUserIds = new Set(approvedByIds);
-	const pendingKeys: string[] = [];
-
-	// Load all teams referenced in requiredApprovalIds
-	const teamIds = new Set<Id<"teams">>();
-	for (const encoded of requiredApprovalIds) {
-		const decoded = decodeApprovalId(encoded);
-		if (decoded?.type === "team") {
-			teamIds.add(decoded.id as Id<"teams">);
-		}
-	}
-
-	const teamDocs = await Promise.all(
-		[...teamIds].map((id) => ctx.db.get("teams", id)),
-	);
-	const teamMembersMap = new Map<string, Set<string>>();
-	teamDocs.forEach((team, i) => {
-		if (team) {
-			const teamId = [...teamIds][i];
-			teamMembersMap.set(teamId, new Set(team.memberIds.map((id) => id)));
-		}
-	});
-
-	// Check each required approval
-	for (const encoded of requiredApprovalIds) {
-		const decoded = decodeApprovalId(encoded);
-		if (!decoded) {
-			pendingKeys.push(encoded);
-			continue;
-		}
-
-		if (decoded.type === "user") {
-			if (!approvingUserIds.has(decoded.id)) {
-				pendingKeys.push(encoded);
-			}
-		} else {
-			// Team approval: check if any team member has approved
-			const teamMembers = teamMembersMap.get(decoded.id);
-			if (!teamMembers) {
-				pendingKeys.push(encoded);
-				continue;
-			}
-			const hasApprovingMember = [...approvingUserIds].some((userId) =>
-				teamMembers.has(userId),
-			);
-			if (!hasApprovingMember) {
-				pendingKeys.push(encoded);
-			}
-		}
-	}
-
-	return {
-		isFullyApproved: pendingKeys.length === 0,
-		pendingKeys,
-	};
-}
-
-function resolveApprovalData(
-	_ctx: {
-		db: {
-			get: (
-				table: "users" | "teams",
-				id: Id<"users"> | Id<"teams">,
-			) => Promise<
-				| {
-						_id: Id<"users">;
-						name: string | null;
-						image: string | null;
-				  }
-				| {
-						_id: Id<"teams">;
-						name: string;
-						memberIds: Id<"users">[];
-				  }
-				| null
-			>;
-		};
-	},
-	requiredApprovalIds: string[],
-	approvedByIds: string[],
-	usersMap: Map<string, { id: string; name: string; avatarUrl: string }>,
-	teamsMap: Map<
-		string,
-		{
-			id: string;
-			name: string;
-			members: { id: string; name: string; avatarUrl: string }[];
-		}
-	>,
-): {
-	requiredApprovalBy: Array<
-		| { id: string; name: string; avatarUrl: string }
-		| {
-				id: string;
-				name: string;
-				members: Array<{ id: string; name: string; avatarUrl: string }>;
-		  }
-	>;
-	approvedBy: Array<{ id: string; name: string; avatarUrl: string }>;
-} {
-	const requiredApprovalBy: Array<
-		| { id: string; name: string; avatarUrl: string }
-		| {
-				id: string;
-				name: string;
-				members: Array<{ id: string; name: string; avatarUrl: string }>;
-		  }
-	> = [];
-
-	// Resolve required approvers
-	for (const encoded of requiredApprovalIds) {
-		const decoded = decodeApprovalId(encoded);
-		if (!decoded) continue;
-
-		if (decoded.type === "user") {
-			const user = usersMap.get(decoded.id);
-			if (user) {
-				requiredApprovalBy.push(user);
-			}
-		} else {
-			const team = teamsMap.get(decoded.id);
-			if (team) {
-				requiredApprovalBy.push(team);
-			}
-		}
-	}
-
-	// Resolve approved by users
-	const approvedBy = approvedByIds
-		.map((userId) => usersMap.get(userId))
-		.filter(
-			(u): u is { id: string; name: string; avatarUrl: string } =>
-				u !== undefined,
-		);
-
-	return { requiredApprovalBy, approvedBy };
-}
+import { userCanAccessCompetitionDoc } from "./competitionAccess";
+import {
+	ERROR_TASK_MOVE,
+	ERROR_TASK_NO_ACCESS,
+	ERROR_TASK_NO_COMPETITION,
+	hasCompetitionAccess,
+	requireTaskAccess,
+} from "./taskAccess";
+import {
+	computeApprovalCompleteness,
+	decodeApprovalId,
+	encodeApprovalId,
+	resolveApprovalData,
+	scheduleAwaitingReviewNotifications,
+} from "./taskApprovals";
+import { formatCompetitionName } from "./taskFormat";
+import {
+	getTaskUpdateActivityLogPayloads,
+	type TaskActivityLogPayload,
+} from "./taskActivity";
+import {
+	getTaskAssigneeChangeNotificationPromises,
+	getTaskStatusChangeNotificationPromises,
+} from "./taskNotifications";
+import { buildTaskPatch, applyAwaitingReviewAutoPromote } from "./taskPatch";
 
 const taskStatus = v.union(
 	v.literal("backlog"),
@@ -372,7 +91,6 @@ export const list = query({
 		const archived = args.archived ?? false;
 
 		if (volunteer) {
-			// Volunteers see all tasks
 			return await ctx.db
 				.query("tasks")
 				.withIndex("by_archived", (q) => q.eq("archived", archived))
@@ -380,23 +98,12 @@ export const list = query({
 				.collect();
 		}
 
-		// Guest organizers only see tasks from competitions they're organizing
-		// First, get all competitions where user is organizer
 		const allCompetitions = await ctx.db.query("competitions").collect();
-		const accessibleCompetitionIds: Id<"competitions">[] = [];
 		const userIdTyped = userId as Id<"users">;
-		for (const comp of allCompetitions) {
-			if (
-				comp.organiserIds.includes(userIdTyped) ||
-				comp.compLeadId === userIdTyped ||
-				comp.leadDelegateId === userIdTyped
-			) {
-				accessibleCompetitionIds.push(comp._id);
-			}
-		}
+		const accessibleCompetitionIds = allCompetitions
+			.filter((comp) => userCanAccessCompetitionDoc(comp, userIdTyped))
+			.map((c) => c._id);
 
-		// Query tasks for each accessible competition using the index
-		// This avoids loading all tasks and filtering in memory
 		const taskPromises = accessibleCompetitionIds.map((compId) =>
 			ctx.db
 				.query("tasks")
@@ -408,7 +115,6 @@ export const list = query({
 		);
 
 		const taskArrays = await Promise.all(taskPromises);
-		// Flatten and deduplicate (in case a task appears in multiple queries, though it shouldn't)
 		const taskMap = new Map<string, Doc<"tasks">>();
 		for (const taskArray of taskArrays) {
 			for (const task of taskArray) {
@@ -416,7 +122,6 @@ export const list = query({
 			}
 		}
 
-		// Return tasks sorted by creation time (descending)
 		return Array.from(taskMap.values()).sort(
 			(a, b) => b._creationTime - a._creationTime,
 		);
@@ -524,7 +229,6 @@ export const listForUI = query({
 
 		let tasks: Doc<"tasks">[];
 		if (competitionId) {
-			// If filtering by competition, check access first
 			if (!volunteer) {
 				const hasAccess = await hasCompetitionAccess(
 					ctx,
@@ -544,7 +248,6 @@ export const listForUI = query({
 				.order("desc")
 				.collect();
 		} else {
-			// No competition filter - get all tasks and filter by access
 			if (volunteer) {
 				tasks = await ctx.db
 					.query("tasks")
@@ -552,32 +255,26 @@ export const listForUI = query({
 					.order("desc")
 					.collect();
 			} else {
-				// Guest organizers only see tasks from competitions they're organizing
 				const allTasks = await ctx.db
 					.query("tasks")
 					.withIndex("by_archived", (q) => q.eq("archived", archived))
 					.order("desc")
 					.collect();
 
-				// Get all competitions where user is organizer
 				const allCompetitions = await ctx.db.query("competitions").collect();
-				const accessibleCompetitionIds = new Set<string>();
 				const userIdTyped = userId as Id<"users">;
-				for (const comp of allCompetitions) {
-					if (
-						comp.organiserIds.includes(userIdTyped) ||
-						comp.compLeadId === userIdTyped ||
-						comp.leadDelegateId === userIdTyped
-					) {
-						accessibleCompetitionIds.add(comp._id);
-					}
-				}
+				const accessibleCompetitionIds = new Set(
+					allCompetitions
+						.filter((comp) => userCanAccessCompetitionDoc(comp, userIdTyped))
+						.map((c) => c._id),
+				);
 
-				// Filter tasks to only those linked to accessible competitions
 				tasks = allTasks.filter(
 					(task) =>
 						!task.parentCompetitionId ||
-						accessibleCompetitionIds.has(task.parentCompetitionId),
+						accessibleCompetitionIds.has(
+							task.parentCompetitionId as Id<"competitions">,
+						),
 				);
 			}
 		}
@@ -1211,6 +908,12 @@ export const create = mutation({
 			);
 		}
 
+		await ctx.runMutation(internal.activity.logWithActor, {
+			actorId: userId,
+			entityType: "task",
+			entityId: taskId,
+			type: "created",
+		});
 		return taskId;
 	},
 });
@@ -1269,14 +972,8 @@ export const update = mutation({
 			}
 		}
 		const now = Date.now();
-		const patch: Record<string, unknown> = { ...args.updates, updatedAt: now };
-		if (args.updates.dueDate === null) patch.dueDate = undefined;
-		if (args.updates.parentTaskId === null) patch.parentTaskId = undefined;
-		if (args.updates.parentCompetitionId === null)
-			patch.parentCompetitionId = undefined;
-		if (args.updates.ownerId === null) patch.ownerId = undefined;
-		if (args.updates.assigneeId === null) patch.assigneeId = undefined;
-		if (args.updates.phaseId === null) patch.phaseId = undefined;
+		const patch = buildTaskPatch(args.updates as Record<string, unknown>, now);
+		await applyAwaitingReviewAutoPromote(ctx, doc, patch);
 
 		const oldAssigneeId = doc.assigneeId;
 		const newAssigneeId =
@@ -1284,81 +981,58 @@ export const update = mutation({
 		const oldStatus = doc.status;
 		const newStatus = args.updates.status ?? doc.status;
 
-		// Handle status transition to awaiting-review: auto-promote to done if already fully approved
-		if (args.updates.status === "awaiting-review") {
-			const { isFullyApproved } = await computeApprovalCompleteness(
-				ctx,
-				doc.requiredApprovalIds ?? [],
-				doc.approvedByIds ?? [],
-			);
-			if (
-				isFullyApproved &&
-				doc.requiredApprovalIds &&
-				doc.requiredApprovalIds.length > 0
-			) {
-				patch.status = "done";
-			}
-		}
-
 		await ctx.db.patch("tasks", args.taskId, patch as Record<string, unknown>);
 
 		if (!userId) return null;
 
+		const finalStatus = (patch.status as string) ?? newStatus;
+		const activityPayloads = await getTaskUpdateActivityLogPayloads(
+			ctx,
+			args.taskId,
+			doc,
+			args.updates,
+			finalStatus,
+			oldAssigneeId,
+			newAssigneeId,
+		);
+		await Promise.allSettled(
+			activityPayloads.map((p: TaskActivityLogPayload) =>
+				ctx.runMutation(internal.activity.logWithActor, {
+					actorId: userId,
+					entityType: p.entityType,
+					entityId: p.entityId,
+					type: p.type,
+					oldValue: p.oldValue,
+					newValue: p.newValue,
+				}),
+			),
+		);
+
 		const notificationPromises: Promise<unknown>[] = [];
 
 		if (oldAssigneeId !== newAssigneeId) {
-			if (oldAssigneeId && oldAssigneeId !== userId) {
-				notificationPromises.push(
-					ctx.scheduler.runAfter(
-						0,
-						internal.notifications._notifyTaskUnassigned,
-						{
-							taskId: args.taskId,
-							assigneeId: oldAssigneeId,
-							actorId: userId,
-						},
-					),
-				);
-			}
-			if (newAssigneeId && newAssigneeId !== userId) {
-				notificationPromises.push(
-					ctx.scheduler.runAfter(
-						0,
-						internal.notifications._notifyTaskAssigned,
-						{
-							taskId: args.taskId,
-							assigneeId: newAssigneeId,
-							actorId: userId,
-						},
-					),
-				);
-			}
+			notificationPromises.push(
+				...getTaskAssigneeChangeNotificationPromises(
+					ctx,
+					args.taskId,
+					oldAssigneeId,
+					newAssigneeId,
+					userId,
+				),
+			);
 		}
 
 		if (oldStatus !== newStatus && args.updates.status !== undefined) {
-			const recipients = new Set<Id<"users">>();
-			if (doc.assigneeId && doc.assigneeId !== userId) {
-				recipients.add(doc.assigneeId);
-			}
-			if (doc.ownerId && doc.ownerType === "user" && doc.ownerId !== userId) {
-				recipients.add(doc.ownerId as Id<"users">);
-			}
-
-			for (const recipientId of recipients) {
-				notificationPromises.push(
-					ctx.scheduler.runAfter(
-						0,
-						internal.notifications._notifyTaskStatusChanged,
-						{
-							taskId: args.taskId,
-							recipientId,
-							actorId: userId,
-							oldStatus,
-							newStatus,
-						},
-					),
-				);
-			}
+			notificationPromises.push(
+				...getTaskStatusChangeNotificationPromises(
+					ctx,
+					args.taskId,
+					doc,
+					oldStatus,
+					newStatus,
+					userId,
+				),
+			);
 		}
 
 		if (newStatus === "awaiting-review") {
@@ -1423,35 +1097,14 @@ export const bulkUpdate = mutation({
 			const doc = await ctx.db.get("tasks", taskId);
 			if (!doc) continue;
 
-			const patch: Record<string, unknown> = {
-				...args.updates,
-				updatedAt: now,
-			};
-			if (args.updates.dueDate === null) patch.dueDate = undefined;
-			if (args.updates.parentTaskId === null) patch.parentTaskId = undefined;
-			if (args.updates.parentCompetitionId === null)
-				patch.parentCompetitionId = undefined;
-			if (args.updates.ownerId === null) patch.ownerId = undefined;
-			if (args.updates.assigneeId === null) patch.assigneeId = undefined;
-			if (args.updates.phaseId === null) patch.phaseId = undefined;
+			const patch = buildTaskPatch(
+				args.updates as Record<string, unknown>,
+				now,
+			);
+			await applyAwaitingReviewAutoPromote(ctx, doc, patch);
 
-			let newStatus = args.updates.status ?? doc.status;
-			if (args.updates.status === "awaiting-review") {
-				const { isFullyApproved } = await computeApprovalCompleteness(
-					ctx,
-					doc.requiredApprovalIds ?? [],
-					doc.approvedByIds ?? [],
-				);
-				if (
-					isFullyApproved &&
-					doc.requiredApprovalIds &&
-					doc.requiredApprovalIds.length > 0
-				) {
-					patch.status = "done";
-					newStatus = "done";
-				}
-			}
-
+			const newStatus =
+				(patch.status as string) ?? args.updates.status ?? doc.status;
 			const oldAssigneeId = doc.assigneeId;
 			const newAssigneeId =
 				args.updates.assigneeId === undefined
@@ -1461,58 +1114,52 @@ export const bulkUpdate = mutation({
 
 			await ctx.db.patch("tasks", taskId, patch as Record<string, unknown>);
 
+			const finalStatus = (patch.status as string) ?? newStatus;
+			const activityPayloadsBulk = await getTaskUpdateActivityLogPayloads(
+				ctx,
+				taskId,
+				doc,
+				args.updates,
+				finalStatus,
+				oldAssigneeId,
+				newAssigneeId,
+			);
+			await Promise.allSettled(
+				activityPayloadsBulk.map((p: TaskActivityLogPayload) =>
+					ctx.runMutation(internal.activity.logWithActor, {
+						actorId: userId,
+						entityType: p.entityType,
+						entityId: p.entityId,
+						type: p.type,
+						oldValue: p.oldValue,
+						newValue: p.newValue,
+					}),
+				),
+			);
+
 			if (oldAssigneeId !== newAssigneeId) {
-				if (oldAssigneeId && oldAssigneeId !== userId) {
-					notificationPromises.push(
-						ctx.scheduler.runAfter(
-							0,
-							internal.notifications._notifyTaskUnassigned,
-							{
-								taskId,
-								assigneeId: oldAssigneeId,
-								actorId: userId,
-							},
-						),
-					);
-				}
-				if (newAssigneeId && newAssigneeId !== userId) {
-					notificationPromises.push(
-						ctx.scheduler.runAfter(
-							0,
-							internal.notifications._notifyTaskAssigned,
-							{
-								taskId,
-								assigneeId: newAssigneeId,
-								actorId: userId,
-							},
-						),
-					);
-				}
+				notificationPromises.push(
+					...getTaskAssigneeChangeNotificationPromises(
+						ctx,
+						taskId,
+						oldAssigneeId,
+						newAssigneeId,
+						userId,
+					),
+				);
 			}
 
 			if (oldStatus !== newStatus && args.updates.status !== undefined) {
-				const recipients = new Set<Id<"users">>();
-				if (doc.assigneeId && doc.assigneeId !== userId) {
-					recipients.add(doc.assigneeId);
-				}
-				if (doc.ownerId && doc.ownerType === "user" && doc.ownerId !== userId) {
-					recipients.add(doc.ownerId as Id<"users">);
-				}
-				for (const recipientId of recipients) {
-					notificationPromises.push(
-						ctx.scheduler.runAfter(
-							0,
-							internal.notifications._notifyTaskStatusChanged,
-							{
-								taskId,
-								recipientId,
-								actorId: userId,
-								oldStatus,
-								newStatus,
-							},
-						),
-					);
-				}
+				notificationPromises.push(
+					...getTaskStatusChangeNotificationPromises(
+						ctx,
+						taskId,
+						doc,
+						oldStatus,
+						newStatus,
+						userId,
+					),
+				);
 			}
 
 			if (newStatus === "awaiting-review") {
@@ -1552,6 +1199,12 @@ export const archive = mutation({
 				archivedAt,
 				updatedAt: Date.now(),
 			});
+			await ctx.runMutation(internal.activity.logWithActor, {
+				actorId: userId,
+				entityType: "task",
+				entityId: id,
+				type: "archived",
+			});
 		}
 		return null;
 	},
@@ -1575,6 +1228,12 @@ export const unarchive = mutation({
 				archived: false,
 				archivedAt: undefined,
 				updatedAt: Date.now(),
+			});
+			await ctx.runMutation(internal.activity.logWithActor, {
+				actorId: userId,
+				entityType: "task",
+				entityId: id,
+				type: "unarchived",
 			});
 		}
 		return null;

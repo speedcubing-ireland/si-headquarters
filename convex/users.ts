@@ -43,7 +43,6 @@ export const listUsers = query({
 	args: {},
 	returns: v.array(appUserShape),
 	handler: async (ctx) => {
-		// Only authenticated callers can list users.
 		await requireUserId(ctx);
 		const users = await ctx.db.query("users").collect();
 		return users.map((u) => ({

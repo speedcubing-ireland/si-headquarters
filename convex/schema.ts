@@ -18,9 +18,6 @@ const taskPriority = v.union(
 	v.literal("urgent"),
 );
 
-// The schema is normally optional, but Convex Auth
-// requires indexes defined on `authTables`.
-// The schema provides more precise TypeScript types.
 export default defineSchema({
 	...authTables,
 	numbers: defineTable({

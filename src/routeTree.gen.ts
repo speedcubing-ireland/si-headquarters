@@ -13,6 +13,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as CompetitionsRouteImport } from './routes/competitions'
+import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TeamsTeamIdRouteImport } from './routes/teams.$teamId'
 import { Route as TasksMyRouteImport } from './routes/tasks.my'
@@ -43,6 +44,11 @@ const EventsRoute = EventsRouteImport.update({
 const CompetitionsRoute = CompetitionsRouteImport.update({
   id: '/competitions',
   path: '/competitions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivityRoute = ActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -104,6 +110,7 @@ const NewTasksMyRoute = NewTasksMyRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/competitions': typeof CompetitionsRouteWithChildren
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/competitions': typeof CompetitionsRouteWithChildren
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
@@ -139,6 +147,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
   '/competitions': typeof CompetitionsRouteWithChildren
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/activity'
     | '/competitions'
     | '/events'
     | '/inbox'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/activity'
     | '/competitions'
     | '/events'
     | '/inbox'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/activity'
     | '/competitions'
     | '/events'
     | '/inbox'
@@ -210,6 +222,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
   CompetitionsRoute: typeof CompetitionsRouteWithChildren
   EventsRoute: typeof EventsRoute
   InboxRoute: typeof InboxRoute
@@ -249,6 +262,13 @@ declare module '@tanstack/react-router' {
       path: '/competitions'
       fullPath: '/competitions'
       preLoaderRoute: typeof CompetitionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activity': {
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -361,6 +381,7 @@ const TasksRouteWithChildren = TasksRoute._addFileChildren(TasksRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivityRoute: ActivityRoute,
   CompetitionsRoute: CompetitionsRouteWithChildren,
   EventsRoute: EventsRoute,
   InboxRoute: InboxRoute,

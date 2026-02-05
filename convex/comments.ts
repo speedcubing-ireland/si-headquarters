@@ -1,10 +1,10 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 import { isDirectorForCtx } from "./admin";
+import { hasCompetitionAccess } from "./competitionAccess";
 
 const parentType = v.union(v.literal("task"), v.literal("update"));
 
@@ -12,28 +12,6 @@ const ERROR_COMMENT_NO_ACCESS_TASK =
 	"You can only comment on tasks linked to competitions you are organizing";
 const ERROR_COMMENT_NO_ACCESS_UPDATE =
 	"You can only comment on updates for competitions you are organizing";
-
-async function hasCompetitionAccess(
-	ctx: QueryCtx | MutationCtx,
-	isVolunteer: boolean,
-	userId: Id<"users">,
-	competitionId: Id<"competitions"> | string | null | undefined,
-): Promise<boolean> {
-	if (isVolunteer) return true;
-	if (!competitionId) return false;
-
-	const competition = await ctx.db.get(
-		"competitions",
-		competitionId as Id<"competitions">,
-	);
-	if (!competition) return false;
-
-	return (
-		competition.organiserIds.includes(userId) ||
-		competition.compLeadId === userId ||
-		competition.leadDelegateId === userId
-	);
-}
 
 const userShape = v.object({
 	id: v.string(),
@@ -136,8 +114,6 @@ export const listForUI = query({
 				});
 		});
 
-		const toISO = (ms: number) => new Date(ms).toISOString();
-
 		return docs.map((d) => ({
 			id: d._id,
 			parentType: d.parentType,
@@ -149,10 +125,12 @@ export const listForUI = query({
 				avatarUrl: "",
 			},
 			content: d.content,
-			createdAt: toISO(d._creationTime),
-			updatedAt: toISO(d.updatedAt),
+			createdAt: new Date(d._creationTime).toISOString(),
+			updatedAt: new Date(d.updatedAt).toISOString(),
 			contentUpdatedAt:
-				d.contentUpdatedAt != null ? toISO(d.contentUpdatedAt) : undefined,
+				d.contentUpdatedAt != null
+					? new Date(d.contentUpdatedAt).toISOString()
+					: undefined,
 			reactions: d.reactions.map((r) => ({
 				emoji: r.emoji,
 				users: r.userIds
@@ -284,6 +262,13 @@ export const create = mutation({
 			updatedAt: now,
 		});
 
+		await ctx.runMutation(internal.activity.logWithActor, {
+			actorId: userId,
+			entityType: args.parentType,
+			entityId: args.parentId,
+			type: "comment_added",
+		});
+
 		if (args.parentType !== "task") return commentId;
 
 		const taskId = args.parentId as Id<"tasks">;
@@ -364,6 +349,12 @@ export const update = mutation({
 			contentUpdatedAt: Date.now(),
 			updatedAt: Date.now(),
 		});
+		await ctx.runMutation(internal.activity.logWithActor, {
+			actorId: userId as Id<"users">,
+			entityType: doc.parentType,
+			entityId: doc.parentId,
+			type: "comment_edited",
+		});
 		return null;
 	},
 });
@@ -384,6 +375,12 @@ export const remove = mutation({
 			return null;
 		}
 
+		await ctx.runMutation(internal.activity.logWithActor, {
+			actorId: userId,
+			entityType: doc.parentType,
+			entityId: doc.parentId,
+			type: "comment_deleted",
+		});
 		await ctx.db.delete("comments", args.commentId);
 		return null;
 	},
@@ -393,7 +390,6 @@ export const listRecentForSearch = query({
 	args: { limit: v.optional(v.number()) },
 	returns: v.array(commentForUIReturns),
 	handler: async (ctx, args) => {
-		// Require authentication to access recent comments for search.
 		await requireUserId(ctx);
 		const limit = args.limit ?? 100;
 		const docs = await ctx.db.query("comments").order("desc").take(limit);
@@ -425,8 +421,6 @@ export const listRecentForSearch = query({
 				});
 		});
 
-		const toISO = (ms: number) => new Date(ms).toISOString();
-
 		return docs.map((d) => ({
 			id: d._id,
 			parentType: d.parentType,
@@ -438,10 +432,12 @@ export const listRecentForSearch = query({
 				avatarUrl: "",
 			},
 			content: d.content,
-			createdAt: toISO(d._creationTime),
-			updatedAt: toISO(d.updatedAt),
+			createdAt: new Date(d._creationTime).toISOString(),
+			updatedAt: new Date(d.updatedAt).toISOString(),
 			contentUpdatedAt:
-				d.contentUpdatedAt != null ? toISO(d.contentUpdatedAt) : undefined,
+				d.contentUpdatedAt != null
+					? new Date(d.contentUpdatedAt).toISOString()
+					: undefined,
 			reactions: d.reactions.map((r) => ({
 				emoji: r.emoji,
 				users: r.userIds

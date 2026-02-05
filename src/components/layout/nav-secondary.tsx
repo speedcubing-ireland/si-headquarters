@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import {
+	Activity,
 	Archive,
-	Loader,
 	type LucideIcon,
 	Monitor,
 	Moon,
 	Sun,
 } from "lucide-react";
+import { useIsDirector } from "@/hooks/use-convex-data";
 import { useTheme } from "@/components/theme-provider";
 import {
 	DropdownMenu,
@@ -63,40 +64,34 @@ function ThemeToggleItem() {
 	);
 }
 
-const navSecondary = [
-	{
-		title: "Archived",
-		to: "/tasks/archived",
-		icon: Archive,
-	},
-	{
-		title: "Activity",
-		url: "#",
-		icon: Loader,
-	},
+type NavSecondaryItem = { title: string; to: string; icon: LucideIcon };
+
+const baseNavSecondary: NavSecondaryItem[] = [
+	{ title: "Archived", to: "/tasks/archived", icon: Archive },
 ];
 
 export function NavSecondary({
 	...props
-}: {} & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+}: React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+	const { isDirector } = useIsDirector();
+	const navItems: NavSecondaryItem[] = [
+		...baseNavSecondary,
+		...(isDirector
+			? [{ title: "Activity", to: "/activity", icon: Activity }]
+			: []),
+	];
+
 	return (
 		<SidebarGroup {...props}>
 			<SidebarGroupContent>
 				<SidebarMenu>
-					{navSecondary.map((item) => (
+					{navItems.map((item) => (
 						<SidebarMenuItem key={item.title}>
 							<SidebarMenuButton asChild>
-								{"to" in item ? (
-									<Link to={item.to}>
-										{item.icon && <item.icon />}
-										<span>{item.title}</span>
-									</Link>
-								) : (
-									<a href={item.url}>
-										{item.icon && <item.icon />}
-										<span>{item.title}</span>
-									</a>
-								)}
+								<Link to={item.to}>
+									<item.icon />
+									<span>{item.title}</span>
+								</Link>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					))}

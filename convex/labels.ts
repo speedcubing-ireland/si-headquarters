@@ -14,7 +14,6 @@ export const list = query({
 	args: {},
 	returns: v.array(labelDoc),
 	handler: async (ctx) => {
-		// Labels are only available to authenticated users.
 		await requireUserId(ctx);
 		return await ctx.db
 			.query("labels")

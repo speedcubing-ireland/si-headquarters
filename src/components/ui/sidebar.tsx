@@ -70,6 +70,14 @@ function SidebarProvider({
 	// This is the internal state of the sidebar.
 	// We use openProp and setOpenProp for control from outside the component.
 	const [_open, _setOpen] = React.useState(defaultOpen);
+
+	// Sync internal state when defaultOpen changes (e.g. parent re-mount with new default)
+	React.useEffect(() => {
+		if (openProp === undefined) {
+			_setOpen(defaultOpen);
+		}
+	}, [defaultOpen, openProp]);
+
 	const open = openProp ?? _open;
 	const setOpen = React.useCallback(
 		(value: boolean | ((value: boolean) => boolean)) => {

@@ -1,5 +1,4 @@
 import { useQuery, useMutation } from "convex/react";
-import { useMemo } from "react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import type {
@@ -8,32 +7,16 @@ import type {
 	Team,
 	TaskLabel,
 	Competition,
-	CompetitionPhase,
 	Comment,
 	ActivityEntry,
 	Notification,
 	Reminder,
 } from "@/data/types-new";
 
-export function usePhases(): {
-	phases: CompetitionPhase[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.phases.list, {});
-	const phases = useMemo<CompetitionPhase[]>(
-		() =>
-			(data ?? []).map((p) => ({
-				id: p._id,
-				name: p.name,
-				description: p.description,
-			})),
-		[data],
-	);
-	return {
-		phases,
-		isLoading: data === undefined,
-	};
-}
+export { usePhases } from "./convex/use-phases";
+export { useLabels, useLabelMutations } from "./convex/use-labels";
+export { useUsers } from "./convex/use-users";
+export { useTeams } from "./convex/use-teams";
 
 export function useTasks(archived = false): {
 	tasks: Task[];
@@ -68,52 +51,6 @@ export function useTasksForCompetition(competitionId: string | null): {
 	return {
 		tasks: (data ?? []) as unknown as Task[],
 		isLoading: data === undefined,
-	};
-}
-
-export function useLabels(): { labels: TaskLabel[]; isLoading: boolean } {
-	const data = useQuery(api.labels.list);
-	const labels = useMemo(
-		() =>
-			(data ?? []).map((l) => ({
-				id: l._id,
-				name: l.name,
-				color: l.color,
-			})),
-		[data],
-	);
-	return {
-		labels,
-		isLoading: data === undefined,
-	};
-}
-
-export function useUsers(): { users: User[]; isLoading: boolean } {
-	const data = useQuery(api.users.listUsers);
-	return {
-		users: (data ?? []) as User[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useTeams(): { teams: Team[]; isLoading: boolean } {
-	const teamsRaw = useQuery(api.teams.list);
-	const usersData = useQuery(api.users.listUsers);
-	const teams = useMemo(() => {
-		if (teamsRaw == null || usersData == null) return [];
-		const users = usersData as User[];
-		const userMap = new Map(users.map((u) => [u.id, u]));
-		return teamsRaw.map((t) => ({
-			id: t._id,
-			name: t.name,
-			members: t.memberIds
-				.map((id) => userMap.get(id))
-				.filter((u): u is User => u != null),
-		}));
-	}, [teamsRaw, usersData]);
-	return {
-		teams,
-		isLoading: teamsRaw === undefined || usersData === undefined,
 	};
 }
 
@@ -793,7 +730,20 @@ export function useActivityForTask(taskId: string | null): {
 	};
 }
 
+/** Recent activity relevant to the current user (actor or assignee). Used by dashboard. */
 export function useRecentActivity(limit?: number): {
+	activities: ActivityEntry[];
+	isLoading: boolean;
+} {
+	const data = useQuery(api.activity.listRecentForUser, { limit: limit ?? 50 });
+	return {
+		activities: (data ?? []) as ActivityEntry[],
+		isLoading: data === undefined,
+	};
+}
+
+/** Global activity feed (directors only). Use only on the /activity page. */
+export function useGlobalActivity(limit?: number): {
 	activities: ActivityEntry[];
 	isLoading: boolean;
 } {
@@ -960,50 +910,6 @@ export function useReminderMutations() {
 				reminderId: reminderId as Id<"reminders">,
 				remindAt,
 			});
-		},
-	};
-}
-
-export function useLabelMutations() {
-	const createLabelMutation = useMutation(api.labels.create);
-	const updateLabelMutation = useMutation(api.labels.update);
-	const removeLabelMutation = useMutation(api.labels.remove);
-	const adminUpdateLabelMutation = useMutation(api.admin.updateLabelAdmin);
-	const archiveLabelMutation = useMutation(api.admin.archiveLabel);
-	const unarchiveLabelMutation = useMutation(api.admin.unarchiveLabel);
-	const deleteLabelIfUnusedMutation = useMutation(
-		api.admin.deleteLabelIfUnused,
-	);
-
-	return {
-		createLabel: async (name: string, color: string) => {
-			const id = await createLabelMutation({ name, color });
-			return { id, name, color } as TaskLabel;
-		},
-		updateLabel: async (
-			id: string,
-			updates: Partial<Pick<TaskLabel, "name" | "color">>,
-		) => {
-			await updateLabelMutation({ id: id as Id<"labels">, ...updates });
-		},
-		deleteLabel: async (id: string) => {
-			// Backwards-compatible simple delete (no usage check)
-			await removeLabelMutation({ id: id as Id<"labels"> });
-		},
-		updateLabelAdmin: async (
-			id: Id<"labels">,
-			updates: Partial<{ name: string; color: string; archived: boolean }>,
-		) => {
-			await adminUpdateLabelMutation({ id, ...updates });
-		},
-		archiveLabel: async (id: Id<"labels">) => {
-			await archiveLabelMutation({ id });
-		},
-		unarchiveLabel: async (id: Id<"labels">) => {
-			await unarchiveLabelMutation({ id });
-		},
-		deleteLabelIfUnused: async (id: Id<"labels">) => {
-			await deleteLabelIfUnusedMutation({ id });
 		},
 	};
 }

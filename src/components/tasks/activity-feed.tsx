@@ -1,78 +1,15 @@
 import { useActivityForTask } from "@/hooks/use-convex-data";
 import type { ActivityEntry } from "@/data/types-new";
-import { formatDate, getInitials } from "@/lib/format-utils";
+import { getInitials } from "@/lib/format-utils";
+import {
+	getActivityDescription,
+	formatRelativeTime,
+} from "@/lib/activity-utils";
 import { Activity } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ActivityFeedProps {
 	taskId: string;
-}
-
-function getActivityDescription(entry: ActivityEntry): string {
-	const { type, oldValue, newValue } = entry;
-
-	switch (type) {
-		case "created":
-			return "created this task";
-		case "status_changed":
-			return `changed status from "${oldValue}" to "${newValue}"`;
-		case "priority_changed":
-			return `changed priority from "${oldValue}" to "${newValue}"`;
-		case "assignee_changed":
-			if (!oldValue && newValue) {
-				return `assigned to ${newValue}`;
-			} else if (oldValue && !newValue) {
-				return `unassigned from ${oldValue}`;
-			} else {
-				return `reassigned from ${oldValue} to ${newValue}`;
-			}
-		case "due_date_changed":
-			if (!oldValue && newValue) {
-				return `set due date to ${newValue}`;
-			} else if (oldValue && !newValue) {
-				return `removed due date (${oldValue})`;
-			} else {
-				return `changed due date from ${oldValue} to ${newValue}`;
-			}
-		case "label_added":
-			return `added label "${newValue}"`;
-		case "label_removed":
-			return `removed label "${oldValue}"`;
-		case "comment_added":
-			return "added a comment";
-		case "comment_edited":
-			return "edited a comment";
-		case "comment_deleted":
-			return "deleted a comment";
-		case "archived":
-			return "archived this task";
-		case "unarchived":
-			return "restored this task from archive";
-		default:
-			return "made an update";
-	}
-}
-
-function formatRelativeTime(timestamp: string): string {
-	const date = new Date(timestamp);
-	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffSecs = Math.floor(diffMs / 1000);
-	const diffMins = Math.floor(diffSecs / 60);
-	const diffHours = Math.floor(diffMins / 60);
-	const diffDays = Math.floor(diffHours / 24);
-
-	if (diffSecs < 60) {
-		return "just now";
-	} else if (diffMins < 60) {
-		return `${diffMins}m ago`;
-	} else if (diffHours < 24) {
-		return `${diffHours}h ago`;
-	} else if (diffDays < 7) {
-		return `${diffDays}d ago`;
-	} else {
-		return formatDate(timestamp);
-	}
 }
 
 function ActivityItem({ entry }: { entry: ActivityEntry }) {
@@ -100,7 +37,7 @@ function ActivityItem({ entry }: { entry: ActivityEntry }) {
 					</div>
 					<span
 						className="text-xs text-muted-foreground shrink-0"
-						title={formatDate(entry.timestamp)}
+						title={entry.timestamp}
 					>
 						{timeAgo}
 					</span>

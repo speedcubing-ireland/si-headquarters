@@ -4,24 +4,14 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { requireUserId } from "./auth";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
+import { hasCompetitionAccess } from "./competitionAccess";
 
 const statusValidator = v.union(
 	v.literal("on-track"),
 	v.literal("at-risk"),
 	v.literal("off-track"),
 );
-
-async function canManageCompetition(
-	ctx: MutationCtx,
-	competitionId: Id<"competitions">,
-	userId: Id<"users">,
-): Promise<boolean> {
-	const comp = await ctx.db.get("competitions", competitionId);
-	if (!comp) return false;
-	if (comp.compLeadId === userId || comp.leadDelegateId === userId) return true;
-	return comp.organiserIds.includes(userId);
-}
 
 async function getUpdateAndAssertAuth(
 	ctx: MutationCtx,
@@ -34,7 +24,12 @@ async function getUpdateAndAssertAuth(
 		throw new ConvexError({ code: "NOT_FOUND", message: "Update not found" });
 	}
 	const isAuthor = doc.authorId === userId;
-	const canManage = await canManageCompetition(ctx, doc.competitionId, userId);
+	const canManage = await hasCompetitionAccess(
+		ctx,
+		false,
+		userId,
+		doc.competitionId,
+	);
 	if (!isAuthor && !canManage) {
 		const message =
 			action === "edit"
@@ -71,10 +66,11 @@ export const create = mutation({
 	returns: v.id("competitionUpdates"),
 	handler: async (ctx, args) => {
 		const userId = (await requireUserId(ctx)) as Id<"users">;
-		const canManage = await canManageCompetition(
+		const canManage = await hasCompetitionAccess(
 			ctx,
-			args.competitionId,
+			false,
 			userId,
+			args.competitionId,
 		);
 		if (!canManage) {
 			throw new ConvexError({
@@ -91,7 +87,8 @@ export const create = mutation({
 			reactions: [],
 			updatedAt: now,
 		});
-		await ctx.runMutation(api.activity.log, {
+		await ctx.runMutation(internal.activity.logWithActor, {
+			actorId: userId,
 			entityType: "update",
 			entityId: id,
 			type: "created",

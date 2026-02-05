@@ -6,9 +6,7 @@ import {
 	ExternalLink,
 	FileSpreadsheet,
 	MoreHorizontal,
-	PanelRight,
 	Users,
-	X,
 } from "lucide-react";
 import { useCallback, useState } from "react";
 
@@ -30,6 +28,7 @@ import {
 	EditablePhaseCell,
 } from "@/components/competitions/editable-phase-and-roles";
 import { PropertyRow } from "@/components/shared/property-editors/property-row";
+import { PropertiesSidebarLayout } from "@/components/shared/properties-sidebar-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -48,15 +47,7 @@ import {
 	PopoverTitle,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from "@/components/ui/sheet";
 import { useCompetitionMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
@@ -88,15 +79,9 @@ export function CompetitionPropertiesSidebar({
 	triggerClassName,
 }: CompetitionPropertiesSidebarProps) {
 	const { updateCompetition } = useCompetitionMutations();
-	const [internalOpen, setInternalOpen] = useState(false);
 	const [dateOpen, setDateOpen] = useState(false);
 	const [sheetInput, setSheetInput] = useState("");
 	const [sheetPopoverOpen, setSheetPopoverOpen] = useState(false);
-
-	// Use controlled state for popover mode, internal state for sheet mode
-	const isOpen = renderMode === "popover" ? controlledOpen : internalOpen;
-	const setIsOpen =
-		renderMode === "popover" ? (onOpenChange ?? (() => {})) : setInternalOpen;
 
 	const totalTasks = tasks.length;
 	const completedTasks = tasks.filter((task) => task.status === "done").length;
@@ -240,7 +225,7 @@ export function CompetitionPropertiesSidebar({
 						) : (
 							<Popover
 								open={sheetPopoverOpen}
-								onOpenChange={(open) => {
+								onOpenChange={(open: boolean) => {
 									setSheetPopoverOpen(open);
 									if (!open) setSheetInput("");
 								}}
@@ -373,61 +358,15 @@ export function CompetitionPropertiesSidebar({
 		</div>
 	);
 
-	if (renderMode === "popover") {
-		return (
-			<Popover open={isOpen} onOpenChange={setIsOpen}>
-				<PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
-					<PopoverHeader className="px-5 py-4 border-b">
-						<div className="flex items-center justify-between">
-							<PopoverTitle className="text-sm">Properties</PopoverTitle>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-6 w-6 -mr-2"
-								onClick={() => setIsOpen(false)}
-							>
-								<X className="size-4" />
-							</Button>
-						</div>
-					</PopoverHeader>
-					<ScrollArea className="h-[calc(100vh-200px)] max-h-[500px]">
-						{sidebarContent}
-					</ScrollArea>
-				</PopoverContent>
-			</Popover>
-		);
-	}
-
 	return (
-		<>
-			{/* Desktop Sidebar */}
-			<aside className="hidden lg:block w-80 border-l border-border bg-background">
-				<ScrollArea className="h-full">{sidebarContent}</ScrollArea>
-			</aside>
-
-			{/* Mobile Sheet */}
-			<Sheet open={isOpen} onOpenChange={setIsOpen}>
-				<SheetTrigger asChild>
-					<Button
-						variant="outline"
-						size="icon"
-						className={cn(
-							"lg:hidden fixed bottom-4 right-4 z-50 h-10 w-10 rounded-full shadow-lg",
-							triggerClassName,
-						)}
-					>
-						<PanelRight className="size-4" />
-					</Button>
-				</SheetTrigger>
-				<SheetContent side="right" className="w-80 p-0">
-					<SheetHeader className="px-5 py-4 border-b">
-						<SheetTitle className="text-sm">Properties</SheetTitle>
-					</SheetHeader>
-					<ScrollArea className="h-[calc(100vh-60px)]">
-						{sidebarContent}
-					</ScrollArea>
-				</SheetContent>
-			</Sheet>
-		</>
+		<PropertiesSidebarLayout
+			renderMode={renderMode}
+			open={controlledOpen}
+			onOpenChange={onOpenChange}
+			title="Properties"
+			triggerClassName={triggerClassName}
+		>
+			{sidebarContent}
+		</PropertiesSidebarLayout>
 	);
 }

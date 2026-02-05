@@ -4,6 +4,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
+import { userCanAccessCompetitionDoc } from "./competitionAccess";
 
 const phaseShape = v.object({
 	id: v.string(),
@@ -82,7 +83,6 @@ export const list = query({
 	args: {},
 	returns: v.array(competitionDoc),
 	handler: async (ctx) => {
-		// Competitions are only visible to authenticated users.
 		await requireUserId(ctx);
 		return await ctx.db
 			.query("competitions")
@@ -101,20 +101,9 @@ export const get = query({
 		if (!competition) return null;
 
 		const volunteer = await isVolunteer(ctx);
-		if (volunteer) {
-			return competition;
-		}
-
-		// Guest organizers only see competitions where they're listed as organizers
-		if (
-			competition.organiserIds.includes(userId) ||
-			competition.compLeadId === userId ||
-			competition.leadDelegateId === userId
-		) {
-			return competition;
-		}
-
-		return null;
+		if (volunteer) return competition;
+		if (!userCanAccessCompetitionDoc(competition, userId)) return null;
+		return competition;
 	},
 });
 
@@ -188,24 +177,19 @@ export const listForUI = query({
 
 		let docs: Doc<"competitions">[];
 		if (volunteer) {
-			// Volunteers see all competitions
 			docs = await ctx.db
 				.query("competitions")
 				.withIndex("by_comp_start")
 				.order("asc")
 				.collect();
 		} else {
-			// Guest organizers only see competitions where they're listed as organizers
 			const allCompetitions = await ctx.db
 				.query("competitions")
 				.withIndex("by_comp_start")
 				.order("asc")
 				.collect();
-			docs = allCompetitions.filter(
-				(comp) =>
-					comp.organiserIds.includes(userId) ||
-					comp.compLeadId === userId ||
-					comp.leadDelegateId === userId,
+			docs = allCompetitions.filter((comp) =>
+				userCanAccessCompetitionDoc(comp, userId),
 			);
 		}
 
@@ -312,16 +296,7 @@ export const getForUI = query({
 		if (!d) return null;
 
 		const volunteer = await isVolunteer(ctx);
-		if (!volunteer) {
-			// Guest organizers only see competitions where they're listed as organizers
-			if (
-				!d.organiserIds.includes(userId) &&
-				d.compLeadId !== userId &&
-				d.leadDelegateId !== userId
-			) {
-				return null;
-			}
-		}
+		if (!volunteer && !userCanAccessCompetitionDoc(d, userId)) return null;
 
 		const phases: Doc<"phases">[] = await ctx.db
 			.query("phases")
@@ -441,7 +416,7 @@ export const create = mutation({
 			.sort((a, b) => a.order - b.order);
 		const defaultPhaseId = orderedPhases[0]?._id;
 
-		return await ctx.db.insert("competitions", {
+		const competitionId = await ctx.db.insert("competitions", {
 			name: args.name,
 			description: args.description ?? "",
 			compStart: args.compStart,
@@ -453,6 +428,14 @@ export const create = mutation({
 			compSheet: args.compSheet,
 			updatedAt: now,
 		});
+		const userId = (await requireUserId(ctx)) as Id<"users">;
+		await ctx.runMutation(internal.activity.logWithActor, {
+			actorId: userId,
+			entityType: "competition",
+			entityId: competitionId,
+			type: "created",
+		});
+		return competitionId;
 	},
 });
 
@@ -501,6 +484,20 @@ export const update = mutation({
 			patch as Record<string, unknown>,
 		);
 
+		if (oldPhaseId !== newPhaseId && u.currentPhaseId !== undefined) {
+			const [oldPhaseDoc, newPhaseDoc] = await Promise.all([
+				oldPhaseId ? ctx.db.get("phases", oldPhaseId) : null,
+				newPhaseId ? ctx.db.get("phases", newPhaseId) : null,
+			]);
+			await ctx.runMutation(internal.activity.logWithActor, {
+				actorId: userId as Id<"users">,
+				entityType: "competition",
+				entityId: args.competitionId,
+				type: "phase_changed",
+				oldValue: oldPhaseDoc?.name ?? oldPhaseId,
+				newValue: newPhaseDoc?.name ?? newPhaseId,
+			});
+		}
 		if (oldPhaseId !== newPhaseId && u.currentPhaseId !== undefined && userId) {
 			const phases: Doc<"phases">[] = await ctx.db
 				.query("phases")

@@ -8,10 +8,7 @@ import {
 } from "../src/data/types-new";
 
 /**
- * One-off seed to populate:
- * - Core teams
- * - Task labels (from DEFAULT_LABELS)
- * - Global phases table (from DEFAULT_PHASES / COMPETITION_PHASE_KEYS)
+ * Seed core teams, task labels, and global phases.
  */
 export const seedInitialData = internalMutation({
 	args: {},

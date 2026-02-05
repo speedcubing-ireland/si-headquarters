@@ -1,17 +1,16 @@
 import { format } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useMemo, useState } from "react";
 import React from "react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+	FormModalHeader,
+	FormModalFooter,
+} from "@/components/shared/form-modal-layout";
 import { Input } from "@/components/ui/input";
 import {
 	Popover,
@@ -59,13 +58,33 @@ interface TaskModalProps {
 	onSave?: (task: Task) => void;
 }
 
-function useTaskModalFormState(
+function getTaskModalFormKey(
 	open: boolean,
 	mode: "create" | "edit",
 	task: Task | undefined,
 	defaultParent: Task["parent"] | undefined,
-) {
-	// Derive initial values during render instead of syncing in useEffect
+): string {
+	if (!open) return "closed";
+	const scope = mode === "edit" && task ? task.id : "new";
+	const parentPart = defaultParent
+		? `${defaultParent.type}-${defaultParent.linkedId}`
+		: "none";
+	return `${mode}-${scope}-${parentPart}`;
+}
+
+interface TaskModalFormStateInput {
+	open: boolean;
+	mode: "create" | "edit";
+	task: Task | undefined;
+	defaultParent: Task["parent"] | undefined;
+}
+
+function useTaskModalFormState({
+	open,
+	mode,
+	task,
+	defaultParent,
+}: TaskModalFormStateInput) {
 	const initialValues = useMemo(() => {
 		if (!open) return null;
 		if (mode === "create") {
@@ -119,23 +138,10 @@ function useTaskModalFormState(
 	const [dueDate, setDueDate] = useState<Date | undefined>(
 		initialValues?.dueDate,
 	);
-	const [parent] = useState<Task["parent"]>(initialValues?.parent ?? null);
-
-	// Track previous initialValues to only update when they actually change
-	const prevInitialValuesRef = useRef(initialValues);
-	useEffect(() => {
-		if (initialValues && prevInitialValuesRef.current !== initialValues) {
-			setTitle(initialValues.title);
-			setDescription(initialValues.description);
-			setStatus(initialValues.status);
-			setPriority(initialValues.priority);
-			setAssignee(initialValues.assignee);
-			setOwner(initialValues.owner);
-			setSelectedLabels(initialValues.selectedLabels);
-			setDueDate(initialValues.dueDate);
-			prevInitialValuesRef.current = initialValues;
-		}
-	}, [initialValues]);
+	const [parent, setParentUnused] = useState<Task["parent"]>(
+		initialValues?.parent ?? null,
+	);
+	void setParentUnused;
 
 	return useMemo(
 		() => ({
@@ -454,43 +460,34 @@ const TaskModalLabelsChips = React.memo(function TaskModalLabelsChips({
 	);
 });
 
-const TaskModalFooter = React.memo(function TaskModalFooter({
-	mode,
-	onClose,
-	onSubmit,
-	submitDisabled,
-}: {
+interface TaskModalContentProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	mode: "create" | "edit";
-	onClose: () => void;
-	onSubmit: () => void;
-	submitDisabled: boolean;
-}) {
-	return (
-		<div className="px-6 py-4 border-t flex justify-end gap-2">
-			<Button variant="outline" onClick={onClose}>
-				Cancel
-			</Button>
-			<Button onClick={onSubmit} disabled={submitDisabled}>
-				{mode === "create" ? "Create Task" : "Save Changes"}
-			</Button>
-		</div>
-	);
-});
+	task: Task | undefined;
+	defaultParent: Task["parent"] | undefined;
+	onSave: ((task: Task) => void) | undefined;
+	users: User[];
+	teams: Team[];
+	labels: TaskLabel[];
+	addTask: ReturnType<typeof useTaskMutations>["addTask"];
+	updateTask: ReturnType<typeof useTaskMutations>["updateTask"];
+}
 
-export function TaskModal({
+function TaskModalContent({
 	open,
 	onOpenChange,
 	mode,
 	task,
 	defaultParent,
 	onSave,
-}: TaskModalProps) {
-	const { users } = useUsers();
-	const { teams } = useTeams();
-	const { labels } = useLabels();
-	const { addTask, updateTask } = useTaskMutations();
-
-	const form = useTaskModalFormState(open, mode, task, defaultParent);
+	users,
+	teams,
+	labels,
+	addTask,
+	updateTask,
+}: TaskModalContentProps) {
+	const form = useTaskModalFormState({ open, mode, task, defaultParent });
 
 	const toggleLabel = useCallback(
 		(label: TaskLabel) => {
@@ -500,7 +497,7 @@ export function TaskModal({
 				return [...prev, label];
 			});
 		},
-		[form],
+		[form.setSelectedLabels],
 	);
 
 	const handleSubmit = useCallback(async () => {
@@ -539,49 +536,84 @@ export function TaskModal({
 	}, [mode, task, form, addTask, updateTask, onSave, onOpenChange]);
 
 	return (
+		<>
+			<FormModalHeader
+				title={mode === "create" ? "Create Task" : "Edit Task"}
+			/>
+
+			<TaskModalFormFields
+				title={form.title}
+				setTitle={form.setTitle}
+				description={form.description}
+				setDescription={form.setDescription}
+			/>
+
+			<TaskModalPropertyBar
+				status={form.status}
+				setStatus={form.setStatus}
+				priority={form.priority}
+				setPriority={form.setPriority}
+				assignee={form.assignee}
+				setAssignee={form.setAssignee}
+				owner={form.owner}
+				setOwner={form.setOwner}
+				selectedLabels={form.selectedLabels}
+				dueDate={form.dueDate}
+				setDueDate={form.setDueDate}
+				users={users}
+				teams={teams}
+				labels={labels}
+				toggleLabel={toggleLabel}
+			/>
+
+			<TaskModalLabelsChips
+				selectedLabels={form.selectedLabels}
+				toggleLabel={toggleLabel}
+			/>
+
+			<FormModalFooter
+				mode={mode}
+				onCancel={() => onOpenChange(false)}
+				onSubmit={handleSubmit}
+				submitDisabled={!form.title.trim()}
+				createLabel="Create Task"
+				saveLabel="Save Changes"
+			/>
+		</>
+	);
+}
+
+export function TaskModal({
+	open,
+	onOpenChange,
+	mode,
+	task,
+	defaultParent,
+	onSave,
+}: TaskModalProps) {
+	const { users } = useUsers();
+	const { teams } = useTeams();
+	const { labels } = useLabels();
+	const { addTask, updateTask } = useTaskMutations();
+
+	const formKey = getTaskModalFormKey(open, mode, task, defaultParent);
+
+	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[600px] p-0">
-				<DialogHeader className="px-6 pt-6 pb-4 border-b">
-					<DialogTitle>
-						{mode === "create" ? "Create Task" : "Edit Task"}
-					</DialogTitle>
-				</DialogHeader>
-
-				<TaskModalFormFields
-					title={form.title}
-					setTitle={form.setTitle}
-					description={form.description}
-					setDescription={form.setDescription}
-				/>
-
-				<TaskModalPropertyBar
-					status={form.status}
-					setStatus={form.setStatus}
-					priority={form.priority}
-					setPriority={form.setPriority}
-					assignee={form.assignee}
-					setAssignee={form.setAssignee}
-					owner={form.owner}
-					setOwner={form.setOwner}
-					selectedLabels={form.selectedLabels}
-					dueDate={form.dueDate}
-					setDueDate={form.setDueDate}
+				<TaskModalContent
+					key={formKey}
+					open={open}
+					onOpenChange={onOpenChange}
+					mode={mode}
+					task={task}
+					defaultParent={defaultParent}
+					onSave={onSave}
 					users={users}
 					teams={teams}
 					labels={labels}
-					toggleLabel={toggleLabel}
-				/>
-
-				<TaskModalLabelsChips
-					selectedLabels={form.selectedLabels}
-					toggleLabel={toggleLabel}
-				/>
-
-				<TaskModalFooter
-					mode={mode}
-					onClose={useCallback(() => onOpenChange(false), [onOpenChange])}
-					onSubmit={handleSubmit}
-					submitDisabled={!form.title.trim()}
+					addTask={addTask}
+					updateTask={updateTask}
 				/>
 			</DialogContent>
 		</Dialog>

@@ -167,6 +167,7 @@ export type ActivityType =
 	| "priority_changed"
 	| "assignee_changed"
 	| "due_date_changed"
+	| "phase_changed"
 	| "label_added"
 	| "label_removed"
 	| "comment_added"
