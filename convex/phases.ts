@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { requireUserId } from "./auth";
 
 const phaseDoc = v.object({
 	_id: v.id("phases"),
@@ -15,6 +16,7 @@ export const list = query({
 	args: {},
 	returns: v.array(phaseDoc),
 	handler: async (ctx) => {
+		await requireUserId(ctx);
 		return await ctx.db
 			.query("phases")
 			.withIndex("by_order")

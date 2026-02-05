@@ -24,9 +24,11 @@ import {
 } from "./taskApprovals";
 import { formatCompetitionName } from "./taskFormat";
 import {
-	getTaskUpdateActivityLogPayloads,
-	type TaskActivityLogPayload,
-} from "./taskActivity";
+	diffAndLog,
+	logActivity,
+	diffLabels,
+	type ActivityConfig,
+} from "./lib/activity";
 import {
 	getTaskAssigneeChangeNotificationPromises,
 	getTaskStatusChangeNotificationPromises,
@@ -99,9 +101,8 @@ export const list = query({
 		}
 
 		const allCompetitions = await ctx.db.query("competitions").collect();
-		const userIdTyped = userId as Id<"users">;
 		const accessibleCompetitionIds = allCompetitions
-			.filter((comp) => userCanAccessCompetitionDoc(comp, userIdTyped))
+			.filter((comp) => userCanAccessCompetitionDoc(comp, userId))
 			.map((c) => c._id);
 
 		const taskPromises = accessibleCompetitionIds.map((compId) =>
@@ -148,7 +149,7 @@ export const get = query({
 		const hasAccess = await hasCompetitionAccess(
 			ctx,
 			volunteer,
-			userId as Id<"users">,
+			userId,
 			task.parentCompetitionId,
 		);
 		return hasAccess ? task : null;
@@ -232,7 +233,7 @@ export const listForUI = query({
 				const hasAccess = await hasCompetitionAccess(
 					ctx,
 					volunteer,
-					userId as Id<"users">,
+					userId,
 					competitionId,
 				);
 				if (!hasAccess) {
@@ -261,10 +262,10 @@ export const listForUI = query({
 					.collect();
 
 				const allCompetitions = await ctx.db.query("competitions").collect();
-				const userIdTyped = userId as Id<"users">;
+
 				const accessibleCompetitionIds = new Set(
 					allCompetitions
-						.filter((comp) => userCanAccessCompetitionDoc(comp, userIdTyped))
+						.filter((comp) => userCanAccessCompetitionDoc(comp, userId))
 						.map((c) => c._id),
 				);
 
@@ -564,7 +565,7 @@ export const getForUI = query({
 			const hasAccess = await hasCompetitionAccess(
 				ctx,
 				volunteer,
-				userId as Id<"users">,
+				userId,
 				t.parentCompetitionId,
 			);
 			if (!hasAccess) {
@@ -824,11 +825,30 @@ const taskCreateArgs = {
 	requiredApprovalIds: v.optional(v.array(v.string())),
 };
 
+const TASK_ACTIVITY_CONFIG: ActivityConfig<Doc<"tasks">> = {
+	status: { type: "status_changed" },
+	priority: { type: "priority_changed" },
+	dueDate: { type: "due_date_changed" },
+	phaseId: { type: "phase_changed" },
+	assigneeId: {
+		type: "assignee_changed",
+		transform: async (val, ctx) => {
+			if (!val) return undefined;
+			const user = await ctx?.db.get(val as Id<"users">);
+			return user?.name;
+		},
+	},
+	resources: {
+		type: "resources_changed",
+		transform: (r) => (r ? "resources updated" : undefined),
+	},
+};
+
 export const create = mutation({
 	args: taskCreateArgs,
 	returns: v.id("tasks"),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		if (args.parentCompetitionId) {
@@ -855,16 +875,19 @@ export const create = mutation({
 
 		const now = Date.now();
 
-		const counterDocs = await ctx.db.query("taskCounter").take(1);
+		// Simple counter approach - accepts occasional gaps under high concurrency
+		// Convex will auto-retry on write conflicts
+		const counter = await ctx.db.query("taskCounter").first();
 		let nextNum: number;
-		if (counterDocs.length === 0) {
-			await ctx.db.insert("taskCounter", { next: 1 });
+
+		if (!counter) {
+			await ctx.db.insert("taskCounter", { next: 2 });
 			nextNum = 1;
 		} else {
-			const doc = counterDocs[0];
-			nextNum = doc.next;
-			await ctx.db.patch("taskCounter", doc._id, { next: doc.next + 1 });
+			nextNum = counter.next;
+			await ctx.db.patch("taskCounter", counter._id, { next: nextNum + 1 });
 		}
+
 		const identifier = `HQ-${nextNum}`;
 
 		const taskId = await ctx.db.insert("tasks", {
@@ -898,12 +921,7 @@ export const create = mutation({
 			);
 		}
 
-		await ctx.runMutation(internal.activity.logWithActor, {
-			actorId: userId,
-			entityType: "task",
-			entityId: taskId,
-			type: "created",
-		});
+		await logActivity(ctx, userId, "task", taskId, "created");
 		return taskId;
 	},
 });
@@ -936,7 +954,7 @@ export const update = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("tasks", args.taskId);
 		if (!doc) return null;
 
@@ -975,28 +993,27 @@ export const update = mutation({
 
 		if (!userId) return null;
 
-		const finalStatus = (patch.status as string) ?? newStatus;
-		const activityPayloads = await getTaskUpdateActivityLogPayloads(
+		const _finalStatus = (patch.status as string) ?? newStatus;
+		await diffAndLog(
 			ctx,
+			userId,
+			"task",
 			args.taskId,
 			doc,
-			args.updates,
-			finalStatus,
-			oldAssigneeId,
-			newAssigneeId,
+			patch,
+			TASK_ACTIVITY_CONFIG,
 		);
-		await Promise.allSettled(
-			activityPayloads.map((p: TaskActivityLogPayload) =>
-				ctx.runMutation(internal.activity.logWithActor, {
-					actorId: userId,
-					entityType: p.entityType,
-					entityId: p.entityId,
-					type: p.type,
-					oldValue: p.oldValue,
-					newValue: p.newValue,
-				}),
-			),
-		);
+
+		if (args.updates.labelIds) {
+			await diffLabels(
+				ctx,
+				userId,
+				"task",
+				args.taskId,
+				doc.labelIds,
+				args.updates.labelIds,
+			);
+		}
 
 		const notificationPromises: Promise<unknown>[] = [];
 
@@ -1048,7 +1065,7 @@ export const bulkUpdate = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 		if (args.taskIds.length === 0) {
 			return null;
@@ -1104,28 +1121,27 @@ export const bulkUpdate = mutation({
 
 			await ctx.db.patch("tasks", taskId, patch as Record<string, unknown>);
 
-			const finalStatus = (patch.status as string) ?? newStatus;
-			const activityPayloadsBulk = await getTaskUpdateActivityLogPayloads(
+			const _finalStatus = (patch.status as string) ?? newStatus;
+			await diffAndLog(
 				ctx,
+				userId,
+				"task",
 				taskId,
 				doc,
-				args.updates,
-				finalStatus,
-				oldAssigneeId,
-				newAssigneeId,
+				patch,
+				TASK_ACTIVITY_CONFIG,
 			);
-			await Promise.allSettled(
-				activityPayloadsBulk.map((p: TaskActivityLogPayload) =>
-					ctx.runMutation(internal.activity.logWithActor, {
-						actorId: userId,
-						entityType: p.entityType,
-						entityId: p.entityId,
-						type: p.type,
-						oldValue: p.oldValue,
-						newValue: p.newValue,
-					}),
-				),
-			);
+
+			if (args.updates.labelIds) {
+				await diffLabels(
+					ctx,
+					userId,
+					"task",
+					taskId,
+					doc.labelIds,
+					args.updates.labelIds,
+				);
+			}
 
 			if (oldAssigneeId !== newAssigneeId) {
 				notificationPromises.push(
@@ -1173,7 +1189,7 @@ export const archive = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		for (const taskId of args.taskIds) {
@@ -1189,12 +1205,7 @@ export const archive = mutation({
 				archivedAt,
 				updatedAt: Date.now(),
 			});
-			await ctx.runMutation(internal.activity.logWithActor, {
-				actorId: userId,
-				entityType: "task",
-				entityId: id,
-				type: "archived",
-			});
+			await logActivity(ctx, userId, "task", id, "archived");
 		}
 		return null;
 	},
@@ -1204,7 +1215,7 @@ export const unarchive = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		for (const taskId of args.taskIds) {
@@ -1219,12 +1230,7 @@ export const unarchive = mutation({
 				archivedAt: undefined,
 				updatedAt: Date.now(),
 			});
-			await ctx.runMutation(internal.activity.logWithActor, {
-				actorId: userId,
-				entityType: "task",
-				entityId: id,
-				type: "unarchived",
-			});
+			await logActivity(ctx, userId, "task", id, "unarchived");
 		}
 		return null;
 	},
@@ -1238,7 +1244,7 @@ export const addRequiredApprover = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
@@ -1257,6 +1263,10 @@ export const addRequiredApprover = mutation({
 			requiredApprovalIds: [...currentIds, encodedId],
 			updatedAt: Date.now(),
 		});
+
+		await logActivity(ctx, userId, "task", args.taskId, "updated", {
+			message: "added required approver",
+		});
 		return null;
 	},
 });
@@ -1268,7 +1278,7 @@ export const removeRequiredApprover = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
@@ -1284,6 +1294,10 @@ export const removeRequiredApprover = mutation({
 			requiredApprovalIds: filteredIds,
 			updatedAt: Date.now(),
 		});
+
+		await logActivity(ctx, userId, "task", args.taskId, "updated", {
+			message: "removed required approver",
+		});
 		return null;
 	},
 });
@@ -1294,7 +1308,7 @@ export const approveTask = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
@@ -1328,6 +1342,7 @@ export const approveTask = mutation({
 		}
 
 		await ctx.db.patch("tasks", args.taskId, patch as Record<string, unknown>);
+		await logActivity(ctx, userId, "task", args.taskId, "approved");
 		return null;
 	},
 });
@@ -1338,7 +1353,7 @@ export const unapproveTask = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
@@ -1355,6 +1370,7 @@ export const unapproveTask = mutation({
 			approvedByIds: filteredIds,
 			updatedAt: Date.now(),
 		});
+		await logActivity(ctx, userId, "task", args.taskId, "unapproved");
 		return null;
 	},
 });
@@ -1363,7 +1379,7 @@ export const remove = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		const allTaskIds = new Set<Id<"tasks">>();

@@ -20,7 +20,7 @@ export const setGoogleSheetsTokens = internalMutation({
 			updatedAt: now,
 		};
 		if (existing) {
-			await ctx.db.patch(existing._id, row);
+			await ctx.db.patch("googleSheetsTokens", existing._id, row);
 		} else {
 			await ctx.db.insert("googleSheetsTokens", row);
 		}

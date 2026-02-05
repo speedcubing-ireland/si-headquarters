@@ -78,7 +78,7 @@ export const listForUser = query({
 	args: {},
 	returns: v.array(reminderReturns),
 	handler: async (ctx) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const docs = await ctx.db
 			.query("reminders")
 			.withIndex("by_user", (q) => q.eq("userId", userId))
@@ -92,7 +92,7 @@ export const listPendingForUser = query({
 	args: {},
 	returns: v.array(reminderReturns),
 	handler: async (ctx) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const docs = await ctx.db
 			.query("reminders")
 			.withIndex("by_user_and_status", (q) =>
@@ -108,7 +108,7 @@ export const listPendingForTask = query({
 	args: { taskId: v.string() },
 	returns: v.array(reminderReturns),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const docs = await ctx.db
 			.query("reminders")
 			.withIndex("by_user_entityId_status", (q) =>
@@ -137,7 +137,7 @@ export const create = mutation({
 	},
 	returns: v.id("reminders"),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const now = Date.now();
 		const remindAtMs = new Date(args.remindAt).getTime();
 		return await ctx.db.insert("reminders", {

@@ -2,6 +2,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
+import { logActivity } from "./lib/activity";
 import { internal } from "./_generated/api";
 import { isDirectorForCtx } from "./admin";
 import { hasCompetitionAccess } from "./competitionAccess";
@@ -44,7 +45,7 @@ export const listForUI = query({
 	},
 	returns: v.array(commentForUIReturns),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		if (args.parentType === "task") {
@@ -201,7 +202,7 @@ export const create = mutation({
 	},
 	returns: v.id("comments"),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		if (args.parentType === "task") {
@@ -262,12 +263,13 @@ export const create = mutation({
 			updatedAt: now,
 		});
 
-		await ctx.runMutation(internal.activity.logWithActor, {
-			actorId: userId,
-			entityType: args.parentType,
-			entityId: args.parentId,
-			type: "comment_added",
-		});
+		await logActivity(
+			ctx,
+			userId,
+			args.parentType,
+			args.parentId,
+			"comment_added",
+		);
 
 		if (args.parentType !== "task") return commentId;
 
@@ -349,12 +351,13 @@ export const update = mutation({
 			contentUpdatedAt: Date.now(),
 			updatedAt: Date.now(),
 		});
-		await ctx.runMutation(internal.activity.logWithActor, {
-			actorId: userId as Id<"users">,
-			entityType: doc.parentType,
-			entityId: doc.parentId,
-			type: "comment_edited",
-		});
+		await logActivity(
+			ctx,
+			userId as Id<"users">,
+			doc.parentType,
+			doc.parentId,
+			"comment_edited",
+		);
 		return null;
 	},
 });
@@ -363,7 +366,7 @@ export const remove = mutation({
 	args: { commentId: v.id("comments") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc) return null;
 		const isCommentAuthor = doc.authorId === userId;
@@ -373,12 +376,13 @@ export const remove = mutation({
 			return null;
 		}
 
-		await ctx.runMutation(internal.activity.logWithActor, {
-			actorId: userId,
-			entityType: doc.parentType,
-			entityId: doc.parentId,
-			type: "comment_deleted",
-		});
+		await logActivity(
+			ctx,
+			userId,
+			doc.parentType,
+			doc.parentId,
+			"comment_deleted",
+		);
 		await ctx.db.delete("comments", args.commentId);
 		return null;
 	},
@@ -388,7 +392,9 @@ export const listRecentForSearch = query({
 	args: { limit: v.optional(v.number()) },
 	returns: v.array(commentForUIReturns),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+		if (!volunteer) return [];
+
 		const limit = args.limit ?? 100;
 		const docs = await ctx.db.query("comments").order("desc").take(limit);
 
@@ -455,7 +461,7 @@ export const toggleReaction = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc) return null;
 

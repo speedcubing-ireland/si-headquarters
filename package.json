@@ -10,8 +10,7 @@
 		"build": "tsc -b && vite build",
 		"lint": "biome lint --fix --unsafe && biome format --write",
 		"preview": "vite preview",
-		"auth:google-sheets": "bun run scripts/auth-google-sheets.ts",
-		"knip": "knip"
+		"auth:google-sheets": "bun run scripts/auth-google-sheets.ts"
 	},
 	"dependencies": {
 		"@convex-dev/auth": "^0.0.90",

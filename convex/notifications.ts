@@ -78,7 +78,7 @@ export const listForUser = query({
 	args: {},
 	returns: v.array(notificationReturns),
 	handler: async (ctx) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const docs = await ctx.db
 			.query("notifications")
 			.withIndex("by_user", (q) => q.eq("userId", userId))
@@ -92,7 +92,7 @@ export const getUnreadCount = query({
 	args: {},
 	returns: v.number(),
 	handler: async (ctx) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const docs = await ctx.db
 			.query("notifications")
 			.withIndex("by_user_and_status", (q) =>
@@ -138,7 +138,7 @@ export const markAllRead = mutation({
 	args: {},
 	returns: v.null(),
 	handler: async (ctx) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const docs = await ctx.db
 			.query("notifications")
 			.withIndex("by_user_and_status", (q) =>
@@ -191,7 +191,7 @@ export const create = mutation({
 	},
 	returns: v.id("notifications"),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		return await ctx.db.insert("notifications", {
 			userId,
 			type: args.type,

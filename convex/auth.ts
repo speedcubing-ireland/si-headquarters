@@ -78,14 +78,12 @@ type AuthCtx = QueryCtx | MutationCtx;
 
 export async function requireUserId(
 	ctx: QueryCtx | MutationCtx,
-): Promise<
-	ReturnType<typeof getAuthUserId> extends Promise<infer T> ? T : never
-> {
+): Promise<Id<"users">> {
 	const userId = await getAuthUserId(ctx);
 	if (userId === null) {
 		throw new ConvexError("Authentication required");
 	}
-	return userId as never;
+	return userId as Id<"users">;
 }
 
 export async function isVolunteer(ctx: AuthCtx): Promise<boolean> {

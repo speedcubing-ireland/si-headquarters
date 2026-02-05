@@ -24,14 +24,24 @@ async function resolveActorsAndMapDocs(
 		oldValue?: string;
 		newValue?: string;
 		metadata?: unknown;
+		entityTitle?: string;
+		entityIdentifier?: string;
 	}>
 > {
 	const actorIds = new Set<Id<"users">>();
 	for (const d of docs) actorIds.add(d.actorId);
 	const userArr = [...actorIds];
-	const userDocs = await Promise.all(
-		userArr.map((id) => ctx.db.get("users", id)),
-	);
+	const taskIds = new Set<Id<"tasks">>();
+	for (const d of docs) {
+		if (d.entityType === "task") taskIds.add(d.entityId as Id<"tasks">);
+	}
+	const taskArr = [...taskIds];
+
+	const [userDocs, taskDocs] = await Promise.all([
+		Promise.all(userArr.map((id) => ctx.db.get("users", id))),
+		Promise.all(taskArr.map((id) => ctx.db.get("tasks", id))),
+	]);
+
 	const usersMap = new Map<
 		string,
 		{ id: string; name: string; avatarUrl: string }
@@ -46,19 +56,44 @@ async function resolveActorsAndMapDocs(
 			});
 	});
 
+	const tasksMap = new Map<string, { title: string; identifier: string }>();
+	taskArr.forEach((id, i) => {
+		const t = taskDocs[i];
+		if (t)
+			tasksMap.set(id, {
+				title: t.title,
+				identifier: t.identifier,
+			});
+	});
+
 	const toISO = (ms: number) => new Date(ms).toISOString();
 
-	return docs.map((d) => ({
-		id: d._id,
-		entityType: d.entityType,
-		entityId: d.entityId,
-		type: d.type,
-		actor: usersMap.get(d.actorId) ?? { ...DEFAULT_ACTOR, id: d.actorId },
-		timestamp: toISO(d._creationTime),
-		oldValue: d.oldValue,
-		newValue: d.newValue,
-		metadata: d.metadata,
-	}));
+	return docs.map((d) => {
+		let entityTitle: string | undefined;
+		let entityIdentifier: string | undefined;
+
+		if (d.entityType === "task") {
+			const t = tasksMap.get(d.entityId);
+			if (t) {
+				entityTitle = t.title;
+				entityIdentifier = t.identifier;
+			}
+		}
+
+		return {
+			id: d._id,
+			entityType: d.entityType,
+			entityId: d.entityId,
+			type: d.type,
+			actor: usersMap.get(d.actorId) ?? { ...DEFAULT_ACTOR, id: d.actorId },
+			timestamp: toISO(d._creationTime),
+			oldValue: d.oldValue,
+			newValue: d.newValue,
+			metadata: d.metadata,
+			entityTitle,
+			entityIdentifier,
+		};
+	});
 }
 
 async function isActivityRelevantToUser(
@@ -96,6 +131,8 @@ const activityEntryReturns = v.object({
 	oldValue: v.optional(v.string()),
 	newValue: v.optional(v.string()),
 	metadata: v.optional(v.any()),
+	entityTitle: v.optional(v.string()),
+	entityIdentifier: v.optional(v.string()),
 });
 
 export const listForEntity = query({
@@ -105,7 +142,7 @@ export const listForEntity = query({
 	},
 	returns: v.array(activityEntryReturns),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		if (args.entityType === "task") {
@@ -184,7 +221,7 @@ export const listRecentForUser = query({
 	args: { limit: v.optional(v.number()) },
 	returns: v.array(activityEntryReturns),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const limitToUse = args.limit ?? 50;
 		const fetchLimit = Math.min(limitToUse * 4, 200);
 		const docs = await ctx.db
@@ -215,7 +252,7 @@ export const log = mutation({
 	},
 	returns: v.id("activityLog"),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		return await ctx.db.insert("activityLog", {
 			entityType: args.entityType,
 			entityId: args.entityId,

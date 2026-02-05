@@ -74,14 +74,14 @@ const TasksIdRoute = TasksIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsCalendarRoute = CompetitionsCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => CompetitionsRoute,
+  id: '/competitions/calendar',
+  path: '/competitions/calendar',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => CompetitionsRoute,
+  id: '/competitions/$id',
+  path: '/competitions/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminGodModeRoute = AdminGodModeRouteImport.update({
   id: '/admin/god-mode',
@@ -189,6 +189,8 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   InboxRoute: typeof InboxRoute
   AdminGodModeRoute: typeof AdminGodModeRoute
+  CompetitionsIdRoute: typeof CompetitionsIdRoute
+  CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
   TasksIdRoute: typeof TasksIdRoute
   TasksArchivedRoute: typeof TasksArchivedRoute
   TasksMyRoute: typeof TasksMyRoute
@@ -271,17 +273,17 @@ declare module '@tanstack/react-router' {
     }
     '/competitions/calendar': {
       id: '/competitions/calendar'
-      path: '/calendar'
+      path: '/competitions/calendar'
       fullPath: '/competitions/calendar'
       preLoaderRoute: typeof CompetitionsCalendarRouteImport
-      parentRoute: typeof CompetitionsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/competitions/$id': {
       id: '/competitions/$id'
-      path: '/$id'
+      path: '/competitions/$id'
       fullPath: '/competitions/$id'
       preLoaderRoute: typeof CompetitionsIdRouteImport
-      parentRoute: typeof CompetitionsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/admin/god-mode': {
       id: '/admin/god-mode'
@@ -299,6 +301,8 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   InboxRoute: InboxRoute,
   AdminGodModeRoute: AdminGodModeRoute,
+  CompetitionsIdRoute: CompetitionsIdRoute,
+  CompetitionsCalendarRoute: CompetitionsCalendarRoute,
   TasksIdRoute: TasksIdRoute,
   TasksArchivedRoute: TasksArchivedRoute,
   TasksMyRoute: TasksMyRoute,

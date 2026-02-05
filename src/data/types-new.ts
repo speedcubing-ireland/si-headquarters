@@ -155,6 +155,8 @@ export type Comment = {
 	reactions: CommentReaction[];
 };
 
+export type ActivityEntity = "task" | "competition" | "update";
+
 export type ActivityType =
 	| "created"
 	| "updated"
@@ -169,11 +171,14 @@ export type ActivityType =
 	| "comment_edited"
 	| "comment_deleted"
 	| "archived"
-	| "unarchived";
+	| "unarchived"
+	| "approved"
+	| "unapproved"
+	| "resources_changed";
 
 export type ActivityEntry = {
 	id: string;
-	entityType: "task" | "update" | "competition";
+	entityType: ActivityEntity;
 	entityId: string;
 	type: ActivityType;
 	actor: User;
@@ -181,6 +186,8 @@ export type ActivityEntry = {
 	oldValue?: string;
 	newValue?: string;
 	metadata?: Record<string, unknown>;
+	entityTitle?: string;
+	entityIdentifier?: string;
 };
 
 export type TemplateTask = {

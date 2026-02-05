@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { Id } from "./_generated/dataModel";
 import { requireUserId, ensureUserInVolunteerTeam } from "./auth";
 
 const userDocValidator = v.union(
@@ -62,7 +61,7 @@ export const ensureVolunteerAccess = mutation({
 	args: {},
 	returns: v.null(),
 	handler: async (ctx) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		await ensureUserInVolunteerTeam(ctx, userId);
 		return null;
 	},

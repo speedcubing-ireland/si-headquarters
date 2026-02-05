@@ -52,6 +52,12 @@ export function getActivityDescription(entry: ActivityEntry): string {
 			return "restored this task from archive";
 		case "phase_changed":
 			return formatOldToNew("phase", oldValue, newValue);
+		case "approved":
+			return "approved this task";
+		case "unapproved":
+			return "unapproved this task";
+		case "resources_changed":
+			return "updated resources";
 		default:
 			return "made an update";
 	}
@@ -75,4 +81,19 @@ export function formatRelativeTime(timestamp: string): string {
 		month: "short",
 		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
 	});
+}
+
+export function getEntityLink(
+	entry: ActivityEntry,
+): { to: string; params?: Record<string, string> } | null {
+	switch (entry.entityType) {
+		case "task":
+			return { to: "/tasks/$id", params: { id: entry.entityId } };
+		case "competition":
+			return { to: "/competitions/$id", params: { id: entry.entityId } };
+		case "update":
+			return null;
+		default:
+			return null;
+	}
 }

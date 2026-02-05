@@ -4,6 +4,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
+import { logActivity } from "./lib/activity";
 import { userCanAccessCompetitionDoc } from "./competitionAccess";
 
 const phaseShape = v.object({
@@ -96,7 +97,7 @@ export const get = query({
 	args: { competitionId: v.id("competitions") },
 	returns: v.union(competitionDoc, v.null()),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const competition = await ctx.db.get("competitions", args.competitionId);
 		if (!competition) return null;
 
@@ -172,7 +173,7 @@ export const listForUI = query({
 	args: {},
 	returns: v.array(competitionForUIReturns),
 	handler: async (ctx) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
 		let docs: Doc<"competitions">[];
@@ -291,7 +292,7 @@ export const getForUI = query({
 	args: { competitionId: v.id("competitions") },
 	returns: v.union(competitionForUIReturns, v.null()),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const d = await ctx.db.get("competitions", args.competitionId);
 		if (!d) return null;
 
@@ -428,13 +429,8 @@ export const create = mutation({
 			compSheet: args.compSheet,
 			updatedAt: now,
 		});
-		const userId = (await requireUserId(ctx)) as Id<"users">;
-		await ctx.runMutation(internal.activity.logWithActor, {
-			actorId: userId,
-			entityType: "competition",
-			entityId: competitionId,
-			type: "created",
-		});
+		const userId = await requireUserId(ctx);
+		await logActivity(ctx, userId, "competition", competitionId, "created");
 		return competitionId;
 	},
 });
@@ -489,14 +485,17 @@ export const update = mutation({
 				oldPhaseId ? ctx.db.get("phases", oldPhaseId) : null,
 				newPhaseId ? ctx.db.get("phases", newPhaseId) : null,
 			]);
-			await ctx.runMutation(internal.activity.logWithActor, {
-				actorId: userId as Id<"users">,
-				entityType: "competition",
-				entityId: args.competitionId,
-				type: "phase_changed",
-				oldValue: oldPhaseDoc?.name ?? oldPhaseId,
-				newValue: newPhaseDoc?.name ?? newPhaseId,
-			});
+			await logActivity(
+				ctx,
+				userId as Id<"users">,
+				"competition",
+				args.competitionId,
+				"phase_changed",
+				{
+					oldPhaseName: oldPhaseDoc?.name ?? oldPhaseId,
+					newPhaseName: newPhaseDoc?.name ?? newPhaseId,
+				},
+			);
 		}
 		if (oldPhaseId !== newPhaseId && u.currentPhaseId !== undefined && userId) {
 			const phases: Doc<"phases">[] = await ctx.db

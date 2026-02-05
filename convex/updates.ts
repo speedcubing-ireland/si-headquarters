@@ -5,6 +5,7 @@ import type { MutationCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { requireUserId } from "./auth";
 import { internal } from "./_generated/api";
+import { logActivity } from "./lib/activity";
 import { hasCompetitionAccess } from "./competitionAccess";
 
 const statusValidator = v.union(
@@ -65,7 +66,7 @@ export const create = mutation({
 	},
 	returns: v.id("competitionUpdates"),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const canManage = await hasCompetitionAccess(
 			ctx,
 			false,
@@ -87,12 +88,7 @@ export const create = mutation({
 			reactions: [],
 			updatedAt: now,
 		});
-		await ctx.runMutation(internal.activity.logWithActor, {
-			actorId: userId,
-			entityType: "update",
-			entityId: id,
-			type: "created",
-		});
+		await logActivity(ctx, userId, "update", id, "created");
 
 		const competition = await ctx.db.get("competitions", args.competitionId);
 		if (competition) {
@@ -130,7 +126,7 @@ export const update = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		await getUpdateAndAssertAuth(ctx, args.updateId, userId, "edit");
 		const hasChanges = args.status !== undefined || args.message !== undefined;
 		if (!hasChanges) return null;
@@ -148,7 +144,7 @@ export const remove = mutation({
 	args: { updateId: v.id("competitionUpdates") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		await getUpdateAndAssertAuth(ctx, args.updateId, userId, "delete");
 		await ctx.db.delete("competitionUpdates", args.updateId);
 		return null;
@@ -162,7 +158,7 @@ export const addReaction = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = (await requireUserId(ctx)) as Id<"users">;
+		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("competitionUpdates", args.updateId);
 		if (!doc) {
 			throw new ConvexError({
