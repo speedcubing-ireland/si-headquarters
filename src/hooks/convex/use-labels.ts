@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { useMemo } from "react";
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { TaskLabel } from "@/data/types-new";
 
 export function useLabels(): { labels: TaskLabel[]; isLoading: boolean } {

@@ -366,8 +366,6 @@ export const remove = mutation({
 		const userId = (await requireUserId(ctx)) as Id<"users">;
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc) return null;
-
-		// Allow deletion if user is the comment author or a director
 		const isCommentAuthor = doc.authorId === userId;
 		const isDirector = await isDirectorForCtx(ctx);
 

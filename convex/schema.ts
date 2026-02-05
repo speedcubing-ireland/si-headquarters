@@ -25,15 +25,10 @@ export default defineSchema({
 	}),
 
 	phases: defineTable({
-		// Stable key used in code (e.g. "concept", "pre-announcement")
 		key: v.string(),
-		// Human-readable label
 		name: v.string(),
-		// Longer description for UI/tooling
 		description: v.string(),
-		// Global ordering across all phases
 		order: v.number(),
-		// Soft-delete / visibility toggle
 		archived: v.boolean(),
 	}).index("by_order", ["order"]),
 

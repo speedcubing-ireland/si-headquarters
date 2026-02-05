@@ -30,7 +30,6 @@ import {
 } from "./editable-phase-and-roles";
 import { LeadsDisplay } from "./leads-display";
 
-// Sortable header component
 function SortableHeader({
 	column,
 	children,
@@ -73,8 +72,6 @@ type GroupValueRenderer = (
 type TasksSummary = { completed: number; open: number; total: number };
 
 const phaseGroupRenderer: GroupValueRenderer = (value, row) => {
-	// When grouped, `value` is the grouping value derived from the column accessor.
-	// Fall back to computing from a leaf row if needed.
 	const key =
 		typeof value === "string"
 			? (value as CompetitionPhaseKey)

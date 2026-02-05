@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import type { Team, User } from "@/data/types-new";
 
 export function useTeams(): { teams: Team[]; isLoading: boolean } {

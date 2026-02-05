@@ -8,9 +8,6 @@ function formatOldToNew(
 	return `changed ${label} from "${oldVal ?? ""}" to "${newVal ?? ""}"`;
 }
 
-/**
- * Human-readable description for an activity entry. Handles task, update, and competition entity types.
- */
 export function getActivityDescription(entry: ActivityEntry): string {
 	const { entityType, type, oldValue, newValue } = entry;
 
@@ -24,7 +21,6 @@ export function getActivityDescription(entry: ActivityEntry): string {
 		return "updated this competition";
 	}
 
-	// Task (and task-scoped comment types)
 	switch (type) {
 		case "created":
 			return "created this task";

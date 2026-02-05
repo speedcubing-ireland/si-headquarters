@@ -11,8 +11,6 @@ export function FilterBar() {
 	const toggleMatchMode = filterStore((state) => state.toggleMatchMode);
 	const hasActiveFilters = filterStore((state) => state.hasActiveFilters);
 
-	// Match the competitions FiltersContent layout; the surrounding
-	// border/padding is handled by ListPageLayout.
 	return (
 		<>
 			<div className="flex items-center gap-2 shrink-0">

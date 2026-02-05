@@ -9,7 +9,6 @@ import {
 	User as UserIcon,
 } from "lucide-react";
 import { useState, useCallback } from "react";
-import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -57,13 +56,6 @@ export function BulkActionsBar({
 	const selectedCount = selectedTaskIds.length;
 	const allSelected = selectedCount === totalTasks && totalTasks > 0;
 
-	// Keyboard shortcuts: Escape to clear selection
-	useKeyboardShortcut({
-		key: "Escape",
-		handler: useCallback(() => onClearSelection(), [onClearSelection]),
-		enabled: selectedCount > 0,
-	});
-
 	const handleStatusChange = useCallback(
 		(status: TaskStatus) => {
 			void bulkUpdateTasks(selectedTaskIds, { status }).then(() => {
@@ -107,7 +99,6 @@ export function BulkActionsBar({
 				updatedLabelsByTaskId.set(taskId, newLabels);
 			}
 
-			// If all selected tasks end up with the same label set, we can use one bulk update.
 			const uniqueLabelSets = new Map<string, TaskLabel[]>();
 			for (const [, taskLabels] of updatedLabelsByTaskId.entries()) {
 				const key = taskLabels
@@ -168,7 +159,6 @@ export function BulkActionsBar({
 	return (
 		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-t">
 			<div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 max-w-full">
-				{/* Selection info */}
 				<div className="flex items-center gap-2 sm:gap-3 shrink-0">
 					<span className="text-sm font-medium text-foreground">
 						{selectedCount}{" "}
@@ -197,7 +187,6 @@ export function BulkActionsBar({
 
 				<div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
 
-				{/* Mobile Actions Dropdown */}
 				<div className="sm:hidden flex items-center gap-1">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -207,7 +196,6 @@ export function BulkActionsBar({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start" className="w-56">
-							{/* Status Submenu */}
 							<DropdownMenuItem
 								className="font-medium text-muted-foreground"
 								disabled
@@ -231,7 +219,6 @@ export function BulkActionsBar({
 
 							<DropdownMenuSeparator />
 
-							{/* Priority Submenu */}
 							<DropdownMenuItem
 								className="font-medium text-muted-foreground"
 								disabled
@@ -260,7 +247,6 @@ export function BulkActionsBar({
 
 							<DropdownMenuSeparator />
 
-							{/* Assignee Submenu */}
 							<DropdownMenuItem
 								className="font-medium text-muted-foreground"
 								disabled
@@ -288,7 +274,6 @@ export function BulkActionsBar({
 
 							<DropdownMenuSeparator />
 
-							{/* Labels Submenu */}
 							<DropdownMenuItem
 								className="font-medium text-muted-foreground"
 								disabled
@@ -310,7 +295,6 @@ export function BulkActionsBar({
 
 							<DropdownMenuSeparator />
 
-							{/* Archive & Delete */}
 							<DropdownMenuItem onClick={handleArchive}>
 								<Archive className="size-4 mr-2" />
 								Archive
@@ -326,9 +310,7 @@ export function BulkActionsBar({
 					</DropdownMenu>
 				</div>
 
-				{/* Desktop Actions - compact ghost buttons */}
 				<div className="hidden sm:flex items-center gap-1 overflow-x-auto">
-					{/* Status Dropdown */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2">
@@ -354,7 +336,6 @@ export function BulkActionsBar({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					{/* Priority Dropdown */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2">
@@ -385,7 +366,6 @@ export function BulkActionsBar({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					{/* Assignee Dropdown */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2">
@@ -414,7 +394,6 @@ export function BulkActionsBar({
 						</DropdownMenuContent>
 					</DropdownMenu>
 
-					{/* Labels Dropdown */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2">
@@ -441,7 +420,6 @@ export function BulkActionsBar({
 
 				<div className="flex-1" />
 
-				{/* Right side actions */}
 				<div className="flex items-center gap-1 shrink-0">
 					<Button
 						variant="ghost"
@@ -454,7 +432,6 @@ export function BulkActionsBar({
 						<span className="hidden sm:inline">Archive</span>
 					</Button>
 
-					{/* More actions dropdown (includes delete) */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="sm" className="h-8 px-2">

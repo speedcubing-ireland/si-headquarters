@@ -8,7 +8,7 @@ import {
 } from "@/data/calendar-weekends";
 import { useCompetitions } from "@/hooks/use-convex-data";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
 import { useDisplaySettingsStore } from "@/store/display-settings-store";
 import { useMemo, useState } from "react";

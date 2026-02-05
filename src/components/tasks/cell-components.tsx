@@ -5,7 +5,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDateShort } from "@/lib/format-utils";
-import { getStatusIcon } from "@/lib/task-utils";
+import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
 import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
 import {
 	EditableTaskAssignee,
@@ -15,7 +15,6 @@ import {
 	EditableTaskStatus,
 } from "./editable-cells";
 
-// Status icon colors matching Linear
 const statusIconColors: Record<TaskStatus, string> = {
 	backlog: "text-muted-foreground/60",
 	"to-do": "text-muted-foreground",
@@ -24,8 +23,6 @@ const statusIconColors: Record<TaskStatus, string> = {
 	done: "text-green-500",
 	cancelled: "text-red-500",
 };
-
-// Memoized simple cell components - receive primitives only
 
 interface IdentifierCellProps {
 	identifier: string;
@@ -50,7 +47,12 @@ export const PriorityCell = memo(function PriorityCell({
 	priority,
 	taskId,
 }: PriorityCellProps) {
-	return <EditableTaskPriority priority={priority} taskId={taskId} />;
+	const PriorityIcon = getPriorityIcon(priority);
+	return (
+		<EditableTaskPriority priority={priority} taskId={taskId}>
+			<PriorityIcon className="size-4 text-muted-foreground" />
+		</EditableTaskPriority>
+	);
 });
 
 interface StatusCellProps {

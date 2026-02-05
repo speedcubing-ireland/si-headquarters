@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useCallback, useRef } from "react";
+import { useEffect, useMemo, useRef, useCallback } from "react";
 import { useQueryStates } from "nuqs";
-import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
 import { useTasks } from "@/hooks/use-convex-data";
@@ -26,7 +25,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { TasksDataTable } from "./data-table";
 import { useTaskColumns } from "./columns";
-import { TaskModal } from "./task-modal";
 import { FilterBar } from "./filter-bar";
 import { BulkActionsBar } from "./bulk-actions-bar";
 import type { ReactNode } from "react";
@@ -35,82 +33,33 @@ import {
 	CreateViewProvider,
 	ListPageLayout,
 } from "@/components/shared/list-page-layout";
+import { useCreateModalsStore } from "@/store/create-modals-store";
 
 export type TasksPageProps = {
-	// Identity
 	pageId: string;
 	pageTitle: string;
 	pageIcon: LucideIcon;
-	secondaryLabel?: string;
 
-	// Data source
 	taskSource?: "all" | "archived";
 
-	// Page-level predicates (layer 2 from filtering strategy)
 	pagePredicates?: TaskPredicate[];
 	pagePredicateMode?: MatchMode;
 
-	// Defaults for this page's store
 	defaultFilters?: TasksPageConfig["defaultFilters"];
 	defaultDisplaySettings?: TasksPageConfig["defaultDisplaySettings"];
 
-	// UI options
 	showCreateButton?: boolean;
 	showClearButton?: boolean;
 
-	// Extension slot for triage bar or other controls
 	subHeader?: ReactNode;
 
-	// Custom bulk actions slot (when provided, replaces default BulkActionsBar; component can use useTasksListStateContext())
 	bulkActions?: ReactNode;
 };
 
-// Hook for keyboard shortcuts
-function useTasksKeyboardShortcuts(
-	listState: ReturnType<typeof useListPageState>,
-	enableCreateShortcut = true,
-) {
-	// Cmd/Ctrl+C to create task
-	useKeyboardShortcut({
-		key: "c",
-		handler: useCallback(
-			() => listState.setModalOpen(true),
-			[listState.setModalOpen],
-		),
-		enabled: enableCreateShortcut && !listState.hasSelection,
-	});
-
-	// Escape to clear selection
-	useKeyboardShortcut({
-		key: "Escape",
-		handler: useCallback(
-			() => listState.clearRowSelection(),
-			[listState.clearRowSelection],
-		),
-		enabled: listState.hasSelection,
-	});
-
-	// Custom event handler for programmatic trigger
-	useEffect(() => {
-		const customHandler = () => {
-			if (enableCreateShortcut) {
-				listState.setModalOpen(true);
-			}
-		};
-
-		window.addEventListener("create-task-shortcut", customHandler);
-		return () => {
-			window.removeEventListener("create-task-shortcut", customHandler);
-		};
-	}, [listState.setModalOpen, enableCreateShortcut]);
-}
-
-// Inner component that uses the context
 function TasksPageInner(props: TasksPageProps) {
 	const {
 		pageTitle,
 		pageIcon,
-		secondaryLabel,
 		taskSource = "all",
 		pagePredicates = [],
 		pagePredicateMode = "any",
@@ -122,26 +71,20 @@ function TasksPageInner(props: TasksPageProps) {
 
 	const { tasks: allTasks } = useTasks(taskSource === "archived");
 
-	// Get URL state using nuqs
 	const [search] = useQueryStates(tasksFilterParsers);
 
-	// Apply page predicates (layer 2)
 	const pageTasks = useMemo(() => {
 		if (pagePredicates.length === 0) return allTasks;
 		return bulkFilterItems(allTasks, pagePredicateMode, pagePredicates);
 	}, [allTasks, pagePredicates, pagePredicateMode]);
 
-	// List page state
 	const listState = useListPageState({
 		filterStore,
 		displayStore,
 		savedViews,
 	});
+	const { openTask } = useCreateModalsStore();
 
-	// Keyboard handlers
-	useTasksKeyboardShortcuts(listState, showCreateButton);
-
-	// URL sync
 	useSyncTasksFiltersToUrl({
 		filterStore,
 		displayStore,
@@ -149,7 +92,6 @@ function TasksPageInner(props: TasksPageProps) {
 		activeViewId: savedViews.activeViewId,
 	});
 
-	// Initialize from URL search params (only once on mount)
 	const initializedRef = useRef(false);
 	useEffect(() => {
 		if (!initializedRef.current) {
@@ -163,11 +105,9 @@ function TasksPageInner(props: TasksPageProps) {
 		}
 	}, [search, filterStore, displayStore, savedViews]);
 
-	// Reset handler for primary button
 	const handleReset = useCallback(() => {
 		filterStore.getState().clearFilters();
 
-		// Restore default display settings instead of clearing
 		if (props.defaultDisplaySettings) {
 			displayStore.getState().fromJSON(
 				JSON.stringify({
@@ -195,15 +135,6 @@ function TasksPageInner(props: TasksPageProps) {
 				label={pageTitle}
 				onClick={handleReset}
 			/>
-			{secondaryLabel ? (
-				<>
-					<Separator
-						orientation="vertical"
-						className="mx-2 data-[orientation=vertical]:h-4"
-					/>
-					<PageHeader.Secondary label={secondaryLabel} />
-				</>
-			) : null}
 
 			<Separator
 				orientation="vertical"
@@ -224,11 +155,7 @@ function TasksPageInner(props: TasksPageProps) {
 
 			<PageHeader.Actions>
 				{showCreateButton ? (
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => listState.setModalOpen(true)}
-					>
+					<Button variant="ghost" size="sm" onClick={openTask}>
 						<Plus className="size-4" />
 						Add task
 					</Button>
@@ -243,17 +170,15 @@ function TasksPageInner(props: TasksPageProps) {
 	const table = (
 		<>
 			{subHeader}
-			<div className="px-4 lg:px-6">
-				<TasksDataTable
-					columns={columns}
-					tasks={pageTasks}
-					enableRowSelection={true}
-					rowSelection={listState.rowSelection}
-					onRowSelectionChange={listState.setRowSelection}
-					autoHideRowSelection={true}
-					skipClientFiltering={taskSource === "archived"}
-				/>
-			</div>
+			<TasksDataTable
+				columns={columns}
+				tasks={pageTasks}
+				enableRowSelection={true}
+				rowSelection={listState.rowSelection}
+				onRowSelectionChange={listState.setRowSelection}
+				autoHideRowSelection={true}
+				skipClientFiltering={taskSource === "archived"}
+			/>
 		</>
 	);
 
@@ -268,21 +193,11 @@ function TasksPageInner(props: TasksPageProps) {
 		listState.setRowSelection(allSelected);
 	}, [pageTasks, listState.setRowSelection]);
 
-	const modal = (
-		<>
-			<TaskModal
-				open={listState.modalOpen}
-				onOpenChange={listState.setModalOpen}
-				mode="create"
-			/>
-
-			{props.bulkActions ?? (
-				<BulkActionsBar
-					totalTasks={pageTasks.length}
-					onSelectAll={handleSelectAll}
-				/>
-			)}
-		</>
+	const modal = props.bulkActions ?? (
+		<BulkActionsBar
+			totalTasks={pageTasks.length}
+			onSelectAll={handleSelectAll}
+		/>
 	);
 
 	return (
@@ -309,7 +224,6 @@ function TasksPageInner(props: TasksPageProps) {
 	);
 }
 
-// Main exported component with provider
 export function TasksPage(props: TasksPageProps) {
 	const { pageId, defaultFilters, defaultDisplaySettings } = props;
 

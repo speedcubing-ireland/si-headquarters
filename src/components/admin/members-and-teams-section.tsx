@@ -12,7 +12,7 @@ import {
 	useAdminMembersAndTeams,
 	useAdminMemberMutations,
 } from "@/hooks/use-convex-data";
-import type { Id } from "../../../convex/_generated/dataModel";
+import type { Id } from "@/convex/_generated/dataModel";
 import { Loader2 } from "lucide-react";
 
 export function MembersAndTeamsSection() {

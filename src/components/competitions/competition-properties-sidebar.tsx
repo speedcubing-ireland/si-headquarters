@@ -10,13 +10,11 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 
-/** Parse Google Sheet ID from a full URL or raw sheet ID. */
 function parseGoogleSheetId(input: string): string | null {
 	const trimmed = input.trim();
 	if (!trimmed) return null;
 	const urlMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
 	if (urlMatch) return urlMatch[1];
-	// Treat as raw ID (Google sheet IDs are alphanumeric with - and _)
 	if (/^[a-zA-Z0-9_-]+$/.test(trimmed)) return trimmed;
 	return null;
 }
@@ -56,17 +54,9 @@ import { cn } from "@/lib/utils";
 interface CompetitionPropertiesSidebarProps {
 	competition: Competition;
 	tasks: Task[];
-	/**
-	 * Render mode:
-	 * - 'sidebar': Desktop sidebar + mobile FAB/Sheet (default)
-	 * - 'popover': Popover trigger for header use
-	 */
 	renderMode?: "sidebar" | "popover";
-	/** When renderMode is 'popover', this controls the popover open state */
 	open?: boolean;
-	/** When renderMode is 'popover', this is called when open state changes */
 	onOpenChange?: (open: boolean) => void;
-	/** Optional className for the popover trigger button */
 	triggerClassName?: string;
 }
 
@@ -107,18 +97,15 @@ export function CompetitionPropertiesSidebar({
 
 	const sidebarContent = (
 		<div className="flex flex-col gap-6 py-5 px-5">
-			{/* Properties Section */}
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					Properties
 				</h3>
 				<div className="flex flex-col gap-1">
-					{/* Phase - uses EditablePhaseCell */}
 					<PropertyRow label="Phase" icon={<Circle className="size-3.5" />}>
 						<EditablePhaseCell competition={competition} />
 					</PropertyRow>
 
-					{/* Date Range - inline calendar picker */}
 					<PropertyRow
 						label="Dates"
 						icon={<CalendarDays className="size-3.5" />}
@@ -151,7 +138,6 @@ export function CompetitionPropertiesSidebar({
 						</DropdownMenu>
 					</PropertyRow>
 
-					{/* Task Stats (read-only) */}
 					<PropertyRow label="Tasks">
 						<span className="text-sm text-muted-foreground">
 							<span className="text-foreground font-medium">
@@ -167,7 +153,6 @@ export function CompetitionPropertiesSidebar({
 						</span>
 					</PropertyRow>
 
-					{/* Google Sheet — add or remove only */}
 					<div className="flex min-h-9 flex-col gap-2 px-3 -mx-3">
 						{competition.compSheet ? (
 							<div className="flex items-center gap-1">
@@ -279,23 +264,19 @@ export function CompetitionPropertiesSidebar({
 
 			<Separator />
 
-			{/* People Section */}
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					People
 				</h3>
 				<div className="flex flex-col gap-1">
-					{/* Competition Lead */}
 					<PropertyRow label="Competition lead">
 						<EditableCompLeadCell competition={competition} />
 					</PropertyRow>
 
-					{/* Lead Delegate */}
 					<PropertyRow label="Lead delegate">
 						<EditableLeadDelegateCell competition={competition} />
 					</PropertyRow>
 
-					{/* Organisers */}
 					<PropertyRow label="Organisers" icon={<Users className="size-3.5" />}>
 						<EditableOrganisersCell competition={competition} />
 					</PropertyRow>
@@ -304,7 +285,6 @@ export function CompetitionPropertiesSidebar({
 
 			<Separator />
 
-			{/* Phases Section */}
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					All Phases

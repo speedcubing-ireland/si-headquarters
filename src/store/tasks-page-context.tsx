@@ -1,39 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { StoreApi, UseBoundStore } from "zustand";
-import {
-	useTasksPageStore,
-	type TasksPageConfig,
-} from "./create-tasks-page-store";
-import type { TasksFilters } from "./tasks-filter-types";
-import type { TaskFilterType } from "./tasks-filter-store";
-import type { TaskPriority, TaskStatus } from "@/data/types-new";
-import type { BaseFilterStoreState } from "./shared-filter-factory";
-import type { DisplaySettingsState } from "./display-settings-factory";
-import type { EntitySavedViewsHook } from "./use-entity-saved-views";
+import { useTasksPageStore } from "./create-tasks-page-store";
 
-// Store types
-export type TasksFilterStore = UseBoundStore<
-	StoreApi<
-		BaseFilterStoreState<
-			TasksFilters,
-			TaskFilterType,
-			TaskStatus | TaskPriority | string
-		>
-	>
->;
-
-export type TasksDisplayStore = UseBoundStore<StoreApi<DisplaySettingsState>>;
-
-// Context type
-export interface TasksPageContextValue {
-	filterStore: TasksFilterStore;
-	displayStore: TasksDisplayStore;
-	savedViews: EntitySavedViewsHook;
-	pageId: string;
-}
-
-// List state exposed to children (e.g. BulkActionsBar, custom bulk actions)
-export interface TasksListState {
+export const TasksListStateContext = createContext<{
 	selectedIds: string[];
 	clearRowSelection: () => void;
 	setModalOpen: (open: boolean) => void;
@@ -45,9 +13,7 @@ export interface TasksListState {
 			| Record<string, boolean>
 			| ((prev: Record<string, boolean>) => Record<string, boolean>),
 	) => void;
-}
-
-export const TasksListStateContext = createContext<TasksListState | null>(null);
+} | null>(null);
 
 export function useTasksListStateContext() {
 	const context = useContext(TasksListStateContext);
@@ -59,12 +25,13 @@ export function useTasksListStateContext() {
 	return context;
 }
 
-// Create context
-export const TasksPageContext = createContext<TasksPageContextValue | null>(
-	null,
-);
+export const TasksPageContext = createContext<{
+	filterStore: ReturnType<typeof useTasksPageStore>["useFilters"];
+	displayStore: ReturnType<typeof useTasksPageStore>["useDisplay"];
+	savedViews: ReturnType<typeof useTasksPageStore>["useSavedViews"];
+	pageId: string;
+} | null>(null);
 
-// Hook to use the context
 export function useTasksPageContext() {
 	const context = useContext(TasksPageContext);
 	if (!context) {
@@ -75,18 +42,15 @@ export function useTasksPageContext() {
 	return context;
 }
 
-// Provider component
-interface TasksPageProviderProps {
-	children: ReactNode;
-	pageId: string;
-	config?: Omit<TasksPageConfig, "pageId">;
-}
-
 export function TasksPageProvider({
 	children,
 	pageId,
 	config,
-}: TasksPageProviderProps) {
+}: {
+	children: ReactNode;
+	pageId: string;
+	config?: Parameters<typeof useTasksPageStore>[1];
+}) {
 	const stores = useTasksPageStore(pageId, config);
 
 	return (

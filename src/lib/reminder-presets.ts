@@ -18,15 +18,13 @@ export type ReminderPresetKey =
 const DEFAULT_REMIND_HOUR = 9;
 const LATER_TODAY_HOUR = 18;
 
-export type ReminderPresetOption = {
+const defaultFrom = () => new Date();
+
+export const REMINDER_PRESETS: {
 	key: ReminderPresetKey;
 	label: string;
 	getRemindAt: (from?: Date) => string;
-};
-
-const defaultFrom = () => new Date();
-
-export const REMINDER_PRESETS: ReminderPresetOption[] = [
+}[] = [
 	{
 		key: "in_1h",
 		label: "In 1 hour",
@@ -68,7 +66,7 @@ export const REMINDER_PRESETS: ReminderPresetOption[] = [
 	},
 ];
 
-export const SNOOZE_PRESETS: ReminderPresetOption[] = REMINDER_PRESETS.filter(
+export const SNOOZE_PRESETS = REMINDER_PRESETS.filter(
 	(p) => p.key !== "custom",
 );
 
@@ -84,8 +82,4 @@ export function getRemindAtForPreset(
 	return preset
 		? preset.getRemindAt(from ?? new Date())
 		: new Date().toISOString();
-}
-
-export function getPresetLabel(key: ReminderPresetKey): string {
-	return REMINDER_PRESETS.find((p) => p.key === key)?.label ?? key;
 }

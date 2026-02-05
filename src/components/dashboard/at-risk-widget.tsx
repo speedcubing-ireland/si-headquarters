@@ -25,13 +25,10 @@ export function AtRiskWidget() {
 		today.setHours(0, 0, 0, 0);
 
 		for (const task of tasks) {
-			// Only show tasks assigned to current user
 			if (task.assignee?.id !== currentUser.id) continue;
 
-			// Skip completed/cancelled tasks
 			if (task.status === "done" || task.status === "cancelled") continue;
 
-			// Check overdue
 			if (task.dueDate) {
 				const dueDate = new Date(task.dueDate);
 				if (dueDate < today) {
@@ -45,7 +42,6 @@ export function AtRiskWidget() {
 					continue;
 				}
 
-				// Check due soon (within 2 days)
 				const twoDaysFromNow = new Date(today);
 				twoDaysFromNow.setDate(today.getDate() + 2);
 				if (dueDate <= twoDaysFromNow) {
@@ -60,7 +56,6 @@ export function AtRiskWidget() {
 			}
 		}
 
-		// Sort by severity: overdue first, then due soon
 		return items.sort((a, b) => {
 			const severity = { overdue: 0, due_soon: 1 };
 			return severity[a.reason] - severity[b.reason];

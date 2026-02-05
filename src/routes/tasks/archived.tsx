@@ -34,7 +34,6 @@ function ArchivedBulkActions({
 	return (
 		<div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-t">
 			<div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 max-w-full">
-				{/* Selection info */}
 				<div className="flex items-center gap-2 sm:gap-3 shrink-0">
 					<span className="text-sm font-medium text-foreground">
 						{listState.selectedIds.length}{" "}
@@ -54,7 +53,6 @@ function ArchivedBulkActions({
 
 				<div className="h-4 w-px bg-border shrink-0" />
 
-				{/* Mobile Actions Dropdown */}
 				<div className="sm:hidden flex items-center gap-1">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -80,7 +78,6 @@ function ArchivedBulkActions({
 					</DropdownMenu>
 				</div>
 
-				{/* Desktop Actions */}
 				<div className="hidden sm:flex items-center gap-2">
 					<Button
 						variant="outline"

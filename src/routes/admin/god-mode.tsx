@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import { useIsDirector } from "@/hooks/use-convex-data";
 import { CheckCircle2, Loader2, Link2Off } from "lucide-react";
 import { MembersAndTeamsSection } from "@/components/admin/members-and-teams-section";

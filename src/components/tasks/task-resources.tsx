@@ -32,7 +32,6 @@ interface TaskResourcesSectionProps {
 	task: Task;
 }
 
-// Detect resource type from URL
 function detectResourceType(url: string): LinkedResource["type"] | "url" {
 	if (url.includes("canva.com")) return "canva-design";
 	if (
@@ -140,21 +139,18 @@ function AddResourceDialog({
 
 		switch (finalType) {
 			case "canva-design": {
-				// Extract design ID from Canva URL
 				const match = url.match(/\/design\/([A-Za-z0-9]+)/);
 				const designId = match ? match[1] : url.split("/").pop() || "";
 				resource = { type: "canva-design", designId };
 				break;
 			}
 			case "google-sheet": {
-				// Extract sheet ID from Google Sheets URL
 				const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
 				const sheetId = match ? match[1] : url.split("/").pop() || "";
 				resource = { type: "google-sheet", sheetId };
 				break;
 			}
 			default:
-				// Fallback to generic link stored as canva-design with the URL as ID
 				resource = { type: "canva-design", designId: url };
 		}
 

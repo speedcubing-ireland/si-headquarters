@@ -72,7 +72,7 @@ export function filterTasksWithState(
 	return filterTasks(tasks, filters, matchMode);
 }
 
-export function filterTasks(
+function filterTasks(
 	tasks: Task[],
 	filters: TasksFilters,
 	matchMode: MatchMode,
@@ -147,10 +147,9 @@ export function filterTasks(
 		return tasks;
 	}
 
-	return tasks.filter((task) => {
-		if (matchMode === "all") {
-			return activeMatchers.every((matcher) => matcher(task));
-		}
-		return activeMatchers.some((matcher) => matcher(task));
-	});
+	return tasks.filter((task) =>
+		matchMode === "all"
+			? activeMatchers.every((matcher) => matcher(task))
+			: activeMatchers.some((matcher) => matcher(task)),
+	);
 }

@@ -14,10 +14,8 @@ import type { DateRangeDisplay } from "@/lib/format-utils";
 import { formatDateRangeForDisplay } from "@/lib/format-utils";
 import { SharedFilterChip } from "./filter-chip";
 
-export type DateRangeForChip = DateRangeDisplay & { isNot?: boolean };
-
 type SharedDateRangeFilterChipProps = {
-	dateRange: DateRangeForChip;
+	dateRange: DateRangeDisplay & { isNot?: boolean };
 	onClear: () => void;
 	/**
 	 * If provided, renders the "is / is not" dropdown (competitions-style).

@@ -13,29 +13,7 @@ interface KeyboardShortcutsHelpProps {
 const SHORTCUT_GROUPS = [
 	{
 		name: "Navigation",
-		shortcuts: [
-			{ key: "Cmd/Ctrl + K", description: "Open command menu" },
-			{ key: "G then I", description: "Go to Inbox" },
-			{ key: "G then M", description: "Go to My Tasks" },
-			{ key: "G then T", description: "Go to All Tasks" },
-			{ key: "G then C", description: "Go to Competitions" },
-		],
-	},
-	{
-		name: "Actions",
-		shortcuts: [
-			{ key: "C", description: "Create new task" },
-			{ key: "?", description: "Show keyboard shortcuts" },
-			{ key: "Esc", description: "Close modal / Clear selection" },
-		],
-	},
-	{
-		name: "Task List",
-		shortcuts: [
-			{ key: "Cmd/Ctrl + A", description: "Select all visible tasks" },
-			{ key: "Shift + Click", description: "Select range of tasks" },
-			{ key: "Delete", description: "Archive selected tasks" },
-		],
+		shortcuts: [{ key: "Cmd/Ctrl + K", description: "Open command menu" }],
 	},
 	{
 		name: "Task Detail",

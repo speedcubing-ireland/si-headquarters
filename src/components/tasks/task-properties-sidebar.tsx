@@ -48,19 +48,10 @@ import { cn } from "@/lib/utils";
 
 interface TaskPropertiesSidebarProps {
 	task: Task;
-	/**
-	 * Render mode:
-	 * - 'sidebar': Desktop sidebar + mobile FAB/Sheet (default)
-	 * - 'popover': Popover trigger for header use
-	 */
 	renderMode?: "sidebar" | "popover";
-	/** When renderMode is 'popover', this controls the popover open state */
 	open?: boolean;
-	/** When renderMode is 'popover', this is called when open state changes */
 	onOpenChange?: (open: boolean) => void;
-	/** Optional className for the popover trigger button */
 	triggerClassName?: string;
-	/** When provided, shows a Delete task button that calls this (e.g. to open confirm dialog) */
 	onDeleteClick?: () => void;
 }
 
@@ -272,14 +263,10 @@ export function TaskPropertiesSidebar({
 		const required = task.requiredApprovalBy;
 		const approved = task.approvedBy;
 		const approvedUserIds = new Set(approved.map((a) => a.id));
-
-		// Check if each required approver is satisfied
 		const isApproved = (approver: Team | User): boolean => {
 			if ("members" in approver) {
-				// Team: check if any member has approved
 				return approver.members.some((m) => approvedUserIds.has(m.id));
 			}
-			// User: check if this user has approved
 			return approvedUserIds.has(approver.id);
 		};
 
@@ -297,10 +284,8 @@ export function TaskPropertiesSidebar({
 
 	const isCurrentUserApprover = (approver: Team | User) => {
 		if ("members" in approver) {
-			// It's a team - check if current user is a member
 			return approver.members.some((m) => m.id === currentUser?.id);
 		}
-		// It's a user
 		return approver.id === currentUser?.id;
 	};
 
@@ -311,7 +296,6 @@ export function TaskPropertiesSidebar({
 
 	const handleRemoveApprover = (approverId: string) => {
 		if (!currentUser) return;
-		// Encode the approver key based on whether it's a user or team
 		const approver = task.requiredApprovalBy.find((a) => a.id === approverId);
 		if (!approver) return;
 		const approverKey =
@@ -331,28 +315,23 @@ export function TaskPropertiesSidebar({
 
 	const sidebarContent = (
 		<div className="flex flex-col gap-6 py-5 px-5">
-			{/* Main Properties */}
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					Properties
 				</h3>
 				<div className="flex flex-col gap-1">
-					{/* Status */}
 					<PropertyRow label="Status">
 						<EditableTaskStatus status={task.status} taskId={task.id} />
 					</PropertyRow>
 
-					{/* Priority */}
 					<PropertyRow label="Priority">
 						<EditableTaskPriority priority={task.priority} taskId={task.id} />
 					</PropertyRow>
 
-					{/* Assignee */}
 					<PropertyRow label="Assignee">
 						<EditableTaskAssignee assignee={task.assignee} taskId={task.id} />
 					</PropertyRow>
 
-					{/* Owner */}
 					<PropertyRow label="Owner">
 						<EditableTaskOwner owner={task.owner} taskId={task.id} />
 					</PropertyRow>
@@ -361,7 +340,6 @@ export function TaskPropertiesSidebar({
 
 			<Separator />
 
-			{/* Approval Section */}
 			<section className="flex flex-col gap-2">
 				<div className="flex items-center justify-between">
 					<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
@@ -391,7 +369,6 @@ export function TaskPropertiesSidebar({
 						{approvalStatus.required.map((approver) => {
 							const isApproved = (() => {
 								if ("members" in approver) {
-									// Team: check if any member has approved
 									const approvedUserIds = new Set(
 										task.approvedBy.map((a) => a.id),
 									);
@@ -399,7 +376,6 @@ export function TaskPropertiesSidebar({
 										approvedUserIds.has(m.id),
 									);
 								}
-								// User: check if this user has approved
 								return task.approvedBy.some((a) => a.id === approver.id);
 							})();
 							return (
@@ -439,7 +415,6 @@ export function TaskPropertiesSidebar({
 
 			<Separator />
 
-			{/* Metadata Section */}
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					Details

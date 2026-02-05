@@ -38,14 +38,12 @@ function isDateTimeInFuture(date: Date, time: string): boolean {
 	return selectedDateTime > new Date();
 }
 
-export type RemindMeDialogMode = "set" | "reschedule";
-
 interface RemindMeDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	taskId: string;
 	onSetReminder?: (remindAt: string, message?: string) => void;
-	mode?: RemindMeDialogMode;
+	mode?: "set" | "reschedule";
 	reminderId?: string;
 	onReschedule?: (reminderId: string, remindAt: string) => void;
 }

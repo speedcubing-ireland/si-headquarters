@@ -24,7 +24,6 @@ import type {
 	Team as TeamType,
 } from "@/data/types-new";
 
-// Ordering constants for sorting
 export const taskStatusOrder: Record<TaskStatus, number> = {
 	backlog: 0,
 	"to-do": 1,
@@ -41,34 +40,29 @@ export const taskPriorityOrder: Record<TaskPriority, number> = {
 	urgent: 3,
 };
 
-// From new.tasks.my.tsx - discriminated union for option rendering
 export type TaskFilterValue = {
 	value: string;
 	label: string;
-} & (
-	| { iconType: "icon"; icon: LucideIcon }
-	| { iconType: "avatar"; avatarUrl: string }
-	| { iconType: "none" }
-);
+	icon?: LucideIcon | null;
+	avatarUrl?: string;
+	color?: string;
+};
 
-// Context passed to dynamic getValues functions
 export type FilterContext = {
 	users: UserType[];
 	teams: TeamType[];
 	labels: TaskLabel[];
 };
 
-// From new.tasks.my.tsx - fixed vs dynamic filter types
 export type TaskFilterType = {
-	id: string; // "status" | "priority" | "assignee" | etc.
-	displayName: string; // "Status", "Priority", "Person", etc.
+	id: string;
+	displayName: string;
 	displayIcon: LucideIcon;
 } & (
 	| { type: "fixed"; values: TaskFilterValue[] }
 	| { type: "dynamic"; getValues: (ctx: FilterContext) => TaskFilterValue[] }
 );
 
-// The single source of truth - add new filters here only
 export const TASK_FILTER_TYPES: TaskFilterType[] = [
 	{
 		id: "status",
@@ -79,27 +73,23 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 			{
 				value: "backlog",
 				label: "Backlog",
-				iconType: "icon",
 				icon: CircleDashed,
 			},
-			{ value: "to-do", label: "To Do", iconType: "icon", icon: Circle },
+			{ value: "to-do", label: "To Do", icon: Circle },
 			{
 				value: "in-progress",
 				label: "In Progress",
-				iconType: "icon",
 				icon: CircleDot,
 			},
 			{
 				value: "awaiting-review",
 				label: "Awaiting Review",
-				iconType: "icon",
 				icon: CircleUser,
 			},
-			{ value: "done", label: "Done", iconType: "icon", icon: CheckCircle2 },
+			{ value: "done", label: "Done", icon: CheckCircle2 },
 			{
 				value: "cancelled",
 				label: "Cancelled",
-				iconType: "icon",
 				icon: XCircle,
 			},
 		],
@@ -110,13 +100,12 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 		displayName: "Priority",
 		displayIcon: Dice2,
 		values: [
-			{ value: "low", label: "Low", iconType: "icon", icon: Dice1 },
-			{ value: "medium", label: "Medium", iconType: "icon", icon: Dice2 },
-			{ value: "high", label: "High", iconType: "icon", icon: Dice3 },
+			{ value: "low", label: "Low", icon: Dice1 },
+			{ value: "medium", label: "Medium", icon: Dice2 },
+			{ value: "high", label: "High", icon: Dice3 },
 			{
 				value: "urgent",
 				label: "Urgent",
-				iconType: "icon",
 				icon: TriangleAlert,
 			},
 		],
@@ -130,7 +119,6 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 			ctx.users.map((u) => ({
 				value: u.id,
 				label: u.name,
-				iconType: "avatar",
 				avatarUrl: u.avatarUrl ?? "",
 			})),
 	},
@@ -143,7 +131,6 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 			ctx.labels.map((l) => ({
 				value: l.id,
 				label: l.name,
-				iconType: "none",
 			})),
 	},
 	{
@@ -155,13 +142,11 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 			...ctx.users.map((u) => ({
 				value: u.id,
 				label: u.name,
-				iconType: "avatar" as const,
 				avatarUrl: u.avatarUrl ?? "",
 			})),
 			...ctx.teams.map((t) => ({
 				value: t.id,
 				label: t.name,
-				iconType: "none" as const,
 			})),
 		],
 	},
@@ -171,19 +156,17 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 		displayName: "Parent",
 		displayIcon: Folder,
 		values: [
-			{ value: "task", label: "Sub-task", iconType: "icon", icon: Folder },
-			{ value: "phase", label: "Phase", iconType: "icon", icon: Folder },
+			{ value: "task", label: "Sub-task", icon: Folder },
+			{ value: "phase", label: "Phase", icon: Folder },
 			{
 				value: "competition",
 				label: "Competition",
-				iconType: "icon",
 				icon: Folder,
 			},
 		],
 	},
 ];
 
-// Helper to get options for a filter type
 export function getFilterValues(
 	typeId: string,
 	ctx: FilterContext,
@@ -195,12 +178,6 @@ export function getFilterValues(
 		: filterType.getValues(ctx);
 }
 
-// Helper to get filter type config by id
 export function getFilterConfig(typeId: string): TaskFilterType | undefined {
 	return TASK_FILTER_TYPES.find((t) => t.id === typeId);
-}
-
-// Get all filter type IDs
-export function getFilterTypeIds(): string[] {
-	return TASK_FILTER_TYPES.map((t) => t.id);
 }

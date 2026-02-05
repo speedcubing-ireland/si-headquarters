@@ -19,7 +19,7 @@ import {
 	type WeekendOverride,
 } from "@/store/calendar-weekend-overrides-store";
 import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import {
 	getCurrentPhaseKey,
 	getPhaseClass,

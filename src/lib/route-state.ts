@@ -17,82 +17,12 @@ import { serializeDisplaySettingsToSearch } from "./route-search-params";
 
 type DisplayStore = UseBoundStore<StoreApi<DisplaySettingsState>>;
 
-/**
- * Entity type for distinguishing tasks vs competitions
- */
-export type EntityType = "tasks" | "competitions";
-
-/**
- * Check if we're navigating to a detail route (for filter preservation)
- */
-export function isDetailNavigation(fromPath: string, toPath: string): boolean {
-	// Detail routes have a $id parameter
-	const isFromList = !fromPath.includes("/$");
-	const isToDetail = toPath.includes("/$");
-	const isSameEntity =
-		getEntityFromPath(fromPath) === getEntityFromPath(toPath);
-
-	return isFromList && isToDetail && isSameEntity;
-}
-
-/**
- * Extract entity type from path
- */
-function getEntityFromPath(path: string): EntityType | null {
-	if (path.includes("/tasks")) return "tasks";
-	if (path.includes("/competitions")) return "competitions";
-	return null;
-}
-
-/**
- * Preserve filters for detail view navigation
- * Returns the parent route filters that should be restored on back
- */
-export function preserveFiltersForDetail<TFilters>(
-	filters: TFilters,
-	matchMode: MatchMode,
-	display: {
-		grouping: string | null;
-		subGrouping: string | null;
-		ordering: { field: string | null; direction: "asc" | "desc" };
-	},
-): string {
-	return JSON.stringify({ filters, matchMode, display });
-}
-
-/**
- * Restore filters when returning from detail view
- */
-export function restoreFiltersFromDetail<TFilters>(preserved: string): {
-	filters: TFilters;
-	matchMode: MatchMode;
-	display: {
-		grouping: string | null;
-		subGrouping: string | null;
-		ordering: { field: string | null; direction: "asc" | "desc" };
-	};
-} | null {
-	try {
-		return JSON.parse(preserved);
-	} catch {
-		return null;
-	}
-}
-
-// Re-export types for backward compatibility
-export type {
-	TasksSearchParams,
-	CompetitionsSearchParams,
-} from "./route-search-params";
-
-// Import types for the legacy API
 import type { TasksFilters } from "@/store/tasks-filter-types";
 import type { CompetitionsFilters } from "@/store/competitions-filter-types";
 import type { BaseFilterStoreState } from "@/store/shared-filter-factory";
 import type { TaskFilterType } from "@/store/tasks-filter-store";
 import type { FilterType } from "@/store/competitions-filter-store";
 
-// Type helpers for store types
 type TasksFilterStore = UseBoundStore<
 	StoreApi<BaseFilterStoreState<TasksFilters, TaskFilterType, string>>
 >;
@@ -100,12 +30,6 @@ type CompetitionsFilterStore = UseBoundStore<
 	StoreApi<BaseFilterStoreState<CompetitionsFilters, FilterType, string>>
 >;
 
-/**
- * Hook to sync filter store with URL search params using nuqs
- * - Initialize from URL on mount
- * - Sync store changes back to URL
- * - Respect saved views
- */
 export function useSyncTasksFiltersToUrl({
 	filterStore,
 	displayStore,
@@ -128,14 +52,11 @@ export function useSyncTasksFiltersToUrl({
 		shallow: false,
 	});
 
-	// Sync URL -> Store (on mount and when URL changes)
 	useEffect(() => {
-		// If active view is set, don't sync from URL (view takes precedence)
 		if (activeViewId) return;
 
 		const filterState = filterStore.getState();
 
-		// Parse filters from URL - only include defined values
 		const urlFilters: Partial<{
 			status: FilterItem<string>[];
 			priority: FilterItem<string>[];
@@ -171,7 +92,6 @@ export function useSyncTasksFiltersToUrl({
 
 		const urlMatchMode = urlState.match ?? "all";
 
-		// Apply to stores - cast FilterItem<string>[] to typed FilterItems
 		filterStore.setState({
 			filters: {
 				...filterState.filters,
@@ -187,7 +107,6 @@ export function useSyncTasksFiltersToUrl({
 		});
 	}, [urlState, activeViewId, filterStore, displayStore]);
 
-	// Sync Store -> URL (with debounce)
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
@@ -200,22 +119,17 @@ export function useSyncTasksFiltersToUrl({
 				const filterState = filterStore.getState();
 				const displayState = displayStore.getState();
 
-				// If active view, just include the view ID
 				if (activeViewId) {
 					setUrlState({ view: activeViewId });
 					return;
 				}
 
-				// Serialize display settings
 				const displayParams = serializeDisplaySettingsToSearch(displayState);
 
-				// Serialize date range
 				const dateRangeParams = serializeDateRangeToNuqs(
 					filterState.filters.dateRange,
 				);
 
-				// Clear URL parameters with null (per nuqs best practices)
-				// Pass FilterItems directly - nuqs will serialize them
 				setUrlState({
 					view: null,
 					status:
@@ -268,9 +182,6 @@ export function useSyncTasksFiltersToUrl({
 	}, [filterStore, displayStore, activeViewId, setUrlState]);
 }
 
-/**
- * Hook to sync competitions filter store with URL using nuqs
- */
 export function useSyncCompetitionsFiltersToUrl({
 	filterStore,
 	displayStore,
@@ -293,14 +204,11 @@ export function useSyncCompetitionsFiltersToUrl({
 		shallow: false,
 	});
 
-	// Sync URL -> Store (on mount and when URL changes)
 	useEffect(() => {
-		// If active view is set, don't sync from URL (view takes precedence)
 		if (activeViewId) return;
 
 		const filterState = filterStore.getState();
 
-		// Parse filters from URL - only include defined values
 		const urlFilters: Partial<{
 			phase: FilterItem<string>[];
 			compLead: FilterItem<string>[];
@@ -332,7 +240,6 @@ export function useSyncCompetitionsFiltersToUrl({
 
 		const urlMatchMode = urlState.match ?? "all";
 
-		// Apply to stores - cast FilterItem<string>[] to typed FilterItems
 		filterStore.setState({
 			filters: {
 				...filterState.filters,
@@ -348,7 +255,6 @@ export function useSyncCompetitionsFiltersToUrl({
 		});
 	}, [urlState, activeViewId, filterStore, displayStore]);
 
-	// Sync Store -> URL (with debounce)
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
@@ -366,16 +272,12 @@ export function useSyncCompetitionsFiltersToUrl({
 					return;
 				}
 
-				// Serialize display settings
 				const displayParams = serializeDisplaySettingsToSearch(displayState);
 
-				// Serialize date range
 				const dateRangeParams = serializeDateRangeToNuqs(
 					filterState.filters.dateRange,
 				);
 
-				// Clear URL parameters with null (per nuqs best practices)
-				// Pass FilterItems directly - nuqs will serialize them
 				setUrlState({
 					view: null,
 					phase:
@@ -420,10 +322,6 @@ export function useSyncCompetitionsFiltersToUrl({
 	}, [filterStore, displayStore, activeViewId, setUrlState]);
 }
 
-/**
- * Initialize tasks filter store from URL search params (nuqs values)
- * Call this in useEffect on component mount
- */
 export function initializeTasksStoreFromSearch(
 	search: {
 		view: string | null;
@@ -454,7 +352,6 @@ export function initializeTasksStoreFromSearch(
 	},
 	forcedDefaults?: { assignee?: string[]; grouping?: string },
 ): string | null {
-	// Check if a saved view is specified
 	if (search.view) {
 		const view = savedViews.views.find((v) => v.id === search.view);
 		if (view) {
@@ -462,7 +359,6 @@ export function initializeTasksStoreFromSearch(
 				const filterData = JSON.parse(view.filtersJson);
 				const displayData = JSON.parse(view.displaySettingsJson);
 
-				// Apply saved view, but override with forced defaults if provided
 				filterStore.setState({
 					filters: {
 						...filterData.filters,
@@ -484,13 +380,10 @@ export function initializeTasksStoreFromSearch(
 
 				savedViews.setActiveView(view.id);
 				return view.id;
-			} catch {
-				// Invalid JSON, fall through to URL params
-			}
+			} catch {}
 		}
 	}
 
-	// Parse filters from URL
 	const urlFilters = {
 		status: search.status ?? undefined,
 		priority: search.priority ?? undefined,
@@ -514,7 +407,6 @@ export function initializeTasksStoreFromSearch(
 		},
 	};
 
-	// Apply forced defaults if provided (for non-customizable routes)
 	const finalFilters: TasksFilters = {
 		status: (urlFilters.status ?? []) as TasksFilters["status"],
 		priority: (urlFilters.priority ?? []) as TasksFilters["priority"],
@@ -542,9 +434,6 @@ export function initializeTasksStoreFromSearch(
 	return null;
 }
 
-/**
- * Initialize competitions filter store from URL search params (nuqs values)
- */
 export function initializeCompetitionsStoreFromSearch(
 	search: {
 		view: string | null;
@@ -572,7 +461,6 @@ export function initializeCompetitionsStoreFromSearch(
 		setActiveView: (id: string | null) => void;
 	},
 ): string | null {
-	// Check if a saved view is specified
 	if (search.view) {
 		const view = savedViews.views.find((v) => v.id === search.view);
 		if (view) {
@@ -593,13 +481,10 @@ export function initializeCompetitionsStoreFromSearch(
 
 				savedViews.setActiveView(view.id);
 				return view.id;
-			} catch {
-				// Invalid JSON, fall through to URL params
-			}
+			} catch {}
 		}
 	}
 
-	// Parse filters from URL
 	const urlFilters = {
 		phase: search.phase ?? undefined,
 		compLead: search.compLead ?? undefined,

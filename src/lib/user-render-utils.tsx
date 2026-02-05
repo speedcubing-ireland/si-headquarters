@@ -2,11 +2,6 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import type { User } from "@/data/types-new";
 import type { ReactNode } from "react";
 
-/**
- * Renders a user value for filter chips when you have a user name string.
- * Finds the user by name and renders with avatar + name.
- * Used by competitions filter chips (compLead, leadDelegate, organisers).
- */
 export function renderUserValueForFilter(
 	value: string,
 	users?: User[],
@@ -20,11 +15,6 @@ export function renderUserValueForFilter(
 	);
 }
 
-/**
- * Renders a user value for filter chips when you have a user ID string.
- * Finds the user by ID and renders with avatar + name, or "Unknown" if not found.
- * Used by tasks filter chips (assignee).
- */
 export function renderUserValueByIdForFilter(
 	value: string,
 	users: User[],

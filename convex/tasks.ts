@@ -141,9 +141,8 @@ export const get = query({
 			return task;
 		}
 
-		// Guest organizers can only see tasks from competitions they're organizing
 		if (!task.parentCompetitionId) {
-			return null; // Tasks without competition parent are only accessible to volunteers
+			return null;
 		}
 
 		const hasAccess = await hasCompetitionAccess(
@@ -237,7 +236,7 @@ export const listForUI = query({
 					competitionId,
 				);
 				if (!hasAccess) {
-					return []; // Return empty array if no access
+					return [];
 				}
 			}
 			tasks = await ctx.db
@@ -292,7 +291,6 @@ export const listForUI = query({
 				else userIds.add(t.ownerId as Id<"users">);
 			}
 			if (t.phaseId) phaseIds.add(t.phaseId);
-			// Collect approval-related IDs
 			if (t.requiredApprovalIds) {
 				for (const encoded of t.requiredApprovalIds) {
 					const decoded = decodeApprovalId(encoded);
@@ -385,7 +383,6 @@ export const listForUI = query({
 				});
 		});
 
-		// Build approval teams map
 		const approvalTeamsMap = new Map<
 			string,
 			{
@@ -511,7 +508,6 @@ export const listForUI = query({
 
 				const subTasks = subtaskRowsByParent.get(t._id) ?? [];
 
-				// Resolve approval data - combine teams maps
 				const combinedTeamsMap = new Map(teamsMap);
 				for (const [key, value] of approvalTeamsMap) {
 					combinedTeamsMap.set(key, value);
@@ -562,11 +558,9 @@ export const getForUI = query({
 
 		const volunteer = await isVolunteer(ctx);
 		if (!volunteer) {
-			// Guest organizers can only see tasks from competitions they're organizing
 			if (!t.parentCompetitionId) {
-				return null; // Tasks without competition parent are only accessible to volunteers
+				return null;
 			}
-
 			const hasAccess = await hasCompetitionAccess(
 				ctx,
 				volunteer,
@@ -578,7 +572,6 @@ export const getForUI = query({
 			}
 		}
 
-		// Collect approval-related IDs
 		const approvalUserIds = new Set<Id<"users">>();
 		const approvalTeamIds = new Set<Id<"teams">>();
 		if (t.requiredApprovalIds) {
@@ -715,7 +708,6 @@ export const getForUI = query({
 
 		const toISO = (ms: number) => new Date(ms).toISOString();
 
-		// Build approval users map
 		const approvalUsersMap = new Map<
 			string,
 			{ id: string; name: string; avatarUrl: string }
@@ -730,7 +722,6 @@ export const getForUI = query({
 				});
 		});
 
-		// Build approval teams map with members
 		const approvalTeamMemberIds = new Set<Id<"users">>();
 		approvalTeamDocs.forEach((team) => {
 			team?.memberIds.forEach((mid) => {
@@ -777,7 +768,6 @@ export const getForUI = query({
 				});
 		});
 
-		// Resolve approval data - combine users maps
 		const combinedUsersMap = new Map(approvalUsersMap);
 		if (assignee) {
 			combinedUsersMap.set(assignee.id, assignee);

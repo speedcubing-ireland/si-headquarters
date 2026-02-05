@@ -13,22 +13,6 @@ type TasksFilterValueSelectorProps<TValue extends string> = {
 	children: React.ReactNode;
 };
 
-// Convert new TaskFilterValue format to old format for SharedFilterValueSelector
-function mapToOldFormat(options: ReturnType<typeof getFilterValues>) {
-	return options.map((opt) => ({
-		value: opt.value,
-		label: opt.label,
-		icon:
-			opt.iconType === "icon"
-				? opt.icon
-				: opt.iconType === "avatar"
-					? null
-					: null,
-		avatarUrl: opt.iconType === "avatar" ? opt.avatarUrl : undefined,
-		color: undefined,
-	}));
-}
-
 export function TasksFilterValueSelector<TValue extends string>({
 	type,
 	selectedValues,
@@ -38,7 +22,7 @@ export function TasksFilterValueSelector<TValue extends string>({
 	const filterContext = useTaskFilterContext();
 	const config = getFilterConfig(type);
 	const options = mapToSharedFilterOptions(
-		mapToOldFormat(getFilterValues(type, filterContext)),
+		getFilterValues(type, filterContext),
 	);
 
 	return (

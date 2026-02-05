@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import type { CompetitionPhase } from "@/data/types-new";
 
 export function usePhases(): {

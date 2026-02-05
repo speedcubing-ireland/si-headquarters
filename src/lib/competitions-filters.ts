@@ -55,7 +55,6 @@ function buildDateMatcher(
 		if (start && end) {
 			const startTime = new Date(start).getTime();
 			const endTime = new Date(end).getTime();
-			// Overlap between [compStart, compEnd] and [start, end]
 			matches = compStartTime <= endTime && compEndTime >= startTime;
 		} else if (start) {
 			const startTime = new Date(start).getTime();
@@ -81,7 +80,7 @@ export function filterCompetitionsWithState(
 	return result;
 }
 
-export function filterCompetitions(
+function filterCompetitions(
 	competitions: Competition[],
 	filters: CompetitionsFilters,
 	matchMode: MatchMode,
@@ -143,12 +142,9 @@ export function filterCompetitions(
 		return competitions;
 	}
 
-	return competitions.filter((comp) => {
-		if (matchMode === "all") {
-			// Match ALL filters: every matcher must return true (AND logic)
-			return activeMatchers.every((matcher) => matcher(comp));
-		}
-		// Match ANY filter: at least one matcher must return true (OR logic)
-		return activeMatchers.some((matcher) => matcher(comp));
-	});
+	return competitions.filter((comp) =>
+		matchMode === "all"
+			? activeMatchers.every((matcher) => matcher(comp))
+			: activeMatchers.some((matcher) => matcher(comp)),
+	);
 }

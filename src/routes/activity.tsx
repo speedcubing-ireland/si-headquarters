@@ -136,7 +136,6 @@ function getEntityLink(
 		case "competition":
 			return { to: "/competitions/$id", params: { id: entry.entityId } };
 		case "update":
-			// Updates live under a competition; link to competition (could later deep-link to updates tab)
 			return null;
 		default:
 			return null;

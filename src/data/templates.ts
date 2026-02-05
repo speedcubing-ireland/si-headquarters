@@ -19,7 +19,6 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 	const socialMediaTeam = getTeamBySeededName(teams, "Social Media Team");
 
 	const defaultTasks: TemplateTask[] = [
-		// Pre-Announcement phase tasks
 		{
 			title: "Budget Approval",
 			description: "Review and approve competition budget",
@@ -53,7 +52,6 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			suggestedAssigneeId: null,
 			phase: "Pre-Announcement",
 		},
-		// Post-Announcement phase tasks
 		{
 			title: "Social Media Promotion",
 			description: "Create and schedule social media posts",
@@ -102,7 +100,6 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 				},
 			],
 		},
-		// Pre-Competition phase tasks
 		{
 			title: "Waiting list emailed and refunded",
 			description: "Process waiting list and send refund emails",
@@ -136,7 +133,6 @@ function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
 			suggestedAssigneeId: null,
 			phase: "Pre-Competition",
 		},
-		// Post-Competition phase tasks
 		{
 			title: "Podium photos",
 			description: "Take and post podium photos",

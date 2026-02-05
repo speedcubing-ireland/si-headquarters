@@ -15,7 +15,6 @@ function RouteComponent() {
 	const currentUser = users[0];
 
 	if (!currentUser) {
-		// Handle case where user isn't loaded yet
 		return (
 			<div className="flex h-full flex-1 items-center justify-center">
 				<p className="text-muted-foreground">Loading...</p>
@@ -23,32 +22,23 @@ function RouteComponent() {
 		);
 	}
 
-	// Calculate user's teams and IDs
 	const myTeams = teams.filter((t) => t.members.includes(currentUser));
 	const myIds = [currentUser.id, ...myTeams.map((t) => t.id)];
 
-	// Calculate competitions where user is comp lead
 	const myCompetitions = competitions
 		.filter((c) => c.compLead?.id === currentUser.id)
 		.map((c) => c.id);
 
-	// Page predicates - tasks relevant to current user (ANY match)
 	const pagePredicates: TaskPredicate[] = [
-		// Assigned to me
 		(t) => t.assignee?.id === currentUser.id,
-		// Owned by me/my team
 		(t) => (t.owner?.id ? myIds.includes(t.owner.id) : false),
-		// Awaiting my/my team's approval
 		(t) =>
 			t.requiredApprovalBy.some((entity) => {
 				if ("members" in entity) {
-					// Team: check if current user is a member
 					return entity.members.some((m) => m.id === currentUser.id);
 				}
-				// User: check if it's the current user
 				return entity.id === currentUser.id;
 			}),
-		// Within my competition (as competition lead)
 		(t) =>
 			t.parent?.type === "competition" &&
 			myCompetitions.includes(t.parent.linkedId),

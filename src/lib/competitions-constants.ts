@@ -1,6 +1,3 @@
-/**
- * Column options for grouping and ordering
- */
 export const columnOptions = [
 	{ value: "compStart", label: "Dates" },
 	{ value: "name", label: "Name" },

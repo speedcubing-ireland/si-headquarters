@@ -12,23 +12,6 @@ type TasksFilterSubMenuProps = {
 	selectedValues: string[];
 	onToggleFilter: (type: string, value: string) => void;
 };
-
-// Convert new TaskFilterValue format to old TaskFilterOption format for SharedFilterSubMenu
-function mapToOldFormat(options: TaskFilterValue[]) {
-	return options.map((opt) => ({
-		value: opt.value,
-		label: opt.label,
-		icon:
-			opt.iconType === "icon"
-				? opt.icon
-				: opt.iconType === "avatar"
-					? null
-					: null,
-		avatarUrl: opt.iconType === "avatar" ? opt.avatarUrl : undefined,
-		color: undefined,
-	}));
-}
-
 export function TasksFilterSubMenu({
 	filterType,
 	filterCount,
@@ -43,7 +26,7 @@ export function TasksFilterSubMenu({
 			filterCount={filterCount}
 			placeholder="Search"
 			emptyMessage={`No ${filterType.displayName.toLowerCase()} found.`}
-			options={mapToSharedFilterOptions(mapToOldFormat(options))}
+			options={mapToSharedFilterOptions(options)}
 			selectedValues={selectedValues}
 			onToggleFilter={(value) => onToggleFilter(filterType.id, value)}
 		/>

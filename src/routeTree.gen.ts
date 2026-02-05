@@ -9,28 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as EventsRouteImport } from './routes/events'
-import { Route as CompetitionsRouteImport } from './routes/competitions'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TeamsTeamIdRouteImport } from './routes/teams.$teamId'
-import { Route as TasksMyRouteImport } from './routes/tasks.my'
-import { Route as TasksArchivedRouteImport } from './routes/tasks.archived'
-import { Route as TasksIdRouteImport } from './routes/tasks.$id'
-import { Route as SettingsLabelsRouteImport } from './routes/settings.labels'
-import { Route as CompetitionsCalendarRouteImport } from './routes/competitions.calendar'
-import { Route as CompetitionsIdRouteImport } from './routes/competitions.$id'
-import { Route as AdminGodModeRouteImport } from './routes/admin.god-mode'
-import { Route as OauthGoogleSheetsCallbackRouteImport } from './routes/oauth.google-sheets.callback'
-import { Route as NewTasksMyRouteImport } from './routes/new.tasks.my'
+import { Route as TasksIndexRouteImport } from './routes/tasks/index'
+import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
+import { Route as TeamsTeamIdRouteImport } from './routes/teams/$teamId'
+import { Route as TasksMyRouteImport } from './routes/tasks/my'
+import { Route as TasksArchivedRouteImport } from './routes/tasks/archived'
+import { Route as TasksIdRouteImport } from './routes/tasks/$id'
+import { Route as CompetitionsCalendarRouteImport } from './routes/competitions/calendar'
+import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
+import { Route as AdminGodModeRouteImport } from './routes/admin/god-mode'
 
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const InboxRoute = InboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
@@ -39,11 +31,6 @@ const InboxRoute = InboxRouteImport.update({
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompetitionsRoute = CompetitionsRouteImport.update({
-  id: '/competitions',
-  path: '/competitions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ActivityRoute = ActivityRouteImport.update({
@@ -56,29 +43,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TasksIndexRoute = TasksIndexRouteImport.update({
+  id: '/tasks/',
+  path: '/tasks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
+  id: '/competitions/',
+  path: '/competitions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeamsTeamIdRoute = TeamsTeamIdRouteImport.update({
   id: '/teams/$teamId',
   path: '/teams/$teamId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksMyRoute = TasksMyRouteImport.update({
-  id: '/my',
-  path: '/my',
-  getParentRoute: () => TasksRoute,
+  id: '/tasks/my',
+  path: '/tasks/my',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TasksArchivedRoute = TasksArchivedRouteImport.update({
-  id: '/archived',
-  path: '/archived',
-  getParentRoute: () => TasksRoute,
+  id: '/tasks/archived',
+  path: '/tasks/archived',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TasksIdRoute = TasksIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => TasksRoute,
-} as any)
-const SettingsLabelsRoute = SettingsLabelsRouteImport.update({
-  id: '/settings/labels',
-  path: '/settings/labels',
+  id: '/tasks/$id',
+  path: '/tasks/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsCalendarRoute = CompetitionsCalendarRouteImport.update({
@@ -96,153 +88,117 @@ const AdminGodModeRoute = AdminGodModeRouteImport.update({
   path: '/admin/god-mode',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OauthGoogleSheetsCallbackRoute =
-  OauthGoogleSheetsCallbackRouteImport.update({
-    id: '/oauth/google-sheets/callback',
-    path: '/oauth/google-sheets/callback',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const NewTasksMyRoute = NewTasksMyRouteImport.update({
-  id: '/new/tasks/my',
-  path: '/new/tasks/my',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/competitions': typeof CompetitionsRouteWithChildren
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
-  '/tasks': typeof TasksRouteWithChildren
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
-  '/settings/labels': typeof SettingsLabelsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
-  '/new/tasks/my': typeof NewTasksMyRoute
-  '/oauth/google-sheets/callback': typeof OauthGoogleSheetsCallbackRoute
+  '/competitions/': typeof CompetitionsIndexRoute
+  '/tasks/': typeof TasksIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/competitions': typeof CompetitionsRouteWithChildren
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
-  '/tasks': typeof TasksRouteWithChildren
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
-  '/settings/labels': typeof SettingsLabelsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
-  '/new/tasks/my': typeof NewTasksMyRoute
-  '/oauth/google-sheets/callback': typeof OauthGoogleSheetsCallbackRoute
+  '/competitions': typeof CompetitionsIndexRoute
+  '/tasks': typeof TasksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
-  '/competitions': typeof CompetitionsRouteWithChildren
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
-  '/tasks': typeof TasksRouteWithChildren
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
-  '/settings/labels': typeof SettingsLabelsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
-  '/new/tasks/my': typeof NewTasksMyRoute
-  '/oauth/google-sheets/callback': typeof OauthGoogleSheetsCallbackRoute
+  '/competitions/': typeof CompetitionsIndexRoute
+  '/tasks/': typeof TasksIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/activity'
-    | '/competitions'
     | '/events'
     | '/inbox'
-    | '/tasks'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
-    | '/settings/labels'
     | '/tasks/$id'
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
-    | '/new/tasks/my'
-    | '/oauth/google-sheets/callback'
+    | '/competitions/'
+    | '/tasks/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/activity'
-    | '/competitions'
     | '/events'
     | '/inbox'
-    | '/tasks'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
-    | '/settings/labels'
     | '/tasks/$id'
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
-    | '/new/tasks/my'
-    | '/oauth/google-sheets/callback'
+    | '/competitions'
+    | '/tasks'
   id:
     | '__root__'
     | '/'
     | '/activity'
-    | '/competitions'
     | '/events'
     | '/inbox'
-    | '/tasks'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
-    | '/settings/labels'
     | '/tasks/$id'
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
-    | '/new/tasks/my'
-    | '/oauth/google-sheets/callback'
+    | '/competitions/'
+    | '/tasks/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActivityRoute: typeof ActivityRoute
-  CompetitionsRoute: typeof CompetitionsRouteWithChildren
   EventsRoute: typeof EventsRoute
   InboxRoute: typeof InboxRoute
-  TasksRoute: typeof TasksRouteWithChildren
   AdminGodModeRoute: typeof AdminGodModeRoute
-  SettingsLabelsRoute: typeof SettingsLabelsRoute
+  TasksIdRoute: typeof TasksIdRoute
+  TasksArchivedRoute: typeof TasksArchivedRoute
+  TasksMyRoute: typeof TasksMyRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
-  NewTasksMyRoute: typeof NewTasksMyRoute
-  OauthGoogleSheetsCallbackRoute: typeof OauthGoogleSheetsCallbackRoute
+  CompetitionsIndexRoute: typeof CompetitionsIndexRoute
+  TasksIndexRoute: typeof TasksIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/inbox': {
       id: '/inbox'
       path: '/inbox'
@@ -255,13 +211,6 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/competitions': {
-      id: '/competitions'
-      path: '/competitions'
-      fullPath: '/competitions'
-      preLoaderRoute: typeof CompetitionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/activity': {
@@ -278,6 +227,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tasks/': {
+      id: '/tasks/'
+      path: '/tasks'
+      fullPath: '/tasks/'
+      preLoaderRoute: typeof TasksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/competitions/': {
+      id: '/competitions/'
+      path: '/competitions'
+      fullPath: '/competitions/'
+      preLoaderRoute: typeof CompetitionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teams/$teamId': {
       id: '/teams/$teamId'
       path: '/teams/$teamId'
@@ -287,30 +250,23 @@ declare module '@tanstack/react-router' {
     }
     '/tasks/my': {
       id: '/tasks/my'
-      path: '/my'
+      path: '/tasks/my'
       fullPath: '/tasks/my'
       preLoaderRoute: typeof TasksMyRouteImport
-      parentRoute: typeof TasksRoute
+      parentRoute: typeof rootRouteImport
     }
     '/tasks/archived': {
       id: '/tasks/archived'
-      path: '/archived'
+      path: '/tasks/archived'
       fullPath: '/tasks/archived'
       preLoaderRoute: typeof TasksArchivedRouteImport
-      parentRoute: typeof TasksRoute
+      parentRoute: typeof rootRouteImport
     }
     '/tasks/$id': {
       id: '/tasks/$id'
-      path: '/$id'
+      path: '/tasks/$id'
       fullPath: '/tasks/$id'
       preLoaderRoute: typeof TasksIdRouteImport
-      parentRoute: typeof TasksRoute
-    }
-    '/settings/labels': {
-      id: '/settings/labels'
-      path: '/settings/labels'
-      fullPath: '/settings/labels'
-      preLoaderRoute: typeof SettingsLabelsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/competitions/calendar': {
@@ -334,63 +290,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGodModeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/oauth/google-sheets/callback': {
-      id: '/oauth/google-sheets/callback'
-      path: '/oauth/google-sheets/callback'
-      fullPath: '/oauth/google-sheets/callback'
-      preLoaderRoute: typeof OauthGoogleSheetsCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/new/tasks/my': {
-      id: '/new/tasks/my'
-      path: '/new/tasks/my'
-      fullPath: '/new/tasks/my'
-      preLoaderRoute: typeof NewTasksMyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
-
-interface CompetitionsRouteChildren {
-  CompetitionsIdRoute: typeof CompetitionsIdRoute
-  CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
-}
-
-const CompetitionsRouteChildren: CompetitionsRouteChildren = {
-  CompetitionsIdRoute: CompetitionsIdRoute,
-  CompetitionsCalendarRoute: CompetitionsCalendarRoute,
-}
-
-const CompetitionsRouteWithChildren = CompetitionsRoute._addFileChildren(
-  CompetitionsRouteChildren,
-)
-
-interface TasksRouteChildren {
-  TasksIdRoute: typeof TasksIdRoute
-  TasksArchivedRoute: typeof TasksArchivedRoute
-  TasksMyRoute: typeof TasksMyRoute
-}
-
-const TasksRouteChildren: TasksRouteChildren = {
-  TasksIdRoute: TasksIdRoute,
-  TasksArchivedRoute: TasksArchivedRoute,
-  TasksMyRoute: TasksMyRoute,
-}
-
-const TasksRouteWithChildren = TasksRoute._addFileChildren(TasksRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActivityRoute: ActivityRoute,
-  CompetitionsRoute: CompetitionsRouteWithChildren,
   EventsRoute: EventsRoute,
   InboxRoute: InboxRoute,
-  TasksRoute: TasksRouteWithChildren,
   AdminGodModeRoute: AdminGodModeRoute,
-  SettingsLabelsRoute: SettingsLabelsRoute,
+  TasksIdRoute: TasksIdRoute,
+  TasksArchivedRoute: TasksArchivedRoute,
+  TasksMyRoute: TasksMyRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
-  NewTasksMyRoute: NewTasksMyRoute,
-  OauthGoogleSheetsCallbackRoute: OauthGoogleSheetsCallbackRoute,
+  CompetitionsIndexRoute: CompetitionsIndexRoute,
+  TasksIndexRoute: TasksIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

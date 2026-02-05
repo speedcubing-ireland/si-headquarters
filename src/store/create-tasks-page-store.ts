@@ -18,7 +18,6 @@ import { emptyTasksFilters } from "./tasks-filter-types";
 import { getActiveFiltersCount, hasActiveFilters } from "@/lib/task-filters";
 import type { TaskFilterType } from "./tasks-filter-store";
 
-// Store instances cache - keyed by pageId
 type StoreCacheEntry = {
 	useFilters: UseBoundStore<
 		StoreApi<
@@ -61,11 +60,9 @@ export type TasksPageStores = {
 function getOrCreateStores(config: TasksPageConfig): StoreCacheEntry {
 	const { pageId, defaultFilters, defaultDisplaySettings } = config;
 
-	// Check if stores already exist for this page
 	let stores = storeCache.get(pageId);
 
 	if (!stores) {
-		// Create filter store with merged defaults
 		const initialFilters: TasksFilters = {
 			...emptyTasksFilters,
 			...defaultFilters,
@@ -90,10 +87,8 @@ function getOrCreateStores(config: TasksPageConfig): StoreCacheEntry {
 			getActiveFiltersCount,
 		});
 
-		// Create display settings store with defaults
 		const displayStore = createDisplaySettingsStore();
 
-		// Apply default display settings if provided
 		if (defaultDisplaySettings) {
 			const defaultJson = JSON.stringify({
 				grouping: defaultDisplaySettings.grouping ?? null,
@@ -114,18 +109,9 @@ function getOrCreateStores(config: TasksPageConfig): StoreCacheEntry {
 		storeCache.set(pageId, stores);
 	}
 
-	// Note: useSavedViews will be added at the hook level since it's a React hook
 	return stores as StoreCacheEntry;
 }
 
-/**
- * Hook to get or create per-page stores for tasks
- * Each page gets its own isolated filter, display, and saved views stores
- *
- * @param pageId - Unique identifier for the page (e.g., "all", "my", "team-123")
- * @param config - Optional configuration for default filters and display settings
- * @returns Object containing the stores for this page
- */
 export function useTasksPageStore(
 	pageId: string,
 	config?: Omit<TasksPageConfig, "pageId">,
@@ -134,11 +120,7 @@ export function useTasksPageStore(
 		pageId,
 		...config,
 	};
-
-	// Get or create the stores (these are stable references)
 	const stores = useMemo(() => getOrCreateStores(fullConfig), [pageId]);
-
-	// Create saved views hook - this is a React hook so we call it at top level
 	const savedViews = useEntitySavedViews<
 		TasksFilters,
 		TaskFilterType,
@@ -155,19 +137,4 @@ export function useTasksPageStore(
 		useDisplay: stores.useDisplay,
 		useSavedViews: savedViews,
 	};
-}
-
-/**
- * Clear the store cache for a specific page
- * Useful for testing or when you want to force a fresh store
- */
-export function clearTasksPageStore(pageId: string): void {
-	storeCache.delete(pageId);
-}
-
-/**
- * Clear all cached stores
- */
-export function clearAllTasksPageStores(): void {
-	storeCache.clear();
 }

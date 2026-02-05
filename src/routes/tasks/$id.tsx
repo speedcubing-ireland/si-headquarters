@@ -217,7 +217,6 @@ function SubTasksList({ task }: { task: Task }) {
 				<TaskModal
 					open={isModalOpen}
 					onOpenChange={setIsModalOpen}
-					mode="create"
 					defaultParent={{ type: "task", linkedId: task.id }}
 				/>
 			</div>
@@ -238,7 +237,6 @@ function RouteComponent() {
 	const [remindMeOpen, setRemindMeOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-	// Use debounced form for title editing
 	const titleForm = useDebouncedForm({
 		initialValue: task?.title ?? "",
 		onChange: (newTitle) => {
@@ -249,7 +247,6 @@ function RouteComponent() {
 		debounceMs: 250,
 	});
 
-	// Use debounced form for description editing
 	const descriptionForm = useDebouncedForm({
 		initialValue: task?.description ?? "",
 		onChange: (newDescription) => {

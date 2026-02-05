@@ -14,8 +14,6 @@ const tasksColumnOptions = [
 export function TasksDisplaySettings() {
 	const { displayStore } = useTasksPageContext();
 
-	// The context store is already a hook-like function
-	// Cast it to match the expected type signature
 	return (
 		<SharedDisplaySettings
 			columnOptions={tasksColumnOptions}

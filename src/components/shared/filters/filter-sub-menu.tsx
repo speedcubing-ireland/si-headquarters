@@ -36,7 +36,6 @@ export function SharedFilterSubMenu({
 	selectedValues,
 	onToggleFilter,
 }: SharedFilterSubMenuProps) {
-	// Memoize the option rows to prevent unnecessary re-renders
 	const optionRows = useMemo(
 		() =>
 			options.map((option) => {

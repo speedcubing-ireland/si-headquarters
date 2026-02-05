@@ -32,7 +32,6 @@ export function SharedFilterValueSelector({
 	onToggleValue,
 	children,
 }: SharedFilterValueSelectorProps) {
-	// Memoize the option rows to prevent unnecessary re-renders
 	const optionRows = useMemo(
 		() =>
 			options.map((option) => {

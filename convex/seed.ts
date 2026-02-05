@@ -6,15 +6,10 @@ import {
 	DEFAULT_PHASES,
 	SEEDED_TEAM_NAMES,
 } from "../src/data/types-new";
-
-/**
- * Seed core teams, task labels, and global phases.
- */
 export const seedInitialData = internalMutation({
 	args: {},
 	returns: v.null(),
 	handler: async (ctx) => {
-		// Seed teams (idempotent by name)
 		for (const name of SEEDED_TEAM_NAMES) {
 			const existing = await ctx.db
 				.query("teams")
@@ -29,7 +24,6 @@ export const seedInitialData = internalMutation({
 			}
 		}
 
-		// Seed labels from DEFAULT_LABELS (idempotent by name)
 		for (const label of DEFAULT_LABELS) {
 			const existing = await ctx.db
 				.query("labels")
@@ -45,8 +39,6 @@ export const seedInitialData = internalMutation({
 			}
 		}
 
-		// Seed global phases using DEFAULT_PHASES and COMPETITION_PHASE_KEYS.
-		// This powers competition phases and task phase assignments via ids.
 		const existingPhases = await ctx.db.query("phases").collect();
 		if (existingPhases.length === 0) {
 			for (const [index, phaseTemplate] of DEFAULT_PHASES.entries()) {
@@ -54,7 +46,6 @@ export const seedInitialData = internalMutation({
 					COMPETITION_PHASE_KEYS[index] ??
 					phaseTemplate.name.toLowerCase().replace(/\s+/g, "-");
 
-				// Idempotent by key.
 				const existing = await ctx.db
 					.query("phases")
 					.withIndex("by_order", (q) => q.eq("order", index))

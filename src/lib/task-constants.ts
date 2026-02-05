@@ -1,21 +1,5 @@
 import type { TaskPriority, TaskStatus } from "@/data/types-new";
 
-export const statusOrder: Record<TaskStatus, number> = {
-	backlog: 0,
-	"to-do": 1,
-	"in-progress": 2,
-	"awaiting-review": 3,
-	done: 4,
-	cancelled: 5,
-};
-
-export const priorityOrder: Record<TaskPriority, number> = {
-	low: 0,
-	medium: 1,
-	high: 2,
-	urgent: 3,
-};
-
 export const statusLabels: Record<TaskStatus, string> = {
 	backlog: "Backlog",
 	"to-do": "To Do",
@@ -32,10 +16,8 @@ export const priorityLabels: Record<TaskPriority, string> = {
 	urgent: "Urgent",
 };
 
-// Default values for task creation
 export const DEFAULT_TASK_STATUS: TaskStatus = "to-do";
 export const DEFAULT_TASK_PRIORITY: TaskPriority = "medium";
-export const DEFAULT_PHASE_INDEX = 0;
 
 export const statusColors: Record<TaskStatus, string> = {
 	backlog: "bg-muted text-muted-foreground",

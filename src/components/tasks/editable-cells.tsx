@@ -44,7 +44,6 @@ import {
 } from "@/lib/task-filter-definitions";
 import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
 
-// Compatibility type matching old TaskFilterOption structure
 interface TaskFilterOption<T = string> {
 	value: T;
 	label: string;
@@ -126,16 +125,15 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 	);
 }
 
-// Helper to convert new filter values to old format
 function mapToOldFormat(
 	values: ReturnType<typeof getFilterValues>,
 ): TaskFilterOption[] {
 	return values.map((val) => ({
 		value: val.value,
 		label: val.label,
-		icon: val.iconType === "icon" ? val.icon : null,
-		avatarUrl: val.iconType === "avatar" ? val.avatarUrl : undefined,
-		color: undefined,
+		icon: val.icon ?? null,
+		avatarUrl: val.avatarUrl,
+		color: val.color,
 	}));
 }
 
@@ -157,16 +155,13 @@ export function EditableTaskStatus({
 		getFilterValues("status", filterContext),
 	) as TaskFilterOption<TaskStatus>[];
 
-	// Check if task is fully approved (handles teams correctly)
 	const isTaskFullyApproved = (() => {
 		if (!task || task.requiredApprovalBy.length === 0) return true;
 		const approvedUserIds = new Set(task.approvedBy.map((a) => a.id));
 		return task.requiredApprovalBy.every((approver) => {
 			if ("members" in approver) {
-				// Team: check if any member has approved
 				return approver.members.some((m) => approvedUserIds.has(m.id));
 			}
-			// User: check if this user has approved
 			return approvedUserIds.has(approver.id);
 		});
 	})();
@@ -551,8 +546,6 @@ export function EditableTaskOwner({
 				<UserAvatar name={owner.name} avatarUrl={owner.avatarUrl} size="sm" />
 			);
 		}
-
-		// Blank team chip when no owner
 		return (
 			<span className="inline-flex size-5 items-center justify-center rounded-full border border-dashed border-muted-foreground/40" />
 		);

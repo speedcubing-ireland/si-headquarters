@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import type { DisplaySettingsState } from "./display-settings-factory";
 import type { SavedView, SavedViewEntity } from "./saved-views-store";
 import type { BaseFilterStoreState } from "./shared-filter-factory";
@@ -70,7 +70,6 @@ export function useEntitySavedViews<
 
 	const activeViewId: string | null = null;
 
-	// Memoize active view to ensure stable reference
 	const activeView = useMemo(() => {
 		if (!activeViewId) return null;
 		return views.find((view) => view.id === activeViewId) || null;
@@ -87,7 +86,6 @@ export function useEntitySavedViews<
 			filtersJson,
 			displaySettingsJson,
 		});
-		// ID is provided by Convex; we don't need it synchronously for now.
 		return "";
 	};
 
@@ -102,7 +100,6 @@ export function useEntitySavedViews<
 
 	const deleteView = (viewId: string): void => {
 		void deleteViewMutation({ id: viewId as never });
-		// If deleting the active view, clear filters and display settings
 		if (viewId === activeViewId) {
 			filterStore.getState().clearFilters();
 			displaySettingsStore

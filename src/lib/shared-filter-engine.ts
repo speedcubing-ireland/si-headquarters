@@ -4,19 +4,10 @@ import type {
 	MatchMode,
 } from "@/store/shared-filter-types";
 
-/**
- * Shared filter engine used by both task and competition filters.
- * Consolidates duplicate logic for filter-item matching and date-range checks.
- */
-
 export function hasDateRangeValue(dateRange?: DateRangeFilter): boolean {
 	return !!dateRange && (!!dateRange.start || !!dateRange.end);
 }
 
-/**
- * Build a matcher that tests a single item against a list of filter items
- * (positive/negative, matchMode for combining multiple chips).
- */
 export function buildFilterItemMatcher<TValue, TItem>(
 	filterItems: FilterItem<TValue>[],
 	getValue: (item: TItem) => TValue | TValue[] | undefined,

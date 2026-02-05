@@ -37,12 +37,6 @@ import {
 	isInteractiveTarget,
 } from "@/lib/dom-utils";
 
-export type ColumnMeta<TData> = {
-	headerClassName?: string;
-	cellClassName?: string;
-	groupValueRenderer?: (value: unknown, row: Row<TData>) => React.ReactNode;
-};
-
 export interface SharedDataTableProps<TData, TFilterState> {
 	columns: ColumnDef<TData, unknown>[];
 	data: TData[];
@@ -68,12 +62,12 @@ export interface SharedDataTableProps<TData, TFilterState> {
 	autoHideRowSelection?: boolean;
 }
 
-export type DataTableSelectionConfig<TData> = {
+export interface DataTableSelectionConfig<TData> {
 	autoHide?: boolean;
 	rowSelection?: Record<string, boolean>;
 	onRowSelectionChange?: (updater: Record<string, boolean>) => void;
 	onSelectionChange?: (selectedRows: TData[]) => void;
-};
+}
 
 export interface DataTableProviderProps<TData, TFilterState> {
 	columns: ColumnDef<TData, unknown>[];
@@ -115,7 +109,7 @@ interface DataTableMeta<TData> {
 	getRowId?: (row: TData) => string;
 	selectionEnabled: boolean;
 	autoHideRowSelection: boolean;
-	lastSelectedRowRef: React.MutableRefObject<Row<unknown> | null>;
+	lastSelectedRowRef: React.MutableRefObject<Row<TData> | null>;
 }
 
 interface DataTableContextValue<TData> {
@@ -281,6 +275,9 @@ function DataTableProviderInner<TData, TFilterState>({
 		const sel = selection;
 		const checkboxColumn: ColumnDef<TData, unknown> = {
 			id: "selection",
+			meta: {
+				cellClassName: "pl-2",
+			},
 			header: ({ table }) => (
 				<div
 					className={cn(
@@ -307,6 +304,7 @@ function DataTableProviderInner<TData, TFilterState>({
 				return (
 					<div
 						className={cn(
+							"flex h-full items-center justify-center",
 							showCheckbox
 								? "opacity-100"
 								: "opacity-0 group-hover:opacity-100",
@@ -396,9 +394,6 @@ function DataTableProviderInner<TData, TFilterState>({
 		updateRowSelection,
 	]);
 
-	// Optionally, you could auto-expand once when grouping is first enabled.
-	// For now we let user interactions fully control expansion.
-
 	useEffect(() => {
 		if (!selectionEnabled) return;
 		const container = containerRef.current;
@@ -439,7 +434,7 @@ function DataTableProviderInner<TData, TFilterState>({
 			getRowId,
 			selectionEnabled,
 			selection?.autoHide,
-			expanded, // Required to trigger re-renders when expansion state changes
+			expanded,
 		],
 	);
 
@@ -452,7 +447,7 @@ function DataTableProviderInner<TData, TFilterState>({
 	);
 }
 
-export function DataTableProvider<TData, TFilterState>(
+function DataTableProvider<TData, TFilterState>(
 	props: DataTableProviderProps<TData, TFilterState>,
 ) {
 	return <DataTableProviderInner {...props} />;
@@ -467,8 +462,11 @@ function DataTableHeaderInner<TData>() {
 				<TableRow key={headerGroup.id}>
 					{headerGroup.headers.map((header) => {
 						const meta =
-							(header.column.columnDef.meta as ColumnMeta<TData> | undefined) ??
-							undefined;
+							(header.column.columnDef.meta as
+								| {
+										headerClassName?: string;
+								  }
+								| undefined) ?? undefined;
 						return (
 							<TableHead
 								key={header.id}
@@ -499,7 +497,7 @@ function DataTableHeaderInner<TData>() {
 	);
 }
 
-export function DataTableHeader<TData>() {
+function DataTableHeader<TData>() {
 	return <DataTableHeaderInner<TData> />;
 }
 
@@ -524,12 +522,17 @@ function DataTableDataRow<TData = unknown>({
 	const isExpanded = row.getIsExpanded();
 	const isClickable = !!onRowClick && !isGroupedRow;
 
-	// For grouped rows, render a single cell spanning all columns
 	if (isGroupedRow) {
 		const groupedCell = row.getVisibleCells().find((c) => c.getIsGrouped?.());
 		const metaCell = groupedCell
-			? ((groupedCell.column.columnDef.meta as ColumnMeta<TData> | undefined) ??
-				undefined)
+			? ((groupedCell.column.columnDef.meta as
+					| {
+							groupValueRenderer?: (
+								value: unknown,
+								row: Row<TData>,
+							) => React.ReactNode;
+					  }
+					| undefined) ?? undefined)
 			: undefined;
 
 		return (
@@ -607,8 +610,11 @@ function DataTableDataRow<TData = unknown>({
 		>
 			{row.getVisibleCells().map((cell) => {
 				const metaCell =
-					(cell.column.columnDef.meta as ColumnMeta<TData> | undefined) ??
-					undefined;
+					(cell.column.columnDef.meta as
+						| {
+								cellClassName?: string;
+						  }
+						| undefined) ?? undefined;
 
 				const isAggregated = cell.getIsAggregated?.() ?? false;
 				const isPlaceholder = cell.getIsPlaceholder?.() ?? false;
@@ -680,15 +686,15 @@ function DataTableBodyInner<TData>() {
 	);
 }
 
-export function DataTableBody<TData>() {
+function DataTableBody<TData>() {
 	return <DataTableBodyInner<TData> />;
 }
 
-export function DataTableRowSelection() {
+function DataTableRowSelection() {
 	return null;
 }
 
-export const DataTable = {
+const DataTable = {
 	Provider: DataTableProvider,
 	Header: DataTableHeader,
 	Body: DataTableBody,

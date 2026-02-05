@@ -18,15 +18,6 @@ export const FormModalHeader = React.memo(function FormModalHeader({
 	);
 });
 
-export interface FormModalFooterProps {
-	mode: "create" | "edit";
-	onCancel: () => void;
-	onSubmit: () => void;
-	submitDisabled: boolean;
-	createLabel: string;
-	saveLabel: string;
-}
-
 /**
  * Shared footer for create/edit form modals: Cancel + primary submit button.
  */
@@ -37,7 +28,14 @@ export const FormModalFooter = React.memo(function FormModalFooter({
 	submitDisabled,
 	createLabel,
 	saveLabel,
-}: FormModalFooterProps) {
+}: {
+	mode: "create" | "edit";
+	onCancel: () => void;
+	onSubmit: () => void;
+	submitDisabled: boolean;
+	createLabel: string;
+	saveLabel: string;
+}) {
 	return (
 		<div className="px-6 py-4 border-t flex justify-end gap-2">
 			<Button variant="outline" onClick={onCancel}>

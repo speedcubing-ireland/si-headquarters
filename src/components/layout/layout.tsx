@@ -1,43 +1,18 @@
-import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CommandMenu } from "@/components/command-menu";
 import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
+import { TaskModal } from "@/components/tasks/task-modal";
+import { CompetitionModal } from "@/components/competitions/competition-modal";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
+import { useCreateModalsStore } from "@/store/create-modals-store";
 import { SidebarInset, SidebarProvider } from "../ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-	const navigate = useNavigate();
 	const { commandMenuOpen, setCommandMenuOpen } = useGlobalShortcuts();
 	const [keyboardShortcutsOpen, setKeyboardShortcutsOpen] = useState(false);
-
-	// Handle global navigation events
-	useEffect(() => {
-		const handler = (e: CustomEvent<{ path: string }>) => {
-			navigate({ to: e.detail.path });
-		};
-
-		window.addEventListener("navigate-to", handler as EventListener);
-		return () =>
-			window.removeEventListener("navigate-to", handler as EventListener);
-	}, [navigate]);
-
-	// Handle show keyboard shortcuts event
-	useEffect(() => {
-		const handler = () => {
-			setKeyboardShortcutsOpen(true);
-		};
-
-		window.addEventListener(
-			"show-keyboard-shortcuts",
-			handler as EventListener,
-		);
-		return () =>
-			window.removeEventListener(
-				"show-keyboard-shortcuts",
-				handler as EventListener,
-			);
-	}, []);
+	const { taskOpen, competitionOpen, closeTask, closeCompetition } =
+		useCreateModalsStore();
 
 	return (
 		<SidebarProvider>
@@ -48,6 +23,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<KeyboardShortcutsHelp
 					open={keyboardShortcutsOpen}
 					onOpenChange={setKeyboardShortcutsOpen}
+				/>
+				<TaskModal open={taskOpen} onOpenChange={closeTask} />
+				<CompetitionModal
+					open={competitionOpen}
+					onOpenChange={closeCompetition}
 				/>
 			</SidebarInset>
 		</SidebarProvider>

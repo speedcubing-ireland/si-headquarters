@@ -19,11 +19,9 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-export type PropertiesSidebarRenderMode = "sidebar" | "popover";
-
 export interface PropertiesSidebarLayoutProps {
 	/** "sidebar" = desktop aside + mobile Sheet; "popover" = Popover only (trigger from parent) */
-	renderMode?: PropertiesSidebarRenderMode;
+	renderMode?: "sidebar" | "popover";
 	/** When renderMode is "popover", controls open state */
 	open?: boolean;
 	/** When renderMode is "popover", called when open state changes */

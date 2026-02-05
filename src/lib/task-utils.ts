@@ -49,22 +49,11 @@ export function getStatusIcon(status: TaskStatus): LucideIcon {
 	}
 }
 
-export function truncateText(text: string, maxLength: number): string {
-	if (text.length <= maxLength) return text;
-	return `${text.slice(0, maxLength - 3)}...`;
-}
-
 export type TasksByPhaseGroup = {
 	phase: CompetitionPhase | null;
 	tasks: Task[];
 };
 
-/**
- * Group tasks that belong to a competition into buckets that mirror the
- * competition's phase ordering, with an optional \"unassigned\" group for
- * tasks that either don't have a phase or whose phase doesn't belong to
- * the competition.
- */
 export function groupTasksByCompetitionPhase(
 	tasks: Task[],
 	competition: Competition,
@@ -118,24 +107,4 @@ export function groupTasksByCompetitionPhase(
 	}
 
 	return ordered;
-}
-
-/**
- * Return all tasks that are linked to a given competition either:
- * - directly via `parent.type === "competition"` and matching `linkedId`, or
- * - indirectly via a phase that belongs to the competition.
- */
-export function getTasksForCompetition(
-	tasks: Task[],
-	competition: Competition,
-): Task[] {
-	return tasks.filter((task) => {
-		if (task.parent?.type === "competition") {
-			return task.parent.linkedId === competition.id;
-		}
-		if (task.phase) {
-			return competition.phases.some((phase) => phase.id === task.phase?.id);
-		}
-		return false;
-	});
 }

@@ -3,7 +3,7 @@ import { ListTodo } from "lucide-react";
 import { useIsDetailRoute } from "@/hooks/use-is-detail-route";
 import { TasksPage } from "@/components/tasks/tasks-page";
 
-export const Route = createFileRoute("/tasks")({
+export const Route = createFileRoute("/tasks/")({
 	component: RouteComponent,
 });
 

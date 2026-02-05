@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef, useContext, useCallback } from "react";
+import { useMemo, useRef, useContext, useCallback } from "react";
 import {
 	SharedDataTable,
 	type SharedDataTableProps,
@@ -14,42 +14,18 @@ import { TasksPageContext } from "@/store/tasks-page-context";
 
 interface TasksDataTableProps {
 	columns: ColumnDef<Task>[];
-	/**
-	 * Optional pre-filtered list of tasks. When provided, the table will render
-	 * this subset instead of all tasks from the global store. This is used by
-	 * views such as the competition detail page to scope tasks.
-	 */
 	tasks?: Task[];
-	/**
-	 * Enable row selection functionality.
-	 */
 	enableRowSelection?: boolean;
-	/**
-	 * Controlled row selection state (TanStack Table format: { rowId: boolean }).
-	 * When provided, component operates in controlled mode.
-	 */
 	rowSelection?: Record<string, boolean>;
-	/**
-	 * Callback when row selection changes (for controlled mode).
-	 */
 	onRowSelectionChange?: (rowSelection: Record<string, boolean>) => void;
-	/**
-	 * When true, checkboxes are hidden until row is hovered or any row is selected.
-	 */
 	autoHideRowSelection?: boolean;
-	/**
-	 * When true, skips client-side filtering (useful for pages that provide pre-filtered data like archived tasks).
-	 * Grouping and sorting are still applied.
-	 */
 	skipClientFiltering?: boolean;
 }
 
-// Hook to safely get stores from context or fallback to global
 function useTasksStores() {
 	const context = useContext(TasksPageContext);
 
 	if (context) {
-		// Inside TasksPage - use context stores
 		return {
 			filterStore: context.filterStore,
 			displayStore: context.displayStore,
@@ -57,7 +33,6 @@ function useTasksStores() {
 		};
 	}
 
-	// Outside TasksPage - use global stores (for backward compatibility)
 	return {
 		filterStore: useTasksFilterStore,
 		displayStore: useTasksDisplaySettingsStore,
@@ -76,7 +51,6 @@ export function TasksDataTable({
 }: TasksDataTableProps) {
 	const { filterStore, displayStore } = useTasksStores();
 
-	// Use separate selectors to prevent unnecessary re-renders
 	const filters = filterStore((state) => state.filters);
 	const matchMode = filterStore((state) => state.matchMode);
 	const filterState = useMemo(
@@ -118,32 +92,6 @@ export function TasksDataTable({
 		[router],
 	);
 
-	// Handle Cmd/Ctrl+A to select all visible tasks
-	useEffect(() => {
-		if (!enableRowSelection) return;
-
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if ((e.metaKey || e.ctrlKey) && e.key === "a") {
-				const activeElement = document.activeElement;
-				const isInputFocused =
-					activeElement instanceof HTMLInputElement ||
-					activeElement instanceof HTMLTextAreaElement ||
-					activeElement instanceof HTMLSelectElement;
-
-				if (!isInputFocused) {
-					e.preventDefault();
-					const selectAllEvent = new CustomEvent("datatable-select-all", {
-						bubbles: true,
-					});
-					tableRef.current?.dispatchEvent(selectAllEvent);
-				}
-			}
-		};
-
-		document.addEventListener("keydown", handleKeyDown);
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [enableRowSelection]);
-
 	return (
 		<div ref={tableRef}>
 			<SharedDataTable<Task, typeof filterState>
@@ -156,7 +104,7 @@ export function TasksDataTable({
 				subGrouping={displaySettings.subGrouping}
 				ordering={displaySettings.ordering}
 				setOrdering={setOrdering}
-				containerClassName="px-1"
+				containerClassName=""
 				cellPaddingXClassName="px-1"
 				showHeader={false}
 				emptyLabel="No tasks found."

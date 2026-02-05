@@ -60,8 +60,6 @@ type SortableColumnOptions = {
 };
 
 type GroupValueRenderer = (value: unknown, row: Row<Task>) => React.ReactNode;
-
-// Status colors for group headers (colored dots)
 const statusDotColors: Record<TaskStatus, string> = {
 	backlog: "bg-muted-foreground/40",
 	"to-do": "bg-blue-500",
@@ -232,7 +230,6 @@ export function useTaskColumns(options?: {
 	const hideParentDisplayName = options?.hideParentDisplayName ?? false;
 	return useMemo(
 		() => [
-			// Priority icon (first column - small)
 			createSortableColumn(
 				"priority",
 				"",
@@ -255,7 +252,6 @@ export function useTaskColumns(options?: {
 					} as ColumnDef<Task>["meta"],
 				},
 			),
-			// Task identifier
 			createSortableColumn(
 				"identifier",
 				"",
@@ -269,7 +265,6 @@ export function useTaskColumns(options?: {
 					} as ColumnDef<Task>["meta"],
 				},
 			),
-			// Status icon with time estimate
 			createSortableColumn(
 				"status",
 				"",
@@ -292,7 +287,6 @@ export function useTaskColumns(options?: {
 					} as ColumnDef<Task>["meta"],
 				},
 			),
-			// Owner (compact)
 			{
 				id: "owner",
 				accessorFn: (row) => {
@@ -323,7 +317,6 @@ export function useTaskColumns(options?: {
 					cellClassName: "px-1 w-0",
 				} as ColumnDef<Task>["meta"],
 			},
-			// Title with parent
 			createSortableColumn(
 				"title",
 				"",
@@ -339,7 +332,6 @@ export function useTaskColumns(options?: {
 					} as ColumnDef<Task>["meta"],
 				},
 			),
-			// Labels (right side)
 			{
 				accessorKey: "labels",
 				accessorFn: (row) =>
@@ -359,7 +351,6 @@ export function useTaskColumns(options?: {
 					cellClassName: "px-1 text-right w-0",
 				} as ColumnDef<Task>["meta"],
 			},
-			// Assignee avatar (right side)
 			{
 				accessorKey: "assignee",
 				accessorFn: (row) => row.assignee?.name ?? "Unassigned",
@@ -375,12 +366,10 @@ export function useTaskColumns(options?: {
 					cellClassName: "px-1 w-0",
 				} as ColumnDef<Task>["meta"],
 			},
-			// Due date (short format)
 			{
 				id: "dueDate",
 				accessorFn: (row) => {
 					if (!row.dueDate) return null;
-					// Extract just the date part for consistent grouping (YYYY-MM-DD)
 					return row.dueDate.split("T")[0];
 				},
 				header: "",

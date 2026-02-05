@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TasksPage } from "@/components/tasks/tasks-page";
 import { TriageBar, type TriageFilter } from "@/components/tasks/triage-bar";
-import { useTeams, useTasks } from "@/hooks/use-convex-data";
+import { useTeams } from "@/hooks/use-convex-data";
 import type { Task, Team } from "@/data/types-new";
 import { createOwnerPredicate } from "@/lib/task-filter-utils";
 import type { TaskPredicate } from "@/lib/task-filter-utils";
@@ -38,13 +38,9 @@ function RouteComponent() {
 	const { teamId } = Route.useParams();
 	const team = useTeam(teamId);
 	const [triageFilter, setTriageFilter] = useState<TriageFilter>("all");
-	const { tasks: allTasks } = useTasks(false);
 
-	// Page predicates: team ownership + triage state
 	const pagePredicates = useMemo<TaskPredicate[]>(() => {
-		const predicates: TaskPredicate[] = [
-			createOwnerPredicate([teamId]), // Team ownership check
-		];
+		const predicates: TaskPredicate[] = [createOwnerPredicate([teamId])];
 
 		if (triageFilter === "unassigned") {
 			predicates.push((task: Task) => !task.assignee);
@@ -55,19 +51,6 @@ function RouteComponent() {
 		return predicates;
 	}, [teamId, triageFilter]);
 
-	// Calculate filtered task count for the TriageBar
-	const filteredTaskCount = useMemo(() => {
-		return allTasks.filter((task) => {
-			// Check team ownership
-			if (!task.owner || task.owner.id !== teamId) return false;
-			// Check triage filter
-			if (triageFilter === "unassigned") return !task.assignee;
-			if (triageFilter === "assigned") return !!task.assignee;
-			return true;
-		}).length;
-	}, [allTasks, teamId, triageFilter]);
-
-	// Handle team not found case
 	if (!team) {
 		return <TeamNotFound />;
 	}
@@ -75,9 +58,8 @@ function RouteComponent() {
 	return (
 		<TasksPage
 			pageId={`team-${teamId}`}
-			pageTitle={`Team: ${team.name}`}
+			pageTitle={team.name}
 			pageIcon={Users}
-			secondaryLabel="Triage tasks owned by this team"
 			pagePredicates={pagePredicates}
 			pagePredicateMode="all"
 			defaultDisplaySettings={{
@@ -87,11 +69,7 @@ function RouteComponent() {
 			}}
 			showCreateButton={false}
 			subHeader={
-				<TriageBar
-					filter={triageFilter}
-					onFilterChange={setTriageFilter}
-					taskCount={filteredTaskCount}
-				/>
+				<TriageBar filter={triageFilter} onFilterChange={setTriageFilter} />
 			}
 		/>
 	);

@@ -1,11 +1,9 @@
 import type { Competition, CompetitionPhaseKey } from "@/data/types-new";
 
-export interface PhaseConfig {
-	label: string;
-	className: string;
-}
-
-export const phaseConfig: Record<CompetitionPhaseKey, PhaseConfig> = {
+const phaseConfig: Record<
+	CompetitionPhaseKey,
+	{ label: string; className: string }
+> = {
 	concept: {
 		label: "Concept",
 		className:

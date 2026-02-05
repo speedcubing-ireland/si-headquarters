@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type {
 	Task,
 	User,
@@ -181,7 +181,6 @@ export function useTaskMutations() {
 		});
 		if (!current) return;
 
-		// Get current user from users query
 		const users = localStore.getQuery(api.users.listUsers);
 		const currentUser = users?.[0];
 		if (!currentUser) return;
@@ -195,14 +194,12 @@ export function useTaskMutations() {
 			next.approvedBy = [...currentApproved, currentUser];
 		}
 
-		// Check if fully approved and should auto-move to done
 		const required = current.requiredApprovalBy ?? [];
 		const approvedIds = new Set(next.approvedBy.map((a) => a.id));
 		const isFullyApproved =
 			required.length > 0 &&
 			required.every((r) => {
 				if ("members" in r) {
-					// Team: check if any member approved
 					return r.members.some((m) => approvedIds.has(m.id));
 				}
 				return approvedIds.has(r.id);
@@ -254,7 +251,6 @@ export function useTaskMutations() {
 			labels: TaskLabel[];
 			resources?: Task["resources"];
 			requiredApprovalIds?: string[];
-			/** For sub-tasks under a competition parent, so they appear in competition task list */
 			parentCompetitionId?: string;
 		}) => {
 			const { ownerId, ownerType } = toOwnerIdOwnerType(payload.owner);
@@ -730,7 +726,6 @@ export function useActivityForTask(taskId: string | null): {
 	};
 }
 
-/** Recent activity relevant to the current user (actor or assignee). Used by dashboard. */
 export function useRecentActivity(limit?: number): {
 	activities: ActivityEntry[];
 	isLoading: boolean;
@@ -742,7 +737,6 @@ export function useRecentActivity(limit?: number): {
 	};
 }
 
-/** Global activity feed (directors only). Use only on the /activity page. */
 export function useGlobalActivity(limit?: number): {
 	activities: ActivityEntry[];
 	isLoading: boolean;
@@ -751,23 +745,6 @@ export function useGlobalActivity(limit?: number): {
 	return {
 		activities: (data ?? []) as ActivityEntry[],
 		isLoading: data === undefined,
-	};
-}
-
-export function useActivityMutations() {
-	const logMutation = useMutation(api.activity.log);
-
-	return {
-		logActivity: async (entry: Omit<ActivityEntry, "id" | "timestamp">) => {
-			await logMutation({
-				entityType: entry.entityType,
-				entityId: entry.entityId,
-				type: entry.type,
-				oldValue: entry.oldValue,
-				newValue: entry.newValue,
-				metadata: entry.metadata,
-			});
-		},
 	};
 }
 

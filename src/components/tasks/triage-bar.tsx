@@ -6,14 +6,9 @@ export type TriageFilter = "all" | "unassigned" | "assigned";
 interface TriageBarProps {
 	filter: TriageFilter;
 	onFilterChange: (filter: TriageFilter) => void;
-	taskCount: number;
 }
 
-export function TriageBar({
-	filter,
-	onFilterChange,
-	taskCount,
-}: TriageBarProps) {
+export function TriageBar({ filter, onFilterChange }: TriageBarProps) {
 	return (
 		<div className="flex items-center justify-between border-b px-4 lg:px-6 py-2">
 			<div className="flex items-center gap-2">
@@ -46,9 +41,6 @@ export function TriageBar({
 					</Button>
 				</div>
 			</div>
-			<span className="text-xs text-muted-foreground">
-				{taskCount} task{taskCount === 1 ? "" : "s"}
-			</span>
 		</div>
 	);
 }

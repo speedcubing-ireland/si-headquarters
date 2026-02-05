@@ -15,16 +15,6 @@ export interface FilterOption<T = string> {
 	avatarUrl?: string;
 }
 
-export interface FilterTypeConfig {
-	type: FilterType;
-	icon: LucideIcon;
-	label: string;
-	placeholder: string;
-	emptyMessage: string;
-	getOptions: () => FilterOption[];
-}
-
-// Build options from provided users or phases
 function getUserOptions(users: UserType[]): FilterOption<string>[] {
 	return users.map((user) => ({
 		value: user.name,
@@ -42,8 +32,17 @@ function getPhaseOptions(): FilterOption<CompetitionPhaseKey>[] {
 	}));
 }
 
-// Filter type configurations
-export const filterConfigs: Record<FilterType, FilterTypeConfig> = {
+export const filterConfigs: Record<
+	FilterType,
+	{
+		type: FilterType;
+		icon: LucideIcon;
+		label: string;
+		placeholder: string;
+		emptyMessage: string;
+		getOptions: () => FilterOption[];
+	}
+> = {
 	phase: {
 		type: "phase",
 		icon: CalendarClock,
@@ -78,7 +77,6 @@ export const filterConfigs: Record<FilterType, FilterTypeConfig> = {
 	},
 };
 
-// Helper to get filter options by type.
 export function getFilterOptions<T extends FilterType>(
 	type: T,
 	users?: UserType[],

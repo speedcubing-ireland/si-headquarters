@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-// Link Google Sheets OAuth via terminal. Prereqs: Convex linked, AUTH_GOOGLE_* in Convex env, http://localhost:3847 in Google Console redirect URIs.
 
 const PORT = 3847;
 const REDIRECT_URI = `http://localhost:${PORT}`;

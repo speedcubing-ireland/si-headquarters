@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { Blocks, Box, CircleCheck, Inbox, ListTodo, Users } from "lucide-react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import { NavSecondary } from "@/components/layout/nav-secondary";
 import {
 	NavSection,

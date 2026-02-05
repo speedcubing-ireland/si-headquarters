@@ -15,23 +15,9 @@ type FilterChipProps<TValue extends string> = {
 	onToggleValue: (value: TValue) => void;
 	onRemove: () => void;
 	renderValue: (value: TValue) => ReactNode;
-	/**
-	 * Optional wrapper for the "value" button (e.g. to attach a DropdownMenu trigger).
-	 * This lets consumers make only the value segment open a multi-select menu,
-	 * while keeping the rest of the chip buttons functional.
-	 */
 	wrapValueButton?: (button: React.ReactElement) => React.ReactNode;
 };
 
-/**
- * Shared filter chip used by table filter UIs (competitions, tasks, etc).
- *
- * Provides:
- * - Leading icon + label
- * - "is / is not / is any / is none" toggle
- * - Value selector via a child trigger
- * - Remove button
- */
 export const SharedFilterChip = React.memo(function SharedFilterChip<
 	TValue extends string,
 >({
@@ -55,16 +41,7 @@ export const SharedFilterChip = React.memo(function SharedFilterChip<
 			: "is";
 
 	const valueButton = (
-		<Button
-			variant="outline"
-			size="xs"
-			className="min-w-0"
-			onClick={() => {
-				// For multi-select cases, consumers should wrap this button
-				// with their own value selector trigger. For simple chips
-				// we just render the current value(s).
-			}}
-		>
+		<Button variant="outline" size="xs" className="min-w-0" onClick={() => {}}>
 			{values.length === 1 ? (
 				renderValue(values[0])
 			) : (

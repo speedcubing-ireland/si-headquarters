@@ -8,8 +8,8 @@
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {
-			"@/*": ["./src/*"],
-			"@convex/*": ["./convex/*"]
+			"@/convex/*": ["./convex/*"],
+			"@/*": ["./src/*"]
 		}
 	}
 }

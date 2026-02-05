@@ -18,7 +18,6 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
 	columns,
 }: DataTableProps<TData, TValue>) {
-	// Use separate selectors to prevent unnecessary re-renders
 	const filters = useCompetitionsFilterStore((state) => state.filters);
 	const matchMode = useCompetitionsFilterStore((state) => state.matchMode);
 	const filterState = useMemo(

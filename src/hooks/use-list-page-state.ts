@@ -38,7 +38,6 @@ export interface ListPageState {
 	handleSaveView: () => void;
 	handleViewSelect: (viewId: string) => void;
 	handleResetAll: () => void;
-	// Row selection state (TanStack Table format: { rowId: boolean })
 	rowSelection: Record<string, boolean>;
 	setRowSelection: (
 		updater:
@@ -69,13 +68,11 @@ export function useListPageState({
 		Record<string, boolean>
 	>({});
 
-	// Derived selection state
 	const selectedIds = Object.keys(rowSelection).filter(
 		(id) => rowSelection[id],
 	);
 	const hasSelection = selectedIds.length > 0;
 
-	// Row selection updater (supports both direct value and updater function)
 	const setRowSelection = (
 		updater:
 			| Record<string, boolean>

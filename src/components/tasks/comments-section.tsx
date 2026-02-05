@@ -56,29 +56,22 @@ function CommentItem({
 	const [isReplying, setIsReplying] = useState(false);
 	const [isEditing, setIsEditing] = useState(false);
 
-	// Use debounced form for reply content
 	const replyForm = useDebouncedForm({
 		initialValue: "",
-		onChange: () => {
-			// Reply is submitted manually, not auto-saved
-		},
+		onChange: () => {},
 		debounceMs: 250,
 		immediateOnCommit: false,
 	});
 
-	// Use debounced form for edit content
 	const editForm = useDebouncedForm({
 		initialValue: comment.content,
-		onChange: () => {
-			// Edit is submitted manually, not auto-saved
-		},
+		onChange: () => {},
 		debounceMs: 250,
 		immediateOnCommit: false,
 	});
 
 	const isOwnComment = comment.author.id === currentUser.id;
 
-	// Derive replies from flat array using parentCommentId
 	const replies = useMemo(
 		() => allComments.filter((c) => c.parentCommentId === comment.id),
 		[allComments, comment.id],
@@ -155,13 +148,11 @@ function CommentItem({
 								<ReactMarkdown>{comment.content}</ReactMarkdown>
 							</div>
 
-							{/* Reactions */}
 							<ReactionDisplay
 								reactions={comment.reactions}
 								onAddReaction={(emoji) => onAddReaction(comment.id, emoji)}
 							/>
 
-							{/* Actions */}
 							<div className="flex items-center gap-1 mt-2">
 								<ReactionButton
 									onAddReaction={(emoji) => onAddReaction(comment.id, emoji)}
@@ -201,7 +192,6 @@ function CommentItem({
 								)}
 							</div>
 
-							{/* Reply Input */}
 							{isReplying && (
 								<div className="mt-3 space-y-2">
 									<MentionTextarea
@@ -235,7 +225,6 @@ function CommentItem({
 				</div>
 			</div>
 
-			{/* Nested Replies */}
 			{hasReplies && (
 				<div className="mt-2">
 					{replies.map((reply) => (
@@ -280,12 +269,9 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 
 	const currentUser = users[0];
 
-	// Use debounced form for new comment
 	const newCommentForm = useDebouncedForm({
 		initialValue: "",
-		onChange: () => {
-			// New comments are submitted manually, not auto-saved
-		},
+		onChange: () => {},
 		debounceMs: 250,
 		immediateOnCommit: false,
 	});
@@ -331,7 +317,6 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 				</span>
 			</div>
 
-			{/* New Comment Input */}
 			<div className="flex gap-3 mb-6">
 				<Avatar className="size-8 shrink-0">
 					<AvatarImage src={currentUser?.avatarUrl || undefined} />
@@ -361,7 +346,6 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 				</div>
 			</div>
 
-			{/* Comments List */}
 			<div className="space-y-4">
 				{comments.length === 0 ? (
 					<p className="text-sm text-muted-foreground text-center py-8">

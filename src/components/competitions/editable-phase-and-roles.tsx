@@ -139,7 +139,6 @@ export function EditablePhaseCell({
 	const currentKey = getCurrentPhaseKey(competition);
 
 	const handleChange = (key: CompetitionPhaseKey) => {
-		// Try to find a matching phase by name for this competition
 		const targetPhase =
 			competition.phases.find((phase) => {
 				const phaseName = phase.name.toLowerCase();

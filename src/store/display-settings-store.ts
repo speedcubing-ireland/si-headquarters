@@ -1,8 +1,3 @@
-import {
-	createDisplaySettingsStore,
-	type DisplaySettingsState,
-} from "@/store/display-settings-factory";
-
-export type { DisplaySettingsState };
+import { createDisplaySettingsStore } from "@/store/display-settings-factory";
 
 export const useDisplaySettingsStore = createDisplaySettingsStore();

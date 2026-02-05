@@ -38,14 +38,11 @@ export function MentionTextarea({
 	}, [users, currentUserId]);
 
 	const handleInputValueChange = (newValue: string) => {
-		// Create a synthetic event object for handleChange from useDebouncedForm
-		// which expects React.ChangeEvent<HTMLTextAreaElement> with e.target.value
 		const syntheticEvent = {
 			target: { value: newValue },
 			currentTarget: { value: newValue },
 		} as unknown as React.ChangeEvent<HTMLTextAreaElement>;
 
-		// Call onChange with the synthetic event (works for useDebouncedForm.handleChange)
 		(onChange as (e: React.ChangeEvent<HTMLTextAreaElement>) => void)(
 			syntheticEvent,
 		);

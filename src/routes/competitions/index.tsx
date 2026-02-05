@@ -3,7 +3,6 @@ import { Box, Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useQueryStates } from "nuqs";
 import { columns } from "@/components/competitions/columns";
-import { CompetitionModal } from "@/components/competitions/competition-modal";
 import { DataTable } from "@/components/competitions/data-table";
 import { DisplaySettings } from "@/components/competitions/display-settings";
 import { FilterChips } from "@/components/competitions/filter-chips";
@@ -24,10 +23,10 @@ import {
 	useSyncCompetitionsFiltersToUrl,
 } from "@/lib/route-state";
 import { competitionsFilterParsers } from "@/lib/nuqs-parsers";
+import { useCreateModalsStore } from "@/store/create-modals-store";
 
-export const Route = createFileRoute("/competitions")({
+export const Route = createFileRoute("/competitions/")({
 	onLeave: () => {
-		// Reset filters when actually leaving this route (not on hover)
 		useCompetitionsFilterStore.getState().clearFilters();
 		useDisplaySettingsStore.getState().fromJSON(
 			JSON.stringify({
@@ -111,10 +110,8 @@ function RouteComponent() {
 		savedViews,
 	});
 
-	// Get type-safe search params from URL using nuqs
 	const [search] = useQueryStates(competitionsFilterParsers);
 
-	// Initialize filter/display stores from URL on mount
 	useEffect(() => {
 		initializeCompetitionsStoreFromSearch(
 			search as Parameters<typeof initializeCompetitionsStoreFromSearch>[0],
@@ -122,10 +119,8 @@ function RouteComponent() {
 			useDisplaySettingsStore,
 			savedViews,
 		);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Sync store changes back to URL
 	useSyncCompetitionsFiltersToUrl({
 		filterStore: useCompetitionsFilterStore,
 		displayStore: useDisplaySettingsStore,
@@ -134,6 +129,7 @@ function RouteComponent() {
 	});
 
 	const isDetailRoute = useIsDetailRoute("competitions");
+	const { openCompetition } = useCreateModalsStore();
 
 	if (isDetailRoute) {
 		return <Outlet />;
@@ -154,7 +150,7 @@ function RouteComponent() {
 			<ListPageLayout
 				header={
 					<PageHeader
-						onAddCompetition={() => listState.setModalOpen(true)}
+						onAddCompetition={openCompetition}
 						views={savedViews.views}
 						activeViewId={savedViews.activeViewId}
 						onViewSelect={listState.handleViewSelect}
@@ -165,13 +161,7 @@ function RouteComponent() {
 				}
 				filtersRow={<FiltersContent />}
 				table={<DataTable columns={columns} />}
-				modal={
-					<CompetitionModal
-						open={listState.modalOpen}
-						onOpenChange={listState.setModalOpen}
-						mode="create"
-					/>
-				}
+				modal={null}
 			/>
 		</CreateViewProvider>
 	);

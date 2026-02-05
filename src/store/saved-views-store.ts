@@ -12,5 +12,3 @@ export interface SavedView {
 	updatedAt: string;
 	lastUsedAt?: string;
 }
-
-// This file now only defines shared types for saved views.

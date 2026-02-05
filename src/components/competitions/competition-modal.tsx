@@ -46,12 +46,7 @@ import { cn } from "@/lib/utils";
 interface CompetitionModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	mode: "create" | "edit";
-	competition?: Competition;
-	onSave?: (competition: Competition) => void;
 }
-
-// Compound component sub-components (defined first for use in main component)
 
 const CompetitionModalRoot = React.memo(function CompetitionModalRoot({
 	open,
@@ -145,7 +140,7 @@ const CompetitionModalDates = React.memo(function CompetitionModalDates({
 							mode="single"
 							selected={compStart}
 							onSelect={onCompStartChange}
-							initialFocus
+							autoFocus
 						/>
 					</PopoverContent>
 				</Popover>
@@ -171,7 +166,7 @@ const CompetitionModalDates = React.memo(function CompetitionModalDates({
 							mode="single"
 							selected={compEnd}
 							onSelect={onCompEndChange}
-							initialFocus
+							autoFocus
 						/>
 					</PopoverContent>
 				</Popover>
@@ -349,17 +344,10 @@ const CompetitionModalSheet = React.memo(function CompetitionModalSheet({
 	);
 });
 
-// Main component function
-function CompetitionModalImpl({
-	open,
-	onOpenChange,
-	mode,
-	competition,
-	onSave,
-}: CompetitionModalProps) {
+function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 	const { users } = useUsers();
 	const { teams } = useTeams();
-	const { addCompetition, updateCompetition } = useCompetitionMutations();
+	const { addCompetition } = useCompetitionMutations();
 	const { addTask } = useTaskMutations();
 	const { phases: globalPhases } = usePhases();
 	const competitionTemplatesList = useMemo(
@@ -391,43 +379,23 @@ function CompetitionModalImpl({
 		[globalPhases],
 	);
 
-	// Derive initial values during render instead of syncing in useEffect
 	const initialValues = useMemo(() => {
 		if (!open) return null;
-		if (mode === "create") {
-			return {
-				showTemplateSelector: true,
-				selectedTemplate: null as CompetitionTemplate | null,
-				name: "",
-				description: "",
-				compStart: undefined as Date | undefined,
-				compEnd: undefined as Date | undefined,
-				compLead: null as User | null,
-				leadDelegate: null as User | null,
-				organisers: [] as User[],
-				phases: getBasePhases,
-				currentPhaseIdx: 0,
-				compSheet: "",
-			};
-		}
-		if (mode === "edit" && competition) {
-			return {
-				showTemplateSelector: false,
-				selectedTemplate: null as CompetitionTemplate | null,
-				name: competition.name,
-				description: competition.description,
-				compStart: new Date(competition.compStart),
-				compEnd: new Date(competition.compEnd),
-				compLead: competition.compLead,
-				leadDelegate: competition.leadDelegate,
-				organisers: competition.organisers,
-				phases: competition.phases,
-				currentPhaseIdx: competition.currentPhaseIdx,
-				compSheet: competition.compSheet?.sheetId ?? "",
-			};
-		}
-		return null;
-	}, [open, mode, competition, getBasePhases]);
+		return {
+			showTemplateSelector: true,
+			selectedTemplate: null as CompetitionTemplate | null,
+			name: "",
+			description: "",
+			compStart: undefined as Date | undefined,
+			compEnd: undefined as Date | undefined,
+			compLead: null as User | null,
+			leadDelegate: null as User | null,
+			organisers: [] as User[],
+			phases: getBasePhases,
+			currentPhaseIdx: 0,
+			compSheet: "",
+		};
+	}, [open, getBasePhases]);
 
 	const [showTemplateSelector, setShowTemplateSelector] = useState(
 		initialValues?.showTemplateSelector ?? false,
@@ -475,7 +443,6 @@ function CompetitionModalImpl({
 		initialValues?.compSheet ?? "",
 	);
 
-	// Track previous initialValues to only update when they actually change
 	const prevInitialValuesRef = useRef(initialValues);
 	useEffect(() => {
 		if (initialValues && prevInitialValuesRef.current !== initialValues) {
@@ -670,20 +637,10 @@ function CompetitionModalImpl({
 				: null,
 		};
 
-		if (mode === "create") {
-			const created = await addCompetition(baseData);
+		const created = await addCompetition(baseData);
 
-			if (selectedTemplate) {
-				await createTasksFromTemplate(created.id, selectedTemplate, phases);
-			}
-
-			onSave?.(created);
-		} else if (competition) {
-			await updateCompetition(competition.id, baseData);
-			onSave?.({
-				...competition,
-				...baseData,
-			});
+		if (selectedTemplate) {
+			await createTasksFromTemplate(created.id, selectedTemplate, phases);
 		}
 
 		onOpenChange(false);
@@ -698,13 +655,9 @@ function CompetitionModalImpl({
 		phases,
 		currentPhaseIdx,
 		compSheet,
-		mode,
 		addCompetition,
 		selectedTemplate,
 		createTasksFromTemplate,
-		onSave,
-		competition,
-		updateCompetition,
 		onOpenChange,
 	]);
 
@@ -716,8 +669,7 @@ function CompetitionModalImpl({
 		onOpenChange(false);
 	}, [onOpenChange]);
 
-	// Show TemplateSelector when creating and template selector is active
-	if (mode === "create" && showTemplateSelector) {
+	if (showTemplateSelector) {
 		return (
 			<TemplateSelector
 				type="competition"
@@ -730,9 +682,7 @@ function CompetitionModalImpl({
 
 	return (
 		<CompetitionModalRoot open={open} onOpenChange={onOpenChange}>
-			<FormModalHeader
-				title={mode === "create" ? "Create competition" : "Edit competition"}
-			/>
+			<FormModalHeader title="Create competition" />
 			<CompetitionModalContent>
 				<CompetitionModalBasicInfo
 					name={name}
@@ -769,7 +719,7 @@ function CompetitionModalImpl({
 				/>
 			</CompetitionModalContent>
 			<FormModalFooter
-				mode={mode}
+				mode="create"
 				onCancel={handleCancel}
 				onSubmit={handleSubmit}
 				submitDisabled={!name.trim()}
@@ -780,7 +730,6 @@ function CompetitionModalImpl({
 	);
 }
 
-// Compound component export - attach sub-components to main function
 export const CompetitionModal = Object.assign(CompetitionModalImpl, {
 	Root: CompetitionModalRoot,
 	Header: FormModalHeader,

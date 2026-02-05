@@ -52,69 +52,43 @@ import { cn } from "@/lib/utils";
 interface TaskModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	mode: "create" | "edit";
-	task?: Task;
 	defaultParent?: Task["parent"];
-	onSave?: (task: Task) => void;
 }
 
 function getTaskModalFormKey(
 	open: boolean,
-	mode: "create" | "edit",
-	task: Task | undefined,
 	defaultParent: Task["parent"] | undefined,
 ): string {
 	if (!open) return "closed";
-	const scope = mode === "edit" && task ? task.id : "new";
 	const parentPart = defaultParent
 		? `${defaultParent.type}-${defaultParent.linkedId}`
 		: "none";
-	return `${mode}-${scope}-${parentPart}`;
+	return `create-${parentPart}`;
 }
 
 interface TaskModalFormStateInput {
 	open: boolean;
-	mode: "create" | "edit";
-	task: Task | undefined;
 	defaultParent: Task["parent"] | undefined;
 }
 
 function useTaskModalFormState({
 	open,
-	mode,
-	task,
 	defaultParent,
 }: TaskModalFormStateInput) {
 	const initialValues = useMemo(() => {
 		if (!open) return null;
-		if (mode === "create") {
-			return {
-				title: "",
-				description: "",
-				status: DEFAULT_TASK_STATUS,
-				priority: DEFAULT_TASK_PRIORITY,
-				assignee: null as User | null,
-				owner: null as Team | User | null,
-				selectedLabels: [] as TaskLabel[],
-				dueDate: undefined as Date | undefined,
-				parent: (defaultParent ?? null) as Task["parent"],
-			};
-		}
-		if (mode === "edit" && task) {
-			return {
-				title: task.title,
-				description: task.description,
-				status: task.status,
-				priority: task.priority,
-				assignee: task.assignee,
-				owner: task.owner,
-				selectedLabels: task.labels,
-				dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
-				parent: task.parent ?? defaultParent ?? null,
-			};
-		}
-		return null;
-	}, [open, mode, task, defaultParent]);
+		return {
+			title: "",
+			description: "",
+			status: DEFAULT_TASK_STATUS,
+			priority: DEFAULT_TASK_PRIORITY,
+			assignee: null as User | null,
+			owner: null as Team | User | null,
+			selectedLabels: [] as TaskLabel[],
+			dueDate: undefined as Date | undefined,
+			parent: (defaultParent ?? null) as Task["parent"],
+		};
+	}, [open, defaultParent]);
 
 	const [title, setTitle] = useState(initialValues?.title ?? "");
 	const [description, setDescription] = useState(
@@ -427,7 +401,7 @@ const TaskModalPropertyBar = React.memo(function TaskModalPropertyBar({
 						mode="single"
 						selected={dueDate}
 						onSelect={setDueDate}
-						initialFocus
+						autoFocus
 					/>
 				</PopoverContent>
 			</Popover>
@@ -463,31 +437,23 @@ const TaskModalLabelsChips = React.memo(function TaskModalLabelsChips({
 interface TaskModalContentProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	mode: "create" | "edit";
-	task: Task | undefined;
 	defaultParent: Task["parent"] | undefined;
-	onSave: ((task: Task) => void) | undefined;
 	users: User[];
 	teams: Team[];
 	labels: TaskLabel[];
 	addTask: ReturnType<typeof useTaskMutations>["addTask"];
-	updateTask: ReturnType<typeof useTaskMutations>["updateTask"];
 }
 
 function TaskModalContent({
 	open,
 	onOpenChange,
-	mode,
-	task,
 	defaultParent,
-	onSave,
 	users,
 	teams,
 	labels,
 	addTask,
-	updateTask,
 }: TaskModalContentProps) {
-	const form = useTaskModalFormState({ open, mode, task, defaultParent });
+	const form = useTaskModalFormState({ open, defaultParent });
 
 	const toggleLabel = useCallback(
 		(label: TaskLabel) => {
@@ -503,43 +469,26 @@ function TaskModalContent({
 	const handleSubmit = useCallback(async () => {
 		if (!form.title.trim()) return;
 
-		if (mode === "create") {
-			const newTask = await addTask({
-				parent: form.parent,
-				title: form.title.trim(),
-				description: form.description,
-				owner: form.owner,
-				assignee: form.assignee,
-				phase: null,
-				status: form.status,
-				priority: form.priority,
-				dueDate: form.dueDate ? format(form.dueDate, "yyyy-MM-dd") : null,
-				labels: form.selectedLabels,
-				resources: [],
-			});
-			onSave?.(newTask);
-		} else if (task) {
-			await updateTask(task.id, {
-				title: form.title.trim(),
-				description: form.description,
-				status: form.status,
-				priority: form.priority,
-				assignee: form.assignee,
-				owner: form.owner,
-				labels: form.selectedLabels,
-				dueDate: form.dueDate ? format(form.dueDate, "yyyy-MM-dd") : null,
-			});
-			onSave?.(task);
-		}
+		await addTask({
+			parent: form.parent,
+			title: form.title.trim(),
+			description: form.description,
+			owner: form.owner,
+			assignee: form.assignee,
+			phase: null,
+			status: form.status,
+			priority: form.priority,
+			dueDate: form.dueDate ? format(form.dueDate, "yyyy-MM-dd") : null,
+			labels: form.selectedLabels,
+			resources: [],
+		});
 
 		onOpenChange(false);
-	}, [mode, task, form, addTask, updateTask, onSave, onOpenChange]);
+	}, [form, addTask, onOpenChange]);
 
 	return (
 		<>
-			<FormModalHeader
-				title={mode === "create" ? "Create Task" : "Edit Task"}
-			/>
+			<FormModalHeader title="Create Task" />
 
 			<TaskModalFormFields
 				title={form.title}
@@ -572,7 +521,7 @@ function TaskModalContent({
 			/>
 
 			<FormModalFooter
-				mode={mode}
+				mode="create"
 				onCancel={() => onOpenChange(false)}
 				onSubmit={handleSubmit}
 				submitDisabled={!form.title.trim()}
@@ -586,17 +535,14 @@ function TaskModalContent({
 export function TaskModal({
 	open,
 	onOpenChange,
-	mode,
-	task,
 	defaultParent,
-	onSave,
 }: TaskModalProps) {
 	const { users } = useUsers();
 	const { teams } = useTeams();
 	const { labels } = useLabels();
-	const { addTask, updateTask } = useTaskMutations();
+	const { addTask } = useTaskMutations();
 
-	const formKey = getTaskModalFormKey(open, mode, task, defaultParent);
+	const formKey = getTaskModalFormKey(open, defaultParent);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -605,15 +551,11 @@ export function TaskModal({
 					key={formKey}
 					open={open}
 					onOpenChange={onOpenChange}
-					mode={mode}
-					task={task}
 					defaultParent={defaultParent}
-					onSave={onSave}
 					users={users}
 					teams={teams}
 					labels={labels}
 					addTask={addTask}
-					updateTask={updateTask}
 				/>
 			</DialogContent>
 		</Dialog>

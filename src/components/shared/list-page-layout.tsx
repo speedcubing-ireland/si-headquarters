@@ -29,10 +29,6 @@ export function CreateViewProvider({
 	);
 }
 
-export function useCreateViewContext() {
-	return useContext(CreateViewContext);
-}
-
 export interface ListPageLayoutProps {
 	header: React.ReactNode;
 	filtersRow: React.ReactNode;
@@ -46,7 +42,7 @@ export function ListPageLayout({
 	table,
 	modal,
 }: ListPageLayoutProps) {
-	const createView = useCreateViewContext();
+	const createView = useContext(CreateViewContext);
 	const isCreatingView = createView?.isCreatingView ?? false;
 	const viewName = createView?.viewName ?? "";
 	const setViewName = createView?.setViewName ?? (() => {});

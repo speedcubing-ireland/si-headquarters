@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAction, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../../convex/_generated/api";
+import { api } from "@/convex/_generated/api";
 import { useCompetitions } from "@/hooks/use-convex-data";
 import {
 	Table,

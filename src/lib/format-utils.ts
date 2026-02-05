@@ -1,8 +1,5 @@
 import { format } from "date-fns";
 
-/**
- * Get initials from a full name (first letter of first two words, uppercase)
- */
 export function getInitials(name: string): string {
 	return name
 		.split(" ")
@@ -39,9 +36,6 @@ export type DateRangeDisplay = {
 	end?: string;
 };
 
-/**
- * Format a date range for display in filter chips (e.g. "start – end", "from start", "until end").
- */
 export function formatDateRangeForDisplay(
 	dateRange: DateRangeDisplay,
 	formatFn: (date: string) => string = formatDate,
