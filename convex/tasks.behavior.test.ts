@@ -27,18 +27,22 @@ async function seedUserAndCompetition(
 }
 
 describe("tasks behavior characterization", () => {
-	test("create requires non-volunteers to link task to a competition", async () => {
+	test("create allows non-volunteers to create standalone tasks", async () => {
 		const t = convexTest(schema, modules);
 		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: userId });
 
-		await expect(
-			authed.mutation(api.tasks.create, {
-				title: "Task without competition",
-				status: "to-do",
-				priority: "medium",
-			}),
-		).rejects.toBeTruthy();
+		const taskId = await authed.mutation(api.tasks.create, {
+			title: "Task without competition",
+			status: "to-do",
+			priority: "medium",
+		});
+		const task = await t.run((ctx) => ctx.db.get("tasks", taskId));
+
+		expect(task?.parentCompetitionId).toBeUndefined();
+		expect(task?.ownerType).toBe("user");
+		expect(task?.ownerId).toBe(userId);
+		expect(task?.assigneeId).toBe(userId);
 	});
 
 	test("create generates incremental HQ identifiers", async () => {

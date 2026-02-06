@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import {
 	hasTaskCompetitionAccess,
+	hasStandaloneTaskAccess,
 	listOrganisedCompetitionIds,
 } from "./taskAccess";
 
@@ -145,5 +146,51 @@ describe("listOrganisedCompetitionIds", () => {
 			competitionId("organiser-comp"),
 			competitionId("lead-only-comp"),
 		]);
+	});
+});
+
+describe("hasStandaloneTaskAccess", () => {
+	test("allows access when assigned user matches", () => {
+		const task = {
+			parentCompetitionId: undefined,
+			assigneeId: userId("u1"),
+			ownerType: "user",
+			ownerId: userId("u2"),
+		} as never;
+
+		expect(hasStandaloneTaskAccess(task, userId("u1"))).toBe(true);
+	});
+
+	test("allows access when owner is the user", () => {
+		const task = {
+			parentCompetitionId: undefined,
+			assigneeId: userId("u2"),
+			ownerType: "user",
+			ownerId: userId("u1"),
+		} as never;
+
+		expect(hasStandaloneTaskAccess(task, userId("u1"))).toBe(true);
+	});
+
+	test("denies access for unrelated users", () => {
+		const task = {
+			parentCompetitionId: undefined,
+			assigneeId: userId("u2"),
+			ownerType: "team",
+			ownerId: "team1",
+		} as never;
+
+		expect(hasStandaloneTaskAccess(task, userId("u1"))).toBe(false);
+	});
+
+	test("denies access when task belongs to a competition", () => {
+		const task = {
+			parentCompetitionId: competitionId("comp1"),
+			assigneeId: userId("u1"),
+			ownerType: "user",
+			ownerId: userId("u1"),
+		} as never;
+
+		expect(hasStandaloneTaskAccess(task, userId("u1"))).toBe(false);
 	});
 });

@@ -1,4 +1,5 @@
 import React from "react";
+import { Loader2 } from "lucide-react";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +22,8 @@ export const FormModalFooter = React.memo(function FormModalFooter({
 	submitDisabled,
 	createLabel,
 	saveLabel,
+	isSubmitting = false,
+	submittingLabel = "Saving...",
 }: {
 	mode: "create" | "edit";
 	onCancel: () => void;
@@ -28,14 +31,25 @@ export const FormModalFooter = React.memo(function FormModalFooter({
 	submitDisabled: boolean;
 	createLabel: string;
 	saveLabel: string;
+	isSubmitting?: boolean;
+	submittingLabel?: string;
 }) {
 	return (
 		<div className="px-6 py-4 border-t flex justify-end gap-2">
-			<Button variant="outline" onClick={onCancel}>
+			<Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
 				Cancel
 			</Button>
-			<Button onClick={onSubmit} disabled={submitDisabled}>
-				{mode === "create" ? createLabel : saveLabel}
+			<Button onClick={onSubmit} disabled={submitDisabled || isSubmitting}>
+				{isSubmitting ? (
+					<>
+						<Loader2 className="size-4 animate-spin mr-2" />
+						{submittingLabel}
+					</>
+				) : mode === "create" ? (
+					createLabel
+				) : (
+					saveLabel
+				)}
 			</Button>
 		</div>
 	);

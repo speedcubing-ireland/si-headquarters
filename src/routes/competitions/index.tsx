@@ -1,5 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
 import { Bell, Box, Plus } from "lucide-react";
+import { api } from "@/convex/_generated/api";
 import { columns } from "@/components/competitions/columns";
 import { DataTable } from "@/components/competitions/data-table";
 import { DisplaySettings } from "@/components/competitions/display-settings";
@@ -48,7 +50,7 @@ function PageHeader({
 	activeViewIsSubscribed,
 	onToggleViewSubscription,
 }: {
-	onAddCompetition: () => void;
+	onAddCompetition?: () => void;
 	views: ReturnType<typeof useCompetitionsSavedViews>["views"];
 	activeViewId: string | null;
 	onViewSelect: (viewId: string) => void;
@@ -62,8 +64,8 @@ function PageHeader({
 		<SharedPageHeader
 			primaryIcon={Box}
 			primaryLabel="All comps"
-			addIcon={Plus}
-			addLabel="Add competition"
+			addIcon={onAddCompetition ? Plus : undefined}
+			addLabel={onAddCompetition ? "Add competition" : undefined}
 			onAdd={onAddCompetition}
 			onPrimaryClick={onAllComps}
 			views={views}
@@ -129,6 +131,7 @@ function FiltersContent() {
 
 function RouteComponentInner() {
 	const savedViews = useCompetitionsSavedViews();
+	const isVolunteer = useQuery(api.auth.isVolunteerQuery);
 	const { subscriptions } = useNotificationSubscriptions();
 	const { subscribeToView, unsubscribeFromView } = useNotificationMutations();
 	const urlState = useCompetitionsUrlContext();
@@ -193,7 +196,9 @@ function RouteComponentInner() {
 			<ListPageLayout
 				header={
 					<PageHeader
-						onAddCompetition={openCompetition}
+						onAddCompetition={
+							isVolunteer === true ? openCompetition : undefined
+						}
 						views={savedViews.views}
 						activeViewId={savedViews.activeViewId}
 						onViewSelect={listState.handleViewSelect}

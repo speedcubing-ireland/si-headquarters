@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 import { AlertTriangle, Bell, CheckCircle2, Clock, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -94,49 +93,35 @@ export function AttentionBar() {
 	return (
 		<div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/30 px-4 py-2.5">
 			{overdue > 0 && (
-				<Link to="/tasks/my">
-					<Badge
-						variant="destructive"
-						className="cursor-pointer gap-1.5 transition-opacity hover:opacity-80"
-					>
-						<AlertTriangle className="size-3" />
-						{overdue} Overdue
-					</Badge>
-				</Link>
+				<Badge variant="destructive" className="gap-1.5">
+					<AlertTriangle className="size-3" />
+					{overdue} Overdue
+				</Badge>
 			)}
 			{needsReview > 0 && (
-				<Link to="/tasks">
-					<Badge
-						variant="outline"
-						className="cursor-pointer gap-1.5 border-orange-500/50 text-orange-600 transition-opacity hover:opacity-80 dark:text-orange-400"
-					>
-						<Eye className="size-3" />
-						{needsReview} Need Review
-					</Badge>
-				</Link>
+				<Badge
+					variant="outline"
+					className="gap-1.5 border-orange-500/50 text-orange-600 dark:text-orange-400"
+				>
+					<Eye className="size-3" />
+					{needsReview} Need Review
+				</Badge>
 			)}
 			{dueSoon > 0 && (
-				<Link to="/tasks/my">
-					<Badge
-						variant="outline"
-						className="cursor-pointer gap-1.5 transition-opacity hover:opacity-80"
-					>
-						<Clock className="size-3" />
-						{dueSoon} Due Soon
-					</Badge>
-				</Link>
+				<Badge variant="outline" className="gap-1.5">
+					<Clock className="size-3" />
+					{dueSoon} Due Soon
+				</Badge>
 			)}
 			{unread > 0 && (
-				<Link to="/inbox">
-					<Badge
-						variant="secondary"
-						className="cursor-pointer gap-1.5 transition-opacity hover:opacity-80"
-					>
-						<Bell className="size-3" />
-						{unread} Unread
-					</Badge>
-				</Link>
+				<Badge variant="secondary" className="gap-1.5">
+					<Bell className="size-3" />
+					{unread} Unread
+				</Badge>
 			)}
+			<span className="basis-full text-xs text-muted-foreground sm:basis-auto sm:ml-auto">
+				Review tasks in the My Focus panel below.
+			</span>
 		</div>
 	);
 }

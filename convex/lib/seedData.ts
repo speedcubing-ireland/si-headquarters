@@ -1,21 +1,16 @@
-export const DEFAULT_LABELS: Array<{ name: string; color: string }> = [
-	{ name: "Bug", color: "#ef4444" },
-	{ name: "Feature", color: "#3b82f6" },
-	{ name: "Improvement", color: "#8b5cf6" },
-	{ name: "Documentation", color: "#06b6d4" },
-	{ name: "Urgent", color: "#f97316" },
-	{ name: "Review Needed", color: "#eab308" },
-	{ name: "Blocked", color: "#dc2626" },
-	{ name: "Quick Win", color: "#22c55e" },
-	{ name: "Venue", color: "#3b82f6" },
-	{ name: "Budget", color: "#22c55e" },
-	{ name: "Marketing", color: "#a855f7" },
-	{ name: "Design", color: "#ec4899" },
-	{ name: "WCA", color: "#f97316" },
-	{ name: "Registration", color: "#06b6d4" },
-	{ name: "Logistics", color: "#64748b" },
+export const DEFAULT_LABELS = [
+	{ name: "Venue", color: "#2563eb" },
+	{ name: "Budget", color: "#16a34a" },
+	{ name: "Promotion", color: "#d946ef" },
+	{ name: "Design", color: "#f43f5e" },
+	{ name: "Registration", color: "#0ea5e9" },
 	{ name: "Sponsors", color: "#eab308" },
-];
+	{ name: "Schedule", color: "#a3e635" },
+	{ name: "Printing", color: "#8b5cf6" },
+	{ name: "Certificate", color: "#22d3ee" },
+] as const satisfies ReadonlyArray<{ name: string; color: string }>;
+
+export type SeededLabelName = (typeof DEFAULT_LABELS)[number]["name"];
 
 export const DEFAULT_PHASES: Array<{ name: string; description: string }> = [
 	{ name: "Concept", description: "Still being discussed, no dates/venue yet" },

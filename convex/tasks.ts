@@ -11,8 +11,8 @@ import {
 import {
 	ERROR_TASK_MOVE,
 	ERROR_TASK_NO_ACCESS,
-	ERROR_TASK_NO_COMPETITION,
 	hasTaskCompetitionAccess,
+	hasStandaloneTaskAccess,
 	listOrganisedCompetitionIds,
 	requireTaskAccess,
 } from "./taskAccess";
@@ -131,12 +131,23 @@ export const list = query({
 				.collect(),
 		);
 
-		const taskArrays = await Promise.all(taskPromises);
-		const taskMap = new Map<string, Doc<"tasks">>();
+		const [taskArrays, standaloneTasks] = await Promise.all([
+			Promise.all(taskPromises),
+			ctx.db
+				.query("tasks")
+				.withIndex("by_assignee", (q) => q.eq("assigneeId", userId))
+				.collect(),
+		]);
+		const taskMap = new Map<Id<"tasks">, Doc<"tasks">>();
 		for (const taskArray of taskArrays) {
 			for (const task of taskArray) {
 				taskMap.set(task._id, task);
 			}
+		}
+		for (const task of standaloneTasks) {
+			if (task.archived !== archived) continue;
+			if (!hasStandaloneTaskAccess(task, userId)) continue;
+			taskMap.set(task._id, task);
 		}
 
 		return Array.from(taskMap.values()).sort(
@@ -159,7 +170,7 @@ export const get = query({
 		}
 
 		if (!task.parentCompetitionId) {
-			return null;
+			return hasStandaloneTaskAccess(task, userId) ? task : null;
 		}
 
 		const hasAccess = await hasTaskCompetitionAccess(
@@ -291,11 +302,20 @@ export const listForUI = query({
 							.collect(),
 					),
 				);
+				const standaloneTasks = await ctx.db
+					.query("tasks")
+					.withIndex("by_assignee", (q) => q.eq("assigneeId", userId))
+					.collect();
 				const taskMap = new Map<Id<"tasks">, Doc<"tasks">>();
 				for (const taskGroup of taskGroups) {
 					for (const task of taskGroup) {
 						taskMap.set(task._id, task);
 					}
+				}
+				for (const task of standaloneTasks) {
+					if (task.archived !== archived) continue;
+					if (!hasStandaloneTaskAccess(task, userId)) continue;
+					taskMap.set(task._id, task);
 				}
 				tasks = [...taskMap.values()].sort(
 					(a, b) => b._creationTime - a._creationTime,
@@ -500,10 +520,10 @@ export const listForUI = query({
 					if (volunteer) {
 						return true;
 					}
-					return (
-						child.parentCompetitionId !== undefined &&
-						accessibleCompetitionIds.has(child.parentCompetitionId)
-					);
+					if (!child.parentCompetitionId) {
+						return hasStandaloneTaskAccess(child, userId);
+					}
+					return accessibleCompetitionIds.has(child.parentCompetitionId);
 				});
 				subtaskRowsByParent.set(
 					parentId,
@@ -605,16 +625,19 @@ export const getForUI = query({
 		const volunteer = await isVolunteer(ctx);
 		if (!volunteer) {
 			if (!t.parentCompetitionId) {
-				return null;
-			}
-			const hasAccess = await hasTaskCompetitionAccess(
-				ctx,
-				volunteer,
-				userId,
-				t.parentCompetitionId,
-			);
-			if (!hasAccess) {
-				return null;
+				if (!hasStandaloneTaskAccess(t, userId)) {
+					return null;
+				}
+			} else {
+				const hasAccess = await hasTaskCompetitionAccess(
+					ctx,
+					volunteer,
+					userId,
+					t.parentCompetitionId,
+				);
+				if (!hasAccess) {
+					return null;
+				}
 			}
 		}
 
@@ -735,11 +758,17 @@ export const getForUI = query({
 			if (parent.type === "task") {
 				const parentTask = await ctx.db.get("tasks", parent.linkedId);
 				if (parentTask) {
-					const sameCompetition =
-						parentTask.parentCompetitionId !== undefined &&
-						parentTask.parentCompetitionId === t.parentCompetitionId;
-					parentDisplayName =
-						volunteer || sameCompetition ? parentTask.title : null;
+					if (volunteer) {
+						parentDisplayName = parentTask.title;
+					} else if (!parentTask.parentCompetitionId) {
+						parentDisplayName = hasStandaloneTaskAccess(parentTask, userId)
+							? parentTask.title
+							: null;
+					} else {
+						const sameCompetition =
+							parentTask.parentCompetitionId === t.parentCompetitionId;
+						parentDisplayName = sameCompetition ? parentTask.title : null;
+					}
 				}
 			} else {
 				const comp = await ctx.db.get("competitions", parent.linkedId);
@@ -758,6 +787,9 @@ export const getForUI = query({
 				}
 				if (volunteer) {
 					return true;
+				}
+				if (!child.parentCompetitionId) {
+					return hasStandaloneTaskAccess(child, userId);
 				}
 				return child.parentCompetitionId === t.parentCompetitionId;
 			})
@@ -888,6 +920,22 @@ const taskCreateArgs = {
 	labelIds: v.optional(v.array(v.id("labels"))),
 	requiredApprovalIds: v.optional(v.array(v.string())),
 };
+
+const templateTaskCreateArgs = v.object({
+	tempId: v.string(),
+	parentTempId: v.optional(v.string()),
+	title: v.string(),
+	description: v.optional(v.string()),
+	status: taskStatus,
+	priority: taskPriority,
+	dueDate: v.optional(v.string()),
+	ownerId: v.optional(v.union(v.id("users"), v.id("teams"))),
+	ownerType: v.optional(v.union(v.literal("user"), v.literal("team"))),
+	assigneeId: v.optional(v.id("users")),
+	phaseId: v.optional(v.id("phases")),
+	labelIds: v.array(v.id("labels")),
+	requiredApprovalIds: v.optional(v.array(v.string())),
+});
 
 const TASK_ACTIVITY_CONFIG: ActivityConfig<Doc<"tasks">> = {
 	status: { type: "status_changed" },
@@ -1124,6 +1172,23 @@ async function nextTaskIdentifier(ctx: MutationCtx): Promise<string> {
 	return `HQ-${nextNum}`;
 }
 
+async function reserveTaskIdentifiers(
+	ctx: MutationCtx,
+	count: number,
+): Promise<string[]> {
+	if (count <= 0) return [];
+
+	const counter = await ctx.db.query("taskCounter").first();
+	if (!counter) {
+		await ctx.db.insert("taskCounter", { next: count + 1 });
+		return Array.from({ length: count }, (_, index) => `HQ-${index + 1}`);
+	}
+
+	const start = counter.next;
+	await ctx.db.patch("taskCounter", counter._id, { next: start + count });
+	return Array.from({ length: count }, (_, index) => `HQ-${start + index}`);
+}
+
 export const create = mutation({
 	args: taskCreateArgs,
 	returns: v.id("tasks"),
@@ -1138,6 +1203,8 @@ export const create = mutation({
 			});
 		}
 
+		const isStandaloneTask = args.parentCompetitionId === undefined;
+
 		if (args.parentCompetitionId) {
 			await ensureCompetitionWriteAccess(
 				ctx,
@@ -1146,15 +1213,20 @@ export const create = mutation({
 				args.parentCompetitionId,
 				ERROR_TASK_NO_ACCESS,
 			);
-		} else if (!volunteer) {
-			throw new ConvexError({
-				code: "FORBIDDEN",
-				message: ERROR_TASK_NO_COMPETITION,
-			});
 		}
 
 		const now = Date.now();
 		const identifier = await nextTaskIdentifier(ctx);
+		const ownerId =
+			!volunteer && isStandaloneTask ? userId : (args.ownerId ?? undefined);
+		const ownerType =
+			!volunteer && isStandaloneTask
+				? ("user" as const)
+				: (args.ownerType ?? undefined);
+		const assigneeId =
+			!volunteer && isStandaloneTask
+				? (args.assigneeId ?? userId)
+				: args.assigneeId;
 
 		const approvalIds = args.requiredApprovalIds ?? [];
 		assertValidApprovalIds(approvalIds);
@@ -1169,22 +1241,22 @@ export const create = mutation({
 			archived: false,
 			parentTaskId: args.parentTaskId,
 			parentCompetitionId: args.parentCompetitionId,
-			ownerId: args.ownerId,
-			ownerType: args.ownerType,
-			assigneeId: args.assigneeId,
+			ownerId,
+			ownerType,
+			assigneeId,
 			phaseId: args.phaseId,
 			labelIds: args.labelIds ?? [],
 			requiredApprovalIds: approvalIds,
 			updatedAt: now,
 		});
 
-		if (args.assigneeId && args.assigneeId !== userId) {
+		if (assigneeId && assigneeId !== userId) {
 			await ctx.scheduler.runAfter(
 				0,
 				internal.notifications._notifyTaskAssigned,
 				{
 					taskId,
-					assigneeId: args.assigneeId,
+					assigneeId,
 					actorId: userId,
 				},
 			);
@@ -1192,6 +1264,92 @@ export const create = mutation({
 
 		await logActivity(ctx, userId, "task", taskId, "created");
 		return taskId;
+	},
+});
+
+export const createManyFromTemplate = mutation({
+	args: {
+		competitionId: v.id("competitions"),
+		tasks: v.array(templateTaskCreateArgs),
+	},
+	returns: v.array(v.id("tasks")),
+	handler: async (ctx, args) => {
+		const userId = await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+		await ensureCompetitionWriteAccess(
+			ctx,
+			volunteer,
+			userId,
+			args.competitionId,
+			ERROR_TASK_NO_ACCESS,
+		);
+
+		if (args.tasks.length === 0) return [];
+
+		const identifiers = await reserveTaskIdentifiers(ctx, args.tasks.length);
+		const tempIdToTaskId = new Map<string, Id<"tasks">>();
+		const createdTaskIds: Id<"tasks">[] = [];
+		const now = Date.now();
+
+		for (const [index, task] of args.tasks.entries()) {
+			if (!task.title.trim()) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: `Task title is required for tempId ${task.tempId}`,
+				});
+			}
+
+			const parentTaskId = task.parentTempId
+				? tempIdToTaskId.get(task.parentTempId)
+				: undefined;
+			if (task.parentTempId && !parentTaskId) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: `Missing parent task for tempId ${task.tempId}`,
+				});
+			}
+
+			const approvalIds = task.requiredApprovalIds ?? [];
+			assertValidApprovalIds(approvalIds);
+
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: identifiers[index],
+				title: task.title,
+				description: task.description ?? "",
+				status: task.status,
+				priority: task.priority,
+				dueDate: task.dueDate,
+				archived: false,
+				parentTaskId,
+				parentCompetitionId: args.competitionId,
+				ownerId: task.ownerId,
+				ownerType: task.ownerType,
+				assigneeId: task.assigneeId,
+				phaseId: task.phaseId,
+				labelIds: task.labelIds,
+				requiredApprovalIds: approvalIds,
+				updatedAt: now,
+			});
+
+			tempIdToTaskId.set(task.tempId, taskId);
+			createdTaskIds.push(taskId);
+
+			if (task.assigneeId && task.assigneeId !== userId) {
+				await ctx.scheduler.runAfter(
+					0,
+					internal.notifications._notifyTaskAssigned,
+					{
+						taskId,
+						assigneeId: task.assigneeId,
+						actorId: userId,
+					},
+				);
+			}
+
+			await logActivity(ctx, userId, "task", taskId, "created");
+		}
+
+		return createdTaskIds;
 	},
 });
 

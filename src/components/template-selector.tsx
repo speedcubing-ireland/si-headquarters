@@ -8,8 +8,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useTeams } from "@/hooks/use-convex-data";
-import { getCompetitionTemplates, getTaskTemplates } from "@/data/templates";
+import { getCompetitionTemplates } from "@/data/templates";
 
 interface TemplateSelectorProps {
 	type: "competition" | "task";
@@ -27,12 +26,8 @@ export function TemplateSelector({
 	const [search, setSearch] = useState("");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 
-	const { teams } = useTeams();
-	const competitionTemplates = useMemo(
-		() => getCompetitionTemplates(teams),
-		[teams],
-	);
-	const taskTemplates = useMemo(() => getTaskTemplates(), []);
+	const competitionTemplates = useMemo(() => getCompetitionTemplates(), []);
+	const taskTemplates = useMemo(() => [], []);
 
 	const templates =
 		type === "competition" ? competitionTemplates : taskTemplates;

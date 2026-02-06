@@ -49,6 +49,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { requireTaskId } from "@/lib/convex-ids";
 import { priorityLabels, statusLabels } from "@/lib/task-constants";
 import { getTaskBreadcrumbs } from "@/lib/task-breadcrumbs";
+import { sortTasksByStatusThenPriority } from "@/lib/task-utils";
 import {
 	buildOneTimeReminderPayload,
 	useNotificationMutations,
@@ -241,8 +242,10 @@ function SubTasksList({ task }: { task: Task }) {
 	const { tasks } = useTasks(false);
 	const subTasks = useMemo(
 		() =>
-			tasks.filter(
-				(t) => t.parent?.type === "task" && t.parent.linkedId === task.id,
+			sortTasksByStatusThenPriority(
+				tasks.filter(
+					(t) => t.parent?.type === "task" && t.parent.linkedId === task.id,
+				),
 			),
 		[tasks, task.id],
 	);
@@ -291,26 +294,24 @@ function SubTasksList({ task }: { task: Task }) {
 					</div>
 				}
 			>
-				<div className="min-w-0 w-full max-w-full overflow-x-auto rounded-md border border-border [touch-action:pan-x]">
-					<div className="min-w-[760px]">
-						<TasksDataTable
-							columns={columns}
-							tasks={subTasks}
-							filters={{
-								status: [],
-								priority: [],
-								assignee: [],
-								labels: [],
-								owner: [],
-								parentType: [],
-							}}
-							matchMode="all"
-							grouping={null}
-							subGrouping={null}
-							ordering={{ field: null, direction: "asc" }}
-							onOrderingChange={() => {}}
-						/>
-					</div>
+				<div className="min-w-0 w-full max-w-full overflow-hidden rounded-md border border-border">
+					<TasksDataTable
+						columns={columns}
+						tasks={subTasks}
+						filters={{
+							status: [],
+							priority: [],
+							assignee: [],
+							labels: [],
+							owner: [],
+							parentType: [],
+						}}
+						matchMode="all"
+						grouping={null}
+						subGrouping={null}
+						ordering={{ field: null, direction: "asc" }}
+						onOrderingChange={() => {}}
+					/>
 				</div>
 			</TaskListGroup>
 

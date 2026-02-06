@@ -19,10 +19,7 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 	const { teams } = useTeams();
 	const { phases: globalPhases } = usePhases();
 
-	const competitionTemplatesList = useMemo(
-		() => getCompetitionTemplates(teams),
-		[teams],
-	);
+	const competitionTemplatesList = useMemo(() => getCompetitionTemplates(), []);
 	const competitionsTeam = useMemo(
 		() => getTeamBySeededName(teams, "Competitions Team"),
 		[teams],

@@ -1,4 +1,5 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
 import {
 	Bell,
 	Calendar,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import Fuse from "fuse.js";
+import { api } from "@/convex/_generated/api";
 import {
 	CommandDialog,
 	CommandEmpty,
@@ -179,6 +181,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 	const { competitions } = useCompetitions();
 	const { users } = useUsers();
 	const { teams } = useTeams();
+	const isVolunteer = useQuery(api.auth.isVolunteerQuery);
 	const { openTask, openCompetition } = useCreateModalsStore();
 
 	const searchQuery = useMemo(
@@ -223,14 +226,18 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 				openTask();
 			},
 		},
-		{
-			icon: Plus,
-			label: "Create Competition",
-			action: () => {
-				onOpenChange(false);
-				openCompetition();
-			},
-		},
+		...(isVolunteer
+			? [
+					{
+						icon: Plus,
+						label: "Create Competition",
+						action: () => {
+							onOpenChange(false);
+							openCompetition();
+						},
+					},
+				]
+			: []),
 		{
 			icon: Home,
 			label: "Go to Dashboard",

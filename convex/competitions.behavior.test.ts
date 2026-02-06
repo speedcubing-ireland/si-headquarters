@@ -49,6 +49,47 @@ async function seedCompetitionFixture(
 }
 
 describe("competitions behavior characterization", () => {
+	test("create is forbidden for non-volunteers", async () => {
+		const t = convexTest(schema, modules);
+		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+		const authed = t.withIdentity({ subject: userId });
+
+		await expect(
+			authed.mutation(api.competitions.create, {
+				name: "Non-volunteer competition",
+				description: "",
+				compStart: "2026-12-01",
+				compEnd: "2026-12-02",
+			}),
+		).rejects.toBeTruthy();
+	});
+
+	test("create succeeds for volunteers", async () => {
+		const t = convexTest(schema, modules);
+		const volunteerId = await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {});
+			await ctx.db.insert("teams", {
+				name: "Volunteer",
+				memberIds: [userId],
+			});
+			return userId;
+		});
+		const authed = t.withIdentity({ subject: volunteerId });
+
+		const competitionId = await authed.mutation(api.competitions.create, {
+			name: "Volunteer competition",
+			description: "",
+			compStart: "2026-12-10",
+			compEnd: "2026-12-11",
+			organiserIds: [volunteerId],
+		});
+		const created = await t.run((ctx) =>
+			ctx.db.get("competitions", competitionId),
+		);
+
+		expect(created?.name).toBe("Volunteer competition");
+	});
+
 	test("update is forbidden for users without competition access", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {

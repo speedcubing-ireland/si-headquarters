@@ -1,6 +1,5 @@
 import type {
 	CompetitionTemplate,
-	TaskTemplate,
 	TemplateTask,
 	Team,
 	SeededTeamName,
@@ -13,205 +12,238 @@ export function getTeamBySeededName(
 	return teams.find((t) => t.name === name) ?? null;
 }
 
-function createStandardCompetitionTemplate(teams: Team[]): CompetitionTemplate {
-	const financeTeam = getTeamBySeededName(teams, "Finance Team");
-	const competitionsTeam = getTeamBySeededName(teams, "Competitions Team");
-	const socialMediaTeam = getTeamBySeededName(teams, "Social Media Team");
-
+function createStandardCompetitionTemplate(): CompetitionTemplate {
 	const defaultTasks: TemplateTask[] = [
 		{
-			title: "Budget Approval",
-			description: "Review and approve competition budget",
-			status: "to-do",
+			title: "Size and venue picked",
+			description: "Pick a venue and expected competitor limit",
+			status: "backlog",
 			priority: "high",
-			labels: ["label-budget", "label-5"],
-			ownerType: financeTeam ? "team" : null,
-			ownerId: financeTeam?.id || null,
-			suggestedAssigneeId: null,
-			phase: "Pre-Announcement",
+			labels: ["Venue"],
+			ownerTeamName: "Competitions Team",
+			phase: "Concept",
 		},
 		{
-			title: "Venue Booking",
-			description: "Confirm and book competition venue",
-			status: "to-do",
+			title: "Competition budgeted",
+			description: "Budget put onto competition sheet and approved as needed",
+			status: "backlog",
 			priority: "high",
-			labels: ["label-venue", "label-5"],
-			ownerType: competitionsTeam ? "team" : null,
-			ownerId: competitionsTeam?.id || null,
-			suggestedAssigneeId: null,
+			labels: ["Budget"],
+			ownerTeamName: "Competitions Team",
+			phase: "Concept",
+		},
+		{
+			title: "Venue booked",
+			description: `Confirm the venue booking:
+- Ensure deposit is paid when required and logged in budget sheet
+- Add booking confirmation to the competition's google drive folder`,
+			status: "backlog",
+			priority: "high",
+			labels: ["Venue", "Budget"],
+			ownerTeamName: "Competitions Team",
+			phase: "Pre-Announcement",
+			requiredApprovalByTeamNames: ["Finance Team"],
+		},
+		{
+			title: "Schedule made",
+			description: `Build, review, and publish the official competition schedule:
+- Design the initial schedule
+- Review the events and rounds against nearby competitions
+- Publish the schedule to WCA and verify cutoffs/time limits are correct`,
+			status: "backlog",
+			priority: "high",
+			labels: ["Schedule"],
+			ownerTeamName: "Competitions Team",
+			requiredApprovalByTeamNames: ["Delegates"],
 			phase: "Pre-Announcement",
 		},
 		{
 			title: "Sponsorship",
-			description: "Secure sponsors for the competition",
-			status: "to-do",
+			description: "Secure sponsors and update sponsorship details.",
+			status: "backlog",
 			priority: "medium",
-			labels: ["label-sponsors"],
-			ownerType: competitionsTeam ? "team" : null,
-			ownerId: competitionsTeam?.id || null,
-			suggestedAssigneeId: null,
+			labels: ["Sponsors"],
+			ownerTeamName: "Competitions Team",
 			phase: "Pre-Announcement",
+			subTasks: [
+				{
+					title: "Sponsor bidding",
+					description: "Allow sponsors to bid for this competition",
+					status: "backlog",
+					priority: "high",
+					labels: ["Sponsors"],
+					ownerTeamName: "Finance Team",
+					phase: "Pre-Announcement",
+				},
+			],
 		},
 		{
-			title: "Social Media Promotion",
-			description: "Create and schedule social media posts",
-			status: "to-do",
+			title: "Social media promotion",
+			description: `Publish social announcements across key channels:
+- Post competition announcement in Discord and open a discussion thread
+- Publish competition announcement and registration posts to social channels`,
+			status: "backlog",
 			priority: "medium",
-			labels: ["label-marketing"],
-			ownerType: socialMediaTeam ? "team" : null,
-			ownerId: socialMediaTeam?.id || null,
-			suggestedAssigneeId: null,
-			phase: "Post-Announcement",
-		},
-		{
-			title: "Certificate ready",
-			description: "Certificates designed and ordered for the competition",
-			status: "to-do",
-			priority: "medium",
-			labels: ["label-design"],
-			ownerType: null,
-			ownerId: null,
-			suggestedAssigneeId: null,
+			labels: ["Promotion"],
+			ownerTeamName: "Social Media Team",
 			phase: "Post-Announcement",
 			subTasks: [
 				{
-					title: "Certificate Designed",
+					title: "Instagram and Facebook posts published",
 					description:
-						"Design competition certificates; requires approval from Graphics.",
-					status: "to-do",
+						"Publish competition announcement and registration posts to social channels.",
+					status: "backlog",
 					priority: "medium",
-					labels: ["label-design"],
-					ownerType: competitionsTeam ? "team" : null,
-					ownerId: competitionsTeam?.id || null,
-					suggestedAssigneeId: null,
-					phase: "Post-Announcement",
-					requiredApprovalByTeamNames: ["Graphics Team"],
-				},
-				{
-					title: "Certificate Ordered",
-					description: "Order certificates for the competition",
-					status: "to-do",
-					priority: "medium",
-					labels: [],
-					ownerType: financeTeam ? "team" : null,
-					ownerId: financeTeam?.id || null,
-					suggestedAssigneeId: null,
+					labels: ["Promotion"],
+					ownerTeamName: "Social Media Team",
 					phase: "Post-Announcement",
 				},
 			],
 		},
 		{
+			title: "Competition delegates and organisers pre-registered",
+			description:
+				"Ensure delegates and organisers are pre-registered on WCA before registration scales.",
+			status: "backlog",
+			priority: "low",
+			labels: ["Registration"],
+			ownerTeamName: "Delegates",
+			phase: "Post-Announcement",
+		},
+		{
+			title: "Certificates ready",
+			description: "Design and order certificates for the competition.",
+			status: "backlog",
+			priority: "medium",
+			labels: ["Printing"],
+			ownerTeamName: "Finance Team",
+			phase: "Post-Announcement",
+			subTasks: [
+				{
+					title: "Certificates designed",
+					description:
+						"Prepare final certificate designs for approval and print.",
+					status: "backlog",
+					priority: "medium",
+					labels: ["Design", "Certificate"],
+					ownerTeamName: "Competitions Team",
+					requiredApprovalByTeamNames: ["Graphics Team"],
+					phase: "Post-Announcement",
+				},
+			],
+		},
+		{
+			title: "Lanyard designed",
+			description: "Create and approve the lanyard design for event use.",
+			status: "backlog",
+			priority: "low",
+			labels: ["Design"],
+			ownerTeamName: "Graphics Team",
+			requiredApprovalByTeamNames: ["Graphics Team"],
+			phase: "Post-Announcement",
+		},
+		{
+			title: "Groups and printing done",
+			description: `Finalize groups and print all required competition materials:
+- Adjust the schedule based on final registrations and event load
+- Generate final groups using approved grouping tools
+- Print scorecards and lanyards from approved design files`,
+			status: "backlog",
+			priority: "high",
+			labels: ["Registration", "Printing"],
+			ownerTeamName: "Competitions Team",
+			phase: "Pre-Competition",
+			subTasks: [
+				{
+					title: "Schedule finalised for actual registration numbers",
+					description:
+						"Adjust the schedule based on final registrations and event load.",
+					status: "backlog",
+					priority: "high",
+					labels: ["Schedule"],
+					ownerTeamName: "Competitions Team",
+					requiredApprovalByTeamNames: ["Delegates"],
+					phase: "Pre-Competition",
+				},
+				{
+					title: "Groups generated",
+					description: "Generate final groups using approved grouping tools.",
+					status: "backlog",
+					priority: "high",
+					labels: ["Registration"],
+					ownerTeamName: "Delegates",
+					phase: "Pre-Competition",
+				},
+			],
+		},
+		{
 			title: "Waiting list emailed and refunded",
-			description: "Process waiting list and send refund emails",
-			status: "to-do",
+			description:
+				"Email the waiting list and process refunds for unaccepted registrations.",
+			status: "backlog",
 			priority: "high",
-			labels: ["label-registration", "label-logistics"],
-			ownerType: competitionsTeam ? "team" : null,
-			ownerId: competitionsTeam?.id || null,
-			suggestedAssigneeId: null,
+			labels: ["Registration", "Budget"],
+			ownerTeamName: "Competitions Team",
 			phase: "Pre-Competition",
 		},
 		{
-			title: "Pre-comp email sent",
-			description: "Send pre-competition information email to competitors",
-			status: "to-do",
+			title: "Pre-comp email written and sent",
+			description:
+				"Write and send pre-competition information email to competitors.",
+			status: "backlog",
+			priority: "medium",
+			labels: ["Registration"],
+			ownerTeamName: "Competitions Team",
+			phase: "Pre-Competition",
+		},
+		{
+			title: "Check-in sheet ready for registration",
+			description: "Prepare check-in sheets for registration desk operations.",
+			status: "backlog",
+			priority: "medium",
+			labels: ["Registration"],
+			ownerTeamName: "Competitions Team",
+			phase: "Pre-Competition",
+		},
+		{
+			title: "All expenses submitted",
+			description: "Collect and submit all competition-related expenses.",
+			status: "backlog",
 			priority: "high",
-			labels: ["label-logistics", "label-5"],
-			ownerType: competitionsTeam ? "team" : null,
-			ownerId: competitionsTeam?.id || null,
-			suggestedAssigneeId: null,
-			phase: "Pre-Competition",
-		},
-		{
-			title: "Check in sheet prepared",
-			description: "Prepare check-in sheets for competition day",
-			status: "to-do",
-			priority: "medium",
-			labels: ["label-logistics"],
-			ownerType: competitionsTeam ? "team" : null,
-			ownerId: competitionsTeam?.id || null,
-			suggestedAssigneeId: null,
-			phase: "Pre-Competition",
-		},
-		{
-			title: "Podium photos",
-			description: "Take and post podium photos",
-			status: "to-do",
-			priority: "medium",
-			labels: ["label-marketing"],
-			ownerType: socialMediaTeam ? "team" : null,
-			ownerId: socialMediaTeam?.id || null,
-			suggestedAssigneeId: null,
+			labels: ["Budget"],
+			ownerTeamName: "Finance Team",
 			phase: "Post-Competition",
 		},
 		{
-			title: "Budget closed out",
-			description: "Close out competition budget and reconcile expenses",
-			status: "to-do",
+			title: "Podium photos posted",
+			description: "Publish podium photos after competition completion.",
+			status: "backlog",
 			priority: "high",
-			labels: ["label-budget", "label-5"],
-			ownerType: financeTeam ? "team" : null,
-			ownerId: financeTeam?.id || null,
-			suggestedAssigneeId: null,
+			labels: ["Promotion"],
+			ownerTeamName: "Social Media Team",
+			phase: "Post-Competition",
+		},
+		{
+			title: "Final budget filled out",
+			description:
+				"Complete final budget reconciliation and close out finance records.",
+			status: "backlog",
+			priority: "low",
+			labels: ["Budget"],
+			ownerTeamName: "Finance Team",
 			phase: "Post-Competition",
 		},
 	];
 
 	return {
-		id: "template-standard-competition",
-		name: "Standard Competition",
-		description:
-			"Default template for standard competitions with essential tasks",
+		id: "template-normal-competition",
+		name: "Normal Competition",
+		description: "Default template for competitions",
 		icon: "🏆",
 		defaultTasks,
 	};
 }
 
-function createTaskTemplates(): TaskTemplate[] {
-	return [
-		{
-			id: "template-task-social-media",
-			name: "Social Media Post",
-			description: "Template for creating social media posts",
-			icon: "📱",
-			title: "Social Media: {event}",
-			descriptionTemplate:
-				"Create and schedule social media post for {event}. Include relevant hashtags and competition details.",
-			status: "to-do",
-			priority: "medium",
-			labels: [],
-		},
-		{
-			id: "template-task-certificate",
-			name: "Certificate Design",
-			description: "Template for designing certificates",
-			icon: "📜",
-			title: "Design Certificates",
-			descriptionTemplate:
-				"Design participation and winner certificates for the competition. Ensure they match the event branding.",
-			status: "to-do",
-			priority: "medium",
-			labels: [],
-		},
-		{
-			id: "template-task-venue",
-			name: "Venue Booking",
-			description: "Template for booking competition venues",
-			icon: "🏢",
-			title: "Book Venue",
-			descriptionTemplate:
-				"Contact and confirm venue booking for the competition. Verify capacity, accessibility, and equipment availability.",
-			status: "to-do",
-			priority: "high",
-			labels: [],
-		},
-	];
-}
-
-export function getCompetitionTemplates(teams: Team[]): CompetitionTemplate[] {
-	return [createStandardCompetitionTemplate(teams)];
-}
-
-export function getTaskTemplates(): TaskTemplate[] {
-	return createTaskTemplates();
+export function getCompetitionTemplates(): CompetitionTemplate[] {
+	return [createStandardCompetitionTemplate()];
 }

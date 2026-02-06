@@ -8,7 +8,7 @@ import {
 } from "./competitionAccess";
 
 export const ERROR_TASK_NO_COMPETITION =
-	"Only volunteers can modify tasks without a competition";
+	"You can only modify standalone tasks assigned to you";
 export const ERROR_TASK_NO_ACCESS =
 	"You can only modify tasks linked to competitions you are organizing";
 export const ERROR_TASK_MOVE =
@@ -41,6 +41,7 @@ export async function requireTaskAccess(
 	if (volunteer) return;
 
 	if (!task.parentCompetitionId) {
+		if (hasStandaloneTaskAccess(task, userId)) return;
 		throw new ConvexError({
 			code: "FORBIDDEN",
 			message: ERROR_TASK_NO_COMPETITION,
@@ -59,4 +60,13 @@ export async function requireTaskAccess(
 			message: ERROR_TASK_NO_ACCESS,
 		});
 	}
+}
+
+export function hasStandaloneTaskAccess(
+	task: Doc<"tasks">,
+	userId: Id<"users">,
+): boolean {
+	if (task.parentCompetitionId) return false;
+	if (task.assigneeId === userId) return true;
+	return task.ownerType === "user" && task.ownerId === userId;
 }

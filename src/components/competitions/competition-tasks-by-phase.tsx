@@ -6,7 +6,10 @@ import { TasksDataTable } from "@/components/tasks/data-table";
 import { TaskListGroup } from "@/components/tasks/task-list-group";
 import { useTaskMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
-import { groupTasksByCompetitionPhase } from "@/lib/task-utils";
+import {
+	groupTasksByCompetitionPhase,
+	sortTasksByStatusThenPriority,
+} from "@/lib/task-utils";
 import { onMutationError } from "@/lib/utils";
 
 interface CompetitionTasksByPhaseProps {
@@ -85,10 +88,11 @@ export function CompetitionTasksByPhase({
 			<div className="space-y-5 sm:space-y-6">
 				{groups.map((group) => {
 					const groupKey = group.phase?.id ?? "unassigned";
-					const doneCount = group.tasks.filter(
+					const sortedTasks = sortTasksByStatusThenPriority(group.tasks);
+					const doneCount = sortedTasks.filter(
 						(task) => task.status === "done",
 					).length;
-					const inProgressCount = group.tasks.filter(
+					const inProgressCount = sortedTasks.filter(
 						(task) => task.status === "in-progress",
 					).length;
 					const isCollapsed = collapsedGroups.has(groupKey);
@@ -97,7 +101,7 @@ export function CompetitionTasksByPhase({
 						<TaskListGroup
 							key={groupKey}
 							title={group.phase ? group.phase.name : "No phase"}
-							countLabel={`${group.tasks.length} task${group.tasks.length === 1 ? "" : "s"}`}
+							countLabel={`${sortedTasks.length} task${sortedTasks.length === 1 ? "" : "s"}`}
 							isCollapsed={isCollapsed}
 							onToggle={() => toggleGroup(groupKey)}
 							headerMeta={
@@ -127,26 +131,24 @@ export function CompetitionTasksByPhase({
 								</div>
 							}
 						>
-							<div className="min-w-0 w-full max-w-full overflow-x-auto rounded-md border border-border [touch-action:pan-x]">
-								<div className="min-w-[760px]">
-									<TasksDataTable
-										columns={columns}
-										tasks={group.tasks}
-										filters={{
-											status: [],
-											priority: [],
-											assignee: [],
-											labels: [],
-											owner: [],
-											parentType: [],
-										}}
-										matchMode="all"
-										grouping={null}
-										subGrouping={null}
-										ordering={{ field: null, direction: "asc" }}
-										onOrderingChange={() => {}}
-									/>
-								</div>
+							<div className="min-w-0 w-full max-w-full overflow-hidden rounded-md border border-border">
+								<TasksDataTable
+									columns={columns}
+									tasks={sortedTasks}
+									filters={{
+										status: [],
+										priority: [],
+										assignee: [],
+										labels: [],
+										owner: [],
+										parentType: [],
+									}}
+									matchMode="all"
+									grouping={null}
+									subGrouping={null}
+									ordering={{ field: null, direction: "asc" }}
+									onOrderingChange={() => {}}
+								/>
 							</div>
 						</TaskListGroup>
 					);

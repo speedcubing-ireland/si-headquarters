@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import React from "react";
 import { TemplateSelector } from "@/components/template-selector";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -24,7 +24,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useCompetitionMutations } from "@/hooks/use-convex-data";
+import { useCompetitionMutations, useLabels } from "@/hooks/use-convex-data";
 import { useCompetitionForm } from "@/hooks/use-competition-form";
 import { useTemplateTasks } from "@/hooks/use-template-tasks";
 import type { Competition, User } from "@/data/types-new";
@@ -126,6 +126,7 @@ const CompetitionModalDates = React.memo(function CompetitionModalDates({
 						<Calendar
 							mode="single"
 							selected={compStart}
+							defaultMonth={compStart ?? new Date()}
 							onSelect={onCompStartChange}
 							autoFocus
 						/>
@@ -152,6 +153,7 @@ const CompetitionModalDates = React.memo(function CompetitionModalDates({
 						<Calendar
 							mode="single"
 							selected={compEnd}
+							defaultMonth={compEnd ?? new Date()}
 							onSelect={onCompEndChange}
 							autoFocus
 						/>
@@ -333,6 +335,8 @@ const CompetitionModalSheet = React.memo(function CompetitionModalSheet({
 
 function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 	const { addCompetition } = useCompetitionMutations();
+	const { labels } = useLabels();
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const {
 		users,
@@ -363,40 +367,57 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 		toggleOrganiser,
 	} = useCompetitionForm({ open });
 
-	const { createTasksFromTemplate } = useTemplateTasks(teams, users);
+	const { createTasksFromTemplate } = useTemplateTasks(teams, users, labels);
+
+	const handleCompStartChange = useCallback(
+		(nextStart: Date | undefined) => {
+			setCompStart(nextStart);
+			if (!nextStart || !compEnd) return;
+			if (compEnd.getTime() < nextStart.getTime()) {
+				setCompEnd(nextStart);
+			}
+		},
+		[compEnd, setCompEnd, setCompStart],
+	);
 
 	const handleSubmit = useCallback(async () => {
-		if (!name.trim() || !compStart || !compEnd) return;
+		if (!name.trim() || !compStart || !compEnd || isSubmitting) return;
 
-		const baseData: Omit<
-			Competition,
-			"id" | "tasks" | "createdAt" | "updatedAt" | "progressUpdates"
-		> = {
-			name: name.trim(),
-			description,
-			compStart: format(compStart, "yyyy-MM-dd"),
-			compEnd: format(compEnd, "yyyy-MM-dd"),
-			compLead,
-			leadDelegate,
-			organisers,
-			phases,
-			currentPhaseIdx,
-			compSheet: compSheet
-				? { type: "google-sheet" as const, sheetId: compSheet }
-				: null,
-		};
+		setIsSubmitting(true);
+		try {
+			const baseData: Omit<
+				Competition,
+				"id" | "tasks" | "createdAt" | "updatedAt" | "progressUpdates"
+			> = {
+				name: name.trim(),
+				description,
+				compStart: format(compStart, "yyyy-MM-dd"),
+				compEnd: format(compEnd, "yyyy-MM-dd"),
+				compLead,
+				leadDelegate,
+				organisers,
+				phases,
+				currentPhaseIdx,
+				compSheet: compSheet
+					? { type: "google-sheet" as const, sheetId: compSheet }
+					: null,
+			};
 
-		const created = await addCompetition(baseData);
+			const created = await addCompetition(baseData);
 
-		if (selectedTemplate) {
-			await createTasksFromTemplate(created.id, selectedTemplate, phases);
+			if (selectedTemplate) {
+				await createTasksFromTemplate(created.id, selectedTemplate, phases);
+			}
+
+			onOpenChange(false);
+		} finally {
+			setIsSubmitting(false);
 		}
-
-		onOpenChange(false);
 	}, [
 		name,
 		compStart,
 		compEnd,
+		isSubmitting,
 		description,
 		compLead,
 		leadDelegate,
@@ -407,6 +428,7 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 		addCompetition,
 		selectedTemplate,
 		createTasksFromTemplate,
+		setIsSubmitting,
 		onOpenChange,
 	]);
 
@@ -443,7 +465,7 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 				<CompetitionModalDates
 					compStart={compStart}
 					compEnd={compEnd}
-					onCompStartChange={setCompStart}
+					onCompStartChange={handleCompStartChange}
 					onCompEndChange={setCompEnd}
 				/>
 				<CompetitionModalRoles
@@ -472,9 +494,11 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 				mode="create"
 				onCancel={handleCancel}
 				onSubmit={handleSubmit}
-				submitDisabled={!name.trim()}
+				submitDisabled={!name.trim() || isSubmitting}
 				createLabel="Create competition"
 				saveLabel="Save changes"
+				isSubmitting={isSubmitting}
+				submittingLabel="Creating..."
 			/>
 		</CompetitionModalRoot>
 	);

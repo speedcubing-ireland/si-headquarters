@@ -12,8 +12,10 @@ import {
 	DEFAULT_PHASES,
 	COMPETITION_PHASE_KEYS,
 	SEEDED_TEAM_NAMES,
+	type SeededLabelName,
+	type SeededTeamName,
 } from "../../convex/lib/seedData";
-export type { SeededTeamName } from "../../convex/lib/seedData";
+export type { SeededLabelName, SeededTeamName };
 export {
 	DEFAULT_LABELS,
 	DEFAULT_PHASES,
@@ -108,12 +110,11 @@ export type TemplateTask = {
 	description: string;
 	status: TaskStatus;
 	priority: TaskPriority;
-	labels: string[];
-	ownerType: "team" | "user" | null;
-	ownerId: string | null;
-	suggestedAssigneeId: string | null;
+	labels: SeededLabelName[];
+	ownerTeamName: SeededTeamName | null;
+	suggestedAssigneeId?: string | null;
 	phase: string | null;
-	requiredApprovalByTeamNames?: string[];
+	requiredApprovalByTeamNames?: SeededTeamName[];
 	subTasks?: TemplateTask[];
 };
 
@@ -134,7 +135,7 @@ export type TaskTemplate = {
 	descriptionTemplate: string;
 	status: TaskStatus;
 	priority: TaskPriority;
-	labels: string[];
+	labels: SeededLabelName[];
 };
 
 export type NonCompWeekendInfo = {

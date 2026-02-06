@@ -18,6 +18,10 @@ import type {
 	TaskPriority,
 	TaskStatus,
 } from "@/data/types-new";
+import {
+	taskPriorityOrder,
+	taskStatusOrder,
+} from "@/lib/task-filter-definitions";
 
 // ── Shared constants ─────────────────────────────────────────────────────────
 
@@ -75,6 +79,17 @@ export type TasksByPhaseGroup = {
 	phase: CompetitionPhase | null;
 	tasks: Task[];
 };
+
+export function compareTasksByStatusThenPriority(a: Task, b: Task): number {
+	const statusDiff = taskStatusOrder[a.status] - taskStatusOrder[b.status];
+	if (statusDiff !== 0) return statusDiff;
+
+	return taskPriorityOrder[a.priority] - taskPriorityOrder[b.priority];
+}
+
+export function sortTasksByStatusThenPriority(tasks: Task[]): Task[] {
+	return [...tasks].sort(compareTasksByStatusThenPriority);
+}
 
 export function groupTasksByCompetitionPhase(
 	tasks: Task[],

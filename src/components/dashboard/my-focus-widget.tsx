@@ -81,6 +81,14 @@ function getColumnKey(column: ColumnDef<Task, unknown>): string | null {
 	return null;
 }
 
+function isTaskPendingUserReview(task: Task, userId: string): boolean {
+	return (
+		task.status === "awaiting-review" &&
+		isUserRequiredApprover(task, userId) &&
+		!task.approvedBy.some((u) => u.id === userId)
+	);
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 export function classifyTask(
@@ -109,11 +117,7 @@ export function classifyTask(
 	}
 
 	// Needs your review (you're a required approver who hasn't approved)
-	if (
-		task.status === "awaiting-review" &&
-		isUserRequiredApprover(task, userId) &&
-		!task.approvedBy.some((u) => u.id === userId)
-	) {
+	if (isTaskPendingUserReview(task, userId)) {
 		return "needs-review";
 	}
 
@@ -286,26 +290,52 @@ export function MyFocusWidget() {
 			id: "mark-done",
 			header: "",
 			enableSorting: false,
-			cell: ({ row }) => (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<button
-							type="button"
-							onClick={(event) => {
-								event.stopPropagation();
-								handleMarkDone(row.original.id);
-							}}
-							className="inline-flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-muted/50 focus-visible:opacity-100 group-hover:opacity-100"
-							aria-label={`Mark "${row.original.title}" as done`}
-						>
-							<CheckCircle2 className="size-4 text-muted-foreground hover:text-green-500" />
-						</button>
-					</TooltipTrigger>
-					<TooltipContent side="left" sideOffset={4}>
-						Mark as done
-					</TooltipContent>
-				</Tooltip>
-			),
+			cell: ({ row }) => {
+				const task = row.original;
+				const showViewAction =
+					!!userId && isTaskPendingUserReview(task, userId);
+
+				if (showViewAction) {
+					return (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Link
+									to="/tasks/$id"
+									params={{ id: task.id }}
+									onClick={(event) => event.stopPropagation()}
+									className="inline-flex h-7 items-center rounded-md px-2 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-muted/50 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+								>
+									View
+								</Link>
+							</TooltipTrigger>
+							<TooltipContent side="left" sideOffset={4}>
+								View task
+							</TooltipContent>
+						</Tooltip>
+					);
+				}
+
+				return (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<button
+								type="button"
+								onClick={(event) => {
+									event.stopPropagation();
+									handleMarkDone(task.id);
+								}}
+								className="inline-flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-muted/50 focus-visible:opacity-100 group-hover:opacity-100"
+								aria-label={`Mark "${task.title}" as done`}
+							>
+								<CheckCircle2 className="size-4 text-muted-foreground hover:text-green-500" />
+							</button>
+						</TooltipTrigger>
+						<TooltipContent side="left" sideOffset={4}>
+							Mark as done
+						</TooltipContent>
+					</Tooltip>
+				);
+			},
 			meta: {
 				cellClassName: "w-0 px-1 text-right",
 				headerClassName: "w-0 px-1",
@@ -313,7 +343,7 @@ export function MyFocusWidget() {
 		};
 
 		return [...reusableColumns, markDoneColumn];
-	}, [taskColumns, handleMarkDone]);
+	}, [taskColumns, handleMarkDone, userId]);
 
 	const showLoading = isLoading || currentUser === undefined;
 
