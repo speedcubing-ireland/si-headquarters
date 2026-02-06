@@ -88,7 +88,7 @@ const TASKS_NON_DETAIL_PATHS = new Set([
 	"/tasks/archived",
 ]);
 
-function useCurrentTaskId(): string | null {
+function useCurrentTaskId(): Id<"tasks"> | null {
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
 	});
@@ -99,7 +99,10 @@ function useCurrentTaskId(): string | null {
 		return null;
 	}
 	const segments = pathname.split("/").filter(Boolean);
-	return segments[0] === "tasks" && segments[1] ? segments[1] : null;
+	if (segments[0] !== "tasks" || !segments[1]) {
+		return null;
+	}
+	return parseTaskId(segments[1]);
 }
 
 function buildSearchItems(
@@ -308,7 +311,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 									onSelect={() => {
 										void addReminder(
 											buildOneTimeReminderPayload(
-												parseTaskId(currentTaskId) as Id<"tasks">,
+												currentTaskId,
 												preset.getRemindAt(),
 											),
 										);

@@ -33,7 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Id } from "@/convex/_generated/dataModel";
-import { parseTaskId, parseNotificationId } from "@/lib/convex-ids";
+import { parseTaskId } from "@/lib/convex-ids";
 import {
 	buildOneTimeReminderPayload,
 	useNotifications,
@@ -120,7 +120,7 @@ function NotificationItem({
 }) {
 	const isUnread = notification.status === "unread";
 	const timeAgo = formatRelativeTime(notification.createdAt);
-	const icon = getNotificationIcon(notification.type as NotificationType);
+	const icon = getNotificationIcon(notification.type);
 
 	const getEntityLink = () => {
 		switch (notification.entityType) {
@@ -234,38 +234,20 @@ function NotificationItem({
 									)}
 								{isUnread && (
 									<DropdownMenuItem
-										onClick={() =>
-											onMarkRead(
-												parseNotificationId(
-													notification.id,
-												) as Id<"notifications">,
-											)
-										}
+										onClick={() => onMarkRead(notification.id)}
 									>
 										<Mail className="size-4 mr-2" />
 										Mark as read
 									</DropdownMenuItem>
 								)}
 								<DropdownMenuItem
-									onClick={() =>
-										onArchive(
-											parseNotificationId(
-												notification.id,
-											) as Id<"notifications">,
-										)
-									}
+									onClick={() => onArchive(notification.id)}
 								>
 									<Archive className="size-4 mr-2" />
 									Archive
 								</DropdownMenuItem>
 								<DropdownMenuItem
-									onClick={() =>
-										onDismiss(
-											parseNotificationId(
-												notification.id,
-											) as Id<"notifications">,
-										)
-									}
+									onClick={() => onDismiss(notification.id)}
 									className="text-destructive"
 								>
 									<Trash2 className="size-4 mr-2" />
@@ -332,9 +314,7 @@ function RouteComponent() {
 		const taskId = parseTaskId(notification.parentEntityId);
 		if (!taskId) return;
 		void addReminder(buildOneTimeReminderPayload(taskId, remindAt));
-		void markNotificationRead(
-			parseNotificationId(notification.id) as Id<"notifications">,
-		);
+		void markNotificationRead(notification.id);
 	};
 
 	return (

@@ -9,6 +9,11 @@ import {
 	notificationMetadata,
 	notificationType,
 	notificationPriority,
+	notificationChannel,
+	notificationDigestMode,
+	notificationDispatchStatus,
+	notificationSubscriptionType,
+	notificationSubscriberEntityType,
 	reminderMetadata,
 	reminderRecurringConfig,
 } from "./lib/validators";
@@ -180,20 +185,89 @@ export default defineSchema({
 		entityId: v.string(),
 		parentEntityId: v.optional(v.string()),
 		metadata: notificationMetadata,
+		sourceEventId: v.optional(v.id("notificationEvents")),
+		threadKey: v.optional(v.string()),
+		dedupeKey: v.optional(v.string()),
 		readAt: v.optional(v.number()),
 		archivedAt: v.optional(v.number()),
+		snoozedUntil: v.optional(v.number()),
 		scheduledFor: v.optional(v.number()),
 		isBatchable: v.boolean(),
 		batchKey: v.optional(v.string()),
 	})
 		.index("by_user", ["userId"])
 		.index("by_user_and_status", ["userId", "status"])
+		.index("by_user_source_event", ["userId", "sourceEventId"])
 		.index("by_entity", ["entityType", "entityId"]),
+
+	notificationEvents: defineTable({
+		type: notificationType,
+		entityType: v.union(
+			v.literal("task"),
+			v.literal("comment"),
+			v.literal("competition"),
+			v.literal("reminder"),
+		),
+		entityId: v.string(),
+		actorId: v.optional(v.id("users")),
+		idempotencyKey: v.string(),
+		threadKey: v.optional(v.string()),
+		dedupeKey: v.optional(v.string()),
+		payloadJson: v.optional(v.string()),
+		createdAt: v.number(),
+	})
+		.index("by_idempotency_key", ["idempotencyKey"])
+		.index("by_entity", ["entityType", "entityId"])
+		.index("by_type", ["type"]),
+
+	notificationPreferences: defineTable({
+		userId: v.id("users"),
+		type: notificationType,
+		channel: notificationChannel,
+		enabled: v.boolean(),
+		digestMode: notificationDigestMode,
+		quietHoursStartMin: v.optional(v.number()),
+		quietHoursEndMin: v.optional(v.number()),
+		updatedAt: v.number(),
+	})
+		.index("by_user", ["userId"])
+		.index("by_user_type_channel", ["userId", "type", "channel"]),
+
+	notificationSubscriptions: defineTable({
+		userId: v.id("users"),
+		subscriptionType: notificationSubscriptionType,
+		entityType: v.optional(notificationSubscriberEntityType),
+		entityId: v.optional(v.string()),
+		viewId: v.optional(v.id("savedViews")),
+		updatedAt: v.number(),
+	})
+		.index("by_user", ["userId"])
+		.index("by_user_entity", ["userId", "entityType", "entityId"])
+		.index("by_entity", ["entityType", "entityId"])
+		.index("by_user_view", ["userId", "viewId"]),
+
+	notificationDispatches: defineTable({
+		eventId: v.id("notificationEvents"),
+		notificationId: v.optional(v.id("notifications")),
+		userId: v.id("users"),
+		channel: notificationChannel,
+		status: notificationDispatchStatus,
+		reason: v.optional(v.string()),
+		metadataJson: v.optional(v.string()),
+		attempts: v.number(),
+		lastAttemptAt: v.optional(v.number()),
+		sentAt: v.optional(v.number()),
+		updatedAt: v.number(),
+	})
+		.index("by_event", ["eventId"])
+		.index("by_event_user_channel", ["eventId", "userId", "channel"])
+		.index("by_user_status", ["userId", "status"])
+		.index("by_channel_status", ["channel", "status"]),
 
 	reminders: defineTable({
 		userId: v.id("users"),
 		entityType: v.literal("task"),
-		entityId: v.string(),
+		entityId: v.id("tasks"),
 		type: v.union(v.literal("one_time"), v.literal("recurring")),
 		remindAt: v.number(),
 		recurringPattern: v.optional(v.string()),

@@ -178,7 +178,7 @@ export const usePendingReminders = () => {
 	};
 };
 
-export const usePendingRemindersForTask = (taskId: string | null) => {
+export const usePendingRemindersForTask = (taskId: Id<"tasks"> | null) => {
 	const reminders = useQuery(
 		api.reminders.listPendingForTask,
 		taskId ? { taskId } : "skip",

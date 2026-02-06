@@ -55,9 +55,7 @@ export function TaskReminderStrip({ task }: TaskReminderStripProps) {
 						variant="ghost"
 						size="sm"
 						className="text-xs"
-						onClick={() =>
-							nextReminder && cancelReminder(nextReminder.id as Id<"reminders">)
-						}
+						onClick={() => nextReminder && cancelReminder(nextReminder.id)}
 					>
 						<X className="size-3.5" />
 						Cancel

@@ -103,6 +103,49 @@ export const notificationPriority = v.union(
 	...NOTIFICATION_PRIORITIES.map((p) => v.literal(p)),
 );
 
+export const NOTIFICATION_CHANNELS = [
+	"in_app",
+	"email",
+	"slack",
+	"push",
+] as const;
+
+export const notificationChannel = v.union(
+	...NOTIFICATION_CHANNELS.map((channel) => v.literal(channel)),
+);
+
+export const NOTIFICATION_DIGEST_MODES = [
+	"immediate",
+	"hourly",
+	"daily",
+] as const;
+
+export const notificationDigestMode = v.union(
+	...NOTIFICATION_DIGEST_MODES.map((mode) => v.literal(mode)),
+);
+
+export const NOTIFICATION_DISPATCH_STATUSES = [
+	"pending",
+	"sent",
+	"skipped",
+	"failed",
+] as const;
+
+export const notificationDispatchStatus = v.union(
+	...NOTIFICATION_DISPATCH_STATUSES.map((status) => v.literal(status)),
+);
+
+export const notificationSubscriptionType = v.union(
+	v.literal("entity"),
+	v.literal("view"),
+);
+
+export const notificationSubscriberEntityType = v.union(
+	v.literal("task"),
+	v.literal("competition"),
+	v.literal("comment"),
+);
+
 export const userShape = v.object({
 	id: v.id("users"),
 	name: v.string(),

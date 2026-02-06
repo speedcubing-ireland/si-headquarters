@@ -1,10 +1,9 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import { requireUserId } from "./auth";
 import { internal } from "./_generated/api";
 import { REMINDER_PATTERNS } from "./lib/constants";
-import type { Infer } from "convex/values";
 import {
 	reminderStatus,
 	reminderType,
@@ -18,10 +17,10 @@ const PRIORITY_NORMAL = "normal";
 const toISO = (ms: number) => new Date(ms).toISOString();
 
 export const reminderReturns = v.object({
-	id: v.string(),
-	userId: v.string(),
+	id: v.id("reminders"),
+	userId: v.id("users"),
 	entityType: v.literal("task"),
-	entityId: v.string(),
+	entityId: v.id("tasks"),
 	type: reminderType,
 	remindAt: v.string(),
 	recurringPattern: v.optional(v.string()),
@@ -37,25 +36,7 @@ export const reminderReturns = v.object({
 	updatedAt: v.string(),
 });
 
-function docToReminder(d: {
-	_id: Id<"reminders">;
-	_creationTime: number;
-	userId: Id<"users">;
-	entityType: "task";
-	entityId: string;
-	type: "one_time" | "recurring";
-	remindAt: number;
-	recurringPattern?: string;
-	recurringConfig?: unknown;
-	endDate?: string;
-	status: "pending" | "triggered" | "dismissed" | "completed";
-	triggeredAt?: number;
-	dismissedAt?: number;
-	message?: string;
-	priority: string;
-	metadata?: unknown;
-	updatedAt: number;
-}) {
+function docToReminder(d: Doc<"reminders">) {
 	return {
 		id: d._id,
 		userId: d.userId,
@@ -64,14 +45,14 @@ function docToReminder(d: {
 		type: d.type,
 		remindAt: toISO(d.remindAt),
 		recurringPattern: d.recurringPattern,
-		recurringConfig: d.recurringConfig as Infer<typeof reminderRecurringConfig>,
+		recurringConfig: d.recurringConfig,
 		endDate: d.endDate,
 		status: d.status,
 		triggeredAt: d.triggeredAt !== undefined ? toISO(d.triggeredAt) : undefined,
 		dismissedAt: d.dismissedAt !== undefined ? toISO(d.dismissedAt) : undefined,
 		message: d.message,
 		priority: d.priority,
-		metadata: (d.metadata ?? {}) as Infer<typeof reminderMetadata>,
+		metadata: d.metadata ?? {},
 		createdAt: toISO(d._creationTime),
 		updatedAt: toISO(d.updatedAt),
 	};
@@ -108,7 +89,7 @@ export const listPendingForUser = query({
 });
 
 export const listPendingForTask = query({
-	args: { taskId: v.string() },
+	args: { taskId: v.id("tasks") },
 	returns: v.array(reminderReturns),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
@@ -128,7 +109,7 @@ export const listPendingForTask = query({
 
 export const create = mutation({
 	args: {
-		entityId: v.string(),
+		entityId: v.id("tasks"),
 		type: v.union(v.literal("one_time"), v.literal("recurring")),
 		remindAt: v.string(),
 		recurringPattern: v.optional(v.string()),
