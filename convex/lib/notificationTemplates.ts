@@ -1,7 +1,11 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { Infer } from "convex/values";
 import type { notificationMetadata, notificationPriority } from "./validators";
-import { STATUS_LABELS, PRIORITY_LABELS, PROGRESS_STATUS_LABELS } from "./constants";
+import {
+	STATUS_LABELS,
+	PRIORITY_LABELS,
+	PROGRESS_STATUS_LABELS,
+} from "./constants";
 
 type NotificationPriority = Infer<typeof notificationPriority>;
 type NotificationMetadata = Infer<typeof notificationMetadata>;
@@ -39,6 +43,9 @@ export type TaskNotificationType =
 	| "task_status_changed"
 	| "task_priority_changed"
 	| "task_awaiting_review"
+	| "task_approved"
+	| "task_unapproved"
+	| "due_date_changed"
 	| "relation_blocked"
 	| "relation_unblocked";
 
@@ -187,6 +194,51 @@ export const NotificationTemplates = {
 			newValue: blockingTask.identifier,
 		},
 	}),
+
+	task_approved: (
+		task: TaskInfo,
+		actor: ActorInfo,
+	): NotificationTemplateConfig => ({
+		title: `${task.identifier} approved`,
+		message: `${actor.actorName ?? "Someone"} approved task ${task.identifier}: ${task.title}`,
+		priority: "normal",
+		entityType: "task",
+		metadata: actor,
+	}),
+
+	task_unapproved: (
+		task: TaskInfo,
+		actor: ActorInfo,
+	): NotificationTemplateConfig => ({
+		title: `${task.identifier} approval withdrawn`,
+		message: `${actor.actorName ?? "Someone"} withdrew approval on task ${task.identifier}: ${task.title}`,
+		priority: "normal",
+		entityType: "task",
+		metadata: actor,
+	}),
+
+	due_date_changed: (
+		task: TaskInfo,
+		actor: ActorInfo,
+		oldDate: string | undefined,
+		newDate: string | undefined,
+	): NotificationTemplateConfig => {
+		let description: string;
+		if (!oldDate && newDate) {
+			description = `set due date to ${newDate}`;
+		} else if (oldDate && !newDate) {
+			description = `removed due date (was ${oldDate})`;
+		} else {
+			description = `changed due date from ${oldDate} to ${newDate}`;
+		}
+		return {
+			title: `${task.identifier} due date changed`,
+			message: `${actor.actorName ?? "Someone"} ${description} on task ${task.identifier}: ${task.title}`,
+			priority: "normal",
+			entityType: "task",
+			metadata: { ...actor, oldValue: oldDate, newValue: newDate },
+		};
+	},
 
 	due_date_approaching: (
 		task: TaskInfo,

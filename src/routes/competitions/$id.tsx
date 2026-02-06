@@ -146,7 +146,7 @@ function RouteComponent() {
 	const handleDelete = async () => {
 		try {
 			await deleteCompetition(competitionId);
-			navigate({ to: "/competitions" });
+			await navigate({ to: "/competitions" });
 		} catch (error) {
 			onMutationError(error);
 		}

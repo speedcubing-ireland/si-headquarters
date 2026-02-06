@@ -40,8 +40,9 @@ describe("notifications behavior characterization", () => {
 		const me = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: me });
 
-		const past = Date.now() - 5_000;
-		const future = Date.now() + 60_000;
+		const now = Date.now();
+		const past = now - 5_000;
+		const future = now + 60_000;
 
 		const visibleA = await insertNotification(t, {
 			userId: me,
@@ -65,6 +66,7 @@ describe("notifications behavior characterization", () => {
 
 		const rows = await authed.query(api.notifications.listForUser, {
 			limit: 50,
+			nowMs: future + 86_400_000,
 		});
 		const ids = rows.map((row) => row.id);
 
@@ -73,6 +75,58 @@ describe("notifications behavior characterization", () => {
 		expect(ids).toContain(visibleC);
 		expect(ids).not.toContain(hidden);
 		expect(ids[0]).toBe(visibleC);
+	});
+
+	test("listForUser paginates until enough visible notifications are found", async () => {
+		const t = convexTest(schema, modules);
+		const me = await t.run((ctx) => ctx.db.insert("users", {}));
+		const authed = t.withIdentity({ subject: me });
+		const now = Date.now();
+
+		await t.run(async (ctx) => {
+			for (let i = 0; i < 30; i++) {
+				await ctx.db.insert("notifications", {
+					userId: me,
+					type: "task_assigned",
+					priority: "normal",
+					status: "unread",
+					title: `Visible ${i}`,
+					message: "Message",
+					entityType: "task",
+					entityId: `task-visible-${i}`,
+					metadata: {},
+					scheduledFor: now - 1_000,
+					isBatchable: false,
+				});
+			}
+			for (let i = 0; i < 320; i++) {
+				await ctx.db.insert("notifications", {
+					userId: me,
+					type: "task_assigned",
+					priority: "normal",
+					status: "unread",
+					title: `Hidden ${i}`,
+					message: "Message",
+					entityType: "task",
+					entityId: `task-hidden-${i}`,
+					metadata: {},
+					scheduledFor: now + 60_000,
+					isBatchable: false,
+				});
+			}
+		});
+
+		const rows = await authed.query(api.notifications.listForUser, {
+			limit: 20,
+		});
+		expect(rows).toHaveLength(20);
+		expect(
+			rows.every(
+				(row) =>
+					typeof row.scheduledFor === "string" &&
+					new Date(row.scheduledFor).getTime() <= now,
+			),
+		).toBe(true);
 	});
 
 	test("getUnreadCount ignores snoozed or future-scheduled unread notifications", async () => {
@@ -101,10 +155,9 @@ describe("notifications behavior characterization", () => {
 			status: "read",
 		});
 
-		const unreadCount = await authed.query(
-			api.notifications.getUnreadCount,
-			{},
-		);
+		const unreadCount = await authed.query(api.notifications.getUnreadCount, {
+			nowMs: now + 86_400_000,
+		});
 		expect(unreadCount).toBe(1);
 	});
 
@@ -182,6 +235,10 @@ describe("notifications behavior characterization", () => {
 				organiserIds: [allowedUser],
 				updatedAt: Date.now(),
 			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: allowedUser,
+			});
 			const createdTaskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-1",
 				title: "Task",
@@ -225,6 +282,10 @@ describe("notifications behavior characterization", () => {
 				compEnd: "2026-05-02",
 				organiserIds: [assigneeId],
 				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: assigneeId,
 			});
 
 			const now = Date.now();
@@ -326,6 +387,10 @@ describe("notifications behavior characterization", () => {
 				compEnd: "2026-06-02",
 				organiserIds: [assigneeId],
 				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: assigneeId,
 			});
 			await ctx.db.insert("tasks", {
 				identifier: "HQ-401",
@@ -473,6 +538,14 @@ describe("notifications behavior characterization", () => {
 				organiserIds: [actorId, recipientId],
 				updatedAt: Date.now(),
 			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: recipientId,
+			});
 			const taskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-503",
 				title: "Preference-disabled assignment",
@@ -534,6 +607,10 @@ describe("notifications behavior characterization", () => {
 				compEnd: "2026-10-02",
 				organiserIds: [assigneeId],
 				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: assigneeId,
 			});
 			const taskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-504",
@@ -601,6 +678,14 @@ describe("notifications behavior characterization", () => {
 				compEnd: "2026-12-02",
 				organiserIds: [actorId, recipientId],
 				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: recipientId,
 			});
 			return { actorId, recipientId, competitionId };
 		});
@@ -688,6 +773,14 @@ async function seedTaskWithWatcher(t: ReturnType<typeof convexTest>) {
 			compEnd: "2026-03-02",
 			organiserIds: [actorId, watcherId],
 			updatedAt: Date.now(),
+		});
+		await ctx.db.insert("competitionAccess", {
+			competitionId,
+			userId: actorId,
+		});
+		await ctx.db.insert("competitionAccess", {
+			competitionId,
+			userId: watcherId,
 		});
 		const taskId = await ctx.db.insert("tasks", {
 			identifier: "HQ-W01",
@@ -808,6 +901,10 @@ describe("watcher and subscriber notification paths", () => {
 				organiserIds: [userId],
 				updatedAt: Date.now(),
 			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId,
+			});
 			const taskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-W02",
 				title: "Self-watched task",
@@ -858,6 +955,14 @@ describe("reply comment notification paths", () => {
 				compEnd: "2026-05-02",
 				organiserIds: [actorId, parentAuthorId],
 				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: parentAuthorId,
 			});
 			const taskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-R01",
@@ -918,6 +1023,10 @@ describe("reply comment notification paths", () => {
 				organiserIds: [userId],
 				updatedAt: Date.now(),
 			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId,
+			});
 			const taskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-R02",
 				title: "Self-reply task",
@@ -969,6 +1078,18 @@ describe("relation notification batch fan-out", () => {
 				compEnd: "2026-07-02",
 				organiserIds: [actorId, recipientA, recipientB],
 				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: recipientA,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: recipientB,
 			});
 			const blockedTaskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-BL1",
@@ -1024,5 +1145,168 @@ describe("relation notification batch fan-out", () => {
 		expect(notificationsA[0]?.type).toBe("relation_blocked");
 		expect(notificationsB).toHaveLength(1);
 		expect(notificationsB[0]?.type).toBe("relation_blocked");
+	});
+
+	test("_notifyTaskApproved delivers to assignee and skips self-action", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const actorId = await ctx.db.insert("users", {});
+			const assigneeId = await ctx.db.insert("users", {});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Approval comp",
+				description: "",
+				compStart: "2026-07-01",
+				compEnd: "2026-07-02",
+				organiserIds: [actorId, assigneeId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: assigneeId,
+			});
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-701",
+				title: "Needs approval",
+				description: "",
+				status: "awaiting-review",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				assigneeId: assigneeId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			return { actorId, assigneeId, taskId };
+		});
+
+		const result = await t.mutation(
+			internal.notifications._notifyTaskApproved,
+			{
+				taskId: seeded.taskId,
+				recipientIds: [seeded.assigneeId],
+				actorId: seeded.actorId,
+				eventKey: "approve-test",
+			},
+		);
+		expect(result).not.toBeNull();
+
+		const notifications = await t.run((ctx) =>
+			ctx.db
+				.query("notifications")
+				.withIndex("by_user_and_status", (q) =>
+					q.eq("userId", seeded.assigneeId).eq("status", "unread"),
+				)
+				.collect(),
+		);
+		expect(notifications).toHaveLength(1);
+		expect(notifications[0]?.type).toBe("task_approved");
+	});
+
+	test("_notifyTaskApproved skips when actor is the only recipient", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Self approve comp",
+				description: "",
+				compStart: "2026-07-01",
+				compEnd: "2026-07-02",
+				organiserIds: [userId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId,
+			});
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-702",
+				title: "Self approval",
+				description: "",
+				status: "awaiting-review",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				assigneeId: userId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			return { userId, taskId };
+		});
+
+		const result = await t.mutation(
+			internal.notifications._notifyTaskApproved,
+			{
+				taskId: seeded.taskId,
+				recipientIds: [seeded.userId],
+				actorId: seeded.userId,
+				eventKey: "self-approve",
+			},
+		);
+		expect(result).toBeNull();
+	});
+
+	test("_notifyDueDateChanged delivers to assignee", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const actorId = await ctx.db.insert("users", {});
+			const assigneeId = await ctx.db.insert("users", {});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Due date comp",
+				description: "",
+				compStart: "2026-07-01",
+				compEnd: "2026-07-02",
+				organiserIds: [actorId, assigneeId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: assigneeId,
+			});
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-703",
+				title: "Due date task",
+				description: "",
+				status: "to-do",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				assigneeId: assigneeId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			return { actorId, assigneeId, taskId };
+		});
+
+		const result = await t.mutation(
+			internal.notifications._notifyDueDateChanged,
+			{
+				taskId: seeded.taskId,
+				recipientIds: [seeded.assigneeId],
+				actorId: seeded.actorId,
+				oldDueDate: "2026-01-01",
+				newDueDate: "2026-02-01",
+				eventKey: "due-date-test",
+			},
+		);
+		expect(result).not.toBeNull();
+
+		const notifications = await t.run((ctx) =>
+			ctx.db
+				.query("notifications")
+				.withIndex("by_user_and_status", (q) =>
+					q.eq("userId", seeded.assigneeId).eq("status", "unread"),
+				)
+				.collect(),
+		);
+		expect(notifications).toHaveLength(1);
+		expect(notifications[0]?.type).toBe("due_date_changed");
 	});
 });

@@ -64,7 +64,12 @@ const GROUP_ORDER: FocusGroup[] = [
 	"to-do",
 ];
 
-const FOCUS_COLUMN_KEYS = new Set(["priority", "identifier", "status", "title"]);
+const FOCUS_COLUMN_KEYS = new Set([
+	"priority",
+	"identifier",
+	"status",
+	"title",
+]);
 
 const FOCUS_ORDERING = { field: null, direction: "asc" } as const;
 
@@ -257,11 +262,14 @@ export function MyFocusWidget() {
 		return buildFocusGroups(tasks, userId);
 	}, [tasks, userId]);
 
-	const handleMarkDone = useCallback((taskId: Id<"tasks">) => {
-		updateTask(taskId, { status: "done" })
-			.then(() => toast.success("Task marked as done"))
-			.catch(onMutationError);
-	}, [updateTask]);
+	const handleMarkDone = useCallback(
+		(taskId: Id<"tasks">) => {
+			updateTask(taskId, { status: "done" })
+				.then(() => toast.success("Task marked as done"))
+				.catch(onMutationError);
+		},
+		[updateTask],
+	);
 
 	const handleOrderingChange = useCallback(
 		(_field: string | null, _direction: "asc" | "desc") => {},
@@ -349,8 +357,7 @@ export function MyFocusWidget() {
 									<div
 										className={cn(
 											"overflow-hidden rounded-md border border-border/70",
-											config.borderClass &&
-												`border-l-2 ${config.borderClass}`,
+											config.borderClass && `border-l-2 ${config.borderClass}`,
 										)}
 									>
 										<TasksDataTable

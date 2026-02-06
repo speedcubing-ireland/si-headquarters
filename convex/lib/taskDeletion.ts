@@ -156,7 +156,9 @@ export async function deleteTasksAndRelatedData(
 			taskIdArray.map((taskId) =>
 				ctx.db
 					.query("taskRelations")
-					.withIndex("by_blocked_task", (q) => q.eq("blockedTaskId", taskId))
+					.withIndex("by_blocked_and_blocking", (q) =>
+						q.eq("blockedTaskId", taskId),
+					)
 					.collect(),
 			),
 		)

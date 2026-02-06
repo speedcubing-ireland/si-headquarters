@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import schema from "./schema";
@@ -24,6 +24,10 @@ async function seedCompetitionTaskAndComment(
 			compEnd: "2026-12-21",
 			organiserIds: [organiserId],
 			updatedAt: Date.now(),
+		});
+		await ctx.db.insert("competitionAccess", {
+			competitionId,
+			userId: organiserId,
 		});
 		const taskId = await ctx.db.insert("tasks", {
 			identifier: "HQ-701",
@@ -70,18 +74,26 @@ describe("comments behavior characterization", () => {
 	}, 15_000);
 
 	test("create sanitizes comment content for accessible task comments", async () => {
-		const t = convexTest(schema, modules);
-		const seeded = await seedCompetitionTaskAndComment(t);
-		const authed = t.withIdentity({ subject: seeded.organiserId });
+		vi.useFakeTimers();
+		try {
+			const t = convexTest(schema, modules);
+			const seeded = await seedCompetitionTaskAndComment(t);
+			const authed = t.withIdentity({ subject: seeded.organiserId });
 
-		const commentId = await authed.mutation(api.comments.create, {
-			parentType: "task",
-			parentId: `${seeded.taskId}`,
-			content: "   <hello>   ",
-		});
+			const commentId = await authed.mutation(api.comments.create, {
+				parentType: "task",
+				parentId: `${seeded.taskId}`,
+				content: "   <hello>   ",
+			});
+			await t.finishAllScheduledFunctions(() => {
+				vi.runAllTimers();
+			});
 
-		const comment = await t.run((ctx) => ctx.db.get("comments", commentId));
-		expect(comment?.content).toBe("hello");
+			const comment = await t.run((ctx) => ctx.db.get("comments", commentId));
+			expect(comment?.content).toBe("hello");
+		} finally {
+			vi.useRealTimers();
+		}
 	}, 15_000);
 
 	test("create rejects non-volunteers without competition access", async () => {
@@ -139,7 +151,7 @@ describe("comments behavior characterization", () => {
 	test("toggleReaction adds then removes user reaction", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedCompetitionTaskAndComment(t);
-		const authed = t.withIdentity({ subject: seeded.viewerId });
+		const authed = t.withIdentity({ subject: seeded.organiserId });
 
 		await authed.mutation(api.comments.toggleReaction, {
 			commentId: seeded.commentId,
@@ -150,13 +162,29 @@ describe("comments behavior characterization", () => {
 		);
 		expect(comment?.reactions).toHaveLength(1);
 		expect(comment?.reactions[0]?.emoji).toBe("👍");
-		expect(comment?.reactions[0]?.userIds).toEqual([seeded.viewerId]);
+		expect(comment?.reactions[0]?.userIds).toEqual([seeded.organiserId]);
 
 		await authed.mutation(api.comments.toggleReaction, {
 			commentId: seeded.commentId,
 			emoji: "👍",
 		});
 		comment = await t.run((ctx) => ctx.db.get("comments", seeded.commentId));
+		expect(comment?.reactions).toEqual([]);
+	});
+
+	test("toggleReaction ignores requests from users without parent access", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedCompetitionTaskAndComment(t);
+		const denied = t.withIdentity({ subject: seeded.viewerId });
+
+		await denied.mutation(api.comments.toggleReaction, {
+			commentId: seeded.commentId,
+			emoji: "👍",
+		});
+
+		const comment = await t.run((ctx) =>
+			ctx.db.get("comments", seeded.commentId),
+		);
 		expect(comment?.reactions).toEqual([]);
 	});
 

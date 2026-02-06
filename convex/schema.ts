@@ -44,7 +44,6 @@ export default defineSchema({
 		createdAt: v.number(),
 	})
 		.index("by_email", ["email"])
-		.index("by_team", ["teamId"])
 		.index("by_team_and_email", ["teamId", "email"]),
 
 	labels: defineTable({
@@ -87,6 +86,7 @@ export default defineSchema({
 			"parentCompetitionId",
 			"archived",
 		])
+		.index("by_phase_and_archived", ["phaseId", "archived"])
 		.index("by_assignee", ["assigneeId"])
 		.index("by_status", ["status"]),
 
@@ -96,7 +96,6 @@ export default defineSchema({
 		createdById: v.id("users"),
 		updatedAt: v.number(),
 	})
-		.index("by_blocked_task", ["blockedTaskId"])
 		.index("by_blocking_task", ["blockingTaskId"])
 		.index("by_blocked_and_blocking", ["blockedTaskId", "blockingTaskId"]),
 
@@ -119,7 +118,17 @@ export default defineSchema({
 		updatedAt: v.number(),
 	})
 		.index("by_comp_start", ["compStart"])
-		.index("by_name", ["name"]),
+		.index("by_name", ["name"])
+		.index("by_current_phase", ["currentPhaseId"])
+		.index("by_comp_sheet_id", ["compSheet.sheetId"]),
+
+	competitionAccess: defineTable({
+		competitionId: v.id("competitions"),
+		userId: v.id("users"),
+	})
+		.index("by_user", ["userId"])
+		.index("by_competition", ["competitionId"])
+		.index("by_user_and_competition", ["userId", "competitionId"]),
 
 	competitionUpdates: defineTable({
 		competitionId: v.id("competitions"),
@@ -204,6 +213,7 @@ export default defineSchema({
 		isBatchable: v.boolean(),
 		batchKey: v.optional(v.string()),
 	})
+		.index("by_user", ["userId"])
 		.index("by_user_and_status", ["userId", "status"])
 		.index("by_user_source_event", ["userId", "sourceEventId"])
 		.index("by_entity", ["entityType", "entityId"]),

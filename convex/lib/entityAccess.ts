@@ -14,13 +14,13 @@ const accessStrategies: {
 } = {
 	task: {
 		getCompetitionId: async (ctx, id) => {
-			const task = await ctx.db.get(id);
+			const task = await ctx.db.get("tasks", id);
 			return task?.parentCompetitionId;
 		},
 	},
 	update: {
 		getCompetitionId: async (ctx, id) => {
-			const update = await ctx.db.get(id);
+			const update = await ctx.db.get("competitionUpdates", id);
 			return update?.competitionId;
 		},
 	},

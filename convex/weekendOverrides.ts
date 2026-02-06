@@ -113,7 +113,10 @@ export const clearAll = mutation({
 	returns: v.null(),
 	handler: async (ctx) => {
 		await requireDirector(ctx);
-		const docs = await ctx.db.query("weekendOverrides").collect();
+		const docs = await ctx.db
+			.query("weekendOverrides")
+			.withIndex("by_sat_date")
+			.collect();
 		await Promise.all(
 			docs.map((doc) => ctx.db.delete("weekendOverrides", doc._id)),
 		);

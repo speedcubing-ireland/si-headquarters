@@ -2,7 +2,10 @@ import { ConvexError } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { userCanAccessCompetitionDoc } from "./competitionAccess";
+import {
+	hasCompetitionAccess,
+	listAccessibleCompetitionIds,
+} from "./competitionAccess";
 
 export const ERROR_TASK_NO_COMPETITION =
 	"Only volunteers can modify tasks without a competition";
@@ -19,23 +22,14 @@ export async function hasTaskCompetitionAccess(
 	userId: Id<"users">,
 	competitionId: Id<"competitions"> | null | undefined,
 ): Promise<boolean> {
-	if (isVolunteer) return true;
-	if (!competitionId) return false;
-
-	const competition = await ctx.db.get("competitions", competitionId);
-	if (!competition) return false;
-
-	return userCanAccessCompetitionDoc(competition, userId);
+	return hasCompetitionAccess(ctx, isVolunteer, userId, competitionId);
 }
 
 export async function listOrganisedCompetitionIds(
 	ctx: TaskAccessCtx,
 	userId: Id<"users">,
 ): Promise<Id<"competitions">[]> {
-	const competitions = await ctx.db.query("competitions").collect();
-	return competitions
-		.filter((competition) => userCanAccessCompetitionDoc(competition, userId))
-		.map((competition) => competition._id);
+	return listAccessibleCompetitionIds(ctx, userId);
 }
 
 export async function requireTaskAccess(

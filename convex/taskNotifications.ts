@@ -20,15 +20,15 @@ function toRecipientArray(recipients: Set<Id<"users">>): Id<"users">[] {
 	return [...recipients];
 }
 
-export function sendTaskAssigneeChangeNotifications(
+export async function sendTaskAssigneeChangeNotifications(
 	ctx: MutationCtx,
 	taskId: Id<"tasks">,
 	oldAssigneeId: Id<"users"> | undefined,
 	newAssigneeId: Id<"users"> | undefined,
 	actorId: Id<"users">,
-): void {
+): Promise<void> {
 	if (oldAssigneeId && oldAssigneeId !== actorId) {
-		void ctx.scheduler.runAfter(
+		await ctx.scheduler.runAfter(
 			0,
 			internal.notifications._notifyTaskUnassigned,
 			{
@@ -39,45 +39,53 @@ export function sendTaskAssigneeChangeNotifications(
 		);
 	}
 	if (newAssigneeId && newAssigneeId !== actorId) {
-		void ctx.scheduler.runAfter(0, internal.notifications._notifyTaskAssigned, {
-			taskId,
-			assigneeId: newAssigneeId,
-			actorId,
-		});
+		await ctx.scheduler.runAfter(
+			0,
+			internal.notifications._notifyTaskAssigned,
+			{
+				taskId,
+				assigneeId: newAssigneeId,
+				actorId,
+			},
+		);
 	}
 }
 
-export function sendTaskStatusChangeNotifications(
+export async function sendTaskStatusChangeNotifications(
 	ctx: MutationCtx,
 	taskId: Id<"tasks">,
 	doc: Doc<"tasks">,
 	oldStatus: string,
 	newStatus: string,
 	actorId: Id<"users">,
-): void {
+): Promise<void> {
 	const recipients = collectTaskNotificationRecipients(doc, actorId);
 	const recipientIds = toRecipientArray(recipients);
-	void ctx.scheduler.runAfter(0, internal.notifications._notifyTaskStatusChanged, {
-		taskId,
-		recipientIds,
-		actorId,
-		oldStatus,
-		newStatus,
-		eventKey: `${taskId}:${oldStatus}:${newStatus}:${Date.now()}`,
-	});
+	await ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyTaskStatusChanged,
+		{
+			taskId,
+			recipientIds,
+			actorId,
+			oldStatus,
+			newStatus,
+			eventKey: `${taskId}:${oldStatus}:${newStatus}:${Date.now()}`,
+		},
+	);
 }
 
-export function sendTaskPriorityChangeNotifications(
+export async function sendTaskPriorityChangeNotifications(
 	ctx: MutationCtx,
 	taskId: Id<"tasks">,
 	doc: Doc<"tasks">,
 	oldPriority: string,
 	newPriority: string,
 	actorId: Id<"users">,
-): void {
+): Promise<void> {
 	const recipients = collectTaskNotificationRecipients(doc, actorId);
 	const recipientIds = toRecipientArray(recipients);
-	void ctx.scheduler.runAfter(
+	await ctx.scheduler.runAfter(
 		0,
 		internal.notifications._notifyTaskPriorityChanged,
 		{
@@ -115,7 +123,7 @@ export async function sendTaskRelationBlockedNotifications(
 		actorId,
 	);
 	const recipientIds = toRecipientArray(recipients);
-	void ctx.scheduler.runAfter(
+	await ctx.scheduler.runAfter(
 		0,
 		internal.notifications._notifyTaskRelationBlocked,
 		{
@@ -140,7 +148,7 @@ export async function sendTaskRelationUnblockedNotifications(
 		actorId,
 	);
 	const recipientIds = toRecipientArray(recipients);
-	void ctx.scheduler.runAfter(
+	await ctx.scheduler.runAfter(
 		0,
 		internal.notifications._notifyTaskRelationUnblocked,
 		{
@@ -149,6 +157,66 @@ export async function sendTaskRelationUnblockedNotifications(
 			recipientIds,
 			actorId,
 			eventKey: `${blockedTaskId}:${blockingTaskId}:unblocked:${Date.now()}`,
+		},
+	);
+}
+
+export async function sendTaskApprovalNotifications(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	task: Doc<"tasks">,
+	actorId: Id<"users">,
+): Promise<void> {
+	const recipients = collectTaskNotificationRecipients(task, actorId);
+	const recipientIds = toRecipientArray(recipients);
+	await ctx.scheduler.runAfter(0, internal.notifications._notifyTaskApproved, {
+		taskId,
+		recipientIds,
+		actorId,
+		eventKey: `${taskId}:approved:${Date.now()}`,
+	});
+}
+
+export async function sendTaskUnapprovalNotifications(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	task: Doc<"tasks">,
+	actorId: Id<"users">,
+): Promise<void> {
+	const recipients = collectTaskNotificationRecipients(task, actorId);
+	const recipientIds = toRecipientArray(recipients);
+	await ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyTaskUnapproved,
+		{
+			taskId,
+			recipientIds,
+			actorId,
+			eventKey: `${taskId}:unapproved:${Date.now()}`,
+		},
+	);
+}
+
+export async function sendDueDateChangeNotifications(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	doc: Doc<"tasks">,
+	oldDueDate: string | undefined,
+	newDueDate: string | undefined,
+	actorId: Id<"users">,
+): Promise<void> {
+	const recipients = collectTaskNotificationRecipients(doc, actorId);
+	const recipientIds = toRecipientArray(recipients);
+	await ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyDueDateChanged,
+		{
+			taskId,
+			recipientIds,
+			actorId,
+			oldDueDate,
+			newDueDate,
+			eventKey: `${taskId}:due_date:${Date.now()}`,
 		},
 	);
 }

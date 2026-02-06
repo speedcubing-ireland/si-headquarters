@@ -32,6 +32,9 @@ import {
 } from "./lib/activity";
 import {
 	sendTaskAssigneeChangeNotifications,
+	sendTaskApprovalNotifications,
+	sendTaskUnapprovalNotifications,
+	sendDueDateChangeNotifications,
 	sendTaskPriorityChangeNotifications,
 	sendTaskRelationBlockedNotifications,
 	sendTaskRelationUnblockedNotifications,
@@ -1034,7 +1037,7 @@ async function runTaskUpdateSideEffects(
 	}
 
 	if (oldAssigneeId !== newAssigneeId) {
-		sendTaskAssigneeChangeNotifications(
+		await sendTaskAssigneeChangeNotifications(
 			ctx,
 			taskId,
 			oldAssigneeId,
@@ -1044,7 +1047,7 @@ async function runTaskUpdateSideEffects(
 	}
 
 	if (updates.status !== undefined && oldStatus !== newStatus) {
-		sendTaskStatusChangeNotifications(
+		await sendTaskStatusChangeNotifications(
 			ctx,
 			taskId,
 			doc,
@@ -1062,7 +1065,7 @@ async function runTaskUpdateSideEffects(
 	}
 
 	if (updates.priority !== undefined && oldPriority !== newPriority) {
-		sendTaskPriorityChangeNotifications(
+		await sendTaskPriorityChangeNotifications(
 			ctx,
 			taskId,
 			doc,
@@ -1070,6 +1073,21 @@ async function runTaskUpdateSideEffects(
 			newPriority,
 			userId,
 		);
+	}
+
+	if (updates.dueDate !== undefined) {
+		const oldDueDate = doc.dueDate;
+		const newDueDate = updates.dueDate === null ? undefined : updates.dueDate;
+		if (oldDueDate !== newDueDate) {
+			await sendDueDateChangeNotifications(
+				ctx,
+				taskId,
+				doc,
+				oldDueDate,
+				newDueDate,
+				userId,
+			);
+		}
 	}
 
 	if (newStatus === "awaiting-review") {
@@ -1401,7 +1419,7 @@ export const removeBlockingRelation = mutation({
 			ctx.db.get("tasks", args.blockingTaskId),
 		]);
 		if (!blockedTask || !blockingTask) {
-			await ctx.db.delete(relation._id);
+			await ctx.db.delete("taskRelations", relation._id);
 			return null;
 		}
 
@@ -1409,7 +1427,7 @@ export const removeBlockingRelation = mutation({
 		await requireTaskAccess(ctx, volunteer, userId, blockingTask);
 
 		const removedActiveBlocker = isTaskBlockingStatus(blockingTask.status);
-		await ctx.db.delete(relation._id);
+		await ctx.db.delete("taskRelations", relation._id);
 
 		await logActivity(ctx, userId, "task", args.blockedTaskId, "updated", {
 			message: `unblocked from ${blockingTask.identifier}`,
@@ -1599,7 +1617,7 @@ export const approveTask = mutation({
 		await ctx.db.patch("tasks", args.taskId, patch);
 
 		if (patch.status === "done") {
-			sendTaskStatusChangeNotifications(
+			await sendTaskStatusChangeNotifications(
 				ctx,
 				args.taskId,
 				task,
@@ -1617,6 +1635,7 @@ export const approveTask = mutation({
 		}
 
 		await logActivity(ctx, userId, "task", args.taskId, "approved");
+		await sendTaskApprovalNotifications(ctx, args.taskId, task, userId);
 		return null;
 	},
 });
@@ -1644,6 +1663,7 @@ export const unapproveTask = mutation({
 			updatedAt: Date.now(),
 		});
 		await logActivity(ctx, userId, "task", args.taskId, "unapproved");
+		await sendTaskUnapprovalNotifications(ctx, args.taskId, task, userId);
 		return null;
 	},
 });

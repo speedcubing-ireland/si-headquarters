@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import schema from "./schema";
@@ -17,6 +17,10 @@ async function seedUserAndCompetition(
 			compEnd: "2026-01-02",
 			organiserIds: [userId],
 			updatedAt: Date.now(),
+		});
+		await ctx.db.insert("competitionAccess", {
+			competitionId,
+			userId,
 		});
 		return { userId, competitionId };
 	});
@@ -67,44 +71,56 @@ describe("tasks behavior characterization", () => {
 	});
 
 	test("update auto-promotes awaiting-review to done when approvals are already complete", async () => {
-		const t = convexTest(schema, modules);
-		const seeded = await t.run(async (ctx) => {
-			const actorId = await ctx.db.insert("users", {});
-			const reviewerId = await ctx.db.insert("users", {});
-			const competitionId = await ctx.db.insert("competitions", {
-				name: "Comp",
-				description: "",
-				compStart: "2026-02-01",
-				compEnd: "2026-02-02",
-				organiserIds: [actorId],
-				updatedAt: Date.now(),
+		vi.useFakeTimers();
+		try {
+			const t = convexTest(schema, modules);
+			const seeded = await t.run(async (ctx) => {
+				const actorId = await ctx.db.insert("users", {});
+				const reviewerId = await ctx.db.insert("users", {});
+				const competitionId = await ctx.db.insert("competitions", {
+					name: "Comp",
+					description: "",
+					compStart: "2026-02-01",
+					compEnd: "2026-02-02",
+					organiserIds: [actorId],
+					updatedAt: Date.now(),
+				});
+				await ctx.db.insert("competitionAccess", {
+					competitionId,
+					userId: actorId,
+				});
+				const taskId = await ctx.db.insert("tasks", {
+					identifier: "HQ-10",
+					title: "Needs approval",
+					description: "",
+					status: "in-progress",
+					priority: "high",
+					archived: false,
+					parentCompetitionId: competitionId,
+					labelIds: [],
+					requiredApprovalIds: [`user:${reviewerId}`],
+					approvedByIds: [reviewerId],
+					updatedAt: Date.now(),
+				});
+				return { actorId, taskId };
 			});
-			const taskId = await ctx.db.insert("tasks", {
-				identifier: "HQ-10",
-				title: "Needs approval",
-				description: "",
-				status: "in-progress",
-				priority: "high",
-				archived: false,
-				parentCompetitionId: competitionId,
-				labelIds: [],
-				requiredApprovalIds: [`user:${reviewerId}`],
-				approvedByIds: [reviewerId],
-				updatedAt: Date.now(),
+			const authed = t.withIdentity({ subject: seeded.actorId });
+
+			await authed.mutation(api.tasks.update, {
+				taskId: seeded.taskId,
+				updates: { status: "awaiting-review" },
 			});
-			return { actorId, taskId };
-		});
-		const authed = t.withIdentity({ subject: seeded.actorId });
+			await t.finishAllScheduledFunctions(() => {
+				vi.runAllTimers();
+			});
 
-		await authed.mutation(api.tasks.update, {
-			taskId: seeded.taskId,
-			updates: { status: "awaiting-review" },
-		});
-
-		const updatedTask = await t.run((ctx) =>
-			ctx.db.get("tasks", seeded.taskId),
-		);
-		expect(updatedTask?.status).toBe("done");
+			const updatedTask = await t.run((ctx) =>
+				ctx.db.get("tasks", seeded.taskId),
+			);
+			expect(updatedTask?.status).toBe("done");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	test("bulkUpdate rejects requests above MAX_BULK_UPDATE_COUNT", async () => {
@@ -141,6 +157,10 @@ describe("tasks behavior characterization", () => {
 				organiserIds: [actorId],
 				updatedAt: Date.now(),
 			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId: allowedCompetitionId,
+				userId: actorId,
+			});
 			const deniedCompetitionId = await ctx.db.insert("competitions", {
 				name: "Denied",
 				description: "",
@@ -148,6 +168,10 @@ describe("tasks behavior characterization", () => {
 				compEnd: "2026-04-02",
 				organiserIds: [otherUserId],
 				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId: deniedCompetitionId,
+				userId: otherUserId,
 			});
 			const taskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-20",

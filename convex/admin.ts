@@ -38,8 +38,20 @@ async function findUserIdByEmail(
 	ctx: AuthCtx,
 	email: string,
 ): Promise<Id<"users"> | null> {
-	const users = await ctx.db.query("users").collect();
-	const match = users.find((user) => normalizeEmail(user.email) === email);
+	const exactMatch = await ctx.db
+		.query("users")
+		.withIndex("email", (q) => q.eq("email", email))
+		.first();
+	if (exactMatch) {
+		return exactMatch._id;
+	}
+
+	// Fallback keeps case-insensitive behavior if historic rows used non-normalized email casing.
+	const users = await ctx.db.query("users").withIndex("email").collect();
+	const normalizedEmail = normalizeEmail(email);
+	const match = users.find(
+		(user) => normalizeEmail(user.email) === normalizedEmail,
+	);
 	return match?._id ?? null;
 }
 
@@ -96,9 +108,12 @@ export const listMembersAndTeams = query({
 		await requireDirector(ctx);
 
 		const [userDocs, teamDocs, pendingTeamMemberDocs] = await Promise.all([
-			ctx.db.query("users").collect(),
+			ctx.db.query("users").withIndex("email").collect(),
 			ctx.db.query("teams").withIndex("by_name").order("asc").collect(),
-			ctx.db.query("pendingTeamMembers").collect(),
+			ctx.db
+				.query("pendingTeamMembers")
+				.withIndex("by_team_and_email")
+				.collect(),
 		]);
 
 		const users = userDocs.map((u) => ({
@@ -383,30 +398,51 @@ export const listPhasesWithUsage = query({
 	handler: async (ctx) => {
 		await requireDirector(ctx);
 
-		const [phases, tasks, competitions] = await Promise.all([
-			ctx.db.query("phases").withIndex("by_order").order("asc").collect(),
-			ctx.db
-				.query("tasks")
-				.withIndex("by_archived", (q) => q.eq("archived", false))
-				.collect(),
-			ctx.db.query("competitions").collect(),
-		]);
+		const phases = await ctx.db
+			.query("phases")
+			.withIndex("by_order")
+			.order("asc")
+			.collect();
 
-		const taskUsage = new Map<Id<"phases">, number>();
-		for (const task of tasks) {
-			if (task.phaseId) {
-				const current = taskUsage.get(task.phaseId) ?? 0;
-				taskUsage.set(task.phaseId, current + 1);
-			}
-		}
+		const usageEntries = await Promise.all(
+			phases.map(
+				async (
+					phase,
+				): Promise<
+					[
+						Id<"phases">,
+						{ taskUsageCount: number; competitionUsageCount: number },
+					]
+				> => {
+					const [taskDocs, competitionDocs] = await Promise.all([
+						ctx.db
+							.query("tasks")
+							.withIndex("by_phase_and_archived", (q) =>
+								q.eq("phaseId", phase._id).eq("archived", false),
+							)
+							.collect(),
+						ctx.db
+							.query("competitions")
+							.withIndex("by_current_phase", (q) =>
+								q.eq("currentPhaseId", phase._id),
+							)
+							.collect(),
+					]);
+					return [
+						phase._id,
+						{
+							taskUsageCount: taskDocs.length,
+							competitionUsageCount: competitionDocs.length,
+						},
+					];
+				},
+			),
+		);
 
-		const competitionUsage = new Map<Id<"phases">, number>();
-		for (const comp of competitions) {
-			if (comp.currentPhaseId) {
-				const current = competitionUsage.get(comp.currentPhaseId) ?? 0;
-				competitionUsage.set(comp.currentPhaseId, current + 1);
-			}
-		}
+		const usageByPhase = new Map<
+			Id<"phases">,
+			{ taskUsageCount: number; competitionUsageCount: number }
+		>(usageEntries);
 
 		return phases.map((p) => ({
 			id: p._id,
@@ -415,8 +451,9 @@ export const listPhasesWithUsage = query({
 			description: p.description,
 			order: p.order,
 			archived: p.archived,
-			taskUsageCount: taskUsage.get(p._id) ?? 0,
-			competitionUsageCount: competitionUsage.get(p._id) ?? 0,
+			taskUsageCount: usageByPhase.get(p._id)?.taskUsageCount ?? 0,
+			competitionUsageCount:
+				usageByPhase.get(p._id)?.competitionUsageCount ?? 0,
 		}));
 	},
 });
@@ -433,10 +470,12 @@ export const createPhaseAdmin = mutation({
 	handler: async (ctx, args) => {
 		await requireDirector(ctx);
 
-		const existing = await ctx.db.query("phases").collect();
-		const nextOrder =
-			args.order ??
-			(existing.length > 0 ? Math.max(...existing.map((p) => p.order)) + 1 : 0);
+		const lastPhase = await ctx.db
+			.query("phases")
+			.withIndex("by_order")
+			.order("desc")
+			.first();
+		const nextOrder = args.order ?? (lastPhase ? lastPhase.order + 1 : 0);
 
 		return await ctx.db.insert("phases", {
 			key: args.key,
@@ -481,32 +520,30 @@ export const deletePhaseIfUnused = mutation({
 	handler: async (ctx, args) => {
 		await requireDirector(ctx);
 
-		const [tasks, competitions] = await Promise.all([
-			ctx.db
-				.query("tasks")
-				.withIndex("by_archived", (q) => q.eq("archived", false))
-				.collect(),
-			ctx.db.query("competitions").collect(),
-		]);
-
-		for (const task of tasks) {
-			if (task.phaseId === args.id) {
-				throw new ConvexError({
-					code: "FORBIDDEN",
-					message:
-						"Cannot delete phase that is still used by at least one task. Reassign it from those tasks first.",
-				});
-			}
+		const taskUsingPhase = await ctx.db
+			.query("tasks")
+			.withIndex("by_phase_and_archived", (q) =>
+				q.eq("phaseId", args.id).eq("archived", false),
+			)
+			.first();
+		if (taskUsingPhase) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message:
+					"Cannot delete phase that is still used by at least one task. Reassign it from those tasks first.",
+			});
 		}
 
-		for (const competition of competitions) {
-			if (competition.currentPhaseId === args.id) {
-				throw new ConvexError({
-					code: "FORBIDDEN",
-					message:
-						"Cannot delete phase that is still the current phase of at least one competition. Update those competitions first.",
-				});
-			}
+		const competitionUsingPhase = await ctx.db
+			.query("competitions")
+			.withIndex("by_current_phase", (q) => q.eq("currentPhaseId", args.id))
+			.first();
+		if (competitionUsingPhase) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message:
+					"Cannot delete phase that is still the current phase of at least one competition. Update those competitions first.",
+			});
 		}
 
 		await ctx.db.delete("phases", args.id);

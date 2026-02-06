@@ -39,7 +39,10 @@ export const seedInitialData = internalMutation({
 			}
 		}
 
-		const existingPhases = await ctx.db.query("phases").collect();
+		const existingPhases = await ctx.db
+			.query("phases")
+			.withIndex("by_order")
+			.collect();
 		if (existingPhases.length === 0) {
 			for (const [index, phaseTemplate] of DEFAULT_PHASES.entries()) {
 				const key =

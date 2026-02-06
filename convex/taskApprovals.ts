@@ -108,7 +108,7 @@ export async function scheduleAwaitingReviewNotifications(
 	reviewerIds.delete(actorId);
 
 	for (const recipientId of reviewerIds) {
-		void ctx.scheduler.runAfter(
+		await ctx.scheduler.runAfter(
 			0,
 			internal.notifications._notifyTaskAwaitingReview,
 			{

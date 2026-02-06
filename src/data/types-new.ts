@@ -172,6 +172,9 @@ export type NotificationType =
 	| "comment_replied"
 	| "relation_blocked"
 	| "relation_unblocked"
+	| "task_approved"
+	| "task_unapproved"
+	| "due_date_changed"
 	| "competition_phase_changed"
 	| "progress_update_added"
 	| "reminder_triggered";

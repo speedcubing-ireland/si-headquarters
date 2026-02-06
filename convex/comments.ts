@@ -386,15 +386,7 @@ function matchesMention(
 }
 
 async function extractMentions(
-	ctx: {
-		db: {
-			query: (table: "users") => {
-				collect: () => Promise<
-					Array<{ _id: Id<"users">; name?: string; email?: string }>
-				>;
-			};
-		};
-	},
+	ctx: Pick<MutationCtx, "db">,
 	content: string,
 ): Promise<Id<"users">[]> {
 	const mentionRegex = /@(\w+)/g;
@@ -402,7 +394,7 @@ async function extractMentions(
 	if (matches.length === 0) return [];
 
 	const mentionedNames = new Set(matches.map((m) => m[1].toLowerCase()));
-	const allUsers = await ctx.db.query("users").collect();
+	const allUsers = await ctx.db.query("users").withIndex("email").collect();
 	const mentionedUserIds: Id<"users">[] = [];
 
 	for (const user of allUsers) {
@@ -471,7 +463,7 @@ export const create = mutation({
 
 		for (const mentionedUserId of mentionedUserIds) {
 			if (mentionedUserId !== userId) {
-				void ctx.scheduler.runAfter(
+				await ctx.scheduler.runAfter(
 					0,
 					internal.notifications._notifyTaskMentioned,
 					{
@@ -493,13 +485,17 @@ export const create = mutation({
 			replyRecipients.add(parentComment.authorId);
 		}
 		if (replyRecipients.size > 0) {
-			void ctx.scheduler.runAfter(0, internal.notifications._notifyCommentReplied, {
-				taskId,
-				commentId,
-				recipientIds: [...replyRecipients],
-				actorId: userId,
-				eventKey: `${commentId}:reply`,
-			});
+			await ctx.scheduler.runAfter(
+				0,
+				internal.notifications._notifyCommentReplied,
+				{
+					taskId,
+					commentId,
+					recipientIds: [...replyRecipients],
+					actorId: userId,
+					eventKey: `${commentId}:reply`,
+				},
+			);
 		}
 		const excludedRecipients = new Set<Id<"users">>([
 			...mentionedRecipients,
@@ -510,13 +506,17 @@ export const create = mutation({
 			userId,
 			excludedRecipients,
 		);
-		void ctx.scheduler.runAfter(0, internal.notifications._notifyCommentAdded, {
-			taskId,
-			commentId,
-			recipientIds: commentAddedRecipients,
-			actorId: userId,
-			eventKey: `${commentId}:added`,
-		});
+		await ctx.scheduler.runAfter(
+			0,
+			internal.notifications._notifyCommentAdded,
+			{
+				taskId,
+				commentId,
+				recipientIds: commentAddedRecipients,
+				actorId: userId,
+				eventKey: `${commentId}:added`,
+			},
+		);
 		return commentId;
 	},
 });
@@ -606,6 +606,14 @@ export const toggleReaction = mutation({
 		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc) return null;
+		const volunteer = await isVolunteer(ctx);
+		const canReadParent = await canReadCommentParent(ctx, {
+			parentType: doc.parentType,
+			parentId: doc.parentId,
+			userId,
+			volunteer,
+		});
+		if (!canReadParent) return null;
 		const reactions = toggleUserReaction(doc.reactions, args.emoji, userId);
 
 		await ctx.db.patch("comments", args.commentId, {

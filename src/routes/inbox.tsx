@@ -17,6 +17,7 @@ import {
 	Settings2,
 	Trash2,
 	User,
+	XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -91,6 +92,12 @@ function getNotificationIcon(type: NotificationType) {
 			return <AlertTriangle className="size-5 text-destructive" />;
 		case "relation_unblocked":
 			return <CheckCircle2 className="size-5 text-primary" />;
+		case "task_approved":
+			return <CheckCircle2 className="size-5 text-primary" />;
+		case "task_unapproved":
+			return <XCircle className="size-5 text-muted-foreground" />;
+		case "due_date_changed":
+			return <Calendar className="size-5 text-primary" />;
 		case "competition_phase_changed":
 			return <Link2 className="size-5 text-primary" />;
 		case "progress_update_added":

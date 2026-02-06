@@ -11,7 +11,13 @@ import {
 	deleteCommentsAndReplies,
 	deleteEntitySubscriptions,
 } from "./lib/taskDeletion";
-import { userCanAccessCompetitionDoc } from "./competitionAccess";
+import {
+	competitionAccessUserIds,
+	deleteCompetitionAccessRows,
+	listAccessibleCompetitionIds,
+	syncCompetitionAccessRows,
+	userCanAccessCompetitionDoc,
+} from "./competitionAccess";
 import { toUsers, createLens, toISO, type UserUI } from "./lib/transforms";
 import { phaseShape, taskStatus, userShape } from "./lib/validators";
 import type { TaskStatus } from "./lib/types";
@@ -177,14 +183,21 @@ export const listForUI = query({
 				.order("asc")
 				.collect();
 		} else {
-			const allCompetitions = await ctx.db
-				.query("competitions")
-				.withIndex("by_comp_start")
-				.order("asc")
-				.collect();
-			docs = allCompetitions.filter((comp) =>
-				userCanAccessCompetitionDoc(comp, userId),
+			const accessibleCompetitionIds = await listAccessibleCompetitionIds(
+				ctx,
+				userId,
 			);
+			const competitionDocs = await Promise.all(
+				accessibleCompetitionIds.map((competitionId) =>
+					ctx.db.get("competitions", competitionId),
+				),
+			);
+			docs = competitionDocs
+				.filter(
+					(competition): competition is Doc<"competitions"> =>
+						competition !== null,
+				)
+				.sort((a, b) => a.compStart.localeCompare(b.compStart));
 		}
 
 		const phases: Doc<"phases">[] = await ctx.db
@@ -228,7 +241,9 @@ export const listForUI = query({
 		}
 
 		const userArr = [...userIds];
-		const userDocs = await Promise.all(userArr.map((id) => ctx.db.get(id)));
+		const userDocs = await Promise.all(
+			userArr.map((id) => ctx.db.get("users", id)),
+		);
 		const usersLens = createLens(toUsers(userDocs));
 
 		return docs.map((d) => {
@@ -407,6 +422,15 @@ export const create = mutation({
 			compSheet: args.compSheet,
 			updatedAt: now,
 		});
+		await syncCompetitionAccessRows(
+			ctx,
+			competitionId,
+			competitionAccessUserIds({
+				compLeadId: args.compLeadId,
+				leadDelegateId: args.leadDelegateId,
+				organiserIds: args.organiserIds ?? [],
+			}),
+		);
 		const userId = await requireUserId(ctx);
 		await logActivity(ctx, userId, "competition", competitionId, "created");
 		return competitionId;
@@ -519,6 +543,9 @@ async function notifyPhaseChangeRecipients(
 		args.competition,
 		args.actorId,
 	);
+	if (recipientIds.length === 0) {
+		return;
+	}
 	await ctx.scheduler.runAfter(
 		0,
 		internal.notifications._notifyCompetitionPhaseChanged,
@@ -579,8 +606,29 @@ export const update = mutation({
 
 		const patch = buildCompetitionPatch(args.updates);
 		const phaseTransition = resolvePhaseTransition(doc, args.updates);
+		const hasAccessFieldUpdate =
+			args.updates.compLeadId !== undefined ||
+			args.updates.leadDelegateId !== undefined ||
+			args.updates.organiserIds !== undefined;
 
 		await ctx.db.patch("competitions", args.competitionId, patch);
+		if (hasAccessFieldUpdate) {
+			await syncCompetitionAccessRows(
+				ctx,
+				args.competitionId,
+				competitionAccessUserIds({
+					compLeadId:
+						args.updates.compLeadId === undefined
+							? doc.compLeadId
+							: (args.updates.compLeadId ?? undefined),
+					leadDelegateId:
+						args.updates.leadDelegateId === undefined
+							? doc.leadDelegateId
+							: (args.updates.leadDelegateId ?? undefined),
+					organiserIds: args.updates.organiserIds ?? doc.organiserIds,
+				}),
+			);
+		}
 
 		if (!phaseTransition.hasPhaseChange) {
 			return null;
@@ -636,6 +684,7 @@ export const remove = mutation({
 
 		const doc = await ctx.db.get("competitions", args.competitionId);
 		if (!doc) return null;
+		await deleteCompetitionAccessRows(ctx, args.competitionId);
 
 		const competitionTasks = await ctx.db
 			.query("tasks")

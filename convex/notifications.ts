@@ -281,6 +281,107 @@ function normalizeSubscriptionListLimit(limit: number | undefined): number {
 	return limit;
 }
 
+function isNotificationScheduledVisible(
+	doc: Pick<Doc<"notifications">, "scheduledFor">,
+	now: number,
+): boolean {
+	return doc.scheduledFor === undefined || doc.scheduledFor <= now;
+}
+
+function isUnreadNotificationVisible(
+	doc: Pick<Doc<"notifications">, "scheduledFor" | "snoozedUntil">,
+	now: number,
+): boolean {
+	return (
+		(doc.snoozedUntil === undefined || doc.snoozedUntil <= now) &&
+		isNotificationScheduledVisible(doc, now)
+	);
+}
+
+async function listVisibleNotificationsForUser(
+	ctx: QueryCtx,
+	userId: Id<"users">,
+	now: number,
+	limit: number,
+): Promise<Doc<"notifications">[]> {
+	const pageSize = Math.min(
+		Math.max(limit * 2, NOTIFICATION_LIST_LIMITS.DEFAULT),
+		NOTIFICATION_LIST_LIMITS.MAX,
+	);
+	const visible: Doc<"notifications">[] = [];
+	let cursor: string | null = null;
+	while (visible.length < limit) {
+		const page = await ctx.db
+			.query("notifications")
+			.withIndex("by_user", (q) => q.eq("userId", userId))
+			.order("desc")
+			.paginate({ cursor, numItems: pageSize });
+		for (const doc of page.page) {
+			if (isNotificationScheduledVisible(doc, now)) {
+				visible.push(doc);
+			}
+			if (visible.length >= limit) {
+				break;
+			}
+		}
+		if (page.isDone) {
+			break;
+		}
+		cursor = page.continueCursor;
+	}
+	return visible;
+}
+
+async function countVisibleUnreadNotifications(
+	ctx: QueryCtx,
+	userId: Id<"users">,
+	now: number,
+): Promise<number> {
+	let count = 0;
+	let cursor: string | null = null;
+	while (true) {
+		const page = await ctx.db
+			.query("notifications")
+			.withIndex("by_user_and_status", (q) =>
+				q.eq("userId", userId).eq("status", "unread"),
+			)
+			.paginate({ cursor, numItems: NOTIFICATION_LIST_LIMITS.MAX });
+		for (const doc of page.page) {
+			if (isUnreadNotificationVisible(doc, now)) {
+				count += 1;
+			}
+		}
+		if (page.isDone) {
+			break;
+		}
+		cursor = page.continueCursor;
+	}
+	return count;
+}
+
+async function countDispatchesByStatus(
+	ctx: QueryCtx,
+	userId: Id<"users">,
+	status: DispatchStatus,
+): Promise<number> {
+	let count = 0;
+	let cursor: string | null = null;
+	while (true) {
+		const page = await ctx.db
+			.query("notificationDispatches")
+			.withIndex("by_user_status", (q) =>
+				q.eq("userId", userId).eq("status", status),
+			)
+			.paginate({ cursor, numItems: NOTIFICATION_LIST_LIMITS.MAX });
+		count += page.page.length;
+		if (page.isDone) {
+			break;
+		}
+		cursor = page.continueCursor;
+	}
+	return count;
+}
+
 function validateQuietHour(value: number | undefined, fieldName: string): void {
 	if (value === undefined) return;
 	const maxMinute = MINUTES_IN_DAY - 1;
@@ -421,7 +522,7 @@ async function upsertNotificationUserSettings(
 
 	const now = Date.now();
 	if (existing) {
-		await ctx.db.patch(existing._id, {
+		await ctx.db.patch("notificationUserSettings", existing._id, {
 			timezone,
 			defaultDigestMode,
 			quietHoursStartMin,
@@ -606,7 +707,7 @@ async function upsertDispatch(
 	const digestWindowKey = args.digestWindowKey ?? existing?.digestWindowKey;
 
 	if (existing) {
-		await ctx.db.patch(existing._id, {
+		await ctx.db.patch("notificationDispatches", existing._id, {
 			notificationId: args.notificationId ?? existing.notificationId,
 			status: args.status,
 			digestMode,
@@ -1434,49 +1535,18 @@ export const listForUser = query({
 		const limit = normalizeListLimit(args.limit);
 		void args.nowMs;
 		const now = Date.now();
-		const statusBuckets = await Promise.all(
-			(["unread", "read", "archived"] as const).map((status) =>
-				ctx.db
-					.query("notifications")
-					.withIndex("by_user_and_status", (q) =>
-						q.eq("userId", userId).eq("status", status),
-					)
-					.order("desc")
-					.collect(),
-			),
-		);
-		const docs = statusBuckets
-			.flat()
-			.sort((a, b) => b._creationTime - a._creationTime);
-		return docs
-			.filter(
-				(doc) => doc.scheduledFor === undefined || doc.scheduledFor <= now,
-			)
-			.slice(0, limit)
-			.map(docToNotification);
+		const docs = await listVisibleNotificationsForUser(ctx, userId, now, limit);
+		return docs.map(docToNotification);
 	},
 });
 
 export const getUnreadCount = query({
-	args: {
-		nowMs: v.optional(v.number()),
-	},
+	args: { nowMs: v.optional(v.number()) },
 	returns: v.number(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		void args.nowMs;
-		const now = Date.now();
-		const docs = await ctx.db
-			.query("notifications")
-			.withIndex("by_user_and_status", (q) =>
-				q.eq("userId", userId).eq("status", "unread"),
-			)
-			.collect();
-		return docs.filter(
-			(doc) =>
-				(doc.snoozedUntil === undefined || doc.snoozedUntil <= now) &&
-				(doc.scheduledFor === undefined || doc.scheduledFor <= now),
-		).length;
+		return countVisibleUnreadNotifications(ctx, userId, Date.now());
 	},
 });
 
@@ -1709,7 +1779,7 @@ async function upsertNotificationPreferenceOverride(
 
 	if (args.clearOverride) {
 		if (existing) {
-			await ctx.db.delete(existing._id);
+			await ctx.db.delete("notificationPreferences", existing._id);
 		}
 		return;
 	}
@@ -1727,7 +1797,7 @@ async function upsertNotificationPreferenceOverride(
 
 	const now = Date.now();
 	if (existing) {
-		await ctx.db.patch(existing._id, {
+		await ctx.db.patch("notificationPreferences", existing._id, {
 			enabled,
 			digestMode,
 			respectQuietHours,
@@ -2095,14 +2165,14 @@ export const listSubscriptions = query({
 		limit: v.optional(v.number()),
 	},
 	returns: v.array(notificationSubscriptionReturns),
-		handler: async (ctx, args) => {
-			const userId = await requireUserId(ctx);
-			const limit = normalizeSubscriptionListLimit(args.limit);
-			const docs = await ctx.db
-				.query("notificationSubscriptions")
-				.withIndex("by_user_updated_at", (q) => q.eq("userId", userId))
-				.order("desc")
-				.take(limit);
+	handler: async (ctx, args) => {
+		const userId = await requireUserId(ctx);
+		const limit = normalizeSubscriptionListLimit(args.limit);
+		const docs = await ctx.db
+			.query("notificationSubscriptions")
+			.withIndex("by_user_updated_at", (q) => q.eq("userId", userId))
+			.order("desc")
+			.take(limit);
 
 		const rows = await Promise.all(
 			docs.map(async (doc) => {
@@ -2229,7 +2299,7 @@ export const unsubscribeFromEntity = mutation({
 			)
 			.first();
 		if (existing) {
-			await ctx.db.delete(existing._id);
+			await ctx.db.delete("notificationSubscriptions", existing._id);
 		}
 		return null;
 	},
@@ -2258,7 +2328,7 @@ export const subscribeToView = mutation({
 			.first();
 		if (existing) {
 			if (existing.viewEntity !== view.entity) {
-				await ctx.db.patch(existing._id, {
+				await ctx.db.patch("notificationSubscriptions", existing._id, {
 					viewEntity: view.entity,
 					updatedAt: Date.now(),
 				});
@@ -2290,7 +2360,7 @@ export const unsubscribeFromView = mutation({
 			)
 			.first();
 		if (existing) {
-			await ctx.db.delete(existing._id);
+			await ctx.db.delete("notificationSubscriptions", existing._id);
 		}
 		return null;
 	},
@@ -2321,36 +2391,16 @@ export const getDispatchStats = query({
 	handler: async (ctx) => {
 		const userId = await requireUserId(ctx);
 		const [pending, sent, skipped, failed] = await Promise.all([
-			ctx.db
-				.query("notificationDispatches")
-				.withIndex("by_user_status", (q) =>
-					q.eq("userId", userId).eq("status", "pending"),
-				)
-				.collect(),
-			ctx.db
-				.query("notificationDispatches")
-				.withIndex("by_user_status", (q) =>
-					q.eq("userId", userId).eq("status", "sent"),
-				)
-				.collect(),
-			ctx.db
-				.query("notificationDispatches")
-				.withIndex("by_user_status", (q) =>
-					q.eq("userId", userId).eq("status", "skipped"),
-				)
-				.collect(),
-			ctx.db
-				.query("notificationDispatches")
-				.withIndex("by_user_status", (q) =>
-					q.eq("userId", userId).eq("status", "failed"),
-				)
-				.collect(),
+			countDispatchesByStatus(ctx, userId, "pending"),
+			countDispatchesByStatus(ctx, userId, "sent"),
+			countDispatchesByStatus(ctx, userId, "skipped"),
+			countDispatchesByStatus(ctx, userId, "failed"),
 		]);
 		return {
-			pending: pending.length,
-			sent: sent.length,
-			skipped: skipped.length,
-			failed: failed.length,
+			pending,
+			sent,
+			skipped,
+			failed,
 		};
 	},
 });
@@ -2383,6 +2433,8 @@ type TaskNotificationBuildArgs = {
 	newStatus?: string;
 	oldPriority?: string;
 	newPriority?: string;
+	oldDueDate?: string;
+	newDueDate?: string;
 	blockingTaskId?: Id<"tasks">;
 	eventKey?: string;
 };
@@ -2556,6 +2608,39 @@ async function buildTaskNotificationResult(
 			payload: {
 				...basePayload,
 				blockingTaskId: args.blockingTaskId,
+			},
+		};
+	}
+
+	if (type === "task_approved") {
+		return {
+			config: NotificationTemplates.task_approved(task, actor),
+			entity: { entityType: "task", entityId: task._id },
+			payload: basePayload,
+		};
+	}
+
+	if (type === "task_unapproved") {
+		return {
+			config: NotificationTemplates.task_unapproved(task, actor),
+			entity: { entityType: "task", entityId: task._id },
+			payload: basePayload,
+		};
+	}
+
+	if (type === "due_date_changed") {
+		return {
+			config: NotificationTemplates.due_date_changed(
+				task,
+				actor,
+				args.oldDueDate,
+				args.newDueDate,
+			),
+			entity: { entityType: "task", entityId: task._id },
+			payload: {
+				...basePayload,
+				oldDueDate: args.oldDueDate,
+				newDueDate: args.newDueDate,
 			},
 		};
 	}
@@ -2950,6 +3035,67 @@ export const _notifyTaskRelationUnblocked = internalMutation({
 		}),
 });
 
+export const _notifyTaskApproved = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+		recipientId: v.optional(v.id("users")),
+		recipientIds: v.optional(v.array(v.id("users"))),
+		actorId: v.id("users"),
+		eventKey: v.optional(v.string()),
+	},
+	returns: v.union(v.id("notifications"), v.null()),
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "task_approved", {
+			taskId: args.taskId,
+			recipientId: args.recipientId,
+			recipientIds: args.recipientIds,
+			actorId: args.actorId,
+			eventKey: args.eventKey,
+		}),
+});
+
+export const _notifyTaskUnapproved = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+		recipientId: v.optional(v.id("users")),
+		recipientIds: v.optional(v.array(v.id("users"))),
+		actorId: v.id("users"),
+		eventKey: v.optional(v.string()),
+	},
+	returns: v.union(v.id("notifications"), v.null()),
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "task_unapproved", {
+			taskId: args.taskId,
+			recipientId: args.recipientId,
+			recipientIds: args.recipientIds,
+			actorId: args.actorId,
+			eventKey: args.eventKey,
+		}),
+});
+
+export const _notifyDueDateChanged = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+		recipientId: v.optional(v.id("users")),
+		recipientIds: v.optional(v.array(v.id("users"))),
+		actorId: v.id("users"),
+		oldDueDate: v.optional(v.string()),
+		newDueDate: v.optional(v.string()),
+		eventKey: v.optional(v.string()),
+	},
+	returns: v.union(v.id("notifications"), v.null()),
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "due_date_changed", {
+			taskId: args.taskId,
+			recipientId: args.recipientId,
+			recipientIds: args.recipientIds,
+			actorId: args.actorId,
+			oldDueDate: args.oldDueDate,
+			newDueDate: args.newDueDate,
+			eventKey: args.eventKey,
+		}),
+});
+
 export const _notifyDueDateApproaching = internalMutation({
 	args: {
 		taskId: v.id("tasks"),
@@ -3153,7 +3299,7 @@ export const _processPendingDispatches = internalMutation({
 
 			await Promise.all(
 				dispatchGroup.map((dispatch) =>
-					ctx.db.patch(dispatch._id, {
+					ctx.db.patch("notificationDispatches", dispatch._id, {
 						status: "skipped",
 						reason: "channel_not_implemented",
 						metadataJson,

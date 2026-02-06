@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useIsDirector } from "@/hooks/use-convex-data";
 import { CheckCircle2, Loader2, Link2Off } from "lucide-react";
@@ -57,8 +58,20 @@ function GodModePage() {
 }
 
 function GoogleSheetsSection() {
+	const [nowSec, setNowSec] = useState(
+		() => Math.floor(Date.now() / 60_000) * 60,
+	);
+
+	useEffect(() => {
+		const intervalId = window.setInterval(() => {
+			setNowSec(Math.floor(Date.now() / 60_000) * 60);
+		}, 30_000);
+		return () => window.clearInterval(intervalId);
+	}, []);
+
 	const connectionStatus = useQuery(
 		api.sheetsQueries.getGoogleSheetsConnectionStatus,
+		{ nowSec },
 	);
 	const connected = connectionStatus?.connected ?? false;
 

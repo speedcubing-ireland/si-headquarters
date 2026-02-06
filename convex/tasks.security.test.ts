@@ -29,6 +29,10 @@ async function seedTaskAccessFixture(
 			organiserIds: [viewerUserId],
 			updatedAt: now,
 		});
+		await ctx.db.insert("competitionAccess", {
+			competitionId: allowedCompetitionId,
+			userId: viewerUserId,
+		});
 		const deniedCompetitionId = await ctx.db.insert("competitions", {
 			name: "Denied Competition",
 			description: "",
@@ -36,6 +40,10 @@ async function seedTaskAccessFixture(
 			compEnd: "2026-02-02",
 			organiserIds: [otherUserId],
 			updatedAt: now,
+		});
+		await ctx.db.insert("competitionAccess", {
+			competitionId: deniedCompetitionId,
+			userId: otherUserId,
 		});
 
 		const allowedParentTaskId = await ctx.db.insert("tasks", {

@@ -11,7 +11,17 @@ import { SCHEDULE_CACHE_TTL_MS, TOKEN_VALID_BUFFER_SEC } from "./lib/constants";
 
 async function requireVolunteerAction(
 	ctx: GenericActionCtx<DataModel>,
+	cliToken?: string,
 ): Promise<void> {
+	// Allow CLI access with a secret token
+	if (cliToken) {
+		const expectedToken = process.env.CLI_AUTH_TOKEN;
+		if (expectedToken && cliToken === expectedToken) {
+			return; // CLI authentication successful
+		}
+		throw new ConvexError("Invalid CLI token");
+	}
+	// Otherwise require volunteer authentication
 	const isVol = await ctx.runQuery(internal.auth.getIsVolunteer, {});
 	if (!isVol) throw new ConvexError("Volunteer access required");
 }
@@ -20,13 +30,37 @@ const RANGE = "Schedule!A6:B22";
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
 
 type ScheduleEvent = { eventName: string; rounds: string };
-type CachedSchedule = { events: ScheduleEvent[]; fetchedAt: number } | null;
+type ScheduleFetchPreflight = {
+	isVolunteer: boolean;
+	isAllowedSheet: boolean;
+	cached: {
+		events: ScheduleEvent[];
+		fetchedAt: number;
+	} | null;
+};
+
+async function getScheduleFetchPreflight(
+	ctx: GenericActionCtx<DataModel>,
+	args: {
+		sheetId: string;
+		includeCache: boolean;
+		minFetchedAt: number;
+	},
+): Promise<ScheduleFetchPreflight> {
+	return await ctx.runQuery(
+		internal.sheetsQueries.getScheduleFetchPreflight,
+		args,
+	);
+}
 
 export const getGoogleOAuthUrl = action({
-	args: { redirectUri: v.string() },
+	args: {
+		redirectUri: v.string(),
+		cliToken: v.optional(v.string()),
+	},
 	returns: v.object({ url: v.string() }),
 	handler: async (ctx, args) => {
-		await requireVolunteerAction(ctx);
+		await requireVolunteerAction(ctx, args.cliToken);
 		const clientId = process.env.AUTH_GOOGLE_ID;
 		if (!clientId) {
 			throw new Error(
@@ -50,10 +84,11 @@ export const exchangeCodeAndStoreTokens = action({
 	args: {
 		code: v.string(),
 		redirectUri: v.string(),
+		cliToken: v.optional(v.string()),
 	},
 	returns: v.object({ success: v.boolean(), error: v.optional(v.string()) }),
 	handler: async (ctx, args) => {
-		await requireVolunteerAction(ctx);
+		await requireVolunteerAction(ctx, args.cliToken);
 		const clientId = process.env.AUTH_GOOGLE_ID;
 		const clientSecret = process.env.AUTH_GOOGLE_SECRET;
 		if (!clientId || !clientSecret) {
@@ -144,25 +179,23 @@ export const fetchScheduleEvents = action({
 		v.object({ error: v.string() }),
 	),
 	handler: async (ctx, args) => {
-		const isVolunteer = await ctx.runQuery(internal.auth.getIsVolunteer, {});
-		if (!isVolunteer) throw new ConvexError("Volunteer access required");
-
-		const isAllowedSheet = await ctx.runQuery(
-			internal.sheetsQueries.getIsCompetitionSheetId,
-			{ sheetId: args.sheetId },
-		);
-		if (!isAllowedSheet)
-			throw new ConvexError("Sheet is not linked to a competition");
-
 		const now = Date.now();
-		if (!args.skipCache) {
-			const cached = (await ctx.runQuery(
-				internal.sheetsQueries.getCachedSchedule,
-				{ sheetId: args.sheetId },
-			)) as CachedSchedule;
-			if (cached && cached.fetchedAt > now - SCHEDULE_CACHE_TTL_MS) {
-				return { events: cached.events, fetchedAt: cached.fetchedAt };
-			}
+		const preflight = await getScheduleFetchPreflight(ctx, {
+			sheetId: args.sheetId,
+			includeCache: !args.skipCache,
+			minFetchedAt: now - SCHEDULE_CACHE_TTL_MS,
+		});
+		if (!preflight.isVolunteer) {
+			throw new ConvexError("Volunteer access required");
+		}
+		if (!preflight.isAllowedSheet) {
+			throw new ConvexError("Sheet is not linked to a competition");
+		}
+		if (preflight.cached) {
+			return {
+				events: preflight.cached.events,
+				fetchedAt: preflight.cached.fetchedAt,
+			};
 		}
 
 		const accessToken = await getValidAccessToken(ctx);

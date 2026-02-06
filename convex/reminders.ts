@@ -1,10 +1,11 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import { requireUserId } from "./auth";
+import { isVolunteer, requireUserId } from "./auth";
 import { internal } from "./_generated/api";
 import { REMINDER_PATTERNS } from "./lib/constants";
 import { toISO } from "./lib/transforms";
+import { hasTaskCompetitionAccess } from "./taskAccess";
 import {
 	reminderStatus,
 	reminderType,
@@ -121,6 +122,26 @@ export const create = mutation({
 	returns: v.id("reminders"),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
+		const task = await ctx.db.get("tasks", args.entityId);
+		if (!task) {
+			throw new ConvexError({
+				code: "NOT_FOUND",
+				message: "Task not found",
+			});
+		}
+		const volunteer = await isVolunteer(ctx);
+		const canAccess = await hasTaskCompetitionAccess(
+			ctx,
+			volunteer,
+			userId,
+			task.parentCompetitionId,
+		);
+		if (!canAccess) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Not allowed to create reminders for this task",
+			});
+		}
 		const now = Date.now();
 		const remindAtMs = new Date(args.remindAt).getTime();
 		return await ctx.db.insert("reminders", {

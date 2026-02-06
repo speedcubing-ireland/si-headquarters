@@ -6,10 +6,14 @@ const HTML_HEADERS = { "Content-Type": "text/html; charset=utf-8" } as const;
 
 async function convexRun(
 	path: string,
-	args: Record<string, string>,
+	args: Record<string, string | undefined>,
 ): Promise<unknown> {
+	// Filter out undefined values before passing to Convex
+	const filteredArgs = Object.fromEntries(
+		Object.entries(args).filter(([_, value]) => value !== undefined),
+	) as Record<string, string>;
 	const proc = Bun.spawn(
-		["bunx", "convex", "run", path, JSON.stringify(args)],
+		["bunx", "convex", "run", path, JSON.stringify(filteredArgs)],
 		{
 			cwd: `${import.meta.dir}/..`,
 			stdout: "pipe",
@@ -70,10 +74,23 @@ async function handleCallback(
 	code: string,
 	onDone: () => void,
 ): Promise<Response> {
+	const cliToken = process.env.CLI_AUTH_TOKEN;
+	if (!cliToken) {
+		onDone();
+		return new Response(
+			HTML_ERR("CLI_AUTH_TOKEN environment variable is not set"),
+			{
+				headers: HTML_HEADERS,
+				status: 500,
+			},
+		);
+	}
+
 	try {
 		const res = (await convexRun("sheets:exchangeCodeAndStoreTokens", {
 			code,
 			redirectUri: REDIRECT_URI,
+			cliToken,
 		})) as { success: boolean; error?: string };
 		onDone();
 		if (res.success) {
@@ -99,8 +116,21 @@ async function main() {
 		`Redirect URI: ${REDIRECT_URI}\nAdd it in Google Cloud Console if needed.\n`,
 	);
 
+	const cliToken = process.env.CLI_AUTH_TOKEN;
+	if (!cliToken) {
+		console.error(
+			"Error: CLI_AUTH_TOKEN environment variable is not set.\n" +
+				"Set it in your Convex dashboard as an environment variable,\n" +
+				"then export it before running this script:\n" +
+				"  export CLI_AUTH_TOKEN=your-secret-token\n" +
+				"  bun run auth:google-sheets",
+		);
+		process.exit(1);
+	}
+
 	const result = (await convexRun("sheets:getGoogleOAuthUrl", {
 		redirectUri: REDIRECT_URI,
+		cliToken,
 	})) as { url: string };
 	if (!result.url) {
 		console.error(

@@ -235,7 +235,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			icon: Home,
 			label: "Go to Dashboard",
 			action: () => {
-				navigate({ to: "/" });
+				void navigate({ to: "/" });
 				onOpenChange(false);
 			},
 		},
@@ -243,7 +243,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			icon: CheckSquare,
 			label: "Go to All Tasks",
 			action: () => {
-				navigate({ to: "/tasks" });
+				void navigate({ to: "/tasks" });
 				onOpenChange(false);
 			},
 		},
@@ -251,7 +251,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			icon: UserIcon,
 			label: "Go to My Tasks",
 			action: () => {
-				navigate({ to: "/tasks/my" });
+				void navigate({ to: "/tasks/my" });
 				onOpenChange(false);
 			},
 		},
@@ -259,7 +259,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			icon: Trophy,
 			label: "Go to Competitions",
 			action: () => {
-				navigate({ to: "/competitions" });
+				void navigate({ to: "/competitions" });
 				onOpenChange(false);
 			},
 		},
@@ -267,7 +267,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			icon: Calendar,
 			label: "Go to Calendar",
 			action: () => {
-				navigate({ to: "/competitions/calendar" });
+				void navigate({ to: "/competitions/calendar" });
 				onOpenChange(false);
 			},
 		},
@@ -275,7 +275,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 			icon: Inbox,
 			label: "Go to Inbox",
 			action: () => {
-				navigate({ to: "/inbox" });
+				void navigate({ to: "/inbox" });
 				onOpenChange(false);
 			},
 		},
@@ -352,7 +352,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 										<CommandItem
 											key={task.id}
 											onSelect={() => {
-												navigate({
+												void navigate({
 													to: "/tasks/$id",
 													params: { id: task.id },
 												});
@@ -379,7 +379,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 										<CommandItem
 											key={competition.id}
 											onSelect={() => {
-												navigate({
+												void navigate({
 													to: "/competitions/$id",
 													params: { id: competition.id },
 												});
@@ -405,7 +405,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 										<CommandItem
 											key={user.id}
 											onSelect={() => {
-												navigate({
+												void navigate({
 													to: "/tasks",
 													search: { assignee: user.id },
 												});
@@ -428,7 +428,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 										<CommandItem
 											key={team.id}
 											onSelect={() => {
-												navigate({
+												void navigate({
 													to: "/teams/$teamId",
 													params: { teamId: team.id },
 												});
@@ -461,7 +461,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 				<CommandGroup heading="Navigation">
 					<CommandItem
 						onSelect={() => {
-							navigate({ to: "/" });
+							void navigate({ to: "/" });
 							onOpenChange(false);
 						}}
 					>
@@ -470,7 +470,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 					</CommandItem>
 					<CommandItem
 						onSelect={() => {
-							navigate({ to: "/inbox" });
+							void navigate({ to: "/inbox" });
 							onOpenChange(false);
 						}}
 					>
@@ -479,7 +479,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 					</CommandItem>
 					<CommandItem
 						onSelect={() => {
-							navigate({ to: "/tasks/my" });
+							void navigate({ to: "/tasks/my" });
 							onOpenChange(false);
 						}}
 					>

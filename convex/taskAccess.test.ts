@@ -8,27 +8,13 @@ import {
 const userId = (id: string) => id as Id<"users">;
 const competitionId = (id: string) => id as Id<"competitions">;
 
-function makeCompetition(args: {
-	id: string;
-	organiserIds: string[];
-	compLeadId?: string;
-	leadDelegateId?: string;
-}) {
-	return {
-		_id: competitionId(args.id),
-		organiserIds: args.organiserIds.map((id) => userId(id)),
-		compLeadId: args.compLeadId ? userId(args.compLeadId) : undefined,
-		leadDelegateId: args.leadDelegateId
-			? userId(args.leadDelegateId)
-			: undefined,
-	};
-}
-
 describe("hasTaskCompetitionAccess", () => {
 	test("allows volunteers regardless of competition membership", async () => {
 		const ctx = {
 			db: {
-				get: async () => null,
+				query: () => {
+					throw new Error("query should not be called for volunteers");
+				},
 			},
 		} as never;
 
@@ -45,7 +31,9 @@ describe("hasTaskCompetitionAccess", () => {
 	test("denies non-volunteers when competition id is missing", async () => {
 		const ctx = {
 			db: {
-				get: async () => null,
+				query: () => {
+					throw new Error("query should not be called when id is missing");
+				},
 			},
 		} as never;
 
@@ -59,14 +47,17 @@ describe("hasTaskCompetitionAccess", () => {
 		expect(result).toBe(false);
 	});
 
-	test("allows non-volunteers when they can access the competition", async () => {
-		const competition = makeCompetition({
-			id: "comp1",
-			organiserIds: ["u1"],
-		});
+	test("allows non-volunteers when competitionAccess row exists", async () => {
 		const ctx = {
 			db: {
-				get: async () => competition,
+				query: () => ({
+					withIndex: () => ({
+						first: async () => ({
+							competitionId: competitionId("comp1"),
+							userId: userId("u1"),
+						}),
+					}),
+				}),
 			},
 		} as never;
 
@@ -80,16 +71,14 @@ describe("hasTaskCompetitionAccess", () => {
 		expect(result).toBe(true);
 	});
 
-	test("allows non-volunteers who are competition lead or lead delegate", async () => {
-		const competition = makeCompetition({
-			id: "comp1",
-			organiserIds: [],
-			compLeadId: "u1",
-			leadDelegateId: "u1",
-		});
+	test("denies non-volunteers when competitionAccess row is missing", async () => {
 		const ctx = {
 			db: {
-				get: async () => competition,
+				query: () => ({
+					withIndex: () => ({
+						first: async () => null,
+					}),
+				}),
 			},
 		} as never;
 
@@ -100,19 +89,20 @@ describe("hasTaskCompetitionAccess", () => {
 			competitionId("comp1"),
 		);
 
-		expect(result).toBe(true);
+		expect(result).toBe(false);
 	});
 
-	test("denies non-volunteers without organiser/lead access", async () => {
-		const competition = makeCompetition({
-			id: "comp1",
-			organiserIds: ["u2"],
-			compLeadId: "u2",
-			leadDelegateId: "u3",
-		});
+	test("does not fall back to competition document membership", async () => {
 		const ctx = {
 			db: {
-				get: async () => competition,
+				get: async () => {
+					throw new Error("should not read competitions doc");
+				},
+				query: () => ({
+					withIndex: () => ({
+						first: async () => null,
+					}),
+				}),
 			},
 		} as never;
 
@@ -129,21 +119,22 @@ describe("hasTaskCompetitionAccess", () => {
 
 describe("listOrganisedCompetitionIds", () => {
 	test("returns competitions where user has competition access", async () => {
-		const competitions = [
-			makeCompetition({
-				id: "organiser-comp",
-				organiserIds: ["u1"],
-			}),
-			makeCompetition({
-				id: "lead-only-comp",
-				organiserIds: [],
-				compLeadId: "u1",
-			}),
+		const accessRows = [
+			{
+				competitionId: competitionId("organiser-comp"),
+				userId: userId("u1"),
+			},
+			{
+				competitionId: competitionId("lead-only-comp"),
+				userId: userId("u1"),
+			},
 		];
 		const ctx = {
 			db: {
 				query: () => ({
-					collect: async () => competitions,
+					withIndex: () => ({
+						collect: async () => accessRows,
+					}),
 				}),
 			},
 		} as never;

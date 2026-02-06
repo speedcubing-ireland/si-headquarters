@@ -47,7 +47,7 @@ export const listUsers = query({
 	returns: v.array(appUserShape),
 	handler: async (ctx) => {
 		await requireUserId(ctx);
-		const users = await ctx.db.query("users").collect();
+		const users = await ctx.db.query("users").withIndex("email").collect();
 		return users.map((u) => ({
 			id: u._id,
 			name: u.name ?? "",

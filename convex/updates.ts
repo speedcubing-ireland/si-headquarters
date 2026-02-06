@@ -3,7 +3,7 @@ import { mutation } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
-import { requireUserId } from "./auth";
+import { isVolunteer, requireUserId } from "./auth";
 import { internal } from "./_generated/api";
 import { logActivity } from "./lib/activity";
 import { hasCompetitionAccess } from "./competitionAccess";
@@ -86,27 +86,27 @@ export const create = mutation({
 		await logActivity(ctx, userId, "update", id, "created");
 
 		const competition = await ctx.db.get("competitions", args.competitionId);
-			if (competition) {
-				const recipientIds = new Set<Id<"users">>();
-				if (competition.compLeadId) recipientIds.add(competition.compLeadId);
-				if (competition.leadDelegateId)
-					recipientIds.add(competition.leadDelegateId);
-				for (const oid of competition.organiserIds) recipientIds.add(oid);
-				recipientIds.delete(userId);
+		if (competition) {
+			const recipientIds = new Set<Id<"users">>();
+			if (competition.compLeadId) recipientIds.add(competition.compLeadId);
+			if (competition.leadDelegateId)
+				recipientIds.add(competition.leadDelegateId);
+			for (const oid of competition.organiserIds) recipientIds.add(oid);
+			recipientIds.delete(userId);
 
-				await ctx.scheduler.runAfter(
-					0,
-					internal.notifications._notifyProgressUpdateAdded,
-					{
-						competitionId: args.competitionId,
-						recipientIds: [...recipientIds],
-						actorId: userId,
-						competitionName: competition.name,
-						status: args.status,
-						eventKey: `${id}:progress-update`,
-					},
-				);
-			}
+			await ctx.scheduler.runAfter(
+				0,
+				internal.notifications._notifyProgressUpdateAdded,
+				{
+					competitionId: args.competitionId,
+					recipientIds: [...recipientIds],
+					actorId: userId,
+					competitionName: competition.name,
+					status: args.status,
+					eventKey: `${id}:progress-update`,
+				},
+			);
+		}
 		return id;
 	},
 });
@@ -157,6 +157,19 @@ export const addReaction = mutation({
 			throw new ConvexError({
 				code: "NOT_FOUND",
 				message: "Update not found",
+			});
+		}
+		const volunteer = await isVolunteer(ctx);
+		const canAccess = await hasCompetitionAccess(
+			ctx,
+			volunteer,
+			userId,
+			doc.competitionId,
+		);
+		if (!canAccess) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Not allowed to react to this update",
 			});
 		}
 		const nextReactions = addUserToReactions(doc.reactions, args.emoji, userId);

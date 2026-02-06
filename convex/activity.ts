@@ -98,7 +98,7 @@ async function isActivityRelevantToUser(
 	if (doc.actorId === userId) return true;
 	if (doc.entityType === "task") {
 		const taskId = doc.entityId as Id<"tasks">;
-		const task = await ctx.db.get(taskId);
+		const task = await ctx.db.get("tasks", taskId);
 		return task?.assigneeId === userId;
 	}
 	return false;
@@ -130,7 +130,7 @@ export const listForEntity = query({
 
 		if (args.entityType === "task") {
 			const taskId = args.entityId as Id<"tasks">;
-			const task = await ctx.db.get(taskId);
+			const task = await ctx.db.get("tasks", taskId);
 			if (!task) return [];
 
 			if (!volunteer) {
@@ -145,7 +145,7 @@ export const listForEntity = query({
 			}
 		} else if (args.entityType === "update") {
 			const updateId = args.entityId as Id<"competitionUpdates">;
-			const update = await ctx.db.get(updateId);
+			const update = await ctx.db.get("competitionUpdates", updateId);
 			if (!update) return [];
 
 			if (!volunteer) {

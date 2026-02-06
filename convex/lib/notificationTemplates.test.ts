@@ -186,6 +186,73 @@ describe("NotificationTemplates", () => {
 		});
 	});
 
+	describe("task_approved", () => {
+		test("includes task identifier and actor name", () => {
+			const result = NotificationTemplates.task_approved(baseTask, actor);
+			expect(result.title).toBe("SI-42 approved");
+			expect(result.message).toContain("Alice");
+			expect(result.message).toContain("SI-42");
+			expect(result.message).toContain("Fix registration");
+			expect(result.entityType).toBe("task");
+			expect(result.priority).toBe("normal");
+		});
+
+		test("uses 'Someone' when actor name is missing", () => {
+			const result = NotificationTemplates.task_approved(baseTask, {});
+			expect(result.message).toContain("Someone");
+		});
+	});
+
+	describe("task_unapproved", () => {
+		test("includes task identifier and actor name", () => {
+			const result = NotificationTemplates.task_unapproved(baseTask, actor);
+			expect(result.title).toBe("SI-42 approval withdrawn");
+			expect(result.message).toContain("Alice");
+			expect(result.message).toContain("SI-42");
+			expect(result.entityType).toBe("task");
+			expect(result.priority).toBe("normal");
+		});
+	});
+
+	describe("due_date_changed", () => {
+		test("includes old and new dates in metadata", () => {
+			const result = NotificationTemplates.due_date_changed(
+				baseTask,
+				actor,
+				"2025-01-01",
+				"2025-02-01",
+			);
+			expect(result.title).toBe("SI-42 due date changed");
+			expect(result.message).toContain(
+				"changed due date from 2025-01-01 to 2025-02-01",
+			);
+			expect(result.metadata?.oldValue).toBe("2025-01-01");
+			expect(result.metadata?.newValue).toBe("2025-02-01");
+			expect(result.entityType).toBe("task");
+			expect(result.priority).toBe("normal");
+		});
+
+		test("handles setting a due date for the first time", () => {
+			const result = NotificationTemplates.due_date_changed(
+				baseTask,
+				actor,
+				undefined,
+				"2025-03-15",
+			);
+			expect(result.message).toContain("set due date to 2025-03-15");
+		});
+
+		test("handles removing a due date", () => {
+			const result = NotificationTemplates.due_date_changed(
+				baseTask,
+				actor,
+				"2025-03-15",
+				undefined,
+			);
+			expect(result.message).toContain("removed due date");
+		});
+	});
+
 	describe("due_date_approaching", () => {
 		test("high priority when 1 day or less", () => {
 			const result = NotificationTemplates.due_date_approaching(baseTask, 1);
