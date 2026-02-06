@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "convex/react";
+import type { OptimisticLocalStore } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type {
@@ -8,8 +9,6 @@ import type {
 	TaskLabel,
 	Competition,
 	Comment,
-	ActivityEntry,
-	Notification,
 	Reminder,
 } from "@/data/types-new";
 
@@ -18,242 +17,359 @@ export { useLabels, useLabelMutations } from "./convex/use-labels";
 export { useUsers } from "./convex/use-users";
 export { useTeams } from "./convex/use-teams";
 
-export function useTasks(archived = false): {
-	tasks: Task[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.tasks.listForUI, { archived });
+export const useTasks = (archived = false) => {
+	const tasks = useQuery(api.tasks.listForUI, { archived });
 	return {
-		tasks: (data ?? []) as unknown as Task[],
-		isLoading: data === undefined,
+		tasks: tasks ?? [],
+		isLoading: tasks === undefined,
 	};
-}
+};
 
-export function useTask(
-	taskId: Id<"tasks"> | string | null,
-): Task | undefined | null {
-	const data = useQuery(
-		api.tasks.getForUI,
-		taskId ? { taskId: taskId as Id<"tasks"> } : "skip",
-	);
+export const useTask = (taskId: Id<"tasks"> | null) => {
+	const data = useQuery(api.tasks.getForUI, taskId ? { taskId } : "skip");
 	if (taskId == null) return null;
-	return data === undefined ? undefined : (data as unknown as Task);
-}
+	return data;
+};
 
-export function useTasksForCompetition(competitionId: string | null): {
-	tasks: Task[];
-	isLoading: boolean;
-} {
-	const data = useQuery(
+export const useTasksForCompetition = (
+	competitionId: Id<"competitions"> | null,
+) => {
+	const tasks = useQuery(
 		api.tasks.listForUI,
 		competitionId ? { archived: false, competitionId } : "skip",
 	);
 	return {
-		tasks: (data ?? []) as unknown as Task[],
+		tasks: tasks ?? [],
+		isLoading: tasks === undefined,
+	};
+};
+
+export const useCompetitions = () => {
+	const competitions = useQuery(api.competitions.listForUI);
+	return {
+		competitions: competitions ?? [],
+		isLoading: competitions === undefined,
+	};
+};
+
+export const useCompetition = (competitionId: Id<"competitions"> | null) => {
+	const data = useQuery(
+		api.competitions.getForUI,
+		competitionId ? { competitionId } : "skip",
+	);
+	if (competitionId == null) return null;
+	return data;
+};
+
+export const useIsDirector = () => ({
+	isDirector: useQuery(api.admin.isDirector, {}) === true,
+	isLoading: useQuery(api.admin.isDirector, {}) === undefined,
+});
+
+export const useAdminMembersAndTeams = () => {
+	const data = useQuery(api.admin.listMembersAndTeams, {});
+	return {
+		users: data?.users ?? [],
+		teams: data?.teams ?? [],
 		isLoading: data === undefined,
 	};
+};
+
+export const useCommentsForTask = (
+	taskId: Id<"tasks"> | Id<"competitionUpdates"> | null,
+) => {
+	const comments = useQuery(
+		api.comments.listForUI,
+		taskId ? { parentType: "task", parentId: taskId } : "skip",
+	);
+	return {
+		comments: comments ?? [],
+		isLoading: comments === undefined,
+	};
+};
+
+export const useCommentsForSearch = () => {
+	const comments = useQuery(api.comments.listRecentForSearch, { limit: 200 });
+	return {
+		comments: comments ?? [],
+		isLoading: comments === undefined,
+	};
+};
+
+export const useActivityForTask = (taskId: string | null) => {
+	const activities = useQuery(
+		api.activity.listForEntity,
+		taskId ? { entityType: "task", entityId: taskId } : "skip",
+	);
+	return {
+		activities: activities ?? [],
+		isLoading: activities === undefined,
+	};
+};
+
+export const useRecentActivity = (limit = 50) => {
+	const activities = useQuery(api.activity.listRecentForUser, { limit });
+	return {
+		activities: activities ?? [],
+		isLoading: activities === undefined,
+	};
+};
+
+export const useGlobalActivity = (limit = 50) => {
+	const activities = useQuery(api.activity.listRecent, { limit });
+	return {
+		activities: activities ?? [],
+		isLoading: activities === undefined,
+	};
+};
+
+export const useNotifications = () => {
+	const notifications = useQuery(api.notifications.listForUser, {});
+	return {
+		notifications: notifications ?? [],
+		isLoading: notifications === undefined,
+	};
+};
+
+export const useUnreadCount = () =>
+	useQuery(api.notifications.getUnreadCount, {});
+
+export const useReminders = () => {
+	const reminders = useQuery(api.reminders.listForUser, {});
+	return {
+		reminders: reminders ?? [],
+		isLoading: reminders === undefined,
+	};
+};
+
+export const usePendingReminders = () => {
+	const reminders = useQuery(api.reminders.listPendingForUser, {});
+	return {
+		reminders: reminders ?? [],
+		isLoading: reminders === undefined,
+	};
+};
+
+export const usePendingRemindersForTask = (taskId: string | null) => {
+	const reminders = useQuery(
+		api.reminders.listPendingForTask,
+		taskId ? { taskId } : "skip",
+	);
+	return {
+		reminders: reminders ?? [],
+		isLoading: reminders === undefined,
+	};
+};
+
+const getOwnerFields = (owner: Team | User | null) =>
+	owner
+		? "members" in owner
+			? { ownerId: owner.id, ownerType: "team" as const }
+			: { ownerId: owner.id, ownerType: "user" as const }
+		: {};
+
+interface TaskMutations {
+	addTask: (payload: {
+		parent: Task["parent"];
+		title: string;
+		description: string;
+		owner: Team | User | null;
+		assignee: User | null;
+		phase: Task["phase"];
+		status: Task["status"];
+		priority: Task["priority"];
+		dueDate: string | null;
+		labels: TaskLabel[];
+		resources?: Task["resources"];
+		requiredApprovalIds?: string[];
+		parentCompetitionId?: Id<"competitions">;
+	}) => Promise<Task>;
+	updateTask: (
+		taskId: Id<"tasks">,
+		updates: Partial<{
+			title: string;
+			description: string;
+			status: Task["status"];
+			priority: Task["priority"];
+			assignee: User | null;
+			owner: Team | User | null;
+			labels: TaskLabel[];
+			dueDate: string | null;
+			resources: Task["resources"];
+		}>,
+	) => Promise<null>;
+	bulkUpdateTasks: (
+		taskIds: Id<"tasks">[],
+		updates: Parameters<TaskMutations["updateTask"]>[1],
+	) => Promise<null>;
+	archiveTasks: (taskIds: Id<"tasks">[]) => Promise<null>;
+	unarchiveTask: (taskId: Id<"tasks">) => Promise<null>;
+	bulkUnarchiveTasks: (taskIds: Id<"tasks">[]) => Promise<null>;
+	deleteTasks: (taskIds: Id<"tasks">[]) => Promise<null>;
+	permanentlyDeleteTasks: (taskIds: Id<"tasks">[]) => Promise<null>;
+	deleteTask: (taskId: Id<"tasks">) => Promise<null>;
+	addRequiredApprover: (
+		taskId: Id<"tasks">,
+		approver: Team | User,
+	) => Promise<null>;
+	removeRequiredApprover: (
+		taskId: Id<"tasks">,
+		approverKey: string,
+	) => Promise<null>;
+	approveTask: (taskId: Id<"tasks">) => Promise<null>;
+	unapproveTask: (taskId: Id<"tasks">) => Promise<null>;
 }
 
-function toOwnerIdOwnerType(owner: Team | User | null): {
-	ownerId?: string;
-	ownerType?: "user" | "team";
-} {
-	if (!owner) return {};
-	return "members" in owner
-		? { ownerId: owner.id, ownerType: "team" as const }
-		: { ownerId: owner.id, ownerType: "user" as const };
+function competitionIdFromParent(
+	parent: Task["parent"],
+): Id<"competitions"> | null {
+	if (!parent || parent.type !== "competition") return null;
+	return parent.linkedId;
 }
 
-export function useTaskMutations() {
-	const createTask = useMutation(api.tasks.create);
+/** Optimistic update helper; IDs flow from Convex (task.id, parent.linkedId). */
+const patchTaskInQueries = (
+	store: OptimisticLocalStore,
+	taskId: Id<"tasks">,
+	updatedTask: Task,
+) => {
+	store.setQuery(api.tasks.getForUI, { taskId }, updatedTask);
 
-	function patchTaskInQueries(
-		localStore: Parameters<
-			Parameters<
-				ReturnType<
-					typeof useMutation<typeof api.tasks.update>
-				>["withOptimisticUpdate"]
-			>[0]
-		>[0],
-		taskId: string,
-		updatedTask: Parameters<typeof localStore.setQuery>[2],
-	) {
-		localStore.setQuery(
-			api.tasks.getForUI,
-			{ taskId: taskId as Id<"tasks"> },
-			updatedTask,
-		);
+	const archivedOptions = [false, true] as const;
+	for (const archived of archivedOptions) {
+		const list = store.getQuery(api.tasks.listForUI, { archived }) as
+			| Task[]
+			| undefined;
+		if (!list) continue;
+		const idx = list.findIndex((t) => t.id === taskId);
+		if (idx < 0) continue;
+		const nextList = [...list];
+		nextList[idx] = updatedTask;
+		store.setQuery(api.tasks.listForUI, { archived }, nextList);
 
-		const patchList = (listArgs: {
-			archived: boolean;
-			competitionId?: string;
-		}) => {
-			const list = localStore.getQuery(api.tasks.listForUI, listArgs);
-			if (!list) return;
-			const idx = list.findIndex((t) => t.id === taskId);
-			if (idx < 0) return;
-			const nextList = [...list];
-			nextList[idx] = updatedTask;
-			localStore.setQuery(api.tasks.listForUI, listArgs, nextList);
-		};
-		for (const archived of [false, true] as const) {
-			patchList({ archived });
-			if (
-				typeof updatedTask === "object" &&
-				updatedTask !== null &&
-				"parent" in updatedTask &&
-				updatedTask.parent?.type === "competition"
-			) {
-				patchList({
-					archived: false,
-					competitionId: updatedTask.parent.linkedId,
-				});
+		const compId = competitionIdFromParent(updatedTask?.parent ?? null);
+		if (compId != null) {
+			const compList = store.getQuery(api.tasks.listForUI, {
+				archived: false,
+				competitionId: compId,
+			});
+			if (compList) {
+				const compIdx = (compList as Task[]).findIndex((t) => t.id === taskId);
+				if (compIdx >= 0) {
+					const nextCompList = [...compList];
+					nextCompList[compIdx] = updatedTask;
+					store.setQuery(
+						api.tasks.listForUI,
+						{ archived: false, competitionId: compId },
+						nextCompList,
+					);
+				}
 			}
 		}
 	}
+};
 
-	const updateTaskMutation = useMutation(api.tasks.update).withOptimisticUpdate(
-		(localStore, args) => {
-			const current = localStore.getQuery(api.tasks.getForUI, {
-				taskId: args.taskId,
-			});
-			if (!current || !args.updates) return;
-			const u = args.updates;
-			const next = { ...current };
-			if (u.title !== undefined) next.title = u.title;
-			if (u.description !== undefined) next.description = u.description;
-			if (u.status !== undefined) next.status = u.status;
-			if (u.priority !== undefined) next.priority = u.priority;
-			if (u.dueDate !== undefined) next.dueDate = u.dueDate;
-			next.updatedAt = new Date().toISOString();
-			patchTaskInQueries(localStore, args.taskId, next);
-		},
-	);
+export function useTaskMutations(): TaskMutations {
+	const createTask = useMutation(api.tasks.create);
 	const archiveTasksMutation = useMutation(api.tasks.archive);
 	const unarchiveTasksMutation = useMutation(api.tasks.unarchive);
-	const bulkUpdateTasksMutation = useMutation(api.tasks.bulkUpdate);
 	const removeTasksMutation = useMutation(api.tasks.remove);
+
+	const updateTaskMutation = useMutation(api.tasks.update).withOptimisticUpdate(
+		(store, { taskId, updates }) => {
+			const current = store.getQuery(api.tasks.getForUI, { taskId });
+			if (!current) return;
+			const next = {
+				...current,
+				...updates,
+				updatedAt: new Date().toISOString(),
+			} satisfies Task;
+			patchTaskInQueries(store, taskId, next);
+		},
+	);
+
+	const bulkUpdateTasksMutation = useMutation(api.tasks.bulkUpdate);
 
 	const addRequiredApproverMutation = useMutation(
 		api.tasks.addRequiredApprover,
-	).withOptimisticUpdate((localStore, args) => {
-		const current = localStore.getQuery(api.tasks.getForUI, {
-			taskId: args.taskId,
-		});
+	).withOptimisticUpdate((store, { taskId, approverId }) => {
+		const current = store.getQuery(api.tasks.getForUI, { taskId });
 		if (!current) return;
-
 		const currentRequired = current.requiredApprovalBy ?? [];
-		const approverExists = currentRequired.some(
-			(a) => a.id === args.approverId,
-		);
-		if (approverExists) return;
-
-		const next = { ...current };
-		next.requiredApprovalBy = [...currentRequired];
-		next.updatedAt = new Date().toISOString();
-		patchTaskInQueries(localStore, args.taskId, next);
+		if (currentRequired.some((a) => a.id === approverId)) return;
+		patchTaskInQueries(store, taskId, {
+			...current,
+			requiredApprovalBy: [...currentRequired],
+			updatedAt: new Date().toISOString(),
+		} satisfies Task);
 	});
 
 	const removeRequiredApproverMutation = useMutation(
 		api.tasks.removeRequiredApprover,
-	).withOptimisticUpdate((localStore, args) => {
-		const current = localStore.getQuery(api.tasks.getForUI, {
-			taskId: args.taskId,
-		});
+	).withOptimisticUpdate((store, { taskId, approverKey }) => {
+		const current = store.getQuery(api.tasks.getForUI, { taskId });
 		if (!current) return;
-
-		const approverId = args.approverKey.includes(":")
-			? args.approverKey.split(":")[1]
-			: args.approverKey;
-		const next = { ...current };
-		next.requiredApprovalBy = (current.requiredApprovalBy ?? []).filter(
-			(a) => a.id !== approverId,
-		);
-		next.updatedAt = new Date().toISOString();
-		patchTaskInQueries(localStore, args.taskId, next);
+		const approverId = approverKey.includes(":")
+			? approverKey.split(":")[1]
+			: approverKey;
+		patchTaskInQueries(store, taskId, {
+			...current,
+			requiredApprovalBy: (current.requiredApprovalBy ?? []).filter(
+				(a) => a.id !== approverId,
+			),
+			updatedAt: new Date().toISOString(),
+		} satisfies Task);
 	});
 
 	const approveTaskMutation = useMutation(
 		api.tasks.approveTask,
-	).withOptimisticUpdate((localStore, args) => {
-		const current = localStore.getQuery(api.tasks.getForUI, {
-			taskId: args.taskId,
-		});
-		if (!current) return;
-
-		const users = localStore.getQuery(api.users.listUsers);
+	).withOptimisticUpdate((store, { taskId }) => {
+		const current = store.getQuery(api.tasks.getForUI, { taskId });
+		const users = store.getQuery(api.users.listUsers);
 		const currentUser = users?.[0];
-		if (!currentUser) return;
+		if (!current || !currentUser) return;
 
 		const next = { ...current };
-		const currentApproved = current.approvedBy ?? [];
-		const alreadyApproved = currentApproved.some(
-			(a) => a.id === currentUser.id,
-		);
-		if (!alreadyApproved) {
-			next.approvedBy = [...currentApproved, currentUser];
+		if (!next.approvedBy?.some((a) => a.id === currentUser.id)) {
+			next.approvedBy = [...(next.approvedBy ?? []), currentUser];
 		}
 
-		const required = current.requiredApprovalBy ?? [];
 		const approvedIds = new Set(next.approvedBy.map((a) => a.id));
 		const isFullyApproved =
-			required.length > 0 &&
-			required.every((r) => {
-				if ("members" in r) {
-					return r.members.some((m) => approvedIds.has(m.id));
-				}
-				return approvedIds.has(r.id);
-			});
+			next.requiredApprovalBy?.length > 0 &&
+			next.requiredApprovalBy.every((r) =>
+				"members" in r
+					? r.members.some((m) => approvedIds.has(m.id))
+					: approvedIds.has(r.id),
+			);
 
-		if (
-			isFullyApproved &&
-			required.length > 0 &&
-			next.status === "awaiting-review"
-		) {
+		if (isFullyApproved && next.status === "awaiting-review") {
 			next.status = "done";
 		}
-
 		next.updatedAt = new Date().toISOString();
-		patchTaskInQueries(localStore, args.taskId, next);
+		patchTaskInQueries(store, taskId, next satisfies Task);
 	});
 
 	const unapproveTaskMutation = useMutation(
 		api.tasks.unapproveTask,
-	).withOptimisticUpdate((localStore, args) => {
-		const current = localStore.getQuery(api.tasks.getForUI, {
-			taskId: args.taskId,
-		});
-		if (!current) return;
-
-		const users = localStore.getQuery(api.users.listUsers);
+	).withOptimisticUpdate((store, { taskId }) => {
+		const current = store.getQuery(api.tasks.getForUI, { taskId });
+		const users = store.getQuery(api.users.listUsers);
 		const currentUser = users?.[0];
-		if (!currentUser) return;
+		if (!current || !currentUser) return;
 
-		const next = { ...current };
-		next.approvedBy = (current.approvedBy ?? []).filter(
-			(a) => a.id !== currentUser.id,
-		);
-		next.updatedAt = new Date().toISOString();
-		patchTaskInQueries(localStore, args.taskId, next);
+		patchTaskInQueries(store, taskId, {
+			...current,
+			approvedBy: (current.approvedBy ?? []).filter(
+				(a) => a.id !== currentUser.id,
+			),
+			updatedAt: new Date().toISOString(),
+		} satisfies Task);
 	});
 
 	return {
-		addTask: async (payload: {
-			parent: Task["parent"];
-			title: string;
-			description: string;
-			owner: Team | User | null;
-			assignee: User | null;
-			phase: Task["phase"];
-			status: Task["status"];
-			priority: Task["priority"];
-			dueDate: string | null;
-			labels: TaskLabel[];
-			resources?: Task["resources"];
-			requiredApprovalIds?: string[];
-			parentCompetitionId?: string;
-		}) => {
-			const { ownerId, ownerType } = toOwnerIdOwnerType(payload.owner);
+		addTask: async (payload) => {
+			const { ownerId, ownerType } = getOwnerFields(payload.owner);
 			const parentTaskId =
 				payload.parent?.type === "task"
 					? (payload.parent.linkedId as Id<"tasks">)
@@ -261,12 +377,8 @@ export function useTaskMutations() {
 			const parentCompetitionId =
 				payload.parentCompetitionId ??
 				(payload.parent?.type === "competition"
-					? payload.parent.linkedId
+					? (payload.parent.linkedId as Id<"competitions">)
 					: undefined);
-			const phaseId: Id<"phases"> | undefined =
-				payload.phase && "id" in payload.phase
-					? (payload.phase.id as Id<"phases">)
-					: undefined;
 			const id = await createTask({
 				title: payload.title,
 				description: payload.description,
@@ -275,19 +387,18 @@ export function useTaskMutations() {
 				dueDate: payload.dueDate ?? undefined,
 				parentTaskId,
 				parentCompetitionId,
-				phaseId,
+				phaseId: payload.phase?.id ? payload.phase.id : undefined,
 				ownerId,
 				ownerType,
-				assigneeId: payload.assignee
-					? (payload.assignee.id as Id<"users">)
-					: undefined,
-				labelIds: payload.labels.map((l) => l.id as Id<"labels">),
+				assigneeId: payload.assignee?.id ? payload.assignee.id : undefined,
+				labelIds: payload.labels.map((l) => l.id),
 				requiredApprovalIds: payload.requiredApprovalIds,
 			});
 			return {
 				id,
 				identifier: "",
 				parent: payload.parent,
+				parentDisplayName: null,
 				title: payload.title,
 				description: payload.description,
 				owner: payload.owner,
@@ -304,215 +415,63 @@ export function useTaskMutations() {
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
 				archivedAt: null,
-			} as Task;
+			} satisfies Task;
 		},
 
-		updateTask: async (
-			taskId: string,
-			updates: Partial<{
-				title: string;
-				description: string;
-				status: Task["status"];
-				priority: Task["priority"];
-				assignee: User | null;
-				owner: Team | User | null;
-				labels: TaskLabel[];
-				dueDate: string | null;
-				resources: Task["resources"];
-			}>,
-		) => {
-			const patch: Record<string, unknown> = {};
-			if (updates.title !== undefined) patch.title = updates.title;
-			if (updates.description !== undefined)
-				patch.description = updates.description;
-			if (updates.status !== undefined) patch.status = updates.status;
-			if (updates.priority !== undefined) patch.priority = updates.priority;
-			if (updates.dueDate !== undefined)
-				patch.dueDate = updates.dueDate === null ? null : updates.dueDate;
-			if (updates.assignee !== undefined)
-				patch.assigneeId = updates.assignee
-					? (updates.assignee.id as Id<"users">)
-					: null;
-			if (updates.owner !== undefined) {
-				const { ownerId, ownerType } = toOwnerIdOwnerType(updates.owner);
-				patch.ownerId = ownerId ?? null;
-				patch.ownerType = ownerType ?? null;
-			}
-			if (updates.labels !== undefined)
-				patch.labelIds = updates.labels.map((l) => l.id as Id<"labels">);
-			if (updates.resources !== undefined) patch.resources = updates.resources;
-			await updateTaskMutation({
-				taskId: taskId as Id<"tasks">,
-				updates: patch as Parameters<typeof updateTaskMutation>[0]["updates"],
+		updateTask: (taskId, updates) => {
+			const { ownerId, ownerType } = getOwnerFields(updates.owner ?? null);
+			return updateTaskMutation({
+				taskId,
+				updates: {
+					...(updates.title !== undefined && { title: updates.title }),
+					...(updates.description !== undefined && {
+						description: updates.description,
+					}),
+					...(updates.status !== undefined && { status: updates.status }),
+					...(updates.priority !== undefined && { priority: updates.priority }),
+					...(updates.dueDate !== undefined && {
+						dueDate: updates.dueDate === null ? null : updates.dueDate,
+					}),
+					...(updates.assignee !== undefined && {
+						assigneeId: updates.assignee?.id ?? null,
+					}),
+					...(updates.owner !== undefined && {
+						ownerId: ownerId ?? null,
+						ownerType: ownerType ?? undefined,
+					}),
+					...(updates.labels !== undefined && {
+						labelIds: updates.labels.map((l) => l.id),
+					}),
+					...(updates.resources !== undefined && {
+						resources: updates.resources,
+					}),
+				},
 			});
 		},
 
-		bulkUpdateTasks: async (
-			taskIds: string[],
-			updates: Partial<{
-				status: Task["status"];
-				priority: Task["priority"];
-				assignee: User | null;
-				owner: Team | User | null;
-				labels: TaskLabel[];
-				dueDate: string | null;
-				resources: Task["resources"];
-			}>,
-		) => {
-			if (taskIds.length === 0) return;
+		bulkUpdateTasks: (taskIds, updates) =>
+			bulkUpdateTasksMutation({ taskIds, updates }),
 
-			const patch: Record<string, unknown> = {};
-			if (updates.status !== undefined) patch.status = updates.status;
-			if (updates.priority !== undefined) patch.priority = updates.priority;
-			if (updates.dueDate !== undefined)
-				patch.dueDate = updates.dueDate === null ? null : updates.dueDate;
-			if (updates.assignee !== undefined)
-				patch.assigneeId = updates.assignee
-					? (updates.assignee.id as Id<"users">)
-					: null;
-			if (updates.owner !== undefined) {
-				const { ownerId, ownerType } = toOwnerIdOwnerType(updates.owner);
-				patch.ownerId = ownerId ?? null;
-				patch.ownerType = ownerType ?? null;
-			}
-			if (updates.labels !== undefined)
-				patch.labelIds = updates.labels.map((l) => l.id as Id<"labels">);
-			if (updates.resources !== undefined) patch.resources = updates.resources;
-
-			await bulkUpdateTasksMutation({
-				taskIds: taskIds as Id<"tasks">[],
-				updates: patch as Parameters<
-					typeof bulkUpdateTasksMutation
-				>[0]["updates"],
-			});
-		},
-
-		archiveTasks: async (taskIds: string[]) => {
-			await archiveTasksMutation({ taskIds: taskIds as Id<"tasks">[] });
-		},
-
-		unarchiveTask: async (taskId: string) => {
-			await unarchiveTasksMutation({ taskIds: [taskId as Id<"tasks">] });
-		},
-
-		bulkUnarchiveTasks: async (taskIds: string[]) => {
-			await unarchiveTasksMutation({ taskIds: taskIds as Id<"tasks">[] });
-		},
-
-		deleteTasks: async (taskIds: string[]) => {
-			await removeTasksMutation({ taskIds: taskIds as Id<"tasks">[] });
-		},
-
-		permanentlyDeleteTasks: async (taskIds: string[]) => {
-			await removeTasksMutation({ taskIds: taskIds as Id<"tasks">[] });
-		},
-
-		deleteTask: async (taskId: string) => {
-			await removeTasksMutation({ taskIds: [taskId as Id<"tasks">] });
-		},
-
-		addRequiredApprover: async (
-			taskId: string,
-			approver: Team | User,
-			_actor?: User,
-		) => {
-			const approverType = "members" in approver ? "team" : "user";
-			await addRequiredApproverMutation({
-				taskId: taskId as Id<"tasks">,
-				approverType,
+		archiveTasks: (taskIds) => archiveTasksMutation({ taskIds }),
+		unarchiveTask: (taskId) => unarchiveTasksMutation({ taskIds: [taskId] }),
+		bulkUnarchiveTasks: (taskIds) => unarchiveTasksMutation({ taskIds }),
+		deleteTasks: (taskIds) => removeTasksMutation({ taskIds }),
+		permanentlyDeleteTasks: (taskIds) => removeTasksMutation({ taskIds }),
+		deleteTask: (taskId) => removeTasksMutation({ taskIds: [taskId] }),
+		addRequiredApprover: (taskId, approver) =>
+			addRequiredApproverMutation({
+				taskId,
+				approverType: "members" in approver ? "team" : "user",
 				approverId: approver.id,
-			});
-		},
-
-		removeRequiredApprover: async (
-			taskId: string,
-			approverKey: string,
-			_actor?: User,
-		) => {
-			await removeRequiredApproverMutation({
-				taskId: taskId as Id<"tasks">,
+			}),
+		removeRequiredApprover: (taskId, approverKey) =>
+			removeRequiredApproverMutation({
+				taskId,
 				approverKey,
-			});
-		},
-
-		approveTask: async (taskId: string, _actor: User) => {
-			await approveTaskMutation({ taskId: taskId as Id<"tasks"> });
-		},
-
-		unapproveTask: async (taskId: string, _actor: User) => {
-			await unapproveTaskMutation({ taskId: taskId as Id<"tasks"> });
-		},
+			}),
+		approveTask: (taskId) => approveTaskMutation({ taskId }),
+		unapproveTask: (taskId) => unapproveTaskMutation({ taskId }),
 	};
-}
-
-export function useCompetitions(): {
-	competitions: Competition[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.competitions.listForUI);
-	return {
-		competitions: (data ?? []) as unknown as Competition[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useIsDirector(): { isDirector: boolean; isLoading: boolean } {
-	const data = useQuery(api.admin.isDirector, {});
-	return {
-		isDirector: data === true,
-		isLoading: data === undefined,
-	};
-}
-
-export type AdminUser = {
-	id: Id<"users">;
-	name: string;
-	avatarUrl: string;
-	teamIds: Id<"teams">[];
-};
-
-export type AdminTeam = {
-	id: Id<"teams">;
-	name: string;
-	memberIds: Id<"users">[];
-};
-
-export function useAdminMembersAndTeams(): {
-	users: AdminUser[];
-	teams: AdminTeam[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.admin.listMembersAndTeams, {});
-	return {
-		users: (data?.users ?? []) as AdminUser[],
-		teams: (data?.teams ?? []) as AdminTeam[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useAdminMemberMutations() {
-	const updateTeamMembers = useMutation(api.admin.updateTeamMembers);
-	return {
-		updateTeamMembers: async (
-			teamId: Id<"teams">,
-			memberIds: Id<"users">[],
-		) => {
-			await updateTeamMembers({ teamId, memberIds });
-		},
-	};
-}
-
-export function useCompetition(
-	competitionId: string | null,
-): Competition | undefined | null {
-	const data = useQuery(
-		api.competitions.getForUI,
-		competitionId
-			? { competitionId: competitionId as Id<"competitions"> }
-			: "skip",
-	);
-	if (competitionId == null) return null;
-	return data === undefined ? undefined : (data as unknown as Competition);
 }
 
 export function useCompetitionMutations() {
@@ -532,13 +491,9 @@ export function useCompetitionMutations() {
 				description: payload.description,
 				compStart: payload.compStart,
 				compEnd: payload.compEnd,
-				compLeadId: payload.compLead
-					? (payload.compLead.id as Id<"users">)
-					: undefined,
-				leadDelegateId: payload.leadDelegate
-					? (payload.leadDelegate.id as Id<"users">)
-					: undefined,
-				organiserIds: payload.organisers.map((u) => u.id as Id<"users">),
+				compLeadId: payload.compLead?.id ?? undefined,
+				leadDelegateId: payload.leadDelegate?.id ?? undefined,
+				organiserIds: payload.organisers.map((u) => u.id),
 				compSheet: payload.compSheet ?? undefined,
 			});
 			return {
@@ -548,11 +503,11 @@ export function useCompetitionMutations() {
 				progressUpdates: [],
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
-			} as Competition;
+			} satisfies Competition;
 		},
 
-		updateCompetition: async (
-			id: string,
+		updateCompetition: (
+			id: Id<"competitions">,
 			updates: Partial<
 				Pick<
 					Competition,
@@ -565,43 +520,39 @@ export function useCompetitionMutations() {
 					| "organisers"
 					| "compSheet"
 				>
-			> & { currentPhaseId?: string | null },
-		) => {
-			const patch: Record<string, unknown> = {};
-			if (updates.name !== undefined) patch.name = updates.name;
-			if (updates.description !== undefined)
-				patch.description = updates.description;
-			if (updates.compStart !== undefined) patch.compStart = updates.compStart;
-			if (updates.compEnd !== undefined) patch.compEnd = updates.compEnd;
-			if (updates.compLead !== undefined)
-				patch.compLeadId = updates.compLead
-					? (updates.compLead.id as Id<"users">)
-					: null;
-			if (updates.leadDelegate !== undefined)
-				patch.leadDelegateId = updates.leadDelegate
-					? (updates.leadDelegate.id as Id<"users">)
-					: null;
-			if (updates.organisers !== undefined)
-				patch.organiserIds = updates.organisers.map((u) => u.id as Id<"users">);
-			if (updates.currentPhaseId !== undefined)
-				patch.currentPhaseId = updates.currentPhaseId
-					? (updates.currentPhaseId as Id<"phases">)
-					: undefined;
-			if (updates.compSheet !== undefined)
-				patch.compSheet = updates.compSheet ?? null;
-			await updateCompetitionMutation({
-				competitionId: id as Id<"competitions">,
-				updates: patch as Parameters<
-					typeof updateCompetitionMutation
-				>[0]["updates"],
-			});
-		},
+			> & { currentPhaseId?: Id<"phases"> | null },
+		) =>
+			updateCompetitionMutation({
+				competitionId: id,
+				updates: {
+					...(updates.name !== undefined && { name: updates.name }),
+					...(updates.description !== undefined && {
+						description: updates.description,
+					}),
+					...(updates.compStart !== undefined && {
+						compStart: updates.compStart,
+					}),
+					...(updates.compEnd !== undefined && { compEnd: updates.compEnd }),
+					...(updates.compLead !== undefined && {
+						compLeadId: updates.compLead?.id ?? null,
+					}),
+					...(updates.leadDelegate !== undefined && {
+						leadDelegateId: updates.leadDelegate?.id ?? null,
+					}),
+					...(updates.organisers !== undefined && {
+						organiserIds: updates.organisers.map((u) => u.id),
+					}),
+					...(updates.currentPhaseId !== undefined && {
+						currentPhaseId: updates.currentPhaseId ?? undefined,
+					}),
+					...(updates.compSheet !== undefined && {
+						compSheet: updates.compSheet ?? undefined,
+					}),
+				},
+			}),
 
-		deleteCompetition: async (id: string) => {
-			await removeCompetitionMutation({
-				competitionId: id as Id<"competitions">,
-			});
-		},
+		deleteCompetition: (id: Id<"competitions">) =>
+			removeCompetitionMutation({ competitionId: id }),
 	};
 }
 
@@ -610,50 +561,23 @@ export function useCompetitionUpdateMutations() {
 	const addReactionMutation = useMutation(api.updates.addReaction);
 
 	return {
-		createUpdate: async (
-			competitionId: string,
+		createUpdate: (
+			competitionId: Id<"competitions">,
 			payload: {
 				status: "on-track" | "at-risk" | "off-track";
 				message?: string;
 			},
-		) => {
-			await createUpdateMutation({
-				competitionId: competitionId as Id<"competitions">,
+		) =>
+			createUpdateMutation({
+				competitionId: competitionId,
 				status: payload.status,
 				message: payload.message,
-			});
-		},
-		addReaction: async (updateId: string, emoji: string) => {
-			await addReactionMutation({
-				updateId: updateId as Id<"competitionUpdates">,
+			}),
+		addReaction: (updateId: Id<"competitionUpdates">, emoji: string) =>
+			addReactionMutation({
+				updateId: updateId,
 				emoji,
-			});
-		},
-	};
-}
-
-export function useCommentsForTask(taskId: string | null): {
-	comments: Comment[];
-	isLoading: boolean;
-} {
-	const data = useQuery(
-		api.comments.listForUI,
-		taskId ? { parentType: "task", parentId: taskId } : "skip",
-	);
-	return {
-		comments: (data ?? []) as Comment[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useCommentsForSearch(): {
-	comments: Comment[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.comments.listRecentForSearch, { limit: 200 });
-	return {
-		comments: (data ?? []) as Comment[],
-		isLoading: data === undefined,
+			}),
 	};
 }
 
@@ -666,17 +590,15 @@ export function useCommentMutations() {
 	return {
 		addComment: async (
 			parentType: "task" | "update",
-			parentId: string,
+			parentId: Id<"tasks"> | Id<"competitionUpdates">,
 			content: string,
-			parentCommentId: string | null,
+			parentCommentId: Id<"comments"> | null,
 			author: User,
 		) => {
 			const id = await createCommentMutation({
 				parentType,
 				parentId,
-				parentCommentId: parentCommentId
-					? (parentCommentId as Id<"comments">)
-					: undefined,
+				parentCommentId: parentCommentId ?? undefined,
 				content,
 			});
 			return {
@@ -688,80 +610,21 @@ export function useCommentMutations() {
 				content,
 				createdAt: new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
+				contentUpdatedAt: undefined,
 				reactions: [],
-			} as Comment;
+			} satisfies Comment;
 		},
 
-		editComment: async (commentId: string, content: string) => {
-			await updateCommentMutation({
-				commentId: commentId as Id<"comments">,
+		editComment: (commentId: Id<"comments">, content: string) =>
+			updateCommentMutation({
+				commentId: commentId,
 				content,
-			});
-		},
-
-		deleteComment: async (commentId: string) => {
-			await removeCommentMutation({ commentId: commentId as Id<"comments"> });
-		},
-
-		addReaction: async (commentId: string, emoji: string) => {
-			await toggleReactionMutation({
-				commentId: commentId as Id<"comments">,
-				emoji,
-			});
-		},
+			}),
+		deleteComment: (commentId: Id<"comments">) =>
+			removeCommentMutation({ commentId: commentId }),
+		addReaction: (commentId: Id<"comments">, emoji: string) =>
+			toggleReactionMutation({ commentId: commentId, emoji }),
 	};
-}
-
-export function useActivityForTask(taskId: string | null): {
-	activities: ActivityEntry[];
-	isLoading: boolean;
-} {
-	const data = useQuery(
-		api.activity.listForEntity,
-		taskId ? { entityType: "task", entityId: taskId } : "skip",
-	);
-	return {
-		activities: (data ?? []) as ActivityEntry[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useRecentActivity(limit?: number): {
-	activities: ActivityEntry[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.activity.listRecentForUser, { limit: limit ?? 50 });
-	return {
-		activities: (data ?? []) as ActivityEntry[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useGlobalActivity(limit?: number): {
-	activities: ActivityEntry[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.activity.listRecent, { limit: limit ?? 50 });
-	return {
-		activities: (data ?? []) as ActivityEntry[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useNotifications(): {
-	notifications: Notification[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.notifications.listForUser, {});
-	return {
-		notifications: (data ?? []) as Notification[],
-		isLoading: data === undefined,
-	};
-}
-
-export function useUnreadCount(): number | undefined {
-	const data = useQuery(api.notifications.getUnreadCount, {});
-	return data;
 }
 
 export function useNotificationMutations() {
@@ -771,79 +634,27 @@ export function useNotificationMutations() {
 	const dismissMutation = useMutation(api.notifications.dismiss);
 
 	return {
-		markNotificationRead: async (notificationId: string) => {
-			await markReadMutation({
-				notificationId: notificationId as Id<"notifications">,
-			});
-		},
-		markNotificationArchived: async (notificationId: string) => {
-			await markArchivedMutation({
-				notificationId: notificationId as Id<"notifications">,
-			});
-		},
-		markAllNotificationsRead: async () => {
-			await markAllReadMutation({});
-		},
-		dismissNotification: async (notificationId: string) => {
-			await dismissMutation({
-				notificationId: notificationId as Id<"notifications">,
-			});
-		},
+		markNotificationRead: (notificationId: Id<"notifications">) =>
+			markReadMutation({
+				notificationId: notificationId,
+			}),
+		markNotificationArchived: (notificationId: Id<"notifications">) =>
+			markArchivedMutation({
+				notificationId: notificationId,
+			}),
+		markAllNotificationsRead: () => markAllReadMutation({}),
+		dismissNotification: (notificationId: Id<"notifications">) =>
+			dismissMutation({
+				notificationId: notificationId,
+			}),
 	};
 }
 
-export function useReminders(): {
-	reminders: Reminder[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.reminders.listForUser, {});
+export function useAdminMemberMutations() {
+	const updateTeamMembers = useMutation(api.admin.updateTeamMembers);
 	return {
-		reminders: (data ?? []) as Reminder[],
-		isLoading: data === undefined,
-	};
-}
-
-export function usePendingReminders(): {
-	reminders: Reminder[];
-	isLoading: boolean;
-} {
-	const data = useQuery(api.reminders.listPendingForUser, {});
-	return {
-		reminders: (data ?? []) as Reminder[],
-		isLoading: data === undefined,
-	};
-}
-
-export function usePendingRemindersForTask(taskId: string | null): {
-	reminders: Reminder[];
-	isLoading: boolean;
-} {
-	const data = useQuery(
-		api.reminders.listPendingForTask,
-		taskId ? { taskId } : "skip",
-	);
-	return {
-		reminders: (data ?? []) as Reminder[],
-		isLoading: data === undefined,
-	};
-}
-
-const DEFAULT_REMINDER_PRIORITY = "normal";
-
-export function buildOneTimeReminderPayload(
-	taskId: string,
-	remindAt: string,
-	message?: string,
-): Omit<Reminder, "id" | "createdAt" | "updatedAt" | "userId"> {
-	return {
-		entityId: taskId,
-		entityType: "task",
-		type: "one_time",
-		remindAt,
-		status: "pending",
-		priority: DEFAULT_REMINDER_PRIORITY,
-		metadata: {},
-		...(message ? { message } : {}),
+		updateTeamMembers: (teamId: Id<"teams">, memberIds: Id<"users">[]) =>
+			updateTeamMembers({ teamId, memberIds }),
 	};
 }
 
@@ -855,10 +666,10 @@ export function useReminderMutations() {
 	const rescheduleMutation = useMutation(api.reminders.reschedule);
 
 	return {
-		addReminder: async (
+		addReminder: (
 			payload: Omit<Reminder, "id" | "createdAt" | "updatedAt" | "userId">,
-		): Promise<Id<"reminders">> => {
-			return await createMutation({
+		) =>
+			createMutation({
 				entityId: payload.entityId,
 				type: payload.type,
 				remindAt: payload.remindAt,
@@ -868,25 +679,40 @@ export function useReminderMutations() {
 				message: payload.message,
 				priority: payload.priority,
 				metadata: payload.metadata ?? {},
-			});
-		},
-		cancelReminder: async (reminderId: string) => {
-			await cancelMutation({ reminderId: reminderId as Id<"reminders"> });
-		},
-		dismissReminder: async (reminderId: string) => {
-			await dismissMutation({ reminderId: reminderId as Id<"reminders"> });
-		},
-		snoozeReminder: async (reminderId: string, snoozeUntil: string) => {
-			await snoozeMutation({
-				reminderId: reminderId as Id<"reminders">,
+			}),
+		cancelReminder: (reminderId: Id<"reminders">) =>
+			cancelMutation({ reminderId: reminderId }),
+		dismissReminder: (reminderId: Id<"reminders">) =>
+			dismissMutation({ reminderId: reminderId }),
+		snoozeReminder: (reminderId: Id<"reminders">, snoozeUntil: string) =>
+			snoozeMutation({
+				reminderId: reminderId,
 				snoozeUntil,
-			});
-		},
-		rescheduleReminder: async (reminderId: string, remindAt: string) => {
-			await rescheduleMutation({
-				reminderId: reminderId as Id<"reminders">,
+			}),
+		rescheduleReminder: (reminderId: Id<"reminders">, remindAt: string) =>
+			rescheduleMutation({
+				reminderId: reminderId,
 				remindAt,
-			});
-		},
+			}),
 	};
 }
+
+export const buildOneTimeReminderPayload = (
+	taskId: Id<"tasks">,
+	remindAt: string,
+	message?: string,
+): Omit<Reminder, "id" | "createdAt" | "updatedAt" | "userId"> => ({
+	entityId: taskId,
+	entityType: "task",
+	type: "one_time",
+	remindAt,
+	recurringPattern: undefined,
+	recurringConfig: undefined,
+	endDate: undefined,
+	triggeredAt: undefined,
+	dismissedAt: undefined,
+	status: "pending",
+	priority: "normal",
+	metadata: {},
+	message: message ?? "",
+});

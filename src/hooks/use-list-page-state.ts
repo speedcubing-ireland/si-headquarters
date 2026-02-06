@@ -1,28 +1,14 @@
 import { useState } from "react";
-import type { StoreApi, UseBoundStore } from "zustand";
-import type { EntitySavedViewsHook } from "@/store/use-entity-saved-views";
-
-const defaultDisplayJson = JSON.stringify({
-	grouping: null,
-	subGrouping: null,
-	ordering: { field: null, direction: "asc" },
-});
-
-type FilterStore = UseBoundStore<
-	StoreApi<{
-		toJSON: () => string;
-		fromJSON: (json: string) => void;
-		clearFilters: () => void;
-	}>
->;
-type DisplayStore = UseBoundStore<
-	StoreApi<{ toJSON: () => string; fromJSON: (json: string) => void }>
->;
+import type { TasksSavedViewsHook } from "@/lib/use-tasks-saved-views";
+import type { CompetitionsSavedViewsHook } from "@/store/use-competitions-saved-views";
 
 export interface UseListPageStateOptions {
-	filterStore: FilterStore;
-	displayStore: DisplayStore;
-	savedViews: EntitySavedViewsHook;
+	savedViews: TasksSavedViewsHook | CompetitionsSavedViewsHook;
+	getFiltersJson: () => string;
+	getDisplaySettingsJson: () => string;
+	restoreFiltersJson: (json: string) => void;
+	restoreDisplaySettingsJson: (json: string) => void;
+	resetAll: () => void;
 }
 
 export interface ListPageState {
@@ -50,9 +36,12 @@ export interface ListPageState {
 }
 
 export function useListPageState({
-	filterStore,
-	displayStore,
 	savedViews,
+	getFiltersJson,
+	getDisplaySettingsJson,
+	restoreFiltersJson,
+	restoreDisplaySettingsJson,
+	resetAll,
 }: UseListPageStateOptions): ListPageState {
 	const [modalOpen, setModalOpen] = useState(false);
 	const [isCreatingView, setIsCreatingView] = useState(false);
@@ -96,8 +85,8 @@ export function useListPageState({
 	}
 
 	const handleStartCreateView = () => {
-		setPreviousFiltersJson(filterStore.getState().toJSON());
-		setPreviousDisplayJson(displayStore.getState().toJSON());
+		setPreviousFiltersJson(getFiltersJson());
+		setPreviousDisplayJson(getDisplaySettingsJson());
 		setViewName("");
 		setViewDescription("");
 		setIsCreatingView(true);
@@ -105,10 +94,10 @@ export function useListPageState({
 
 	const handleCancelCreateView = () => {
 		if (previousFiltersJson) {
-			filterStore.getState().fromJSON(previousFiltersJson);
+			restoreFiltersJson(previousFiltersJson);
 		}
 		if (previousDisplayJson) {
-			displayStore.getState().fromJSON(previousDisplayJson);
+			restoreDisplaySettingsJson(previousDisplayJson);
 		}
 		resetCreateViewState();
 	};
@@ -125,8 +114,7 @@ export function useListPageState({
 	};
 
 	const handleResetAll = () => {
-		filterStore.getState().clearFilters();
-		displayStore.getState().fromJSON(defaultDisplayJson);
+		resetAll();
 		savedViews.setActiveView(null);
 	};
 

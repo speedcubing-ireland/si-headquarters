@@ -1,10 +1,10 @@
-import type { Competition, CompetitionPhaseKey } from "@/data/types-new";
+import type { Competition } from "@/data/types-new";
 import { getCurrentPhaseKey } from "@/lib/competition-phase-config";
 import type {
 	CompetitionsFilters,
 	DateRangeFilter,
 	MatchMode,
-} from "@/store/competitions-filter-types";
+} from "@/lib/filter-types";
 import {
 	buildFilterItemMatcher,
 	hasDateRangeValue,
@@ -101,27 +101,27 @@ function filterCompetitions(
 		return competitions;
 	}
 
-	const matchesPhase = buildFilterItemMatcher<CompetitionPhaseKey, Competition>(
+	const matchesPhase = buildFilterItemMatcher(
 		filters.phase,
-		(comp) => [getCurrentPhaseKey(comp)],
+		(comp: Competition) => [getCurrentPhaseKey(comp)],
 		matchMode,
 	);
 
-	const matchesCompLead = buildFilterItemMatcher<string, Competition>(
+	const matchesCompLead = buildFilterItemMatcher(
 		filters.compLead,
-		(comp) => (comp.compLead ? [comp.compLead.id] : []),
+		(comp: Competition) => (comp.compLead ? [comp.compLead.id] : []),
 		matchMode,
 	);
 
-	const matchesLeadDelegate = buildFilterItemMatcher<string, Competition>(
+	const matchesLeadDelegate = buildFilterItemMatcher(
 		filters.leadDelegate,
-		(comp) => (comp.leadDelegate ? [comp.leadDelegate.id] : []),
+		(comp: Competition) => (comp.leadDelegate ? [comp.leadDelegate.id] : []),
 		matchMode,
 	);
 
-	const matchesOrganisers = buildFilterItemMatcher<string, Competition>(
+	const matchesOrganisers = buildFilterItemMatcher(
 		filters.organisers,
-		(comp) => comp.organisers.map((u) => u.id),
+		(comp: Competition) => comp.organisers.map((u) => u.id),
 		matchMode,
 	);
 	const matchesDate = buildDateMatcher(filters.dateRange);

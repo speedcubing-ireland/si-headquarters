@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { Id } from "@/convex/_generated/dataModel";
 import {
 	getRemindAtForPreset,
 	REMINDER_PRESETS,
@@ -44,8 +45,8 @@ interface RemindMeDialogProps {
 	taskId: string;
 	onSetReminder?: (remindAt: string, message?: string) => void;
 	mode?: "set" | "reschedule";
-	reminderId?: string;
-	onReschedule?: (reminderId: string, remindAt: string) => void;
+	reminderId?: Id<"reminders">;
+	onReschedule?: (reminderId: Id<"reminders">, remindAt: string) => void;
 }
 
 export function RemindMeDialog({

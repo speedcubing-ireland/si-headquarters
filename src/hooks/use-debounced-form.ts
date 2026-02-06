@@ -1,15 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
-interface UseDebouncedFormOptions<T> {
-	initialValue: T;
-	onChange: (value: T) => void;
+interface UseDebouncedFormOptions {
+	initialValue: string;
+	onChange: (value: string) => void;
 	debounceMs?: number;
 	immediateOnCommit?: boolean;
 }
 
-interface UseDebouncedFormReturn<T> {
-	value: T;
-	setValue: (value: T) => void;
+interface UseDebouncedFormReturn {
+	value: string;
+	setValue: (value: string) => void;
 	commit: () => void;
 	reset: () => void;
 	handleChange: (
@@ -18,13 +18,13 @@ interface UseDebouncedFormReturn<T> {
 	hasPendingChanges: boolean;
 }
 
-export function useDebouncedForm<T extends string>({
+export function useDebouncedForm({
 	initialValue,
 	onChange,
 	debounceMs = 250,
 	immediateOnCommit = true,
-}: UseDebouncedFormOptions<T>): UseDebouncedFormReturn<T> {
-	const [localValue, setLocalValue] = useState<T>(initialValue);
+}: UseDebouncedFormOptions): UseDebouncedFormReturn {
+	const [localValue, setLocalValue] = useState<string>(initialValue);
 	const [hasPendingChanges, setHasPendingChanges] = useState(false);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const onChangeRef = useRef(onChange);
@@ -48,7 +48,7 @@ export function useDebouncedForm<T extends string>({
 	}, []);
 
 	const debouncedUpdate = useCallback(
-		(value: T) => {
+		(value: string) => {
 			setHasPendingChanges(true);
 
 			if (timeoutRef.current) {
@@ -64,7 +64,7 @@ export function useDebouncedForm<T extends string>({
 	);
 
 	const setValue = useCallback(
-		(value: T) => {
+		(value: string) => {
 			setLocalValue(value);
 			debouncedUpdate(value);
 		},
@@ -73,8 +73,7 @@ export function useDebouncedForm<T extends string>({
 
 	const handleChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-			const newValue = e.target.value as T;
-			setValue(newValue);
+			setValue(e.target.value);
 		},
 		[setValue],
 	);

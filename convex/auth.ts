@@ -10,6 +10,7 @@ import {
 import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { TEAM_NAMES } from "./lib/constants";
 
 function WCA(
 	options: OAuthUserConfig<{
@@ -72,7 +73,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 	],
 });
 
-const VOLUNTEER_TEAM_NAME = "Volunteer";
+const VOLUNTEER_TEAM_NAME = TEAM_NAMES.VOLUNTEER;
 
 type AuthCtx = QueryCtx | MutationCtx;
 
@@ -81,9 +82,12 @@ export async function requireUserId(
 ): Promise<Id<"users">> {
 	const userId = await getAuthUserId(ctx);
 	if (userId === null) {
-		throw new ConvexError("Authentication required");
+		throw new ConvexError({
+			code: "UNAUTHENTICATED",
+			message: "Authentication required",
+		});
 	}
-	return userId as Id<"users">;
+	return userId;
 }
 
 export async function isVolunteer(ctx: AuthCtx): Promise<boolean> {

@@ -1,19 +1,10 @@
-import { useEffect, useMemo, useRef, useCallback } from "react";
-import { useQueryStates } from "nuqs";
+import { useMemo, useCallback, useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
 import { useTasks } from "@/hooks/use-convex-data";
-import {
-	TasksPageProvider,
-	TasksListStateContext,
-	useTasksPageContext,
-} from "@/store/tasks-page-context";
+import { TasksListStateContext } from "@/store/tasks-list-context";
+import { useTasksSavedViews } from "@/lib/use-tasks-saved-views";
 import { useListPageState } from "@/hooks/use-list-page-state";
-import {
-	useSyncTasksFiltersToUrl,
-	initializeTasksStoreFromSearch,
-} from "@/lib/route-state";
-import { tasksFilterParsers } from "@/lib/nuqs-parsers";
 import {
 	bulkFilterItems,
 	type MatchMode,
@@ -28,12 +19,22 @@ import { useTaskColumns } from "./columns";
 import { FilterBar } from "./filter-bar";
 import { BulkActionsBar } from "./bulk-actions-bar";
 import type { ReactNode } from "react";
-import type { TasksPageConfig } from "@/store/create-tasks-page-store";
 import {
 	CreateViewProvider,
 	ListPageLayout,
 } from "@/components/shared/list-page-layout";
 import { useCreateModalsStore } from "@/store/create-modals-store";
+import type { TasksFilters } from "@/lib/filter-types";
+import { emptyTasksFilters } from "@/lib/filter-types";
+import {
+	parseDisplaySettingsJson,
+	parseFiltersJson,
+	serializeDisplaySettings,
+	serializeFilters,
+	type DisplaySettings,
+} from "@/lib/saved-view-utils";
+import { hasActiveFilters } from "@/lib/task-filters";
+import { TasksUrlProvider, useTasksUrlContext } from "@/lib/tasks-url-context";
 
 export type TasksPageProps = {
 	pageId: string;
@@ -45,8 +46,8 @@ export type TasksPageProps = {
 	pagePredicates?: TaskPredicate[];
 	pagePredicateMode?: MatchMode;
 
-	defaultFilters?: TasksPageConfig["defaultFilters"];
-	defaultDisplaySettings?: TasksPageConfig["defaultDisplaySettings"];
+	defaultFilters?: Partial<TasksFilters>;
+	defaultDisplaySettings?: Partial<DisplaySettings>;
 
 	showCreateButton?: boolean;
 	showClearButton?: boolean;
@@ -58,6 +59,7 @@ export type TasksPageProps = {
 
 function TasksPageInner(props: TasksPageProps) {
 	const {
+		pageId,
 		pageTitle,
 		pageIcon,
 		taskSource = "all",
@@ -67,11 +69,10 @@ function TasksPageInner(props: TasksPageProps) {
 		subHeader,
 	} = props;
 
-	const { filterStore, displayStore, savedViews } = useTasksPageContext();
+	const urlState = useTasksUrlContext();
+	const savedViews = useTasksSavedViews({ entity: "tasks", pageId });
 
 	const { tasks: allTasks } = useTasks(taskSource === "archived");
-
-	const [search] = useQueryStates(tasksFilterParsers);
 
 	const pageTasks = useMemo(() => {
 		if (pagePredicates.length === 0) return allTasks;
@@ -79,52 +80,36 @@ function TasksPageInner(props: TasksPageProps) {
 	}, [allTasks, pagePredicates, pagePredicateMode]);
 
 	const listState = useListPageState({
-		filterStore,
-		displayStore,
 		savedViews,
+		getFiltersJson: () =>
+			serializeFilters(urlState.filters, urlState.matchMode),
+		getDisplaySettingsJson: () =>
+			serializeDisplaySettings(urlState.displaySettings),
+		restoreFiltersJson: (json) => {
+			const parsed = parseFiltersJson(json, emptyTasksFilters);
+			urlState.setArrayFilter("status", parsed.filters.status);
+			urlState.setArrayFilter("priority", parsed.filters.priority);
+			urlState.setArrayFilter("assignee", parsed.filters.assignee);
+			urlState.setArrayFilter("labels", parsed.filters.labels);
+			urlState.setArrayFilter("owner", parsed.filters.owner);
+			urlState.setArrayFilter("parentType", parsed.filters.parentType);
+			urlState.setDateRange(parsed.filters.dateRange);
+			urlState.setMatchMode(parsed.matchMode);
+		},
+		restoreDisplaySettingsJson: (json) => {
+			const parsed = parseDisplaySettingsJson(json);
+			urlState.setGrouping(parsed.grouping);
+			urlState.setSubGrouping(parsed.subGrouping);
+			urlState.setOrdering(parsed.ordering.field, parsed.ordering.direction);
+		},
+		resetAll: urlState.clearAll,
 	});
 	const { openTask } = useCreateModalsStore();
 
-	useSyncTasksFiltersToUrl({
-		filterStore,
-		displayStore,
-		savedViews,
-		activeViewId: savedViews.activeViewId,
-	});
-
-	const initializedRef = useRef(false);
-	useEffect(() => {
-		if (!initializedRef.current) {
-			initializeTasksStoreFromSearch(
-				search as Parameters<typeof initializeTasksStoreFromSearch>[0],
-				filterStore,
-				displayStore,
-				savedViews,
-			);
-			initializedRef.current = true;
-		}
-	}, [search, filterStore, displayStore, savedViews]);
-
 	const handleReset = useCallback(() => {
-		filterStore.getState().clearFilters();
-
-		if (props.defaultDisplaySettings) {
-			displayStore.getState().fromJSON(
-				JSON.stringify({
-					grouping: props.defaultDisplaySettings.grouping ?? null,
-					subGrouping: props.defaultDisplaySettings.subGrouping ?? null,
-					ordering: props.defaultDisplaySettings.ordering ?? {
-						field: null,
-						direction: "asc",
-					},
-				}),
-			);
-		} else {
-			displayStore.getState().reset();
-		}
-
+		urlState.clearAll();
 		savedViews.setActiveView(null);
-	}, [filterStore, displayStore, savedViews, props.defaultDisplaySettings]);
+	}, [urlState, savedViews]);
 
 	const columns = useTaskColumns();
 
@@ -173,6 +158,12 @@ function TasksPageInner(props: TasksPageProps) {
 			<TasksDataTable
 				columns={columns}
 				tasks={pageTasks}
+				filters={urlState.filters}
+				matchMode={urlState.matchMode}
+				grouping={urlState.displaySettings.grouping}
+				subGrouping={urlState.displaySettings.subGrouping}
+				ordering={urlState.displaySettings.ordering}
+				onOrderingChange={urlState.setOrdering}
 				enableRowSelection={true}
 				rowSelection={listState.rowSelection}
 				onRowSelectionChange={listState.setRowSelection}
@@ -183,12 +174,12 @@ function TasksPageInner(props: TasksPageProps) {
 	);
 
 	const handleSelectAll = useCallback(() => {
-		const allSelected = pageTasks.reduce(
+		const allSelected = pageTasks.reduce<Record<string, boolean>>(
 			(acc, task) => {
 				acc[task.id] = true;
 				return acc;
 			},
-			{} as Record<string, boolean>,
+			{},
 		);
 		listState.setRowSelection(allSelected);
 	}, [pageTasks, listState.setRowSelection]);
@@ -224,15 +215,77 @@ function TasksPageInner(props: TasksPageProps) {
 	);
 }
 
-export function TasksPage(props: TasksPageProps) {
-	const { pageId, defaultFilters, defaultDisplaySettings } = props;
+function TasksPageWithDefaults(props: TasksPageProps) {
+	const {
+		filters,
+		displaySettings,
+		isViewActive,
+		setArrayFilter,
+		setDateRange,
+		setGrouping,
+		setSubGrouping,
+		setOrdering,
+	} = useTasksUrlContext();
+	const appliedDefaults = useRef(false);
+	const { defaultFilters, defaultDisplaySettings } = props;
 
+	useEffect(() => {
+		if (appliedDefaults.current) return;
+		if (!defaultFilters && !defaultDisplaySettings) return;
+		if (isViewActive) return;
+
+		const filtersEmpty = !hasActiveFilters(filters);
+		const displayIsDefault =
+			displaySettings.grouping === null &&
+			displaySettings.subGrouping === null &&
+			displaySettings.ordering.field === null &&
+			displaySettings.ordering.direction === "asc";
+
+		if (defaultFilters && filtersEmpty) {
+			const mergedFilters = { ...emptyTasksFilters, ...defaultFilters };
+			setArrayFilter("status", mergedFilters.status);
+			setArrayFilter("priority", mergedFilters.priority);
+			setArrayFilter("assignee", mergedFilters.assignee);
+			setArrayFilter("labels", mergedFilters.labels);
+			setArrayFilter("owner", mergedFilters.owner);
+			setArrayFilter("parentType", mergedFilters.parentType);
+			setDateRange(mergedFilters.dateRange);
+		}
+
+		if (defaultDisplaySettings && displayIsDefault) {
+			const nextDisplay: DisplaySettings = {
+				grouping: defaultDisplaySettings.grouping ?? null,
+				subGrouping: defaultDisplaySettings.subGrouping ?? null,
+				ordering: defaultDisplaySettings.ordering ?? {
+					field: null,
+					direction: "asc",
+				},
+			};
+			setGrouping(nextDisplay.grouping);
+			setSubGrouping(nextDisplay.subGrouping);
+			setOrdering(nextDisplay.ordering.field, nextDisplay.ordering.direction);
+		}
+
+		appliedDefaults.current = true;
+	}, [
+		defaultFilters,
+		defaultDisplaySettings,
+		isViewActive,
+		filters,
+		displaySettings,
+		setArrayFilter,
+		setDateRange,
+		setGrouping,
+		setSubGrouping,
+		setOrdering,
+	]);
+	return <TasksPageInner {...props} />;
+}
+
+export function TasksPage(props: TasksPageProps) {
 	return (
-		<TasksPageProvider
-			pageId={pageId}
-			config={{ defaultFilters, defaultDisplaySettings }}
-		>
-			<TasksPageInner {...props} />
-		</TasksPageProvider>
+		<TasksUrlProvider>
+			<TasksPageWithDefaults {...props} />
+		</TasksUrlProvider>
 	);
 }

@@ -7,12 +7,7 @@ import { requireUserId } from "./auth";
 import { internal } from "./_generated/api";
 import { logActivity } from "./lib/activity";
 import { hasCompetitionAccess } from "./competitionAccess";
-
-const statusValidator = v.union(
-	v.literal("on-track"),
-	v.literal("at-risk"),
-	v.literal("off-track"),
-);
+import { progressUpdateStatus as statusValidator } from "./lib/validators";
 
 async function getUpdateAndAssertAuth(
 	ctx: MutationCtx,

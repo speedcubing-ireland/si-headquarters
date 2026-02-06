@@ -8,7 +8,7 @@ import {
 	Trash2,
 	User as UserIcon,
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -17,6 +17,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Id } from "@/convex/_generated/dataModel";
 import {
 	useTasks,
 	useUsers,
@@ -29,9 +30,10 @@ import type {
 	TaskStatus,
 	User,
 } from "@/data/types-new";
-import { TASK_PRIORITY, TASK_STATUS } from "@/data/types-new";
+import { TASK_PRIORITIES, TASK_STATUSES } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
-import { useTasksListStateContext } from "@/store/tasks-page-context";
+import { useTasksListStateContext } from "@/store/tasks-list-context";
+import { parseTaskId } from "@/lib/convex-ids";
 
 interface BulkActionsBarProps {
 	totalTasks: number;
@@ -48,26 +50,34 @@ export function BulkActionsBar({
 	const [isArchiving, setIsArchiving] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 
+	const typedTaskIds = useMemo(
+		() =>
+			selectedTaskIds
+				.map((id) => parseTaskId(id))
+				.filter((id): id is Id<"tasks"> => id !== null),
+		[selectedTaskIds],
+	);
+
 	const { tasks } = useTasks(false);
 	const { users } = useUsers();
 	const { labels } = useLabels();
 	const { bulkUpdateTasks, archiveTasks, deleteTasks } = useTaskMutations();
 
-	const selectedCount = selectedTaskIds.length;
+	const selectedCount = typedTaskIds.length;
 	const allSelected = selectedCount === totalTasks && totalTasks > 0;
 
 	const handleStatusChange = useCallback(
 		(status: TaskStatus) => {
-			void bulkUpdateTasks(selectedTaskIds, { status }).then(() => {
+			void bulkUpdateTasks(typedTaskIds, { status }).then(() => {
 				onClearSelection();
 			});
 		},
-		[selectedTaskIds, bulkUpdateTasks, onClearSelection],
+		[typedTaskIds, bulkUpdateTasks, onClearSelection],
 	);
 
 	const handlePriorityChange = useCallback(
 		(priority: TaskPriority) => {
-			void bulkUpdateTasks(selectedTaskIds, { priority }).then(() => {
+			void bulkUpdateTasks(typedTaskIds, { priority }).then(() => {
 				onClearSelection();
 			});
 		},
@@ -76,18 +86,18 @@ export function BulkActionsBar({
 
 	const handleAssigneeChange = useCallback(
 		(user: User | null) => {
-			void bulkUpdateTasks(selectedTaskIds, { assignee: user }).then(() => {
+			void bulkUpdateTasks(typedTaskIds, { assignee: user }).then(() => {
 				onClearSelection();
 			});
 		},
-		[selectedTaskIds, bulkUpdateTasks, onClearSelection],
+		[typedTaskIds, bulkUpdateTasks, onClearSelection],
 	);
 
 	const handleLabelToggle = useCallback(
 		(label: TaskLabel) => {
-			const updatedLabelsByTaskId = new Map<string, TaskLabel[]>();
+			const updatedLabelsByTaskId = new Map<Id<"tasks">, TaskLabel[]>();
 
-			for (const taskId of selectedTaskIds) {
+			for (const taskId of typedTaskIds) {
 				const task = tasks.find((t) => t.id === taskId);
 				if (!task) continue;
 
@@ -110,7 +120,7 @@ export function BulkActionsBar({
 				}
 			}
 
-			const bulkPromises: Promise<void>[] = [];
+			const bulkPromises: Promise<null>[] = [];
 			for (const [key, labelSet] of uniqueLabelSets.entries()) {
 				const taskIdsForSet = [...updatedLabelsByTaskId.entries()]
 					.filter(([_, labelsForTask]) => {
@@ -134,25 +144,25 @@ export function BulkActionsBar({
 
 	const handleArchive = useCallback(() => {
 		setIsArchiving(true);
-		void archiveTasks(selectedTaskIds)
+		void archiveTasks(typedTaskIds)
 			.then(() => {
 				onClearSelection();
 			})
 			.finally(() => {
 				setIsArchiving(false);
 			});
-	}, [selectedTaskIds, archiveTasks, onClearSelection]);
+	}, [typedTaskIds, archiveTasks, onClearSelection]);
 
 	const handleDelete = useCallback(() => {
 		setIsDeleting(true);
-		void deleteTasks(selectedTaskIds)
+		void deleteTasks(typedTaskIds)
 			.then(() => {
 				onClearSelection();
 			})
 			.finally(() => {
 				setIsDeleting(false);
 			});
-	}, [selectedTaskIds, deleteTasks, onClearSelection]);
+	}, [typedTaskIds, deleteTasks, onClearSelection]);
 
 	if (selectedCount === 0) return null;
 
@@ -202,7 +212,7 @@ export function BulkActionsBar({
 							>
 								Set Status
 							</DropdownMenuItem>
-							{TASK_STATUS.map((status) => {
+							{TASK_STATUSES.map((status: TaskStatus) => {
 								const Icon = getStatusIcon(status);
 								return (
 									<DropdownMenuItem
@@ -225,7 +235,7 @@ export function BulkActionsBar({
 							>
 								Set Priority
 							</DropdownMenuItem>
-							{TASK_PRIORITY.map((priority) => (
+							{TASK_PRIORITIES.map((priority) => (
 								<DropdownMenuItem
 									key={priority}
 									onClick={() => handlePriorityChange(priority)}
@@ -319,7 +329,7 @@ export function BulkActionsBar({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start" className="w-48">
-							{TASK_STATUS.map((status) => {
+							{TASK_STATUSES.map((status: TaskStatus) => {
 								const Icon = getStatusIcon(status);
 								return (
 									<DropdownMenuItem
@@ -344,7 +354,7 @@ export function BulkActionsBar({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start" className="w-48">
-							{TASK_PRIORITY.map((priority) => (
+							{TASK_PRIORITIES.map((priority) => (
 								<DropdownMenuItem
 									key={priority}
 									onClick={() => handlePriorityChange(priority)}

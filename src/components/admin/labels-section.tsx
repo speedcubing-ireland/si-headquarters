@@ -9,11 +9,14 @@ import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 
+const getErrorMessage = (error: unknown) =>
+	error instanceof Error ? error.message : "Something went wrong.";
+
 function useAdminLabels() {
 	const data = useQuery(api.admin.listLabelsWithUsage, {});
 	const labels =
 		data?.map((l) => ({
-			id: l.id as Id<"labels">,
+			id: l.id,
 			name: l.name,
 			color: l.color,
 			archived: l.archived,
@@ -47,7 +50,7 @@ export function LabelsSection() {
 			await createLabel(newName.trim(), newColor);
 			setNewName("");
 		} catch (e) {
-			setError((e as Error).message);
+			setError(getErrorMessage(e));
 		}
 	};
 
@@ -60,7 +63,7 @@ export function LabelsSection() {
 		try {
 			await updateLabelAdmin(id, updates);
 		} catch (e) {
-			setError((e as Error).message);
+			setError(getErrorMessage(e));
 		} finally {
 			setSavingId(null);
 		}
@@ -76,7 +79,7 @@ export function LabelsSection() {
 				await archiveLabel(id);
 			}
 		} catch (e) {
-			setError((e as Error).message);
+			setError(getErrorMessage(e));
 		} finally {
 			setSavingId(null);
 		}
@@ -88,7 +91,7 @@ export function LabelsSection() {
 		try {
 			await deleteLabelIfUnused(id);
 		} catch (e) {
-			setError((e as Error).message);
+			setError(getErrorMessage(e));
 		} finally {
 			setSavingId(null);
 		}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Id } from "@/convex/_generated/dataModel";
 import { format } from "date-fns";
 import { Calendar, X } from "lucide-react";
 import { useState } from "react";
@@ -18,13 +19,12 @@ interface TaskReminderStripProps {
 export function TaskReminderStrip({ task }: TaskReminderStripProps) {
 	const { reminders: pendingForTask } = usePendingRemindersForTask(task.id);
 	const { cancelReminder, rescheduleReminder } = useReminderMutations();
-	const [rescheduleReminderId, setRescheduleReminderId] = useState<
-		string | null
-	>(null);
+	const [rescheduleReminderId, setRescheduleReminderId] =
+		useState<Id<"reminders"> | null>(null);
 
 	const nextReminder = pendingForTask[0];
 
-	const handleReschedule = (reminderId: string, remindAt: string) => {
+	const handleReschedule = (reminderId: Id<"reminders">, remindAt: string) => {
 		void rescheduleReminder(reminderId, remindAt);
 		setRescheduleReminderId(null);
 	};
@@ -55,7 +55,9 @@ export function TaskReminderStrip({ task }: TaskReminderStripProps) {
 						variant="ghost"
 						size="sm"
 						className="h-7 text-xs"
-						onClick={() => nextReminder && cancelReminder(nextReminder.id)}
+						onClick={() =>
+							nextReminder && cancelReminder(nextReminder.id as Id<"reminders">)
+						}
 					>
 						<X className="size-3.5" />
 						Cancel

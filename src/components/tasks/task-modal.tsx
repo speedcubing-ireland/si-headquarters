@@ -39,7 +39,7 @@ import type {
 	Team,
 	User,
 } from "@/data/types-new";
-import { TASK_PRIORITY, TASK_STATUS } from "@/data/types-new";
+import { TASK_PRIORITIES, TASK_STATUSES } from "@/data/types-new";
 import {
 	priorityLabels,
 	statusLabels,
@@ -48,6 +48,12 @@ import {
 } from "@/lib/task-constants";
 import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
 import { cn } from "@/lib/utils";
+
+const isTaskStatus = (value: string): value is TaskStatus =>
+	TASK_STATUSES.some((status) => status === value);
+
+const isTaskPriority = (value: string): value is TaskPriority =>
+	TASK_PRIORITIES.some((priority) => priority === value);
 
 interface TaskModalProps {
 	open: boolean;
@@ -71,22 +77,34 @@ interface TaskModalFormStateInput {
 	defaultParent: Task["parent"] | undefined;
 }
 
+type TaskModalFormState = {
+	title: string;
+	description: string;
+	status: TaskStatus;
+	priority: TaskPriority;
+	assignee: User | null;
+	owner: Team | User | null;
+	selectedLabels: TaskLabel[];
+	dueDate?: Date;
+	parent: Task["parent"];
+};
+
 function useTaskModalFormState({
 	open,
 	defaultParent,
 }: TaskModalFormStateInput) {
-	const initialValues = useMemo(() => {
+	const initialValues = useMemo<TaskModalFormState | null>(() => {
 		if (!open) return null;
 		return {
 			title: "",
 			description: "",
 			status: DEFAULT_TASK_STATUS,
 			priority: DEFAULT_TASK_PRIORITY,
-			assignee: null as User | null,
-			owner: null as Team | User | null,
-			selectedLabels: [] as TaskLabel[],
-			dueDate: undefined as Date | undefined,
-			parent: (defaultParent ?? null) as Task["parent"],
+			assignee: null,
+			owner: null,
+			selectedLabels: [],
+			dueDate: undefined,
+			parent: defaultParent ?? null,
 		};
 	}, [open, defaultParent]);
 
@@ -216,12 +234,19 @@ const TaskModalPropertyBar = React.memo(function TaskModalPropertyBar({
 }) {
 	return (
 		<div className="px-6 py-4 border-t flex flex-wrap items-center gap-2">
-			<Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+			<Select
+				value={status}
+				onValueChange={(v) => {
+					if (isTaskStatus(v)) {
+						setStatus(v);
+					}
+				}}
+			>
 				<SelectTrigger className="w-auto h-8 gap-1">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
-					{TASK_STATUS.map((s) => {
+					{TASK_STATUSES.map((s) => {
 						const Icon = getStatusIcon(s);
 						return (
 							<SelectItem key={s} value={s}>
@@ -237,13 +262,17 @@ const TaskModalPropertyBar = React.memo(function TaskModalPropertyBar({
 
 			<Select
 				value={priority}
-				onValueChange={(v) => setPriority(v as TaskPriority)}
+				onValueChange={(v) => {
+					if (isTaskPriority(v)) {
+						setPriority(v);
+					}
+				}}
 			>
 				<SelectTrigger className="w-auto h-8 gap-1">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
-					{TASK_PRIORITY.map((p) => {
+					{TASK_PRIORITIES.map((p) => {
 						const Icon = getPriorityIcon(p);
 						return (
 							<SelectItem key={p} value={p}>

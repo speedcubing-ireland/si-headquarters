@@ -1,6 +1,8 @@
+import type { Infer } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
+import type { activityMetadata } from "../lib/validators";
 import type { ActivityType, ActivityEntity } from "./activityTypes";
 
 type FieldConfig<T> = {
@@ -27,7 +29,7 @@ export async function diffAndLog<T extends Record<string, unknown>>(
 	oldDoc: T,
 	updates: Partial<T>,
 	config: ActivityConfig<T>,
-) {
+): Promise<void> {
 	const logEntries: LogEntry[] = [];
 
 	for (const key in config) {
@@ -90,7 +92,7 @@ export async function diffLabels(
 	entityId: string,
 	oldLabelIds: Id<"labels">[] | undefined,
 	newLabelIds: Id<"labels">[] | undefined,
-) {
+): Promise<void> {
 	if (!newLabelIds) return;
 
 	const oldSet = new Set(oldLabelIds || []);
@@ -148,12 +150,12 @@ export async function logActivity(
 	entityId: string,
 	type: ActivityType,
 	metadata?: unknown,
-) {
+): Promise<void> {
 	await ctx.runMutation(internal.activity.logWithActor, {
 		actorId,
 		entityType,
 		entityId,
 		type,
-		metadata,
+		metadata: metadata as Infer<typeof activityMetadata>,
 	});
 }

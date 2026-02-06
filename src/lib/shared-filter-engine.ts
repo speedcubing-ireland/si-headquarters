@@ -2,15 +2,15 @@ import type {
 	DateRangeFilter,
 	FilterItem,
 	MatchMode,
-} from "@/store/shared-filter-types";
+} from "@/lib/filter-types";
 
 export function hasDateRangeValue(dateRange?: DateRangeFilter): boolean {
 	return !!dateRange && (!!dateRange.start || !!dateRange.end);
 }
 
-export function buildFilterItemMatcher<TValue, TItem>(
-	filterItems: FilterItem<TValue>[],
-	getValue: (item: TItem) => TValue | TValue[] | undefined,
+export function buildFilterItemMatcher<TItem>(
+	filterItems: FilterItem[],
+	getValue: (item: TItem) => string | string[] | undefined,
 	matchMode: MatchMode,
 ): (item: TItem) => boolean {
 	if (filterItems.length === 0) {
@@ -19,10 +19,10 @@ export function buildFilterItemMatcher<TValue, TItem>(
 
 	return (item: TItem) => {
 		const raw = getValue(item);
-		const itemValues: TValue[] =
-			raw === undefined ? ([] as TValue[]) : Array.isArray(raw) ? raw : [raw];
+		const itemValues: string[] =
+			raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
 
-		const matchesValues = (values: TValue[]) =>
+		const matchesValues = (values: string[]) =>
 			itemValues.some((v) => values.includes(v));
 
 		const positiveItems = filterItems.filter((f) => !f.isNot);

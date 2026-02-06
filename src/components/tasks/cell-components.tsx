@@ -1,4 +1,5 @@
 import { memo } from "react";
+import type { Id } from "@/convex/_generated/dataModel";
 import {
 	Tooltip,
 	TooltipContent,
@@ -40,7 +41,7 @@ export const IdentifierCell = memo(function IdentifierCell({
 
 interface PriorityCellProps {
 	priority: TaskPriority;
-	taskId: string;
+	taskId: Id<"tasks">;
 }
 
 export const PriorityCell = memo(function PriorityCell({
@@ -57,7 +58,7 @@ export const PriorityCell = memo(function PriorityCell({
 
 interface StatusCellProps {
 	status: TaskStatus;
-	taskId: string;
+	taskId: Id<"tasks">;
 }
 
 export const StatusCell = memo(function StatusCell({
@@ -74,7 +75,7 @@ export const StatusCell = memo(function StatusCell({
 
 interface OwnerCellProps {
 	owner: Task["owner"];
-	taskId: string;
+	taskId: Id<"tasks">;
 }
 
 export const OwnerCell = memo(function OwnerCell({
@@ -86,7 +87,7 @@ export const OwnerCell = memo(function OwnerCell({
 
 interface LabelsCellProps {
 	labels: Task["labels"];
-	taskId: string;
+	taskId: Id<"tasks">;
 }
 
 export const LabelsCell = memo(function LabelsCell({
@@ -98,7 +99,7 @@ export const LabelsCell = memo(function LabelsCell({
 
 interface AssigneeCellProps {
 	assignee: Task["assignee"];
-	taskId: string;
+	taskId: Id<"tasks">;
 }
 
 export const AssigneeCell = memo(function AssigneeCell({

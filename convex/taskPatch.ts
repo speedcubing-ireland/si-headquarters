@@ -1,24 +1,73 @@
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { computeApprovalCompleteness } from "./taskApprovals";
+import { v } from "convex/values";
+import type { Infer } from "convex/values";
+import { taskStatus, taskPriority, linkedResource } from "./lib/validators";
+
+export const taskUpdateArgs = {
+	title: v.optional(v.string()),
+	description: v.optional(v.string()),
+	status: v.optional(taskStatus),
+	priority: v.optional(taskPriority),
+	dueDate: v.optional(v.union(v.string(), v.null())),
+	parentTaskId: v.optional(v.union(v.id("tasks"), v.null())),
+	parentCompetitionId: v.optional(v.union(v.id("competitions"), v.null())),
+	ownerId: v.optional(v.union(v.id("users"), v.id("teams"), v.null())),
+	ownerType: v.optional(v.union(v.literal("user"), v.literal("team"))),
+	assigneeId: v.optional(v.union(v.id("users"), v.null())),
+	phaseId: v.optional(v.union(v.id("phases"), v.null())),
+	labelIds: v.optional(v.array(v.id("labels"))),
+	resources: v.optional(v.array(linkedResource)),
+};
+
+const taskUpdateValidator = v.object(taskUpdateArgs);
+export type TaskUpdate = Infer<typeof taskUpdateValidator>;
+
+export type TaskPatch = TaskUpdate & { updatedAt: number };
+
+/** Patch with null replaced by undefined so ctx.db.patch accepts it without cast. */
+export type TaskPatchForDb = Omit<
+	TaskPatch,
+	| "dueDate"
+	| "parentTaskId"
+	| "parentCompetitionId"
+	| "ownerId"
+	| "assigneeId"
+	| "phaseId"
+> & {
+	dueDate?: string;
+	parentTaskId?: Id<"tasks">;
+	parentCompetitionId?: Id<"competitions">;
+	ownerId?: Id<"users"> | Id<"teams">;
+	assigneeId?: Id<"users">;
+	phaseId?: Id<"phases">;
+	updatedAt: number;
+};
 
 /**
  * Build a task patch from an updates object: spread updates, set updatedAt,
  * and convert optional null fields to undefined so Convex clears them.
  */
 export function buildTaskPatch(
-	updates: Record<string, unknown>,
+	updates: TaskUpdate,
 	updatedAt: number,
-): Record<string, unknown> {
-	const patch: Record<string, unknown> = { ...updates, updatedAt };
-	if (updates.dueDate === null) patch.dueDate = undefined;
-	if (updates.parentTaskId === null) patch.parentTaskId = undefined;
-	if (updates.parentCompetitionId === null)
-		patch.parentCompetitionId = undefined;
-	if (updates.ownerId === null) patch.ownerId = undefined;
-	if (updates.assigneeId === null) patch.assigneeId = undefined;
-	if (updates.phaseId === null) patch.phaseId = undefined;
-	return patch;
+): TaskPatchForDb {
+	const result: TaskPatchForDb = {
+		...updates,
+		updatedAt,
+		dueDate: updates.dueDate === null ? undefined : updates.dueDate,
+		parentTaskId:
+			updates.parentTaskId === null ? undefined : updates.parentTaskId,
+		parentCompetitionId:
+			updates.parentCompetitionId === null
+				? undefined
+				: updates.parentCompetitionId,
+		ownerId: updates.ownerId === null ? undefined : updates.ownerId,
+		assigneeId: updates.assigneeId === null ? undefined : updates.assigneeId,
+		phaseId: updates.phaseId === null ? undefined : updates.phaseId,
+	};
+	return result;
 }
 
 /**
@@ -29,7 +78,7 @@ export function buildTaskPatch(
 export async function applyAwaitingReviewAutoPromote(
 	ctx: MutationCtx,
 	doc: Doc<"tasks">,
-	patch: Record<string, unknown>,
+	patch: TaskPatch,
 ): Promise<void> {
 	if (patch.status !== "awaiting-review") return;
 	const { isFullyApproved } = await computeApprovalCompleteness(

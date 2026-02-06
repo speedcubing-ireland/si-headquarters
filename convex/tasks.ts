@@ -30,26 +30,22 @@ import {
 	type ActivityConfig,
 } from "./lib/activity";
 import {
-	getTaskAssigneeChangeNotificationPromises,
-	getTaskStatusChangeNotificationPromises,
+	sendTaskAssigneeChangeNotifications,
+	sendTaskStatusChangeNotifications,
 } from "./taskNotifications";
-import { buildTaskPatch, applyAwaitingReviewAutoPromote } from "./taskPatch";
-
-const taskStatus = v.union(
-	v.literal("backlog"),
-	v.literal("to-do"),
-	v.literal("in-progress"),
-	v.literal("awaiting-review"),
-	v.literal("done"),
-	v.literal("cancelled"),
-);
-
-const taskPriority = v.union(
-	v.literal("low"),
-	v.literal("medium"),
-	v.literal("high"),
-	v.literal("urgent"),
-);
+import {
+	buildTaskPatch,
+	applyAwaitingReviewAutoPromote,
+	taskUpdateArgs,
+} from "./taskPatch";
+import {
+	taskStatus,
+	taskPriority,
+	approvalShape,
+	linkedResource,
+	userShape as sharedUserShape,
+	teamShape,
+} from "./lib/validators";
 
 const taskDoc = v.object({
 	_id: v.id("tasks"),
@@ -64,13 +60,13 @@ const taskDoc = v.object({
 	archivedAt: v.optional(v.string()),
 	parentTaskId: v.optional(v.id("tasks")),
 	parentCompetitionId: v.optional(v.string()),
-	ownerId: v.optional(v.string()),
+	ownerId: v.optional(v.union(v.id("users"), v.id("teams"))),
 	ownerType: v.optional(v.union(v.literal("user"), v.literal("team"))),
 	assigneeId: v.optional(v.id("users")),
 	phaseId: v.optional(v.id("phases")),
 	labelIds: v.array(v.id("labels")),
 	requiredApprovalIds: v.optional(v.array(v.string())),
-	approvedByIds: v.optional(v.array(v.string())),
+	approvedByIds: v.optional(v.array(v.id("users"))),
 	resources: v.optional(
 		v.array(
 			v.union(
@@ -156,20 +152,16 @@ export const get = query({
 	},
 });
 
-const userShape = v.object({
-	id: v.string(),
-	name: v.string(),
-	avatarUrl: v.string(),
-});
+export const userShape = sharedUserShape;
 
 const taskLabelShape = v.object({
-	id: v.string(),
+	id: v.id("labels"),
 	name: v.string(),
 	color: v.string(),
 });
 
 const phaseShape = v.object({
-	id: v.string(),
+	id: v.id("phases"),
 	name: v.string(),
 	description: v.string(),
 });
@@ -177,38 +169,38 @@ const phaseShape = v.object({
 const parentShape = v.union(
 	v.null(),
 	v.object({
-		type: v.union(v.literal("task"), v.literal("competition")),
-		linkedId: v.string(),
+		type: v.literal("task"),
+		linkedId: v.id("tasks"),
+	}),
+	v.object({
+		type: v.literal("competition"),
+		linkedId: v.id("competitions"),
 	}),
 );
 
 const subtaskMinimalShape = v.object({
-	id: v.string(),
+	id: v.id("tasks"),
 	title: v.string(),
 	status: taskStatus,
 });
 
-const taskForUIReturns = v.object({
-	id: v.string(),
+export const taskForUIReturns = v.object({
+	id: v.id("tasks"),
 	identifier: v.string(),
 	parent: parentShape,
 	parentDisplayName: v.union(v.string(), v.null()),
 	title: v.string(),
 	description: v.string(),
-	owner: v.union(
-		v.null(),
-		userShape,
-		v.object({ id: v.string(), name: v.string(), members: v.array(userShape) }),
-	),
+	owner: v.union(v.null(), userShape, teamShape),
 	assignee: v.union(v.null(), userShape),
 	phase: v.union(v.null(), phaseShape),
 	status: taskStatus,
 	priority: taskPriority,
 	dueDate: v.union(v.string(), v.null()),
-	requiredApprovalBy: v.array(v.any()),
-	approvedBy: v.array(v.any()),
+	requiredApprovalBy: v.array(approvalShape),
+	approvedBy: v.array(userShape),
 	labels: v.array(taskLabelShape),
-	resources: v.array(v.any()),
+	resources: v.array(linkedResource),
 	subTasks: v.array(subtaskMinimalShape),
 	createdAt: v.string(),
 	updatedAt: v.string(),
@@ -218,7 +210,7 @@ const taskForUIReturns = v.object({
 export const listForUI = query({
 	args: {
 		archived: v.optional(v.boolean()),
-		competitionId: v.optional(v.string()),
+		competitionId: v.optional(v.id("competitions")),
 	},
 	returns: v.array(taskForUIReturns),
 	handler: async (ctx, args) => {
@@ -272,23 +264,21 @@ export const listForUI = query({
 				tasks = allTasks.filter(
 					(task) =>
 						!task.parentCompetitionId ||
-						accessibleCompetitionIds.has(
-							task.parentCompetitionId as Id<"competitions">,
-						),
+						accessibleCompetitionIds.has(task.parentCompetitionId),
 				);
 			}
 		}
 
 		const labelIds = new Set<Id<"labels">>();
 		const userIds = new Set<Id<"users">>();
-		const teamIds = new Set<string>();
+		const teamIds = new Set<Id<"teams">>();
 		const phaseIds = new Set<Id<"phases">>();
 		const approvalTeamIds = new Set<Id<"teams">>();
 		for (const t of tasks) {
 			for (const lid of t.labelIds) labelIds.add(lid);
 			if (t.assigneeId) userIds.add(t.assigneeId);
 			if (t.ownerId) {
-				if (t.ownerType === "team") teamIds.add(t.ownerId);
+				if (t.ownerType === "team") teamIds.add(t.ownerId as Id<"teams">);
 				else userIds.add(t.ownerId as Id<"users">);
 			}
 			if (t.phaseId) phaseIds.add(t.phaseId);
@@ -296,24 +286,24 @@ export const listForUI = query({
 				for (const encoded of t.requiredApprovalIds) {
 					const decoded = decodeApprovalId(encoded);
 					if (decoded?.type === "user") {
-						userIds.add(decoded.id as Id<"users">);
+						userIds.add(decoded.id);
 					} else if (decoded?.type === "team") {
-						approvalTeamIds.add(decoded.id as Id<"teams">);
+						approvalTeamIds.add(decoded.id);
 					}
 				}
 			}
 			if (t.approvedByIds) {
-				for (const userId of t.approvedByIds) {
-					userIds.add(userId as Id<"users">);
+				for (const uid of t.approvedByIds) {
+					userIds.add(uid);
 				}
 			}
 		}
 
 		const labelArr = [...labelIds];
 		const userArr = [...userIds];
-		const teamArr = [...teamIds] as Id<"teams">[];
+		const teamArr = [...teamIds];
 		const approvalTeamArr = [...approvalTeamIds];
-		const phaseArr = [...phaseIds] as Id<"phases">[];
+		const phaseArr = [...phaseIds];
 
 		const [labelDocs, userDocs, teamDocs, approvalTeamDocs, phaseDocs] =
 			await Promise.all([
@@ -325,8 +315,8 @@ export const listForUI = query({
 			]);
 
 		const labelsMap = new Map<
-			string,
-			{ id: string; name: string; color: string }
+			Id<"labels">,
+			{ id: Id<"labels">; name: string; color: string }
 		>();
 		labelArr.forEach((id, i) => {
 			const l = labelDocs[i];
@@ -334,8 +324,8 @@ export const listForUI = query({
 		});
 
 		const usersMap = new Map<
-			string,
-			{ id: string; name: string; avatarUrl: string }
+			Id<"users">,
+			{ id: Id<"users">; name: string; avatarUrl: string }
 		>();
 		userArr.forEach((id, i) => {
 			const u = userDocs[i];
@@ -353,8 +343,8 @@ export const listForUI = query({
 			[...memberIds].map((id) => ctx.db.get("users", id)),
 		);
 		const memberMap = new Map<
-			string,
-			{ id: string; name: string; avatarUrl: string }
+			Id<"users">,
+			{ id: Id<"users">; name: string; avatarUrl: string }
 		>();
 		[...memberIds].forEach((id, i) => {
 			const u = memberDocs[i];
@@ -363,11 +353,11 @@ export const listForUI = query({
 		});
 
 		const teamsMap = new Map<
-			string,
+			Id<"teams">,
 			{
-				id: string;
+				id: Id<"teams">;
 				name: string;
-				members: { id: string; name: string; avatarUrl: string }[];
+				members: { id: Id<"users">; name: string; avatarUrl: string }[];
 			}
 		>();
 		teamArr.forEach((id, i) => {
@@ -378,18 +368,19 @@ export const listForUI = query({
 					name: t.name,
 					members: t.memberIds
 						.map((mid) => memberMap.get(mid))
-						.filter((u): u is { id: string; name: string; avatarUrl: string } =>
-							Boolean(u),
+						.filter(
+							(u): u is { id: Id<"users">; name: string; avatarUrl: string } =>
+								Boolean(u),
 						),
 				});
 		});
 
 		const approvalTeamsMap = new Map<
-			string,
+			Id<"teams">,
 			{
-				id: string;
+				id: Id<"teams">;
 				name: string;
-				members: { id: string; name: string; avatarUrl: string }[];
+				members: { id: Id<"users">; name: string; avatarUrl: string }[];
 			}
 		>();
 		approvalTeamArr.forEach((id, i) => {
@@ -400,15 +391,16 @@ export const listForUI = query({
 					name: t.name,
 					members: t.memberIds
 						.map((mid) => memberMap.get(mid))
-						.filter((u): u is { id: string; name: string; avatarUrl: string } =>
-							Boolean(u),
+						.filter(
+							(u): u is { id: Id<"users">; name: string; avatarUrl: string } =>
+								Boolean(u),
 						),
 				});
 		});
 
 		const phasesMap = new Map<
-			string,
-			{ id: string; name: string; description: string }
+			Id<"phases">,
+			{ id: Id<"phases">; name: string; description: string }
 		>();
 		phaseArr.forEach((id, i) => {
 			const p = phaseDocs[i];
@@ -420,7 +412,7 @@ export const listForUI = query({
 				});
 		});
 
-		const taskIdToTitle = new Map<string, string>();
+		const taskIdToTitle = new Map<Id<"tasks">, string>();
 		for (const t of tasks) {
 			taskIdToTitle.set(t._id, t.title);
 		}
@@ -429,15 +421,13 @@ export const listForUI = query({
 			...new Set(
 				tasks
 					.map((t) => t.parentCompetitionId)
-					.filter((id): id is string => id != null),
+					.filter((id): id is Id<"competitions"> => id != null),
 			),
 		];
 		const competitionDocs = await Promise.all(
-			parentCompetitionIds.map((id) =>
-				ctx.db.get("competitions", id as Id<"competitions">),
-			),
+			parentCompetitionIds.map((id) => ctx.db.get("competitions", id)),
 		);
-		const competitionIdToName = new Map<string, string>();
+		const competitionIdToName = new Map<Id<"competitions">, string>();
 		parentCompetitionIds.forEach((id, i) => {
 			const doc = competitionDocs[i];
 			if (doc) competitionIdToName.set(id, formatCompetitionName(doc.name));
@@ -445,9 +435,9 @@ export const listForUI = query({
 
 		const parentTaskIds = new Set(tasks.map((t) => t._id));
 		const subtaskRowsByParent = new Map<
-			string,
+			Id<"tasks">,
 			Array<{
-				id: string;
+				id: Id<"tasks">;
 				title: string;
 				status:
 					| "backlog"
@@ -482,8 +472,8 @@ export const listForUI = query({
 			tasks.map(async (t) => {
 				const owner = t.ownerId
 					? t.ownerType === "team"
-						? teamsMap.get(t.ownerId)
-						: usersMap.get(t.ownerId)
+						? teamsMap.get(t.ownerId as Id<"teams">)
+						: usersMap.get(t.ownerId as Id<"users">)
 					: null;
 				const assignee = t.assigneeId
 					? (usersMap.get(t.assigneeId) ?? null)
@@ -491,14 +481,15 @@ export const listForUI = query({
 				const phase = t.phaseId ? (phasesMap.get(t.phaseId) ?? null) : null;
 				const labels = t.labelIds
 					.map((lid: Id<"labels">) => labelsMap.get(lid))
-					.filter(Boolean) as { id: string; name: string; color: string }[];
-				const parent: {
-					type: "task" | "competition";
-					linkedId: string;
-				} | null = t.parentTaskId
-					? { type: "task", linkedId: t.parentTaskId }
+					.filter(Boolean) as {
+					id: Id<"labels">;
+					name: string;
+					color: string;
+				}[];
+				const parent = t.parentTaskId
+					? { type: "task" as const, linkedId: t.parentTaskId }
 					: t.parentCompetitionId
-						? { type: "competition", linkedId: t.parentCompetitionId }
+						? { type: "competition" as const, linkedId: t.parentCompetitionId }
 						: null;
 
 				const parentDisplayName: string | null = parent
@@ -579,15 +570,15 @@ export const getForUI = query({
 			for (const encoded of t.requiredApprovalIds) {
 				const decoded = decodeApprovalId(encoded);
 				if (decoded?.type === "user") {
-					approvalUserIds.add(decoded.id as Id<"users">);
+					approvalUserIds.add(decoded.id);
 				} else if (decoded?.type === "team") {
-					approvalTeamIds.add(decoded.id as Id<"teams">);
+					approvalTeamIds.add(decoded.id);
 				}
 			}
 		}
 		if (t.approvedByIds) {
-			for (const userId of t.approvedByIds) {
-				approvalUserIds.add(userId as Id<"users">);
+			for (const uid of t.approvedByIds) {
+				approvalUserIds.add(uid);
 			}
 		}
 
@@ -606,14 +597,14 @@ export const getForUI = query({
 					? ctx.db.get("teams", t.ownerId as Id<"teams">)
 					: ctx.db.get("users", t.ownerId as Id<"users">)
 				: Promise.resolve(null),
-			t.phaseId ? ctx.db.get("phases", t.phaseId as Id<"phases">) : null,
+			t.phaseId ? ctx.db.get("phases", t.phaseId) : null,
 			Promise.all([...approvalUserIds].map((id) => ctx.db.get("users", id))),
 			Promise.all([...approvalTeamIds].map((id) => ctx.db.get("teams", id))),
 		]);
 
 		const labelsMap = new Map<
-			string,
-			{ id: string; name: string; color: string }
+			Id<"labels">,
+			{ id: Id<"labels">; name: string; color: string }
 		>();
 		t.labelIds.forEach((id, i) => {
 			const l = labelDocs[i];
@@ -629,18 +620,22 @@ export const getForUI = query({
 
 		let owner:
 			| {
-					id: string;
+					id: Id<"teams">;
 					name: string;
-					members: { id: string; name: string; avatarUrl: string }[];
+					members: { id: Id<"users">; name: string; avatarUrl: string }[];
 			  }
-			| { id: string; name: string; avatarUrl: string }
+			| { id: Id<"users">; name: string; avatarUrl: string }
 			| null = null;
 		if (ownerDoc) {
 			if ("memberIds" in ownerDoc) {
 				const memberDocs = await Promise.all(
 					ownerDoc.memberIds.map((mid) => ctx.db.get("users", mid)),
 				);
-				const members: { id: string; name: string; avatarUrl: string }[] = [];
+				const members: {
+					id: Id<"users">;
+					name: string;
+					avatarUrl: string;
+				}[] = [];
 				ownerDoc.memberIds.forEach((mid, i) => {
 					const u = memberDocs[i];
 					if (u)
@@ -662,7 +657,7 @@ export const getForUI = query({
 
 		const phase = phaseDoc
 			? {
-					id: phaseDoc._id as Id<"phases">,
+					id: phaseDoc._id,
 					name: phaseDoc.name,
 					description: phaseDoc.description,
 				}
@@ -670,27 +665,20 @@ export const getForUI = query({
 
 		const labels = t.labelIds
 			.map((lid) => labelsMap.get(lid))
-			.filter(Boolean) as { id: string; name: string; color: string }[];
-		const parent: { type: "task" | "competition"; linkedId: string } | null =
-			t.parentTaskId
-				? { type: "task", linkedId: t.parentTaskId }
-				: t.parentCompetitionId
-					? { type: "competition", linkedId: t.parentCompetitionId }
-					: null;
+			.filter(Boolean) as { id: Id<"labels">; name: string; color: string }[];
+		const parent = t.parentTaskId
+			? { type: "task" as const, linkedId: t.parentTaskId }
+			: t.parentCompetitionId
+				? { type: "competition" as const, linkedId: t.parentCompetitionId }
+				: null;
 
 		let parentDisplayName: string | null = null;
 		if (parent) {
 			if (parent.type === "task") {
-				const parentTask = await ctx.db.get(
-					"tasks",
-					parent.linkedId as Id<"tasks">,
-				);
+				const parentTask = await ctx.db.get("tasks", parent.linkedId);
 				parentDisplayName = parentTask?.title ?? null;
 			} else {
-				const comp = await ctx.db.get(
-					"competitions",
-					parent.linkedId as Id<"competitions">,
-				);
+				const comp = await ctx.db.get("competitions", parent.linkedId);
 				parentDisplayName = comp ? formatCompetitionName(comp.name) : null;
 			}
 		}
@@ -710,8 +698,8 @@ export const getForUI = query({
 		const toISO = (ms: number) => new Date(ms).toISOString();
 
 		const approvalUsersMap = new Map<
-			string,
-			{ id: string; name: string; avatarUrl: string }
+			Id<"users">,
+			{ id: Id<"users">; name: string; avatarUrl: string }
 		>();
 		[...approvalUserIds].forEach((id, i) => {
 			const u = approvalUserDocs[i];
@@ -733,8 +721,8 @@ export const getForUI = query({
 			[...approvalTeamMemberIds].map((id) => ctx.db.get("users", id)),
 		);
 		const approvalTeamMemberMap = new Map<
-			string,
-			{ id: string; name: string; avatarUrl: string }
+			Id<"users">,
+			{ id: Id<"users">; name: string; avatarUrl: string }
 		>();
 		[...approvalTeamMemberIds].forEach((id, i) => {
 			const u = approvalTeamMemberDocs[i];
@@ -747,11 +735,11 @@ export const getForUI = query({
 		});
 
 		const approvalTeamsMap = new Map<
-			string,
+			Id<"teams">,
 			{
-				id: string;
+				id: Id<"teams">;
 				name: string;
-				members: { id: string; name: string; avatarUrl: string }[];
+				members: { id: Id<"users">; name: string; avatarUrl: string }[];
 			}
 		>();
 		[...approvalTeamIds].forEach((id, i) => {
@@ -763,7 +751,7 @@ export const getForUI = query({
 					members: team.memberIds
 						.map((mid) => approvalTeamMemberMap.get(mid))
 						.filter(
-							(u): u is { id: string; name: string; avatarUrl: string } =>
+							(u): u is { id: Id<"users">; name: string; avatarUrl: string } =>
 								u !== undefined,
 						),
 				});
@@ -816,8 +804,8 @@ const taskCreateArgs = {
 	priority: taskPriority,
 	dueDate: v.optional(v.string()),
 	parentTaskId: v.optional(v.id("tasks")),
-	parentCompetitionId: v.optional(v.string()),
-	ownerId: v.optional(v.string()),
+	parentCompetitionId: v.optional(v.id("competitions")),
+	ownerId: v.optional(v.union(v.id("users"), v.id("teams"))),
 	ownerType: v.optional(v.union(v.literal("user"), v.literal("team"))),
 	assigneeId: v.optional(v.id("users")),
 	phaseId: v.optional(v.id("phases")),
@@ -834,7 +822,8 @@ const TASK_ACTIVITY_CONFIG: ActivityConfig<Doc<"tasks">> = {
 		type: "assignee_changed",
 		transform: async (val, ctx) => {
 			if (!val) return undefined;
-			const user = await ctx?.db.get(val as Id<"users">);
+
+			const user = await ctx?.db.get("users", val as Id<"users">);
 			return user?.name;
 		},
 	},
@@ -875,8 +864,6 @@ export const create = mutation({
 
 		const now = Date.now();
 
-		// Simple counter approach - accepts occasional gaps under high concurrency
-		// Convex will auto-retry on write conflicts
 		const counter = await ctx.db.query("taskCounter").first();
 		let nextNum: number;
 
@@ -926,27 +913,6 @@ export const create = mutation({
 	},
 });
 
-const linkedResourceValidator = v.union(
-	v.object({ type: v.literal("google-sheet"), sheetId: v.string() }),
-	v.object({ type: v.literal("canva-design"), designId: v.string() }),
-);
-
-const taskUpdateArgs = {
-	title: v.optional(v.string()),
-	description: v.optional(v.string()),
-	status: v.optional(taskStatus),
-	priority: v.optional(taskPriority),
-	dueDate: v.optional(v.union(v.string(), v.null())),
-	parentTaskId: v.optional(v.union(v.id("tasks"), v.null())),
-	parentCompetitionId: v.optional(v.union(v.string(), v.null())),
-	ownerId: v.optional(v.union(v.string(), v.null())),
-	ownerType: v.optional(v.union(v.literal("user"), v.literal("team"))),
-	assigneeId: v.optional(v.union(v.id("users"), v.null())),
-	phaseId: v.optional(v.union(v.id("phases"), v.null())),
-	labelIds: v.optional(v.array(v.id("labels"))),
-	resources: v.optional(v.array(linkedResourceValidator)),
-};
-
 export const update = mutation({
 	args: {
 		taskId: v.id("tasks"),
@@ -980,7 +946,7 @@ export const update = mutation({
 			}
 		}
 		const now = Date.now();
-		const patch = buildTaskPatch(args.updates as Record<string, unknown>, now);
+		const patch = buildTaskPatch(args.updates, now);
 		await applyAwaitingReviewAutoPromote(ctx, doc, patch);
 
 		const oldAssigneeId = doc.assigneeId;
@@ -989,11 +955,10 @@ export const update = mutation({
 		const oldStatus = doc.status;
 		const newStatus = args.updates.status ?? doc.status;
 
-		await ctx.db.patch("tasks", args.taskId, patch as Record<string, unknown>);
+		await ctx.db.patch("tasks", args.taskId, patch);
 
 		if (!userId) return null;
 
-		const _finalStatus = (patch.status as string) ?? newStatus;
 		await diffAndLog(
 			ctx,
 			userId,
@@ -1015,45 +980,36 @@ export const update = mutation({
 			);
 		}
 
-		const notificationPromises: Promise<unknown>[] = [];
-
 		if (oldAssigneeId !== newAssigneeId) {
-			notificationPromises.push(
-				...getTaskAssigneeChangeNotificationPromises(
-					ctx,
-					args.taskId,
-					oldAssigneeId,
-					newAssigneeId,
-					userId,
-				),
+			sendTaskAssigneeChangeNotifications(
+				ctx,
+				args.taskId,
+				oldAssigneeId,
+				newAssigneeId,
+				userId,
 			);
 		}
 
 		if (oldStatus !== newStatus && args.updates.status !== undefined) {
-			notificationPromises.push(
-				...getTaskStatusChangeNotificationPromises(
-					ctx,
-					args.taskId,
-					doc,
-					oldStatus,
-					newStatus,
-					userId,
-				),
+			sendTaskStatusChangeNotifications(
+				ctx,
+				args.taskId,
+				doc,
+				oldStatus,
+				newStatus,
+				userId,
 			);
 		}
 
 		if (newStatus === "awaiting-review") {
-			notificationPromises.push(
-				...(await scheduleAwaitingReviewNotifications(
-					ctx,
-					args.taskId,
-					doc.requiredApprovalIds,
-					userId,
-				)),
+			await scheduleAwaitingReviewNotifications(
+				ctx,
+				args.taskId,
+				doc.requiredApprovalIds,
+				userId,
 			);
 		}
 
-		await Promise.allSettled(notificationPromises);
 		return null;
 	},
 });
@@ -1098,16 +1054,12 @@ export const bulkUpdate = mutation({
 		}
 
 		const now = Date.now();
-		const notificationPromises: Promise<unknown>[] = [];
 
 		for (const taskId of args.taskIds) {
 			const doc = await ctx.db.get("tasks", taskId);
 			if (!doc) continue;
 
-			const patch = buildTaskPatch(
-				args.updates as Record<string, unknown>,
-				now,
-			);
+			const patch = buildTaskPatch(args.updates, now);
 			await applyAwaitingReviewAutoPromote(ctx, doc, patch);
 
 			const newStatus =
@@ -1119,9 +1071,8 @@ export const bulkUpdate = mutation({
 					: (args.updates.assigneeId ?? undefined);
 			const oldStatus = doc.status;
 
-			await ctx.db.patch("tasks", taskId, patch as Record<string, unknown>);
+			await ctx.db.patch("tasks", taskId, patch);
 
-			const _finalStatus = (patch.status as string) ?? newStatus;
 			await diffAndLog(
 				ctx,
 				userId,
@@ -1144,43 +1095,36 @@ export const bulkUpdate = mutation({
 			}
 
 			if (oldAssigneeId !== newAssigneeId) {
-				notificationPromises.push(
-					...getTaskAssigneeChangeNotificationPromises(
-						ctx,
-						taskId,
-						oldAssigneeId,
-						newAssigneeId,
-						userId,
-					),
+				sendTaskAssigneeChangeNotifications(
+					ctx,
+					taskId,
+					oldAssigneeId,
+					newAssigneeId,
+					userId,
 				);
 			}
 
 			if (oldStatus !== newStatus && args.updates.status !== undefined) {
-				notificationPromises.push(
-					...getTaskStatusChangeNotificationPromises(
-						ctx,
-						taskId,
-						doc,
-						oldStatus,
-						newStatus,
-						userId,
-					),
+				sendTaskStatusChangeNotifications(
+					ctx,
+					taskId,
+					doc,
+					oldStatus,
+					newStatus,
+					userId,
 				);
 			}
 
 			if (newStatus === "awaiting-review") {
-				notificationPromises.push(
-					...(await scheduleAwaitingReviewNotifications(
-						ctx,
-						taskId,
-						doc.requiredApprovalIds,
-						userId,
-					)),
+				await scheduleAwaitingReviewNotifications(
+					ctx,
+					taskId,
+					doc.requiredApprovalIds,
+					userId,
 				);
 			}
 		}
 
-		await Promise.allSettled(notificationPromises);
 		return null;
 	},
 });
@@ -1253,7 +1197,10 @@ export const addRequiredApprover = mutation({
 
 		await requireTaskAccess(ctx, volunteer, userId, task);
 
-		const encodedId = encodeApprovalId(args.approverType, args.approverId);
+		const encodedId = encodeApprovalId(
+			args.approverType,
+			args.approverId as Id<"users"> | Id<"teams">,
+		);
 		const currentIds = task.requiredApprovalIds ?? [];
 		if (currentIds.includes(encodedId)) {
 			return null;
@@ -1318,12 +1265,11 @@ export const approveTask = mutation({
 		await requireTaskAccess(ctx, volunteer, userId, task);
 
 		const currentApprovedIds = task.approvedByIds ?? [];
-		const userIdStr = userId as string;
-		if (currentApprovedIds.includes(userIdStr)) {
+		if (currentApprovedIds.includes(userId)) {
 			return null;
 		}
 
-		const newApprovedIds: string[] = [...currentApprovedIds, userIdStr];
+		const newApprovedIds: Id<"users">[] = [...currentApprovedIds, userId];
 		const now = Date.now();
 
 		const { isFullyApproved } = await computeApprovalCompleteness(
@@ -1332,7 +1278,11 @@ export const approveTask = mutation({
 			newApprovedIds,
 		);
 
-		const patch: Record<string, unknown> = {
+		const patch: {
+			approvedByIds: Id<"users">[];
+			updatedAt: number;
+			status?: "done";
+		} = {
 			approvedByIds: newApprovedIds,
 			updatedAt: now,
 		};
@@ -1341,7 +1291,7 @@ export const approveTask = mutation({
 			patch.status = "done";
 		}
 
-		await ctx.db.patch("tasks", args.taskId, patch as Record<string, unknown>);
+		await ctx.db.patch("tasks", args.taskId, patch);
 		await logActivity(ctx, userId, "task", args.taskId, "approved");
 		return null;
 	},
@@ -1363,8 +1313,7 @@ export const unapproveTask = mutation({
 		await requireTaskAccess(ctx, volunteer, userId, task);
 
 		const currentApprovedIds = task.approvedByIds ?? [];
-		const userIdStr = userId as string;
-		const filteredIds = currentApprovedIds.filter((id) => id !== userIdStr);
+		const filteredIds = currentApprovedIds.filter((id) => id !== userId);
 
 		await ctx.db.patch("tasks", args.taskId, {
 			approvedByIds: filteredIds,

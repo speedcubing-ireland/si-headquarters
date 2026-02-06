@@ -1,8 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUserId } from "./auth";
-
-const SAT_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+import { SAT_DATE_REGEX } from "./lib/constants";
 
 const weekendOverrideDoc = v.object({
 	_id: v.id("weekendOverrides"),

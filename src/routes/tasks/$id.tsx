@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { requireTaskId } from "@/lib/convex-ids";
 import { getTaskBreadcrumbs } from "@/lib/task-breadcrumbs";
 import {
 	buildOneTimeReminderPayload,
@@ -227,7 +228,8 @@ function SubTasksList({ task }: { task: Task }) {
 function RouteComponent() {
 	const { id } = Route.useParams();
 	const navigate = useNavigate();
-	const task = useTask(id);
+	const taskId = requireTaskId(id);
+	const task = useTask(taskId);
 	const { updateTask, deleteTask } = useTaskMutations();
 	const { addReminder } = useReminderMutations();
 
@@ -241,7 +243,7 @@ function RouteComponent() {
 		initialValue: task?.title ?? "",
 		onChange: (newTitle) => {
 			if (newTitle.trim() && newTitle !== task?.title) {
-				void updateTask(id, { title: newTitle.trim() });
+				void updateTask(taskId, { title: newTitle.trim() });
 			}
 		},
 		debounceMs: 250,
@@ -251,7 +253,7 @@ function RouteComponent() {
 		initialValue: task?.description ?? "",
 		onChange: (newDescription) => {
 			if (newDescription !== task?.description) {
-				void updateTask(id, { description: newDescription });
+				void updateTask(taskId, { description: newDescription });
 			}
 		},
 		debounceMs: 250,

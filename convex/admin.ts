@@ -1,10 +1,12 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
+import type { Infer } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { TEAM_NAMES } from "./lib/constants";
 
-const DIRECTORS_TEAM_NAME = "Directors";
+const DIRECTORS_TEAM_NAME = TEAM_NAMES.DIRECTORS;
 
 type AuthCtx = QueryCtx | MutationCtx;
 
@@ -68,7 +70,7 @@ export const listMembersAndTeams = query({
 		]);
 
 		const users = userDocs.map((u) => ({
-			id: u._id as Id<"users">,
+			id: u._id,
 			name: u.name ?? "",
 			avatarUrl: u.image ?? "",
 			teamIds: [] as string[],
@@ -78,14 +80,14 @@ export const listMembersAndTeams = query({
 		for (const team of teamDocs) {
 			for (const memberId of team.memberIds) {
 				const arr = userTeamIds.get(memberId) ?? [];
-				arr.push(team._id as Id<"teams">);
+				arr.push(team._id);
 				userTeamIds.set(memberId, arr);
 			}
 		}
 
 		const usersWithTeams = users.map((u) => ({
 			...u,
-			teamIds: userTeamIds.get(u.id as Id<"users">) ?? [],
+			teamIds: userTeamIds.get(u.id) ?? [],
 		}));
 
 		const teams = teamDocs.map((t) => ({
@@ -162,11 +164,11 @@ export const listLabelsWithUsage = query({
 		}
 
 		return labels.map((l) => ({
-			id: l._id as Id<"labels">,
+			id: l._id,
 			name: l.name,
 			color: l.color,
 			archived: l.archived,
-			usageCount: usage.get(l._id as Id<"labels">) ?? 0,
+			usageCount: usage.get(l._id) ?? 0,
 		}));
 	},
 });
@@ -257,29 +259,28 @@ export const listPhasesWithUsage = query({
 		const taskUsage = new Map<Id<"phases">, number>();
 		for (const task of tasks) {
 			if (task.phaseId) {
-				const current = taskUsage.get(task.phaseId as Id<"phases">) ?? 0;
-				taskUsage.set(task.phaseId as Id<"phases">, current + 1);
+				const current = taskUsage.get(task.phaseId) ?? 0;
+				taskUsage.set(task.phaseId, current + 1);
 			}
 		}
 
 		const competitionUsage = new Map<Id<"phases">, number>();
 		for (const comp of competitions) {
 			if (comp.currentPhaseId) {
-				const current =
-					competitionUsage.get(comp.currentPhaseId as Id<"phases">) ?? 0;
-				competitionUsage.set(comp.currentPhaseId as Id<"phases">, current + 1);
+				const current = competitionUsage.get(comp.currentPhaseId) ?? 0;
+				competitionUsage.set(comp.currentPhaseId, current + 1);
 			}
 		}
 
 		return phases.map((p) => ({
-			id: p._id as Id<"phases">,
+			id: p._id,
 			key: p.key,
 			name: p.name,
 			description: p.description,
 			order: p.order,
 			archived: p.archived,
-			taskUsageCount: taskUsage.get(p._id as Id<"phases">) ?? 0,
-			competitionUsageCount: competitionUsage.get(p._id as Id<"phases">) ?? 0,
+			taskUsageCount: taskUsage.get(p._id) ?? 0,
+			competitionUsageCount: competitionUsage.get(p._id) ?? 0,
 		}));
 	},
 });
@@ -311,6 +312,13 @@ export const createPhaseAdmin = mutation({
 	},
 });
 
+const phaseUpdateValidator = v.object({
+	name: v.optional(v.string()),
+	description: v.optional(v.string()),
+	order: v.optional(v.number()),
+	archived: v.optional(v.boolean()),
+});
+
 export const updatePhaseAdmin = mutation({
 	args: {
 		id: v.id("phases"),
@@ -324,7 +332,7 @@ export const updatePhaseAdmin = mutation({
 		await requireDirector(ctx);
 		const { id, ...updates } = args;
 
-		const patch: Record<string, unknown> = {};
+		const patch: Partial<Infer<typeof phaseUpdateValidator>> = {};
 		if (updates.name !== undefined) patch.name = updates.name;
 		if (updates.description !== undefined)
 			patch.description = updates.description;

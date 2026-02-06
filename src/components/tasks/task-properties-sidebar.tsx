@@ -290,27 +290,23 @@ export function TaskPropertiesSidebar({
 	};
 
 	const handleAddApprover = (approver: Team | User) => {
-		if (!currentUser) return;
-		void addRequiredApprover(task.id, approver, currentUser);
+		void addRequiredApprover(task.id, approver);
 	};
 
 	const handleRemoveApprover = (approverId: string) => {
-		if (!currentUser) return;
 		const approver = task.requiredApprovalBy.find((a) => a.id === approverId);
 		if (!approver) return;
 		const approverKey =
 			"members" in approver ? `team:${approverId}` : `user:${approverId}`;
-		void removeRequiredApprover(task.id, approverKey, currentUser);
+		void removeRequiredApprover(task.id, approverKey);
 	};
 
 	const handleApprove = () => {
-		if (!currentUser) return;
-		void approveTask(task.id, currentUser);
+		void approveTask(task.id);
 	};
 
 	const handleUnapprove = () => {
-		if (!currentUser) return;
-		void unapproveTask(task.id, currentUser);
+		void unapproveTask(task.id);
 	};
 
 	const sidebarContent = (

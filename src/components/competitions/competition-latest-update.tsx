@@ -143,7 +143,6 @@ export function CompetitionLatestUpdate({
 							</p>
 						)}
 
-						{/* Reactions */}
 						<div className="flex items-center gap-2 pt-2">
 							<ReactionDisplay
 								reactions={active.reactions}

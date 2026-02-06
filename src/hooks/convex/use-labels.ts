@@ -35,16 +35,16 @@ export function useLabelMutations() {
 	return {
 		createLabel: async (name: string, color: string) => {
 			const id = await createLabelMutation({ name, color });
-			return { id, name, color } as TaskLabel;
+			return { id, name, color } satisfies TaskLabel;
 		},
 		updateLabel: async (
-			id: string,
+			id: Id<"labels">,
 			updates: Partial<Pick<TaskLabel, "name" | "color">>,
 		) => {
-			await updateLabelMutation({ id: id as Id<"labels">, ...updates });
+			await updateLabelMutation({ id, ...updates });
 		},
-		deleteLabel: async (id: string) => {
-			await removeLabelMutation({ id: id as Id<"labels"> });
+		deleteLabel: async (id: Id<"labels">) => {
+			await removeLabelMutation({ id });
 		},
 		updateLabelAdmin: async (
 			id: Id<"labels">,

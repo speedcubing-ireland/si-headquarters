@@ -25,15 +25,12 @@ export async function hasCompetitionAccess(
 	ctx: QueryCtx | MutationCtx,
 	isVolunteer: boolean,
 	userId: Id<"users">,
-	competitionId: Id<"competitions"> | string | null | undefined,
+	competitionId: Id<"competitions"> | null | undefined,
 ): Promise<boolean> {
 	if (isVolunteer) return true;
 	if (!competitionId) return false;
 
-	const competition = await ctx.db.get(
-		"competitions",
-		competitionId as Id<"competitions">,
-	);
+	const competition = await ctx.db.get("competitions", competitionId);
 	if (!competition) return false;
 
 	return userCanAccessCompetitionDoc(competition, userId);

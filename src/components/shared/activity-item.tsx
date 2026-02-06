@@ -11,7 +11,7 @@ interface ActivityItemProps {
 	entry: ActivityEntry;
 	showEntityDetails?: boolean;
 	showCommentPreview?: boolean;
-	avatarSize?: "sm" | "md"; // sm = 6 (24px), md = 8 (32px)
+	avatarSize?: "sm" | "md";
 	hideAvatar?: boolean;
 	className?: string;
 	onClick?: () => void;
@@ -26,7 +26,8 @@ export function ActivityItemContent({
 }: ActivityItemProps) {
 	const description = getActivityDescription(entry);
 	const timeAgo = formatRelativeTime(entry.timestamp);
-	const commentPreview = entry.metadata?.comment as string | undefined;
+	const commentPreview = (entry.metadata as Record<string, unknown> | undefined)
+		?.comment as string | undefined;
 
 	return (
 		<>

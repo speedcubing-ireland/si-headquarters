@@ -13,18 +13,6 @@ function pushParentCrumbs(
 		if (comp) chain.push({ label: comp.name, to: `/competitions/${comp.id}` });
 		return null;
 	}
-	if (parent.type === "phase") {
-		const comp = competitions.find((c) =>
-			c.phases.some((p) => p.id === parent.linkedId),
-		);
-		if (comp) {
-			chain.push({ label: comp.name, to: `/competitions/${comp.id}` });
-			const phase = comp.phases.find((p) => p.id === parent.linkedId);
-			if (phase)
-				chain.push({ label: phase.name, to: `/competitions/${comp.id}` });
-		}
-		return null;
-	}
 	if (parent.type === "task") {
 		const parentTask = tasks.find((x) => x.id === parent.linkedId);
 		if (!parentTask) return null;

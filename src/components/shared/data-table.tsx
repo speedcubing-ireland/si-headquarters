@@ -361,11 +361,11 @@ function DataTableProviderInner<TData, TFilterState>({
 			const selectedIds = Object.entries(newSelection)
 				.filter(([, sel]) => sel)
 				.map(([id]) => id);
-			const selectedRows = filteredData.filter((row) => {
-				const rowId = getRowId?.(row);
-				if (rowId !== undefined) return selectedIds.includes(rowId);
-				return selectedIds.includes(String(filteredData.indexOf(row)));
-			});
+			const getRowIdentifier = (row: TData) =>
+				getRowId?.(row) ?? String(filteredData.indexOf(row));
+			const selectedRows = filteredData.filter((row) =>
+				selectedIds.includes(getRowIdentifier(row)),
+			);
 			selection?.onSelectionChange?.(selectedRows);
 		},
 	});

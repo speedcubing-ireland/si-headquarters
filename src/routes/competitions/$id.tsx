@@ -8,12 +8,13 @@ import { CompetitionTasksByPhase } from "@/components/competitions/competition-t
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { requireCompetitionId } from "@/lib/convex-ids";
 import {
 	useCompetition,
 	useTasksForCompetition,
 	useCompetitionMutations,
 } from "@/hooks/use-convex-data";
-import type { Competition } from "@/data/types-new";
+import type { Competition, Task } from "@/data/types-new";
 
 export const Route = createFileRoute("/competitions/$id")({
 	component: RouteComponent,
@@ -70,14 +71,15 @@ function CompetitionHeader({
 function RouteComponent() {
 	const { id } = Route.useParams();
 	const navigate = useNavigate();
-	const competition = useCompetition(id);
-	const { tasks: scopedTasks } = useTasksForCompetition(id);
+	const competitionId = requireCompetitionId(id);
+	const competition = useCompetition(competitionId);
+	const { tasks: scopedTasks } = useTasksForCompetition(competitionId);
 	const { updateCompetition, deleteCompetition } = useCompetitionMutations();
 	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
 
 	const handleDelete = async () => {
 		try {
-			await deleteCompetition(id);
+			await deleteCompetition(competitionId);
 			navigate({ to: "/competitions" });
 		} catch (error) {
 			console.error("Failed to delete competition:", error);
@@ -108,7 +110,10 @@ function RouteComponent() {
 		);
 	}
 
-	const competitionWithTasks = { ...competition, tasks: scopedTasks };
+	const competitionWithTasks: Competition & { tasks: Task[] } = {
+		...competition,
+		tasks: scopedTasks,
+	};
 
 	return (
 		<div className="flex h-full flex-col">

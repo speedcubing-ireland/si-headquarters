@@ -5,10 +5,15 @@ import type { QueryCtx } from "./_generated/server";
 import { requireDirector } from "./admin";
 import { requireUserId, isVolunteer } from "./auth";
 import { hasCompetitionAccess } from "./competitionAccess";
+import { toUsers, createLens } from "./lib/transforms";
+import { entityType, activityMetadata, userShape } from "./lib/validators";
+import type { Infer } from "convex/values";
 
 type ActivityLogDoc = Doc<"activityLog">;
 
 const DEFAULT_ACTOR = { id: "", name: "", avatarUrl: "" };
+
+type ActivityMetadata = Infer<typeof activityMetadata>;
 
 async function resolveActorsAndMapDocs(
 	ctx: QueryCtx,
@@ -19,11 +24,11 @@ async function resolveActorsAndMapDocs(
 		entityType: "task" | "update" | "competition";
 		entityId: string;
 		type: string;
-		actor: { id: string; name: string; avatarUrl: string };
+		actor: { id: Id<"users">; name: string; avatarUrl: string };
 		timestamp: string;
 		oldValue?: string;
 		newValue?: string;
-		metadata?: unknown;
+		metadata?: ActivityMetadata;
 		entityTitle?: string;
 		entityIdentifier?: string;
 	}>
@@ -42,21 +47,12 @@ async function resolveActorsAndMapDocs(
 		Promise.all(taskArr.map((id) => ctx.db.get("tasks", id))),
 	]);
 
-	const usersMap = new Map<
-		string,
-		{ id: string; name: string; avatarUrl: string }
-	>();
-	userArr.forEach((id, i) => {
-		const u = userDocs[i];
-		if (u)
-			usersMap.set(id, {
-				id,
-				name: u.name ?? "",
-				avatarUrl: u.image ?? "",
-			});
-	});
+	const usersLens = createLens(toUsers(userDocs));
 
-	const tasksMap = new Map<string, { title: string; identifier: string }>();
+	const tasksMap = new Map<
+		Id<"tasks">,
+		{ title: string; identifier: string }
+	>();
 	taskArr.forEach((id, i) => {
 		const t = taskDocs[i];
 		if (t)
@@ -73,7 +69,7 @@ async function resolveActorsAndMapDocs(
 		let entityIdentifier: string | undefined;
 
 		if (d.entityType === "task") {
-			const t = tasksMap.get(d.entityId);
+			const t = tasksMap.get(d.entityId as Id<"tasks">);
 			if (t) {
 				entityTitle = t.title;
 				entityIdentifier = t.identifier;
@@ -85,11 +81,11 @@ async function resolveActorsAndMapDocs(
 			entityType: d.entityType,
 			entityId: d.entityId,
 			type: d.type,
-			actor: usersMap.get(d.actorId) ?? { ...DEFAULT_ACTOR, id: d.actorId },
+			actor: usersLens.get(d.actorId) ?? { ...DEFAULT_ACTOR, id: d.actorId },
 			timestamp: toISO(d._creationTime),
 			oldValue: d.oldValue,
 			newValue: d.newValue,
-			metadata: d.metadata,
+			metadata: d.metadata as ActivityMetadata,
 			entityTitle,
 			entityIdentifier,
 		};
@@ -103,25 +99,14 @@ async function isActivityRelevantToUser(
 ): Promise<boolean> {
 	if (doc.actorId === userId) return true;
 	if (doc.entityType === "task") {
-		const task = await ctx.db.get("tasks", doc.entityId as Id<"tasks">);
+		const taskId = doc.entityId as Id<"tasks">;
+		const task = await ctx.db.get(taskId);
 		return task?.assigneeId === userId;
 	}
 	return false;
 }
 
-const entityType = v.union(
-	v.literal("task"),
-	v.literal("update"),
-	v.literal("competition"),
-);
-
-const userShape = v.object({
-	id: v.string(),
-	name: v.string(),
-	avatarUrl: v.string(),
-});
-
-const activityEntryReturns = v.object({
+export const activityEntryReturns = v.object({
 	id: v.string(),
 	entityType,
 	entityId: v.string(),
@@ -130,7 +115,7 @@ const activityEntryReturns = v.object({
 	timestamp: v.string(),
 	oldValue: v.optional(v.string()),
 	newValue: v.optional(v.string()),
-	metadata: v.optional(v.any()),
+	metadata: activityMetadata,
 	entityTitle: v.optional(v.string()),
 	entityIdentifier: v.optional(v.string()),
 });
@@ -146,7 +131,8 @@ export const listForEntity = query({
 		const volunteer = await isVolunteer(ctx);
 
 		if (args.entityType === "task") {
-			const task = await ctx.db.get("tasks", args.entityId as Id<"tasks">);
+			const taskId = args.entityId as Id<"tasks">;
+			const task = await ctx.db.get(taskId);
 			if (!task) return [];
 
 			if (!volunteer) {
@@ -160,10 +146,8 @@ export const listForEntity = query({
 				if (!hasAccess) return [];
 			}
 		} else if (args.entityType === "update") {
-			const update = await ctx.db.get(
-				"competitionUpdates",
-				args.entityId as Id<"competitionUpdates">,
-			);
+			const updateId = args.entityId as Id<"competitionUpdates">;
+			const update = await ctx.db.get(updateId);
 			if (!update) return [];
 
 			if (!volunteer) {
@@ -177,11 +161,12 @@ export const listForEntity = query({
 			}
 		} else if (args.entityType === "competition") {
 			if (!volunteer) {
+				const competitionId = args.entityId as Id<"competitions">;
 				const hasAccess = await hasCompetitionAccess(
 					ctx,
 					volunteer,
 					userId,
-					args.entityId as Id<"competitions">,
+					competitionId,
 				);
 				if (!hasAccess) return [];
 			}
@@ -248,7 +233,7 @@ export const log = mutation({
 		type: v.string(),
 		oldValue: v.optional(v.string()),
 		newValue: v.optional(v.string()),
-		metadata: v.optional(v.any()),
+		metadata: activityMetadata,
 	},
 	returns: v.id("activityLog"),
 	handler: async (ctx, args) => {
@@ -278,7 +263,7 @@ export const logWithActor = internalMutation({
 		type: v.string(),
 		oldValue: v.optional(v.string()),
 		newValue: v.optional(v.string()),
-		metadata: v.optional(v.any()),
+		metadata: activityMetadata,
 	},
 	returns: v.id("activityLog"),
 	handler: async (ctx, args) => {

@@ -1,22 +1,14 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
-
-const taskStatus = v.union(
-	v.literal("backlog"),
-	v.literal("to-do"),
-	v.literal("in-progress"),
-	v.literal("awaiting-review"),
-	v.literal("done"),
-	v.literal("cancelled"),
-);
-
-const taskPriority = v.union(
-	v.literal("low"),
-	v.literal("medium"),
-	v.literal("high"),
-	v.literal("urgent"),
-);
+import {
+	taskStatus,
+	taskPriority,
+	activityMetadata,
+	notificationMetadata,
+	reminderMetadata,
+	reminderRecurringConfig,
+} from "./lib/validators";
 
 export default defineSchema({
 	...authTables,
@@ -53,14 +45,14 @@ export default defineSchema({
 		archived: v.boolean(),
 		archivedAt: v.optional(v.string()),
 		parentTaskId: v.optional(v.id("tasks")),
-		parentCompetitionId: v.optional(v.string()),
-		ownerId: v.optional(v.string()),
+		parentCompetitionId: v.optional(v.id("competitions")),
+		ownerId: v.optional(v.union(v.id("users"), v.id("teams"))),
 		ownerType: v.optional(v.union(v.literal("user"), v.literal("team"))),
 		assigneeId: v.optional(v.id("users")),
 		phaseId: v.optional(v.id("phases")),
 		labelIds: v.array(v.id("labels")),
 		requiredApprovalIds: v.optional(v.array(v.string())),
-		approvedByIds: v.optional(v.array(v.string())),
+		approvedByIds: v.optional(v.array(v.id("users"))),
 		resources: v.optional(
 			v.array(
 				v.union(
@@ -149,8 +141,10 @@ export default defineSchema({
 		actorId: v.id("users"),
 		oldValue: v.optional(v.string()),
 		newValue: v.optional(v.string()),
-		metadata: v.optional(v.any()),
-	}).index("by_entity", ["entityType", "entityId"]),
+		metadata: activityMetadata,
+	})
+		.index("by_entity", ["entityType", "entityId"])
+		.index("by_actor", ["actorId"]),
 
 	notifications: defineTable({
 		userId: v.id("users"),
@@ -167,7 +161,7 @@ export default defineSchema({
 		entityType: v.string(),
 		entityId: v.string(),
 		parentEntityId: v.optional(v.string()),
-		metadata: v.optional(v.any()),
+		metadata: notificationMetadata,
 		readAt: v.optional(v.number()),
 		archivedAt: v.optional(v.number()),
 		scheduledFor: v.optional(v.number()),
@@ -175,7 +169,8 @@ export default defineSchema({
 		batchKey: v.optional(v.string()),
 	})
 		.index("by_user", ["userId"])
-		.index("by_user_and_status", ["userId", "status"]),
+		.index("by_user_and_status", ["userId", "status"])
+		.index("by_entity", ["entityType", "entityId"]),
 
 	reminders: defineTable({
 		userId: v.id("users"),
@@ -184,7 +179,7 @@ export default defineSchema({
 		type: v.union(v.literal("one_time"), v.literal("recurring")),
 		remindAt: v.number(),
 		recurringPattern: v.optional(v.string()),
-		recurringConfig: v.optional(v.any()),
+		recurringConfig: reminderRecurringConfig,
 		endDate: v.optional(v.string()),
 		status: v.union(
 			v.literal("pending"),
@@ -196,7 +191,7 @@ export default defineSchema({
 		dismissedAt: v.optional(v.number()),
 		message: v.optional(v.string()),
 		priority: v.string(),
-		metadata: v.optional(v.any()),
+		metadata: reminderMetadata,
 		updatedAt: v.number(),
 	})
 		.index("by_user", ["userId"])

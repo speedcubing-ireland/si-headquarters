@@ -1,33 +1,7 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
-
-const viewEntity = v.union(v.literal("tasks"), v.literal("competitions"));
-
-const savedViewShape = v.object({
-	id: v.id("savedViews"),
-	name: v.string(),
-	description: v.optional(v.string()),
-	entity: viewEntity,
-	pageId: v.string(),
-	filtersJson: v.string(),
-	displaySettingsJson: v.string(),
-	createdAt: v.number(),
-	updatedAt: v.number(),
-	lastUsedAt: v.optional(v.number()),
-});
-
-async function requireUserId(ctx: { auth: unknown }): Promise<Id<"users">> {
-	const userId = await getAuthUserId(ctx as never);
-	if (!userId) {
-		throw new ConvexError({
-			code: "UNAUTHENTICATED",
-			message: "You must be signed in to manage views.",
-		});
-	}
-	return userId as Id<"users">;
-}
+import { requireUserId } from "./auth";
+import { viewEntity, savedViewShape } from "./lib/validators";
 
 export const listViews = query({
 	args: {

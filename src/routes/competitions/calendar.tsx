@@ -9,8 +9,6 @@ import {
 import { useCompetitions } from "@/hooks/use-convex-data";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
-import { useDisplaySettingsStore } from "@/store/display-settings-store";
 import { useMemo, useState } from "react";
 import {
 	Table,
@@ -28,16 +26,6 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/competitions/calendar")({
-	beforeLoad: () => {
-		useCompetitionsFilterStore.getState().clearFilters();
-		useDisplaySettingsStore.getState().fromJSON(
-			JSON.stringify({
-				grouping: null,
-				subGrouping: null,
-				ordering: { field: null, direction: "asc" },
-			}),
-		);
-	},
 	component: CompetitionsCalendarPage,
 });
 
@@ -155,7 +143,7 @@ function CompetitionsCalendarPage() {
 											isClickable && "cursor-pointer hover:bg-muted/30",
 											isNonComp && "bg-muted/40",
 										)}
-										onClick={(e) => {
+										onClick={(e: React.MouseEvent<HTMLTableRowElement>) => {
 											if (
 												(e.target as HTMLElement).closest(
 													"[data-calendar-notes-cell]",

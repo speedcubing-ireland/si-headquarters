@@ -21,6 +21,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { Id } from "@/convex/_generated/dataModel";
 import {
 	useTask,
 	useUsers,
@@ -35,6 +36,7 @@ import type {
 	Team,
 	User,
 } from "@/data/types-new";
+import { TASK_PRIORITIES, TASK_STATUSES } from "@/data/types-new";
 
 import { statusLabels } from "@/lib/task-constants";
 import {
@@ -44,7 +46,32 @@ import {
 } from "@/lib/task-filter-definitions";
 import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
 
-interface TaskFilterOption<T = string> {
+const isTaskStatus = (value: string): value is TaskStatus =>
+	TASK_STATUSES.some((status) => status === value);
+
+const isTaskPriority = (value: string): value is TaskPriority =>
+	TASK_PRIORITIES.some((priority) => priority === value);
+
+function mapToTaskFilterOptions<T extends string>(
+	values: ReturnType<typeof getFilterValues>,
+	parseValue: (value: string) => T | null,
+): TaskFilterOption<T>[] {
+	return values.flatMap((val) => {
+		const parsed = parseValue(val.value);
+		if (!parsed) return [];
+		return [
+			{
+				value: parsed,
+				label: val.label,
+				icon: val.icon ?? null,
+				avatarUrl: val.avatarUrl,
+				color: val.color,
+			},
+		];
+	});
+}
+
+interface TaskFilterOption<T extends string = string> {
 	value: T;
 	label: string;
 	icon: React.ElementType | null;
@@ -52,7 +79,7 @@ interface TaskFilterOption<T = string> {
 	color?: string;
 }
 
-interface EditableTaskCellProps<T extends TaskStatus | TaskPriority | string> {
+interface EditableTaskCellProps<T extends string> {
 	type: "status" | "priority" | "assignee" | "labels";
 	value: T;
 	onChange: (newValue: T) => void;
@@ -60,10 +87,11 @@ interface EditableTaskCellProps<T extends TaskStatus | TaskPriority | string> {
 	renderOption: (option: TaskFilterOption<T>) => React.ReactNode;
 	isSelected?: (optionValue: T, currentValue: T) => boolean;
 	options: TaskFilterOption<T>[];
+	parseValue: (value: string) => T | null;
 	triggerClassName?: string;
 }
 
-function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
+function EditableTaskCell<T extends string>({
 	type,
 	value,
 	onChange,
@@ -71,13 +99,16 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 	renderOption,
 	isSelected,
 	options,
+	parseValue,
 	triggerClassName,
 }: EditableTaskCellProps<T>) {
 	const [open, setOpen] = React.useState(false);
 	const config = getFilterConfig(type);
 
 	const handleChange = (newValue: string) => {
-		onChange(newValue as T);
+		const parsed = parseValue(newValue);
+		if (parsed == null) return;
+		onChange(parsed);
 		setOpen(false);
 	};
 
@@ -101,10 +132,9 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 						<CommandEmpty>{`No ${config?.displayName.toLowerCase() ?? "items"} found.`}</CommandEmpty>
 						<CommandGroup>
 							{options.map((option) => {
-								const optionValue = option.value as T;
 								const selected = isSelected
-									? isSelected(optionValue, value)
-									: optionValue === value;
+									? isSelected(option.value, value)
+									: option.value === value;
 								return (
 									<CommandItem
 										key={String(option.value)}
@@ -112,7 +142,7 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 										onSelect={() => handleChange(String(option.value))}
 										className="flex items-center justify-between"
 									>
-										{renderOption(option as TaskFilterOption<T>)}
+										{renderOption(option)}
 										{selected && <CheckIcon size={14} className="ml-auto" />}
 									</CommandItem>
 								);
@@ -125,25 +155,13 @@ function EditableTaskCell<T extends TaskStatus | TaskPriority | string>({
 	);
 }
 
-function mapToOldFormat(
-	values: ReturnType<typeof getFilterValues>,
-): TaskFilterOption[] {
-	return values.map((val) => ({
-		value: val.value,
-		label: val.label,
-		icon: val.icon ?? null,
-		avatarUrl: val.avatarUrl,
-		color: val.color,
-	}));
-}
-
 export function EditableTaskStatus({
 	status,
 	taskId,
 	children,
 }: {
 	status: TaskStatus;
-	taskId: string;
+	taskId: Id<"tasks">;
 	children?: React.ReactNode;
 }) {
 	const { updateTask } = useTaskMutations();
@@ -151,9 +169,10 @@ export function EditableTaskStatus({
 	const { users } = useUsers();
 	const StatusIcon = getStatusIcon(status);
 	const filterContext: FilterContext = { users, labels: [], teams: [] };
-	const options = mapToOldFormat(
+	const options = mapToTaskFilterOptions<TaskStatus>(
 		getFilterValues("status", filterContext),
-	) as TaskFilterOption<TaskStatus>[];
+		(value) => (isTaskStatus(value) ? value : null),
+	);
 
 	const isTaskFullyApproved = (() => {
 		if (!task || task.requiredApprovalBy.length === 0) return true;
@@ -201,6 +220,7 @@ export function EditableTaskStatus({
 					</div>
 				);
 			}}
+			parseValue={(value) => (isTaskStatus(value) ? value : null)}
 			options={options.filter(
 				(option) =>
 					!(
@@ -219,16 +239,17 @@ export function EditableTaskPriority({
 	children,
 }: {
 	priority: TaskPriority;
-	taskId: string;
+	taskId: Id<"tasks">;
 	children?: React.ReactNode;
 }) {
 	const { updateTask } = useTaskMutations();
 	const { users } = useUsers();
 	const PriorityIcon = getPriorityIcon(priority);
 	const filterContext: FilterContext = { users, labels: [], teams: [] };
-	const options = mapToOldFormat(
+	const options = mapToTaskFilterOptions<TaskPriority>(
 		getFilterValues("priority", filterContext),
-	) as TaskFilterOption<TaskPriority>[];
+		(value) => (isTaskPriority(value) ? value : null),
+	);
 
 	return (
 		<EditableTaskCell
@@ -254,6 +275,7 @@ export function EditableTaskPriority({
 					</div>
 				);
 			}}
+			parseValue={(value) => (isTaskPriority(value) ? value : null)}
 			options={options}
 		/>
 	);
@@ -265,7 +287,7 @@ export function EditableTaskAssignee({
 	variant = "default",
 }: {
 	assignee: User | null;
-	taskId: string;
+	taskId: Id<"tasks">;
 	variant?: "default" | "icon";
 }) {
 	const { users } = useUsers();
@@ -377,7 +399,7 @@ export function EditableTaskLabels({
 	wrap = false,
 }: {
 	labels: TaskLabel[];
-	taskId: string;
+	taskId: Id<"tasks">;
 	wrap?: boolean;
 }) {
 	const { labels: allLabels } = useLabels();
@@ -493,7 +515,7 @@ export function EditableTaskOwner({
 	taskId,
 }: {
 	owner: Team | User | null;
-	taskId: string;
+	taskId: Id<"tasks">;
 }) {
 	const { teams } = useTeams();
 	const { users } = useUsers();

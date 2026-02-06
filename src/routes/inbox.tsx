@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { Id } from "@/convex/_generated/dataModel";
+import { parseTaskId, parseNotificationId } from "@/lib/convex-ids";
 import {
 	buildOneTimeReminderPayload,
 	useNotifications,
@@ -110,14 +112,14 @@ function NotificationItem({
 	onSnooze,
 }: {
 	notification: Notification;
-	onMarkRead: (id: string) => void;
-	onArchive: (id: string) => void;
-	onDismiss: (id: string) => void;
+	onMarkRead: (id: Id<"notifications">) => void;
+	onArchive: (id: Id<"notifications">) => void;
+	onDismiss: (id: Id<"notifications">) => void;
 	onSnooze?: (notification: Notification, remindAt: string) => void;
 }) {
 	const isUnread = notification.status === "unread";
 	const timeAgo = formatRelativeTime(notification.createdAt);
-	const icon = getNotificationIcon(notification.type);
+	const icon = getNotificationIcon(notification.type as NotificationType);
 
 	const getEntityLink = () => {
 		switch (notification.entityType) {
@@ -152,10 +154,7 @@ function NotificationItem({
 				isUnread ? "border-l-2 border-l-primary pl-3 -ml-[2px]" : ""
 			}`}
 		>
-			{/* Icon */}
 			<div className="shrink-0 pt-0.5">{icon}</div>
-
-			{/* Content */}
 			<div className="flex-1 min-w-0">
 				<div className="flex items-start justify-between gap-2">
 					<div className="flex-1">
@@ -170,19 +169,17 @@ function NotificationItem({
 						<p className="text-sm text-muted-foreground mt-0.5">
 							{notification.message}
 						</p>
-
-						{/* Actor info and timestamp */}
 						<div className="flex items-center gap-2 mt-2">
-							{notification.metadata.actorName && (
+							{notification.metadata?.actorName && (
 								<>
 									<Avatar className="size-5">
-										<AvatarImage src={notification.metadata.actorAvatarUrl} />
+										<AvatarImage src={notification.metadata?.actorAvatarUrl} />
 										<AvatarFallback className="text-[8px]">
-											{getInitials(notification.metadata.actorName)}
+											{getInitials(notification.metadata?.actorName)}
 										</AvatarFallback>
 									</Avatar>
 									<span className="text-sm text-muted-foreground">
-										{notification.metadata.actorName}
+										{notification.metadata?.actorName}
 									</span>
 									<span className="text-muted-foreground">·</span>
 								</>
@@ -195,8 +192,6 @@ function NotificationItem({
 							</span>
 						</div>
 					</div>
-
-					{/* Actions */}
 					<div className="flex items-center gap-1 shrink-0">
 						{link && (
 							<Button asChild variant="ghost" size="sm" className="h-7 gap-1">
@@ -237,17 +232,39 @@ function NotificationItem({
 										</DropdownMenuSub>
 									)}
 								{isUnread && (
-									<DropdownMenuItem onClick={() => onMarkRead(notification.id)}>
+									<DropdownMenuItem
+										onClick={() =>
+											onMarkRead(
+												parseNotificationId(
+													notification.id,
+												) as Id<"notifications">,
+											)
+										}
+									>
 										<Mail className="size-4 mr-2" />
 										Mark as read
 									</DropdownMenuItem>
 								)}
-								<DropdownMenuItem onClick={() => onArchive(notification.id)}>
+								<DropdownMenuItem
+									onClick={() =>
+										onArchive(
+											parseNotificationId(
+												notification.id,
+											) as Id<"notifications">,
+										)
+									}
+								>
 									<Archive className="size-4 mr-2" />
 									Archive
 								</DropdownMenuItem>
 								<DropdownMenuItem
-									onClick={() => onDismiss(notification.id)}
+									onClick={() =>
+										onDismiss(
+											parseNotificationId(
+												notification.id,
+											) as Id<"notifications">,
+										)
+									}
 									className="text-destructive"
 								>
 									<Trash2 className="size-4 mr-2" />
@@ -289,15 +306,15 @@ function RouteComponent() {
 		}
 	}, [notifications, activeTab]);
 
-	const handleMarkRead = (id: string) => {
+	const handleMarkRead = (id: Id<"notifications">) => {
 		void markNotificationRead(id);
 	};
 
-	const handleArchive = (id: string) => {
+	const handleArchive = (id: Id<"notifications">) => {
 		void markNotificationArchived(id);
 	};
 
-	const handleDismiss = (id: string) => {
+	const handleDismiss = (id: Id<"notifications">) => {
 		void dismissNotification(id);
 	};
 
@@ -311,10 +328,12 @@ function RouteComponent() {
 			!notification.parentEntityId
 		)
 			return;
-		void addReminder(
-			buildOneTimeReminderPayload(notification.parentEntityId, remindAt),
+		const taskId = parseTaskId(notification.parentEntityId);
+		if (!taskId) return;
+		void addReminder(buildOneTimeReminderPayload(taskId, remindAt));
+		void markNotificationRead(
+			parseNotificationId(notification.id) as Id<"notifications">,
 		);
-		void markNotificationRead(notification.id);
 	};
 
 	return (

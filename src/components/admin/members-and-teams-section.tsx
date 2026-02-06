@@ -13,6 +13,7 @@ import {
 	useAdminMemberMutations,
 } from "@/hooks/use-convex-data";
 import type { Id } from "@/convex/_generated/dataModel";
+import { parseTeamId } from "@/lib/convex-ids";
 import { Loader2 } from "lucide-react";
 
 export function MembersAndTeamsSection() {
@@ -68,9 +69,7 @@ export function MembersAndTeamsSection() {
 					<span className="text-sm font-medium">Team</span>
 					<Select
 						value={selectedTeamId ?? ""}
-						onValueChange={(value) =>
-							setSelectedTeamId(value ? (value as Id<"teams">) : null)
-						}
+						onValueChange={(value) => setSelectedTeamId(parseTeamId(value))}
 					>
 						<SelectTrigger className="w-56">
 							<SelectValue placeholder="Select a team" />

@@ -5,7 +5,7 @@ import type { User } from "@/data/types-new";
 export function useUsers(): { users: User[]; isLoading: boolean } {
 	const data = useQuery(api.users.listUsers);
 	return {
-		users: (data ?? []) as User[],
+		users: data ?? [],
 		isLoading: data === undefined,
 	};
 }

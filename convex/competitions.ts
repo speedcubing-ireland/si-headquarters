@@ -6,12 +6,9 @@ import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 import { logActivity } from "./lib/activity";
 import { userCanAccessCompetitionDoc } from "./competitionAccess";
-
-const phaseShape = v.object({
-	id: v.string(),
-	name: v.string(),
-	description: v.string(),
-});
+import { toUsers, createLens, toISO, type UserUI } from "./lib/transforms";
+import { phaseShape, taskStatus, userShape } from "./lib/validators";
+import type { TaskStatus } from "./lib/types";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
@@ -33,15 +30,9 @@ const competitionDoc = v.object({
 	updatedAt: v.number(),
 });
 
-const userShape = v.object({
-	id: v.string(),
-	name: v.string(),
-	avatarUrl: v.string(),
-});
-
 const taskSummaryShape = v.object({
 	id: v.id("tasks"),
-	status: v.string(),
+	status: taskStatus,
 });
 
 const progressUpdateStatus = v.union(
@@ -53,7 +44,7 @@ const progressUpdateReactionShape = v.object({
 	emoji: v.string(),
 	users: v.array(userShape),
 });
-const progressUpdateForUIReturns = v.object({
+export const progressUpdateForUIReturns = v.object({
 	id: v.id("competitionUpdates"),
 	timestamp: v.string(),
 	postedBy: userShape,
@@ -62,8 +53,8 @@ const progressUpdateForUIReturns = v.object({
 	reactions: v.array(progressUpdateReactionShape),
 });
 
-const competitionForUIReturns = v.object({
-	id: v.string(),
+export const competitionForUIReturns = v.object({
+	id: v.id("competitions"),
 	name: v.string(),
 	description: v.string(),
 	compStart: v.string(),
@@ -108,14 +99,12 @@ export const get = query({
 	},
 });
 
-function toISO(ms: number): string {
-	return new Date(ms).toISOString();
-}
+type TaskSummary = { id: Id<"tasks">; status: TaskStatus };
 
 async function loadTaskSummariesForCompetition(
 	ctx: QueryCtx,
 	competitionId: Id<"competitions">,
-): Promise<{ id: Id<"tasks">; status: string }[]> {
+): Promise<TaskSummary[]> {
 	const taskDocs = await ctx.db
 		.query("tasks")
 		.withIndex("by_parent_competition_and_archived", (q) =>
@@ -124,8 +113,6 @@ async function loadTaskSummariesForCompetition(
 		.collect();
 	return taskDocs.map((t) => ({ id: t._id, status: t.status }));
 }
-
-type UserShape = { id: string; name: string; avatarUrl: string };
 
 function collectUserIdsFromUpdates(
 	updateDocs: Doc<"competitionUpdates">[],
@@ -141,19 +128,19 @@ function collectUserIdsFromUpdates(
 
 function buildProgressUpdatesForUI(
 	updateDocs: Doc<"competitionUpdates">[],
-	usersMap: Map<string, UserShape>,
+	usersLens: ReturnType<typeof createLens<UserUI>>,
 ): {
 	id: Id<"competitionUpdates">;
 	timestamp: string;
-	postedBy: UserShape;
+	postedBy: UserUI;
 	status: "on-track" | "at-risk" | "off-track";
 	message?: string;
-	reactions: { emoji: string; users: UserShape[] }[];
+	reactions: { emoji: string; users: UserUI[] }[];
 }[] {
 	return updateDocs.map((doc) => ({
 		id: doc._id,
 		timestamp: toISO(doc._creationTime),
-		postedBy: usersMap.get(doc.authorId) ?? {
+		postedBy: usersLens.get(doc.authorId) ?? {
 			id: doc.authorId,
 			name: "",
 			avatarUrl: "",
@@ -163,8 +150,8 @@ function buildProgressUpdatesForUI(
 		reactions: doc.reactions.map((r) => ({
 			emoji: r.emoji,
 			users: r.userIds
-				.map((id) => usersMap.get(id))
-				.filter((u): u is UserShape => Boolean(u)),
+				.map((id) => usersLens.get(id))
+				.filter((u): u is UserUI => Boolean(u)),
 		})),
 	}));
 }
@@ -207,10 +194,7 @@ export const listForUI = query({
 		const defaultPhaseId = orderedPhases[0]?._id;
 
 		const userIds = new Set<Id<"users">>();
-		const tasksByCompetition = new Map<
-			Id<"competitions">,
-			{ id: Id<"tasks">; status: string }[]
-		>();
+		const tasksByCompetition = new Map<Id<"competitions">, TaskSummary[]>();
 		const updatesByCompetition = new Map<
 			Id<"competitions">,
 			Doc<"competitionUpdates">[]
@@ -233,19 +217,8 @@ export const listForUI = query({
 		}
 
 		const userArr = [...userIds];
-		const userDocs = await Promise.all(
-			userArr.map((id) => ctx.db.get("users", id)),
-		);
-		const usersMap = new Map<string, UserShape>();
-		userArr.forEach((id, i) => {
-			const u = userDocs[i];
-			if (u)
-				usersMap.set(id, {
-					id,
-					name: u.name ?? "",
-					avatarUrl: u.image ?? "",
-				});
-		});
+		const userDocs = await Promise.all(userArr.map((id) => ctx.db.get(id)));
+		const usersLens = createLens(toUsers(userDocs));
 
 		return docs.map((d) => {
 			const phasesForUI = orderedPhases.map((p) => ({
@@ -269,16 +242,16 @@ export const listForUI = query({
 				description: d.description,
 				compStart: d.compStart,
 				compEnd: d.compEnd,
-				compLead: d.compLeadId ? (usersMap.get(d.compLeadId) ?? null) : null,
+				compLead: d.compLeadId ? (usersLens.get(d.compLeadId) ?? null) : null,
 				leadDelegate: d.leadDelegateId
-					? (usersMap.get(d.leadDelegateId) ?? null)
+					? (usersLens.get(d.leadDelegateId) ?? null)
 					: null,
 				organisers: d.organiserIds
-					.map((id) => usersMap.get(id))
-					.filter((u): u is UserShape => Boolean(u)),
+					.map((id) => usersLens.get(id))
+					.filter((u): u is UserUI => Boolean(u)),
 				phases: phasesForUI,
 				currentPhaseIdx: currentPhaseIdx >= 0 ? currentPhaseIdx : 0,
-				progressUpdates: buildProgressUpdatesForUI(updateDocs, usersMap),
+				progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 				compSheet: d.compSheet ?? null,
 				tasks: tasksForComp,
 				createdAt: toISO(d._creationTime),
@@ -340,16 +313,7 @@ export const getForUI = query({
 		const userDocs = await Promise.all(
 			userArr.map((id) => ctx.db.get("users", id)),
 		);
-		const usersMap = new Map<string, UserShape>();
-		userArr.forEach((id, i) => {
-			const u = userDocs[i];
-			if (u)
-				usersMap.set(id, {
-					id,
-					name: u.name ?? "",
-					avatarUrl: u.image ?? "",
-				});
-		});
+		const usersLens = createLens(toUsers(userDocs));
 
 		const tasks = await loadTaskSummariesForCompetition(
 			ctx,
@@ -362,16 +326,16 @@ export const getForUI = query({
 			description: d.description,
 			compStart: d.compStart,
 			compEnd: d.compEnd,
-			compLead: d.compLeadId ? (usersMap.get(d.compLeadId) ?? null) : null,
+			compLead: d.compLeadId ? (usersLens.get(d.compLeadId) ?? null) : null,
 			leadDelegate: d.leadDelegateId
-				? (usersMap.get(d.leadDelegateId) ?? null)
+				? (usersLens.get(d.leadDelegateId) ?? null)
 				: null,
 			organisers: d.organiserIds
-				.map((id) => usersMap.get(id))
-				.filter((u): u is UserShape => Boolean(u)),
+				.map((id) => usersLens.get(id))
+				.filter((u): u is UserUI => Boolean(u)),
 			phases: phasesForUI,
 			currentPhaseIdx: currentPhaseIdx >= 0 ? currentPhaseIdx : 0,
-			progressUpdates: buildProgressUpdatesForUI(updateDocs, usersMap),
+			progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 			compSheet: d.compSheet ?? null,
 			tasks,
 			createdAt: toISO(d._creationTime),
@@ -435,20 +399,22 @@ export const create = mutation({
 	},
 });
 
+const competitionUpdateValidator = v.object({
+	name: v.optional(v.string()),
+	description: v.optional(v.string()),
+	compStart: v.optional(v.string()),
+	compEnd: v.optional(v.string()),
+	compLeadId: v.optional(v.union(v.id("users"), v.null())),
+	leadDelegateId: v.optional(v.union(v.id("users"), v.null())),
+	organiserIds: v.optional(v.array(v.id("users"))),
+	currentPhaseId: v.optional(v.id("phases")),
+	compSheet: v.optional(v.union(compSheetObject, v.null())),
+});
+
 export const update = mutation({
 	args: {
 		competitionId: v.id("competitions"),
-		updates: v.object({
-			name: v.optional(v.string()),
-			description: v.optional(v.string()),
-			compStart: v.optional(v.string()),
-			compEnd: v.optional(v.string()),
-			compLeadId: v.optional(v.union(v.id("users"), v.null())),
-			leadDelegateId: v.optional(v.union(v.id("users"), v.null())),
-			organiserIds: v.optional(v.array(v.id("users"))),
-			currentPhaseId: v.optional(v.id("phases")),
-			compSheet: v.optional(v.union(compSheetObject, v.null())),
-		}),
+		updates: competitionUpdateValidator,
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
@@ -457,7 +423,9 @@ export const update = mutation({
 		if (!doc) return null;
 
 		const u = args.updates;
-		const patch: Record<string, unknown> = { updatedAt: Date.now() };
+		const patch: Partial<Doc<"competitions">> & { updatedAt: number } = {
+			updatedAt: Date.now(),
+		};
 		if (u.name !== undefined) patch.name = u.name;
 		if (u.description !== undefined) patch.description = u.description;
 		if (u.compStart !== undefined) patch.compStart = u.compStart;
@@ -474,45 +442,28 @@ export const update = mutation({
 		const oldPhaseId = doc.currentPhaseId;
 		const newPhaseId = u.currentPhaseId ?? doc.currentPhaseId;
 
-		await ctx.db.patch(
-			"competitions",
-			args.competitionId,
-			patch as Record<string, unknown>,
-		);
+		await ctx.db.patch("competitions", args.competitionId, patch);
 
-		if (oldPhaseId !== newPhaseId && u.currentPhaseId !== undefined) {
+		if (oldPhaseId !== newPhaseId && u.currentPhaseId !== undefined && userId) {
 			const [oldPhaseDoc, newPhaseDoc] = await Promise.all([
 				oldPhaseId ? ctx.db.get("phases", oldPhaseId) : null,
 				newPhaseId ? ctx.db.get("phases", newPhaseId) : null,
 			]);
+
+			const oldPhaseName = oldPhaseDoc?.name ?? "Unknown";
+			const newPhaseName = newPhaseDoc?.name ?? "Unknown";
+
 			await logActivity(
 				ctx,
-				userId as Id<"users">,
+				userId,
 				"competition",
 				args.competitionId,
 				"phase_changed",
 				{
-					oldPhaseName: oldPhaseDoc?.name ?? oldPhaseId,
-					newPhaseName: newPhaseDoc?.name ?? newPhaseId,
+					oldPhaseName,
+					newPhaseName,
 				},
 			);
-		}
-		if (oldPhaseId !== newPhaseId && u.currentPhaseId !== undefined && userId) {
-			const phases: Doc<"phases">[] = await ctx.db
-				.query("phases")
-				.withIndex("by_order")
-				.order("asc")
-				.collect();
-
-			const oldPhase = oldPhaseId
-				? phases.find((p) => p._id === oldPhaseId)
-				: null;
-			const newPhase = newPhaseId
-				? phases.find((p) => p._id === newPhaseId)
-				: null;
-
-			const oldPhaseName = oldPhase?.name ?? "Unknown";
-			const newPhaseName = newPhase?.name ?? "Unknown";
 
 			const recipients = new Set<Id<"users">>();
 			if (doc.compLeadId) recipients.add(doc.compLeadId);

@@ -12,36 +12,56 @@ import {
 	DropdownMenuSubContent,
 	DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getActiveFiltersCount as getActiveFiltersCountFromFilters } from "@/lib/competitions-filters";
-import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
+import { useCompetitionsUrlContext } from "@/lib/competitions-url-context";
+import type { CompetitionsFilters } from "@/lib/filter-types";
 import { FilterSubMenu } from "./filter-sub-menu";
 
 export function FilterPopover() {
-	const filters = useCompetitionsFilterStore((state) => state.filters);
-	const toggleFilter = useCompetitionsFilterStore(
-		(state) => state.toggleFilter,
-	);
-	const clearFilters = useCompetitionsFilterStore(
-		(state) => state.clearFilters,
-	);
-	const setFilter = useCompetitionsFilterStore((state) => state.setFilter);
+	const { filters, setArrayFilter, clearFilters, setDateRange } =
+		useCompetitionsUrlContext();
 	const [open, setOpen] = useState(false);
 
-	const handleToggleFilter = (
-		type: "phase" | "compLead" | "leadDelegate" | "organisers",
-		value: string,
-	) => {
-		toggleFilter(type, value);
+	type ArrayFilterKey = Exclude<keyof CompetitionsFilters, "dateRange">;
+
+	const handleToggleFilter = (type: ArrayFilterKey, value: string) => {
+		const currentValues = filters[type];
+		const existingItem = currentValues?.find((item) =>
+			item.values.includes(value),
+		);
+
+		if (existingItem) {
+			const newValues = existingItem.values.filter((v) => v !== value);
+			if (newValues.length === 0) {
+				const newFilterValues = currentValues.filter(
+					(item) => !item.values.includes(value),
+				);
+				setArrayFilter(type, newFilterValues);
+			} else {
+				const newFilterValues = currentValues.map((item) =>
+					item.values.includes(value) ? { ...item, values: newValues } : item,
+				);
+				setArrayFilter(type, newFilterValues);
+			}
+		} else {
+			const newFilterValues = [
+				...currentValues,
+				{ values: [value], isNot: false },
+			];
+			setArrayFilter(type, newFilterValues);
+		}
 		setOpen(false);
 	};
 
-	const getSelectedValues = (
-		type: "phase" | "compLead" | "leadDelegate" | "organisers",
-	): string[] => {
+	const getSelectedValues = (type: ArrayFilterKey): string[] => {
 		return filters[type].flatMap((item) => item.values);
 	};
 
-	const count = getActiveFiltersCountFromFilters(filters);
+	const count =
+		filters.phase.length +
+		filters.compLead.length +
+		filters.leadDelegate.length +
+		filters.organisers.length +
+		(filters.dateRange ? 1 : 0);
 
 	return (
 		<SharedFilterPopover
@@ -98,7 +118,7 @@ export function FilterPopover() {
 								<CommandItem
 									onSelect={() => {
 										const today = new Date().toISOString().split("T")[0];
-										setFilter("date", { start: today });
+										setDateRange({ start: today, isNot: false });
 										setOpen(false);
 									}}
 									className="cursor-pointer"
@@ -109,8 +129,9 @@ export function FilterPopover() {
 									onSelect={() => {
 										const tomorrow = new Date();
 										tomorrow.setDate(tomorrow.getDate() + 1);
-										setFilter("date", {
+										setDateRange({
 											start: tomorrow.toISOString().split("T")[0],
+											isNot: false,
 										});
 										setOpen(false);
 									}}
@@ -122,9 +143,10 @@ export function FilterPopover() {
 									onSelect={() => {
 										const nextWeek = new Date();
 										nextWeek.setDate(nextWeek.getDate() + 7);
-										setFilter("date", {
+										setDateRange({
 											start: new Date().toISOString().split("T")[0],
 											end: nextWeek.toISOString().split("T")[0],
+											isNot: false,
 										});
 										setOpen(false);
 									}}

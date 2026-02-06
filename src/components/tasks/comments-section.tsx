@@ -6,6 +6,8 @@ import {
 	useCommentsForTask,
 	useCommentMutations,
 } from "@/hooks/use-convex-data";
+import type { Id } from "@/convex/_generated/dataModel";
+import { parseCommentId } from "@/lib/convex-ids";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Comment, User } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
@@ -36,10 +38,10 @@ interface CommentItemProps {
 	depth?: number;
 	currentUser: User;
 	users: User[];
-	onReply: (parentCommentId: string, content: string) => void;
-	onEdit: (commentId: string, content: string) => void;
-	onDelete: (commentId: string) => void;
-	onAddReaction: (commentId: string, emoji: string) => void;
+	onReply: (parentCommentId: Id<"comments">, content: string) => void;
+	onEdit: (commentId: Id<"comments">, content: string) => void;
+	onDelete: (commentId: Id<"comments">) => void;
+	onAddReaction: (commentId: Id<"comments">, emoji: string) => void;
 }
 
 function CommentItem({
@@ -80,7 +82,9 @@ function CommentItem({
 
 	const handleSubmitReply = () => {
 		if (replyForm.value.trim()) {
-			onReply(comment.id, replyForm.value.trim());
+			const commentId = parseCommentId(comment.id);
+			if (!commentId) return;
+			onReply(commentId, replyForm.value.trim());
 			replyForm.reset();
 			setIsReplying(false);
 		}
@@ -88,7 +92,9 @@ function CommentItem({
 
 	const handleSubmitEdit = () => {
 		if (editForm.value.trim() && editForm.value !== comment.content) {
-			onEdit(comment.id, editForm.value.trim());
+			const commentId = parseCommentId(comment.id);
+			if (!commentId) return;
+			onEdit(commentId, editForm.value.trim());
 		}
 		setIsEditing(false);
 	};
@@ -150,12 +156,20 @@ function CommentItem({
 
 							<ReactionDisplay
 								reactions={comment.reactions}
-								onAddReaction={(emoji) => onAddReaction(comment.id, emoji)}
+								onAddReaction={(emoji) => {
+									const commentId = parseCommentId(comment.id);
+									if (!commentId) return;
+									onAddReaction(commentId, emoji);
+								}}
 							/>
 
 							<div className="flex items-center gap-1 mt-2">
 								<ReactionButton
-									onAddReaction={(emoji) => onAddReaction(comment.id, emoji)}
+									onAddReaction={(emoji) => {
+										const commentId = parseCommentId(comment.id);
+										if (!commentId) return;
+										onAddReaction(commentId, emoji);
+									}}
 								/>
 
 								<Button
@@ -181,7 +195,11 @@ function CommentItem({
 												Edit
 											</DropdownMenuItem>
 											<DropdownMenuItem
-												onClick={() => onDelete(comment.id)}
+												onClick={() => {
+													const commentId = parseCommentId(comment.id);
+													if (!commentId) return;
+													onDelete(commentId);
+												}}
 												className="text-destructive"
 											>
 												<Trash2 className="size-3.5 mr-2" />
@@ -248,7 +266,7 @@ function CommentItem({
 }
 
 interface CommentsSectionProps {
-	taskId: string;
+	taskId: Id<"tasks"> | Id<"competitionUpdates">;
 }
 
 export function CommentsSection({ taskId }: CommentsSectionProps) {
@@ -289,21 +307,21 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 		}
 	};
 
-	const handleReply = (parentCommentId: string, content: string) => {
+	const handleReply = (parentCommentId: Id<"comments">, content: string) => {
 		if (currentUser) {
 			void addComment("task", taskId, content, parentCommentId, currentUser);
 		}
 	};
 
-	const handleEdit = (commentId: string, content: string) => {
+	const handleEdit = (commentId: Id<"comments">, content: string) => {
 		void editComment(commentId, content);
 	};
 
-	const handleDelete = (commentId: string) => {
+	const handleDelete = (commentId: Id<"comments">) => {
 		void deleteComment(commentId);
 	};
 
-	const handleAddReaction = (commentId: string, emoji: string) => {
+	const handleAddReaction = (commentId: Id<"comments">, emoji: string) => {
 		void addReaction(commentId, emoji);
 	};
 

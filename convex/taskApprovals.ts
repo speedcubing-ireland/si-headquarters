@@ -5,21 +5,61 @@ import { internal } from "./_generated/api";
 const APPROVAL_PREFIX_USER = "user:";
 const APPROVAL_PREFIX_TEAM = "team:";
 
-export function encodeApprovalId(type: "user" | "team", id: string): string {
-	const prefix = type === "user" ? APPROVAL_PREFIX_USER : APPROVAL_PREFIX_TEAM;
-	return `${prefix}${id}`;
+type ApprovalEntity =
+	| { type: "user"; id: Id<"users"> }
+	| { type: "team"; id: Id<"teams"> };
+
+const APPROVAL_CONFIG = {
+	user: { prefix: APPROVAL_PREFIX_USER },
+	team: { prefix: APPROVAL_PREFIX_TEAM },
+} as const;
+
+export function encodeApprovalId(
+	type: "user" | "team",
+	id: Id<"users"> | Id<"teams">,
+): string {
+	return `${APPROVAL_CONFIG[type].prefix}${id}`;
 }
 
-export function decodeApprovalId(
-	encoded: string,
-): { type: "user" | "team"; id: string } | null {
+export function decodeApprovalId(encoded: string): ApprovalEntity | null {
 	if (encoded.startsWith(APPROVAL_PREFIX_USER)) {
-		return { type: "user", id: encoded.slice(APPROVAL_PREFIX_USER.length) };
+		return {
+			type: "user",
+			id: encoded.slice(APPROVAL_PREFIX_USER.length) as Id<"users">,
+		};
 	}
 	if (encoded.startsWith(APPROVAL_PREFIX_TEAM)) {
-		return { type: "team", id: encoded.slice(APPROVAL_PREFIX_TEAM.length) };
+		return {
+			type: "team",
+			id: encoded.slice(APPROVAL_PREFIX_TEAM.length) as Id<"teams">,
+		};
 	}
 	return null;
+}
+
+function partitionApprovalIds(encodedIds: string[]): {
+	userIds: Id<"users">[];
+	teamIds: Id<"teams">[];
+	invalid: string[];
+} {
+	return encodedIds.reduce(
+		(acc, encoded) => {
+			const decoded = decodeApprovalId(encoded);
+			if (!decoded) {
+				acc.invalid.push(encoded);
+			} else if (decoded.type === "user") {
+				acc.userIds.push(decoded.id);
+			} else {
+				acc.teamIds.push(decoded.id);
+			}
+			return acc;
+		},
+		{
+			userIds: [] as Id<"users">[],
+			teamIds: [] as Id<"teams">[],
+			invalid: [] as string[],
+		},
+	);
 }
 
 export async function getPotentialReviewerUserIds(
@@ -29,25 +69,27 @@ export async function getPotentialReviewerUserIds(
 	const userIds = new Set<Id<"users">>();
 	if (!requiredApprovalIds?.length) return userIds;
 
-	const teamIds = new Set<Id<"teams">>();
-	for (const encoded of requiredApprovalIds) {
-		const decoded = decodeApprovalId(encoded);
-		if (decoded?.type === "user") {
-			userIds.add(decoded.id as Id<"users">);
-		} else if (decoded?.type === "team") {
-			teamIds.add(decoded.id as Id<"teams">);
-		}
+	const { userIds: directUserIds, teamIds } =
+		partitionApprovalIds(requiredApprovalIds);
+
+	for (const id of directUserIds) {
+		userIds.add(id);
 	}
-	const teamDocs = await Promise.all(
-		[...teamIds].map((id) => ctx.db.get("teams", id)),
-	);
-	for (const team of teamDocs) {
-		if (team) {
-			for (const memberId of team.memberIds) {
-				userIds.add(memberId);
+
+	if (teamIds.length > 0) {
+		const teamDocs = await Promise.all(
+			teamIds.map((id) => ctx.db.get("teams", id)),
+		);
+
+		for (const team of teamDocs) {
+			if (team) {
+				for (const memberId of team.memberIds) {
+					userIds.add(memberId);
+				}
 			}
 		}
 	}
+
 	return userIds;
 }
 
@@ -56,86 +98,75 @@ export async function scheduleAwaitingReviewNotifications(
 	taskId: Id<"tasks">,
 	requiredApprovalIds: string[] | undefined,
 	actorId: Id<"users">,
-): Promise<Promise<unknown>[]> {
-	if (!requiredApprovalIds?.length) return [];
+): Promise<void> {
+	if (!requiredApprovalIds?.length) return;
+
 	const reviewerIds = await getPotentialReviewerUserIds(
 		ctx,
 		requiredApprovalIds,
 	);
 	reviewerIds.delete(actorId);
-	const promises: Promise<unknown>[] = [];
+
 	for (const recipientId of reviewerIds) {
-		promises.push(
-			ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyTaskAwaitingReview,
-				{ taskId, recipientId, actorId },
-			),
+		void ctx.scheduler.runAfter(
+			0,
+			internal.notifications._notifyTaskAwaitingReview,
+			{
+				taskId,
+				recipientId,
+				actorId,
+			},
 		);
 	}
-	return promises;
 }
 
 export async function computeApprovalCompleteness(
-	ctx: {
-		db: {
-			get: (
-				table: "teams",
-				id: Id<"teams">,
-			) => Promise<{
-				memberIds: Id<"users">[];
-			} | null>;
-		};
-	},
+	ctx: Pick<MutationCtx, "db">,
 	requiredApprovalIds: string[],
-	approvedByIds: string[],
+	approvedByIds: Id<"users">[],
 ): Promise<{ isFullyApproved: boolean; pendingKeys: string[] }> {
 	if (requiredApprovalIds.length === 0) {
 		return { isFullyApproved: true, pendingKeys: [] };
 	}
 
 	const approvingUserIds = new Set(approvedByIds);
-	const pendingKeys: string[] = [];
+	const {
+		userIds: requiredUserIds,
+		teamIds: requiredTeamIds,
+		invalid,
+	} = partitionApprovalIds(requiredApprovalIds);
 
-	const teamIds = new Set<Id<"teams">>();
-	for (const encoded of requiredApprovalIds) {
-		const decoded = decodeApprovalId(encoded);
-		if (decoded?.type === "team") {
-			teamIds.add(decoded.id as Id<"teams">);
-		}
+	const pendingKeys: string[] = [...invalid];
+
+	const pendingUsers = requiredUserIds.filter(
+		(id) => !approvingUserIds.has(id),
+	);
+	for (const id of pendingUsers) {
+		pendingKeys.push(encodeApprovalId("user", id));
 	}
 
-	const teamDocs = await Promise.all(
-		[...teamIds].map((id) => ctx.db.get("teams", id)),
-	);
-	const teamMembersMap = new Map<string, Set<string>>();
-	teamDocs.forEach((team, i) => {
-		if (team) {
-			const teamId = [...teamIds][i];
-			teamMembersMap.set(teamId, new Set(team.memberIds.map((id) => id)));
-		}
-	});
+	if (requiredTeamIds.length > 0) {
+		const teamDocs = await Promise.all(
+			requiredTeamIds.map((id) => ctx.db.get("teams", id)),
+		);
 
-	for (const encoded of requiredApprovalIds) {
-		const decoded = decodeApprovalId(encoded);
-		if (!decoded) {
-			pendingKeys.push(encoded);
-			continue;
-		}
+		const teamApprovals = requiredTeamIds.map((teamId, index) => ({
+			teamId,
+			team: teamDocs[index],
+			encoded: encodeApprovalId("team", teamId),
+		}));
 
-		if (decoded.type === "user") {
-			if (!approvingUserIds.has(decoded.id)) {
-				pendingKeys.push(encoded);
-			}
-		} else {
-			const teamMembers = teamMembersMap.get(decoded.id);
-			if (!teamMembers) {
+		for (const { team, encoded } of teamApprovals) {
+			if (!team) {
 				pendingKeys.push(encoded);
 				continue;
 			}
+
+			const teamMemberIds = new Set(team.memberIds);
 			const hasApprovingMember = [...approvingUserIds].some((userId) =>
-				teamMembers.has(userId),
+				teamMemberIds.has(userId),
 			);
+
 			if (!hasApprovingMember) {
 				pendingKeys.push(encoded);
 			}
@@ -151,10 +182,7 @@ export async function computeApprovalCompleteness(
 export function resolveApprovalData(
 	_ctx: {
 		db: {
-			get: (
-				table: "users" | "teams",
-				id: Id<"users"> | Id<"teams">,
-			) => Promise<
+			get: (id: Id<"users"> | Id<"teams">) => Promise<
 				| {
 						_id: Id<"users">;
 						name: string | null;
@@ -170,57 +198,59 @@ export function resolveApprovalData(
 		};
 	},
 	requiredApprovalIds: string[],
-	approvedByIds: string[],
-	usersMap: Map<string, { id: string; name: string; avatarUrl: string }>,
+	approvedByIds: Id<"users">[],
+	usersMap: Map<
+		Id<"users">,
+		{ id: Id<"users">; name: string; avatarUrl: string }
+	>,
 	teamsMap: Map<
-		string,
+		Id<"teams">,
 		{
-			id: string;
+			id: Id<"teams">;
 			name: string;
-			members: { id: string; name: string; avatarUrl: string }[];
+			members: Array<{ id: Id<"users">; name: string; avatarUrl: string }>;
 		}
 	>,
 ): {
 	requiredApprovalBy: Array<
-		| { id: string; name: string; avatarUrl: string }
+		| { id: Id<"users">; name: string; avatarUrl: string }
 		| {
-				id: string;
+				id: Id<"teams">;
 				name: string;
-				members: Array<{ id: string; name: string; avatarUrl: string }>;
+				members: Array<{ id: Id<"users">; name: string; avatarUrl: string }>;
 		  }
 	>;
-	approvedBy: Array<{ id: string; name: string; avatarUrl: string }>;
+	approvedBy: Array<{ id: Id<"users">; name: string; avatarUrl: string }>;
 } {
 	const requiredApprovalBy: Array<
-		| { id: string; name: string; avatarUrl: string }
+		| { id: Id<"users">; name: string; avatarUrl: string }
 		| {
-				id: string;
+				id: Id<"teams">;
 				name: string;
-				members: Array<{ id: string; name: string; avatarUrl: string }>;
+				members: Array<{ id: Id<"users">; name: string; avatarUrl: string }>;
 		  }
 	> = [];
+
+	const entityResolvers = {
+		user: (id: Id<"users">) => usersMap.get(id),
+		team: (id: Id<"teams">) => teamsMap.get(id),
+	};
 
 	for (const encoded of requiredApprovalIds) {
 		const decoded = decodeApprovalId(encoded);
 		if (!decoded) continue;
 
-		if (decoded.type === "user") {
-			const user = usersMap.get(decoded.id);
-			if (user) {
-				requiredApprovalBy.push(user);
-			}
-		} else {
-			const team = teamsMap.get(decoded.id);
-			if (team) {
-				requiredApprovalBy.push(team);
-			}
-		}
+		const entity =
+			decoded.type === "user"
+				? entityResolvers.user(decoded.id)
+				: entityResolvers.team(decoded.id);
+		if (entity) requiredApprovalBy.push(entity);
 	}
 
 	const approvedBy = approvedByIds
 		.map((userId) => usersMap.get(userId))
 		.filter(
-			(u): u is { id: string; name: string; avatarUrl: string } =>
+			(u): u is { id: Id<"users">; name: string; avatarUrl: string } =>
 				u !== undefined,
 		);
 

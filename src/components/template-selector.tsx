@@ -74,7 +74,6 @@ export function TemplateSelector({
 				</DialogHeader>
 
 				<div className="grid grid-cols-3 gap-4 mt-4">
-					{/* Blank option */}
 					<button
 						type="button"
 						onClick={handleBlank}
@@ -92,8 +91,6 @@ export function TemplateSelector({
 							Start fresh
 						</span>
 					</button>
-
-					{/* Templates */}
 					{filteredTemplates.map((template) => (
 						<button
 							type="button"

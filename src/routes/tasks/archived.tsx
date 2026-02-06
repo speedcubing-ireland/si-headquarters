@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Archive, ArchiveRestore, ChevronDown, Trash2 } from "lucide-react";
 import { useState } from "react";
+import type { Id } from "@/convex/_generated/dataModel";
+import { parseTaskId } from "@/lib/convex-ids";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -18,7 +20,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TasksPage } from "@/components/tasks/tasks-page";
-import { useTasksListStateContext } from "@/store/tasks-page-context";
+import { useTasksListStateContext } from "@/store/tasks-list-context";
 import { useTaskMutations } from "@/hooks/use-convex-data";
 
 function ArchivedBulkActions({
@@ -143,9 +145,14 @@ function RouteComponent() {
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
 
+	const taskIds = (ids: string[]) =>
+		ids
+			.map((id) => parseTaskId(id))
+			.filter((id): id is Id<"tasks"> => id !== null);
+
 	const handleUnarchive = (selectedIds: string[]) => {
 		if (selectedIds.length === 0) return;
-		void bulkUnarchiveTasks(selectedIds);
+		void bulkUnarchiveTasks(taskIds(selectedIds));
 	};
 
 	const handleDeleteClick = (selectedIds: string[]) => {
@@ -155,7 +162,7 @@ function RouteComponent() {
 	};
 
 	const handleConfirmDelete = () => {
-		void permanentlyDeleteTasks(pendingDeleteIds);
+		void permanentlyDeleteTasks(taskIds(pendingDeleteIds));
 		setIsDeleteDialogOpen(false);
 		setPendingDeleteIds([]);
 	};

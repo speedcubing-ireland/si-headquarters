@@ -15,7 +15,11 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Competition, CompetitionPhaseKey } from "@/data/types-new";
+import {
+	COMPETITION_PHASE_KEYS,
+	type Competition,
+	type CompetitionPhaseKey,
+} from "@/data/types-new";
 import {
 	getCurrentPhaseKey,
 	getPhaseClass,
@@ -71,10 +75,13 @@ type GroupValueRenderer = (
 ) => React.ReactNode;
 type TasksSummary = { completed: number; open: number; total: number };
 
+const isCompetitionPhaseKey = (value: string): value is CompetitionPhaseKey =>
+	COMPETITION_PHASE_KEYS.some((key) => key === value);
+
 const phaseGroupRenderer: GroupValueRenderer = (value, row) => {
 	const key =
-		typeof value === "string"
-			? (value as CompetitionPhaseKey)
+		typeof value === "string" && isCompetitionPhaseKey(value)
+			? value
 			: getCurrentPhaseKey(row.original);
 	return <Badge className={getPhaseClass(key)}>{getPhaseLabel(key)}</Badge>;
 };
@@ -227,20 +234,20 @@ export const columns: ColumnDef<Competition>[] = [
 		{
 			meta: {
 				groupValueRenderer: dateGroupRenderer,
-			} as ColumnDef<Competition>["meta"],
+			} satisfies ColumnDef<Competition>["meta"],
 		},
 	),
 	createSortableColumn(
 		"name",
 		"Name",
 		({ row }) => {
-			const name = row.getValue("name") as string;
+			const name = row.getValue<string>("name");
 			return <span className="font-bold truncate">{name}</span>;
 		},
 		{
 			meta: {
 				groupValueRenderer: nameGroupRenderer,
-			} as ColumnDef<Competition>["meta"],
+			} satisfies ColumnDef<Competition>["meta"],
 		},
 	),
 	{
@@ -259,7 +266,7 @@ export const columns: ColumnDef<Competition>[] = [
 		},
 		meta: {
 			groupValueRenderer: phaseGroupRenderer,
-		} as ColumnDef<Competition>["meta"],
+		} satisfies ColumnDef<Competition>["meta"],
 	},
 	{
 		id: "compLead",
@@ -272,7 +279,7 @@ export const columns: ColumnDef<Competition>[] = [
 		enableSorting: true,
 		meta: {
 			groupValueRenderer: ownerGroupRenderer,
-		} as ColumnDef<Competition>["meta"],
+		} satisfies ColumnDef<Competition>["meta"],
 	},
 	{
 		id: "leadDelegate",
@@ -285,7 +292,7 @@ export const columns: ColumnDef<Competition>[] = [
 		enableSorting: true,
 		meta: {
 			groupValueRenderer: leadDelegateGroupRenderer,
-		} as ColumnDef<Competition>["meta"],
+		} satisfies ColumnDef<Competition>["meta"],
 	},
 	{
 		id: "organisers",
@@ -308,7 +315,7 @@ export const columns: ColumnDef<Competition>[] = [
 		enableSorting: true,
 		meta: {
 			groupValueRenderer: organisersGroupRenderer,
-		} as ColumnDef<Competition>["meta"],
+		} satisfies ColumnDef<Competition>["meta"],
 	},
 	{
 		id: "tasks",
@@ -324,7 +331,7 @@ export const columns: ColumnDef<Competition>[] = [
 		},
 		meta: {
 			groupValueRenderer: tasksGroupRenderer,
-		} as ColumnDef<Competition>["meta"],
+		} satisfies ColumnDef<Competition>["meta"],
 		enableSorting: true,
 	},
 ];

@@ -7,6 +7,9 @@ import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 
+const getErrorMessage = (error: unknown) =>
+	error instanceof Error ? error.message : "Something went wrong.";
+
 type AdminPhase = {
 	id: Id<"phases">;
 	key: string;
@@ -22,7 +25,7 @@ function useAdminPhases(): { phases: AdminPhase[]; isLoading: boolean } {
 	const data = useQuery(api.admin.listPhasesWithUsage, {});
 	const phases: AdminPhase[] =
 		data?.map((p) => ({
-			id: p.id as Id<"phases">,
+			id: p.id,
 			key: p.key,
 			name: p.name,
 			description: p.description,
@@ -108,7 +111,7 @@ export function PhasesSection() {
 			setNewName("");
 			setNewDescription("");
 		} catch (e) {
-			setError((e as Error).message);
+			setError(getErrorMessage(e));
 		}
 	};
 
@@ -126,7 +129,7 @@ export function PhasesSection() {
 		try {
 			await updatePhase(phaseId, updates);
 		} catch (e) {
-			setError((e as Error).message);
+			setError(getErrorMessage(e));
 		} finally {
 			setSavingId(null);
 		}
@@ -138,7 +141,7 @@ export function PhasesSection() {
 		try {
 			await deletePhaseIfUnused(phaseId);
 		} catch (e) {
-			setError((e as Error).message);
+			setError(getErrorMessage(e));
 		} finally {
 			setSavingId(null);
 		}
@@ -239,7 +242,7 @@ export function PhasesSection() {
 																		}),
 																	]);
 																} catch (e) {
-																	setError((e as Error).message);
+																	setError(getErrorMessage(e));
 																} finally {
 																	setSavingId(null);
 																}
@@ -276,7 +279,7 @@ export function PhasesSection() {
 																		}),
 																	]);
 																} catch (e) {
-																	setError((e as Error).message);
+																	setError(getErrorMessage(e));
 																} finally {
 																	setSavingId(null);
 																}

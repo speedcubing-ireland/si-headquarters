@@ -10,16 +10,19 @@ import {
 } from "@/lib/task-constants";
 import { getFilterConfig } from "@/lib/task-filter-definitions";
 import { renderUserValueByIdForFilter } from "@/lib/user-render-utils";
-import { useTasksPageContext } from "@/store/tasks-page-context";
+import { useTasksUrlContext } from "@/lib/tasks-url-context";
+import type { TasksFilters } from "@/lib/filter-types";
 import { TasksFilterValueSelector } from "./filter-value-selector";
 
-function getStatusBadge(status: TaskStatus) {
-	const className = statusColors[status];
-	return <Badge className={className}>{statusLabels[status]}</Badge>;
+function getStatusBadge(status: string) {
+	const s = status as TaskStatus;
+	const className = statusColors[s];
+	return <Badge className={className}>{statusLabels[s]}</Badge>;
 }
 
-function getPriorityLabel(priority: TaskPriority) {
-	return priorityLabels[priority];
+function getPriorityLabel(priority: string) {
+	const p = priority as TaskPriority;
+	return priorityLabels[p];
 }
 
 function renderLabel(value: string, labels: TaskLabel[]) {
@@ -40,41 +43,123 @@ function renderLabel(value: string, labels: TaskLabel[]) {
 }
 
 export function TasksFilterChips() {
-	const { filterStore } = useTasksPageContext();
-	const filters = filterStore((state) => state.filters);
-	const setFilter = filterStore((state) => state.setFilter);
-	const toggleFilter = filterStore((state) => state.toggleFilter);
-	const toggleFilterValue = filterStore((state) => state.toggleFilterValue);
-	const toggleFilterIsNot = filterStore((state) => state.toggleFilterIsNot);
-	const clearFilterType = filterStore((state) => state.clearFilterType);
-	const hasActiveFilters = filterStore((state) => state.hasActiveFilters());
+	const { filters, setArrayFilter, setDateRange } = useTasksUrlContext();
 	const filterContext = useTaskFilterContext();
 
+	const hasActiveFilters =
+		filters.status.length > 0 ||
+		filters.priority.length > 0 ||
+		filters.assignee.length > 0 ||
+		filters.labels.length > 0 ||
+		filters.owner.length > 0 ||
+		filters.parentType.length > 0 ||
+		filters.dateRange !== undefined;
+
 	if (!hasActiveFilters) return null;
+
+	type ArrayFilterKey = Exclude<keyof TasksFilters, "dateRange">;
+
+	const handleToggleFilter = <K extends ArrayFilterKey>(
+		type: K,
+		value: string,
+	) => {
+		const currentValues = filters[type];
+		const existingItemIndex = currentValues.findIndex((item) =>
+			item.values.includes(value),
+		);
+
+		if (existingItemIndex >= 0) {
+			const existingItem = currentValues[existingItemIndex];
+			const newValues = existingItem.values.filter((v) => v !== value);
+			if (newValues.length === 0) {
+				const newFilterValues = currentValues.filter(
+					(_, i) => i !== existingItemIndex,
+				);
+				setArrayFilter(type, newFilterValues);
+			} else {
+				const newFilterValues = currentValues.map((item, i) =>
+					i === existingItemIndex ? { ...item, values: newValues } : item,
+				);
+				setArrayFilter(type, newFilterValues);
+			}
+		} else {
+			const newFilterValues = [
+				...currentValues,
+				{ values: [value], isNot: false },
+			];
+			setArrayFilter(type, newFilterValues);
+		}
+	};
+
+	const handleToggleFilterValue = <K extends ArrayFilterKey>(
+		type: K,
+		filterIndex: number,
+		value: string,
+	) => {
+		const currentValues = filters[type];
+		const item = currentValues[filterIndex];
+		if (!item) return;
+
+		const hasValue = item.values.includes(value);
+		const newValues = hasValue
+			? item.values.filter((v) => v !== value)
+			: [...item.values, value];
+
+		if (newValues.length === 0) {
+			const newFilterValues = currentValues.filter((_, i) => i !== filterIndex);
+			setArrayFilter(type, newFilterValues);
+		} else {
+			const newFilterValues = currentValues.map((item, i) =>
+				i === filterIndex ? { ...item, values: newValues } : item,
+			);
+			setArrayFilter(type, newFilterValues);
+		}
+	};
+
+	const handleToggleFilterIsNot = <K extends ArrayFilterKey>(
+		type: K,
+		filterIndex: number,
+	) => {
+		const currentValues = filters[type];
+		const newFilterValues = currentValues.map((item, i) =>
+			i === filterIndex ? { ...item, isNot: !item.isNot } : item,
+		);
+		setArrayFilter(type, newFilterValues);
+	};
+
+	const handleClearFilterType = (type: keyof TasksFilters) => {
+		if (type === "dateRange") {
+			setDateRange(undefined);
+		} else {
+			setArrayFilter(type, []);
+		}
+	};
 
 	return (
 		<div className="flex items-center gap-2 flex-wrap">
 			{filters.status.map((item, index) => (
-				<SharedFilterChip<TaskStatus>
+				<SharedFilterChip
 					key={`status-${index}-${item.values.join(",")}`}
 					icon={getFilterConfig("status")?.displayIcon ?? (() => null)}
 					label="Status"
-					values={item.values as TaskStatus[]}
+					values={item.values}
 					isNot={item.isNot}
-					onToggleIsNot={() => toggleFilterIsNot("status", index)}
-					onToggleValue={(value) => toggleFilterValue("status", index, value)}
+					onToggleIsNot={() => handleToggleFilterIsNot("status", index)}
+					onToggleValue={(value) =>
+						handleToggleFilterValue("status", index, value)
+					}
 					onRemove={() => {
 						item.values.forEach((value) => {
-							toggleFilter("status", value);
+							handleToggleFilter("status", value);
 						});
 					}}
-					renderValue={(value) => getStatusBadge(value as TaskStatus)}
+					renderValue={(value) => getStatusBadge(value)}
 					wrapValueButton={(button) => (
 						<TasksFilterValueSelector
 							type="status"
-							selectedValues={item.values as TaskStatus[]}
+							selectedValues={item.values}
 							onToggleValue={(value) =>
-								toggleFilterValue("status", index, value as TaskStatus)
+								handleToggleFilterValue("status", index, value)
 							}
 						>
 							{button}
@@ -84,30 +169,32 @@ export function TasksFilterChips() {
 			))}
 
 			{filters.priority.map((item, index) => (
-				<SharedFilterChip<TaskPriority>
+				<SharedFilterChip
 					key={`priority-${index}-${item.values.join(",")}`}
 					icon={getFilterConfig("priority")?.displayIcon ?? (() => null)}
 					label="Priority"
-					values={item.values as TaskPriority[]}
+					values={item.values}
 					isNot={item.isNot}
-					onToggleIsNot={() => toggleFilterIsNot("priority", index)}
-					onToggleValue={(value) => toggleFilterValue("priority", index, value)}
+					onToggleIsNot={() => handleToggleFilterIsNot("priority", index)}
+					onToggleValue={(value) =>
+						handleToggleFilterValue("priority", index, value)
+					}
 					onRemove={() => {
 						item.values.forEach((value) => {
-							toggleFilter("priority", value);
+							handleToggleFilter("priority", value);
 						});
 					}}
 					renderValue={(value) => (
 						<span className="text-xs font-medium">
-							{getPriorityLabel(value as TaskPriority)}
+							{getPriorityLabel(value)}
 						</span>
 					)}
 					wrapValueButton={(button) => (
 						<TasksFilterValueSelector
 							type="priority"
-							selectedValues={item.values as TaskPriority[]}
+							selectedValues={item.values}
 							onToggleValue={(value) =>
-								toggleFilterValue("priority", index, value as TaskPriority)
+								handleToggleFilterValue("priority", index, value)
 							}
 						>
 							{button}
@@ -117,17 +204,19 @@ export function TasksFilterChips() {
 			))}
 
 			{filters.assignee.map((item, index) => (
-				<SharedFilterChip<string>
+				<SharedFilterChip
 					key={`assignee-${index}-${item.values.join(",")}`}
 					icon={getFilterConfig("assignee")?.displayIcon ?? (() => null)}
 					label="Assignee"
 					values={item.values}
 					isNot={item.isNot}
-					onToggleIsNot={() => toggleFilterIsNot("assignee", index)}
-					onToggleValue={(value) => toggleFilterValue("assignee", index, value)}
+					onToggleIsNot={() => handleToggleFilterIsNot("assignee", index)}
+					onToggleValue={(value) =>
+						handleToggleFilterValue("assignee", index, value)
+					}
 					onRemove={() => {
 						item.values.forEach((value) => {
-							toggleFilter("assignee", value);
+							handleToggleFilter("assignee", value);
 						});
 					}}
 					renderValue={(value) =>
@@ -138,7 +227,7 @@ export function TasksFilterChips() {
 							type="assignee"
 							selectedValues={item.values}
 							onToggleValue={(value) =>
-								toggleFilterValue("assignee", index, value)
+								handleToggleFilterValue("assignee", index, value)
 							}
 						>
 							{button}
@@ -148,17 +237,19 @@ export function TasksFilterChips() {
 			))}
 
 			{filters.labels.map((item, index) => (
-				<SharedFilterChip<string>
+				<SharedFilterChip
 					key={`labels-${index}-${item.values.join(",")}`}
 					icon={getFilterConfig("labels")?.displayIcon ?? (() => null)}
 					label="Labels"
 					values={item.values}
 					isNot={item.isNot}
-					onToggleIsNot={() => toggleFilterIsNot("labels", index)}
-					onToggleValue={(value) => toggleFilterValue("labels", index, value)}
+					onToggleIsNot={() => handleToggleFilterIsNot("labels", index)}
+					onToggleValue={(value) =>
+						handleToggleFilterValue("labels", index, value)
+					}
 					onRemove={() => {
 						item.values.forEach((value) => {
-							toggleFilter("labels", value);
+							handleToggleFilter("labels", value);
 						});
 					}}
 					renderValue={(value) => renderLabel(value, filterContext.labels)}
@@ -167,7 +258,7 @@ export function TasksFilterChips() {
 							type="labels"
 							selectedValues={item.values}
 							onToggleValue={(value) =>
-								toggleFilterValue("labels", index, value)
+								handleToggleFilterValue("labels", index, value)
 							}
 						>
 							{button}
@@ -177,17 +268,19 @@ export function TasksFilterChips() {
 			))}
 
 			{filters.owner.map((item, index) => (
-				<SharedFilterChip<string>
+				<SharedFilterChip
 					key={`owner-${index}-${item.values.join(",")}`}
 					icon={getFilterConfig("owner")?.displayIcon ?? (() => null)}
 					label="Owner"
 					values={item.values}
 					isNot={item.isNot}
-					onToggleIsNot={() => toggleFilterIsNot("owner", index)}
-					onToggleValue={(value) => toggleFilterValue("owner", index, value)}
+					onToggleIsNot={() => handleToggleFilterIsNot("owner", index)}
+					onToggleValue={(value) =>
+						handleToggleFilterValue("owner", index, value)
+					}
 					onRemove={() => {
 						item.values.forEach((value) => {
-							toggleFilter("owner", value);
+							handleToggleFilter("owner", value);
 						});
 					}}
 					renderValue={(value) =>
@@ -198,7 +291,7 @@ export function TasksFilterChips() {
 							type="owner"
 							selectedValues={item.values}
 							onToggleValue={(value) =>
-								toggleFilterValue("owner", index, value)
+								handleToggleFilterValue("owner", index, value)
 							}
 						>
 							{button}
@@ -211,13 +304,14 @@ export function TasksFilterChips() {
 				(filters.dateRange.start || filters.dateRange.end) && (
 					<SharedDateRangeFilterChip
 						dateRange={filters.dateRange}
-						onClear={() => clearFilterType("date")}
-						onIsNotToggle={() =>
-							setFilter("date", {
+						onClear={() => handleClearFilterType("dateRange")}
+						onIsNotToggle={() => {
+							if (!filters.dateRange) return;
+							setDateRange({
 								...filters.dateRange,
-								isNot: !(filters.dateRange?.isNot ?? false),
-							})
-						}
+								isNot: !filters.dateRange.isNot,
+							});
+						}}
 					/>
 				)}
 		</div>

@@ -5,30 +5,78 @@ import {
 	TASK_FILTER_TYPES,
 	getFilterValues,
 } from "@/lib/task-filter-definitions";
-import { useTasksPageContext } from "@/store/tasks-page-context";
+import { useTasksUrlContext } from "@/lib/tasks-url-context";
 import { TasksFilterSubMenu } from "./filter-sub-menu";
+import type { TasksFilters } from "@/lib/filter-types";
 
 export function TasksFilterPopover() {
-	const { filterStore } = useTasksPageContext();
+	const urlState = useTasksUrlContext();
 	const filterContext = useTaskFilterContext();
-	const filters = filterStore((state) => state.filters);
-	const toggleFilter = filterStore((state) => state.toggleFilter);
-	const clearFilters = filterStore((state) => state.clearFilters);
-	const getActiveFiltersCount = filterStore(
-		(state) => state.getActiveFiltersCount,
-	);
+	const { filters, setArrayFilter, clearFilters } = urlState;
 	const [open, setOpen] = useState(false);
 
+	type ArrayFilterKey = Exclude<keyof TasksFilters, "dateRange">;
+
+	const isArrayFilterKey = (type: string): type is ArrayFilterKey => {
+		switch (type) {
+			case "status":
+			case "priority":
+			case "assignee":
+			case "labels":
+			case "owner":
+			case "parentType":
+				return true;
+			default:
+				return false;
+		}
+	};
+
 	const handleToggleFilter = (type: string, value: string) => {
-		toggleFilter(type as "status" | "priority" | "assignee" | "labels", value);
+		if (!isArrayFilterKey(type)) return;
+		const currentValues = filters[type];
+		const existingItem = currentValues?.find((item) =>
+			item.values.includes(value),
+		);
+
+		if (existingItem) {
+			const newValues = existingItem.values.filter((v) => v !== value);
+			if (newValues.length === 0) {
+				const newFilterValues = (currentValues || []).filter(
+					(item) => !item.values.includes(value),
+				);
+				setArrayFilter(type, newFilterValues);
+			} else {
+				const newFilterValues = (currentValues || []).map((item) =>
+					item.values.includes(value) ? { ...item, values: newValues } : item,
+				);
+				setArrayFilter(type, newFilterValues);
+			}
+		} else {
+			const newFilterValues = [
+				...(currentValues || []),
+				{ values: [value], isNot: false },
+			];
+			setArrayFilter(type, newFilterValues);
+		}
 		setOpen(false);
 	};
 
 	const getSelectedValues = (type: string): string[] => {
-		const items = filters[type as keyof typeof filters] as
-			| { values: string[] }[]
-			| undefined;
+		if (!isArrayFilterKey(type)) return [];
+		const items = filters[type];
 		return items ? items.flatMap((i) => i.values) : [];
+	};
+
+	const getActiveFiltersCount = () => {
+		return (
+			filters.status.length +
+			filters.priority.length +
+			filters.assignee.length +
+			filters.labels.length +
+			filters.owner.length +
+			filters.parentType.length +
+			(filters.dateRange ? 1 : 0)
+		);
 	};
 
 	return (
@@ -45,11 +93,9 @@ export function TasksFilterPopover() {
 						key={filterType.id}
 						filterType={filterType}
 						filterCount={
-							(
-								filters[filterType.id as keyof typeof filters] as
-									| unknown[]
-									| undefined
-							)?.length ?? 0
+							isArrayFilterKey(filterType.id)
+								? filters[filterType.id].length
+								: 0
 						}
 						options={options}
 						selectedValues={getSelectedValues(filterType.id)}

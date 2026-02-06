@@ -57,7 +57,6 @@ function Index() {
 				</div>
 			</header>
 			<div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-				{/* Quick Stats Row */}
 				<div className="grid auto-rows-min gap-4 md:grid-cols-3">
 					<Card>
 						<CardHeader className="pb-2">
@@ -117,7 +116,6 @@ function Index() {
 					</Card>
 				</div>
 
-				{/* Widgets Grid */}
 				<div className="grid auto-rows-min gap-4 md:grid-cols-2">
 					<ActiveCompetitionsWidget />
 					<UpcomingDeadlinesWidget />
@@ -125,7 +123,6 @@ function Index() {
 					<AtRiskWidget />
 				</div>
 
-				{/* Full Width Activity Widget */}
 				<RecentActivityWidget />
 			</div>
 		</>

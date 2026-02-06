@@ -145,7 +145,23 @@ export function CompetitionTasksByPhase({
 								<>
 									<Separator />
 									<div className="rounded-md border border-border">
-										<TasksDataTable columns={columns} tasks={group.tasks} />
+										<TasksDataTable
+											columns={columns}
+											tasks={group.tasks}
+											filters={{
+												status: [],
+												priority: [],
+												assignee: [],
+												labels: [],
+												owner: [],
+												parentType: [],
+											}}
+											matchMode="all"
+											grouping={null}
+											subGrouping={null}
+											ordering={{ field: null, direction: "asc" }}
+											onOrderingChange={() => {}}
+										/>
 									</div>
 								</>
 							)}

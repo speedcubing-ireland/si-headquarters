@@ -15,32 +15,32 @@ import {
 import type { SharedFilterOption } from "./filter-option-row";
 import { SharedFilterOptionRow } from "./filter-option-row";
 
-type SharedFilterValueSelectorProps = {
+type SharedFilterValueSelectorProps<TValue extends string> = {
 	placeholder: string;
 	emptyMessage: string;
-	options: SharedFilterOption[];
-	selectedValues: string[];
-	onToggleValue: (value: string) => void;
+	options: SharedFilterOption<TValue>[];
+	selectedValues: TValue[];
+	onToggleValue: (value: TValue) => void;
 	children: React.ReactNode;
 };
 
-export function SharedFilterValueSelector({
+export function SharedFilterValueSelector<TValue extends string>({
 	placeholder,
 	emptyMessage,
 	options,
 	selectedValues,
 	onToggleValue,
 	children,
-}: SharedFilterValueSelectorProps) {
+}: SharedFilterValueSelectorProps<TValue>) {
 	const optionRows = useMemo(
 		() =>
 			options.map((option) => {
-				const value = String(option.value);
+				const value = option.value;
 				const isSelected = selectedValues.includes(value);
 				const handleSelect = () => onToggleValue(value);
 				return (
 					<SharedFilterOptionRow
-						key={value}
+						key={String(value)}
 						option={option}
 						isSelected={isSelected}
 						onSelect={handleSelect}

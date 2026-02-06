@@ -14,8 +14,8 @@ const userDocValidator = v.union(
 	}),
 );
 
-const appUserShape = v.object({
-	id: v.string(),
+export const appUserShape = v.object({
+	id: v.id("users"),
 	name: v.string(),
 	avatarUrl: v.string(),
 });

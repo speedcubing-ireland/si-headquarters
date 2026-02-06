@@ -1,9 +1,9 @@
-import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
+import type { Task } from "@/data/types-new";
 import type {
 	DateRangeFilter,
 	MatchMode,
 	TasksFilters,
-} from "@/store/tasks-filter-types";
+} from "@/lib/filter-types";
 import {
 	buildFilterItemMatcher,
 	hasDateRangeValue,
@@ -97,36 +97,37 @@ function filterTasks(
 		return tasks;
 	}
 
-	const matchesStatus = buildFilterItemMatcher<TaskStatus, Task>(
+	const matchesStatus = buildFilterItemMatcher(
 		filters.status,
-		(t) => t.status,
+		(t: Task) => t.status,
 		matchMode,
 	);
-	const matchesPriority = buildFilterItemMatcher<TaskPriority, Task>(
+	const matchesPriority = buildFilterItemMatcher(
 		filters.priority,
-		(t) => t.priority,
+		(t: Task) => t.priority,
 		matchMode,
 	);
-	const matchesAssignee = buildFilterItemMatcher<string, Task>(
+	const matchesAssignee = buildFilterItemMatcher(
 		filters.assignee,
-		(t) => t.assignee?.id,
+		(t: Task) => t.assignee?.id,
 		matchMode,
 	);
-	const matchesLabels = buildFilterItemMatcher<string, Task>(
+	const matchesLabels = buildFilterItemMatcher(
 		filters.labels,
-		(t) => t.labels.map((l) => l.id),
+		(t: Task) => t.labels.map((l) => l.id),
 		matchMode,
 	);
-	const matchesOwner = buildFilterItemMatcher<string, Task>(
+	const matchesOwner = buildFilterItemMatcher(
 		filters.owner,
-		(t) =>
+		(t: Task) =>
 			t.owner && "id" in t.owner ? (t.owner as { id: string }).id : undefined,
 		matchMode,
 	);
-	const matchesParentType = buildFilterItemMatcher<
-		"task" | "phase" | "competition",
-		Task
-	>(filters.parentType, (t) => t.parent?.type, matchMode);
+	const matchesParentType = buildFilterItemMatcher(
+		filters.parentType,
+		(t: Task) => t.parent?.type,
+		matchMode,
+	);
 	const matchesDate = buildDateMatcher(filters.dateRange);
 
 	const potentialMatchers: Array<((task: Task) => boolean) | false> = [

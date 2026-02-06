@@ -6,31 +6,59 @@ import {
 	filterConfigs,
 	getFilterOptions,
 } from "@/lib/filter-config";
+import { COMPETITION_PHASE_KEYS } from "@/data/types-new";
 
-type FilterValueSelectorProps<T> = {
+const isCompetitionPhaseKey = (value: string): boolean =>
+	COMPETITION_PHASE_KEYS.some((key) => key === value);
+
+function parseFilterValue(type: FilterType, value: string): string | null {
+	switch (type) {
+		case "phase":
+			return isCompetitionPhaseKey(value) ? value : null;
+		case "compLead":
+		case "leadDelegate":
+		case "organisers":
+			return value;
+		default:
+			return null;
+	}
+}
+
+type FilterValueSelectorProps = {
 	type: FilterType;
-	selectedValues: T[];
-	onToggleValue: (value: T) => void;
+	selectedValues: string[];
+	onToggleValue: (value: string) => void;
 	children: React.ReactNode;
 };
 
-export function FilterValueSelector<T extends string>({
+export function FilterValueSelector({
 	type,
 	selectedValues,
 	onToggleValue,
 	children,
-}: FilterValueSelectorProps<T>) {
+}: FilterValueSelectorProps) {
 	const config = filterConfigs[type];
 	const { users } = useUsers();
-	const options = mapToSharedFilterOptions(getFilterOptions(type, users));
+	const rawOptions = getFilterOptions(type, users);
+	const parsedOptions = rawOptions.flatMap((option) => {
+		const parsedValue = parseFilterValue(type, option.value);
+		if (!parsedValue) return [];
+		return [
+			{
+				...option,
+				value: parsedValue,
+			},
+		];
+	});
+	const options = mapToSharedFilterOptions(parsedOptions);
 
 	return (
 		<SharedFilterValueSelector
 			placeholder={config.placeholder}
 			emptyMessage={config.emptyMessage}
 			options={options}
-			selectedValues={selectedValues.map(String)}
-			onToggleValue={(value) => onToggleValue(value as T)}
+			selectedValues={selectedValues}
+			onToggleValue={onToggleValue}
 		>
 			{children}
 		</SharedFilterValueSelector>

@@ -2,14 +2,23 @@ import { Button } from "@/components/ui/button";
 import { TasksDisplaySettings } from "./display-settings";
 import { TasksFilterChips } from "./filter-chips";
 import { TasksFilterPopover } from "./filter-popover";
-import { useTasksPageContext } from "@/store/tasks-page-context";
+import { useTasksUrlContext } from "@/lib/tasks-url-context";
 
 export function FilterBar() {
-	const { filterStore } = useTasksPageContext();
+	const { matchMode, setMatchMode, filters } = useTasksUrlContext();
 
-	const matchMode = filterStore((state) => state.matchMode);
-	const toggleMatchMode = filterStore((state) => state.toggleMatchMode);
-	const hasActiveFilters = filterStore((state) => state.hasActiveFilters);
+	const hasActiveFilters =
+		filters.status.length > 0 ||
+		filters.priority.length > 0 ||
+		filters.assignee.length > 0 ||
+		filters.labels.length > 0 ||
+		filters.owner.length > 0 ||
+		filters.parentType.length > 0 ||
+		filters.dateRange !== undefined;
+
+	const toggleMatchMode = () => {
+		setMatchMode(matchMode === "any" ? "all" : "any");
+	};
 
 	return (
 		<>
@@ -21,7 +30,7 @@ export function FilterBar() {
 			</div>
 			<div className="flex items-center gap-2 shrink-0">
 				<TasksDisplaySettings />
-				{hasActiveFilters() && (
+				{hasActiveFilters && (
 					<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
 						{matchMode === "any" ? "Match any filter" : "Match all filters"}
 					</Button>

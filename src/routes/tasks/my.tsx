@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { Id } from "@/convex/_generated/dataModel";
 import { ListTodo } from "lucide-react";
 import { useUsers, useTeams, useCompetitions } from "@/hooks/use-convex-data";
 import { TasksPage } from "@/components/tasks/tasks-page";
@@ -41,7 +42,7 @@ function RouteComponent() {
 			}),
 		(t) =>
 			t.parent?.type === "competition" &&
-			myCompetitions.includes(t.parent.linkedId),
+			myCompetitions.includes(t.parent.linkedId as Id<"competitions">),
 	];
 
 	return (

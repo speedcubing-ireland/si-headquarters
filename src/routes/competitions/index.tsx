@@ -1,7 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { Box, Plus } from "lucide-react";
-import { useEffect } from "react";
-import { useQueryStates } from "nuqs";
 import { columns } from "@/components/competitions/columns";
 import { DataTable } from "@/components/competitions/data-table";
 import { DisplaySettings } from "@/components/competitions/display-settings";
@@ -15,27 +13,21 @@ import { SharedPageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useIsDetailRoute } from "@/hooks/use-is-detail-route";
 import { useListPageState } from "@/hooks/use-list-page-state";
-import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
-import { useDisplaySettingsStore } from "@/store/display-settings-store";
 import { useCompetitionsSavedViews } from "@/store/use-competitions-saved-views";
 import {
-	initializeCompetitionsStoreFromSearch,
-	useSyncCompetitionsFiltersToUrl,
-} from "@/lib/route-state";
-import { competitionsFilterParsers } from "@/lib/nuqs-parsers";
+	CompetitionsUrlProvider,
+	useCompetitionsUrlContext,
+} from "@/lib/competitions-url-context";
 import { useCreateModalsStore } from "@/store/create-modals-store";
+import {
+	parseDisplaySettingsJson,
+	parseFiltersJson,
+	serializeDisplaySettings,
+	serializeFilters,
+} from "@/lib/saved-view-utils";
+import { emptyCompetitionsFilters } from "@/lib/filter-types";
 
 export const Route = createFileRoute("/competitions/")({
-	onLeave: () => {
-		useCompetitionsFilterStore.getState().clearFilters();
-		useDisplaySettingsStore.getState().fromJSON(
-			JSON.stringify({
-				grouping: null,
-				subGrouping: null,
-				ordering: { field: null, direction: "asc" },
-			}),
-		);
-	},
 	component: RouteComponent,
 });
 
@@ -74,13 +66,18 @@ function PageHeader({
 }
 
 function FiltersContent() {
-	const matchMode = useCompetitionsFilterStore((state) => state.matchMode);
-	const toggleMatchMode = useCompetitionsFilterStore(
-		(state) => state.toggleMatchMode,
-	);
-	const hasActiveFilters = useCompetitionsFilterStore(
-		(state) => state.hasActiveFilters,
-	);
+	const { matchMode, setMatchMode, filters } = useCompetitionsUrlContext();
+
+	const hasActiveFilters =
+		filters.phase.length > 0 ||
+		filters.compLead.length > 0 ||
+		filters.leadDelegate.length > 0 ||
+		filters.organisers.length > 0 ||
+		filters.dateRange !== undefined;
+
+	const toggleMatchMode = () => {
+		setMatchMode(matchMode === "any" ? "all" : "any");
+	};
 
 	return (
 		<>
@@ -92,7 +89,7 @@ function FiltersContent() {
 			</div>
 			<div className="flex items-center gap-2 shrink-0">
 				<DisplaySettings />
-				{hasActiveFilters() && (
+				{hasActiveFilters && (
 					<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
 						{matchMode === "any" ? "Match any filter" : "Match all filters"}
 					</Button>
@@ -102,30 +99,31 @@ function FiltersContent() {
 	);
 }
 
-function RouteComponent() {
+function RouteComponentInner() {
 	const savedViews = useCompetitionsSavedViews();
+	const urlState = useCompetitionsUrlContext();
 	const listState = useListPageState({
-		filterStore: useCompetitionsFilterStore,
-		displayStore: useDisplaySettingsStore,
 		savedViews,
-	});
-
-	const [search] = useQueryStates(competitionsFilterParsers);
-
-	useEffect(() => {
-		initializeCompetitionsStoreFromSearch(
-			search as Parameters<typeof initializeCompetitionsStoreFromSearch>[0],
-			useCompetitionsFilterStore,
-			useDisplaySettingsStore,
-			savedViews,
-		);
-	}, []);
-
-	useSyncCompetitionsFiltersToUrl({
-		filterStore: useCompetitionsFilterStore,
-		displayStore: useDisplaySettingsStore,
-		savedViews,
-		activeViewId: savedViews.activeViewId,
+		getFiltersJson: () =>
+			serializeFilters(urlState.filters, urlState.matchMode),
+		getDisplaySettingsJson: () =>
+			serializeDisplaySettings(urlState.displaySettings),
+		restoreFiltersJson: (json) => {
+			const parsed = parseFiltersJson(json, emptyCompetitionsFilters);
+			urlState.setArrayFilter("phase", parsed.filters.phase);
+			urlState.setArrayFilter("compLead", parsed.filters.compLead);
+			urlState.setArrayFilter("leadDelegate", parsed.filters.leadDelegate);
+			urlState.setArrayFilter("organisers", parsed.filters.organisers);
+			urlState.setDateRange(parsed.filters.dateRange);
+			urlState.setMatchMode(parsed.matchMode);
+		},
+		restoreDisplaySettingsJson: (json) => {
+			const parsed = parseDisplaySettingsJson(json);
+			urlState.setGrouping(parsed.grouping);
+			urlState.setSubGrouping(parsed.subGrouping);
+			urlState.setOrdering(parsed.ordering.field, parsed.ordering.direction);
+		},
+		resetAll: urlState.clearAll,
 	});
 
 	const isDetailRoute = useIsDetailRoute("competitions");
@@ -156,7 +154,7 @@ function RouteComponent() {
 						onViewSelect={listState.handleViewSelect}
 						onViewDelete={savedViews.deleteView}
 						onStartCreateView={listState.handleStartCreateView}
-						onAllComps={listState.handleResetAll}
+						onAllComps={urlState.clearAll}
 					/>
 				}
 				filtersRow={<FiltersContent />}
@@ -164,5 +162,13 @@ function RouteComponent() {
 				modal={null}
 			/>
 		</CreateViewProvider>
+	);
+}
+
+function RouteComponent() {
+	return (
+		<CompetitionsUrlProvider>
+			<RouteComponentInner />
+		</CompetitionsUrlProvider>
 	);
 }

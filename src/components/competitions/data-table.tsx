@@ -8,31 +8,21 @@ import {
 import { useCompetitions } from "@/hooks/use-convex-data";
 import type { Competition } from "@/data/types-new";
 import { filterCompetitionsWithState } from "@/lib/competitions-filters";
-import { useCompetitionsFilterStore } from "@/store/competitions-filter-store";
-import { useDisplaySettingsStore } from "@/store/display-settings-store";
+import { useCompetitionsUrlContext } from "@/lib/competitions-url-context";
 
-interface DataTableProps<TData, TValue> {
-	columns: ColumnDef<TData, TValue>[];
+interface DataTableProps {
+	columns: ColumnDef<Competition, unknown>[];
 }
 
-export function DataTable<TData, TValue>({
-	columns,
-}: DataTableProps<TData, TValue>) {
-	const filters = useCompetitionsFilterStore((state) => state.filters);
-	const matchMode = useCompetitionsFilterStore((state) => state.matchMode);
+export function DataTable({ columns }: DataTableProps) {
+	const { filters, matchMode, displaySettings, setOrdering } =
+		useCompetitionsUrlContext();
+
 	const filterState = useMemo(
 		() => ({ ...filters, matchMode }),
 		[filters, matchMode],
 	);
 
-	const grouping = useDisplaySettingsStore((state) => state.grouping);
-	const subGrouping = useDisplaySettingsStore((state) => state.subGrouping);
-	const ordering = useDisplaySettingsStore((state) => state.ordering);
-	const displaySettings = useMemo(
-		() => ({ grouping, subGrouping, ordering }),
-		[grouping, subGrouping, ordering],
-	);
-	const setOrdering = useDisplaySettingsStore((state) => state.setOrdering);
 	const router = useRouter();
 	const { competitions } = useCompetitions();
 
@@ -57,7 +47,7 @@ export function DataTable<TData, TValue>({
 
 	return (
 		<SharedDataTable<Competition, typeof filterState>
-			columns={columns as ColumnDef<Competition, unknown>[]}
+			columns={columns}
 			data={competitions}
 			filterState={filterState}
 			filterFn={filterFn}

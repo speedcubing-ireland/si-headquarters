@@ -3,33 +3,36 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireUserId } from "./auth";
 import { internal } from "./_generated/api";
+import { REMINDER_PATTERNS } from "./lib/constants";
+import type { Infer } from "convex/values";
+import {
+	reminderStatus,
+	reminderType,
+	reminderMetadata,
+	reminderRecurringConfig,
+} from "./lib/validators";
 
 const DAYS_PER_WEEK = 7;
 const PRIORITY_NORMAL = "normal";
 
 const toISO = (ms: number) => new Date(ms).toISOString();
 
-const reminderReturns = v.object({
+export const reminderReturns = v.object({
 	id: v.string(),
 	userId: v.string(),
 	entityType: v.literal("task"),
 	entityId: v.string(),
-	type: v.union(v.literal("one_time"), v.literal("recurring")),
+	type: reminderType,
 	remindAt: v.string(),
 	recurringPattern: v.optional(v.string()),
-	recurringConfig: v.optional(v.any()),
+	recurringConfig: reminderRecurringConfig,
 	endDate: v.optional(v.string()),
-	status: v.union(
-		v.literal("pending"),
-		v.literal("triggered"),
-		v.literal("dismissed"),
-		v.literal("completed"),
-	),
+	status: reminderStatus,
 	triggeredAt: v.optional(v.string()),
 	dismissedAt: v.optional(v.string()),
 	message: v.optional(v.string()),
 	priority: v.string(),
-	metadata: v.optional(v.any()),
+	metadata: reminderMetadata,
 	createdAt: v.string(),
 	updatedAt: v.string(),
 });
@@ -61,14 +64,14 @@ function docToReminder(d: {
 		type: d.type,
 		remindAt: toISO(d.remindAt),
 		recurringPattern: d.recurringPattern,
-		recurringConfig: d.recurringConfig,
+		recurringConfig: d.recurringConfig as Infer<typeof reminderRecurringConfig>,
 		endDate: d.endDate,
 		status: d.status,
 		triggeredAt: d.triggeredAt !== undefined ? toISO(d.triggeredAt) : undefined,
 		dismissedAt: d.dismissedAt !== undefined ? toISO(d.dismissedAt) : undefined,
 		message: d.message,
 		priority: d.priority,
-		metadata: d.metadata ?? {},
+		metadata: (d.metadata ?? {}) as Infer<typeof reminderMetadata>,
 		createdAt: toISO(d._creationTime),
 		updatedAt: toISO(d.updatedAt),
 	};
@@ -129,11 +132,11 @@ export const create = mutation({
 		type: v.union(v.literal("one_time"), v.literal("recurring")),
 		remindAt: v.string(),
 		recurringPattern: v.optional(v.string()),
-		recurringConfig: v.optional(v.any()),
+		recurringConfig: reminderRecurringConfig,
 		endDate: v.optional(v.string()),
 		message: v.optional(v.string()),
 		priority: v.optional(v.string()),
-		metadata: v.optional(v.any()),
+		metadata: reminderMetadata,
 	},
 	returns: v.id("reminders"),
 	handler: async (ctx, args) => {
@@ -294,11 +297,11 @@ function calculateNextReminderTime(
 ): number {
 	const nextDate = new Date(currentRemindAt);
 
-	if (pattern === "daily") {
+	if (pattern === REMINDER_PATTERNS.DAILY) {
 		nextDate.setDate(nextDate.getDate() + 1);
-	} else if (pattern === "weekly") {
+	} else if (pattern === REMINDER_PATTERNS.WEEKLY) {
 		nextDate.setDate(nextDate.getDate() + DAYS_PER_WEEK);
-	} else if (pattern === "monthly") {
+	} else if (pattern === REMINDER_PATTERNS.MONTHLY) {
 		nextDate.setMonth(nextDate.getMonth() + 1);
 	} else {
 		nextDate.setDate(nextDate.getDate() + 1);

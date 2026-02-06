@@ -1,28 +1,28 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { requireUserId } from "./auth";
+import type { Infer } from "convex/values";
+import { notificationStatus, notificationMetadata } from "./lib/validators";
 
 const toISO = (ms: number) => new Date(ms).toISOString();
 
-const notificationReturns = v.object({
+type NotificationMetadata = Infer<typeof notificationMetadata>;
+
+export const notificationReturns = v.object({
 	id: v.string(),
 	userId: v.string(),
 	type: v.string(),
 	priority: v.string(),
-	status: v.union(
-		v.literal("unread"),
-		v.literal("read"),
-		v.literal("archived"),
-	),
+	status: notificationStatus,
 	title: v.string(),
 	message: v.string(),
 	body: v.optional(v.string()),
 	entityType: v.string(),
 	entityId: v.string(),
 	parentEntityId: v.optional(v.string()),
-	metadata: v.optional(v.any()),
+	metadata: notificationMetadata,
 	createdAt: v.string(),
 	readAt: v.optional(v.string()),
 	archivedAt: v.optional(v.string()),
@@ -44,7 +44,7 @@ function docToNotification(d: {
 	entityType: string;
 	entityId: string;
 	parentEntityId?: string;
-	metadata?: unknown;
+	metadata?: NotificationMetadata;
 	readAt?: number;
 	archivedAt?: number;
 	scheduledFor?: number;
@@ -148,10 +148,7 @@ export const markAllRead = mutation({
 		const now = Date.now();
 		await Promise.all(
 			docs.map((d) =>
-				ctx.db.patch("notifications", d._id, {
-					status: "read",
-					readAt: now,
-				}),
+				ctx.db.patch("notifications", d._id, { status: "read", readAt: now }),
 			),
 		);
 		return null;
@@ -175,41 +172,6 @@ export const dismiss = mutation({
 	},
 });
 
-export const create = mutation({
-	args: {
-		type: v.string(),
-		priority: v.string(),
-		title: v.string(),
-		message: v.string(),
-		body: v.optional(v.string()),
-		entityType: v.string(),
-		entityId: v.string(),
-		parentEntityId: v.optional(v.string()),
-		metadata: v.optional(v.any()),
-		isBatchable: v.optional(v.boolean()),
-		batchKey: v.optional(v.string()),
-	},
-	returns: v.id("notifications"),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		return await ctx.db.insert("notifications", {
-			userId,
-			type: args.type,
-			priority: args.priority ?? "normal",
-			status: "unread",
-			title: args.title,
-			message: args.message,
-			body: args.body,
-			entityType: args.entityType,
-			entityId: args.entityId,
-			parentEntityId: args.parentEntityId,
-			metadata: args.metadata,
-			isBatchable: args.isBatchable ?? false,
-			batchKey: args.batchKey,
-		});
-	},
-});
-
 const STATUS_LABELS: Record<string, string> = {
 	backlog: "Backlog",
 	"to-do": "To Do",
@@ -219,25 +181,25 @@ const STATUS_LABELS: Record<string, string> = {
 	cancelled: "Cancelled",
 };
 
-const APPROACHING_THRESHOLD_MS = 48 * 60 * 60 * 1000;
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const PROGRESS_STATUS_LABELS: Record<string, string> = {
+	"on-track": "On track",
+	"at-risk": "At risk",
+	"off-track": "Off track",
+};
 
 async function getActorInfo(
-	ctx: {
-		db: {
-			get: (
-				table: "users",
-				id: Id<"users">,
-			) => Promise<{ name: string | null; image: string | null } | null>;
-		};
-	},
+	ctx: Pick<MutationCtx, "db">,
 	actorId: Id<"users"> | null,
-): Promise<{ actorId?: string; actorName?: string; actorAvatarUrl?: string }> {
+): Promise<{
+	actorId?: Id<"users">;
+	actorName?: string;
+	actorAvatarUrl?: string;
+}> {
 	if (!actorId) return {};
 	const user = await ctx.db.get("users", actorId);
 	if (!user) return {};
 	return {
-		actorId: actorId,
+		actorId,
 		actorName: user.name ?? undefined,
 		actorAvatarUrl: user.image ?? undefined,
 	};
@@ -255,40 +217,210 @@ function getPriorityFromTaskPriority(
 	return "normal";
 }
 
-export const _createNotification = internalMutation({
+type TaskInfo = Pick<Doc<"tasks">, "_id" | "identifier" | "title" | "priority">;
+type CompetitionInfo = Pick<Doc<"competitions">, "_id" | "name">;
+type ActorInfo = {
+	actorId?: Id<"users">;
+	actorName?: string;
+	actorAvatarUrl?: string;
+};
+
+const NotificationTemplates = {
+	task_assigned: (task: TaskInfo, actor: ActorInfo) => ({
+		title: `Assigned to ${task.identifier}`,
+		message: `${actor.actorName ?? "Someone"} assigned you to task ${task.identifier}: ${task.title}`,
+		priority: getPriorityFromTaskPriority(task.priority),
+		entityType: "task",
+		metadata: actor,
+	}),
+
+	task_unassigned: (task: TaskInfo, actor: ActorInfo) => ({
+		title: `Unassigned from ${task.identifier}`,
+		message: `${actor.actorName ?? "Someone"} unassigned you from task ${task.identifier}: ${task.title}`,
+		priority: "normal" as const,
+		entityType: "task",
+		metadata: actor,
+	}),
+
+	task_mentioned: (
+		task: TaskInfo,
+		actor: ActorInfo,
+		_commentId: Id<"comments">,
+	) => ({
+		title: `Mentioned in ${task.identifier}`,
+		message: `${actor.actorName ?? "Someone"} mentioned you in a comment on task ${task.identifier}: ${task.title}`,
+		priority: "normal" as const,
+		entityType: "comment",
+		parentEntityId: task._id,
+		metadata: actor,
+	}),
+
+	comment_added: (
+		task: TaskInfo,
+		actor: ActorInfo,
+		_commentId: Id<"comments">,
+	) => ({
+		title: `New comment on ${task.identifier}`,
+		message: `${actor.actorName ?? "Someone"} added a comment on task ${task.identifier}: ${task.title}`,
+		priority: "normal" as const,
+		entityType: "comment",
+		parentEntityId: task._id,
+		metadata: actor,
+	}),
+
+	task_status_changed: (
+		task: TaskInfo,
+		actor: ActorInfo,
+		oldStatus: string,
+		newStatus: string,
+	) => {
+		const oldLabel = STATUS_LABELS[oldStatus] ?? oldStatus;
+		const newLabel = STATUS_LABELS[newStatus] ?? newStatus;
+		return {
+			title: `${task.identifier} status changed`,
+			message: `${actor.actorName ?? "Someone"} moved task ${task.identifier} from "${oldLabel}" to "${newLabel}": ${task.title}`,
+			priority: "normal" as const,
+			entityType: "task",
+			metadata: { ...actor, oldValue: oldStatus, newValue: newStatus },
+		};
+	},
+
+	task_awaiting_review: (task: TaskInfo, actor: ActorInfo) => ({
+		title: `${task.identifier} awaiting your review`,
+		message: `${actor.actorName ?? "Someone"} marked task ${task.identifier} as awaiting review: ${task.title}`,
+		priority: "normal" as const,
+		entityType: "task",
+		metadata: actor,
+	}),
+
+	due_date_approaching: (task: TaskInfo, daysUntil: number) => ({
+		title: `${task.identifier} due soon`,
+		message: `Task ${task.identifier}: ${task.title} is due in ${formatDaysText(daysUntil)}`,
+		priority: daysUntil <= 1 ? "high" : "normal",
+		entityType: "task",
+		metadata: {},
+		isBatchable: true,
+		batchKey: `due_date_${task._id}`,
+	}),
+
+	due_date_overdue: (task: TaskInfo, daysOverdue: number) => ({
+		title: `${task.identifier} is overdue`,
+		message: `Task ${task.identifier}: ${task.title} is ${formatDaysText(daysOverdue)} overdue`,
+		priority: "urgent" as const,
+		entityType: "task",
+		metadata: {},
+		isBatchable: true,
+		batchKey: `due_date_${task._id}`,
+	}),
+
+	competition_phase_changed: (
+		competition: CompetitionInfo,
+		actor: ActorInfo,
+		oldPhase: string,
+		newPhase: string,
+	) => ({
+		title: `${competition.name} phase changed`,
+		message: `${actor.actorName ?? "Someone"} moved ${competition.name} from "${oldPhase}" to "${newPhase}"`,
+		priority: "normal" as const,
+		entityType: "competition",
+		metadata: { ...actor, oldValue: oldPhase, newValue: newPhase },
+	}),
+
+	progress_update_added: (
+		competition: CompetitionInfo,
+		actor: ActorInfo,
+		status: string,
+	) => {
+		const statusLabel = PROGRESS_STATUS_LABELS[status] ?? status;
+		return {
+			title: `Progress update: ${competition.name}`,
+			message: `${actor.actorName ?? "Someone"} posted a ${statusLabel} update for ${competition.name}`,
+			priority: "normal" as const,
+			entityType: "competition",
+			metadata: { ...actor, newValue: status },
+		};
+	},
+
+	reminder_triggered: (
+		task: TaskInfo | null,
+		taskId: string,
+		message?: string,
+	) => ({
+		title: `Reminder: ${task ? `${task.identifier}: ${task.title}` : taskId}`,
+		message:
+			message ??
+			`Reminder for task ${task ? `${task.identifier}: ${task.title}` : taskId}`,
+		priority: task ? getPriorityFromTaskPriority(task.priority) : "normal",
+		entityType: "task",
+		parentEntityId: taskId,
+		metadata: {},
+	}),
+};
+
+type TaskNotificationType =
+	| "task_assigned"
+	| "task_unassigned"
+	| "task_mentioned"
+	| "comment_added"
+	| "task_status_changed"
+	| "task_awaiting_review";
+
+async function createTaskNotification(
+	ctx: MutationCtx,
+	type: TaskNotificationType,
 	args: {
-		userId: v.id("users"),
-		type: v.string(),
-		priority: v.string(),
-		title: v.string(),
-		message: v.string(),
-		body: v.optional(v.string()),
-		entityType: v.string(),
-		entityId: v.string(),
-		parentEntityId: v.optional(v.string()),
-		metadata: v.optional(v.any()),
-		isBatchable: v.optional(v.boolean()),
-		batchKey: v.optional(v.string()),
+		taskId: Id<"tasks">;
+		recipientId: Id<"users">;
+		actorId: Id<"users">;
+		commentId?: Id<"comments">;
+		oldStatus?: string;
+		newStatus?: string;
 	},
-	returns: v.id("notifications"),
-	handler: async (ctx, args) => {
-		return await ctx.db.insert("notifications", {
-			userId: args.userId,
-			type: args.type,
-			priority: args.priority,
-			status: "unread",
-			title: args.title,
-			message: args.message,
-			body: args.body,
-			entityType: args.entityType,
-			entityId: args.entityId,
-			parentEntityId: args.parentEntityId,
-			metadata: args.metadata,
-			isBatchable: args.isBatchable ?? false,
-			batchKey: args.batchKey,
-		});
-	},
-});
+): Promise<Id<"notifications"> | null> {
+	const task = await ctx.db.get("tasks", args.taskId);
+	if (!task) return null;
+
+	const actor = await getActorInfo(ctx, args.actorId);
+	const template = NotificationTemplates[type];
+
+	let config: ReturnType<typeof template>;
+	if (type === "task_mentioned" || type === "comment_added") {
+		const commentId = args.commentId;
+		if (commentId === undefined) return null;
+		config = (
+			template as (
+				task: TaskInfo,
+				actor: ActorInfo,
+				commentId: Id<"comments">,
+			) => ReturnType<typeof template>
+		)(task, actor, commentId);
+	} else if (type === "task_status_changed") {
+		config = (
+			template as (
+				task: TaskInfo,
+				actor: ActorInfo,
+				oldStatus: string,
+				newStatus: string,
+			) => ReturnType<typeof template>
+		)(task, actor, args.oldStatus as string, args.newStatus as string);
+	} else {
+		config = (
+			template as (
+				task: TaskInfo,
+				actor: ActorInfo,
+			) => ReturnType<typeof template>
+		)(task, actor);
+	}
+
+	return ctx.db.insert("notifications", {
+		userId: args.recipientId,
+		type,
+		status: "unread",
+		entityId: args.taskId,
+		isBatchable: false,
+		...config,
+	});
+}
 
 export const _notifyTaskAssigned = internalMutation({
 	args: {
@@ -297,30 +429,12 @@ export const _notifyTaskAssigned = internalMutation({
 		actorId: v.id("users"),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) return null;
-
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
-
-		return await ctx.db.insert("notifications", {
-			userId: args.assigneeId,
-			type: "task_assigned",
-			priority: getPriorityFromTaskPriority(task.priority),
-			status: "unread",
-			title: `Assigned to ${task.identifier}`,
-			message: `${actorName} assigned you to task ${task.identifier}: ${task.title}`,
-			entityType: "task",
-			entityId: args.taskId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-			},
-			isBatchable: false,
-		});
-	},
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "task_assigned", {
+			taskId: args.taskId,
+			recipientId: args.assigneeId,
+			actorId: args.actorId,
+		}),
 });
 
 export const _notifyTaskUnassigned = internalMutation({
@@ -330,30 +444,12 @@ export const _notifyTaskUnassigned = internalMutation({
 		actorId: v.id("users"),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) return null;
-
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
-
-		return await ctx.db.insert("notifications", {
-			userId: args.assigneeId,
-			type: "task_unassigned",
-			priority: "normal",
-			status: "unread",
-			title: `Unassigned from ${task.identifier}`,
-			message: `${actorName} unassigned you from task ${task.identifier}: ${task.title}`,
-			entityType: "task",
-			entityId: args.taskId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-			},
-			isBatchable: false,
-		});
-	},
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "task_unassigned", {
+			taskId: args.taskId,
+			recipientId: args.assigneeId,
+			actorId: args.actorId,
+		}),
 });
 
 export const _notifyTaskMentioned = internalMutation({
@@ -364,31 +460,11 @@ export const _notifyTaskMentioned = internalMutation({
 		actorId: v.id("users"),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) return null;
-
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
-
-		return await ctx.db.insert("notifications", {
-			userId: args.mentionedUserId,
-			type: "task_mentioned",
-			priority: "normal",
-			status: "unread",
-			title: `Mentioned in ${task.identifier}`,
-			message: `${actorName} mentioned you in a comment on task ${task.identifier}: ${task.title}`,
-			entityType: "comment",
-			entityId: args.commentId,
-			parentEntityId: args.taskId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-			},
-			isBatchable: false,
-		});
-	},
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "task_mentioned", {
+			...args,
+			recipientId: args.mentionedUserId,
+		}),
 });
 
 export const _notifyCommentAdded = internalMutation({
@@ -399,31 +475,8 @@ export const _notifyCommentAdded = internalMutation({
 		actorId: v.id("users"),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) return null;
-
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
-
-		return await ctx.db.insert("notifications", {
-			userId: args.recipientId,
-			type: "comment_added",
-			priority: "normal",
-			status: "unread",
-			title: `New comment on ${task.identifier}`,
-			message: `${actorName} added a comment on task ${task.identifier}: ${task.title}`,
-			entityType: "comment",
-			entityId: args.commentId,
-			parentEntityId: args.taskId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-			},
-			isBatchable: false,
-		});
-	},
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "comment_added", args),
 });
 
 export const _notifyTaskStatusChanged = internalMutation({
@@ -435,34 +488,8 @@ export const _notifyTaskStatusChanged = internalMutation({
 		newStatus: v.string(),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) return null;
-
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
-		const oldLabel = STATUS_LABELS[args.oldStatus] ?? args.oldStatus;
-		const newLabel = STATUS_LABELS[args.newStatus] ?? args.newStatus;
-
-		return await ctx.db.insert("notifications", {
-			userId: args.recipientId,
-			type: "task_status_changed",
-			priority: "normal",
-			status: "unread",
-			title: `${task.identifier} status changed`,
-			message: `${actorName} moved task ${task.identifier} from "${oldLabel}" to "${newLabel}": ${task.title}`,
-			entityType: "task",
-			entityId: args.taskId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-				oldValue: args.oldStatus,
-				newValue: args.newStatus,
-			},
-			isBatchable: false,
-		});
-	},
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "task_status_changed", args),
 });
 
 export const _notifyTaskAwaitingReview = internalMutation({
@@ -472,30 +499,8 @@ export const _notifyTaskAwaitingReview = internalMutation({
 		actorId: v.id("users"),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) return null;
-
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
-
-		return await ctx.db.insert("notifications", {
-			userId: args.recipientId,
-			type: "task_awaiting_review",
-			priority: "normal",
-			status: "unread",
-			title: `${task.identifier} awaiting your review`,
-			message: `${actorName} marked task ${task.identifier} as awaiting review: ${task.title}`,
-			entityType: "task",
-			entityId: args.taskId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-			},
-			isBatchable: false,
-		});
-	},
+	handler: async (ctx, args) =>
+		createTaskNotification(ctx, "task_awaiting_review", args),
 });
 
 export const _notifyDueDateApproaching = internalMutation({
@@ -509,18 +514,16 @@ export const _notifyDueDateApproaching = internalMutation({
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task?.dueDate) return null;
 
-		return await ctx.db.insert("notifications", {
+		const config = NotificationTemplates.due_date_approaching(
+			task,
+			args.daysUntil,
+		);
+		return ctx.db.insert("notifications", {
 			userId: args.assigneeId,
 			type: "due_date_approaching",
-			priority: args.daysUntil <= 1 ? "high" : "normal",
 			status: "unread",
-			title: `${task.identifier} due soon`,
-			message: `Task ${task.identifier}: ${task.title} is due in ${formatDaysText(args.daysUntil)}`,
-			entityType: "task",
 			entityId: args.taskId,
-			metadata: {},
-			isBatchable: true,
-			batchKey: `due_date_${args.taskId}`,
+			...config,
 		});
 	},
 });
@@ -536,18 +539,16 @@ export const _notifyDueDateOverdue = internalMutation({
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task?.dueDate) return null;
 
-		return await ctx.db.insert("notifications", {
+		const config = NotificationTemplates.due_date_overdue(
+			task,
+			args.daysOverdue,
+		);
+		return ctx.db.insert("notifications", {
 			userId: args.assigneeId,
 			type: "due_date_overdue",
-			priority: "urgent",
 			status: "unread",
-			title: `${task.identifier} is overdue`,
-			message: `Task ${task.identifier}: ${task.title} is ${formatDaysText(args.daysOverdue)} overdue`,
-			entityType: "task",
 			entityId: args.taskId,
-			metadata: {},
-			isBatchable: true,
-			batchKey: `due_date_${args.taskId}`,
+			...config,
 		});
 	},
 });
@@ -565,35 +566,24 @@ export const _notifyCompetitionPhaseChanged = internalMutation({
 		const competition = await ctx.db.get("competitions", args.competitionId);
 		if (!competition) return null;
 
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
+		const actor = await getActorInfo(ctx, args.actorId);
+		const config = NotificationTemplates.competition_phase_changed(
+			competition,
+			actor,
+			args.oldPhaseName,
+			args.newPhaseName,
+		);
 
-		return await ctx.db.insert("notifications", {
+		return ctx.db.insert("notifications", {
 			userId: args.recipientId,
 			type: "competition_phase_changed",
-			priority: "normal",
 			status: "unread",
-			title: `${competition.name} phase changed`,
-			message: `${actorName} moved ${competition.name} from "${args.oldPhaseName}" to "${args.newPhaseName}"`,
-			entityType: "competition",
 			entityId: args.competitionId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-				oldValue: args.oldPhaseName,
-				newValue: args.newPhaseName,
-			},
+			...config,
 			isBatchable: false,
 		});
 	},
 });
-
-const PROGRESS_STATUS_LABELS: Record<string, string> = {
-	"on-track": "On track",
-	"at-risk": "At risk",
-	"off-track": "Off track",
-};
 
 export const _notifyProgressUpdateAdded = internalMutation({
 	args: {
@@ -609,25 +599,19 @@ export const _notifyProgressUpdateAdded = internalMutation({
 	},
 	returns: v.union(v.id("notifications"), v.null()),
 	handler: async (ctx, args) => {
-		const actorInfo = await getActorInfo(ctx, args.actorId);
-		const actorName = actorInfo.actorName ?? "Someone";
-		const statusLabel = PROGRESS_STATUS_LABELS[args.status] ?? args.status;
+		const actor = await getActorInfo(ctx, args.actorId);
+		const config = NotificationTemplates.progress_update_added(
+			{ _id: args.competitionId, name: args.competitionName },
+			actor,
+			args.status,
+		);
 
-		return await ctx.db.insert("notifications", {
+		return ctx.db.insert("notifications", {
 			userId: args.recipientId,
 			type: "progress_update_added",
-			priority: "normal",
 			status: "unread",
-			title: `Progress update: ${args.competitionName}`,
-			message: `${actorName} posted a ${statusLabel} update for ${args.competitionName}`,
-			entityType: "competition",
 			entityId: args.competitionId,
-			metadata: {
-				actorId: args.actorId,
-				actorName: actorInfo.actorName,
-				actorAvatarUrl: actorInfo.actorAvatarUrl,
-				newValue: args.status,
-			},
+			...config,
 			isBatchable: false,
 		});
 	},
@@ -646,23 +630,27 @@ export const _notifyReminderTriggered = internalMutation({
 		if (!reminder) return null;
 
 		const task = await ctx.db.get("tasks", args.taskId as Id<"tasks">);
-		const taskTitle = task ? `${task.identifier}: ${task.title}` : args.taskId;
+		const config = NotificationTemplates.reminder_triggered(
+			task ?? null,
+			args.taskId,
+			args.message,
+		);
 
-		return await ctx.db.insert("notifications", {
+		return ctx.db.insert("notifications", {
 			userId: args.userId,
 			type: "reminder_triggered",
-			priority: getPriorityFromTaskPriority(reminder.priority),
 			status: "unread",
-			title: `Reminder: ${taskTitle}`,
-			message: args.message ?? `Reminder for task ${taskTitle}`,
-			entityType: "reminder",
 			entityId: args.reminderId,
-			parentEntityId: args.taskId,
-			metadata: {},
+			...config,
 			isBatchable: false,
 		});
 	},
 });
+
+import { NOTIFICATION_THRESHOLDS } from "./lib/constants";
+
+const { APPROACHING_MS: APPROACHING_THRESHOLD_MS, MS_PER_DAY } =
+	NOTIFICATION_THRESHOLDS;
 
 async function hasExistingDueDateNotification(
 	ctx: MutationCtx,
@@ -676,67 +664,12 @@ async function hasExistingDueDateNotification(
 			q.eq("userId", userId).eq("status", "unread"),
 		)
 		.collect();
-
 	return notifications.some(
 		(n) =>
 			n.type === type &&
 			n.entityId === taskId &&
 			n.batchKey === `due_date_${taskId}`,
 	);
-}
-
-async function createOverdueNotification(
-	ctx: MutationCtx,
-	task: {
-		_id: Id<"tasks">;
-		identifier: string;
-		title: string;
-		assigneeId?: Id<"users">;
-	},
-	daysOverdue: number,
-): Promise<void> {
-	if (!task.assigneeId) return;
-
-	await ctx.db.insert("notifications", {
-		userId: task.assigneeId,
-		type: "due_date_overdue",
-		priority: "urgent",
-		status: "unread",
-		title: `${task.identifier} is overdue`,
-		message: `Task ${task.identifier}: ${task.title} is ${formatDaysText(daysOverdue)} overdue`,
-		entityType: "task",
-		entityId: task._id,
-		metadata: {},
-		isBatchable: true,
-		batchKey: `due_date_${task._id}`,
-	});
-}
-
-async function createApproachingNotification(
-	ctx: MutationCtx,
-	task: {
-		_id: Id<"tasks">;
-		identifier: string;
-		title: string;
-		assigneeId?: Id<"users">;
-	},
-	daysUntil: number,
-): Promise<void> {
-	if (!task.assigneeId) return;
-
-	await ctx.db.insert("notifications", {
-		userId: task.assigneeId,
-		type: "due_date_approaching",
-		priority: daysUntil <= 1 ? "high" : "normal",
-		status: "unread",
-		title: `${task.identifier} due soon`,
-		message: `Task ${task.identifier}: ${task.title} is due in ${formatDaysText(daysUntil)}`,
-		entityType: "task",
-		entityId: task._id,
-		metadata: {},
-		isBatchable: true,
-		batchKey: `due_date_${task._id}`,
-	});
 }
 
 export const _checkDueDates = internalMutation({
@@ -748,7 +681,6 @@ export const _checkDueDates = internalMutation({
 			.query("tasks")
 			.withIndex("by_archived", (q) => q.eq("archived", false))
 			.collect();
-
 		let notificationCount = 0;
 
 		for (const task of tasks) {
@@ -767,7 +699,17 @@ export const _checkDueDates = internalMutation({
 					"due_date_overdue",
 				);
 				if (!hasExisting) {
-					await createOverdueNotification(ctx, task, daysOverdue);
+					const config = NotificationTemplates.due_date_overdue(
+						task,
+						daysOverdue,
+					);
+					await ctx.db.insert("notifications", {
+						userId: task.assigneeId,
+						type: "due_date_overdue",
+						status: "unread",
+						entityId: task._id,
+						...config,
+					});
 					notificationCount++;
 				}
 			} else if (diffMs <= APPROACHING_THRESHOLD_MS && diffMs > 0) {
@@ -778,7 +720,17 @@ export const _checkDueDates = internalMutation({
 					"due_date_approaching",
 				);
 				if (!hasExisting) {
-					await createApproachingNotification(ctx, task, daysDiff);
+					const config = NotificationTemplates.due_date_approaching(
+						task,
+						daysDiff,
+					);
+					await ctx.db.insert("notifications", {
+						userId: task.assigneeId,
+						type: "due_date_approaching",
+						status: "unread",
+						entityId: task._id,
+						...config,
+					});
 					notificationCount++;
 				}
 			}

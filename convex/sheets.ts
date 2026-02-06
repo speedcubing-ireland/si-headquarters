@@ -7,11 +7,10 @@ import type { GenericActionCtx } from "convex/server";
 import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 import { google } from "googleapis";
+import { SCHEDULE_CACHE_TTL_MS, TOKEN_VALID_BUFFER_SEC } from "./lib/constants";
 
 const RANGE = "Schedule!A6:B22";
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
-const SCHEDULE_CACHE_TTL_MS = 5 * 60 * 1000;
-const TOKEN_VALID_BUFFER_SEC = 60;
 
 type ScheduleEvent = { eventName: string; rounds: string };
 type CachedSchedule = { events: ScheduleEvent[]; fetchedAt: number } | null;

@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useRef, useContext, useCallback } from "react";
+import { useMemo, useRef, useCallback } from "react";
 import {
 	SharedDataTable,
 	type SharedDataTableProps,
@@ -8,13 +8,17 @@ import {
 import { useTasks } from "@/hooks/use-convex-data";
 import type { Task } from "@/data/types-new";
 import { filterTasksWithState } from "@/lib/task-filters";
-import { useTasksDisplaySettingsStore } from "@/store/tasks-display-settings-store";
-import { useTasksFilterStore } from "@/store/tasks-filter-store";
-import { TasksPageContext } from "@/store/tasks-page-context";
+import type { TasksFilters, MatchMode } from "@/lib/filter-types";
 
 interface TasksDataTableProps {
-	columns: ColumnDef<Task>[];
+	columns: ColumnDef<Task, unknown>[];
 	tasks?: Task[];
+	filters: TasksFilters;
+	matchMode: MatchMode;
+	grouping: string | null;
+	subGrouping: string | null;
+	ordering: { field: string | null; direction: "asc" | "desc" };
+	onOrderingChange: (field: string | null, direction: "asc" | "desc") => void;
 	enableRowSelection?: boolean;
 	rowSelection?: Record<string, boolean>;
 	onRowSelectionChange?: (rowSelection: Record<string, boolean>) => void;
@@ -22,50 +26,30 @@ interface TasksDataTableProps {
 	skipClientFiltering?: boolean;
 }
 
-function useTasksStores() {
-	const context = useContext(TasksPageContext);
-
-	if (context) {
-		return {
-			filterStore: context.filterStore,
-			displayStore: context.displayStore,
-			source: "context" as const,
-		};
-	}
-
-	return {
-		filterStore: useTasksFilterStore,
-		displayStore: useTasksDisplaySettingsStore,
-		source: "global" as const,
-	};
-}
-
 export function TasksDataTable({
 	columns,
 	tasks: overrideTasks,
+	filters,
+	matchMode,
+	grouping,
+	subGrouping,
+	ordering,
+	onOrderingChange,
 	enableRowSelection = false,
 	rowSelection,
 	onRowSelectionChange,
 	autoHideRowSelection = false,
 	skipClientFiltering = false,
 }: TasksDataTableProps) {
-	const { filterStore, displayStore } = useTasksStores();
-
-	const filters = filterStore((state) => state.filters);
-	const matchMode = filterStore((state) => state.matchMode);
 	const filterState = useMemo(
 		() => ({ filters, matchMode }),
 		[filters, matchMode],
 	);
 
-	const grouping = displayStore((state) => state.grouping);
-	const subGrouping = displayStore((state) => state.subGrouping);
-	const ordering = displayStore((state) => state.ordering);
 	const displaySettings = useMemo(
 		() => ({ grouping, subGrouping, ordering }),
 		[grouping, subGrouping, ordering],
 	);
-	const setOrdering = displayStore((state) => state.setOrdering);
 
 	const router = useRouter();
 	const { tasks: storeTasks } = useTasks(false);
@@ -95,7 +79,7 @@ export function TasksDataTable({
 	return (
 		<div ref={tableRef}>
 			<SharedDataTable<Task, typeof filterState>
-				columns={columns as ColumnDef<Task, unknown>[]}
+				columns={columns}
 				data={tasks}
 				filterState={filterState}
 				filterFn={filterFn}
@@ -103,7 +87,7 @@ export function TasksDataTable({
 				grouping={displaySettings.grouping}
 				subGrouping={displaySettings.subGrouping}
 				ordering={displaySettings.ordering}
-				setOrdering={setOrdering}
+				setOrdering={onOrderingChange}
 				containerClassName=""
 				cellPaddingXClassName="px-1"
 				showHeader={false}

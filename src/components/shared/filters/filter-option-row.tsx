@@ -5,27 +5,27 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 
-export type SharedFilterOption = {
-	value: string;
+export type SharedFilterOption<TValue extends string = string> = {
+	value: TValue;
 	label: string;
 	icon?: LucideIcon | null;
 	avatarUrl?: string;
 	color?: string;
 };
 
-type OptionLike = {
-	value: unknown;
+type OptionLike<TValue extends string> = {
+	value: TValue;
 	label: string;
 	icon?: LucideIcon | null;
 	avatarUrl?: string;
 	color?: string;
 };
 
-export function mapToSharedFilterOptions(
-	options: OptionLike[],
-): SharedFilterOption[] {
+export function mapToSharedFilterOptions<TValue extends string>(
+	options: OptionLike<TValue>[],
+): SharedFilterOption<TValue>[] {
 	return options.map((o) => ({
-		value: String(o.value),
+		value: o.value,
 		label: o.label,
 		icon: o.icon,
 		avatarUrl: o.avatarUrl,

@@ -1,4 +1,5 @@
 import { addDays, addMonths, format, startOfWeek, subMonths } from "date-fns";
+import type { Id } from "../../convex/_generated/dataModel";
 import type { Competition, NonCompWeekendInfo, Weekend } from "./types-new";
 import type { WeekendOverride } from "@/store/calendar-weekend-overrides-store";
 import { getCalendarWeekendRowKey } from "@/store/calendar-weekend-overrides-store";
@@ -57,11 +58,11 @@ export function buildCalendarWeekends(competitions: Competition[]): Weekend[] {
 		const comps = compsBySatKey.get(satKey) ?? [];
 		if (comps.length === 0) {
 			rows.push({
-				id: satKey,
+				id: satKey as Id<"weekendOverrides">,
 				satDate: satKey,
 				competition: null,
 				weekendInfo: {
-					id: satKey,
+					id: satKey as Id<"weekendOverrides">,
 					satDate: satKey,
 					eventNote: "",
 					reserved: false,
@@ -71,7 +72,7 @@ export function buildCalendarWeekends(competitions: Competition[]): Weekend[] {
 		} else {
 			for (const comp of comps) {
 				rows.push({
-					id: `${satKey}-${comp.id}`,
+					id: `${satKey}-${comp.id}` as Id<"weekendOverrides">,
 					satDate: satKey,
 					competition: comp,
 					weekendInfo: null,

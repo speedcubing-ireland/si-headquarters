@@ -36,6 +36,8 @@ import { useCreateModalsStore } from "@/store/create-modals-store";
 import type { Competition, Task, Team, User } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
 import { REMINDER_PRESETS } from "@/lib/reminder-presets";
+import { parseTaskId } from "@/lib/convex-ids";
+import type { Id } from "@/convex/_generated/dataModel";
 
 type TaskSearchItem = {
 	type: "task";
@@ -306,7 +308,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 									onSelect={() => {
 										void addReminder(
 											buildOneTimeReminderPayload(
-												currentTaskId,
+												parseTaskId(currentTaskId) as Id<"tasks">,
 												preset.getRemindAt(),
 											),
 										);

@@ -6,8 +6,51 @@ import { logActivity } from "./lib/activity";
 import { internal } from "./_generated/api";
 import { isDirectorForCtx } from "./admin";
 import { hasCompetitionAccess } from "./competitionAccess";
+import { toUsers, createLens, type UserUI } from "./lib/transforms";
+import { validateRequiredText } from "./lib/sanitize";
+import { getCommentParentId } from "./lib/commentParentId";
+import { parentType } from "./lib/validators";
 
-const parentType = v.union(v.literal("task"), v.literal("update"));
+function mapCommentForUI(
+	doc: {
+		_id: Id<"comments">;
+		parentType: "task" | "update";
+		parentId: string;
+		parentCommentId?: Id<"comments">;
+		authorId: Id<"users">;
+		content: string;
+		_creationTime: number;
+		updatedAt: number;
+		contentUpdatedAt?: number;
+		reactions: Array<{ emoji: string; userIds: Id<"users">[] }>;
+	},
+	usersLens: ReturnType<typeof createLens<UserUI>>,
+) {
+	return {
+		id: doc._id,
+		parentType: doc.parentType,
+		parentId: doc.parentId,
+		parentCommentId: doc.parentCommentId ?? null,
+		author: usersLens.get(doc.authorId) ?? {
+			id: doc.authorId,
+			name: "",
+			avatarUrl: "",
+		},
+		content: doc.content,
+		createdAt: new Date(doc._creationTime).toISOString(),
+		updatedAt: new Date(doc.updatedAt).toISOString(),
+		contentUpdatedAt:
+			doc.contentUpdatedAt != null
+				? new Date(doc.contentUpdatedAt).toISOString()
+				: undefined,
+		reactions: doc.reactions.map((r) => ({
+			emoji: r.emoji,
+			users: r.userIds
+				.map((uid) => usersLens.get(uid))
+				.filter((u): u is UserUI => Boolean(u)),
+		})),
+	};
+}
 
 const ERROR_COMMENT_NO_ACCESS_TASK =
 	"You can only comment on tasks linked to competitions you are organizing";
@@ -25,7 +68,7 @@ const reactionShape = v.object({
 	users: v.array(userShape),
 });
 
-const commentForUIReturns = v.object({
+export const commentForUIReturns = v.object({
 	id: v.string(),
 	parentType,
 	parentId: v.string(),
@@ -41,44 +84,30 @@ const commentForUIReturns = v.object({
 export const listForUI = query({
 	args: {
 		parentType,
-		parentId: v.string(),
+		parentId: v.union(v.id("tasks"), v.id("competitionUpdates")),
 	},
 	returns: v.array(commentForUIReturns),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
-		if (args.parentType === "task") {
-			const task = await ctx.db.get("tasks", args.parentId as Id<"tasks">);
-			if (!task) return [];
+		const getCompetitionId = {
+			task: async () =>
+				(await ctx.db.get(getCommentParentId("task", args.parentId)))
+					?.parentCompetitionId,
+			update: async () =>
+				(await ctx.db.get(getCommentParentId("update", args.parentId)))
+					?.competitionId,
+		}[args.parentType];
 
-			if (!volunteer) {
-				if (!task.parentCompetitionId) return [];
-				const hasAccess = await hasCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					task.parentCompetitionId,
-				);
-				if (!hasAccess) return [];
-			}
-		} else if (args.parentType === "update") {
-			const update = await ctx.db.get(
-				"competitionUpdates",
-				args.parentId as Id<"competitionUpdates">,
-			);
-			if (!update) return [];
-
-			if (!volunteer) {
-				const hasAccess = await hasCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					update.competitionId,
-				);
-				if (!hasAccess) return [];
-			}
-		}
+		const competitionId = await getCompetitionId();
+		if (!competitionId && !volunteer) return [];
+		if (
+			competitionId &&
+			!volunteer &&
+			!(await hasCompetitionAccess(ctx, volunteer, userId, competitionId))
+		)
+			return [];
 
 		const docs = await ctx.db
 			.query("comments")
@@ -96,51 +125,14 @@ export const listForUI = query({
 				for (const uid of r.userIds) reactionUserIds.add(uid);
 			}
 		}
-		const allUserIds = new Set([...authorIds, ...reactionUserIds]);
-		const userArr = [...allUserIds];
-		const userDocs = await Promise.all(
-			userArr.map((id) => ctx.db.get("users", id)),
-		);
-		const usersMap = new Map<
-			string,
-			{ id: string; name: string; avatarUrl: string }
-		>();
-		userArr.forEach((id, i) => {
-			const u = userDocs[i];
-			if (u)
-				usersMap.set(id, {
-					id,
-					name: u.name ?? "",
-					avatarUrl: u.image ?? "",
-				});
-		});
 
-		return docs.map((d) => ({
-			id: d._id,
-			parentType: d.parentType,
-			parentId: d.parentId,
-			parentCommentId: d.parentCommentId ?? null,
-			author: usersMap.get(d.authorId) ?? {
-				id: d.authorId,
-				name: "",
-				avatarUrl: "",
-			},
-			content: d.content,
-			createdAt: new Date(d._creationTime).toISOString(),
-			updatedAt: new Date(d.updatedAt).toISOString(),
-			contentUpdatedAt:
-				d.contentUpdatedAt != null
-					? new Date(d.contentUpdatedAt).toISOString()
-					: undefined,
-			reactions: d.reactions.map((r) => ({
-				emoji: r.emoji,
-				users: r.userIds
-					.map((uid) => usersMap.get(uid))
-					.filter((u): u is { id: string; name: string; avatarUrl: string } =>
-						Boolean(u),
-					),
-			})),
-		}));
+		const allUserIds = new Set([...authorIds, ...reactionUserIds]);
+		const userDocs = await Promise.all(
+			[...allUserIds].map((id) => ctx.db.get("users", id)),
+		);
+		const usersLens = createLens(toUsers(userDocs));
+
+		return docs.map((d) => mapCommentForUI(d, usersLens));
 	},
 });
 
@@ -205,52 +197,48 @@ export const create = mutation({
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
-		if (args.parentType === "task") {
-			const task = await ctx.db.get("tasks", args.parentId as Id<"tasks">);
-			if (!task) throw new ConvexError("Task not found");
-
-			if (!volunteer) {
-				if (!task.parentCompetitionId) {
-					throw new ConvexError({
-						code: "FORBIDDEN",
-						message: ERROR_COMMENT_NO_ACCESS_TASK,
-					});
-				}
-				const hasAccess = await hasCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					task.parentCompetitionId,
+		const entityFetchers = {
+			task: async () => {
+				const task = await ctx.db.get(
+					"tasks",
+					getCommentParentId("task", args.parentId),
 				);
-				if (!hasAccess) {
-					throw new ConvexError({
-						code: "FORBIDDEN",
-						message: ERROR_COMMENT_NO_ACCESS_TASK,
-					});
-				}
-			}
-		} else if (args.parentType === "update") {
-			const update = await ctx.db.get(
-				"competitionUpdates",
-				args.parentId as Id<"competitionUpdates">,
+				return {
+					entity: task,
+					competitionId: task?.parentCompetitionId,
+					errorMsg: ERROR_COMMENT_NO_ACCESS_TASK,
+				};
+			},
+			update: async () => {
+				const update = await ctx.db.get(
+					"competitionUpdates",
+					getCommentParentId("update", args.parentId),
+				);
+				return {
+					entity: update,
+					competitionId: update?.competitionId,
+					errorMsg: ERROR_COMMENT_NO_ACCESS_UPDATE,
+				};
+			},
+		};
+
+		const { entity, competitionId, errorMsg } =
+			await entityFetchers[args.parentType]();
+		if (!entity)
+			throw new ConvexError(
+				`${args.parentType === "task" ? "Task" : "Update"} not found`,
 			);
-			if (!update) throw new ConvexError("Update not found");
 
-			if (!volunteer) {
-				const hasAccess = await hasCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					update.competitionId,
-				);
-				if (!hasAccess) {
-					throw new ConvexError({
-						code: "FORBIDDEN",
-						message: ERROR_COMMENT_NO_ACCESS_UPDATE,
-					});
-				}
+		if (!volunteer) {
+			if (
+				!competitionId ||
+				!(await hasCompetitionAccess(ctx, volunteer, userId, competitionId))
+			) {
+				throw new ConvexError({ code: "FORBIDDEN", message: errorMsg });
 			}
 		}
+
+		const sanitizedContent = validateRequiredText(args.content, "Comment");
 
 		const now = Date.now();
 		const commentId = await ctx.db.insert("comments", {
@@ -258,7 +246,7 @@ export const create = mutation({
 			parentId: args.parentId,
 			parentCommentId: args.parentCommentId,
 			authorId: userId,
-			content: args.content,
+			content: sanitizedContent,
 			reactions: [],
 			updatedAt: now,
 		});
@@ -273,27 +261,24 @@ export const create = mutation({
 
 		if (args.parentType !== "task") return commentId;
 
-		const taskId = args.parentId as Id<"tasks">;
+		const taskId = getCommentParentId("task", args.parentId);
 		const task = await ctx.db.get("tasks", taskId);
 		if (!task) return commentId;
 
 		const mentionedUserIds = await extractMentions(ctx, args.content);
 		const notifiedUserIds = new Set<Id<"users">>();
-		const notificationPromises: Promise<unknown>[] = [];
 
 		for (const mentionedUserId of mentionedUserIds) {
 			if (mentionedUserId !== userId) {
-				notificationPromises.push(
-					ctx.scheduler.runAfter(
-						0,
-						internal.notifications._notifyTaskMentioned,
-						{
-							taskId,
-							commentId,
-							mentionedUserId,
-							actorId: userId,
-						},
-					),
+				void ctx.scheduler.runAfter(
+					0,
+					internal.notifications._notifyTaskMentioned,
+					{
+						taskId,
+						commentId,
+						mentionedUserId,
+						actorId: userId,
+					},
 				);
 				notifiedUserIds.add(mentionedUserId);
 			}
@@ -304,13 +289,15 @@ export const create = mutation({
 			task.assigneeId !== userId &&
 			!notifiedUserIds.has(task.assigneeId)
 		) {
-			notificationPromises.push(
-				ctx.scheduler.runAfter(0, internal.notifications._notifyCommentAdded, {
+			void ctx.scheduler.runAfter(
+				0,
+				internal.notifications._notifyCommentAdded,
+				{
 					taskId,
 					commentId,
 					recipientId: task.assigneeId,
 					actorId: userId,
-				}),
+				},
 			);
 		}
 
@@ -321,17 +308,17 @@ export const create = mutation({
 			task.ownerId !== task.assigneeId &&
 			!notifiedUserIds.has(task.ownerId as Id<"users">)
 		) {
-			notificationPromises.push(
-				ctx.scheduler.runAfter(0, internal.notifications._notifyCommentAdded, {
+			void ctx.scheduler.runAfter(
+				0,
+				internal.notifications._notifyCommentAdded,
+				{
 					taskId,
 					commentId,
 					recipientId: task.ownerId as Id<"users">,
 					actorId: userId,
-				}),
+				},
 			);
 		}
-
-		await Promise.allSettled(notificationPromises);
 		return commentId;
 	},
 });
@@ -346,14 +333,17 @@ export const update = mutation({
 		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc || doc.authorId !== userId) return null;
+
+		const sanitizedContent = validateRequiredText(args.content, "Comment");
+
 		await ctx.db.patch("comments", args.commentId, {
-			content: args.content,
+			content: sanitizedContent,
 			contentUpdatedAt: Date.now(),
 			updatedAt: Date.now(),
 		});
 		await logActivity(
 			ctx,
-			userId as Id<"users">,
+			userId,
 			doc.parentType,
 			doc.parentId,
 			"comment_edited",
@@ -407,50 +397,12 @@ export const listRecentForSearch = query({
 			}
 		}
 		const allUserIds = new Set([...authorIds, ...reactionUserIds]);
-		const userArr = [...allUserIds];
 		const userDocs = await Promise.all(
-			userArr.map((id) => ctx.db.get("users", id)),
+			[...allUserIds].map((id) => ctx.db.get("users", id)),
 		);
-		const usersMap = new Map<
-			string,
-			{ id: string; name: string; avatarUrl: string }
-		>();
-		userArr.forEach((id, i) => {
-			const u = userDocs[i];
-			if (u)
-				usersMap.set(id, {
-					id,
-					name: u.name ?? "",
-					avatarUrl: u.image ?? "",
-				});
-		});
+		const usersLens = createLens(toUsers(userDocs));
 
-		return docs.map((d) => ({
-			id: d._id,
-			parentType: d.parentType,
-			parentId: d.parentId,
-			parentCommentId: d.parentCommentId ?? null,
-			author: usersMap.get(d.authorId) ?? {
-				id: d.authorId,
-				name: "",
-				avatarUrl: "",
-			},
-			content: d.content,
-			createdAt: new Date(d._creationTime).toISOString(),
-			updatedAt: new Date(d.updatedAt).toISOString(),
-			contentUpdatedAt:
-				d.contentUpdatedAt != null
-					? new Date(d.contentUpdatedAt).toISOString()
-					: undefined,
-			reactions: d.reactions.map((r) => ({
-				emoji: r.emoji,
-				users: r.userIds
-					.map((uid) => usersMap.get(uid))
-					.filter((u): u is { id: string; name: string; avatarUrl: string } =>
-						Boolean(u),
-					),
-			})),
-		}));
+		return docs.map((d) => mapCommentForUI(d, usersLens));
 	},
 });
 

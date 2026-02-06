@@ -8,9 +8,16 @@ import type {
 	FilterItem,
 	DateRangeFilter,
 	MatchMode,
-} from "@/store/shared-filter-types";
+} from "@/lib/filter-types";
+import {
+	TASK_STATUSES,
+	TASK_PRIORITIES,
+	COMPETITION_PHASE_KEYS,
+} from "@/data/types-new";
 
-function parseFilterItem(value: string): FilterItem<string> | null {
+const TASK_PARENT_TYPES = ["task", "phase", "competition"] as const;
+
+function parseFilterItem(value: string): FilterItem | null {
 	const parts = value.split("|");
 	if (parts.length !== 2) return null;
 
@@ -22,7 +29,7 @@ function parseFilterItem(value: string): FilterItem<string> | null {
 	return { values, isNot };
 }
 
-function serializeFilterItem(item: FilterItem<string>): string {
+function serializeFilterItem(item: FilterItem): string {
 	return `${item.values.join(",")}|${item.isNot ? "1" : "0"}`;
 }
 
@@ -32,12 +39,49 @@ const parseAsFilterItem = createParser({
 		if (!parsed) return null;
 		return parsed;
 	},
-	serialize(item: FilterItem<string>) {
+	serialize(item: FilterItem) {
 		return serializeFilterItem(item);
 	},
 });
 
 const parseAsFilterItems = parseAsNativeArrayOf(parseAsFilterItem);
+
+function coerceFilterItem(
+	item: FilterItem,
+	allowed: readonly string[],
+): FilterItem | null {
+	const allowedSet = new Set<string>(allowed);
+	const filtered = item.values.filter((value) => allowedSet.has(value));
+	if (filtered.length === 0) return null;
+	return { values: filtered, isNot: item.isNot };
+}
+
+function createEnumFilterItemParser(allowed: readonly string[]) {
+	return createParser<FilterItem | null>({
+		parse(value: string) {
+			const parsed = parseFilterItem(value);
+			if (!parsed) return null;
+			return coerceFilterItem(parsed, allowed);
+		},
+		serialize(item) {
+			if (!item) return "";
+			return serializeFilterItem(item);
+		},
+	});
+}
+
+const parseAsTaskStatusFilterItems = parseAsNativeArrayOf(
+	createEnumFilterItemParser(TASK_STATUSES),
+);
+const parseAsTaskPriorityFilterItems = parseAsNativeArrayOf(
+	createEnumFilterItemParser(TASK_PRIORITIES),
+);
+const parseAsTaskParentTypeFilterItems = parseAsNativeArrayOf(
+	createEnumFilterItemParser(TASK_PARENT_TYPES),
+);
+const parseAsCompetitionPhaseFilterItems = parseAsNativeArrayOf(
+	createEnumFilterItemParser(COMPETITION_PHASE_KEYS),
+);
 
 const parseAsMatchMode = parseAsStringEnum<MatchMode>([
 	"any",
@@ -65,12 +109,12 @@ const parseAsOrderDir = parseAsStringEnum<"asc" | "desc">([
 
 export const tasksFilterParsers = {
 	view: parseAsViewId,
-	status: parseAsFilterItems,
-	priority: parseAsFilterItems,
+	status: parseAsTaskStatusFilterItems,
+	priority: parseAsTaskPriorityFilterItems,
 	assignee: parseAsFilterItems,
 	labels: parseAsFilterItems,
 	owner: parseAsFilterItems,
-	parentType: parseAsFilterItems,
+	parentType: parseAsTaskParentTypeFilterItems,
 	dateStart: parseAsDateStart,
 	dateEnd: parseAsDateEnd,
 	dateIsNot: parseAsDateIsNot,
@@ -83,7 +127,7 @@ export const tasksFilterParsers = {
 
 export const competitionsFilterParsers = {
 	view: parseAsViewId,
-	phase: parseAsFilterItems,
+	phase: parseAsCompetitionPhaseFilterItems,
 	compLead: parseAsFilterItems,
 	leadDelegate: parseAsFilterItems,
 	organisers: parseAsFilterItems,
@@ -96,6 +140,12 @@ export const competitionsFilterParsers = {
 	orderField: parseAsOrderField,
 	orderDir: parseAsOrderDir,
 } as const;
+
+export function normalizeFilterItems(
+	items: Array<FilterItem | null> | null | undefined,
+): FilterItem[] {
+	return (items ?? []).filter((item): item is FilterItem => item != null);
+}
 
 export function parseDateRangeFromNuqs(params: {
 	dateStart: string | null;
@@ -116,7 +166,7 @@ export function serializeDateRangeToNuqs(
 ): {
 	dateStart: string | null;
 	dateEnd: string | null;
-	dateIsNot: string | null;
+	dateIsNot: "0" | "1" | null;
 } {
 	if (!dateRange) {
 		return { dateStart: null, dateEnd: null, dateIsNot: null };

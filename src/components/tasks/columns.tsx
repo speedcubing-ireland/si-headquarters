@@ -69,9 +69,13 @@ const statusDotColors: Record<TaskStatus, string> = {
 	cancelled: "bg-red-500",
 };
 
+const isTaskStatus = (value: string): value is TaskStatus =>
+	Object.hasOwn(statusDotColors, value);
+
 const statusGroupRenderer: GroupValueRenderer = (value) => {
 	if (typeof value !== "string") return <span>{String(value)}</span>;
-	const status = value as TaskStatus;
+	if (!isTaskStatus(value)) return <span>{value}</span>;
+	const status = value;
 	return (
 		<div className="flex items-center gap-1.5">
 			<span className={cn("size-2 rounded-full", statusDotColors[status])} />
@@ -80,9 +84,13 @@ const statusGroupRenderer: GroupValueRenderer = (value) => {
 	);
 };
 
+const isTaskPriority = (value: string): value is TaskPriority =>
+	Object.hasOwn(priorityLabels, value);
+
 const priorityGroupRenderer: GroupValueRenderer = (value) => {
 	if (typeof value !== "string") return <span>{String(value)}</span>;
-	const priority = value as TaskPriority;
+	if (!isTaskPriority(value)) return <span>{value}</span>;
+	const priority = value;
 	const Icon = getPriorityIcon(priority);
 	return (
 		<div className="flex items-center gap-1.5">
@@ -127,9 +135,7 @@ const dateGroupRenderer: GroupValueRenderer = (value) => {
 	if (!value) {
 		return <span className="text-muted-foreground">No date</span>;
 	}
-	return (
-		<span className="font-semibold text-sm">{formatDate(value as string)}</span>
-	);
+	return <span className="font-semibold text-sm">{formatDate(value)}</span>;
 };
 
 const labelsGroupRenderer: GroupValueRenderer = (_value, row) => {
@@ -235,34 +241,34 @@ export function useTaskColumns(options?: {
 				"",
 				({ row }) => (
 					<PriorityCell
-						priority={row.getValue("priority") as TaskPriority}
+						priority={row.getValue<TaskPriority>("priority")}
 						taskId={row.original.id}
 					/>
 				),
 				{
 					sortingFn: (rowA, rowB) => {
-						const priorityA = rowA.getValue("priority") as TaskPriority;
-						const priorityB = rowB.getValue("priority") as TaskPriority;
+						const priorityA = rowA.getValue<TaskPriority>("priority");
+						const priorityB = rowB.getValue<TaskPriority>("priority");
 						return taskPriorityOrder[priorityA] - taskPriorityOrder[priorityB];
 					},
 					meta: {
 						groupValueRenderer: priorityGroupRenderer,
 						cellClassName: "px-1 w-0",
 						headerClassName: "px-1 w-0",
-					} as ColumnDef<Task>["meta"],
+					} satisfies ColumnDef<Task>["meta"],
 				},
 			),
 			createSortableColumn(
 				"identifier",
 				"",
 				({ row }) => (
-					<IdentifierCell identifier={row.getValue("identifier") as string} />
+					<IdentifierCell identifier={row.getValue<string>("identifier")} />
 				),
 				{
 					meta: {
 						cellClassName: "px-1 w-0",
 						headerClassName: "px-1 w-0",
-					} as ColumnDef<Task>["meta"],
+					} satisfies ColumnDef<Task>["meta"],
 				},
 			),
 			createSortableColumn(
@@ -270,21 +276,21 @@ export function useTaskColumns(options?: {
 				"",
 				({ row }) => (
 					<StatusCell
-						status={row.getValue("status") as TaskStatus}
+						status={row.getValue<TaskStatus>("status")}
 						taskId={row.original.id}
 					/>
 				),
 				{
 					sortingFn: (rowA, rowB) => {
-						const statusA = rowA.getValue("status") as TaskStatus;
-						const statusB = rowB.getValue("status") as TaskStatus;
+						const statusA = rowA.getValue<TaskStatus>("status");
+						const statusB = rowB.getValue<TaskStatus>("status");
 						return taskStatusOrder[statusA] - taskStatusOrder[statusB];
 					},
 					meta: {
 						groupValueRenderer: statusGroupRenderer,
 						cellClassName: "px-1 w-0",
 						headerClassName: "px-1 w-0",
-					} as ColumnDef<Task>["meta"],
+					} satisfies ColumnDef<Task>["meta"],
 				},
 			),
 			{
@@ -315,7 +321,7 @@ export function useTaskColumns(options?: {
 				meta: {
 					groupValueRenderer: ownerGroupRenderer,
 					cellClassName: "px-1 w-0",
-				} as ColumnDef<Task>["meta"],
+				} satisfies ColumnDef<Task>["meta"],
 			},
 			createSortableColumn(
 				"title",
@@ -329,7 +335,7 @@ export function useTaskColumns(options?: {
 				{
 					meta: {
 						cellClassName: "min-w-0 w-full",
-					} as ColumnDef<Task>["meta"],
+					} satisfies ColumnDef<Task>["meta"],
 				},
 			),
 			{
@@ -349,7 +355,7 @@ export function useTaskColumns(options?: {
 				meta: {
 					groupValueRenderer: labelsGroupRenderer,
 					cellClassName: "px-1 text-right w-0",
-				} as ColumnDef<Task>["meta"],
+				} satisfies ColumnDef<Task>["meta"],
 			},
 			{
 				accessorKey: "assignee",
@@ -364,7 +370,7 @@ export function useTaskColumns(options?: {
 				meta: {
 					groupValueRenderer: assigneeGroupRenderer,
 					cellClassName: "px-1 w-0",
-				} as ColumnDef<Task>["meta"],
+				} satisfies ColumnDef<Task>["meta"],
 			},
 			{
 				id: "dueDate",
@@ -383,7 +389,7 @@ export function useTaskColumns(options?: {
 				meta: {
 					groupValueRenderer: dateGroupRenderer,
 					cellClassName: "px-1 text-right pr-4 w-0",
-				} as ColumnDef<Task>["meta"],
+				} satisfies ColumnDef<Task>["meta"],
 			},
 		],
 		[hideParentDisplayName],

@@ -26,7 +26,19 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import type { DisplaySettingsState } from "@/store/display-settings-factory";
+
+type DisplaySettingsState = {
+	grouping: string | null;
+	subGrouping: string | null;
+	ordering: { field: string | null; direction: "asc" | "desc" };
+	setGrouping: (field: string | null) => void;
+	setSubGrouping: (field: string | null) => void;
+	setOrdering: (field: string | null, direction: "asc" | "desc") => void;
+	toggleOrderDirection: () => void;
+	toJSON: () => string;
+	fromJSON: (json: string) => void;
+	reset: () => void;
+};
 
 type ColumnOption = {
 	value: string;
@@ -77,7 +89,6 @@ export function SharedDisplaySettings({
 				<DropdownMenuLabel>Display Settings</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					{/* Grouping */}
 					<div className="flex items-center gap-2 px-2 py-1.5">
 						<List className="size-4 text-muted-foreground" />
 						<span className="text-sm font-medium flex-1">Grouping</span>
@@ -101,7 +112,6 @@ export function SharedDisplaySettings({
 						</Select>
 					</div>
 
-					{/* Sub-grouping */}
 					<div className="flex items-center gap-2 px-2 py-1.5">
 						<IndentIncrease className="size-4 text-muted-foreground" />
 						<span className="text-sm font-medium flex-1">Sub-grouping</span>
@@ -126,8 +136,6 @@ export function SharedDisplaySettings({
 							</SelectContent>
 						</Select>
 					</div>
-
-					{/* Ordering */}
 					<div className="flex items-center gap-2 px-2 py-1.5">
 						<ArrowUpDown className="size-4 text-muted-foreground" />
 						<span className="text-sm font-medium flex-1">Ordering</span>
