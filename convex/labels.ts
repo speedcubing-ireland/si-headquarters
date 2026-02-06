@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUserId } from "./auth";
+import { requireDirector } from "./admin";
 
 const labelDoc = v.object({
 	_id: v.id("labels"),
@@ -30,7 +31,7 @@ export const create = mutation({
 	},
 	returns: v.id("labels"),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		await requireDirector(ctx);
 		return await ctx.db.insert("labels", {
 			name: args.name,
 			color: args.color,
@@ -48,7 +49,7 @@ export const update = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		await requireDirector(ctx);
 		const { id, ...updates } = args;
 		const doc = await ctx.db.get("labels", id);
 		if (!doc) return null;
@@ -61,7 +62,7 @@ export const remove = mutation({
 	args: { id: v.id("labels") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		await requireDirector(ctx);
 		await ctx.db.delete("labels", args.id);
 		return null;
 	},

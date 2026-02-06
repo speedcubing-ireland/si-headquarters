@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUserId } from "./auth";
+import { requireDirector } from "./admin";
 
 const teamDoc = v.object({
 	_id: v.id("teams"),
@@ -38,7 +39,7 @@ export const create = mutation({
 	},
 	returns: v.id("teams"),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		await requireDirector(ctx);
 		return await ctx.db.insert("teams", {
 			name: args.name,
 			memberIds: args.memberIds ?? [],
@@ -54,7 +55,7 @@ export const update = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireUserId(ctx);
+		await requireDirector(ctx);
 		const { teamId, ...updates } = args;
 		const doc = await ctx.db.get("teams", teamId);
 		if (!doc) return null;

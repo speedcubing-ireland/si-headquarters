@@ -2,10 +2,20 @@ import type { Id, Doc } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 
-/**
- * Fire notification for unassign (old assignee) and assign (new assignee)
- * when assignee changed. Caller should only call when oldAssigneeId !== newAssigneeId.
- */
+function collectTaskNotificationRecipients(
+	task: Pick<Doc<"tasks">, "assigneeId" | "ownerId" | "ownerType">,
+	actorId: Id<"users">,
+): Set<Id<"users">> {
+	const recipients = new Set<Id<"users">>();
+	if (task.assigneeId && task.assigneeId !== actorId) {
+		recipients.add(task.assigneeId);
+	}
+	if (task.ownerId && task.ownerType === "user" && task.ownerId !== actorId) {
+		recipients.add(task.ownerId as Id<"users">);
+	}
+	return recipients;
+}
+
 export function sendTaskAssigneeChangeNotifications(
 	ctx: MutationCtx,
 	taskId: Id<"tasks">,
@@ -33,10 +43,6 @@ export function sendTaskAssigneeChangeNotifications(
 	}
 }
 
-/**
- * Fire status-change notifications to assignee and owner.
- * Caller should only call when status actually changed and was explicitly updated.
- */
 export function sendTaskStatusChangeNotifications(
 	ctx: MutationCtx,
 	taskId: Id<"tasks">,
@@ -45,13 +51,7 @@ export function sendTaskStatusChangeNotifications(
 	newStatus: string,
 	actorId: Id<"users">,
 ): void {
-	const recipients = new Set<Id<"users">>();
-	if (doc.assigneeId && doc.assigneeId !== actorId) {
-		recipients.add(doc.assigneeId);
-	}
-	if (doc.ownerId && doc.ownerType === "user" && doc.ownerId !== actorId) {
-		recipients.add(doc.ownerId as Id<"users">);
-	}
+	const recipients = collectTaskNotificationRecipients(doc, actorId);
 	for (const recipientId of recipients) {
 		void ctx.scheduler.runAfter(
 			0,
@@ -62,6 +62,68 @@ export function sendTaskStatusChangeNotifications(
 				actorId,
 				oldStatus,
 				newStatus,
+			},
+		);
+	}
+}
+
+async function getRelationNotificationRecipients(
+	ctx: MutationCtx,
+	blockedTaskId: Id<"tasks">,
+	actorId: Id<"users">,
+): Promise<Set<Id<"users">>> {
+	const blockedTask = await ctx.db.get("tasks", blockedTaskId);
+	if (!blockedTask) {
+		return new Set();
+	}
+	return collectTaskNotificationRecipients(blockedTask, actorId);
+}
+
+export async function sendTaskRelationBlockedNotifications(
+	ctx: MutationCtx,
+	blockedTaskId: Id<"tasks">,
+	blockingTaskId: Id<"tasks">,
+	actorId: Id<"users">,
+): Promise<void> {
+	const recipients = await getRelationNotificationRecipients(
+		ctx,
+		blockedTaskId,
+		actorId,
+	);
+	for (const recipientId of recipients) {
+		void ctx.scheduler.runAfter(
+			0,
+			internal.notifications._notifyTaskRelationBlocked,
+			{
+				blockedTaskId,
+				blockingTaskId,
+				recipientId,
+				actorId,
+			},
+		);
+	}
+}
+
+export async function sendTaskRelationUnblockedNotifications(
+	ctx: MutationCtx,
+	blockedTaskId: Id<"tasks">,
+	blockingTaskId: Id<"tasks">,
+	actorId: Id<"users">,
+): Promise<void> {
+	const recipients = await getRelationNotificationRecipients(
+		ctx,
+		blockedTaskId,
+		actorId,
+	);
+	for (const recipientId of recipients) {
+		void ctx.scheduler.runAfter(
+			0,
+			internal.notifications._notifyTaskRelationUnblocked,
+			{
+				blockedTaskId,
+				blockingTaskId,
+				recipientId,
+				actorId,
 			},
 		);
 	}

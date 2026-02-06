@@ -21,12 +21,10 @@ function formatWithPattern(
 	}
 }
 
-/** Format date to readable form (MMM d, yyyy). */
 export function formatDate(date?: string | null): string {
 	return formatWithPattern(date, "MMM d, yyyy");
 }
 
-/** Format date to short form (MMM d). */
 export function formatDateShort(date?: string | null): string {
 	return formatWithPattern(date, "MMM d");
 }

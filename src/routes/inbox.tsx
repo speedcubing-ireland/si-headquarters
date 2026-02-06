@@ -30,6 +30,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseTaskId, parseNotificationId } from "@/lib/convex-ids";
@@ -338,12 +339,17 @@ function RouteComponent() {
 
 	return (
 		<div className="flex flex-1 flex-col">
-			<header className="flex h-12 shrink-0 items-center justify-between border-b px-4 lg:px-6">
-				<div className="flex items-center gap-2">
+			<header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
+				<div className="flex min-w-0 flex-1 items-center gap-2">
+					<SidebarTrigger className="shrink-0" />
+					<Separator orientation="vertical" className="hidden h-4 sm:block" />
 					<Inbox className="size-4 text-muted-foreground" />
 					<h1 className="text-sm font-semibold">Inbox</h1>
-					<Separator orientation="vertical" className="mx-2 h-4 bg-border" />
-					<p className="text-xs text-muted-foreground">
+					<Separator
+						orientation="vertical"
+						className="mx-1 hidden h-4 bg-border sm:block"
+					/>
+					<p className="hidden text-xs text-muted-foreground sm:block">
 						Notifications and updates
 					</p>
 				</div>

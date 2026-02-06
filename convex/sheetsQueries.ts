@@ -1,5 +1,6 @@
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireUserId } from "./auth";
 
 const TOKEN_EXPIRY_BUFFER_SEC = 5 * 60;
 
@@ -53,6 +54,7 @@ export const getGoogleSheetsConnectionStatus = query({
 	args: {},
 	returns: v.object({ connected: v.boolean() }),
 	handler: async (ctx) => {
+		await requireUserId(ctx);
 		const row = await ctx.db.query("googleSheetsTokens").first();
 		const nowSec = Math.floor(Date.now() / 1000);
 		const connected =

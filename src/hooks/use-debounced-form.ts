@@ -28,12 +28,16 @@ export function useDebouncedForm({
 	const [hasPendingChanges, setHasPendingChanges] = useState(false);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const onChangeRef = useRef(onChange);
+	const previousInitialValueRef = useRef(initialValue);
 
 	useEffect(() => {
-		if (!hasPendingChanges && localValue !== initialValue) {
+		const previousInitialValue = previousInitialValueRef.current;
+		if (previousInitialValue === initialValue) return;
+		previousInitialValueRef.current = initialValue;
+		if (!hasPendingChanges) {
 			setLocalValue(initialValue);
 		}
-	}, [initialValue, hasPendingChanges, localValue]);
+	}, [initialValue, hasPendingChanges]);
 
 	useEffect(() => {
 		onChangeRef.current = onChange;

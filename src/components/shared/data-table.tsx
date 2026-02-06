@@ -561,7 +561,7 @@ function DataTableDataRow<TData = unknown>({
 					colSpan={columnCount}
 					className={cn(
 						cellPaddingXClassName,
-						"py-2 text-sm align-middle text-left",
+						"py-2.5 text-sm align-middle text-left sm:py-2",
 					)}
 				>
 					<div className="flex items-center justify-between w-full pr-2">
@@ -596,7 +596,7 @@ function DataTableDataRow<TData = unknown>({
 			className={cn(
 				"border-b border-border/50 transition-colors group",
 				isClickable && "cursor-pointer hover:bg-muted/30",
-				"h-10",
+				"h-11 sm:h-10",
 				row.getIsSelected() && "bg-muted/50",
 			)}
 			onClick={(e) => {
@@ -628,7 +628,7 @@ function DataTableDataRow<TData = unknown>({
 						key={cell.id}
 						className={cn(
 							cellPaddingXClassName,
-							"py-2 text-sm align-middle text-left",
+							"py-2.5 text-sm align-middle text-left sm:py-2",
 							metaCell?.cellClassName,
 							depth > 0 &&
 								cell.column.id === row.getVisibleCells()[0]?.column.id &&

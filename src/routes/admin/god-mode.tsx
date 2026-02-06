@@ -7,6 +7,8 @@ import { MembersAndTeamsSection } from "@/components/admin/members-and-teams-sec
 import { LabelsSection } from "@/components/admin/labels-section";
 import { PhasesSection } from "@/components/admin/phases-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export const Route = createFileRoute("/admin/god-mode")({
 	component: GodModePage,
@@ -29,9 +31,11 @@ function GodModePage() {
 
 	return (
 		<div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-			<header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
+			<header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
+				<SidebarTrigger className="shrink-0" />
+				<Separator orientation="vertical" className="hidden h-4 sm:block" />
 				<h1 className="text-sm font-semibold">God Mode</h1>
-				<span className="text-xs text-muted-foreground">
+				<span className="hidden text-xs text-muted-foreground sm:inline">
 					Directors-only data management
 				</span>
 			</header>

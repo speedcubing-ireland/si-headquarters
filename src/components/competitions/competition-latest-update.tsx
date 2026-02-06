@@ -73,7 +73,7 @@ export function CompetitionLatestUpdate({
 	if (!latest && !isCreating) {
 		return (
 			<Card className="border-border shadow-none">
-				<CardHeader className="flex flex-row items-center justify-between pb-3">
+				<CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-3">
 					<span className="text-sm font-medium text-muted-foreground">
 						Latest update
 					</span>
@@ -104,7 +104,7 @@ export function CompetitionLatestUpdate({
 
 	return (
 		<Card className="border-border shadow-none">
-			<CardHeader className="flex flex-row items-center justify-between pb-3">
+			<CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-3">
 				<span className="text-sm font-medium text-muted-foreground">
 					Latest update
 				</span>
@@ -121,7 +121,7 @@ export function CompetitionLatestUpdate({
 			<CardContent className="space-y-4">
 				{active && (
 					<>
-						<div className="flex items-center gap-2">
+						<div className="flex flex-wrap items-center gap-2">
 							<StatusIcon className={`size-4 ${statusInfo.className}`} />
 							<span className={`text-sm font-medium ${statusInfo.className}`}>
 								{statusInfo.label}
@@ -143,7 +143,7 @@ export function CompetitionLatestUpdate({
 							</p>
 						)}
 
-						<div className="flex items-center gap-2 pt-2">
+						<div className="flex flex-wrap items-center gap-2 pt-2">
 							<ReactionDisplay
 								reactions={active.reactions}
 								onAddReaction={(emoji) => addReaction(active.id, emoji)}
@@ -157,13 +157,13 @@ export function CompetitionLatestUpdate({
 
 				{isCreating && (
 					<div className="space-y-2">
-						<div className="flex items-center gap-2 text-xs">
+						<div className="flex flex-wrap items-center gap-2 text-xs">
 							<button
 								type="button"
 								className={
 									status === "on-track"
-										? "rounded bg-muted px-2 py-1 font-medium"
-										: "rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+										? "rounded bg-muted px-2 py-1.5 font-medium"
+										: "rounded px-2 py-1.5 text-muted-foreground hover:bg-muted"
 								}
 								onClick={() => setStatus("on-track")}
 							>
@@ -173,8 +173,8 @@ export function CompetitionLatestUpdate({
 								type="button"
 								className={
 									status === "at-risk"
-										? "rounded bg-muted px-2 py-1 font-medium"
-										: "rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+										? "rounded bg-muted px-2 py-1.5 font-medium"
+										: "rounded px-2 py-1.5 text-muted-foreground hover:bg-muted"
 								}
 								onClick={() => setStatus("at-risk")}
 							>
@@ -184,8 +184,8 @@ export function CompetitionLatestUpdate({
 								type="button"
 								className={
 									status === "off-track"
-										? "rounded bg-muted px-2 py-1 font-medium"
-										: "rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+										? "rounded bg-muted px-2 py-1.5 font-medium"
+										: "rounded px-2 py-1.5 text-muted-foreground hover:bg-muted"
 								}
 								onClick={() => setStatus("off-track")}
 							>
@@ -193,16 +193,16 @@ export function CompetitionLatestUpdate({
 							</button>
 						</div>
 						<textarea
-							className="min-h-[80px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							className="min-h-[96px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
 							placeholder="Share a quick update..."
 							value={message}
 							onChange={(e) => setMessage(e.target.value)}
 						/>
-						<div className="flex justify-end gap-2">
+						<div className="flex flex-wrap justify-end gap-2">
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-7"
+								className="h-8"
 								onClick={() => {
 									setIsCreating(false);
 									setMessage("");
@@ -213,7 +213,7 @@ export function CompetitionLatestUpdate({
 							</Button>
 							<Button
 								size="sm"
-								className="h-7"
+								className="h-8"
 								onClick={handleCreate}
 								disabled={isSubmitting}
 							>

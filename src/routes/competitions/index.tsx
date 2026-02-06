@@ -81,17 +81,22 @@ function FiltersContent() {
 
 	return (
 		<>
-			<div className="flex items-center gap-2 shrink-0">
+			<div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
 				<FilterPopover />
 			</div>
-			<div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+			<div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
 				<FilterChips />
 			</div>
-			<div className="flex items-center gap-2 shrink-0">
+			<div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:shrink-0">
 				<DisplaySettings />
 				{hasActiveFilters && (
 					<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
-						{matchMode === "any" ? "Match any filter" : "Match all filters"}
+						<span className="sm:hidden">
+							{matchMode === "any" ? "Any filter" : "All filters"}
+						</span>
+						<span className="hidden sm:inline">
+							{matchMode === "any" ? "Match any filter" : "Match all filters"}
+						</span>
 					</Button>
 				)}
 			</div>
@@ -110,18 +115,11 @@ function RouteComponentInner() {
 			serializeDisplaySettings(urlState.displaySettings),
 		restoreFiltersJson: (json) => {
 			const parsed = parseFiltersJson(json, emptyCompetitionsFilters);
-			urlState.setArrayFilter("phase", parsed.filters.phase);
-			urlState.setArrayFilter("compLead", parsed.filters.compLead);
-			urlState.setArrayFilter("leadDelegate", parsed.filters.leadDelegate);
-			urlState.setArrayFilter("organisers", parsed.filters.organisers);
-			urlState.setDateRange(parsed.filters.dateRange);
-			urlState.setMatchMode(parsed.matchMode);
+			urlState.setFiltersAndMatch(parsed.filters, parsed.matchMode);
 		},
 		restoreDisplaySettingsJson: (json) => {
 			const parsed = parseDisplaySettingsJson(json);
-			urlState.setGrouping(parsed.grouping);
-			urlState.setSubGrouping(parsed.subGrouping);
-			urlState.setOrdering(parsed.ordering.field, parsed.ordering.direction);
+			urlState.setDisplaySettings(parsed);
 		},
 		resetAll: urlState.clearAll,
 	});

@@ -5,7 +5,10 @@ import {
 	useCompetitionsUrl,
 	type CompetitionsUrlState,
 	type CompetitionsUrlActions,
+	type UseCompetitionsUrlOptions,
 } from "./use-competitions-url";
+import type { CompetitionsFilters } from "@/lib/filter-types";
+import type { DisplaySettings } from "@/lib/saved-view-utils";
 
 export interface CompetitionsUrlContextValue
 	extends CompetitionsUrlState,
@@ -26,12 +29,22 @@ export function useCompetitionsUrlContext() {
 
 interface CompetitionsUrlProviderProps {
 	children: ReactNode;
+	pageId?: UseCompetitionsUrlOptions["pageId"];
+	defaultFilters?: Partial<CompetitionsFilters>;
+	defaultDisplaySettings?: Partial<DisplaySettings>;
 }
 
 export function CompetitionsUrlProvider({
 	children,
+	pageId,
+	defaultFilters,
+	defaultDisplaySettings,
 }: CompetitionsUrlProviderProps) {
-	const urlState = useCompetitionsUrl();
+	const urlState = useCompetitionsUrl({
+		pageId,
+		defaultFilters,
+		defaultDisplaySettings,
+	});
 
 	return (
 		<CompetitionsUrlContext.Provider value={urlState}>

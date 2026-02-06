@@ -17,10 +17,37 @@ export { useLabels, useLabelMutations } from "./convex/use-labels";
 export { useUsers } from "./convex/use-users";
 export { useTeams } from "./convex/use-teams";
 
+function normalizeTask(task: Task): Task {
+	const blockedBy = task.blockedBy ?? [];
+	const unresolvedBlockerCount =
+		typeof task.unresolvedBlockerCount === "number"
+			? task.unresolvedBlockerCount
+			: blockedBy.reduce(
+					(total, relation) => total + (relation.isResolved ? 0 : 1),
+					0,
+				);
+
+	return {
+		...task,
+		requiredApprovalBy: task.requiredApprovalBy ?? [],
+		approvedBy: task.approvedBy ?? [],
+		labels: task.labels ?? [],
+		blockedBy,
+		blocks: task.blocks ?? [],
+		unresolvedBlockerCount,
+		isBlocked:
+			typeof task.isBlocked === "boolean"
+				? task.isBlocked
+				: unresolvedBlockerCount > 0,
+		resources: task.resources ?? [],
+		subTasks: task.subTasks ?? [],
+	};
+}
+
 export const useTasks = (archived = false) => {
 	const tasks = useQuery(api.tasks.listForUI, { archived });
 	return {
-		tasks: tasks ?? [],
+		tasks: (tasks ?? []).map(normalizeTask),
 		isLoading: tasks === undefined,
 	};
 };
@@ -28,7 +55,8 @@ export const useTasks = (archived = false) => {
 export const useTask = (taskId: Id<"tasks"> | null) => {
 	const data = useQuery(api.tasks.getForUI, taskId ? { taskId } : "skip");
 	if (taskId == null) return null;
-	return data;
+	if (data === undefined || data === null) return data;
+	return normalizeTask(data);
 };
 
 export const useTasksForCompetition = (
@@ -39,7 +67,7 @@ export const useTasksForCompetition = (
 		competitionId ? { archived: false, competitionId } : "skip",
 	);
 	return {
-		tasks: tasks ?? [],
+		tasks: (tasks ?? []).map(normalizeTask),
 		isLoading: tasks === undefined,
 	};
 };
@@ -216,6 +244,14 @@ interface TaskMutations {
 		taskId: Id<"tasks">,
 		approverKey: string,
 	) => Promise<null>;
+	addBlockingRelation: (
+		blockedTaskId: Id<"tasks">,
+		blockingTaskId: Id<"tasks">,
+	) => Promise<null>;
+	removeBlockingRelation: (
+		blockedTaskId: Id<"tasks">,
+		blockingTaskId: Id<"tasks">,
+	) => Promise<null>;
 	approveTask: (taskId: Id<"tasks">) => Promise<null>;
 	unapproveTask: (taskId: Id<"tasks">) => Promise<null>;
 }
@@ -227,13 +263,13 @@ function competitionIdFromParent(
 	return parent.linkedId;
 }
 
-/** Optimistic update helper; IDs flow from Convex (task.id, parent.linkedId). */
 const patchTaskInQueries = (
 	store: OptimisticLocalStore,
 	taskId: Id<"tasks">,
 	updatedTask: Task,
 ) => {
-	store.setQuery(api.tasks.getForUI, { taskId }, updatedTask);
+	const normalizedTask = normalizeTask(updatedTask);
+	store.setQuery(api.tasks.getForUI, { taskId }, normalizedTask);
 
 	const archivedOptions = [false, true] as const;
 	for (const archived of archivedOptions) {
@@ -244,10 +280,10 @@ const patchTaskInQueries = (
 		const idx = list.findIndex((t) => t.id === taskId);
 		if (idx < 0) continue;
 		const nextList = [...list];
-		nextList[idx] = updatedTask;
+		nextList[idx] = normalizedTask;
 		store.setQuery(api.tasks.listForUI, { archived }, nextList);
 
-		const compId = competitionIdFromParent(updatedTask?.parent ?? null);
+		const compId = competitionIdFromParent(normalizedTask.parent);
 		if (compId != null) {
 			const compList = store.getQuery(api.tasks.listForUI, {
 				archived: false,
@@ -257,7 +293,7 @@ const patchTaskInQueries = (
 				const compIdx = (compList as Task[]).findIndex((t) => t.id === taskId);
 				if (compIdx >= 0) {
 					const nextCompList = [...compList];
-					nextCompList[compIdx] = updatedTask;
+					nextCompList[compIdx] = normalizedTask;
 					store.setQuery(
 						api.tasks.listForUI,
 						{ archived: false, competitionId: compId },
@@ -279,8 +315,9 @@ export function useTaskMutations(): TaskMutations {
 		(store, { taskId, updates }) => {
 			const current = store.getQuery(api.tasks.getForUI, { taskId });
 			if (!current) return;
+			const normalizedCurrent = normalizeTask(current);
 			const next = {
-				...current,
+				...normalizedCurrent,
 				...updates,
 				updatedAt: new Date().toISOString(),
 			} satisfies Task;
@@ -295,10 +332,11 @@ export function useTaskMutations(): TaskMutations {
 	).withOptimisticUpdate((store, { taskId, approverId }) => {
 		const current = store.getQuery(api.tasks.getForUI, { taskId });
 		if (!current) return;
-		const currentRequired = current.requiredApprovalBy ?? [];
+		const normalizedCurrent = normalizeTask(current);
+		const currentRequired = normalizedCurrent.requiredApprovalBy ?? [];
 		if (currentRequired.some((a) => a.id === approverId)) return;
 		patchTaskInQueries(store, taskId, {
-			...current,
+			...normalizedCurrent,
 			requiredApprovalBy: [...currentRequired],
 			updatedAt: new Date().toISOString(),
 		} satisfies Task);
@@ -309,12 +347,13 @@ export function useTaskMutations(): TaskMutations {
 	).withOptimisticUpdate((store, { taskId, approverKey }) => {
 		const current = store.getQuery(api.tasks.getForUI, { taskId });
 		if (!current) return;
+		const normalizedCurrent = normalizeTask(current);
 		const approverId = approverKey.includes(":")
 			? approverKey.split(":")[1]
 			: approverKey;
 		patchTaskInQueries(store, taskId, {
-			...current,
-			requiredApprovalBy: (current.requiredApprovalBy ?? []).filter(
+			...normalizedCurrent,
+			requiredApprovalBy: normalizedCurrent.requiredApprovalBy.filter(
 				(a) => a.id !== approverId,
 			),
 			updatedAt: new Date().toISOString(),
@@ -329,7 +368,7 @@ export function useTaskMutations(): TaskMutations {
 		const currentUser = users?.[0];
 		if (!current || !currentUser) return;
 
-		const next = { ...current };
+		const next = { ...normalizeTask(current) };
 		if (!next.approvedBy?.some((a) => a.id === currentUser.id)) {
 			next.approvedBy = [...(next.approvedBy ?? []), currentUser];
 		}
@@ -357,15 +396,23 @@ export function useTaskMutations(): TaskMutations {
 		const users = store.getQuery(api.users.listUsers);
 		const currentUser = users?.[0];
 		if (!current || !currentUser) return;
+		const normalizedCurrent = normalizeTask(current);
 
 		patchTaskInQueries(store, taskId, {
-			...current,
-			approvedBy: (current.approvedBy ?? []).filter(
+			...normalizedCurrent,
+			approvedBy: normalizedCurrent.approvedBy.filter(
 				(a) => a.id !== currentUser.id,
 			),
 			updatedAt: new Date().toISOString(),
 		} satisfies Task);
 	});
+
+	const addBlockingRelationMutation = useMutation(
+		api.tasks.addBlockingRelation,
+	);
+	const removeBlockingRelationMutation = useMutation(
+		api.tasks.removeBlockingRelation,
+	);
 
 	return {
 		addTask: async (payload) => {
@@ -410,6 +457,10 @@ export function useTaskMutations(): TaskMutations {
 				requiredApprovalBy: [],
 				approvedBy: [],
 				labels: payload.labels,
+				blockedBy: [],
+				blocks: [],
+				unresolvedBlockerCount: 0,
+				isBlocked: false,
 				resources: [],
 				subTasks: [],
 				createdAt: new Date().toISOString(),
@@ -468,6 +519,16 @@ export function useTaskMutations(): TaskMutations {
 			removeRequiredApproverMutation({
 				taskId,
 				approverKey,
+			}),
+		addBlockingRelation: (blockedTaskId, blockingTaskId) =>
+			addBlockingRelationMutation({
+				blockedTaskId,
+				blockingTaskId,
+			}),
+		removeBlockingRelation: (blockedTaskId, blockingTaskId) =>
+			removeBlockingRelationMutation({
+				blockedTaskId,
+				blockingTaskId,
 			}),
 		approveTask: (taskId) => approveTaskMutation({ taskId }),
 		unapproveTask: (taskId) => unapproveTaskMutation({ taskId }),

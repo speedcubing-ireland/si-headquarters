@@ -1,5 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
@@ -31,6 +32,8 @@ import {
 } from "./lib/activity";
 import {
 	sendTaskAssigneeChangeNotifications,
+	sendTaskRelationBlockedNotifications,
+	sendTaskRelationUnblockedNotifications,
 	sendTaskStatusChangeNotifications,
 } from "./taskNotifications";
 import {
@@ -46,6 +49,7 @@ import {
 	userShape as sharedUserShape,
 	teamShape,
 } from "./lib/validators";
+import { MAX_BULK_UPDATE_COUNT } from "./lib/constants";
 
 const taskDoc = v.object({
 	_id: v.id("tasks"),
@@ -184,6 +188,284 @@ const subtaskMinimalShape = v.object({
 	status: taskStatus,
 });
 
+const relationTaskShape = v.object({
+	id: v.id("tasks"),
+	identifier: v.string(),
+	title: v.string(),
+	status: taskStatus,
+});
+
+const blockedByRelationShape = v.object({
+	task: relationTaskShape,
+	isResolved: v.boolean(),
+});
+
+const RESOLVED_BLOCKER_STATUSES = new Set<Doc<"tasks">["status"]>([
+	"done",
+	"cancelled",
+]);
+
+function isTaskBlockingStatus(status: Doc<"tasks">["status"]): boolean {
+	return !RESOLVED_BLOCKER_STATUSES.has(status);
+}
+
+type RelationTaskSummary = {
+	id: Id<"tasks">;
+	identifier: string;
+	title: string;
+	status: Doc<"tasks">["status"];
+};
+
+type TaskRelationData = {
+	blockedBy: Array<{ task: RelationTaskSummary; isResolved: boolean }>;
+	blocks: RelationTaskSummary[];
+	unresolvedBlockerCount: number;
+	isBlocked: boolean;
+};
+
+const EMPTY_TASK_RELATION_DATA: TaskRelationData = {
+	blockedBy: [],
+	blocks: [],
+	unresolvedBlockerCount: 0,
+	isBlocked: false,
+};
+
+type TaskRelationReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
+
+function toRelationTaskSummary(task: Doc<"tasks">): RelationTaskSummary {
+	return {
+		id: task._id,
+		identifier: task.identifier,
+		title: task.title,
+		status: task.status,
+	};
+}
+
+async function buildTaskRelationDataMap(
+	ctx: TaskRelationReadCtx,
+	taskIds: Id<"tasks">[],
+): Promise<Map<Id<"tasks">, TaskRelationData>> {
+	const relationData = new Map<Id<"tasks">, TaskRelationData>();
+	for (const taskId of taskIds) {
+		relationData.set(taskId, EMPTY_TASK_RELATION_DATA);
+	}
+	if (taskIds.length === 0) {
+		return relationData;
+	}
+
+	const blockedRelations = (
+		await Promise.all(
+			taskIds.map((taskId) =>
+				ctx.db
+					.query("taskRelations")
+					.withIndex("by_blocked_task", (q) => q.eq("blockedTaskId", taskId))
+					.collect(),
+			),
+		)
+	).flat();
+
+	const blockingRelations = (
+		await Promise.all(
+			taskIds.map((taskId) =>
+				ctx.db
+					.query("taskRelations")
+					.withIndex("by_blocking_task", (q) => q.eq("blockingTaskId", taskId))
+					.collect(),
+			),
+		)
+	).flat();
+
+	const blockedByMap = new Map<Id<"tasks">, Doc<"taskRelations">[]>();
+	for (const relation of blockedRelations) {
+		const existing = blockedByMap.get(relation.blockedTaskId) ?? [];
+		existing.push(relation);
+		blockedByMap.set(relation.blockedTaskId, existing);
+	}
+
+	const blocksMap = new Map<Id<"tasks">, Doc<"taskRelations">[]>();
+	for (const relation of blockingRelations) {
+		const existing = blocksMap.get(relation.blockingTaskId) ?? [];
+		existing.push(relation);
+		blocksMap.set(relation.blockingTaskId, existing);
+	}
+
+	const relatedTaskIds = new Set<Id<"tasks">>();
+	for (const relation of blockedRelations) {
+		relatedTaskIds.add(relation.blockingTaskId);
+	}
+	for (const relation of blockingRelations) {
+		relatedTaskIds.add(relation.blockedTaskId);
+	}
+
+	const relatedTaskIdsArray = [...relatedTaskIds];
+	const relatedTaskDocs = await Promise.all(
+		relatedTaskIdsArray.map((taskId) => ctx.db.get("tasks", taskId)),
+	);
+	const relatedTaskMap = new Map<Id<"tasks">, Doc<"tasks">>();
+	relatedTaskIdsArray.forEach((taskId, index) => {
+		const doc = relatedTaskDocs[index];
+		if (doc) {
+			relatedTaskMap.set(taskId, doc);
+		}
+	});
+
+	for (const taskId of taskIds) {
+		const blockedBy = (blockedByMap.get(taskId) ?? [])
+			.map((relation) => {
+				const blockingTask = relatedTaskMap.get(relation.blockingTaskId);
+				if (!blockingTask) return null;
+				return {
+					task: toRelationTaskSummary(blockingTask),
+					isResolved: !isTaskBlockingStatus(blockingTask.status),
+				};
+			})
+			.filter(
+				(
+					relation,
+				): relation is {
+					task: RelationTaskSummary;
+					isResolved: boolean;
+				} => relation !== null,
+			)
+			.sort((a, b) => {
+				if (a.isResolved !== b.isResolved) {
+					return a.isResolved ? 1 : -1;
+				}
+				return a.task.identifier.localeCompare(b.task.identifier);
+			});
+
+		const blocks = (blocksMap.get(taskId) ?? [])
+			.map((relation) => {
+				const blockedTask = relatedTaskMap.get(relation.blockedTaskId);
+				return blockedTask ? toRelationTaskSummary(blockedTask) : null;
+			})
+			.filter((task): task is RelationTaskSummary => task !== null)
+			.sort((a, b) => a.identifier.localeCompare(b.identifier));
+
+		const unresolvedBlockerCount = blockedBy.reduce(
+			(total, relation) => total + (relation.isResolved ? 0 : 1),
+			0,
+		);
+
+		relationData.set(taskId, {
+			blockedBy,
+			blocks,
+			unresolvedBlockerCount,
+			isBlocked: unresolvedBlockerCount > 0,
+		});
+	}
+
+	return relationData;
+}
+
+async function countUnresolvedBlockers(
+	ctx: TaskRelationReadCtx,
+	blockedTaskId: Id<"tasks">,
+): Promise<number> {
+	const relations = await ctx.db
+		.query("taskRelations")
+		.withIndex("by_blocked_task", (q) => q.eq("blockedTaskId", blockedTaskId))
+		.collect();
+	if (relations.length === 0) {
+		return 0;
+	}
+
+	const blockingTaskDocs = await Promise.all(
+		relations.map((relation) => ctx.db.get("tasks", relation.blockingTaskId)),
+	);
+	return blockingTaskDocs.reduce((total, task) => {
+		if (task && isTaskBlockingStatus(task.status)) {
+			return total + 1;
+		}
+		return total;
+	}, 0);
+}
+
+async function wouldCreateTaskRelationCycle(
+	ctx: TaskRelationReadCtx,
+	blockedTaskId: Id<"tasks">,
+	blockingTaskId: Id<"tasks">,
+): Promise<boolean> {
+	if (blockedTaskId === blockingTaskId) {
+		return true;
+	}
+
+	const queue: Id<"tasks">[] = [blockedTaskId];
+	const visited = new Set<Id<"tasks">>();
+
+	while (queue.length > 0) {
+		const currentTaskId = queue.shift();
+		if (!currentTaskId || visited.has(currentTaskId)) {
+			continue;
+		}
+		if (currentTaskId === blockingTaskId) {
+			return true;
+		}
+		visited.add(currentTaskId);
+
+		const downstreamRelations = await ctx.db
+			.query("taskRelations")
+			.withIndex("by_blocking_task", (q) =>
+				q.eq("blockingTaskId", currentTaskId),
+			)
+			.collect();
+		for (const relation of downstreamRelations) {
+			if (!visited.has(relation.blockedTaskId)) {
+				queue.push(relation.blockedTaskId);
+			}
+		}
+	}
+
+	return false;
+}
+
+async function handleBlockingStatusTransitionNotifications(
+	ctx: MutationCtx,
+	blockingTaskId: Id<"tasks">,
+	oldStatus: Doc<"tasks">["status"],
+	newStatus: Doc<"tasks">["status"],
+	actorId: Id<"users">,
+): Promise<void> {
+	const wasBlocking = isTaskBlockingStatus(oldStatus);
+	const isBlocking = isTaskBlockingStatus(newStatus);
+	if (wasBlocking === isBlocking) {
+		return;
+	}
+
+	const relations = await ctx.db
+		.query("taskRelations")
+		.withIndex("by_blocking_task", (q) =>
+			q.eq("blockingTaskId", blockingTaskId),
+		)
+		.collect();
+	if (relations.length === 0) {
+		return;
+	}
+
+	const blockedTaskIds = [...new Set(relations.map((r) => r.blockedTaskId))];
+	await Promise.all(
+		blockedTaskIds.map(async (blockedTaskId) => {
+			const unresolvedCount = await countUnresolvedBlockers(ctx, blockedTaskId);
+			if (wasBlocking && !isBlocking && unresolvedCount === 0) {
+				await sendTaskRelationUnblockedNotifications(
+					ctx,
+					blockedTaskId,
+					blockingTaskId,
+					actorId,
+				);
+			}
+			if (!wasBlocking && isBlocking && unresolvedCount === 1) {
+				await sendTaskRelationBlockedNotifications(
+					ctx,
+					blockedTaskId,
+					blockingTaskId,
+					actorId,
+				);
+			}
+		}),
+	);
+}
+
 export const taskForUIReturns = v.object({
 	id: v.id("tasks"),
 	identifier: v.string(),
@@ -200,6 +482,10 @@ export const taskForUIReturns = v.object({
 	requiredApprovalBy: v.array(approvalShape),
 	approvedBy: v.array(userShape),
 	labels: v.array(taskLabelShape),
+	blockedBy: v.array(blockedByRelationShape),
+	blocks: v.array(relationTaskShape),
+	unresolvedBlockerCount: v.number(),
+	isBlocked: v.boolean(),
 	resources: v.array(linkedResource),
 	subTasks: v.array(subtaskMinimalShape),
 	createdAt: v.string(),
@@ -268,6 +554,11 @@ export const listForUI = query({
 				);
 			}
 		}
+
+		const relationDataByTask = await buildTaskRelationDataMap(
+			ctx,
+			tasks.map((task) => task._id),
+		);
 
 		const labelIds = new Set<Id<"labels">>();
 		const userIds = new Set<Id<"users">>();
@@ -499,6 +790,8 @@ export const listForUI = query({
 					: null;
 
 				const subTasks = subtaskRowsByParent.get(t._id) ?? [];
+				const relationData =
+					relationDataByTask.get(t._id) ?? EMPTY_TASK_RELATION_DATA;
 
 				const combinedTeamsMap = new Map(teamsMap);
 				for (const [key, value] of approvalTeamsMap) {
@@ -528,6 +821,10 @@ export const listForUI = query({
 					requiredApprovalBy,
 					approvedBy,
 					labels,
+					blockedBy: relationData.blockedBy,
+					blocks: relationData.blocks,
+					unresolvedBlockerCount: relationData.unresolvedBlockerCount,
+					isBlocked: relationData.isBlocked,
 					resources: t.resources ?? [],
 					subTasks,
 					createdAt: toISO(t._creationTime),
@@ -563,6 +860,10 @@ export const getForUI = query({
 				return null;
 			}
 		}
+
+		const relationDataByTask = await buildTaskRelationDataMap(ctx, [
+			args.taskId,
+		]);
 
 		const approvalUserIds = new Set<Id<"users">>();
 		const approvalTeamIds = new Set<Id<"teams">>();
@@ -771,6 +1072,8 @@ export const getForUI = query({
 			combinedUsersMap,
 			approvalTeamsMap,
 		);
+		const relationData =
+			relationDataByTask.get(args.taskId) ?? EMPTY_TASK_RELATION_DATA;
 
 		return {
 			id: t._id,
@@ -788,6 +1091,10 @@ export const getForUI = query({
 			requiredApprovalBy,
 			approvedBy,
 			labels,
+			blockedBy: relationData.blockedBy,
+			blocks: relationData.blocks,
+			unresolvedBlockerCount: relationData.unresolvedBlockerCount,
+			isBlocked: relationData.isBlocked,
 			resources: t.resources ?? [],
 			subTasks,
 			createdAt: toISO(t._creationTime),
@@ -832,6 +1139,12 @@ const TASK_ACTIVITY_CONFIG: ActivityConfig<Doc<"tasks">> = {
 		transform: (r) => (r ? "resources updated" : undefined),
 	},
 };
+
+const ERROR_TASK_RELATION_SELF = "A task cannot block itself";
+const ERROR_TASK_RELATION_SCOPE =
+	"Tasks can only block tasks within the same competition";
+const ERROR_TASK_RELATION_CYCLE =
+	"This dependency would create a blocking cycle";
 
 export const create = mutation({
 	args: taskCreateArgs,
@@ -953,7 +1266,8 @@ export const update = mutation({
 		const newAssigneeId =
 			args.updates.assigneeId === null ? undefined : args.updates.assigneeId;
 		const oldStatus = doc.status;
-		const newStatus = args.updates.status ?? doc.status;
+		const newStatus: Doc<"tasks">["status"] =
+			patch.status ?? args.updates.status ?? doc.status;
 
 		await ctx.db.patch("tasks", args.taskId, patch);
 
@@ -999,6 +1313,13 @@ export const update = mutation({
 				newStatus,
 				userId,
 			);
+			await handleBlockingStatusTransitionNotifications(
+				ctx,
+				args.taskId,
+				oldStatus,
+				newStatus,
+				userId,
+			);
 		}
 
 		if (newStatus === "awaiting-review") {
@@ -1027,8 +1348,24 @@ export const bulkUpdate = mutation({
 			return null;
 		}
 
+		if (args.taskIds.length > MAX_BULK_UPDATE_COUNT) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: `Cannot bulk update more than ${MAX_BULK_UPDATE_COUNT} tasks at once`,
+			});
+		}
+
+		const taskDocs = await Promise.all(
+			args.taskIds.map((id) => ctx.db.get("tasks", id)),
+		);
+		const taskMap = new Map<Id<"tasks">, Doc<"tasks">>();
+		for (let i = 0; i < args.taskIds.length; i++) {
+			const doc = taskDocs[i];
+			if (doc) taskMap.set(args.taskIds[i], doc);
+		}
+
 		for (const taskId of args.taskIds) {
-			const doc = await ctx.db.get("tasks", taskId);
+			const doc = taskMap.get(taskId);
 			if (!doc) continue;
 
 			await requireTaskAccess(ctx, volunteer, userId, doc);
@@ -1056,14 +1393,14 @@ export const bulkUpdate = mutation({
 		const now = Date.now();
 
 		for (const taskId of args.taskIds) {
-			const doc = await ctx.db.get("tasks", taskId);
+			const doc = taskMap.get(taskId);
 			if (!doc) continue;
 
 			const patch = buildTaskPatch(args.updates, now);
 			await applyAwaitingReviewAutoPromote(ctx, doc, patch);
 
-			const newStatus =
-				(patch.status as string) ?? args.updates.status ?? doc.status;
+			const newStatus: Doc<"tasks">["status"] =
+				patch.status ?? args.updates.status ?? doc.status;
 			const oldAssigneeId = doc.assigneeId;
 			const newAssigneeId =
 				args.updates.assigneeId === undefined
@@ -1113,6 +1450,13 @@ export const bulkUpdate = mutation({
 					newStatus,
 					userId,
 				);
+				await handleBlockingStatusTransitionNotifications(
+					ctx,
+					taskId,
+					oldStatus,
+					newStatus,
+					userId,
+				);
 			}
 
 			if (newStatus === "awaiting-review") {
@@ -1120,6 +1464,159 @@ export const bulkUpdate = mutation({
 					ctx,
 					taskId,
 					doc.requiredApprovalIds,
+					userId,
+				);
+			}
+		}
+
+		return null;
+	},
+});
+
+export const addBlockingRelation = mutation({
+	args: {
+		blockedTaskId: v.id("tasks"),
+		blockingTaskId: v.id("tasks"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const userId = await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+
+		if (args.blockedTaskId === args.blockingTaskId) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: ERROR_TASK_RELATION_SELF,
+			});
+		}
+
+		const [blockedTask, blockingTask] = await Promise.all([
+			ctx.db.get("tasks", args.blockedTaskId),
+			ctx.db.get("tasks", args.blockingTaskId),
+		]);
+		if (!blockedTask || !blockingTask) {
+			throw new ConvexError({
+				code: "NOT_FOUND",
+				message: "Task not found",
+			});
+		}
+
+		await requireTaskAccess(ctx, volunteer, userId, blockedTask);
+		await requireTaskAccess(ctx, volunteer, userId, blockingTask);
+
+		if (blockedTask.parentCompetitionId !== blockingTask.parentCompetitionId) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: ERROR_TASK_RELATION_SCOPE,
+			});
+		}
+
+		const existingRelation = await ctx.db
+			.query("taskRelations")
+			.withIndex("by_blocked_and_blocking", (q) =>
+				q
+					.eq("blockedTaskId", args.blockedTaskId)
+					.eq("blockingTaskId", args.blockingTaskId),
+			)
+			.first();
+		if (existingRelation) {
+			return null;
+		}
+
+		const createsCycle = await wouldCreateTaskRelationCycle(
+			ctx,
+			args.blockedTaskId,
+			args.blockingTaskId,
+		);
+		if (createsCycle) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: ERROR_TASK_RELATION_CYCLE,
+			});
+		}
+
+		const now = Date.now();
+		await ctx.db.insert("taskRelations", {
+			blockedTaskId: args.blockedTaskId,
+			blockingTaskId: args.blockingTaskId,
+			createdById: userId,
+			updatedAt: now,
+		});
+
+		await logActivity(ctx, userId, "task", args.blockedTaskId, "updated", {
+			message: `blocked by ${blockingTask.identifier}`,
+		});
+
+		if (isTaskBlockingStatus(blockingTask.status)) {
+			const unresolvedCount = await countUnresolvedBlockers(
+				ctx,
+				args.blockedTaskId,
+			);
+			if (unresolvedCount === 1) {
+				await sendTaskRelationBlockedNotifications(
+					ctx,
+					args.blockedTaskId,
+					args.blockingTaskId,
+					userId,
+				);
+			}
+		}
+
+		return null;
+	},
+});
+
+export const removeBlockingRelation = mutation({
+	args: {
+		blockedTaskId: v.id("tasks"),
+		blockingTaskId: v.id("tasks"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const userId = await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+
+		const relation = await ctx.db
+			.query("taskRelations")
+			.withIndex("by_blocked_and_blocking", (q) =>
+				q
+					.eq("blockedTaskId", args.blockedTaskId)
+					.eq("blockingTaskId", args.blockingTaskId),
+			)
+			.first();
+		if (!relation) {
+			return null;
+		}
+
+		const [blockedTask, blockingTask] = await Promise.all([
+			ctx.db.get("tasks", args.blockedTaskId),
+			ctx.db.get("tasks", args.blockingTaskId),
+		]);
+		if (!blockedTask || !blockingTask) {
+			await ctx.db.delete(relation._id);
+			return null;
+		}
+
+		await requireTaskAccess(ctx, volunteer, userId, blockedTask);
+		await requireTaskAccess(ctx, volunteer, userId, blockingTask);
+
+		const removedActiveBlocker = isTaskBlockingStatus(blockingTask.status);
+		await ctx.db.delete(relation._id);
+
+		await logActivity(ctx, userId, "task", args.blockedTaskId, "updated", {
+			message: `unblocked from ${blockingTask.identifier}`,
+		});
+
+		if (removedActiveBlocker) {
+			const unresolvedCount = await countUnresolvedBlockers(
+				ctx,
+				args.blockedTaskId,
+			);
+			if (unresolvedCount === 0) {
+				await sendTaskRelationUnblockedNotifications(
+					ctx,
+					args.blockedTaskId,
+					args.blockingTaskId,
 					userId,
 				);
 			}
@@ -1292,6 +1789,25 @@ export const approveTask = mutation({
 		}
 
 		await ctx.db.patch("tasks", args.taskId, patch);
+
+		if (patch.status === "done") {
+			sendTaskStatusChangeNotifications(
+				ctx,
+				args.taskId,
+				task,
+				task.status,
+				"done",
+				userId,
+			);
+			await handleBlockingStatusTransitionNotifications(
+				ctx,
+				args.taskId,
+				task.status,
+				"done",
+				userId,
+			);
+		}
+
 		await logActivity(ctx, userId, "task", args.taskId, "approved");
 		return null;
 	},

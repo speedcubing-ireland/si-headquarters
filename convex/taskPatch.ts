@@ -26,7 +26,6 @@ export type TaskUpdate = Infer<typeof taskUpdateValidator>;
 
 export type TaskPatch = TaskUpdate & { updatedAt: number };
 
-/** Patch with null replaced by undefined so ctx.db.patch accepts it without cast. */
 export type TaskPatchForDb = Omit<
 	TaskPatch,
 	| "dueDate"
@@ -45,36 +44,48 @@ export type TaskPatchForDb = Omit<
 	updatedAt: number;
 };
 
-/**
- * Build a task patch from an updates object: spread updates, set updatedAt,
- * and convert optional null fields to undefined so Convex clears them.
- */
 export function buildTaskPatch(
 	updates: TaskUpdate,
 	updatedAt: number,
 ): TaskPatchForDb {
-	const result: TaskPatchForDb = {
-		...updates,
-		updatedAt,
-		dueDate: updates.dueDate === null ? undefined : updates.dueDate,
-		parentTaskId:
-			updates.parentTaskId === null ? undefined : updates.parentTaskId,
-		parentCompetitionId:
+	const result: Record<string, unknown> = { updatedAt };
+
+	if (updates.title !== undefined) result.title = updates.title;
+	if (updates.description !== undefined)
+		result.description = updates.description;
+	if (updates.status !== undefined) result.status = updates.status;
+	if (updates.priority !== undefined) result.priority = updates.priority;
+	if (updates.ownerType !== undefined) result.ownerType = updates.ownerType;
+	if (updates.labelIds !== undefined) result.labelIds = updates.labelIds;
+	if (updates.resources !== undefined) result.resources = updates.resources;
+
+	if (updates.dueDate !== undefined) {
+		result.dueDate = updates.dueDate === null ? undefined : updates.dueDate;
+	}
+	if (updates.parentTaskId !== undefined) {
+		result.parentTaskId =
+			updates.parentTaskId === null ? undefined : updates.parentTaskId;
+	}
+	if (updates.parentCompetitionId !== undefined) {
+		result.parentCompetitionId =
 			updates.parentCompetitionId === null
 				? undefined
-				: updates.parentCompetitionId,
-		ownerId: updates.ownerId === null ? undefined : updates.ownerId,
-		assigneeId: updates.assigneeId === null ? undefined : updates.assigneeId,
-		phaseId: updates.phaseId === null ? undefined : updates.phaseId,
-	};
-	return result;
+				: updates.parentCompetitionId;
+	}
+	if (updates.ownerId !== undefined) {
+		result.ownerId = updates.ownerId === null ? undefined : updates.ownerId;
+	}
+	if (updates.assigneeId !== undefined) {
+		result.assigneeId =
+			updates.assigneeId === null ? undefined : updates.assigneeId;
+	}
+	if (updates.phaseId !== undefined) {
+		result.phaseId = updates.phaseId === null ? undefined : updates.phaseId;
+	}
+
+	return result as TaskPatchForDb;
 }
 
-/**
- * If patch.status is "awaiting-review", check approval completeness and
- * set patch.status to "done" when already fully approved (so the transition
- * is a no-op for the user).
- */
 export async function applyAwaitingReviewAutoPromote(
 	ctx: MutationCtx,
 	doc: Doc<"tasks">,

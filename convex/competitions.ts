@@ -199,21 +199,28 @@ export const listForUI = query({
 			Id<"competitions">,
 			Doc<"competitionUpdates">[]
 		>();
-		for (const d of docs) {
+
+		const [taskResults, updateResults] = await Promise.all([
+			Promise.all(docs.map((d) => loadTaskSummariesForCompetition(ctx, d._id))),
+			Promise.all(
+				docs.map((d) =>
+					ctx.db
+						.query("competitionUpdates")
+						.withIndex("by_competition", (q) => q.eq("competitionId", d._id))
+						.order("desc")
+						.collect(),
+				),
+			),
+		]);
+
+		for (let i = 0; i < docs.length; i++) {
+			const d = docs[i];
 			if (d.compLeadId) userIds.add(d.compLeadId);
 			if (d.leadDelegateId) userIds.add(d.leadDelegateId);
 			for (const id of d.organiserIds) userIds.add(id);
-			tasksByCompetition.set(
-				d._id,
-				await loadTaskSummariesForCompetition(ctx, d._id),
-			);
-			const updateDocs = await ctx.db
-				.query("competitionUpdates")
-				.withIndex("by_competition", (q) => q.eq("competitionId", d._id))
-				.order("desc")
-				.collect();
-			updatesByCompetition.set(d._id, updateDocs);
-			collectUserIdsFromUpdates(updateDocs, userIds);
+			tasksByCompetition.set(d._id, taskResults[i]);
+			updatesByCompetition.set(d._id, updateResults[i]);
+			collectUserIdsFromUpdates(updateResults[i], userIds);
 		}
 
 		const userArr = [...userIds];
@@ -588,19 +595,60 @@ export async function deleteTasksAndRelatedData(
 ): Promise<void> {
 	if (taskIdArray.length === 0) return;
 
-	const allReminders = await ctx.db.query("reminders").collect();
-	const remindersToDelete = allReminders.filter(
-		(r) =>
-			r.entityType === "task" &&
-			taskIdArray.includes(r.entityId as Id<"tasks">),
-	);
+	const remindersToDelete = (
+		await Promise.all(
+			taskIdArray.map((taskId) =>
+				ctx.db
+					.query("reminders")
+					.withIndex("by_entity", (q) =>
+						q.eq("entityType", "task").eq("entityId", taskId),
+					)
+					.collect(),
+			),
+		)
+	).flat();
 
-	const allNotifications = await ctx.db.query("notifications").collect();
-	const notificationsToDelete = allNotifications.filter(
-		(n) =>
-			n.entityType === "task" &&
-			taskIdArray.includes(n.entityId as Id<"tasks">),
-	);
+	const notificationsToDelete = (
+		await Promise.all(
+			taskIdArray.map((taskId) =>
+				ctx.db
+					.query("notifications")
+					.withIndex("by_entity", (q) =>
+						q.eq("entityType", "task").eq("entityId", taskId),
+					)
+					.collect(),
+			),
+		)
+	).flat();
+
+	const relationsByBlockedTask = (
+		await Promise.all(
+			taskIdArray.map((taskId) =>
+				ctx.db
+					.query("taskRelations")
+					.withIndex("by_blocked_task", (q) => q.eq("blockedTaskId", taskId))
+					.collect(),
+			),
+		)
+	).flat();
+
+	const relationsByBlockingTask = (
+		await Promise.all(
+			taskIdArray.map((taskId) =>
+				ctx.db
+					.query("taskRelations")
+					.withIndex("by_blocking_task", (q) => q.eq("blockingTaskId", taskId))
+					.collect(),
+			),
+		)
+	).flat();
+	const relationIdsToDelete = new Set<Id<"taskRelations">>();
+	for (const relation of relationsByBlockedTask) {
+		relationIdsToDelete.add(relation._id);
+	}
+	for (const relation of relationsByBlockingTask) {
+		relationIdsToDelete.add(relation._id);
+	}
 
 	const taskActivityLogPromises = taskIdArray.map((taskId) =>
 		ctx.db
@@ -615,6 +663,9 @@ export async function deleteTasksAndRelatedData(
 	await Promise.all([
 		...remindersToDelete.map((r) => ctx.db.delete("reminders", r._id)),
 		...notificationsToDelete.map((n) => ctx.db.delete("notifications", n._id)),
+		...Array.from(relationIdsToDelete).map((relationId) =>
+			ctx.db.delete("taskRelations", relationId),
+		),
 		...taskActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
 	]);
 
@@ -667,13 +718,12 @@ export const remove = mutation({
 
 		await deleteTasksAndRelatedData(ctx, taskIdArray);
 
-		const competitionNotifications = await ctx.db
+		const notificationsToDelete = await ctx.db
 			.query("notifications")
+			.withIndex("by_entity", (q) =>
+				q.eq("entityType", "competition").eq("entityId", args.competitionId),
+			)
 			.collect();
-		const notificationsToDelete = competitionNotifications.filter(
-			(n) =>
-				n.entityType === "competition" && n.entityId === args.competitionId,
-		);
 
 		const competitionActivityLogs = await ctx.db
 			.query("activityLog")

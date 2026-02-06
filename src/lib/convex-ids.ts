@@ -1,31 +1,20 @@
-/**
- * ID helpers for route/API boundaries.
- *
- * Per plan Phase 3.5: These are the only places where string → Id conversion
- * happens (at the route boundary). They use Convex's own ID validation
- * and are only used for routes which provide an id.
- */
-
 import type { Id } from "@/convex/_generated/dataModel";
 
 function isValidConvexId(value: unknown): value is string {
 	return typeof value === "string" && value.length > 0;
 }
 
-/** Parse route param to Id<"tasks">; returns null if missing/invalid. */
 export function parseTaskId(id: string | undefined): Id<"tasks"> | null {
 	if (!isValidConvexId(id)) return null;
 	return id as Id<"tasks">;
 }
 
-/** Require task ID from route; throws if missing/invalid. */
 export function requireTaskId(id: string | undefined): Id<"tasks"> {
 	const parsed = parseTaskId(id);
 	if (parsed == null) throw new Error("Task ID required");
 	return parsed;
 }
 
-/** Parse route param to Id<"competitions">; returns null if invalid. */
 export function parseCompetitionId(
 	id: string | undefined,
 ): Id<"competitions"> | null {
@@ -33,7 +22,6 @@ export function parseCompetitionId(
 	return id as Id<"competitions">;
 }
 
-/** Require competition ID from route; throws if missing/invalid. */
 export function requireCompetitionId(
 	id: string | undefined,
 ): Id<"competitions"> {
@@ -42,13 +30,11 @@ export function requireCompetitionId(
 	return parsed;
 }
 
-/** Parse route param to Id<"teams">; returns null if invalid. */
 export function parseTeamId(id: string | undefined): Id<"teams"> | null {
 	if (!isValidConvexId(id)) return null;
 	return id as Id<"teams">;
 }
 
-/** Require team ID from route; throws if missing/invalid. */
 export function requireTeamId(id: string | undefined): Id<"teams"> {
 	const parsed = parseTeamId(id);
 	if (parsed == null) throw new Error("Team ID required");

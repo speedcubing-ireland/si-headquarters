@@ -17,14 +17,9 @@ import { SharedFilterChip } from "./filter-chip";
 type SharedDateRangeFilterChipProps = {
 	dateRange: DateRangeDisplay & { isNot?: boolean };
 	onClear: () => void;
-	/**
-	 * If provided, renders the "is / is not" dropdown (competitions-style).
-	 * If omitted, renders a single SharedFilterChip (tasks-style).
-	 */
+
 	onIsNotChange?: (isNot: boolean) => void;
-	/**
-	 * For tasks-style chip: optional handler to toggle isNot when user clicks "is not".
-	 */
+
 	onIsNotToggle?: () => void;
 };
 

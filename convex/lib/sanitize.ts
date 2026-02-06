@@ -1,12 +1,5 @@
-/**
- * Input sanitization utilities for Convex functions
- */
-
 const MAX_STRING_LENGTH = 10000;
 
-/**
- * Sanitizes user input text to prevent XSS and limit length
- */
 export function sanitizeText(input: string | undefined | null): string {
 	if (input === undefined || input === null) {
 		return "";
@@ -15,10 +8,6 @@ export function sanitizeText(input: string | undefined | null): string {
 	return input.trim().replace(/[<>]/g, "").slice(0, MAX_STRING_LENGTH);
 }
 
-/**
- * Validates and sanitizes a required text field
- * @throws Error if input is empty after sanitization
- */
 export function validateRequiredText(
 	input: string | undefined | null,
 	fieldName: string,
@@ -30,9 +19,6 @@ export function validateRequiredText(
 	return sanitized;
 }
 
-/**
- * Validates date range
- */
 export function validateDateRange(
 	startDate: string,
 	endDate: string,
@@ -51,9 +37,6 @@ export function validateDateRange(
 	return { startMs, endMs };
 }
 
-/**
- * Validates email format (basic check)
- */
 export function validateEmail(email: string): boolean {
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 	return emailRegex.test(email);

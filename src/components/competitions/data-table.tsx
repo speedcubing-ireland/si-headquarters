@@ -55,7 +55,7 @@ export function DataTable({ columns }: DataTableProps) {
 			subGrouping={displaySettings.subGrouping}
 			ordering={displaySettings.ordering}
 			setOrdering={setOrdering}
-			containerClassName="px-4"
+			containerClassName="px-3 sm:px-4"
 			emptyLabel="No results."
 			onRowClick={handleRowClick}
 		/>

@@ -363,7 +363,10 @@ export const remove = mutation({
 		const isDirector = await isDirectorForCtx(ctx);
 
 		if (!isCommentAuthor && !isDirector) {
-			return null;
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "You can only delete your own comments",
+			});
 		}
 
 		await logActivity(

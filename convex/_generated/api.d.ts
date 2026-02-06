@@ -23,6 +23,7 @@ import type * as lib_commentParentId from "../lib/commentParentId.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_entityAccess from "../lib/entityAccess.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
+import type * as lib_seedData from "../lib/seedData.js";
 import type * as lib_transforms from "../lib/transforms.js";
 import type * as lib_types from "../lib/types.js";
 import type * as lib_validators from "../lib/validators.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "lib/constants": typeof lib_constants;
   "lib/entityAccess": typeof lib_entityAccess;
   "lib/sanitize": typeof lib_sanitize;
+  "lib/seedData": typeof lib_seedData;
   "lib/transforms": typeof lib_transforms;
   "lib/types": typeof lib_types;
   "lib/validators": typeof lib_validators;

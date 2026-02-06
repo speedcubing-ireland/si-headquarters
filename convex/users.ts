@@ -52,11 +52,6 @@ export const listUsers = query({
 	},
 });
 
-/**
- * Ensure the current user is added to the Volunteer team if they have
- * a @speedcubingireland.com email. Idempotent - safe to call multiple times.
- * This should be called on app initialization to auto-enroll users.
- */
 export const ensureVolunteerAccess = mutation({
 	args: {},
 	returns: v.null(),

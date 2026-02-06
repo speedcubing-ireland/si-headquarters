@@ -90,104 +90,106 @@ export function CompetitionDetails({
 	);
 
 	return (
-		<section className="space-y-6">
-			<div className="flex items-start gap-4">
-				<img
-					src={avatarDataUri}
-					alt=""
-					className="size-12 shrink-0 rounded-lg border border-border object-cover"
-				/>
+		<section className="space-y-5 sm:space-y-6">
+			<div className="rounded-xl border border-border/70 bg-card p-4 sm:p-5">
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+					<img
+						src={avatarDataUri}
+						alt=""
+						className="size-12 shrink-0 rounded-lg border border-border object-cover"
+					/>
 
-				<div className="flex-1 space-y-2">
-					{canEdit ? (
-						<EditableText
-							value={competition.name}
-							onSubmit={(next) => onUpdate({ name: next })}
-							className="border-0 px-0 text-2xl font-semibold tracking-tight focus-visible:ring-0"
-							displayClassName="text-left text-2xl font-semibold tracking-tight text-balance hover:bg-muted/60 -mx-1 rounded px-1"
-						/>
-					) : (
-						<h1 className="text-2xl font-semibold tracking-tight text-balance">
-							{competition.name}
-						</h1>
-					)}
-
-					<div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-						{canEdit && isEditingDates ? (
-							<div className="flex flex-wrap items-center gap-2">
-								<input
-									type="date"
-									value={startDraft}
-									onChange={(e) => setStartDraft(e.target.value)}
-									className="h-7 rounded border border-border bg-background px-2 text-xs"
-								/>
-								<span>–</span>
-								<input
-									type="date"
-									value={endDraft}
-									onChange={(e) => setEndDraft(e.target.value)}
-									className="h-7 rounded border border-border bg-background px-2 text-xs"
-								/>
-								<button
-									type="button"
-									onClick={handleCommitDates}
-									className="text-xs font-medium text-foreground"
-								>
-									Save
-								</button>
-								<button
-									type="button"
-									onClick={() => {
-										setIsEditingDates(false);
-										setStartDraft(competition.compStart);
-										setEndDraft(competition.compEnd);
-									}}
-									className="text-xs text-muted-foreground"
-								>
-									Cancel
-								</button>
-							</div>
+					<div className="flex-1 space-y-2">
+						{canEdit ? (
+							<EditableText
+								value={competition.name}
+								onSubmit={(next) => onUpdate({ name: next })}
+								className="border-0 px-0 text-xl font-semibold tracking-tight focus-visible:ring-0 sm:text-2xl"
+								displayClassName="text-left text-xl font-semibold tracking-tight text-balance hover:bg-muted/60 -mx-1 rounded px-1 sm:text-2xl"
+							/>
 						) : (
-							<button
-								type="button"
-								className={
-									canEdit
-										? "inline-flex items-center gap-1 rounded px-1 hover:bg-muted/60"
-										: "inline-flex items-center gap-1"
-								}
-								onClick={() => {
-									if (!canEdit) return;
-									setIsEditingDates(true);
-								}}
-							>
-								<CalendarDays className="size-3" />
-								<span>{formatDate(competition.compStart)}</span>
-								<span>–</span>
-								<span>{formatDate(competition.compEnd)}</span>
-							</button>
+							<h1 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">
+								{competition.name}
+							</h1>
 						)}
 
-						{currentPhase && (
-							<>
-								<Separator
-									orientation="vertical"
-									className="h-3 shrink-0 bg-border"
-								/>
-								<Badge
-									variant="outline"
-									className="gap-1 border-border bg-background text-[11px] font-normal"
+						<div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground sm:gap-3">
+							{canEdit && isEditingDates ? (
+								<div className="flex flex-wrap items-center gap-2">
+									<input
+										type="date"
+										value={startDraft}
+										onChange={(e) => setStartDraft(e.target.value)}
+										className="h-8 rounded border border-border bg-background px-2 text-xs"
+									/>
+									<span>–</span>
+									<input
+										type="date"
+										value={endDraft}
+										onChange={(e) => setEndDraft(e.target.value)}
+										className="h-8 rounded border border-border bg-background px-2 text-xs"
+									/>
+									<button
+										type="button"
+										onClick={handleCommitDates}
+										className="text-xs font-medium text-foreground"
+									>
+										Save
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											setIsEditingDates(false);
+											setStartDraft(competition.compStart);
+											setEndDraft(competition.compEnd);
+										}}
+										className="text-xs text-muted-foreground"
+									>
+										Cancel
+									</button>
+								</div>
+							) : (
+								<button
+									type="button"
+									className={
+										canEdit
+											? "inline-flex items-center gap-1 rounded px-1 hover:bg-muted/60"
+											: "inline-flex items-center gap-1"
+									}
+									onClick={() => {
+										if (!canEdit) return;
+										setIsEditingDates(true);
+									}}
 								>
-									<span className="size-1.5 rounded-full bg-chart-1" />
-									{currentPhase.name}
-								</Badge>
-							</>
-						)}
+									<CalendarDays className="size-3" />
+									<span>{formatDate(competition.compStart)}</span>
+									<span>–</span>
+									<span>{formatDate(competition.compEnd)}</span>
+								</button>
+							)}
+
+							{currentPhase && (
+								<>
+									<Separator
+										orientation="vertical"
+										className="h-3 shrink-0 bg-border"
+									/>
+									<Badge
+										variant="outline"
+										className="gap-1 border-border bg-background text-[11px] font-normal"
+									>
+										<span className="size-1.5 rounded-full bg-chart-1" />
+										{currentPhase.name}
+									</Badge>
+								</>
+							)}
+						</div>
 					</div>
 				</div>
 			</div>
 
 			{canEdit && (
-				<div className="space-y-1">
+				<div className="space-y-1 rounded-xl border border-border/70 bg-card p-4 sm:p-5">
 					<div className="text-xs text-muted-foreground">Description</div>
 					{isEditingDescription ? (
 						<Input
@@ -217,8 +219,8 @@ export function CompetitionDetails({
 				</div>
 			)}
 
-			<div className="grid grid-cols-1 gap-6 pt-2 text-sm md:grid-cols-2">
-				<div className="space-y-3">
+			<div className="grid grid-cols-1 gap-5 pt-2 text-sm md:grid-cols-2 md:gap-6">
+				<div className="space-y-3 rounded-xl border border-border/70 bg-card p-4 sm:p-5">
 					<div>
 						<div className="mb-1 text-xs text-muted-foreground">
 							Competition lead
@@ -257,7 +259,7 @@ export function CompetitionDetails({
 					</div>
 				</div>
 
-				<div className="space-y-3">
+				<div className="space-y-3 rounded-xl border border-border/70 bg-card p-4 sm:p-5">
 					<div>
 						<div className="mb-1 text-xs text-muted-foreground">
 							Core details
@@ -302,7 +304,7 @@ export function CompetitionDetails({
 						variant="destructive"
 						size="sm"
 						onClick={() => setDeleteDialogOpen(true)}
-						className="gap-2"
+						className="max-w-full w-full gap-2 sm:w-auto"
 					>
 						<Trash2 className="size-4" />
 						Delete Competition

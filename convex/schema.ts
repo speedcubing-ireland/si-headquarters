@@ -5,7 +5,10 @@ import {
 	taskStatus,
 	taskPriority,
 	activityMetadata,
+	activityType,
 	notificationMetadata,
+	notificationType,
+	notificationPriority,
 	reminderMetadata,
 	reminderRecurringConfig,
 } from "./lib/validators";
@@ -73,6 +76,16 @@ export default defineSchema({
 		.index("by_assignee", ["assigneeId"])
 		.index("by_status", ["status"]),
 
+	taskRelations: defineTable({
+		blockedTaskId: v.id("tasks"),
+		blockingTaskId: v.id("tasks"),
+		createdById: v.id("users"),
+		updatedAt: v.number(),
+	})
+		.index("by_blocked_task", ["blockedTaskId"])
+		.index("by_blocking_task", ["blockingTaskId"])
+		.index("by_blocked_and_blocking", ["blockedTaskId", "blockingTaskId"]),
+
 	taskCounter: defineTable({
 		next: v.number(),
 	}),
@@ -137,7 +150,7 @@ export default defineSchema({
 			v.literal("competition"),
 		),
 		entityId: v.string(),
-		type: v.string(),
+		type: activityType,
 		actorId: v.id("users"),
 		oldValue: v.optional(v.string()),
 		newValue: v.optional(v.string()),
@@ -148,8 +161,8 @@ export default defineSchema({
 
 	notifications: defineTable({
 		userId: v.id("users"),
-		type: v.string(),
-		priority: v.string(),
+		type: notificationType,
+		priority: notificationPriority,
 		status: v.union(
 			v.literal("unread"),
 			v.literal("read"),
@@ -158,7 +171,12 @@ export default defineSchema({
 		title: v.string(),
 		message: v.string(),
 		body: v.optional(v.string()),
-		entityType: v.string(),
+		entityType: v.union(
+			v.literal("task"),
+			v.literal("comment"),
+			v.literal("competition"),
+			v.literal("reminder"),
+		),
 		entityId: v.string(),
 		parentEntityId: v.optional(v.string()),
 		metadata: notificationMetadata,
@@ -197,7 +215,9 @@ export default defineSchema({
 		.index("by_user", ["userId"])
 		.index("by_user_and_status", ["userId", "status"])
 		.index("by_user_entityId_status", ["userId", "entityId", "status"])
-		.index("by_remind_at", ["remindAt"]),
+		.index("by_remind_at", ["remindAt"])
+		.index("by_entity", ["entityType", "entityId"])
+		.index("by_status_and_remind_at", ["status", "remindAt"]),
 
 	savedViews: defineTable({
 		userId: v.id("users"),

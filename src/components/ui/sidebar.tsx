@@ -254,8 +254,9 @@ function SidebarTrigger({
 			data-sidebar="trigger"
 			data-slot="sidebar-trigger"
 			variant="ghost"
-			size="icon"
-			className={cn("size-7", className)}
+			size="icon-sm"
+			className={cn("shrink-0", className)}
+			title="Toggle navigation"
 			onClick={(event) => {
 				onClick?.(event);
 				toggleSidebar();

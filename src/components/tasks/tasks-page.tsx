@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect, useRef } from "react";
+import { useMemo, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
 import { useTasks } from "@/hooks/use-convex-data";
@@ -33,7 +33,6 @@ import {
 	serializeFilters,
 	type DisplaySettings,
 } from "@/lib/saved-view-utils";
-import { hasActiveFilters } from "@/lib/task-filters";
 import { TasksUrlProvider, useTasksUrlContext } from "@/lib/tasks-url-context";
 
 export type TasksPageProps = {
@@ -87,29 +86,15 @@ function TasksPageInner(props: TasksPageProps) {
 			serializeDisplaySettings(urlState.displaySettings),
 		restoreFiltersJson: (json) => {
 			const parsed = parseFiltersJson(json, emptyTasksFilters);
-			urlState.setArrayFilter("status", parsed.filters.status);
-			urlState.setArrayFilter("priority", parsed.filters.priority);
-			urlState.setArrayFilter("assignee", parsed.filters.assignee);
-			urlState.setArrayFilter("labels", parsed.filters.labels);
-			urlState.setArrayFilter("owner", parsed.filters.owner);
-			urlState.setArrayFilter("parentType", parsed.filters.parentType);
-			urlState.setDateRange(parsed.filters.dateRange);
-			urlState.setMatchMode(parsed.matchMode);
+			urlState.setFiltersAndMatch(parsed.filters, parsed.matchMode);
 		},
 		restoreDisplaySettingsJson: (json) => {
 			const parsed = parseDisplaySettingsJson(json);
-			urlState.setGrouping(parsed.grouping);
-			urlState.setSubGrouping(parsed.subGrouping);
-			urlState.setOrdering(parsed.ordering.field, parsed.ordering.direction);
+			urlState.setDisplaySettings(parsed);
 		},
 		resetAll: urlState.clearAll,
 	});
 	const { openTask } = useCreateModalsStore();
-
-	const handleReset = useCallback(() => {
-		urlState.clearAll();
-		savedViews.setActiveView(null);
-	}, [urlState, savedViews]);
 
 	const columns = useTaskColumns();
 
@@ -118,7 +103,7 @@ function TasksPageInner(props: TasksPageProps) {
 			<PageHeader.Primary
 				icon={pageIcon}
 				label={pageTitle}
-				onClick={handleReset}
+				onClick={listState.handleResetAll}
 			/>
 
 			<Separator
@@ -215,77 +200,14 @@ function TasksPageInner(props: TasksPageProps) {
 	);
 }
 
-function TasksPageWithDefaults(props: TasksPageProps) {
-	const {
-		filters,
-		displaySettings,
-		isViewActive,
-		setArrayFilter,
-		setDateRange,
-		setGrouping,
-		setSubGrouping,
-		setOrdering,
-	} = useTasksUrlContext();
-	const appliedDefaults = useRef(false);
-	const { defaultFilters, defaultDisplaySettings } = props;
-
-	useEffect(() => {
-		if (appliedDefaults.current) return;
-		if (!defaultFilters && !defaultDisplaySettings) return;
-		if (isViewActive) return;
-
-		const filtersEmpty = !hasActiveFilters(filters);
-		const displayIsDefault =
-			displaySettings.grouping === null &&
-			displaySettings.subGrouping === null &&
-			displaySettings.ordering.field === null &&
-			displaySettings.ordering.direction === "asc";
-
-		if (defaultFilters && filtersEmpty) {
-			const mergedFilters = { ...emptyTasksFilters, ...defaultFilters };
-			setArrayFilter("status", mergedFilters.status);
-			setArrayFilter("priority", mergedFilters.priority);
-			setArrayFilter("assignee", mergedFilters.assignee);
-			setArrayFilter("labels", mergedFilters.labels);
-			setArrayFilter("owner", mergedFilters.owner);
-			setArrayFilter("parentType", mergedFilters.parentType);
-			setDateRange(mergedFilters.dateRange);
-		}
-
-		if (defaultDisplaySettings && displayIsDefault) {
-			const nextDisplay: DisplaySettings = {
-				grouping: defaultDisplaySettings.grouping ?? null,
-				subGrouping: defaultDisplaySettings.subGrouping ?? null,
-				ordering: defaultDisplaySettings.ordering ?? {
-					field: null,
-					direction: "asc",
-				},
-			};
-			setGrouping(nextDisplay.grouping);
-			setSubGrouping(nextDisplay.subGrouping);
-			setOrdering(nextDisplay.ordering.field, nextDisplay.ordering.direction);
-		}
-
-		appliedDefaults.current = true;
-	}, [
-		defaultFilters,
-		defaultDisplaySettings,
-		isViewActive,
-		filters,
-		displaySettings,
-		setArrayFilter,
-		setDateRange,
-		setGrouping,
-		setSubGrouping,
-		setOrdering,
-	]);
-	return <TasksPageInner {...props} />;
-}
-
 export function TasksPage(props: TasksPageProps) {
 	return (
-		<TasksUrlProvider>
-			<TasksPageWithDefaults {...props} />
+		<TasksUrlProvider
+			pageId={props.pageId}
+			defaultFilters={props.defaultFilters}
+			defaultDisplaySettings={props.defaultDisplaySettings}
+		>
+			<TasksPageInner {...props} />
 		</TasksUrlProvider>
 	);
 }

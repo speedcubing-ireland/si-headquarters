@@ -48,12 +48,7 @@ export function useTasksSavedViews({
 		viewId,
 		setView,
 		clearAll,
-		setArrayFilter,
-		setMatchMode,
-		setDateRange,
-		setGrouping,
-		setSubGrouping,
-		setOrdering,
+		replaceAll,
 	} = useTasksUrlContext();
 
 	const views: SavedView[] = useMemo(
@@ -109,33 +104,14 @@ export function useTasksSavedViews({
 				emptyTasksFilters,
 			);
 			const parsedDisplay = parseDisplaySettingsJson(view.displaySettingsJson);
-			setView(viewId);
-
-			setArrayFilter("status", parsedFilters.filters.status);
-			setArrayFilter("priority", parsedFilters.filters.priority);
-			setArrayFilter("assignee", parsedFilters.filters.assignee);
-			setArrayFilter("labels", parsedFilters.filters.labels);
-			setArrayFilter("owner", parsedFilters.filters.owner);
-			setArrayFilter("parentType", parsedFilters.filters.parentType);
-			setDateRange(parsedFilters.filters.dateRange);
-			setMatchMode(parsedFilters.matchMode);
-			setGrouping(parsedDisplay.grouping);
-			setSubGrouping(parsedDisplay.subGrouping);
-			setOrdering(
-				parsedDisplay.ordering.field,
-				parsedDisplay.ordering.direction,
-			);
+			replaceAll({
+				viewId,
+				filters: parsedFilters.filters,
+				matchMode: parsedFilters.matchMode,
+				displaySettings: parsedDisplay,
+			});
 		},
-		[
-			views,
-			setView,
-			setArrayFilter,
-			setMatchMode,
-			setDateRange,
-			setGrouping,
-			setSubGrouping,
-			setOrdering,
-		],
+		[views, replaceAll],
 	);
 
 	const deleteView = useCallback(

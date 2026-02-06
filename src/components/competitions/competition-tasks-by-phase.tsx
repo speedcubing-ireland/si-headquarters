@@ -3,8 +3,7 @@ import { useState } from "react";
 
 import { useTaskColumns } from "@/components/tasks/columns";
 import { TasksDataTable } from "@/components/tasks/data-table";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { TaskListGroup } from "@/components/tasks/task-list-group";
 import { useTaskMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { groupTasksByCompetitionPhase } from "@/lib/task-utils";
@@ -72,8 +71,8 @@ export function CompetitionTasksByPhase({
 	};
 
 	return (
-		<section className="space-y-4">
-			<div className="flex items-center justify-between">
+		<section className="min-w-0 space-y-4">
+			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h2 className="text-sm font-medium text-muted-foreground">
 					Tasks by phase
 				</h2>
@@ -82,7 +81,7 @@ export function CompetitionTasksByPhase({
 				</span>
 			</div>
 
-			<div className="space-y-6">
+			<div className="space-y-5 sm:space-y-6">
 				{groups.map((group) => {
 					const groupKey = group.phase?.id ?? "unassigned";
 					const doneCount = group.tasks.filter(
@@ -94,28 +93,14 @@ export function CompetitionTasksByPhase({
 					const isCollapsed = collapsedGroups.has(groupKey);
 
 					return (
-						<div
+						<TaskListGroup
 							key={groupKey}
-							className="space-y-2 rounded-lg border border-border bg-background/40 p-3"
-						>
-							<div className="flex items-center justify-between">
-								<button
-									type="button"
-									className="flex items-center gap-2"
-									onClick={() => toggleGroup(groupKey)}
-								>
-									<span className="text-sm font-medium">
-										{group.phase ? group.phase.name : "No phase"}
-									</span>
-									<Badge
-										variant="outline"
-										className="h-5 border-border bg-background text-xs font-normal"
-									>
-										{group.tasks.length} task
-										{group.tasks.length === 1 ? "" : "s"}
-									</Badge>
-								</button>
-								<div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+							title={group.phase ? group.phase.name : "No phase"}
+							countLabel={`${group.tasks.length} task${group.tasks.length === 1 ? "" : "s"}`}
+							isCollapsed={isCollapsed}
+							onToggle={() => toggleGroup(groupKey)}
+							headerMeta={
+								<div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
 									<span>
 										<span className="font-medium text-foreground">
 											{doneCount}
@@ -130,7 +115,7 @@ export function CompetitionTasksByPhase({
 									</span>
 									<button
 										type="button"
-										className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted/60"
+										className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
 										onClick={() =>
 											handleAddTaskForGroup(groupKey, group.phase?.id)
 										}
@@ -139,33 +124,30 @@ export function CompetitionTasksByPhase({
 										Add task
 									</button>
 								</div>
+							}
+						>
+							<div className="min-w-0 w-full max-w-full overflow-x-auto rounded-md border border-border [touch-action:pan-x]">
+								<div className="min-w-[760px]">
+									<TasksDataTable
+										columns={columns}
+										tasks={group.tasks}
+										filters={{
+											status: [],
+											priority: [],
+											assignee: [],
+											labels: [],
+											owner: [],
+											parentType: [],
+										}}
+										matchMode="all"
+										grouping={null}
+										subGrouping={null}
+										ordering={{ field: null, direction: "asc" }}
+										onOrderingChange={() => {}}
+									/>
+								</div>
 							</div>
-
-							{!isCollapsed && (
-								<>
-									<Separator />
-									<div className="rounded-md border border-border">
-										<TasksDataTable
-											columns={columns}
-											tasks={group.tasks}
-											filters={{
-												status: [],
-												priority: [],
-												assignee: [],
-												labels: [],
-												owner: [],
-												parentType: [],
-											}}
-											matchMode="all"
-											grouping={null}
-											subGrouping={null}
-											ordering={{ field: null, direction: "asc" }}
-											onOrderingChange={() => {}}
-										/>
-									</div>
-								</>
-							)}
-						</div>
+						</TaskListGroup>
 					);
 				})}
 			</div>

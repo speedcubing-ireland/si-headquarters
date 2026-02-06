@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { AlertTriangle } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
 	Tooltip,
@@ -163,6 +164,20 @@ export const TaskTitleCell = memo(
 						</span>
 					)}
 				</span>
+				{task.isBlocked && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="ml-1.5 inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 whitespace-nowrap">
+								<AlertTriangle className="size-3" />
+								<span>Blocked</span>
+							</span>
+						</TooltipTrigger>
+						<TooltipContent side="top" sideOffset={6}>
+							{task.unresolvedBlockerCount} active blocker
+							{task.unresolvedBlockerCount === 1 ? "" : "s"}
+						</TooltipContent>
+					</Tooltip>
+				)}
 				{showProgress && (
 					<Tooltip>
 						<TooltipTrigger asChild>

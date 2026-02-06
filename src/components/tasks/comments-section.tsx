@@ -11,6 +11,7 @@ import { parseCommentId } from "@/lib/convex-ids";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Comment, User } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
+import { cn } from "@/lib/utils";
 import {
 	ReactionButton,
 	ReactionDisplay,
@@ -111,9 +112,9 @@ function CommentItem({
 
 	return (
 		<div
-			className={`${depth > 0 ? "ml-8 mt-3 border-l-2 border-border pl-4" : "mt-4"}`}
+			className={`${depth > 0 ? "mt-3 ml-4 border-l-2 border-border pl-3 sm:ml-8 sm:pl-4" : "mt-4"}`}
 		>
-			<div className="flex gap-3">
+			<div className="flex gap-2.5 sm:gap-3">
 				<Avatar className="size-8 shrink-0">
 					<AvatarImage src={comment.author.avatarUrl || undefined} />
 					<AvatarFallback className="text-xs">
@@ -122,7 +123,7 @@ function CommentItem({
 				</Avatar>
 
 				<div className="flex-1 min-w-0">
-					<div className="flex items-center gap-2 mb-1">
+					<div className="mb-1 flex flex-wrap items-center gap-1.5 sm:gap-2">
 						<span className="font-medium text-sm">{comment.author.name}</span>
 						<span className="text-xs text-muted-foreground">
 							{formatDate(comment.createdAt)}
@@ -163,7 +164,7 @@ function CommentItem({
 								}}
 							/>
 
-							<div className="flex items-center gap-1 mt-2">
+							<div className="mt-2 flex flex-wrap items-center gap-1.5">
 								<ReactionButton
 									onAddReaction={(emoji) => {
 										const commentId = parseCommentId(comment.id);
@@ -185,7 +186,7 @@ function CommentItem({
 								{isOwnComment && (
 									<DropdownMenu>
 										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="sm" className="h-7 px-2">
+											<Button variant="ghost" size="sm" className="px-2">
 												<MoreHorizontal className="size-3.5" />
 											</Button>
 										</DropdownMenuTrigger>
@@ -220,7 +221,7 @@ function CommentItem({
 										users={users}
 										currentUserId={currentUser.id}
 									/>
-									<div className="flex gap-2">
+									<div className="flex flex-wrap gap-2">
 										<Button size="sm" onClick={handleSubmitReply}>
 											<CornerDownRight className="size-3.5 mr-1" />
 											Reply
@@ -267,9 +268,10 @@ function CommentItem({
 
 interface CommentsSectionProps {
 	taskId: Id<"tasks"> | Id<"competitionUpdates">;
+	className?: string;
 }
 
-export function CommentsSection({ taskId }: CommentsSectionProps) {
+export function CommentsSection({ taskId, className }: CommentsSectionProps) {
 	const { users } = useUsers();
 	const { comments: allComments } = useCommentsForTask(taskId);
 	const comments = useMemo(
@@ -326,8 +328,8 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 	};
 
 	return (
-		<div className="mt-8">
-			<div className="flex items-center gap-2 mb-4">
+		<div className={cn("mt-8", className)}>
+			<div className="mb-4 flex items-center gap-2">
 				<MessageCircle className="size-4 text-muted-foreground" />
 				<h3 className="text-sm font-medium">Comments</h3>
 				<span className="text-xs text-muted-foreground">
@@ -335,7 +337,7 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 				</span>
 			</div>
 
-			<div className="flex gap-3 mb-6">
+			<div className="mb-6 flex gap-2.5 sm:gap-3">
 				<Avatar className="size-8 shrink-0">
 					<AvatarImage src={currentUser?.avatarUrl || undefined} />
 					<AvatarFallback className="text-xs">
@@ -351,8 +353,7 @@ export function CommentsSection({ taskId }: CommentsSectionProps) {
 						users={users}
 						currentUserId={currentUser?.id}
 					/>
-					<div className="flex justify-between items-center">
-						<span className="text-xs text-muted-foreground" />
+					<div className="flex items-center justify-end">
 						<Button
 							size="sm"
 							onClick={handleSubmitComment}

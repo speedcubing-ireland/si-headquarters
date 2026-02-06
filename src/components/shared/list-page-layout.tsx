@@ -55,8 +55,8 @@ export function ListPageLayout({
 		<div className="flex h-full min-h-0 flex-1 flex-col">
 			{header}
 			{createView && isCreatingView ? (
-				<div className="flex min-h-12 shrink-0 flex-col gap-3 border-b bg-background py-3 px-4 lg:px-6">
-					<div className="flex items-start gap-4">
+				<div className="flex min-h-14 shrink-0 flex-col gap-3 border-b bg-background px-3 py-3 sm:px-4 lg:px-6">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
 						<div className="flex flex-1 flex-col gap-2">
 							<Input
 								placeholder="View name"
@@ -71,7 +71,7 @@ export function ListPageLayout({
 								className="min-h-[60px] resize-none text-sm"
 							/>
 						</div>
-						<div className="flex shrink-0 items-center gap-2">
+						<div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
 							<Button variant="outline" size="sm" onClick={onCancelCreateView}>
 								Cancel
 							</Button>
@@ -84,11 +84,13 @@ export function ListPageLayout({
 							</Button>
 						</div>
 					</div>
-					<div className="flex w-full items-center gap-2">{filtersRow}</div>
+					<div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+						{filtersRow}
+					</div>
 				</div>
 			) : (
-				<div className="flex min-h-12 shrink-0 items-center gap-2 border-b py-2">
-					<div className="flex w-full items-center gap-2 px-4 lg:px-6">
+				<div className="flex min-h-14 shrink-0 items-center border-b py-2">
+					<div className="flex w-full flex-wrap items-center gap-2 px-3 sm:px-4 lg:px-6">
 						{filtersRow}
 					</div>
 				</div>

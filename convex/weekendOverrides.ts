@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUserId } from "./auth";
+import { requireDirector } from "./admin";
 import { SAT_DATE_REGEX } from "./lib/constants";
 
 const weekendOverrideDoc = v.object({
@@ -104,7 +105,7 @@ export const clearAll = mutation({
 	args: {},
 	returns: v.null(),
 	handler: async (ctx) => {
-		await requireUserId(ctx);
+		await requireDirector(ctx);
 		const docs = await ctx.db.query("weekendOverrides").collect();
 		await Promise.all(
 			docs.map((doc) => ctx.db.delete("weekendOverrides", doc._id)),

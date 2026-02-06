@@ -3,10 +3,6 @@ import type { UserUI, TeamUI, LabelUI, PhaseUI } from "./validators";
 
 export type { UserUI, TeamUI, LabelUI, PhaseUI };
 
-// ============================================================================
-
-// ============================================================================
-
 export type MapDBToUI<
 	T extends { _id: Id<"users"> | Id<"labels"> | Id<"phases"> },
 > = {

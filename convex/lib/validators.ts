@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import type { Infer } from "convex/values";
 
-// === ENUMS AS CONST ARRAYS (single source for runtime + types) ===
 export const TASK_STATUSES = [
 	"backlog",
 	"to-do",
@@ -51,7 +50,58 @@ export const entityType = v.union(
 	v.literal("competition"),
 );
 
+export const activityType = v.union(
+	v.literal("created"),
+	v.literal("updated"),
+	v.literal("status_changed"),
+	v.literal("priority_changed"),
+	v.literal("assignee_changed"),
+	v.literal("due_date_changed"),
+	v.literal("phase_changed"),
+	v.literal("label_added"),
+	v.literal("label_removed"),
+	v.literal("comment_added"),
+	v.literal("comment_edited"),
+	v.literal("comment_deleted"),
+	v.literal("archived"),
+	v.literal("unarchived"),
+	v.literal("approved"),
+	v.literal("unapproved"),
+	v.literal("resources_changed"),
+);
+
 export const ownerType = v.union(v.literal("user"), v.literal("team"));
+
+export const NOTIFICATION_TYPES = [
+	"task_assigned",
+	"task_unassigned",
+	"task_mentioned",
+	"task_status_changed",
+	"task_awaiting_review",
+	"due_date_approaching",
+	"due_date_overdue",
+	"comment_added",
+	"relation_blocked",
+	"relation_unblocked",
+	"competition_phase_changed",
+	"progress_update_added",
+	"reminder_triggered",
+] as const;
+
+export const notificationType = v.union(
+	...NOTIFICATION_TYPES.map((t) => v.literal(t)),
+);
+
+export const NOTIFICATION_PRIORITIES = [
+	"low",
+	"normal",
+	"high",
+	"urgent",
+] as const;
+
+export const notificationPriority = v.union(
+	...NOTIFICATION_PRIORITIES.map((p) => v.literal(p)),
+);
 
 export const userShape = v.object({
 	id: v.id("users"),

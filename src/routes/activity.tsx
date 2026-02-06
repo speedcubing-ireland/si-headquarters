@@ -5,6 +5,8 @@ import { useGlobalActivity, useIsDirector } from "@/hooks/use-convex-data";
 import { getEntityLink } from "@/lib/activity-utils";
 import type { ActivityEntry } from "@/data/types-new";
 import { ActivityItemContent } from "@/components/shared/activity-item";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export const Route = createFileRoute("/activity")({
 	component: ActivityPage,
@@ -25,10 +27,12 @@ function ActivityPage() {
 
 	return (
 		<div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-			<header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 lg:px-6">
+			<header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
+				<SidebarTrigger className="shrink-0" />
+				<Separator orientation="vertical" className="hidden h-4 sm:block" />
 				<Activity className="size-5 text-muted-foreground" />
 				<h1 className="text-sm font-semibold">Activity</h1>
-				<span className="text-xs text-muted-foreground">
+				<span className="hidden text-xs text-muted-foreground sm:inline">
 					Global feed (directors only)
 				</span>
 			</header>

@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { parseSavedViewId } from "@/lib/convex-ids";
 import { useCompetitionsUrlContext } from "@/lib/competitions-url-context";
-import type { SavedView, SavedViewEntity } from "@/store/saved-views-store";
+import type { SavedView } from "@/store/saved-views-store";
 import { emptyCompetitionsFilters } from "@/lib/filter-types";
 import {
 	parseDisplaySettingsJson,
@@ -39,12 +39,7 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 		viewId,
 		setView,
 		clearAll,
-		setArrayFilter,
-		setMatchMode,
-		setDateRange,
-		setGrouping,
-		setSubGrouping,
-		setOrdering,
+		replaceAll,
 	} = useCompetitionsUrlContext();
 
 	const views: SavedView[] = useMemo(
@@ -52,7 +47,7 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 			listResult?.map((v) => ({
 				id: v.id,
 				name: v.name,
-				entity: v.entity as SavedViewEntity,
+				entity: v.entity,
 				pageId: v.pageId,
 				filtersJson: v.filtersJson,
 				displaySettingsJson: v.displaySettingsJson,
@@ -100,31 +95,14 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 				emptyCompetitionsFilters,
 			);
 			const parsedDisplay = parseDisplaySettingsJson(view.displaySettingsJson);
-			setView(viewId);
-
-			setArrayFilter("phase", parsedFilters.filters.phase);
-			setArrayFilter("compLead", parsedFilters.filters.compLead);
-			setArrayFilter("leadDelegate", parsedFilters.filters.leadDelegate);
-			setArrayFilter("organisers", parsedFilters.filters.organisers);
-			setDateRange(parsedFilters.filters.dateRange);
-			setMatchMode(parsedFilters.matchMode);
-			setGrouping(parsedDisplay.grouping);
-			setSubGrouping(parsedDisplay.subGrouping);
-			setOrdering(
-				parsedDisplay.ordering.field,
-				parsedDisplay.ordering.direction,
-			);
+			replaceAll({
+				viewId,
+				filters: parsedFilters.filters,
+				matchMode: parsedFilters.matchMode,
+				displaySettings: parsedDisplay,
+			});
 		},
-		[
-			views,
-			setView,
-			setArrayFilter,
-			setMatchMode,
-			setDateRange,
-			setGrouping,
-			setSubGrouping,
-			setOrdering,
-		],
+		[views, replaceAll],
 	);
 
 	const deleteView = useCallback(

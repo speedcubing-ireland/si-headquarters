@@ -33,18 +33,18 @@ export function TaskReminderStrip({ task }: TaskReminderStripProps) {
 
 	return (
 		<>
-			<div className="mb-3 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+			<div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-sm">
 				<Calendar className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-				<span className="text-muted-foreground">
+				<span className="min-w-0 flex-1 text-muted-foreground">
 					Reminder
 					{nextReminder &&
 						` • ${format(new Date(nextReminder.remindAt), "PPp")}`}
 				</span>
-				<div className="ml-auto flex items-center gap-1">
+				<div className="ml-auto flex w-full items-center justify-end gap-1 sm:w-auto">
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-7 text-xs"
+						className="text-xs"
 						onClick={() => {
 							setRescheduleReminderId(nextReminder?.id ?? null);
 						}}
@@ -54,7 +54,7 @@ export function TaskReminderStrip({ task }: TaskReminderStripProps) {
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-7 text-xs"
+						className="text-xs"
 						onClick={() =>
 							nextReminder && cancelReminder(nextReminder.id as Id<"reminders">)
 						}

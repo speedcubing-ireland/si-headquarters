@@ -1,13 +1,3 @@
-/**
- * Shared type utilities for Convex validators.
- *
- * Domain types (Task, Competition, …) are derived on the frontend via
- * FunctionReturnType<typeof api.module.query> — see src/data/types-new.ts.
- *
- * This file only re-exports enum/union types and small shared shapes that are
- * useful across multiple Convex files or the frontend.
- */
-
 import type { Infer } from "convex/values";
 import type {
 	approvalShape,

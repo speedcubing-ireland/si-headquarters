@@ -85,29 +85,27 @@ function ResourceCard({
 	};
 
 	return (
-		<div className="border rounded-md bg-card flex items-center gap-2 px-2 py-1.5">
+		<div className="flex min-h-11 items-center gap-2 rounded-md border bg-card px-2.5 py-2">
 			{getResourceIcon()}
-			<span className="text-xs font-medium text-muted-foreground flex-1">
+			<span className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">
 				{getResourceLabel()}
 			</span>
-			<div className="flex items-center gap-0.5">
+			<div className="flex items-center gap-1">
 				<Button
 					variant="ghost"
-					size="icon"
-					className="h-6 w-6"
+					size="icon-xs"
 					onClick={handleOpen}
 					title="Open in new tab"
 				>
-					<ExternalLink className="size-3" />
+					<ExternalLink className="size-3.5" />
 				</Button>
 				<Button
 					variant="ghost"
-					size="icon"
-					className="h-6 w-6"
+					size="icon-xs"
 					onClick={onRemove}
 					title="Remove resource"
 				>
-					<Trash2 className="size-3 text-muted-foreground" />
+					<Trash2 className="size-3.5 text-muted-foreground" />
 				</Button>
 			</div>
 		</div>
@@ -167,7 +165,7 @@ function AddResourceDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[450px]">
+			<DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[450px]">
 				<DialogHeader>
 					<DialogTitle>Attach Resource</DialogTitle>
 				</DialogHeader>
@@ -239,7 +237,7 @@ export function TaskResourcesSection({ task }: TaskResourcesSectionProps) {
 
 	return (
 		<div className="space-y-3">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h3 className="text-sm font-medium flex items-center gap-1.5">
 					<Link2 className="size-4" />
 					Resources ({task.resources.length})
@@ -247,6 +245,7 @@ export function TaskResourcesSection({ task }: TaskResourcesSectionProps) {
 				<Button
 					variant="ghost"
 					size="sm"
+					className="shrink-0"
 					onClick={() => setAddDialogOpen(true)}
 				>
 					<Plus className="size-3.5 mr-1" />
@@ -255,11 +254,11 @@ export function TaskResourcesSection({ task }: TaskResourcesSectionProps) {
 			</div>
 
 			{task.resources.length === 0 ? (
-				<div className="text-sm text-muted-foreground border border-dashed rounded-lg p-4 text-center">
+				<div className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">
 					No resources attached
 				</div>
 			) : (
-				<div className="flex flex-col gap-1.5">
+				<div className="flex flex-col gap-2">
 					{task.resources.map((resource, index) => (
 						<ResourceCard
 							key={`${resource.type}-${resource.type === "canva-design" ? resource.designId : resource.sheetId}`}

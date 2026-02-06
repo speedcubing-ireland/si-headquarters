@@ -5,7 +5,7 @@ import {
 	DEFAULT_LABELS,
 	DEFAULT_PHASES,
 	SEEDED_TEAM_NAMES,
-} from "../src/data/types-new";
+} from "./lib/seedData";
 export const seedInitialData = internalMutation({
 	args: {},
 	returns: v.null(),

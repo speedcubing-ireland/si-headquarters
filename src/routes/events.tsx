@@ -15,6 +15,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export const Route = createFileRoute("/events")({
 	component: EventsPage,
@@ -207,11 +209,13 @@ function EventsPage() {
 
 	return (
 		<div className="flex h-full flex-col">
-			<header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 lg:px-6">
+			<header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
 				<div className="flex min-w-0 flex-1 items-center gap-3">
+					<SidebarTrigger className="shrink-0" />
+					<Separator orientation="vertical" className="hidden h-4 sm:block" />
 					<h1 className="text-sm font-semibold">Events</h1>
 					{lastUpdated != null && (
-						<span className="text-xs text-muted-foreground">
+						<span className="hidden text-xs text-muted-foreground sm:inline">
 							Last updated{" "}
 							{formatDistanceToNow(lastUpdated, { addSuffix: true })}
 						</span>

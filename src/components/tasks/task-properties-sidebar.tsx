@@ -2,9 +2,11 @@
 
 import { format } from "date-fns";
 import {
+	AlertTriangle,
 	Check,
 	CheckCircle2,
 	Clock,
+	Link2,
 	Plus,
 	Shield,
 	Trash2,
@@ -42,7 +44,12 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import { useUsers, useTeams, useTaskMutations } from "@/hooks/use-convex-data";
+import {
+	useUsers,
+	useTeams,
+	useTaskMutations,
+	useTasks,
+} from "@/hooks/use-convex-data";
 import type { Task, Team, User } from "@/data/types-new";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +59,7 @@ interface TaskPropertiesSidebarProps {
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
 	triggerClassName?: string;
+	showMobileTrigger?: boolean;
 	onDeleteClick?: () => void;
 }
 
@@ -238,18 +246,103 @@ function AddApproverDialog({
 	);
 }
 
+function AddBlockingTaskDialog({
+	open,
+	onOpenChange,
+	task,
+	onAddBlockingTask,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	task: Task;
+	onAddBlockingTask: (blockingTaskId: Task["id"]) => void;
+}) {
+	const { tasks } = useTasks(false);
+	const [search, setSearch] = useState("");
+
+	const existingBlockingTaskIds = new Set(
+		task.blockedBy.map((relation) => relation.task.id),
+	);
+	const currentCompetitionId =
+		task.parent?.type === "competition" ? task.parent.linkedId : null;
+	const filteredTasks = tasks.filter((candidate) => {
+		if (candidate.id === task.id) {
+			return false;
+		}
+		if (existingBlockingTaskIds.has(candidate.id)) {
+			return false;
+		}
+		const candidateCompetitionId =
+			candidate.parent?.type === "competition"
+				? candidate.parent.linkedId
+				: null;
+		if (candidateCompetitionId !== currentCompetitionId) {
+			return false;
+		}
+		const candidateText =
+			`${candidate.identifier} ${candidate.title}`.toLowerCase();
+		return candidateText.includes(search.toLowerCase());
+	});
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-[520px]">
+				<DialogHeader>
+					<DialogTitle>Add Blocking Task</DialogTitle>
+				</DialogHeader>
+				<Command>
+					<CommandInput
+						placeholder="Search tasks..."
+						value={search}
+						onValueChange={setSearch}
+					/>
+					<CommandList>
+						<CommandEmpty>No matching tasks.</CommandEmpty>
+						{filteredTasks.length > 0 && (
+							<CommandGroup heading="Tasks">
+								{filteredTasks.map((candidate) => (
+									<CommandItem
+										key={candidate.id}
+										onSelect={() => {
+											onAddBlockingTask(candidate.id);
+											onOpenChange(false);
+											setSearch("");
+										}}
+									>
+										<div className="flex min-w-0 flex-col">
+											<span className="truncate text-xs text-muted-foreground">
+												{candidate.identifier}
+											</span>
+											<span className="truncate text-sm">
+												{candidate.title}
+											</span>
+										</div>
+									</CommandItem>
+								))}
+							</CommandGroup>
+						)}
+					</CommandList>
+				</Command>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 export function TaskPropertiesSidebar({
 	task,
 	renderMode = "sidebar",
 	open: controlledOpen,
 	onOpenChange,
 	triggerClassName,
+	showMobileTrigger = true,
 	onDeleteClick,
 }: TaskPropertiesSidebarProps) {
 	const {
 		updateTask,
 		addRequiredApprover,
 		removeRequiredApprover,
+		addBlockingRelation,
+		removeBlockingRelation,
 		approveTask,
 		unapproveTask,
 	} = useTaskMutations();
@@ -258,6 +351,7 @@ export function TaskPropertiesSidebar({
 
 	const [dateOpen, setDateOpen] = useState(false);
 	const [addApproverOpen, setAddApproverOpen] = useState(false);
+	const [addBlockingOpen, setAddBlockingOpen] = useState(false);
 
 	const approvalStatus = (() => {
 		const required = task.requiredApprovalBy;
@@ -309,8 +403,20 @@ export function TaskPropertiesSidebar({
 		void unapproveTask(task.id);
 	};
 
+	const handleAddBlockingTask = (blockingTaskId: Task["id"]) => {
+		void addBlockingRelation(task.id, blockingTaskId);
+	};
+
+	const handleRemoveBlockingTask = (blockingTaskId: Task["id"]) => {
+		void removeBlockingRelation(task.id, blockingTaskId);
+	};
+
+	const handleRemoveBlockedTask = (blockedTaskId: Task["id"]) => {
+		void removeBlockingRelation(blockedTaskId, task.id);
+	};
+
 	const sidebarContent = (
-		<div className="flex flex-col gap-6 py-5 px-5">
+		<div className="flex flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5">
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					Properties
@@ -331,6 +437,119 @@ export function TaskPropertiesSidebar({
 					<PropertyRow label="Owner">
 						<EditableTaskOwner owner={task.owner} taskId={task.id} />
 					</PropertyRow>
+				</div>
+			</section>
+
+			<Separator />
+
+			<section className="flex flex-col gap-2">
+				<div className="flex items-center justify-between">
+					<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+						<Link2 className="size-3.5" />
+						Dependencies
+					</h3>
+					{task.isBlocked && (
+						<span className="text-xs font-medium text-amber-600">
+							{task.unresolvedBlockerCount} active
+						</span>
+					)}
+				</div>
+
+				<div className="space-y-1">
+					<div className="text-xs font-medium text-muted-foreground">
+						Blocked by
+					</div>
+					{task.blockedBy.length === 0 ? (
+						<div className="text-sm text-muted-foreground">
+							No blocking tasks
+						</div>
+					) : (
+						<div className="flex flex-col gap-1.5">
+							{task.blockedBy.map((relation) => (
+								<div
+									key={relation.task.id}
+									className={cn(
+										"flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm",
+										relation.isResolved
+											? "border-green-500/30 bg-green-500/10"
+											: "border-amber-500/30 bg-amber-500/10",
+									)}
+								>
+									{relation.isResolved ? (
+										<CheckCircle2 className="size-4 shrink-0 text-green-500" />
+									) : (
+										<AlertTriangle className="size-4 shrink-0 text-amber-500" />
+									)}
+									<div className="min-w-0 flex-1">
+										<div className="truncate font-medium">
+											{relation.task.identifier} {relation.task.title}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											{relation.isResolved ? "Resolved" : "Blocking"}
+										</div>
+									</div>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-6 w-6"
+										onClick={() => handleRemoveBlockingTask(relation.task.id)}
+										title="Remove blocker"
+									>
+										<Trash2 className="size-3.5 text-muted-foreground" />
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+
+				<Button
+					variant="ghost"
+					size="sm"
+					className="justify-start text-muted-foreground hover:text-foreground"
+					onClick={() => setAddBlockingOpen(true)}
+				>
+					<Plus className="size-3.5 mr-1.5" />
+					Add blocker
+				</Button>
+
+				<div className="space-y-1 pt-1">
+					<div className="text-xs font-medium text-muted-foreground">
+						Blocks
+					</div>
+					{task.blocks.length === 0 ? (
+						<div className="text-sm text-muted-foreground">
+							Not blocking other tasks
+						</div>
+					) : (
+						<div className="flex flex-col gap-1.5">
+							{task.blocks.map((blockedTask) => (
+								<div
+									key={blockedTask.id}
+									className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm"
+								>
+									<Link2 className="size-4 shrink-0 text-muted-foreground" />
+									<div className="min-w-0 flex-1">
+										<div className="truncate font-medium">
+											{blockedTask.identifier} {blockedTask.title}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											Status: {blockedTask.status}
+										</div>
+									</div>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-6 w-6"
+										onClick={() => handleRemoveBlockedTask(blockedTask.id)}
+										title="Remove dependency"
+									>
+										<Trash2 className="size-3.5 text-muted-foreground" />
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 			</section>
 
@@ -487,6 +706,12 @@ export function TaskPropertiesSidebar({
 
 	return (
 		<>
+			<AddBlockingTaskDialog
+				open={addBlockingOpen}
+				onOpenChange={setAddBlockingOpen}
+				task={task}
+				onAddBlockingTask={handleAddBlockingTask}
+			/>
 			<AddApproverDialog
 				open={addApproverOpen}
 				onOpenChange={setAddApproverOpen}
@@ -499,6 +724,7 @@ export function TaskPropertiesSidebar({
 				onOpenChange={onOpenChange}
 				title="Properties"
 				triggerClassName={triggerClassName}
+				showMobileTrigger={showMobileTrigger}
 			>
 				{sidebarContent}
 			</PropertiesSidebarLayout>

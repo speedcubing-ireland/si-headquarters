@@ -16,47 +16,23 @@ const sizeClasses: Record<
 };
 
 export interface UserAvatarProps {
-	/**
-	 * User object with id, name, and avatarUrl. If provided, uses these values.
-	 */
 	user?: User | null;
-	/**
-	 * User name as a string. Used when user object is not available.
-	 * If both user and name are provided, user takes precedence.
-	 */
+
 	name?: string;
-	/**
-	 * Avatar image URL. If provided, overrides user.avatarUrl.
-	 */
+
 	avatarUrl?: string;
-	/**
-	 * Size variant for the avatar.
-	 * @default "sm"
-	 */
+
 	size?: UserAvatarSize;
-	/**
-	 * Custom className for the avatar container.
-	 */
+
 	className?: string;
-	/**
-	 * Whether to show the user's name next to the avatar.
-	 * @default false
-	 */
+
 	showName?: boolean;
-	/**
-	 * Custom className for the name text when showName is true.
-	 */
+
 	nameClassName?: string;
-	/**
-	 * Alt text for the avatar image. Defaults to name or "User avatar".
-	 */
+
 	alt?: string;
 }
 
-/**
- * Reusable component for rendering user avatars with fallback initials.
- * Supports both User objects and string names, with configurable sizes and optional name display.
- */
 export function UserAvatar({
 	user,
 	name: nameProp,

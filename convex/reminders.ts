@@ -234,11 +234,12 @@ export const _checkPendingReminders = internalMutation({
 	returns: v.number(),
 	handler: async (ctx) => {
 		const now = Date.now();
-		const dueReminders = await ctx.db
+		const pendingDue = await ctx.db
 			.query("reminders")
-			.withIndex("by_remind_at", (q) => q.lte("remindAt", now))
+			.withIndex("by_status_and_remind_at", (q) =>
+				q.eq("status", "pending").lte("remindAt", now),
+			)
 			.collect();
-		const pendingDue = dueReminders.filter((r) => r.status === "pending");
 
 		let triggeredCount = 0;
 		for (const reminder of pendingDue) {

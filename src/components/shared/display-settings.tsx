@@ -54,13 +54,6 @@ interface SharedDisplaySettingsProps {
 	useDisplaySettingsStore: UseDisplaySettingsStore;
 }
 
-/**
- * Shared display settings dropdown used by table pages (competitions, tasks).
- *
- * Encapsulates grouping, sub-grouping, and ordering controls so that
- * tables share the same UI while plugging into their own display settings
- * stores and column option sets.
- */
 export function SharedDisplaySettings({
 	columnOptions,
 	useDisplaySettingsStore,
@@ -85,7 +78,10 @@ export function SharedDisplaySettings({
 					Display
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-64" align="end">
+			<DropdownMenuContent
+				className="w-[min(16rem,calc(100vw-1rem))] sm:w-64"
+				align="end"
+			>
 				<DropdownMenuLabel>Display Settings</DropdownMenuLabel>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>

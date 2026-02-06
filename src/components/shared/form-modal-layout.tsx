@@ -2,10 +2,6 @@ import React from "react";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-/**
- * Shared header for create/edit form modals (task, competition, etc.).
- * Use inside DialogContent with p-0.
- */
 export const FormModalHeader = React.memo(function FormModalHeader({
 	title,
 }: {
@@ -18,9 +14,6 @@ export const FormModalHeader = React.memo(function FormModalHeader({
 	);
 });
 
-/**
- * Shared footer for create/edit form modals: Cancel + primary submit button.
- */
 export const FormModalFooter = React.memo(function FormModalFooter({
 	mode,
 	onCancel,

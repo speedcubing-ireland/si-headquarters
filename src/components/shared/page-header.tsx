@@ -33,11 +33,11 @@ function PageHeaderRoot({
 	return (
 		<header
 			className={cn(
-				"flex min-h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-12",
+				"flex min-h-14 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-12 sm:min-h-12",
 				className,
 			)}
 		>
-			<div className="flex w-full min-w-0 flex-wrap items-center gap-1 px-4 py-2 lg:gap-2 lg:px-6">
+			<div className="flex w-full min-w-0 flex-wrap items-center gap-1.5 px-3 py-2 sm:px-4 lg:gap-2 lg:px-6">
 				{children}
 			</div>
 		</header>
@@ -54,9 +54,9 @@ function PageHeaderPrimary({
 	onClick?: () => void;
 }) {
 	return (
-		<Button variant="outline" size="sm" onClick={onClick}>
+		<Button variant="outline" size="sm" onClick={onClick} className="min-w-0">
 			<Icon className="size-4" />
-			{label}
+			<span className="truncate">{label}</span>
 		</Button>
 	);
 }
@@ -96,7 +96,7 @@ function PageHeaderViews({
 
 	return (
 		<>
-			<div className="flex min-w-0 flex-wrap items-center gap-1">
+			<div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible sm:pb-0">
 				{views.map((view) => (
 					<ContextMenu key={view.id}>
 						<ContextMenuTrigger asChild>
@@ -160,6 +160,7 @@ function PageHeaderNewView({
 			size={showLabel ? "sm" : "icon"}
 			onClick={onClick}
 			title="New view"
+			className="shrink-0"
 		>
 			<LayersPlus className="size-4" />
 			{showLabel && "New view"}
@@ -168,7 +169,11 @@ function PageHeaderNewView({
 }
 
 function PageHeaderActions({ children }: { children: React.ReactNode }) {
-	return <div className="ml-auto flex items-center gap-2">{children}</div>;
+	return (
+		<div className="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
+			{children}
+		</div>
+	);
 }
 
 export const PageHeader = {
@@ -215,13 +220,14 @@ export function SharedPageHeader({
 		addButton = (
 			<Button variant="ghost" size="sm" onClick={onAdd}>
 				<Icon className="size-4" />
-				{addLabel}
+				<span className="hidden sm:inline">{addLabel}</span>
 			</Button>
 		);
 	}
 
 	return (
 		<PageHeader.Root>
+			<SidebarTrigger className="shrink-0" />
 			<PageHeader.Primary
 				icon={PrimaryIcon}
 				label={primaryLabel}
@@ -231,7 +237,7 @@ export function SharedPageHeader({
 				<>
 					<Separator
 						orientation="vertical"
-						className="mx-2 data-[orientation=vertical]:h-4"
+						className="mx-2 hidden data-[orientation=vertical]:h-4 sm:block"
 					/>
 					<PageHeader.Secondary label={secondaryLabel} />
 				</>
@@ -240,7 +246,7 @@ export function SharedPageHeader({
 				<>
 					<Separator
 						orientation="vertical"
-						className="mx-2 data-[orientation=vertical]:h-4"
+						className="mx-2 hidden data-[orientation=vertical]:h-4 sm:block"
 					/>
 					{views.length > 0 && onViewSelect && onViewDelete && (
 						<PageHeader.Views
@@ -258,10 +264,7 @@ export function SharedPageHeader({
 					)}
 				</>
 			)}
-			<PageHeader.Actions>
-				{addButton}
-				<SidebarTrigger />
-			</PageHeader.Actions>
+			<PageHeader.Actions>{addButton}</PageHeader.Actions>
 		</PageHeader.Root>
 	);
 }

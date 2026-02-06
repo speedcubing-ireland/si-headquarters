@@ -1,12 +1,17 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { requireDirector } from "./admin";
 import { requireUserId, isVolunteer } from "./auth";
 import { hasCompetitionAccess } from "./competitionAccess";
 import { toUsers, createLens } from "./lib/transforms";
-import { entityType, activityMetadata, userShape } from "./lib/validators";
+import {
+	entityType,
+	activityMetadata,
+	userShape,
+	activityType,
+} from "./lib/validators";
 import type { Infer } from "convex/values";
 
 type ActivityLogDoc = Doc<"activityLog">;
@@ -178,7 +183,7 @@ export const listForEntity = query({
 				q.eq("entityType", args.entityType).eq("entityId", args.entityId),
 			)
 			.order("desc")
-			.collect();
+			.take(200);
 
 		return resolveActorsAndMapDocs(ctx, docs);
 	},
@@ -198,10 +203,6 @@ export const listRecent = query({
 	},
 });
 
-/**
- * Recent activity relevant to the current user: they are the actor,
- * or the entry is for a task assigned to them.
- */
 export const listRecentForUser = query({
 	args: { limit: v.optional(v.number()) },
 	returns: v.array(activityEntryReturns),
@@ -226,23 +227,23 @@ export const listRecentForUser = query({
 	},
 });
 
-export const log = mutation({
+export const log = internalMutation({
 	args: {
+		actorId: v.id("users"),
 		entityType,
 		entityId: v.string(),
-		type: v.string(),
+		type: activityType,
 		oldValue: v.optional(v.string()),
 		newValue: v.optional(v.string()),
 		metadata: activityMetadata,
 	},
 	returns: v.id("activityLog"),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
 		return await ctx.db.insert("activityLog", {
 			entityType: args.entityType,
 			entityId: args.entityId,
 			type: args.type,
-			actorId: userId,
+			actorId: args.actorId,
 			oldValue: args.oldValue,
 			newValue: args.newValue,
 			metadata: args.metadata,
@@ -250,7 +251,6 @@ export const log = mutation({
 	},
 });
 
-/** Internal: log with explicit actorId so nested runMutation keeps identity. */
 export const logWithActor = internalMutation({
 	args: {
 		actorId: v.id("users"),
@@ -260,7 +260,7 @@ export const logWithActor = internalMutation({
 			v.literal("competition"),
 		),
 		entityId: v.string(),
-		type: v.string(),
+		type: activityType,
 		oldValue: v.optional(v.string()),
 		newValue: v.optional(v.string()),
 		metadata: activityMetadata,

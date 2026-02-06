@@ -11,25 +11,10 @@ interface EditableTextProps {
 	className?: string;
 	displayClassName?: string;
 	onSubmit: (next: string) => void;
-	/** Debounce delay in milliseconds (default: 250ms) */
+
 	debounceMs?: number;
 }
 
-/**
- * Editable text component with debounced updates.
- *
- * Uses local state for immediate typing feedback and debounces the onSubmit callback
- * to reduce unnecessary re-renders and store updates.
- *
- * @example
- * ```tsx
- * <EditableText
- *   value={competition.name}
- *   onSubmit={(next) => updateCompetition(id, { name: next })}
- *   debounceMs={250}
- * />
- * ```
- */
 export function EditableText({
 	value,
 	placeholder,

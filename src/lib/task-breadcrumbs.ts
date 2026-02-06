@@ -35,5 +35,5 @@ export function getTaskBreadcrumbs(
 		t = next;
 	}
 	chain.reverse();
-	return [{ label: "Tasks", to: "/tasks" }, ...chain, { label: task.title }];
+	return [{ label: "Tasks", to: "/tasks" }, ...chain];
 }
