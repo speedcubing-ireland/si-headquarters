@@ -46,6 +46,7 @@ import {
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
 import { getInitials } from "@/lib/format-utils";
+import { onMutationError } from "@/lib/utils";
 
 interface EditableUserCellProps {
 	emptyLabel: string;
@@ -73,7 +74,11 @@ function EditableUserCell({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="ghost" size="sm" className="h-7 px-2 justify-start">
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-7 min-w-0 max-w-full px-2 justify-start"
+				>
 					{selectedUser ? (
 						<UserAvatar
 							user={selectedUser}
@@ -163,14 +168,20 @@ export function EditablePhaseCell({
 			return;
 		}
 
-		void updateCompetition(competition.id, { currentPhaseId: targetPhaseId });
+		void updateCompetition(competition.id, {
+			currentPhaseId: targetPhaseId,
+		}).catch(onMutationError);
 		setOpen(false);
 	};
 
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="ghost" size="sm" className="h-7 px-2 justify-start">
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-7 min-w-0 max-w-full px-2 justify-start"
+				>
 					<Badge className={getPhaseClass(currentKey)}>
 						{getPhaseLabel(currentKey)}
 					</Badge>
@@ -225,7 +236,7 @@ export function EditableCompLeadCell({
 			onChange={(user) =>
 				void updateCompetition(competition.id, {
 					compLead: user,
-				})
+				}).catch(onMutationError)
 			}
 		/>
 	);
@@ -252,7 +263,7 @@ export function EditableLeadDelegateCell({
 			onChange={(user) =>
 				void updateCompetition(competition.id, {
 					leadDelegate: user,
-				})
+				}).catch(onMutationError)
 			}
 		/>
 	);
@@ -273,15 +284,21 @@ export function EditableOrganisersCell({
 		const nextOrganisers = organiserIds.has(user.id)
 			? competition.organisers.filter((u) => u.id !== user.id)
 			: [...competition.organisers, user];
-		void updateCompetition(competition.id, { organisers: nextOrganisers });
+		void updateCompetition(competition.id, {
+			organisers: nextOrganisers,
+		}).catch(onMutationError);
 	};
 
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="ghost" size="sm" className="h-7 px-2 justify-start">
+				<Button
+					variant="ghost"
+					size="sm"
+					className="h-7 min-w-0 max-w-full px-2 justify-start"
+				>
 					{competition.organisers.length > 0 ? (
-						<div className="flex items-center gap-1.5">
+						<div className="flex min-w-0 items-center gap-1.5">
 							{competition.organisers.length > 1 ? (
 								<Tooltip>
 									<TooltipTrigger asChild>
@@ -327,7 +344,7 @@ export function EditableOrganisersCell({
 								</AvatarGroup>
 							)}
 							{competition.organisers.length === 1 && (
-								<span className="text-xs truncate max-w-[140px]">
+								<span className="min-w-0 max-w-[140px] truncate text-xs">
 									{competition.organisers[0].name}
 								</span>
 							)}

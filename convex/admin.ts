@@ -1,10 +1,10 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import type { Infer } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { TEAM_NAMES } from "./lib/constants";
+import { normalizeEmail, validateEmail } from "./lib/sanitize";
 
 const DIRECTORS_TEAM_NAME = TEAM_NAMES.DIRECTORS;
 
@@ -34,6 +34,28 @@ export async function requireDirector(ctx: AuthCtx): Promise<void> {
 	}
 }
 
+async function findUserIdByEmail(
+	ctx: AuthCtx,
+	email: string,
+): Promise<Id<"users"> | null> {
+	const users = await ctx.db.query("users").collect();
+	const match = users.find((user) => normalizeEmail(user.email) === email);
+	return match?._id ?? null;
+}
+
+async function addMemberToTeamIfMissing(
+	ctx: MutationCtx,
+	teamId: Id<"teams">,
+	userId: Id<"users">,
+): Promise<void> {
+	const team = await ctx.db.get("teams", teamId);
+	if (!team) return;
+	if (team.memberIds.includes(userId)) return;
+	await ctx.db.patch("teams", teamId, {
+		memberIds: [...team.memberIds, userId],
+	});
+}
+
 export const isDirector = query({
 	args: {},
 	returns: v.boolean(),
@@ -55,18 +77,28 @@ const adminTeamShape = v.object({
 	memberIds: v.array(v.id("users")),
 });
 
+const adminPendingTeamMemberShape = v.object({
+	id: v.id("pendingTeamMembers"),
+	email: v.string(),
+	teamId: v.id("teams"),
+	teamName: v.string(),
+	createdAt: v.number(),
+});
+
 export const listMembersAndTeams = query({
 	args: {},
 	returns: v.object({
 		users: v.array(adminUserShape),
 		teams: v.array(adminTeamShape),
+		pendingTeamMembers: v.array(adminPendingTeamMemberShape),
 	}),
 	handler: async (ctx) => {
 		await requireDirector(ctx);
 
-		const [userDocs, teamDocs] = await Promise.all([
+		const [userDocs, teamDocs, pendingTeamMemberDocs] = await Promise.all([
 			ctx.db.query("users").collect(),
 			ctx.db.query("teams").withIndex("by_name").order("asc").collect(),
+			ctx.db.query("pendingTeamMembers").collect(),
 		]);
 
 		const users = userDocs.map((u) => ({
@@ -96,7 +128,29 @@ export const listMembersAndTeams = query({
 			memberIds: t.memberIds,
 		}));
 
-		return { users: usersWithTeams, teams };
+		const teamNameById = new Map<Id<"teams">, string>(
+			teamDocs.map((team) => [team._id, team.name]),
+		);
+		const pendingTeamMembers = pendingTeamMemberDocs
+			.map((row) => {
+				const teamName = teamNameById.get(row.teamId);
+				if (!teamName) return null;
+				return {
+					id: row._id,
+					email: row.email,
+					teamId: row.teamId,
+					teamName,
+					createdAt: row.createdAt,
+				};
+			})
+			.filter((row) => row !== null)
+			.sort((a, b) => {
+				const teamSort = a.teamName.localeCompare(b.teamName);
+				if (teamSort !== 0) return teamSort;
+				return a.email.localeCompare(b.email);
+			});
+
+		return { users: usersWithTeams, teams, pendingTeamMembers };
 	},
 });
 
@@ -116,6 +170,88 @@ export const updateTeamMembers = mutation({
 			memberIds: args.memberIds,
 		});
 
+		return null;
+	},
+});
+
+export const addPendingTeamMember = mutation({
+	args: {
+		teamId: v.id("teams"),
+		email: v.string(),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+
+		const normalizedEmail = normalizeEmail(args.email);
+		if (!normalizedEmail || !validateEmail(normalizedEmail)) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: "Enter a valid email address.",
+			});
+		}
+
+		const team = await ctx.db.get("teams", args.teamId);
+		if (!team) {
+			throw new ConvexError({
+				code: "NOT_FOUND",
+				message: "Team not found.",
+			});
+		}
+
+		const existingUserId = await findUserIdByEmail(ctx, normalizedEmail);
+		if (existingUserId) {
+			await addMemberToTeamIfMissing(ctx, args.teamId, existingUserId);
+		}
+
+		const existingPending = await ctx.db
+			.query("pendingTeamMembers")
+			.withIndex("by_team_and_email", (q) =>
+				q.eq("teamId", args.teamId).eq("email", normalizedEmail),
+			)
+			.unique();
+
+		if (existingUserId) {
+			if (existingPending) {
+				await ctx.db.delete("pendingTeamMembers", existingPending._id);
+			}
+			return null;
+		}
+
+		if (existingPending) return null;
+
+		const createdById = await getAuthUserId(ctx);
+		if (!createdById) {
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "Authentication required",
+			});
+		}
+
+		await ctx.db.insert("pendingTeamMembers", {
+			email: normalizedEmail,
+			teamId: args.teamId,
+			createdById,
+			createdAt: Date.now(),
+		});
+
+		return null;
+	},
+});
+
+export const removePendingTeamMember = mutation({
+	args: {
+		pendingTeamMemberId: v.id("pendingTeamMembers"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		const row = await ctx.db.get(
+			"pendingTeamMembers",
+			args.pendingTeamMemberId,
+		);
+		if (!row) return null;
+		await ctx.db.delete("pendingTeamMembers", args.pendingTeamMemberId);
 		return null;
 	},
 });
@@ -312,13 +448,6 @@ export const createPhaseAdmin = mutation({
 	},
 });
 
-const phaseUpdateValidator = v.object({
-	name: v.optional(v.string()),
-	description: v.optional(v.string()),
-	order: v.optional(v.number()),
-	archived: v.optional(v.boolean()),
-});
-
 export const updatePhaseAdmin = mutation({
 	args: {
 		id: v.id("phases"),
@@ -332,7 +461,7 @@ export const updatePhaseAdmin = mutation({
 		await requireDirector(ctx);
 		const { id, ...updates } = args;
 
-		const patch: Partial<Infer<typeof phaseUpdateValidator>> = {};
+		const patch: Partial<typeof updates> = {};
 		if (updates.name !== undefined) patch.name = updates.name;
 		if (updates.description !== undefined)
 			patch.description = updates.description;

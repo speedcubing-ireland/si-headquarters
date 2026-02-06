@@ -37,6 +37,10 @@ export function validateDateRange(
 	return { startMs, endMs };
 }
 
+export function normalizeEmail(email: string | undefined | null): string {
+	return (email ?? "").trim().toLowerCase();
+}
+
 export function validateEmail(email: string): boolean {
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 	return emailRegex.test(email);

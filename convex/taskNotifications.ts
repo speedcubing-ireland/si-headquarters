@@ -16,6 +16,10 @@ function collectTaskNotificationRecipients(
 	return recipients;
 }
 
+function toRecipientArray(recipients: Set<Id<"users">>): Id<"users">[] {
+	return [...recipients];
+}
+
 export function sendTaskAssigneeChangeNotifications(
 	ctx: MutationCtx,
 	taskId: Id<"tasks">,
@@ -52,19 +56,39 @@ export function sendTaskStatusChangeNotifications(
 	actorId: Id<"users">,
 ): void {
 	const recipients = collectTaskNotificationRecipients(doc, actorId);
-	for (const recipientId of recipients) {
-		void ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyTaskStatusChanged,
-			{
-				taskId,
-				recipientId,
-				actorId,
-				oldStatus,
-				newStatus,
-			},
-		);
-	}
+	const recipientIds = toRecipientArray(recipients);
+	void ctx.scheduler.runAfter(0, internal.notifications._notifyTaskStatusChanged, {
+		taskId,
+		recipientIds,
+		actorId,
+		oldStatus,
+		newStatus,
+		eventKey: `${taskId}:${oldStatus}:${newStatus}:${Date.now()}`,
+	});
+}
+
+export function sendTaskPriorityChangeNotifications(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	doc: Doc<"tasks">,
+	oldPriority: string,
+	newPriority: string,
+	actorId: Id<"users">,
+): void {
+	const recipients = collectTaskNotificationRecipients(doc, actorId);
+	const recipientIds = toRecipientArray(recipients);
+	void ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyTaskPriorityChanged,
+		{
+			taskId,
+			recipientIds,
+			actorId,
+			oldPriority,
+			newPriority,
+			eventKey: `${taskId}:${oldPriority}:${newPriority}:${Date.now()}`,
+		},
+	);
 }
 
 async function getRelationNotificationRecipients(
@@ -90,18 +114,18 @@ export async function sendTaskRelationBlockedNotifications(
 		blockedTaskId,
 		actorId,
 	);
-	for (const recipientId of recipients) {
-		void ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyTaskRelationBlocked,
-			{
-				blockedTaskId,
-				blockingTaskId,
-				recipientId,
-				actorId,
-			},
-		);
-	}
+	const recipientIds = toRecipientArray(recipients);
+	void ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyTaskRelationBlocked,
+		{
+			blockedTaskId,
+			blockingTaskId,
+			recipientIds,
+			actorId,
+			eventKey: `${blockedTaskId}:${blockingTaskId}:blocked:${Date.now()}`,
+		},
+	);
 }
 
 export async function sendTaskRelationUnblockedNotifications(
@@ -115,16 +139,16 @@ export async function sendTaskRelationUnblockedNotifications(
 		blockedTaskId,
 		actorId,
 	);
-	for (const recipientId of recipients) {
-		void ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyTaskRelationUnblocked,
-			{
-				blockedTaskId,
-				blockingTaskId,
-				recipientId,
-				actorId,
-			},
-		);
-	}
+	const recipientIds = toRecipientArray(recipients);
+	void ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyTaskRelationUnblocked,
+		{
+			blockedTaskId,
+			blockingTaskId,
+			recipientIds,
+			actorId,
+			eventKey: `${blockedTaskId}:${blockingTaskId}:unblocked:${Date.now()}`,
+		},
+	);
 }

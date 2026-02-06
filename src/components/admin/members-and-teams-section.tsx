@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -14,19 +16,33 @@ import {
 } from "@/hooks/use-convex-data";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseTeamId } from "@/lib/convex-ids";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
+
+const getErrorMessage = (error: unknown) =>
+	error instanceof Error ? error.message : "Something went wrong.";
 
 export function MembersAndTeamsSection() {
-	const { users, teams, isLoading } = useAdminMembersAndTeams();
-	const { updateTeamMembers } = useAdminMemberMutations();
+	const { users, teams, pendingTeamMembers, isLoading } =
+		useAdminMembersAndTeams();
+	const { updateTeamMembers, addPendingTeamMember, removePendingTeamMember } =
+		useAdminMemberMutations();
 
 	const [selectedTeamId, setSelectedTeamId] = useState<Id<"teams"> | null>(
 		null,
 	);
+	const [pendingEmail, setPendingEmail] = useState("");
+	const [error, setError] = useState<string | null>(null);
+	const [isSavingPending, setIsSavingPending] = useState(false);
+	const [removingPendingId, setRemovingPendingId] =
+		useState<Id<"pendingTeamMembers"> | null>(null);
 
 	const selectedTeam = useMemo(
 		() => teams.find((t) => t.id === selectedTeamId) ?? null,
 		[teams, selectedTeamId],
+	);
+	const pendingForSelectedTeam = useMemo(
+		() => pendingTeamMembers.filter((row) => row.teamId === selectedTeamId),
+		[pendingTeamMembers, selectedTeamId],
 	);
 
 	const handleToggleMember = useCallback(
@@ -36,9 +52,45 @@ export function MembersAndTeamsSection() {
 			const nextMembers = isMember
 				? selectedTeam.memberIds.filter((id) => id !== userId)
 				: [...selectedTeam.memberIds, userId];
-			await updateTeamMembers(selectedTeam.id, nextMembers);
+			setError(null);
+			try {
+				await updateTeamMembers(selectedTeam.id, nextMembers);
+			} catch (e) {
+				setError(getErrorMessage(e));
+			}
 		},
 		[selectedTeam, updateTeamMembers],
+	);
+	const handleAddPendingMember = useCallback(async () => {
+		if (!selectedTeam) return;
+		const email = pendingEmail.trim();
+		if (!email) return;
+
+		setIsSavingPending(true);
+		setError(null);
+		try {
+			await addPendingTeamMember(selectedTeam.id, email);
+			setPendingEmail("");
+		} catch (e) {
+			setError(getErrorMessage(e));
+		} finally {
+			setIsSavingPending(false);
+		}
+	}, [selectedTeam, pendingEmail, addPendingTeamMember]);
+
+	const handleRemovePendingMember = useCallback(
+		async (pendingTeamMemberId: Id<"pendingTeamMembers">) => {
+			setRemovingPendingId(pendingTeamMemberId);
+			setError(null);
+			try {
+				await removePendingTeamMember(pendingTeamMemberId);
+			} catch (e) {
+				setError(getErrorMessage(e));
+			} finally {
+				setRemovingPendingId(null);
+			}
+		},
+		[removePendingTeamMember],
 	);
 
 	if (isLoading) {
@@ -83,13 +135,14 @@ export function MembersAndTeamsSection() {
 						</SelectContent>
 					</Select>
 				</div>
+				{error ? <div className="text-xs text-destructive">{error}</div> : null}
 
 				{!selectedTeam ? (
 					<div className="text-sm text-muted-foreground">
 						Select a team to edit its members.
 					</div>
 				) : (
-					<div className="space-y-2">
+					<div className="space-y-3">
 						<div className="text-xs font-medium text-muted-foreground">
 							Click a user to add/remove them from{" "}
 							<span className="font-semibold">{selectedTeam.name}</span>.
@@ -133,6 +186,72 @@ export function MembersAndTeamsSection() {
 									</button>
 								);
 							})}
+						</div>
+
+						<div className="rounded-md border border-dashed px-3 py-2">
+							<div className="text-xs font-medium text-muted-foreground">
+								Pre-allocate roles before account creation
+							</div>
+							<p className="mt-1 text-[11px] text-muted-foreground">
+								When someone signs in with this email, they will be added to{" "}
+								<span className="font-semibold">{selectedTeam.name}</span>.
+							</p>
+							<div className="mt-2 flex flex-wrap items-center gap-2">
+								<Input
+									value={pendingEmail}
+									onChange={(event) => setPendingEmail(event.target.value)}
+									onKeyDown={(event) => {
+										if (event.key !== "Enter") return;
+										event.preventDefault();
+										void handleAddPendingMember();
+									}}
+									placeholder="name@example.com"
+									className="h-8 w-64 max-w-full text-xs"
+								/>
+								<Button
+									size="sm"
+									className="h-8 text-xs"
+									onClick={() => void handleAddPendingMember()}
+									disabled={isSavingPending || pendingEmail.trim().length === 0}
+								>
+									{isSavingPending ? (
+										<Loader2 className="size-3.5 animate-spin" />
+									) : (
+										"Add email"
+									)}
+								</Button>
+							</div>
+
+							{pendingForSelectedTeam.length === 0 ? (
+								<div className="mt-2 text-[11px] text-muted-foreground">
+									No pre-allocated emails for this team.
+								</div>
+							) : (
+								<div className="mt-2 space-y-1">
+									{pendingForSelectedTeam.map((row) => (
+										<div
+											key={row.id}
+											className="flex items-center justify-between rounded border px-2 py-1 text-xs"
+										>
+											<span className="truncate">{row.email}</span>
+											<Button
+												type="button"
+												size="icon"
+												variant="ghost"
+												className="size-6"
+												onClick={() => void handleRemovePendingMember(row.id)}
+												disabled={removingPendingId === row.id}
+											>
+												{removingPendingId === row.id ? (
+													<Loader2 className="size-3 animate-spin" />
+												) : (
+													<X className="size-3.5" />
+												)}
+											</Button>
+										</div>
+									))}
+								</div>
+							)}
 						</div>
 					</div>
 				)}

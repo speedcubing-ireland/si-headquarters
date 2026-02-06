@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireUserId } from "./auth";
+import { requireUserId, isVolunteer } from "./auth";
 import { requireDirector } from "./admin";
 import { SAT_DATE_REGEX } from "./lib/constants";
 
@@ -55,6 +55,13 @@ export const setOverride = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+		if (!volunteer) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Only volunteers can modify weekend overrides",
+			});
+		}
 		validateSatDate(args.satDate);
 		const now = Date.now();
 		const existing = await ctx.db

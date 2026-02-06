@@ -8,6 +8,15 @@ export const NOTIFICATION_THRESHOLDS = {
 export const CRON_INTERVALS = {
 	DUE_DATE_CHECK: { hours: 1 },
 	REMINDER_CHECK: { minutes: 15 },
+	NOTIFICATION_DISPATCH_CHECK: { minutes: 15 },
+} as const;
+
+export const NOTIFICATION_DEFAULTS = {
+	TIMEZONE: "Europe/Dublin",
+	DAILY_DIGEST_SEND_MINUTE: 9 * 60,
+	THREE_DAILY_DIGEST_SEND_MINUTES: [9 * 60, 13 * 60, 18 * 60] as const,
+	MAX_DISPATCH_BATCH_SIZE: 500,
+	MAX_DIGEST_LOOKAHEAD_MINUTES: 26 * 60,
 } as const;
 
 export const INPUT_LIMITS = {
@@ -32,22 +41,31 @@ export const REMINDER_PATTERNS = {
 	MONTHLY: "monthly",
 } as const;
 
-export const ACTIVITY_TYPES = [
-	"created",
-	"updated",
-	"status_changed",
-	"priority_changed",
-	"assignee_changed",
-	"due_date_changed",
-	"phase_changed",
-	"label_added",
-	"label_removed",
-	"comment_added",
-	"comment_edited",
-	"comment_deleted",
-	"archived",
-	"unarchived",
-	"approved",
-	"unapproved",
-	"resources_changed",
-] as const;
+export const NOTIFICATION_LIST_LIMITS = {
+	DEFAULT: 250,
+	MAX: 500,
+} as const;
+
+export const MINUTES_IN_DAY = 24 * 60;
+
+export const STATUS_LABELS: Record<string, string> = {
+	backlog: "Backlog",
+	"to-do": "To Do",
+	"in-progress": "In Progress",
+	"awaiting-review": "Awaiting Review",
+	done: "Done",
+	cancelled: "Cancelled",
+};
+
+export const PRIORITY_LABELS: Record<string, string> = {
+	low: "Low",
+	medium: "Medium",
+	high: "High",
+	urgent: "Urgent",
+};
+
+export const PROGRESS_STATUS_LABELS: Record<string, string> = {
+	"on-track": "On track",
+	"at-risk": "At risk",
+	"off-track": "Off track",
+};

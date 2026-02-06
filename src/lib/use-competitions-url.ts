@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useMemo } from "react";
 import type {
 	CompetitionsFilters,
@@ -7,6 +5,7 @@ import type {
 	FilterItem,
 	MatchMode,
 } from "@/lib/filter-types";
+import { emptyCompetitionsFilters } from "@/lib/filter-types";
 import {
 	type DisplaySettings,
 	defaultDisplaySettings as DEFAULT_DISPLAY_SETTINGS,
@@ -68,13 +67,7 @@ const useCompetitionsListStateStore = createListStateStore<CompetitionsFilters>(
 	},
 );
 
-const EMPTY_COMPETITIONS_FILTERS: CompetitionsFilters = {
-	phase: [],
-	compLead: [],
-	leadDelegate: [],
-	organisers: [],
-	dateRange: undefined,
-};
+const EMPTY_COMPETITIONS_FILTERS = emptyCompetitionsFilters;
 
 type ArrayFilterKey = Exclude<keyof CompetitionsFilters, "dateRange">;
 

@@ -1,7 +1,6 @@
 import type { Infer } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { internal } from "../_generated/api";
 import type { activityMetadata } from "../lib/validators";
 import type { ActivityType, ActivityEntity } from "./activityTypes";
 
@@ -72,7 +71,7 @@ export async function diffAndLog<T extends Record<string, unknown>>(
 	if (logEntries.length > 0) {
 		await Promise.all(
 			logEntries.map((entry) =>
-				ctx.runMutation(internal.activity.logWithActor, {
+				ctx.db.insert("activityLog", {
 					actorId,
 					entityType,
 					entityId,
@@ -114,11 +113,11 @@ export async function diffLabels(
 		if (doc) idToName.set(id, doc.name);
 	});
 
-	const promises: Promise<unknown>[] = [];
+	const promises: Promise<Id<"activityLog">>[] = [];
 
 	for (const id of added) {
 		promises.push(
-			ctx.runMutation(internal.activity.logWithActor, {
+			ctx.db.insert("activityLog", {
 				actorId,
 				entityType,
 				entityId,
@@ -130,7 +129,7 @@ export async function diffLabels(
 
 	for (const id of removed) {
 		promises.push(
-			ctx.runMutation(internal.activity.logWithActor, {
+			ctx.db.insert("activityLog", {
 				actorId,
 				entityType,
 				entityId,
@@ -151,7 +150,7 @@ export async function logActivity(
 	type: ActivityType,
 	metadata?: unknown,
 ): Promise<void> {
-	await ctx.runMutation(internal.activity.logWithActor, {
+	await ctx.db.insert("activityLog", {
 		actorId,
 		entityType,
 		entityId,

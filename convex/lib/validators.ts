@@ -77,10 +77,12 @@ export const NOTIFICATION_TYPES = [
 	"task_unassigned",
 	"task_mentioned",
 	"task_status_changed",
+	"task_priority_changed",
 	"task_awaiting_review",
 	"due_date_approaching",
 	"due_date_overdue",
 	"comment_added",
+	"comment_replied",
 	"relation_blocked",
 	"relation_unblocked",
 	"competition_phase_changed",
@@ -118,6 +120,7 @@ export const NOTIFICATION_DIGEST_MODES = [
 	"immediate",
 	"hourly",
 	"daily",
+	"three_daily",
 ] as const;
 
 export const notificationDigestMode = v.union(

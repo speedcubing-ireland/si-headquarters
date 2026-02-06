@@ -35,3 +35,5 @@ dist-ssr
 linear-docs/*
 tanstack-table-docs/*
 zustand-docs/*
+convex-docs/*
+coverage/*

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink, PanelRight } from "lucide-react";
+import { ArrowLeft, Bell, ExternalLink, PanelRight } from "lucide-react";
 import { useState } from "react";
 import { CompetitionDetails } from "@/components/competitions/competition-details";
 import { CompetitionLatestUpdate } from "@/components/competitions/competition-latest-update";
@@ -11,10 +11,13 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { requireCompetitionId } from "@/lib/convex-ids";
 import {
 	useCompetition,
+	useNotificationMutations,
+	useNotificationSubscriptions,
 	useTasksForCompetition,
 	useCompetitionMutations,
 } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
+import { onMutationError } from "@/lib/utils";
 
 export const Route = createFileRoute("/competitions/$id")({
 	component: RouteComponent,
@@ -53,9 +56,13 @@ function SummaryStat({
 function CompetitionHeader({
 	competition,
 	onPropertiesClick,
+	isSubscribed,
+	onToggleSubscription,
 }: {
 	competition: Competition;
 	onPropertiesClick: () => void;
+	isSubscribed: boolean;
+	onToggleSubscription: () => void;
 }) {
 	return (
 		<header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
@@ -73,6 +80,17 @@ function CompetitionHeader({
 				{competition.name}
 			</h1>
 			<div className="ml-auto flex items-center gap-2">
+				<Button
+					variant={isSubscribed ? "secondary" : "outline"}
+					size="sm"
+					onClick={onToggleSubscription}
+					className="gap-1.5"
+				>
+					<Bell className="size-4" />
+					<span className="hidden sm:inline">
+						{isSubscribed ? "Watching" : "Watch"}
+					</span>
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"
@@ -105,15 +123,32 @@ function RouteComponent() {
 	const competitionId = requireCompetitionId(id);
 	const competition = useCompetition(competitionId);
 	const { tasks: scopedTasks } = useTasksForCompetition(competitionId);
+	const { subscriptions } = useNotificationSubscriptions();
+	const { subscribeToCompetition, unsubscribeFromCompetition } =
+		useNotificationMutations();
 	const { updateCompetition, deleteCompetition } = useCompetitionMutations();
 	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
+	const isSubscribed = subscriptions.some(
+		(subscription) =>
+			subscription.subscriptionType === "entity" &&
+			subscription.entityType === "competition" &&
+			subscription.entityId === competitionId,
+	);
+
+	const handleToggleSubscription = () => {
+		if (isSubscribed) {
+			void unsubscribeFromCompetition(competitionId).catch(onMutationError);
+			return;
+		}
+		void subscribeToCompetition(competitionId).catch(onMutationError);
+	};
 
 	const handleDelete = async () => {
 		try {
 			await deleteCompetition(competitionId);
 			navigate({ to: "/competitions" });
 		} catch (error) {
-			console.error("Failed to delete competition:", error);
+			onMutationError(error);
 		}
 	};
 
@@ -164,6 +199,8 @@ function RouteComponent() {
 			<CompetitionHeader
 				competition={competitionWithTasks}
 				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
+				isSubscribed={isSubscribed}
+				onToggleSubscription={handleToggleSubscription}
 			/>
 			<div className="flex min-w-0 flex-1 overflow-hidden">
 				<main className="min-w-0 flex-1 overflow-x-hidden">

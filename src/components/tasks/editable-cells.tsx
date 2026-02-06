@@ -1,7 +1,7 @@
 import { CheckIcon, CircleDashed, Tag } from "lucide-react";
 import React from "react";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { cn } from "@/lib/utils";
+import { cn, onMutationError } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -119,7 +119,8 @@ function EditableTaskCell<T extends string>({
 					variant="ghost"
 					size="sm"
 					className={
-						triggerClassName ?? "h-6 px-1 justify-start hover:bg-muted/50"
+						triggerClassName ??
+						"h-6 min-w-0 max-w-full px-1 justify-start hover:bg-muted/50"
 					}
 				>
 					{renderTrigger(value)}
@@ -195,7 +196,7 @@ export function EditableTaskStatus({
 			return;
 		}
 
-		void updateTask(taskId, { status: newStatus });
+		void updateTask(taskId, { status: newStatus }).catch(onMutationError);
 	};
 
 	return (
@@ -205,9 +206,11 @@ export function EditableTaskStatus({
 			onChange={handleStatusChange}
 			renderTrigger={(value) =>
 				children ?? (
-					<div className="flex items-center gap-1.5">
+					<div className="flex min-w-0 items-center gap-1.5">
 						<StatusIcon className="size-4" />
-						<span className="text-xs">{statusLabels[value]}</span>
+						<span className="min-w-0 truncate text-xs">
+							{statusLabels[value]}
+						</span>
 					</div>
 				)
 			}
@@ -256,13 +259,15 @@ export function EditableTaskPriority({
 			type="priority"
 			value={priority}
 			onChange={(newPriority) =>
-				void updateTask(taskId, { priority: newPriority })
+				void updateTask(taskId, { priority: newPriority }).catch(
+					onMutationError,
+				)
 			}
 			renderTrigger={(value) =>
 				children ?? (
-					<div className="flex items-center gap-1.5">
+					<div className="flex min-w-0 items-center gap-1.5">
 						<PriorityIcon className="size-4" />
-						<span className="text-xs capitalize">{value}</span>
+						<span className="min-w-0 truncate text-xs capitalize">{value}</span>
 					</div>
 				)
 			}
@@ -296,7 +301,7 @@ export function EditableTaskAssignee({
 
 	const handleChange = (userId: string) => {
 		const selectedUser = users.find((u) => u.id === userId) || null;
-		void updateTask(taskId, { assignee: selectedUser });
+		void updateTask(taskId, { assignee: selectedUser }).catch(onMutationError);
 		setOpen(false);
 	};
 
@@ -311,7 +316,7 @@ export function EditableTaskAssignee({
 					className={
 						isIconVariant
 							? "h-6 w-6 p-0 justify-center hover:bg-muted/50"
-							: "h-7 px-2 justify-start"
+							: "h-7 min-w-0 max-w-full px-2 justify-start"
 					}
 				>
 					{assignee ? (
@@ -325,7 +330,7 @@ export function EditableTaskAssignee({
 								/>
 							</>
 						) : (
-							<div className="flex items-center gap-1.5">
+							<div className="flex min-w-0 items-center gap-1.5">
 								<UserAvatar
 									name={assignee.name}
 									avatarUrl={assignee.avatarUrl}
@@ -355,7 +360,9 @@ export function EditableTaskAssignee({
 							<CommandItem
 								value="unassigned"
 								onSelect={() => {
-									void updateTask(taskId, { assignee: null });
+									void updateTask(taskId, { assignee: null }).catch(
+										onMutationError,
+									);
 									setOpen(false);
 								}}
 								className="flex items-center justify-between"
@@ -412,11 +419,13 @@ export function EditableTaskLabels({
 		if (hasLabel) {
 			void updateTask(taskId, {
 				labels: labels.filter((l) => l.id !== labelId),
-			});
+			}).catch(onMutationError);
 		} else {
 			const label = allLabels.find((l) => l.id === labelId);
 			if (label) {
-				void updateTask(taskId, { labels: [...labels, label] });
+				void updateTask(taskId, { labels: [...labels, label] }).catch(
+					onMutationError,
+				);
 			}
 		}
 		setOpen(false);
@@ -428,7 +437,7 @@ export function EditableTaskLabels({
 				<Button
 					variant="ghost"
 					size="sm"
-					className="h-7 px-2 justify-end gap-1 min-w-[40px]"
+					className="h-7 min-w-0 max-w-full px-2 justify-end gap-1"
 				>
 					{labels.length > 0 ? (
 						<div
@@ -530,7 +539,7 @@ export function EditableTaskOwner({
 
 	const handleChange = (value: string) => {
 		if (value === "unassigned") {
-			void updateTask(taskId, { owner: null });
+			void updateTask(taskId, { owner: null }).catch(onMutationError);
 			setOpen(false);
 			return;
 		}
@@ -538,7 +547,7 @@ export function EditableTaskOwner({
 		if (value.startsWith("team:")) {
 			const id = value.slice("team:".length);
 			const team = teams.find((t) => t.id === id) ?? null;
-			void updateTask(taskId, { owner: team });
+			void updateTask(taskId, { owner: team }).catch(onMutationError);
 			setOpen(false);
 			return;
 		}
@@ -546,7 +555,7 @@ export function EditableTaskOwner({
 		if (value.startsWith("user:")) {
 			const id = value.slice("user:".length);
 			const user = users.find((u) => u.id === id) ?? null;
-			void updateTask(taskId, { owner: user });
+			void updateTask(taskId, { owner: user }).catch(onMutationError);
 			setOpen(false);
 		}
 	};
@@ -579,7 +588,7 @@ export function EditableTaskOwner({
 				<Button
 					variant="ghost"
 					size="sm"
-					className="h-6 px-1 justify-center hover:bg-muted/50"
+					className="h-6 min-w-0 max-w-full px-1 justify-center hover:bg-muted/50"
 				>
 					{renderTriggerContent()}
 				</Button>

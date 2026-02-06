@@ -1,5 +1,7 @@
 "use client";
 
+import { Link } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
 import { format } from "date-fns";
 import {
 	AlertTriangle,
@@ -22,36 +24,22 @@ import {
 	EditableTaskPriority,
 	EditableTaskStatus,
 } from "@/components/tasks/editable-cells";
+import {
+	AddApproverDialog,
+	AddBlockingTaskDialog,
+} from "@/components/tasks/task-dialogs";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import {
-	Command,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandItem,
-	CommandList,
-} from "@/components/ui/command";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import {
-	useUsers,
-	useTeams,
-	useTaskMutations,
-	useTasks,
-} from "@/hooks/use-convex-data";
+import { useTaskMutations } from "@/hooks/use-convex-data";
+import { api } from "@/convex/_generated/api";
 import type { Task, Team, User } from "@/data/types-new";
-import { cn } from "@/lib/utils";
+import { cn, onMutationError } from "@/lib/utils";
 
 interface TaskPropertiesSidebarProps {
 	task: Task;
@@ -147,187 +135,6 @@ function ApprovalBadge({
 	);
 }
 
-function AddApproverDialog({
-	open,
-	onOpenChange,
-	task,
-	onAdd,
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	task: Task;
-	onAdd: (approver: Team | User) => void;
-}) {
-	const { users } = useUsers();
-	const { teams } = useTeams();
-	const [search, setSearch] = useState("");
-
-	const existingApproverIds = new Set([
-		...task.requiredApprovalBy.map((a) => a.id),
-		...(task.assignee ? [task.assignee.id] : []),
-	]);
-
-	const filteredUsers = users.filter(
-		(u) =>
-			!existingApproverIds.has(u.id) &&
-			u.name.toLowerCase().includes(search.toLowerCase()),
-	);
-
-	const filteredTeams = teams.filter(
-		(t) =>
-			!existingApproverIds.has(t.id) &&
-			t.name.toLowerCase().includes(search.toLowerCase()),
-	);
-
-	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[400px]">
-				<DialogHeader>
-					<DialogTitle>Add Required Approver</DialogTitle>
-				</DialogHeader>
-				<Command>
-					<CommandInput
-						placeholder="Search people or teams..."
-						value={search}
-						onValueChange={setSearch}
-					/>
-					<CommandList>
-						<CommandEmpty>No results found.</CommandEmpty>
-						{filteredTeams.length > 0 && (
-							<CommandGroup heading="Teams">
-								{filteredTeams.map((team) => (
-									<CommandItem
-										key={team.id}
-										onSelect={() => {
-											onAdd(team);
-											onOpenChange(false);
-											setSearch("");
-										}}
-									>
-										<div className="flex items-center gap-2">
-											<div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs">
-												T
-											</div>
-											<span>{team.name}</span>
-										</div>
-									</CommandItem>
-								))}
-							</CommandGroup>
-						)}
-						{filteredUsers.length > 0 && (
-							<CommandGroup heading="People">
-								{filteredUsers.map((user) => (
-									<CommandItem
-										key={user.id}
-										onSelect={() => {
-											onAdd(user);
-											onOpenChange(false);
-											setSearch("");
-										}}
-									>
-										<div className="flex items-center gap-2">
-											{user.avatarUrl ? (
-												<img
-													src={user.avatarUrl}
-													alt={user.name}
-													className="w-6 h-6 rounded-full"
-												/>
-											) : null}
-											<span>{user.name}</span>
-										</div>
-									</CommandItem>
-								))}
-							</CommandGroup>
-						)}
-					</CommandList>
-				</Command>
-			</DialogContent>
-		</Dialog>
-	);
-}
-
-function AddBlockingTaskDialog({
-	open,
-	onOpenChange,
-	task,
-	onAddBlockingTask,
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	task: Task;
-	onAddBlockingTask: (blockingTaskId: Task["id"]) => void;
-}) {
-	const { tasks } = useTasks(false);
-	const [search, setSearch] = useState("");
-
-	const existingBlockingTaskIds = new Set(
-		task.blockedBy.map((relation) => relation.task.id),
-	);
-	const currentCompetitionId =
-		task.parent?.type === "competition" ? task.parent.linkedId : null;
-	const filteredTasks = tasks.filter((candidate) => {
-		if (candidate.id === task.id) {
-			return false;
-		}
-		if (existingBlockingTaskIds.has(candidate.id)) {
-			return false;
-		}
-		const candidateCompetitionId =
-			candidate.parent?.type === "competition"
-				? candidate.parent.linkedId
-				: null;
-		if (candidateCompetitionId !== currentCompetitionId) {
-			return false;
-		}
-		const candidateText =
-			`${candidate.identifier} ${candidate.title}`.toLowerCase();
-		return candidateText.includes(search.toLowerCase());
-	});
-
-	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[520px]">
-				<DialogHeader>
-					<DialogTitle>Add Blocking Task</DialogTitle>
-				</DialogHeader>
-				<Command>
-					<CommandInput
-						placeholder="Search tasks..."
-						value={search}
-						onValueChange={setSearch}
-					/>
-					<CommandList>
-						<CommandEmpty>No matching tasks.</CommandEmpty>
-						{filteredTasks.length > 0 && (
-							<CommandGroup heading="Tasks">
-								{filteredTasks.map((candidate) => (
-									<CommandItem
-										key={candidate.id}
-										onSelect={() => {
-											onAddBlockingTask(candidate.id);
-											onOpenChange(false);
-											setSearch("");
-										}}
-									>
-										<div className="flex min-w-0 flex-col">
-											<span className="truncate text-xs text-muted-foreground">
-												{candidate.identifier}
-											</span>
-											<span className="truncate text-sm">
-												{candidate.title}
-											</span>
-										</div>
-									</CommandItem>
-								))}
-							</CommandGroup>
-						)}
-					</CommandList>
-				</Command>
-			</DialogContent>
-		</Dialog>
-	);
-}
-
 export function TaskPropertiesSidebar({
 	task,
 	renderMode = "sidebar",
@@ -346,12 +153,11 @@ export function TaskPropertiesSidebar({
 		approveTask,
 		unapproveTask,
 	} = useTaskMutations();
-	const { users } = useUsers();
-	const currentUser = users[0];
+	const currentUser = useQuery(api.users.getCurrentUser);
 
-	const [dateOpen, setDateOpen] = useState(false);
-	const [addApproverOpen, setAddApproverOpen] = useState(false);
-	const [addBlockingOpen, setAddBlockingOpen] = useState(false);
+	const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+	const [isApproverDialogOpen, setIsApproverDialogOpen] = useState(false);
+	const [isBlockingDialogOpen, setIsBlockingDialogOpen] = useState(false);
 
 	const approvalStatus = (() => {
 		const required = task.requiredApprovalBy;
@@ -378,13 +184,13 @@ export function TaskPropertiesSidebar({
 
 	const isCurrentUserApprover = (approver: Team | User) => {
 		if ("members" in approver) {
-			return approver.members.some((m) => m.id === currentUser?.id);
+			return approver.members.some((m) => m.id === currentUser?._id);
 		}
-		return approver.id === currentUser?.id;
+		return approver.id === currentUser?._id;
 	};
 
 	const handleAddApprover = (approver: Team | User) => {
-		void addRequiredApprover(task.id, approver);
+		void addRequiredApprover(task.id, approver).catch(onMutationError);
 	};
 
 	const handleRemoveApprover = (approverId: string) => {
@@ -392,31 +198,31 @@ export function TaskPropertiesSidebar({
 		if (!approver) return;
 		const approverKey =
 			"members" in approver ? `team:${approverId}` : `user:${approverId}`;
-		void removeRequiredApprover(task.id, approverKey);
+		void removeRequiredApprover(task.id, approverKey).catch(onMutationError);
 	};
 
 	const handleApprove = () => {
-		void approveTask(task.id);
+		void approveTask(task.id).catch(onMutationError);
 	};
 
 	const handleUnapprove = () => {
-		void unapproveTask(task.id);
+		void unapproveTask(task.id).catch(onMutationError);
 	};
 
 	const handleAddBlockingTask = (blockingTaskId: Task["id"]) => {
-		void addBlockingRelation(task.id, blockingTaskId);
+		void addBlockingRelation(task.id, blockingTaskId).catch(onMutationError);
 	};
 
 	const handleRemoveBlockingTask = (blockingTaskId: Task["id"]) => {
-		void removeBlockingRelation(task.id, blockingTaskId);
+		void removeBlockingRelation(task.id, blockingTaskId).catch(onMutationError);
 	};
 
 	const handleRemoveBlockedTask = (blockedTaskId: Task["id"]) => {
-		void removeBlockingRelation(blockedTaskId, task.id);
+		void removeBlockingRelation(blockedTaskId, task.id).catch(onMutationError);
 	};
 
 	const sidebarContent = (
-		<div className="flex flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5">
+		<div className="flex min-w-0 flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5">
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					Properties
@@ -469,7 +275,7 @@ export function TaskPropertiesSidebar({
 								<div
 									key={relation.task.id}
 									className={cn(
-										"flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm",
+										"flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5 text-sm",
 										relation.isResolved
 											? "border-green-500/30 bg-green-500/10"
 											: "border-amber-500/30 bg-amber-500/10",
@@ -481,9 +287,13 @@ export function TaskPropertiesSidebar({
 										<AlertTriangle className="size-4 shrink-0 text-amber-500" />
 									)}
 									<div className="min-w-0 flex-1">
-										<div className="truncate font-medium">
+										<Link
+											to="/tasks/$id"
+											params={{ id: relation.task.id }}
+											className="block font-medium leading-snug break-words [overflow-wrap:anywhere] hover:underline underline-offset-2"
+										>
 											{relation.task.identifier} {relation.task.title}
-										</div>
+										</Link>
 										<div className="text-xs text-muted-foreground">
 											{relation.isResolved ? "Resolved" : "Blocking"}
 										</div>
@@ -491,7 +301,7 @@ export function TaskPropertiesSidebar({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-6 w-6"
+										className="h-6 w-6 shrink-0"
 										onClick={() => handleRemoveBlockingTask(relation.task.id)}
 										title="Remove blocker"
 									>
@@ -507,7 +317,7 @@ export function TaskPropertiesSidebar({
 					variant="ghost"
 					size="sm"
 					className="justify-start text-muted-foreground hover:text-foreground"
-					onClick={() => setAddBlockingOpen(true)}
+					onClick={() => setIsBlockingDialogOpen(true)}
 				>
 					<Plus className="size-3.5 mr-1.5" />
 					Add blocker
@@ -526,13 +336,17 @@ export function TaskPropertiesSidebar({
 							{task.blocks.map((blockedTask) => (
 								<div
 									key={blockedTask.id}
-									className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm"
+									className="flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5 text-sm"
 								>
 									<Link2 className="size-4 shrink-0 text-muted-foreground" />
 									<div className="min-w-0 flex-1">
-										<div className="truncate font-medium">
+										<Link
+											to="/tasks/$id"
+											params={{ id: blockedTask.id }}
+											className="block font-medium leading-snug break-words [overflow-wrap:anywhere] hover:underline underline-offset-2"
+										>
 											{blockedTask.identifier} {blockedTask.title}
-										</div>
+										</Link>
 										<div className="text-xs text-muted-foreground">
 											Status: {blockedTask.status}
 										</div>
@@ -540,7 +354,7 @@ export function TaskPropertiesSidebar({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-6 w-6"
+										className="h-6 w-6 shrink-0"
 										onClick={() => handleRemoveBlockedTask(blockedTask.id)}
 										title="Remove dependency"
 									>
@@ -612,7 +426,7 @@ export function TaskPropertiesSidebar({
 					variant="ghost"
 					size="sm"
 					className="justify-start text-muted-foreground hover:text-foreground mt-1"
-					onClick={() => setAddApproverOpen(true)}
+					onClick={() => setIsApproverDialogOpen(true)}
 				>
 					<Plus className="size-3.5 mr-1.5" />
 					Add approver
@@ -636,15 +450,22 @@ export function TaskPropertiesSidebar({
 				</h3>
 				<div className="flex flex-col gap-1">
 					<PropertyRow label="Due date">
-						<DropdownMenu open={dateOpen} onOpenChange={setDateOpen}>
+						<DropdownMenu
+							open={isDatePickerOpen}
+							onOpenChange={setIsDatePickerOpen}
+						>
 							<DropdownMenuTrigger asChild>
-								<Button variant="ghost" size="sm" className="h-7 px-2">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 min-w-0 max-w-full px-2"
+								>
 									{task.dueDate ? (
-										<span className="text-sm">
+										<span className="max-w-full truncate text-sm">
 											{format(new Date(task.dueDate), "MMM d")}
 										</span>
 									) : (
-										<span className="text-sm text-muted-foreground">
+										<span className="max-w-full truncate text-sm text-muted-foreground">
 											Set due date...
 										</span>
 									)}
@@ -657,8 +478,8 @@ export function TaskPropertiesSidebar({
 									onSelect={(date) => {
 										void updateTask(task.id, {
 											dueDate: date ? date.toISOString().split("T")[0] : null,
-										});
-										setDateOpen(false);
+										}).catch(onMutationError);
+										setIsDatePickerOpen(false);
 									}}
 								/>
 							</DropdownMenuContent>
@@ -666,19 +487,19 @@ export function TaskPropertiesSidebar({
 					</PropertyRow>
 
 					<PropertyRow label="Created">
-						<span className="text-sm text-muted-foreground">
+						<span className="max-w-full truncate text-sm text-muted-foreground">
 							{format(new Date(task.createdAt), "MMM d, yyyy")}
 						</span>
 					</PropertyRow>
 
 					<PropertyRow label="Updated">
-						<span className="text-sm text-muted-foreground">
+						<span className="max-w-full truncate text-sm text-muted-foreground">
 							{format(new Date(task.updatedAt), "MMM d, yyyy")}
 						</span>
 					</PropertyRow>
 
 					<PropertyRow label="ID">
-						<span className="text-sm font-mono text-muted-foreground">
+						<span className="max-w-full truncate text-sm font-mono text-muted-foreground">
 							{task.identifier}
 						</span>
 					</PropertyRow>
@@ -707,14 +528,14 @@ export function TaskPropertiesSidebar({
 	return (
 		<>
 			<AddBlockingTaskDialog
-				open={addBlockingOpen}
-				onOpenChange={setAddBlockingOpen}
+				open={isBlockingDialogOpen}
+				onOpenChange={setIsBlockingDialogOpen}
 				task={task}
 				onAddBlockingTask={handleAddBlockingTask}
 			/>
 			<AddApproverDialog
-				open={addApproverOpen}
-				onOpenChange={setAddApproverOpen}
+				open={isApproverDialogOpen}
+				onOpenChange={setIsApproverDialogOpen}
 				task={task}
 				onAdd={handleAddApprover}
 			/>

@@ -1,9 +1,8 @@
-"use client";
-
 import { useCallback, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { parseSavedViewId } from "@/lib/convex-ids";
+import { onMutationError } from "@/lib/utils";
 import { useCompetitionsUrlContext } from "@/lib/competitions-url-context";
 import type { SavedView } from "@/store/saved-views-store";
 import { emptyCompetitionsFilters } from "@/lib/filter-types";
@@ -79,7 +78,7 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 				description,
 				filtersJson,
 				displaySettingsJson,
-			});
+			}).catch(onMutationError);
 			return "";
 		},
 		[filters, matchMode, displaySettings, createViewMutation],
@@ -108,7 +107,7 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 	const deleteView = useCallback(
 		(viewId: string): void => {
 			const id = parseSavedViewId(viewId);
-			if (id) void deleteViewMutation({ id });
+			if (id) void deleteViewMutation({ id }).catch(onMutationError);
 			if (viewId === activeViewId) {
 				clearAll();
 			}

@@ -49,7 +49,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCompetitionMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
-import { cn } from "@/lib/utils";
+import { cn, onMutationError } from "@/lib/utils";
 
 interface CompetitionPropertiesSidebarProps {
 	competition: Competition;
@@ -87,7 +87,7 @@ export function CompetitionPropertiesSidebar({
 				compStart:
 					range.from?.toISOString().split("T")[0] || competition.compStart,
 				compEnd: range.to?.toISOString().split("T")[0] || competition.compEnd,
-			});
+			}).catch(onMutationError);
 		},
 		[
 			competition.id,
@@ -98,7 +98,7 @@ export function CompetitionPropertiesSidebar({
 	);
 
 	const sidebarContent = (
-		<div className="flex flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5">
+		<div className="flex min-w-0 flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5">
 			<section className="flex flex-col gap-2">
 				<h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 					Properties
@@ -114,7 +114,11 @@ export function CompetitionPropertiesSidebar({
 					>
 						<DropdownMenu open={dateOpen} onOpenChange={setDateOpen}>
 							<DropdownMenuTrigger asChild>
-								<Button variant="ghost" size="sm" className="h-7 px-2">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 min-w-0 max-w-full px-2"
+								>
 									<span className="text-sm">
 										{formatDateShort(competition.compStart)} –{" "}
 										{formatDateShort(competition.compEnd)}
@@ -141,7 +145,7 @@ export function CompetitionPropertiesSidebar({
 					</PropertyRow>
 
 					<PropertyRow label="Tasks">
-						<span className="text-sm text-muted-foreground">
+						<span className="max-w-full text-sm text-muted-foreground break-words [overflow-wrap:anywhere]">
 							<span className="text-foreground font-medium">
 								{completedTasks}
 							</span>{" "}
@@ -201,7 +205,7 @@ export function CompetitionPropertiesSidebar({
 											onClick={() => {
 												void updateCompetition(competition.id, {
 													compSheet: null,
-												});
+												}).catch(onMutationError);
 											}}
 										>
 											Remove
@@ -252,7 +256,7 @@ export function CompetitionPropertiesSidebar({
 															type: "google-sheet",
 															sheetId,
 														},
-													});
+													}).catch(onMutationError);
 													setSheetInput("");
 													setSheetPopoverOpen(false);
 												}
@@ -306,16 +310,16 @@ export function CompetitionPropertiesSidebar({
 								onClick={() => {
 									void updateCompetition(competition.id, {
 										currentPhaseId: phase.id,
-									});
+									}).catch(onMutationError);
 								}}
 								className={cn(
-									"flex w-full items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+									"flex min-w-0 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors",
 									isCurrent
 										? "bg-accent text-foreground"
 										: "hover:bg-accent text-muted-foreground",
 								)}
 							>
-								<div className="flex items-center gap-2">
+								<div className="flex min-w-0 items-center gap-2">
 									<Circle
 										className={cn(
 											"size-2",
@@ -324,7 +328,12 @@ export function CompetitionPropertiesSidebar({
 												: "text-muted-foreground/40",
 										)}
 									/>
-									<span className={isCurrent ? "font-medium" : ""}>
+									<span
+										className={cn(
+											"min-w-0 truncate",
+											isCurrent ? "font-medium" : "",
+										)}
+									>
 										{phase.name}
 									</span>
 								</div>

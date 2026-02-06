@@ -1,7 +1,8 @@
 import type { Task } from "@/data/types-new";
+import type { MatchMode } from "@/lib/filter-types";
 
-export type MatchMode = "all" | "any";
 export type TaskPredicate = (task: Task) => boolean;
+export type { MatchMode };
 
 export function bulkFilterItems(
 	tasks: Task[],
@@ -27,9 +28,4 @@ export function createOwnerPredicate(ownerIds: string[]): TaskPredicate {
 		if (!task.owner) return false;
 		return "id" in task.owner && ownerIds.includes(task.owner.id);
 	};
-}
-
-export function createApprovalPredicate(ids: string[]): TaskPredicate {
-	return (task) =>
-		task.requiredApprovalBy.some((entity) => ids.includes(entity.id));
 }

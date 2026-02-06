@@ -4,6 +4,7 @@ import type { Doc } from "./_generated/dataModel";
 import { requireUserId } from "./auth";
 import { internal } from "./_generated/api";
 import { REMINDER_PATTERNS } from "./lib/constants";
+import { toISO } from "./lib/transforms";
 import {
 	reminderStatus,
 	reminderType,
@@ -13,8 +14,6 @@ import {
 
 const DAYS_PER_WEEK = 7;
 const PRIORITY_NORMAL = "normal";
-
-const toISO = (ms: number) => new Date(ms).toISOString();
 
 export const reminderReturns = v.object({
 	id: v.id("reminders"),
@@ -65,7 +64,7 @@ export const listForUser = query({
 		const userId = await requireUserId(ctx);
 		const docs = await ctx.db
 			.query("reminders")
-			.withIndex("by_user", (q) => q.eq("userId", userId))
+			.withIndex("by_user_and_status", (q) => q.eq("userId", userId))
 			.order("desc")
 			.collect();
 		return docs.map(docToReminder);

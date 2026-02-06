@@ -37,6 +37,7 @@ import type { Competition, Task, Team, User } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
 import { REMINDER_PRESETS } from "@/lib/reminder-presets";
 import { parseTaskId } from "@/lib/convex-ids";
+import { onMutationError } from "@/lib/utils";
 import type { Id } from "@/convex/_generated/dataModel";
 
 type TaskSearchItem = {
@@ -314,7 +315,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 												currentTaskId,
 												preset.getRemindAt(),
 											),
-										);
+										).catch(onMutationError);
 										onOpenChange(false);
 									}}
 								>
@@ -326,7 +327,9 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 						{pendingForTask.length > 0 && (
 							<CommandItem
 								onSelect={() => {
-									void cancelReminder(pendingForTask[0].id);
+									void cancelReminder(pendingForTask[0].id).catch(
+										onMutationError,
+									);
 									onOpenChange(false);
 								}}
 							>

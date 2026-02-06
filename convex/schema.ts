@@ -37,6 +37,16 @@ export default defineSchema({
 		memberIds: v.array(v.id("users")),
 	}).index("by_name", ["name"]),
 
+	pendingTeamMembers: defineTable({
+		email: v.string(),
+		teamId: v.id("teams"),
+		createdById: v.id("users"),
+		createdAt: v.number(),
+	})
+		.index("by_email", ["email"])
+		.index("by_team", ["teamId"])
+		.index("by_team_and_email", ["teamId", "email"]),
+
 	labels: defineTable({
 		name: v.string(),
 		color: v.string(),
@@ -73,7 +83,6 @@ export default defineSchema({
 	})
 		.index("by_archived", ["archived"])
 		.index("by_parent_task", ["parentTaskId"])
-		.index("by_parent_competition", ["parentCompetitionId"])
 		.index("by_parent_competition_and_archived", [
 			"parentCompetitionId",
 			"archived",
@@ -195,7 +204,6 @@ export default defineSchema({
 		isBatchable: v.boolean(),
 		batchKey: v.optional(v.string()),
 	})
-		.index("by_user", ["userId"])
 		.index("by_user_and_status", ["userId", "status"])
 		.index("by_user_source_event", ["userId", "sourceEventId"])
 		.index("by_entity", ["entityType", "entityId"]),
@@ -217,8 +225,7 @@ export default defineSchema({
 		createdAt: v.number(),
 	})
 		.index("by_idempotency_key", ["idempotencyKey"])
-		.index("by_entity", ["entityType", "entityId"])
-		.index("by_type", ["type"]),
+		.index("by_entity", ["entityType", "entityId"]),
 
 	notificationPreferences: defineTable({
 		userId: v.id("users"),
@@ -226,12 +233,18 @@ export default defineSchema({
 		channel: notificationChannel,
 		enabled: v.boolean(),
 		digestMode: notificationDigestMode,
+		respectQuietHours: v.optional(v.boolean()),
+		updatedAt: v.number(),
+	}).index("by_user_type_channel", ["userId", "type", "channel"]),
+
+	notificationUserSettings: defineTable({
+		userId: v.id("users"),
+		timezone: v.string(),
+		defaultDigestMode: v.optional(notificationDigestMode),
 		quietHoursStartMin: v.optional(v.number()),
 		quietHoursEndMin: v.optional(v.number()),
 		updatedAt: v.number(),
-	})
-		.index("by_user", ["userId"])
-		.index("by_user_type_channel", ["userId", "type", "channel"]),
+	}).index("by_user", ["userId"]),
 
 	notificationSubscriptions: defineTable({
 		userId: v.id("users"),
@@ -239,10 +252,14 @@ export default defineSchema({
 		entityType: v.optional(notificationSubscriberEntityType),
 		entityId: v.optional(v.string()),
 		viewId: v.optional(v.id("savedViews")),
+		viewEntity: v.optional(
+			v.union(v.literal("tasks"), v.literal("competitions")),
+		),
 		updatedAt: v.number(),
 	})
-		.index("by_user", ["userId"])
+		.index("by_type_view_entity", ["subscriptionType", "viewEntity"])
 		.index("by_user_entity", ["userId", "entityType", "entityId"])
+		.index("by_user_updated_at", ["userId", "updatedAt"])
 		.index("by_entity", ["entityType", "entityId"])
 		.index("by_user_view", ["userId", "viewId"]),
 
@@ -251,6 +268,9 @@ export default defineSchema({
 		notificationId: v.optional(v.id("notifications")),
 		userId: v.id("users"),
 		channel: notificationChannel,
+		digestMode: notificationDigestMode,
+		scheduledFor: v.optional(v.number()),
+		digestWindowKey: v.optional(v.string()),
 		status: notificationDispatchStatus,
 		reason: v.optional(v.string()),
 		metadataJson: v.optional(v.string()),
@@ -259,9 +279,9 @@ export default defineSchema({
 		sentAt: v.optional(v.number()),
 		updatedAt: v.number(),
 	})
-		.index("by_event", ["eventId"])
 		.index("by_event_user_channel", ["eventId", "userId", "channel"])
 		.index("by_user_status", ["userId", "status"])
+		.index("by_status_scheduled_for", ["status", "scheduledFor"])
 		.index("by_channel_status", ["channel", "status"]),
 
 	reminders: defineTable({
@@ -286,7 +306,6 @@ export default defineSchema({
 		metadata: reminderMetadata,
 		updatedAt: v.number(),
 	})
-		.index("by_user", ["userId"])
 		.index("by_user_and_status", ["userId", "status"])
 		.index("by_user_entityId_status", ["userId", "entityId", "status"])
 		.index("by_remind_at", ["remindAt"])
@@ -304,9 +323,7 @@ export default defineSchema({
 		createdAt: v.number(),
 		updatedAt: v.number(),
 		lastUsedAt: v.optional(v.number()),
-	})
-		.index("by_user", ["userId"])
-		.index("by_user_entity_page", ["userId", "entity", "pageId"]),
+	}).index("by_user_entity_page", ["userId", "entity", "pageId"]),
 
 	weekendOverrides: defineTable({
 		satDate: v.string(),

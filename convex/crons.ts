@@ -18,4 +18,11 @@ crons.interval(
 	{},
 );
 
+crons.interval(
+	"process notification dispatches",
+	CRON_INTERVALS.NOTIFICATION_DISPATCH_CHECK,
+	internal.notifications._processPendingDispatches,
+	{},
+);
+
 export default crons;

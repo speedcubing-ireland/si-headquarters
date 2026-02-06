@@ -7,7 +7,11 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDateShort } from "@/lib/format-utils";
-import { getPriorityIcon, getStatusIcon } from "@/lib/task-utils";
+import {
+	getPriorityIcon,
+	getStatusIcon,
+	statusIconColors,
+} from "@/lib/task-utils";
 import type { Task, TaskPriority, TaskStatus } from "@/data/types-new";
 import {
 	EditableTaskAssignee,
@@ -17,14 +21,7 @@ import {
 	EditableTaskStatus,
 } from "./editable-cells";
 
-const statusIconColors: Record<TaskStatus, string> = {
-	backlog: "text-muted-foreground/60",
-	"to-do": "text-muted-foreground",
-	"in-progress": "text-yellow-500",
-	"awaiting-review": "text-purple-500",
-	done: "text-green-500",
-	cancelled: "text-red-500",
-};
+const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 6; // r=6 SVG circle
 
 interface IdentifierCellProps {
 	identifier: string;
@@ -198,7 +195,7 @@ export const TaskTitleCell = memo(
 										r="6"
 										stroke="currentColor"
 										strokeWidth="2"
-										strokeDasharray={`${(done / total) * 37.7} 37.7`}
+										strokeDasharray={`${(done / total) * CIRCLE_CIRCUMFERENCE} ${CIRCLE_CIRCUMFERENCE}`}
 										strokeLinecap="round"
 										transform="rotate(-90 8 8)"
 									/>

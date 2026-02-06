@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import type { OptimisticLocalStore } from "convex/browser";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type {
@@ -46,8 +47,12 @@ function normalizeTask(task: Task): Task {
 
 export const useTasks = (archived = false) => {
 	const tasks = useQuery(api.tasks.listForUI, { archived });
+	const normalizedTasks = useMemo(
+		() => (tasks ?? []).map(normalizeTask),
+		[tasks],
+	);
 	return {
-		tasks: (tasks ?? []).map(normalizeTask),
+		tasks: normalizedTasks,
 		isLoading: tasks === undefined,
 	};
 };
@@ -66,8 +71,12 @@ export const useTasksForCompetition = (
 		api.tasks.listForUI,
 		competitionId ? { archived: false, competitionId } : "skip",
 	);
+	const normalizedTasks = useMemo(
+		() => (tasks ?? []).map(normalizeTask),
+		[tasks],
+	);
 	return {
-		tasks: (tasks ?? []).map(normalizeTask),
+		tasks: normalizedTasks,
 		isLoading: tasks === undefined,
 	};
 };
@@ -89,16 +98,17 @@ export const useCompetition = (competitionId: Id<"competitions"> | null) => {
 	return data;
 };
 
-export const useIsDirector = () => ({
-	isDirector: useQuery(api.admin.isDirector, {}) === true,
-	isLoading: useQuery(api.admin.isDirector, {}) === undefined,
-});
+export const useIsDirector = () => {
+	const result = useQuery(api.admin.isDirector, {});
+	return { isDirector: result === true, isLoading: result === undefined };
+};
 
 export const useAdminMembersAndTeams = () => {
 	const data = useQuery(api.admin.listMembersAndTeams, {});
 	return {
 		users: data?.users ?? [],
 		teams: data?.teams ?? [],
+		pendingTeamMembers: data?.pendingTeamMembers ?? [],
 		isLoading: data === undefined,
 	};
 };
@@ -152,15 +162,85 @@ export const useGlobalActivity = (limit = 50) => {
 };
 
 export const useNotifications = () => {
-	const notifications = useQuery(api.notifications.listForUser, {});
+	const [nowMs, setNowMs] = useState(() => Date.now());
+
+	useEffect(() => {
+		const intervalId = window.setInterval(() => {
+			setNowMs(Date.now());
+		}, 30_000);
+		return () => window.clearInterval(intervalId);
+	}, []);
+
+	const notifications = useQuery(api.notifications.listForUser, { nowMs });
 	return {
 		notifications: notifications ?? [],
 		isLoading: notifications === undefined,
 	};
 };
 
-export const useUnreadCount = () =>
-	useQuery(api.notifications.getUnreadCount, {});
+export const useNotificationSettings = () => {
+	const settings = useQuery(api.notifications.getSettings, {});
+	return {
+		settings,
+		preferences: settings?.preferences ?? [],
+		timezone: settings?.timezone ?? "Europe/Dublin",
+		defaultDigestMode: settings?.defaultDigestMode ?? "immediate",
+		quietHoursStartMin: settings?.quietHoursStartMin,
+		quietHoursEndMin: settings?.quietHoursEndMin,
+		isLoading: settings === undefined,
+	};
+};
+
+export const useNotificationSubscriptions = () => {
+	const subscriptions = useQuery(api.notifications.listSubscriptions, {
+		limit: 500,
+	});
+	return {
+		subscriptions: subscriptions ?? [],
+		isLoading: subscriptions === undefined,
+	};
+};
+
+export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) => {
+	const isSubscribed = useQuery(
+		api.notifications.isSubscribedToEntity,
+		taskId ? { entity: { entityType: "task", entityId: taskId } } : "skip",
+	);
+	return isSubscribed ?? false;
+};
+
+export const useCompetitionSubscriptionState = (
+	competitionId: Id<"competitions"> | null,
+) => {
+	const isSubscribed = useQuery(
+		api.notifications.isSubscribedToEntity,
+		competitionId
+			? { entity: { entityType: "competition", entityId: competitionId } }
+			: "skip",
+	);
+	return isSubscribed ?? false;
+};
+
+export const useViewSubscriptionState = (viewId: Id<"savedViews"> | null) => {
+	const isSubscribed = useQuery(
+		api.notifications.isSubscribedToView,
+		viewId ? { viewId } : "skip",
+	);
+	return isSubscribed ?? false;
+};
+
+export const useUnreadCount = () => {
+	const [nowMs, setNowMs] = useState(() => Date.now());
+
+	useEffect(() => {
+		const intervalId = window.setInterval(() => {
+			setNowMs(Date.now());
+		}, 30_000);
+		return () => window.clearInterval(intervalId);
+	}, []);
+
+	return useQuery(api.notifications.getUnreadCount, { nowMs });
+};
 
 export const useReminders = () => {
 	const reminders = useQuery(api.reminders.listForUser, {});
@@ -329,15 +409,12 @@ export function useTaskMutations(): TaskMutations {
 
 	const addRequiredApproverMutation = useMutation(
 		api.tasks.addRequiredApprover,
-	).withOptimisticUpdate((store, { taskId, approverId }) => {
+	).withOptimisticUpdate((store, { taskId }) => {
 		const current = store.getQuery(api.tasks.getForUI, { taskId });
 		if (!current) return;
 		const normalizedCurrent = normalizeTask(current);
-		const currentRequired = normalizedCurrent.requiredApprovalBy ?? [];
-		if (currentRequired.some((a) => a.id === approverId)) return;
 		patchTaskInQueries(store, taskId, {
 			...normalizedCurrent,
-			requiredApprovalBy: [...currentRequired],
 			updatedAt: new Date().toISOString(),
 		} satisfies Task);
 	});
@@ -364,9 +441,16 @@ export function useTaskMutations(): TaskMutations {
 		api.tasks.approveTask,
 	).withOptimisticUpdate((store, { taskId }) => {
 		const current = store.getQuery(api.tasks.getForUI, { taskId });
-		const users = store.getQuery(api.users.listUsers);
-		const currentUser = users?.[0];
-		if (!current || !currentUser) return;
+		const authUser = store.getQuery(api.users.getCurrentUser, {});
+		if (!current || !authUser) return;
+		const users = store.getQuery(api.users.listUsers) ?? [];
+		const currentUser =
+			users.find((user) => user.id === authUser._id) ??
+			({
+				id: authUser._id,
+				name: authUser.name ?? "",
+				avatarUrl: authUser.image ?? "",
+			} satisfies User);
 
 		const next = { ...normalizeTask(current) };
 		if (!next.approvedBy?.some((a) => a.id === currentUser.id)) {
@@ -393,15 +477,15 @@ export function useTaskMutations(): TaskMutations {
 		api.tasks.unapproveTask,
 	).withOptimisticUpdate((store, { taskId }) => {
 		const current = store.getQuery(api.tasks.getForUI, { taskId });
-		const users = store.getQuery(api.users.listUsers);
-		const currentUser = users?.[0];
-		if (!current || !currentUser) return;
+		const authUser = store.getQuery(api.users.getCurrentUser, {});
+		const currentUserId = authUser?._id;
+		if (!current || !currentUserId) return;
 		const normalizedCurrent = normalizeTask(current);
 
 		patchTaskInQueries(store, taskId, {
 			...normalizedCurrent,
 			approvedBy: normalizedCurrent.approvedBy.filter(
-				(a) => a.id !== currentUser.id,
+				(a) => a.id !== currentUserId,
 			),
 			updatedAt: new Date().toISOString(),
 		} satisfies Task);
@@ -630,13 +714,13 @@ export function useCompetitionUpdateMutations() {
 			},
 		) =>
 			createUpdateMutation({
-				competitionId: competitionId,
+				competitionId,
 				status: payload.status,
 				message: payload.message,
 			}),
 		addReaction: (updateId: Id<"competitionUpdates">, emoji: string) =>
 			addReactionMutation({
-				updateId: updateId,
+				updateId,
 				emoji,
 			}),
 	};
@@ -678,13 +762,13 @@ export function useCommentMutations() {
 
 		editComment: (commentId: Id<"comments">, content: string) =>
 			updateCommentMutation({
-				commentId: commentId,
+				commentId,
 				content,
 			}),
 		deleteComment: (commentId: Id<"comments">) =>
-			removeCommentMutation({ commentId: commentId }),
+			removeCommentMutation({ commentId }),
 		addReaction: (commentId: Id<"comments">, emoji: string) =>
-			toggleReactionMutation({ commentId: commentId, emoji }),
+			toggleReactionMutation({ commentId, emoji }),
 	};
 }
 
@@ -693,29 +777,116 @@ export function useNotificationMutations() {
 	const markArchivedMutation = useMutation(api.notifications.markArchived);
 	const markAllReadMutation = useMutation(api.notifications.markAllRead);
 	const dismissMutation = useMutation(api.notifications.dismiss);
+	const snoozeMutation = useMutation(api.notifications.snooze);
+	const unsnoozeMutation = useMutation(api.notifications.unsnooze);
+	const upsertPreferenceMutation = useMutation(
+		api.notifications.upsertPreference,
+	);
+	const upsertSettingsMutation = useMutation(api.notifications.upsertSettings);
+	const upsertUserSettingsMutation = useMutation(
+		api.notifications.upsertUserSettings,
+	);
+	const subscribeToEntityMutation = useMutation(
+		api.notifications.subscribeToEntity,
+	);
+	const unsubscribeFromEntityMutation = useMutation(
+		api.notifications.unsubscribeFromEntity,
+	);
+	const subscribeToViewMutation = useMutation(
+		api.notifications.subscribeToView,
+	);
+	const unsubscribeFromViewMutation = useMutation(
+		api.notifications.unsubscribeFromView,
+	);
+	const unsubscribeMutation = useMutation(api.notifications.unsubscribe);
 
 	return {
 		markNotificationRead: (notificationId: Id<"notifications">) =>
-			markReadMutation({
-				notificationId: notificationId,
-			}),
+			markReadMutation({ notificationId }),
 		markNotificationArchived: (notificationId: Id<"notifications">) =>
-			markArchivedMutation({
-				notificationId: notificationId,
-			}),
+			markArchivedMutation({ notificationId }),
 		markAllNotificationsRead: () => markAllReadMutation({}),
 		dismissNotification: (notificationId: Id<"notifications">) =>
-			dismissMutation({
-				notificationId: notificationId,
+			dismissMutation({ notificationId }),
+		snoozeNotification: (
+			notificationId: Id<"notifications">,
+			snoozedUntil: string,
+		) =>
+			snoozeMutation({
+				notificationId,
+				snoozedUntil,
 			}),
+		unsnoozeNotification: (notificationId: Id<"notifications">) =>
+			unsnoozeMutation({ notificationId }),
+		upsertNotificationPreference: (payload: {
+			type: Parameters<typeof upsertPreferenceMutation>[0]["type"];
+			channel: Parameters<typeof upsertPreferenceMutation>[0]["channel"];
+			enabled?: boolean;
+			digestMode?: Parameters<typeof upsertPreferenceMutation>[0]["digestMode"];
+			respectQuietHours?: boolean;
+			clearOverride?: boolean;
+		}) =>
+			upsertPreferenceMutation({
+				type: payload.type,
+				channel: payload.channel,
+				enabled: payload.enabled,
+				digestMode: payload.digestMode,
+				respectQuietHours: payload.respectQuietHours,
+				clearOverride: payload.clearOverride,
+			}),
+		upsertNotificationSettings: (
+			payload: Parameters<typeof upsertSettingsMutation>[0],
+		) => upsertSettingsMutation(payload),
+		upsertNotificationUserSettings: (
+			payload: Parameters<typeof upsertUserSettingsMutation>[0],
+		) => upsertUserSettingsMutation(payload),
+		subscribeToTask: (taskId: Id<"tasks">) =>
+			subscribeToEntityMutation({
+				entity: { entityType: "task", entityId: taskId },
+			}),
+		subscribeToCompetition: (competitionId: Id<"competitions">) =>
+			subscribeToEntityMutation({
+				entity: { entityType: "competition", entityId: competitionId },
+			}),
+		subscribeToComment: (commentId: Id<"comments">) =>
+			subscribeToEntityMutation({
+				entity: { entityType: "comment", entityId: commentId },
+			}),
+		unsubscribeFromTask: (taskId: Id<"tasks">) =>
+			unsubscribeFromEntityMutation({
+				entity: { entityType: "task", entityId: taskId },
+			}),
+		unsubscribeFromCompetition: (competitionId: Id<"competitions">) =>
+			unsubscribeFromEntityMutation({
+				entity: { entityType: "competition", entityId: competitionId },
+			}),
+		unsubscribeFromComment: (commentId: Id<"comments">) =>
+			unsubscribeFromEntityMutation({
+				entity: { entityType: "comment", entityId: commentId },
+			}),
+		subscribeToView: (viewId: Id<"savedViews">) =>
+			subscribeToViewMutation({ viewId }),
+		unsubscribeFromView: (viewId: Id<"savedViews">) =>
+			unsubscribeFromViewMutation({ viewId }),
+		unsubscribeNotificationSubscription: (
+			subscriptionId: Id<"notificationSubscriptions">,
+		) => unsubscribeMutation({ subscriptionId }),
 	};
 }
 
 export function useAdminMemberMutations() {
 	const updateTeamMembers = useMutation(api.admin.updateTeamMembers);
+	const addPendingTeamMember = useMutation(api.admin.addPendingTeamMember);
+	const removePendingTeamMember = useMutation(
+		api.admin.removePendingTeamMember,
+	);
 	return {
 		updateTeamMembers: (teamId: Id<"teams">, memberIds: Id<"users">[]) =>
 			updateTeamMembers({ teamId, memberIds }),
+		addPendingTeamMember: (teamId: Id<"teams">, email: string) =>
+			addPendingTeamMember({ teamId, email }),
+		removePendingTeamMember: (pendingTeamMemberId: Id<"pendingTeamMembers">) =>
+			removePendingTeamMember({ pendingTeamMemberId }),
 	};
 }
 
@@ -742,19 +913,13 @@ export function useReminderMutations() {
 				metadata: payload.metadata ?? {},
 			}),
 		cancelReminder: (reminderId: Id<"reminders">) =>
-			cancelMutation({ reminderId: reminderId }),
+			cancelMutation({ reminderId }),
 		dismissReminder: (reminderId: Id<"reminders">) =>
-			dismissMutation({ reminderId: reminderId }),
+			dismissMutation({ reminderId }),
 		snoozeReminder: (reminderId: Id<"reminders">, snoozeUntil: string) =>
-			snoozeMutation({
-				reminderId: reminderId,
-				snoozeUntil,
-			}),
+			snoozeMutation({ reminderId, snoozeUntil }),
 		rescheduleReminder: (reminderId: Id<"reminders">, remindAt: string) =>
-			rescheduleMutation({
-				reminderId: reminderId,
-				remindAt,
-			}),
+			rescheduleMutation({ reminderId, remindAt }),
 	};
 }
 

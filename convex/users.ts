@@ -1,7 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { requireUserId, ensureUserInVolunteerTeam } from "./auth";
+import {
+	requireUserId,
+	ensureUserInVolunteerTeam,
+	applyPendingTeamMemberships,
+} from "./auth";
 
 const userDocValidator = v.union(
 	v.null(),
@@ -58,6 +62,7 @@ export const ensureVolunteerAccess = mutation({
 	handler: async (ctx) => {
 		const userId = await requireUserId(ctx);
 		await ensureUserInVolunteerTeam(ctx, userId);
+		await applyPendingTeamMemberships(ctx, userId);
 		return null;
 	},
 });

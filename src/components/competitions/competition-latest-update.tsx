@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-convex-data";
 import type { Competition, ProgressUpdate } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
+import { onMutationError } from "@/lib/utils";
 
 const statusConfig = {
 	"on-track": {
@@ -146,10 +147,14 @@ export function CompetitionLatestUpdate({
 						<div className="flex flex-wrap items-center gap-2 pt-2">
 							<ReactionDisplay
 								reactions={active.reactions}
-								onAddReaction={(emoji) => addReaction(active.id, emoji)}
+								onAddReaction={(emoji) =>
+									void addReaction(active.id, emoji).catch(onMutationError)
+								}
 							/>
 							<ReactionButton
-								onAddReaction={(emoji) => addReaction(active.id, emoji)}
+								onAddReaction={(emoji) =>
+									void addReaction(active.id, emoji).catch(onMutationError)
+								}
 							/>
 						</div>
 					</>

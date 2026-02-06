@@ -115,6 +115,18 @@ export const deleteView = mutation({
 			});
 		}
 
+		const linkedSubscriptions = await ctx.db
+			.query("notificationSubscriptions")
+			.withIndex("by_user_view", (q) =>
+				q.eq("userId", userId).eq("viewId", args.id),
+			)
+			.collect();
+		await Promise.all(
+			linkedSubscriptions.map((subscription) =>
+				ctx.db.delete("notificationSubscriptions", subscription._id),
+			),
+		);
+
 		await ctx.db.delete("savedViews", args.id);
 		return null;
 	},

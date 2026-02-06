@@ -164,10 +164,12 @@ export type NotificationType =
 	| "task_unassigned"
 	| "task_mentioned"
 	| "task_status_changed"
+	| "task_priority_changed"
 	| "task_awaiting_review"
 	| "due_date_approaching"
 	| "due_date_overdue"
 	| "comment_added"
+	| "comment_replied"
 	| "relation_blocked"
 	| "relation_unblocked"
 	| "competition_phase_changed"
@@ -195,10 +197,14 @@ export type ReminderStatus =
 
 export type RecurringPattern = "daily" | "weekly" | "monthly" | "custom";
 
-export type NotificationPreference = {
-	userId: Id<"users">;
-	notificationType: NotificationType;
-	enabled: boolean;
-	channels: ("in_app" | "email" | "push")[];
-	digestFrequency?: "immediate" | "hourly" | "daily";
-};
+export type NotificationPreference = FunctionReturnType<
+	typeof api.notifications.listPreferences
+>[number];
+
+export type NotificationSubscription = FunctionReturnType<
+	typeof api.notifications.listSubscriptions
+>[number];
+
+export type NotificationSettings = FunctionReturnType<
+	typeof api.notifications.getSettings
+>;

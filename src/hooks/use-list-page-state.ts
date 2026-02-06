@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { TasksSavedViewsHook } from "@/lib/use-tasks-saved-views";
 import type { CompetitionsSavedViewsHook } from "@/store/use-competitions-saved-views";
 
@@ -57,8 +57,9 @@ export function useListPageState({
 		Record<string, boolean>
 	>({});
 
-	const selectedIds = Object.keys(rowSelection).filter(
-		(id) => rowSelection[id],
+	const selectedIds = useMemo(
+		() => Object.keys(rowSelection).filter((id) => rowSelection[id]),
+		[rowSelection],
 	);
 	const hasSelection = selectedIds.length > 0;
 

@@ -26,6 +26,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useTaskMutations } from "@/hooks/use-convex-data";
+import { onMutationError } from "@/lib/utils";
 import type { LinkedResource, Task } from "@/data/types-new";
 
 interface TaskResourcesSectionProps {
@@ -154,7 +155,7 @@ function AddResourceDialog({
 
 		void updateTask(task.id, {
 			resources: [...task.resources, resource],
-		});
+		}).catch(onMutationError);
 
 		setUrl("");
 		setResourceType("auto");
@@ -232,7 +233,9 @@ export function TaskResourcesSection({ task }: TaskResourcesSectionProps) {
 	const handleRemoveResource = (index: number) => {
 		const newResources = [...task.resources];
 		newResources.splice(index, 1);
-		void updateTask(task.id, { resources: newResources });
+		void updateTask(task.id, { resources: newResources }).catch(
+			onMutationError,
+		);
 	};
 
 	return (

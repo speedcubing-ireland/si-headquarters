@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { Box, Plus } from "lucide-react";
+import { Bell, Box, Plus } from "lucide-react";
 import { columns } from "@/components/competitions/columns";
 import { DataTable } from "@/components/competitions/data-table";
 import { DisplaySettings } from "@/components/competitions/display-settings";
@@ -11,6 +11,10 @@ import {
 } from "@/components/shared/list-page-layout";
 import { SharedPageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import {
+	useNotificationMutations,
+	useNotificationSubscriptions,
+} from "@/hooks/use-convex-data";
 import { useIsDetailRoute } from "@/hooks/use-is-detail-route";
 import { useListPageState } from "@/hooks/use-list-page-state";
 import { useCompetitionsSavedViews } from "@/store/use-competitions-saved-views";
@@ -26,6 +30,8 @@ import {
 	serializeFilters,
 } from "@/lib/saved-view-utils";
 import { emptyCompetitionsFilters } from "@/lib/filter-types";
+import { parseSavedViewId } from "@/lib/convex-ids";
+import { onMutationError } from "@/lib/utils";
 
 export const Route = createFileRoute("/competitions/")({
 	component: RouteComponent,
@@ -39,6 +45,8 @@ function PageHeader({
 	onViewDelete,
 	onStartCreateView,
 	onAllComps,
+	activeViewIsSubscribed,
+	onToggleViewSubscription,
 }: {
 	onAddCompetition: () => void;
 	views: ReturnType<typeof useCompetitionsSavedViews>["views"];
@@ -47,6 +55,8 @@ function PageHeader({
 	onViewDelete: (viewId: string) => void;
 	onStartCreateView: () => void;
 	onAllComps: () => void;
+	activeViewIsSubscribed: boolean;
+	onToggleViewSubscription: () => void;
 }) {
 	return (
 		<SharedPageHeader
@@ -61,6 +71,19 @@ function PageHeader({
 			onViewSelect={onViewSelect}
 			onViewDelete={onViewDelete}
 			onStartCreateView={onStartCreateView}
+			extraActions={
+				activeViewId ? (
+					<Button
+						variant={activeViewIsSubscribed ? "secondary" : "outline"}
+						size="sm"
+						onClick={onToggleViewSubscription}
+						className="gap-1.5"
+					>
+						<Bell className="size-4" />
+						{activeViewIsSubscribed ? "Watching view" : "Watch view"}
+					</Button>
+				) : undefined
+			}
 		/>
 	);
 }
@@ -106,6 +129,8 @@ function FiltersContent() {
 
 function RouteComponentInner() {
 	const savedViews = useCompetitionsSavedViews();
+	const { subscriptions } = useNotificationSubscriptions();
+	const { subscribeToView, unsubscribeFromView } = useNotificationMutations();
 	const urlState = useCompetitionsUrlContext();
 	const listState = useListPageState({
 		savedViews,
@@ -126,6 +151,28 @@ function RouteComponentInner() {
 
 	const isDetailRoute = useIsDetailRoute("competitions");
 	const { openCompetition } = useCreateModalsStore();
+	const activeViewDbId = savedViews.activeViewId
+		? parseSavedViewId(savedViews.activeViewId)
+		: null;
+	const activeViewIsSubscribed =
+		activeViewDbId === null
+			? false
+			: subscriptions.some(
+					(subscription) =>
+						subscription.subscriptionType === "view" &&
+						subscription.viewId === activeViewDbId,
+				);
+
+	const handleToggleViewSubscription = () => {
+		if (!activeViewDbId) {
+			return;
+		}
+		if (activeViewIsSubscribed) {
+			void unsubscribeFromView(activeViewDbId).catch(onMutationError);
+			return;
+		}
+		void subscribeToView(activeViewDbId).catch(onMutationError);
+	};
 
 	if (isDetailRoute) {
 		return <Outlet />;
@@ -153,6 +200,8 @@ function RouteComponentInner() {
 						onViewDelete={savedViews.deleteView}
 						onStartCreateView={listState.handleStartCreateView}
 						onAllComps={urlState.clearAll}
+						activeViewIsSubscribed={activeViewIsSubscribed}
+						onToggleViewSubscription={handleToggleViewSubscription}
 					/>
 				}
 				filtersRow={<FiltersContent />}

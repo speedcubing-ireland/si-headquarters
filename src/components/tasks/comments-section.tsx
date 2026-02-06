@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "convex/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,12 +7,13 @@ import {
 	useCommentsForTask,
 	useCommentMutations,
 } from "@/hooks/use-convex-data";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseCommentId } from "@/lib/convex-ids";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Comment, User } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
-import { cn } from "@/lib/utils";
+import { cn, onMutationError } from "@/lib/utils";
 import {
 	ReactionButton,
 	ReactionDisplay,
@@ -25,6 +27,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -37,7 +40,7 @@ interface CommentItemProps {
 	comment: Comment;
 	allComments: Comment[];
 	depth?: number;
-	currentUser: User;
+	currentUser?: User;
 	users: User[];
 	onReply: (parentCommentId: Id<"comments">, content: string) => void;
 	onEdit: (commentId: Id<"comments">, content: string) => void;
@@ -73,7 +76,9 @@ function CommentItem({
 		immediateOnCommit: false,
 	});
 
-	const isOwnComment = comment.author.id === currentUser.id;
+	const isOwnComment = currentUser
+		? comment.author.id === currentUser.id
+		: false;
 
 	const replies = useMemo(
 		() => allComments.filter((c) => c.parentCommentId === comment.id),
@@ -135,10 +140,10 @@ function CommentItem({
 						<div className="space-y-2">
 							<MentionTextarea
 								value={editForm.value}
-								onChange={editForm.handleChange}
+								onChange={editForm.setValue}
 								className="min-h-[80px] text-sm"
 								users={users}
-								currentUserId={currentUser.id}
+								currentUserId={currentUser?.id}
 							/>
 							<div className="flex gap-2">
 								<Button size="sm" onClick={handleSubmitEdit}>
@@ -152,7 +157,9 @@ function CommentItem({
 					) : (
 						<>
 							<div className="prose prose-sm dark:prose-invert max-w-none text-sm">
-								<ReactMarkdown>{comment.content}</ReactMarkdown>
+								<ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+									{comment.content}
+								</ReactMarkdown>
 							</div>
 
 							<ReactionDisplay
@@ -216,10 +223,10 @@ function CommentItem({
 									<MentionTextarea
 										placeholder="Write a reply..."
 										value={replyForm.value}
-										onChange={replyForm.handleChange}
+										onChange={replyForm.setValue}
 										className="min-h-[80px] text-sm"
 										users={users}
-										currentUserId={currentUser.id}
+										currentUserId={currentUser?.id}
 									/>
 									<div className="flex flex-wrap gap-2">
 										<Button size="sm" onClick={handleSubmitReply}>
@@ -273,6 +280,7 @@ interface CommentsSectionProps {
 
 export function CommentsSection({ taskId, className }: CommentsSectionProps) {
 	const { users } = useUsers();
+	const authUser = useQuery(api.users.getCurrentUser);
 	const { comments: allComments } = useCommentsForTask(taskId);
 	const comments = useMemo(
 		() =>
@@ -287,7 +295,12 @@ export function CommentsSection({ taskId, className }: CommentsSectionProps) {
 	const { addComment, editComment, deleteComment, addReaction } =
 		useCommentMutations();
 
-	const currentUser = users[0];
+	const currentUser: User | undefined = useMemo(() => {
+		if (!authUser) {
+			return undefined;
+		}
+		return users.find((user) => user.id === authUser._id);
+	}, [users, authUser]);
 
 	const newCommentForm = useDebouncedForm({
 		initialValue: "",
@@ -304,27 +317,33 @@ export function CommentsSection({ taskId, className }: CommentsSectionProps) {
 				newCommentForm.value.trim(),
 				null,
 				currentUser,
-			);
+			).catch(onMutationError);
 			newCommentForm.reset();
 		}
 	};
 
 	const handleReply = (parentCommentId: Id<"comments">, content: string) => {
 		if (currentUser) {
-			void addComment("task", taskId, content, parentCommentId, currentUser);
+			void addComment(
+				"task",
+				taskId,
+				content,
+				parentCommentId,
+				currentUser,
+			).catch(onMutationError);
 		}
 	};
 
 	const handleEdit = (commentId: Id<"comments">, content: string) => {
-		void editComment(commentId, content);
+		void editComment(commentId, content).catch(onMutationError);
 	};
 
 	const handleDelete = (commentId: Id<"comments">) => {
-		void deleteComment(commentId);
+		void deleteComment(commentId).catch(onMutationError);
 	};
 
 	const handleAddReaction = (commentId: Id<"comments">, emoji: string) => {
-		void addReaction(commentId, emoji);
+		void addReaction(commentId, emoji).catch(onMutationError);
 	};
 
 	return (
@@ -348,7 +367,7 @@ export function CommentsSection({ taskId, className }: CommentsSectionProps) {
 					<MentionTextarea
 						placeholder="Leave a comment..."
 						value={newCommentForm.value}
-						onChange={newCommentForm.handleChange}
+						onChange={newCommentForm.setValue}
 						className="min-h-[100px] text-sm"
 						users={users}
 						currentUserId={currentUser?.id}

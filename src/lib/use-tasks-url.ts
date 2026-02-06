@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useMemo } from "react";
 import type {
 	DateRangeFilter,
@@ -7,6 +5,7 @@ import type {
 	MatchMode,
 	TasksFilters,
 } from "@/lib/filter-types";
+import { emptyTasksFilters } from "@/lib/filter-types";
 import {
 	type DisplaySettings,
 	defaultDisplaySettings as DEFAULT_DISPLAY_SETTINGS,
@@ -61,15 +60,7 @@ const useTasksListStateStore = createListStateStore<TasksFilters>({
 	cloneFilters: cloneTasksFilters,
 });
 
-const EMPTY_TASKS_FILTERS: TasksFilters = {
-	status: [],
-	priority: [],
-	assignee: [],
-	labels: [],
-	owner: [],
-	parentType: [],
-	dateRange: undefined,
-};
+const EMPTY_TASKS_FILTERS = emptyTasksFilters;
 
 type ArrayFilterKey = Exclude<keyof TasksFilters, "dateRange">;
 

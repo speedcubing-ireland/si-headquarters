@@ -198,6 +198,7 @@ interface SharedPageHeaderProps {
 	onViewSelect?: (viewId: string) => void;
 	onViewDelete?: (viewId: string) => void;
 	onStartCreateView?: () => void;
+	extraActions?: React.ReactNode;
 }
 
 export function SharedPageHeader({
@@ -213,6 +214,7 @@ export function SharedPageHeader({
 	onViewSelect,
 	onViewDelete,
 	onStartCreateView,
+	extraActions,
 }: SharedPageHeaderProps) {
 	let addButton: React.ReactNode = null;
 	if (addIcon && addLabel && onAdd) {
@@ -264,7 +266,10 @@ export function SharedPageHeader({
 					)}
 				</>
 			)}
-			<PageHeader.Actions>{addButton}</PageHeader.Actions>
+			<PageHeader.Actions>
+				{addButton}
+				{extraActions}
+			</PageHeader.Actions>
 		</PageHeader.Root>
 	);
 }

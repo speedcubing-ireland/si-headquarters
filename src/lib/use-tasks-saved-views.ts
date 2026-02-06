@@ -1,10 +1,9 @@
-"use client";
-
 import { useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { SavedView, SavedViewEntity } from "@/store/saved-views-store";
 import { parseSavedViewId } from "./convex-ids";
+import { onMutationError } from "@/lib/utils";
 import { useTasksUrlContext } from "./tasks-url-context";
 import { emptyTasksFilters } from "@/lib/filter-types";
 import {
@@ -88,7 +87,7 @@ export function useTasksSavedViews({
 				description,
 				filtersJson,
 				displaySettingsJson,
-			});
+			}).catch(onMutationError);
 			return "";
 		},
 		[entity, pageId, filters, matchMode, displaySettings, createViewMutation],
@@ -117,7 +116,7 @@ export function useTasksSavedViews({
 	const deleteView = useCallback(
 		(viewId: string): void => {
 			const id = parseSavedViewId(viewId);
-			if (id) void deleteViewMutation({ id });
+			if (id) void deleteViewMutation({ id }).catch(onMutationError);
 			if (viewId === activeViewId) {
 				clearAll();
 			}

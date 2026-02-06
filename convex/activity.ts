@@ -1,17 +1,12 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 import { requireDirector } from "./admin";
 import { requireUserId, isVolunteer } from "./auth";
 import { hasCompetitionAccess } from "./competitionAccess";
-import { toUsers, createLens } from "./lib/transforms";
-import {
-	entityType,
-	activityMetadata,
-	userShape,
-	activityType,
-} from "./lib/validators";
+import { toUsers, createLens, toISO } from "./lib/transforms";
+import { entityType, activityMetadata, userShape } from "./lib/validators";
 import type { Infer } from "convex/values";
 
 type ActivityLogDoc = Doc<"activityLog">;
@@ -66,8 +61,6 @@ async function resolveActorsAndMapDocs(
 				identifier: t.identifier,
 			});
 	});
-
-	const toISO = (ms: number) => new Date(ms).toISOString();
 
 	return docs.map((d) => {
 		let entityTitle: string | undefined;
@@ -224,57 +217,5 @@ export const listRecentForUser = query({
 		}
 		const toReturn = filtered.slice(0, limitToUse);
 		return resolveActorsAndMapDocs(ctx, toReturn);
-	},
-});
-
-export const log = internalMutation({
-	args: {
-		actorId: v.id("users"),
-		entityType,
-		entityId: v.string(),
-		type: activityType,
-		oldValue: v.optional(v.string()),
-		newValue: v.optional(v.string()),
-		metadata: activityMetadata,
-	},
-	returns: v.id("activityLog"),
-	handler: async (ctx, args) => {
-		return await ctx.db.insert("activityLog", {
-			entityType: args.entityType,
-			entityId: args.entityId,
-			type: args.type,
-			actorId: args.actorId,
-			oldValue: args.oldValue,
-			newValue: args.newValue,
-			metadata: args.metadata,
-		});
-	},
-});
-
-export const logWithActor = internalMutation({
-	args: {
-		actorId: v.id("users"),
-		entityType: v.union(
-			v.literal("task"),
-			v.literal("update"),
-			v.literal("competition"),
-		),
-		entityId: v.string(),
-		type: activityType,
-		oldValue: v.optional(v.string()),
-		newValue: v.optional(v.string()),
-		metadata: activityMetadata,
-	},
-	returns: v.id("activityLog"),
-	handler: async (ctx, args) => {
-		return await ctx.db.insert("activityLog", {
-			entityType: args.entityType,
-			entityId: args.entityId,
-			type: args.type,
-			actorId: args.actorId,
-			oldValue: args.oldValue,
-			newValue: args.newValue,
-			metadata: args.metadata,
-		});
 	},
 });

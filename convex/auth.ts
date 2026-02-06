@@ -11,6 +11,7 @@ import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { TEAM_NAMES } from "./lib/constants";
+import { normalizeEmail } from "./lib/sanitize";
 
 function WCA(
 	options: OAuthUserConfig<{
@@ -29,6 +30,7 @@ function WCA(
 		id: "wca",
 		name: "WCA",
 		type: "oauth",
+		checks: ["state"],
 		authorization: {
 			url: "https://www.worldcubeassociation.org/oauth/authorize",
 			params: {
@@ -141,15 +143,43 @@ export async function ensureUserInVolunteerTeam(
 	const user = await ctx.db.get("users", userId);
 	if (!user) return;
 
-	const email = user.email?.toLowerCase() ?? "";
+	const email = normalizeEmail(user.email);
 	if (!email.endsWith("@speedcubingireland.com")) {
 		return;
 	}
 
 	const teamId = await ensureVolunteerTeam(ctx);
+	await addUserToTeamIfMissing(ctx, teamId, userId);
+}
+
+export async function applyPendingTeamMemberships(
+	ctx: MutationCtx,
+	userId: Id<"users">,
+): Promise<void> {
+	const user = await ctx.db.get("users", userId);
+	if (!user) return;
+
+	const email = normalizeEmail(user.email);
+	if (!email) return;
+
+	const pending = await ctx.db
+		.query("pendingTeamMembers")
+		.withIndex("by_email", (q) => q.eq("email", email))
+		.collect();
+
+	for (const row of pending) {
+		await addUserToTeamIfMissing(ctx, row.teamId, userId);
+		await ctx.db.delete("pendingTeamMembers", row._id);
+	}
+}
+
+async function addUserToTeamIfMissing(
+	ctx: MutationCtx,
+	teamId: Id<"teams">,
+	userId: Id<"users">,
+): Promise<void> {
 	const team = await ctx.db.get("teams", teamId);
 	if (!team) return;
-
 	if (team.memberIds.includes(userId)) return;
 
 	await ctx.db.patch("teams", teamId, {

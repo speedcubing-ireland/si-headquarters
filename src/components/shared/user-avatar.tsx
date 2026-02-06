@@ -60,9 +60,11 @@ export function UserAvatar({
 
 	if (showName) {
 		return (
-			<div className="flex items-center gap-1.5">
+			<div className="flex min-w-0 items-center gap-1.5">
 				{avatar}
-				<span className={cn("text-xs", nameClassName)}>{displayName}</span>
+				<span className={cn("min-w-0 truncate text-xs", nameClassName)}>
+					{displayName}
+				</span>
 			</div>
 		);
 	}

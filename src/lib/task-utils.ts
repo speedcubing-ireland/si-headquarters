@@ -19,6 +19,28 @@ import type {
 	TaskStatus,
 } from "@/data/types-new";
 
+// ── Shared constants ─────────────────────────────────────────────────────────
+
+export const statusIconColors: Record<TaskStatus, string> = {
+	backlog: "text-muted-foreground/60",
+	"to-do": "text-muted-foreground",
+	"in-progress": "text-yellow-500",
+	"awaiting-review": "text-purple-500",
+	done: "text-green-500",
+	cancelled: "text-red-500",
+};
+
+// ── Shared helpers ───────────────────────────────────────────────────────────
+
+export function isUserRequiredApprover(task: Task, userId: string): boolean {
+	for (const approver of task.requiredApprovalBy) {
+		if (approver.id === userId) return true;
+		const maybeTeam = approver as { members?: Array<{ id: string }> };
+		if (maybeTeam.members?.some((m) => m.id === userId)) return true;
+	}
+	return false;
+}
+
 export function getPriorityIcon(priority: TaskPriority): LucideIcon {
 	switch (priority) {
 		case "urgent":

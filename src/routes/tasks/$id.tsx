@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { ActivityFeed } from "@/components/tasks/activity-feed";
 import { CommentsSection } from "@/components/tasks/comments-section";
 import { RemindMeDialog } from "@/components/tasks/remind-me-dialog";
@@ -50,6 +51,8 @@ import { priorityLabels, statusLabels } from "@/lib/task-constants";
 import { getTaskBreadcrumbs } from "@/lib/task-breadcrumbs";
 import {
 	buildOneTimeReminderPayload,
+	useNotificationMutations,
+	useTaskSubscriptionState,
 	useTask,
 	useTasks,
 	useTaskMutations,
@@ -58,6 +61,7 @@ import {
 } from "@/hooks/use-convex-data";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Task } from "@/data/types-new";
+import { onMutationError } from "@/lib/utils";
 
 export const Route = createFileRoute("/tasks/$id")({
 	component: RouteComponent,
@@ -104,11 +108,15 @@ function TaskHeader({
 	task,
 	onPropertiesClick,
 	onRemindMeClick,
+	isSubscribed,
+	onToggleSubscription,
 	onDeleteClick,
 }: {
 	task: Task;
 	onPropertiesClick: () => void;
 	onRemindMeClick: () => void;
+	isSubscribed: boolean;
+	onToggleSubscription: () => void;
 	onDeleteClick?: () => void;
 }) {
 	const { tasks } = useTasks(false);
@@ -173,6 +181,17 @@ function TaskHeader({
 				</>
 			)}
 			<div className="ml-auto flex items-center gap-2">
+				<Button
+					variant={isSubscribed ? "secondary" : "outline"}
+					size="sm"
+					onClick={onToggleSubscription}
+					className="gap-1.5"
+				>
+					<Bell className="size-4" />
+					<span className="hidden sm:inline">
+						{isSubscribed ? "Watching" : "Watch"}
+					</span>
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"
@@ -310,6 +329,8 @@ function RouteComponent() {
 	const taskId = requireTaskId(id);
 	const task = useTask(taskId);
 	const { updateTask, deleteTask } = useTaskMutations();
+	const isSubscribed = useTaskSubscriptionState(taskId);
+	const { subscribeToTask, unsubscribeFromTask } = useNotificationMutations();
 	const { addReminder } = useReminderMutations();
 
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -318,11 +339,21 @@ function RouteComponent() {
 	const [remindMeOpen, setRemindMeOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+	const handleToggleSubscription = () => {
+		if (isSubscribed) {
+			void unsubscribeFromTask(taskId).catch(onMutationError);
+			return;
+		}
+		void subscribeToTask(taskId).catch(onMutationError);
+	};
+
 	const titleForm = useDebouncedForm({
 		initialValue: task?.title ?? "",
 		onChange: (newTitle) => {
 			if (newTitle.trim() && newTitle !== task?.title) {
-				void updateTask(taskId, { title: newTitle.trim() });
+				void updateTask(taskId, { title: newTitle.trim() }).catch(
+					onMutationError,
+				);
 			}
 		},
 		debounceMs: 250,
@@ -332,7 +363,9 @@ function RouteComponent() {
 		initialValue: task?.description ?? "",
 		onChange: (newDescription) => {
 			if (newDescription !== task?.description) {
-				void updateTask(taskId, { description: newDescription });
+				void updateTask(taskId, { description: newDescription }).catch(
+					onMutationError,
+				);
 			}
 		},
 		debounceMs: 250,
@@ -375,12 +408,19 @@ function RouteComponent() {
 	};
 
 	const handleSetReminder = (remindAt: string, message?: string) => {
-		void addReminder(buildOneTimeReminderPayload(task.id, remindAt, message));
+		void addReminder(
+			buildOneTimeReminderPayload(task.id, remindAt, message),
+		).catch(onMutationError);
 	};
 
 	const handleDeleteConfirm = async () => {
 		setDeleteDialogOpen(false);
-		await deleteTask(task.id);
+		try {
+			await deleteTask(task.id);
+		} catch (error) {
+			onMutationError(error);
+			return;
+		}
 		const parentId = task.parent?.type === "task" ? task.parent.linkedId : null;
 		navigate(
 			parentId
@@ -408,11 +448,13 @@ function RouteComponent() {
 	const priorityLabel = priorityLabels[task.priority];
 
 	return (
-		<div className="flex flex-col h-full">
+		<div className="flex h-full flex-col overflow-x-hidden">
 			<TaskHeader
 				task={task}
 				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
 				onRemindMeClick={() => setRemindMeOpen(true)}
+				isSubscribed={isSubscribed}
+				onToggleSubscription={handleToggleSubscription}
 				onDeleteClick={() => setDeleteDialogOpen(true)}
 			/>
 			<div className="flex flex-1 overflow-hidden">
@@ -428,15 +470,14 @@ function RouteComponent() {
 								</div>
 								<div className="mt-1 space-y-1 text-sm">
 									{unresolvedBlockers.map((relation) => (
-										<div key={relation.task.id} className="truncate">
+										<div key={relation.task.id} className="min-w-0">
 											<Link
 												to="/tasks/$id"
 												params={{ id: relation.task.id }}
-												className="underline underline-offset-2"
+												className="underline underline-offset-2 break-words [overflow-wrap:anywhere]"
 											>
-												{relation.task.identifier}
-											</Link>{" "}
-											{relation.task.title}
+												{relation.task.identifier} {relation.task.title}
+											</Link>
 										</div>
 									))}
 								</div>
@@ -559,7 +600,9 @@ function RouteComponent() {
 									/>
 								) : task.description ? (
 									<div className="prose prose-sm max-w-none dark:prose-invert sm:prose-base">
-										<ReactMarkdown>{task.description}</ReactMarkdown>
+										<ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+											{task.description}
+										</ReactMarkdown>
 									</div>
 								) : (
 									<button

@@ -9,6 +9,13 @@ import { v } from "convex/values";
 import { google } from "googleapis";
 import { SCHEDULE_CACHE_TTL_MS, TOKEN_VALID_BUFFER_SEC } from "./lib/constants";
 
+async function requireVolunteerAction(
+	ctx: GenericActionCtx<DataModel>,
+): Promise<void> {
+	const isVol = await ctx.runQuery(internal.auth.getIsVolunteer, {});
+	if (!isVol) throw new ConvexError("Volunteer access required");
+}
+
 const RANGE = "Schedule!A6:B22";
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
 
@@ -18,7 +25,8 @@ type CachedSchedule = { events: ScheduleEvent[]; fetchedAt: number } | null;
 export const getGoogleOAuthUrl = action({
 	args: { redirectUri: v.string() },
 	returns: v.object({ url: v.string() }),
-	handler: async (_ctx, args) => {
+	handler: async (ctx, args) => {
+		await requireVolunteerAction(ctx);
 		const clientId = process.env.AUTH_GOOGLE_ID;
 		if (!clientId) {
 			throw new Error(
@@ -45,6 +53,7 @@ export const exchangeCodeAndStoreTokens = action({
 	},
 	returns: v.object({ success: v.boolean(), error: v.optional(v.string()) }),
 	handler: async (ctx, args) => {
+		await requireVolunteerAction(ctx);
 		const clientId = process.env.AUTH_GOOGLE_ID;
 		const clientSecret = process.env.AUTH_GOOGLE_SECRET;
 		if (!clientId || !clientSecret) {

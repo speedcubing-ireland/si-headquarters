@@ -1,9 +1,14 @@
 import { useMemo, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Plus } from "lucide-react";
-import { useTasks } from "@/hooks/use-convex-data";
+import { Bell, Plus } from "lucide-react";
+import {
+	useNotificationMutations,
+	useNotificationSubscriptions,
+	useTasks,
+} from "@/hooks/use-convex-data";
 import { TasksListStateContext } from "@/store/tasks-list-context";
 import { useTasksSavedViews } from "@/lib/use-tasks-saved-views";
+import { parseSavedViewId } from "@/lib/convex-ids";
 import { useListPageState } from "@/hooks/use-list-page-state";
 import {
 	bulkFilterItems,
@@ -70,6 +75,8 @@ function TasksPageInner(props: TasksPageProps) {
 
 	const urlState = useTasksUrlContext();
 	const savedViews = useTasksSavedViews({ entity: "tasks", pageId });
+	const { subscriptions } = useNotificationSubscriptions();
+	const { subscribeToView, unsubscribeFromView } = useNotificationMutations();
 
 	const { tasks: allTasks } = useTasks(taskSource === "archived");
 
@@ -95,6 +102,28 @@ function TasksPageInner(props: TasksPageProps) {
 		resetAll: urlState.clearAll,
 	});
 	const { openTask } = useCreateModalsStore();
+	const activeViewDbId = savedViews.activeViewId
+		? parseSavedViewId(savedViews.activeViewId)
+		: null;
+	const isActiveViewSubscribed =
+		activeViewDbId === null
+			? false
+			: subscriptions.some(
+					(subscription) =>
+						subscription.subscriptionType === "view" &&
+						subscription.viewId === activeViewDbId,
+				);
+
+	const handleToggleActiveViewSubscription = () => {
+		if (!activeViewDbId) {
+			return;
+		}
+		if (isActiveViewSubscribed) {
+			void unsubscribeFromView(activeViewDbId);
+			return;
+		}
+		void subscribeToView(activeViewDbId);
+	};
 
 	const columns = useTaskColumns();
 
@@ -122,6 +151,17 @@ function TasksPageInner(props: TasksPageProps) {
 				onClick={listState.handleStartCreateView}
 				showLabel={savedViews.views.length === 0}
 			/>
+			{activeViewDbId && (
+				<Button
+					variant={isActiveViewSubscribed ? "secondary" : "outline"}
+					size="sm"
+					onClick={handleToggleActiveViewSubscription}
+					className="gap-1.5"
+				>
+					<Bell className="size-4" />
+					{isActiveViewSubscribed ? "Watching view" : "Watch view"}
+				</Button>
+			)}
 
 			<PageHeader.Actions>
 				{showCreateButton ? (

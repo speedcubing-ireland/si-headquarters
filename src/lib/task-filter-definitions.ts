@@ -5,7 +5,7 @@ import {
 	Circle,
 	CircleDashed,
 	CircleDot,
-	CircleUser,
+	Eye,
 	Dice1,
 	Dice2,
 	Dice3,
@@ -84,7 +84,7 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 			{
 				value: "awaiting-review",
 				label: "Awaiting Review",
-				icon: CircleUser,
+				icon: Eye,
 			},
 			{ value: "done", label: "Done", icon: CheckCircle2 },
 			{

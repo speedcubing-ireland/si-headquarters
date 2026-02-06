@@ -1,6 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Id, Doc } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
 import { logActivity } from "./lib/activity";
 import { internal } from "./_generated/api";
@@ -68,6 +69,259 @@ const reactionShape = v.object({
 	users: v.array(userShape),
 });
 
+type CommentDoc = {
+	_id: Id<"comments">;
+	parentType: "task" | "update";
+	parentId: string;
+	parentCommentId?: Id<"comments">;
+	authorId: Id<"users">;
+	content: string;
+	_creationTime: number;
+	updatedAt: number;
+	contentUpdatedAt?: number;
+	reactions: Array<{ emoji: string; userIds: Id<"users">[] }>;
+};
+
+type CommentParentEntityType = "task" | "update";
+type CommentParentLookup = {
+	exists: boolean;
+	competitionId: Id<"competitions"> | undefined;
+};
+
+type CommentDbCtx = MutationCtx | QueryCtx;
+
+function commentParentNotFoundMessage(parent: CommentParentEntityType): string {
+	return parent === "task" ? "Task not found" : "Update not found";
+}
+
+function commentParentNoAccessMessage(parent: CommentParentEntityType): string {
+	return parent === "task"
+		? ERROR_COMMENT_NO_ACCESS_TASK
+		: ERROR_COMMENT_NO_ACCESS_UPDATE;
+}
+
+async function lookupCommentParent(
+	ctx: CommentDbCtx,
+	parent: CommentParentEntityType,
+	parentId: string,
+): Promise<CommentParentLookup> {
+	if (parent === "task") {
+		const task = await ctx.db.get(
+			"tasks",
+			getCommentParentId("task", parentId),
+		);
+		return {
+			exists: task !== null,
+			competitionId: task?.parentCompetitionId,
+		};
+	}
+
+	const update = await ctx.db.get(
+		"competitionUpdates",
+		getCommentParentId("update", parentId),
+	);
+	return {
+		exists: update !== null,
+		competitionId: update?.competitionId,
+	};
+}
+
+async function ensureCommentParentAccess(
+	ctx: CommentDbCtx,
+	args: {
+		parentType: CommentParentEntityType;
+		parentId: string;
+		userId: Id<"users">;
+		volunteer: boolean;
+	},
+): Promise<void> {
+	const parentLookup = await lookupCommentParent(
+		ctx,
+		args.parentType,
+		args.parentId,
+	);
+	if (!parentLookup.exists) {
+		throw new ConvexError(commentParentNotFoundMessage(args.parentType));
+	}
+	if (args.volunteer) {
+		return;
+	}
+
+	const hasAccess =
+		parentLookup.competitionId !== undefined &&
+		(await hasCompetitionAccess(
+			ctx,
+			args.volunteer,
+			args.userId,
+			parentLookup.competitionId,
+		));
+	if (!hasAccess) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: commentParentNoAccessMessage(args.parentType),
+		});
+	}
+}
+
+async function canReadCommentParent(
+	ctx: CommentDbCtx,
+	args: {
+		parentType: CommentParentEntityType;
+		parentId: string;
+		userId: Id<"users">;
+		volunteer: boolean;
+	},
+): Promise<boolean> {
+	if (args.volunteer) {
+		return true;
+	}
+	const parentLookup = await lookupCommentParent(
+		ctx,
+		args.parentType,
+		args.parentId,
+	);
+	if (!parentLookup.competitionId) {
+		return false;
+	}
+	return hasCompetitionAccess(
+		ctx,
+		args.volunteer,
+		args.userId,
+		parentLookup.competitionId,
+	);
+}
+
+function collectCommentUserIds(docs: CommentDoc[]): Set<Id<"users">> {
+	const allUserIds = new Set<Id<"users">>();
+	for (const doc of docs) {
+		allUserIds.add(doc.authorId);
+		for (const reaction of doc.reactions) {
+			for (const userId of reaction.userIds) {
+				allUserIds.add(userId);
+			}
+		}
+	}
+	return allUserIds;
+}
+
+async function buildCommentUsersLens(ctx: CommentDbCtx, docs: CommentDoc[]) {
+	const userIds = [...collectCommentUserIds(docs)];
+	const userDocs = await Promise.all(
+		userIds.map((id) => ctx.db.get("users", id)),
+	);
+	return createLens(toUsers(userDocs));
+}
+
+function collectCommentAddedRecipientIds(
+	task: {
+		assigneeId?: Id<"users">;
+		ownerId?: Id<"users"> | Id<"teams">;
+		ownerType?: "user" | "team";
+	},
+	actorId: Id<"users">,
+	excludedRecipientIds: Set<Id<"users">>,
+): Id<"users">[] {
+	const recipients = new Set<Id<"users">>();
+
+	if (
+		task.assigneeId &&
+		task.assigneeId !== actorId &&
+		!excludedRecipientIds.has(task.assigneeId)
+	) {
+		recipients.add(task.assigneeId);
+	}
+
+	if (
+		task.ownerType === "user" &&
+		task.ownerId &&
+		task.ownerId !== actorId &&
+		task.ownerId !== task.assigneeId &&
+		!excludedRecipientIds.has(task.ownerId as Id<"users">)
+	) {
+		recipients.add(task.ownerId as Id<"users">);
+	}
+
+	return [...recipients];
+}
+
+async function resolveParentComment(
+	ctx: Pick<MutationCtx, "db">,
+	args: {
+		parentCommentId?: Id<"comments">;
+		parentType: "task" | "update";
+		parentId: string;
+	},
+): Promise<Doc<"comments"> | null> {
+	if (!args.parentCommentId) {
+		return null;
+	}
+	const parentComment = await ctx.db.get("comments", args.parentCommentId);
+	if (!parentComment) {
+		throw new ConvexError({
+			code: "NOT_FOUND",
+			message: "Parent comment not found",
+		});
+	}
+	if (
+		parentComment.parentType !== args.parentType ||
+		parentComment.parentId !== args.parentId
+	) {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: "Parent comment must belong to the same parent",
+		});
+	}
+	return parentComment;
+}
+
+type CommentReaction = { emoji: string; userIds: Id<"users">[] };
+
+function toggleUserReaction(
+	reactions: CommentReaction[],
+	emoji: string,
+	userId: Id<"users">,
+): CommentReaction[] {
+	const next = [...reactions];
+	const reactionIndex = next.findIndex((reaction) => reaction.emoji === emoji);
+	if (reactionIndex < 0) {
+		next.push({ emoji, userIds: [userId] });
+		return next;
+	}
+
+	const userIds = [...next[reactionIndex].userIds];
+	const userIndex = userIds.indexOf(userId);
+	if (userIndex >= 0) {
+		userIds.splice(userIndex, 1);
+		if (userIds.length === 0) {
+			next.splice(reactionIndex, 1);
+		} else {
+			next[reactionIndex] = { ...next[reactionIndex], userIds };
+		}
+		return next;
+	}
+
+	userIds.push(userId);
+	next[reactionIndex] = { ...next[reactionIndex], userIds };
+	return next;
+}
+
+async function deleteCommentEntitySubscriptions(
+	ctx: MutationCtx,
+	commentId: Id<"comments">,
+): Promise<void> {
+	const subscriptions = await ctx.db
+		.query("notificationSubscriptions")
+		.withIndex("by_entity", (q) =>
+			q.eq("entityType", "comment").eq("entityId", `${commentId}`),
+		)
+		.collect();
+	await Promise.all(
+		subscriptions.map((subscription) =>
+			ctx.db.delete("notificationSubscriptions", subscription._id),
+		),
+	);
+}
+
 export const commentForUIReturns = v.object({
 	id: v.string(),
 	parentType,
@@ -90,24 +344,15 @@ export const listForUI = query({
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
-
-		const getCompetitionId = {
-			task: async () =>
-				(await ctx.db.get(getCommentParentId("task", args.parentId)))
-					?.parentCompetitionId,
-			update: async () =>
-				(await ctx.db.get(getCommentParentId("update", args.parentId)))
-					?.competitionId,
-		}[args.parentType];
-
-		const competitionId = await getCompetitionId();
-		if (!competitionId && !volunteer) return [];
-		if (
-			competitionId &&
-			!volunteer &&
-			!(await hasCompetitionAccess(ctx, volunteer, userId, competitionId))
-		)
+		const hasReadAccess = await canReadCommentParent(ctx, {
+			parentType: args.parentType,
+			parentId: args.parentId,
+			userId,
+			volunteer,
+		});
+		if (!hasReadAccess) {
 			return [];
+		}
 
 		const docs = await ctx.db
 			.query("comments")
@@ -116,21 +361,7 @@ export const listForUI = query({
 			)
 			.order("asc")
 			.collect();
-
-		const authorIds = new Set<Id<"users">>();
-		const reactionUserIds = new Set<Id<"users">>();
-		for (const d of docs) {
-			authorIds.add(d.authorId);
-			for (const r of d.reactions) {
-				for (const uid of r.userIds) reactionUserIds.add(uid);
-			}
-		}
-
-		const allUserIds = new Set([...authorIds, ...reactionUserIds]);
-		const userDocs = await Promise.all(
-			[...allUserIds].map((id) => ctx.db.get("users", id)),
-		);
-		const usersLens = createLens(toUsers(userDocs));
+		const usersLens = await buildCommentUsersLens(ctx, docs);
 
 		return docs.map((d) => mapCommentForUI(d, usersLens));
 	},
@@ -196,47 +427,17 @@ export const create = mutation({
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
-
-		const entityFetchers = {
-			task: async () => {
-				const task = await ctx.db.get(
-					"tasks",
-					getCommentParentId("task", args.parentId),
-				);
-				return {
-					entity: task,
-					competitionId: task?.parentCompetitionId,
-					errorMsg: ERROR_COMMENT_NO_ACCESS_TASK,
-				};
-			},
-			update: async () => {
-				const update = await ctx.db.get(
-					"competitionUpdates",
-					getCommentParentId("update", args.parentId),
-				);
-				return {
-					entity: update,
-					competitionId: update?.competitionId,
-					errorMsg: ERROR_COMMENT_NO_ACCESS_UPDATE,
-				};
-			},
-		};
-
-		const { entity, competitionId, errorMsg } =
-			await entityFetchers[args.parentType]();
-		if (!entity)
-			throw new ConvexError(
-				`${args.parentType === "task" ? "Task" : "Update"} not found`,
-			);
-
-		if (!volunteer) {
-			if (
-				!competitionId ||
-				!(await hasCompetitionAccess(ctx, volunteer, userId, competitionId))
-			) {
-				throw new ConvexError({ code: "FORBIDDEN", message: errorMsg });
-			}
-		}
+		await ensureCommentParentAccess(ctx, {
+			parentType: args.parentType,
+			parentId: args.parentId,
+			userId,
+			volunteer,
+		});
+		const parentComment = await resolveParentComment(ctx, {
+			parentCommentId: args.parentCommentId,
+			parentType: args.parentType,
+			parentId: args.parentId,
+		});
 
 		const sanitizedContent = validateRequiredText(args.content, "Comment");
 
@@ -266,7 +467,7 @@ export const create = mutation({
 		if (!task) return commentId;
 
 		const mentionedUserIds = await extractMentions(ctx, args.content);
-		const notifiedUserIds = new Set<Id<"users">>();
+		const mentionedRecipients = new Set<Id<"users">>();
 
 		for (const mentionedUserId of mentionedUserIds) {
 			if (mentionedUserId !== userId) {
@@ -280,45 +481,42 @@ export const create = mutation({
 						actorId: userId,
 					},
 				);
-				notifiedUserIds.add(mentionedUserId);
+				mentionedRecipients.add(mentionedUserId);
 			}
 		}
-
+		const replyRecipients = new Set<Id<"users">>();
 		if (
-			task.assigneeId &&
-			task.assigneeId !== userId &&
-			!notifiedUserIds.has(task.assigneeId)
+			parentComment &&
+			parentComment.authorId !== userId &&
+			!mentionedRecipients.has(parentComment.authorId)
 		) {
-			void ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyCommentAdded,
-				{
-					taskId,
-					commentId,
-					recipientId: task.assigneeId,
-					actorId: userId,
-				},
-			);
+			replyRecipients.add(parentComment.authorId);
 		}
-
-		if (
-			task.ownerId &&
-			task.ownerType === "user" &&
-			task.ownerId !== userId &&
-			task.ownerId !== task.assigneeId &&
-			!notifiedUserIds.has(task.ownerId as Id<"users">)
-		) {
-			void ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyCommentAdded,
-				{
-					taskId,
-					commentId,
-					recipientId: task.ownerId as Id<"users">,
-					actorId: userId,
-				},
-			);
+		if (replyRecipients.size > 0) {
+			void ctx.scheduler.runAfter(0, internal.notifications._notifyCommentReplied, {
+				taskId,
+				commentId,
+				recipientIds: [...replyRecipients],
+				actorId: userId,
+				eventKey: `${commentId}:reply`,
+			});
 		}
+		const excludedRecipients = new Set<Id<"users">>([
+			...mentionedRecipients,
+			...replyRecipients,
+		]);
+		const commentAddedRecipients = collectCommentAddedRecipientIds(
+			task,
+			userId,
+			excludedRecipients,
+		);
+		void ctx.scheduler.runAfter(0, internal.notifications._notifyCommentAdded, {
+			taskId,
+			commentId,
+			recipientIds: commentAddedRecipients,
+			actorId: userId,
+			eventKey: `${commentId}:added`,
+		});
 		return commentId;
 	},
 });
@@ -376,6 +574,8 @@ export const remove = mutation({
 			doc.parentId,
 			"comment_deleted",
 		);
+		await deleteCommentEntitySubscriptions(ctx, args.commentId);
+
 		await ctx.db.delete("comments", args.commentId);
 		return null;
 	},
@@ -390,20 +590,7 @@ export const listRecentForSearch = query({
 
 		const limit = args.limit ?? 100;
 		const docs = await ctx.db.query("comments").order("desc").take(limit);
-
-		const authorIds = new Set<Id<"users">>();
-		const reactionUserIds = new Set<Id<"users">>();
-		for (const d of docs) {
-			authorIds.add(d.authorId);
-			for (const r of d.reactions) {
-				for (const uid of r.userIds) reactionUserIds.add(uid);
-			}
-		}
-		const allUserIds = new Set([...authorIds, ...reactionUserIds]);
-		const userDocs = await Promise.all(
-			[...allUserIds].map((id) => ctx.db.get("users", id)),
-		);
-		const usersLens = createLens(toUsers(userDocs));
+		const usersLens = await buildCommentUsersLens(ctx, docs);
 
 		return docs.map((d) => mapCommentForUI(d, usersLens));
 	},
@@ -419,23 +606,7 @@ export const toggleReaction = mutation({
 		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc) return null;
-
-		const reactions = [...doc.reactions];
-		const idx = reactions.findIndex((r) => r.emoji === args.emoji);
-		if (idx >= 0) {
-			const userIds = [...reactions[idx].userIds];
-			const userIdx = userIds.indexOf(userId);
-			if (userIdx >= 0) {
-				userIds.splice(userIdx, 1);
-				if (userIds.length === 0) reactions.splice(idx, 1);
-				else reactions[idx] = { ...reactions[idx], userIds };
-			} else {
-				userIds.push(userId);
-				reactions[idx] = { ...reactions[idx], userIds };
-			}
-		} else {
-			reactions.push({ emoji: args.emoji, userIds: [userId] });
-		}
+		const reactions = toggleUserReaction(doc.reactions, args.emoji, userId);
 
 		await ctx.db.patch("comments", args.commentId, {
 			reactions,

@@ -26,13 +26,13 @@ import {
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
 import { formatDate, getInitials } from "@/lib/format-utils";
-import { cn } from "@/lib/utils";
+import { cn, onMutationError } from "@/lib/utils";
 import { LeadsDisplay } from "./leads-display";
 
 function useSetWeekendOverride() {
 	const mutate = useMutation(api.weekendOverrides.setOverride);
 	return (satDate: string, patch: Partial<WeekendOverride>) => {
-		mutate({ satDate, ...patch });
+		void mutate({ satDate, ...patch }).catch(onMutationError);
 	};
 }
 

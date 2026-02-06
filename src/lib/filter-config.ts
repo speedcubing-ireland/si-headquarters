@@ -40,7 +40,6 @@ export const filterConfigs: Record<
 		label: string;
 		placeholder: string;
 		emptyMessage: string;
-		getOptions: () => FilterOption[];
 	}
 > = {
 	phase: {
@@ -49,7 +48,6 @@ export const filterConfigs: Record<
 		label: "Phase",
 		placeholder: "Search",
 		emptyMessage: "No phase found.",
-		getOptions: () => [],
 	},
 	compLead: {
 		type: "compLead",
@@ -57,7 +55,6 @@ export const filterConfigs: Record<
 		label: "Comp lead",
 		placeholder: "Search",
 		emptyMessage: "No user found.",
-		getOptions: () => [],
 	},
 	leadDelegate: {
 		type: "leadDelegate",
@@ -65,7 +62,6 @@ export const filterConfigs: Record<
 		label: "Lead delegate",
 		placeholder: "Search",
 		emptyMessage: "No user found.",
-		getOptions: () => [],
 	},
 	organisers: {
 		type: "organisers",
@@ -73,7 +69,6 @@ export const filterConfigs: Record<
 		label: "Organiser",
 		placeholder: "Search",
 		emptyMessage: "No user found.",
-		getOptions: () => [],
 	},
 };
 
@@ -84,9 +79,5 @@ export function getFilterOptions<T extends FilterType>(
 	if (type === "phase") {
 		return getPhaseOptions();
 	}
-	if (type === "compLead" || type === "leadDelegate" || type === "organisers") {
-		return getUserOptions(users ?? []);
-	}
-
-	return filterConfigs[type].getOptions();
+	return getUserOptions(users ?? []);
 }

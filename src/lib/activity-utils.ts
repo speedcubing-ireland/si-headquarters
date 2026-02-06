@@ -1,4 +1,5 @@
 import type { ActivityEntry } from "@/data/types-new";
+import { formatDate } from "@/lib/format-utils";
 
 function formatOldToNew(
 	label: string,
@@ -76,11 +77,7 @@ export function formatRelativeTime(timestamp: string): string {
 	if (diffMins < 60) return `${diffMins}m ago`;
 	if (diffHours < 24) return `${diffHours}h ago`;
 	if (diffDays < 7) return `${diffDays}d ago`;
-	return date.toLocaleDateString(undefined, {
-		day: "numeric",
-		month: "short",
-		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-	});
+	return formatDate(timestamp);
 }
 
 export function getEntityLink(

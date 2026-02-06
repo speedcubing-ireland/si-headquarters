@@ -14,9 +14,7 @@ import { cn } from "@/lib/utils";
 
 interface MentionTextareaProps {
 	value: string;
-	onChange:
-		| ((value: string) => void)
-		| ((e: React.ChangeEvent<HTMLTextAreaElement>) => void);
+	onChange: (value: string) => void;
 	placeholder?: string;
 	className?: string;
 	users: User[];
@@ -37,22 +35,11 @@ export function MentionTextarea({
 		return users.filter((u) => u.id !== currentUserId);
 	}, [users, currentUserId]);
 
-	const handleInputValueChange = (newValue: string) => {
-		const syntheticEvent = {
-			target: { value: newValue },
-			currentTarget: { value: newValue },
-		} as unknown as React.ChangeEvent<HTMLTextAreaElement>;
-
-		(onChange as (e: React.ChangeEvent<HTMLTextAreaElement>) => void)(
-			syntheticEvent,
-		);
-	};
-
 	return (
 		<MentionRoot
 			trigger="@"
 			inputValue={value}
-			onInputValueChange={handleInputValueChange}
+			onInputValueChange={onChange}
 			disabled={disabled}
 		>
 			<MentionLabel className="sr-only">

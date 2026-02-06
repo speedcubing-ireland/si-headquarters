@@ -7,6 +7,7 @@ import { TaskListGroup } from "@/components/tasks/task-list-group";
 import { useTaskMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { groupTasksByCompetitionPhase } from "@/lib/task-utils";
+import { onMutationError } from "@/lib/utils";
 
 interface CompetitionTasksByPhaseProps {
 	competition: Competition;
@@ -67,7 +68,7 @@ export function CompetitionTasksByPhase({
 			priority: "medium",
 			dueDate: null,
 			labels: [],
-		});
+		}).catch(onMutationError);
 	};
 
 	return (

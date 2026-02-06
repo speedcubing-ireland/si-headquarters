@@ -10,6 +10,7 @@ import {
 	useReminderMutations,
 } from "@/hooks/use-convex-data";
 import { RemindMeDialog } from "@/components/tasks/remind-me-dialog";
+import { onMutationError } from "@/lib/utils";
 import type { Task } from "@/data/types-new";
 
 interface TaskReminderStripProps {
@@ -25,7 +26,7 @@ export function TaskReminderStrip({ task }: TaskReminderStripProps) {
 	const nextReminder = pendingForTask[0];
 
 	const handleReschedule = (reminderId: Id<"reminders">, remindAt: string) => {
-		void rescheduleReminder(reminderId, remindAt);
+		void rescheduleReminder(reminderId, remindAt).catch(onMutationError);
 		setRescheduleReminderId(null);
 	};
 

@@ -86,29 +86,27 @@ export const create = mutation({
 		await logActivity(ctx, userId, "update", id, "created");
 
 		const competition = await ctx.db.get("competitions", args.competitionId);
-		if (competition) {
-			const recipientIds = new Set<Id<"users">>();
-			if (competition.compLeadId) recipientIds.add(competition.compLeadId);
-			if (competition.leadDelegateId)
-				recipientIds.add(competition.leadDelegateId);
-			for (const oid of competition.organiserIds) recipientIds.add(oid);
-			recipientIds.delete(userId);
+			if (competition) {
+				const recipientIds = new Set<Id<"users">>();
+				if (competition.compLeadId) recipientIds.add(competition.compLeadId);
+				if (competition.leadDelegateId)
+					recipientIds.add(competition.leadDelegateId);
+				for (const oid of competition.organiserIds) recipientIds.add(oid);
+				recipientIds.delete(userId);
 
-			const notificationPromises = [...recipientIds].map((recipientId) =>
-				ctx.scheduler.runAfter(
+				await ctx.scheduler.runAfter(
 					0,
 					internal.notifications._notifyProgressUpdateAdded,
 					{
 						competitionId: args.competitionId,
-						recipientId,
+						recipientIds: [...recipientIds],
 						actorId: userId,
 						competitionName: competition.name,
 						status: args.status,
+						eventKey: `${id}:progress-update`,
 					},
-				),
-			);
-			await Promise.allSettled(notificationPromises);
-		}
+				);
+			}
 		return id;
 	},
 });

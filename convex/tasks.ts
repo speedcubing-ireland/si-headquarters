@@ -1,19 +1,19 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
-} from "./competitions";
-import { userCanAccessCompetitionDoc } from "./competitionAccess";
+} from "./lib/taskDeletion";
 import {
 	ERROR_TASK_MOVE,
 	ERROR_TASK_NO_ACCESS,
 	ERROR_TASK_NO_COMPETITION,
-	hasCompetitionAccess,
+	hasTaskCompetitionAccess,
+	listOrganisedCompetitionIds,
 	requireTaskAccess,
 } from "./taskAccess";
 import {
@@ -32,6 +32,7 @@ import {
 } from "./lib/activity";
 import {
 	sendTaskAssigneeChangeNotifications,
+	sendTaskPriorityChangeNotifications,
 	sendTaskRelationBlockedNotifications,
 	sendTaskRelationUnblockedNotifications,
 	sendTaskStatusChangeNotifications,
@@ -41,6 +42,7 @@ import {
 	applyAwaitingReviewAutoPromote,
 	taskUpdateArgs,
 } from "./taskPatch";
+import type { TaskUpdate } from "./taskPatch";
 import {
 	taskStatus,
 	taskPriority,
@@ -48,8 +50,19 @@ import {
 	linkedResource,
 	userShape as sharedUserShape,
 	teamShape,
+	labelShape as taskLabelShape,
+	phaseShape,
 } from "./lib/validators";
 import { MAX_BULK_UPDATE_COUNT } from "./lib/constants";
+import { toISO } from "./lib/transforms";
+import {
+	buildTaskRelationDataMap,
+	countUnresolvedBlockers,
+	wouldCreateTaskRelationCycle,
+	handleBlockingStatusTransitionNotifications,
+	isTaskBlockingStatus,
+	EMPTY_TASK_RELATION_DATA,
+} from "./lib/taskRelations";
 
 const taskDoc = v.object({
 	_id: v.id("tasks"),
@@ -63,7 +76,7 @@ const taskDoc = v.object({
 	archived: v.boolean(),
 	archivedAt: v.optional(v.string()),
 	parentTaskId: v.optional(v.id("tasks")),
-	parentCompetitionId: v.optional(v.string()),
+	parentCompetitionId: v.optional(v.id("competitions")),
 	ownerId: v.optional(v.union(v.id("users"), v.id("teams"))),
 	ownerType: v.optional(v.union(v.literal("user"), v.literal("team"))),
 	assigneeId: v.optional(v.id("users")),
@@ -100,10 +113,10 @@ export const list = query({
 				.collect();
 		}
 
-		const allCompetitions = await ctx.db.query("competitions").collect();
-		const accessibleCompetitionIds = allCompetitions
-			.filter((comp) => userCanAccessCompetitionDoc(comp, userId))
-			.map((c) => c._id);
+		const accessibleCompetitionIds = await listOrganisedCompetitionIds(
+			ctx,
+			userId,
+		);
 
 		const taskPromises = accessibleCompetitionIds.map((compId) =>
 			ctx.db
@@ -146,7 +159,7 @@ export const get = query({
 			return null;
 		}
 
-		const hasAccess = await hasCompetitionAccess(
+		const hasAccess = await hasTaskCompetitionAccess(
 			ctx,
 			volunteer,
 			userId,
@@ -157,18 +170,6 @@ export const get = query({
 });
 
 export const userShape = sharedUserShape;
-
-const taskLabelShape = v.object({
-	id: v.id("labels"),
-	name: v.string(),
-	color: v.string(),
-});
-
-const phaseShape = v.object({
-	id: v.id("phases"),
-	name: v.string(),
-	description: v.string(),
-});
 
 const parentShape = v.union(
 	v.null(),
@@ -199,272 +200,6 @@ const blockedByRelationShape = v.object({
 	task: relationTaskShape,
 	isResolved: v.boolean(),
 });
-
-const RESOLVED_BLOCKER_STATUSES = new Set<Doc<"tasks">["status"]>([
-	"done",
-	"cancelled",
-]);
-
-function isTaskBlockingStatus(status: Doc<"tasks">["status"]): boolean {
-	return !RESOLVED_BLOCKER_STATUSES.has(status);
-}
-
-type RelationTaskSummary = {
-	id: Id<"tasks">;
-	identifier: string;
-	title: string;
-	status: Doc<"tasks">["status"];
-};
-
-type TaskRelationData = {
-	blockedBy: Array<{ task: RelationTaskSummary; isResolved: boolean }>;
-	blocks: RelationTaskSummary[];
-	unresolvedBlockerCount: number;
-	isBlocked: boolean;
-};
-
-const EMPTY_TASK_RELATION_DATA: TaskRelationData = {
-	blockedBy: [],
-	blocks: [],
-	unresolvedBlockerCount: 0,
-	isBlocked: false,
-};
-
-type TaskRelationReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
-
-function toRelationTaskSummary(task: Doc<"tasks">): RelationTaskSummary {
-	return {
-		id: task._id,
-		identifier: task.identifier,
-		title: task.title,
-		status: task.status,
-	};
-}
-
-async function buildTaskRelationDataMap(
-	ctx: TaskRelationReadCtx,
-	taskIds: Id<"tasks">[],
-): Promise<Map<Id<"tasks">, TaskRelationData>> {
-	const relationData = new Map<Id<"tasks">, TaskRelationData>();
-	for (const taskId of taskIds) {
-		relationData.set(taskId, EMPTY_TASK_RELATION_DATA);
-	}
-	if (taskIds.length === 0) {
-		return relationData;
-	}
-
-	const blockedRelations = (
-		await Promise.all(
-			taskIds.map((taskId) =>
-				ctx.db
-					.query("taskRelations")
-					.withIndex("by_blocked_task", (q) => q.eq("blockedTaskId", taskId))
-					.collect(),
-			),
-		)
-	).flat();
-
-	const blockingRelations = (
-		await Promise.all(
-			taskIds.map((taskId) =>
-				ctx.db
-					.query("taskRelations")
-					.withIndex("by_blocking_task", (q) => q.eq("blockingTaskId", taskId))
-					.collect(),
-			),
-		)
-	).flat();
-
-	const blockedByMap = new Map<Id<"tasks">, Doc<"taskRelations">[]>();
-	for (const relation of blockedRelations) {
-		const existing = blockedByMap.get(relation.blockedTaskId) ?? [];
-		existing.push(relation);
-		blockedByMap.set(relation.blockedTaskId, existing);
-	}
-
-	const blocksMap = new Map<Id<"tasks">, Doc<"taskRelations">[]>();
-	for (const relation of blockingRelations) {
-		const existing = blocksMap.get(relation.blockingTaskId) ?? [];
-		existing.push(relation);
-		blocksMap.set(relation.blockingTaskId, existing);
-	}
-
-	const relatedTaskIds = new Set<Id<"tasks">>();
-	for (const relation of blockedRelations) {
-		relatedTaskIds.add(relation.blockingTaskId);
-	}
-	for (const relation of blockingRelations) {
-		relatedTaskIds.add(relation.blockedTaskId);
-	}
-
-	const relatedTaskIdsArray = [...relatedTaskIds];
-	const relatedTaskDocs = await Promise.all(
-		relatedTaskIdsArray.map((taskId) => ctx.db.get("tasks", taskId)),
-	);
-	const relatedTaskMap = new Map<Id<"tasks">, Doc<"tasks">>();
-	relatedTaskIdsArray.forEach((taskId, index) => {
-		const doc = relatedTaskDocs[index];
-		if (doc) {
-			relatedTaskMap.set(taskId, doc);
-		}
-	});
-
-	for (const taskId of taskIds) {
-		const blockedBy = (blockedByMap.get(taskId) ?? [])
-			.map((relation) => {
-				const blockingTask = relatedTaskMap.get(relation.blockingTaskId);
-				if (!blockingTask) return null;
-				return {
-					task: toRelationTaskSummary(blockingTask),
-					isResolved: !isTaskBlockingStatus(blockingTask.status),
-				};
-			})
-			.filter(
-				(
-					relation,
-				): relation is {
-					task: RelationTaskSummary;
-					isResolved: boolean;
-				} => relation !== null,
-			)
-			.sort((a, b) => {
-				if (a.isResolved !== b.isResolved) {
-					return a.isResolved ? 1 : -1;
-				}
-				return a.task.identifier.localeCompare(b.task.identifier);
-			});
-
-		const blocks = (blocksMap.get(taskId) ?? [])
-			.map((relation) => {
-				const blockedTask = relatedTaskMap.get(relation.blockedTaskId);
-				return blockedTask ? toRelationTaskSummary(blockedTask) : null;
-			})
-			.filter((task): task is RelationTaskSummary => task !== null)
-			.sort((a, b) => a.identifier.localeCompare(b.identifier));
-
-		const unresolvedBlockerCount = blockedBy.reduce(
-			(total, relation) => total + (relation.isResolved ? 0 : 1),
-			0,
-		);
-
-		relationData.set(taskId, {
-			blockedBy,
-			blocks,
-			unresolvedBlockerCount,
-			isBlocked: unresolvedBlockerCount > 0,
-		});
-	}
-
-	return relationData;
-}
-
-async function countUnresolvedBlockers(
-	ctx: TaskRelationReadCtx,
-	blockedTaskId: Id<"tasks">,
-): Promise<number> {
-	const relations = await ctx.db
-		.query("taskRelations")
-		.withIndex("by_blocked_task", (q) => q.eq("blockedTaskId", blockedTaskId))
-		.collect();
-	if (relations.length === 0) {
-		return 0;
-	}
-
-	const blockingTaskDocs = await Promise.all(
-		relations.map((relation) => ctx.db.get("tasks", relation.blockingTaskId)),
-	);
-	return blockingTaskDocs.reduce((total, task) => {
-		if (task && isTaskBlockingStatus(task.status)) {
-			return total + 1;
-		}
-		return total;
-	}, 0);
-}
-
-async function wouldCreateTaskRelationCycle(
-	ctx: TaskRelationReadCtx,
-	blockedTaskId: Id<"tasks">,
-	blockingTaskId: Id<"tasks">,
-): Promise<boolean> {
-	if (blockedTaskId === blockingTaskId) {
-		return true;
-	}
-
-	const queue: Id<"tasks">[] = [blockedTaskId];
-	const visited = new Set<Id<"tasks">>();
-
-	while (queue.length > 0) {
-		const currentTaskId = queue.shift();
-		if (!currentTaskId || visited.has(currentTaskId)) {
-			continue;
-		}
-		if (currentTaskId === blockingTaskId) {
-			return true;
-		}
-		visited.add(currentTaskId);
-
-		const downstreamRelations = await ctx.db
-			.query("taskRelations")
-			.withIndex("by_blocking_task", (q) =>
-				q.eq("blockingTaskId", currentTaskId),
-			)
-			.collect();
-		for (const relation of downstreamRelations) {
-			if (!visited.has(relation.blockedTaskId)) {
-				queue.push(relation.blockedTaskId);
-			}
-		}
-	}
-
-	return false;
-}
-
-async function handleBlockingStatusTransitionNotifications(
-	ctx: MutationCtx,
-	blockingTaskId: Id<"tasks">,
-	oldStatus: Doc<"tasks">["status"],
-	newStatus: Doc<"tasks">["status"],
-	actorId: Id<"users">,
-): Promise<void> {
-	const wasBlocking = isTaskBlockingStatus(oldStatus);
-	const isBlocking = isTaskBlockingStatus(newStatus);
-	if (wasBlocking === isBlocking) {
-		return;
-	}
-
-	const relations = await ctx.db
-		.query("taskRelations")
-		.withIndex("by_blocking_task", (q) =>
-			q.eq("blockingTaskId", blockingTaskId),
-		)
-		.collect();
-	if (relations.length === 0) {
-		return;
-	}
-
-	const blockedTaskIds = [...new Set(relations.map((r) => r.blockedTaskId))];
-	await Promise.all(
-		blockedTaskIds.map(async (blockedTaskId) => {
-			const unresolvedCount = await countUnresolvedBlockers(ctx, blockedTaskId);
-			if (wasBlocking && !isBlocking && unresolvedCount === 0) {
-				await sendTaskRelationUnblockedNotifications(
-					ctx,
-					blockedTaskId,
-					blockingTaskId,
-					actorId,
-				);
-			}
-			if (!wasBlocking && isBlocking && unresolvedCount === 1) {
-				await sendTaskRelationBlockedNotifications(
-					ctx,
-					blockedTaskId,
-					blockingTaskId,
-					actorId,
-				);
-			}
-		}),
-	);
-}
 
 export const taskForUIReturns = v.object({
 	id: v.id("tasks"),
@@ -506,9 +241,10 @@ export const listForUI = query({
 		const competitionId = args.competitionId;
 
 		let tasks: Doc<"tasks">[];
+		const accessibleCompetitionIds = new Set<Id<"competitions">>();
 		if (competitionId) {
 			if (!volunteer) {
-				const hasAccess = await hasCompetitionAccess(
+				const hasAccess = await hasTaskCompetitionAccess(
 					ctx,
 					volunteer,
 					userId,
@@ -517,6 +253,7 @@ export const listForUI = query({
 				if (!hasAccess) {
 					return [];
 				}
+				accessibleCompetitionIds.add(competitionId);
 			}
 			tasks = await ctx.db
 				.query("tasks")
@@ -533,24 +270,32 @@ export const listForUI = query({
 					.order("desc")
 					.collect();
 			} else {
-				const allTasks = await ctx.db
-					.query("tasks")
-					.withIndex("by_archived", (q) => q.eq("archived", archived))
-					.order("desc")
-					.collect();
-
-				const allCompetitions = await ctx.db.query("competitions").collect();
-
-				const accessibleCompetitionIds = new Set(
-					allCompetitions
-						.filter((comp) => userCanAccessCompetitionDoc(comp, userId))
-						.map((c) => c._id),
+				const organisedCompetitionIds = await listOrganisedCompetitionIds(
+					ctx,
+					userId,
 				);
-
-				tasks = allTasks.filter(
-					(task) =>
-						!task.parentCompetitionId ||
-						accessibleCompetitionIds.has(task.parentCompetitionId),
+				for (const id of organisedCompetitionIds) {
+					accessibleCompetitionIds.add(id);
+				}
+				const taskGroups = await Promise.all(
+					organisedCompetitionIds.map((id) =>
+						ctx.db
+							.query("tasks")
+							.withIndex("by_parent_competition_and_archived", (q) =>
+								q.eq("parentCompetitionId", id).eq("archived", archived),
+							)
+							.order("desc")
+							.collect(),
+					),
+				);
+				const taskMap = new Map<Id<"tasks">, Doc<"tasks">>();
+				for (const taskGroup of taskGroups) {
+					for (const task of taskGroup) {
+						taskMap.set(task._id, task);
+					}
+				}
+				tasks = [...taskMap.values()].sort(
+					(a, b) => b._creationTime - a._creationTime,
 				);
 			}
 		}
@@ -745,7 +490,18 @@ export const listForUI = query({
 					.query("tasks")
 					.withIndex("by_parent_task", (q) => q.eq("parentTaskId", parentId))
 					.collect();
-				const matching = children.filter((c) => c.archived === archived);
+				const matching = children.filter((child) => {
+					if (child.archived !== archived) {
+						return false;
+					}
+					if (volunteer) {
+						return true;
+					}
+					return (
+						child.parentCompetitionId !== undefined &&
+						accessibleCompetitionIds.has(child.parentCompetitionId)
+					);
+				});
 				subtaskRowsByParent.set(
 					parentId,
 					matching.map((c) => ({
@@ -756,8 +512,6 @@ export const listForUI = query({
 				);
 			}),
 		);
-
-		const toISO = (ms: number) => new Date(ms).toISOString();
 
 		const resolvedTasks = await Promise.all(
 			tasks.map(async (t) => {
@@ -850,7 +604,7 @@ export const getForUI = query({
 			if (!t.parentCompetitionId) {
 				return null;
 			}
-			const hasAccess = await hasCompetitionAccess(
+			const hasAccess = await hasTaskCompetitionAccess(
 				ctx,
 				volunteer,
 				userId,
@@ -977,7 +731,13 @@ export const getForUI = query({
 		if (parent) {
 			if (parent.type === "task") {
 				const parentTask = await ctx.db.get("tasks", parent.linkedId);
-				parentDisplayName = parentTask?.title ?? null;
+				if (parentTask) {
+					const sameCompetition =
+						parentTask.parentCompetitionId !== undefined &&
+						parentTask.parentCompetitionId === t.parentCompetitionId;
+					parentDisplayName =
+						volunteer || sameCompetition ? parentTask.title : null;
+				}
 			} else {
 				const comp = await ctx.db.get("competitions", parent.linkedId);
 				parentDisplayName = comp ? formatCompetitionName(comp.name) : null;
@@ -989,14 +749,20 @@ export const getForUI = query({
 			.withIndex("by_parent_task", (q) => q.eq("parentTaskId", args.taskId))
 			.collect();
 		const subTasks = childTasks
-			.filter((c) => c.archived === t.archived)
+			.filter((child) => {
+				if (child.archived !== t.archived) {
+					return false;
+				}
+				if (volunteer) {
+					return true;
+				}
+				return child.parentCompetitionId === t.parentCompetitionId;
+			})
 			.map((c) => ({
 				id: c._id,
 				title: c.title,
 				status: c.status,
 			}));
-
-		const toISO = (ms: number) => new Date(ms).toISOString();
 
 		const approvalUsersMap = new Map<
 			Id<"users">,
@@ -1146,6 +912,200 @@ const ERROR_TASK_RELATION_SCOPE =
 const ERROR_TASK_RELATION_CYCLE =
 	"This dependency would create a blocking cycle";
 
+type TaskPatchForUpdate = ReturnType<typeof buildTaskPatch>;
+
+async function ensureCompetitionWriteAccess(
+	ctx: MutationCtx,
+	volunteer: boolean,
+	userId: Id<"users">,
+	competitionId: Id<"competitions">,
+	errorMessage: string,
+): Promise<void> {
+	if (volunteer) {
+		return;
+	}
+	const hasAccess = await hasTaskCompetitionAccess(
+		ctx,
+		volunteer,
+		userId,
+		competitionId,
+	);
+	if (hasAccess) {
+		return;
+	}
+	throw new ConvexError({
+		code: "FORBIDDEN",
+		message: errorMessage,
+	});
+}
+
+async function ensureTaskMoveAccess(
+	ctx: MutationCtx,
+	volunteer: boolean,
+	userId: Id<"users">,
+	parentCompetitionId: Id<"competitions"> | null | undefined,
+): Promise<void> {
+	if (parentCompetitionId === undefined || parentCompetitionId === null) {
+		return;
+	}
+	await ensureCompetitionWriteAccess(
+		ctx,
+		volunteer,
+		userId,
+		parentCompetitionId,
+		ERROR_TASK_MOVE,
+	);
+}
+
+async function buildPreparedTaskPatch(
+	ctx: MutationCtx,
+	doc: Doc<"tasks">,
+	updates: TaskUpdate,
+	updatedAt: number,
+): Promise<TaskPatchForUpdate> {
+	const patch = buildTaskPatch(updates, updatedAt);
+	await applyAwaitingReviewAutoPromote(ctx, doc, patch);
+	return patch;
+}
+
+function resolveUpdatedAssigneeId(
+	doc: Doc<"tasks">,
+	updates: TaskUpdate,
+): Id<"users"> | undefined {
+	if (updates.assigneeId === undefined) {
+		return doc.assigneeId;
+	}
+	return updates.assigneeId ?? undefined;
+}
+
+function resolveUpdatedStatus(
+	doc: Doc<"tasks">,
+	updates: TaskUpdate,
+	patch: TaskPatchForUpdate,
+): Doc<"tasks">["status"] {
+	return patch.status ?? updates.status ?? doc.status;
+}
+
+function resolveUpdatedPriority(
+	doc: Doc<"tasks">,
+	updates: TaskUpdate,
+	patch: TaskPatchForUpdate,
+): Doc<"tasks">["priority"] {
+	return patch.priority ?? updates.priority ?? doc.priority;
+}
+
+async function runTaskUpdateSideEffects(
+	ctx: MutationCtx,
+	args: {
+		taskId: Id<"tasks">;
+		userId: Id<"users">;
+		doc: Doc<"tasks">;
+		updates: TaskUpdate;
+		patch: TaskPatchForUpdate;
+	},
+): Promise<void> {
+	const { taskId, userId, doc, updates, patch } = args;
+	const oldAssigneeId = doc.assigneeId;
+	const newAssigneeId = resolveUpdatedAssigneeId(doc, updates);
+	const oldStatus = doc.status;
+	const newStatus = resolveUpdatedStatus(doc, updates, patch);
+	const oldPriority = doc.priority;
+	const newPriority = resolveUpdatedPriority(doc, updates, patch);
+
+	await diffAndLog(
+		ctx,
+		userId,
+		"task",
+		taskId,
+		doc,
+		patch,
+		TASK_ACTIVITY_CONFIG,
+	);
+
+	if (updates.labelIds) {
+		await diffLabels(
+			ctx,
+			userId,
+			"task",
+			taskId,
+			doc.labelIds,
+			updates.labelIds,
+		);
+	}
+
+	if (oldAssigneeId !== newAssigneeId) {
+		sendTaskAssigneeChangeNotifications(
+			ctx,
+			taskId,
+			oldAssigneeId,
+			newAssigneeId,
+			userId,
+		);
+	}
+
+	if (updates.status !== undefined && oldStatus !== newStatus) {
+		sendTaskStatusChangeNotifications(
+			ctx,
+			taskId,
+			doc,
+			oldStatus,
+			newStatus,
+			userId,
+		);
+		await handleBlockingStatusTransitionNotifications(
+			ctx,
+			taskId,
+			oldStatus,
+			newStatus,
+			userId,
+		);
+	}
+
+	if (updates.priority !== undefined && oldPriority !== newPriority) {
+		sendTaskPriorityChangeNotifications(
+			ctx,
+			taskId,
+			doc,
+			oldPriority,
+			newPriority,
+			userId,
+		);
+	}
+
+	if (newStatus === "awaiting-review") {
+		await scheduleAwaitingReviewNotifications(
+			ctx,
+			taskId,
+			doc.requiredApprovalIds,
+			userId,
+		);
+	}
+}
+
+function assertValidApprovalIds(requiredApprovalIds: string[]): void {
+	for (const id of requiredApprovalIds) {
+		if (decodeApprovalId(id) !== null) {
+			continue;
+		}
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: `Invalid approval ID format: ${id}`,
+		});
+	}
+}
+
+async function nextTaskIdentifier(ctx: MutationCtx): Promise<string> {
+	const counter = await ctx.db.query("taskCounter").first();
+	if (!counter) {
+		await ctx.db.insert("taskCounter", { next: 2 });
+		return "HQ-1";
+	}
+
+	const nextNum = counter.next;
+	await ctx.db.patch("taskCounter", counter._id, { next: nextNum + 1 });
+	return `HQ-${nextNum}`;
+}
+
 export const create = mutation({
 	args: taskCreateArgs,
 	returns: v.id("tasks"),
@@ -1153,21 +1113,21 @@ export const create = mutation({
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
+		if (!args.title.trim()) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: "Task title is required",
+			});
+		}
+
 		if (args.parentCompetitionId) {
-			if (!volunteer) {
-				const hasAccess = await hasCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					args.parentCompetitionId,
-				);
-				if (!hasAccess) {
-					throw new ConvexError({
-						code: "FORBIDDEN",
-						message: ERROR_TASK_NO_ACCESS,
-					});
-				}
-			}
+			await ensureCompetitionWriteAccess(
+				ctx,
+				volunteer,
+				userId,
+				args.parentCompetitionId,
+				ERROR_TASK_NO_ACCESS,
+			);
 		} else if (!volunteer) {
 			throw new ConvexError({
 				code: "FORBIDDEN",
@@ -1176,19 +1136,10 @@ export const create = mutation({
 		}
 
 		const now = Date.now();
+		const identifier = await nextTaskIdentifier(ctx);
 
-		const counter = await ctx.db.query("taskCounter").first();
-		let nextNum: number;
-
-		if (!counter) {
-			await ctx.db.insert("taskCounter", { next: 2 });
-			nextNum = 1;
-		} else {
-			nextNum = counter.next;
-			await ctx.db.patch("taskCounter", counter._id, { next: nextNum + 1 });
-		}
-
-		const identifier = `HQ-${nextNum}`;
+		const approvalIds = args.requiredApprovalIds ?? [];
+		assertValidApprovalIds(approvalIds);
 
 		const taskId = await ctx.db.insert("tasks", {
 			identifier,
@@ -1205,11 +1156,11 @@ export const create = mutation({
 			assigneeId: args.assigneeId,
 			phaseId: args.phaseId,
 			labelIds: args.labelIds ?? [],
-			requiredApprovalIds: args.requiredApprovalIds ?? [],
+			requiredApprovalIds: approvalIds,
 			updatedAt: now,
 		});
 
-		if (args.assigneeId && args.assigneeId !== userId && userId) {
+		if (args.assigneeId && args.assigneeId !== userId) {
 			await ctx.scheduler.runAfter(
 				0,
 				internal.notifications._notifyTaskAssigned,
@@ -1239,97 +1190,28 @@ export const update = mutation({
 
 		const volunteer = await isVolunteer(ctx);
 		await requireTaskAccess(ctx, volunteer, userId, doc);
-
-		if (
-			!volunteer &&
-			args.updates.parentCompetitionId !== undefined &&
-			args.updates.parentCompetitionId !== null
-		) {
-			const newHasAccess = await hasCompetitionAccess(
-				ctx,
-				volunteer,
-				userId,
-				args.updates.parentCompetitionId,
-			);
-			if (!newHasAccess) {
-				throw new ConvexError({
-					code: "FORBIDDEN",
-					message: ERROR_TASK_MOVE,
-				});
-			}
-		}
-		const now = Date.now();
-		const patch = buildTaskPatch(args.updates, now);
-		await applyAwaitingReviewAutoPromote(ctx, doc, patch);
-
-		const oldAssigneeId = doc.assigneeId;
-		const newAssigneeId =
-			args.updates.assigneeId === null ? undefined : args.updates.assigneeId;
-		const oldStatus = doc.status;
-		const newStatus: Doc<"tasks">["status"] =
-			patch.status ?? args.updates.status ?? doc.status;
-
-		await ctx.db.patch("tasks", args.taskId, patch);
-
-		if (!userId) return null;
-
-		await diffAndLog(
+		await ensureTaskMoveAccess(
 			ctx,
+			volunteer,
 			userId,
-			"task",
-			args.taskId,
-			doc,
-			patch,
-			TASK_ACTIVITY_CONFIG,
+			args.updates.parentCompetitionId,
 		);
 
-		if (args.updates.labelIds) {
-			await diffLabels(
-				ctx,
-				userId,
-				"task",
-				args.taskId,
-				doc.labelIds,
-				args.updates.labelIds,
-			);
-		}
+		const patch = await buildPreparedTaskPatch(
+			ctx,
+			doc,
+			args.updates,
+			Date.now(),
+		);
 
-		if (oldAssigneeId !== newAssigneeId) {
-			sendTaskAssigneeChangeNotifications(
-				ctx,
-				args.taskId,
-				oldAssigneeId,
-				newAssigneeId,
-				userId,
-			);
-		}
-
-		if (oldStatus !== newStatus && args.updates.status !== undefined) {
-			sendTaskStatusChangeNotifications(
-				ctx,
-				args.taskId,
-				doc,
-				oldStatus,
-				newStatus,
-				userId,
-			);
-			await handleBlockingStatusTransitionNotifications(
-				ctx,
-				args.taskId,
-				oldStatus,
-				newStatus,
-				userId,
-			);
-		}
-
-		if (newStatus === "awaiting-review") {
-			await scheduleAwaitingReviewNotifications(
-				ctx,
-				args.taskId,
-				doc.requiredApprovalIds,
-				userId,
-			);
-		}
+		await ctx.db.patch("tasks", args.taskId, patch);
+		await runTaskUpdateSideEffects(ctx, {
+			taskId: args.taskId,
+			userId,
+			doc,
+			updates: args.updates,
+			patch,
+		});
 
 		return null;
 	},
@@ -1369,26 +1251,13 @@ export const bulkUpdate = mutation({
 			if (!doc) continue;
 
 			await requireTaskAccess(ctx, volunteer, userId, doc);
-
-			if (
-				!volunteer &&
-				args.updates.parentCompetitionId !== undefined &&
-				args.updates.parentCompetitionId !== null
-			) {
-				const newHasAccess = await hasCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					args.updates.parentCompetitionId,
-				);
-				if (!newHasAccess) {
-					throw new ConvexError({
-						code: "FORBIDDEN",
-						message: ERROR_TASK_MOVE,
-					});
-				}
-			}
 		}
+		await ensureTaskMoveAccess(
+			ctx,
+			volunteer,
+			userId,
+			args.updates.parentCompetitionId,
+		);
 
 		const now = Date.now();
 
@@ -1396,77 +1265,16 @@ export const bulkUpdate = mutation({
 			const doc = taskMap.get(taskId);
 			if (!doc) continue;
 
-			const patch = buildTaskPatch(args.updates, now);
-			await applyAwaitingReviewAutoPromote(ctx, doc, patch);
-
-			const newStatus: Doc<"tasks">["status"] =
-				patch.status ?? args.updates.status ?? doc.status;
-			const oldAssigneeId = doc.assigneeId;
-			const newAssigneeId =
-				args.updates.assigneeId === undefined
-					? doc.assigneeId
-					: (args.updates.assigneeId ?? undefined);
-			const oldStatus = doc.status;
+			const patch = await buildPreparedTaskPatch(ctx, doc, args.updates, now);
 
 			await ctx.db.patch("tasks", taskId, patch);
-
-			await diffAndLog(
-				ctx,
-				userId,
-				"task",
+			await runTaskUpdateSideEffects(ctx, {
 				taskId,
+				userId,
 				doc,
+				updates: args.updates,
 				patch,
-				TASK_ACTIVITY_CONFIG,
-			);
-
-			if (args.updates.labelIds) {
-				await diffLabels(
-					ctx,
-					userId,
-					"task",
-					taskId,
-					doc.labelIds,
-					args.updates.labelIds,
-				);
-			}
-
-			if (oldAssigneeId !== newAssigneeId) {
-				sendTaskAssigneeChangeNotifications(
-					ctx,
-					taskId,
-					oldAssigneeId,
-					newAssigneeId,
-					userId,
-				);
-			}
-
-			if (oldStatus !== newStatus && args.updates.status !== undefined) {
-				sendTaskStatusChangeNotifications(
-					ctx,
-					taskId,
-					doc,
-					oldStatus,
-					newStatus,
-					userId,
-				);
-				await handleBlockingStatusTransitionNotifications(
-					ctx,
-					taskId,
-					oldStatus,
-					newStatus,
-					userId,
-				);
-			}
-
-			if (newStatus === "awaiting-review") {
-				await scheduleAwaitingReviewNotifications(
-					ctx,
-					taskId,
-					doc.requiredApprovalIds,
-					userId,
-				);
-			}
+			});
 		}
 
 		return null;

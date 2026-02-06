@@ -65,7 +65,9 @@ export function PropertiesSidebarLayout({
 							</Button>
 						</div>
 					</SheetHeader>
-					<ScrollArea className="h-[calc(100vh-60px)]">{children}</ScrollArea>
+					<ScrollArea className="h-[calc(100vh-60px)] overflow-x-hidden">
+						{children}
+					</ScrollArea>
 				</SheetContent>
 			</Sheet>
 		);
@@ -73,8 +75,8 @@ export function PropertiesSidebarLayout({
 
 	return (
 		<>
-			<aside className="hidden lg:block w-80 border-l border-border bg-background">
-				<ScrollArea className="h-full">{children}</ScrollArea>
+			<aside className="hidden w-80 border-l border-border bg-background lg:block">
+				<ScrollArea className="h-full overflow-x-hidden">{children}</ScrollArea>
 			</aside>
 
 			{showMobileTrigger ? (
@@ -98,7 +100,9 @@ export function PropertiesSidebarLayout({
 						<SheetHeader className="border-b px-4 py-3 sm:px-5 sm:py-4">
 							<SheetTitle className="text-sm">{title}</SheetTitle>
 						</SheetHeader>
-						<ScrollArea className="h-[calc(100vh-60px)]">{children}</ScrollArea>
+						<ScrollArea className="h-[calc(100vh-60px)] overflow-x-hidden">
+							{children}
+						</ScrollArea>
 					</SheetContent>
 				</Sheet>
 			) : null}

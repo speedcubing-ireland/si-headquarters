@@ -1,10 +1,16 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
 import { logActivity } from "./lib/activity";
+import {
+	collectAllTaskIdsRecursively,
+	deleteTasksAndRelatedData,
+	deleteCommentsAndReplies,
+	deleteEntitySubscriptions,
+} from "./lib/taskDeletion";
 import { userCanAccessCompetitionDoc } from "./competitionAccess";
 import { toUsers, createLens, toISO, type UserUI } from "./lib/transforms";
 import { phaseShape, taskStatus, userShape } from "./lib/validators";
@@ -187,9 +193,7 @@ export const listForUI = query({
 			.order("asc")
 			.collect();
 
-		const orderedPhases = phases
-			.filter((p) => !p.archived)
-			.sort((a, b) => a.order - b.order);
+		const orderedPhases = phases.filter((p) => !p.archived);
 
 		const defaultPhaseId = orderedPhases[0]?._id;
 
@@ -285,9 +289,7 @@ export const getForUI = query({
 			.order("asc")
 			.collect();
 
-		const orderedPhases = phases
-			.filter((p) => !p.archived)
-			.sort((a, b) => a.order - b.order);
+		const orderedPhases = phases.filter((p) => !p.archived);
 
 		const phasesForUI = orderedPhases.map((p) => ({
 			id: p._id,
@@ -376,6 +378,13 @@ export const create = mutation({
 			});
 		}
 
+		if (!args.name.trim()) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: "Competition name is required",
+			});
+		}
+
 		const now = Date.now();
 
 		const phases: Doc<"phases">[] = await ctx.db
@@ -383,9 +392,7 @@ export const create = mutation({
 			.withIndex("by_order")
 			.order("asc")
 			.collect();
-		const orderedPhases = phases
-			.filter((p) => !p.archived)
-			.sort((a, b) => a.order - b.order);
+		const orderedPhases = phases.filter((p) => !p.archived);
 		const defaultPhaseId = orderedPhases[0]?._id;
 
 		const competitionId = await ctx.db.insert("competitions", {
@@ -418,6 +425,139 @@ const competitionUpdateValidator = v.object({
 	compSheet: v.optional(v.union(compSheetObject, v.null())),
 });
 
+type CompetitionUpdates = {
+	name?: string;
+	description?: string;
+	compStart?: string;
+	compEnd?: string;
+	compLeadId?: Id<"users"> | null;
+	leadDelegateId?: Id<"users"> | null;
+	organiserIds?: Id<"users">[];
+	currentPhaseId?: Id<"phases">;
+	compSheet?: Doc<"competitions">["compSheet"] | null;
+};
+
+type CompetitionPatch = Partial<Doc<"competitions">> & { updatedAt: number };
+
+type PhaseTransition = {
+	oldPhaseId: Id<"phases"> | undefined;
+	newPhaseId: Id<"phases"> | undefined;
+	hasPhaseChange: boolean;
+};
+
+function buildCompetitionPatch(updates: CompetitionUpdates): CompetitionPatch {
+	const patch: CompetitionPatch = { updatedAt: Date.now() };
+	if (updates.name !== undefined) patch.name = updates.name;
+	if (updates.description !== undefined)
+		patch.description = updates.description;
+	if (updates.compStart !== undefined) patch.compStart = updates.compStart;
+	if (updates.compEnd !== undefined) patch.compEnd = updates.compEnd;
+	if (updates.compLeadId !== undefined)
+		patch.compLeadId = updates.compLeadId ?? undefined;
+	if (updates.leadDelegateId !== undefined)
+		patch.leadDelegateId = updates.leadDelegateId ?? undefined;
+	if (updates.organiserIds !== undefined)
+		patch.organiserIds = updates.organiserIds;
+	if (updates.currentPhaseId !== undefined)
+		patch.currentPhaseId = updates.currentPhaseId ?? undefined;
+	if (updates.compSheet !== undefined)
+		patch.compSheet = updates.compSheet ?? undefined;
+	return patch;
+}
+
+function resolvePhaseTransition(
+	currentCompetition: Doc<"competitions">,
+	updates: CompetitionUpdates,
+): PhaseTransition {
+	const oldPhaseId = currentCompetition.currentPhaseId;
+	const newPhaseId =
+		updates.currentPhaseId ?? currentCompetition.currentPhaseId;
+	return {
+		oldPhaseId,
+		newPhaseId,
+		hasPhaseChange:
+			updates.currentPhaseId !== undefined && oldPhaseId !== newPhaseId,
+	};
+}
+
+async function loadPhaseName(
+	ctx: Pick<MutationCtx, "db">,
+	phaseId: Id<"phases"> | undefined,
+): Promise<string> {
+	if (!phaseId) {
+		return "Unknown";
+	}
+	const phase = await ctx.db.get("phases", phaseId);
+	return phase?.name ?? "Unknown";
+}
+
+function collectPhaseChangeRecipientIds(
+	competition: Doc<"competitions">,
+	actorId: Id<"users">,
+): Id<"users">[] {
+	const recipients = new Set<Id<"users">>();
+	if (competition.compLeadId) recipients.add(competition.compLeadId);
+	if (competition.leadDelegateId) recipients.add(competition.leadDelegateId);
+	for (const organiserId of competition.organiserIds) {
+		recipients.add(organiserId);
+	}
+	recipients.delete(actorId);
+	return [...recipients];
+}
+
+async function notifyPhaseChangeRecipients(
+	ctx: MutationCtx,
+	args: {
+		competition: Doc<"competitions">;
+		competitionId: Id<"competitions">;
+		actorId: Id<"users">;
+		oldPhaseName: string;
+		newPhaseName: string;
+	},
+): Promise<void> {
+	const recipientIds = collectPhaseChangeRecipientIds(
+		args.competition,
+		args.actorId,
+	);
+	await ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyCompetitionPhaseChanged,
+		{
+			competitionId: args.competitionId,
+			recipientIds: recipientIds,
+			actorId: args.actorId,
+			oldPhaseName: args.oldPhaseName,
+			newPhaseName: args.newPhaseName,
+			eventKey: `${args.competitionId}:${args.oldPhaseName}:${args.newPhaseName}:${Date.now()}`,
+		},
+	);
+}
+
+async function promoteBacklogTasksInPhase(
+	ctx: MutationCtx,
+	competitionId: Id<"competitions">,
+	phaseId: Id<"phases">,
+): Promise<void> {
+	const competitionTasks = await ctx.db
+		.query("tasks")
+		.withIndex("by_parent_competition_and_archived", (q) =>
+			q.eq("parentCompetitionId", competitionId).eq("archived", false),
+		)
+		.collect();
+	const now = Date.now();
+	const backlogTasksInPhase = competitionTasks.filter(
+		(task) => task.phaseId === phaseId && task.status === "backlog",
+	);
+	await Promise.all(
+		backlogTasksInPhase.map((task) =>
+			ctx.db.patch("tasks", task._id, {
+				status: "to-do",
+				updatedAt: now,
+			}),
+		),
+	);
+}
+
 export const update = mutation({
 	args: {
 		competitionId: v.id("competitions"),
@@ -426,257 +566,60 @@ export const update = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
 		const doc = await ctx.db.get("competitions", args.competitionId);
 		if (!doc) return null;
 
-		const u = args.updates;
-		const patch: Partial<Doc<"competitions">> & { updatedAt: number } = {
-			updatedAt: Date.now(),
-		};
-		if (u.name !== undefined) patch.name = u.name;
-		if (u.description !== undefined) patch.description = u.description;
-		if (u.compStart !== undefined) patch.compStart = u.compStart;
-		if (u.compEnd !== undefined) patch.compEnd = u.compEnd;
-		if (u.compLeadId !== undefined)
-			patch.compLeadId = u.compLeadId ?? undefined;
-		if (u.leadDelegateId !== undefined)
-			patch.leadDelegateId = u.leadDelegateId ?? undefined;
-		if (u.organiserIds !== undefined) patch.organiserIds = u.organiserIds;
-		if (u.currentPhaseId !== undefined)
-			patch.currentPhaseId = u.currentPhaseId ?? undefined;
-		if (u.compSheet !== undefined) patch.compSheet = u.compSheet ?? undefined;
+		if (!volunteer && !userCanAccessCompetitionDoc(doc, userId)) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "You do not have access to update this competition",
+			});
+		}
 
-		const oldPhaseId = doc.currentPhaseId;
-		const newPhaseId = u.currentPhaseId ?? doc.currentPhaseId;
+		const patch = buildCompetitionPatch(args.updates);
+		const phaseTransition = resolvePhaseTransition(doc, args.updates);
 
 		await ctx.db.patch("competitions", args.competitionId, patch);
 
-		if (oldPhaseId !== newPhaseId && u.currentPhaseId !== undefined && userId) {
-			const [oldPhaseDoc, newPhaseDoc] = await Promise.all([
-				oldPhaseId ? ctx.db.get("phases", oldPhaseId) : null,
-				newPhaseId ? ctx.db.get("phases", newPhaseId) : null,
-			]);
+		if (!phaseTransition.hasPhaseChange) {
+			return null;
+		}
 
-			const oldPhaseName = oldPhaseDoc?.name ?? "Unknown";
-			const newPhaseName = newPhaseDoc?.name ?? "Unknown";
+		const [oldPhaseName, newPhaseName] = await Promise.all([
+			loadPhaseName(ctx, phaseTransition.oldPhaseId),
+			loadPhaseName(ctx, phaseTransition.newPhaseId),
+		]);
 
-			await logActivity(
+		await logActivity(
+			ctx,
+			userId,
+			"competition",
+			args.competitionId,
+			"phase_changed",
+			{
+				fieldName: "currentPhaseId",
+				message: `${oldPhaseName} -> ${newPhaseName}`,
+			},
+		);
+		await notifyPhaseChangeRecipients(ctx, {
+			competition: doc,
+			competitionId: args.competitionId,
+			actorId: userId,
+			oldPhaseName,
+			newPhaseName,
+		});
+		if (phaseTransition.newPhaseId) {
+			await promoteBacklogTasksInPhase(
 				ctx,
-				userId,
-				"competition",
 				args.competitionId,
-				"phase_changed",
-				{
-					oldPhaseName,
-					newPhaseName,
-				},
+				phaseTransition.newPhaseId,
 			);
-
-			const recipients = new Set<Id<"users">>();
-			if (doc.compLeadId) recipients.add(doc.compLeadId);
-			if (doc.leadDelegateId) recipients.add(doc.leadDelegateId);
-			for (const organiserId of doc.organiserIds) {
-				recipients.add(organiserId);
-			}
-
-			const notificationPromises = Array.from(recipients)
-				.filter((recipientId) => recipientId !== userId)
-				.map((recipientId) =>
-					ctx.scheduler.runAfter(
-						0,
-						internal.notifications._notifyCompetitionPhaseChanged,
-						{
-							competitionId: args.competitionId,
-							recipientId,
-							actorId: userId,
-							oldPhaseName,
-							newPhaseName,
-						},
-					),
-				);
-
-			await Promise.allSettled(notificationPromises);
-
-			if (newPhaseId !== null) {
-				const competitionTasks = await ctx.db
-					.query("tasks")
-					.withIndex("by_parent_competition", (q) =>
-						q.eq("parentCompetitionId", args.competitionId),
-					)
-					.collect();
-				const now = Date.now();
-				const backlogTasksInPhase = competitionTasks.filter(
-					(task) => task.phaseId === newPhaseId && task.status === "backlog",
-				);
-				await Promise.all(
-					backlogTasksInPhase.map((task) =>
-						ctx.db.patch("tasks", task._id, {
-							status: "to-do",
-							updatedAt: now,
-						}),
-					),
-				);
-			}
 		}
 
 		return null;
 	},
 });
-
-export async function collectAllTaskIdsRecursively(
-	ctx: QueryCtx,
-	parentTaskIds: Id<"tasks">[],
-	allTaskIds: Set<Id<"tasks">>,
-): Promise<void> {
-	const subtaskPromises = parentTaskIds.map(async (parentTaskId) => {
-		if (allTaskIds.has(parentTaskId)) return [];
-		allTaskIds.add(parentTaskId);
-		const subtasks = await ctx.db
-			.query("tasks")
-			.withIndex("by_parent_task", (q) => q.eq("parentTaskId", parentTaskId))
-			.collect();
-		return subtasks.map((t) => t._id);
-	});
-
-	const allSubtasks = (await Promise.all(subtaskPromises)).flat();
-	if (allSubtasks.length > 0) {
-		await collectAllTaskIdsRecursively(ctx, allSubtasks, allTaskIds);
-	}
-}
-
-async function collectAllCommentIdsRecursively(
-	ctx: MutationCtx,
-	commentIds: Id<"comments">[],
-	allCommentIds: Set<Id<"comments">>,
-): Promise<void> {
-	const nestedPromises = commentIds.map(async (commentId) => {
-		if (allCommentIds.has(commentId)) return [];
-		allCommentIds.add(commentId);
-		const nested = await ctx.db
-			.query("comments")
-			.withIndex("by_parent_comment", (q) => q.eq("parentCommentId", commentId))
-			.collect();
-		return nested.map((n) => n._id);
-	});
-
-	const allNested = (await Promise.all(nestedPromises)).flat();
-	if (allNested.length > 0) {
-		await collectAllCommentIdsRecursively(ctx, allNested, allCommentIds);
-	}
-}
-
-export async function deleteCommentsAndReplies(
-	ctx: MutationCtx,
-	parentType: "task" | "update",
-	parentId: string,
-): Promise<void> {
-	const comments = await ctx.db
-		.query("comments")
-		.withIndex("by_parent", (q) =>
-			q.eq("parentType", parentType).eq("parentId", parentId),
-		)
-		.collect();
-
-	const allCommentIds = new Set<Id<"comments">>();
-	await collectAllCommentIdsRecursively(
-		ctx,
-		comments.map((c) => c._id),
-		allCommentIds,
-	);
-
-	await Promise.all(
-		Array.from(allCommentIds).map((id) => ctx.db.delete("comments", id)),
-	);
-}
-
-export async function deleteTasksAndRelatedData(
-	ctx: MutationCtx,
-	taskIdArray: Id<"tasks">[],
-): Promise<void> {
-	if (taskIdArray.length === 0) return;
-
-	const remindersToDelete = (
-		await Promise.all(
-			taskIdArray.map((taskId) =>
-				ctx.db
-					.query("reminders")
-					.withIndex("by_entity", (q) =>
-						q.eq("entityType", "task").eq("entityId", taskId),
-					)
-					.collect(),
-			),
-		)
-	).flat();
-
-	const notificationsToDelete = (
-		await Promise.all(
-			taskIdArray.map((taskId) =>
-				ctx.db
-					.query("notifications")
-					.withIndex("by_entity", (q) =>
-						q.eq("entityType", "task").eq("entityId", taskId),
-					)
-					.collect(),
-			),
-		)
-	).flat();
-
-	const relationsByBlockedTask = (
-		await Promise.all(
-			taskIdArray.map((taskId) =>
-				ctx.db
-					.query("taskRelations")
-					.withIndex("by_blocked_task", (q) => q.eq("blockedTaskId", taskId))
-					.collect(),
-			),
-		)
-	).flat();
-
-	const relationsByBlockingTask = (
-		await Promise.all(
-			taskIdArray.map((taskId) =>
-				ctx.db
-					.query("taskRelations")
-					.withIndex("by_blocking_task", (q) => q.eq("blockingTaskId", taskId))
-					.collect(),
-			),
-		)
-	).flat();
-	const relationIdsToDelete = new Set<Id<"taskRelations">>();
-	for (const relation of relationsByBlockedTask) {
-		relationIdsToDelete.add(relation._id);
-	}
-	for (const relation of relationsByBlockingTask) {
-		relationIdsToDelete.add(relation._id);
-	}
-
-	const taskActivityLogPromises = taskIdArray.map((taskId) =>
-		ctx.db
-			.query("activityLog")
-			.withIndex("by_entity", (q) =>
-				q.eq("entityType", "task").eq("entityId", taskId),
-			)
-			.collect(),
-	);
-	const taskActivityLogs = (await Promise.all(taskActivityLogPromises)).flat();
-
-	await Promise.all([
-		...remindersToDelete.map((r) => ctx.db.delete("reminders", r._id)),
-		...notificationsToDelete.map((n) => ctx.db.delete("notifications", n._id)),
-		...Array.from(relationIdsToDelete).map((relationId) =>
-			ctx.db.delete("taskRelations", relationId),
-		),
-		...taskActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
-	]);
-
-	await Promise.all(
-		taskIdArray.map((taskId) => deleteCommentsAndReplies(ctx, "task", taskId)),
-	);
-
-	for (const taskId of taskIdArray) {
-		await ctx.db.delete("tasks", taskId);
-	}
-}
 
 export const remove = mutation({
 	args: { competitionId: v.id("competitions") },
@@ -696,7 +639,7 @@ export const remove = mutation({
 
 		const competitionTasks = await ctx.db
 			.query("tasks")
-			.withIndex("by_parent_competition", (q) =>
+			.withIndex("by_parent_competition_and_archived", (q) =>
 				q.eq("parentCompetitionId", args.competitionId),
 			)
 			.collect();
@@ -739,6 +682,9 @@ export const remove = mutation({
 			...competitionActivityLogs.map((l) =>
 				ctx.db.delete("activityLog", l._id),
 			),
+		]);
+		await deleteEntitySubscriptions(ctx, "competition", [
+			`${args.competitionId}`,
 		]);
 
 		for (const update of competitionUpdates) {

@@ -34,6 +34,7 @@ import { TASK_PRIORITIES, TASK_STATUSES } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
 import { useTasksListStateContext } from "@/store/tasks-list-context";
 import { parseTaskId } from "@/lib/convex-ids";
+import { onMutationError } from "@/lib/utils";
 
 interface BulkActionsBarProps {
 	totalTasks: number;
@@ -68,27 +69,33 @@ export function BulkActionsBar({
 
 	const handleStatusChange = useCallback(
 		(status: TaskStatus) => {
-			void bulkUpdateTasks(typedTaskIds, { status }).then(() => {
-				onClearSelection();
-			});
+			void bulkUpdateTasks(typedTaskIds, { status })
+				.then(() => {
+					onClearSelection();
+				})
+				.catch(onMutationError);
 		},
 		[typedTaskIds, bulkUpdateTasks, onClearSelection],
 	);
 
 	const handlePriorityChange = useCallback(
 		(priority: TaskPriority) => {
-			void bulkUpdateTasks(typedTaskIds, { priority }).then(() => {
-				onClearSelection();
-			});
+			void bulkUpdateTasks(typedTaskIds, { priority })
+				.then(() => {
+					onClearSelection();
+				})
+				.catch(onMutationError);
 		},
 		[selectedTaskIds, bulkUpdateTasks, onClearSelection],
 	);
 
 	const handleAssigneeChange = useCallback(
 		(user: User | null) => {
-			void bulkUpdateTasks(typedTaskIds, { assignee: user }).then(() => {
-				onClearSelection();
-			});
+			void bulkUpdateTasks(typedTaskIds, { assignee: user })
+				.then(() => {
+					onClearSelection();
+				})
+				.catch(onMutationError);
 		},
 		[typedTaskIds, bulkUpdateTasks, onClearSelection],
 	);
@@ -135,9 +142,11 @@ export function BulkActionsBar({
 				bulkPromises.push(bulkUpdateTasks(taskIdsForSet, { labels: labelSet }));
 			}
 
-			void Promise.all(bulkPromises).then(() => {
-				onClearSelection();
-			});
+			void Promise.all(bulkPromises)
+				.then(() => {
+					onClearSelection();
+				})
+				.catch(onMutationError);
 		},
 		[selectedTaskIds, tasks, bulkUpdateTasks, onClearSelection],
 	);
@@ -148,6 +157,7 @@ export function BulkActionsBar({
 			.then(() => {
 				onClearSelection();
 			})
+			.catch(onMutationError)
 			.finally(() => {
 				setIsArchiving(false);
 			});
@@ -159,6 +169,7 @@ export function BulkActionsBar({
 			.then(() => {
 				onClearSelection();
 			})
+			.catch(onMutationError)
 			.finally(() => {
 				setIsDeleting(false);
 			});
