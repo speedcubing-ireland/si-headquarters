@@ -58,8 +58,10 @@ export const getGoogleSheetsConnectionStatus = query({
 		void args.nowSec;
 		const row = await ctx.db.query("googleSheetsTokens").first();
 		const nowSec = Math.floor(Date.now() / 1000);
-		const connected =
+		const hasUnexpiredAccessToken =
 			row != null && row.expiresAt > nowSec - TOKEN_EXPIRY_BUFFER_SEC;
+		const hasRefreshToken = row != null && row.refreshToken.trim().length > 0;
+		const connected = hasUnexpiredAccessToken || hasRefreshToken;
 		return { connected };
 	},
 });

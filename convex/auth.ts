@@ -1,6 +1,8 @@
 import Google from "@auth/core/providers/google";
 import type { OAuthConfig, OAuthUserConfig } from "@auth/core/providers";
 import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
+import { botttsNeutral } from "@dicebear/collection";
+import { createAvatar } from "@dicebear/core";
 import {
 	internalQuery,
 	query,
@@ -12,6 +14,14 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { TEAM_NAMES } from "./lib/constants";
 import { normalizeEmail } from "./lib/sanitize";
+
+function buildDefaultAvatarUrl(seed: string): string {
+	return createAvatar(botttsNeutral, { seed }).toDataUri();
+}
+
+function hasAvatarImage(image: string | null | undefined): boolean {
+	return typeof image === "string" && image.trim().length > 0;
+}
 
 function WCA(
 	options: OAuthUserConfig<{
@@ -73,6 +83,22 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 			clientSecret: process.env.AUTH_WCA_SECRET,
 		}),
 	],
+	callbacks: {
+		async afterUserCreatedOrUpdated(ctx, args) {
+			if (args.existingUserId !== null) {
+				return;
+			}
+
+			const user = await ctx.db.get(args.userId);
+			if (!user || hasAvatarImage(user.image)) {
+				return;
+			}
+
+			await ctx.db.patch(args.userId, {
+				image: buildDefaultAvatarUrl(String(args.userId)),
+			});
+		},
+	},
 });
 
 const VOLUNTEER_TEAM_NAME = TEAM_NAMES.VOLUNTEER;

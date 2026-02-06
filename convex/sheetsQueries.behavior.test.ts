@@ -39,7 +39,7 @@ describe("sheetsQueries behavior characterization", () => {
 		expect(status.connected).toBe(true);
 	});
 
-	test("getGoogleSheetsConnectionStatus returns false for expired token", async () => {
+	test("getGoogleSheetsConnectionStatus returns true for expired token when refresh token exists", async () => {
 		const t = convexTest(schema, modules);
 		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: userId });
@@ -49,6 +49,28 @@ describe("sheetsQueries behavior characterization", () => {
 			ctx.db.insert("googleSheetsTokens", {
 				accessToken: "access",
 				refreshToken: "refresh",
+				expiresAt: nowSec - 3600,
+				updatedAt: Date.now(),
+			}),
+		);
+
+		const status = await authed.query(
+			api.sheetsQueries.getGoogleSheetsConnectionStatus,
+			{},
+		);
+		expect(status.connected).toBe(true);
+	});
+
+	test("getGoogleSheetsConnectionStatus returns false when access token is expired and refresh token is blank", async () => {
+		const t = convexTest(schema, modules);
+		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+		const authed = t.withIdentity({ subject: userId });
+		const nowSec = Math.floor(Date.now() / 1000);
+
+		await t.run((ctx) =>
+			ctx.db.insert("googleSheetsTokens", {
+				accessToken: "access",
+				refreshToken: "",
 				expiresAt: nowSec - 3600,
 				updatedAt: Date.now(),
 			}),
@@ -80,6 +102,6 @@ describe("sheetsQueries behavior characterization", () => {
 			api.sheetsQueries.getGoogleSheetsConnectionStatus,
 			{ nowSec: 0 },
 		);
-		expect(status.connected).toBe(false);
+		expect(status.connected).toBe(true);
 	});
 });
