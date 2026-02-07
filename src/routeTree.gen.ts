@@ -22,6 +22,7 @@ import { Route as TasksIdRouteImport } from './routes/tasks/$id'
 import { Route as CompetitionsCalendarRouteImport } from './routes/competitions/calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AdminGodModeRouteImport } from './routes/admin/god-mode'
+import { Route as AdminEmailRouteImport } from './routes/admin/email'
 
 const InboxRoute = InboxRouteImport.update({
   id: '/inbox',
@@ -88,12 +89,18 @@ const AdminGodModeRoute = AdminGodModeRouteImport.update({
   path: '/admin/god-mode',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminEmailRoute = AdminEmailRouteImport.update({
+  id: '/admin/email',
+  path: '/admin/email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
+  '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/events'
     | '/inbox'
+    | '/admin/email'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/events'
     | '/inbox'
+    | '/admin/email'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/events'
     | '/inbox'
+    | '/admin/email'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   ActivityRoute: typeof ActivityRoute
   EventsRoute: typeof EventsRoute
   InboxRoute: typeof InboxRoute
+  AdminEmailRoute: typeof AdminEmailRoute
   AdminGodModeRoute: typeof AdminGodModeRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGodModeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/email': {
+      id: '/admin/email'
+      path: '/admin/email'
+      fullPath: '/admin/email'
+      preLoaderRoute: typeof AdminEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -300,6 +320,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityRoute: ActivityRoute,
   EventsRoute: EventsRoute,
   InboxRoute: InboxRoute,
+  AdminEmailRoute: AdminEmailRoute,
   AdminGodModeRoute: AdminGodModeRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   CompetitionsCalendarRoute: CompetitionsCalendarRoute,

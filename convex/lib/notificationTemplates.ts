@@ -66,7 +66,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `Assigned to ${task.identifier}`,
+		title: `Assigned to ${task.identifier}: ${task.title}`,
 		message: `${actor.actorName ?? "Someone"} assigned you to task ${task.identifier}: ${task.title}`,
 		priority: getPriorityFromTaskPriority(task.priority),
 		entityType: "task",
@@ -77,7 +77,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `Unassigned from ${task.identifier}`,
+		title: `Unassigned from ${task.identifier}: ${task.title}`,
 		message: `${actor.actorName ?? "Someone"} unassigned you from task ${task.identifier}: ${task.title}`,
 		priority: "normal",
 		entityType: "task",
@@ -88,7 +88,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `Mentioned in ${task.identifier}`,
+		title: `Mentioned in ${task.identifier}: ${task.title}`,
 		message: `${actor.actorName ?? "Someone"} mentioned you in a comment on task ${task.identifier}: ${task.title}`,
 		priority: "normal",
 		entityType: "comment",
@@ -100,7 +100,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `New comment on ${task.identifier}`,
+		title: `New comment on ${task.identifier}: ${task.title}`,
 		message: `${actor.actorName ?? "Someone"} added a comment on task ${task.identifier}: ${task.title}`,
 		priority: "normal",
 		entityType: "comment",
@@ -112,7 +112,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `New reply on ${task.identifier}`,
+		title: `New reply on ${task.identifier}: ${task.title}`,
 		message: `${actor.actorName ?? "Someone"} replied to your comment on task ${task.identifier}: ${task.title}`,
 		priority: "normal",
 		entityType: "comment",
@@ -129,7 +129,7 @@ export const NotificationTemplates = {
 		const oldLabel = STATUS_LABELS[oldStatus] ?? oldStatus;
 		const newLabel = STATUS_LABELS[newStatus] ?? newStatus;
 		return {
-			title: `${task.identifier} status changed`,
+			title: `${task.identifier}: ${task.title} — status changed`,
 			message: `${actor.actorName ?? "Someone"} moved task ${task.identifier} from "${oldLabel}" to "${newLabel}": ${task.title}`,
 			priority: "normal",
 			entityType: "task",
@@ -146,7 +146,7 @@ export const NotificationTemplates = {
 		const oldLabel = PRIORITY_LABELS[oldPriority] ?? oldPriority;
 		const newLabel = PRIORITY_LABELS[newPriority] ?? newPriority;
 		return {
-			title: `${task.identifier} priority changed`,
+			title: `${task.identifier}: ${task.title} — priority changed`,
 			message: `${actor.actorName ?? "Someone"} changed priority for task ${task.identifier} from "${oldLabel}" to "${newLabel}": ${task.title}`,
 			priority: "normal",
 			entityType: "task",
@@ -158,7 +158,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `${task.identifier} awaiting your review`,
+		title: `${task.identifier}: ${task.title} — awaiting review`,
 		message: `${actor.actorName ?? "Someone"} marked task ${task.identifier} as awaiting review: ${task.title}`,
 		priority: "normal",
 		entityType: "task",
@@ -170,7 +170,7 @@ export const NotificationTemplates = {
 		blockingTask: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `${blockedTask.identifier} is blocked`,
+		title: `${blockedTask.identifier}: ${blockedTask.title} — blocked`,
 		message: `${actor.actorName ?? "Someone"} blocked ${blockedTask.identifier} with ${blockingTask.identifier}: ${blockingTask.title}`,
 		priority: "high",
 		entityType: "task",
@@ -185,7 +185,7 @@ export const NotificationTemplates = {
 		blockingTask: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `${blockedTask.identifier} is unblocked`,
+		title: `${blockedTask.identifier}: ${blockedTask.title} — unblocked`,
 		message: `${actor.actorName ?? "Someone"} unblocked ${blockedTask.identifier} by resolving ${blockingTask.identifier}: ${blockingTask.title}`,
 		priority: "normal",
 		entityType: "task",
@@ -199,7 +199,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `${task.identifier} approved`,
+		title: `${task.identifier}: ${task.title} — approved`,
 		message: `${actor.actorName ?? "Someone"} approved task ${task.identifier}: ${task.title}`,
 		priority: "normal",
 		entityType: "task",
@@ -210,7 +210,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		actor: ActorInfo,
 	): NotificationTemplateConfig => ({
-		title: `${task.identifier} approval withdrawn`,
+		title: `${task.identifier}: ${task.title} — approval withdrawn`,
 		message: `${actor.actorName ?? "Someone"} withdrew approval on task ${task.identifier}: ${task.title}`,
 		priority: "normal",
 		entityType: "task",
@@ -232,7 +232,7 @@ export const NotificationTemplates = {
 			description = `changed due date from ${oldDate} to ${newDate}`;
 		}
 		return {
-			title: `${task.identifier} due date changed`,
+			title: `${task.identifier}: ${task.title} — due date changed`,
 			message: `${actor.actorName ?? "Someone"} ${description} on task ${task.identifier}: ${task.title}`,
 			priority: "normal",
 			entityType: "task",
@@ -244,7 +244,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		daysUntil: number,
 	): NotificationTemplateConfig => ({
-		title: `${task.identifier} due soon`,
+		title: `${task.identifier}: ${task.title} — due soon`,
 		message: `Task ${task.identifier}: ${task.title} is due in ${formatDaysText(daysUntil)}`,
 		priority: daysUntil <= 1 ? "high" : "normal",
 		entityType: "task",
@@ -257,7 +257,7 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		daysOverdue: number,
 	): NotificationTemplateConfig => ({
-		title: `${task.identifier} is overdue`,
+		title: `${task.identifier}: ${task.title} — overdue`,
 		message: `Task ${task.identifier}: ${task.title} is ${formatDaysText(daysOverdue)} overdue`,
 		priority: "urgent",
 		entityType: "task",
@@ -295,14 +295,22 @@ export const NotificationTemplates = {
 	},
 
 	reminder_triggered: (
-		taskId: Id<"tasks">,
+		task: TaskInfo | Id<"tasks">,
 		message?: string,
-	): NotificationTemplateConfig => ({
-		title: `Reminder for task ${taskId}`,
-		message: message ?? `Reminder for task ${taskId}`,
-		priority: "normal",
-		entityType: "reminder",
-		parentTaskId: taskId,
-		metadata: {},
-	}),
+	): NotificationTemplateConfig => {
+		const isTaskInfo =
+			typeof task === "object" && task !== null && "identifier" in task;
+		const taskId = isTaskInfo ? task._id : (task as Id<"tasks">);
+		const label = isTaskInfo
+			? `${task.identifier}: ${task.title}`
+			: `task ${taskId}`;
+		return {
+			title: `Reminder: ${label}`,
+			message: message ?? `Reminder for ${label}`,
+			priority: "normal",
+			entityType: "reminder",
+			parentTaskId: taskId,
+			metadata: {},
+		};
+	},
 };

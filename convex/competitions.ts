@@ -10,6 +10,7 @@ import {
 	deleteTasksAndRelatedData,
 	deleteCommentsAndReplies,
 	deleteEntitySubscriptions,
+	deleteNotificationArtifactsForEntity,
 } from "./lib/taskDeletion";
 import {
 	competitionAccessUserIds,
@@ -710,13 +711,6 @@ export const remove = mutation({
 
 		await deleteTasksAndRelatedData(ctx, taskIdArray);
 
-		const notificationsToDelete = await ctx.db
-			.query("notifications")
-			.withIndex("by_entity", (q) =>
-				q.eq("entityType", "competition").eq("entityId", args.competitionId),
-			)
-			.collect();
-
 		const competitionActivityLogs = await ctx.db
 			.query("activityLog")
 			.withIndex("by_entity", (q) =>
@@ -724,14 +718,13 @@ export const remove = mutation({
 			)
 			.collect();
 
-		await Promise.all([
-			...notificationsToDelete.map((n) =>
-				ctx.db.delete("notifications", n._id),
-			),
-			...competitionActivityLogs.map((l) =>
-				ctx.db.delete("activityLog", l._id),
-			),
-		]);
+		await Promise.all(
+			competitionActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
+		);
+		await deleteNotificationArtifactsForEntity(ctx, {
+			entityType: "competition",
+			entityId: `${args.competitionId}`,
+		});
 		await deleteEntitySubscriptions(ctx, "competition", [
 			`${args.competitionId}`,
 		]);

@@ -216,7 +216,8 @@ export default defineSchema({
 		.index("by_user", ["userId"])
 		.index("by_user_and_status", ["userId", "status"])
 		.index("by_user_source_event", ["userId", "sourceEventId"])
-		.index("by_entity", ["entityType", "entityId"]),
+		.index("by_entity", ["entityType", "entityId"])
+		.index("by_parent_entity", ["parentEntityId"]),
 
 	notificationEvents: defineTable({
 		type: notificationType,
@@ -291,7 +292,16 @@ export default defineSchema({
 		updatedAt: v.number(),
 	})
 		.index("by_event_user_channel", ["eventId", "userId", "channel"])
+		.index("by_event", ["eventId"])
+		.index("by_notification", ["notificationId"])
 		.index("by_user_status", ["userId", "status"])
+		.index("by_user_channel_mode_window_status", [
+			"userId",
+			"channel",
+			"digestMode",
+			"digestWindowKey",
+			"status",
+		])
 		.index("by_channel_status", ["channel", "status"]),
 
 	reminders: defineTable({

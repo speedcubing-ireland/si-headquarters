@@ -463,6 +463,17 @@ function RouteComponent() {
 			);
 	}, [preferences]);
 
+	const emailPreferences = useMemo(() => {
+		const typeOrder = new Map(
+			NOTIFICATION_TYPE_OPTIONS.map((option, index) => [option.value, index]),
+		);
+		return preferences
+			.filter((preference) => preference.channel === "email")
+			.sort(
+				(a, b) => (typeOrder.get(a.type) ?? 0) - (typeOrder.get(b.type) ?? 0),
+			);
+	}, [preferences]);
+
 	const unreadNotifications = useMemo(
 		() =>
 			notifications.filter(
@@ -954,10 +965,65 @@ function RouteComponent() {
 							</div>
 
 							<div className="rounded-xl border border-border/70 p-4 sm:p-5">
+								<div className="mb-4 flex items-center gap-2">
+									<div className="rounded-md border border-border/70 bg-background/80 p-1.5">
+										<Mail className="size-4 text-primary" />
+									</div>
+									<div>
+										<p className="text-sm font-semibold">Email notifications</p>
+										<p className="text-xs text-muted-foreground">
+											Opt in to receive email for specific notification types.
+											All email notifications are off by default.
+										</p>
+									</div>
+								</div>
+								<div className="space-y-2">
+									{emailPreferences.map((preference) => {
+										const label =
+											NOTIFICATION_TYPE_OPTIONS.find(
+												(option) => option.value === preference.type,
+											)?.label ?? preference.type;
+										return (
+											<div
+												key={`${preference.type}:${preference.channel}`}
+												className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/60 p-3"
+											>
+												<div className="min-w-0">
+													<p className="truncate text-sm font-medium">
+														{label}
+													</p>
+													<p className="text-xs text-muted-foreground">
+														{preference.enabled
+															? "You will receive emails for this type"
+															: "Email disabled"}
+													</p>
+												</div>
+												<Button
+													variant={preference.enabled ? "secondary" : "outline"}
+													size="sm"
+													onClick={() =>
+														handlePreferenceSave({
+															type: preference.type,
+															channel: "email",
+															enabled: !preference.enabled,
+														})
+													}
+												>
+													{preference.enabled ? "On" : "Off"}
+												</Button>
+											</div>
+										);
+									})}
+								</div>
+							</div>
+
+							<div className="rounded-xl border border-border/70 p-4 sm:p-5">
 								<div className="mb-4">
-									<p className="text-sm font-semibold">Per-type overrides</p>
+									<p className="text-sm font-semibold">
+										In-app per-type overrides
+									</p>
 									<p className="text-xs text-muted-foreground">
-										Override global mode for specific notification types.
+										Override global mode for specific in-app notification types.
 									</p>
 								</div>
 								<div className="space-y-2">

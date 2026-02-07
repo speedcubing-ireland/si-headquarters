@@ -58,7 +58,7 @@ describe("NotificationTemplates", () => {
 	describe("task_assigned", () => {
 		test("includes task identifier and actor name", () => {
 			const result = NotificationTemplates.task_assigned(baseTask, actor);
-			expect(result.title).toBe("Assigned to SI-42");
+			expect(result.title).toBe("Assigned to SI-42: Fix registration");
 			expect(result.message).toContain("Alice");
 			expect(result.message).toContain("SI-42");
 			expect(result.message).toContain("Fix registration");
@@ -90,7 +90,7 @@ describe("NotificationTemplates", () => {
 	describe("task_unassigned", () => {
 		test("includes task identifier and is always normal priority", () => {
 			const result = NotificationTemplates.task_unassigned(baseTask, actor);
-			expect(result.title).toBe("Unassigned from SI-42");
+			expect(result.title).toBe("Unassigned from SI-42: Fix registration");
 			expect(result.priority).toBe("normal");
 		});
 	});
@@ -100,7 +100,7 @@ describe("NotificationTemplates", () => {
 			const result = NotificationTemplates.task_mentioned(baseTask, actor);
 			expect(result.entityType).toBe("comment");
 			expect(result.parentTaskId).toBe(baseTask._id);
-			expect(result.title).toBe("Mentioned in SI-42");
+			expect(result.title).toBe("Mentioned in SI-42: Fix registration");
 		});
 	});
 
@@ -117,7 +117,7 @@ describe("NotificationTemplates", () => {
 			const result = NotificationTemplates.comment_replied(baseTask, actor);
 			expect(result.entityType).toBe("comment");
 			expect(result.parentTaskId).toBe(baseTask._id);
-			expect(result.title).toBe("New reply on SI-42");
+			expect(result.title).toBe("New reply on SI-42: Fix registration");
 		});
 	});
 
@@ -129,7 +129,9 @@ describe("NotificationTemplates", () => {
 				"backlog",
 				"in_progress",
 			);
-			expect(result.title).toBe("SI-42 status changed");
+			expect(result.title).toBe(
+				"SI-42: Fix registration \u2014 status changed",
+			);
 			expect(result.metadata?.oldValue).toBe("backlog");
 			expect(result.metadata?.newValue).toBe("in_progress");
 		});
@@ -143,7 +145,9 @@ describe("NotificationTemplates", () => {
 				"low",
 				"urgent",
 			);
-			expect(result.title).toBe("SI-42 priority changed");
+			expect(result.title).toBe(
+				"SI-42: Fix registration \u2014 priority changed",
+			);
 			expect(result.metadata?.oldValue).toBe("low");
 			expect(result.metadata?.newValue).toBe("urgent");
 		});
@@ -162,7 +166,7 @@ describe("NotificationTemplates", () => {
 				blockingTask,
 				actor,
 			);
-			expect(result.title).toBe("SI-42 is blocked");
+			expect(result.title).toBe("SI-42: Fix registration \u2014 blocked");
 			expect(result.message).toContain("SI-99");
 			expect(result.priority).toBe("high");
 		});
@@ -181,7 +185,7 @@ describe("NotificationTemplates", () => {
 				blockingTask,
 				actor,
 			);
-			expect(result.title).toBe("SI-42 is unblocked");
+			expect(result.title).toBe("SI-42: Fix registration \u2014 unblocked");
 			expect(result.priority).toBe("normal");
 		});
 	});
@@ -189,7 +193,7 @@ describe("NotificationTemplates", () => {
 	describe("task_approved", () => {
 		test("includes task identifier and actor name", () => {
 			const result = NotificationTemplates.task_approved(baseTask, actor);
-			expect(result.title).toBe("SI-42 approved");
+			expect(result.title).toBe("SI-42: Fix registration \u2014 approved");
 			expect(result.message).toContain("Alice");
 			expect(result.message).toContain("SI-42");
 			expect(result.message).toContain("Fix registration");
@@ -206,7 +210,9 @@ describe("NotificationTemplates", () => {
 	describe("task_unapproved", () => {
 		test("includes task identifier and actor name", () => {
 			const result = NotificationTemplates.task_unapproved(baseTask, actor);
-			expect(result.title).toBe("SI-42 approval withdrawn");
+			expect(result.title).toBe(
+				"SI-42: Fix registration \u2014 approval withdrawn",
+			);
 			expect(result.message).toContain("Alice");
 			expect(result.message).toContain("SI-42");
 			expect(result.entityType).toBe("task");
@@ -222,7 +228,9 @@ describe("NotificationTemplates", () => {
 				"2025-01-01",
 				"2025-02-01",
 			);
-			expect(result.title).toBe("SI-42 due date changed");
+			expect(result.title).toBe(
+				"SI-42: Fix registration \u2014 due date changed",
+			);
 			expect(result.message).toContain(
 				"changed due date from 2025-01-01 to 2025-02-01",
 			);
@@ -321,6 +329,22 @@ describe("NotificationTemplates", () => {
 		test("falls back to default message when none provided", () => {
 			const result = NotificationTemplates.reminder_triggered(taskId("t1"));
 			expect(result.message).toContain("t1");
+		});
+
+		test("uses task identifier and title when TaskInfo provided", () => {
+			const result = NotificationTemplates.reminder_triggered(
+				baseTask,
+				"Don't forget!",
+			);
+			expect(result.title).toBe("Reminder: SI-42: Fix registration");
+			expect(result.message).toBe("Don't forget!");
+			expect(result.parentTaskId).toBe(baseTask._id);
+		});
+
+		test("uses task info in default message when TaskInfo provided", () => {
+			const result = NotificationTemplates.reminder_triggered(baseTask);
+			expect(result.title).toBe("Reminder: SI-42: Fix registration");
+			expect(result.message).toBe("Reminder for SI-42: Fix registration");
 		});
 	});
 });

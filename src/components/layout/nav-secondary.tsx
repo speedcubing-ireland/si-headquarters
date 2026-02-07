@@ -3,6 +3,7 @@ import {
 	Activity,
 	Archive,
 	type LucideIcon,
+	Mail,
 	Monitor,
 	Moon,
 	Sun,
@@ -77,7 +78,10 @@ export function NavSecondary({
 	const navItems: NavSecondaryItem[] = [
 		...baseNavSecondary,
 		...(isDirector
-			? [{ title: "Activity", to: "/activity", icon: Activity }]
+			? [
+					{ title: "Activity", to: "/activity", icon: Activity },
+					{ title: "Email Admin", to: "/admin/email", icon: Mail },
+				]
 			: []),
 	];
 

@@ -46,7 +46,7 @@ export const CHANNEL_LABELS: Record<
 
 export const IMPLEMENTED_SETTINGS_CHANNELS: ReadonlyArray<
 	NotificationPreference["channel"]
-> = ["in_app"];
+> = ["in_app", "email"];
 
 export function isNotificationType(value: string): value is NotificationType {
 	return NOTIFICATION_TYPE_OPTIONS.some((option) => option.value === value);

@@ -1,9 +1,16 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
+import {
+	mutation,
+	query,
+	internalMutation,
+	internalAction,
+	internalQuery,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
+import { requireDirector } from "./admin";
 import type { Infer } from "convex/values";
 import { hasCompetitionAccess } from "./competitionAccess";
 import { hasTaskCompetitionAccess } from "./taskAccess";
@@ -40,14 +47,22 @@ import {
 	matchesTaskViewFilters,
 } from "./lib/notificationViewMatchers";
 import { toISO } from "./lib/transforms";
+import { normalizeEmail, validateEmail } from "./lib/sanitize";
+import { buildEntityLink, formatEntityTypeLabel } from "./emails/shared";
 
 const IN_APP_CHANNEL: NotificationChannel = "in_app";
-const SUPPORTED_NOTIFICATION_CHANNELS: NotificationChannel[] = [IN_APP_CHANNEL];
-const EXTERNAL_NOTIFICATION_CHANNELS: NotificationChannel[] = [];
+const EMAIL_CHANNEL: NotificationChannel = "email";
+const SUPPORTED_NOTIFICATION_CHANNELS: NotificationChannel[] = [
+	IN_APP_CHANNEL,
+	EMAIL_CHANNEL,
+];
+const EXTERNAL_NOTIFICATION_CHANNELS: NotificationChannel[] = [EMAIL_CHANNEL];
 const DEFAULT_DIGEST_MODE: NotificationDigestMode = "immediate";
 const DEFAULT_TIMEZONE = NOTIFICATION_DEFAULTS.TIMEZONE;
 const DEFAULT_SUBSCRIPTION_LIST_LIMIT = 100;
 const MAX_SUBSCRIPTION_LIST_LIMIT = NOTIFICATION_LIST_LIMITS.MAX;
+const EMAIL_DISPATCH_GROUP_CLAIM_PREFIX = "email_group_claim:";
+const EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS = 5 * 60 * 1000;
 
 type NotificationMetadata = Infer<typeof notificationMetadata>;
 type NotificationType = Infer<typeof notificationType>;
@@ -198,6 +213,18 @@ type NotificationPayload = Record<
 	string,
 	string | number | boolean | null | undefined
 >;
+
+type EmailDispatchSnapshot = {
+	type: NotificationType;
+	title: string;
+	message: string;
+	body?: string;
+	entityType: NotificationEntityType;
+	entityId: string;
+	parentEntityId?: string;
+	priority: NotificationPriority;
+	actorName?: string;
+};
 
 type NotificationPreferenceConfig = {
 	enabled: boolean;
@@ -417,6 +444,58 @@ function serializePayload(payload: NotificationPayload): string | undefined {
 	return JSON.stringify(normalized);
 }
 
+function serializeEmailDispatchSnapshot(
+	snapshot: EmailDispatchSnapshot,
+): string {
+	return JSON.stringify(snapshot);
+}
+
+function parseEmailDispatchSnapshot(
+	metadataJson: string | undefined,
+): EmailDispatchSnapshot | null {
+	if (!metadataJson) return null;
+
+	try {
+		const parsed: unknown = JSON.parse(metadataJson);
+		if (!parsed || typeof parsed !== "object") return null;
+		const snapshot = parsed as Partial<EmailDispatchSnapshot>;
+		if (
+			typeof snapshot.type !== "string" ||
+			typeof snapshot.title !== "string" ||
+			typeof snapshot.message !== "string" ||
+			typeof snapshot.entityType !== "string" ||
+			typeof snapshot.entityId !== "string" ||
+			typeof snapshot.priority !== "string"
+		) {
+			return null;
+		}
+
+		if (
+			(snapshot.body !== undefined && typeof snapshot.body !== "string") ||
+			(snapshot.parentEntityId !== undefined &&
+				typeof snapshot.parentEntityId !== "string") ||
+			(snapshot.actorName !== undefined &&
+				typeof snapshot.actorName !== "string")
+		) {
+			return null;
+		}
+
+		return {
+			type: snapshot.type as NotificationType,
+			title: snapshot.title,
+			message: snapshot.message,
+			body: snapshot.body,
+			entityType: snapshot.entityType as NotificationEntityType,
+			entityId: snapshot.entityId,
+			parentEntityId: snapshot.parentEntityId,
+			priority: snapshot.priority as NotificationPriority,
+			actorName: snapshot.actorName,
+		};
+	} catch {
+		return null;
+	}
+}
+
 function notificationEntityId(entity: NotificationEntityRef): string {
 	return entity.entityId;
 }
@@ -600,6 +679,8 @@ async function upsertEnabledExternalDispatches(
 		userId: Id<"users">;
 		type: NotificationType;
 		status: DispatchStatus;
+		notificationId?: Id<"notifications">;
+		metadataJson?: string;
 		reason?: string;
 	},
 ): Promise<void> {
@@ -666,6 +747,8 @@ async function upsertEnabledExternalDispatches(
 				...(plan.digestWindowKey
 					? { digestWindowKey: plan.digestWindowKey }
 					: {}),
+				notificationId: args.notificationId,
+				metadataJson: args.metadataJson,
 				reason: args.reason,
 			}),
 		),
@@ -1307,6 +1390,7 @@ async function skipRecipient(
 		externalStatus: DispatchStatus;
 		reason: string;
 		externalReason?: string;
+		externalMetadataJson?: string;
 	},
 ): Promise<void> {
 	await upsertDispatch(ctx, {
@@ -1321,6 +1405,7 @@ async function skipRecipient(
 		userId: opts.recipientId,
 		type: opts.type,
 		status: opts.externalStatus,
+		metadataJson: opts.externalMetadataJson,
 		reason: opts.externalReason ?? opts.reason,
 	});
 }
@@ -1392,7 +1477,6 @@ async function decideRecipientHandling(
 				inAppStatus: "skipped",
 				externalStatus: "pending",
 				reason: "preference_disabled",
-				externalReason: "channel_not_implemented",
 			},
 		};
 	}
@@ -1450,6 +1534,17 @@ async function emitInAppNotifications(
 	const parentEntityId = notificationParentEntityId(input.entity);
 	const threadKey = input.threadKey ?? defaultThreadKey(input.entity);
 	const suppressActorRecipient = input.suppressActorRecipient ?? true;
+	const emailDispatchMetadataJson = serializeEmailDispatchSnapshot({
+		type: input.type,
+		title: input.title,
+		message: input.message,
+		body: input.body,
+		entityType: input.entity.entityType,
+		entityId,
+		parentEntityId,
+		priority: input.priority,
+		actorName: input.metadata?.actorName,
+	});
 
 	const inserted: Id<"notifications">[] = [];
 
@@ -1490,7 +1585,8 @@ async function emitInAppNotifications(
 				userId: recipientId,
 				type: input.type,
 				status: "pending",
-				reason: "channel_not_implemented",
+				notificationId: decision.notification._id,
+				metadataJson: emailDispatchMetadataJson,
 			});
 			inserted.push(decision.notification._id);
 			continue;
@@ -1505,6 +1601,10 @@ async function emitInAppNotifications(
 				externalStatus: decision.skip.externalStatus,
 				reason: decision.skip.reason,
 				externalReason: decision.skip.externalReason,
+				externalMetadataJson:
+					decision.skip.externalStatus === "pending"
+						? emailDispatchMetadataJson
+						: undefined,
 			});
 			continue;
 		}
@@ -1560,7 +1660,8 @@ async function emitInAppNotifications(
 			userId: recipientId,
 			type: input.type,
 			status: "pending",
-			reason: "channel_not_implemented",
+			notificationId,
+			metadataJson: emailDispatchMetadataJson,
 		});
 	}
 
@@ -2474,6 +2575,57 @@ export const getDispatchStats = query({
 	},
 });
 
+export const sendTestDigestSeries = mutation({
+	args: {
+		toEmail: v.optional(v.string()),
+	},
+	returns: v.object({
+		toEmail: v.string(),
+		queued: v.boolean(),
+		emailCount: v.number(),
+	}),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		const userId = await requireUserId(ctx);
+		const user = await ctx.db.get("users", userId);
+
+		const fallbackEmail = normalizeEmail(user?.email);
+		const toEmail = normalizeEmail(args.toEmail ?? fallbackEmail);
+		if (!toEmail || !validateEmail(toEmail)) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: "Enter a valid recipient email for test digest sends.",
+			});
+		}
+
+		// Schedule 3 separate actions: immediate, hourly digest, 3x daily digest.
+		await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
+			type: "immediate",
+			toEmail,
+			recipientName: user?.name,
+			actorName: user?.name ?? "Test User",
+		});
+		await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
+			type: "hourly",
+			toEmail,
+			recipientName: user?.name,
+			actorName: user?.name ?? "Test User",
+		});
+		await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
+			type: "three_daily",
+			toEmail,
+			recipientName: user?.name,
+			actorName: user?.name ?? "Test User",
+		});
+
+		return {
+			toEmail,
+			queued: true,
+			emailCount: 3,
+		};
+	},
+});
+
 async function getActorInfo(
 	ctx: Pick<MutationCtx, "db">,
 	actorId: Id<"users"> | null | undefined,
@@ -2876,9 +3028,10 @@ async function createReminderNotification(
 		return null;
 	}
 
+	const task = await ctx.db.get("tasks", args.taskId);
 	const eventKey = args.eventKey ?? `${Date.now()}`;
 	const config = NotificationTemplates.reminder_triggered(
-		args.taskId,
+		task ?? args.taskId,
 		args.message,
 	);
 
@@ -3321,38 +3474,58 @@ function isDispatchDue(
 	return dispatch.scheduledFor === undefined || dispatch.scheduledFor <= now;
 }
 
-function dispatchGroupKey(
-	dispatch: Pick<
-		Doc<"notificationDispatches">,
-		"_id" | "userId" | "channel" | "digestMode" | "digestWindowKey"
-	>,
+function buildEmailDispatchGroupClaimKey(
+	now: number,
+	seedDispatchId: Id<"notificationDispatches">,
 ): string {
-	if (dispatch.digestMode === "immediate") {
-		return `${dispatch.userId}:${dispatch.channel}:${dispatch._id}`;
+	return `${EMAIL_DISPATCH_GROUP_CLAIM_PREFIX}${now}:${seedDispatchId}`;
+}
+
+function parseEmailDispatchGroupClaimTimestamp(
+	reason: string | undefined,
+): number | null {
+	if (!reason?.startsWith(EMAIL_DISPATCH_GROUP_CLAIM_PREFIX)) {
+		return null;
 	}
-	return `${dispatch.userId}:${dispatch.channel}:${dispatch.digestMode}:${dispatch.digestWindowKey ?? "windowless"}`;
+	const token = reason.slice(EMAIL_DISPATCH_GROUP_CLAIM_PREFIX.length);
+	const [timestampRaw] = token.split(":", 1);
+	const timestamp = Number(timestampRaw);
+	if (!Number.isFinite(timestamp)) {
+		return null;
+	}
+	return timestamp;
+}
+
+function hasUnexpiredEmailDispatchClaim(
+	dispatch: Pick<Doc<"notificationDispatches">, "reason">,
+	now: number,
+): boolean {
+	const timestamp = parseEmailDispatchGroupClaimTimestamp(dispatch.reason);
+	if (timestamp === null) {
+		return false;
+	}
+	return now - timestamp < EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS;
 }
 
 async function collectDispatchGroup(
 	ctx: Pick<MutationCtx, "db">,
 	seed: Doc<"notificationDispatches">,
-	now: number,
 ): Promise<Doc<"notificationDispatches">[]> {
 	if (seed.digestMode === "immediate") {
 		return [seed];
 	}
 
-	const seedKey = dispatchGroupKey(seed);
-	const candidates = await ctx.db
+	return ctx.db
 		.query("notificationDispatches")
-		.withIndex("by_user_status", (q) =>
-			q.eq("userId", seed.userId).eq("status", "pending"),
+		.withIndex("by_user_channel_mode_window_status", (q) =>
+			q
+				.eq("userId", seed.userId)
+				.eq("channel", seed.channel)
+				.eq("digestMode", seed.digestMode)
+				.eq("digestWindowKey", seed.digestWindowKey)
+				.eq("status", "pending"),
 		)
 		.collect();
-	return candidates.filter(
-		(dispatch) =>
-			dispatchGroupKey(dispatch) === seedKey && isDispatchDue(dispatch, now),
-	);
 }
 
 export const _processDispatch = internalMutation({
@@ -3374,13 +3547,35 @@ export const _processDispatch = internalMutation({
 			return 0;
 		}
 
-		const dispatchGroup = await collectDispatchGroup(ctx, seedDispatch, now);
+		const dispatchGroup = await collectDispatchGroup(ctx, seedDispatch);
 		if (dispatchGroup.length === 0) {
 			return 0;
 		}
 
+		const dueDispatches: Doc<"notificationDispatches">[] = [];
+		for (const dispatch of dispatchGroup) {
+			const latest = await ctx.db.get("notificationDispatches", dispatch._id);
+			if (
+				!latest ||
+				latest.status !== "pending" ||
+				!isDispatchDue(latest, now)
+			) {
+				continue;
+			}
+			if (
+				seedDispatch.channel === EMAIL_CHANNEL &&
+				hasUnexpiredEmailDispatchClaim(latest, now)
+			) {
+				continue;
+			}
+			dueDispatches.push(latest);
+		}
+		if (dueDispatches.length === 0) {
+			return 0;
+		}
+
 		const eventIds = [
-			...new Set(dispatchGroup.map((dispatch) => dispatch.eventId)),
+			...new Set(dueDispatches.map((dispatch) => dispatch.eventId)),
 		];
 		const metadataJson = JSON.stringify({
 			mode: seedDispatch.digestMode,
@@ -3391,29 +3586,687 @@ export const _processDispatch = internalMutation({
 			processedAt: now,
 		});
 
-		let processedCount = 0;
-		for (const dispatch of dispatchGroup) {
-			const latest = await ctx.db.get("notificationDispatches", dispatch._id);
-			if (
-				!latest ||
-				latest.status !== "pending" ||
-				!isDispatchDue(latest, now)
-			) {
-				continue;
+		if (seedDispatch.channel === EMAIL_CHANNEL) {
+			const claimKey = buildEmailDispatchGroupClaimKey(now, seedDispatch._id);
+			for (const dispatch of dueDispatches) {
+				await ctx.db.patch("notificationDispatches", dispatch._id, {
+					reason: claimKey,
+					lastAttemptAt: now,
+					updatedAt: now,
+				});
 			}
+			await ctx.scheduler.runAfter(
+				0,
+				internal.notifications._sendEmailDispatchGroup,
+				{
+					dispatchIds: dueDispatches.map((dispatch) => dispatch._id),
+					claimKey,
+				},
+			);
+			const recoveryScheduledFunctionId = await ctx.scheduler.runAfter(
+				EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS,
+				internal.notifications._processDispatch,
+				{ dispatchId: seedDispatch._id },
+			);
+			for (const dispatch of dueDispatches) {
+				await ctx.db.patch("notificationDispatches", dispatch._id, {
+					scheduledFunctionId: recoveryScheduledFunctionId,
+					updatedAt: now,
+				});
+			}
+			return dueDispatches.length;
+		}
+
+		for (const dispatch of dueDispatches) {
 			await ctx.db.patch("notificationDispatches", dispatch._id, {
 				status: "skipped",
 				reason: "channel_not_implemented",
 				metadataJson,
-				attempts: latest.attempts + 1,
+				attempts: dispatch.attempts + 1,
 				lastAttemptAt: now,
 				scheduledFunctionId: undefined,
 				updatedAt: now,
 			});
-			processedCount += 1;
 		}
 
-		return processedCount;
+		return dueDispatches.length;
+	},
+});
+
+function humanizeNotificationType(type: string): string {
+	return type
+		.split("_")
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(" ");
+}
+
+type ResolvedEmailDispatchItem = {
+	dispatchId: Id<"notificationDispatches">;
+	type: NotificationType;
+	title: string;
+	message: string;
+	body?: string;
+	entityType: string;
+	entityId: string;
+	parentEntityId?: string;
+	priority: string;
+	actorName?: string;
+	sortTime: number;
+};
+
+async function resolveEmailDispatchItem(
+	ctx: Pick<QueryCtx, "db">,
+	dispatch: Doc<"notificationDispatches">,
+): Promise<ResolvedEmailDispatchItem | null> {
+	const notification = dispatch.notificationId
+		? await ctx.db.get("notifications", dispatch.notificationId)
+		: null;
+	if (notification) {
+		return {
+			dispatchId: dispatch._id,
+			type: notification.type,
+			title: notification.title,
+			message: notification.message,
+			body: notification.body,
+			entityType: notification.entityType,
+			entityId: notification.entityId,
+			parentEntityId: notification.parentEntityId,
+			priority: notification.priority,
+			actorName: notification.metadata?.actorName,
+			sortTime: notification._creationTime,
+		};
+	}
+
+	const snapshot = parseEmailDispatchSnapshot(dispatch.metadataJson);
+	if (snapshot) {
+		return {
+			dispatchId: dispatch._id,
+			type: snapshot.type,
+			title: snapshot.title,
+			message: snapshot.message,
+			body: snapshot.body,
+			entityType: snapshot.entityType,
+			entityId: snapshot.entityId,
+			parentEntityId: snapshot.parentEntityId,
+			priority: snapshot.priority,
+			actorName: snapshot.actorName,
+			sortTime: dispatch.updatedAt,
+		};
+	}
+
+	const event = await ctx.db.get("notificationEvents", dispatch.eventId);
+	if (!event) {
+		return null;
+	}
+
+	const fallbackTitle = humanizeNotificationType(event.type);
+	return {
+		dispatchId: dispatch._id,
+		type: event.type,
+		title: fallbackTitle,
+		message: `You have a new ${fallbackTitle.toLowerCase()} update.`,
+		body: undefined,
+		entityType: event.entityType,
+		entityId: event.entityId,
+		parentEntityId: undefined,
+		priority: "normal",
+		actorName: undefined,
+		sortTime: event.createdAt,
+	};
+}
+
+const emailDispatchItemValidator = v.object({
+	dispatchId: v.id("notificationDispatches"),
+	type: notificationType,
+	title: v.string(),
+	message: v.string(),
+	body: v.optional(v.string()),
+	entityType: v.string(),
+	entityId: v.string(),
+	parentEntityId: v.optional(v.string()),
+	priority: v.string(),
+	actorName: v.optional(v.string()),
+});
+
+const emailDispatchGroupValidator = v.object({
+	dispatchIds: v.array(v.id("notificationDispatches")),
+	digestMode: notificationDigestMode,
+	digestWindowKey: v.optional(v.string()),
+	recipientEmail: v.string(),
+	recipientName: v.optional(v.string()),
+	items: v.array(emailDispatchItemValidator),
+});
+
+export const _getDispatchGroupForEmail = internalQuery({
+	args: {
+		dispatchIds: v.array(v.id("notificationDispatches")),
+		claimKey: v.optional(v.string()),
+	},
+	returns: v.union(v.null(), emailDispatchGroupValidator),
+	handler: async (ctx, args) => {
+		if (args.dispatchIds.length === 0) {
+			return null;
+		}
+
+		const dispatchDocs = (
+			await Promise.all(
+				args.dispatchIds.map((dispatchId) =>
+					ctx.db.get("notificationDispatches", dispatchId),
+				),
+			)
+		).filter((dispatch): dispatch is Doc<"notificationDispatches"> =>
+			Boolean(
+				dispatch &&
+					dispatch.status === "pending" &&
+					dispatch.channel === EMAIL_CHANNEL &&
+					(args.claimKey === undefined || dispatch.reason === args.claimKey),
+			),
+		);
+
+		if (dispatchDocs.length === 0) {
+			return null;
+		}
+
+		const seed = dispatchDocs[0];
+		if (!seed) {
+			return null;
+		}
+
+		const groupedDispatches = dispatchDocs.filter(
+			(dispatch) =>
+				dispatch.userId === seed.userId &&
+				dispatch.digestMode === seed.digestMode &&
+				dispatch.digestWindowKey === seed.digestWindowKey,
+		);
+		if (groupedDispatches.length === 0) {
+			return null;
+		}
+
+		const user = await ctx.db.get("users", seed.userId);
+		if (!user?.email) {
+			return null;
+		}
+
+		const resolvedItems = await Promise.all(
+			groupedDispatches.map((dispatch) =>
+				resolveEmailDispatchItem(ctx, dispatch),
+			),
+		);
+		const items = resolvedItems
+			.filter((item): item is ResolvedEmailDispatchItem => item !== null)
+			.sort((a, b) => a.sortTime - b.sortTime)
+			.map((item) => ({
+				dispatchId: item.dispatchId,
+				type: item.type,
+				title: item.title,
+				message: item.message,
+				body: item.body,
+				entityType: item.entityType,
+				entityId: item.entityId,
+				parentEntityId: item.parentEntityId,
+				priority: item.priority,
+				actorName: item.actorName,
+			}));
+
+		if (items.length === 0) {
+			return null;
+		}
+
+		return {
+			dispatchIds: items.map((item) => item.dispatchId),
+			digestMode: seed.digestMode,
+			digestWindowKey: seed.digestWindowKey,
+			recipientEmail: user.email,
+			recipientName: user.name,
+			items,
+		};
+	},
+});
+
+export const _sendEmailDispatchGroup = internalAction({
+	args: {
+		dispatchIds: v.array(v.id("notificationDispatches")),
+		claimKey: v.optional(v.string()),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		if (args.dispatchIds.length === 0) {
+			return null;
+		}
+
+		const payload = await ctx.runQuery(
+			internal.notifications._getDispatchGroupForEmail,
+			{
+				dispatchIds: args.dispatchIds,
+				claimKey: args.claimKey,
+			},
+		);
+		if (!payload) {
+			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+				dispatchIds: args.dispatchIds,
+				reason: "email_dispatch_payload_unavailable",
+				claimKey: args.claimKey,
+			});
+			return null;
+		}
+
+		const { sendEmail } = await import("./lib/email");
+		const {
+			buildNotificationDigestEmailHtml,
+			buildNotificationDigestEmailPlainText,
+			buildNotificationDigestEmailSubject,
+			buildNotificationEmailHtml,
+			buildNotificationEmailPlainText,
+			buildNotificationEmailSubject,
+		} = await import("./lib/emailTemplates");
+
+		const appUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
+		const firstItem = payload.items[0];
+		if (!firstItem) {
+			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+				dispatchIds: payload.dispatchIds,
+				reason: "email_dispatch_payload_empty",
+				claimKey: args.claimKey,
+			});
+			return null;
+		}
+
+		try {
+			if (payload.digestMode === "immediate") {
+				await sendEmail({
+					to: [
+						{
+							address: payload.recipientEmail,
+							displayName: payload.recipientName,
+						},
+					],
+					subject: buildNotificationEmailSubject(
+						firstItem.type,
+						firstItem.title,
+					),
+					html: await buildNotificationEmailHtml({
+						title: firstItem.title,
+						message: firstItem.message,
+						body: firstItem.body,
+						entityType: firstItem.entityType,
+						entityId: firstItem.entityId,
+						parentEntityId: firstItem.parentEntityId,
+						actorName: firstItem.actorName,
+						priority: firstItem.priority,
+						appUrl,
+					}),
+					plainText: await buildNotificationEmailPlainText({
+						title: firstItem.title,
+						message: firstItem.message,
+						body: firstItem.body,
+						entityType: firstItem.entityType,
+						entityId: firstItem.entityId,
+						parentEntityId: firstItem.parentEntityId,
+						actorName: firstItem.actorName,
+						priority: firstItem.priority,
+						appUrl,
+					}),
+				});
+			} else {
+				const digestItems = payload.items.map((item) => ({
+					title: item.title,
+					message: item.message,
+					entityType: formatEntityTypeLabel(item.entityType),
+					priority: item.priority,
+					actorName: item.actorName,
+					link: buildEntityLink(appUrl, item),
+				}));
+				await sendEmail({
+					to: [
+						{
+							address: payload.recipientEmail,
+							displayName: payload.recipientName,
+						},
+					],
+					subject: buildNotificationDigestEmailSubject(
+						payload.digestMode,
+						payload.items.length,
+					),
+					html: await buildNotificationDigestEmailHtml({
+						mode: payload.digestMode,
+						appUrl,
+						items: digestItems,
+					}),
+					plainText: await buildNotificationDigestEmailPlainText({
+						mode: payload.digestMode,
+						appUrl,
+						items: digestItems,
+					}),
+				});
+			}
+
+			await ctx.runMutation(internal.notifications._markDispatchesSent, {
+				dispatchIds: payload.dispatchIds,
+				claimKey: args.claimKey,
+			});
+		} catch (error) {
+			const reason =
+				error instanceof Error ? error.message : "Unknown email send error";
+			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+				dispatchIds: payload.dispatchIds,
+				reason,
+				claimKey: args.claimKey,
+			});
+		}
+
+		return null;
+	},
+});
+
+const DEMO_TASKS = {
+	task1: {
+		_id: "demo-task-1" as Id<"tasks">,
+		identifier: "SI-42",
+		title: "Design competition schedule layout",
+		priority: "high" as const,
+	},
+	task2: {
+		_id: "demo-task-2" as Id<"tasks">,
+		identifier: "SI-118",
+		title: "Venue risk checklist",
+		priority: "medium" as const,
+	},
+	task3: {
+		_id: "demo-task-3" as Id<"tasks">,
+		identifier: "SI-201",
+		title: "Supplier contract review",
+		priority: "high" as const,
+	},
+	task4: {
+		_id: "demo-task-4" as Id<"tasks">,
+		identifier: "SI-099",
+		title: "Competitor confirmation emails",
+		priority: "medium" as const,
+	},
+	task5: {
+		_id: "demo-task-5" as Id<"tasks">,
+		identifier: "SI-311",
+		title: "Final website review",
+		priority: "medium" as const,
+	},
+	blockingTask: {
+		_id: "demo-task-6" as Id<"tasks">,
+		identifier: "SI-180",
+		title: "Supplier contract pending",
+		priority: "medium" as const,
+	},
+};
+
+const DEMO_COMPS = {
+	comp1: {
+		_id: "demo-comp-1" as Id<"competitions">,
+		name: "Irish Open 2026",
+	},
+};
+
+type TestEmailItem = {
+	title: string;
+	message: string;
+	entityType: string;
+	priority: string;
+	actorName?: string;
+	link: string;
+};
+
+function buildTestEmailData(
+	appUrl: string,
+	actorName: string,
+): {
+	immediate: {
+		title: string;
+		message: string;
+		body?: string;
+		entityType: string;
+		entityId: string;
+		parentEntityId?: string;
+		actorName?: string;
+		priority: string;
+	};
+	hourly: TestEmailItem[];
+	threeDaily: TestEmailItem[];
+} {
+	const actor = { actorName };
+	const t = DEMO_TASKS;
+	const c = DEMO_COMPS;
+
+	const immediateTemplate = NotificationTemplates.task_assigned(t.task1, actor);
+
+	const hourlyTemplates = [
+		{
+			template: NotificationTemplates.comment_added(t.task2, actor),
+			link: `${appUrl}/tasks/${t.task2._id}`,
+		},
+		{
+			template: NotificationTemplates.task_status_changed(
+				t.task4,
+				actor,
+				"to-do",
+				"in-progress",
+			),
+			link: `${appUrl}/tasks/${t.task4._id}`,
+		},
+		{
+			template: NotificationTemplates.task_priority_changed(
+				t.task5,
+				actor,
+				"medium",
+				"urgent",
+			),
+			link: `${appUrl}/tasks/${t.task5._id}`,
+		},
+	];
+
+	const threeDailyTemplates = [
+		{
+			template: NotificationTemplates.relation_blocked(
+				t.task3,
+				t.blockingTask,
+				actor,
+			),
+			link: `${appUrl}/tasks/${t.task3._id}`,
+		},
+		{
+			template: NotificationTemplates.progress_update_added(
+				c.comp1,
+				actor,
+				"at-risk",
+			),
+			link: `${appUrl}/competitions/${c.comp1._id}`,
+		},
+		{
+			template: NotificationTemplates.due_date_changed(
+				t.task4,
+				actor,
+				"2026-03-15",
+				"2026-03-19",
+			),
+			link: `${appUrl}/tasks/${t.task4._id}`,
+		},
+		{
+			template: NotificationTemplates.task_approved(t.task5, actor),
+			link: `${appUrl}/tasks/${t.task5._id}`,
+		},
+		{
+			template: NotificationTemplates.competition_phase_changed(
+				c.comp1,
+				actor,
+				"Planning",
+				"Registration",
+			),
+			link: `${appUrl}/competitions/${c.comp1._id}`,
+		},
+	];
+
+	const mapItems = (
+		entries: Array<{ template: NotificationTemplateConfig; link: string }>,
+	): TestEmailItem[] =>
+		entries.map(({ template, link }) => ({
+			title: template.title,
+			message: template.message,
+			entityType: formatEntityTypeLabel(template.entityType),
+			priority: template.priority,
+			actorName,
+			link,
+		}));
+
+	return {
+		immediate: {
+			title: immediateTemplate.title,
+			message: immediateTemplate.message,
+			body: immediateTemplate.body,
+			entityType: immediateTemplate.entityType,
+			entityId: t.task1._id,
+			parentEntityId: undefined,
+			actorName,
+			priority: immediateTemplate.priority,
+		},
+		hourly: mapItems(hourlyTemplates),
+		threeDaily: mapItems(threeDailyTemplates),
+	};
+}
+
+export const _sendTestEmail = internalAction({
+	args: {
+		type: v.union(
+			v.literal("immediate"),
+			v.literal("hourly"),
+			v.literal("three_daily"),
+		),
+		toEmail: v.string(),
+		recipientName: v.optional(v.string()),
+		actorName: v.string(),
+	},
+	returns: v.null(),
+	handler: async (_ctx, args) => {
+		const { sendEmail } = await import("./lib/email");
+		const {
+			buildNotificationEmailHtml,
+			buildNotificationEmailPlainText,
+			buildNotificationEmailSubject,
+			buildNotificationDigestEmailHtml,
+			buildNotificationDigestEmailPlainText,
+			buildNotificationDigestEmailSubject,
+		} = await import("./lib/emailTemplates");
+
+		const appUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
+		const testData = buildTestEmailData(appUrl, args.actorName);
+		const to = [
+			{
+				address: args.toEmail,
+				displayName: args.recipientName,
+			},
+		];
+
+		if (args.type === "immediate") {
+			const item = testData.immediate;
+			await sendEmail({
+				to,
+				subject: `[HQ TEST] ${buildNotificationEmailSubject("task_assigned", item.title)}`,
+				html: await buildNotificationEmailHtml({ ...item, appUrl }),
+				plainText: await buildNotificationEmailPlainText({ ...item, appUrl }),
+			});
+		} else if (args.type === "hourly") {
+			await sendEmail({
+				to,
+				subject: `[HQ TEST] ${buildNotificationDigestEmailSubject("hourly", testData.hourly.length)}`,
+				html: await buildNotificationDigestEmailHtml({
+					mode: "hourly",
+					appUrl,
+					items: testData.hourly,
+				}),
+				plainText: await buildNotificationDigestEmailPlainText({
+					mode: "hourly",
+					appUrl,
+					items: testData.hourly,
+				}),
+			});
+		} else {
+			await sendEmail({
+				to,
+				subject: `[HQ TEST] ${buildNotificationDigestEmailSubject("three_daily", testData.threeDaily.length)}`,
+				html: await buildNotificationDigestEmailHtml({
+					mode: "three_daily",
+					appUrl,
+					items: testData.threeDaily,
+				}),
+				plainText: await buildNotificationDigestEmailPlainText({
+					mode: "three_daily",
+					appUrl,
+					items: testData.threeDaily,
+				}),
+			});
+		}
+
+		return null;
+	},
+});
+
+export const _markDispatchesSent = internalMutation({
+	args: {
+		dispatchIds: v.array(v.id("notificationDispatches")),
+		claimKey: v.optional(v.string()),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		for (const dispatchId of args.dispatchIds) {
+			const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
+			if (
+				!dispatch ||
+				dispatch.status !== "pending" ||
+				dispatch.channel !== EMAIL_CHANNEL ||
+				(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
+			) {
+				continue;
+			}
+			await ctx.db.patch("notificationDispatches", dispatch._id, {
+				status: "sent",
+				reason: undefined,
+				sentAt: now,
+				attempts: dispatch.attempts + 1,
+				lastAttemptAt: now,
+				scheduledFunctionId: undefined,
+				updatedAt: now,
+			});
+		}
+		return null;
+	},
+});
+
+export const _markDispatchesFailed = internalMutation({
+	args: {
+		dispatchIds: v.array(v.id("notificationDispatches")),
+		reason: v.string(),
+		claimKey: v.optional(v.string()),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		for (const dispatchId of args.dispatchIds) {
+			const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
+			if (
+				!dispatch ||
+				dispatch.status !== "pending" ||
+				dispatch.channel !== EMAIL_CHANNEL ||
+				(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
+			) {
+				continue;
+			}
+			await ctx.db.patch("notificationDispatches", dispatch._id, {
+				status: "failed",
+				reason: args.reason,
+				attempts: dispatch.attempts + 1,
+				lastAttemptAt: now,
+				scheduledFunctionId: undefined,
+				updatedAt: now,
+			});
+		}
+		return null;
 	},
 });
 

@@ -1432,4 +1432,83 @@ describe("relation notification batch fan-out", () => {
 		expect(dispatchB?.reason).toBe("channel_not_implemented");
 		expect(dispatchA?.metadataJson).toBe(dispatchB?.metadataJson);
 	});
+
+	test("_processDispatch claims grouped email dispatches and avoids duplicate processing", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {
+				email: "digest-test@example.com",
+			});
+			const eventA = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-email-a",
+				idempotencyKey: "dispatch-email-group-a",
+				threadKey: "task:email-a",
+				dedupeKey: "task_assigned:task:email-a",
+				createdAt: Date.now(),
+			});
+			const eventB = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-email-b",
+				idempotencyKey: "dispatch-email-group-b",
+				threadKey: "task:email-b",
+				dedupeKey: "task_assigned:task:email-b",
+				createdAt: Date.now(),
+			});
+			const dispatchA = await ctx.db.insert("notificationDispatches", {
+				eventId: eventA,
+				userId,
+				channel: "email",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				updatedAt: Date.now(),
+			});
+			const dispatchB = await ctx.db.insert("notificationDispatches", {
+				eventId: eventB,
+				userId,
+				channel: "email",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				updatedAt: Date.now(),
+			});
+			return { dispatchA, dispatchB };
+		});
+
+		const firstProcessed = await t.mutation(
+			internal.notifications._processDispatch,
+			{
+				dispatchId: seeded.dispatchA,
+			},
+		);
+		expect(firstProcessed).toBe(2);
+
+		const [claimedA, claimedB] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchA),
+				ctx.db.get("notificationDispatches", seeded.dispatchB),
+			]),
+		);
+		expect(claimedA?.status).toBe("pending");
+		expect(claimedB?.status).toBe("pending");
+		expect(claimedA?.reason?.startsWith("email_group_claim:")).toBe(true);
+		expect(claimedA?.reason).toBe(claimedB?.reason);
+		expect(claimedA?.scheduledFunctionId).toBeDefined();
+		expect(claimedA?.scheduledFunctionId).toBe(claimedB?.scheduledFunctionId);
+
+		const secondProcessed = await t.mutation(
+			internal.notifications._processDispatch,
+			{
+				dispatchId: seeded.dispatchB,
+			},
+		);
+		expect(secondProcessed).toBe(0);
+	});
 });
