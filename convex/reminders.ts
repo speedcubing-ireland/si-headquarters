@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
 import { isVolunteer, requireUserId } from "./auth";
 import { internal } from "./_generated/api";
 import { REMINDER_PATTERNS } from "./lib/constants";
@@ -15,6 +16,7 @@ import {
 
 const DAYS_PER_WEEK = 7;
 const PRIORITY_NORMAL = "normal";
+type ScheduledFunctionId = Id<"_scheduled_functions">;
 
 export const reminderReturns = v.object({
 	id: v.id("reminders"),
@@ -56,6 +58,44 @@ function docToReminder(d: Doc<"reminders">) {
 		createdAt: toISO(d._creationTime),
 		updatedAt: toISO(d.updatedAt),
 	};
+}
+
+async function scheduleReminderTrigger(
+	ctx: MutationCtx,
+	reminderId: Id<"reminders">,
+	remindAt: number,
+): Promise<ScheduledFunctionId> {
+	return ctx.scheduler.runAt(remindAt, internal.reminders._triggerReminder, {
+		reminderId,
+	});
+}
+
+async function cancelReminderTrigger(
+	ctx: MutationCtx,
+	scheduledFunctionId?: ScheduledFunctionId,
+): Promise<void> {
+	if (!scheduledFunctionId) {
+		return;
+	}
+	await ctx.scheduler.cancel(scheduledFunctionId);
+}
+
+async function replaceReminderSchedule(
+	ctx: MutationCtx,
+	reminderId: Id<"reminders">,
+	remindAt: number,
+	currentScheduledFunctionId?: ScheduledFunctionId,
+): Promise<void> {
+	await cancelReminderTrigger(ctx, currentScheduledFunctionId);
+	const scheduledFunctionId = await scheduleReminderTrigger(
+		ctx,
+		reminderId,
+		remindAt,
+	);
+	await ctx.db.patch("reminders", reminderId, {
+		scheduledFunctionId,
+		updatedAt: Date.now(),
+	});
 }
 
 export const listForUser = query({
@@ -144,7 +184,7 @@ export const create = mutation({
 		}
 		const now = Date.now();
 		const remindAtMs = new Date(args.remindAt).getTime();
-		return await ctx.db.insert("reminders", {
+		const reminderId = await ctx.db.insert("reminders", {
 			userId,
 			entityType: "task",
 			entityId: args.entityId,
@@ -159,6 +199,16 @@ export const create = mutation({
 			metadata: args.metadata,
 			updatedAt: now,
 		});
+		const scheduledFunctionId = await scheduleReminderTrigger(
+			ctx,
+			reminderId,
+			remindAtMs,
+		);
+		await ctx.db.patch("reminders", reminderId, {
+			scheduledFunctionId,
+			updatedAt: Date.now(),
+		});
+		return reminderId;
 	},
 });
 
@@ -169,6 +219,7 @@ export const cancel = mutation({
 		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("reminders", args.reminderId);
 		if (!doc || doc.userId !== userId) return null;
+		await cancelReminderTrigger(ctx, doc.scheduledFunctionId);
 		await ctx.db.delete("reminders", args.reminderId);
 		return null;
 	},
@@ -207,6 +258,12 @@ export const snooze = mutation({
 			remindAt: remindAtMs,
 			updatedAt: Date.now(),
 		});
+		await replaceReminderSchedule(
+			ctx,
+			args.reminderId,
+			remindAtMs,
+			doc.scheduledFunctionId,
+		);
 		return null;
 	},
 });
@@ -226,70 +283,82 @@ export const reschedule = mutation({
 			remindAt: remindAtMs,
 			updatedAt: Date.now(),
 		});
+		await replaceReminderSchedule(
+			ctx,
+			args.reminderId,
+			remindAtMs,
+			doc.scheduledFunctionId,
+		);
 		return null;
 	},
 });
 
-export const _checkPendingReminders = internalMutation({
-	args: {},
-	returns: v.number(),
-	handler: async (ctx) => {
+export const _triggerReminder = internalMutation({
+	args: {
+		reminderId: v.id("reminders"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
 		const now = Date.now();
-		const pendingDue = await ctx.db
-			.query("reminders")
-			.withIndex("by_status_and_remind_at", (q) =>
-				q.eq("status", "pending").lte("remindAt", now),
-			)
-			.collect();
+		const reminder = await ctx.db.get("reminders", args.reminderId);
+		if (!reminder || reminder.status !== "pending" || reminder.remindAt > now) {
+			return null;
+		}
 
-		let triggeredCount = 0;
-		for (const reminder of pendingDue) {
-			await ctx.db.patch("reminders", reminder._id, {
-				status: "triggered",
-				triggeredAt: now,
-				updatedAt: now,
-			});
-			await ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyReminderTriggered,
-				{
-					reminderId: reminder._id,
-					userId: reminder.userId,
-					taskId: reminder.entityId,
-					message: reminder.message,
-				},
+		await ctx.db.patch("reminders", reminder._id, {
+			status: "triggered",
+			triggeredAt: now,
+			scheduledFunctionId: undefined,
+			updatedAt: now,
+		});
+		await ctx.scheduler.runAfter(
+			0,
+			internal.notifications._notifyReminderTriggered,
+			{
+				reminderId: reminder._id,
+				userId: reminder.userId,
+				taskId: reminder.entityId,
+				message: reminder.message,
+			},
+		);
+
+		if (reminder.type === "recurring" && reminder.recurringPattern) {
+			const nextRemindAt = calculateNextReminderTime(
+				reminder.remindAt,
+				reminder.recurringPattern,
 			);
-			triggeredCount++;
-
-			if (reminder.type === "recurring" && reminder.recurringPattern) {
-				const nextRemindAt = calculateNextReminderTime(
-					reminder.remindAt,
-					reminder.recurringPattern,
+			const beforeEnd =
+				!reminder.endDate ||
+				new Date(reminder.endDate).getTime() > nextRemindAt;
+			if (beforeEnd) {
+				const nextReminderId = await ctx.db.insert("reminders", {
+					userId: reminder.userId,
+					entityType: reminder.entityType,
+					entityId: reminder.entityId,
+					type: reminder.type,
+					remindAt: nextRemindAt,
+					recurringPattern: reminder.recurringPattern,
+					recurringConfig: reminder.recurringConfig,
+					endDate: reminder.endDate,
+					status: "pending",
+					priority: reminder.priority,
+					message: reminder.message,
+					metadata: reminder.metadata,
+					updatedAt: now,
+				});
+				const scheduledFunctionId = await scheduleReminderTrigger(
+					ctx,
+					nextReminderId,
+					nextRemindAt,
 				);
-				const beforeEnd =
-					!reminder.endDate ||
-					new Date(reminder.endDate).getTime() > nextRemindAt;
-				if (beforeEnd) {
-					await ctx.db.insert("reminders", {
-						userId: reminder.userId,
-						entityType: reminder.entityType,
-						entityId: reminder.entityId,
-						type: reminder.type,
-						remindAt: nextRemindAt,
-						recurringPattern: reminder.recurringPattern,
-						recurringConfig: reminder.recurringConfig,
-						endDate: reminder.endDate,
-						status: "pending",
-						priority: reminder.priority,
-						message: reminder.message,
-						metadata: reminder.metadata,
-						updatedAt: now,
-					});
-				}
+				await ctx.db.patch("reminders", nextReminderId, {
+					scheduledFunctionId,
+					updatedAt: Date.now(),
+				});
 			}
 		}
 
-		return triggeredCount;
+		return null;
 	},
 });
 

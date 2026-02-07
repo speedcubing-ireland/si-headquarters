@@ -56,7 +56,7 @@ import {
 	labelShape as taskLabelShape,
 	phaseShape,
 } from "./lib/validators";
-import { MAX_BULK_UPDATE_COUNT } from "./lib/constants";
+import { MAX_BULK_UPDATE_COUNT, NOTIFICATION_DEFAULTS } from "./lib/constants";
 import { toISO } from "./lib/transforms";
 import {
 	buildTaskRelationDataMap,
@@ -1045,6 +1045,48 @@ function resolveUpdatedPriority(
 	return patch.priority ?? updates.priority ?? doc.priority;
 }
 
+const dublinDateFormatter = new Intl.DateTimeFormat("en-CA", {
+	timeZone: NOTIFICATION_DEFAULTS.TIMEZONE,
+	year: "numeric",
+	month: "2-digit",
+	day: "2-digit",
+});
+
+function toDublinDateKey(timestamp: number): string {
+	return dublinDateFormatter.format(new Date(timestamp));
+}
+
+function isDublinDateToday(dateValue: string, now: number): boolean {
+	const dueDateMs = new Date(dateValue).getTime();
+	if (Number.isNaN(dueDateMs)) {
+		return false;
+	}
+	return toDublinDateKey(dueDateMs) === toDublinDateKey(now);
+}
+
+async function maybeTriggerDueDateCheckForToday(
+	ctx: MutationCtx,
+	args: {
+		taskId: Id<"tasks">;
+		dueDate: string | undefined;
+		assigneeId: Id<"users"> | undefined;
+		status: Doc<"tasks">["status"];
+	},
+): Promise<void> {
+	if (!args.dueDate || !args.assigneeId || args.status === "done") {
+		return;
+	}
+
+	const now = Date.now();
+	if (!isDublinDateToday(args.dueDate, now)) {
+		return;
+	}
+
+	await ctx.scheduler.runAfter(0, internal.notifications._checkDueDateForTask, {
+		taskId: args.taskId,
+	});
+}
+
 async function runTaskUpdateSideEffects(
 	ctx: MutationCtx,
 	args: {
@@ -1135,6 +1177,12 @@ async function runTaskUpdateSideEffects(
 				newDueDate,
 				userId,
 			);
+			await maybeTriggerDueDateCheckForToday(ctx, {
+				taskId,
+				dueDate: newDueDate,
+				assigneeId: newAssigneeId,
+				status: newStatus,
+			});
 		}
 	}
 
@@ -1261,6 +1309,12 @@ export const create = mutation({
 				},
 			);
 		}
+		await maybeTriggerDueDateCheckForToday(ctx, {
+			taskId,
+			dueDate: args.dueDate,
+			assigneeId,
+			status: args.status,
+		});
 
 		await logActivity(ctx, userId, "task", taskId, "created");
 		return taskId;
@@ -1345,6 +1399,12 @@ export const createManyFromTemplate = mutation({
 					},
 				);
 			}
+			await maybeTriggerDueDateCheckForToday(ctx, {
+				taskId,
+				dueDate: task.dueDate,
+				assigneeId: task.assigneeId,
+				status: task.status,
+			});
 
 			await logActivity(ctx, userId, "task", taskId, "created");
 		}

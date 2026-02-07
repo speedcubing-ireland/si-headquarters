@@ -5,17 +5,14 @@ export const NOTIFICATION_THRESHOLDS = {
 	MS_PER_DAY: 24 * 60 * 60 * 1000,
 } as const;
 
-export const CRON_INTERVALS = {
-	DUE_DATE_CHECK: { hours: 1 },
-	REMINDER_CHECK: { minutes: 15 },
-	NOTIFICATION_DISPATCH_CHECK: { minutes: 15 },
+export const CRON_EXPRESSIONS = {
+	DUE_DATE_CHECK_DAILY_UTC: "0 5 * * *",
 } as const;
 
 export const NOTIFICATION_DEFAULTS = {
 	TIMEZONE: "Europe/Dublin",
 	DAILY_DIGEST_SEND_MINUTE: 9 * 60,
 	THREE_DAILY_DIGEST_SEND_MINUTES: [9 * 60, 13 * 60, 18 * 60] as const,
-	MAX_DISPATCH_BATCH_SIZE: 500,
 	MAX_DIGEST_LOOKAHEAD_MINUTES: 26 * 60,
 } as const;
 

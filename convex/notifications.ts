@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
@@ -61,6 +62,7 @@ type EntitySubscriptionArg = Infer<typeof entitySubscriptionArgs>;
 
 type NotificationEntityType = "task" | "comment" | "competition" | "reminder";
 type DispatchStatus = "pending" | "sent" | "skipped" | "failed";
+type ScheduledFunctionId = Id<"_scheduled_functions">;
 
 const notificationEntityType = v.union(
 	v.literal("task"),
@@ -670,6 +672,43 @@ async function upsertEnabledExternalDispatches(
 	);
 }
 
+function shouldScheduleDispatchProcessing(
+	status: DispatchStatus,
+	scheduledFor: number | undefined,
+): scheduledFor is number {
+	return status === "pending" && scheduledFor !== undefined;
+}
+
+async function scheduleDispatchProcessing(
+	ctx: MutationCtx,
+	dispatchId: Id<"notificationDispatches">,
+	scheduledFor: number,
+): Promise<ScheduledFunctionId> {
+	return ctx.scheduler.runAt(
+		scheduledFor,
+		internal.notifications._processDispatch,
+		{
+			dispatchId,
+		},
+	);
+}
+
+async function attachDispatchScheduleIfPending(
+	ctx: MutationCtx,
+	dispatchId: Id<"notificationDispatches">,
+	scheduledFunctionId: ScheduledFunctionId,
+): Promise<void> {
+	const latest = await ctx.db.get("notificationDispatches", dispatchId);
+	if (!latest || latest.status !== "pending") {
+		await ctx.scheduler.cancel(scheduledFunctionId);
+		return;
+	}
+	await ctx.db.patch("notificationDispatches", dispatchId, {
+		scheduledFunctionId,
+		updatedAt: Date.now(),
+	});
+}
+
 async function upsertDispatch(
 	ctx: MutationCtx,
 	args: {
@@ -705,13 +744,21 @@ async function upsertDispatch(
 		existing?.scheduledFor ??
 		(args.status === "pending" ? now : undefined);
 	const digestWindowKey = args.digestWindowKey ?? existing?.digestWindowKey;
+	const shouldSchedule = shouldScheduleDispatchProcessing(
+		args.status,
+		scheduledFor,
+	);
 
 	if (existing) {
+		if (existing.scheduledFunctionId) {
+			await ctx.scheduler.cancel(existing.scheduledFunctionId);
+		}
 		await ctx.db.patch("notificationDispatches", existing._id, {
 			notificationId: args.notificationId ?? existing.notificationId,
 			status: args.status,
 			digestMode,
 			scheduledFor,
+			scheduledFunctionId: undefined,
 			digestWindowKey,
 			reason: args.reason,
 			metadataJson: args.metadataJson,
@@ -720,10 +767,22 @@ async function upsertDispatch(
 			sentAt,
 			updatedAt: now,
 		});
+		if (shouldSchedule) {
+			const scheduledFunctionId = await scheduleDispatchProcessing(
+				ctx,
+				existing._id,
+				scheduledFor,
+			);
+			await attachDispatchScheduleIfPending(
+				ctx,
+				existing._id,
+				scheduledFunctionId,
+			);
+		}
 		return;
 	}
 
-	await ctx.db.insert("notificationDispatches", {
+	const dispatchId = await ctx.db.insert("notificationDispatches", {
 		eventId: args.eventId,
 		notificationId: args.notificationId,
 		userId: args.userId,
@@ -731,6 +790,7 @@ async function upsertDispatch(
 		status: args.status,
 		digestMode,
 		scheduledFor,
+		scheduledFunctionId: undefined,
 		digestWindowKey,
 		reason: args.reason,
 		metadataJson: args.metadataJson,
@@ -739,6 +799,15 @@ async function upsertDispatch(
 		sentAt,
 		updatedAt: now,
 	});
+	if (!shouldSchedule) {
+		return;
+	}
+	const scheduledFunctionId = await scheduleDispatchProcessing(
+		ctx,
+		dispatchId,
+		scheduledFor,
+	);
+	await attachDispatchScheduleIfPending(ctx, dispatchId, scheduledFunctionId);
 }
 
 async function ensureNotificationEvent(
@@ -3245,72 +3314,103 @@ export const _notifyReminderTriggered = internalMutation({
 		}),
 });
 
-function normalizeDispatchBatchLimit(limit: number | undefined): number {
-	if (!limit || Number.isNaN(limit)) {
-		return NOTIFICATION_DEFAULTS.MAX_DISPATCH_BATCH_SIZE;
-	}
-	if (limit < 1) {
-		return 1;
-	}
-	return Math.min(limit, NOTIFICATION_DEFAULTS.MAX_DISPATCH_BATCH_SIZE);
+function isDispatchDue(
+	dispatch: Pick<Doc<"notificationDispatches">, "scheduledFor">,
+	now: number,
+): boolean {
+	return dispatch.scheduledFor === undefined || dispatch.scheduledFor <= now;
 }
 
-export const _processPendingDispatches = internalMutation({
+function dispatchGroupKey(
+	dispatch: Pick<
+		Doc<"notificationDispatches">,
+		"_id" | "userId" | "channel" | "digestMode" | "digestWindowKey"
+	>,
+): string {
+	if (dispatch.digestMode === "immediate") {
+		return `${dispatch.userId}:${dispatch.channel}:${dispatch._id}`;
+	}
+	return `${dispatch.userId}:${dispatch.channel}:${dispatch.digestMode}:${dispatch.digestWindowKey ?? "windowless"}`;
+}
+
+async function collectDispatchGroup(
+	ctx: Pick<MutationCtx, "db">,
+	seed: Doc<"notificationDispatches">,
+	now: number,
+): Promise<Doc<"notificationDispatches">[]> {
+	if (seed.digestMode === "immediate") {
+		return [seed];
+	}
+
+	const seedKey = dispatchGroupKey(seed);
+	const candidates = await ctx.db
+		.query("notificationDispatches")
+		.withIndex("by_user_status", (q) =>
+			q.eq("userId", seed.userId).eq("status", "pending"),
+		)
+		.collect();
+	return candidates.filter(
+		(dispatch) =>
+			dispatchGroupKey(dispatch) === seedKey && isDispatchDue(dispatch, now),
+	);
+}
+
+export const _processDispatch = internalMutation({
 	args: {
-		limit: v.optional(v.number()),
+		dispatchId: v.id("notificationDispatches"),
 	},
 	returns: v.number(),
 	handler: async (ctx, args) => {
 		const now = Date.now();
-		const limit = normalizeDispatchBatchLimit(args.limit);
-		const pendingDispatches = await ctx.db
-			.query("notificationDispatches")
-			.withIndex("by_status_scheduled_for", (q) =>
-				q.eq("status", "pending").lte("scheduledFor", now),
-			)
-			.take(limit);
-
-		if (pendingDispatches.length === 0) {
+		const seedDispatch = await ctx.db.get(
+			"notificationDispatches",
+			args.dispatchId,
+		);
+		if (
+			!seedDispatch ||
+			seedDispatch.status !== "pending" ||
+			!isDispatchDue(seedDispatch, now)
+		) {
 			return 0;
 		}
 
-		const dispatchGroups = new Map<string, Doc<"notificationDispatches">[]>();
-		for (const dispatch of pendingDispatches) {
-			const digestKey =
-				dispatch.digestMode === "immediate"
-					? `${dispatch.userId}:${dispatch.channel}:${dispatch._id}`
-					: `${dispatch.userId}:${dispatch.channel}:${dispatch.digestMode}:${dispatch.digestWindowKey ?? "windowless"}`;
-			const existingGroup = dispatchGroups.get(digestKey) ?? [];
-			existingGroup.push(dispatch);
-			dispatchGroups.set(digestKey, existingGroup);
+		const dispatchGroup = await collectDispatchGroup(ctx, seedDispatch, now);
+		if (dispatchGroup.length === 0) {
+			return 0;
 		}
 
+		const eventIds = [
+			...new Set(dispatchGroup.map((dispatch) => dispatch.eventId)),
+		];
+		const metadataJson = JSON.stringify({
+			mode: seedDispatch.digestMode,
+			channel: seedDispatch.channel,
+			eventCount: eventIds.length,
+			eventIds,
+			digestWindowKey: seedDispatch.digestWindowKey,
+			processedAt: now,
+		});
+
 		let processedCount = 0;
-		for (const dispatchGroup of dispatchGroups.values()) {
-			const eventIds = [...new Set(dispatchGroup.map((d) => d.eventId))];
-			const metadataJson = JSON.stringify({
-				mode: dispatchGroup[0]?.digestMode ?? "immediate",
-				channel: dispatchGroup[0]?.channel,
-				eventCount: eventIds.length,
-				eventIds,
-				digestWindowKey: dispatchGroup[0]?.digestWindowKey,
-				processedAt: now,
+		for (const dispatch of dispatchGroup) {
+			const latest = await ctx.db.get("notificationDispatches", dispatch._id);
+			if (
+				!latest ||
+				latest.status !== "pending" ||
+				!isDispatchDue(latest, now)
+			) {
+				continue;
+			}
+			await ctx.db.patch("notificationDispatches", dispatch._id, {
+				status: "skipped",
+				reason: "channel_not_implemented",
+				metadataJson,
+				attempts: latest.attempts + 1,
+				lastAttemptAt: now,
+				scheduledFunctionId: undefined,
+				updatedAt: now,
 			});
-
-			await Promise.all(
-				dispatchGroup.map((dispatch) =>
-					ctx.db.patch("notificationDispatches", dispatch._id, {
-						status: "skipped",
-						reason: "channel_not_implemented",
-						metadataJson,
-						attempts: dispatch.attempts + 1,
-						lastAttemptAt: now,
-						updatedAt: now,
-					}),
-				),
-			);
-
-			processedCount += dispatchGroup.length;
+			processedCount += 1;
 		}
 
 		return processedCount;
@@ -3388,6 +3488,31 @@ async function emitDueDateNotification(
 	return inserted.length;
 }
 
+async function maybeEmitDueDateNotificationForTask(
+	ctx: MutationCtx,
+	task: Doc<"tasks">,
+	now: number,
+): Promise<number> {
+	if (!task.dueDate || !task.assigneeId || task.status === "done") {
+		return 0;
+	}
+
+	const dueDateMs = new Date(task.dueDate).getTime();
+	if (Number.isNaN(dueDateMs)) {
+		return 0;
+	}
+
+	const diffMs = dueDateMs - now;
+	const daysDiff = Math.floor(diffMs / MS_PER_DAY);
+	const dayBucket = Math.floor(now / MS_PER_DAY);
+	const spec = buildDueDateNotificationSpec(task, diffMs, daysDiff, dayBucket);
+	if (!spec) {
+		return 0;
+	}
+
+	return emitDueDateNotification(ctx, task, task.assigneeId, spec);
+}
+
 export const _checkDueDates = internalMutation({
 	args: {},
 	returns: v.number(),
@@ -3400,31 +3525,27 @@ export const _checkDueDates = internalMutation({
 		let notificationCount = 0;
 
 		for (const task of tasks) {
-			if (!task.dueDate || !task.assigneeId || task.status === "done") {
-				continue;
-			}
-
-			const dueDateMs = new Date(task.dueDate).getTime();
-			const diffMs = dueDateMs - now;
-			const daysDiff = Math.floor(diffMs / MS_PER_DAY);
-			const dayBucket = Math.floor(now / MS_PER_DAY);
-			const spec = buildDueDateNotificationSpec(
-				task,
-				diffMs,
-				daysDiff,
-				dayBucket,
-			);
-			if (!spec) {
-				continue;
-			}
-			notificationCount += await emitDueDateNotification(
+			notificationCount += await maybeEmitDueDateNotificationForTask(
 				ctx,
 				task,
-				task.assigneeId,
-				spec,
+				now,
 			);
 		}
 
 		return notificationCount;
+	},
+});
+
+export const _checkDueDateForTask = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+	},
+	returns: v.number(),
+	handler: async (ctx, args) => {
+		const task = await ctx.db.get("tasks", args.taskId);
+		if (!task) {
+			return 0;
+		}
+		return maybeEmitDueDateNotificationForTask(ctx, task, Date.now());
 	},
 });

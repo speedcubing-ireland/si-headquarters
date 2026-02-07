@@ -74,6 +74,44 @@ describe("tasks behavior characterization", () => {
 		expect(secondDoc?.identifier).toBe("HQ-2");
 	});
 
+	test("create triggers due-date notification immediately when due date is set to today", async () => {
+		vi.useFakeTimers();
+		try {
+			const t = convexTest(schema, modules);
+			const { userId, competitionId } = await seedUserAndCompetition(t);
+			const authed = t.withIdentity({ subject: userId });
+			const now = Date.UTC(2026, 0, 15, 9, 0, 0);
+			vi.setSystemTime(now);
+
+			await authed.mutation(api.tasks.create, {
+				title: "Due today task",
+				status: "to-do",
+				priority: "medium",
+				parentCompetitionId: competitionId,
+				assigneeId: userId,
+				dueDate: new Date(now + 4 * 60 * 60 * 1000).toISOString(),
+			});
+			await t.finishAllScheduledFunctions(() => {
+				vi.runAllTimers();
+			});
+
+			const notifications = await t.run((ctx) =>
+				ctx.db
+					.query("notifications")
+					.withIndex("by_user_and_status", (q) =>
+						q.eq("userId", userId).eq("status", "unread"),
+					)
+					.collect(),
+			);
+
+			expect(
+				notifications.some((n) => n.type === "due_date_approaching"),
+			).toBeTruthy();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	test("update auto-promotes awaiting-review to done when approvals are already complete", async () => {
 		vi.useFakeTimers();
 		try {

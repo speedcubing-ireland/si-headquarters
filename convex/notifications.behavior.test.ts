@@ -1309,4 +1309,127 @@ describe("relation notification batch fan-out", () => {
 		expect(notifications).toHaveLength(1);
 		expect(notifications[0]?.type).toBe("due_date_changed");
 	});
+
+	test("_processDispatch marks a due pending dispatch as skipped", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-1",
+				idempotencyKey: "dispatch-single",
+				threadKey: "task:1",
+				dedupeKey: "task_assigned:task:1",
+				createdAt: Date.now(),
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "in_app",
+				status: "pending",
+				digestMode: "immediate",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				updatedAt: Date.now(),
+			});
+			return { dispatchId, eventId };
+		});
+
+		const processed = await t.mutation(
+			internal.notifications._processDispatch,
+			{
+				dispatchId: seeded.dispatchId,
+			},
+		);
+		expect(processed).toBe(1);
+
+		const dispatch = await t.run((ctx) =>
+			ctx.db.get("notificationDispatches", seeded.dispatchId),
+		);
+		expect(dispatch?.status).toBe("skipped");
+		expect(dispatch?.reason).toBe("channel_not_implemented");
+		expect(dispatch?.attempts).toBe(1);
+		expect(dispatch?.scheduledFunctionId).toBeUndefined();
+		expect(typeof dispatch?.lastAttemptAt).toBe("number");
+		expect(typeof dispatch?.metadataJson).toBe("string");
+
+		const metadata = JSON.parse(dispatch?.metadataJson ?? "{}") as {
+			eventIds?: Id<"notificationEvents">[];
+			eventCount?: number;
+		};
+		expect(metadata.eventCount).toBe(1);
+		expect(metadata.eventIds).toEqual([seeded.eventId]);
+	});
+
+	test("_processDispatch processes grouped due digest dispatches together", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {});
+			const eventA = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-a",
+				idempotencyKey: "dispatch-group-a",
+				threadKey: "task:a",
+				dedupeKey: "task_assigned:task:a",
+				createdAt: Date.now(),
+			});
+			const eventB = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-b",
+				idempotencyKey: "dispatch-group-b",
+				threadKey: "task:b",
+				dedupeKey: "task_assigned:task:b",
+				createdAt: Date.now(),
+			});
+			const dispatchA = await ctx.db.insert("notificationDispatches", {
+				eventId: eventA,
+				userId,
+				channel: "in_app",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				updatedAt: Date.now(),
+			});
+			const dispatchB = await ctx.db.insert("notificationDispatches", {
+				eventId: eventB,
+				userId,
+				channel: "in_app",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				updatedAt: Date.now(),
+			});
+			return { dispatchA, dispatchB };
+		});
+
+		const processed = await t.mutation(
+			internal.notifications._processDispatch,
+			{
+				dispatchId: seeded.dispatchA,
+			},
+		);
+		expect(processed).toBe(2);
+
+		const [dispatchA, dispatchB] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchA),
+				ctx.db.get("notificationDispatches", seeded.dispatchB),
+			]),
+		);
+
+		expect(dispatchA?.status).toBe("skipped");
+		expect(dispatchB?.status).toBe("skipped");
+		expect(dispatchA?.attempts).toBe(1);
+		expect(dispatchB?.attempts).toBe(1);
+		expect(dispatchA?.reason).toBe("channel_not_implemented");
+		expect(dispatchB?.reason).toBe("channel_not_implemented");
+		expect(dispatchA?.metadataJson).toBe(dispatchB?.metadataJson);
+	});
 });

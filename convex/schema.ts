@@ -280,6 +280,7 @@ export default defineSchema({
 		channel: notificationChannel,
 		digestMode: notificationDigestMode,
 		scheduledFor: v.optional(v.number()),
+		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
 		digestWindowKey: v.optional(v.string()),
 		status: notificationDispatchStatus,
 		reason: v.optional(v.string()),
@@ -291,7 +292,6 @@ export default defineSchema({
 	})
 		.index("by_event_user_channel", ["eventId", "userId", "channel"])
 		.index("by_user_status", ["userId", "status"])
-		.index("by_status_scheduled_for", ["status", "scheduledFor"])
 		.index("by_channel_status", ["channel", "status"]),
 
 	reminders: defineTable({
@@ -300,6 +300,7 @@ export default defineSchema({
 		entityId: v.id("tasks"),
 		type: v.union(v.literal("one_time"), v.literal("recurring")),
 		remindAt: v.number(),
+		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
 		recurringPattern: v.optional(v.string()),
 		recurringConfig: reminderRecurringConfig,
 		endDate: v.optional(v.string()),
@@ -318,9 +319,7 @@ export default defineSchema({
 	})
 		.index("by_user_and_status", ["userId", "status"])
 		.index("by_user_entityId_status", ["userId", "entityId", "status"])
-		.index("by_remind_at", ["remindAt"])
-		.index("by_entity", ["entityType", "entityId"])
-		.index("by_status_and_remind_at", ["status", "remindAt"]),
+		.index("by_entity", ["entityType", "entityId"]),
 
 	savedViews: defineTable({
 		userId: v.id("users"),
