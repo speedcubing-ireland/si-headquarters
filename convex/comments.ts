@@ -4,13 +4,17 @@ import type { Id, Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
 import { logActivity } from "./lib/activity";
-import { internal } from "./_generated/api";
 import { isDirectorForCtx } from "./admin";
 import { hasCompetitionAccess } from "./competitionAccess";
 import { toUsers, createLens, type UserUI } from "./lib/transforms";
 import { validateRequiredText } from "./lib/sanitize";
 import { getCommentParentId } from "./lib/commentParentId";
-import { parentType } from "./lib/validators";
+import { parentType, userShape } from "./lib/validators";
+import {
+	sendMentionNotifications,
+	sendReplyNotifications,
+	sendCommentAddedNotifications,
+} from "./commentNotifications";
 
 function mapCommentForUI(
 	doc: {
@@ -57,12 +61,6 @@ const ERROR_COMMENT_NO_ACCESS_TASK =
 	"You can only comment on tasks linked to competitions you are organizing";
 const ERROR_COMMENT_NO_ACCESS_UPDATE =
 	"You can only comment on updates for competitions you are organizing";
-
-const userShape = v.object({
-	id: v.string(),
-	name: v.string(),
-	avatarUrl: v.string(),
-});
 
 const reactionShape = v.object({
 	emoji: v.string(),
@@ -141,7 +139,10 @@ async function ensureCommentParentAccess(
 		args.parentId,
 	);
 	if (!parentLookup.exists) {
-		throw new ConvexError(commentParentNotFoundMessage(args.parentType));
+		throw new ConvexError({
+			code: "NOT_FOUND",
+			message: commentParentNotFoundMessage(args.parentType),
+		});
 	}
 	if (args.volunteer) {
 		return;
@@ -210,38 +211,6 @@ async function buildCommentUsersLens(ctx: CommentDbCtx, docs: CommentDoc[]) {
 		userIds.map((id) => ctx.db.get("users", id)),
 	);
 	return createLens(toUsers(userDocs));
-}
-
-function collectCommentAddedRecipientIds(
-	task: {
-		assigneeId?: Id<"users">;
-		ownerId?: Id<"users"> | Id<"teams">;
-		ownerType?: "user" | "team";
-	},
-	actorId: Id<"users">,
-	excludedRecipientIds: Set<Id<"users">>,
-): Id<"users">[] {
-	const recipients = new Set<Id<"users">>();
-
-	if (
-		task.assigneeId &&
-		task.assigneeId !== actorId &&
-		!excludedRecipientIds.has(task.assigneeId)
-	) {
-		recipients.add(task.assigneeId);
-	}
-
-	if (
-		task.ownerType === "user" &&
-		task.ownerId &&
-		task.ownerId !== actorId &&
-		task.ownerId !== task.assigneeId &&
-		!excludedRecipientIds.has(task.ownerId as Id<"users">)
-	) {
-		recipients.add(task.ownerId as Id<"users">);
-	}
-
-	return [...recipients];
 }
 
 async function resolveParentComment(
@@ -459,64 +428,27 @@ export const create = mutation({
 		if (!task) return commentId;
 
 		const mentionedUserIds = await extractMentions(ctx, args.content);
-		const mentionedRecipients = new Set<Id<"users">>();
-
-		for (const mentionedUserId of mentionedUserIds) {
-			if (mentionedUserId !== userId) {
-				await ctx.scheduler.runAfter(
-					0,
-					internal.notifications._notifyTaskMentioned,
-					{
-						taskId,
-						commentId,
-						mentionedUserId,
-						actorId: userId,
-					},
-				);
-				mentionedRecipients.add(mentionedUserId);
-			}
-		}
-		const replyRecipients = new Set<Id<"users">>();
-		if (
-			parentComment &&
-			parentComment.authorId !== userId &&
-			!mentionedRecipients.has(parentComment.authorId)
-		) {
-			replyRecipients.add(parentComment.authorId);
-		}
-		if (replyRecipients.size > 0) {
-			await ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyCommentReplied,
-				{
-					taskId,
-					commentId,
-					recipientIds: [...replyRecipients],
-					actorId: userId,
-					eventKey: `${commentId}:reply`,
-				},
-			);
-		}
-		const excludedRecipients = new Set<Id<"users">>([
-			...mentionedRecipients,
-			...replyRecipients,
-		]);
-		const commentAddedRecipients = collectCommentAddedRecipientIds(
+		const mentionNotified = await sendMentionNotifications(ctx, {
+			taskId,
+			commentId,
+			mentionedUserIds,
+			actorId: userId,
+		});
+		const replyNotified = await sendReplyNotifications(ctx, {
+			taskId,
+			commentId,
+			parentComment,
+			actorId: userId,
+			excludedRecipients: mentionNotified,
+		});
+		const allExcluded = new Set([...mentionNotified, ...replyNotified]);
+		await sendCommentAddedNotifications(ctx, {
+			taskId,
+			commentId,
 			task,
-			userId,
-			excludedRecipients,
-		);
-		await ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyCommentAdded,
-			{
-				taskId,
-				commentId,
-				recipientIds: commentAddedRecipients,
-				actorId: userId,
-				eventKey: `${commentId}:added`,
-			},
-		);
+			actorId: userId,
+			excludedRecipients: allExcluded,
+		});
 		return commentId;
 	},
 });

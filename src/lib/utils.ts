@@ -29,3 +29,14 @@ function getErrorMessage(error: unknown): string {
 export function onMutationError(error: unknown): void {
 	toast.error(getErrorMessage(error));
 }
+
+/** Build an object containing only the keys whose values are not undefined. */
+export function pickDefined<T extends Record<string, unknown>>(
+	obj: T,
+): Partial<T> {
+	const result: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(obj)) {
+		if (value !== undefined) result[key] = value;
+	}
+	return result as Partial<T>;
+}

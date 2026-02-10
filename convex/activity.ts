@@ -38,7 +38,10 @@ async function resolveActorsAndMapDocs(
 	const userArr = [...actorIds];
 	const taskIds = new Set<Id<"tasks">>();
 	for (const d of docs) {
-		if (d.entityType === "task") taskIds.add(d.entityId as Id<"tasks">);
+		if (d.entityType === "task") {
+			const taskId = ctx.db.normalizeId("tasks", d.entityId);
+			if (taskId) taskIds.add(taskId);
+		}
 	}
 	const taskArr = [...taskIds];
 
@@ -67,7 +70,8 @@ async function resolveActorsAndMapDocs(
 		let entityIdentifier: string | undefined;
 
 		if (d.entityType === "task") {
-			const t = tasksMap.get(d.entityId as Id<"tasks">);
+			const taskId = ctx.db.normalizeId("tasks", d.entityId);
+			const t = taskId ? tasksMap.get(taskId) : undefined;
 			if (t) {
 				entityTitle = t.title;
 				entityIdentifier = t.identifier;
@@ -83,7 +87,7 @@ async function resolveActorsAndMapDocs(
 			timestamp: toISO(d._creationTime),
 			oldValue: d.oldValue,
 			newValue: d.newValue,
-			metadata: d.metadata as ActivityMetadata,
+			metadata: d.metadata,
 			entityTitle,
 			entityIdentifier,
 		};
@@ -97,7 +101,8 @@ async function isActivityRelevantToUser(
 ): Promise<boolean> {
 	if (doc.actorId === userId) return true;
 	if (doc.entityType === "task") {
-		const taskId = doc.entityId as Id<"tasks">;
+		const taskId = ctx.db.normalizeId("tasks", doc.entityId);
+		if (!taskId) return false;
 		const task = await ctx.db.get("tasks", taskId);
 		return task?.assigneeId === userId;
 	}
@@ -129,7 +134,8 @@ export const listForEntity = query({
 		const volunteer = await isVolunteer(ctx);
 
 		if (args.entityType === "task") {
-			const taskId = args.entityId as Id<"tasks">;
+			const taskId = ctx.db.normalizeId("tasks", args.entityId);
+			if (!taskId) return [];
 			const task = await ctx.db.get("tasks", taskId);
 			if (!task) return [];
 
@@ -144,7 +150,8 @@ export const listForEntity = query({
 				if (!hasAccess) return [];
 			}
 		} else if (args.entityType === "update") {
-			const updateId = args.entityId as Id<"competitionUpdates">;
+			const updateId = ctx.db.normalizeId("competitionUpdates", args.entityId);
+			if (!updateId) return [];
 			const update = await ctx.db.get("competitionUpdates", updateId);
 			if (!update) return [];
 
@@ -159,7 +166,8 @@ export const listForEntity = query({
 			}
 		} else if (args.entityType === "competition") {
 			if (!volunteer) {
-				const competitionId = args.entityId as Id<"competitions">;
+				const competitionId = ctx.db.normalizeId("competitions", args.entityId);
+				if (!competitionId) return [];
 				const hasAccess = await hasCompetitionAccess(
 					ctx,
 					volunteer,

@@ -14,7 +14,6 @@ import {
 	Mail,
 	MessageCircle,
 	MoreHorizontal,
-	Settings2,
 	Trash2,
 	User,
 	XCircle,
@@ -32,81 +31,75 @@ import {
 	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
 	useNotifications,
-	useNotificationSettings,
-	useNotificationSubscriptions,
 	useUnreadCount,
 	useNotificationMutations,
 	usePendingReminders,
 	useReminderMutations,
 } from "@/hooks/use-convex-data";
-import type {
-	Notification,
-	NotificationPreference,
-	NotificationType,
-} from "@/data/types-new";
+import type { Notification, NotificationType } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
 import { formatRelativeTime } from "@/lib/activity-utils";
 import { onMutationError } from "@/lib/utils";
 import { SNOOZE_PRESETS } from "@/lib/reminder-presets";
-import {
-	NOTIFICATION_TYPE_OPTIONS,
-	DIGEST_OPTIONS,
-	minutesToTimeInput,
-	timeInputToMinutes,
-} from "@/lib/notification-utils";
+import { InboxSettingsPanel } from "@/components/inbox/inbox-settings-panel";
 
 export const Route = createFileRoute("/inbox")({
 	component: RouteComponent,
 });
 
+const NOTIFICATION_ICON_CONFIG: Record<
+	string,
+	{ Icon: typeof Bell; className: string }
+> = {
+	task_assigned: { Icon: User, className: "size-5 text-primary" },
+	task_unassigned: { Icon: User, className: "size-5 text-muted-foreground" },
+	task_mentioned: { Icon: MessageCircle, className: "size-5 text-primary" },
+	task_status_changed: { Icon: CheckCircle2, className: "size-5 text-primary" },
+	task_priority_changed: {
+		Icon: AlertTriangle,
+		className: "size-5 text-warning",
+	},
+	task_awaiting_review: {
+		Icon: CheckCircle2,
+		className: "size-5 text-primary",
+	},
+	due_date_approaching: {
+		Icon: Clock,
+		className: "size-5 text-muted-foreground",
+	},
+	due_date_overdue: { Icon: AlertCircle, className: "size-5 text-destructive" },
+	comment_added: { Icon: MessageCircle, className: "size-5 text-primary" },
+	comment_replied: { Icon: MessageCircle, className: "size-5 text-primary" },
+	relation_blocked: {
+		Icon: AlertTriangle,
+		className: "size-5 text-destructive",
+	},
+	relation_unblocked: { Icon: CheckCircle2, className: "size-5 text-primary" },
+	task_approved: { Icon: CheckCircle2, className: "size-5 text-primary" },
+	task_unapproved: { Icon: XCircle, className: "size-5 text-muted-foreground" },
+	due_date_changed: { Icon: Calendar, className: "size-5 text-primary" },
+	competition_phase_changed: { Icon: Link2, className: "size-5 text-primary" },
+	progress_update_added: {
+		Icon: Bell,
+		className: "size-5 text-muted-foreground",
+	},
+	reminder_triggered: { Icon: Calendar, className: "size-5 text-primary" },
+};
+
+const DEFAULT_ICON_CONFIG = {
+	Icon: Bell,
+	className: "size-5 text-muted-foreground",
+};
+
 function getNotificationIcon(type: NotificationType) {
-	switch (type) {
-		case "task_assigned":
-			return <User className="size-5 text-primary" />;
-		case "task_unassigned":
-			return <User className="size-5 text-muted-foreground" />;
-		case "task_mentioned":
-			return <MessageCircle className="size-5 text-primary" />;
-		case "task_status_changed":
-			return <CheckCircle2 className="size-5 text-primary" />;
-		case "task_priority_changed":
-			return <AlertTriangle className="size-5 text-warning" />;
-		case "task_awaiting_review":
-			return <CheckCircle2 className="size-5 text-primary" />;
-		case "due_date_approaching":
-			return <Clock className="size-5 text-muted-foreground" />;
-		case "due_date_overdue":
-			return <AlertCircle className="size-5 text-destructive" />;
-		case "comment_added":
-			return <MessageCircle className="size-5 text-primary" />;
-		case "comment_replied":
-			return <MessageCircle className="size-5 text-primary" />;
-		case "relation_blocked":
-			return <AlertTriangle className="size-5 text-destructive" />;
-		case "relation_unblocked":
-			return <CheckCircle2 className="size-5 text-primary" />;
-		case "task_approved":
-			return <CheckCircle2 className="size-5 text-primary" />;
-		case "task_unapproved":
-			return <XCircle className="size-5 text-muted-foreground" />;
-		case "due_date_changed":
-			return <Calendar className="size-5 text-primary" />;
-		case "competition_phase_changed":
-			return <Link2 className="size-5 text-primary" />;
-		case "progress_update_added":
-			return <Bell className="size-5 text-muted-foreground" />;
-		case "reminder_triggered":
-			return <Calendar className="size-5 text-primary" />;
-		default:
-			return <Bell className="size-5 text-muted-foreground" />;
-	}
+	const config = NOTIFICATION_ICON_CONFIG[type] ?? DEFAULT_ICON_CONFIG;
+	return <config.Icon className={config.className} />;
 }
 
 function NotificationItem({
@@ -284,126 +277,8 @@ function NotificationItem({
 	);
 }
 
-function NotificationTypeOverrideRow({
-	preference,
-	onSave,
-}: {
-	preference: NotificationPreference;
-	onSave: (payload: {
-		type: NotificationType;
-		channel: NotificationPreference["channel"];
-		enabled?: boolean;
-		respectQuietHours?: boolean;
-		clearOverride?: boolean;
-	}) => void;
-}) {
-	const label =
-		NOTIFICATION_TYPE_OPTIONS.find((option) => option.value === preference.type)
-			?.label ?? preference.type;
-
-	return (
-		<div className="rounded-lg border border-border/70 bg-background/60 p-3">
-			<div className="flex flex-wrap items-start justify-between gap-2">
-				<div className="min-w-0">
-					<p className="truncate text-sm font-medium">{label}</p>
-					<p className="text-xs text-muted-foreground">
-						{preference.isOverride
-							? "Override active"
-							: "Using global delivery defaults"}
-					</p>
-				</div>
-				<Badge variant={preference.isOverride ? "secondary" : "outline"}>
-					{preference.isOverride ? "Override" : "Global"}
-				</Badge>
-			</div>
-
-			{preference.isOverride ? (
-				<div className="mt-3 grid gap-3 sm:grid-cols-[auto,auto,1fr] sm:items-end">
-					<div className="flex items-center gap-2">
-						<Button
-							variant={preference.enabled ? "secondary" : "outline"}
-							size="sm"
-							onClick={() =>
-								onSave({
-									type: preference.type,
-									channel: preference.channel,
-									enabled: !preference.enabled,
-								})
-							}
-						>
-							{preference.enabled ? "Enabled" : "Disabled"}
-						</Button>
-					</div>
-					<div>
-						<p className="mb-1 text-xs text-muted-foreground">Mode</p>
-						<Badge variant="secondary" className="h-8 px-3 text-xs">
-							Immediate
-						</Badge>
-					</div>
-					<div>
-						<p className="mb-1 text-xs text-muted-foreground">Quiet hours</p>
-						<Button
-							variant={preference.respectQuietHours ? "secondary" : "outline"}
-							size="sm"
-							onClick={() =>
-								onSave({
-									type: preference.type,
-									channel: preference.channel,
-									respectQuietHours: !preference.respectQuietHours,
-								})
-							}
-						>
-							{preference.respectQuietHours
-								? "Respect quiet hours"
-								: "Ignore quiet hours"}
-						</Button>
-					</div>
-				</div>
-			) : null}
-
-			<div className="mt-3">
-				{preference.isOverride ? (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-7 px-2 text-xs"
-						onClick={() =>
-							onSave({
-								type: preference.type,
-								channel: preference.channel,
-								clearOverride: true,
-							})
-						}
-					>
-						Reset to global
-					</Button>
-				) : (
-					<Button
-						variant="outline"
-						size="sm"
-						className="h-7 px-2 text-xs"
-						onClick={() =>
-							onSave({
-								type: preference.type,
-								channel: preference.channel,
-								enabled: preference.enabled,
-								respectQuietHours: true,
-							})
-						}
-					>
-						Add override
-					</Button>
-				)}
-			</div>
-		</div>
-	);
-}
-
 function RouteComponent() {
 	const [activeTab, setActiveTab] = useState("unread");
-	const [timezoneInput, setTimezoneInput] = useState("Europe/Dublin");
-	const [quietStartInput, setQuietStartInput] = useState("");
-	const [quietEndInput, setQuietEndInput] = useState("");
 	const [nowMs, setNowMs] = useState(() => Date.now());
 
 	const { notifications } = useNotifications();
@@ -411,33 +286,13 @@ function RouteComponent() {
 	const { reminders } = usePendingReminders();
 	const { cancelReminder } = useReminderMutations();
 	const {
-		preferences,
-		timezone,
-		defaultDigestMode,
-		quietHoursStartMin,
-		quietHoursEndMin,
-	} = useNotificationSettings();
-	const { subscriptions } = useNotificationSubscriptions();
-	const {
 		markNotificationRead,
 		markNotificationArchived,
 		markAllNotificationsRead,
 		dismissNotification,
 		snoozeNotification,
 		unsnoozeNotification,
-		upsertNotificationPreference,
-		upsertNotificationUserSettings,
-		unsubscribeNotificationSubscription,
 	} = useNotificationMutations();
-
-	useEffect(() => {
-		setTimezoneInput(timezone);
-	}, [timezone]);
-
-	useEffect(() => {
-		setQuietStartInput(minutesToTimeInput(quietHoursStartMin));
-		setQuietEndInput(minutesToTimeInput(quietHoursEndMin));
-	}, [quietHoursEndMin, quietHoursStartMin]);
 
 	useEffect(() => {
 		const intervalId = window.setInterval(() => {
@@ -445,34 +300,6 @@ function RouteComponent() {
 		}, 30_000);
 		return () => window.clearInterval(intervalId);
 	}, []);
-
-	const globalQuietStartMin = timeInputToMinutes(quietStartInput);
-	const globalQuietEndMin = timeInputToMinutes(quietEndInput);
-	const globalQuietHoursValid =
-		(quietStartInput === "" && quietEndInput === "") ||
-		(globalQuietStartMin !== undefined && globalQuietEndMin !== undefined);
-
-	const inAppPreferences = useMemo(() => {
-		const typeOrder = new Map(
-			NOTIFICATION_TYPE_OPTIONS.map((option, index) => [option.value, index]),
-		);
-		return preferences
-			.filter((preference) => preference.channel === "in_app")
-			.sort(
-				(a, b) => (typeOrder.get(a.type) ?? 0) - (typeOrder.get(b.type) ?? 0),
-			);
-	}, [preferences]);
-
-	const emailPreferences = useMemo(() => {
-		const typeOrder = new Map(
-			NOTIFICATION_TYPE_OPTIONS.map((option, index) => [option.value, index]),
-		);
-		return preferences
-			.filter((preference) => preference.channel === "email")
-			.sort(
-				(a, b) => (typeOrder.get(a.type) ?? 0) - (typeOrder.get(b.type) ?? 0),
-			);
-	}, [preferences]);
 
 	const unreadNotifications = useMemo(
 		() =>
@@ -532,21 +359,16 @@ function RouteComponent() {
 		unreadNotifications,
 	]);
 
-	const handleMarkRead = (id: Id<"notifications">) => {
-		void markNotificationRead(id).catch(onMutationError);
-	};
+	const wrapMutation =
+		<T extends (...args: never[]) => Promise<unknown>>(mutation: T) =>
+		(...args: Parameters<T>) => {
+			void mutation(...args).catch(onMutationError);
+		};
 
-	const handleArchive = (id: Id<"notifications">) => {
-		void markNotificationArchived(id).catch(onMutationError);
-	};
-
-	const handleDismiss = (id: Id<"notifications">) => {
-		void dismissNotification(id).catch(onMutationError);
-	};
-
-	const handleMarkAllRead = () => {
-		void markAllNotificationsRead().catch(onMutationError);
-	};
+	const handleMarkRead = wrapMutation(markNotificationRead);
+	const handleArchive = wrapMutation(markNotificationArchived);
+	const handleDismiss = wrapMutation(dismissNotification);
+	const handleMarkAllRead = wrapMutation(markAllNotificationsRead);
 
 	const handleSnooze = (
 		notificationId: Id<"notifications">,
@@ -557,73 +379,7 @@ function RouteComponent() {
 		);
 	};
 
-	const handleUnsnooze = (notificationId: Id<"notifications">) => {
-		void unsnoozeNotification(notificationId).catch(onMutationError);
-	};
-
-	const handlePreferenceSave = (payload: {
-		type: NotificationType;
-		channel: NotificationPreference["channel"];
-		enabled?: boolean;
-		respectQuietHours?: boolean;
-		clearOverride?: boolean;
-	}) => {
-		void upsertNotificationPreference({
-			type: payload.type,
-			channel: payload.channel,
-			enabled: payload.enabled,
-			respectQuietHours: payload.respectQuietHours,
-			clearOverride: payload.clearOverride,
-		}).catch(onMutationError);
-	};
-
-	const handleSaveTimezone = () => {
-		const trimmed = timezoneInput.trim();
-		if (!trimmed) {
-			return;
-		}
-		void upsertNotificationUserSettings({ timezone: trimmed }).catch(
-			onMutationError,
-		);
-	};
-
-	const handleSetDefaultDigestMode = (
-		digestMode: NotificationPreference["digestMode"],
-	) => {
-		void upsertNotificationUserSettings({
-			defaultDigestMode: digestMode,
-		}).catch(onMutationError);
-	};
-
-	const handleSaveGlobalQuietHours = () => {
-		if (
-			globalQuietStartMin === undefined ||
-			globalQuietEndMin === undefined ||
-			!globalQuietHoursValid
-		) {
-			return;
-		}
-		void upsertNotificationUserSettings({
-			quietHoursStartMin: globalQuietStartMin,
-			quietHoursEndMin: globalQuietEndMin,
-		}).catch(onMutationError);
-	};
-
-	const handleClearGlobalQuietHours = () => {
-		setQuietStartInput("");
-		setQuietEndInput("");
-		void upsertNotificationUserSettings({ clearQuietHours: true }).catch(
-			onMutationError,
-		);
-	};
-
-	const handleUnsubscribe = (
-		subscriptionId: Id<"notificationSubscriptions">,
-	) => {
-		void unsubscribeNotificationSubscription(subscriptionId).catch(
-			onMutationError,
-		);
-	};
+	const handleUnsnooze = wrapMutation(unsnoozeNotification);
 
 	return (
 		<div className="flex flex-1 flex-col">
@@ -699,102 +455,59 @@ function RouteComponent() {
 						<TabsTrigger value="all">All</TabsTrigger>
 					</TabsList>
 
-					<TabsContent value="unread" className="mt-0">
-						{unreadNotifications.length === 0 ? (
-							<div className="text-center py-12">
-								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
-								<p className="text-sm text-muted-foreground">
-									You&apos;re all caught up!
-								</p>
-							</div>
-						) : (
-							<div className="space-y-0">
-								{unreadNotifications.map((notification) => (
-									<NotificationItem
-										key={notification.id}
-										notification={notification}
-										onMarkRead={handleMarkRead}
-										onArchive={handleArchive}
-										onDismiss={handleDismiss}
-										onSnooze={handleSnooze}
-										onUnsnooze={handleUnsnooze}
-									/>
-								))}
-							</div>
-						)}
-					</TabsContent>
-					<TabsContent value="snoozed" className="mt-0">
-						{snoozedNotifications.length === 0 ? (
-							<div className="text-center py-12">
-								<Clock className="size-8 text-muted-foreground/50 mx-auto mb-3" />
-								<p className="text-sm text-muted-foreground">
-									No snoozed notifications
-								</p>
-							</div>
-						) : (
-							<div className="space-y-0">
-								{snoozedNotifications.map((notification) => (
-									<NotificationItem
-										key={notification.id}
-										notification={notification}
-										onMarkRead={handleMarkRead}
-										onArchive={handleArchive}
-										onDismiss={handleDismiss}
-										onSnooze={handleSnooze}
-										onUnsnooze={handleUnsnooze}
-									/>
-								))}
-							</div>
-						)}
-					</TabsContent>
-					<TabsContent value="read" className="mt-0">
-						{readNotifications.length === 0 ? (
-							<div className="text-center py-12">
-								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
-								<p className="text-sm text-muted-foreground">
-									No read notifications
-								</p>
-							</div>
-						) : (
-							<div className="space-y-0">
-								{readNotifications.map((notification) => (
-									<NotificationItem
-										key={notification.id}
-										notification={notification}
-										onMarkRead={handleMarkRead}
-										onArchive={handleArchive}
-										onDismiss={handleDismiss}
-										onSnooze={handleSnooze}
-										onUnsnooze={handleUnsnooze}
-									/>
-								))}
-							</div>
-						)}
-					</TabsContent>
-					<TabsContent value="archived" className="mt-0">
-						{archivedNotifications.length === 0 ? (
-							<div className="text-center py-12">
-								<Bell className="size-8 text-muted-foreground/50 mx-auto mb-3" />
-								<p className="text-sm text-muted-foreground">
-									No archived notifications
-								</p>
-							</div>
-						) : (
-							<div className="space-y-0">
-								{archivedNotifications.map((notification) => (
-									<NotificationItem
-										key={notification.id}
-										notification={notification}
-										onMarkRead={handleMarkRead}
-										onArchive={handleArchive}
-										onDismiss={handleDismiss}
-										onSnooze={handleSnooze}
-										onUnsnooze={handleUnsnooze}
-									/>
-								))}
-							</div>
-						)}
-					</TabsContent>
+					{(
+						[
+							{
+								value: "unread",
+								items: unreadNotifications,
+								emptyIcon: Bell,
+								emptyMsg: "You're all caught up!",
+							},
+							{
+								value: "snoozed",
+								items: snoozedNotifications,
+								emptyIcon: Clock,
+								emptyMsg: "No snoozed notifications",
+							},
+							{
+								value: "read",
+								items: readNotifications,
+								emptyIcon: Bell,
+								emptyMsg: "No read notifications",
+							},
+							{
+								value: "archived",
+								items: archivedNotifications,
+								emptyIcon: Bell,
+								emptyMsg: "No archived notifications",
+							},
+						] as const
+					).map((tab) => (
+						<TabsContent key={tab.value} value={tab.value} className="mt-0">
+							{tab.items.length === 0 ? (
+								<div className="text-center py-12">
+									<tab.emptyIcon className="size-8 text-muted-foreground/50 mx-auto mb-3" />
+									<p className="text-sm text-muted-foreground">
+										{tab.emptyMsg}
+									</p>
+								</div>
+							) : (
+								<div className="space-y-0">
+									{tab.items.map((notification) => (
+										<NotificationItem
+											key={notification.id}
+											notification={notification}
+											onMarkRead={handleMarkRead}
+											onArchive={handleArchive}
+											onDismiss={handleDismiss}
+											onSnooze={handleSnooze}
+											onUnsnooze={handleUnsnooze}
+										/>
+									))}
+								</div>
+							)}
+						</TabsContent>
+					))}
 					<TabsContent value="reminders" className="mt-0">
 						{reminders.length === 0 ? (
 							<div className="text-center py-12">
@@ -837,256 +550,7 @@ function RouteComponent() {
 						)}
 					</TabsContent>
 					<TabsContent value="settings" className="mt-0">
-						<div className="space-y-5">
-							<div className="rounded-xl border border-border/70 bg-gradient-to-br from-background to-muted/30 p-4 sm:p-5">
-								<div className="mb-4 flex items-center gap-2">
-									<div className="rounded-md border border-border/70 bg-background/80 p-1.5">
-										<Settings2 className="size-4 text-primary" />
-									</div>
-									<div>
-										<p className="text-sm font-semibold">Default delivery</p>
-										<p className="text-xs text-muted-foreground">
-											Applies to all in-app notifications unless overridden.
-										</p>
-									</div>
-								</div>
-
-								<div className="space-y-4">
-									<div className="space-y-2">
-										<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-											Delivery mode
-										</p>
-										<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-											{DIGEST_OPTIONS.map((option) => (
-												<Button
-													key={option.value}
-													type="button"
-													variant={
-														defaultDigestMode === option.value
-															? "secondary"
-															: "outline"
-													}
-													className="h-9 justify-start text-xs"
-													onClick={() =>
-														handleSetDefaultDigestMode(option.value)
-													}
-												>
-													{option.label}
-												</Button>
-											))}
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-											Quiet hours
-										</p>
-										<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr),minmax(0,1fr),auto,auto] sm:items-end">
-											<div>
-												<p className="mb-1 text-xs text-muted-foreground">
-													Start
-												</p>
-												<Input
-													type="time"
-													value={quietStartInput}
-													onChange={(event) =>
-														setQuietStartInput(event.target.value)
-													}
-													className="h-8"
-												/>
-											</div>
-											<div>
-												<p className="mb-1 text-xs text-muted-foreground">
-													End
-												</p>
-												<Input
-													type="time"
-													value={quietEndInput}
-													onChange={(event) =>
-														setQuietEndInput(event.target.value)
-													}
-													className="h-8"
-												/>
-											</div>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												disabled={!globalQuietHoursValid}
-												onClick={handleSaveGlobalQuietHours}
-											>
-												Save
-											</Button>
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												onClick={handleClearGlobalQuietHours}
-											>
-												Clear
-											</Button>
-										</div>
-										{!globalQuietHoursValid ? (
-											<p className="text-xs text-destructive">
-												Set both start and end times.
-											</p>
-										) : null}
-									</div>
-
-									<div className="space-y-2">
-										<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-											Timezone
-										</p>
-										<div className="flex flex-wrap items-center gap-2">
-											<Input
-												value={timezoneInput}
-												onChange={(event) =>
-													setTimezoneInput(event.target.value)
-												}
-												className="max-w-[260px]"
-												placeholder="Europe/Dublin"
-											/>
-											<Button size="sm" onClick={handleSaveTimezone}>
-												Save timezone
-											</Button>
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => setTimezoneInput("Europe/Dublin")}
-											>
-												Set Irish time
-											</Button>
-										</div>
-										<p className="text-xs text-muted-foreground">
-											Current: {timezone}
-										</p>
-									</div>
-								</div>
-							</div>
-
-							<div className="rounded-xl border border-border/70 p-4 sm:p-5">
-								<div className="mb-4 flex items-center gap-2">
-									<div className="rounded-md border border-border/70 bg-background/80 p-1.5">
-										<Mail className="size-4 text-primary" />
-									</div>
-									<div>
-										<p className="text-sm font-semibold">Email notifications</p>
-										<p className="text-xs text-muted-foreground">
-											Opt in to receive email for specific notification types.
-											All email notifications are off by default.
-										</p>
-									</div>
-								</div>
-								<div className="space-y-2">
-									{emailPreferences.map((preference) => {
-										const label =
-											NOTIFICATION_TYPE_OPTIONS.find(
-												(option) => option.value === preference.type,
-											)?.label ?? preference.type;
-										return (
-											<div
-												key={`${preference.type}:${preference.channel}`}
-												className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/60 p-3"
-											>
-												<div className="min-w-0">
-													<p className="truncate text-sm font-medium">
-														{label}
-													</p>
-													<p className="text-xs text-muted-foreground">
-														{preference.enabled
-															? "You will receive emails for this type"
-															: "Email disabled"}
-													</p>
-												</div>
-												<Button
-													variant={preference.enabled ? "secondary" : "outline"}
-													size="sm"
-													onClick={() =>
-														handlePreferenceSave({
-															type: preference.type,
-															channel: "email",
-															enabled: !preference.enabled,
-														})
-													}
-												>
-													{preference.enabled ? "On" : "Off"}
-												</Button>
-											</div>
-										);
-									})}
-								</div>
-							</div>
-
-							<div className="rounded-xl border border-border/70 p-4 sm:p-5">
-								<div className="mb-4">
-									<p className="text-sm font-semibold">
-										In-app per-type overrides
-									</p>
-									<p className="text-xs text-muted-foreground">
-										Override global mode for specific in-app notification types.
-									</p>
-								</div>
-								<div className="space-y-2">
-									{inAppPreferences.map((preference) => (
-										<NotificationTypeOverrideRow
-											key={`${preference.type}:${preference.channel}`}
-											preference={preference}
-											onSave={handlePreferenceSave}
-										/>
-									))}
-								</div>
-							</div>
-
-							<div className="rounded-md border p-4 space-y-3">
-								<div>
-									<p className="text-sm font-medium">Active subscriptions</p>
-									<p className="text-xs text-muted-foreground">
-										Entity and saved-view subscriptions that can add recipients.
-									</p>
-								</div>
-								{subscriptions.length === 0 ? (
-									<p className="text-sm text-muted-foreground">
-										No active subscriptions.
-									</p>
-								) : (
-									<div className="space-y-2">
-										{subscriptions.map((subscription) => (
-											<div
-												key={subscription.id}
-												className="flex items-center justify-between gap-3 rounded border px-3 py-2"
-											>
-												<div className="min-w-0">
-													<div className="flex items-center gap-2">
-														<p className="truncate text-sm font-medium">
-															{subscription.label}
-														</p>
-														{subscription.isStale && (
-															<Badge
-																variant="outline"
-																className="h-5 text-[10px]"
-															>
-																Stale
-															</Badge>
-														)}
-													</div>
-													<p className="text-xs text-muted-foreground">
-														{subscription.description ??
-															subscription.subscriptionType}
-													</p>
-												</div>
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={() => handleUnsubscribe(subscription.id)}
-												>
-													Unsubscribe
-												</Button>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						</div>
+						<InboxSettingsPanel />
 					</TabsContent>
 					<TabsContent value="all" className="mt-0">
 						{filteredNotifications.length === 0 ? (

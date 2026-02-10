@@ -324,30 +324,6 @@ export const listLabelsWithUsage = query({
 	},
 });
 
-export const archiveLabel = mutation({
-	args: { id: v.id("labels") },
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await requireDirector(ctx);
-		const doc = await ctx.db.get("labels", args.id);
-		if (!doc) return null;
-		await ctx.db.patch("labels", args.id, { archived: true });
-		return null;
-	},
-});
-
-export const unarchiveLabel = mutation({
-	args: { id: v.id("labels") },
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await requireDirector(ctx);
-		const doc = await ctx.db.get("labels", args.id);
-		if (!doc) return null;
-		await ctx.db.patch("labels", args.id, { archived: false });
-		return null;
-	},
-});
-
 export const updateLabelAdmin = mutation({
 	args: {
 		id: v.id("labels"),

@@ -6,7 +6,12 @@ import { getPhaseClass, getPhaseLabel } from "@/lib/competition-phase-config";
 import { type FilterType, filterConfigs } from "@/lib/filter-config";
 import { renderUserValueForFilter } from "@/lib/user-render-utils";
 import { useCompetitionsUrlContext } from "@/lib/competitions-url-context";
-import type { CompetitionsFilters } from "@/lib/filter-types";
+import {
+	handleToggleFilter,
+	handleToggleFilterValue,
+	handleToggleFilterIsNot,
+	handleClearFilterType,
+} from "@/lib/filter-handlers";
 import { DateFilterChip } from "./date-filter-chip";
 import { FilterValueSelector } from "./filter-value-selector";
 
@@ -57,84 +62,6 @@ export function FilterChips() {
 		return null;
 	}
 
-	type ArrayFilterKey = Exclude<keyof CompetitionsFilters, "dateRange">;
-
-	const handleToggleFilter = <K extends ArrayFilterKey>(
-		type: K,
-		value: string,
-	) => {
-		const currentValues = filters[type];
-		const existingItemIndex = currentValues.findIndex((item) =>
-			item.values.includes(value),
-		);
-
-		if (existingItemIndex >= 0) {
-			const existingItem = currentValues[existingItemIndex];
-			const newValues = existingItem.values.filter((v) => v !== value);
-			if (newValues.length === 0) {
-				const newFilterValues = currentValues.filter(
-					(_, i) => i !== existingItemIndex,
-				);
-				setArrayFilter(type, newFilterValues);
-			} else {
-				const newFilterValues = currentValues.map((item, i) =>
-					i === existingItemIndex ? { ...item, values: newValues } : item,
-				);
-				setArrayFilter(type, newFilterValues);
-			}
-		} else {
-			const newFilterValues = [
-				...currentValues,
-				{ values: [value], isNot: false },
-			];
-			setArrayFilter(type, newFilterValues);
-		}
-	};
-
-	const handleToggleFilterValue = <K extends ArrayFilterKey>(
-		type: K,
-		filterIndex: number,
-		value: string,
-	) => {
-		const currentValues = filters[type];
-		const item = currentValues[filterIndex];
-		if (!item) return;
-
-		const hasValue = item.values.includes(value);
-		const newValues = hasValue
-			? item.values.filter((v) => v !== value)
-			: [...item.values, value];
-
-		if (newValues.length === 0) {
-			const newFilterValues = currentValues.filter((_, i) => i !== filterIndex);
-			setArrayFilter(type, newFilterValues);
-		} else {
-			const newFilterValues = currentValues.map((item, i) =>
-				i === filterIndex ? { ...item, values: newValues } : item,
-			);
-			setArrayFilter(type, newFilterValues);
-		}
-	};
-
-	const handleToggleFilterIsNot = <K extends ArrayFilterKey>(
-		type: K,
-		filterIndex: number,
-	) => {
-		const currentValues = filters[type];
-		const newFilterValues = currentValues.map((item, i) =>
-			i === filterIndex ? { ...item, isNot: !item.isNot } : item,
-		);
-		setArrayFilter(type, newFilterValues);
-	};
-
-	const handleClearFilterType = (type: keyof CompetitionsFilters) => {
-		if (type === "dateRange") {
-			setDateRange(undefined);
-		} else {
-			setArrayFilter(type, []);
-		}
-	};
-
 	const filterTypes: FilterType[] = [
 		"phase",
 		"compLead",
@@ -158,13 +85,21 @@ export function FilterChips() {
 							label={config.label}
 							values={item.values}
 							isNot={item.isNot}
-							onToggleIsNot={() => handleToggleFilterIsNot(type, index)}
+							onToggleIsNot={() =>
+								handleToggleFilterIsNot(filters, setArrayFilter, type, index)
+							}
 							onToggleValue={(value) =>
-								handleToggleFilterValue(type, index, value)
+								handleToggleFilterValue(
+									filters,
+									setArrayFilter,
+									type,
+									index,
+									value,
+								)
 							}
 							onRemove={() => {
 								item.values.forEach((value) => {
-									handleToggleFilter(type, value);
+									handleToggleFilter(filters, setArrayFilter, type, value);
 								});
 							}}
 							renderValue={(value) => typeConfig.renderValue(value, users)}
@@ -173,7 +108,13 @@ export function FilterChips() {
 									type={type}
 									selectedValues={item.values}
 									onToggleValue={(value) =>
-										handleToggleFilterValue(type, index, value)
+										handleToggleFilterValue(
+											filters,
+											setArrayFilter,
+											type,
+											index,
+											value,
+										)
 									}
 								>
 									{button}
@@ -187,7 +128,9 @@ export function FilterChips() {
 				(filters.dateRange.start || filters.dateRange.end) && (
 					<DateFilterChip
 						dateRange={filters.dateRange}
-						onClear={() => handleClearFilterType("dateRange")}
+						onClear={() =>
+							handleClearFilterType("dateRange", setArrayFilter, setDateRange)
+						}
 					/>
 				)}
 		</div>

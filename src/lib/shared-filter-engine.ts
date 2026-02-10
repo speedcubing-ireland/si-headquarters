@@ -40,3 +40,65 @@ export function buildFilterItemMatcher<TItem>(
 		return positiveMatch && negativeMatch;
 	};
 }
+
+type FieldConfig<TItem> = {
+	key: string;
+	getValue: (item: TItem) => string | string[] | undefined;
+};
+
+type FiltersWithDateRange = {
+	dateRange?: DateRangeFilter;
+	[key: string]: FilterItem[] | DateRangeFilter | undefined;
+};
+
+export function createFilterEngine<
+	TItem,
+	TFilters extends FiltersWithDateRange,
+>(
+	fields: FieldConfig<TItem>[],
+	buildDateMatcher: (dateRange?: DateRangeFilter) => (item: TItem) => boolean,
+) {
+	return {
+		filter(items: TItem[], filters: TFilters, matchMode: MatchMode): TItem[] {
+			const activeEntries: Array<{ key: string; items: FilterItem[] }> = [];
+			for (const field of fields) {
+				const val = filters[field.key];
+				if (Array.isArray(val) && val.length > 0) {
+					activeEntries.push({ key: field.key, items: val });
+				}
+			}
+			const hasDate = hasDateRangeValue(filters.dateRange);
+
+			if (activeEntries.length === 0 && !hasDate) {
+				return items;
+			}
+
+			const fieldsByKey = new Map(fields.map((f) => [f.key, f]));
+			const matchers: Array<(item: TItem) => boolean> = activeEntries.map(
+				(entry) => {
+					const field = fieldsByKey.get(entry.key);
+					if (!field) return () => true;
+					return buildFilterItemMatcher(entry.items, field.getValue, matchMode);
+				},
+			);
+
+			if (hasDate) {
+				matchers.push(buildDateMatcher(filters.dateRange));
+			}
+
+			return items.filter((item) =>
+				matchMode === "all"
+					? matchers.every((m) => m(item))
+					: matchers.some((m) => m(item)),
+			);
+		},
+
+		filterWithState(
+			items: TItem[],
+			filterState: TFilters & { matchMode?: MatchMode },
+		): TItem[] {
+			const { matchMode = "all", ...filters } = filterState;
+			return this.filter(items, filters as TFilters, matchMode);
+		},
+	};
+}

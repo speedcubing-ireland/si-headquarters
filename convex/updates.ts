@@ -4,10 +4,10 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { isVolunteer, requireUserId } from "./auth";
-import { internal } from "./_generated/api";
 import { logActivity } from "./lib/activity";
 import { hasCompetitionAccess } from "./competitionAccess";
 import { progressUpdateStatus as statusValidator } from "./lib/validators";
+import { sendProgressUpdateNotifications } from "./competitionNotifications";
 
 async function getUpdateAndAssertAuth(
 	ctx: MutationCtx,
@@ -87,25 +87,14 @@ export const create = mutation({
 
 		const competition = await ctx.db.get("competitions", args.competitionId);
 		if (competition) {
-			const recipientIds = new Set<Id<"users">>();
-			if (competition.compLeadId) recipientIds.add(competition.compLeadId);
-			if (competition.leadDelegateId)
-				recipientIds.add(competition.leadDelegateId);
-			for (const oid of competition.organiserIds) recipientIds.add(oid);
-			recipientIds.delete(userId);
-
-			await ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyProgressUpdateAdded,
-				{
-					competitionId: args.competitionId,
-					recipientIds: [...recipientIds],
-					actorId: userId,
-					competitionName: competition.name,
-					status: args.status,
-					eventKey: `${id}:progress-update`,
-				},
-			);
+			await sendProgressUpdateNotifications(ctx, {
+				competition,
+				competitionId: args.competitionId,
+				updateId: id,
+				actorId: userId,
+				competitionName: competition.name,
+				status: args.status,
+			});
 		}
 		return id;
 	},

@@ -244,8 +244,11 @@ export const NotificationTemplates = {
 		task: TaskInfo,
 		daysUntil: number,
 	): NotificationTemplateConfig => ({
-		title: `${task.identifier}: ${task.title} — due soon`,
-		message: `Task ${task.identifier}: ${task.title} is due in ${formatDaysText(daysUntil)}`,
+		title: `${task.identifier}: ${task.title} — ${daysUntil === 0 ? "due today" : "due soon"}`,
+		message:
+			daysUntil === 0
+				? `Task ${task.identifier}: ${task.title} is due today`
+				: `Task ${task.identifier}: ${task.title} is due in ${formatDaysText(daysUntil)}`,
 		priority: daysUntil <= 1 ? "high" : "normal",
 		entityType: "task",
 		metadata: {},
@@ -298,10 +301,10 @@ export const NotificationTemplates = {
 		task: TaskInfo | Id<"tasks">,
 		message?: string,
 	): NotificationTemplateConfig => {
-		const isTaskInfo =
-			typeof task === "object" && task !== null && "identifier" in task;
-		const taskId = isTaskInfo ? task._id : (task as Id<"tasks">);
-		const label = isTaskInfo
+		const isTaskInfo = (t: TaskInfo | Id<"tasks">): t is TaskInfo =>
+			typeof t === "object" && t !== null && "identifier" in t;
+		const taskId = isTaskInfo(task) ? task._id : task;
+		const label = isTaskInfo(task)
 			? `${task.identifier}: ${task.title}`
 			: `task ${taskId}`;
 		return {

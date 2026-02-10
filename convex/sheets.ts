@@ -19,11 +19,18 @@ async function requireVolunteerAction(
 		if (expectedToken && cliToken === expectedToken) {
 			return; // CLI authentication successful
 		}
-		throw new ConvexError("Invalid CLI token");
+		throw new ConvexError({
+			code: "UNAUTHENTICATED",
+			message: "Invalid CLI token",
+		});
 	}
 	// Otherwise require volunteer authentication
 	const isVol = await ctx.runQuery(internal.auth.getIsVolunteer, {});
-	if (!isVol) throw new ConvexError("Volunteer access required");
+	if (!isVol)
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: "Volunteer access required",
+		});
 }
 
 const RANGE = "Schedule!A6:B22";
@@ -186,10 +193,16 @@ export const fetchScheduleEvents = action({
 			minFetchedAt: now - SCHEDULE_CACHE_TTL_MS,
 		});
 		if (!preflight.isVolunteer) {
-			throw new ConvexError("Volunteer access required");
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Volunteer access required",
+			});
 		}
 		if (!preflight.isAllowedSheet) {
-			throw new ConvexError("Sheet is not linked to a competition");
+			throw new ConvexError({
+				code: "NOT_FOUND",
+				message: "Sheet is not linked to a competition",
+			});
 		}
 		if (preflight.cached) {
 			return {

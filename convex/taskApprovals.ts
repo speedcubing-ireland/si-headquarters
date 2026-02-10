@@ -107,17 +107,18 @@ export async function scheduleAwaitingReviewNotifications(
 	);
 	reviewerIds.delete(actorId);
 
-	for (const recipientId of reviewerIds) {
-		await ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyTaskAwaitingReview,
-			{
-				taskId,
-				recipientId,
-				actorId,
-			},
-		);
-	}
+	if (reviewerIds.size === 0) return;
+
+	await ctx.scheduler.runAfter(
+		0,
+		internal.notifications._notifyTaskAwaitingReview,
+		{
+			taskId,
+			recipientIds: [...reviewerIds],
+			actorId,
+			eventKey: `${taskId}:awaiting-review:${Date.now()}`,
+		},
+	);
 }
 
 export async function computeApprovalCompleteness(

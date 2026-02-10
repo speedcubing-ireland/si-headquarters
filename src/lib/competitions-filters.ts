@@ -1,47 +1,12 @@
 import type { Competition } from "@/data/types-new";
 import { getCurrentPhaseKey } from "@/lib/competition-phase-config";
-import type {
-	CompetitionsFilters,
-	DateRangeFilter,
-	MatchMode,
-} from "@/lib/filter-types";
-import {
-	buildFilterItemMatcher,
-	hasDateRangeValue,
-} from "./shared-filter-engine";
-
-type FilterState = CompetitionsFilters & {
-	matchMode?: MatchMode;
-};
-
-export function hasActiveFilters(filters: CompetitionsFilters): boolean {
-	return (
-		filters.phase.length > 0 ||
-		filters.compLead.length > 0 ||
-		filters.leadDelegate.length > 0 ||
-		filters.organisers.length > 0 ||
-		hasDateRangeValue(filters.dateRange)
-	);
-}
-
-export function getActiveFiltersCount(filters: CompetitionsFilters): number {
-	let count =
-		filters.phase.length +
-		filters.compLead.length +
-		filters.leadDelegate.length +
-		filters.organisers.length;
-	if (hasDateRangeValue(filters.dateRange)) {
-		count += 1;
-	}
-	return count;
-}
+import type { CompetitionsFilters, DateRangeFilter } from "@/lib/filter-types";
+import { createFilterEngine, hasDateRangeValue } from "./shared-filter-engine";
 
 function buildDateMatcher(
 	dateRange?: DateRangeFilter,
 ): (comp: Competition) => boolean {
-	if (!hasDateRangeValue(dateRange)) {
-		return () => true;
-	}
+	if (!hasDateRangeValue(dateRange)) return () => true;
 
 	return (comp: Competition) => {
 		if (!dateRange || !hasDateRangeValue(dateRange)) return true;
@@ -57,11 +22,9 @@ function buildDateMatcher(
 			const endTime = new Date(end).getTime();
 			matches = compStartTime <= endTime && compEndTime >= startTime;
 		} else if (start) {
-			const startTime = new Date(start).getTime();
-			matches = compEndTime >= startTime;
+			matches = compEndTime >= new Date(start).getTime();
 		} else if (end) {
-			const endTime = new Date(end).getTime();
-			matches = compStartTime <= endTime;
+			matches = compStartTime <= new Date(end).getTime();
 		} else {
 			matches = true;
 		}
@@ -70,81 +33,21 @@ function buildDateMatcher(
 	};
 }
 
-export function filterCompetitionsWithState(
-	competitions: Competition[],
-	filterState: FilterState,
-): Competition[] {
-	const { matchMode = "all", ...filters } = filterState;
-	const result = filterCompetitions(competitions, filters, matchMode);
+const competitionEngine = createFilterEngine<Competition, CompetitionsFilters>(
+	[
+		{ key: "phase", getValue: (comp) => [getCurrentPhaseKey(comp)] },
+		{
+			key: "compLead",
+			getValue: (comp) => (comp.compLead ? [comp.compLead.id] : []),
+		},
+		{
+			key: "leadDelegate",
+			getValue: (comp) => (comp.leadDelegate ? [comp.leadDelegate.id] : []),
+		},
+		{ key: "organisers", getValue: (comp) => comp.organisers.map((u) => u.id) },
+	],
+	buildDateMatcher,
+);
 
-	return result;
-}
-
-function filterCompetitions(
-	competitions: Competition[],
-	filters: CompetitionsFilters,
-	matchMode: MatchMode,
-): Competition[] {
-	const hasPhase = filters.phase.length > 0;
-	const hasCompLead = filters.compLead.length > 0;
-	const hasLeadDelegate = filters.leadDelegate.length > 0;
-	const hasOrganisers = filters.organisers.length > 0;
-	const hasDate = hasDateRangeValue(filters.dateRange);
-
-	if (
-		!hasPhase &&
-		!hasCompLead &&
-		!hasLeadDelegate &&
-		!hasOrganisers &&
-		!hasDate
-	) {
-		return competitions;
-	}
-
-	const matchesPhase = buildFilterItemMatcher(
-		filters.phase,
-		(comp: Competition) => [getCurrentPhaseKey(comp)],
-		matchMode,
-	);
-
-	const matchesCompLead = buildFilterItemMatcher(
-		filters.compLead,
-		(comp: Competition) => (comp.compLead ? [comp.compLead.id] : []),
-		matchMode,
-	);
-
-	const matchesLeadDelegate = buildFilterItemMatcher(
-		filters.leadDelegate,
-		(comp: Competition) => (comp.leadDelegate ? [comp.leadDelegate.id] : []),
-		matchMode,
-	);
-
-	const matchesOrganisers = buildFilterItemMatcher(
-		filters.organisers,
-		(comp: Competition) => comp.organisers.map((u) => u.id),
-		matchMode,
-	);
-	const matchesDate = buildDateMatcher(filters.dateRange);
-
-	const potentialMatchers: Array<((comp: Competition) => boolean) | false> = [
-		hasPhase && matchesPhase,
-		hasCompLead && matchesCompLead,
-		hasLeadDelegate && matchesLeadDelegate,
-		hasOrganisers && matchesOrganisers,
-		hasDate && matchesDate,
-	];
-
-	const activeMatchers = potentialMatchers.filter(
-		(matcher): matcher is (comp: Competition) => boolean => Boolean(matcher),
-	);
-
-	if (activeMatchers.length === 0) {
-		return competitions;
-	}
-
-	return competitions.filter((comp) =>
-		matchMode === "all"
-			? activeMatchers.every((matcher) => matcher(comp))
-			: activeMatchers.some((matcher) => matcher(comp)),
-	);
-}
+export const filterCompetitionsWithState =
+	competitionEngine.filterWithState.bind(competitionEngine);

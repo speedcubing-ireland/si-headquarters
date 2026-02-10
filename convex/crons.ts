@@ -11,4 +11,11 @@ crons.cron(
 	{},
 );
 
+crons.interval(
+	"sweep stale dispatches",
+	{ minutes: 15 },
+	internal.notifications._sweepStaleDispatches,
+	{},
+);
+
 export default crons;

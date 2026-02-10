@@ -26,8 +26,6 @@ export function useLabelMutations() {
 	const updateLabelMutation = useMutation(api.labels.update);
 	const removeLabelMutation = useMutation(api.labels.remove);
 	const adminUpdateLabelMutation = useMutation(api.admin.updateLabelAdmin);
-	const archiveLabelMutation = useMutation(api.admin.archiveLabel);
-	const unarchiveLabelMutation = useMutation(api.admin.unarchiveLabel);
 	const deleteLabelIfUnusedMutation = useMutation(
 		api.admin.deleteLabelIfUnused,
 	);
@@ -53,10 +51,10 @@ export function useLabelMutations() {
 			await adminUpdateLabelMutation({ id, ...updates });
 		},
 		archiveLabel: async (id: Id<"labels">) => {
-			await archiveLabelMutation({ id });
+			await adminUpdateLabelMutation({ id, archived: true });
 		},
 		unarchiveLabel: async (id: Id<"labels">) => {
-			await unarchiveLabelMutation({ id });
+			await adminUpdateLabelMutation({ id, archived: false });
 		},
 		deleteLabelIfUnused: async (id: Id<"labels">) => {
 			await deleteLabelIfUnusedMutation({ id });

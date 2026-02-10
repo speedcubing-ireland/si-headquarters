@@ -1,4 +1,9 @@
-import { ConvexError, v } from "convex/values";
+import {
+	ConvexError,
+	v,
+	type ObjectType,
+	type PropertyValidators,
+} from "convex/values";
 import {
 	mutation,
 	query,
@@ -9,668 +14,105 @@ import {
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { requireUserId, isVolunteer } from "./auth";
+import { requireUserId } from "./auth";
 import { requireDirector } from "./admin";
-import type { Infer } from "convex/values";
-import { hasCompetitionAccess } from "./competitionAccess";
-import { hasTaskCompetitionAccess } from "./taskAccess";
 import { getCommentParentId } from "./lib/commentParentId";
 import {
-	NOTIFICATION_TYPES,
 	notificationChannel,
 	notificationDigestMode,
-	notificationMetadata,
-	notificationPriority,
-	notificationStatus,
-	notificationSubscriberEntityType,
-	notificationSubscriptionType,
 	notificationType,
 } from "./lib/validators";
-import {
-	NOTIFICATION_DEFAULTS,
-	NOTIFICATION_THRESHOLDS,
-	NOTIFICATION_LIST_LIMITS,
-	MINUTES_IN_DAY,
-} from "./lib/constants";
 import {
 	NotificationTemplates,
 	type NotificationTemplateConfig,
 	type TaskNotificationType,
 } from "./lib/notificationTemplates";
-import {
-	computeDispatchSchedule,
-	validateQuietHoursWindow,
-	validateTimezone,
-} from "./lib/notificationScheduling";
-import {
-	matchesCompetitionViewFilters,
-	matchesTaskViewFilters,
-} from "./lib/notificationViewMatchers";
+import { computeDispatchSchedule } from "./lib/notificationScheduling";
 import { toISO } from "./lib/transforms";
 import { normalizeEmail, validateEmail } from "./lib/sanitize";
 import { buildEntityLink, formatEntityTypeLabel } from "./emails/shared";
-
-const IN_APP_CHANNEL: NotificationChannel = "in_app";
-const EMAIL_CHANNEL: NotificationChannel = "email";
-const SUPPORTED_NOTIFICATION_CHANNELS: NotificationChannel[] = [
+import {
 	IN_APP_CHANNEL,
 	EMAIL_CHANNEL,
-];
-const EXTERNAL_NOTIFICATION_CHANNELS: NotificationChannel[] = [EMAIL_CHANNEL];
-const DEFAULT_DIGEST_MODE: NotificationDigestMode = "immediate";
-const DEFAULT_TIMEZONE = NOTIFICATION_DEFAULTS.TIMEZONE;
-const DEFAULT_SUBSCRIPTION_LIST_LIMIT = 100;
-const MAX_SUBSCRIPTION_LIST_LIMIT = NOTIFICATION_LIST_LIMITS.MAX;
-const EMAIL_DISPATCH_GROUP_CLAIM_PREFIX = "email_group_claim:";
-const EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS = 5 * 60 * 1000;
+	EXTERNAL_NOTIFICATION_CHANNELS,
+	DEFAULT_DIGEST_MODE,
+	EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS,
+	notificationReturns,
+	notificationPreferenceReturns,
+	notificationUserSettingsReturns,
+	notificationSettingsReturns,
+	notificationSubscriptionReturns,
+	notificationDispatchStatsReturns,
+	entitySubscriptionArgs,
+	type NotificationChannel,
+	type NotificationDigestMode,
+	type NotificationType,
+	type NotificationEntityType,
+	type DispatchStatus,
+	type ScheduledFunctionId,
+	type EntitySubscriptionArg,
+	type NotificationEntityRef,
+	type NotificationEmitInput,
+	type EmailDispatchSnapshot,
+	type RecipientDecision,
+} from "./lib/notificationTypes";
+import {
+	docToNotification,
+	normalizeListLimit,
+	normalizeSubscriptionListLimit,
+	isUnreadNotificationVisible,
+	listVisibleNotificationsForUser,
+	countVisibleUnreadNotifications,
+	countDispatchesByStatus,
+	serializePayload,
+	notificationParentEntityId,
+	defaultThreadKey,
+} from "./lib/notificationHelpers";
+import {
+	getResolvedNotificationUserSettings,
+	getNotificationUserTimezone,
+	upsertNotificationUserSettings,
+	getNotificationPreferenceConfig,
+	buildPreferenceRowsForUser,
+	upsertNotificationPreferenceOverride,
+	formatUserSettings,
+} from "./lib/notificationSettings";
+import {
+	canUserAccessTask,
+	canUserAccessCompetition,
+	canUserAccessComment,
+	canUserAccessNotificationEntity,
+	getEntitySubscriberIds,
+} from "./lib/notificationAccess";
+import { getViewSubscriberIds } from "./lib/notificationSubscribers";
+import {
+	getActorInfo,
+	resolveRecipientIds,
+	buildTaskNotificationResult,
+	buildCompetitionNotificationResult,
+	type TaskNotificationBuildArgs,
+	type CompetitionNotificationBuildArgs,
+} from "./lib/notificationBuilders";
+import {
+	isDispatchDue,
+	buildEmailDispatchGroupClaimKey,
+	hasUnexpiredEmailDispatchClaim,
+	collectDispatchGroup,
+	resolveEmailDispatchItem,
+	patchPendingDispatches,
+	buildTestEmailData,
+	STALE_DISPATCH_THRESHOLD_MS,
+	emailDispatchGroupValidator,
+	type ResolvedEmailDispatchItem,
+} from "./lib/notificationEmail";
+import {
+	computeDueDateDaysDiff,
+	buildDueDateNotificationSpec,
+	MS_PER_DAY,
+	type DueDateNotificationSpec,
+} from "./lib/notificationDueDates";
 
-type NotificationMetadata = Infer<typeof notificationMetadata>;
-type NotificationType = Infer<typeof notificationType>;
-type NotificationPriority = Infer<typeof notificationPriority>;
-type NotificationChannel = Infer<typeof notificationChannel>;
-type NotificationDigestMode = Infer<typeof notificationDigestMode>;
-type NotificationSubscriberEntityType = Infer<
-	typeof notificationSubscriberEntityType
->;
-type NotificationViewEntityType = "tasks" | "competitions";
-type EntitySubscriptionArg = Infer<typeof entitySubscriptionArgs>;
-
-type NotificationEntityType = "task" | "comment" | "competition" | "reminder";
-type DispatchStatus = "pending" | "sent" | "skipped" | "failed";
-type ScheduledFunctionId = Id<"_scheduled_functions">;
-
-const notificationEntityType = v.union(
-	v.literal("task"),
-	v.literal("comment"),
-	v.literal("competition"),
-	v.literal("reminder"),
-);
-
-export const notificationReturns = v.object({
-	id: v.id("notifications"),
-	userId: v.id("users"),
-	type: notificationType,
-	priority: notificationPriority,
-	status: notificationStatus,
-	title: v.string(),
-	message: v.string(),
-	body: v.optional(v.string()),
-	entityType: notificationEntityType,
-	entityId: v.string(),
-	parentEntityId: v.optional(v.string()),
-	metadata: notificationMetadata,
-	sourceEventId: v.optional(v.id("notificationEvents")),
-	threadKey: v.optional(v.string()),
-	dedupeKey: v.optional(v.string()),
-	createdAt: v.string(),
-	readAt: v.optional(v.string()),
-	archivedAt: v.optional(v.string()),
-	snoozedUntil: v.optional(v.string()),
-	scheduledFor: v.optional(v.string()),
-	isBatchable: v.boolean(),
-	batchKey: v.optional(v.string()),
-});
-
-const notificationPreferenceReturns = v.object({
-	type: notificationType,
-	channel: notificationChannel,
-	enabled: v.boolean(),
-	digestMode: notificationDigestMode,
-	respectQuietHours: v.boolean(),
-	isOverride: v.boolean(),
-	updatedAt: v.string(),
-});
-
-const notificationUserSettingsReturns = v.object({
-	timezone: v.string(),
-	defaultDigestMode: notificationDigestMode,
-	quietHoursStartMin: v.optional(v.number()),
-	quietHoursEndMin: v.optional(v.number()),
-	updatedAt: v.string(),
-});
-
-const notificationSettingsReturns = v.object({
-	timezone: v.string(),
-	defaultDigestMode: notificationDigestMode,
-	quietHoursStartMin: v.optional(v.number()),
-	quietHoursEndMin: v.optional(v.number()),
-	preferences: v.array(notificationPreferenceReturns),
-});
-
-const notificationSubscriptionReturns = v.object({
-	id: v.id("notificationSubscriptions"),
-	subscriptionType: notificationSubscriptionType,
-	entityType: v.optional(notificationSubscriberEntityType),
-	entityId: v.optional(v.string()),
-	viewId: v.optional(v.id("savedViews")),
-	viewEntity: v.optional(
-		v.union(v.literal("tasks"), v.literal("competitions")),
-	),
-	label: v.string(),
-	description: v.optional(v.string()),
-	isStale: v.boolean(),
-	updatedAt: v.string(),
-});
-
-const notificationDispatchStatsReturns = v.object({
-	pending: v.number(),
-	sent: v.number(),
-	skipped: v.number(),
-	failed: v.number(),
-});
-
-const entitySubscriptionArgs = v.union(
-	v.object({
-		entityType: v.literal("task"),
-		entityId: v.id("tasks"),
-	}),
-	v.object({
-		entityType: v.literal("competition"),
-		entityId: v.id("competitions"),
-	}),
-	v.object({
-		entityType: v.literal("comment"),
-		entityId: v.id("comments"),
-	}),
-);
-
-type NotificationEntityRef =
-	| { entityType: "task"; entityId: Id<"tasks"> }
-	| { entityType: "competition"; entityId: Id<"competitions"> }
-	| {
-			entityType: "comment";
-			entityId: Id<"comments">;
-			parentTaskId?: Id<"tasks">;
-	  }
-	| {
-			entityType: "reminder";
-			entityId: Id<"reminders">;
-			parentTaskId?: Id<"tasks">;
-	  };
-
-type NotificationEmitInput = {
-	type: NotificationType;
-	entity: NotificationEntityRef;
-	recipients: Id<"users">[];
-	actorId?: Id<"users">;
-	title: string;
-	message: string;
-	priority: NotificationPriority;
-	body?: string;
-	metadata?: NotificationMetadata;
-	threadKey?: string;
-	dedupeKey?: string;
-	isBatchable?: boolean;
-	batchKey?: string;
-	idempotencyBase: string;
-	payloadJson?: string;
-	includeEntitySubscribers?: boolean;
-	includeViewSubscribers?: boolean;
-	suppressActorRecipient?: boolean;
-};
-
-type NotificationPayload = Record<
-	string,
-	string | number | boolean | null | undefined
->;
-
-type EmailDispatchSnapshot = {
-	type: NotificationType;
-	title: string;
-	message: string;
-	body?: string;
-	entityType: NotificationEntityType;
-	entityId: string;
-	parentEntityId?: string;
-	priority: NotificationPriority;
-	actorName?: string;
-};
-
-type NotificationPreferenceConfig = {
-	enabled: boolean;
-	digestMode: NotificationDigestMode;
-	respectQuietHours: boolean;
-	quietHoursStartMin?: number;
-	quietHoursEndMin?: number;
-};
-
-type RecipientSkipDecision = {
-	inAppStatus: DispatchStatus;
-	externalStatus: DispatchStatus;
-	reason: string;
-	externalReason?: string;
-};
-
-type RecipientDecision =
-	| {
-			kind: "existing";
-			notification: Doc<"notifications">;
-	  }
-	| {
-			kind: "skip";
-			skip: RecipientSkipDecision;
-	  }
-	| {
-			kind: "deliver";
-			inAppPreference: NotificationPreferenceConfig;
-	  };
-
-function docToNotification(d: Doc<"notifications">) {
-	return {
-		id: d._id,
-		userId: d.userId,
-		type: d.type,
-		priority: d.priority,
-		status: d.status,
-		title: d.title,
-		message: d.message,
-		body: d.body,
-		entityType: d.entityType,
-		entityId: d.entityId,
-		parentEntityId: d.parentEntityId,
-		metadata: d.metadata ?? {},
-		sourceEventId: d.sourceEventId,
-		threadKey: d.threadKey,
-		dedupeKey: d.dedupeKey,
-		createdAt: toISO(d._creationTime),
-		readAt: d.readAt !== undefined ? toISO(d.readAt) : undefined,
-		archivedAt: d.archivedAt !== undefined ? toISO(d.archivedAt) : undefined,
-		snoozedUntil:
-			d.snoozedUntil !== undefined ? toISO(d.snoozedUntil) : undefined,
-		scheduledFor:
-			d.scheduledFor !== undefined ? toISO(d.scheduledFor) : undefined,
-		isBatchable: d.isBatchable,
-		batchKey: d.batchKey,
-	};
-}
-
-function normalizeListLimit(limit: number | undefined): number {
-	if (!limit || Number.isNaN(limit)) {
-		return NOTIFICATION_LIST_LIMITS.DEFAULT;
-	}
-	if (limit < 1) {
-		return 1;
-	}
-	if (limit > NOTIFICATION_LIST_LIMITS.MAX) {
-		return NOTIFICATION_LIST_LIMITS.MAX;
-	}
-	return limit;
-}
-
-function normalizeSubscriptionListLimit(limit: number | undefined): number {
-	if (!limit || Number.isNaN(limit)) {
-		return DEFAULT_SUBSCRIPTION_LIST_LIMIT;
-	}
-	if (limit < 1) {
-		return 1;
-	}
-	if (limit > MAX_SUBSCRIPTION_LIST_LIMIT) {
-		return MAX_SUBSCRIPTION_LIST_LIMIT;
-	}
-	return limit;
-}
-
-function isNotificationScheduledVisible(
-	doc: Pick<Doc<"notifications">, "scheduledFor">,
-	now: number,
-): boolean {
-	return doc.scheduledFor === undefined || doc.scheduledFor <= now;
-}
-
-function isUnreadNotificationVisible(
-	doc: Pick<Doc<"notifications">, "scheduledFor" | "snoozedUntil">,
-	now: number,
-): boolean {
-	return (
-		(doc.snoozedUntil === undefined || doc.snoozedUntil <= now) &&
-		isNotificationScheduledVisible(doc, now)
-	);
-}
-
-async function listVisibleNotificationsForUser(
-	ctx: QueryCtx,
-	userId: Id<"users">,
-	now: number,
-	limit: number,
-): Promise<Doc<"notifications">[]> {
-	const pageSize = Math.min(
-		Math.max(limit * 2, NOTIFICATION_LIST_LIMITS.DEFAULT),
-		NOTIFICATION_LIST_LIMITS.MAX,
-	);
-	const visible: Doc<"notifications">[] = [];
-	let cursor: string | null = null;
-	while (visible.length < limit) {
-		const page = await ctx.db
-			.query("notifications")
-			.withIndex("by_user", (q) => q.eq("userId", userId))
-			.order("desc")
-			.paginate({ cursor, numItems: pageSize });
-		for (const doc of page.page) {
-			if (isNotificationScheduledVisible(doc, now)) {
-				visible.push(doc);
-			}
-			if (visible.length >= limit) {
-				break;
-			}
-		}
-		if (page.isDone) {
-			break;
-		}
-		cursor = page.continueCursor;
-	}
-	return visible;
-}
-
-async function countVisibleUnreadNotifications(
-	ctx: QueryCtx,
-	userId: Id<"users">,
-	now: number,
-): Promise<number> {
-	let count = 0;
-	let cursor: string | null = null;
-	while (true) {
-		const page = await ctx.db
-			.query("notifications")
-			.withIndex("by_user_and_status", (q) =>
-				q.eq("userId", userId).eq("status", "unread"),
-			)
-			.paginate({ cursor, numItems: NOTIFICATION_LIST_LIMITS.MAX });
-		for (const doc of page.page) {
-			if (isUnreadNotificationVisible(doc, now)) {
-				count += 1;
-			}
-		}
-		if (page.isDone) {
-			break;
-		}
-		cursor = page.continueCursor;
-	}
-	return count;
-}
-
-async function countDispatchesByStatus(
-	ctx: QueryCtx,
-	userId: Id<"users">,
-	status: DispatchStatus,
-): Promise<number> {
-	let count = 0;
-	let cursor: string | null = null;
-	while (true) {
-		const page = await ctx.db
-			.query("notificationDispatches")
-			.withIndex("by_user_status", (q) =>
-				q.eq("userId", userId).eq("status", status),
-			)
-			.paginate({ cursor, numItems: NOTIFICATION_LIST_LIMITS.MAX });
-		count += page.page.length;
-		if (page.isDone) {
-			break;
-		}
-		cursor = page.continueCursor;
-	}
-	return count;
-}
-
-function validateQuietHour(value: number | undefined, fieldName: string): void {
-	if (value === undefined) return;
-	const maxMinute = MINUTES_IN_DAY - 1;
-	if (!Number.isInteger(value) || value < 0 || value > maxMinute) {
-		throw new ConvexError({
-			code: "BAD_REQUEST",
-			message: `${fieldName} must be an integer between 0 and ${maxMinute}`,
-		});
-	}
-}
-
-function validateQuietHours(
-	quietHoursStartMin: number | undefined,
-	quietHoursEndMin: number | undefined,
-): void {
-	validateQuietHour(quietHoursStartMin, "quietHoursStartMin");
-	validateQuietHour(quietHoursEndMin, "quietHoursEndMin");
-	validateQuietHoursWindow(quietHoursStartMin, quietHoursEndMin);
-}
-
-function serializePayload(payload: NotificationPayload): string | undefined {
-	const normalized: Record<string, string | number | boolean | null> = {};
-	for (const [key, value] of Object.entries(payload)) {
-		if (value !== undefined) {
-			normalized[key] = value;
-		}
-	}
-	if (Object.keys(normalized).length === 0) {
-		return undefined;
-	}
-	return JSON.stringify(normalized);
-}
-
-function serializeEmailDispatchSnapshot(
-	snapshot: EmailDispatchSnapshot,
-): string {
-	return JSON.stringify(snapshot);
-}
-
-function parseEmailDispatchSnapshot(
-	metadataJson: string | undefined,
-): EmailDispatchSnapshot | null {
-	if (!metadataJson) return null;
-
-	try {
-		const parsed: unknown = JSON.parse(metadataJson);
-		if (!parsed || typeof parsed !== "object") return null;
-		const snapshot = parsed as Partial<EmailDispatchSnapshot>;
-		if (
-			typeof snapshot.type !== "string" ||
-			typeof snapshot.title !== "string" ||
-			typeof snapshot.message !== "string" ||
-			typeof snapshot.entityType !== "string" ||
-			typeof snapshot.entityId !== "string" ||
-			typeof snapshot.priority !== "string"
-		) {
-			return null;
-		}
-
-		if (
-			(snapshot.body !== undefined && typeof snapshot.body !== "string") ||
-			(snapshot.parentEntityId !== undefined &&
-				typeof snapshot.parentEntityId !== "string") ||
-			(snapshot.actorName !== undefined &&
-				typeof snapshot.actorName !== "string")
-		) {
-			return null;
-		}
-
-		return {
-			type: snapshot.type as NotificationType,
-			title: snapshot.title,
-			message: snapshot.message,
-			body: snapshot.body,
-			entityType: snapshot.entityType as NotificationEntityType,
-			entityId: snapshot.entityId,
-			parentEntityId: snapshot.parentEntityId,
-			priority: snapshot.priority as NotificationPriority,
-			actorName: snapshot.actorName,
-		};
-	} catch {
-		return null;
-	}
-}
-
-function notificationEntityId(entity: NotificationEntityRef): string {
-	return entity.entityId;
-}
-
-function notificationParentEntityId(
-	entity: NotificationEntityRef,
-): string | undefined {
-	if (entity.entityType === "comment" || entity.entityType === "reminder") {
-		return entity.parentTaskId;
-	}
-	return undefined;
-}
-
-function defaultThreadKey(entity: NotificationEntityRef): string {
-	if (
-		(entity.entityType === "comment" || entity.entityType === "reminder") &&
-		entity.parentTaskId
-	) {
-		return `task:${entity.parentTaskId}`;
-	}
-	return `${entity.entityType}:${entity.entityId}`;
-}
-
-type DbReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
-type NotificationUserSettingsResolved = {
-	timezone: string;
-	defaultDigestMode: NotificationDigestMode;
-	quietHoursStartMin: number | undefined;
-	quietHoursEndMin: number | undefined;
-	updatedAt: number;
-};
-
-async function getNotificationUserSettingsDoc(
-	ctx: DbReadCtx,
-	userId: Id<"users">,
-): Promise<Doc<"notificationUserSettings"> | null> {
-	return ctx.db
-		.query("notificationUserSettings")
-		.withIndex("by_user", (q) => q.eq("userId", userId))
-		.first();
-}
-
-function resolveNotificationUserSettings(
-	doc: Doc<"notificationUserSettings"> | null,
-): NotificationUserSettingsResolved {
-	return {
-		timezone: doc?.timezone ?? DEFAULT_TIMEZONE,
-		defaultDigestMode: doc?.defaultDigestMode ?? DEFAULT_DIGEST_MODE,
-		quietHoursStartMin: doc?.quietHoursStartMin,
-		quietHoursEndMin: doc?.quietHoursEndMin,
-		updatedAt: doc?.updatedAt ?? 0,
-	};
-}
-
-async function getResolvedNotificationUserSettings(
-	ctx: DbReadCtx,
-	userId: Id<"users">,
-): Promise<NotificationUserSettingsResolved> {
-	const doc = await getNotificationUserSettingsDoc(ctx, userId);
-	return resolveNotificationUserSettings(doc);
-}
-
-async function getNotificationUserTimezone(
-	ctx: DbReadCtx,
-	userId: Id<"users">,
-): Promise<string> {
-	const userSettings = await getResolvedNotificationUserSettings(ctx, userId);
-	return userSettings.timezone;
-}
-
-async function upsertNotificationUserSettings(
-	ctx: MutationCtx,
-	userId: Id<"users">,
-	args: {
-		timezone?: string;
-		defaultDigestMode?: NotificationDigestMode;
-		quietHoursStartMin?: number;
-		quietHoursEndMin?: number;
-		clearQuietHours?: boolean;
-	},
-): Promise<void> {
-	const existing = await getNotificationUserSettingsDoc(ctx, userId);
-	const resolved = resolveNotificationUserSettings(existing);
-
-	const timezone = args.timezone ?? resolved.timezone;
-	const defaultDigestMode =
-		args.defaultDigestMode ?? resolved.defaultDigestMode;
-	if (args.timezone !== undefined) {
-		validateTimezone(args.timezone);
-	}
-
-	let quietHoursStartMin = resolved.quietHoursStartMin;
-	let quietHoursEndMin = resolved.quietHoursEndMin;
-	if (args.clearQuietHours) {
-		quietHoursStartMin = undefined;
-		quietHoursEndMin = undefined;
-	} else if (
-		args.quietHoursStartMin !== undefined ||
-		args.quietHoursEndMin !== undefined
-	) {
-		quietHoursStartMin = args.quietHoursStartMin;
-		quietHoursEndMin = args.quietHoursEndMin;
-	}
-	validateQuietHours(quietHoursStartMin, quietHoursEndMin);
-
-	const now = Date.now();
-	if (existing) {
-		await ctx.db.patch("notificationUserSettings", existing._id, {
-			timezone,
-			defaultDigestMode,
-			quietHoursStartMin,
-			quietHoursEndMin,
-			updatedAt: now,
-		});
-		return;
-	}
-	await ctx.db.insert("notificationUserSettings", {
-		userId,
-		timezone,
-		defaultDigestMode,
-		quietHoursStartMin,
-		quietHoursEndMin,
-		updatedAt: now,
-	});
-}
-
-function defaultChannelEnabled(channel: NotificationChannel): boolean {
-	return channel === IN_APP_CHANNEL;
-}
-
-function assertSupportedChannel(channel: NotificationChannel): void {
-	if (SUPPORTED_NOTIFICATION_CHANNELS.includes(channel)) {
-		return;
-	}
-	throw new ConvexError({
-		code: "BAD_REQUEST",
-		message: `${channel} notifications are not yet supported`,
-	});
-}
-
-async function getNotificationPreferenceConfig(
-	ctx: Pick<MutationCtx, "db">,
-	userId: Id<"users">,
-	type: NotificationType,
-	channel: NotificationChannel,
-): Promise<NotificationPreferenceConfig> {
-	const [override, userSettings] = await Promise.all([
-		ctx.db
-			.query("notificationPreferences")
-			.withIndex("by_user_type_channel", (q) =>
-				q.eq("userId", userId).eq("type", type).eq("channel", channel),
-			)
-			.first(),
-		getResolvedNotificationUserSettings(ctx, userId),
-	]);
-	const respectQuietHours = override?.respectQuietHours ?? true;
-	const effectiveDigestMode =
-		channel === IN_APP_CHANNEL
-			? override
-				? "immediate"
-				: userSettings.defaultDigestMode
-			: (override?.digestMode ?? userSettings.defaultDigestMode);
-
-	return {
-		enabled: override?.enabled ?? defaultChannelEnabled(channel),
-		digestMode: effectiveDigestMode,
-		respectQuietHours,
-		quietHoursStartMin: respectQuietHours
-			? userSettings.quietHoursStartMin
-			: undefined,
-		quietHoursEndMin: respectQuietHours
-			? userSettings.quietHoursEndMin
-			: undefined,
-	};
-}
+export { notificationReturns } from "./lib/notificationTypes";
 
 async function upsertEnabledExternalDispatches(
 	ctx: MutationCtx,
@@ -728,12 +170,9 @@ async function upsertEnabledExternalDispatches(
 		),
 	);
 
-	const dispatchPlans: ExternalDispatchPlan[] = [];
-	for (const plan of channelPlans) {
-		if (plan !== null) {
-			dispatchPlans.push(plan);
-		}
-	}
+	const dispatchPlans = channelPlans.filter(
+		(plan): plan is NonNullable<typeof plan> => plan !== null,
+	);
 
 	await Promise.all(
 		dispatchPlans.map((plan) =>
@@ -832,23 +271,27 @@ async function upsertDispatch(
 		scheduledFor,
 	);
 
+	const commonFields = {
+		status: args.status,
+		digestMode,
+		scheduledFor,
+		scheduledFunctionId: undefined,
+		digestWindowKey,
+		reason: args.reason,
+		metadataJson: args.metadataJson,
+		attempts,
+		lastAttemptAt: now,
+		sentAt,
+		updatedAt: now,
+	} as const;
+
 	if (existing) {
 		if (existing.scheduledFunctionId) {
 			await ctx.scheduler.cancel(existing.scheduledFunctionId);
 		}
 		await ctx.db.patch("notificationDispatches", existing._id, {
+			...commonFields,
 			notificationId: args.notificationId ?? existing.notificationId,
-			status: args.status,
-			digestMode,
-			scheduledFor,
-			scheduledFunctionId: undefined,
-			digestWindowKey,
-			reason: args.reason,
-			metadataJson: args.metadataJson,
-			attempts,
-			lastAttemptAt: now,
-			sentAt,
-			updatedAt: now,
 		});
 		if (shouldSchedule) {
 			const scheduledFunctionId = await scheduleDispatchProcessing(
@@ -866,21 +309,11 @@ async function upsertDispatch(
 	}
 
 	const dispatchId = await ctx.db.insert("notificationDispatches", {
+		...commonFields,
 		eventId: args.eventId,
 		notificationId: args.notificationId,
 		userId: args.userId,
 		channel: args.channel,
-		status: args.status,
-		digestMode,
-		scheduledFor,
-		scheduledFunctionId: undefined,
-		digestWindowKey,
-		reason: args.reason,
-		metadataJson: args.metadataJson,
-		attempts,
-		lastAttemptAt: now,
-		sentAt,
-		updatedAt: now,
 	});
 	if (!shouldSchedule) {
 		return;
@@ -927,431 +360,6 @@ async function ensureNotificationEvent(
 		payloadJson: args.payloadJson,
 		createdAt: Date.now(),
 	});
-}
-
-async function canUserAccessTask(
-	ctx: QueryCtx | MutationCtx,
-	userId: Id<"users">,
-	taskId: Id<"tasks">,
-): Promise<boolean> {
-	const task = await ctx.db.get("tasks", taskId);
-	if (!task) {
-		return false;
-	}
-
-	const volunteer = await isVolunteer(ctx);
-	if (volunteer) {
-		return true;
-	}
-
-	if (!task.parentCompetitionId) {
-		return false;
-	}
-
-	return hasTaskCompetitionAccess(
-		ctx,
-		volunteer,
-		userId,
-		task.parentCompetitionId,
-	);
-}
-
-async function canUserAccessCompetition(
-	ctx: QueryCtx | MutationCtx,
-	userId: Id<"users">,
-	competitionId: Id<"competitions">,
-): Promise<boolean> {
-	const volunteer = await isVolunteer(ctx);
-	return hasCompetitionAccess(ctx, volunteer, userId, competitionId);
-}
-
-async function canUserAccessComment(
-	ctx: QueryCtx | MutationCtx,
-	userId: Id<"users">,
-	commentId: Id<"comments">,
-	parentTaskId?: Id<"tasks">,
-): Promise<boolean> {
-	if (parentTaskId) {
-		return canUserAccessTask(ctx, userId, parentTaskId);
-	}
-
-	const comment = await ctx.db.get("comments", commentId);
-	if (!comment) {
-		return false;
-	}
-
-	if (comment.parentType === "task") {
-		return canUserAccessTask(
-			ctx,
-			userId,
-			getCommentParentId("task", comment.parentId),
-		);
-	}
-
-	const updateId = getCommentParentId("update", comment.parentId);
-	const update = await ctx.db.get("competitionUpdates", updateId);
-	if (!update) {
-		return false;
-	}
-	return canUserAccessCompetition(ctx, userId, update.competitionId);
-}
-
-async function canUserAccessReminder(
-	ctx: QueryCtx | MutationCtx,
-	userId: Id<"users">,
-	reminderId: Id<"reminders">,
-): Promise<boolean> {
-	const reminder = await ctx.db.get("reminders", reminderId);
-	if (!reminder) {
-		return false;
-	}
-	return reminder.userId === userId;
-}
-
-async function canUserAccessNotificationEntity(
-	ctx: QueryCtx | MutationCtx,
-	userId: Id<"users">,
-	entity: NotificationEntityRef,
-): Promise<boolean> {
-	switch (entity.entityType) {
-		case "task":
-			return canUserAccessTask(ctx, userId, entity.entityId);
-		case "competition":
-			return canUserAccessCompetition(ctx, userId, entity.entityId);
-		case "comment":
-			return canUserAccessComment(
-				ctx,
-				userId,
-				entity.entityId,
-				entity.parentTaskId,
-			);
-		case "reminder":
-			return canUserAccessReminder(ctx, userId, entity.entityId);
-	}
-}
-
-function subscriberTargetForEntity(entity: NotificationEntityRef): {
-	entityType: NotificationSubscriberEntityType;
-	entityId: string;
-} | null {
-	switch (entity.entityType) {
-		case "task":
-			return {
-				entityType: "task",
-				entityId: entity.entityId,
-			};
-		case "competition":
-			return {
-				entityType: "competition",
-				entityId: entity.entityId,
-			};
-		case "comment":
-			if (entity.parentTaskId) {
-				return {
-					entityType: "task",
-					entityId: entity.parentTaskId,
-				};
-			}
-			return {
-				entityType: "comment",
-				entityId: entity.entityId,
-			};
-		case "reminder":
-			return null;
-	}
-}
-
-async function getEntitySubscriberIds(
-	ctx: Pick<MutationCtx, "db">,
-	entity: NotificationEntityRef,
-): Promise<Id<"users">[]> {
-	const target = subscriberTargetForEntity(entity);
-	if (!target) {
-		return [];
-	}
-
-	const subscriptions = await ctx.db
-		.query("notificationSubscriptions")
-		.withIndex("by_entity", (q) =>
-			q.eq("entityType", target.entityType).eq("entityId", target.entityId),
-		)
-		.collect();
-
-	const userIds = new Set<Id<"users">>();
-	for (const subscription of subscriptions) {
-		if (subscription.subscriptionType !== "entity") {
-			continue;
-		}
-		if (
-			subscription.entityType !== target.entityType ||
-			subscription.entityId !== target.entityId
-		) {
-			continue;
-		}
-		userIds.add(subscription.userId);
-	}
-	return [...userIds];
-}
-
-async function resolveTaskForViewSubscription(
-	ctx: MutationCtx,
-	entity: NotificationEntityRef,
-): Promise<Doc<"tasks"> | null> {
-	if (entity.entityType === "task") {
-		return ctx.db.get("tasks", entity.entityId);
-	}
-
-	if (entity.entityType === "comment") {
-		if (entity.parentTaskId) {
-			return ctx.db.get("tasks", entity.parentTaskId);
-		}
-		const comment = await ctx.db.get("comments", entity.entityId);
-		if (!comment || comment.parentType !== "task") {
-			return null;
-		}
-		return ctx.db.get("tasks", getCommentParentId("task", comment.parentId));
-	}
-
-	if (entity.entityType === "reminder") {
-		if (entity.parentTaskId) {
-			return ctx.db.get("tasks", entity.parentTaskId);
-		}
-		const reminder = await ctx.db.get("reminders", entity.entityId);
-		if (!reminder) {
-			return null;
-		}
-		return ctx.db.get("tasks", reminder.entityId);
-	}
-
-	return null;
-}
-
-async function resolveCompetitionForViewSubscription(
-	ctx: MutationCtx,
-	entity: NotificationEntityRef,
-): Promise<Doc<"competitions"> | null> {
-	if (entity.entityType === "competition") {
-		return ctx.db.get("competitions", entity.entityId);
-	}
-
-	if (entity.entityType !== "comment") {
-		return null;
-	}
-
-	if (entity.parentTaskId) {
-		return null;
-	}
-
-	const comment = await ctx.db.get("comments", entity.entityId);
-	if (!comment || comment.parentType !== "update") {
-		return null;
-	}
-
-	const update = await ctx.db.get(
-		"competitionUpdates",
-		getCommentParentId("update", comment.parentId),
-	);
-	if (!update) {
-		return null;
-	}
-	return ctx.db.get("competitions", update.competitionId);
-}
-
-function viewEntitiesForNotificationEntity(
-	entity: NotificationEntityRef,
-): NotificationViewEntityType[] {
-	switch (entity.entityType) {
-		case "task":
-		case "reminder":
-			return ["tasks"];
-		case "competition":
-			return ["competitions"];
-		case "comment":
-			return entity.parentTaskId ? ["tasks"] : ["tasks", "competitions"];
-	}
-}
-
-async function getCandidateViewSubscriptions(
-	ctx: MutationCtx,
-	entity: NotificationEntityRef,
-): Promise<Doc<"notificationSubscriptions">[]> {
-	const viewEntities = viewEntitiesForNotificationEntity(entity);
-	if (viewEntities.length === 0) {
-		return [];
-	}
-
-	const scopedSubscriptions = (
-		await Promise.all(
-			viewEntities.map((viewEntity) =>
-				ctx.db
-					.query("notificationSubscriptions")
-					.withIndex("by_type_view_entity", (q) =>
-						q.eq("subscriptionType", "view").eq("viewEntity", viewEntity),
-					)
-					.collect(),
-			),
-		)
-	).flat();
-
-	const legacySubscriptions = await ctx.db
-		.query("notificationSubscriptions")
-		.withIndex("by_type_view_entity", (q) =>
-			q.eq("subscriptionType", "view").eq("viewEntity", undefined),
-		)
-		.collect();
-
-	const deduped = new Map<
-		Id<"notificationSubscriptions">,
-		Doc<"notificationSubscriptions">
-	>();
-	for (const subscription of [...scopedSubscriptions, ...legacySubscriptions]) {
-		deduped.set(subscription._id, subscription);
-	}
-	return [...deduped.values()];
-}
-
-async function getViewSubscriberIds(
-	ctx: MutationCtx,
-	entity: NotificationEntityRef,
-): Promise<Id<"users">[]> {
-	const subscriptions = await getCandidateViewSubscriptions(ctx, entity);
-	if (subscriptions.length === 0) {
-		return [];
-	}
-
-	const viewCache = new Map<Id<"savedViews">, Doc<"savedViews"> | null>();
-	const phaseCache = new Map<Id<"phases">, Doc<"phases"> | null>();
-	const userCache = new Map<Id<"users">, Doc<"users"> | null>();
-
-	let taskDoc: Doc<"tasks"> | null | undefined;
-	let competitionDoc: Doc<"competitions"> | null | undefined;
-
-	const recipientIds = new Set<Id<"users">>();
-
-	const getUserName = async (
-		userId: Id<"users">,
-	): Promise<string | undefined> => {
-		const cached = userCache.get(userId);
-		if (cached !== undefined) {
-			return cached?.name ?? undefined;
-		}
-		const user = await ctx.db.get("users", userId);
-		userCache.set(userId, user);
-		return user?.name ?? undefined;
-	};
-
-	const getPhaseKey = async (
-		phaseId: Id<"phases"> | undefined,
-	): Promise<string | undefined> => {
-		if (!phaseId) {
-			return undefined;
-		}
-		const cached = phaseCache.get(phaseId);
-		if (cached !== undefined) {
-			return cached?.key;
-		}
-		const phase = await ctx.db.get("phases", phaseId);
-		phaseCache.set(phaseId, phase);
-		return phase?.key;
-	};
-
-	for (const subscription of subscriptions) {
-		if (subscription.subscriptionType !== "view" || !subscription.viewId) {
-			continue;
-		}
-
-		const cachedView = viewCache.get(subscription.viewId);
-		const view =
-			cachedView !== undefined
-				? cachedView
-				: await ctx.db.get("savedViews", subscription.viewId);
-		if (cachedView === undefined) {
-			viewCache.set(subscription.viewId, view);
-		}
-
-		if (!view || view.userId !== subscription.userId) {
-			continue;
-		}
-
-		if (view.entity === "tasks") {
-			if (taskDoc === undefined) {
-				taskDoc = await resolveTaskForViewSubscription(ctx, entity);
-			}
-			if (!taskDoc) {
-				continue;
-			}
-
-			const matches = matchesTaskViewFilters(
-				{
-					status: taskDoc.status,
-					priority: taskDoc.priority,
-					assigneeIds: taskDoc.assigneeId ? [taskDoc.assigneeId] : [],
-					labelIds: taskDoc.labelIds,
-					ownerIds: taskDoc.ownerId ? [taskDoc.ownerId] : [],
-					parentTypes: taskDoc.parentTaskId
-						? ["task"]
-						: taskDoc.parentCompetitionId
-							? ["competition"]
-							: [],
-					dueDate: taskDoc.dueDate,
-				},
-				view.filtersJson,
-			);
-			if (matches) {
-				recipientIds.add(subscription.userId);
-			}
-			continue;
-		}
-
-		if (competitionDoc === undefined) {
-			competitionDoc = await resolveCompetitionForViewSubscription(ctx, entity);
-		}
-		if (!competitionDoc) {
-			continue;
-		}
-
-		const phaseKey = await getPhaseKey(competitionDoc.currentPhaseId);
-		const compLeadName = competitionDoc.compLeadId
-			? await getUserName(competitionDoc.compLeadId)
-			: undefined;
-		const leadDelegateName = competitionDoc.leadDelegateId
-			? await getUserName(competitionDoc.leadDelegateId)
-			: undefined;
-
-		const organiserRefs = (
-			await Promise.all(
-				competitionDoc.organiserIds.map(async (organiserId) => {
-					const name = await getUserName(organiserId);
-					return name ? [organiserId, name] : [organiserId];
-				}),
-			)
-		).flat();
-
-		const matches = matchesCompetitionViewFilters(
-			{
-				phaseKeys: phaseKey ? [phaseKey] : [],
-				compLeadRefs: competitionDoc.compLeadId
-					? compLeadName
-						? [competitionDoc.compLeadId, compLeadName]
-						: [competitionDoc.compLeadId]
-					: [],
-				leadDelegateRefs: competitionDoc.leadDelegateId
-					? leadDelegateName
-						? [competitionDoc.leadDelegateId, leadDelegateName]
-						: [competitionDoc.leadDelegateId]
-					: [],
-				organiserRefs,
-				compStart: competitionDoc.compStart,
-				compEnd: competitionDoc.compEnd,
-			},
-			view.filtersJson,
-		);
-		if (matches) {
-			recipientIds.add(subscription.userId);
-		}
-	}
-
-	return [...recipientIds];
 }
 
 async function hasUnreadBatchNotification(
@@ -1530,11 +538,11 @@ async function emitInAppNotifications(
 		return [];
 	}
 
-	const entityId = notificationEntityId(input.entity);
+	const entityId = input.entity.entityId;
 	const parentEntityId = notificationParentEntityId(input.entity);
 	const threadKey = input.threadKey ?? defaultThreadKey(input.entity);
 	const suppressActorRecipient = input.suppressActorRecipient ?? true;
-	const emailDispatchMetadataJson = serializeEmailDispatchSnapshot({
+	const emailDispatchMetadataJson = JSON.stringify({
 		type: input.type,
 		title: input.title,
 		message: input.message,
@@ -1544,7 +552,7 @@ async function emitInAppNotifications(
 		parentEntityId,
 		priority: input.priority,
 		actorName: input.metadata?.actorName,
-	});
+	} satisfies EmailDispatchSnapshot);
 
 	const inserted: Id<"notifications">[] = [];
 
@@ -1673,20 +681,13 @@ async function ensureSubscriptionEntityAccess(
 	userId: Id<"users">,
 	entity: EntitySubscriptionArg,
 ): Promise<void> {
-	let hasAccess = false;
-	switch (entity.entityType) {
-		case "task":
-			hasAccess = await canUserAccessTask(ctx, userId, entity.entityId);
-			break;
-		case "competition":
-			hasAccess = await canUserAccessCompetition(ctx, userId, entity.entityId);
-			break;
-		case "comment":
-			hasAccess = await canUserAccessComment(ctx, userId, entity.entityId);
-			break;
-	}
-
-	if (!hasAccess) {
+	if (
+		!(await canUserAccessNotificationEntity(
+			ctx,
+			userId,
+			entityRefFromSubscriptionArg(entity),
+		))
+	) {
 		throw new ConvexError({
 			code: "FORBIDDEN",
 			message: "You do not have access to subscribe to this entity",
@@ -1720,15 +721,23 @@ export const getUnreadCount = query({
 	},
 });
 
+async function getOwnedNotification(
+	ctx: MutationCtx,
+	notificationId: Id<"notifications">,
+): Promise<Doc<"notifications"> | null> {
+	const userId = await requireUserId(ctx);
+	const doc = await ctx.db.get("notifications", notificationId);
+	return doc && doc.userId === userId ? doc : null;
+}
+
+const notificationIdArgs = { notificationId: v.id("notifications") } as const;
+
 export const markRead = mutation({
-	args: { notificationId: v.id("notifications") },
+	args: notificationIdArgs,
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const doc = await ctx.db.get("notifications", args.notificationId);
-		if (!doc || doc.userId !== userId || doc.status !== "unread") {
-			return null;
-		}
+		const doc = await getOwnedNotification(ctx, args.notificationId);
+		if (!doc || doc.status !== "unread") return null;
 		await ctx.db.patch("notifications", args.notificationId, {
 			status: "read",
 			readAt: Date.now(),
@@ -1739,18 +748,16 @@ export const markRead = mutation({
 });
 
 export const markArchived = mutation({
-	args: { notificationId: v.id("notifications") },
+	args: notificationIdArgs,
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const doc = await ctx.db.get("notifications", args.notificationId);
-		if (!doc || doc.userId !== userId) {
-			return null;
-		}
+		const doc = await getOwnedNotification(ctx, args.notificationId);
+		if (!doc) return null;
+		const now = Date.now();
 		await ctx.db.patch("notifications", args.notificationId, {
 			status: "archived",
-			archivedAt: Date.now(),
-			readAt: doc.readAt ?? Date.now(),
+			readAt: doc.readAt ?? now,
+			archivedAt: now,
 			snoozedUntil: undefined,
 		});
 		return null;
@@ -1772,11 +779,7 @@ export const markAllRead = mutation({
 
 		await Promise.all(
 			docs
-				.filter(
-					(doc) =>
-						(doc.snoozedUntil === undefined || doc.snoozedUntil <= now) &&
-						(doc.scheduledFor === undefined || doc.scheduledFor <= now),
-				)
+				.filter((doc) => isUnreadNotificationVisible(doc, now))
 				.map((doc) =>
 					ctx.db.patch("notifications", doc._id, {
 						status: "read",
@@ -1789,38 +792,14 @@ export const markAllRead = mutation({
 	},
 });
 
-export const dismiss = mutation({
-	args: { notificationId: v.id("notifications") },
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const doc = await ctx.db.get("notifications", args.notificationId);
-		if (!doc || doc.userId !== userId) {
-			return null;
-		}
-		const now = Date.now();
-		await ctx.db.patch("notifications", args.notificationId, {
-			status: "archived",
-			readAt: doc.readAt ?? now,
-			archivedAt: now,
-			snoozedUntil: undefined,
-		});
-		return null;
-	},
-});
+export const dismiss = markArchived;
 
 export const snooze = mutation({
-	args: {
-		notificationId: v.id("notifications"),
-		snoozedUntil: v.string(),
-	},
+	args: { notificationId: v.id("notifications"), snoozedUntil: v.string() },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const doc = await ctx.db.get("notifications", args.notificationId);
-		if (!doc || doc.userId !== userId || doc.status === "archived") {
-			return null;
-		}
+		const doc = await getOwnedNotification(ctx, args.notificationId);
+		if (!doc || doc.status === "archived") return null;
 
 		const snoozedMs = new Date(args.snoozedUntil).getTime();
 		if (!Number.isFinite(snoozedMs) || snoozedMs <= Date.now()) {
@@ -1841,16 +820,11 @@ export const snooze = mutation({
 });
 
 export const unsnooze = mutation({
-	args: {
-		notificationId: v.id("notifications"),
-	},
+	args: notificationIdArgs,
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const doc = await ctx.db.get("notifications", args.notificationId);
-		if (!doc || doc.userId !== userId) {
-			return null;
-		}
+		const doc = await getOwnedNotification(ctx, args.notificationId);
+		if (!doc) return null;
 		await ctx.db.patch("notifications", args.notificationId, {
 			snoozedUntil: undefined,
 		});
@@ -1858,148 +832,14 @@ export const unsnooze = mutation({
 	},
 });
 
-async function buildPreferenceRowsForUser(
-	ctx: Pick<QueryCtx, "db">,
-	userId: Id<"users">,
-	userSettings?: NotificationUserSettingsResolved,
-): Promise<
-	Array<{
-		type: NotificationType;
-		channel: NotificationChannel;
-		enabled: boolean;
-		digestMode: NotificationDigestMode;
-		respectQuietHours: boolean;
-		isOverride: boolean;
-		updatedAt: string;
-	}>
-> {
-	const resolvedUserSettings =
-		userSettings ?? (await getResolvedNotificationUserSettings(ctx, userId));
-	const overrides = await ctx.db
-		.query("notificationPreferences")
-		.withIndex("by_user_type_channel", (q) => q.eq("userId", userId))
-		.collect();
-
-	const overrideMap = new Map<string, Doc<"notificationPreferences">>();
-	for (const override of overrides) {
-		overrideMap.set(`${override.type}:${override.channel}`, override);
-	}
-
-	const preferences: Array<{
-		type: NotificationType;
-		channel: NotificationChannel;
-		enabled: boolean;
-		digestMode: NotificationDigestMode;
-		respectQuietHours: boolean;
-		isOverride: boolean;
-		updatedAt: string;
-	}> = [];
-
-	for (const type of NOTIFICATION_TYPES) {
-		for (const channel of SUPPORTED_NOTIFICATION_CHANNELS) {
-			const key = `${type}:${channel}`;
-			const override = overrideMap.get(key);
-			const isOverride = override !== undefined;
-			const digestMode =
-				channel === IN_APP_CHANNEL
-					? isOverride
-						? "immediate"
-						: resolvedUserSettings.defaultDigestMode
-					: (override?.digestMode ?? resolvedUserSettings.defaultDigestMode);
-			preferences.push({
-				type,
-				channel,
-				enabled: override?.enabled ?? defaultChannelEnabled(channel),
-				digestMode,
-				respectQuietHours: override?.respectQuietHours ?? true,
-				isOverride,
-				updatedAt: override
-					? toISO(override.updatedAt)
-					: toISO(resolvedUserSettings.updatedAt),
-			});
-		}
-	}
-
-	return preferences;
-}
-
-async function upsertNotificationPreferenceOverride(
-	ctx: MutationCtx,
-	args: {
-		userId: Id<"users">;
-		type: NotificationType;
-		channel: NotificationChannel;
-		enabled?: boolean;
-		digestMode?: NotificationDigestMode;
-		respectQuietHours?: boolean;
-		clearOverride?: boolean;
-		defaultDigestMode?: NotificationDigestMode;
-	},
-): Promise<void> {
-	assertSupportedChannel(args.channel);
-	const existing = await ctx.db
-		.query("notificationPreferences")
-		.withIndex("by_user_type_channel", (q) =>
-			q
-				.eq("userId", args.userId)
-				.eq("type", args.type)
-				.eq("channel", args.channel),
-		)
-		.first();
-
-	if (args.clearOverride) {
-		if (existing) {
-			await ctx.db.delete("notificationPreferences", existing._id);
-		}
-		return;
-	}
-
-	const respectQuietHours =
-		args.respectQuietHours ?? existing?.respectQuietHours ?? true;
-
-	const fallbackDigestMode = args.defaultDigestMode ?? DEFAULT_DIGEST_MODE;
-	const digestMode =
-		args.channel === IN_APP_CHANNEL
-			? "immediate"
-			: (args.digestMode ?? existing?.digestMode ?? fallbackDigestMode);
-	const enabled =
-		args.enabled ?? existing?.enabled ?? defaultChannelEnabled(args.channel);
-
-	const now = Date.now();
-	if (existing) {
-		await ctx.db.patch("notificationPreferences", existing._id, {
-			enabled,
-			digestMode,
-			respectQuietHours,
-			updatedAt: now,
-		});
-		return;
-	}
-
-	await ctx.db.insert("notificationPreferences", {
-		userId: args.userId,
-		type: args.type,
-		channel: args.channel,
-		enabled,
-		digestMode,
-		respectQuietHours,
-		updatedAt: now,
-	});
-}
-
 export const getUserSettings = query({
 	args: {},
 	returns: notificationUserSettingsReturns,
 	handler: async (ctx) => {
 		const userId = await requireUserId(ctx);
-		const settings = await getResolvedNotificationUserSettings(ctx, userId);
-		return {
-			timezone: settings.timezone,
-			defaultDigestMode: settings.defaultDigestMode,
-			quietHoursStartMin: settings.quietHoursStartMin,
-			quietHoursEndMin: settings.quietHoursEndMin,
-			updatedAt: toISO(settings.updatedAt),
-		};
+		return formatUserSettings(
+			await getResolvedNotificationUserSettings(ctx, userId),
+		);
 	},
 });
 
@@ -2023,13 +863,7 @@ export const upsertUserSettings = mutation({
 		) {
 			return null;
 		}
-		await upsertNotificationUserSettings(ctx, userId, {
-			timezone: args.timezone,
-			defaultDigestMode: args.defaultDigestMode,
-			quietHoursStartMin: args.quietHoursStartMin,
-			quietHoursEndMin: args.quietHoursEndMin,
-			clearQuietHours: args.clearQuietHours,
-		});
+		await upsertNotificationUserSettings(ctx, userId, args);
 		return null;
 	},
 });
@@ -2045,13 +879,7 @@ export const getSettings = query({
 			userId,
 			userSettings,
 		);
-		return {
-			timezone: userSettings.timezone,
-			defaultDigestMode: userSettings.defaultDigestMode,
-			quietHoursStartMin: userSettings.quietHoursStartMin,
-			quietHoursEndMin: userSettings.quietHoursEndMin,
-			preferences,
-		};
+		return { ...formatUserSettings(userSettings), preferences };
 	},
 });
 
@@ -2078,36 +906,20 @@ export const upsertSettings = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		if (
-			args.timezone !== undefined ||
-			args.defaultDigestMode !== undefined ||
-			args.quietHoursStartMin !== undefined ||
-			args.quietHoursEndMin !== undefined ||
-			args.clearQuietHours
-		) {
-			await upsertNotificationUserSettings(ctx, userId, {
-				timezone: args.timezone,
-				defaultDigestMode: args.defaultDigestMode,
-				quietHoursStartMin: args.quietHoursStartMin,
-				quietHoursEndMin: args.quietHoursEndMin,
-				clearQuietHours: args.clearQuietHours,
-			});
+		const { preferences: prefArgs, ...settingsArgs } = args;
+		if (Object.values(settingsArgs).some((v) => v !== undefined)) {
+			await upsertNotificationUserSettings(ctx, userId, settingsArgs);
 		}
 
-		if (!args.preferences || args.preferences.length === 0) {
+		if (!prefArgs || prefArgs.length === 0) {
 			return null;
 		}
 
 		const userSettings = await getResolvedNotificationUserSettings(ctx, userId);
-		for (const preference of args.preferences) {
+		for (const pref of prefArgs) {
 			await upsertNotificationPreferenceOverride(ctx, {
 				userId,
-				type: preference.type,
-				channel: preference.channel,
-				enabled: preference.enabled,
-				digestMode: preference.digestMode,
-				respectQuietHours: preference.respectQuietHours,
-				clearOverride: preference.clearOverride,
+				...pref,
 				defaultDigestMode: userSettings.defaultDigestMode,
 			});
 		}
@@ -2139,12 +951,7 @@ export const upsertPreference = mutation({
 		const userSettings = await getResolvedNotificationUserSettings(ctx, userId);
 		await upsertNotificationPreferenceOverride(ctx, {
 			userId,
-			type: args.type,
-			channel: args.channel,
-			enabled: args.enabled,
-			digestMode: args.digestMode,
-			respectQuietHours: args.respectQuietHours,
-			clearOverride: args.clearOverride,
+			...args,
 			defaultDigestMode: userSettings.defaultDigestMode,
 		});
 		return null;
@@ -2157,118 +964,72 @@ type SubscriptionPresentation = {
 	isStale: boolean;
 };
 
-function staleSubscriptionPresentation(
+const stale = (
 	label: string,
 	description: string,
-): SubscriptionPresentation {
-	return {
-		label,
-		description,
-		isStale: true,
-	};
-}
+): SubscriptionPresentation => ({
+	label,
+	description,
+	isStale: true,
+});
 
-async function describeTaskSubscription(
+async function describeEntitySubscription(
 	ctx: QueryCtx,
 	userId: Id<"users">,
+	entityType: string,
 	entityId: string,
 ): Promise<SubscriptionPresentation> {
-	const taskId = ctx.db.normalizeId("tasks", entityId);
-	if (!taskId) {
-		return staleSubscriptionPresentation("Deleted task", "Task");
+	if (entityType === "task") {
+		const taskId = ctx.db.normalizeId("tasks", entityId);
+		if (!taskId) return stale("Deleted task", "Task");
+		const task = await ctx.db.get("tasks", taskId);
+		if (!task) return stale("Deleted task", "Task");
+		if (!(await canUserAccessTask(ctx, userId, taskId)))
+			return stale("Restricted task", "Task");
+		return {
+			label: `${task.identifier}: ${task.title}`,
+			description: "Task",
+			isStale: false,
+		};
 	}
 
-	const task = await ctx.db.get("tasks", taskId);
-	if (!task) {
-		return staleSubscriptionPresentation("Deleted task", "Task");
+	if (entityType === "competition") {
+		const compId = ctx.db.normalizeId("competitions", entityId);
+		if (!compId) return stale("Deleted competition", "Competition");
+		const comp = await ctx.db.get("competitions", compId);
+		if (!comp) return stale("Deleted competition", "Competition");
+		if (!(await canUserAccessCompetition(ctx, userId, compId)))
+			return stale("Restricted competition", "Competition");
+		return { label: comp.name, description: "Competition", isStale: false };
 	}
 
-	const hasAccess = await canUserAccessTask(ctx, userId, taskId);
-	if (!hasAccess) {
-		return staleSubscriptionPresentation("Restricted task", "Task");
-	}
-
-	return {
-		label: `${task.identifier}: ${task.title}`,
-		description: "Task",
-		isStale: false,
-	};
-}
-
-async function describeCompetitionSubscription(
-	ctx: QueryCtx,
-	userId: Id<"users">,
-	entityId: string,
-): Promise<SubscriptionPresentation> {
-	const competitionId = ctx.db.normalizeId("competitions", entityId);
-	if (!competitionId) {
-		return staleSubscriptionPresentation("Deleted competition", "Competition");
-	}
-
-	const competition = await ctx.db.get("competitions", competitionId);
-	if (!competition) {
-		return staleSubscriptionPresentation("Deleted competition", "Competition");
-	}
-
-	const hasAccess = await canUserAccessCompetition(ctx, userId, competitionId);
-	if (!hasAccess) {
-		return staleSubscriptionPresentation(
-			"Restricted competition",
-			"Competition",
-		);
-	}
-
-	return {
-		label: competition.name,
-		description: "Competition",
-		isStale: false,
-	};
-}
-
-async function describeCommentSubscription(
-	ctx: QueryCtx,
-	userId: Id<"users">,
-	entityId: string,
-): Promise<SubscriptionPresentation> {
 	const commentId = ctx.db.normalizeId("comments", entityId);
-	if (!commentId) {
-		return staleSubscriptionPresentation("Deleted comment", "Comment");
-	}
-
+	if (!commentId) return stale("Deleted comment", "Comment");
 	const comment = await ctx.db.get("comments", commentId);
-	if (!comment) {
-		return staleSubscriptionPresentation("Deleted comment", "Comment");
-	}
-
-	const hasAccess = await canUserAccessComment(ctx, userId, commentId);
-	if (!hasAccess) {
-		return staleSubscriptionPresentation("Restricted comment", "Comment");
-	}
+	if (!comment) return stale("Deleted comment", "Comment");
+	if (!(await canUserAccessComment(ctx, userId, commentId)))
+		return stale("Restricted comment", "Comment");
 
 	if (comment.parentType === "task") {
-		const taskId = getCommentParentId("task", comment.parentId);
-		const task = await ctx.db.get("tasks", taskId);
-		if (task) {
-			return {
-				label: `Comment on ${task.identifier}`,
-				description: "Task comment",
-				isStale: false,
-			};
-		}
-		return staleSubscriptionPresentation(
-			"Comment on deleted task",
-			"Task comment",
+		const task = await ctx.db.get(
+			"tasks",
+			getCommentParentId("task", comment.parentId),
 		);
+		return task
+			? {
+					label: `Comment on ${task.identifier}`,
+					description: "Task comment",
+					isStale: false,
+				}
+			: stale("Comment on deleted task", "Task comment");
 	}
 
-	const updateId = getCommentParentId("update", comment.parentId);
-	const update = await ctx.db.get("competitionUpdates", updateId);
-	if (!update) {
-		return staleSubscriptionPresentation(
-			"Comment on deleted update",
-			"Competition update comment",
-		);
-	}
+	const update = await ctx.db.get(
+		"competitionUpdates",
+		getCommentParentId("update", comment.parentId),
+	);
+	if (!update)
+		return stale("Comment on deleted update", "Competition update comment");
 	const competition = await ctx.db.get("competitions", update.competitionId);
 	return {
 		label: competition
@@ -2279,55 +1040,36 @@ async function describeCommentSubscription(
 	};
 }
 
-async function describeViewSubscription(
-	ctx: QueryCtx,
-	userId: Id<"users">,
-	viewId: Id<"savedViews"> | undefined,
-): Promise<SubscriptionPresentation> {
-	if (!viewId) {
-		return staleSubscriptionPresentation("Deleted view", "Saved view");
-	}
-
-	const view = await ctx.db.get("savedViews", viewId);
-	if (!view || view.userId !== userId) {
-		return staleSubscriptionPresentation("Deleted view", "Saved view");
-	}
-
-	return {
-		label: view.name,
-		description:
-			view.entity === "tasks"
-				? `Task view (${view.pageId})`
-				: `Competition view (${view.pageId})`,
-		isStale: false,
-	};
-}
-
 async function describeSubscription(
 	ctx: QueryCtx,
 	userId: Id<"users">,
 	subscription: Doc<"notificationSubscriptions">,
 ): Promise<SubscriptionPresentation> {
 	if (subscription.subscriptionType === "view") {
-		return describeViewSubscription(ctx, userId, subscription.viewId);
+		if (!subscription.viewId) return stale("Deleted view", "Saved view");
+		const view = await ctx.db.get("savedViews", subscription.viewId);
+		if (!view || view.userId !== userId)
+			return stale("Deleted view", "Saved view");
+		return {
+			label: view.name,
+			description:
+				view.entity === "tasks"
+					? `Task view (${view.pageId})`
+					: `Competition view (${view.pageId})`,
+			isStale: false,
+		};
 	}
 
 	if (!subscription.entityType || !subscription.entityId) {
-		return staleSubscriptionPresentation("Invalid subscription", "Entity");
+		return stale("Invalid subscription", "Entity");
 	}
 
-	switch (subscription.entityType) {
-		case "task":
-			return describeTaskSubscription(ctx, userId, subscription.entityId);
-		case "competition":
-			return describeCompetitionSubscription(
-				ctx,
-				userId,
-				subscription.entityId,
-			);
-		case "comment":
-			return describeCommentSubscription(ctx, userId, subscription.entityId);
-	}
+	return describeEntitySubscription(
+		ctx,
+		userId,
+		subscription.entityType,
+		subscription.entityId,
+	);
 }
 
 export const listSubscriptions = query({
@@ -2365,6 +1107,44 @@ export const listSubscriptions = query({
 	},
 });
 
+function findUserEntitySubscription(
+	ctx: Pick<QueryCtx, "db">,
+	userId: Id<"users">,
+	entityType: "task" | "competition" | "comment",
+	entityId: string,
+) {
+	return ctx.db
+		.query("notificationSubscriptions")
+		.withIndex("by_user_entity", (q) =>
+			q
+				.eq("userId", userId)
+				.eq("entityType", entityType)
+				.eq("entityId", entityId),
+		)
+		.first();
+}
+
+function findUserViewSubscription(
+	ctx: Pick<QueryCtx, "db">,
+	userId: Id<"users">,
+	viewId: Id<"savedViews">,
+) {
+	return ctx.db
+		.query("notificationSubscriptions")
+		.withIndex("by_user_view", (q) =>
+			q.eq("userId", userId).eq("viewId", viewId),
+		)
+		.first();
+}
+
+function entityRefFromSubscriptionArg(
+	entity: EntitySubscriptionArg,
+): NotificationEntityRef {
+	return entity.entityType === "comment"
+		? { entityType: "comment", entityId: entity.entityId }
+		: entity;
+}
+
 export const isSubscribedToEntity = query({
 	args: {
 		entity: entitySubscriptionArgs,
@@ -2372,28 +1152,18 @@ export const isSubscribedToEntity = query({
 	returns: v.boolean(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		const entityId = `${args.entity.entityId}`;
-		const existing = await ctx.db
-			.query("notificationSubscriptions")
-			.withIndex("by_user_entity", (q) =>
-				q
-					.eq("userId", userId)
-					.eq("entityType", args.entity.entityType)
-					.eq("entityId", entityId),
-			)
-			.first();
-		if (!existing) {
-			return false;
-		}
-
-		switch (args.entity.entityType) {
-			case "task":
-				return canUserAccessTask(ctx, userId, args.entity.entityId);
-			case "competition":
-				return canUserAccessCompetition(ctx, userId, args.entity.entityId);
-			case "comment":
-				return canUserAccessComment(ctx, userId, args.entity.entityId);
-		}
+		const existing = await findUserEntitySubscription(
+			ctx,
+			userId,
+			args.entity.entityType,
+			`${args.entity.entityId}`,
+		);
+		if (!existing) return false;
+		return canUserAccessNotificationEntity(
+			ctx,
+			userId,
+			entityRefFromSubscriptionArg(args.entity),
+		);
 	},
 });
 
@@ -2405,16 +1175,8 @@ export const isSubscribedToView = query({
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		const view = await ctx.db.get("savedViews", args.viewId);
-		if (!view || view.userId !== userId) {
-			return false;
-		}
-		const existing = await ctx.db
-			.query("notificationSubscriptions")
-			.withIndex("by_user_view", (q) =>
-				q.eq("userId", userId).eq("viewId", args.viewId),
-			)
-			.first();
-		return existing !== null;
+		if (!view || view.userId !== userId) return false;
+		return (await findUserViewSubscription(ctx, userId, args.viewId)) !== null;
 	},
 });
 
@@ -2428,18 +1190,13 @@ export const subscribeToEntity = mutation({
 		await ensureSubscriptionEntityAccess(ctx, userId, args.entity);
 
 		const entityId = `${args.entity.entityId}`;
-		const existing = await ctx.db
-			.query("notificationSubscriptions")
-			.withIndex("by_user_entity", (q) =>
-				q
-					.eq("userId", userId)
-					.eq("entityType", args.entity.entityType)
-					.eq("entityId", entityId),
-			)
-			.first();
-		if (existing) {
-			return existing._id;
-		}
+		const existing = await findUserEntitySubscription(
+			ctx,
+			userId,
+			args.entity.entityType,
+			entityId,
+		);
+		if (existing) return existing._id;
 
 		return ctx.db.insert("notificationSubscriptions", {
 			userId,
@@ -2458,19 +1215,14 @@ export const unsubscribeFromEntity = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		const entityId = `${args.entity.entityId}`;
-		const existing = await ctx.db
-			.query("notificationSubscriptions")
-			.withIndex("by_user_entity", (q) =>
-				q
-					.eq("userId", userId)
-					.eq("entityType", args.entity.entityType)
-					.eq("entityId", entityId),
-			)
-			.first();
-		if (existing) {
+		const existing = await findUserEntitySubscription(
+			ctx,
+			userId,
+			args.entity.entityType,
+			`${args.entity.entityId}`,
+		);
+		if (existing)
 			await ctx.db.delete("notificationSubscriptions", existing._id);
-		}
 		return null;
 	},
 });
@@ -2490,12 +1242,7 @@ export const subscribeToView = mutation({
 			});
 		}
 
-		const existing = await ctx.db
-			.query("notificationSubscriptions")
-			.withIndex("by_user_view", (q) =>
-				q.eq("userId", userId).eq("viewId", args.viewId),
-			)
-			.first();
+		const existing = await findUserViewSubscription(ctx, userId, args.viewId);
 		if (existing) {
 			if (existing.viewEntity !== view.entity) {
 				await ctx.db.patch("notificationSubscriptions", existing._id, {
@@ -2523,15 +1270,9 @@ export const unsubscribeFromView = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		const existing = await ctx.db
-			.query("notificationSubscriptions")
-			.withIndex("by_user_view", (q) =>
-				q.eq("userId", userId).eq("viewId", args.viewId),
-			)
-			.first();
-		if (existing) {
+		const existing = await findUserViewSubscription(ctx, userId, args.viewId);
+		if (existing)
 			await ctx.db.delete("notificationSubscriptions", existing._id);
-		}
 		return null;
 	},
 });
@@ -2555,23 +1296,19 @@ export const unsubscribe = mutation({
 	},
 });
 
+const DISPATCH_STATUSES = ["pending", "sent", "skipped", "failed"] as const;
+
 export const getDispatchStats = query({
 	args: {},
 	returns: notificationDispatchStatsReturns,
 	handler: async (ctx) => {
 		const userId = await requireUserId(ctx);
-		const [pending, sent, skipped, failed] = await Promise.all([
-			countDispatchesByStatus(ctx, userId, "pending"),
-			countDispatchesByStatus(ctx, userId, "sent"),
-			countDispatchesByStatus(ctx, userId, "skipped"),
-			countDispatchesByStatus(ctx, userId, "failed"),
-		]);
-		return {
-			pending,
-			sent,
-			skipped,
-			failed,
-		};
+		const counts = await Promise.all(
+			DISPATCH_STATUSES.map((s) => countDispatchesByStatus(ctx, userId, s)),
+		);
+		return Object.fromEntries(
+			DISPATCH_STATUSES.map((s, i) => [s, counts[i]]),
+		) as Record<(typeof DISPATCH_STATUSES)[number], number>;
 	},
 });
 
@@ -2599,24 +1336,15 @@ export const sendTestDigestSeries = mutation({
 		}
 
 		// Schedule 3 separate actions: immediate, hourly digest, 3x daily digest.
-		await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
-			type: "immediate",
-			toEmail,
-			recipientName: user?.name,
-			actorName: user?.name ?? "Test User",
-		});
-		await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
-			type: "hourly",
-			toEmail,
-			recipientName: user?.name,
-			actorName: user?.name ?? "Test User",
-		});
-		await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
-			type: "three_daily",
-			toEmail,
-			recipientName: user?.name,
-			actorName: user?.name ?? "Test User",
-		});
+		const actorName = user?.name ?? "Test User";
+		for (const type of ["immediate", "hourly", "three_daily"] as const) {
+			await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
+				type,
+				toEmail,
+				recipientName: user?.name,
+				actorName,
+			});
+		}
 
 		return {
 			toEmail,
@@ -2626,247 +1354,31 @@ export const sendTestDigestSeries = mutation({
 	},
 });
 
-async function getActorInfo(
-	ctx: Pick<MutationCtx, "db">,
-	actorId: Id<"users"> | null | undefined,
-): Promise<{
-	actorId?: Id<"users">;
-	actorName?: string;
-	actorAvatarUrl?: string;
-}> {
-	if (!actorId) return {};
-	const user = await ctx.db.get("users", actorId);
-	if (!user) return {};
-	return {
-		actorId,
-		actorName: user.name ?? undefined,
-		actorAvatarUrl: user.image ?? undefined,
-	};
-}
-
-type TaskNotificationBuildArgs = {
-	taskId: Id<"tasks">;
-	recipientId?: Id<"users">;
-	recipientIds?: Id<"users">[];
-	actorId: Id<"users">;
-	commentId?: Id<"comments">;
-	oldStatus?: string;
-	newStatus?: string;
-	oldPriority?: string;
-	newPriority?: string;
-	oldDueDate?: string;
-	newDueDate?: string;
-	blockingTaskId?: Id<"tasks">;
-	eventKey?: string;
-};
-
-type TaskNotificationBuildResult = {
-	config: NotificationTemplateConfig;
-	entity: NotificationEntityRef;
-	payload: NotificationPayload;
-};
-
-type CompetitionProgressStatus = "on-track" | "at-risk" | "off-track";
-
-type CompetitionNotificationBuildArgs = {
-	type: "competition_phase_changed" | "progress_update_added";
-	competitionId: Id<"competitions">;
-	recipientId?: Id<"users">;
-	recipientIds?: Id<"users">[];
-	actorId: Id<"users">;
-	oldPhaseName?: string;
-	newPhaseName?: string;
-	competitionName?: string;
-	status?: CompetitionProgressStatus;
-	eventKey?: string;
-};
-
-type CompetitionNotificationBuildResult = {
-	config: NotificationTemplateConfig;
-	payload: NotificationPayload;
-};
-
-function resolveRecipientIds(args: {
-	recipientId?: Id<"users">;
-	recipientIds?: Id<"users">[];
-}): Id<"users">[] {
-	const recipientSet = new Set<Id<"users">>();
-	if (args.recipientId) {
-		recipientSet.add(args.recipientId);
-	}
-	if (args.recipientIds) {
-		for (const recipientId of args.recipientIds) {
-			recipientSet.add(recipientId);
-		}
-	}
-	return [...recipientSet];
-}
-
-function buildCommentEntity(
-	taskId: Id<"tasks">,
-	commentId: Id<"comments">,
-): NotificationEntityRef {
-	return {
-		entityType: "comment",
-		entityId: commentId,
-		parentTaskId: taskId,
-	};
-}
-
-async function buildTaskNotificationResult(
+async function emitFromConfig(
 	ctx: MutationCtx,
-	type: TaskNotificationType,
-	task: Doc<"tasks">,
-	actor: Awaited<ReturnType<typeof getActorInfo>>,
-	args: TaskNotificationBuildArgs,
-	basePayload: NotificationPayload,
-): Promise<TaskNotificationBuildResult | null> {
-	if (type === "task_assigned") {
-		return {
-			config: NotificationTemplates.task_assigned(task, actor),
-			entity: { entityType: "task", entityId: task._id },
-			payload: basePayload,
-		};
-	}
-
-	if (type === "task_unassigned") {
-		return {
-			config: NotificationTemplates.task_unassigned(task, actor),
-			entity: { entityType: "task", entityId: task._id },
-			payload: basePayload,
-		};
-	}
-
-	if (
-		type === "task_mentioned" ||
-		type === "comment_added" ||
-		type === "comment_replied"
-	) {
-		if (!args.commentId) {
-			return null;
-		}
-		let config: NotificationTemplateConfig;
-		if (type === "task_mentioned") {
-			config = NotificationTemplates.task_mentioned(task, actor);
-		} else if (type === "comment_replied") {
-			config = NotificationTemplates.comment_replied(task, actor);
-		} else {
-			config = NotificationTemplates.comment_added(task, actor);
-		}
-		return {
-			config,
-			entity: buildCommentEntity(task._id, args.commentId),
-			payload: {
-				...basePayload,
-				commentId: args.commentId,
-			},
-		};
-	}
-
-	if (type === "task_status_changed") {
-		if (args.oldStatus === undefined || args.newStatus === undefined) {
-			return null;
-		}
-		return {
-			config: NotificationTemplates.task_status_changed(
-				task,
-				actor,
-				args.oldStatus,
-				args.newStatus,
-			),
-			entity: { entityType: "task", entityId: task._id },
-			payload: {
-				...basePayload,
-				oldStatus: args.oldStatus,
-				newStatus: args.newStatus,
-			},
-		};
-	}
-
-	if (type === "task_priority_changed") {
-		if (args.oldPriority === undefined || args.newPriority === undefined) {
-			return null;
-		}
-		return {
-			config: NotificationTemplates.task_priority_changed(
-				task,
-				actor,
-				args.oldPriority,
-				args.newPriority,
-			),
-			entity: { entityType: "task", entityId: task._id },
-			payload: {
-				...basePayload,
-				oldPriority: args.oldPriority,
-				newPriority: args.newPriority,
-			},
-		};
-	}
-
-	if (type === "task_awaiting_review") {
-		return {
-			config: NotificationTemplates.task_awaiting_review(task, actor),
-			entity: { entityType: "task", entityId: task._id },
-			payload: basePayload,
-		};
-	}
-
-	if (type === "relation_blocked" || type === "relation_unblocked") {
-		if (!args.blockingTaskId) {
-			return null;
-		}
-		const blockingTask = await ctx.db.get("tasks", args.blockingTaskId);
-		if (!blockingTask) {
-			return null;
-		}
-		const config =
-			type === "relation_blocked"
-				? NotificationTemplates.relation_blocked(task, blockingTask, actor)
-				: NotificationTemplates.relation_unblocked(task, blockingTask, actor);
-		return {
-			config,
-			entity: { entityType: "task", entityId: task._id },
-			payload: {
-				...basePayload,
-				blockingTaskId: args.blockingTaskId,
-			},
-		};
-	}
-
-	if (type === "task_approved") {
-		return {
-			config: NotificationTemplates.task_approved(task, actor),
-			entity: { entityType: "task", entityId: task._id },
-			payload: basePayload,
-		};
-	}
-
-	if (type === "task_unapproved") {
-		return {
-			config: NotificationTemplates.task_unapproved(task, actor),
-			entity: { entityType: "task", entityId: task._id },
-			payload: basePayload,
-		};
-	}
-
-	if (type === "due_date_changed") {
-		return {
-			config: NotificationTemplates.due_date_changed(
-				task,
-				actor,
-				args.oldDueDate,
-				args.newDueDate,
-			),
-			entity: { entityType: "task", entityId: task._id },
-			payload: {
-				...basePayload,
-				oldDueDate: args.oldDueDate,
-				newDueDate: args.newDueDate,
-			},
-		};
-	}
-
-	return null;
+	config: NotificationTemplateConfig,
+	opts: Omit<
+		NotificationEmitInput,
+		| "title"
+		| "message"
+		| "priority"
+		| "metadata"
+		| "body"
+		| "isBatchable"
+		| "batchKey"
+	>,
+): Promise<Id<"notifications"> | null> {
+	const inserted = await emitInAppNotifications(ctx, {
+		...opts,
+		title: config.title,
+		message: config.message,
+		priority: config.priority,
+		metadata: config.metadata,
+		body: config.body,
+		isBatchable: config.isBatchable,
+		batchKey: config.batchKey,
+	});
+	return inserted[0] ?? null;
 }
 
 async function createTaskNotification(
@@ -2875,53 +1387,31 @@ async function createTaskNotification(
 	args: TaskNotificationBuildArgs,
 ): Promise<Id<"notifications"> | null> {
 	const task = await ctx.db.get("tasks", args.taskId);
-	if (!task) {
-		return null;
-	}
+	if (!task) return null;
 
 	const actor = await getActorInfo(ctx, args.actorId);
 	const eventKey = args.eventKey ?? `${Date.now()}`;
-
-	const basePayload: NotificationPayload = {
-		type,
-		taskId: task._id,
-		eventKey,
-	};
 	const result = await buildTaskNotificationResult(
 		ctx,
 		type,
 		task,
 		actor,
 		args,
-		basePayload,
+		{ type, taskId: task._id, eventKey },
 	);
+	if (!result) return null;
 
-	if (!result) {
-		return null;
-	}
-	const recipients = resolveRecipientIds(args);
-	const isTargetedCommentNotification =
-		type === "task_mentioned" || type === "comment_replied";
-
-	const inserted = await emitInAppNotifications(ctx, {
+	const isTargeted = type === "task_mentioned" || type === "comment_replied";
+	return emitFromConfig(ctx, result.config, {
 		type,
 		entity: result.entity,
-		recipients,
+		recipients: resolveRecipientIds(args),
 		actorId: args.actorId,
-		title: result.config.title,
-		message: result.config.message,
-		priority: result.config.priority,
-		metadata: result.config.metadata,
-		body: result.config.body,
-		isBatchable: result.config.isBatchable,
-		batchKey: result.config.batchKey,
 		idempotencyBase: `${type}:${task._id}:${task.updatedAt}:${eventKey}`,
 		payloadJson: serializePayload(result.payload),
-		includeEntitySubscribers: !isTargetedCommentNotification,
-		includeViewSubscribers: !isTargetedCommentNotification,
+		includeEntitySubscribers: !isTargeted,
+		includeViewSubscribers: !isTargeted,
 	});
-
-	return inserted[0] ?? null;
 }
 
 async function createCompetitionNotification(
@@ -2929,88 +1419,26 @@ async function createCompetitionNotification(
 	args: CompetitionNotificationBuildArgs,
 ): Promise<Id<"notifications"> | null> {
 	const competition = await ctx.db.get("competitions", args.competitionId);
-	if (!competition) {
-		return null;
-	}
+	if (!competition) return null;
 
 	const actor = await getActorInfo(ctx, args.actorId);
 	const eventKey = args.eventKey ?? `${Date.now()}`;
-	const basePayload: NotificationPayload = {
+	const result = buildCompetitionNotificationResult(competition, actor, args, {
 		type: args.type,
 		competitionId: args.competitionId,
 		eventKey,
-	};
-	const result = buildCompetitionNotificationResult(
-		competition,
-		actor,
-		args,
-		basePayload,
-	);
-	if (!result) {
-		return null;
-	}
-	const recipients = resolveRecipientIds(args);
+	});
+	if (!result) return null;
 
-	const inserted = await emitInAppNotifications(ctx, {
+	return emitFromConfig(ctx, result.config, {
 		type: args.type,
-		entity: {
-			entityType: "competition",
-			entityId: competition._id,
-		},
-		recipients,
+		entity: { entityType: "competition", entityId: competition._id },
+		recipients: resolveRecipientIds(args),
 		actorId: args.actorId,
-		title: result.config.title,
-		message: result.config.message,
-		priority: result.config.priority,
-		metadata: result.config.metadata,
 		idempotencyBase: `${args.type}:${competition._id}:${competition.updatedAt}:${eventKey}`,
 		payloadJson: serializePayload(result.payload),
 		includeEntitySubscribers: true,
 	});
-
-	return inserted[0] ?? null;
-}
-
-function buildCompetitionNotificationResult(
-	competition: Doc<"competitions">,
-	actor: Awaited<ReturnType<typeof getActorInfo>>,
-	args: CompetitionNotificationBuildArgs,
-	basePayload: NotificationPayload,
-): CompetitionNotificationBuildResult | null {
-	if (args.type === "competition_phase_changed") {
-		if (!args.oldPhaseName || !args.newPhaseName) {
-			return null;
-		}
-		return {
-			config: NotificationTemplates.competition_phase_changed(
-				competition,
-				actor,
-				args.oldPhaseName,
-				args.newPhaseName,
-			),
-			payload: {
-				...basePayload,
-				oldPhaseName: args.oldPhaseName,
-				newPhaseName: args.newPhaseName,
-			},
-		};
-	}
-
-	if (!args.competitionName || !args.status) {
-		return null;
-	}
-	return {
-		config: NotificationTemplates.progress_update_added(
-			{ _id: competition._id, name: args.competitionName },
-			actor,
-			args.status,
-		),
-		payload: {
-			...basePayload,
-			competitionName: args.competitionName,
-			status: args.status,
-		},
-	};
 }
 
 async function createReminderNotification(
@@ -3024,299 +1452,230 @@ async function createReminderNotification(
 	},
 ): Promise<Id<"notifications"> | null> {
 	const reminder = await ctx.db.get("reminders", args.reminderId);
-	if (!reminder) {
-		return null;
-	}
+	if (!reminder) return null;
 
 	const task = await ctx.db.get("tasks", args.taskId);
 	const eventKey = args.eventKey ?? `${Date.now()}`;
-	const config = NotificationTemplates.reminder_triggered(
-		task ?? args.taskId,
-		args.message,
-	);
-
-	const inserted = await emitInAppNotifications(ctx, {
-		type: "reminder_triggered",
-		entity: {
-			entityType: "reminder",
-			entityId: reminder._id,
-			parentTaskId: args.taskId,
+	return emitFromConfig(
+		ctx,
+		NotificationTemplates.reminder_triggered(task ?? args.taskId, args.message),
+		{
+			type: "reminder_triggered",
+			entity: {
+				entityType: "reminder",
+				entityId: reminder._id,
+				parentTaskId: args.taskId,
+			},
+			recipients: [args.userId],
+			idempotencyBase: `reminder_triggered:${reminder._id}:${eventKey}`,
+			payloadJson: serializePayload({
+				reminderId: reminder._id,
+				taskId: args.taskId,
+				eventKey,
+			}),
+			includeEntitySubscribers: false,
+			includeViewSubscribers: false,
+			suppressActorRecipient: false,
 		},
-		recipients: [args.userId],
-		title: config.title,
-		message: config.message,
-		priority: config.priority,
-		metadata: config.metadata,
-		idempotencyBase: `reminder_triggered:${reminder._id}:${eventKey}`,
-		payloadJson: serializePayload({
-			reminderId: reminder._id,
-			taskId: args.taskId,
-			eventKey,
-		}),
-		includeEntitySubscribers: false,
-		includeViewSubscribers: false,
-		suppressActorRecipient: false,
-	});
-
-	return inserted[0] ?? null;
+	);
 }
 
-export const _notifyTaskAssigned = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		assigneeId: v.id("users"),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_assigned", {
-			taskId: args.taskId,
-			recipientId: args.assigneeId,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
+function taskNotifyMutation<T extends PropertyValidators>(
+	args: T,
+	type: TaskNotificationType,
+	mapArgs: (a: ObjectType<T>) => TaskNotificationBuildArgs,
+) {
+	return internalMutation({
+		args,
+		returns: v.union(v.id("notifications"), v.null()),
+		handler: async (ctx: MutationCtx, a: ObjectType<T>) =>
+			createTaskNotification(ctx, type, mapArgs(a)),
+	});
+}
+
+const assigneeArgs = {
+	taskId: v.id("tasks"),
+	assigneeId: v.id("users"),
+	actorId: v.id("users"),
+	eventKey: v.optional(v.string()),
+} as const;
+
+const assigneeMapper = (
+	a: ObjectType<typeof assigneeArgs>,
+): TaskNotificationBuildArgs => ({
+	taskId: a.taskId,
+	recipientId: a.assigneeId,
+	actorId: a.actorId,
+	eventKey: a.eventKey,
 });
 
-export const _notifyTaskUnassigned = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		assigneeId: v.id("users"),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_unassigned", {
-			taskId: args.taskId,
-			recipientId: args.assigneeId,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
+export const _notifyTaskAssigned = taskNotifyMutation(
+	assigneeArgs,
+	"task_assigned",
+	assigneeMapper,
+);
 
-export const _notifyTaskMentioned = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		commentId: v.id("comments"),
-		mentionedUserId: v.id("users"),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_mentioned", {
-			taskId: args.taskId,
-			commentId: args.commentId,
-			recipientId: args.mentionedUserId,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
+export const _notifyTaskUnassigned = taskNotifyMutation(
+	assigneeArgs,
+	"task_unassigned",
+	assigneeMapper,
+);
 
-export const _notifyCommentAdded = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		commentId: v.id("comments"),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "comment_added", {
-			taskId: args.taskId,
-			commentId: args.commentId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
+const mentionArgs = {
+	taskId: v.id("tasks"),
+	commentId: v.id("comments"),
+	mentionedUserId: v.id("users"),
+	actorId: v.id("users"),
+	eventKey: v.optional(v.string()),
+} as const;
 
-export const _notifyCommentReplied = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		commentId: v.id("comments"),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "comment_replied", {
-			taskId: args.taskId,
-			commentId: args.commentId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
+export const _notifyTaskMentioned = taskNotifyMutation(
+	mentionArgs,
+	"task_mentioned",
+	(a: ObjectType<typeof mentionArgs>): TaskNotificationBuildArgs => ({
+		taskId: a.taskId,
+		commentId: a.commentId,
+		recipientId: a.mentionedUserId,
+		actorId: a.actorId,
+		eventKey: a.eventKey,
+	}),
+);
 
-export const _notifyTaskStatusChanged = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		oldStatus: v.string(),
-		newStatus: v.string(),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_status_changed", {
-			taskId: args.taskId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			oldStatus: args.oldStatus,
-			newStatus: args.newStatus,
-			eventKey: args.eventKey,
-		}),
-});
+const commentArgs = {
+	taskId: v.id("tasks"),
+	commentId: v.id("comments"),
+	recipientIds: v.optional(v.array(v.id("users"))),
+	actorId: v.id("users"),
+	eventKey: v.optional(v.string()),
+} as const;
 
-export const _notifyTaskPriorityChanged = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
+export const _notifyCommentAdded = taskNotifyMutation(
+	commentArgs,
+	"comment_added",
+	(a): TaskNotificationBuildArgs => a,
+);
+export const _notifyCommentReplied = taskNotifyMutation(
+	commentArgs,
+	"comment_replied",
+	(a): TaskNotificationBuildArgs => a,
+);
+
+const multiRecipientTaskArgs = {
+	taskId: v.id("tasks"),
+	recipientId: v.optional(v.id("users")),
+	recipientIds: v.optional(v.array(v.id("users"))),
+	actorId: v.id("users"),
+	eventKey: v.optional(v.string()),
+} as const;
+
+export const _notifyTaskStatusChanged = taskNotifyMutation(
+	{ ...multiRecipientTaskArgs, oldStatus: v.string(), newStatus: v.string() },
+	"task_status_changed",
+	(a): TaskNotificationBuildArgs => a,
+);
+
+export const _notifyTaskPriorityChanged = taskNotifyMutation(
+	{
+		...multiRecipientTaskArgs,
 		oldPriority: v.string(),
 		newPriority: v.string(),
-		eventKey: v.optional(v.string()),
 	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_priority_changed", {
-			taskId: args.taskId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			oldPriority: args.oldPriority,
-			newPriority: args.newPriority,
-			eventKey: args.eventKey,
-		}),
+	"task_priority_changed",
+	(a): TaskNotificationBuildArgs => a,
+);
+
+export const _notifyTaskAwaitingReview = taskNotifyMutation(
+	multiRecipientTaskArgs,
+	"task_awaiting_review",
+	(a): TaskNotificationBuildArgs => a,
+);
+
+const relationArgs = {
+	blockedTaskId: v.id("tasks"),
+	blockingTaskId: v.id("tasks"),
+	recipientId: v.optional(v.id("users")),
+	recipientIds: v.optional(v.array(v.id("users"))),
+	actorId: v.id("users"),
+	eventKey: v.optional(v.string()),
+} as const;
+
+const relationMapper = (
+	a: ObjectType<typeof relationArgs>,
+): TaskNotificationBuildArgs => ({
+	taskId: a.blockedTaskId,
+	blockingTaskId: a.blockingTaskId,
+	recipientId: a.recipientId,
+	recipientIds: a.recipientIds,
+	actorId: a.actorId,
+	eventKey: a.eventKey,
 });
 
-export const _notifyTaskAwaitingReview = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		recipientId: v.id("users"),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_awaiting_review", {
-			taskId: args.taskId,
-			recipientId: args.recipientId,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
+export const _notifyTaskRelationBlocked = taskNotifyMutation(
+	relationArgs,
+	"relation_blocked",
+	relationMapper,
+);
 
-export const _notifyTaskRelationBlocked = internalMutation({
-	args: {
-		blockedTaskId: v.id("tasks"),
-		blockingTaskId: v.id("tasks"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "relation_blocked", {
-			taskId: args.blockedTaskId,
-			blockingTaskId: args.blockingTaskId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
+export const _notifyTaskRelationUnblocked = taskNotifyMutation(
+	relationArgs,
+	"relation_unblocked",
+	relationMapper,
+);
 
-export const _notifyTaskRelationUnblocked = internalMutation({
-	args: {
-		blockedTaskId: v.id("tasks"),
-		blockingTaskId: v.id("tasks"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "relation_unblocked", {
-			taskId: args.blockedTaskId,
-			blockingTaskId: args.blockingTaskId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
+export const _notifyTaskApproved = taskNotifyMutation(
+	multiRecipientTaskArgs,
+	"task_approved",
+	(a): TaskNotificationBuildArgs => a,
+);
+export const _notifyTaskUnapproved = taskNotifyMutation(
+	multiRecipientTaskArgs,
+	"task_unapproved",
+	(a): TaskNotificationBuildArgs => a,
+);
 
-export const _notifyTaskApproved = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_approved", {
-			taskId: args.taskId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
-
-export const _notifyTaskUnapproved = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "task_unapproved", {
-			taskId: args.taskId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			eventKey: args.eventKey,
-		}),
-});
-
-export const _notifyDueDateChanged = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
+export const _notifyDueDateChanged = taskNotifyMutation(
+	{
+		...multiRecipientTaskArgs,
 		oldDueDate: v.optional(v.string()),
 		newDueDate: v.optional(v.string()),
-		eventKey: v.optional(v.string()),
 	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createTaskNotification(ctx, "due_date_changed", {
-			taskId: args.taskId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			oldDueDate: args.oldDueDate,
-			newDueDate: args.newDueDate,
-			eventKey: args.eventKey,
+	"due_date_changed",
+	(a): TaskNotificationBuildArgs => a,
+);
+
+async function emitDueDateUrgencyNotification(
+	ctx: MutationCtx,
+	type: "due_date_approaching" | "due_date_overdue",
+	args: {
+		taskId: Id<"tasks">;
+		assigneeId: Id<"users">;
+		days: number;
+		eventKey?: string;
+	},
+): Promise<Id<"notifications"> | null> {
+	const task = await ctx.db.get("tasks", args.taskId);
+	if (!task?.dueDate) return null;
+
+	const config =
+		type === "due_date_approaching"
+			? NotificationTemplates.due_date_approaching(task, args.days)
+			: NotificationTemplates.due_date_overdue(task, args.days);
+	const eventKey = args.eventKey ?? `${Date.now()}`;
+	return emitFromConfig(ctx, config, {
+		type,
+		entity: { entityType: "task", entityId: task._id },
+		recipients: [args.assigneeId],
+		idempotencyBase: `${type}:${task._id}:${args.days}:${eventKey}`,
+		payloadJson: serializePayload({
+			taskId: task._id,
+			...(type === "due_date_approaching"
+				? { daysUntil: args.days }
+				: { daysOverdue: args.days }),
+			eventKey,
 		}),
-});
+		includeEntitySubscribers: true,
+	});
+}
 
 export const _notifyDueDateApproaching = internalMutation({
 	args: {
@@ -3326,35 +1685,13 @@ export const _notifyDueDateApproaching = internalMutation({
 		eventKey: v.optional(v.string()),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task?.dueDate) return null;
-
-		const config = NotificationTemplates.due_date_approaching(
-			task,
-			args.daysUntil,
-		);
-		const eventKey = args.eventKey ?? `${Date.now()}`;
-		const inserted = await emitInAppNotifications(ctx, {
-			type: "due_date_approaching",
-			entity: { entityType: "task", entityId: task._id },
-			recipients: [args.assigneeId],
-			title: config.title,
-			message: config.message,
-			priority: config.priority,
-			metadata: config.metadata,
-			isBatchable: config.isBatchable,
-			batchKey: config.batchKey,
-			idempotencyBase: `due_date_approaching:${task._id}:${args.daysUntil}:${eventKey}`,
-			payloadJson: serializePayload({
-				taskId: task._id,
-				daysUntil: args.daysUntil,
-				eventKey,
-			}),
-			includeEntitySubscribers: true,
-		});
-		return inserted[0] ?? null;
-	},
+	handler: async (ctx, args) =>
+		emitDueDateUrgencyNotification(ctx, "due_date_approaching", {
+			taskId: args.taskId,
+			assigneeId: args.assigneeId,
+			days: args.daysUntil,
+			eventKey: args.eventKey,
+		}),
 });
 
 export const _notifyDueDateOverdue = internalMutation({
@@ -3365,35 +1702,13 @@ export const _notifyDueDateOverdue = internalMutation({
 		eventKey: v.optional(v.string()),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task?.dueDate) return null;
-
-		const config = NotificationTemplates.due_date_overdue(
-			task,
-			args.daysOverdue,
-		);
-		const eventKey = args.eventKey ?? `${Date.now()}`;
-		const inserted = await emitInAppNotifications(ctx, {
-			type: "due_date_overdue",
-			entity: { entityType: "task", entityId: task._id },
-			recipients: [args.assigneeId],
-			title: config.title,
-			message: config.message,
-			priority: config.priority,
-			metadata: config.metadata,
-			isBatchable: config.isBatchable,
-			batchKey: config.batchKey,
-			idempotencyBase: `due_date_overdue:${task._id}:${args.daysOverdue}:${eventKey}`,
-			payloadJson: serializePayload({
-				taskId: task._id,
-				daysOverdue: args.daysOverdue,
-				eventKey,
-			}),
-			includeEntitySubscribers: true,
-		});
-		return inserted[0] ?? null;
-	},
+	handler: async (ctx, args) =>
+		emitDueDateUrgencyNotification(ctx, "due_date_overdue", {
+			taskId: args.taskId,
+			assigneeId: args.assigneeId,
+			days: args.daysOverdue,
+			eventKey: args.eventKey,
+		}),
 });
 
 export const _notifyCompetitionPhaseChanged = internalMutation({
@@ -3410,13 +1725,7 @@ export const _notifyCompetitionPhaseChanged = internalMutation({
 	handler: async (ctx, args) =>
 		createCompetitionNotification(ctx, {
 			type: "competition_phase_changed",
-			competitionId: args.competitionId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			oldPhaseName: args.oldPhaseName,
-			newPhaseName: args.newPhaseName,
-			eventKey: args.eventKey,
+			...args,
 		}),
 });
 
@@ -3438,13 +1747,7 @@ export const _notifyProgressUpdateAdded = internalMutation({
 	handler: async (ctx, args) =>
 		createCompetitionNotification(ctx, {
 			type: "progress_update_added",
-			competitionId: args.competitionId,
-			recipientId: args.recipientId,
-			recipientIds: args.recipientIds,
-			actorId: args.actorId,
-			competitionName: args.competitionName,
-			status: args.status,
-			eventKey: args.eventKey,
+			...args,
 		}),
 });
 
@@ -3457,76 +1760,8 @@ export const _notifyReminderTriggered = internalMutation({
 		eventKey: v.optional(v.string()),
 	},
 	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createReminderNotification(ctx, {
-			reminderId: args.reminderId,
-			userId: args.userId,
-			taskId: args.taskId,
-			message: args.message,
-			eventKey: args.eventKey,
-		}),
+	handler: async (ctx, args) => createReminderNotification(ctx, args),
 });
-
-function isDispatchDue(
-	dispatch: Pick<Doc<"notificationDispatches">, "scheduledFor">,
-	now: number,
-): boolean {
-	return dispatch.scheduledFor === undefined || dispatch.scheduledFor <= now;
-}
-
-function buildEmailDispatchGroupClaimKey(
-	now: number,
-	seedDispatchId: Id<"notificationDispatches">,
-): string {
-	return `${EMAIL_DISPATCH_GROUP_CLAIM_PREFIX}${now}:${seedDispatchId}`;
-}
-
-function parseEmailDispatchGroupClaimTimestamp(
-	reason: string | undefined,
-): number | null {
-	if (!reason?.startsWith(EMAIL_DISPATCH_GROUP_CLAIM_PREFIX)) {
-		return null;
-	}
-	const token = reason.slice(EMAIL_DISPATCH_GROUP_CLAIM_PREFIX.length);
-	const [timestampRaw] = token.split(":", 1);
-	const timestamp = Number(timestampRaw);
-	if (!Number.isFinite(timestamp)) {
-		return null;
-	}
-	return timestamp;
-}
-
-function hasUnexpiredEmailDispatchClaim(
-	dispatch: Pick<Doc<"notificationDispatches">, "reason">,
-	now: number,
-): boolean {
-	const timestamp = parseEmailDispatchGroupClaimTimestamp(dispatch.reason);
-	if (timestamp === null) {
-		return false;
-	}
-	return now - timestamp < EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS;
-}
-
-async function collectDispatchGroup(
-	ctx: Pick<MutationCtx, "db">,
-	seed: Doc<"notificationDispatches">,
-): Promise<Doc<"notificationDispatches">[]> {
-	if (seed.digestMode === "immediate") {
-		return [seed];
-	}
-
-	return ctx.db
-		.query("notificationDispatches")
-		.withIndex("by_user_channel_mode_window_status", (q) =>
-			q
-				.eq("userId", seed.userId)
-				.eq("channel", seed.channel)
-				.eq("digestMode", seed.digestMode)
-				.eq("digestWindowKey", seed.digestWindowKey)
-				.eq("status", "pending"),
-		)
-		.collect();
-}
 
 export const _processDispatch = internalMutation({
 	args: {
@@ -3633,110 +1868,6 @@ export const _processDispatch = internalMutation({
 	},
 });
 
-function humanizeNotificationType(type: string): string {
-	return type
-		.split("_")
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(" ");
-}
-
-type ResolvedEmailDispatchItem = {
-	dispatchId: Id<"notificationDispatches">;
-	type: NotificationType;
-	title: string;
-	message: string;
-	body?: string;
-	entityType: string;
-	entityId: string;
-	parentEntityId?: string;
-	priority: string;
-	actorName?: string;
-	sortTime: number;
-};
-
-async function resolveEmailDispatchItem(
-	ctx: Pick<QueryCtx, "db">,
-	dispatch: Doc<"notificationDispatches">,
-): Promise<ResolvedEmailDispatchItem | null> {
-	const notification = dispatch.notificationId
-		? await ctx.db.get("notifications", dispatch.notificationId)
-		: null;
-	if (notification) {
-		return {
-			dispatchId: dispatch._id,
-			type: notification.type,
-			title: notification.title,
-			message: notification.message,
-			body: notification.body,
-			entityType: notification.entityType,
-			entityId: notification.entityId,
-			parentEntityId: notification.parentEntityId,
-			priority: notification.priority,
-			actorName: notification.metadata?.actorName,
-			sortTime: notification._creationTime,
-		};
-	}
-
-	const snapshot = parseEmailDispatchSnapshot(dispatch.metadataJson);
-	if (snapshot) {
-		return {
-			dispatchId: dispatch._id,
-			type: snapshot.type,
-			title: snapshot.title,
-			message: snapshot.message,
-			body: snapshot.body,
-			entityType: snapshot.entityType,
-			entityId: snapshot.entityId,
-			parentEntityId: snapshot.parentEntityId,
-			priority: snapshot.priority,
-			actorName: snapshot.actorName,
-			sortTime: dispatch.updatedAt,
-		};
-	}
-
-	const event = await ctx.db.get("notificationEvents", dispatch.eventId);
-	if (!event) {
-		return null;
-	}
-
-	const fallbackTitle = humanizeNotificationType(event.type);
-	return {
-		dispatchId: dispatch._id,
-		type: event.type,
-		title: fallbackTitle,
-		message: `You have a new ${fallbackTitle.toLowerCase()} update.`,
-		body: undefined,
-		entityType: event.entityType,
-		entityId: event.entityId,
-		parentEntityId: undefined,
-		priority: "normal",
-		actorName: undefined,
-		sortTime: event.createdAt,
-	};
-}
-
-const emailDispatchItemValidator = v.object({
-	dispatchId: v.id("notificationDispatches"),
-	type: notificationType,
-	title: v.string(),
-	message: v.string(),
-	body: v.optional(v.string()),
-	entityType: v.string(),
-	entityId: v.string(),
-	parentEntityId: v.optional(v.string()),
-	priority: v.string(),
-	actorName: v.optional(v.string()),
-});
-
-const emailDispatchGroupValidator = v.object({
-	dispatchIds: v.array(v.id("notificationDispatches")),
-	digestMode: notificationDigestMode,
-	digestWindowKey: v.optional(v.string()),
-	recipientEmail: v.string(),
-	recipientName: v.optional(v.string()),
-	items: v.array(emailDispatchItemValidator),
-});
-
 export const _getDispatchGroupForEmail = internalQuery({
 	args: {
 		dispatchIds: v.array(v.id("notificationDispatches")),
@@ -3795,18 +1926,7 @@ export const _getDispatchGroupForEmail = internalQuery({
 		const items = resolvedItems
 			.filter((item): item is ResolvedEmailDispatchItem => item !== null)
 			.sort((a, b) => a.sortTime - b.sortTime)
-			.map((item) => ({
-				dispatchId: item.dispatchId,
-				type: item.type,
-				title: item.title,
-				message: item.message,
-				body: item.body,
-				entityType: item.entityType,
-				entityId: item.entityId,
-				parentEntityId: item.parentEntityId,
-				priority: item.priority,
-				actorName: item.actorName,
-			}));
+			.map(({ sortTime: _, ...rest }) => rest);
 
 		if (items.length === 0) {
 			return null;
@@ -3871,41 +1991,19 @@ export const _sendEmailDispatchGroup = internalAction({
 			return null;
 		}
 
+		const to = [
+			{ address: payload.recipientEmail, displayName: payload.recipientName },
+		];
+
 		try {
 			if (payload.digestMode === "immediate") {
+				const { dispatchId: _, type: itemType, ...emailItemData } = firstItem;
+				const emailContent = { ...emailItemData, appUrl };
 				await sendEmail({
-					to: [
-						{
-							address: payload.recipientEmail,
-							displayName: payload.recipientName,
-						},
-					],
-					subject: buildNotificationEmailSubject(
-						firstItem.type,
-						firstItem.title,
-					),
-					html: await buildNotificationEmailHtml({
-						title: firstItem.title,
-						message: firstItem.message,
-						body: firstItem.body,
-						entityType: firstItem.entityType,
-						entityId: firstItem.entityId,
-						parentEntityId: firstItem.parentEntityId,
-						actorName: firstItem.actorName,
-						priority: firstItem.priority,
-						appUrl,
-					}),
-					plainText: await buildNotificationEmailPlainText({
-						title: firstItem.title,
-						message: firstItem.message,
-						body: firstItem.body,
-						entityType: firstItem.entityType,
-						entityId: firstItem.entityId,
-						parentEntityId: firstItem.parentEntityId,
-						actorName: firstItem.actorName,
-						priority: firstItem.priority,
-						appUrl,
-					}),
+					to,
+					subject: buildNotificationEmailSubject(itemType, firstItem.title),
+					html: await buildNotificationEmailHtml(emailContent),
+					plainText: await buildNotificationEmailPlainText(emailContent),
 				});
 			} else {
 				const digestItems = payload.items.map((item) => ({
@@ -3916,27 +2014,19 @@ export const _sendEmailDispatchGroup = internalAction({
 					actorName: item.actorName,
 					link: buildEntityLink(appUrl, item),
 				}));
+				const digestOpts = {
+					mode: payload.digestMode,
+					appUrl,
+					items: digestItems,
+				};
 				await sendEmail({
-					to: [
-						{
-							address: payload.recipientEmail,
-							displayName: payload.recipientName,
-						},
-					],
+					to,
 					subject: buildNotificationDigestEmailSubject(
 						payload.digestMode,
 						payload.items.length,
 					),
-					html: await buildNotificationDigestEmailHtml({
-						mode: payload.digestMode,
-						appUrl,
-						items: digestItems,
-					}),
-					plainText: await buildNotificationDigestEmailPlainText({
-						mode: payload.digestMode,
-						appUrl,
-						items: digestItems,
-					}),
+					html: await buildNotificationDigestEmailHtml(digestOpts),
+					plainText: await buildNotificationDigestEmailPlainText(digestOpts),
 				});
 			}
 
@@ -3957,178 +2047,6 @@ export const _sendEmailDispatchGroup = internalAction({
 		return null;
 	},
 });
-
-const DEMO_TASKS = {
-	task1: {
-		_id: "demo-task-1" as Id<"tasks">,
-		identifier: "SI-42",
-		title: "Design competition schedule layout",
-		priority: "high" as const,
-	},
-	task2: {
-		_id: "demo-task-2" as Id<"tasks">,
-		identifier: "SI-118",
-		title: "Venue risk checklist",
-		priority: "medium" as const,
-	},
-	task3: {
-		_id: "demo-task-3" as Id<"tasks">,
-		identifier: "SI-201",
-		title: "Supplier contract review",
-		priority: "high" as const,
-	},
-	task4: {
-		_id: "demo-task-4" as Id<"tasks">,
-		identifier: "SI-099",
-		title: "Competitor confirmation emails",
-		priority: "medium" as const,
-	},
-	task5: {
-		_id: "demo-task-5" as Id<"tasks">,
-		identifier: "SI-311",
-		title: "Final website review",
-		priority: "medium" as const,
-	},
-	blockingTask: {
-		_id: "demo-task-6" as Id<"tasks">,
-		identifier: "SI-180",
-		title: "Supplier contract pending",
-		priority: "medium" as const,
-	},
-};
-
-const DEMO_COMPS = {
-	comp1: {
-		_id: "demo-comp-1" as Id<"competitions">,
-		name: "Irish Open 2026",
-	},
-};
-
-type TestEmailItem = {
-	title: string;
-	message: string;
-	entityType: string;
-	priority: string;
-	actorName?: string;
-	link: string;
-};
-
-function buildTestEmailData(
-	appUrl: string,
-	actorName: string,
-): {
-	immediate: {
-		title: string;
-		message: string;
-		body?: string;
-		entityType: string;
-		entityId: string;
-		parentEntityId?: string;
-		actorName?: string;
-		priority: string;
-	};
-	hourly: TestEmailItem[];
-	threeDaily: TestEmailItem[];
-} {
-	const actor = { actorName };
-	const t = DEMO_TASKS;
-	const c = DEMO_COMPS;
-
-	const immediateTemplate = NotificationTemplates.task_assigned(t.task1, actor);
-
-	const hourlyTemplates = [
-		{
-			template: NotificationTemplates.comment_added(t.task2, actor),
-			link: `${appUrl}/tasks/${t.task2._id}`,
-		},
-		{
-			template: NotificationTemplates.task_status_changed(
-				t.task4,
-				actor,
-				"to-do",
-				"in-progress",
-			),
-			link: `${appUrl}/tasks/${t.task4._id}`,
-		},
-		{
-			template: NotificationTemplates.task_priority_changed(
-				t.task5,
-				actor,
-				"medium",
-				"urgent",
-			),
-			link: `${appUrl}/tasks/${t.task5._id}`,
-		},
-	];
-
-	const threeDailyTemplates = [
-		{
-			template: NotificationTemplates.relation_blocked(
-				t.task3,
-				t.blockingTask,
-				actor,
-			),
-			link: `${appUrl}/tasks/${t.task3._id}`,
-		},
-		{
-			template: NotificationTemplates.progress_update_added(
-				c.comp1,
-				actor,
-				"at-risk",
-			),
-			link: `${appUrl}/competitions/${c.comp1._id}`,
-		},
-		{
-			template: NotificationTemplates.due_date_changed(
-				t.task4,
-				actor,
-				"2026-03-15",
-				"2026-03-19",
-			),
-			link: `${appUrl}/tasks/${t.task4._id}`,
-		},
-		{
-			template: NotificationTemplates.task_approved(t.task5, actor),
-			link: `${appUrl}/tasks/${t.task5._id}`,
-		},
-		{
-			template: NotificationTemplates.competition_phase_changed(
-				c.comp1,
-				actor,
-				"Planning",
-				"Registration",
-			),
-			link: `${appUrl}/competitions/${c.comp1._id}`,
-		},
-	];
-
-	const mapItems = (
-		entries: Array<{ template: NotificationTemplateConfig; link: string }>,
-	): TestEmailItem[] =>
-		entries.map(({ template, link }) => ({
-			title: template.title,
-			message: template.message,
-			entityType: formatEntityTypeLabel(template.entityType),
-			priority: template.priority,
-			actorName,
-			link,
-		}));
-
-	return {
-		immediate: {
-			title: immediateTemplate.title,
-			message: immediateTemplate.message,
-			body: immediateTemplate.body,
-			entityType: immediateTemplate.entityType,
-			entityId: t.task1._id,
-			parentEntityId: undefined,
-			actorName,
-			priority: immediateTemplate.priority,
-		},
-		hourly: mapItems(hourlyTemplates),
-		threeDaily: mapItems(threeDailyTemplates),
-	};
-}
 
 export const _sendTestEmail = internalAction({
 	args: {
@@ -4170,34 +2088,19 @@ export const _sendTestEmail = internalAction({
 				html: await buildNotificationEmailHtml({ ...item, appUrl }),
 				plainText: await buildNotificationEmailPlainText({ ...item, appUrl }),
 			});
-		} else if (args.type === "hourly") {
-			await sendEmail({
-				to,
-				subject: `[HQ TEST] ${buildNotificationDigestEmailSubject("hourly", testData.hourly.length)}`,
-				html: await buildNotificationDigestEmailHtml({
-					mode: "hourly",
-					appUrl,
-					items: testData.hourly,
-				}),
-				plainText: await buildNotificationDigestEmailPlainText({
-					mode: "hourly",
-					appUrl,
-					items: testData.hourly,
-				}),
-			});
 		} else {
+			const mode =
+				args.type === "hourly" ? ("hourly" as const) : ("three_daily" as const);
+			const items =
+				args.type === "hourly" ? testData.hourly : testData.threeDaily;
 			await sendEmail({
 				to,
-				subject: `[HQ TEST] ${buildNotificationDigestEmailSubject("three_daily", testData.threeDaily.length)}`,
-				html: await buildNotificationDigestEmailHtml({
-					mode: "three_daily",
-					appUrl,
-					items: testData.threeDaily,
-				}),
+				subject: `[HQ TEST] ${buildNotificationDigestEmailSubject(mode, items.length)}`,
+				html: await buildNotificationDigestEmailHtml({ mode, appUrl, items }),
 				plainText: await buildNotificationDigestEmailPlainText({
-					mode: "three_daily",
+					mode,
 					appUrl,
-					items: testData.threeDaily,
+					items,
 				}),
 			});
 		}
@@ -4213,27 +2116,13 @@ export const _markDispatchesSent = internalMutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const now = Date.now();
-		for (const dispatchId of args.dispatchIds) {
-			const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
-			if (
-				!dispatch ||
-				dispatch.status !== "pending" ||
-				dispatch.channel !== EMAIL_CHANNEL ||
-				(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
-			) {
-				continue;
-			}
-			await ctx.db.patch("notificationDispatches", dispatch._id, {
-				status: "sent",
-				reason: undefined,
-				sentAt: now,
-				attempts: dispatch.attempts + 1,
-				lastAttemptAt: now,
-				scheduledFunctionId: undefined,
-				updatedAt: now,
-			});
-		}
+		await patchPendingDispatches(
+			ctx,
+			args.dispatchIds,
+			"sent",
+			undefined,
+			args.claimKey,
+		);
 		return null;
 	},
 });
@@ -4246,77 +2135,16 @@ export const _markDispatchesFailed = internalMutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const now = Date.now();
-		for (const dispatchId of args.dispatchIds) {
-			const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
-			if (
-				!dispatch ||
-				dispatch.status !== "pending" ||
-				dispatch.channel !== EMAIL_CHANNEL ||
-				(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
-			) {
-				continue;
-			}
-			await ctx.db.patch("notificationDispatches", dispatch._id, {
-				status: "failed",
-				reason: args.reason,
-				attempts: dispatch.attempts + 1,
-				lastAttemptAt: now,
-				scheduledFunctionId: undefined,
-				updatedAt: now,
-			});
-		}
+		await patchPendingDispatches(
+			ctx,
+			args.dispatchIds,
+			"failed",
+			args.reason,
+			args.claimKey,
+		);
 		return null;
 	},
 });
-
-const { APPROACHING_MS: APPROACHING_THRESHOLD_MS, MS_PER_DAY } =
-	NOTIFICATION_THRESHOLDS;
-
-type DueDateNotificationType = "due_date_overdue" | "due_date_approaching";
-
-type DueDateNotificationSpec = {
-	type: DueDateNotificationType;
-	config: NotificationTemplateConfig;
-	idempotencyBase: string;
-	payload: NotificationPayload;
-};
-
-function buildDueDateNotificationSpec(
-	task: Doc<"tasks">,
-	diffMs: number,
-	daysDiff: number,
-	dayBucket: number,
-): DueDateNotificationSpec | null {
-	if (diffMs < 0) {
-		const daysOverdue = Math.abs(daysDiff);
-		return {
-			type: "due_date_overdue",
-			config: NotificationTemplates.due_date_overdue(task, daysOverdue),
-			idempotencyBase: `due_date_overdue:${task._id}:${daysOverdue}:${dayBucket}`,
-			payload: {
-				taskId: task._id,
-				daysOverdue,
-				dayBucket,
-			},
-		};
-	}
-
-	if (diffMs > 0 && diffMs <= APPROACHING_THRESHOLD_MS) {
-		return {
-			type: "due_date_approaching",
-			config: NotificationTemplates.due_date_approaching(task, daysDiff),
-			idempotencyBase: `due_date_approaching:${task._id}:${daysDiff}:${dayBucket}`,
-			payload: {
-				taskId: task._id,
-				daysDiff,
-				dayBucket,
-			},
-		};
-	}
-
-	return null;
-}
 
 async function emitDueDateNotification(
 	ctx: MutationCtx,
@@ -4324,21 +2152,15 @@ async function emitDueDateNotification(
 	recipientId: Id<"users">,
 	spec: DueDateNotificationSpec,
 ): Promise<number> {
-	const inserted = await emitInAppNotifications(ctx, {
+	const result = await emitFromConfig(ctx, spec.config, {
 		type: spec.type,
 		entity: { entityType: "task", entityId: task._id },
 		recipients: [recipientId],
-		title: spec.config.title,
-		message: spec.config.message,
-		priority: spec.config.priority,
-		metadata: spec.config.metadata,
-		isBatchable: spec.config.isBatchable,
-		batchKey: spec.config.batchKey,
 		idempotencyBase: spec.idempotencyBase,
 		payloadJson: serializePayload(spec.payload),
 		includeEntitySubscribers: true,
 	});
-	return inserted.length;
+	return result ? 1 : 0;
 }
 
 async function maybeEmitDueDateNotificationForTask(
@@ -4346,19 +2168,18 @@ async function maybeEmitDueDateNotificationForTask(
 	task: Doc<"tasks">,
 	now: number,
 ): Promise<number> {
-	if (!task.dueDate || !task.assigneeId || task.status === "done") {
+	if (
+		!task.dueDate ||
+		!task.assigneeId ||
+		task.status === "done" ||
+		task.status === "cancelled"
+	) {
 		return 0;
 	}
 
-	const dueDateMs = new Date(task.dueDate).getTime();
-	if (Number.isNaN(dueDateMs)) {
-		return 0;
-	}
-
-	const diffMs = dueDateMs - now;
-	const daysDiff = Math.floor(diffMs / MS_PER_DAY);
+	const daysDiff = computeDueDateDaysDiff(task.dueDate, now);
 	const dayBucket = Math.floor(now / MS_PER_DAY);
-	const spec = buildDueDateNotificationSpec(task, diffMs, daysDiff, dayBucket);
+	const spec = buildDueDateNotificationSpec(task, daysDiff, dayBucket);
 	if (!spec) {
 		return 0;
 	}
@@ -4400,5 +2221,39 @@ export const _checkDueDateForTask = internalMutation({
 			return 0;
 		}
 		return maybeEmitDueDateNotificationForTask(ctx, task, Date.now());
+	},
+});
+
+export const _sweepStaleDispatches = internalMutation({
+	args: {},
+	returns: v.number(),
+	handler: async (ctx) => {
+		const now = Date.now();
+		let rescheduled = 0;
+
+		for (const channel of EXTERNAL_NOTIFICATION_CHANNELS) {
+			const pendingDispatches = await ctx.db
+				.query("notificationDispatches")
+				.withIndex("by_channel_status", (q) =>
+					q.eq("channel", channel).eq("status", "pending"),
+				)
+				.collect();
+
+			for (const dispatch of pendingDispatches) {
+				if (
+					dispatch.scheduledFor !== undefined &&
+					dispatch.scheduledFor + STALE_DISPATCH_THRESHOLD_MS < now
+				) {
+					await ctx.scheduler.runAfter(
+						0,
+						internal.notifications._processDispatch,
+						{ dispatchId: dispatch._id },
+					);
+					rescheduled += 1;
+				}
+			}
+		}
+
+		return rescheduled;
 	},
 });

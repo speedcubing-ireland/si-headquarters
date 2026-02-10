@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
 import { internal } from "./_generated/api";
@@ -17,10 +17,9 @@ import {
 	requireTaskAccess,
 } from "./taskAccess";
 import {
-	computeApprovalCompleteness,
 	decodeApprovalId,
 	encodeApprovalId,
-	resolveApprovalData,
+	computeApprovalCompleteness,
 	scheduleAwaitingReviewNotifications,
 } from "./taskApprovals";
 import { formatCompetitionName } from "./taskFormat";
@@ -57,7 +56,6 @@ import {
 	phaseShape,
 } from "./lib/validators";
 import { MAX_BULK_UPDATE_COUNT, NOTIFICATION_DEFAULTS } from "./lib/constants";
-import { toISO } from "./lib/transforms";
 import {
 	buildTaskRelationDataMap,
 	countUnresolvedBlockers,
@@ -66,6 +64,106 @@ import {
 	isTaskBlockingStatus,
 	EMPTY_TASK_RELATION_DATA,
 } from "./lib/taskRelations";
+import { hydrateTaskEntities } from "./lib/taskHydration";
+import {
+	filterAccessibleSubtasks,
+	transformTaskToUI,
+	resolveTaskParent,
+} from "./lib/taskTransforms";
+
+interface FetchAccessibleTasksOptions {
+	archived: boolean;
+	competitionId?: Id<"competitions">;
+}
+
+interface FetchAccessibleTasksResult {
+	tasks: Doc<"tasks">[];
+	accessibleCompetitionIds: Set<Id<"competitions">>;
+}
+
+async function fetchAccessibleTasks(
+	ctx: QueryCtx,
+	userId: Id<"users">,
+	volunteer: boolean,
+	opts: FetchAccessibleTasksOptions,
+): Promise<FetchAccessibleTasksResult> {
+	const { archived, competitionId } = opts;
+	const accessibleCompetitionIds = new Set<Id<"competitions">>();
+
+	if (competitionId) {
+		if (!volunteer) {
+			const hasAccess = await hasTaskCompetitionAccess(
+				ctx,
+				volunteer,
+				userId,
+				competitionId,
+			);
+			if (!hasAccess) {
+				return { tasks: [], accessibleCompetitionIds };
+			}
+			accessibleCompetitionIds.add(competitionId);
+		}
+		const tasks = await ctx.db
+			.query("tasks")
+			.withIndex("by_parent_competition_and_archived", (q) =>
+				q.eq("parentCompetitionId", competitionId).eq("archived", archived),
+			)
+			.order("desc")
+			.collect();
+		return { tasks, accessibleCompetitionIds };
+	}
+
+	if (volunteer) {
+		const tasks = await ctx.db
+			.query("tasks")
+			.withIndex("by_archived", (q) => q.eq("archived", archived))
+			.order("desc")
+			.collect();
+		return { tasks, accessibleCompetitionIds };
+	}
+
+	const organisedCompetitionIds = await listOrganisedCompetitionIds(
+		ctx,
+		userId,
+	);
+	for (const id of organisedCompetitionIds) {
+		accessibleCompetitionIds.add(id);
+	}
+
+	const taskGroups = await Promise.all(
+		organisedCompetitionIds.map((id) =>
+			ctx.db
+				.query("tasks")
+				.withIndex("by_parent_competition_and_archived", (q) =>
+					q.eq("parentCompetitionId", id).eq("archived", archived),
+				)
+				.order("desc")
+				.collect(),
+		),
+	);
+	const standaloneTasks = await ctx.db
+		.query("tasks")
+		.withIndex("by_assignee", (q) => q.eq("assigneeId", userId))
+		.collect();
+
+	const taskMap = new Map<Id<"tasks">, Doc<"tasks">>();
+	for (const taskGroup of taskGroups) {
+		for (const task of taskGroup) {
+			taskMap.set(task._id, task);
+		}
+	}
+	for (const task of standaloneTasks) {
+		if (task.archived !== archived) continue;
+		if (!hasStandaloneTaskAccess(task, userId)) continue;
+		taskMap.set(task._id, task);
+	}
+
+	const tasks = [...taskMap.values()].sort(
+		(a, b) => b._creationTime - a._creationTime,
+	);
+
+	return { tasks, accessibleCompetitionIds };
+}
 
 const taskDoc = v.object({
 	_id: v.id("tasks"),
@@ -108,51 +206,10 @@ export const list = query({
 		const volunteer = await isVolunteer(ctx);
 		const archived = args.archived ?? false;
 
-		if (volunteer) {
-			return await ctx.db
-				.query("tasks")
-				.withIndex("by_archived", (q) => q.eq("archived", archived))
-				.order("desc")
-				.collect();
-		}
-
-		const accessibleCompetitionIds = await listOrganisedCompetitionIds(
-			ctx,
-			userId,
-		);
-
-		const taskPromises = accessibleCompetitionIds.map((compId) =>
-			ctx.db
-				.query("tasks")
-				.withIndex("by_parent_competition_and_archived", (q) =>
-					q.eq("parentCompetitionId", compId).eq("archived", archived),
-				)
-				.order("desc")
-				.collect(),
-		);
-
-		const [taskArrays, standaloneTasks] = await Promise.all([
-			Promise.all(taskPromises),
-			ctx.db
-				.query("tasks")
-				.withIndex("by_assignee", (q) => q.eq("assigneeId", userId))
-				.collect(),
-		]);
-		const taskMap = new Map<Id<"tasks">, Doc<"tasks">>();
-		for (const taskArray of taskArrays) {
-			for (const task of taskArray) {
-				taskMap.set(task._id, task);
-			}
-		}
-		for (const task of standaloneTasks) {
-			if (task.archived !== archived) continue;
-			if (!hasStandaloneTaskAccess(task, userId)) continue;
-			taskMap.set(task._id, task);
-		}
-
-		return Array.from(taskMap.values()).sort(
-			(a, b) => b._creationTime - a._creationTime,
-		);
+		const { tasks } = await fetchAccessibleTasks(ctx, userId, volunteer, {
+			archived,
+		});
+		return tasks;
 	},
 });
 
@@ -252,365 +309,51 @@ export const listForUI = query({
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 		const archived = args.archived ?? false;
-		const competitionId = args.competitionId;
 
-		let tasks: Doc<"tasks">[];
-		const accessibleCompetitionIds = new Set<Id<"competitions">>();
-		if (competitionId) {
-			if (!volunteer) {
-				const hasAccess = await hasTaskCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					competitionId,
-				);
-				if (!hasAccess) {
-					return [];
-				}
-				accessibleCompetitionIds.add(competitionId);
-			}
-			tasks = await ctx.db
-				.query("tasks")
-				.withIndex("by_parent_competition_and_archived", (q) =>
-					q.eq("parentCompetitionId", competitionId).eq("archived", archived),
-				)
-				.order("desc")
-				.collect();
-		} else {
-			if (volunteer) {
-				tasks = await ctx.db
-					.query("tasks")
-					.withIndex("by_archived", (q) => q.eq("archived", archived))
-					.order("desc")
-					.collect();
-			} else {
-				const organisedCompetitionIds = await listOrganisedCompetitionIds(
-					ctx,
-					userId,
-				);
-				for (const id of organisedCompetitionIds) {
-					accessibleCompetitionIds.add(id);
-				}
-				const taskGroups = await Promise.all(
-					organisedCompetitionIds.map((id) =>
-						ctx.db
-							.query("tasks")
-							.withIndex("by_parent_competition_and_archived", (q) =>
-								q.eq("parentCompetitionId", id).eq("archived", archived),
-							)
-							.order("desc")
-							.collect(),
-					),
-				);
-				const standaloneTasks = await ctx.db
-					.query("tasks")
-					.withIndex("by_assignee", (q) => q.eq("assigneeId", userId))
-					.collect();
-				const taskMap = new Map<Id<"tasks">, Doc<"tasks">>();
-				for (const taskGroup of taskGroups) {
-					for (const task of taskGroup) {
-						taskMap.set(task._id, task);
-					}
-				}
-				for (const task of standaloneTasks) {
-					if (task.archived !== archived) continue;
-					if (!hasStandaloneTaskAccess(task, userId)) continue;
-					taskMap.set(task._id, task);
-				}
-				tasks = [...taskMap.values()].sort(
-					(a, b) => b._creationTime - a._creationTime,
-				);
-			}
-		}
-
-		const relationDataByTask = await buildTaskRelationDataMap(
+		const { tasks, accessibleCompetitionIds } = await fetchAccessibleTasks(
 			ctx,
-			tasks.map((task) => task._id),
+			userId,
+			volunteer,
+			{ archived, competitionId: args.competitionId },
 		);
 
-		const labelIds = new Set<Id<"labels">>();
-		const userIds = new Set<Id<"users">>();
-		const teamIds = new Set<Id<"teams">>();
-		const phaseIds = new Set<Id<"phases">>();
-		const approvalTeamIds = new Set<Id<"teams">>();
-		for (const t of tasks) {
-			for (const lid of t.labelIds) labelIds.add(lid);
-			if (t.assigneeId) userIds.add(t.assigneeId);
-			if (t.ownerId) {
-				if (t.ownerType === "team") teamIds.add(t.ownerId as Id<"teams">);
-				else userIds.add(t.ownerId as Id<"users">);
-			}
-			if (t.phaseId) phaseIds.add(t.phaseId);
-			if (t.requiredApprovalIds) {
-				for (const encoded of t.requiredApprovalIds) {
-					const decoded = decodeApprovalId(encoded);
-					if (decoded?.type === "user") {
-						userIds.add(decoded.id);
-					} else if (decoded?.type === "team") {
-						approvalTeamIds.add(decoded.id);
-					}
-				}
-			}
-			if (t.approvedByIds) {
-				for (const uid of t.approvedByIds) {
-					userIds.add(uid);
-				}
-			}
-		}
+		if (tasks.length === 0) return [];
 
-		const labelArr = [...labelIds];
-		const userArr = [...userIds];
-		const teamArr = [...teamIds];
-		const approvalTeamArr = [...approvalTeamIds];
-		const phaseArr = [...phaseIds];
-
-		const [labelDocs, userDocs, teamDocs, approvalTeamDocs, phaseDocs] =
-			await Promise.all([
-				Promise.all(labelArr.map((id) => ctx.db.get("labels", id))),
-				Promise.all(userArr.map((id) => ctx.db.get("users", id))),
-				Promise.all(teamArr.map((id) => ctx.db.get("teams", id))),
-				Promise.all(approvalTeamArr.map((id) => ctx.db.get("teams", id))),
-				Promise.all(phaseArr.map((id) => ctx.db.get("phases", id))),
-			]);
-
-		const labelsMap = new Map<
-			Id<"labels">,
-			{ id: Id<"labels">; name: string; color: string }
-		>();
-		labelArr.forEach((id, i) => {
-			const l = labelDocs[i];
-			if (l) labelsMap.set(id, { id, name: l.name, color: l.color });
-		});
-
-		const usersMap = new Map<
-			Id<"users">,
-			{ id: Id<"users">; name: string; avatarUrl: string }
-		>();
-		userArr.forEach((id, i) => {
-			const u = userDocs[i];
-			if (u)
-				usersMap.set(id, { id, name: u.name ?? "", avatarUrl: u.image ?? "" });
-		});
-
-		const memberIds = new Set<Id<"users">>();
-		[...teamDocs, ...approvalTeamDocs].forEach((t) => {
-			t?.memberIds.forEach((mid) => {
-				memberIds.add(mid);
-			});
-		});
-		const memberDocs = await Promise.all(
-			[...memberIds].map((id) => ctx.db.get("users", id)),
-		);
-		const memberMap = new Map<
-			Id<"users">,
-			{ id: Id<"users">; name: string; avatarUrl: string }
-		>();
-		[...memberIds].forEach((id, i) => {
-			const u = memberDocs[i];
-			if (u)
-				memberMap.set(id, { id, name: u.name ?? "", avatarUrl: u.image ?? "" });
-		});
-
-		const teamsMap = new Map<
-			Id<"teams">,
-			{
-				id: Id<"teams">;
-				name: string;
-				members: { id: Id<"users">; name: string; avatarUrl: string }[];
-			}
-		>();
-		teamArr.forEach((id, i) => {
-			const t = teamDocs[i];
-			if (t)
-				teamsMap.set(id, {
-					id,
-					name: t.name,
-					members: t.memberIds
-						.map((mid) => memberMap.get(mid))
-						.filter(
-							(u): u is { id: Id<"users">; name: string; avatarUrl: string } =>
-								Boolean(u),
-						),
-				});
-		});
-
-		const approvalTeamsMap = new Map<
-			Id<"teams">,
-			{
-				id: Id<"teams">;
-				name: string;
-				members: { id: Id<"users">; name: string; avatarUrl: string }[];
-			}
-		>();
-		approvalTeamArr.forEach((id, i) => {
-			const t = approvalTeamDocs[i];
-			if (t)
-				approvalTeamsMap.set(id, {
-					id,
-					name: t.name,
-					members: t.memberIds
-						.map((mid) => memberMap.get(mid))
-						.filter(
-							(u): u is { id: Id<"users">; name: string; avatarUrl: string } =>
-								Boolean(u),
-						),
-				});
-		});
-
-		const phasesMap = new Map<
-			Id<"phases">,
-			{ id: Id<"phases">; name: string; description: string }
-		>();
-		phaseArr.forEach((id, i) => {
-			const p = phaseDocs[i];
-			if (p)
-				phasesMap.set(id, {
-					id,
-					name: p.name,
-					description: p.description,
-				});
-		});
-
-		const taskIdToTitle = new Map<Id<"tasks">, string>();
-		for (const t of tasks) {
-			taskIdToTitle.set(t._id, t.title);
-		}
-
-		const parentCompetitionIds = [
-			...new Set(
-				tasks
-					.map((t) => t.parentCompetitionId)
-					.filter((id): id is Id<"competitions"> => id != null),
+		const [relationDataByTask, maps] = await Promise.all([
+			buildTaskRelationDataMap(
+				ctx,
+				tasks.map((task) => task._id),
 			),
-		];
-		const competitionDocs = await Promise.all(
-			parentCompetitionIds.map((id) => ctx.db.get("competitions", id)),
-		);
-		const competitionIdToName = new Map<Id<"competitions">, string>();
-		parentCompetitionIds.forEach((id, i) => {
-			const doc = competitionDocs[i];
-			if (doc) competitionIdToName.set(id, formatCompetitionName(doc.name));
-		});
+			hydrateTaskEntities(ctx, tasks),
+		]);
 
-		const parentTaskIds = new Set(tasks.map((t) => t._id));
 		const subtaskRowsByParent = new Map<
 			Id<"tasks">,
-			Array<{
-				id: Id<"tasks">;
-				title: string;
-				status:
-					| "backlog"
-					| "to-do"
-					| "in-progress"
-					| "awaiting-review"
-					| "done"
-					| "cancelled";
-			}>
+			Array<{ id: Id<"tasks">; title: string; status: Doc<"tasks">["status"] }>
 		>();
 		await Promise.all(
-			[...parentTaskIds].map(async (parentId) => {
+			tasks.map(async (task) => {
 				const children = await ctx.db
 					.query("tasks")
-					.withIndex("by_parent_task", (q) => q.eq("parentTaskId", parentId))
+					.withIndex("by_parent_task", (q) => q.eq("parentTaskId", task._id))
 					.collect();
-				const matching = children.filter((child) => {
-					if (child.archived !== archived) {
-						return false;
-					}
-					if (volunteer) {
-						return true;
-					}
-					if (!child.parentCompetitionId) {
-						return hasStandaloneTaskAccess(child, userId);
-					}
-					return accessibleCompetitionIds.has(child.parentCompetitionId);
+				const filtered = filterAccessibleSubtasks(children, {
+					archived,
+					volunteer,
+					userId,
+					accessibleCompetitionIds,
 				});
-				subtaskRowsByParent.set(
-					parentId,
-					matching.map((c) => ({
-						id: c._id,
-						title: c.title,
-						status: c.status,
-					})),
-				);
+				subtaskRowsByParent.set(task._id, filtered);
 			}),
 		);
 
-		const resolvedTasks = await Promise.all(
-			tasks.map(async (t) => {
-				const owner = t.ownerId
-					? t.ownerType === "team"
-						? teamsMap.get(t.ownerId as Id<"teams">)
-						: usersMap.get(t.ownerId as Id<"users">)
-					: null;
-				const assignee = t.assigneeId
-					? (usersMap.get(t.assigneeId) ?? null)
-					: null;
-				const phase = t.phaseId ? (phasesMap.get(t.phaseId) ?? null) : null;
-				const labels = t.labelIds
-					.map((lid: Id<"labels">) => labelsMap.get(lid))
-					.filter(Boolean) as {
-					id: Id<"labels">;
-					name: string;
-					color: string;
-				}[];
-				const parent = t.parentTaskId
-					? { type: "task" as const, linkedId: t.parentTaskId }
-					: t.parentCompetitionId
-						? { type: "competition" as const, linkedId: t.parentCompetitionId }
-						: null;
-
-				const parentDisplayName: string | null = parent
-					? parent.type === "task"
-						? (taskIdToTitle.get(parent.linkedId) ?? null)
-						: (competitionIdToName.get(parent.linkedId) ?? null)
-					: null;
-
-				const subTasks = subtaskRowsByParent.get(t._id) ?? [];
-				const relationData =
-					relationDataByTask.get(t._id) ?? EMPTY_TASK_RELATION_DATA;
-
-				const combinedTeamsMap = new Map(teamsMap);
-				for (const [key, value] of approvalTeamsMap) {
-					combinedTeamsMap.set(key, value);
-				}
-				const { requiredApprovalBy, approvedBy } = resolveApprovalData(
-					ctx,
-					t.requiredApprovalIds ?? [],
-					t.approvedByIds ?? [],
-					usersMap,
-					combinedTeamsMap,
-				);
-
-				return {
-					id: t._id,
-					identifier: t.identifier,
-					parent,
-					parentDisplayName,
-					title: t.title,
-					description: t.description,
-					owner: owner ?? null,
-					assignee,
-					phase,
-					status: t.status,
-					priority: t.priority,
-					dueDate: t.dueDate ?? null,
-					requiredApprovalBy,
-					approvedBy,
-					labels,
-					blockedBy: relationData.blockedBy,
-					blocks: relationData.blocks,
-					unresolvedBlockerCount: relationData.unresolvedBlockerCount,
-					isBlocked: relationData.isBlocked,
-					resources: t.resources ?? [],
-					subTasks,
-					createdAt: toISO(t._creationTime),
-					updatedAt: toISO(t.updatedAt),
-					archivedAt: t.archivedAt ?? null,
-				};
+		return tasks.map((t) =>
+			transformTaskToUI(ctx, t, {
+				maps,
+				subTasks: subtaskRowsByParent.get(t._id) ?? [],
+				relationData: relationDataByTask.get(t._id) ?? EMPTY_TASK_RELATION_DATA,
 			}),
 		);
-		return resolvedTasks;
 	},
 });
 
@@ -619,7 +362,7 @@ export const getForUI = query({
 	returns: v.union(taskForUIReturns, v.null()),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		const t = await ctx.db.get("tasks", args.taskId);
+		const t = await ctx.db.get(args.taskId);
 		if (!t) return null;
 
 		const volunteer = await isVolunteer(ctx);
@@ -641,122 +384,28 @@ export const getForUI = query({
 			}
 		}
 
-		const relationDataByTask = await buildTaskRelationDataMap(ctx, [
-			args.taskId,
+		// Build relation data and entity maps in parallel
+		const [relationDataByTask, maps, childTasks] = await Promise.all([
+			buildTaskRelationDataMap(ctx, [args.taskId]),
+			hydrateTaskEntities(ctx, [t]),
+			ctx.db
+				.query("tasks")
+				.withIndex("by_parent_task", (q) => q.eq("parentTaskId", args.taskId))
+				.collect(),
 		]);
 
-		const approvalUserIds = new Set<Id<"users">>();
-		const approvalTeamIds = new Set<Id<"teams">>();
-		if (t.requiredApprovalIds) {
-			for (const encoded of t.requiredApprovalIds) {
-				const decoded = decodeApprovalId(encoded);
-				if (decoded?.type === "user") {
-					approvalUserIds.add(decoded.id);
-				} else if (decoded?.type === "team") {
-					approvalTeamIds.add(decoded.id);
-				}
-			}
-		}
-		if (t.approvedByIds) {
-			for (const uid of t.approvedByIds) {
-				approvalUserIds.add(uid);
-			}
-		}
-
-		const [
-			labelDocs,
-			assigneeDoc,
-			ownerDoc,
-			phaseDoc,
-			approvalUserDocs,
-			approvalTeamDocs,
-		] = await Promise.all([
-			Promise.all(t.labelIds.map((lid) => ctx.db.get("labels", lid))),
-			t.assigneeId ? ctx.db.get("users", t.assigneeId) : Promise.resolve(null),
-			t.ownerId
-				? t.ownerType === "team"
-					? ctx.db.get("teams", t.ownerId as Id<"teams">)
-					: ctx.db.get("users", t.ownerId as Id<"users">)
-				: Promise.resolve(null),
-			t.phaseId ? ctx.db.get("phases", t.phaseId) : null,
-			Promise.all([...approvalUserIds].map((id) => ctx.db.get("users", id))),
-			Promise.all([...approvalTeamIds].map((id) => ctx.db.get("teams", id))),
-		]);
-
-		const labelsMap = new Map<
-			Id<"labels">,
-			{ id: Id<"labels">; name: string; color: string }
-		>();
-		t.labelIds.forEach((id, i) => {
-			const l = labelDocs[i];
-			if (l) labelsMap.set(id, { id, name: l.name, color: l.color });
+		const subTasks = filterAccessibleSubtasks(childTasks, {
+			archived: t.archived,
+			volunteer,
+			userId,
+			parentTaskCompetitionId: t.parentCompetitionId,
 		});
-		const assignee = assigneeDoc
-			? {
-					id: assigneeDoc._id,
-					name: assigneeDoc.name ?? "",
-					avatarUrl: assigneeDoc.image ?? "",
-				}
-			: null;
 
-		let owner:
-			| {
-					id: Id<"teams">;
-					name: string;
-					members: { id: Id<"users">; name: string; avatarUrl: string }[];
-			  }
-			| { id: Id<"users">; name: string; avatarUrl: string }
-			| null = null;
-		if (ownerDoc) {
-			if ("memberIds" in ownerDoc) {
-				const memberDocs = await Promise.all(
-					ownerDoc.memberIds.map((mid) => ctx.db.get("users", mid)),
-				);
-				const members: {
-					id: Id<"users">;
-					name: string;
-					avatarUrl: string;
-				}[] = [];
-				ownerDoc.memberIds.forEach((mid, i) => {
-					const u = memberDocs[i];
-					if (u)
-						members.push({
-							id: mid,
-							name: u.name ?? "",
-							avatarUrl: u.image ?? "",
-						});
-				});
-				owner = { id: ownerDoc._id, name: ownerDoc.name, members };
-			} else {
-				owner = {
-					id: ownerDoc._id,
-					name: ownerDoc.name ?? "",
-					avatarUrl: ownerDoc.image ?? "",
-				};
-			}
-		}
-
-		const phase = phaseDoc
-			? {
-					id: phaseDoc._id,
-					name: phaseDoc.name,
-					description: phaseDoc.description,
-				}
-			: null;
-
-		const labels = t.labelIds
-			.map((lid) => labelsMap.get(lid))
-			.filter(Boolean) as { id: Id<"labels">; name: string; color: string }[];
-		const parent = t.parentTaskId
-			? { type: "task" as const, linkedId: t.parentTaskId }
-			: t.parentCompetitionId
-				? { type: "competition" as const, linkedId: t.parentCompetitionId }
-				: null;
-
+		const parent = resolveTaskParent(t);
 		let parentDisplayName: string | null = null;
 		if (parent) {
 			if (parent.type === "task") {
-				const parentTask = await ctx.db.get("tasks", parent.linkedId);
+				const parentTask = await ctx.db.get(parent.linkedId);
 				if (parentTask) {
 					if (volunteer) {
 						parentDisplayName = parentTask.title;
@@ -771,137 +420,18 @@ export const getForUI = query({
 					}
 				}
 			} else {
-				const comp = await ctx.db.get("competitions", parent.linkedId);
+				const comp = await ctx.db.get(parent.linkedId);
 				parentDisplayName = comp ? formatCompetitionName(comp.name) : null;
 			}
 		}
 
-		const childTasks = await ctx.db
-			.query("tasks")
-			.withIndex("by_parent_task", (q) => q.eq("parentTaskId", args.taskId))
-			.collect();
-		const subTasks = childTasks
-			.filter((child) => {
-				if (child.archived !== t.archived) {
-					return false;
-				}
-				if (volunteer) {
-					return true;
-				}
-				if (!child.parentCompetitionId) {
-					return hasStandaloneTaskAccess(child, userId);
-				}
-				return child.parentCompetitionId === t.parentCompetitionId;
-			})
-			.map((c) => ({
-				id: c._id,
-				title: c.title,
-				status: c.status,
-			}));
-
-		const approvalUsersMap = new Map<
-			Id<"users">,
-			{ id: Id<"users">; name: string; avatarUrl: string }
-		>();
-		[...approvalUserIds].forEach((id, i) => {
-			const u = approvalUserDocs[i];
-			if (u)
-				approvalUsersMap.set(id, {
-					id,
-					name: u.name ?? "",
-					avatarUrl: u.image ?? "",
-				});
-		});
-
-		const approvalTeamMemberIds = new Set<Id<"users">>();
-		approvalTeamDocs.forEach((team) => {
-			team?.memberIds.forEach((mid) => {
-				approvalTeamMemberIds.add(mid);
-			});
-		});
-		const approvalTeamMemberDocs = await Promise.all(
-			[...approvalTeamMemberIds].map((id) => ctx.db.get("users", id)),
-		);
-		const approvalTeamMemberMap = new Map<
-			Id<"users">,
-			{ id: Id<"users">; name: string; avatarUrl: string }
-		>();
-		[...approvalTeamMemberIds].forEach((id, i) => {
-			const u = approvalTeamMemberDocs[i];
-			if (u)
-				approvalTeamMemberMap.set(id, {
-					id,
-					name: u.name ?? "",
-					avatarUrl: u.image ?? "",
-				});
-		});
-
-		const approvalTeamsMap = new Map<
-			Id<"teams">,
-			{
-				id: Id<"teams">;
-				name: string;
-				members: { id: Id<"users">; name: string; avatarUrl: string }[];
-			}
-		>();
-		[...approvalTeamIds].forEach((id, i) => {
-			const team = approvalTeamDocs[i];
-			if (team)
-				approvalTeamsMap.set(id, {
-					id,
-					name: team.name,
-					members: team.memberIds
-						.map((mid) => approvalTeamMemberMap.get(mid))
-						.filter(
-							(u): u is { id: Id<"users">; name: string; avatarUrl: string } =>
-								u !== undefined,
-						),
-				});
-		});
-
-		const combinedUsersMap = new Map(approvalUsersMap);
-		if (assignee) {
-			combinedUsersMap.set(assignee.id, assignee);
-		}
-		if (owner && "avatarUrl" in owner) {
-			combinedUsersMap.set(owner.id, owner);
-		}
-		const { requiredApprovalBy, approvedBy } = resolveApprovalData(
-			ctx,
-			t.requiredApprovalIds ?? [],
-			t.approvedByIds ?? [],
-			combinedUsersMap,
-			approvalTeamsMap,
-		);
-		const relationData =
-			relationDataByTask.get(args.taskId) ?? EMPTY_TASK_RELATION_DATA;
-
-		return {
-			id: t._id,
-			identifier: t.identifier,
-			parent,
-			parentDisplayName,
-			title: t.title,
-			description: t.description,
-			owner,
-			assignee,
-			phase,
-			status: t.status,
-			priority: t.priority,
-			dueDate: t.dueDate ?? null,
-			requiredApprovalBy,
-			approvedBy,
-			labels,
-			blockedBy: relationData.blockedBy,
-			blocks: relationData.blocks,
-			unresolvedBlockerCount: relationData.unresolvedBlockerCount,
-			isBlocked: relationData.isBlocked,
-			resources: t.resources ?? [],
+		return transformTaskToUI(ctx, t, {
+			maps,
 			subTasks,
-			createdAt: toISO(t._creationTime),
-			updatedAt: toISO(t.updatedAt),
-			archivedAt: t.archivedAt ?? null,
-		};
+			relationData:
+				relationDataByTask.get(args.taskId) ?? EMPTY_TASK_RELATION_DATA,
+			parentDisplayNameOverride: parentDisplayName,
+		});
 	},
 });
 
@@ -1517,6 +1047,19 @@ export const bulkUpdate = mutation({
 	},
 });
 
+function findTaskRelation(
+	ctx: MutationCtx,
+	blockedTaskId: Id<"tasks">,
+	blockingTaskId: Id<"tasks">,
+) {
+	return ctx.db
+		.query("taskRelations")
+		.withIndex("by_blocked_and_blocking", (q) =>
+			q.eq("blockedTaskId", blockedTaskId).eq("blockingTaskId", blockingTaskId),
+		)
+		.first();
+}
+
 export const addBlockingRelation = mutation({
 	args: {
 		blockedTaskId: v.id("tasks"),
@@ -1555,14 +1098,11 @@ export const addBlockingRelation = mutation({
 			});
 		}
 
-		const existingRelation = await ctx.db
-			.query("taskRelations")
-			.withIndex("by_blocked_and_blocking", (q) =>
-				q
-					.eq("blockedTaskId", args.blockedTaskId)
-					.eq("blockingTaskId", args.blockingTaskId),
-			)
-			.first();
+		const existingRelation = await findTaskRelation(
+			ctx,
+			args.blockedTaskId,
+			args.blockingTaskId,
+		);
 		if (existingRelation) {
 			return null;
 		}
@@ -1620,14 +1160,11 @@ export const removeBlockingRelation = mutation({
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 
-		const relation = await ctx.db
-			.query("taskRelations")
-			.withIndex("by_blocked_and_blocking", (q) =>
-				q
-					.eq("blockedTaskId", args.blockedTaskId)
-					.eq("blockingTaskId", args.blockingTaskId),
-			)
-			.first();
+		const relation = await findTaskRelation(
+			ctx,
+			args.blockedTaskId,
+			args.blockingTaskId,
+		);
 		if (!relation) {
 			return null;
 		}
@@ -1670,28 +1207,43 @@ export const removeBlockingRelation = mutation({
 	},
 });
 
+async function setArchiveState(
+	ctx: MutationCtx,
+	taskIds: Id<"tasks">[],
+	archived: boolean,
+) {
+	const userId = await requireUserId(ctx);
+	const volunteer = await isVolunteer(ctx);
+
+	for (const taskId of taskIds) {
+		const task = await ctx.db.get("tasks", taskId);
+		if (!task) continue;
+		await requireTaskAccess(ctx, volunteer, userId, task);
+	}
+
+	const now = Date.now();
+	const archivedAt = archived ? new Date().toISOString() : undefined;
+	for (const id of taskIds) {
+		await ctx.db.patch("tasks", id, {
+			archived,
+			archivedAt,
+			updatedAt: now,
+		});
+		await logActivity(
+			ctx,
+			userId,
+			"task",
+			id,
+			archived ? "archived" : "unarchived",
+		);
+	}
+}
+
 export const archive = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const volunteer = await isVolunteer(ctx);
-
-		for (const taskId of args.taskIds) {
-			const task = await ctx.db.get("tasks", taskId);
-			if (!task) continue;
-			await requireTaskAccess(ctx, volunteer, userId, task);
-		}
-
-		const archivedAt = new Date().toISOString();
-		for (const id of args.taskIds) {
-			await ctx.db.patch("tasks", id, {
-				archived: true,
-				archivedAt,
-				updatedAt: Date.now(),
-			});
-			await logActivity(ctx, userId, "task", id, "archived");
-		}
+		await setArchiveState(ctx, args.taskIds, true);
 		return null;
 	},
 });
@@ -1700,61 +1252,50 @@ export const unarchive = mutation({
 	args: { taskIds: v.array(v.id("tasks")) },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const volunteer = await isVolunteer(ctx);
-
-		for (const taskId of args.taskIds) {
-			const task = await ctx.db.get("tasks", taskId);
-			if (!task) continue;
-			await requireTaskAccess(ctx, volunteer, userId, task);
-		}
-
-		for (const id of args.taskIds) {
-			await ctx.db.patch("tasks", id, {
-				archived: false,
-				archivedAt: undefined,
-				updatedAt: Date.now(),
-			});
-			await logActivity(ctx, userId, "task", id, "unarchived");
-		}
+		await setArchiveState(ctx, args.taskIds, false);
 		return null;
 	},
 });
+
+async function modifyApprovers(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	updateIds: (currentIds: string[]) => string[],
+	activityMessage: string,
+) {
+	const userId = await requireUserId(ctx);
+	const volunteer = await isVolunteer(ctx);
+	const task = await ctx.db.get("tasks", taskId);
+	if (!task)
+		throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
+
+	await requireTaskAccess(ctx, volunteer, userId, task);
+
+	const newIds = updateIds(task.requiredApprovalIds ?? []);
+	await ctx.db.patch("tasks", taskId, {
+		requiredApprovalIds: newIds,
+		updatedAt: Date.now(),
+	});
+	await logActivity(ctx, userId, "task", taskId, "updated", {
+		message: activityMessage,
+	});
+}
 
 export const addRequiredApprover = mutation({
 	args: {
 		taskId: v.id("tasks"),
 		approverType: v.union(v.literal("user"), v.literal("team")),
-		approverId: v.string(),
+		approverId: v.union(v.id("users"), v.id("teams")),
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const volunteer = await isVolunteer(ctx);
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) {
-			throw new ConvexError("Task not found");
-		}
-
-		await requireTaskAccess(ctx, volunteer, userId, task);
-
-		const encodedId = encodeApprovalId(
-			args.approverType,
-			args.approverId as Id<"users"> | Id<"teams">,
+		const encodedId = encodeApprovalId(args.approverType, args.approverId);
+		await modifyApprovers(
+			ctx,
+			args.taskId,
+			(ids) => (ids.includes(encodedId) ? ids : [...ids, encodedId]),
+			"added required approver",
 		);
-		const currentIds = task.requiredApprovalIds ?? [];
-		if (currentIds.includes(encodedId)) {
-			return null;
-		}
-
-		await ctx.db.patch("tasks", args.taskId, {
-			requiredApprovalIds: [...currentIds, encodedId],
-			updatedAt: Date.now(),
-		});
-
-		await logActivity(ctx, userId, "task", args.taskId, "updated", {
-			message: "added required approver",
-		});
 		return null;
 	},
 });
@@ -1766,26 +1307,12 @@ export const removeRequiredApprover = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const volunteer = await isVolunteer(ctx);
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) {
-			throw new ConvexError("Task not found");
-		}
-
-		await requireTaskAccess(ctx, volunteer, userId, task);
-
-		const currentIds = task.requiredApprovalIds ?? [];
-		const filteredIds = currentIds.filter((id) => id !== args.approverKey);
-
-		await ctx.db.patch("tasks", args.taskId, {
-			requiredApprovalIds: filteredIds,
-			updatedAt: Date.now(),
-		});
-
-		await logActivity(ctx, userId, "task", args.taskId, "updated", {
-			message: "removed required approver",
-		});
+		await modifyApprovers(
+			ctx,
+			args.taskId,
+			(ids) => ids.filter((id) => id !== args.approverKey),
+			"removed required approver",
+		);
 		return null;
 	},
 });
@@ -1800,7 +1327,7 @@ export const approveTask = mutation({
 		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
-			throw new ConvexError("Task not found");
+			throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
 		}
 
 		await requireTaskAccess(ctx, volunteer, userId, task);
@@ -1868,7 +1395,7 @@ export const unapproveTask = mutation({
 		const volunteer = await isVolunteer(ctx);
 		const task = await ctx.db.get("tasks", args.taskId);
 		if (!task) {
-			throw new ConvexError("Task not found");
+			throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
 		}
 
 		await requireTaskAccess(ctx, volunteer, userId, task);

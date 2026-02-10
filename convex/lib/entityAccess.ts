@@ -1,35 +1,13 @@
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 
-type AccessStrategy<T extends "tasks" | "competitionUpdates"> = {
-	getCompetitionId: (
-		ctx: QueryCtx,
-		id: Id<T>,
-	) => Promise<string | null | undefined>;
-};
-
-const accessStrategies: {
-	task: AccessStrategy<"tasks">;
-	update: AccessStrategy<"competitionUpdates">;
-} = {
-	task: {
-		getCompetitionId: async (ctx, id) => {
-			const task = await ctx.db.get("tasks", id);
-			return task?.parentCompetitionId;
-		},
-	},
-	update: {
-		getCompetitionId: async (ctx, id) => {
-			const update = await ctx.db.get("competitionUpdates", id);
-			return update?.competitionId;
-		},
-	},
-};
+type EntityAccessArgs =
+	| { entityType: "task"; entityId: Id<"tasks"> }
+	| { entityType: "update"; entityId: Id<"competitionUpdates"> };
 
 export async function checkEntityAccess(
 	ctx: QueryCtx,
-	entityType: keyof typeof accessStrategies,
-	entityId: Id<"tasks"> | Id<"competitionUpdates">,
+	entity: EntityAccessArgs,
 	volunteer: boolean,
 	hasAccessFn: (
 		ctx: QueryCtx,
@@ -39,34 +17,53 @@ export async function checkEntityAccess(
 ): Promise<boolean> {
 	if (volunteer) return true;
 
-	const strategy = accessStrategies[entityType];
-	if (!strategy) return false;
+	let competitionId: string | null | undefined;
+	if (entity.entityType === "task") {
+		const task = await ctx.db.get("tasks", entity.entityId);
+		competitionId = task?.parentCompetitionId;
+	} else {
+		const update = await ctx.db.get("competitionUpdates", entity.entityId);
+		competitionId = update?.competitionId;
+	}
 
-	const competitionId = await strategy.getCompetitionId(
-		ctx,
-		entityId as Id<"tasks"> & Id<"competitionUpdates">,
-	);
 	if (!competitionId) return false;
-
 	return hasAccessFn(ctx, volunteer, competitionId);
 }
 
-export function createEntityAccessChecker<
-	T extends keyof typeof accessStrategies,
->(entityType: T) {
-	return {
-		checkAccess: async (
+export const taskAccess = {
+	checkAccess: (
+		ctx: QueryCtx,
+		entityId: Id<"tasks">,
+		volunteer: boolean,
+		hasAccessFn: (
 			ctx: QueryCtx,
-			entityId: Id<"tasks"> | Id<"competitionUpdates">,
 			volunteer: boolean,
-			hasAccessFn: (
-				ctx: QueryCtx,
-				volunteer: boolean,
-				competitionId: string,
-			) => Promise<boolean>,
-		) => checkEntityAccess(ctx, entityType, entityId, volunteer, hasAccessFn),
-	};
-}
+			competitionId: string,
+		) => Promise<boolean>,
+	) =>
+		checkEntityAccess(
+			ctx,
+			{ entityType: "task", entityId },
+			volunteer,
+			hasAccessFn,
+		),
+};
 
-export const taskAccess = createEntityAccessChecker("task");
-export const updateAccess = createEntityAccessChecker("update");
+export const updateAccess = {
+	checkAccess: (
+		ctx: QueryCtx,
+		entityId: Id<"competitionUpdates">,
+		volunteer: boolean,
+		hasAccessFn: (
+			ctx: QueryCtx,
+			volunteer: boolean,
+			competitionId: string,
+		) => Promise<boolean>,
+	) =>
+		checkEntityAccess(
+			ctx,
+			{ entityType: "update", entityId },
+			volunteer,
+			hasAccessFn,
+		),
+};

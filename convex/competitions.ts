@@ -3,7 +3,6 @@ import { mutation, query } from "./_generated/server";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
-import { internal } from "./_generated/api";
 import { logActivity } from "./lib/activity";
 import {
 	collectAllTaskIdsRecursively,
@@ -22,6 +21,7 @@ import {
 import { toUsers, createLens, toISO, type UserUI } from "./lib/transforms";
 import { phaseShape, taskStatus, userShape } from "./lib/validators";
 import type { TaskStatus } from "./lib/types";
+import { sendCompetitionPhaseChangeNotifications } from "./competitionNotifications";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
@@ -169,6 +169,63 @@ function buildProgressUpdatesForUI(
 	}));
 }
 
+interface ActivePhases {
+	phasesForUI: { id: Id<"phases">; name: string; description: string }[];
+	defaultPhaseId: Id<"phases"> | undefined;
+}
+
+async function loadActivePhases(ctx: QueryCtx): Promise<ActivePhases> {
+	const phases = await ctx.db
+		.query("phases")
+		.withIndex("by_order")
+		.order("asc")
+		.collect();
+	const orderedPhases = phases.filter((p) => !p.archived);
+	return {
+		phasesForUI: orderedPhases.map((p) => ({
+			id: p._id,
+			name: p.name,
+			description: p.description,
+		})),
+		defaultPhaseId: orderedPhases[0]?._id,
+	};
+}
+
+function buildCompetitionUI(
+	d: Doc<"competitions">,
+	usersLens: ReturnType<typeof createLens<UserUI>>,
+	phases: ActivePhases,
+	tasks: TaskSummary[],
+	updateDocs: Doc<"competitionUpdates">[],
+) {
+	const currentPhaseId = d.currentPhaseId ?? phases.defaultPhaseId;
+	const currentPhaseIdx =
+		currentPhaseId != null
+			? phases.phasesForUI.findIndex((p) => p.id === currentPhaseId)
+			: 0;
+	return {
+		id: d._id,
+		name: d.name,
+		description: d.description,
+		compStart: d.compStart,
+		compEnd: d.compEnd,
+		compLead: d.compLeadId ? (usersLens.get(d.compLeadId) ?? null) : null,
+		leadDelegate: d.leadDelegateId
+			? (usersLens.get(d.leadDelegateId) ?? null)
+			: null,
+		organisers: d.organiserIds
+			.map((id) => usersLens.get(id))
+			.filter((u): u is UserUI => Boolean(u)),
+		phases: phases.phasesForUI,
+		currentPhaseIdx: currentPhaseIdx >= 0 ? currentPhaseIdx : 0,
+		progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
+		compSheet: d.compSheet ?? null,
+		tasks,
+		createdAt: toISO(d._creationTime),
+		updatedAt: toISO(d.updatedAt),
+	};
+}
+
 export const listForUI = query({
 	args: {},
 	returns: v.array(competitionForUIReturns),
@@ -201,15 +258,7 @@ export const listForUI = query({
 				.sort((a, b) => a.compStart.localeCompare(b.compStart));
 		}
 
-		const phases: Doc<"phases">[] = await ctx.db
-			.query("phases")
-			.withIndex("by_order")
-			.order("asc")
-			.collect();
-
-		const orderedPhases = phases.filter((p) => !p.archived);
-
-		const defaultPhaseId = orderedPhases[0]?._id;
+		const phases = await loadActivePhases(ctx);
 
 		const userIds = new Set<Id<"users">>();
 		const tasksByCompetition = new Map<Id<"competitions">, TaskSummary[]>();
@@ -247,44 +296,15 @@ export const listForUI = query({
 		);
 		const usersLens = createLens(toUsers(userDocs));
 
-		return docs.map((d) => {
-			const phasesForUI = orderedPhases.map((p) => ({
-				id: p._id,
-				name: p.name,
-				description: p.description,
-			}));
-
-			const currentPhaseId = d.currentPhaseId ?? defaultPhaseId;
-			const currentPhaseIdx =
-				currentPhaseId != null
-					? phasesForUI.findIndex((p) => p.id === currentPhaseId)
-					: 0;
-
-			const tasksForComp = tasksByCompetition.get(d._id) ?? [];
-			const updateDocs = updatesByCompetition.get(d._id) ?? [];
-
-			return {
-				id: d._id,
-				name: d.name,
-				description: d.description,
-				compStart: d.compStart,
-				compEnd: d.compEnd,
-				compLead: d.compLeadId ? (usersLens.get(d.compLeadId) ?? null) : null,
-				leadDelegate: d.leadDelegateId
-					? (usersLens.get(d.leadDelegateId) ?? null)
-					: null,
-				organisers: d.organiserIds
-					.map((id) => usersLens.get(id))
-					.filter((u): u is UserUI => Boolean(u)),
-				phases: phasesForUI,
-				currentPhaseIdx: currentPhaseIdx >= 0 ? currentPhaseIdx : 0,
-				progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
-				compSheet: d.compSheet ?? null,
-				tasks: tasksForComp,
-				createdAt: toISO(d._creationTime),
-				updatedAt: toISO(d.updatedAt),
-			};
-		});
+		return docs.map((d) =>
+			buildCompetitionUI(
+				d,
+				usersLens,
+				phases,
+				tasksByCompetition.get(d._id) ?? [],
+				updatesByCompetition.get(d._id) ?? [],
+			),
+		);
 	},
 });
 
@@ -299,39 +319,23 @@ export const getForUI = query({
 		const volunteer = await isVolunteer(ctx);
 		if (!volunteer && !userCanAccessCompetitionDoc(d, userId)) return null;
 
-		const phases: Doc<"phases">[] = await ctx.db
-			.query("phases")
-			.withIndex("by_order")
-			.order("asc")
-			.collect();
-
-		const orderedPhases = phases.filter((p) => !p.archived);
-
-		const phasesForUI = orderedPhases.map((p) => ({
-			id: p._id,
-			name: p.name,
-			description: p.description,
-		}));
-
-		const defaultPhaseId = orderedPhases[0]?._id;
-		const currentPhaseId = d.currentPhaseId ?? defaultPhaseId;
-		const currentPhaseIdx =
-			currentPhaseId != null
-				? phasesForUI.findIndex((p) => p.id === currentPhaseId)
-				: 0;
+		const phases = await loadActivePhases(ctx);
 
 		const userIds = new Set<Id<"users">>();
 		if (d.compLeadId) userIds.add(d.compLeadId);
 		if (d.leadDelegateId) userIds.add(d.leadDelegateId);
 		for (const id of d.organiserIds) userIds.add(id);
 
-		const updateDocs = await ctx.db
-			.query("competitionUpdates")
-			.withIndex("by_competition", (q) =>
-				q.eq("competitionId", args.competitionId),
-			)
-			.order("desc")
-			.collect();
+		const [updateDocs, tasks] = await Promise.all([
+			ctx.db
+				.query("competitionUpdates")
+				.withIndex("by_competition", (q) =>
+					q.eq("competitionId", args.competitionId),
+				)
+				.order("desc")
+				.collect(),
+			loadTaskSummariesForCompetition(ctx, args.competitionId),
+		]);
 		collectUserIdsFromUpdates(updateDocs, userIds);
 
 		const userArr = [...userIds];
@@ -340,32 +344,7 @@ export const getForUI = query({
 		);
 		const usersLens = createLens(toUsers(userDocs));
 
-		const tasks = await loadTaskSummariesForCompetition(
-			ctx,
-			args.competitionId,
-		);
-
-		return {
-			id: d._id,
-			name: d.name,
-			description: d.description,
-			compStart: d.compStart,
-			compEnd: d.compEnd,
-			compLead: d.compLeadId ? (usersLens.get(d.compLeadId) ?? null) : null,
-			leadDelegate: d.leadDelegateId
-				? (usersLens.get(d.leadDelegateId) ?? null)
-				: null,
-			organisers: d.organiserIds
-				.map((id) => usersLens.get(id))
-				.filter((u): u is UserUI => Boolean(u)),
-			phases: phasesForUI,
-			currentPhaseIdx: currentPhaseIdx >= 0 ? currentPhaseIdx : 0,
-			progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
-			compSheet: d.compSheet ?? null,
-			tasks,
-			createdAt: toISO(d._creationTime),
-			updatedAt: toISO(d.updatedAt),
-		};
+		return buildCompetitionUI(d, usersLens, phases, tasks, updateDocs);
 	},
 });
 
@@ -403,13 +382,7 @@ export const create = mutation({
 
 		const now = Date.now();
 
-		const phases: Doc<"phases">[] = await ctx.db
-			.query("phases")
-			.withIndex("by_order")
-			.order("asc")
-			.collect();
-		const orderedPhases = phases.filter((p) => !p.archived);
-		const defaultPhaseId = orderedPhases[0]?._id;
+		const { defaultPhaseId } = await loadActivePhases(ctx);
 
 		const competitionId = await ctx.db.insert("competitions", {
 			name: args.name,
@@ -516,51 +489,6 @@ async function loadPhaseName(
 	return phase?.name ?? "Unknown";
 }
 
-function collectPhaseChangeRecipientIds(
-	competition: Doc<"competitions">,
-	actorId: Id<"users">,
-): Id<"users">[] {
-	const recipients = new Set<Id<"users">>();
-	if (competition.compLeadId) recipients.add(competition.compLeadId);
-	if (competition.leadDelegateId) recipients.add(competition.leadDelegateId);
-	for (const organiserId of competition.organiserIds) {
-		recipients.add(organiserId);
-	}
-	recipients.delete(actorId);
-	return [...recipients];
-}
-
-async function notifyPhaseChangeRecipients(
-	ctx: MutationCtx,
-	args: {
-		competition: Doc<"competitions">;
-		competitionId: Id<"competitions">;
-		actorId: Id<"users">;
-		oldPhaseName: string;
-		newPhaseName: string;
-	},
-): Promise<void> {
-	const recipientIds = collectPhaseChangeRecipientIds(
-		args.competition,
-		args.actorId,
-	);
-	if (recipientIds.length === 0) {
-		return;
-	}
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyCompetitionPhaseChanged,
-		{
-			competitionId: args.competitionId,
-			recipientIds: recipientIds,
-			actorId: args.actorId,
-			oldPhaseName: args.oldPhaseName,
-			newPhaseName: args.newPhaseName,
-			eventKey: `${args.competitionId}:${args.oldPhaseName}:${args.newPhaseName}:${Date.now()}`,
-		},
-	);
-}
-
 async function promoteBacklogTasksInPhase(
 	ctx: MutationCtx,
 	competitionId: Id<"competitions">,
@@ -651,7 +579,7 @@ export const update = mutation({
 				message: `${oldPhaseName} -> ${newPhaseName}`,
 			},
 		);
-		await notifyPhaseChangeRecipients(ctx, {
+		await sendCompetitionPhaseChangeNotifications(ctx, {
 			competition: doc,
 			competitionId: args.competitionId,
 			actorId: userId,

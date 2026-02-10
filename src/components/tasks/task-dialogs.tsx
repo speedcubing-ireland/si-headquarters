@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	Command,
 	CommandEmpty,
@@ -15,6 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { useUsers, useTeams, useTasks } from "@/hooks/use-convex-data";
 import type { Task, Team, User } from "@/data/types-new";
+
+type CompetitionId = Extract<
+	NonNullable<Task["parent"]>,
+	{ type: "competition" }
+>["linkedId"];
 
 export function AddApproverDialog({
 	open,
@@ -132,8 +137,55 @@ export function AddBlockingTaskDialog({
 	const existingBlockingTaskIds = new Set(
 		task.blockedBy.map((relation) => relation.task.id),
 	);
-	const currentCompetitionId =
-		task.parent?.type === "competition" ? task.parent.linkedId : null;
+	const competitionIdByTaskId = useMemo(() => {
+		const taskById = new Map<Task["id"], Task>(
+			tasks.map((item) => [item.id, item]),
+		);
+		taskById.set(task.id, task);
+		const cache = new Map<Task["id"], CompetitionId | null>();
+
+		const resolveCompetitionId = (
+			taskId: Task["id"],
+			visited: Set<Task["id"]>,
+		): CompetitionId | null => {
+			const cached = cache.get(taskId);
+			if (cached !== undefined) {
+				return cached;
+			}
+
+			if (visited.has(taskId)) {
+				cache.set(taskId, null);
+				return null;
+			}
+			visited.add(taskId);
+
+			const currentTask = taskById.get(taskId);
+			if (!currentTask?.parent) {
+				cache.set(taskId, null);
+				return null;
+			}
+
+			if (currentTask.parent.type === "competition") {
+				cache.set(taskId, currentTask.parent.linkedId);
+				return currentTask.parent.linkedId;
+			}
+
+			const resolved = resolveCompetitionId(
+				currentTask.parent.linkedId,
+				visited,
+			);
+			cache.set(taskId, resolved);
+			return resolved;
+		};
+
+		for (const taskId of taskById.keys()) {
+			resolveCompetitionId(taskId, new Set<Task["id"]>());
+		}
+
+		return cache;
+	}, [tasks, task]);
+	const currentCompetitionId = competitionIdByTaskId.get(task.id) ?? null;
+	const normalizedSearch = search.toLowerCase();
 	const filteredTasks = tasks.filter((candidate) => {
 		if (candidate.id === task.id) {
 			return false;
@@ -142,15 +194,13 @@ export function AddBlockingTaskDialog({
 			return false;
 		}
 		const candidateCompetitionId =
-			candidate.parent?.type === "competition"
-				? candidate.parent.linkedId
-				: null;
+			competitionIdByTaskId.get(candidate.id) ?? null;
 		if (candidateCompetitionId !== currentCompetitionId) {
 			return false;
 		}
 		const candidateText =
 			`${candidate.identifier} ${candidate.title}`.toLowerCase();
-		return candidateText.includes(search.toLowerCase());
+		return candidateText.includes(normalizedSearch);
 	});
 
 	return (

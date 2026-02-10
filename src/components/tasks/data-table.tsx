@@ -42,7 +42,7 @@ export function TasksDataTable({
 	skipClientFiltering = false,
 }: TasksDataTableProps) {
 	const filterState = useMemo(
-		() => ({ filters, matchMode }),
+		() => ({ ...filters, matchMode }),
 		[filters, matchMode],
 	);
 
