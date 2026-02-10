@@ -11,7 +11,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -43,6 +42,11 @@ const EVENT_SHORTHAND: Record<string, string> = {
 
 function eventDisplayName(name: string): string {
 	return EVENT_SHORTHAND[name] ?? name;
+}
+
+function parseRoundCount(rounds: string): number {
+	const n = Number.parseInt(rounds, 10);
+	return Number.isNaN(n) ? 0 : n;
 }
 
 type CompWithSheet = {
@@ -167,11 +171,16 @@ function EventsPage() {
 					};
 				}
 				const eventRounds = new Map<string, string>();
-				for (const e of result.events) eventRounds.set(e.eventName, e.rounds);
+				let totalRounds = 0;
+				for (const e of result.events) {
+					eventRounds.set(e.eventName, e.rounds);
+					totalRounds += parseRoundCount(e.rounds);
+				}
 				return {
 					competitionId: comp.id,
 					competitionName: comp.name,
 					eventRounds,
+					totalRounds,
 				};
 			})
 			.filter((row): row is NonNullable<typeof row> => row !== null);
@@ -233,7 +242,7 @@ function EventsPage() {
 					Refresh
 				</Button>
 			</header>
-			<ScrollArea className="flex-1">
+			<div className="flex-1 overflow-y-auto">
 				<div className="w-full px-4 py-4 lg:px-6 lg:py-6">
 					{loading && (
 						<p className="text-sm text-muted-foreground">Loading events…</p>
@@ -244,41 +253,54 @@ function EventsPage() {
 						</p>
 					)}
 					{!loading && competitionRows.length > 0 && (
-						<div className="w-full overflow-auto rounded-md border">
-							<Table>
+						<div className="w-full overflow-x-auto rounded-md border">
+							<Table className="text-xs">
 								<TableHeader>
 									<TableRow>
-										<TableHead className="min-w-48 font-semibold">
+										<TableHead className="sticky left-0 z-10 min-w-36 bg-background px-2 py-1.5 font-semibold">
 											Competition
 										</TableHead>
 										{eventColumns.map((eventName) => (
 											<TableHead
 												key={eventName}
-												className="min-w-16 text-center font-medium"
+												className="px-1.5 py-1.5 text-center font-medium whitespace-nowrap"
 											>
 												{eventDisplayName(eventName)}
 											</TableHead>
 										))}
+										<TableHead className="sticky right-0 z-10 bg-background px-2 py-1.5 text-center font-semibold">
+											Total
+										</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
 									{competitionRows.map((row) => (
 										<TableRow key={row.competitionId}>
-											<TableCell className="font-medium">
+											<TableCell className="sticky left-0 z-10 bg-background px-2 py-1.5 font-medium">
 												{row.error
 													? `${row.competitionName} (${row.error})`
 													: row.competitionName}
 											</TableCell>
-											{eventColumns.map((eventName) => (
-												<TableCell
-													key={eventName}
-													className="text-center text-muted-foreground"
-												>
-													{row.error
-														? "—"
-														: (row.eventRounds.get(eventName) ?? "—")}
-												</TableCell>
-											))}
+											{eventColumns.map((eventName) => {
+												const value = row.error
+													? "—"
+													: (row.eventRounds.get(eventName) ?? "—");
+												return (
+													<TableCell
+														key={eventName}
+														className={`px-1.5 py-1.5 text-center ${
+															value === "—"
+																? "text-muted-foreground/40"
+																: "text-foreground"
+														}`}
+													>
+														{value}
+													</TableCell>
+												);
+											})}
+											<TableCell className="sticky right-0 z-10 bg-background px-2 py-1.5 text-center font-semibold tabular-nums">
+												{row.error ? "—" : row.totalRounds}
+											</TableCell>
 										</TableRow>
 									))}
 								</TableBody>
@@ -286,7 +308,7 @@ function EventsPage() {
 						</div>
 					)}
 				</div>
-			</ScrollArea>
+			</div>
 		</div>
 	);
 }
