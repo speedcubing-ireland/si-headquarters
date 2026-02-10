@@ -91,7 +91,7 @@ export function useCompetitionMutations() {
 							: undefined,
 					compSheet:
 						updates.compSheet !== undefined
-							? (updates.compSheet ?? undefined)
+							? (updates.compSheet ?? null)
 							: undefined,
 				}),
 			}),

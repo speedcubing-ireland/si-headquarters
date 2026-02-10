@@ -40,6 +40,10 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 		[globalPhases],
 	);
 
+	// Keep a ref so initialValues doesn't recompute when phases load async
+	const basePhasesRef = useRef(getBasePhases);
+	basePhasesRef.current = getBasePhases;
+
 	const initialValues = useMemo(() => {
 		if (!open) return null;
 		return {
@@ -52,11 +56,12 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 			compLead: null as User | null,
 			leadDelegate: null as User | null,
 			organisers: [] as User[],
-			phases: getBasePhases,
+			phases: basePhasesRef.current,
 			currentPhaseIdx: 0,
 			compSheet: "",
 		};
-	}, [open, getBasePhases]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open]);
 
 	const [showTemplateSelector, setShowTemplateSelector] = useState(
 		initialValues?.showTemplateSelector ?? false,
@@ -112,6 +117,15 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 			prevInitialValuesRef.current = initialValues;
 		}
 	}, [initialValues]);
+
+	// Sync phases when they load from the server, without resetting the form
+	const prevBasePhasesRef = useRef(getBasePhases);
+	useEffect(() => {
+		if (open && getBasePhases !== prevBasePhasesRef.current) {
+			prevBasePhasesRef.current = getBasePhases;
+			setPhases(getBasePhases as CompetitionPhase[]);
+		}
+	}, [open, getBasePhases]);
 
 	const compLeadOptions = useMemo(
 		() => getRoleSelectUsers(competitionsTeam, compLead),
