@@ -23,8 +23,6 @@ import {
 	taskStatusOrder,
 } from "@/lib/task-filter-definitions";
 
-
-
 export const statusIconColors: Record<TaskStatus, string> = {
 	backlog: "text-muted-foreground/60",
 	"to-do": "text-muted-foreground",
@@ -33,8 +31,6 @@ export const statusIconColors: Record<TaskStatus, string> = {
 	done: "text-green-500",
 	cancelled: "text-red-500",
 };
-
-
 
 export function isUserRequiredApprover(task: Task, userId: string): boolean {
 	for (const approver of task.requiredApprovalBy) {

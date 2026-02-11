@@ -215,7 +215,8 @@ describe("notifications behavior characterization", () => {
 			{},
 		);
 		const row = preferences.find(
-			(pref: { type: string; channel: string }) => pref.type === "task_assigned" && pref.channel === "in_app",
+			(pref: { type: string; channel: string }) =>
+				pref.type === "task_assigned" && pref.channel === "in_app",
 		);
 
 		expect(row).toBeDefined();

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-
 const EVENT_NAME_TO_ID: Record<string, string> = {
 	"3x3": "333",
 	"2x2": "222",
@@ -21,33 +20,27 @@ const EVENT_NAME_TO_ID: Record<string, string> = {
 	"3x3 multi-blind": "333mbf",
 };
 
-
-
 const STANDARD_OTHER_ACTIVITIES: Record<string, string> = {
-	
 	registration: "other-registration",
 	"registration opens": "other-registration",
 	"registration open": "other-registration",
 	"check in": "other-checkin",
 	"check-in": "other-checkin",
-	"checkin": "other-checkin",
+	checkin: "other-checkin",
 	"check-in opens": "other-checkin",
 	"check-in closes": "other-checkin",
 
-	
 	lunch: "other-lunch",
 	dinner: "other-dinner",
 	breakfast: "other-breakfast",
 	"coffee break": "other-misc-coffee-break",
 
-	
 	awards: "other-awards",
 	"awards ceremony": "other-awards",
 	"closing ceremony": "other-awards",
 	"opening ceremony": "other-misc-opening-ceremony",
 	ceremony: "other-misc-ceremony",
 
-	
 	"intro to competing": "other-tutorial",
 	"competitor tutorial": "other-tutorial",
 	"new competitor tutorial": "other-tutorial",
@@ -55,40 +48,35 @@ const STANDARD_OTHER_ACTIVITIES: Record<string, string> = {
 	"judges briefing": "other-tutorial",
 	"scramblers briefing": "other-tutorial",
 
-	
 	break: "other-misc-break",
-	"setup": "other-setup",
-	"teardown": "other-teardown",
+	setup: "other-setup",
+	teardown: "other-teardown",
 };
-
 
 const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"]);
 
-function getRoundFormat(eventId: string, attemptCount: number): "1" | "2" | "3" | "a" | "m" {
-	
+function getRoundFormat(
+	eventId: string,
+	attemptCount: number,
+): "1" | "2" | "3" | "a" | "m" {
 	if (eventId === "333fm") {
 		if (attemptCount >= 3) return "m";
 		if (attemptCount === 2) return "2";
 		return "3";
 	}
-	
-	
+
 	if (eventId === "333mbf") {
 		if (attemptCount >= 3) return "3";
 		if (attemptCount === 2) return "2";
 		return "3";
 	}
-	
-	
+
 	if (eventId === "333bf") return "3";
-	
-	
+
 	if (eventId === "666" || eventId === "777") return "m";
-	
-	
+
 	if (eventId === "444bf" || eventId === "555bf") return "3";
-	
-	
+
 	return "a";
 }
 
@@ -96,10 +84,7 @@ function normalizeEventName(name: string): string {
 	return name.trim().toLowerCase();
 }
 
-function eventNameToActivityCode(
-	name: string,
-	round: number,
-): string | null {
+function eventNameToActivityCode(name: string, round: number): string | null {
 	const normalized = normalizeEventName(name);
 	const id = EVENT_NAME_TO_ID[normalized];
 	if (!id) return null;
@@ -114,12 +99,10 @@ function isOtherActivity(name: string): boolean {
 function otherActivityCode(name: string): string {
 	const normalized = normalizeEventName(name);
 
-	
 	if (STANDARD_OTHER_ACTIVITIES[normalized]) {
 		return STANDARD_OTHER_ACTIVITIES[normalized];
 	}
 
-	
 	const suffix = normalized
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "")
@@ -156,73 +139,83 @@ describe("Schedule Activity Name Mapping", () => {
 			expect(isOtherActivity("3x3")).toBe(false);
 		});
 
-	it("should map Registration Opens to standard code", () => {
-		expect(otherActivityCode("Registration Opens")).toBe("other-registration");
-	});
+		it("should map Registration Opens to standard code", () => {
+			expect(otherActivityCode("Registration Opens")).toBe(
+				"other-registration",
+			);
+		});
 
-	it("should map Lunch to standard code", () => {
-		expect(otherActivityCode("LUNCH")).toBe("other-lunch");
-	});
+		it("should map Lunch to standard code", () => {
+			expect(otherActivityCode("LUNCH")).toBe("other-lunch");
+		});
 
-	it("should fall back to other-misc for lunch variants with qualifiers", () => {
-		expect(otherActivityCode("Lunch (Sat)")).toBe("other-misc-lunch-sat");
-		expect(otherActivityCode("Lunch (Sun)")).toBe("other-misc-lunch-sun");
-		expect(otherActivityCode("Lunch (Saturday)")).toBe("other-misc-lunch-saturday");
-		expect(otherActivityCode("Lunch (Sunday)")).toBe("other-misc-lunch-sunday");
-	});
+		it("should fall back to other-misc for lunch variants with qualifiers", () => {
+			expect(otherActivityCode("Lunch (Sat)")).toBe("other-misc-lunch-sat");
+			expect(otherActivityCode("Lunch (Sun)")).toBe("other-misc-lunch-sun");
+			expect(otherActivityCode("Lunch (Saturday)")).toBe(
+				"other-misc-lunch-saturday",
+			);
+			expect(otherActivityCode("Lunch (Sunday)")).toBe(
+				"other-misc-lunch-sunday",
+			);
+		});
 
-	it("should map Awards to standard code", () => {
-		expect(otherActivityCode("Awards")).toBe("other-awards");
-		expect(otherActivityCode("Awards Ceremony")).toBe("other-awards");
-	});
+		it("should map Awards to standard code", () => {
+			expect(otherActivityCode("Awards")).toBe("other-awards");
+			expect(otherActivityCode("Awards Ceremony")).toBe("other-awards");
+		});
 
-	it("should map Intro to Competing to standard code", () => {
-		expect(otherActivityCode("Intro to competing")).toBe("other-tutorial");
-	});
+		it("should map Intro to Competing to standard code", () => {
+			expect(otherActivityCode("Intro to competing")).toBe("other-tutorial");
+		});
 
-	it("should handle check-in variations", () => {
-		expect(otherActivityCode("Check-in")).toBe("other-checkin");
-		expect(otherActivityCode("Check in")).toBe("other-checkin");
-		expect(otherActivityCode("Checkin")).toBe("other-checkin");
-	});
+		it("should handle check-in variations", () => {
+			expect(otherActivityCode("Check-in")).toBe("other-checkin");
+			expect(otherActivityCode("Check in")).toBe("other-checkin");
+			expect(otherActivityCode("Checkin")).toBe("other-checkin");
+		});
 
-	it("should fall back to sanitized custom code for unknown activities", () => {
-		expect(otherActivityCode("Custom Activity")).toBe("other-misc-custom-activity");
-		expect(otherActivityCode("My Special Event")).toBe("other-misc-my-special-event");
-	});
+		it("should fall back to sanitized custom code for unknown activities", () => {
+			expect(otherActivityCode("Custom Activity")).toBe(
+				"other-misc-custom-activity",
+			);
+			expect(otherActivityCode("My Special Event")).toBe(
+				"other-misc-my-special-event",
+			);
+		});
 	});
 
 	describe("Round Format Selection", () => {
 		it("should return correct format for FMC based on attempt count", () => {
-			expect(getRoundFormat("333fm", 1)).toBe("3"); 
-			expect(getRoundFormat("333fm", 2)).toBe("2"); 
-			expect(getRoundFormat("333fm", 3)).toBe("m"); 
+			expect(getRoundFormat("333fm", 1)).toBe("3");
+			expect(getRoundFormat("333fm", 2)).toBe("2");
+			expect(getRoundFormat("333fm", 3)).toBe("m");
 		});
 
 		it("should return correct format for MBLD based on attempt count", () => {
-			expect(getRoundFormat("333mbf", 1)).toBe("3"); 
-			expect(getRoundFormat("333mbf", 2)).toBe("2"); 
-			expect(getRoundFormat("333mbf", 3)).toBe("3"); 
+			expect(getRoundFormat("333mbf", 1)).toBe("3");
+			expect(getRoundFormat("333mbf", 2)).toBe("2");
+			expect(getRoundFormat("333mbf", 3)).toBe("3");
 		});
 
 		it("should return correct format for 333bf (Bo5)", () => {
-			expect(getRoundFormat("333bf", 1)).toBe("3"); 
+			expect(getRoundFormat("333bf", 1)).toBe("3");
 		});
 
 		it("should return correct format for 6x6 and 7x7 (mo3)", () => {
-			expect(getRoundFormat("666", 1)).toBe("m"); 
-			expect(getRoundFormat("777", 1)).toBe("m"); 
+			expect(getRoundFormat("666", 1)).toBe("m");
+			expect(getRoundFormat("777", 1)).toBe("m");
 		});
 
 		it("should return correct format for big BLD events", () => {
-			expect(getRoundFormat("444bf", 1)).toBe("3"); 
-			expect(getRoundFormat("555bf", 1)).toBe("3"); 
+			expect(getRoundFormat("444bf", 1)).toBe("3");
+			expect(getRoundFormat("555bf", 1)).toBe("3");
 		});
 
 		it("should return average of 5 for regular events", () => {
-			expect(getRoundFormat("333", 1)).toBe("a"); 
-			expect(getRoundFormat("222", 1)).toBe("a"); 
-			expect(getRoundFormat("444", 1)).toBe("a"); 
+			expect(getRoundFormat("333", 1)).toBe("a");
+			expect(getRoundFormat("222", 1)).toBe("a");
+			expect(getRoundFormat("444", 1)).toBe("a");
 		});
 	});
 

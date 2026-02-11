@@ -1,6 +1,5 @@
 import type { Id } from "../_generated/dataModel";
 
-
 export function collectTaskRecipients(
 	task: {
 		assigneeId?: Id<"users">;
@@ -31,7 +30,6 @@ export function collectTaskRecipients(
 
 	return [...recipients];
 }
-
 
 export function collectCompetitionRecipients(
 	competition: {

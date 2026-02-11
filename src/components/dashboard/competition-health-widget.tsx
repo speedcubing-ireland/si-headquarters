@@ -13,8 +13,6 @@ import { useCompetitions } from "@/hooks/use-convex-data";
 import type { Competition } from "@/data/types-new";
 import { cn } from "@/lib/utils";
 
-
-
 const MAX_COMPETITIONS = 5;
 
 const STATUS_DOT_COLORS: Record<string, string> = {
@@ -28,8 +26,6 @@ const STATUS_SORT_ORDER: Record<string, number> = {
 	"at-risk": 1,
 	"on-track": 2,
 };
-
-
 
 export function getLatestUpdateStatus(
 	comp: Competition,
@@ -78,8 +74,6 @@ export function getProgressPercent(done: number, total: number): number {
 	if (total === 0) return 0;
 	return Math.round((done / total) * 100);
 }
-
-
 
 function CompetitionCard({ competition }: { competition: Competition }) {
 	const phaseName =
@@ -163,8 +157,6 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 	);
 }
 
-
-
 export function CompetitionHealthWidget() {
 	const { competitions, isLoading } = useCompetitions();
 
@@ -172,7 +164,6 @@ export function CompetitionHealthWidget() {
 		const today = new Date().toISOString().split("T")[0];
 		const active = competitions.filter((c) => c.compEnd >= today);
 
-		
 		return active.toSorted((a, b) => {
 			const aUpdate = getLatestUpdateStatus(a);
 			const bUpdate = getLatestUpdateStatus(b);

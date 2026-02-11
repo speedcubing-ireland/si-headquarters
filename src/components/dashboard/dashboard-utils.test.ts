@@ -16,13 +16,9 @@ import { getTimeGroup, groupByTime } from "./recent-updates-widget";
 import type { Task, Competition, ActivityEntry } from "@/data/types-new";
 import type { Id } from "@/convex/_generated/dataModel";
 
-
-
 const taskId = (id: string) => id as Id<"tasks">;
 const userId = (id: string) => id as Id<"users">;
 const compUpdateId = (id: string) => id as Id<"competitionUpdates">;
-
-
 
 function makeTask(overrides: Partial<Task> = {}): Task {
 	return {
@@ -74,8 +70,6 @@ function makeEntry(overrides: Partial<ActivityEntry> = {}): ActivityEntry {
 	} as ActivityEntry;
 }
 
-
-
 describe("isUserRequiredApprover", () => {
 	test("returns true for direct user match", () => {
 		const task = makeTask({
@@ -113,8 +107,6 @@ describe("isUserRequiredApprover", () => {
 		expect(isUserRequiredApprover(task, "user-1")).toBe(false);
 	});
 });
-
-
 
 describe("classifyTask", () => {
 	const userId = "user-1";
@@ -252,8 +244,6 @@ describe("classifyTask", () => {
 	});
 });
 
-
-
 describe("sortTasks", () => {
 	test("sorts by priority (urgent first)", () => {
 		const urgent = makeTask({ priority: "urgent" });
@@ -282,8 +272,6 @@ describe("sortTasks", () => {
 		expect(sortTasks(a, b)).toBe(0);
 	});
 });
-
-
 
 describe("buildFocusGroups", () => {
 	const userId = "user-1";
@@ -357,8 +345,6 @@ describe("buildFocusGroups", () => {
 	});
 });
 
-
-
 describe("getDueBadge", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -409,8 +395,6 @@ describe("getDueBadge", () => {
 	});
 });
 
-
-
 describe("getLatestUpdateStatus", () => {
 	test("returns null when no progress updates", () => {
 		const comp = makeCompetition({ progressUpdates: [] });
@@ -438,8 +422,6 @@ describe("getLatestUpdateStatus", () => {
 		expect(result).toEqual({ status: "on-track", message: "" });
 	});
 });
-
-
 
 describe("getCompetitionDaysText", () => {
 	beforeEach(() => {
@@ -492,8 +474,6 @@ describe("getCompetitionDaysText", () => {
 	});
 });
 
-
-
 describe("getTaskProgress", () => {
 	test("returns 0/0 for no tasks", () => {
 		const comp = makeCompetition({ tasks: [] });
@@ -513,8 +493,6 @@ describe("getTaskProgress", () => {
 	});
 });
 
-
-
 describe("getProgressPercent", () => {
 	test("returns 0 for 0 total", () => {
 		expect(getProgressPercent(0, 0)).toBe(0);
@@ -532,8 +510,6 @@ describe("getProgressPercent", () => {
 		expect(getProgressPercent(5, 5)).toBe(100);
 	});
 });
-
-
 
 describe("getTimeGroup", () => {
 	beforeEach(() => {
@@ -557,8 +533,6 @@ describe("getTimeGroup", () => {
 		expect(getTimeGroup("2026-02-03T10:00:00Z")).toBe("Earlier");
 	});
 });
-
-
 
 describe("groupByTime", () => {
 	beforeEach(() => {

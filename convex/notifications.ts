@@ -1335,7 +1335,6 @@ export const sendTestDigestSeries = mutation({
 			});
 		}
 
-		
 		const actorName = user?.name ?? "Test User";
 		for (const type of ["immediate", "hourly", "three_daily"] as const) {
 			await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
@@ -2006,14 +2005,16 @@ export const _sendEmailDispatchGroup = internalAction({
 					plainText: await buildNotificationEmailPlainText(emailContent),
 				});
 			} else {
-				const digestItems = payload.items.map((item: (typeof payload.items)[number]) => ({
-					title: item.title,
-					message: item.message,
-					entityType: formatEntityTypeLabel(item.entityType),
-					priority: item.priority,
-					actorName: item.actorName,
-					link: buildEntityLink(appUrl, item),
-				}));
+				const digestItems = payload.items.map(
+					(item: (typeof payload.items)[number]) => ({
+						title: item.title,
+						message: item.message,
+						entityType: formatEntityTypeLabel(item.entityType),
+						priority: item.priority,
+						actorName: item.actorName,
+						link: buildEntityLink(appUrl, item),
+					}),
+				);
 				const digestOpts = {
 					mode: payload.digestMode,
 					appUrl,

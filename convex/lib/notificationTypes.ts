@@ -14,8 +14,6 @@ import {
 } from "./validators";
 import { NOTIFICATION_DEFAULTS, NOTIFICATION_LIST_LIMITS } from "./constants";
 
-
-
 export const IN_APP_CHANNEL: NotificationChannel = "in_app";
 export const EMAIL_CHANNEL: NotificationChannel = "email";
 export const SUPPORTED_NOTIFICATION_CHANNELS: NotificationChannel[] = [
@@ -31,8 +29,6 @@ export const DEFAULT_SUBSCRIPTION_LIST_LIMIT = 100;
 export const MAX_SUBSCRIPTION_LIST_LIMIT = NOTIFICATION_LIST_LIMITS.MAX;
 export const EMAIL_DISPATCH_GROUP_CLAIM_PREFIX = "email_group_claim:";
 export const EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS = 5 * 60 * 1000;
-
-
 
 export type NotificationMetadata = Infer<typeof notificationMetadata>;
 export type NotificationType = Infer<typeof notificationType>;
@@ -62,8 +58,6 @@ export type NotificationUserSettingsResolved = {
 	quietHoursEndMin: number | undefined;
 	updatedAt: number;
 };
-
-
 
 export const notificationEntityType = v.union(
 	v.literal("task"),
@@ -159,8 +153,6 @@ export const entitySubscriptionArgs = v.union(
 		entityId: v.id("comments"),
 	}),
 );
-
-
 
 export type NotificationEntityRef =
 	| { entityType: "task"; entityId: Id<"tasks"> }

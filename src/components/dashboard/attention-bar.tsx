@@ -35,7 +35,6 @@ function useAttentionCounts(): AttentionCounts & { isLoading: boolean } {
 			const isDone = task.status === "done" || task.status === "cancelled";
 			if (isDone) continue;
 
-			
 			if (
 				task.status === "awaiting-review" &&
 				isUserRequiredApprover(task, userId) &&
@@ -44,7 +43,6 @@ function useAttentionCounts(): AttentionCounts & { isLoading: boolean } {
 				needsReview++;
 			}
 
-			
 			if (task.assignee?.id !== userId) continue;
 			if (!task.dueDate) continue;
 

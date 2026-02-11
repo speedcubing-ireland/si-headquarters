@@ -18,8 +18,6 @@ import {
 	type NotificationUserSettingsResolved,
 } from "./notificationTypes";
 
-
-
 export async function getNotificationUserSettingsDoc(
 	ctx: DbReadCtx,
 	userId: Id<"users">,
@@ -114,8 +112,6 @@ export async function upsertNotificationUserSettings(
 	});
 }
 
-
-
 export function defaultChannelEnabled(channel: NotificationChannel): boolean {
 	return channel === IN_APP_CHANNEL;
 }
@@ -165,8 +161,6 @@ export async function getNotificationPreferenceConfig(
 			: undefined,
 	};
 }
-
-
 
 export async function buildPreferenceRowsForUser(
 	ctx: Pick<QueryCtx, "db">,

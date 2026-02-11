@@ -9,8 +9,6 @@ import { ActivityItemContent } from "@/components/shared/activity-item";
 import { getEntityLink } from "@/lib/activity-utils";
 import type { ActivityEntry } from "@/data/types-new";
 
-
-
 const MAX_ITEMS = 15;
 
 const HIGH_SIGNAL_TYPES = new Set([
@@ -25,8 +23,6 @@ const HIGH_SIGNAL_TYPES = new Set([
 	"created",
 	"archived",
 ]);
-
-
 
 export type TimeGroup = "Today" | "Yesterday" | "Earlier";
 
@@ -76,8 +72,6 @@ export function groupByTime(entries: ActivityEntry[]): GroupedEntries[] {
 	return result;
 }
 
-
-
 export function RecentUpdatesWidget() {
 	const { activities, isLoading } = useRecentActivity(50);
 	const currentUser = useQuery(api.users.getCurrentUser);
@@ -88,9 +82,8 @@ export function RecentUpdatesWidget() {
 
 		return activities
 			.filter((entry) => {
-				
 				if (entry.actor.id === userId) return false;
-				
+
 				return HIGH_SIGNAL_TYPES.has(entry.type);
 			})
 			.slice(0, MAX_ITEMS);

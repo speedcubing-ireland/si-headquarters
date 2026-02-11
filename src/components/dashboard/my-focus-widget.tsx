@@ -20,8 +20,6 @@ import { emptyTasksFilters } from "@/lib/filter-types";
 import { isUserRequiredApprover } from "@/lib/task-utils";
 import { cn, onMutationError } from "@/lib/utils";
 
-
-
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
 	urgent: 0,
 	high: 1,
@@ -89,8 +87,6 @@ function isTaskPendingUserReview(task: Task, userId: string): boolean {
 	);
 }
 
-
-
 export function classifyTask(
 	task: Task,
 	userId: string,
@@ -102,13 +98,11 @@ export function classifyTask(
 
 	const isAssignedToMe = task.assignee?.id === userId;
 
-	
 	if (isAssignedToMe && task.dueDate) {
 		const due = new Date(task.dueDate);
 		if (due < today) return "overdue";
 	}
 
-	
 	if (isAssignedToMe) {
 		const unresolvedBlocks = task.blocks.filter(
 			(b) => b.status !== "done" && b.status !== "cancelled",
@@ -116,35 +110,28 @@ export function classifyTask(
 		if (unresolvedBlocks.length > 0) return "blocking";
 	}
 
-	
 	if (isTaskPendingUserReview(task, userId)) {
 		return "needs-review";
 	}
 
-	
 	if (!isAssignedToMe) return null;
 
-	
 	if (task.dueDate) {
 		const due = new Date(task.dueDate);
 		if (due <= weekFromNow) return "due-this-week";
 	}
 
-	
 	if (task.status === "in-progress") return "in-progress";
 
-	
 	if (task.status === "to-do") return "to-do";
 
 	return null;
 }
 
 export function sortTasks(a: Task, b: Task): number {
-	
 	const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
 	if (priorityDiff !== 0) return priorityDiff;
 
-	
 	if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
 	if (a.dueDate) return -1;
 	if (b.dueDate) return 1;
@@ -180,12 +167,10 @@ export function buildFocusGroups(
 		}
 	}
 
-	
 	for (const list of groups.values()) {
 		list.sort(sortTasks);
 	}
 
-	
 	const result: GroupedTasks[] = [];
 	let total = 0;
 
@@ -205,8 +190,6 @@ export function buildFocusGroups(
 
 	return result;
 }
-
-
 
 export function getDueBadge(dueDate: string | null): {
 	text: string;
@@ -251,8 +234,6 @@ export function getDueBadge(dueDate: string | null): {
 		className: "",
 	};
 }
-
-
 
 export function MyFocusWidget() {
 	const { tasks, isLoading } = useTasks(false);

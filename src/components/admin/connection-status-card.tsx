@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
+import type { FunctionReference } from "convex/server";
 import { CheckCircle2, Link2Off } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -52,13 +53,20 @@ export function ConnectionStatusCard({
 	);
 }
 
+type ConnectionStatusQuery = FunctionReference<
+	"query",
+	"public",
+	{ nowSec?: number },
+	{ connected: boolean }
+>;
+
 interface ConnectionStatusCardContainerProps {
 	title: string;
 	description: string;
 	connectedText?: string;
 	disconnectCommand: string;
 	oAuthInstructions: string;
-	query: any;
+	query: ConnectionStatusQuery;
 }
 
 export function ConnectionStatusCardContainer({

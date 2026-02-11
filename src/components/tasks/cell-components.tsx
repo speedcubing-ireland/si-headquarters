@@ -21,7 +21,7 @@ import {
 	EditableTaskStatus,
 } from "./editable-cells";
 
-const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 6; 
+const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 6;
 
 interface IdentifierCellProps {
 	identifier: string;

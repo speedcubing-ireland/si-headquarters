@@ -46,7 +46,6 @@ async function findUserIdByEmail(
 		return exactMatch._id;
 	}
 
-	
 	const users = await ctx.db.query("users").withIndex("email").collect();
 	const normalizedEmail = normalizeEmail(email);
 	const match = users.find(

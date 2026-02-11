@@ -7,7 +7,6 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-
 function getErrorMessage(error: unknown): string {
 	if (error instanceof ConvexError) {
 		const data = error.data;
@@ -21,11 +20,9 @@ function getErrorMessage(error: unknown): string {
 	return "Something went wrong";
 }
 
-
 export function onMutationError(error: unknown): void {
 	toast.error(getErrorMessage(error));
 }
-
 
 export function pickDefined<T extends Record<string, unknown>>(
 	obj: T,

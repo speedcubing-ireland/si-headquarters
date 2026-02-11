@@ -25,11 +25,11 @@ export function filterAccessibleSubtasks(
 			if (!child.parentCompetitionId) {
 				return hasStandaloneTaskAccess(child, opts.userId);
 			}
-			
+
 			if (opts.parentTaskCompetitionId !== undefined) {
 				return child.parentCompetitionId === opts.parentTaskCompetitionId;
 			}
-			
+
 			return (
 				opts.accessibleCompetitionIds?.has(child.parentCompetitionId) ?? false
 			);

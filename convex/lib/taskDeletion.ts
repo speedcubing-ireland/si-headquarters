@@ -1,7 +1,6 @@
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 
-
 export async function collectAllTaskIdsRecursively(
 	ctx: QueryCtx,
 	parentTaskIds: Id<"tasks">[],
@@ -211,7 +210,6 @@ export async function deleteCommentsAndReplies(
 	);
 	return Array.from(allCommentIds);
 }
-
 
 export async function deleteTasksAndRelatedData(
 	ctx: MutationCtx,

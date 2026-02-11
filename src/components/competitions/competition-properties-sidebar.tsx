@@ -92,7 +92,9 @@ export function CompetitionPropertiesSidebar({
 	const [sheetInput, setSheetInput] = useState("");
 	const [sheetPopoverOpen, setSheetPopoverOpen] = useState(false);
 	const [wcaSearchQuery, setWcaSearchQuery] = useState("");
-	const [wcaSearchResults, setWcaSearchResults] = useState<WcaSearchResult[]>([]);
+	const [wcaSearchResults, setWcaSearchResults] = useState<WcaSearchResult[]>(
+		[],
+	);
 	const [wcaMyComps, setWcaMyComps] = useState<WcaSearchResult[]>([]);
 	const [wcaMyCompsLoaded, setWcaMyCompsLoaded] = useState(false);
 	const [wcaSearching, setWcaSearching] = useState(false);
@@ -453,14 +455,10 @@ export function CompetitionPropertiesSidebar({
 														query: wcaSearchQuery.trim(),
 													})
 														.then((results) => {
-															setWcaSearchResults(
-																results as WcaSearchResult[],
-															);
+															setWcaSearchResults(results as WcaSearchResult[]);
 														})
 														.catch(() => {
-															toast.error(
-																"Failed to search WCA competitions",
-															);
+															toast.error("Failed to search WCA competitions");
 														})
 														.finally(() => setWcaSearching(false));
 												}
@@ -478,14 +476,10 @@ export function CompetitionPropertiesSidebar({
 														query: wcaSearchQuery.trim(),
 													})
 														.then((results) => {
-															setWcaSearchResults(
-																results as WcaSearchResult[],
-															);
+															setWcaSearchResults(results as WcaSearchResult[]);
 														})
 														.catch(() => {
-															toast.error(
-																"Failed to search WCA competitions",
-															);
+															toast.error("Failed to search WCA competitions");
 														})
 														.finally(() => setWcaSearching(false));
 												}}
@@ -511,9 +505,7 @@ export function CompetitionPropertiesSidebar({
 														!wcaSearchQuery.trim() ||
 														c.name
 															.toLowerCase()
-															.includes(
-																wcaSearchQuery.trim().toLowerCase(),
-															),
+															.includes(wcaSearchQuery.trim().toLowerCase()),
 												);
 										if (items.length === 0 && !wcaSearching) return null;
 										return (
@@ -534,9 +526,7 @@ export function CompetitionPropertiesSidebar({
 																	setWcaSearchQuery("");
 																	setWcaSearchResults([]);
 																	setWcaSearchAll(false);
-																	toast.success(
-																		`Linked to ${result.name}`,
-																	);
+																	toast.success(`Linked to ${result.name}`);
 																})
 																.catch(onMutationError)
 																.finally(() => setWcaLinking(null));

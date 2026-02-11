@@ -40,7 +40,6 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 		[globalPhases],
 	);
 
-	
 	const basePhasesRef = useRef(getBasePhases);
 	basePhasesRef.current = getBasePhases;
 
@@ -60,7 +59,6 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 			currentPhaseIdx: 0,
 			compSheet: "",
 		};
-		
 	}, [open]);
 
 	const [showTemplateSelector, setShowTemplateSelector] = useState(
@@ -118,7 +116,6 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 		}
 	}, [initialValues]);
 
-	
 	const prevBasePhasesRef = useRef(getBasePhases);
 	useEffect(() => {
 		if (open && getBasePhases !== prevBasePhasesRef.current) {

@@ -194,7 +194,7 @@ function buildActivities(
 			endDate.getHours(),
 			endDate.getMinutes(),
 		);
-		const roundNum = Number.parseInt(row.round) || 1;
+		const roundNum = Number.parseInt(row.round, 10) || 1;
 		const isEvent = !isOtherActivity(row.event);
 		const activityCode = isEvent
 			? (eventNameToActivityCode(row.event, roundNum) ??
@@ -477,7 +477,7 @@ export const pushScheduleToWca = action({
 
 		if (!existingVenue) {
 			const compInfoRes = await fetch(
-				`${WCA_API}/competitions/${encodeURIComponent(comp.wcaCompetitionId!)}`,
+				`${WCA_API}/competitions/${encodeURIComponent(comp.wcaCompetitionId)}`,
 				{ headers: { Authorization: `Bearer ${wcaToken}` } },
 			);
 			if (compInfoRes.ok) {
@@ -537,11 +537,11 @@ export const pushScheduleToWca = action({
 				eventAttemptCounts.set(eventId, currentCount + 1);
 				if (!eventRoundsMap.has(eventId))
 					eventRoundsMap.set(eventId, new Set());
-				eventRoundsMap.get(eventId)!.add(1);
+				eventRoundsMap.get(eventId)?.add(1);
 			} else {
 				if (!eventRoundsMap.has(eventId))
 					eventRoundsMap.set(eventId, new Set());
-				eventRoundsMap.get(eventId)!.add(Number(roundStr));
+				eventRoundsMap.get(eventId)?.add(Number(roundStr));
 			}
 		}
 
