@@ -2,13 +2,20 @@
 
 import {
 	CalendarDays,
+	CalendarSync,
 	Circle,
 	ExternalLink,
 	FileSpreadsheet,
+	Globe,
+	Loader2,
 	MoreHorizontal,
+	Search,
 	Users,
 } from "lucide-react";
+import { useAction } from "convex/react";
 import { useCallback, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 
 function parseGoogleSheetId(input: string): string | null {
 	const trimmed = input.trim();
@@ -61,6 +68,16 @@ interface CompetitionPropertiesSidebarProps {
 	showMobileTrigger?: boolean;
 }
 
+type WcaSearchResult = {
+	id: string;
+	name: string;
+	city: string;
+	country_iso2: string;
+	start_date: string;
+	end_date: string;
+	event_ids: string[];
+};
+
 export function CompetitionPropertiesSidebar({
 	competition,
 	tasks,
@@ -74,6 +91,18 @@ export function CompetitionPropertiesSidebar({
 	const [dateOpen, setDateOpen] = useState(false);
 	const [sheetInput, setSheetInput] = useState("");
 	const [sheetPopoverOpen, setSheetPopoverOpen] = useState(false);
+	const [wcaSearchQuery, setWcaSearchQuery] = useState("");
+	const [wcaSearchResults, setWcaSearchResults] = useState<WcaSearchResult[]>([]);
+	const [wcaMyComps, setWcaMyComps] = useState<WcaSearchResult[]>([]);
+	const [wcaMyCompsLoaded, setWcaMyCompsLoaded] = useState(false);
+	const [wcaSearching, setWcaSearching] = useState(false);
+	const [wcaPopoverOpen, setWcaPopoverOpen] = useState(false);
+	const [wcaLinking, setWcaLinking] = useState<string | null>(null);
+	const [wcaSearchAll, setWcaSearchAll] = useState(false);
+	const [wcaPushing, setWcaPushing] = useState(false);
+	const searchWcaCompetitions = useAction(api.wca.searchCompetitions);
+	const fetchMyWcaCompetitions = useAction(api.wca.fetchMyCompetitions);
+	const pushScheduleToWca = useAction(api.wcaSchedule.pushScheduleToWca);
 
 	const totalTasks = tasks.length;
 	const completedTasks = tasks.filter((task) => task.status === "done").length;
@@ -265,6 +294,278 @@ export function CompetitionPropertiesSidebar({
 											Add
 										</Button>
 									</div>
+								</PopoverContent>
+							</Popover>
+						)}
+					</div>
+
+					<div className="flex min-h-9 flex-col gap-2 px-3 -mx-3">
+						{competition.wcaCompetitionId ? (
+							<div className="flex items-center gap-1">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 min-w-0 flex-1 justify-start gap-1.5 px-2 font-normal"
+									asChild
+								>
+									<a
+										href={`https://www.worldcubeassociation.org/competitions/${competition.wcaCompetitionId}`}
+										target="_blank"
+										rel="noreferrer"
+									>
+										<Globe className="size-3.5 shrink-0 text-blue-600" />
+										<span className="truncate">Open on WCA</span>
+										<ExternalLink className="size-3 shrink-0 text-muted-foreground" />
+									</a>
+								</Button>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7 shrink-0"
+										>
+											<MoreHorizontal className="size-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end" className="w-56">
+										<DropdownMenuItem asChild>
+											<a
+												href={`https://www.worldcubeassociation.org/competitions/${competition.wcaCompetitionId}`}
+												target="_blank"
+												rel="noreferrer"
+											>
+												<ExternalLink className="size-4" />
+												Open
+											</a>
+										</DropdownMenuItem>
+										{competition.compSheet && (
+											<DropdownMenuItem
+												disabled={wcaPushing}
+												onClick={() => {
+													setWcaPushing(true);
+													void pushScheduleToWca({
+														competitionId: competition.id,
+													})
+														.then((result) => {
+															if (result.success) {
+																toast.success(
+																	`Schedule pushed to WCA (${result.activitiesCreated} activities)`,
+																);
+															} else {
+																toast.error(
+																	result.error ?? "Failed to push schedule",
+																);
+															}
+														})
+														.catch(() => {
+															toast.error("Failed to push schedule to WCA");
+														})
+														.finally(() => setWcaPushing(false));
+												}}
+											>
+												{wcaPushing ? (
+													<Loader2 className="size-4 animate-spin" />
+												) : (
+													<CalendarSync className="size-4" />
+												)}
+												Push schedule to WCA
+											</DropdownMenuItem>
+										)}
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											variant="destructive"
+											onClick={() => {
+												void updateCompetition(competition.id, {
+													wcaCompetitionId: null,
+												}).catch(onMutationError);
+											}}
+										>
+											Remove
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						) : (
+							<Popover
+								open={wcaPopoverOpen}
+								onOpenChange={(open: boolean) => {
+									setWcaPopoverOpen(open);
+									if (open && !wcaMyCompsLoaded) {
+										setWcaSearching(true);
+										void fetchMyWcaCompetitions({})
+											.then((results) => {
+												setWcaMyComps(results as WcaSearchResult[]);
+												setWcaMyCompsLoaded(true);
+											})
+											.catch(() => {
+												toast.error("Failed to load your WCA competitions");
+											})
+											.finally(() => setWcaSearching(false));
+									}
+									if (!open) {
+										setWcaSearchQuery("");
+										setWcaSearchResults([]);
+										setWcaSearchAll(false);
+									}
+								}}
+							>
+								<PopoverTrigger asChild>
+									<Button variant="outline" size="sm" className="h-7">
+										<Globe className="size-3.5 text-blue-600" />
+										Link to WCA
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent
+									align="end"
+									className="w-[min(22rem,calc(100vw-1rem))] p-3"
+									sideOffset={6}
+								>
+									<PopoverHeader className="p-0 pb-2">
+										<PopoverTitle className="text-xs font-medium">
+											{wcaSearchAll
+												? "Search all WCA competitions"
+												: "My WCA competitions"}
+										</PopoverTitle>
+									</PopoverHeader>
+									<div className="flex gap-2">
+										<Input
+											placeholder={
+												wcaSearchAll
+													? "Search all competitions..."
+													: "Filter my competitions..."
+											}
+											value={wcaSearchQuery}
+											onChange={(e) => {
+												setWcaSearchQuery(e.target.value);
+												if (!wcaSearchAll) {
+													setWcaSearchResults([]);
+												}
+											}}
+											onKeyDown={(e) => {
+												if (
+													e.key === "Enter" &&
+													wcaSearchAll &&
+													wcaSearchQuery.trim()
+												) {
+													setWcaSearching(true);
+													void searchWcaCompetitions({
+														query: wcaSearchQuery.trim(),
+													})
+														.then((results) => {
+															setWcaSearchResults(
+																results as WcaSearchResult[],
+															);
+														})
+														.catch(() => {
+															toast.error(
+																"Failed to search WCA competitions",
+															);
+														})
+														.finally(() => setWcaSearching(false));
+												}
+											}}
+											className="h-8 flex-1 text-sm"
+										/>
+										{wcaSearchAll && (
+											<Button
+												size="sm"
+												className="h-8 shrink-0"
+												disabled={!wcaSearchQuery.trim() || wcaSearching}
+												onClick={() => {
+													setWcaSearching(true);
+													void searchWcaCompetitions({
+														query: wcaSearchQuery.trim(),
+													})
+														.then((results) => {
+															setWcaSearchResults(
+																results as WcaSearchResult[],
+															);
+														})
+														.catch(() => {
+															toast.error(
+																"Failed to search WCA competitions",
+															);
+														})
+														.finally(() => setWcaSearching(false));
+												}}
+											>
+												{wcaSearching ? (
+													<Loader2 className="size-3.5 animate-spin" />
+												) : (
+													<Search className="size-3.5" />
+												)}
+											</Button>
+										)}
+									</div>
+									{wcaSearching && !wcaMyCompsLoaded && (
+										<div className="mt-3 flex items-center justify-center">
+											<Loader2 className="size-4 animate-spin text-muted-foreground" />
+										</div>
+									)}
+									{(() => {
+										const items = wcaSearchAll
+											? wcaSearchResults
+											: wcaMyComps.filter(
+													(c) =>
+														!wcaSearchQuery.trim() ||
+														c.name
+															.toLowerCase()
+															.includes(
+																wcaSearchQuery.trim().toLowerCase(),
+															),
+												);
+										if (items.length === 0 && !wcaSearching) return null;
+										return (
+											<div className="mt-2 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
+												{items.map((result) => (
+													<button
+														type="button"
+														key={result.id}
+														disabled={wcaLinking === result.id}
+														className="flex flex-col gap-0.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+														onClick={() => {
+															setWcaLinking(result.id);
+															void updateCompetition(competition.id, {
+																wcaCompetitionId: result.id,
+															})
+																.then(() => {
+																	setWcaPopoverOpen(false);
+																	setWcaSearchQuery("");
+																	setWcaSearchResults([]);
+																	setWcaSearchAll(false);
+																	toast.success(
+																		`Linked to ${result.name}`,
+																	);
+																})
+																.catch(onMutationError)
+																.finally(() => setWcaLinking(null));
+														}}
+													>
+														<span className="font-medium leading-tight">
+															{result.name}
+														</span>
+														<span className="text-xs text-muted-foreground">
+															{result.city} · {result.start_date}
+														</span>
+													</button>
+												))}
+											</div>
+										);
+									})()}
+									<button
+										type="button"
+										className="mt-2 text-xs text-muted-foreground hover:text-foreground"
+										onClick={() => {
+											setWcaSearchAll(!wcaSearchAll);
+											setWcaSearchQuery("");
+											setWcaSearchResults([]);
+										}}
+									>
+										{wcaSearchAll
+											? "← Back to my competitions"
+											: "Search all competitions →"}
+									</button>
 								</PopoverContent>
 							</Popover>
 						)}

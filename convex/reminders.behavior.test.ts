@@ -82,7 +82,7 @@ describe("reminders behavior characterization", () => {
 			reminderArgs(seeded.allowedTaskId),
 		);
 		expect(reminderId).toBeDefined();
-		const reminder = await t.run((ctx) => ctx.db.get(reminderId));
+		const reminder = await t.run((ctx) => ctx.db.get("reminders", reminderId));
 		expect(reminder?.scheduledFunctionId).toBeDefined();
 	});
 
@@ -128,7 +128,7 @@ describe("reminders behavior characterization", () => {
 
 			const [reminder, notifications] = await t.run((ctx) =>
 				Promise.all([
-					ctx.db.get(reminderId),
+					ctx.db.get("reminders", reminderId),
 					ctx.db
 						.query("notifications")
 						.withIndex("by_user", (q) => q.eq("userId", seeded.allowedUserId))

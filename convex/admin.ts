@@ -46,7 +46,7 @@ async function findUserIdByEmail(
 		return exactMatch._id;
 	}
 
-	// Fallback keeps case-insensitive behavior if historic rows used non-normalized email casing.
+	
 	const users = await ctx.db.query("users").withIndex("email").collect();
 	const normalizedEmail = normalizeEmail(email);
 	const match = users.find(

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Bell, ExternalLink, PanelRight } from "lucide-react";
+import { ArrowLeft, Bell, ExternalLink, Globe, PanelRight } from "lucide-react";
 import { useState } from "react";
 import { CompetitionDetails } from "@/components/competitions/competition-details";
 import { CompetitionLatestUpdate } from "@/components/competitions/competition-latest-update";
@@ -109,6 +109,18 @@ function CompetitionHeader({
 						<Button variant="ghost" size="sm" className="gap-1">
 							<ExternalLink className="size-4" />
 							<span className="hidden sm:inline">Sheet</span>
+						</Button>
+					</a>
+				)}
+				{competition.wcaCompetitionId && (
+					<a
+						href={`https://www.worldcubeassociation.org/competitions/${competition.wcaCompetitionId}`}
+						target="_blank"
+						rel="noreferrer"
+					>
+						<Button variant="ghost" size="sm" className="gap-1">
+							<Globe className="size-4" />
+							<span className="hidden sm:inline">WCA</span>
 						</Button>
 					</a>
 				)}

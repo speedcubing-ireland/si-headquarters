@@ -19,7 +19,7 @@ export function PropertyRow({
 	return (
 		<div
 			className={cn(
-				"flex min-h-9 min-w-0 items-start justify-between gap-3 px-3 -mx-3",
+				"flex min-h-9 min-w-0 items-center justify-between gap-3 px-3 -mx-3",
 				className,
 			)}
 		>
@@ -29,7 +29,7 @@ export function PropertyRow({
 					{label}
 				</span>
 			</div>
-			<div className="flex min-w-0 flex-1 items-start justify-end gap-2 text-right [&>*]:min-w-0 [&>*]:max-w-full [&>*]:whitespace-normal [&>*]:break-words">
+			<div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right [&>*]:min-w-0 [&>*]:max-w-full [&>*]:whitespace-normal [&>*]:break-words">
 				{children}
 			</div>
 		</div>

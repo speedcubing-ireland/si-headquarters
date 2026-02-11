@@ -13,7 +13,7 @@ import { useCompetitions } from "@/hooks/use-convex-data";
 import type { Competition } from "@/data/types-new";
 import { cn } from "@/lib/utils";
 
-// ── Constants ────────────────────────────────────────────────────────────────
+
 
 const MAX_COMPETITIONS = 5;
 
@@ -29,7 +29,7 @@ const STATUS_SORT_ORDER: Record<string, number> = {
 	"on-track": 2,
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 export function getLatestUpdateStatus(
 	comp: Competition,
@@ -79,7 +79,7 @@ export function getProgressPercent(done: number, total: number): number {
 	return Math.round((done / total) * 100);
 }
 
-// ── Components ───────────────────────────────────────────────────────────────
+
 
 function CompetitionCard({ competition }: { competition: Competition }) {
 	const phaseName =
@@ -98,7 +98,6 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 			params={{ id: competition.id }}
 			className="block rounded-lg border p-3 transition-colors hover:bg-muted/50"
 		>
-			{/* Row 1: Phase + Name + Days */}
 			<div className="flex items-center gap-2">
 				<Badge variant="outline" className="shrink-0 text-[10px]">
 					{phaseName}
@@ -110,8 +109,6 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 					{daysText}
 				</span>
 			</div>
-
-			{/* Row 2: Lead + Progress */}
 			<div className="mt-2 flex items-center gap-3">
 				{competition.compLead && (
 					<div className="flex shrink-0 items-center gap-1.5">
@@ -143,8 +140,6 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 					</div>
 				)}
 			</div>
-
-			{/* Row 3: Latest status update */}
 			<div className="mt-1.5">
 				{latestUpdate ? (
 					<div className="flex items-center gap-1.5">
@@ -168,7 +163,7 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 	);
 }
 
-// ── Main Widget ──────────────────────────────────────────────────────────────
+
 
 export function CompetitionHealthWidget() {
 	const { competitions, isLoading } = useCompetitions();
@@ -177,7 +172,7 @@ export function CompetitionHealthWidget() {
 		const today = new Date().toISOString().split("T")[0];
 		const active = competitions.filter((c) => c.compEnd >= today);
 
-		// Sort: off-track first, then at-risk, then by start date proximity
+		
 		return active.toSorted((a, b) => {
 			const aUpdate = getLatestUpdateStatus(a);
 			const bUpdate = getLatestUpdateStatus(b);

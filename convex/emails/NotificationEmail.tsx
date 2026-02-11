@@ -55,7 +55,6 @@ export default function NotificationEmail(props: NotificationEmailProps) {
 				<Preview>{props.message}</Preview>
 				<Body className="bg-brand-bg font-sans py-10">
 					<Container className="mx-auto max-w-xl">
-						{/* Header bar */}
 						<Section className="bg-brand-primary rounded-t-lg py-5 px-6">
 							<Row>
 								<Column>
@@ -70,10 +69,7 @@ export default function NotificationEmail(props: NotificationEmailProps) {
 								</Column>
 							</Row>
 						</Section>
-
-						{/* Main content card */}
 						<Section className="bg-brand-surface border-solid border-brand-border border-t-0 border-r border-b border-l px-6 py-6">
-							{/* Title + priority badge */}
 							<Row>
 								<Column>
 									<Heading
@@ -93,22 +89,15 @@ export default function NotificationEmail(props: NotificationEmailProps) {
 									</Column>
 								)}
 							</Row>
-
-							{/* Actor line */}
 							{props.actorName && (
 								<Text className="text-brand-muted text-xs m-0 mt-1 mb-3">
 									By {props.actorName}
 								</Text>
 							)}
-
 							<Hr className="border-solid border-brand-border my-4" />
-
-							{/* Message */}
 							<Text className="text-sm leading-6 text-brand-foreground my-0">
 								{props.message}
 							</Text>
-
-							{/* Optional body detail */}
 							{props.body && (
 								<Section className="bg-brand-cream rounded-lg mt-4 px-4 py-3">
 									<Text className="text-xs leading-5 text-brand-muted m-0">
@@ -116,8 +105,6 @@ export default function NotificationEmail(props: NotificationEmailProps) {
 									</Text>
 								</Section>
 							)}
-
-							{/* CTA button */}
 							<Section className="mt-6 mb-2">
 								<Button
 									href={link}
@@ -127,8 +114,6 @@ export default function NotificationEmail(props: NotificationEmailProps) {
 								</Button>
 							</Section>
 						</Section>
-
-						{/* Footer */}
 						<Section className="bg-brand-cream rounded-b-lg border-solid border-brand-border border-t-0 border-r border-b border-l px-6 py-4">
 							<Text className="text-xs text-brand-muted text-center m-0 leading-5">
 								You received this email because you opted in to email

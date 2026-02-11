@@ -7,9 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-/**
- * Extract a user-facing message from a Convex mutation error.
- */
+
 function getErrorMessage(error: unknown): string {
 	if (error instanceof ConvexError) {
 		const data = error.data;
@@ -23,14 +21,12 @@ function getErrorMessage(error: unknown): string {
 	return "Something went wrong";
 }
 
-/**
- * Show an error toast for a failed mutation. Use as `.catch(onMutationError)`.
- */
+
 export function onMutationError(error: unknown): void {
 	toast.error(getErrorMessage(error));
 }
 
-/** Build an object containing only the keys whose values are not undefined. */
+
 export function pickDefined<T extends Record<string, unknown>>(
 	obj: T,
 ): Partial<T> {

@@ -9,7 +9,7 @@ import { ActivityItemContent } from "@/components/shared/activity-item";
 import { getEntityLink } from "@/lib/activity-utils";
 import type { ActivityEntry } from "@/data/types-new";
 
-// ── Constants ────────────────────────────────────────────────────────────────
+
 
 const MAX_ITEMS = 15;
 
@@ -26,7 +26,7 @@ const HIGH_SIGNAL_TYPES = new Set([
 	"archived",
 ]);
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 export type TimeGroup = "Today" | "Yesterday" | "Earlier";
 
@@ -76,7 +76,7 @@ export function groupByTime(entries: ActivityEntry[]): GroupedEntries[] {
 	return result;
 }
 
-// ── Main Widget ──────────────────────────────────────────────────────────────
+
 
 export function RecentUpdatesWidget() {
 	const { activities, isLoading } = useRecentActivity(50);
@@ -88,9 +88,9 @@ export function RecentUpdatesWidget() {
 
 		return activities
 			.filter((entry) => {
-				// Exclude own actions
+				
 				if (entry.actor.id === userId) return false;
-				// Only high-signal activity types
+				
 				return HIGH_SIGNAL_TYPES.has(entry.type);
 			})
 			.slice(0, MAX_ITEMS);

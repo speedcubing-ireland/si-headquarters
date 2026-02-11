@@ -1,5 +1,5 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
@@ -40,6 +40,7 @@ const competitionDoc = v.object({
 	organiserIds: v.array(v.id("users")),
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(compSheetObject),
+	wcaCompetitionId: v.optional(v.string()),
 	updatedAt: v.number(),
 });
 
@@ -79,9 +80,18 @@ export const competitionForUIReturns = v.object({
 	currentPhaseIdx: v.number(),
 	progressUpdates: v.array(progressUpdateForUIReturns),
 	compSheet: v.union(compSheetObject, v.null()),
+	wcaCompetitionId: v.union(v.string(), v.null()),
 	tasks: v.array(taskSummaryShape),
 	createdAt: v.string(),
 	updatedAt: v.string(),
+});
+
+export const getInternal = internalQuery({
+	args: { id: v.id("competitions") },
+	returns: v.union(competitionDoc, v.null()),
+	handler: async (ctx, args) => {
+		return await ctx.db.get(args.id);
+	},
 });
 
 export const list = query({
@@ -220,6 +230,7 @@ function buildCompetitionUI(
 		currentPhaseIdx: currentPhaseIdx >= 0 ? currentPhaseIdx : 0,
 		progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 		compSheet: d.compSheet ?? null,
+		wcaCompetitionId: d.wcaCompetitionId ?? null,
 		tasks,
 		createdAt: toISO(d._creationTime),
 		updatedAt: toISO(d.updatedAt),
@@ -358,6 +369,7 @@ const createArgs = {
 	organiserIds: v.optional(v.array(v.id("users"))),
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(compSheetObject),
+	wcaCompetitionId: v.optional(v.string()),
 };
 
 export const create = mutation({
@@ -394,6 +406,7 @@ export const create = mutation({
 			organiserIds: args.organiserIds ?? [],
 			currentPhaseId: args.currentPhaseId ?? defaultPhaseId,
 			compSheet: args.compSheet,
+			wcaCompetitionId: args.wcaCompetitionId,
 			updatedAt: now,
 		});
 		await syncCompetitionAccessRows(
@@ -421,6 +434,7 @@ const competitionUpdateValidator = v.object({
 	organiserIds: v.optional(v.array(v.id("users"))),
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(v.union(compSheetObject, v.null())),
+	wcaCompetitionId: v.optional(v.union(v.string(), v.null())),
 });
 
 type CompetitionUpdates = {
@@ -433,6 +447,7 @@ type CompetitionUpdates = {
 	organiserIds?: Id<"users">[];
 	currentPhaseId?: Id<"phases">;
 	compSheet?: Doc<"competitions">["compSheet"] | null;
+	wcaCompetitionId?: string | null;
 };
 
 type CompetitionPatch = Partial<Doc<"competitions">> & { updatedAt: number };
@@ -460,6 +475,8 @@ function buildCompetitionPatch(updates: CompetitionUpdates): CompetitionPatch {
 		patch.currentPhaseId = updates.currentPhaseId ?? undefined;
 	if (updates.compSheet !== undefined)
 		patch.compSheet = updates.compSheet ?? undefined;
+	if (updates.wcaCompetitionId !== undefined)
+		patch.wcaCompetitionId = updates.wcaCompetitionId ?? undefined;
 	return patch;
 }
 

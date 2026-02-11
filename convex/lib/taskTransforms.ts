@@ -25,11 +25,11 @@ export function filterAccessibleSubtasks(
 			if (!child.parentCompetitionId) {
 				return hasStandaloneTaskAccess(child, opts.userId);
 			}
-			// For getForUI: check if child belongs to same competition as parent task
+			
 			if (opts.parentTaskCompetitionId !== undefined) {
 				return child.parentCompetitionId === opts.parentTaskCompetitionId;
 			}
-			// For listForUI: check if child belongs to any accessible competition
+			
 			return (
 				opts.accessibleCompetitionIds?.has(child.parentCompetitionId) ?? false
 			);

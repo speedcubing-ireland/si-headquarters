@@ -1,10 +1,7 @@
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 
-/**
- * Recursively collects all task IDs starting from a set of parent task IDs,
- * traversing parent-child relationships via `parentTaskId`.
- */
+
 export async function collectAllTaskIdsRecursively(
 	ctx: QueryCtx,
 	parentTaskIds: Id<"tasks">[],
@@ -215,10 +212,7 @@ export async function deleteCommentsAndReplies(
 	return Array.from(allCommentIds);
 }
 
-/**
- * Deletes tasks and all related data: reminders, notifications, relations,
- * activity logs, comments, and subscriptions.
- */
+
 export async function deleteTasksAndRelatedData(
 	ctx: MutationCtx,
 	taskIdArray: Id<"tasks">[],

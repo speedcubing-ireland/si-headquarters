@@ -1,4 +1,3 @@
-// Barrel re-exports — all domain hooks live in src/hooks/convex/
 
 export { usePhases } from "./convex/use-phases";
 export { useLabels, useLabelMutations } from "./convex/use-labels";

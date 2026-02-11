@@ -401,6 +401,7 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 				compSheet: compSheet
 					? { type: "google-sheet" as const, sheetId: compSheet }
 					: null,
+				wcaCompetitionId: null,
 			};
 
 			const created = await addCompetition(baseData);

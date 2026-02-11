@@ -40,7 +40,7 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 		[globalPhases],
 	);
 
-	// Keep a ref so initialValues doesn't recompute when phases load async
+	
 	const basePhasesRef = useRef(getBasePhases);
 	basePhasesRef.current = getBasePhases;
 
@@ -60,7 +60,7 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 			currentPhaseIdx: 0,
 			compSheet: "",
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		
 	}, [open]);
 
 	const [showTemplateSelector, setShowTemplateSelector] = useState(
@@ -118,7 +118,7 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 		}
 	}, [initialValues]);
 
-	// Sync phases when they load from the server, without resetting the form
+	
 	const prevBasePhasesRef = useRef(getBasePhases);
 	useEffect(() => {
 		if (open && getBasePhases !== prevBasePhasesRef.current) {

@@ -16,13 +16,13 @@ import { getTimeGroup, groupByTime } from "./recent-updates-widget";
 import type { Task, Competition, ActivityEntry } from "@/data/types-new";
 import type { Id } from "@/convex/_generated/dataModel";
 
-// ── Id Helpers ───────────────────────────────────────────────────────────────
+
 
 const taskId = (id: string) => id as Id<"tasks">;
 const userId = (id: string) => id as Id<"users">;
 const compUpdateId = (id: string) => id as Id<"competitionUpdates">;
 
-// ── Test Fixtures ────────────────────────────────────────────────────────────
+
 
 function makeTask(overrides: Partial<Task> = {}): Task {
 	return {
@@ -74,7 +74,7 @@ function makeEntry(overrides: Partial<ActivityEntry> = {}): ActivityEntry {
 	} as ActivityEntry;
 }
 
-// ── isUserRequiredApprover ───────────────────────────────────────────────────
+
 
 describe("isUserRequiredApprover", () => {
 	test("returns true for direct user match", () => {
@@ -114,7 +114,7 @@ describe("isUserRequiredApprover", () => {
 	});
 });
 
-// ── classifyTask ─────────────────────────────────────────────────────────────
+
 
 describe("classifyTask", () => {
 	const userId = "user-1";
@@ -252,7 +252,7 @@ describe("classifyTask", () => {
 	});
 });
 
-// ── sortTasks ────────────────────────────────────────────────────────────────
+
 
 describe("sortTasks", () => {
 	test("sorts by priority (urgent first)", () => {
@@ -283,7 +283,7 @@ describe("sortTasks", () => {
 	});
 });
 
-// ── buildFocusGroups ─────────────────────────────────────────────────────────
+
 
 describe("buildFocusGroups", () => {
 	const userId = "user-1";
@@ -357,7 +357,7 @@ describe("buildFocusGroups", () => {
 	});
 });
 
-// ── getDueBadge ──────────────────────────────────────────────────────────────
+
 
 describe("getDueBadge", () => {
 	beforeEach(() => {
@@ -409,7 +409,7 @@ describe("getDueBadge", () => {
 	});
 });
 
-// ── getLatestUpdateStatus ────────────────────────────────────────────────────
+
 
 describe("getLatestUpdateStatus", () => {
 	test("returns null when no progress updates", () => {
@@ -439,7 +439,7 @@ describe("getLatestUpdateStatus", () => {
 	});
 });
 
-// ── getCompetitionDaysText ───────────────────────────────────────────────────
+
 
 describe("getCompetitionDaysText", () => {
 	beforeEach(() => {
@@ -492,7 +492,7 @@ describe("getCompetitionDaysText", () => {
 	});
 });
 
-// ── getTaskProgress ──────────────────────────────────────────────────────────
+
 
 describe("getTaskProgress", () => {
 	test("returns 0/0 for no tasks", () => {
@@ -513,7 +513,7 @@ describe("getTaskProgress", () => {
 	});
 });
 
-// ── getProgressPercent ───────────────────────────────────────────────────────
+
 
 describe("getProgressPercent", () => {
 	test("returns 0 for 0 total", () => {
@@ -533,7 +533,7 @@ describe("getProgressPercent", () => {
 	});
 });
 
-// ── getTimeGroup ─────────────────────────────────────────────────────────────
+
 
 describe("getTimeGroup", () => {
 	beforeEach(() => {
@@ -558,7 +558,7 @@ describe("getTimeGroup", () => {
 	});
 });
 
-// ── groupByTime ──────────────────────────────────────────────────────────────
+
 
 describe("groupByTime", () => {
 	beforeEach(() => {

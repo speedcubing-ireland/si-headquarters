@@ -1,37 +1,11 @@
-"use node";
-
 import { action } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import type { GenericActionCtx } from "convex/server";
-import { ConvexError } from "convex/values";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { google } from "googleapis";
 import { SCHEDULE_CACHE_TTL_MS, TOKEN_VALID_BUFFER_SEC } from "./lib/constants";
-
-async function requireVolunteerAction(
-	ctx: GenericActionCtx<DataModel>,
-	cliToken?: string,
-): Promise<void> {
-	// Allow CLI access with a secret token
-	if (cliToken) {
-		const expectedToken = process.env.CLI_AUTH_TOKEN;
-		if (expectedToken && cliToken === expectedToken) {
-			return; // CLI authentication successful
-		}
-		throw new ConvexError({
-			code: "UNAUTHENTICATED",
-			message: "Invalid CLI token",
-		});
-	}
-	// Otherwise require volunteer authentication
-	const isVol = await ctx.runQuery(internal.auth.getIsVolunteer, {});
-	if (!isVol)
-		throw new ConvexError({
-			code: "FORBIDDEN",
-			message: "Volunteer access required",
-		});
-}
+import { requireVolunteerAction } from "./lib/oauth";
 
 const RANGE = "Schedule!A6:B22";
 const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";

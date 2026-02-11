@@ -1,70 +1,15 @@
-import { internalMutation, internalQuery, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { isVolunteer, requireUserId } from "./auth";
+import { isVolunteer } from "./auth";
+import { createTokenMutations } from "./lib/oauthTokens";
 
-const TOKEN_EXPIRY_BUFFER_SEC = 5 * 60;
+const tokens = createTokenMutations("googleSheetsTokens");
 
-export const setGoogleSheetsTokens = internalMutation({
-	args: {
-		accessToken: v.string(),
-		refreshToken: v.string(),
-		expiresAt: v.number(),
-	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		const now = Date.now();
-		const existing = await ctx.db.query("googleSheetsTokens").first();
-		const row = {
-			accessToken: args.accessToken,
-			refreshToken: args.refreshToken,
-			expiresAt: args.expiresAt,
-			updatedAt: now,
-		};
-		if (existing) {
-			await ctx.db.patch("googleSheetsTokens", existing._id, row);
-		} else {
-			await ctx.db.insert("googleSheetsTokens", row);
-		}
-		return null;
-	},
-});
-
-export const getGoogleSheetsToken = internalQuery({
-	args: {},
-	returns: v.union(
-		v.object({
-			accessToken: v.string(),
-			refreshToken: v.string(),
-			expiresAt: v.number(),
-		}),
-		v.null(),
-	),
-	handler: async (ctx) => {
-		const row = await ctx.db.query("googleSheetsTokens").first();
-		if (!row) return null;
-		return {
-			accessToken: row.accessToken,
-			refreshToken: row.refreshToken,
-			expiresAt: row.expiresAt,
-		};
-	},
-});
-
-export const getGoogleSheetsConnectionStatus = query({
-	args: { nowSec: v.optional(v.number()) },
-	returns: v.object({ connected: v.boolean() }),
-	handler: async (ctx, args) => {
-		await requireUserId(ctx);
-		void args.nowSec;
-		const row = await ctx.db.query("googleSheetsTokens").first();
-		const nowSec = Math.floor(Date.now() / 1000);
-		const hasUnexpiredAccessToken =
-			row != null && row.expiresAt > nowSec - TOKEN_EXPIRY_BUFFER_SEC;
-		const hasRefreshToken = row != null && row.refreshToken.trim().length > 0;
-		const connected = hasUnexpiredAccessToken || hasRefreshToken;
-		return { connected };
-	},
-});
+export const {
+	setTokens: setGoogleSheetsTokens,
+	getToken: getGoogleSheetsToken,
+	getConnectionStatus: getGoogleSheetsConnectionStatus,
+} = tokens;
 
 const scheduleEventShape = v.object({
 	eventName: v.string(),

@@ -1,13 +1,11 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { useIsDirector } from "@/hooks/use-convex-data";
-import { CheckCircle2, Loader2, Link2Off } from "lucide-react";
 import { MembersAndTeamsSection } from "@/components/admin/members-and-teams-section";
 import { LabelsSection } from "@/components/admin/labels-section";
 import { PhasesSection } from "@/components/admin/phases-section";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConnectionStatusCardContainer } from "@/components/admin/connection-status-card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -50,64 +48,22 @@ function GodModePage() {
 						<LabelsSection />
 					</div>
 				</div>
-				<GoogleSheetsSection />
+				<ConnectionStatusCardContainer
+					title="Google Sheets"
+					description="Used to read schedule data from competition sheets (Events page)."
+					disconnectCommand="bun run auth:google-sheets"
+					oAuthInstructions="Add http://localhost:3847 to Google Cloud Console → Credentials → OAuth redirect URIs."
+					query={api.sheetsQueries.getGoogleSheetsConnectionStatus}
+				/>
+				<ConnectionStatusCardContainer
+					title="WCA (World Cube Association)"
+					description="Used to search and link competitions to their WCA page."
+					disconnectCommand="bun run auth:wca"
+					oAuthInstructions="Add http://localhost:3848 to WCA → OAuth Applications → Redirect URI."
+					query={api.wcaQueries.getWcaConnectionStatus}
+				/>
 				<PhasesSection />
 			</div>
 		</div>
-	);
-}
-
-function GoogleSheetsSection() {
-	const [nowSec, setNowSec] = useState(
-		() => Math.floor(Date.now() / 60_000) * 60,
-	);
-
-	useEffect(() => {
-		const intervalId = window.setInterval(() => {
-			setNowSec(Math.floor(Date.now() / 60_000) * 60);
-		}, 30_000);
-		return () => window.clearInterval(intervalId);
-	}, []);
-
-	const connectionStatus = useQuery(
-		api.sheetsQueries.getGoogleSheetsConnectionStatus,
-		{ nowSec },
-	);
-	const connected = connectionStatus?.connected ?? false;
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle className="flex items-center gap-2">
-					{connected ? (
-						<CheckCircle2 className="size-4 text-green-600" />
-					) : (
-						<Link2Off className="size-4 text-muted-foreground" />
-					)}
-					Google Sheets
-				</CardTitle>
-				<span className="text-xs text-muted-foreground">
-					Used to read schedule data from competition sheets (Events page).
-				</span>
-			</CardHeader>
-			<CardContent className="space-y-2">
-				{connected ? (
-					<p className="text-sm text-muted-foreground">Account connected.</p>
-				) : (
-					<>
-						<p className="text-sm text-muted-foreground">
-							Link via terminal (from repo root):
-						</p>
-						<code className="block rounded bg-muted px-2 py-1.5 text-xs">
-							bun run auth:google-sheets
-						</code>
-						<p className="text-xs text-muted-foreground">
-							Add http://localhost:3847 to Google Cloud Console → Credentials →
-							OAuth redirect URIs.
-						</p>
-					</>
-				)}
-			</CardContent>
-		</Card>
 	);
 }

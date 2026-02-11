@@ -1,9 +1,6 @@
 import type { Id } from "../_generated/dataModel";
 
-/**
- * Collects task-related notification recipients (assignee + user-type owner),
- * excluding the actor and any optionally excluded user IDs.
- */
+
 export function collectTaskRecipients(
 	task: {
 		assigneeId?: Id<"users">;
@@ -35,10 +32,7 @@ export function collectTaskRecipients(
 	return [...recipients];
 }
 
-/**
- * Collects competition-related notification recipients (compLead + leadDelegate + organisers),
- * excluding the actor.
- */
+
 export function collectCompetitionRecipients(
 	competition: {
 		compLeadId?: Id<"users">;

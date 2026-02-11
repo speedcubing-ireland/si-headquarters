@@ -384,7 +384,7 @@ export const getForUI = query({
 			}
 		}
 
-		// Build relation data and entity maps in parallel
+		
 		const [relationDataByTask, maps, childTasks] = await Promise.all([
 			buildTaskRelationDataMap(ctx, [args.taskId]),
 			hydrateTaskEntities(ctx, [t]),

@@ -1,5 +1,3 @@
-"use client";
-
 import { CheckCircle2, Edit3 } from "lucide-react";
 import { useState } from "react";
 

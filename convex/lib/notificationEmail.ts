@@ -188,7 +188,7 @@ export async function patchPendingDispatches(
 	}
 }
 
-// ── Test email data ────────────────────────────────────────────────
+
 
 const demoTask = (
 	n: string,
@@ -325,7 +325,7 @@ export function buildTestEmailData(appUrl: string, actorName: string) {
 
 export const STALE_DISPATCH_THRESHOLD_MS = 10 * 60 * 1000;
 
-// ── Validators for export definitions ──────────────────────────────
+
 
 export const emailDispatchItemValidator = v.object({
 	dispatchId: v.id("notificationDispatches"),

@@ -68,7 +68,7 @@ describe("notifications behavior characterization", () => {
 			limit: 50,
 			nowMs: future + 86_400_000,
 		});
-		const ids = rows.map((row) => row.id);
+		const ids = rows.map((row: { id: string }) => row.id);
 
 		expect(ids).toContain(visibleA);
 		expect(ids).toContain(visibleB);
@@ -122,7 +122,7 @@ describe("notifications behavior characterization", () => {
 		expect(rows).toHaveLength(20);
 		expect(
 			rows.every(
-				(row) =>
+				(row: { scheduledFor?: string }) =>
 					typeof row.scheduledFor === "string" &&
 					new Date(row.scheduledFor).getTime() <= now,
 			),
@@ -215,7 +215,7 @@ describe("notifications behavior characterization", () => {
 			{},
 		);
 		const row = preferences.find(
-			(pref) => pref.type === "task_assigned" && pref.channel === "in_app",
+			(pref: { type: string; channel: string }) => pref.type === "task_assigned" && pref.channel === "in_app",
 		);
 
 		expect(row).toBeDefined();

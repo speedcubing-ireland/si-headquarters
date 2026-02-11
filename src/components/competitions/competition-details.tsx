@@ -1,5 +1,3 @@
-"use client";
-
 import { glass } from "@dicebear/collection";
 import { createAvatar } from "@dicebear/core";
 import { CalendarDays, Trash2, Users } from "lucide-react";

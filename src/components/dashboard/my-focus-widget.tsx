@@ -20,7 +20,7 @@ import { emptyTasksFilters } from "@/lib/filter-types";
 import { isUserRequiredApprover } from "@/lib/task-utils";
 import { cn, onMutationError } from "@/lib/utils";
 
-// ── Constants ────────────────────────────────────────────────────────────────
+
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
 	urgent: 0,
@@ -89,7 +89,7 @@ function isTaskPendingUserReview(task: Task, userId: string): boolean {
 	);
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 export function classifyTask(
 	task: Task,
@@ -102,13 +102,13 @@ export function classifyTask(
 
 	const isAssignedToMe = task.assignee?.id === userId;
 
-	// Overdue (assigned to me, has dueDate before today)
+	
 	if (isAssignedToMe && task.dueDate) {
 		const due = new Date(task.dueDate);
 		if (due < today) return "overdue";
 	}
 
-	// Blocking others (assigned to me, has unresolved blocks)
+	
 	if (isAssignedToMe) {
 		const unresolvedBlocks = task.blocks.filter(
 			(b) => b.status !== "done" && b.status !== "cancelled",
@@ -116,35 +116,35 @@ export function classifyTask(
 		if (unresolvedBlocks.length > 0) return "blocking";
 	}
 
-	// Needs your review (you're a required approver who hasn't approved)
+	
 	if (isTaskPendingUserReview(task, userId)) {
 		return "needs-review";
 	}
 
-	// Everything below requires assignment to me
+	
 	if (!isAssignedToMe) return null;
 
-	// Due this week
+	
 	if (task.dueDate) {
 		const due = new Date(task.dueDate);
 		if (due <= weekFromNow) return "due-this-week";
 	}
 
-	// In progress
+	
 	if (task.status === "in-progress") return "in-progress";
 
-	// To do
+	
 	if (task.status === "to-do") return "to-do";
 
 	return null;
 }
 
 export function sortTasks(a: Task, b: Task): number {
-	// Primary: priority (urgent first)
+	
 	const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
 	if (priorityDiff !== 0) return priorityDiff;
 
-	// Secondary: due date (soonest first, no date last)
+	
 	if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
 	if (a.dueDate) return -1;
 	if (b.dueDate) return 1;
@@ -180,12 +180,12 @@ export function buildFocusGroups(
 		}
 	}
 
-	// Sort tasks within each group
+	
 	for (const list of groups.values()) {
 		list.sort(sortTasks);
 	}
 
-	// Build ordered result, respecting max items
+	
 	const result: GroupedTasks[] = [];
 	let total = 0;
 
@@ -206,7 +206,7 @@ export function buildFocusGroups(
 	return result;
 }
 
-// ── Due date display ─────────────────────────────────────────────────────────
+
 
 export function getDueBadge(dueDate: string | null): {
 	text: string;
@@ -252,7 +252,7 @@ export function getDueBadge(dueDate: string | null): {
 	};
 }
 
-// ── Main Widget ──────────────────────────────────────────────────────────────
+
 
 export function MyFocusWidget() {
 	const { tasks, isLoading } = useTasks(false);

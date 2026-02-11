@@ -23,7 +23,7 @@ import {
 	taskStatusOrder,
 } from "@/lib/task-filter-definitions";
 
-// ── Shared constants ─────────────────────────────────────────────────────────
+
 
 export const statusIconColors: Record<TaskStatus, string> = {
 	backlog: "text-muted-foreground/60",
@@ -34,7 +34,7 @@ export const statusIconColors: Record<TaskStatus, string> = {
 	cancelled: "text-red-500",
 };
 
-// ── Shared helpers ───────────────────────────────────────────────────────────
+
 
 export function isUserRequiredApprover(task: Task, userId: string): boolean {
 	for (const approver of task.requiredApprovalBy) {

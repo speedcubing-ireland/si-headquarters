@@ -114,13 +114,15 @@ export default defineSchema({
 		compSheet: v.optional(
 			v.object({ type: v.literal("google-sheet"), sheetId: v.string() }),
 		),
+		wcaCompetitionId: v.optional(v.string()),
 		currentPhaseId: v.optional(v.id("phases")),
 		updatedAt: v.number(),
 	})
 		.index("by_comp_start", ["compStart"])
 		.index("by_name", ["name"])
 		.index("by_current_phase", ["currentPhaseId"])
-		.index("by_comp_sheet_id", ["compSheet.sheetId"]),
+		.index("by_comp_sheet_id", ["compSheet.sheetId"])
+		.index("by_wca_competition_id", ["wcaCompetitionId"]),
 
 	competitionAccess: defineTable({
 		competitionId: v.id("competitions"),
@@ -353,6 +355,13 @@ export default defineSchema({
 	}).index("by_sat_date", ["satDate"]),
 
 	googleSheetsTokens: defineTable({
+		accessToken: v.string(),
+		refreshToken: v.string(),
+		expiresAt: v.number(),
+		updatedAt: v.number(),
+	}),
+
+	wcaTokens: defineTable({
 		accessToken: v.string(),
 		refreshToken: v.string(),
 		expiresAt: v.number(),

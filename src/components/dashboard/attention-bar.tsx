@@ -35,7 +35,7 @@ function useAttentionCounts(): AttentionCounts & { isLoading: boolean } {
 			const isDone = task.status === "done" || task.status === "cancelled";
 			if (isDone) continue;
 
-			// Needs review: I'm a required approver and haven't approved
+			
 			if (
 				task.status === "awaiting-review" &&
 				isUserRequiredApprover(task, userId) &&
@@ -44,7 +44,7 @@ function useAttentionCounts(): AttentionCounts & { isLoading: boolean } {
 				needsReview++;
 			}
 
-			// Only count assignment-based badges for tasks assigned to me
+			
 			if (task.assignee?.id !== userId) continue;
 			if (!task.dueDate) continue;
 

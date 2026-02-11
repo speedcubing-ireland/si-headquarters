@@ -18,7 +18,7 @@ import {
 	type NotificationUserSettingsResolved,
 } from "./notificationTypes";
 
-// ── User settings resolution ───────────────────────────────────────
+
 
 export async function getNotificationUserSettingsDoc(
 	ctx: DbReadCtx,
@@ -114,7 +114,7 @@ export async function upsertNotificationUserSettings(
 	});
 }
 
-// ── Channel & preference config ────────────────────────────────────
+
 
 export function defaultChannelEnabled(channel: NotificationChannel): boolean {
 	return channel === IN_APP_CHANNEL;
@@ -166,7 +166,7 @@ export async function getNotificationPreferenceConfig(
 	};
 }
 
-// ── Preference rows & overrides ────────────────────────────────────
+
 
 export async function buildPreferenceRowsForUser(
 	ctx: Pick<QueryCtx, "db">,
