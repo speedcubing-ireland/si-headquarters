@@ -40,6 +40,7 @@ import type * as lib_notificationSubscribers from "../lib/notificationSubscriber
 import type * as lib_notificationTemplates from "../lib/notificationTemplates.js";
 import type * as lib_notificationTypes from "../lib/notificationTypes.js";
 import type * as lib_notificationViewMatchers from "../lib/notificationViewMatchers.js";
+import type * as lib_oauth from "../lib/oauth.js";
 import type * as lib_oauthTokens from "../lib/oauthTokens.js";
 import type * as lib_recipientCollection from "../lib/recipientCollection.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
@@ -113,6 +114,7 @@ declare const fullApi: ApiFromModules<{
   "lib/notificationTemplates": typeof lib_notificationTemplates;
   "lib/notificationTypes": typeof lib_notificationTypes;
   "lib/notificationViewMatchers": typeof lib_notificationViewMatchers;
+  "lib/oauth": typeof lib_oauth;
   "lib/oauthTokens": typeof lib_oauthTokens;
   "lib/recipientCollection": typeof lib_recipientCollection;
   "lib/sanitize": typeof lib_sanitize;

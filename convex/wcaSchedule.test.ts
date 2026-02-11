@@ -20,37 +20,36 @@ const EVENT_NAME_TO_ID: Record<string, string> = {
 	"3x3 multi-blind": "333mbf",
 };
 
-const STANDARD_OTHER_ACTIVITIES: Record<string, string> = {
-	registration: "other-registration",
-	"registration opens": "other-registration",
-	"registration open": "other-registration",
-	"check in": "other-checkin",
-	"check-in": "other-checkin",
-	checkin: "other-checkin",
-	"check-in opens": "other-checkin",
-	"check-in closes": "other-checkin",
+type OtherActivityDef = {
+	activityCode: string;
+	displayName: string;
+};
 
-	lunch: "other-lunch",
-	dinner: "other-dinner",
-	breakfast: "other-breakfast",
-	"coffee break": "other-misc-coffee-break",
-
-	awards: "other-awards",
-	"awards ceremony": "other-awards",
-	"closing ceremony": "other-awards",
-	"opening ceremony": "other-misc-opening-ceremony",
-	ceremony: "other-misc-ceremony",
-
-	"intro to competing": "other-tutorial",
-	"competitor tutorial": "other-tutorial",
-	"new competitor tutorial": "other-tutorial",
-	briefing: "other-tutorial",
-	"judges briefing": "other-tutorial",
-	"scramblers briefing": "other-tutorial",
-
-	break: "other-misc-break",
-	setup: "other-setup",
-	teardown: "other-teardown",
+const OTHER_ACTIVITIES: Record<string, OtherActivityDef> = {
+	"intro to competing": {
+		activityCode: "other-tutorial",
+		displayName: "Tutorial for new competitors",
+	},
+	awards: {
+		activityCode: "other-awards",
+		displayName: "Awards",
+	},
+	"registration opens": {
+		activityCode: "other-checkin",
+		displayName: "Check-in",
+	},
+	lunch: {
+		activityCode: "other-lunch",
+		displayName: "Lunch",
+	},
+	"lunch (sat)": {
+		activityCode: "other-lunch",
+		displayName: "Lunch",
+	},
+	"lunch (sun)": {
+		activityCode: "other-lunch",
+		displayName: "Lunch",
+	},
 };
 
 const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"]);
@@ -80,107 +79,92 @@ function getRoundFormat(
 	return "a";
 }
 
-function normalizeEventName(name: string): string {
+function normalize(name: string): string {
 	return name.trim().toLowerCase();
 }
 
-function eventNameToActivityCode(name: string, round: number): string | null {
-	const normalized = normalizeEventName(name);
-	const id = EVENT_NAME_TO_ID[normalized];
-	if (!id) return null;
-	return `${id}-r${round}`;
-}
+function getActivityCode(name: string, round: number): string {
+	const normalized = normalize(name);
 
-function isOtherActivity(name: string): boolean {
-	const normalized = normalizeEventName(name);
-	return !EVENT_NAME_TO_ID[normalized];
-}
-
-function otherActivityCode(name: string): string {
-	const normalized = normalizeEventName(name);
-
-	if (STANDARD_OTHER_ACTIVITIES[normalized]) {
-		return STANDARD_OTHER_ACTIVITIES[normalized];
+	const eventId = EVENT_NAME_TO_ID[normalized];
+	if (eventId) {
+		return `${eventId}-r${round}`;
 	}
 
-	const suffix = normalized
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.replace(/-+/g, "-");
-	return suffix ? `other-misc-${suffix}` : "other-misc";
+	const otherDef = OTHER_ACTIVITIES[normalized];
+	if (otherDef) {
+		return otherDef.activityCode;
+	}
+
+	throw new Error(
+		`Unknown activity: "${name}". Must be a valid event or one of: Intro to competing, Awards, Registration Opens, Lunch`,
+	);
+}
+
+function _getActivityDisplayName(name: string): string {
+	const normalized = normalize(name);
+
+	const otherDef = OTHER_ACTIVITIES[normalized];
+	if (otherDef) {
+		return otherDef.displayName;
+	}
+
+	return name;
+}
+
+function isEvent(name: string): boolean {
+	return !!EVENT_NAME_TO_ID[normalize(name)];
 }
 
 describe("Schedule Activity Name Mapping", () => {
 	describe("Event Names", () => {
 		it("should map exact event names", () => {
-			expect(eventNameToActivityCode("3x3", 1)).toBe("333-r1");
-			expect(eventNameToActivityCode("2x2", 2)).toBe("222-r2");
-			expect(eventNameToActivityCode("Pyraminx", 1)).toBe("pyram-r1");
+			expect(getActivityCode("3x3", 1)).toBe("333-r1");
+			expect(getActivityCode("2x2", 2)).toBe("222-r2");
+			expect(getActivityCode("Pyraminx", 1)).toBe("pyram-r1");
 		});
 
 		it("should be case-insensitive", () => {
-			expect(eventNameToActivityCode("3X3", 1)).toBe("333-r1");
-			expect(eventNameToActivityCode("CLOCK", 1)).toBe("clock-r1");
-			expect(eventNameToActivityCode("Square-1", 1)).toBe("sq1-r1");
-			expect(eventNameToActivityCode("3x3 One-Handed", 1)).toBe("333oh-r1");
-		});
-
-		it("should return null for non-event names", () => {
-			expect(eventNameToActivityCode("Registration Opens", 1)).toBeNull();
-			expect(eventNameToActivityCode("Lunch (Sat)", 1)).toBeNull();
+			expect(getActivityCode("3X3", 1)).toBe("333-r1");
+			expect(getActivityCode("CLOCK", 1)).toBe("clock-r1");
+			expect(getActivityCode("Square-1", 1)).toBe("sq1-r1");
+			expect(getActivityCode("3x3 One-Handed", 1)).toBe("333oh-r1");
 		});
 	});
 
 	describe("Other Activities", () => {
-		it("should identify other activities correctly", () => {
-			expect(isOtherActivity("Registration Opens")).toBe(true);
-			expect(isOtherActivity("Lunch (Sat)")).toBe(true);
-			expect(isOtherActivity("Awards")).toBe(true);
-			expect(isOtherActivity("3x3")).toBe(false);
+		it("should identify events vs other activities correctly", () => {
+			expect(isEvent("Registration Opens")).toBe(false);
+			expect(isEvent("Lunch (Sat)")).toBe(false);
+			expect(isEvent("Awards")).toBe(false);
+			expect(isEvent("3x3")).toBe(true);
 		});
 
-		it("should map Registration Opens to standard code", () => {
-			expect(otherActivityCode("Registration Opens")).toBe(
-				"other-registration",
+		it("should map Registration Opens to checkin code", () => {
+			expect(getActivityCode("Registration Opens", 1)).toBe("other-checkin");
+		});
+
+		it("should map Lunch variants to lunch code", () => {
+			expect(getActivityCode("Lunch", 1)).toBe("other-lunch");
+			expect(getActivityCode("Lunch (Sat)", 1)).toBe("other-lunch");
+			expect(getActivityCode("Lunch (Sun)", 1)).toBe("other-lunch");
+			expect(getActivityCode("LUNCH (SAT)", 1)).toBe("other-lunch");
+		});
+
+		it("should map Awards to awards code", () => {
+			expect(getActivityCode("Awards", 1)).toBe("other-awards");
+		});
+
+		it("should map Intro to Competing to tutorial code", () => {
+			expect(getActivityCode("Intro to competing", 1)).toBe("other-tutorial");
+		});
+
+		it("should throw error for unknown activities", () => {
+			expect(() => getActivityCode("Custom Activity", 1)).toThrow(
+				'Unknown activity: "Custom Activity"',
 			);
-		});
-
-		it("should map Lunch to standard code", () => {
-			expect(otherActivityCode("LUNCH")).toBe("other-lunch");
-		});
-
-		it("should fall back to other-misc for lunch variants with qualifiers", () => {
-			expect(otherActivityCode("Lunch (Sat)")).toBe("other-misc-lunch-sat");
-			expect(otherActivityCode("Lunch (Sun)")).toBe("other-misc-lunch-sun");
-			expect(otherActivityCode("Lunch (Saturday)")).toBe(
-				"other-misc-lunch-saturday",
-			);
-			expect(otherActivityCode("Lunch (Sunday)")).toBe(
-				"other-misc-lunch-sunday",
-			);
-		});
-
-		it("should map Awards to standard code", () => {
-			expect(otherActivityCode("Awards")).toBe("other-awards");
-			expect(otherActivityCode("Awards Ceremony")).toBe("other-awards");
-		});
-
-		it("should map Intro to Competing to standard code", () => {
-			expect(otherActivityCode("Intro to competing")).toBe("other-tutorial");
-		});
-
-		it("should handle check-in variations", () => {
-			expect(otherActivityCode("Check-in")).toBe("other-checkin");
-			expect(otherActivityCode("Check in")).toBe("other-checkin");
-			expect(otherActivityCode("Checkin")).toBe("other-checkin");
-		});
-
-		it("should fall back to sanitized custom code for unknown activities", () => {
-			expect(otherActivityCode("Custom Activity")).toBe(
-				"other-misc-custom-activity",
-			);
-			expect(otherActivityCode("My Special Event")).toBe(
-				"other-misc-my-special-event",
+			expect(() => getActivityCode("Breakfast", 1)).toThrow(
+				'Unknown activity: "Breakfast"',
 			);
 		});
 	});
@@ -237,20 +221,16 @@ describe("Schedule Activity Name Mapping", () => {
 			{ input: "Square-1", round: 2, expected: "sq1-r2" },
 			{ input: "Megaminx", round: 1, expected: "minx-r1" },
 			{ input: "Skewb", round: 2, expected: "skewb-r2" },
-			{ input: "Registration Opens", round: 1, expected: "other-registration" },
+			{ input: "Registration Opens", round: 1, expected: "other-checkin" },
 			{ input: "Intro to competing", round: 1, expected: "other-tutorial" },
-			{ input: "Lunch (Sat)", round: 1, expected: "other-misc-lunch-sat" },
-			{ input: "Lunch (Sun)", round: 1, expected: "other-misc-lunch-sun" },
+			{ input: "Lunch (Sat)", round: 1, expected: "other-lunch" },
+			{ input: "Lunch (Sun)", round: 1, expected: "other-lunch" },
 			{ input: "Awards", round: 1, expected: "other-awards" },
 		];
 
 		testCases.forEach(({ input, round, expected }) => {
 			it(`should map "${input}" round ${round} to "${expected}"`, () => {
-				if (isOtherActivity(input)) {
-					expect(otherActivityCode(input)).toBe(expected);
-				} else {
-					expect(eventNameToActivityCode(input, round)).toBe(expected);
-				}
+				expect(getActivityCode(input, round)).toBe(expected);
 			});
 		});
 	});

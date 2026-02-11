@@ -1,3 +1,5 @@
+"use node";
+
 import { action } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
@@ -46,33 +48,36 @@ export const EVENT_NAME_TO_ID: Record<string, string> = {
 	"3x3 multi-blind": "333mbf",
 };
 
-export const STANDARD_OTHER_ACTIVITIES: Record<string, string> = {
-	registration: "other-registration",
-	"registration opens": "other-registration",
-	"registration open": "other-registration",
-	"check in": "other-checkin",
-	"check-in": "other-checkin",
-	checkin: "other-checkin",
-	"check-in opens": "other-checkin",
-	"check-in closes": "other-checkin",
-	lunch: "other-lunch",
-	dinner: "other-dinner",
-	breakfast: "other-breakfast",
-	"coffee break": "other-misc-coffee-break",
-	awards: "other-awards",
-	"awards ceremony": "other-awards",
-	"closing ceremony": "other-awards",
-	"opening ceremony": "other-misc-opening-ceremony",
-	ceremony: "other-misc-ceremony",
-	"intro to competing": "other-tutorial",
-	"competitor tutorial": "other-tutorial",
-	"new competitor tutorial": "other-tutorial",
-	briefing: "other-tutorial",
-	"judges briefing": "other-tutorial",
-	"scramblers briefing": "other-tutorial",
-	break: "other-misc-break",
-	setup: "other-setup",
-	teardown: "other-teardown",
+type OtherActivityDef = {
+	activityCode: string;
+	displayName: string;
+};
+
+const OTHER_ACTIVITIES: Record<string, OtherActivityDef> = {
+	"intro to competing": {
+		activityCode: "other-tutorial",
+		displayName: "Tutorial for new competitors",
+	},
+	awards: {
+		activityCode: "other-awards",
+		displayName: "Awards",
+	},
+	"registration opens": {
+		activityCode: "other-checkin",
+		displayName: "Check-in",
+	},
+	lunch: {
+		activityCode: "other-lunch",
+		displayName: "Lunch",
+	},
+	"lunch (sat)": {
+		activityCode: "other-lunch",
+		displayName: "Lunch",
+	},
+	"lunch (sun)": {
+		activityCode: "other-lunch",
+		displayName: "Lunch",
+	},
 };
 
 const ROUND_FORMATS: Record<string, string> = {
@@ -107,28 +112,37 @@ function normalize(name: string) {
 	return name.trim().toLowerCase();
 }
 
-export function eventNameToActivityCode(
-	name: string,
-	round: number,
-): string | null {
-	const id = EVENT_NAME_TO_ID[normalize(name)];
-	return id ? `${id}-r${round}` : null;
-}
-
-export function isOtherActivity(name: string): boolean {
-	return !EVENT_NAME_TO_ID[normalize(name)];
-}
-
-export function otherActivityCode(name: string): string {
+function getActivityCode(name: string, round: number): string {
 	const normalized = normalize(name);
-	if (STANDARD_OTHER_ACTIVITIES[normalized]) {
-		return STANDARD_OTHER_ACTIVITIES[normalized];
+
+	const eventId = EVENT_NAME_TO_ID[normalized];
+	if (eventId) {
+		return `${eventId}-r${round}`;
 	}
-	const suffix = normalized
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.replace(/-+/g, "-");
-	return suffix ? `other-misc-${suffix}` : "other-misc";
+
+	const otherDef = OTHER_ACTIVITIES[normalized];
+	if (otherDef) {
+		return otherDef.activityCode;
+	}
+
+	throw new Error(
+		`Unknown activity: "${name}". Must be a valid event or one of: Intro to competing, Awards, Registration Opens, Lunch`,
+	);
+}
+
+function getActivityDisplayName(name: string): string {
+	const normalized = normalize(name);
+
+	const otherDef = OTHER_ACTIVITIES[normalized];
+	if (otherDef) {
+		return otherDef.displayName;
+	}
+
+	return name;
+}
+
+function isEvent(name: string): boolean {
+	return !!EVENT_NAME_TO_ID[normalize(name)];
 }
 
 type SheetRow = {
@@ -138,11 +152,157 @@ type SheetRow = {
 	round: string;
 };
 
+type CompetitionInfo = {
+	wcaCompetitionId?: string;
+	compSheet?: { sheetId: string };
+	compStart: string;
+	compEnd: string;
+};
+
+type TokenData = {
+	accessToken: string;
+	refreshToken: string;
+	expiresAt: number;
+};
+
+type RefreshResult = {
+	accessToken: string;
+	refreshToken: string;
+	expiresAt: number;
+};
+
+async function manageAccessToken(
+	_getToken: () => Promise<TokenData | null>,
+	refreshToken: (token: TokenData) => Promise<RefreshResult | null>,
+	saveToken: (result: RefreshResult) => Promise<void>,
+): Promise<string | null> {
+	const token = await _getToken();
+	if (!token) return null;
+
+	const nowSec = Math.floor(Date.now() / 1000);
+	const isValid = token.expiresAt > nowSec + TOKEN_VALID_BUFFER_SEC;
+	if (isValid) return token.accessToken;
+
+	const refreshed = await refreshToken(token);
+	if (!refreshed) return token.accessToken;
+
+	await saveToken(refreshed);
+	return refreshed.accessToken;
+}
+
+async function refreshGoogleToken(
+	token: TokenData,
+): Promise<RefreshResult | null> {
+	const clientId = process.env.AUTH_GOOGLE_ID;
+	const clientSecret = process.env.AUTH_GOOGLE_SECRET;
+	if (!clientId || !clientSecret) return null;
+
+	const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+	oauth2.setCredentials({
+		access_token: token.accessToken,
+		refresh_token: token.refreshToken,
+	});
+
+	const { credentials } = await oauth2.refreshAccessToken();
+	if (!credentials.access_token || !credentials.expiry_date) {
+		return null;
+	}
+
+	return {
+		accessToken: credentials.access_token,
+		refreshToken: (credentials.refresh_token as string) ?? token.refreshToken,
+		expiresAt: Math.floor(credentials.expiry_date / 1000),
+	};
+}
+
+async function getGoogleAccessToken(
+	ctx: GenericActionCtx<DataModel>,
+): Promise<string | null> {
+	return manageAccessToken(
+		() =>
+			ctx.runQuery(
+				internal.sheetsQueries.getGoogleSheetsToken,
+				{},
+			) as Promise<TokenData | null>,
+		refreshGoogleToken,
+		async (result) => {
+			await ctx.runMutation(internal.sheetsQueries.setGoogleSheetsTokens, {
+				accessToken: result.accessToken,
+				refreshToken: result.refreshToken,
+				expiresAt: result.expiresAt,
+			});
+		},
+	);
+}
+
+async function refreshWcaToken(
+	token: TokenData,
+): Promise<RefreshResult | null> {
+	if (!token.refreshToken) return null;
+
+	const clientId = process.env.AUTH_WCA_ID;
+	const clientSecret = process.env.AUTH_WCA_SECRET;
+	if (!clientId || !clientSecret) return null;
+
+	const res = await fetch(`${WCA_BASE}/oauth/token`, {
+		method: "POST",
+		headers: { "Content-Type": "application/x-www-form-urlencoded" },
+		body: new URLSearchParams({
+			grant_type: "refresh_token",
+			refresh_token: token.refreshToken,
+			client_id: clientId,
+			client_secret: clientSecret,
+		}),
+	});
+
+	if (!res.ok) return null;
+
+	const newTokens = (await res.json()) as {
+		access_token?: string;
+		refresh_token?: string;
+		expires_in?: number;
+		created_at?: number;
+	};
+
+	if (!newTokens.access_token) return null;
+
+	const expiresAt = newTokens.created_at
+		? newTokens.created_at + (newTokens.expires_in ?? 7200)
+		: Math.floor(Date.now() / 1000) + (newTokens.expires_in ?? 7200);
+
+	return {
+		accessToken: newTokens.access_token,
+		refreshToken: newTokens.refresh_token ?? token.refreshToken,
+		expiresAt,
+	};
+}
+
+async function getWcaAccessToken(
+	ctx: GenericActionCtx<DataModel>,
+): Promise<string | null> {
+	return manageAccessToken(
+		() =>
+			ctx.runQuery(
+				internal.wcaQueries.getWcaToken,
+				{},
+			) as Promise<TokenData | null>,
+		refreshWcaToken,
+		async (result) => {
+			await ctx.runMutation(internal.wcaQueries.setWcaTokens, {
+				accessToken: result.accessToken,
+				refreshToken: result.refreshToken,
+				expiresAt: result.expiresAt,
+			});
+		},
+	);
+}
+
 function parseDuration(length: string): number {
 	const parts = length.split(":").map(Number);
-	return parts.length === 3
-		? parts[0] * 60 + parts[1]
-		: parts[0] * 60 + parts[1] || 0;
+	if (parts.length === 3) {
+		return parts[0] * 60 + parts[1];
+	}
+	return parts[0] * 60 + parts[1] || 0;
 }
 
 function parseSheetRows(rows: string[][]): SheetRow[] {
@@ -154,6 +314,31 @@ function parseSheetRows(rows: string[][]): SheetRow[] {
 			round: (row[3] ?? "").trim(),
 		}))
 		.filter((r) => r.time && r.event);
+}
+
+async function fetchScheduleFromSheets(
+	spreadsheetId: string,
+	accessToken: string,
+): Promise<{ saturday: SheetRow[]; sunday: SheetRow[] }> {
+	const oauth2 = new google.auth.OAuth2();
+	oauth2.setCredentials({ access_token: accessToken });
+	const sheets = google.sheets({ version: "v4", auth: oauth2 });
+
+	const [satRes, sunRes] = await Promise.all([
+		sheets.spreadsheets.values.get({
+			spreadsheetId,
+			range: SATURDAY_RANGE,
+		}),
+		sheets.spreadsheets.values.get({
+			spreadsheetId,
+			range: SUNDAY_RANGE,
+		}),
+	]);
+
+	return {
+		saturday: parseSheetRows((satRes.data.values ?? []) as string[][]),
+		sunday: parseSheetRows((sunRes.data.values ?? []) as string[][]),
+	};
 }
 
 function formatDublinTime(
@@ -171,7 +356,38 @@ function getNextDay(dateStr: string): string {
 	return date.toISOString().split("T")[0];
 }
 
-function buildActivities(
+function buildActivity(row: SheetRow, dateStr: string, id: number): Activity {
+	const [hours, minutes] = row.time.split(":").map(Number);
+	const durationMin = parseDuration(row.length);
+
+	const startDate = new Date(`${dateStr}T00:00:00`);
+	startDate.setHours(hours, minutes, 0, 0);
+	const endDate = new Date(startDate.getTime() + durationMin * 60_000);
+
+	const roundNum = Number.parseInt(row.round, 10) || 1;
+	const activityCode = getActivityCode(row.event, roundNum);
+	const isEventActivity = isEvent(row.event);
+	const name = isEventActivity
+		? `${row.event}, Round ${roundNum}`
+		: getActivityDisplayName(row.event);
+
+	return {
+		id,
+		name,
+		activityCode,
+		startTime: formatDublinTime(dateStr, hours, minutes),
+		endTime: formatDublinTime(
+			dateStr,
+			endDate.getHours(),
+			endDate.getMinutes(),
+		),
+		childActivities: [],
+		scrambleSetId: null,
+		extensions: [],
+	};
+}
+
+function buildDayActivities(
 	rows: SheetRow[],
 	dateStr: string,
 	startId: number,
@@ -180,147 +396,259 @@ function buildActivities(
 	let id = startId;
 
 	for (const row of rows) {
-		const [hours, minutes] = row.time.split(":").map(Number);
 		const durationMin = parseDuration(row.length);
 		if (durationMin <= 0) continue;
 
-		const startDate = new Date(`${dateStr}T00:00:00`);
-		startDate.setHours(hours, minutes, 0, 0);
-		const endDate = new Date(startDate.getTime() + durationMin * 60_000);
-
-		const startTime = formatDublinTime(dateStr, hours, minutes);
-		const endTime = formatDublinTime(
-			dateStr,
-			endDate.getHours(),
-			endDate.getMinutes(),
-		);
-		const roundNum = Number.parseInt(row.round, 10) || 1;
-		const isEvent = !isOtherActivity(row.event);
-		const activityCode = isEvent
-			? (eventNameToActivityCode(row.event, roundNum) ??
-				otherActivityCode(row.event))
-			: otherActivityCode(row.event);
-		const name = isEvent ? `${row.event}, Round ${roundNum}` : row.event;
-
-		activities.push({
-			id: id++,
-			name,
-			activityCode,
-			startTime,
-			endTime,
-			childActivities: [],
-			scrambleSetId: null,
-			extensions: [],
-		});
+		activities.push(buildActivity(row, dateStr, id++));
 	}
 
 	return { activities, nextId: id };
 }
 
-async function getGoogleAccessToken(
-	ctx: GenericActionCtx<DataModel>,
-): Promise<string | null> {
-	const token = (await ctx.runQuery(
-		internal.sheetsQueries.getGoogleSheetsToken,
-		{},
-	)) as {
-		accessToken: string;
-		refreshToken: string;
-		expiresAt: number;
-	} | null;
-	if (!token) return null;
-
-	const nowSec = Math.floor(Date.now() / 1000);
-	if (token.expiresAt > nowSec + TOKEN_VALID_BUFFER_SEC)
-		return token.accessToken;
-
-	const clientId = process.env.AUTH_GOOGLE_ID;
-	const clientSecret = process.env.AUTH_GOOGLE_SECRET;
-	if (!clientId || !clientSecret) return token.accessToken;
-
-	const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
-	oauth2.setCredentials({
-		access_token: token.accessToken,
-		refresh_token: token.refreshToken,
-	});
-	const { credentials } = await oauth2.refreshAccessToken();
-
-	if (credentials.access_token && credentials.expiry_date) {
-		await ctx.runMutation(internal.sheetsQueries.setGoogleSheetsTokens, {
-			accessToken: credentials.access_token,
-			refreshToken: credentials.refresh_token ?? token.refreshToken,
-			expiresAt: Math.floor(credentials.expiry_date / 1000),
-		});
-		return credentials.access_token;
-	}
-	return token.accessToken;
-}
-
-async function getWcaAccessToken(
-	ctx: GenericActionCtx<DataModel>,
-): Promise<string | null> {
-	const token = (await ctx.runQuery(internal.wcaQueries.getWcaToken, {})) as {
-		accessToken: string;
-		refreshToken: string;
-		expiresAt: number;
-	} | null;
-	if (!token) return null;
-
-	const nowSec = Math.floor(Date.now() / 1000);
-	if (token.expiresAt > nowSec + TOKEN_VALID_BUFFER_SEC)
-		return token.accessToken;
-	if (!token.refreshToken) return token.accessToken;
-
-	const clientId = process.env.AUTH_WCA_ID;
-	const clientSecret = process.env.AUTH_WCA_SECRET;
-	if (!clientId || !clientSecret) return token.accessToken;
-
-	const res = await fetch(`${WCA_BASE}/oauth/token`, {
-		method: "POST",
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams({
-			grant_type: "refresh_token",
-			refresh_token: token.refreshToken,
-			client_id: clientId,
-			client_secret: clientSecret,
-		}),
-	});
-
-	if (!res.ok) return token.accessToken;
-
-	const newTokens = (await res.json()) as {
-		access_token?: string;
-		refresh_token?: string;
-		expires_in?: number;
-		created_at?: number;
-	};
-
-	if (!newTokens.access_token) return token.accessToken;
-
-	const expiresAt = newTokens.created_at
-		? newTokens.created_at + (newTokens.expires_in ?? 7200)
-		: Math.floor(Date.now() / 1000) + (newTokens.expires_in ?? 7200);
-
-	await ctx.runMutation(internal.wcaQueries.setWcaTokens, {
-		accessToken: newTokens.access_token,
-		refreshToken: newTokens.refresh_token ?? token.refreshToken,
-		expiresAt,
-	});
-
-	return newTokens.access_token;
+async function fetchWcaCompetition(
+	competitionId: string,
+	token: string,
+): Promise<WcifCompetition | null> {
+	const res = await fetch(
+		`${WCA_API}/competitions/${encodeURIComponent(competitionId)}/wcif`,
+		{ headers: { Authorization: `Bearer ${token}` } },
+	);
+	return res.ok ? ((await res.json()) as WcifCompetition) : null;
 }
 
 async function fetchIrelandTemplate(
-	wcaToken: string,
-): Promise<WcifCompetition | null> {
+	token: string,
+): Promise<Map<string, Round>> {
 	const res = await fetch(
 		`${WCA_API}/competitions/${encodeURIComponent(IRELAND_TEMPLATE_COMPETITION_ID)}/wcif`,
-		{ headers: { Authorization: `Bearer ${wcaToken}` } },
+		{ headers: { Authorization: `Bearer ${token}` } },
+	);
+
+	if (!res.ok) return new Map();
+
+	const wcif = (await res.json()) as WcifCompetition;
+	const roundsMap = new Map<string, Round>();
+
+	for (const event of wcif.events) {
+		for (const round of event.rounds) {
+			roundsMap.set(round.id, round);
+		}
+	}
+
+	return roundsMap;
+}
+
+async function fetchCompetitionVenueInfo(
+	competitionId: string,
+	token: string,
+): Promise<{
+	name: string;
+	detail: string;
+	lat: number;
+	lng: number;
+	country: string;
+} | null> {
+	const res = await fetch(
+		`${WCA_API}/competitions/${encodeURIComponent(competitionId)}`,
+		{ headers: { Authorization: `Bearer ${token}` } },
 	);
 
 	if (!res.ok) return null;
 
-	return (await res.json()) as WcifCompetition;
+	const info = (await res.json()) as {
+		venue?: string;
+		venue_details?: string;
+		latitude_degrees?: number;
+		longitude_degrees?: number;
+		country_iso2?: string;
+	};
+
+	return {
+		name: info.venue ?? "Main Venue",
+		detail: info.venue_details ?? "Main Stage",
+		lat: info.latitude_degrees ?? 0,
+		lng: info.longitude_degrees ?? 0,
+		country: info.country_iso2 ?? "IE",
+	};
+}
+
+async function updateWcaSchedule(
+	competitionId: string,
+	token: string,
+	wcif: { id: string; events: Event[]; schedule: Schedule },
+): Promise<{ success: boolean; error?: string }> {
+	const res = await fetch(
+		`${WCA_API}/competitions/${encodeURIComponent(competitionId)}/wcif`,
+		{
+			method: "PATCH",
+			headers: {
+				Authorization: `Bearer ${token}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(wcif),
+		},
+	);
+
+	if (!res.ok) {
+		const text = await res.text();
+		return {
+			success: false,
+			error: `WCA rejected WCIF update: ${res.status} ${text}`,
+		};
+	}
+
+	return { success: true };
+}
+
+function extractEventRounds(activities: Activity[]): Map<string, Set<number>> {
+	const rounds = new Map<string, Set<number>>();
+
+	for (const activity of activities) {
+		const match = activity.activityCode.match(/^([a-z0-9]+)-r(\d+)$/);
+		if (!match) continue;
+
+		const [, eventId, roundStr] = match;
+		if (!eventId || !roundStr) continue;
+
+		if (!rounds.has(eventId)) rounds.set(eventId, new Set());
+		rounds.get(eventId)?.add(Number(roundStr));
+	}
+
+	return rounds;
+}
+
+function countMultiAttempts(activities: Activity[]): Map<string, number> {
+	const counts = new Map<string, number>();
+
+	for (const activity of activities) {
+		const match = activity.activityCode.match(/^([a-z0-9]+)-r/);
+		if (!match) continue;
+
+		const eventId = match[1];
+		if (!eventId || !MULTI_ATTEMPT_EVENTS.has(eventId)) continue;
+
+		counts.set(eventId, (counts.get(eventId) || 0) + 1);
+	}
+
+	return counts;
+}
+
+function createRound(
+	roundId: string,
+	eventId: string,
+	isMultiAttempt: boolean,
+	attemptCount: number,
+	existingRound: Round | undefined,
+	templateRound: Round | undefined,
+): Round {
+	if (existingRound) return existingRound;
+
+	if (templateRound) {
+		return {
+			id: roundId,
+			format: templateRound.format,
+			timeLimit: templateRound.timeLimit,
+			cutoff: templateRound.cutoff,
+			advancementCondition: templateRound.advancementCondition,
+			results: [],
+			scrambleSetCount: templateRound.scrambleSetCount,
+			extensions: [],
+		};
+	}
+
+	const format = getRoundFormat(eventId, isMultiAttempt ? attemptCount : 1);
+
+	return {
+		id: roundId,
+		format,
+		timeLimit: defaultTimeLimit(eventId),
+		cutoff: null,
+		advancementCondition: null,
+		results: [],
+		scrambleSetCount: 1,
+		extensions: [],
+	};
+}
+
+function buildEvents(
+	activities: Activity[],
+	existingEvents: Event[],
+	templateRounds: Map<string, Round>,
+): Event[] {
+	const roundsMap = extractEventRounds(activities);
+	const attemptCounts = countMultiAttempts(activities);
+	const existingEventsMap = new Map<string, Event>(
+		existingEvents.map((e) => [e.id, e]),
+	);
+
+	const events: Event[] = [];
+
+	for (const [eventId, roundNums] of roundsMap) {
+		const existingEvent = existingEventsMap.get(eventId as EventId);
+		const sortedRounds = [...roundNums].sort((a, b) => a - b);
+		const isMultiAttempt = MULTI_ATTEMPT_EVENTS.has(eventId);
+		const attemptCount = attemptCounts.get(eventId) || sortedRounds.length;
+
+		const rounds: Round[] = sortedRounds.map((roundNum) => {
+			const roundId = `${eventId}-r${roundNum}`;
+			const existingRound = existingEvent?.rounds.find((r) => r.id === roundId);
+			const templateRound = templateRounds.get(roundId);
+
+			return createRound(
+				roundId,
+				eventId,
+				isMultiAttempt,
+				attemptCount,
+				existingRound,
+				templateRound,
+			);
+		});
+
+		events.push({
+			id: eventId as EventId,
+			rounds,
+			extensions: existingEvent?.extensions ?? [],
+			competitorLimit: existingEvent?.competitorLimit ?? null,
+			qualification: existingEvent?.qualification ?? null,
+		});
+	}
+
+	return events;
+}
+
+function buildRoom(
+	existingVenue: Venue | undefined,
+	venueInfo: { detail: string } | null,
+	activities: Activity[],
+): Room {
+	return {
+		id: existingVenue?.rooms?.[0]?.id ?? 1,
+		name: existingVenue?.rooms?.[0]?.name ?? venueInfo?.detail ?? "Main Stage",
+		color: existingVenue?.rooms?.[0]?.color ?? "#304a96",
+		activities,
+		extensions: [],
+	};
+}
+
+function buildVenue(
+	existingVenue: Venue | undefined,
+	venueInfo: { name: string; lat: number; lng: number; country: string } | null,
+	room: Room,
+): Venue {
+	if (existingVenue) {
+		return { ...existingVenue, rooms: [room] };
+	}
+
+	return {
+		id: 1,
+		name: venueInfo?.name ?? "Main Venue",
+		latitudeMicrodegrees: Math.round((venueInfo?.lat ?? 0) * 1e6),
+		longitudeMicrodegrees: Math.round((venueInfo?.lng ?? 0) * 1e6),
+		countryIso2: venueInfo?.country ?? "IE",
+		timezone: DUBLIN_TIMEZONE,
+		rooms: [room],
+		extensions: [],
+	};
 }
 
 export const pushScheduleToWca = action({
@@ -330,38 +658,31 @@ export const pushScheduleToWca = action({
 		error: v.optional(v.string()),
 		activitiesCreated: v.optional(v.number()),
 	}),
-	handler: async (
-		ctx,
-		args,
-	): Promise<{
-		success: boolean;
-		error?: string;
-		activitiesCreated?: number;
-	}> => {
-		const isVol = await ctx.runQuery(internal.auth.getIsVolunteer, {});
-		if (!isVol) {
+	handler: async (ctx, args) => {
+		const isVolunteer = await ctx.runQuery(internal.auth.getIsVolunteer, {});
+		if (!isVolunteer) {
 			throw new ConvexError({
 				code: "FORBIDDEN",
 				message: "Volunteer access required",
 			});
 		}
 
-		const comp = (await ctx.runQuery(internal.competitions.getInternal, {
+		const competition = (await ctx.runQuery(internal.competitions.getInternal, {
 			id: args.competitionId,
-		})) as {
-			wcaCompetitionId?: string;
-			compSheet?: { sheetId: string };
-			compStart: string;
-			compEnd: string;
-		} | null;
-		if (!comp) return { success: false, error: "Competition not found" };
-		if (!comp.wcaCompetitionId) {
+		})) as CompetitionInfo | null;
+
+		if (!competition) {
+			return { success: false, error: "Competition not found" };
+		}
+
+		if (!competition.wcaCompetitionId) {
 			return {
 				success: false,
 				error: "Competition is not linked to WCA. Link it first.",
 			};
 		}
-		if (!comp.compSheet) {
+
+		if (!competition.compSheet) {
 			return {
 				success: false,
 				error:
@@ -377,26 +698,20 @@ export const pushScheduleToWca = action({
 			};
 		}
 
-		const oauth2 = new google.auth.OAuth2();
-		oauth2.setCredentials({ access_token: googleToken });
-		const sheets = google.sheets({ version: "v4", auth: oauth2 });
+		const wcaToken = await getWcaAccessToken(ctx);
+		if (!wcaToken) {
+			return {
+				success: false,
+				error: "No WCA token. Run: bun run auth:wca",
+			};
+		}
 
-		let satRows: string[][] = [];
-		let sunRows: string[][] = [];
-
+		let scheduleData: { saturday: SheetRow[]; sunday: SheetRow[] };
 		try {
-			const [satRes, sunRes] = await Promise.all([
-				sheets.spreadsheets.values.get({
-					spreadsheetId: comp.compSheet.sheetId,
-					range: SATURDAY_RANGE,
-				}),
-				sheets.spreadsheets.values.get({
-					spreadsheetId: comp.compSheet.sheetId,
-					range: SUNDAY_RANGE,
-				}),
-			]);
-			satRows = (satRes.data.values ?? []) as string[][];
-			sunRows = (sunRes.data.values ?? []) as string[][];
+			scheduleData = await fetchScheduleFromSheets(
+				competition.compSheet.sheetId,
+				googleToken,
+			);
 		} catch (err) {
 			return {
 				success: false,
@@ -404,204 +719,60 @@ export const pushScheduleToWca = action({
 			};
 		}
 
-		const satEntries = parseSheetRows(satRows);
-		const sunEntries = parseSheetRows(sunRows);
-
-		if (satEntries.length === 0 && sunEntries.length === 0) {
+		if (
+			scheduleData.saturday.length === 0 &&
+			scheduleData.sunday.length === 0
+		) {
 			return {
 				success: false,
 				error: "No schedule entries found in the sheet",
 			};
 		}
 
-		const wcaToken = await getWcaAccessToken(ctx);
-		if (!wcaToken)
-			return { success: false, error: "No WCA token. Run: bun run auth:wca" };
-
-		const wcifRes = await fetch(
-			`${WCA_API}/competitions/${encodeURIComponent(comp.wcaCompetitionId)}/wcif`,
-			{ headers: { Authorization: `Bearer ${wcaToken}` } },
+		const wcif = await fetchWcaCompetition(
+			competition.wcaCompetitionId,
+			wcaToken,
 		);
 
-		if (!wcifRes.ok) {
-			const text = await wcifRes.text();
+		if (!wcif) {
 			return {
 				success: false,
-				error: `Failed to fetch WCIF: ${wcifRes.status} ${text}`,
+				error: "Failed to fetch WCIF from WCA",
 			};
 		}
 
-		const wcif = (await wcifRes.json()) as WcifCompetition;
-
-		const irelandTemplate = await fetchIrelandTemplate(wcaToken);
-		const templateRoundsMap = new Map<string, Round>();
-		if (irelandTemplate) {
-			for (const ev of irelandTemplate.events) {
-				for (const round of ev.rounds) {
-					templateRoundsMap.set(round.id, round);
-				}
-			}
-			console.log(
-				`Loaded ${templateRoundsMap.size} template rounds from IrelandTemplate2100`,
-			);
-		}
+		const [templateRounds, venueInfo] = await Promise.all([
+			fetchIrelandTemplate(wcaToken),
+			wcif.schedule.venues[0]
+				? Promise.resolve(null)
+				: fetchCompetitionVenueInfo(competition.wcaCompetitionId, wcaToken),
+		]);
 
 		const startDate = wcif.schedule.startDate;
-		const numberOfDays = wcif.schedule.numberOfDays;
-		const day1 = startDate;
-		const day2 = numberOfDays > 1 ? getNextDay(startDate) : null;
+		const day2 = wcif.schedule.numberOfDays > 1 ? getNextDay(startDate) : null;
 
 		let activityId = 1;
-		const { activities: satActivities, nextId: nextId1 } = buildActivities(
-			satEntries,
-			day1,
-			activityId,
-		);
+		const { activities: saturdayActivities, nextId: nextId1 } =
+			buildDayActivities(scheduleData.saturday, startDate, activityId);
 		activityId = nextId1;
 
-		let sunActivities: Activity[] = [];
-		if (day2 && sunEntries.length > 0) {
-			const result = buildActivities(sunEntries, day2, activityId);
-			sunActivities = result.activities;
-			activityId = result.nextId;
-		}
+		const sundayActivities = day2
+			? buildDayActivities(scheduleData.sunday, day2, activityId).activities
+			: [];
 
-		const allActivities = [...satActivities, ...sunActivities];
+		const allActivities = [...saturdayActivities, ...sundayActivities];
+
 		const existingVenue = wcif.schedule.venues[0];
-		let venueInfo: {
-			name: string;
-			lat: number;
-			lng: number;
-			country: string;
-		} | null = null;
-
-		if (!existingVenue) {
-			const compInfoRes = await fetch(
-				`${WCA_API}/competitions/${encodeURIComponent(comp.wcaCompetitionId)}`,
-				{ headers: { Authorization: `Bearer ${wcaToken}` } },
-			);
-			if (compInfoRes.ok) {
-				const compInfo = (await compInfoRes.json()) as {
-					venue?: string;
-					latitude_degrees?: number;
-					longitude_degrees?: number;
-					country_iso2?: string;
-				};
-				venueInfo = {
-					name: compInfo.venue ?? "Main Venue",
-					lat: compInfo.latitude_degrees ?? 0,
-					lng: compInfo.longitude_degrees ?? 0,
-					country: compInfo.country_iso2 ?? "IE",
-				};
-			}
-		}
-
-		const room: Room = {
-			id: existingVenue?.rooms?.[0]?.id ?? 1,
-			name: existingVenue?.rooms?.[0]?.name ?? "Main Stage",
-			color: existingVenue?.rooms?.[0]?.color ?? "#00897B",
-			activities: allActivities,
-			extensions: [],
-		};
-
-		const venue: Venue = existingVenue
-			? { ...existingVenue, rooms: [room] }
-			: {
-					id: 1,
-					name: venueInfo?.name ?? "Main Venue",
-					latitudeMicrodegrees: Math.round((venueInfo?.lat ?? 0) * 1e6),
-					longitudeMicrodegrees: Math.round((venueInfo?.lng ?? 0) * 1e6),
-					countryIso2: venueInfo?.country ?? "IE",
-					timezone: DUBLIN_TIMEZONE,
-					rooms: [room],
-					extensions: [],
-				};
+		const room = buildRoom(existingVenue, venueInfo, allActivities);
+		const venue = buildVenue(existingVenue, venueInfo, room);
 
 		const schedule: Schedule = {
 			startDate,
-			numberOfDays,
+			numberOfDays: wcif.schedule.numberOfDays,
 			venues: [venue],
 		};
 
-		const eventRoundsMap = new Map<string, Set<number>>();
-		const eventAttemptCounts = new Map<string, number>();
-
-		for (const activity of allActivities) {
-			const match = activity.activityCode.match(/^([a-z0-9]+)-r(\d+)$/);
-			if (!match) continue;
-			const [, eventId, roundStr] = match;
-			if (!eventId || !roundStr) continue;
-
-			if (MULTI_ATTEMPT_EVENTS.has(eventId)) {
-				const currentCount = eventAttemptCounts.get(eventId) || 0;
-				eventAttemptCounts.set(eventId, currentCount + 1);
-				if (!eventRoundsMap.has(eventId))
-					eventRoundsMap.set(eventId, new Set());
-				eventRoundsMap.get(eventId)?.add(1);
-			} else {
-				if (!eventRoundsMap.has(eventId))
-					eventRoundsMap.set(eventId, new Set());
-				eventRoundsMap.get(eventId)?.add(Number(roundStr));
-			}
-		}
-
-		const existingEventsMap = new Map<string, Event>();
-		for (const ev of wcif.events) existingEventsMap.set(ev.id, ev);
-
-		const events: Event[] = [];
-		for (const [eventId, roundNums] of eventRoundsMap) {
-			const existingEvent = existingEventsMap.get(eventId);
-			const sortedRounds = [...roundNums].sort((a, b) => a - b);
-			const isMultiAttempt = MULTI_ATTEMPT_EVENTS.has(eventId);
-			const attemptCount =
-				eventAttemptCounts.get(eventId) || sortedRounds.length;
-
-			const rounds: Round[] = sortedRounds.map((roundNum) => {
-				const roundId = `${eventId}-r${roundNum}`;
-				const existingRound = existingEvent?.rounds.find(
-					(r) => r.id === roundId,
-				);
-				if (existingRound) return existingRound;
-
-				const templateRound = templateRoundsMap.get(roundId);
-				if (templateRound) {
-					console.log(`Using Ireland template defaults for ${roundId}`);
-					return {
-						id: roundId,
-						format: templateRound.format,
-						timeLimit: templateRound.timeLimit,
-						cutoff: templateRound.cutoff,
-						advancementCondition: templateRound.advancementCondition,
-						results: [],
-						scrambleSetCount: templateRound.scrambleSetCount,
-						extensions: [],
-					} satisfies Round;
-				}
-
-				const format = isMultiAttempt
-					? getRoundFormat(eventId, attemptCount)
-					: getRoundFormat(eventId, 1);
-
-				return {
-					id: roundId,
-					format,
-					timeLimit: defaultTimeLimit(eventId),
-					cutoff: null,
-					advancementCondition: null,
-					results: [],
-					scrambleSetCount: 1,
-					extensions: [],
-				} satisfies Round;
-			});
-
-			events.push({
-				id: eventId as EventId,
-				rounds,
-				extensions: existingEvent?.extensions ?? [],
-				competitorLimit: existingEvent?.competitorLimit ?? null,
-				qualification: existingEvent?.qualification ?? null,
-			});
-		}
+		const events = buildEvents(allActivities, wcif.events, templateRounds);
 
 		if (events.length === 0) {
 			return {
@@ -619,25 +790,14 @@ export const pushScheduleToWca = action({
 			};
 		}
 
-		const patchBody = JSON.stringify({ id: wcif.id, events, schedule });
-		const patchRes = await fetch(
-			`${WCA_API}/competitions/${encodeURIComponent(comp.wcaCompetitionId)}/wcif`,
-			{
-				method: "PATCH",
-				headers: {
-					Authorization: `Bearer ${wcaToken}`,
-					"Content-Type": "application/json",
-				},
-				body: patchBody,
-			},
+		const result = await updateWcaSchedule(
+			competition.wcaCompetitionId,
+			wcaToken,
+			{ id: wcif.id, events, schedule },
 		);
 
-		if (!patchRes.ok) {
-			const text = await patchRes.text();
-			return {
-				success: false,
-				error: `WCA rejected WCIF update: ${patchRes.status} ${text}`,
-			};
+		if (!result.success) {
+			return result;
 		}
 
 		return { success: true, activitiesCreated: allActivities.length };
