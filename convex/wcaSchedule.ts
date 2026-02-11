@@ -159,6 +159,10 @@ type CompetitionInfo = {
 	compEnd: string;
 };
 
+type PushScheduleResult =
+	| { success: true; activitiesCreated: number }
+	| { success: false; error: string };
+
 type TokenData = {
 	accessToken: string;
 	refreshToken: string;
@@ -476,7 +480,7 @@ async function updateWcaSchedule(
 	competitionId: string,
 	token: string,
 	wcif: { id: string; events: Event[]; schedule: Schedule },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: true } | { success: false; error: string }> {
 	const res = await fetch(
 		`${WCA_API}/competitions/${encodeURIComponent(competitionId)}/wcif`,
 		{
@@ -492,12 +496,12 @@ async function updateWcaSchedule(
 	if (!res.ok) {
 		const text = await res.text();
 		return {
-			success: false,
+			success: false as const,
 			error: `WCA rejected WCIF update: ${res.status} ${text}`,
 		};
 	}
 
-	return { success: true };
+	return { success: true as const };
 }
 
 function extractEventRounds(activities: Activity[]): Map<string, Set<number>> {
@@ -653,12 +657,17 @@ function buildVenue(
 
 export const pushScheduleToWca = action({
 	args: { competitionId: v.id("competitions") },
-	returns: v.object({
-		success: v.boolean(),
-		error: v.optional(v.string()),
-		activitiesCreated: v.optional(v.number()),
-	}),
-	handler: async (ctx, args) => {
+	returns: v.union(
+		v.object({
+			success: v.literal(true),
+			activitiesCreated: v.number(),
+		}),
+		v.object({
+			success: v.literal(false),
+			error: v.string(),
+		}),
+	),
+	handler: async (ctx, args): Promise<PushScheduleResult> => {
 		const isVolunteer = await ctx.runQuery(internal.auth.getIsVolunteer, {});
 		if (!isVolunteer) {
 			throw new ConvexError({
@@ -672,19 +681,19 @@ export const pushScheduleToWca = action({
 		})) as CompetitionInfo | null;
 
 		if (!competition) {
-			return { success: false, error: "Competition not found" };
+			return { success: false as const, error: "Competition not found" };
 		}
 
 		if (!competition.wcaCompetitionId) {
 			return {
-				success: false,
+				success: false as const,
 				error: "Competition is not linked to WCA. Link it first.",
 			};
 		}
 
 		if (!competition.compSheet) {
 			return {
-				success: false,
+				success: false as const,
 				error:
 					"No Google Sheet linked. Add a sheet with a Schedule page first.",
 			};
@@ -693,7 +702,7 @@ export const pushScheduleToWca = action({
 		const googleToken = await getGoogleAccessToken(ctx);
 		if (!googleToken) {
 			return {
-				success: false,
+				success: false as const,
 				error: "No Google Sheets token. Run: bun run auth:google-sheets",
 			};
 		}
@@ -701,7 +710,7 @@ export const pushScheduleToWca = action({
 		const wcaToken = await getWcaAccessToken(ctx);
 		if (!wcaToken) {
 			return {
-				success: false,
+				success: false as const,
 				error: "No WCA token. Run: bun run auth:wca",
 			};
 		}
@@ -714,7 +723,7 @@ export const pushScheduleToWca = action({
 			);
 		} catch (err) {
 			return {
-				success: false,
+				success: false as const,
 				error: `Failed to read sheet: ${err instanceof Error ? err.message : "Unknown error"}`,
 			};
 		}
@@ -724,7 +733,7 @@ export const pushScheduleToWca = action({
 			scheduleData.sunday.length === 0
 		) {
 			return {
-				success: false,
+				success: false as const,
 				error: "No schedule entries found in the sheet",
 			};
 		}
@@ -736,7 +745,7 @@ export const pushScheduleToWca = action({
 
 		if (!wcif) {
 			return {
-				success: false,
+				success: false as const,
 				error: "Failed to fetch WCIF from WCA",
 			};
 		}
@@ -776,7 +785,7 @@ export const pushScheduleToWca = action({
 
 		if (events.length === 0) {
 			return {
-				success: false,
+				success: false as const,
 				error:
 					"No events with rounds found in schedule. Check that your sheet has valid event names.",
 			};
@@ -785,7 +794,7 @@ export const pushScheduleToWca = action({
 		const emptyRoundEvents = events.filter((e) => e.rounds.length === 0);
 		if (emptyRoundEvents.length > 0) {
 			return {
-				success: false,
+				success: false as const,
 				error: `Events without rounds: ${emptyRoundEvents.map((e) => e.id).join(", ")}`,
 			};
 		}
@@ -800,6 +809,6 @@ export const pushScheduleToWca = action({
 			return result;
 		}
 
-		return { success: true, activitiesCreated: allActivities.length };
+		return { success: true as const, activitiesCreated: allActivities.length };
 	},
 });
