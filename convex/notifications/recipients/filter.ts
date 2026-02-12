@@ -1,14 +1,14 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { canUserAccessNotificationEntity } from "../../lib/notificationAccess";
-import { getNotificationPreferenceConfig } from "../../lib/notificationSettings";
+import { canUserAccessNotificationEntity } from "../lib/notificationAccess";
+import { getNotificationPreferenceConfig } from "../lib/notificationSettings";
 import {
 	IN_APP_CHANNEL,
 	type NotificationEmitInput,
 	type NotificationEntityType,
 	type NotificationType,
 	type RecipientDecision,
-} from "../../lib/notificationTypes";
+} from "../lib/notificationTypes";
 
 async function hasUnreadBatchNotification(
 	ctx: Pick<MutationCtx, "db">,

@@ -1,7 +1,7 @@
-import type { Doc, Id } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { collectTaskRecipients } from "./lib/recipientCollection";
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx } from "../../_generated/server";
+import { collectTaskRecipients } from "../lib/recipientCollection";
+import { emitNotificationEvent } from "../../notifications";
 
 export async function sendMentionNotifications(
 	ctx: MutationCtx,
@@ -15,16 +15,13 @@ export async function sendMentionNotifications(
 	const notified = new Set<Id<"users">>();
 	for (const mentionedUserId of args.mentionedUserIds) {
 		if (mentionedUserId !== args.actorId) {
-			await ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyTaskMentioned,
-				{
-					taskId: args.taskId,
-					commentId: args.commentId,
-					mentionedUserId,
-					actorId: args.actorId,
-				},
-			);
+			await emitNotificationEvent(ctx, {
+				type: "task_mentioned",
+				taskId: args.taskId,
+				commentId: args.commentId,
+				recipientId: mentionedUserId,
+				actorId: args.actorId,
+			});
 			notified.add(mentionedUserId);
 		}
 	}
@@ -50,17 +47,14 @@ export async function sendReplyNotifications(
 		notified.add(args.parentComment.authorId);
 	}
 	if (notified.size > 0) {
-		await ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyCommentReplied,
-			{
-				taskId: args.taskId,
-				commentId: args.commentId,
-				recipientIds: [...notified],
-				actorId: args.actorId,
-				eventKey: `${args.commentId}:reply`,
-			},
-		);
+		await emitNotificationEvent(ctx, {
+			type: "comment_replied",
+			taskId: args.taskId,
+			commentId: args.commentId,
+			recipientIds: [...notified],
+			actorId: args.actorId,
+			eventKey: `${args.commentId}:reply`,
+		});
 	}
 	return notified;
 }
@@ -80,7 +74,8 @@ export async function sendCommentAddedNotifications(
 		args.actorId,
 		args.excludedRecipients,
 	);
-	await ctx.scheduler.runAfter(0, internal.notifications._notifyCommentAdded, {
+	await emitNotificationEvent(ctx, {
+		type: "comment_added",
 		taskId: args.taskId,
 		commentId: args.commentId,
 		recipientIds,

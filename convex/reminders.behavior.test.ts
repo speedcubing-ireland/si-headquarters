@@ -96,6 +96,81 @@ describe("reminders behavior characterization", () => {
 		).rejects.toBeTruthy();
 	});
 
+	test("create rejects invalid remindAt timestamps", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedReminderFixture(t);
+		const allowed = t.withIdentity({ subject: seeded.allowedUserId });
+
+		await expect(
+			allowed.mutation(api.reminders.create, {
+				...reminderArgs(seeded.allowedTaskId),
+				remindAt: "not-a-date",
+			}),
+		).rejects.toBeTruthy();
+	});
+
+	test("create rejects past remindAt timestamps", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedReminderFixture(t);
+		const allowed = t.withIdentity({ subject: seeded.allowedUserId });
+
+		await expect(
+			allowed.mutation(api.reminders.create, {
+				...reminderArgs(seeded.allowedTaskId),
+				remindAt: new Date(Date.now() - 60_000).toISOString(),
+			}),
+		).rejects.toBeTruthy();
+	});
+
+	test("create rejects endDate values before remindAt", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedReminderFixture(t);
+		const allowed = t.withIdentity({ subject: seeded.allowedUserId });
+		const remindAt = new Date(Date.now() + 120_000).toISOString();
+
+		await expect(
+			allowed.mutation(api.reminders.create, {
+				...reminderArgs(seeded.allowedTaskId),
+				remindAt,
+				endDate: new Date(Date.now() + 60_000).toISOString(),
+			}),
+		).rejects.toBeTruthy();
+	});
+
+	test("snooze rejects invalid snoozeUntil timestamps", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedReminderFixture(t);
+		const allowed = t.withIdentity({ subject: seeded.allowedUserId });
+		const reminderId = await allowed.mutation(
+			api.reminders.create,
+			reminderArgs(seeded.allowedTaskId),
+		);
+
+		await expect(
+			allowed.mutation(api.reminders.snooze, {
+				reminderId,
+				snoozeUntil: "bad-date",
+			}),
+		).rejects.toBeTruthy();
+	});
+
+	test("reschedule rejects past remindAt timestamps", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedReminderFixture(t);
+		const allowed = t.withIdentity({ subject: seeded.allowedUserId });
+		const reminderId = await allowed.mutation(
+			api.reminders.create,
+			reminderArgs(seeded.allowedTaskId),
+		);
+
+		await expect(
+			allowed.mutation(api.reminders.reschedule, {
+				reminderId,
+				remindAt: new Date(Date.now() - 60_000).toISOString(),
+			}),
+		).rejects.toBeTruthy();
+	});
+
 	test("_triggerReminder marks due reminders triggered and creates reminder notifications", async () => {
 		vi.useFakeTimers();
 		try {

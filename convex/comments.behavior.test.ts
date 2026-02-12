@@ -119,12 +119,12 @@ describe("comments behavior characterization", () => {
 				name: "Directors",
 				memberIds: [directorId],
 			});
-				await ctx.db.insert("notificationSubscriptions", {
-					userId: directorId,
-					entityType: "comment",
-					entityId: `${seeded.commentId}`,
-					updatedAt: Date.now(),
-				});
+			await ctx.db.insert("notificationSubscriptions", {
+				userId: directorId,
+				entityType: "comment",
+				entityId: `${seeded.commentId}`,
+				updatedAt: Date.now(),
+			});
 		});
 
 		const authedDirector = t.withIdentity({ subject: directorId });

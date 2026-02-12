@@ -27,17 +27,10 @@ export const parseTaskId = createIdParser("tasks");
 export const parseCompetitionId = createIdParser("competitions");
 export const parseTeamId = createIdParser("teams");
 export const parseCommentId = createIdParser("comments");
-export const parseNotificationId = createIdParser("notifications");
-export const parseReminderId = createIdParser("reminders");
 export const parseSavedViewId = createIdParser("savedViews");
-export const parseWeekendOverrideId = createIdParser("weekendOverrides");
-export const parsePhaseId = createIdParser("phases");
-export const parseCompetitionUpdateId = createIdParser("competitionUpdates");
-export const parseUserId = createIdParser("users");
 
 export const requireTaskId = createIdRequirer("tasks", parseTaskId);
 export const requireCompetitionId = createIdRequirer(
 	"competitions",
 	parseCompetitionId,
 );
-export const requireTeamId = createIdRequirer("teams", parseTeamId);

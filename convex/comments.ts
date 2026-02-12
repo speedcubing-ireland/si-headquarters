@@ -13,7 +13,7 @@ import {
 	sendMentionNotifications,
 	sendReplyNotifications,
 	sendCommentAddedNotifications,
-} from "./commentNotifications";
+} from "./notifications/triggers/comments";
 
 function mapCommentForUI(
 	doc: {

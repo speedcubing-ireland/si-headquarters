@@ -33,26 +33,27 @@ export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) =>
 		taskId ? { entity: { entityType: "task", entityId: taskId } } : "skip",
 	) ?? false;
 
-export const useCompetitionSubscriptionState = (
-	competitionId: Id<"competitions"> | null,
-) =>
-	useQuery(
-		api.notifications.isSubscribedToEntity,
-		competitionId
-			? { entity: { entityType: "competition", entityId: competitionId } }
-			: "skip",
-	) ?? false;
-
 export const useUnreadCount = () => {
 	const nowMs = usePeriodicNow();
 	return useQuery(api.notifications.getUnreadCount, { nowMs });
+};
+
+export const useNotificationDiagnostics = () => {
+	const dispatchHealth = useQuery(api.notifications.getDispatchHealth, {});
+	const deadLetters = useQuery(api.notifications.listRecentDeadLetters, {
+		limit: 20,
+	});
+	return {
+		dispatchHealth,
+		deadLetters: deadLetters ?? [],
+		isLoading: dispatchHealth === undefined || deadLetters === undefined,
+	};
 };
 
 export function useNotificationMutations() {
 	const markReadMut = useMutation(api.notifications.markRead);
 	const markArchivedMut = useMutation(api.notifications.markArchived);
 	const markAllReadMut = useMutation(api.notifications.markAllRead);
-	const dismissMut = useMutation(api.notifications.dismiss);
 	const snoozeMut = useMutation(api.notifications.snooze);
 	const unsnoozeMut = useMutation(api.notifications.unsnooze);
 	const upsertPrefMut = useMutation(api.notifications.upsertPreference);
@@ -94,7 +95,7 @@ export function useNotificationMutations() {
 			markArchivedMut({ notificationId: id }),
 		markAllNotificationsRead: () => markAllReadMut({}),
 		dismissNotification: (id: Id<"notifications">) =>
-			dismissMut({ notificationId: id }),
+			markArchivedMut({ notificationId: id }),
 		snoozeNotification: (id: Id<"notifications">, snoozedUntil: string) =>
 			snoozeMut({ notificationId: id, snoozedUntil }),
 		unsnoozeNotification: (id: Id<"notifications">) =>

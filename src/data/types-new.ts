@@ -8,20 +8,13 @@ import type {
 	PhaseUI,
 } from "../../convex/lib/types";
 import {
-	DEFAULT_LABELS,
 	DEFAULT_PHASES,
 	COMPETITION_PHASE_KEYS,
-	SEEDED_TEAM_NAMES,
 	type SeededLabelName,
 	type SeededTeamName,
 } from "../../convex/lib/seedData";
 export type { SeededLabelName, SeededTeamName };
-export {
-	DEFAULT_LABELS,
-	DEFAULT_PHASES,
-	COMPETITION_PHASE_KEYS,
-	SEEDED_TEAM_NAMES,
-};
+export { DEFAULT_PHASES, COMPETITION_PHASE_KEYS };
 
 export type User = FunctionReturnType<typeof api.users.listUsers>[number];
 
@@ -156,29 +149,11 @@ export type Weekend = {
 	  }
 );
 
-export type NotificationType =
-	| "task_assigned"
-	| "task_unassigned"
-	| "task_mentioned"
-	| "task_status_changed"
-	| "task_priority_changed"
-	| "task_awaiting_review"
-	| "due_date_approaching"
-	| "due_date_overdue"
-	| "comment_added"
-	| "comment_replied"
-	| "relation_blocked"
-	| "relation_unblocked"
-	| "task_approved"
-	| "task_unapproved"
-	| "due_date_changed"
-	| "competition_phase_changed"
-	| "progress_update_added"
-	| "reminder_triggered";
+export type NotificationType = Notification["type"];
 
-export type NotificationStatus = "unread" | "read" | "archived";
+export type NotificationStatus = Notification["status"];
 
-export type NotificationPriority = "low" | "normal" | "high" | "urgent";
+export type NotificationPriority = Notification["priority"];
 
 export type NotificationAction = {
 	id: Id<"notifications">;

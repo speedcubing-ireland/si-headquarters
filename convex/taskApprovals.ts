@@ -1,6 +1,6 @@
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { emitNotificationEvent } from "./notifications";
 
 const APPROVAL_PREFIX_USER = "user:";
 const APPROVAL_PREFIX_TEAM = "team:";
@@ -109,16 +109,13 @@ export async function scheduleAwaitingReviewNotifications(
 
 	if (reviewerIds.size === 0) return;
 
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyTaskAwaitingReview,
-		{
-			taskId,
-			recipientIds: [...reviewerIds],
-			actorId,
-			eventKey: `${taskId}:awaiting-review:${Date.now()}`,
-		},
-	);
+	await emitNotificationEvent(ctx, {
+		type: "task_awaiting_review",
+		taskId,
+		recipientIds: [...reviewerIds],
+		actorId,
+		eventKey: `${taskId}:awaiting-review:${Date.now()}`,
+	});
 }
 
 export async function computeApprovalCompleteness(

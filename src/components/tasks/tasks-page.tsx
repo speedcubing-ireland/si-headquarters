@@ -1,9 +1,7 @@
 import { useMemo, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Plus } from "lucide-react";
-import {
-	useTasks,
-} from "@/hooks/use-convex-data";
+import { useTasks } from "@/hooks/use-convex-data";
 import { TasksListStateContext } from "@/store/tasks-list-context";
 import { useTasksSavedViews } from "@/lib/use-tasks-saved-views";
 import { useListPageState } from "@/hooks/use-list-page-state";

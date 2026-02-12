@@ -26,7 +26,7 @@ type SharedFilterPopoverTriggerProps = Omit<
 	ref?: Ref<HTMLButtonElement>;
 };
 
-export const SharedFilterPopoverTrigger = React.memo(
+const SharedFilterPopoverTrigger = React.memo(
 	function SharedFilterPopoverTrigger({
 		count,
 		label = "Filter",

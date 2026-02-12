@@ -1,5 +1,8 @@
-import type { Doc } from "../_generated/dataModel";
-import { NOTIFICATION_DEFAULTS, NOTIFICATION_THRESHOLDS } from "./constants";
+import type { Doc } from "../../_generated/dataModel";
+import {
+	NOTIFICATION_DEFAULTS,
+	NOTIFICATION_THRESHOLDS,
+} from "../../lib/constants";
 import {
 	NotificationTemplates,
 	type NotificationTemplateConfig,

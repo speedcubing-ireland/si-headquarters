@@ -1,11 +1,11 @@
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
 import type { Infer } from "convex/values";
 import type { notificationMetadata, notificationPriority } from "./validators";
 import {
 	STATUS_LABELS,
 	PRIORITY_LABELS,
 	PROGRESS_STATUS_LABELS,
-} from "./constants";
+} from "../../lib/constants";
 
 type NotificationPriority = Infer<typeof notificationPriority>;
 type NotificationMetadata = Infer<typeof notificationMetadata>;

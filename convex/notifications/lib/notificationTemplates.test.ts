@@ -4,7 +4,7 @@ import {
 	getPriorityFromTaskPriority,
 	NotificationTemplates,
 } from "./notificationTemplates";
-import type { Id } from "../_generated/dataModel";
+import type { Id } from "../../_generated/dataModel";
 
 const taskId = (id: string) => id as Id<"tasks">;
 const competitionId = (id: string) => id as Id<"competitions">;

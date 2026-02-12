@@ -6,7 +6,7 @@ import { ConvexError } from "convex/values";
 import { isVolunteer, requireUserId } from "./auth";
 import { hasCompetitionAccess } from "./competitionAccess";
 import { progressUpdateStatus as statusValidator } from "./lib/validators";
-import { sendProgressUpdateNotifications } from "./competitionNotifications";
+import { sendProgressUpdateNotifications } from "./notifications/triggers/competitions";
 
 async function getUpdateAndAssertAuth(
 	ctx: MutationCtx,

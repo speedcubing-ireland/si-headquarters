@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Infer } from "convex/values";
 import type { notificationDigestMode } from "./validators";
-import { NOTIFICATION_DEFAULTS } from "./constants";
+import { NOTIFICATION_DEFAULTS } from "../../lib/constants";
 
 type NotificationDigestMode = Infer<typeof notificationDigestMode>;
 

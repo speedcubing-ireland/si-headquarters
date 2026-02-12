@@ -76,7 +76,7 @@ export type TasksByPhaseGroup = {
 	tasks: Task[];
 };
 
-export function compareTasksByStatusThenPriority(a: Task, b: Task): number {
+function compareTasksByStatusThenPriority(a: Task, b: Task): number {
 	const statusDiff = taskStatusOrder[a.status] - taskStatusOrder[b.status];
 	if (statusDiff !== 0) return statusDiff;
 

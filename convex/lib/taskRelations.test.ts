@@ -1,23 +1,8 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Id } from "../_generated/dataModel";
-
-const {
-	sendTaskRelationBlockedNotifications,
-	sendTaskRelationUnblockedNotifications,
-} = vi.hoisted(() => ({
-	sendTaskRelationBlockedNotifications: vi.fn(),
-	sendTaskRelationUnblockedNotifications: vi.fn(),
-}));
-
-vi.mock("../taskNotifications", () => ({
-	sendTaskRelationBlockedNotifications,
-	sendTaskRelationUnblockedNotifications,
-}));
-
-import { handleBlockingStatusTransitionNotifications } from "./taskRelations";
+import { computeBlockingStatusTransitionEffects } from "./taskRelations";
 
 const taskId = (id: string) => id as Id<"tasks">;
-const userId = (id: string) => id as Id<"users">;
 
 type FakeRelation = {
 	blockedTaskId: Id<"tasks">;
@@ -82,16 +67,10 @@ function makeCtx(args: {
 	} as never;
 }
 
-describe("handleBlockingStatusTransitionNotifications", () => {
-	beforeEach(() => {
-		sendTaskRelationBlockedNotifications.mockReset();
-		sendTaskRelationUnblockedNotifications.mockReset();
-	});
-
-	test("sends relation_unblocked when the last blocker resolves", async () => {
+describe("computeBlockingStatusTransitionEffects", () => {
+	test("returns unblocked when the last blocker resolves", async () => {
 		const blockedTaskId = taskId("task-blocked");
 		const blockingTaskId = taskId("task-blocking");
-		const actorId = userId("user-1");
 		const ctx = makeCtx({
 			relations: [{ blockedTaskId, blockingTaskId }],
 			taskStatuses: {
@@ -99,29 +78,26 @@ describe("handleBlockingStatusTransitionNotifications", () => {
 			},
 		});
 
-		await handleBlockingStatusTransitionNotifications(
+		const effects = await computeBlockingStatusTransitionEffects(
 			ctx,
 			blockingTaskId,
 			"in-progress",
 			"done",
-			actorId,
 		);
 
-		expect(sendTaskRelationUnblockedNotifications).toHaveBeenCalledTimes(1);
-		expect(sendTaskRelationUnblockedNotifications).toHaveBeenCalledWith(
-			ctx,
-			blockedTaskId,
-			blockingTaskId,
-			actorId,
-		);
-		expect(sendTaskRelationBlockedNotifications).not.toHaveBeenCalled();
+		expect(effects).toEqual([
+			{
+				type: "unblocked",
+				blockedTaskId,
+				blockingTaskId,
+			},
+		]);
 	});
 
-	test("does not send relation_unblocked when other unresolved blockers remain", async () => {
+	test("returns no effects when other unresolved blockers remain", async () => {
 		const blockedTaskId = taskId("task-blocked");
 		const blockingTaskId = taskId("task-blocking");
 		const secondaryBlockerId = taskId("task-secondary");
-		const actorId = userId("user-1");
 		const ctx = makeCtx({
 			relations: [
 				{ blockedTaskId, blockingTaskId },
@@ -133,22 +109,19 @@ describe("handleBlockingStatusTransitionNotifications", () => {
 			},
 		});
 
-		await handleBlockingStatusTransitionNotifications(
+		const effects = await computeBlockingStatusTransitionEffects(
 			ctx,
 			blockingTaskId,
 			"in-progress",
 			"done",
-			actorId,
 		);
 
-		expect(sendTaskRelationUnblockedNotifications).not.toHaveBeenCalled();
-		expect(sendTaskRelationBlockedNotifications).not.toHaveBeenCalled();
+		expect(effects).toEqual([]);
 	});
 
-	test("sends relation_blocked when task becomes the first unresolved blocker", async () => {
+	test("returns blocked when task becomes the first unresolved blocker", async () => {
 		const blockedTaskId = taskId("task-blocked");
 		const blockingTaskId = taskId("task-blocking");
-		const actorId = userId("user-1");
 		const ctx = makeCtx({
 			relations: [{ blockedTaskId, blockingTaskId }],
 			taskStatuses: {
@@ -156,21 +129,19 @@ describe("handleBlockingStatusTransitionNotifications", () => {
 			},
 		});
 
-		await handleBlockingStatusTransitionNotifications(
+		const effects = await computeBlockingStatusTransitionEffects(
 			ctx,
 			blockingTaskId,
 			"done",
 			"in-progress",
-			actorId,
 		);
 
-		expect(sendTaskRelationBlockedNotifications).toHaveBeenCalledTimes(1);
-		expect(sendTaskRelationBlockedNotifications).toHaveBeenCalledWith(
-			ctx,
-			blockedTaskId,
-			blockingTaskId,
-			actorId,
-		);
-		expect(sendTaskRelationUnblockedNotifications).not.toHaveBeenCalled();
+		expect(effects).toEqual([
+			{
+				type: "blocked",
+				blockedTaskId,
+				blockingTaskId,
+			},
+		]);
 	});
 });

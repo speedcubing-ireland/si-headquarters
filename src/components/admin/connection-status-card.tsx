@@ -13,7 +13,7 @@ interface ConnectionStatusCardProps {
 	oAuthInstructions: string;
 }
 
-export function ConnectionStatusCard({
+function ConnectionStatusCard({
 	title,
 	description,
 	connected,

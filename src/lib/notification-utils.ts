@@ -1,31 +1,15 @@
-import type {
-	NotificationPreference,
-	NotificationType,
-} from "@/data/types-new";
+import type { NotificationPreference } from "@/data/types-new";
+import {
+	NOTIFICATION_TYPE_OPTIONS,
+	getNotificationTypeLabel,
+	isNotificationType,
+} from "@/lib/notification-ui-catalog";
 
-export const NOTIFICATION_TYPE_OPTIONS: Array<{
-	value: NotificationType;
-	label: string;
-}> = [
-	{ value: "task_assigned", label: "Task assigned" },
-	{ value: "task_unassigned", label: "Task unassigned" },
-	{ value: "task_mentioned", label: "Task mentioned" },
-	{ value: "task_status_changed", label: "Task status changed" },
-	{ value: "task_priority_changed", label: "Task priority changed" },
-	{ value: "task_awaiting_review", label: "Task awaiting review" },
-	{ value: "due_date_approaching", label: "Due date approaching" },
-	{ value: "due_date_overdue", label: "Due date overdue" },
-	{ value: "comment_added", label: "Comment added" },
-	{ value: "comment_replied", label: "Comment replied" },
-	{ value: "relation_blocked", label: "Task blocked" },
-	{ value: "relation_unblocked", label: "Task unblocked" },
-	{ value: "task_approved", label: "Task approved" },
-	{ value: "task_unapproved", label: "Task approval withdrawn" },
-	{ value: "due_date_changed", label: "Due date changed" },
-	{ value: "competition_phase_changed", label: "Competition phase changed" },
-	{ value: "progress_update_added", label: "Progress update added" },
-	{ value: "reminder_triggered", label: "Reminder triggered" },
-];
+export {
+	NOTIFICATION_TYPE_OPTIONS,
+	getNotificationTypeLabel,
+	isNotificationType,
+};
 
 export const DIGEST_OPTIONS = [
 	{ value: "immediate", label: "Immediate" },
@@ -33,24 +17,6 @@ export const DIGEST_OPTIONS = [
 	{ value: "daily", label: "Daily digest" },
 	{ value: "three_daily", label: "3x daily digest" },
 ] as const;
-
-export const CHANNEL_LABELS: Record<
-	"in_app" | "email" | "slack" | "push",
-	string
-> = {
-	in_app: "In-app",
-	email: "Email",
-	slack: "Slack",
-	push: "Push",
-};
-
-export const IMPLEMENTED_SETTINGS_CHANNELS: ReadonlyArray<
-	NotificationPreference["channel"]
-> = ["in_app", "email"];
-
-export function isNotificationType(value: string): value is NotificationType {
-	return NOTIFICATION_TYPE_OPTIONS.some((option) => option.value === value);
-}
 
 export function isDigestMode(
 	value: string,

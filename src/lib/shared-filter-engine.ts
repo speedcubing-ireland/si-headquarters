@@ -8,7 +8,7 @@ export function hasDateRangeValue(dateRange?: DateRangeFilter): boolean {
 	return !!dateRange && (!!dateRange.start || !!dateRange.end);
 }
 
-export function buildFilterItemMatcher<TItem>(
+function buildFilterItemMatcher<TItem>(
 	filterItems: FilterItem[],
 	getValue: (item: TItem) => string | string[] | undefined,
 	matchMode: MatchMode,

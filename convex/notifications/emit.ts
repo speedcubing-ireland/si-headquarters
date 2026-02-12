@@ -1,4 +1,4 @@
-import type { NotificationEmitInput } from "../lib/notificationTypes";
+import type { NotificationEmitInput } from "./lib/notificationTypes";
 import { notificationCatalog } from "./catalog";
 import type { BuildEmitInputArgs, NotificationDeliveryPolicy } from "./types";
 

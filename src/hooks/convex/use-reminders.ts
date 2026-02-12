@@ -3,11 +3,6 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Reminder } from "@/data/types-new";
 
-export const useReminders = () => {
-	const d = useQuery(api.reminders.listForUser, {});
-	return { reminders: d ?? [], isLoading: d === undefined };
-};
-
 export const usePendingReminders = () => {
 	const d = useQuery(api.reminders.listPendingForUser, {});
 	return { reminders: d ?? [], isLoading: d === undefined };

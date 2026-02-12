@@ -1,6 +1,6 @@
 import { render } from "@react-email/components";
-import NotificationEmail from "../emails/NotificationEmail";
-import NotificationDigestEmail from "../emails/NotificationDigestEmail";
+import NotificationEmail from "../../emails/NotificationEmail";
+import NotificationDigestEmail from "../../emails/NotificationDigestEmail";
 import type {
 	NOTIFICATION_DIGEST_MODES,
 	NOTIFICATION_TYPES,

@@ -1,22 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-	AlertCircle,
-	AlertTriangle,
 	Archive,
 	Bell,
 	BookMarked,
 	Calendar,
 	Check,
-	CheckCircle2,
 	Clock,
 	Inbox,
-	Link2,
 	Mail,
-	MessageCircle,
 	MoreHorizontal,
 	Trash2,
-	User,
-	XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,57 +41,14 @@ import { formatDistanceToNow } from "date-fns";
 import { onMutationError } from "@/lib/utils";
 import { SNOOZE_PRESETS } from "@/lib/reminder-presets";
 import { InboxSettingsPanel } from "@/components/inbox/inbox-settings-panel";
+import { getNotificationIconConfig } from "@/lib/notification-ui-catalog";
 
 export const Route = createFileRoute("/inbox")({
 	component: RouteComponent,
 });
 
-const NOTIFICATION_ICON_CONFIG: Record<
-	string,
-	{ Icon: typeof Bell; className: string }
-> = {
-	task_assigned: { Icon: User, className: "size-5 text-primary" },
-	task_unassigned: { Icon: User, className: "size-5 text-muted-foreground" },
-	task_mentioned: { Icon: MessageCircle, className: "size-5 text-primary" },
-	task_status_changed: { Icon: CheckCircle2, className: "size-5 text-primary" },
-	task_priority_changed: {
-		Icon: AlertTriangle,
-		className: "size-5 text-warning",
-	},
-	task_awaiting_review: {
-		Icon: CheckCircle2,
-		className: "size-5 text-primary",
-	},
-	due_date_approaching: {
-		Icon: Clock,
-		className: "size-5 text-muted-foreground",
-	},
-	due_date_overdue: { Icon: AlertCircle, className: "size-5 text-destructive" },
-	comment_added: { Icon: MessageCircle, className: "size-5 text-primary" },
-	comment_replied: { Icon: MessageCircle, className: "size-5 text-primary" },
-	relation_blocked: {
-		Icon: AlertTriangle,
-		className: "size-5 text-destructive",
-	},
-	relation_unblocked: { Icon: CheckCircle2, className: "size-5 text-primary" },
-	task_approved: { Icon: CheckCircle2, className: "size-5 text-primary" },
-	task_unapproved: { Icon: XCircle, className: "size-5 text-muted-foreground" },
-	due_date_changed: { Icon: Calendar, className: "size-5 text-primary" },
-	competition_phase_changed: { Icon: Link2, className: "size-5 text-primary" },
-	progress_update_added: {
-		Icon: Bell,
-		className: "size-5 text-muted-foreground",
-	},
-	reminder_triggered: { Icon: Calendar, className: "size-5 text-primary" },
-};
-
-const DEFAULT_ICON_CONFIG = {
-	Icon: Bell,
-	className: "size-5 text-muted-foreground",
-};
-
 function getNotificationIcon(type: NotificationType) {
-	const config = NOTIFICATION_ICON_CONFIG[type] ?? DEFAULT_ICON_CONFIG;
+	const config = getNotificationIconConfig(type);
 	return <config.Icon className={config.className} />;
 }
 

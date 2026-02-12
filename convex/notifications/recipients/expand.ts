@@ -1,7 +1,7 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { getEntitySubscriberIds } from "../../lib/notificationAccess";
-import type { NotificationEmitInput } from "../../lib/notificationTypes";
+import { getEntitySubscriberIds } from "../lib/notificationAccess";
+import type { NotificationEmitInput } from "../lib/notificationTypes";
 
 export async function expandRecipientIds(
 	ctx: Pick<MutationCtx, "db">,

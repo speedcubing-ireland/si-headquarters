@@ -3,7 +3,6 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
-import { internal } from "./_generated/api";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
@@ -17,7 +16,6 @@ import {
 	requireTaskAccess,
 } from "./taskAccess";
 import {
-	decodeApprovalId,
 	encodeApprovalId,
 	computeApprovalCompleteness,
 	scheduleAwaitingReviewNotifications,
@@ -33,7 +31,7 @@ import {
 	sendTaskRelationBlockedNotifications,
 	sendTaskRelationUnblockedNotifications,
 	sendTaskStatusChangeNotifications,
-} from "./taskNotifications";
+} from "./notifications/triggers/tasks";
 import {
 	buildTaskPatch,
 	applyAwaitingReviewAutoPromote,
@@ -50,12 +48,13 @@ import {
 	labelShape as taskLabelShape,
 	phaseShape,
 } from "./lib/validators";
-import { MAX_BULK_UPDATE_COUNT, NOTIFICATION_DEFAULTS } from "./lib/constants";
+import { MAX_BULK_UPDATE_COUNT } from "./lib/constants";
 import {
 	buildTaskRelationDataMap,
 	countUnresolvedBlockers,
 	wouldCreateTaskRelationCycle,
-	handleBlockingStatusTransitionNotifications,
+	computeBlockingStatusTransitionEffects,
+	type TaskRelationTransitionEffect,
 	isTaskBlockingStatus,
 	EMPTY_TASK_RELATION_DATA,
 } from "./lib/taskRelations";
@@ -65,6 +64,13 @@ import {
 	transformTaskToUI,
 	resolveTaskParent,
 } from "./lib/taskTransforms";
+import { emitNotificationEvent } from "./notifications";
+import { maybeTriggerDueDateCheckForToday } from "./tasks/dueDate";
+import {
+	assertValidApprovalIds,
+	nextTaskIdentifier,
+	reserveTaskIdentifiers,
+} from "./tasks/creation";
 
 interface FetchAccessibleTasksOptions {
 	archived: boolean;
@@ -549,48 +555,6 @@ function resolveUpdatedPriority(
 	return patch.priority ?? updates.priority ?? doc.priority;
 }
 
-const dublinDateFormatter = new Intl.DateTimeFormat("en-CA", {
-	timeZone: NOTIFICATION_DEFAULTS.TIMEZONE,
-	year: "numeric",
-	month: "2-digit",
-	day: "2-digit",
-});
-
-function toDublinDateKey(timestamp: number): string {
-	return dublinDateFormatter.format(new Date(timestamp));
-}
-
-function isDublinDateToday(dateValue: string, now: number): boolean {
-	const dueDateMs = new Date(dateValue).getTime();
-	if (Number.isNaN(dueDateMs)) {
-		return false;
-	}
-	return toDublinDateKey(dueDateMs) === toDublinDateKey(now);
-}
-
-async function maybeTriggerDueDateCheckForToday(
-	ctx: MutationCtx,
-	args: {
-		taskId: Id<"tasks">;
-		dueDate: string | undefined;
-		assigneeId: Id<"users"> | undefined;
-		status: Doc<"tasks">["status"];
-	},
-): Promise<void> {
-	if (!args.dueDate || !args.assigneeId || args.status === "done") {
-		return;
-	}
-
-	const now = Date.now();
-	if (!isDublinDateToday(args.dueDate, now)) {
-		return;
-	}
-
-	await ctx.scheduler.runAfter(0, internal.notifications._checkDueDateForTask, {
-		taskId: args.taskId,
-	});
-}
-
 async function runTaskUpdateSideEffects(
 	ctx: MutationCtx,
 	args: {
@@ -628,13 +592,13 @@ async function runTaskUpdateSideEffects(
 			newStatus,
 			userId,
 		);
-		await handleBlockingStatusTransitionNotifications(
+		const relationEffects = await computeBlockingStatusTransitionEffects(
 			ctx,
 			taskId,
 			oldStatus,
 			newStatus,
-			userId,
 		);
+		await emitTaskRelationTransitionNotifications(ctx, relationEffects, userId);
 	}
 
 	if (updates.priority !== undefined && oldPriority !== newPriority) {
@@ -679,45 +643,29 @@ async function runTaskUpdateSideEffects(
 	}
 }
 
-function assertValidApprovalIds(requiredApprovalIds: string[]): void {
-	for (const id of requiredApprovalIds) {
-		if (decodeApprovalId(id) !== null) {
-			continue;
-		}
-		throw new ConvexError({
-			code: "BAD_REQUEST",
-			message: `Invalid approval ID format: ${id}`,
-		});
-	}
-}
-
-async function nextTaskIdentifier(ctx: MutationCtx): Promise<string> {
-	const counter = await ctx.db.query("taskCounter").first();
-	if (!counter) {
-		await ctx.db.insert("taskCounter", { next: 2 });
-		return "HQ-1";
-	}
-
-	const nextNum = counter.next;
-	await ctx.db.patch("taskCounter", counter._id, { next: nextNum + 1 });
-	return `HQ-${nextNum}`;
-}
-
-async function reserveTaskIdentifiers(
+async function emitTaskRelationTransitionNotifications(
 	ctx: MutationCtx,
-	count: number,
-): Promise<string[]> {
-	if (count <= 0) return [];
-
-	const counter = await ctx.db.query("taskCounter").first();
-	if (!counter) {
-		await ctx.db.insert("taskCounter", { next: count + 1 });
-		return Array.from({ length: count }, (_, index) => `HQ-${index + 1}`);
-	}
-
-	const start = counter.next;
-	await ctx.db.patch("taskCounter", counter._id, { next: start + count });
-	return Array.from({ length: count }, (_, index) => `HQ-${start + index}`);
+	effects: TaskRelationTransitionEffect[],
+	actorId: Id<"users">,
+): Promise<void> {
+	await Promise.all(
+		effects.map((effect) => {
+			if (effect.type === "blocked") {
+				return sendTaskRelationBlockedNotifications(
+					ctx,
+					effect.blockedTaskId,
+					effect.blockingTaskId,
+					actorId,
+				);
+			}
+			return sendTaskRelationUnblockedNotifications(
+				ctx,
+				effect.blockedTaskId,
+				effect.blockingTaskId,
+				actorId,
+			);
+		}),
+	);
 }
 
 export const create = mutation({
@@ -782,15 +730,12 @@ export const create = mutation({
 		});
 
 		if (assigneeId && assigneeId !== userId) {
-			await ctx.scheduler.runAfter(
-				0,
-				internal.notifications._notifyTaskAssigned,
-				{
-					taskId,
-					assigneeId,
-					actorId: userId,
-				},
-			);
+			await emitNotificationEvent(ctx, {
+				type: "task_assigned",
+				taskId,
+				recipientId: assigneeId,
+				actorId: userId,
+			});
 		}
 		await maybeTriggerDueDateCheckForToday(ctx, {
 			taskId,
@@ -871,15 +816,12 @@ export const createManyFromTemplate = mutation({
 			createdTaskIds.push(taskId);
 
 			if (task.assigneeId && task.assigneeId !== userId) {
-				await ctx.scheduler.runAfter(
-					0,
-					internal.notifications._notifyTaskAssigned,
-					{
-						taskId,
-						assigneeId: task.assigneeId,
-						actorId: userId,
-					},
-				);
+				await emitNotificationEvent(ctx, {
+					type: "task_assigned",
+					taskId,
+					recipientId: task.assigneeId,
+					actorId: userId,
+				});
 			}
 			await maybeTriggerDueDateCheckForToday(ctx, {
 				taskId,
@@ -1302,11 +1244,15 @@ export const approveTask = mutation({
 				"done",
 				userId,
 			);
-			await handleBlockingStatusTransitionNotifications(
+			const relationEffects = await computeBlockingStatusTransitionEffects(
 				ctx,
 				args.taskId,
 				task.status,
 				"done",
+			);
+			await emitTaskRelationTransitionNotifications(
+				ctx,
+				relationEffects,
 				userId,
 			);
 		}

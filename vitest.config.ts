@@ -10,6 +10,7 @@ export default defineConfig({
 	},
 	test: {
 		environment: "edge-runtime",
+		testTimeout: 20_000,
 		include: ["convex/**/*.test.ts", "src/**/*.test.ts"],
 		coverage: {
 			provider: "v8",

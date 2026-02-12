@@ -1,9 +1,9 @@
 import { ConvexError } from "convex/values";
-import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { NOTIFICATION_TYPES } from "./validators";
 import { validateTimezone } from "./notificationScheduling";
-import { toISO } from "./transforms";
+import { toISO } from "../../lib/transforms";
 import { validateQuietHours } from "./notificationHelpers";
 import {
 	IN_APP_CHANNEL,

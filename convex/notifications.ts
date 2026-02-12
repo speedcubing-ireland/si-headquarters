@@ -1,9 +1,4 @@
-import {
-	ConvexError,
-	v,
-	type ObjectType,
-	type PropertyValidators,
-} from "convex/values";
+import { ConvexError, v } from "convex/values";
 import {
 	mutation,
 	query,
@@ -21,40 +16,34 @@ import {
 	notificationChannel,
 	notificationDigestMode,
 	notificationType,
-} from "./lib/validators";
+} from "./notifications/lib/validators";
 import {
 	NotificationTemplates,
 	type NotificationTemplateConfig,
 	type TaskNotificationType,
-} from "./lib/notificationTemplates";
-import { computeDispatchSchedule } from "./lib/notificationScheduling";
+} from "./notifications/lib/notificationTemplates";
 import { toISO } from "./lib/transforms";
 import { normalizeEmail, validateEmail } from "./lib/sanitize";
-import { buildEntityLink, formatEntityTypeLabel } from "./emails/shared";
 import {
 	IN_APP_CHANNEL,
 	EMAIL_CHANNEL,
-	EXTERNAL_NOTIFICATION_CHANNELS,
-	DEFAULT_DIGEST_MODE,
-	EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS,
 	notificationReturns,
 	notificationPreferenceReturns,
 	notificationUserSettingsReturns,
 	notificationSettingsReturns,
 	notificationSubscriptionReturns,
 	notificationDispatchStatsReturns,
+	notificationDispatchHealthReturns,
+	notificationDeadLetterReturns,
 	entitySubscriptionArgs,
 	type NotificationChannel,
-	type NotificationDigestMode,
 	type NotificationType,
 	type NotificationEntityType,
-	type DispatchStatus,
-	type ScheduledFunctionId,
 	type EntitySubscriptionArg,
 	type NotificationEntityRef,
 	type NotificationEmitInput,
 	type EmailDispatchSnapshot,
-} from "./lib/notificationTypes";
+} from "./notifications/lib/notificationTypes";
 import {
 	docToNotification,
 	normalizeListLimit,
@@ -66,22 +55,20 @@ import {
 	serializePayload,
 	notificationParentEntityId,
 	defaultThreadKey,
-} from "./lib/notificationHelpers";
+} from "./notifications/lib/notificationHelpers";
 import {
 	getResolvedNotificationUserSettings,
-	getNotificationUserTimezone,
 	upsertNotificationUserSettings,
-	getNotificationPreferenceConfig,
 	buildPreferenceRowsForUser,
 	upsertNotificationPreferenceOverride,
 	formatUserSettings,
-} from "./lib/notificationSettings";
+} from "./notifications/lib/notificationSettings";
 import {
 	canUserAccessTask,
 	canUserAccessCompetition,
 	canUserAccessComment,
 	canUserAccessNotificationEntity,
-} from "./lib/notificationAccess";
+} from "./notifications/lib/notificationAccess";
 import {
 	getActorInfo,
 	resolveRecipientIds,
@@ -89,247 +76,43 @@ import {
 	buildCompetitionNotificationResult,
 	type TaskNotificationBuildArgs,
 	type CompetitionNotificationBuildArgs,
-} from "./lib/notificationBuilders";
+} from "./notifications/lib/notificationBuilders";
 import {
-	isDispatchDue,
-	buildEmailDispatchGroupClaimKey,
-	hasUnexpiredEmailDispatchClaim,
-	collectDispatchGroup,
 	resolveEmailDispatchItem,
-	patchPendingDispatches,
-	buildTestEmailData,
-	STALE_DISPATCH_THRESHOLD_MS,
 	emailDispatchGroupValidator,
 	type ResolvedEmailDispatchItem,
-} from "./lib/notificationEmail";
+} from "./notifications/lib/notificationEmail";
 import {
 	computeDueDateDaysDiff,
 	buildDueDateNotificationSpec,
 	MS_PER_DAY,
 	type DueDateNotificationSpec,
-} from "./lib/notificationDueDates";
+} from "./notifications/lib/notificationDueDates";
 import { buildNotificationEmitInput } from "./notifications/emit";
 import { expandRecipientIds } from "./notifications/recipients/expand";
 import { decideRecipientHandling } from "./notifications/recipients/filter";
 import { computeInAppScheduleForRecipient } from "./notifications/recipients/schedule";
+import {
+	skipRecipient,
+	upsertDispatch,
+	upsertEnabledExternalDispatches,
+} from "./notifications/dispatch/enqueue";
+import {
+	processDispatch,
+	sweepStaleDispatches,
+} from "./notifications/dispatch/process";
+import {
+	markDispatchesFailed,
+	markDispatchesSent,
+} from "./notifications/dispatch/retry";
+import {
+	getDispatchHealthDiagnostics,
+	listRecentDeadLettersDiagnostics,
+} from "./notifications/dispatch/diagnostics";
+import { getChannelAdapter } from "./notifications/channels/registry";
+import { sendTestEmailPreview } from "./notifications/channels/email";
 
-export { notificationReturns } from "./lib/notificationTypes";
-
-const DEFAULT_DISPATCH_MAX_ATTEMPTS = 5;
-
-async function upsertEnabledExternalDispatches(
-	ctx: MutationCtx,
-	args: {
-		eventId: Id<"notificationEvents">;
-		userId: Id<"users">;
-		type: NotificationType;
-		status: DispatchStatus;
-		notificationId?: Id<"notifications">;
-		metadataJson?: string;
-		reason?: string;
-	},
-): Promise<void> {
-	if (EXTERNAL_NOTIFICATION_CHANNELS.length === 0) {
-		return;
-	}
-
-	const timezone = await getNotificationUserTimezone(ctx, args.userId);
-	const now = Date.now();
-
-	type ExternalDispatchPlan = {
-		channel: NotificationChannel;
-		digestMode: NotificationDigestMode;
-		scheduledFor: number;
-		digestWindowKey: string | undefined;
-	};
-
-	const channelPlans = await Promise.all(
-		EXTERNAL_NOTIFICATION_CHANNELS.map(
-			async (channel): Promise<ExternalDispatchPlan | null> => {
-				const preference = await getNotificationPreferenceConfig(
-					ctx,
-					args.userId,
-					args.type,
-					channel,
-				);
-				if (!preference.enabled) {
-					return null;
-				}
-
-				const schedule = computeDispatchSchedule({
-					now,
-					timezone,
-					digestMode: preference.digestMode,
-					quietHoursStartMin: preference.quietHoursStartMin,
-					quietHoursEndMin: preference.quietHoursEndMin,
-				});
-				return {
-					channel,
-					digestMode: preference.digestMode,
-					scheduledFor: schedule.scheduledFor,
-					digestWindowKey: schedule.digestWindowKey,
-				};
-			},
-		),
-	);
-
-	const dispatchPlans = channelPlans.filter(
-		(plan): plan is NonNullable<typeof plan> => plan !== null,
-	);
-
-	await Promise.all(
-		dispatchPlans.map((plan) =>
-			upsertDispatch(ctx, {
-				eventId: args.eventId,
-				userId: args.userId,
-				channel: plan.channel,
-				status: args.status,
-				digestMode: plan.digestMode,
-				scheduledFor: plan.scheduledFor,
-				...(plan.digestWindowKey
-					? { digestWindowKey: plan.digestWindowKey }
-					: {}),
-				notificationId: args.notificationId,
-				metadataJson: args.metadataJson,
-				reason: args.reason,
-			}),
-		),
-	);
-}
-
-function shouldScheduleDispatchProcessing(
-	status: DispatchStatus,
-	scheduledFor: number | undefined,
-): scheduledFor is number {
-	return status === "pending" && scheduledFor !== undefined;
-}
-
-async function scheduleDispatchProcessing(
-	ctx: MutationCtx,
-	dispatchId: Id<"notificationDispatches">,
-	scheduledFor: number,
-): Promise<ScheduledFunctionId> {
-	return ctx.scheduler.runAt(
-		scheduledFor,
-		internal.notifications._processDispatch,
-		{
-			dispatchId,
-		},
-	);
-}
-
-async function attachDispatchScheduleIfPending(
-	ctx: MutationCtx,
-	dispatchId: Id<"notificationDispatches">,
-	scheduledFunctionId: ScheduledFunctionId,
-): Promise<void> {
-	const latest = await ctx.db.get("notificationDispatches", dispatchId);
-	if (!latest || latest.status !== "pending") {
-		await ctx.scheduler.cancel(scheduledFunctionId);
-		return;
-	}
-	await ctx.db.patch("notificationDispatches", dispatchId, {
-		scheduledFunctionId,
-		updatedAt: Date.now(),
-	});
-}
-
-async function upsertDispatch(
-	ctx: MutationCtx,
-	args: {
-		eventId: Id<"notificationEvents">;
-		userId: Id<"users">;
-		channel: NotificationChannel;
-		status: DispatchStatus;
-		digestMode?: NotificationDigestMode;
-		scheduledFor?: number;
-		digestWindowKey?: string;
-		notificationId?: Id<"notifications">;
-		reason?: string;
-		metadataJson?: string;
-	},
-): Promise<void> {
-	const existing = await ctx.db
-		.query("notificationDispatches")
-		.withIndex("by_event_user_channel", (q) =>
-			q
-				.eq("eventId", args.eventId)
-				.eq("userId", args.userId)
-				.eq("channel", args.channel),
-		)
-		.first();
-
-	const now = Date.now();
-	const attempts = (existing?.attempts ?? 0) + 1;
-	const sentAt = args.status === "sent" ? now : existing?.sentAt;
-	const digestMode =
-		args.digestMode ?? existing?.digestMode ?? DEFAULT_DIGEST_MODE;
-	const maxAttempts = existing?.maxAttempts ?? DEFAULT_DISPATCH_MAX_ATTEMPTS;
-	const scheduledFor =
-		args.scheduledFor ??
-		existing?.scheduledFor ??
-		(args.status === "pending" ? now : undefined);
-	const digestWindowKey = args.digestWindowKey ?? existing?.digestWindowKey;
-	const shouldSchedule = shouldScheduleDispatchProcessing(
-		args.status,
-		scheduledFor,
-	);
-
-	const commonFields = {
-		status: args.status,
-		digestMode,
-		scheduledFor,
-		scheduledFunctionId: undefined,
-		digestWindowKey,
-		reason: args.reason,
-		metadataJson: args.metadataJson,
-		attempts,
-		maxAttempts,
-		lastAttemptAt: now,
-		sentAt,
-		updatedAt: now,
-	} as const;
-
-	if (existing) {
-		if (existing.scheduledFunctionId) {
-			await ctx.scheduler.cancel(existing.scheduledFunctionId);
-		}
-		await ctx.db.patch("notificationDispatches", existing._id, {
-			...commonFields,
-			notificationId: args.notificationId ?? existing.notificationId,
-		});
-		if (shouldSchedule) {
-			const scheduledFunctionId = await scheduleDispatchProcessing(
-				ctx,
-				existing._id,
-				scheduledFor,
-			);
-			await attachDispatchScheduleIfPending(
-				ctx,
-				existing._id,
-				scheduledFunctionId,
-			);
-		}
-		return;
-	}
-
-	const dispatchId = await ctx.db.insert("notificationDispatches", {
-		...commonFields,
-		eventId: args.eventId,
-		notificationId: args.notificationId,
-		userId: args.userId,
-		channel: args.channel,
-	});
-	if (!shouldSchedule) {
-		return;
-	}
-	const scheduledFunctionId = await scheduleDispatchProcessing(
-		ctx,
-		dispatchId,
-		scheduledFor,
-	);
-	await attachDispatchScheduleIfPending(ctx, dispatchId, scheduledFunctionId);
-}
+export { notificationReturns } from "./notifications/lib/notificationTypes";
 
 async function ensureNotificationEvent(
 	ctx: MutationCtx,
@@ -364,36 +147,6 @@ async function ensureNotificationEvent(
 		dedupeKey: args.dedupeKey,
 		payloadJson: args.payloadJson,
 		createdAt: Date.now(),
-	});
-}
-
-async function skipRecipient(
-	ctx: MutationCtx,
-	opts: {
-		eventId: Id<"notificationEvents">;
-		recipientId: Id<"users">;
-		type: NotificationType;
-		inAppStatus: DispatchStatus;
-		externalStatus: DispatchStatus;
-		reason: string;
-		externalReason?: string;
-		externalMetadataJson?: string;
-	},
-): Promise<void> {
-	await upsertDispatch(ctx, {
-		eventId: opts.eventId,
-		userId: opts.recipientId,
-		channel: IN_APP_CHANNEL,
-		status: opts.inAppStatus,
-		reason: opts.reason,
-	});
-	await upsertEnabledExternalDispatches(ctx, {
-		eventId: opts.eventId,
-		userId: opts.recipientId,
-		type: opts.type,
-		status: opts.externalStatus,
-		metadataJson: opts.externalMetadataJson,
-		reason: opts.externalReason ?? opts.reason,
 	});
 }
 
@@ -655,8 +408,6 @@ export const markAllRead = mutation({
 		return null;
 	},
 });
-
-export const dismiss = markArchived;
 
 export const snooze = mutation({
 	args: { notificationId: v.id("notifications"), snoozedUntil: v.string() },
@@ -1069,6 +820,30 @@ export const getDispatchStats = query({
 	},
 });
 
+export const getDispatchHealth = query({
+	args: {},
+	returns: notificationDispatchHealthReturns,
+	handler: async (ctx) => {
+		await requireDirector(ctx);
+		return getDispatchHealthDiagnostics(ctx);
+	},
+});
+
+export const listRecentDeadLetters = query({
+	args: {
+		limit: v.optional(v.number()),
+		channel: v.optional(notificationChannel),
+	},
+	returns: v.array(notificationDeadLetterReturns),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		return listRecentDeadLettersDiagnostics(ctx, {
+			limit: args.limit,
+			channel: args.channel as NotificationChannel | undefined,
+		});
+	},
+});
+
 export const sendTestDigestSeries = mutation({
 	args: {
 		toEmail: v.optional(v.string()),
@@ -1115,7 +890,13 @@ async function emitFromConfig(
 	config: NotificationTemplateConfig,
 	opts: Omit<
 		NotificationEmitInput,
-		"title" | "message" | "priority" | "metadata" | "body" | "isBatchable" | "batchKey"
+		| "title"
+		| "message"
+		| "priority"
+		| "metadata"
+		| "body"
+		| "isBatchable"
+		| "batchKey"
 	>,
 ): Promise<Id<"notifications"> | null> {
 	const emitInput = buildNotificationEmitInput({
@@ -1235,168 +1016,164 @@ async function createReminderNotification(
 	);
 }
 
-function taskNotifyMutation<T extends PropertyValidators>(
-	args: T,
-	type: TaskNotificationType,
-	mapArgs: (a: ObjectType<T>) => TaskNotificationBuildArgs,
-) {
-	return internalMutation({
-		args,
-		returns: v.union(v.id("notifications"), v.null()),
-		handler: async (ctx: MutationCtx, a: ObjectType<T>) =>
-			createTaskNotification(ctx, type, mapArgs(a)),
-	});
+type TaskEventType = TaskNotificationType;
+
+type BaseTaskEventArgs = {
+	taskId: Id<"tasks">;
+	actorId: Id<"users">;
+	recipientId?: Id<"users">;
+	recipientIds?: Id<"users">[];
+	eventKey?: string;
+};
+
+type EmitNotificationEventArgs =
+	| ({ type: "task_assigned" | "task_unassigned" } & BaseTaskEventArgs)
+	| ({
+			type: "task_mentioned" | "comment_added" | "comment_replied";
+			commentId: Id<"comments">;
+	  } & BaseTaskEventArgs)
+	| ({
+			type: "task_status_changed";
+			oldStatus: string;
+			newStatus: string;
+	  } & BaseTaskEventArgs)
+	| ({
+			type: "task_priority_changed";
+			oldPriority: string;
+			newPriority: string;
+	  } & BaseTaskEventArgs)
+	| ({
+			type: "task_awaiting_review" | "task_approved" | "task_unapproved";
+	  } & BaseTaskEventArgs)
+	| ({
+			type: "due_date_changed";
+			oldDueDate?: string;
+			newDueDate?: string;
+	  } & BaseTaskEventArgs)
+	| ({
+			type: "relation_blocked" | "relation_unblocked";
+			blockingTaskId: Id<"tasks">;
+	  } & BaseTaskEventArgs)
+	| {
+			type: "due_date_approaching";
+			taskId: Id<"tasks">;
+			assigneeId: Id<"users">;
+			daysUntil: number;
+			eventKey?: string;
+	  }
+	| {
+			type: "due_date_overdue";
+			taskId: Id<"tasks">;
+			assigneeId: Id<"users">;
+			daysOverdue: number;
+			eventKey?: string;
+	  }
+	| {
+			type: "competition_phase_changed";
+			competitionId: Id<"competitions">;
+			recipientId?: Id<"users">;
+			recipientIds?: Id<"users">[];
+			actorId: Id<"users">;
+			oldPhaseName: string;
+			newPhaseName: string;
+			eventKey?: string;
+	  }
+	| {
+			type: "progress_update_added";
+			competitionId: Id<"competitions">;
+			recipientId?: Id<"users">;
+			recipientIds?: Id<"users">[];
+			actorId: Id<"users">;
+			competitionName: string;
+			status: "on-track" | "at-risk" | "off-track";
+			eventKey?: string;
+	  }
+	| {
+			type: "reminder_triggered";
+			reminderId: Id<"reminders">;
+			userId: Id<"users">;
+			taskId: Id<"tasks">;
+			message?: string;
+			eventKey?: string;
+	  };
+
+function mapTaskEventArgs(args: {
+	type: TaskEventType;
+	taskId: Id<"tasks">;
+	actorId: Id<"users">;
+	recipientId?: Id<"users">;
+	recipientIds?: Id<"users">[];
+	commentId?: Id<"comments">;
+	oldStatus?: string;
+	newStatus?: string;
+	oldPriority?: string;
+	newPriority?: string;
+	oldDueDate?: string;
+	newDueDate?: string;
+	blockingTaskId?: Id<"tasks">;
+	eventKey?: string;
+}): TaskNotificationBuildArgs {
+	return {
+		taskId: args.taskId,
+		actorId: args.actorId,
+		recipientId: args.recipientId,
+		recipientIds: args.recipientIds,
+		commentId: args.commentId,
+		oldStatus: args.oldStatus,
+		newStatus: args.newStatus,
+		oldPriority: args.oldPriority,
+		newPriority: args.newPriority,
+		oldDueDate: args.oldDueDate,
+		newDueDate: args.newDueDate,
+		blockingTaskId: args.blockingTaskId,
+		eventKey: args.eventKey,
+	};
 }
 
-const assigneeArgs = {
-	taskId: v.id("tasks"),
-	assigneeId: v.id("users"),
-	actorId: v.id("users"),
-	eventKey: v.optional(v.string()),
-} as const;
-
-const assigneeMapper = (
-	a: ObjectType<typeof assigneeArgs>,
-): TaskNotificationBuildArgs => ({
-	taskId: a.taskId,
-	recipientId: a.assigneeId,
-	actorId: a.actorId,
-	eventKey: a.eventKey,
-});
-
-export const _notifyTaskAssigned = taskNotifyMutation(
-	assigneeArgs,
-	"task_assigned",
-	assigneeMapper,
-);
-
-export const _notifyTaskUnassigned = taskNotifyMutation(
-	assigneeArgs,
-	"task_unassigned",
-	assigneeMapper,
-);
-
-const mentionArgs = {
-	taskId: v.id("tasks"),
-	commentId: v.id("comments"),
-	mentionedUserId: v.id("users"),
-	actorId: v.id("users"),
-	eventKey: v.optional(v.string()),
-} as const;
-
-export const _notifyTaskMentioned = taskNotifyMutation(
-	mentionArgs,
-	"task_mentioned",
-	(a: ObjectType<typeof mentionArgs>): TaskNotificationBuildArgs => ({
-		taskId: a.taskId,
-		commentId: a.commentId,
-		recipientId: a.mentionedUserId,
-		actorId: a.actorId,
-		eventKey: a.eventKey,
-	}),
-);
-
-const commentArgs = {
-	taskId: v.id("tasks"),
-	commentId: v.id("comments"),
-	recipientIds: v.optional(v.array(v.id("users"))),
-	actorId: v.id("users"),
-	eventKey: v.optional(v.string()),
-} as const;
-
-export const _notifyCommentAdded = taskNotifyMutation(
-	commentArgs,
-	"comment_added",
-	(a): TaskNotificationBuildArgs => a,
-);
-export const _notifyCommentReplied = taskNotifyMutation(
-	commentArgs,
-	"comment_replied",
-	(a): TaskNotificationBuildArgs => a,
-);
-
-const multiRecipientTaskArgs = {
-	taskId: v.id("tasks"),
-	recipientId: v.optional(v.id("users")),
-	recipientIds: v.optional(v.array(v.id("users"))),
-	actorId: v.id("users"),
-	eventKey: v.optional(v.string()),
-} as const;
-
-export const _notifyTaskStatusChanged = taskNotifyMutation(
-	{ ...multiRecipientTaskArgs, oldStatus: v.string(), newStatus: v.string() },
-	"task_status_changed",
-	(a): TaskNotificationBuildArgs => a,
-);
-
-export const _notifyTaskPriorityChanged = taskNotifyMutation(
-	{
-		...multiRecipientTaskArgs,
-		oldPriority: v.string(),
-		newPriority: v.string(),
-	},
-	"task_priority_changed",
-	(a): TaskNotificationBuildArgs => a,
-);
-
-export const _notifyTaskAwaitingReview = taskNotifyMutation(
-	multiRecipientTaskArgs,
-	"task_awaiting_review",
-	(a): TaskNotificationBuildArgs => a,
-);
-
-const relationArgs = {
-	blockedTaskId: v.id("tasks"),
-	blockingTaskId: v.id("tasks"),
-	recipientId: v.optional(v.id("users")),
-	recipientIds: v.optional(v.array(v.id("users"))),
-	actorId: v.id("users"),
-	eventKey: v.optional(v.string()),
-} as const;
-
-const relationMapper = (
-	a: ObjectType<typeof relationArgs>,
-): TaskNotificationBuildArgs => ({
-	taskId: a.blockedTaskId,
-	blockingTaskId: a.blockingTaskId,
-	recipientId: a.recipientId,
-	recipientIds: a.recipientIds,
-	actorId: a.actorId,
-	eventKey: a.eventKey,
-});
-
-export const _notifyTaskRelationBlocked = taskNotifyMutation(
-	relationArgs,
-	"relation_blocked",
-	relationMapper,
-);
-
-export const _notifyTaskRelationUnblocked = taskNotifyMutation(
-	relationArgs,
-	"relation_unblocked",
-	relationMapper,
-);
-
-export const _notifyTaskApproved = taskNotifyMutation(
-	multiRecipientTaskArgs,
-	"task_approved",
-	(a): TaskNotificationBuildArgs => a,
-);
-export const _notifyTaskUnapproved = taskNotifyMutation(
-	multiRecipientTaskArgs,
-	"task_unapproved",
-	(a): TaskNotificationBuildArgs => a,
-);
-
-export const _notifyDueDateChanged = taskNotifyMutation(
-	{
-		...multiRecipientTaskArgs,
-		oldDueDate: v.optional(v.string()),
-		newDueDate: v.optional(v.string()),
-	},
-	"due_date_changed",
-	(a): TaskNotificationBuildArgs => a,
-);
+export async function emitNotificationEvent(
+	ctx: MutationCtx,
+	args: EmitNotificationEventArgs,
+): Promise<Id<"notifications"> | null> {
+	switch (args.type) {
+		case "task_assigned":
+		case "task_unassigned":
+		case "task_mentioned":
+		case "comment_added":
+		case "comment_replied":
+		case "task_status_changed":
+		case "task_priority_changed":
+		case "task_awaiting_review":
+		case "task_approved":
+		case "task_unapproved":
+		case "due_date_changed":
+		case "relation_blocked":
+		case "relation_unblocked":
+			return createTaskNotification(ctx, args.type, mapTaskEventArgs(args));
+		case "due_date_approaching":
+			return emitDueDateUrgencyNotification(ctx, "due_date_approaching", {
+				taskId: args.taskId,
+				assigneeId: args.assigneeId,
+				days: args.daysUntil,
+				eventKey: args.eventKey,
+			});
+		case "due_date_overdue":
+			return emitDueDateUrgencyNotification(ctx, "due_date_overdue", {
+				taskId: args.taskId,
+				assigneeId: args.assigneeId,
+				days: args.daysOverdue,
+				eventKey: args.eventKey,
+			});
+		case "competition_phase_changed":
+		case "progress_update_added":
+			return createCompetitionNotification(ctx, args);
+		case "reminder_triggered":
+			return createReminderNotification(ctx, args);
+		default: {
+			const _exhaustive: never = args;
+			return _exhaustive;
+		}
+	}
+}
 
 async function emitDueDateUrgencyNotification(
 	ctx: MutationCtx,
@@ -1432,195 +1209,12 @@ async function emitDueDateUrgencyNotification(
 	});
 }
 
-export const _notifyDueDateApproaching = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		assigneeId: v.id("users"),
-		daysUntil: v.number(),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		emitDueDateUrgencyNotification(ctx, "due_date_approaching", {
-			taskId: args.taskId,
-			assigneeId: args.assigneeId,
-			days: args.daysUntil,
-			eventKey: args.eventKey,
-		}),
-});
-
-export const _notifyDueDateOverdue = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-		assigneeId: v.id("users"),
-		daysOverdue: v.number(),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		emitDueDateUrgencyNotification(ctx, "due_date_overdue", {
-			taskId: args.taskId,
-			assigneeId: args.assigneeId,
-			days: args.daysOverdue,
-			eventKey: args.eventKey,
-		}),
-});
-
-export const _notifyCompetitionPhaseChanged = internalMutation({
-	args: {
-		competitionId: v.id("competitions"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		oldPhaseName: v.string(),
-		newPhaseName: v.string(),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createCompetitionNotification(ctx, {
-			type: "competition_phase_changed",
-			...args,
-		}),
-});
-
-export const _notifyProgressUpdateAdded = internalMutation({
-	args: {
-		competitionId: v.id("competitions"),
-		recipientId: v.optional(v.id("users")),
-		recipientIds: v.optional(v.array(v.id("users"))),
-		actorId: v.id("users"),
-		competitionName: v.string(),
-		status: v.union(
-			v.literal("on-track"),
-			v.literal("at-risk"),
-			v.literal("off-track"),
-		),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) =>
-		createCompetitionNotification(ctx, {
-			type: "progress_update_added",
-			...args,
-		}),
-});
-
-export const _notifyReminderTriggered = internalMutation({
-	args: {
-		reminderId: v.id("reminders"),
-		userId: v.id("users"),
-		taskId: v.id("tasks"),
-		message: v.optional(v.string()),
-		eventKey: v.optional(v.string()),
-	},
-	returns: v.union(v.id("notifications"), v.null()),
-	handler: async (ctx, args) => createReminderNotification(ctx, args),
-});
-
 export const _processDispatch = internalMutation({
 	args: {
 		dispatchId: v.id("notificationDispatches"),
 	},
 	returns: v.number(),
-	handler: async (ctx, args) => {
-		const now = Date.now();
-		const seedDispatch = await ctx.db.get(
-			"notificationDispatches",
-			args.dispatchId,
-		);
-		if (
-			!seedDispatch ||
-			seedDispatch.status !== "pending" ||
-			!isDispatchDue(seedDispatch, now)
-		) {
-			return 0;
-		}
-
-		const dispatchGroup = await collectDispatchGroup(ctx, seedDispatch);
-		if (dispatchGroup.length === 0) {
-			return 0;
-		}
-
-		const dueDispatches: Doc<"notificationDispatches">[] = [];
-		for (const dispatch of dispatchGroup) {
-			const latest = await ctx.db.get("notificationDispatches", dispatch._id);
-			if (
-				!latest ||
-				latest.status !== "pending" ||
-				!isDispatchDue(latest, now)
-			) {
-				continue;
-			}
-			if (
-				seedDispatch.channel === EMAIL_CHANNEL &&
-				hasUnexpiredEmailDispatchClaim(latest, now)
-			) {
-				continue;
-			}
-			dueDispatches.push(latest);
-		}
-		if (dueDispatches.length === 0) {
-			return 0;
-		}
-
-		const eventIds = [
-			...new Set(dueDispatches.map((dispatch) => dispatch.eventId)),
-		];
-		const metadataJson = JSON.stringify({
-			mode: seedDispatch.digestMode,
-			channel: seedDispatch.channel,
-			eventCount: eventIds.length,
-			eventIds,
-			digestWindowKey: seedDispatch.digestWindowKey,
-			processedAt: now,
-		});
-
-		if (seedDispatch.channel === EMAIL_CHANNEL) {
-			const claimKey = buildEmailDispatchGroupClaimKey(now, seedDispatch._id);
-			for (const dispatch of dueDispatches) {
-				await ctx.db.patch("notificationDispatches", dispatch._id, {
-					reason: claimKey,
-					lastAttemptAt: now,
-					updatedAt: now,
-				});
-			}
-			await ctx.scheduler.runAfter(
-				0,
-				internal.notifications._sendEmailDispatchGroup,
-				{
-					dispatchIds: dueDispatches.map((dispatch) => dispatch._id),
-					claimKey,
-				},
-			);
-			const recoveryScheduledFunctionId = await ctx.scheduler.runAfter(
-				EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS,
-				internal.notifications._processDispatch,
-				{ dispatchId: seedDispatch._id },
-			);
-			for (const dispatch of dueDispatches) {
-				await ctx.db.patch("notificationDispatches", dispatch._id, {
-					scheduledFunctionId: recoveryScheduledFunctionId,
-					updatedAt: now,
-				});
-			}
-			return dueDispatches.length;
-		}
-
-		for (const dispatch of dueDispatches) {
-			await ctx.db.patch("notificationDispatches", dispatch._id, {
-				status: "skipped",
-				reason: "channel_not_implemented",
-				metadataJson,
-				attempts: dispatch.attempts + 1,
-				lastAttemptAt: now,
-				scheduledFunctionId: undefined,
-				updatedAt: now,
-			});
-		}
-
-		return dueDispatches.length;
-	},
+	handler: async (ctx, args) => processDispatch(ctx, args.dispatchId),
 });
 
 export const _getDispatchGroupForEmail = internalQuery({
@@ -1725,81 +1319,21 @@ export const _sendEmailDispatchGroup = internalAction({
 			return null;
 		}
 
-		const { sendEmail } = await import("./lib/email");
-		const {
-			buildNotificationDigestEmailHtml,
-			buildNotificationDigestEmailPlainText,
-			buildNotificationDigestEmailSubject,
-			buildNotificationEmailHtml,
-			buildNotificationEmailPlainText,
-			buildNotificationEmailSubject,
-		} = await import("./lib/emailTemplates");
-
-		const appUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
-		const firstItem = payload.items[0];
-		if (!firstItem) {
-			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+		const emailChannelAdapter = getChannelAdapter("email");
+		const result = await emailChannelAdapter.send(payload);
+		if (result.ok) {
+			await ctx.runMutation(internal.notifications._markDispatchesSent, {
 				dispatchIds: payload.dispatchIds,
-				reason: "email_dispatch_payload_empty",
 				claimKey: args.claimKey,
 			});
 			return null;
 		}
 
-		const to = [
-			{ address: payload.recipientEmail, displayName: payload.recipientName },
-		];
-
-		try {
-			if (payload.digestMode === "immediate") {
-				const { dispatchId: _, type: itemType, ...emailItemData } = firstItem;
-				const emailContent = { ...emailItemData, appUrl };
-				await sendEmail({
-					to,
-					subject: buildNotificationEmailSubject(itemType, firstItem.title),
-					html: await buildNotificationEmailHtml(emailContent),
-					plainText: await buildNotificationEmailPlainText(emailContent),
-				});
-			} else {
-				const digestItems = payload.items.map(
-					(item: (typeof payload.items)[number]) => ({
-						title: item.title,
-						message: item.message,
-						entityType: formatEntityTypeLabel(item.entityType),
-						priority: item.priority,
-						actorName: item.actorName,
-						link: buildEntityLink(appUrl, item),
-					}),
-				);
-				const digestOpts = {
-					mode: payload.digestMode,
-					appUrl,
-					items: digestItems,
-				};
-				await sendEmail({
-					to,
-					subject: buildNotificationDigestEmailSubject(
-						payload.digestMode,
-						payload.items.length,
-					),
-					html: await buildNotificationDigestEmailHtml(digestOpts),
-					plainText: await buildNotificationDigestEmailPlainText(digestOpts),
-				});
-			}
-
-			await ctx.runMutation(internal.notifications._markDispatchesSent, {
-				dispatchIds: payload.dispatchIds,
-				claimKey: args.claimKey,
-			});
-		} catch (error) {
-			const reason =
-				error instanceof Error ? error.message : "Unknown email send error";
-			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
-				dispatchIds: payload.dispatchIds,
-				reason,
-				claimKey: args.claimKey,
-			});
-		}
+		await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+			dispatchIds: payload.dispatchIds,
+			reason: result.error,
+			claimKey: args.claimKey,
+		});
 
 		return null;
 	},
@@ -1818,50 +1352,7 @@ export const _sendTestEmail = internalAction({
 	},
 	returns: v.null(),
 	handler: async (_ctx, args) => {
-		const { sendEmail } = await import("./lib/email");
-		const {
-			buildNotificationEmailHtml,
-			buildNotificationEmailPlainText,
-			buildNotificationEmailSubject,
-			buildNotificationDigestEmailHtml,
-			buildNotificationDigestEmailPlainText,
-			buildNotificationDigestEmailSubject,
-		} = await import("./lib/emailTemplates");
-
-		const appUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
-		const testData = buildTestEmailData(appUrl, args.actorName);
-		const to = [
-			{
-				address: args.toEmail,
-				displayName: args.recipientName,
-			},
-		];
-
-		if (args.type === "immediate") {
-			const item = testData.immediate;
-			await sendEmail({
-				to,
-				subject: `[HQ TEST] ${buildNotificationEmailSubject("task_assigned", item.title)}`,
-				html: await buildNotificationEmailHtml({ ...item, appUrl }),
-				plainText: await buildNotificationEmailPlainText({ ...item, appUrl }),
-			});
-		} else {
-			const mode =
-				args.type === "hourly" ? ("hourly" as const) : ("three_daily" as const);
-			const items =
-				args.type === "hourly" ? testData.hourly : testData.threeDaily;
-			await sendEmail({
-				to,
-				subject: `[HQ TEST] ${buildNotificationDigestEmailSubject(mode, items.length)}`,
-				html: await buildNotificationDigestEmailHtml({ mode, appUrl, items }),
-				plainText: await buildNotificationDigestEmailPlainText({
-					mode,
-					appUrl,
-					items,
-				}),
-			});
-		}
-
+		await sendTestEmailPreview(args);
 		return null;
 	},
 });
@@ -1873,13 +1364,7 @@ export const _markDispatchesSent = internalMutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await patchPendingDispatches(
-			ctx,
-			args.dispatchIds,
-			"sent",
-			undefined,
-			args.claimKey,
-		);
+		await markDispatchesSent(ctx, args);
 		return null;
 	},
 });
@@ -1892,42 +1377,7 @@ export const _markDispatchesFailed = internalMutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const failedDispatches: Array<Doc<"notificationDispatches">> = [];
-		for (const dispatchId of args.dispatchIds) {
-			const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
-			if (
-				!dispatch ||
-				dispatch.status !== "pending" ||
-				(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
-			) {
-				continue;
-			}
-			failedDispatches.push(dispatch);
-		}
-
-		await patchPendingDispatches(
-			ctx,
-			args.dispatchIds,
-			"failed",
-			args.reason,
-			args.claimKey,
-		);
-
-		const failedAt = Date.now();
-		await Promise.all(
-			failedDispatches.map((dispatch) =>
-				ctx.db.insert("notificationDeadLetters", {
-					dispatchId: dispatch._id,
-					eventId: dispatch.eventId,
-					userId: dispatch.userId,
-					channel: dispatch.channel,
-					error: args.reason,
-					attempts: dispatch.attempts + 1,
-					payloadJson: dispatch.metadataJson,
-					failedAt,
-				}),
-			),
-		);
+		await markDispatchesFailed(ctx, args);
 		return null;
 	},
 });
@@ -1973,6 +1423,18 @@ async function maybeEmitDueDateNotificationForTask(
 	return emitDueDateNotification(ctx, task, task.assigneeId, spec);
 }
 
+export async function emitDueDateNotificationsForTask(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	now: number = Date.now(),
+): Promise<number> {
+	const task = await ctx.db.get("tasks", taskId);
+	if (!task) {
+		return 0;
+	}
+	return maybeEmitDueDateNotificationForTask(ctx, task, now);
+}
+
 export const _checkDueDates = internalMutation({
 	args: {},
 	returns: v.number(),
@@ -1996,50 +1458,8 @@ export const _checkDueDates = internalMutation({
 	},
 });
 
-export const _checkDueDateForTask = internalMutation({
-	args: {
-		taskId: v.id("tasks"),
-	},
-	returns: v.number(),
-	handler: async (ctx, args) => {
-		const task = await ctx.db.get("tasks", args.taskId);
-		if (!task) {
-			return 0;
-		}
-		return maybeEmitDueDateNotificationForTask(ctx, task, Date.now());
-	},
-});
-
 export const _sweepStaleDispatches = internalMutation({
 	args: {},
 	returns: v.number(),
-	handler: async (ctx) => {
-		const now = Date.now();
-		let rescheduled = 0;
-
-		for (const channel of EXTERNAL_NOTIFICATION_CHANNELS) {
-			const pendingDispatches = await ctx.db
-				.query("notificationDispatches")
-				.withIndex("by_channel_status", (q) =>
-					q.eq("channel", channel).eq("status", "pending"),
-				)
-				.collect();
-
-			for (const dispatch of pendingDispatches) {
-				if (
-					dispatch.scheduledFor !== undefined &&
-					dispatch.scheduledFor + STALE_DISPATCH_THRESHOLD_MS < now
-				) {
-					await ctx.scheduler.runAfter(
-						0,
-						internal.notifications._processDispatch,
-						{ dispatchId: dispatch._id },
-					);
-					rescheduled += 1;
-				}
-			}
-		}
-
-		return rescheduled;
-	},
+	handler: async (ctx) => sweepStaleDispatches(ctx),
 });

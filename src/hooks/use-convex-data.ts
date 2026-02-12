@@ -20,7 +20,6 @@ export {
 
 export {
 	useCommentsForTask,
-	useCommentsForSearch,
 	useCommentMutations,
 } from "./convex/use-comments";
 
@@ -29,13 +28,12 @@ export {
 	useNotificationSettings,
 	useNotificationSubscriptions,
 	useTaskSubscriptionState,
-	useCompetitionSubscriptionState,
 	useUnreadCount,
+	useNotificationDiagnostics,
 	useNotificationMutations,
 } from "./convex/use-notifications";
 
 export {
-	useReminders,
 	usePendingReminders,
 	usePendingRemindersForTask,
 	useReminderMutations,

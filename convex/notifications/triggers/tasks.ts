@@ -1,7 +1,7 @@
-import type { Id, Doc } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { collectTaskRecipients } from "./lib/recipientCollection";
+import type { Id, Doc } from "../../_generated/dataModel";
+import type { MutationCtx } from "../../_generated/server";
+import { collectTaskRecipients } from "../lib/recipientCollection";
+import { emitNotificationEvent } from "../../notifications";
 
 export async function sendTaskAssigneeChangeNotifications(
 	ctx: MutationCtx,
@@ -11,18 +11,20 @@ export async function sendTaskAssigneeChangeNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	if (oldAssigneeId && oldAssigneeId !== actorId) {
-		await ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyTaskUnassigned,
-			{ taskId, assigneeId: oldAssigneeId, actorId },
-		);
+		await emitNotificationEvent(ctx, {
+			type: "task_unassigned",
+			taskId,
+			recipientId: oldAssigneeId,
+			actorId,
+		});
 	}
 	if (newAssigneeId && newAssigneeId !== actorId) {
-		await ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyTaskAssigned,
-			{ taskId, assigneeId: newAssigneeId, actorId },
-		);
+		await emitNotificationEvent(ctx, {
+			type: "task_assigned",
+			taskId,
+			recipientId: newAssigneeId,
+			actorId,
+		});
 	}
 }
 
@@ -35,18 +37,15 @@ export async function sendTaskStatusChangeNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	const recipientIds = collectTaskRecipients(doc, actorId);
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyTaskStatusChanged,
-		{
-			taskId,
-			recipientIds,
-			actorId,
-			oldStatus,
-			newStatus,
-			eventKey: `${taskId}:${oldStatus}:${newStatus}:${Date.now()}`,
-		},
-	);
+	await emitNotificationEvent(ctx, {
+		type: "task_status_changed",
+		taskId,
+		recipientIds,
+		actorId,
+		oldStatus,
+		newStatus,
+		eventKey: `${taskId}:${oldStatus}:${newStatus}:${Date.now()}`,
+	});
 }
 
 export async function sendTaskPriorityChangeNotifications(
@@ -58,18 +57,15 @@ export async function sendTaskPriorityChangeNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	const recipientIds = collectTaskRecipients(doc, actorId);
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyTaskPriorityChanged,
-		{
-			taskId,
-			recipientIds,
-			actorId,
-			oldPriority,
-			newPriority,
-			eventKey: `${taskId}:${oldPriority}:${newPriority}:${Date.now()}`,
-		},
-	);
+	await emitNotificationEvent(ctx, {
+		type: "task_priority_changed",
+		taskId,
+		recipientIds,
+		actorId,
+		oldPriority,
+		newPriority,
+		eventKey: `${taskId}:${oldPriority}:${newPriority}:${Date.now()}`,
+	});
 }
 
 async function getRelationRecipients(
@@ -89,17 +85,14 @@ export async function sendTaskRelationBlockedNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	const recipientIds = await getRelationRecipients(ctx, blockedTaskId, actorId);
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyTaskRelationBlocked,
-		{
-			blockedTaskId,
-			blockingTaskId,
-			recipientIds,
-			actorId,
-			eventKey: `${blockedTaskId}:${blockingTaskId}:blocked:${Date.now()}`,
-		},
-	);
+	await emitNotificationEvent(ctx, {
+		type: "relation_blocked",
+		taskId: blockedTaskId,
+		blockingTaskId,
+		recipientIds,
+		actorId,
+		eventKey: `${blockedTaskId}:${blockingTaskId}:blocked:${Date.now()}`,
+	});
 }
 
 export async function sendTaskRelationUnblockedNotifications(
@@ -109,17 +102,14 @@ export async function sendTaskRelationUnblockedNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	const recipientIds = await getRelationRecipients(ctx, blockedTaskId, actorId);
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyTaskRelationUnblocked,
-		{
-			blockedTaskId,
-			blockingTaskId,
-			recipientIds,
-			actorId,
-			eventKey: `${blockedTaskId}:${blockingTaskId}:unblocked:${Date.now()}`,
-		},
-	);
+	await emitNotificationEvent(ctx, {
+		type: "relation_unblocked",
+		taskId: blockedTaskId,
+		blockingTaskId,
+		recipientIds,
+		actorId,
+		eventKey: `${blockedTaskId}:${blockingTaskId}:unblocked:${Date.now()}`,
+	});
 }
 
 export async function sendTaskApprovalNotifications(
@@ -129,7 +119,8 @@ export async function sendTaskApprovalNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	const recipientIds = collectTaskRecipients(task, actorId);
-	await ctx.scheduler.runAfter(0, internal.notifications._notifyTaskApproved, {
+	await emitNotificationEvent(ctx, {
+		type: "task_approved",
 		taskId,
 		recipientIds,
 		actorId,
@@ -144,16 +135,13 @@ export async function sendTaskUnapprovalNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	const recipientIds = collectTaskRecipients(task, actorId);
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyTaskUnapproved,
-		{
-			taskId,
-			recipientIds,
-			actorId,
-			eventKey: `${taskId}:unapproved:${Date.now()}`,
-		},
-	);
+	await emitNotificationEvent(ctx, {
+		type: "task_unapproved",
+		taskId,
+		recipientIds,
+		actorId,
+		eventKey: `${taskId}:unapproved:${Date.now()}`,
+	});
 }
 
 export async function sendDueDateChangeNotifications(
@@ -165,16 +153,13 @@ export async function sendDueDateChangeNotifications(
 	actorId: Id<"users">,
 ): Promise<void> {
 	const recipientIds = collectTaskRecipients(doc, actorId);
-	await ctx.scheduler.runAfter(
-		0,
-		internal.notifications._notifyDueDateChanged,
-		{
-			taskId,
-			recipientIds,
-			actorId,
-			oldDueDate,
-			newDueDate,
-			eventKey: `${taskId}:due_date:${Date.now()}`,
-		},
-	);
+	await emitNotificationEvent(ctx, {
+		type: "due_date_changed",
+		taskId,
+		recipientIds,
+		actorId,
+		oldDueDate,
+		newDueDate,
+		eventKey: `${taskId}:due_date:${Date.now()}`,
+	});
 }

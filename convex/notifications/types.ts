@@ -1,4 +1,7 @@
-import type { NotificationEmitInput, NotificationType } from "../lib/notificationTypes";
+import type {
+	NotificationEmitInput,
+	NotificationType,
+} from "./lib/notificationTypes";
 
 export type NotificationEventKey = NotificationType;
 

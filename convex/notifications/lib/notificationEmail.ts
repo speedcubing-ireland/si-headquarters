@@ -1,11 +1,11 @@
 import { v } from "convex/values";
-import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import {
 	NotificationTemplates,
 	type NotificationTemplateConfig,
 } from "./notificationTemplates";
-import { formatEntityTypeLabel } from "../emails/shared";
+import { formatEntityTypeLabel } from "../../emails/shared";
 import { parseEmailDispatchSnapshot } from "./notificationHelpers";
 import { notificationType, notificationDigestMode } from "./validators";
 import {

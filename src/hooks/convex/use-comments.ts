@@ -13,11 +13,6 @@ export const useCommentsForTask = (
 	return { comments: d ?? [], isLoading: d === undefined };
 };
 
-export const useCommentsForSearch = () => {
-	const d = useQuery(api.comments.listRecentForSearch, { limit: 200 });
-	return { comments: d ?? [], isLoading: d === undefined };
-};
-
 export function useCommentMutations() {
 	const createCommentMutation = useMutation(api.comments.create);
 	const updateCommentMutation = useMutation(api.comments.update);

@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
-import { Loader2, Mail, Send } from "lucide-react";
+import { Loader2, Mail, Send, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -9,8 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { api } from "@/convex/_generated/api";
-import { useIsDirector } from "@/hooks/use-convex-data";
+import {
+	useIsDirector,
+	useNotificationDiagnostics,
+} from "@/hooks/use-convex-data";
+import { formatDate } from "@/lib/format-utils";
 import { onMutationError } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/email")({
@@ -19,11 +24,6 @@ export const Route = createFileRoute("/admin/email")({
 
 function AdminEmailPage() {
 	const { isDirector, isLoading: isDirectorLoading } = useIsDirector();
-	const sendTestDigestSeries = useMutation(
-		api.notifications.sendTestDigestSeries,
-	);
-	const [toEmail, setToEmail] = useState("");
-	const [isSending, setIsSending] = useState(false);
 
 	if (isDirectorLoading) {
 		return (
@@ -36,6 +36,21 @@ function AdminEmailPage() {
 	if (!isDirector) {
 		return <Navigate to="/" />;
 	}
+
+	return <DirectorEmailAdminContent />;
+}
+
+function DirectorEmailAdminContent() {
+	const sendTestDigestSeries = useMutation(
+		api.notifications.sendTestDigestSeries,
+	);
+	const {
+		dispatchHealth,
+		deadLetters,
+		isLoading: diagnosticsLoading,
+	} = useNotificationDiagnostics();
+	const [toEmail, setToEmail] = useState("");
+	const [isSending, setIsSending] = useState(false);
 
 	const handleSendSeries = async () => {
 		setIsSending(true);
@@ -102,6 +117,114 @@ function AdminEmailPage() {
 							)}
 							Send Test Series
 						</Button>
+					</CardContent>
+				</Card>
+				<Card className="max-w-4xl">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<TriangleAlert className="size-4 text-muted-foreground" />
+							Dispatch Diagnostics
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{diagnosticsLoading || !dispatchHealth ? (
+							<div className="flex items-center gap-2 text-sm text-muted-foreground">
+								<Loader2 className="size-4 animate-spin" />
+								Loading diagnostics...
+							</div>
+						) : (
+							<>
+								<div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+									<div className="rounded-md border p-3">
+										<p className="text-xs text-muted-foreground">Pending</p>
+										<p className="text-lg font-semibold">
+											{dispatchHealth.totals.pending}
+										</p>
+									</div>
+									<div className="rounded-md border p-3">
+										<p className="text-xs text-muted-foreground">Sent</p>
+										<p className="text-lg font-semibold">
+											{dispatchHealth.totals.sent}
+										</p>
+									</div>
+									<div className="rounded-md border p-3">
+										<p className="text-xs text-muted-foreground">Failed</p>
+										<p className="text-lg font-semibold">
+											{dispatchHealth.totals.failed}
+										</p>
+									</div>
+									<div className="rounded-md border p-3">
+										<p className="text-xs text-muted-foreground">
+											Dead letters (24h)
+										</p>
+										<p className="text-lg font-semibold">
+											{dispatchHealth.deadLettersLast24h}
+										</p>
+									</div>
+								</div>
+								<div className="rounded-md border p-3">
+									<p className="text-xs text-muted-foreground">
+										Stale pending dispatches
+									</p>
+									<p className="text-lg font-semibold">
+										{dispatchHealth.stalePendingCount}
+									</p>
+								</div>
+								<div className="space-y-2">
+									<p className="text-sm font-medium">By channel</p>
+									<div className="grid gap-2 text-xs sm:grid-cols-2">
+										{dispatchHealth.byChannel.map((row) => (
+											<div key={row.channel} className="rounded-md border p-3">
+												<p className="mb-2 text-sm font-medium capitalize">
+													{row.channel.replace("_", " ")}
+												</p>
+												<div className="grid grid-cols-2 gap-1 text-muted-foreground">
+													<span>Pending: {row.pending}</span>
+													<span>Sent: {row.sent}</span>
+													<span>Skipped: {row.skipped}</span>
+													<span>Failed: {row.failed}</span>
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							</>
+						)}
+					</CardContent>
+				</Card>
+				<Card className="max-w-4xl">
+					<CardHeader>
+						<CardTitle>Recent Dead Letters</CardTitle>
+					</CardHeader>
+					<CardContent>
+						{diagnosticsLoading ? (
+							<p className="text-sm text-muted-foreground">Loading...</p>
+						) : deadLetters.length === 0 ? (
+							<p className="text-sm text-muted-foreground">
+								No dead letters recorded.
+							</p>
+						) : (
+							<div className="space-y-2">
+								{deadLetters.map((item) => (
+									<div key={item.id} className="rounded-md border p-3 text-sm">
+										<div className="mb-1 flex flex-wrap items-center gap-2">
+											<Badge variant="secondary">{item.channel}</Badge>
+											{item.eventType ? (
+												<Badge variant="outline">{item.eventType}</Badge>
+											) : null}
+											<span className="text-xs text-muted-foreground">
+												{formatDate(item.failedAt)}
+											</span>
+										</div>
+										<p className="font-medium">{item.error}</p>
+										<p className="text-xs text-muted-foreground">
+											Attempts: {item.attempts} | User:{" "}
+											{item.userName ?? item.userEmail ?? item.userId}
+										</p>
+									</div>
+								))}
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			</div>

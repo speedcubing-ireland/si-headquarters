@@ -1,9 +1,9 @@
-import type { Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { isVolunteer } from "../auth";
-import { hasCompetitionAccess } from "../competitionAccess";
-import { hasTaskCompetitionAccess } from "../taskAccess";
-import { getCommentParentId } from "./commentParentId";
+import type { Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import { isVolunteer } from "../../auth";
+import { hasCompetitionAccess } from "../../competitionAccess";
+import { hasTaskCompetitionAccess } from "../../taskAccess";
+import { getCommentParentId } from "../../lib/commentParentId";
 import type {
 	NotificationEntityRef,
 	NotificationSubscriberEntityType,

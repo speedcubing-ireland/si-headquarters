@@ -1,5 +1,9 @@
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
+import {
+	deleteEntitySubscriptions,
+	deleteNotificationArtifactsForTaskTree,
+} from "../notifications/lib/cleanup";
 
 export async function collectAllTaskIdsRecursively(
 	ctx: QueryCtx,
@@ -41,143 +45,6 @@ async function collectAllCommentIdsRecursively(
 	if (allNested.length > 0) {
 		await collectAllCommentIdsRecursively(ctx, allNested, allCommentIds);
 	}
-}
-
-type SubscribedEntityType = "task" | "competition" | "comment";
-type NotificationEntityType = "task" | "competition" | "comment" | "reminder";
-
-function dedupeById<T extends { _id: string }>(rows: T[]): T[] {
-	const seen = new Set<string>();
-	const unique: T[] = [];
-	for (const row of rows) {
-		if (seen.has(row._id)) continue;
-		seen.add(row._id);
-		unique.push(row);
-	}
-	return unique;
-}
-
-async function deleteNotificationArtifactsForNotifications(
-	ctx: MutationCtx,
-	notifications: Doc<"notifications">[],
-	extraEventRefs: Array<{
-		entityType: NotificationEntityType;
-		entityId: string;
-	}> = [],
-): Promise<void> {
-	const notificationIds = new Set<Id<"notifications">>();
-	const eventIds = new Set<Id<"notificationEvents">>();
-	for (const notification of notifications) {
-		notificationIds.add(notification._id);
-		if (notification.sourceEventId) {
-			eventIds.add(notification.sourceEventId);
-		}
-	}
-
-	if (extraEventRefs.length > 0) {
-		const eventRows = (
-			await Promise.all(
-				extraEventRefs.map((ref) =>
-					ctx.db
-						.query("notificationEvents")
-						.withIndex("by_entity", (q) =>
-							q.eq("entityType", ref.entityType).eq("entityId", ref.entityId),
-						)
-						.collect(),
-				),
-			)
-		).flat();
-		for (const event of eventRows) {
-			eventIds.add(event._id);
-		}
-	}
-
-	const dispatchRowsByNotification = (
-		await Promise.all(
-			Array.from(notificationIds).map((notificationId) =>
-				ctx.db
-					.query("notificationDispatches")
-					.withIndex("by_notification", (q) =>
-						q.eq("notificationId", notificationId),
-					)
-					.collect(),
-			),
-		)
-	).flat();
-	const dispatchRowsByEvent = (
-		await Promise.all(
-			Array.from(eventIds).map((eventId) =>
-				ctx.db
-					.query("notificationDispatches")
-					.withIndex("by_event", (q) => q.eq("eventId", eventId))
-					.collect(),
-			),
-		)
-	).flat();
-	const dispatchRows = dedupeById([
-		...dispatchRowsByNotification,
-		...dispatchRowsByEvent,
-	]);
-
-	const scheduledIds = new Set<Id<"_scheduled_functions">>();
-	for (const dispatch of dispatchRows) {
-		if (dispatch.scheduledFunctionId) {
-			scheduledIds.add(dispatch.scheduledFunctionId);
-		}
-	}
-	await Promise.all(
-		Array.from(scheduledIds).map((scheduledId) =>
-			ctx.scheduler.cancel(scheduledId),
-		),
-	);
-
-	await Promise.all([
-		...dispatchRows.map((dispatch) =>
-			ctx.db.delete("notificationDispatches", dispatch._id),
-		),
-		...Array.from(notificationIds).map((notificationId) =>
-			ctx.db.delete("notifications", notificationId),
-		),
-		...Array.from(eventIds).map((eventId) =>
-			ctx.db.delete("notificationEvents", eventId),
-		),
-	]);
-}
-
-export async function deleteEntitySubscriptions(
-	ctx: MutationCtx,
-	entityType: SubscribedEntityType,
-	entityIds: string[],
-): Promise<void> {
-	if (entityIds.length === 0) {
-		return;
-	}
-
-	const subscriptionRows = (
-		await Promise.all(
-			entityIds.map((entityId) =>
-				ctx.db
-					.query("notificationSubscriptions")
-					.withIndex("by_entity", (q) =>
-						q.eq("entityType", entityType).eq("entityId", entityId),
-					)
-					.collect(),
-			),
-		)
-	).flat();
-
-	if (subscriptionRows.length === 0) {
-		return;
-	}
-
-	const subscriptionIdsToDelete = new Set(
-		subscriptionRows.map((subscription) => subscription._id),
-	);
-	await Promise.all(
-		Array.from(subscriptionIdsToDelete).map((subscriptionId) =>
-			ctx.db.delete("notificationSubscriptions", subscriptionId),
-		),
-	);
 }
 
 export async function deleteCommentsAndReplies(
@@ -229,33 +96,6 @@ export async function deleteTasksAndRelatedData(
 			),
 		)
 	).flat();
-
-	const notificationsByEntity = (
-		await Promise.all(
-			taskIdArray.map((taskId) =>
-				ctx.db
-					.query("notifications")
-					.withIndex("by_entity", (q) =>
-						q.eq("entityType", "task").eq("entityId", taskId),
-					)
-					.collect(),
-			),
-		)
-	).flat();
-	const notificationsByParent = (
-		await Promise.all(
-			taskIdArray.map((taskId) =>
-				ctx.db
-					.query("notifications")
-					.withIndex("by_parent_entity", (q) => q.eq("parentEntityId", taskId))
-					.collect(),
-			),
-		)
-	).flat();
-	const notificationsToDelete = dedupeById([
-		...notificationsByEntity,
-		...notificationsByParent,
-	]);
 
 	const relationsByBlockedTask = (
 		await Promise.all(
@@ -313,44 +153,13 @@ export async function deleteTasksAndRelatedData(
 		"task",
 		taskIdArray.map((taskId) => `${taskId}`),
 	);
-	await deleteNotificationArtifactsForNotifications(
-		ctx,
-		notificationsToDelete,
-		[
-			...taskIdArray.map((taskId) => ({
-				entityType: "task" as const,
-				entityId: `${taskId}`,
-			})),
-			...deletedCommentIds.map((commentId) => ({
-				entityType: "comment" as const,
-				entityId: `${commentId}`,
-			})),
-			...remindersToDelete.map((reminder) => ({
-				entityType: "reminder" as const,
-				entityId: `${reminder._id}`,
-			})),
-		],
-	);
+	await deleteNotificationArtifactsForTaskTree(ctx, {
+		taskIds: taskIdArray,
+		commentIds: deletedCommentIds,
+		reminderIds: remindersToDelete.map((reminder) => reminder._id),
+	});
 
 	for (const taskId of taskIdArray) {
 		await ctx.db.delete("tasks", taskId);
 	}
-}
-
-export async function deleteNotificationArtifactsForEntity(
-	ctx: MutationCtx,
-	entity: {
-		entityType: NotificationEntityType;
-		entityId: string;
-	},
-): Promise<void> {
-	const notifications = await ctx.db
-		.query("notifications")
-		.withIndex("by_entity", (q) =>
-			q.eq("entityType", entity.entityType).eq("entityId", entity.entityId),
-		)
-		.collect();
-	await deleteNotificationArtifactsForNotifications(ctx, notifications, [
-		entity,
-	]);
 }

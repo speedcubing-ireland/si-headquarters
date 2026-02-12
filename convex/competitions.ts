@@ -7,9 +7,11 @@ import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
 	deleteCommentsAndReplies,
+} from "./lib/taskDeletion";
+import {
 	deleteEntitySubscriptions,
 	deleteNotificationArtifactsForEntity,
-} from "./lib/taskDeletion";
+} from "./notifications/lib/cleanup";
 import {
 	competitionAccessUserIds,
 	deleteCompetitionAccessRows,
@@ -20,7 +22,7 @@ import {
 import { toUsers, createLens, toISO, type UserUI } from "./lib/transforms";
 import { phaseShape, taskStatus, userShape } from "./lib/validators";
 import type { TaskStatus } from "./lib/types";
-import { sendCompetitionPhaseChangeNotifications } from "./competitionNotifications";
+import { sendCompetitionPhaseChangeNotifications } from "./notifications/triggers/competitions";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),

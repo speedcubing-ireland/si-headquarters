@@ -10,7 +10,7 @@ import {
 } from "@/lib/saved-view-utils";
 import { createListStateStore } from "@/store/create-list-state-store";
 
-export function cloneFilterItem(item: FilterItem): FilterItem {
+function cloneFilterItem(item: FilterItem): FilterItem {
 	return { values: [...item.values], isNot: item.isNot };
 }
 

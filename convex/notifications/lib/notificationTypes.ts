@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Infer } from "convex/values";
-import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import {
 	notificationChannel,
 	notificationDigestMode,
@@ -11,7 +11,10 @@ import {
 	notificationSubscriberEntityType,
 	notificationType,
 } from "./validators";
-import { NOTIFICATION_DEFAULTS, NOTIFICATION_LIST_LIMITS } from "./constants";
+import {
+	NOTIFICATION_DEFAULTS,
+	NOTIFICATION_LIST_LIMITS,
+} from "../../lib/constants";
 
 export const IN_APP_CHANNEL: NotificationChannel = "in_app";
 export const EMAIL_CHANNEL: NotificationChannel = "email";
@@ -112,6 +115,7 @@ export const notificationSettingsReturns = v.object({
 	defaultDigestMode: notificationDigestMode,
 	quietHoursStartMin: v.optional(v.number()),
 	quietHoursEndMin: v.optional(v.number()),
+	updatedAt: v.string(),
 	preferences: v.array(notificationPreferenceReturns),
 });
 
@@ -130,6 +134,37 @@ export const notificationDispatchStatsReturns = v.object({
 	sent: v.number(),
 	skipped: v.number(),
 	failed: v.number(),
+});
+
+export const notificationDispatchHealthByChannelReturns = v.object({
+	channel: notificationChannel,
+	pending: v.number(),
+	sent: v.number(),
+	skipped: v.number(),
+	failed: v.number(),
+});
+
+export const notificationDispatchHealthReturns = v.object({
+	totals: notificationDispatchStatsReturns,
+	byChannel: v.array(notificationDispatchHealthByChannelReturns),
+	stalePendingCount: v.number(),
+	deadLettersLast24h: v.number(),
+});
+
+export const notificationDeadLetterReturns = v.object({
+	id: v.id("notificationDeadLetters"),
+	dispatchId: v.id("notificationDispatches"),
+	eventId: v.id("notificationEvents"),
+	userId: v.id("users"),
+	userName: v.optional(v.string()),
+	userEmail: v.optional(v.string()),
+	channel: notificationChannel,
+	error: v.string(),
+	attempts: v.number(),
+	eventType: v.optional(notificationType),
+	entityType: v.optional(notificationEntityType),
+	entityId: v.optional(v.string()),
+	failedAt: v.string(),
 });
 
 export const entitySubscriptionArgs = v.union(

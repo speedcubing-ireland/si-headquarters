@@ -1,5 +1,8 @@
-import type { NotificationType } from "../lib/notificationTypes";
-import type { NotificationCatalogEntry, NotificationDeliveryPolicy } from "./types";
+import type { NotificationType } from "./lib/notificationTypes";
+import type {
+	NotificationCatalogEntry,
+	NotificationDeliveryPolicy,
+} from "./types";
 
 const DEFAULT_DELIVERY_POLICY: NotificationDeliveryPolicy = {
 	includeEntitySubscribers: true,

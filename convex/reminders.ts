@@ -4,6 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { isVolunteer, requireUserId } from "./auth";
 import { internal } from "./_generated/api";
+import { emitNotificationEvent } from "./notifications";
 import { REMINDER_PATTERNS } from "./lib/constants";
 import { toISO } from "./lib/transforms";
 import { hasTaskCompetitionAccess } from "./taskAccess";
@@ -17,6 +18,30 @@ import {
 const DAYS_PER_WEEK = 7;
 const PRIORITY_NORMAL = "normal";
 type ScheduledFunctionId = Id<"_scheduled_functions">;
+
+function parseTimestampArg(value: string, fieldName: string): number {
+	const timestamp = Date.parse(value);
+	if (!Number.isFinite(timestamp)) {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: `${fieldName} must be a valid ISO-8601 datetime`,
+		});
+	}
+	return timestamp;
+}
+
+function assertTimestampInFuture(
+	timestamp: number,
+	fieldName: string,
+	now: number,
+): void {
+	if (timestamp <= now) {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: `${fieldName} must be in the future`,
+		});
+	}
+}
 
 export const reminderReturns = v.object({
 	id: v.id("reminders"),
@@ -183,7 +208,17 @@ export const create = mutation({
 			});
 		}
 		const now = Date.now();
-		const remindAtMs = new Date(args.remindAt).getTime();
+		const remindAtMs = parseTimestampArg(args.remindAt, "remindAt");
+		assertTimestampInFuture(remindAtMs, "remindAt", now);
+		if (args.endDate !== undefined) {
+			const endDateMs = parseTimestampArg(args.endDate, "endDate");
+			if (endDateMs <= remindAtMs) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: "endDate must be after remindAt",
+				});
+			}
+		}
 		const reminderId = await ctx.db.insert("reminders", {
 			userId,
 			entityType: "task",
@@ -252,11 +287,13 @@ export const snooze = mutation({
 		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("reminders", args.reminderId);
 		if (!doc || doc.userId !== userId) return null;
-		const remindAtMs = new Date(args.snoozeUntil).getTime();
+		const now = Date.now();
+		const remindAtMs = parseTimestampArg(args.snoozeUntil, "snoozeUntil");
+		assertTimestampInFuture(remindAtMs, "snoozeUntil", now);
 		await ctx.db.patch("reminders", args.reminderId, {
 			status: "pending",
 			remindAt: remindAtMs,
-			updatedAt: Date.now(),
+			updatedAt: now,
 		});
 		await replaceReminderSchedule(
 			ctx,
@@ -278,10 +315,12 @@ export const reschedule = mutation({
 		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("reminders", args.reminderId);
 		if (!doc || doc.userId !== userId) return null;
-		const remindAtMs = new Date(args.remindAt).getTime();
+		const now = Date.now();
+		const remindAtMs = parseTimestampArg(args.remindAt, "remindAt");
+		assertTimestampInFuture(remindAtMs, "remindAt", now);
 		await ctx.db.patch("reminders", args.reminderId, {
 			remindAt: remindAtMs,
-			updatedAt: Date.now(),
+			updatedAt: now,
 		});
 		await replaceReminderSchedule(
 			ctx,
@@ -311,16 +350,13 @@ export const _triggerReminder = internalMutation({
 			scheduledFunctionId: undefined,
 			updatedAt: now,
 		});
-		await ctx.scheduler.runAfter(
-			0,
-			internal.notifications._notifyReminderTriggered,
-			{
-				reminderId: reminder._id,
-				userId: reminder.userId,
-				taskId: reminder.entityId,
-				message: reminder.message,
-			},
-		);
+		await emitNotificationEvent(ctx, {
+			type: "reminder_triggered",
+			reminderId: reminder._id,
+			userId: reminder.userId,
+			taskId: reminder.entityId,
+			message: reminder.message,
+		});
 
 		if (reminder.type === "recurring" && reminder.recurringPattern) {
 			const nextRemindAt = calculateNextReminderTime(

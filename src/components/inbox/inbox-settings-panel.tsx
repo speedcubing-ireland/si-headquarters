@@ -17,12 +17,10 @@ import { onMutationError } from "@/lib/utils";
 import {
 	NOTIFICATION_TYPE_OPTIONS,
 	DIGEST_OPTIONS,
+	getNotificationTypeLabel,
 	minutesToTimeInput,
 	timeInputToMinutes,
 } from "@/lib/notification-utils";
-
-const getNotificationTypeLabel = (type: NotificationType) =>
-	NOTIFICATION_TYPE_OPTIONS.find((opt) => opt.value === type)?.label ?? type;
 
 function NotificationTypeOverrideRow({
 	preference,

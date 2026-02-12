@@ -4,6 +4,10 @@ import { authTables } from "@convex-dev/auth/server";
 import {
 	taskStatus,
 	taskPriority,
+	reminderMetadata,
+	reminderRecurringConfig,
+} from "./lib/validators";
+import {
 	notificationMetadata,
 	notificationType,
 	notificationPriority,
@@ -11,9 +15,7 @@ import {
 	notificationDigestMode,
 	notificationDispatchStatus,
 	notificationSubscriberEntityType,
-	reminderMetadata,
-	reminderRecurringConfig,
-} from "./lib/validators";
+} from "./notifications/lib/validators";
 
 export default defineSchema({
 	...authTables,
@@ -263,7 +265,7 @@ export default defineSchema({
 		reason: v.optional(v.string()),
 		metadataJson: v.optional(v.string()),
 		attempts: v.number(),
-		maxAttempts: v.optional(v.number()),
+		maxAttempts: v.number(),
 		lastAttemptAt: v.optional(v.number()),
 		sentAt: v.optional(v.number()),
 		updatedAt: v.number(),

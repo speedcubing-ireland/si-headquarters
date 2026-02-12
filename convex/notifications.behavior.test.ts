@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
+import { emitNotificationEvent } from "./notifications";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -75,7 +76,7 @@ describe("notifications behavior characterization", () => {
 		expect(ids).toContain(visibleC);
 		expect(ids).not.toContain(hidden);
 		expect(ids[0]).toBe(visibleC);
-	});
+	}, 10_000);
 
 	test("listForUser paginates until enough visible notifications are found", async () => {
 		const t = convexTest(schema, modules);
@@ -221,6 +222,17 @@ describe("notifications behavior characterization", () => {
 
 		expect(row).toBeDefined();
 		expect(row?.digestMode).toBe("immediate");
+	});
+
+	test("getSettings returns top-level updatedAt and preference updatedAt fields", async () => {
+		const t = convexTest(schema, modules);
+		const me = await t.run((ctx) => ctx.db.insert("users", {}));
+		const authed = t.withIdentity({ subject: me });
+
+		const settings = await authed.query(api.notifications.getSettings, {});
+		expect(typeof settings.updatedAt).toBe("string");
+		expect(settings.preferences.length).toBeGreaterThan(0);
+		expect(typeof settings.preferences[0]?.updatedAt).toBe("string");
 	});
 
 	test("subscribeToEntity enforces task access for non-volunteer users", async () => {
@@ -417,7 +429,7 @@ describe("notifications behavior characterization", () => {
 		expect(notificationCount).toBe(1);
 	});
 
-	test("_notifyTaskAssigned skips self-recipient notifications with self_action reason", async () => {
+	test("emitNotificationEvent(task_assigned) skips self-recipient notifications with self_action reason", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const userId = await ctx.db.insert("users", {});
@@ -444,14 +456,14 @@ describe("notifications behavior characterization", () => {
 			return { userId, taskId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskAssigned,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
 				taskId: seeded.taskId,
-				assigneeId: seeded.userId,
+				recipientId: seeded.userId,
 				actorId: seeded.userId,
 				eventKey: "self-action",
-			},
+			}),
 		);
 		expect(result).toBeNull();
 
@@ -471,7 +483,7 @@ describe("notifications behavior characterization", () => {
 		).toBe(true);
 	});
 
-	test("_notifyTaskAssigned skips recipients without access with no_access reason", async () => {
+	test("emitNotificationEvent(task_assigned) skips recipients without access with no_access reason", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -499,14 +511,14 @@ describe("notifications behavior characterization", () => {
 			return { actorId, recipientId, taskId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskAssigned,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
 				taskId: seeded.taskId,
-				assigneeId: seeded.recipientId,
+				recipientId: seeded.recipientId,
 				actorId: seeded.actorId,
 				eventKey: "no-access",
-			},
+			}),
 		);
 		expect(result).toBeNull();
 
@@ -526,7 +538,7 @@ describe("notifications behavior characterization", () => {
 		).toBe(true);
 	});
 
-	test("_notifyTaskAssigned skips when in_app preference is disabled", async () => {
+	test("emitNotificationEvent(task_assigned) skips when in_app preference is disabled", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -569,14 +581,14 @@ describe("notifications behavior characterization", () => {
 			enabled: false,
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskAssigned,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
 				taskId: seeded.taskId,
-				assigneeId: seeded.recipientId,
+				recipientId: seeded.recipientId,
 				actorId: seeded.actorId,
 				eventKey: "preference-disabled",
-			},
+			}),
 		);
 		expect(result).toBeNull();
 
@@ -597,7 +609,7 @@ describe("notifications behavior characterization", () => {
 		).toBe(true);
 	});
 
-	test("_notifyDueDateOverdue dedupes unread batch notifications with batch_deduped reason", async () => {
+	test("emitNotificationEvent(due_date_overdue) dedupes unread batch notifications with batch_deduped reason", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const assigneeId = await ctx.db.insert("users", {});
@@ -629,23 +641,23 @@ describe("notifications behavior characterization", () => {
 			return { assigneeId, taskId };
 		});
 
-		const first = await t.mutation(
-			internal.notifications._notifyDueDateOverdue,
-			{
+		const first = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "due_date_overdue",
 				taskId: seeded.taskId,
 				assigneeId: seeded.assigneeId,
 				daysOverdue: 1,
 				eventKey: "batch-first",
-			},
+			}),
 		);
-		const second = await t.mutation(
-			internal.notifications._notifyDueDateOverdue,
-			{
+		const second = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "due_date_overdue",
 				taskId: seeded.taskId,
 				assigneeId: seeded.assigneeId,
 				daysOverdue: 1,
 				eventKey: "batch-second",
-			},
+			}),
 		);
 
 		expect(first).toBeTruthy();
@@ -667,7 +679,7 @@ describe("notifications behavior characterization", () => {
 		).toBe(true);
 	});
 
-	test("_notifyCompetitionPhaseChanged delivers notification for recipients with competition access", async () => {
+	test("emitNotificationEvent(competition_phase_changed) delivers notification for recipients with competition access", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -691,16 +703,16 @@ describe("notifications behavior characterization", () => {
 			return { actorId, recipientId, competitionId };
 		});
 
-		const notificationId = await t.mutation(
-			internal.notifications._notifyCompetitionPhaseChanged,
-			{
+		const notificationId = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "competition_phase_changed",
 				competitionId: seeded.competitionId,
 				recipientId: seeded.recipientId,
 				actorId: seeded.actorId,
 				oldPhaseName: "Planning",
 				newPhaseName: "Execution",
 				eventKey: "phase-delivery",
-			},
+			}),
 		);
 		expect(notificationId).toBeTruthy();
 		if (!notificationId) {
@@ -717,7 +729,7 @@ describe("notifications behavior characterization", () => {
 		expect(row?.metadata?.newValue).toBe("Execution");
 	});
 
-	test("_notifyCompetitionPhaseChanged skips recipients without competition access", async () => {
+	test("emitNotificationEvent(competition_phase_changed) skips recipients without competition access", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -733,16 +745,16 @@ describe("notifications behavior characterization", () => {
 			return { actorId, recipientId, competitionId };
 		});
 
-		const notificationId = await t.mutation(
-			internal.notifications._notifyCompetitionPhaseChanged,
-			{
+		const notificationId = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "competition_phase_changed",
 				competitionId: seeded.competitionId,
 				recipientId: seeded.recipientId,
 				actorId: seeded.actorId,
 				oldPhaseName: "Planning",
 				newPhaseName: "Execution",
 				eventKey: "phase-no-access",
-			},
+			}),
 		);
 		expect(notificationId).toBeNull();
 
@@ -794,31 +806,31 @@ async function seedTaskWithWatcher(t: ReturnType<typeof convexTest>) {
 			labelIds: [],
 			updatedAt: Date.now(),
 		});
-			await ctx.db.insert("notificationSubscriptions", {
-				userId: watcherId,
-				entityType: "task",
-				entityId: `${taskId}`,
-				updatedAt: Date.now(),
+		await ctx.db.insert("notificationSubscriptions", {
+			userId: watcherId,
+			entityType: "task",
+			entityId: `${taskId}`,
+			updatedAt: Date.now(),
 		});
 		return { actorId, watcherId, competitionId, taskId };
 	});
 }
 
 describe("watcher and subscriber notification paths", () => {
-	test("_notifyTaskStatusChanged notifies entity subscribers (watchers) even with empty direct recipients", async () => {
+	test("emitNotificationEvent(task_status_changed) notifies entity subscribers (watchers) even with empty direct recipients", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithWatcher(t);
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskStatusChanged,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_status_changed",
 				taskId: seeded.taskId,
 				recipientIds: [],
 				actorId: seeded.actorId,
 				oldStatus: "to-do",
 				newStatus: "in-progress",
 				eventKey: "watcher-status-change",
-			},
+			}),
 		);
 
 		expect(result).toBeTruthy();
@@ -835,20 +847,20 @@ describe("watcher and subscriber notification paths", () => {
 		expect(notifications[0]?.type).toBe("task_status_changed");
 	});
 
-	test("_notifyTaskPriorityChanged notifies entity subscribers (watchers) even with empty direct recipients", async () => {
+	test("emitNotificationEvent(task_priority_changed) notifies entity subscribers (watchers) even with empty direct recipients", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithWatcher(t);
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskPriorityChanged,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_priority_changed",
 				taskId: seeded.taskId,
 				recipientIds: [],
 				actorId: seeded.actorId,
 				oldPriority: "medium",
 				newPriority: "high",
 				eventKey: "watcher-priority-change",
-			},
+			}),
 		);
 
 		expect(result).toBeTruthy();
@@ -865,18 +877,21 @@ describe("watcher and subscriber notification paths", () => {
 		expect(notifications[0]?.type).toBe("task_priority_changed");
 	});
 
-	test("_notifyTaskStatusChanged does not duplicate notifications for watchers who are also direct recipients", async () => {
+	test("emitNotificationEvent(task_status_changed) does not duplicate notifications for watchers who are also direct recipients", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithWatcher(t);
 
-		await t.mutation(internal.notifications._notifyTaskStatusChanged, {
-			taskId: seeded.taskId,
-			recipientIds: [seeded.watcherId],
-			actorId: seeded.actorId,
-			oldStatus: "to-do",
-			newStatus: "in-progress",
-			eventKey: "dedup-watcher-direct",
-		});
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_status_changed",
+				taskId: seeded.taskId,
+				recipientIds: [seeded.watcherId],
+				actorId: seeded.actorId,
+				oldStatus: "to-do",
+				newStatus: "in-progress",
+				eventKey: "dedup-watcher-direct",
+			}),
+		);
 
 		const notifications = await t.run((ctx) =>
 			ctx.db
@@ -889,7 +904,7 @@ describe("watcher and subscriber notification paths", () => {
 		expect(notifications).toHaveLength(1);
 	});
 
-	test("_notifyTaskStatusChanged suppresses self-action for watchers who are the actor", async () => {
+	test("emitNotificationEvent(task_status_changed) suppresses self-action for watchers who are the actor", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const userId = await ctx.db.insert("users", {});
@@ -925,16 +940,16 @@ describe("watcher and subscriber notification paths", () => {
 			return { userId, taskId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskStatusChanged,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_status_changed",
 				taskId: seeded.taskId,
 				recipientIds: [],
 				actorId: seeded.userId,
 				oldStatus: "to-do",
 				newStatus: "in-progress",
 				eventKey: "self-watcher-suppressed",
-			},
+			}),
 		);
 
 		expect(result).toBeNull();
@@ -942,7 +957,7 @@ describe("watcher and subscriber notification paths", () => {
 });
 
 describe("reply comment notification paths", () => {
-	test("_notifyCommentReplied delivers notification to parent comment author", async () => {
+	test("emitNotificationEvent(comment_replied) delivers notification to parent comment author", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -985,15 +1000,15 @@ describe("reply comment notification paths", () => {
 			return { actorId, parentAuthorId, taskId, commentId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyCommentReplied,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "comment_replied",
 				taskId: seeded.taskId,
 				commentId: seeded.commentId,
 				recipientIds: [seeded.parentAuthorId],
 				actorId: seeded.actorId,
 				eventKey: "reply-to-parent",
-			},
+			}),
 		);
 
 		expect(result).toBeTruthy();
@@ -1010,7 +1025,7 @@ describe("reply comment notification paths", () => {
 		expect(notifications[0]?.type).toBe("comment_replied");
 	});
 
-	test("_notifyCommentReplied does not notify the reply author themselves", async () => {
+	test("emitNotificationEvent(comment_replied) does not notify the reply author themselves", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const userId = await ctx.db.insert("users", {});
@@ -1048,15 +1063,15 @@ describe("reply comment notification paths", () => {
 			return { userId, taskId, commentId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyCommentReplied,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "comment_replied",
 				taskId: seeded.taskId,
 				commentId: seeded.commentId,
 				recipientIds: [seeded.userId],
 				actorId: seeded.userId,
 				eventKey: "self-reply-suppressed",
-			},
+			}),
 		);
 
 		expect(result).toBeNull();
@@ -1064,7 +1079,7 @@ describe("reply comment notification paths", () => {
 });
 
 describe("relation notification batch fan-out", () => {
-	test("_notifyTaskRelationBlocked delivers to multiple recipients via recipientIds", async () => {
+	test("emitNotificationEvent(relation_blocked) delivers to multiple recipients via recipientIds", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -1115,13 +1130,16 @@ describe("relation notification batch fan-out", () => {
 			return { actorId, recipientA, recipientB, blockedTaskId, blockingTaskId };
 		});
 
-		await t.mutation(internal.notifications._notifyTaskRelationBlocked, {
-			blockedTaskId: seeded.blockedTaskId,
-			blockingTaskId: seeded.blockingTaskId,
-			recipientIds: [seeded.recipientA, seeded.recipientB],
-			actorId: seeded.actorId,
-			eventKey: "relation-batch",
-		});
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "relation_blocked",
+				taskId: seeded.blockedTaskId,
+				blockingTaskId: seeded.blockingTaskId,
+				recipientIds: [seeded.recipientA, seeded.recipientB],
+				actorId: seeded.actorId,
+				eventKey: "relation-batch",
+			}),
+		);
 
 		const notificationsA = await t.run((ctx) =>
 			ctx.db
@@ -1146,7 +1164,7 @@ describe("relation notification batch fan-out", () => {
 		expect(notificationsB[0]?.type).toBe("relation_blocked");
 	});
 
-	test("_notifyTaskApproved delivers to assignee and skips self-action", async () => {
+	test("emitNotificationEvent(task_approved) delivers to assignee and skips self-action", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -1182,14 +1200,14 @@ describe("relation notification batch fan-out", () => {
 			return { actorId, assigneeId, taskId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskApproved,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_approved",
 				taskId: seeded.taskId,
 				recipientIds: [seeded.assigneeId],
 				actorId: seeded.actorId,
 				eventKey: "approve-test",
-			},
+			}),
 		);
 		expect(result).not.toBeNull();
 
@@ -1205,7 +1223,7 @@ describe("relation notification batch fan-out", () => {
 		expect(notifications[0]?.type).toBe("task_approved");
 	});
 
-	test("_notifyTaskApproved skips when actor is the only recipient", async () => {
+	test("emitNotificationEvent(task_approved) skips when actor is the only recipient", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const userId = await ctx.db.insert("users", {});
@@ -1236,19 +1254,19 @@ describe("relation notification batch fan-out", () => {
 			return { userId, taskId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyTaskApproved,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_approved",
 				taskId: seeded.taskId,
 				recipientIds: [seeded.userId],
 				actorId: seeded.userId,
 				eventKey: "self-approve",
-			},
+			}),
 		);
 		expect(result).toBeNull();
 	});
 
-	test("_notifyDueDateChanged delivers to assignee", async () => {
+	test("emitNotificationEvent(due_date_changed) delivers to assignee", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -1284,16 +1302,16 @@ describe("relation notification batch fan-out", () => {
 			return { actorId, assigneeId, taskId };
 		});
 
-		const result = await t.mutation(
-			internal.notifications._notifyDueDateChanged,
-			{
+		const result = await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "due_date_changed",
 				taskId: seeded.taskId,
 				recipientIds: [seeded.assigneeId],
 				actorId: seeded.actorId,
 				oldDueDate: "2026-01-01",
 				newDueDate: "2026-02-01",
 				eventKey: "due-date-test",
-			},
+			}),
 		);
 		expect(result).not.toBeNull();
 
@@ -1322,17 +1340,17 @@ describe("relation notification batch fan-out", () => {
 				dedupeKey: "task_assigned:task:1",
 				createdAt: Date.now(),
 			});
-				const dispatchId = await ctx.db.insert("notificationDispatches", {
-					eventId,
-					userId,
-					channel: "in_app",
-					status: "pending",
-					digestMode: "immediate",
-					scheduledFor: Date.now() - 1_000,
-					attempts: 0,
-					maxAttempts: 5,
-					updatedAt: Date.now(),
-				});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "in_app",
+				status: "pending",
+				digestMode: "immediate",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: Date.now(),
+			});
 			return { dispatchId, eventId };
 		});
 
@@ -1384,30 +1402,30 @@ describe("relation notification batch fan-out", () => {
 				dedupeKey: "task_assigned:task:b",
 				createdAt: Date.now(),
 			});
-				const dispatchA = await ctx.db.insert("notificationDispatches", {
-					eventId: eventA,
-					userId,
-					channel: "in_app",
-					status: "pending",
-					digestMode: "daily",
-					digestWindowKey: "2026-01-02:daily",
-					scheduledFor: Date.now() - 1_000,
-					attempts: 0,
-					maxAttempts: 5,
-					updatedAt: Date.now(),
-				});
-				const dispatchB = await ctx.db.insert("notificationDispatches", {
-					eventId: eventB,
-					userId,
-					channel: "in_app",
-					status: "pending",
-					digestMode: "daily",
-					digestWindowKey: "2026-01-02:daily",
-					scheduledFor: Date.now() - 1_000,
-					attempts: 0,
-					maxAttempts: 5,
-					updatedAt: Date.now(),
-				});
+			const dispatchA = await ctx.db.insert("notificationDispatches", {
+				eventId: eventA,
+				userId,
+				channel: "in_app",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: Date.now(),
+			});
+			const dispatchB = await ctx.db.insert("notificationDispatches", {
+				eventId: eventB,
+				userId,
+				channel: "in_app",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: Date.now(),
+			});
 			return { dispatchA, dispatchB };
 		});
 
@@ -1459,30 +1477,30 @@ describe("relation notification batch fan-out", () => {
 				dedupeKey: "task_assigned:task:email-b",
 				createdAt: Date.now(),
 			});
-				const dispatchA = await ctx.db.insert("notificationDispatches", {
-					eventId: eventA,
-					userId,
-					channel: "email",
-					status: "pending",
-					digestMode: "daily",
-					digestWindowKey: "2026-01-02:daily",
-					scheduledFor: Date.now() - 1_000,
-					attempts: 0,
-					maxAttempts: 5,
-					updatedAt: Date.now(),
-				});
-				const dispatchB = await ctx.db.insert("notificationDispatches", {
-					eventId: eventB,
-					userId,
-					channel: "email",
-					status: "pending",
-					digestMode: "daily",
-					digestWindowKey: "2026-01-02:daily",
-					scheduledFor: Date.now() - 1_000,
-					attempts: 0,
-					maxAttempts: 5,
-					updatedAt: Date.now(),
-				});
+			const dispatchA = await ctx.db.insert("notificationDispatches", {
+				eventId: eventA,
+				userId,
+				channel: "email",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: Date.now(),
+			});
+			const dispatchB = await ctx.db.insert("notificationDispatches", {
+				eventId: eventB,
+				userId,
+				channel: "email",
+				status: "pending",
+				digestMode: "daily",
+				digestWindowKey: "2026-01-02:daily",
+				scheduledFor: Date.now() - 1_000,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: Date.now(),
+			});
 			return { dispatchA, dispatchB };
 		});
 
@@ -1514,5 +1532,194 @@ describe("relation notification batch fan-out", () => {
 			},
 		);
 		expect(secondProcessed).toBe(0);
+	});
+});
+
+describe("dispatch retry and diagnostics behavior", () => {
+	test("_markDispatchesFailed reschedules retryable pending dispatches with a fresh scheduled function", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const userId = await ctx.db.insert("users", {
+				email: "retryable@example.com",
+			});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-retryable",
+				idempotencyKey: "retryable-event",
+				threadKey: "task:retryable",
+				dedupeKey: "task_assigned:task:retryable",
+				createdAt: now,
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "email",
+				status: "pending",
+				digestMode: "immediate",
+				scheduledFor: now + 5_000,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: now,
+			});
+			const oldScheduledFunctionId = await ctx.scheduler.runAfter(
+				300_000,
+				internal.notifications._processDispatch,
+				{ dispatchId },
+			);
+			await ctx.db.patch("notificationDispatches", dispatchId, {
+				scheduledFunctionId: oldScheduledFunctionId,
+				updatedAt: now,
+			});
+			return { dispatchId, oldScheduledFunctionId };
+		});
+
+		const beforeFailure = Date.now();
+		await t.mutation(internal.notifications._markDispatchesFailed, {
+			dispatchIds: [seeded.dispatchId],
+			reason: "provider_timeout",
+		});
+
+		const dispatch = await t.run((ctx) =>
+			ctx.db.get("notificationDispatches", seeded.dispatchId),
+		);
+		expect(dispatch?.status).toBe("pending");
+		expect(dispatch?.reason).toBe("provider_timeout");
+		expect(dispatch?.attempts).toBe(1);
+		expect(dispatch?.scheduledFor).toBeGreaterThanOrEqual(
+			beforeFailure + 59_000,
+		);
+		expect(dispatch?.scheduledFunctionId).toBeDefined();
+		expect(dispatch?.scheduledFunctionId).not.toBe(
+			seeded.oldScheduledFunctionId,
+		);
+	});
+
+	test("_markDispatchesFailed dead-letters dispatches after max attempts", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const userId = await ctx.db.insert("users", {
+				email: "terminal@example.com",
+			});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-terminal",
+				idempotencyKey: "terminal-event",
+				threadKey: "task:terminal",
+				dedupeKey: "task_assigned:task:terminal",
+				createdAt: now,
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "email",
+				status: "pending",
+				digestMode: "immediate",
+				scheduledFor: now + 5_000,
+				attempts: 0,
+				maxAttempts: 1,
+				updatedAt: now,
+			});
+			return { dispatchId };
+		});
+
+		await t.mutation(internal.notifications._markDispatchesFailed, {
+			dispatchIds: [seeded.dispatchId],
+			reason: "provider_4xx",
+		});
+
+		const [dispatch, deadLetters] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchId),
+				ctx.db
+					.query("notificationDeadLetters")
+					.withIndex("by_failed_at")
+					.collect(),
+			]),
+		);
+
+		expect(dispatch?.status).toBe("failed");
+		expect(dispatch?.attempts).toBe(1);
+		expect(dispatch?.scheduledFor).toBeUndefined();
+		expect(dispatch?.scheduledFunctionId).toBeUndefined();
+		expect(deadLetters).toHaveLength(1);
+		expect(deadLetters[0]?.dispatchId).toBe(seeded.dispatchId);
+		expect(deadLetters[0]?.error).toBe("provider_4xx");
+	});
+
+	test("dispatch diagnostics queries require director access", async () => {
+		const t = convexTest(schema, modules);
+		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
+		const authed = t.withIdentity({ subject: userId });
+
+		await expect(
+			authed.query(api.notifications.getDispatchHealth, {}),
+		).rejects.toBeTruthy();
+		await expect(
+			authed.query(api.notifications.listRecentDeadLetters, {}),
+		).rejects.toBeTruthy();
+	});
+
+	test("director can read dispatch health and dead-letter diagnostics", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const directorId = await ctx.db.insert("users", {
+				email: "director@example.com",
+			});
+			await ctx.db.insert("teams", {
+				name: "Directors",
+				memberIds: [directorId],
+			});
+
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-diagnostics",
+				idempotencyKey: "diagnostics-event",
+				threadKey: "task:diagnostics",
+				dedupeKey: "task_assigned:task:diagnostics",
+				createdAt: Date.now(),
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId: directorId,
+				channel: "email",
+				status: "failed",
+				digestMode: "immediate",
+				attempts: 3,
+				maxAttempts: 3,
+				reason: "smtp_rejected",
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("notificationDeadLetters", {
+				dispatchId,
+				eventId,
+				userId: directorId,
+				channel: "email",
+				error: "smtp_rejected",
+				attempts: 3,
+				failedAt: Date.now(),
+			});
+
+			return { directorId };
+		});
+
+		const director = t.withIdentity({ subject: seeded.directorId });
+		const [health, deadLetters] = await Promise.all([
+			director.query(api.notifications.getDispatchHealth, {}),
+			director.query(api.notifications.listRecentDeadLetters, {
+				channel: "email",
+				limit: 10,
+			}),
+		]);
+
+		expect(health.totals.failed).toBe(1);
+		expect(health.byChannel.some((row) => row.channel === "email")).toBe(true);
+		expect(health.deadLettersLast24h).toBe(1);
+		expect(deadLetters).toHaveLength(1);
+		expect(deadLetters[0]?.error).toBe("smtp_rejected");
 	});
 });

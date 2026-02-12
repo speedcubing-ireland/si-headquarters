@@ -1,9 +1,5 @@
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
-import {
-	sendTaskRelationBlockedNotifications,
-	sendTaskRelationUnblockedNotifications,
-} from "../taskNotifications";
 
 const RESOLVED_BLOCKER_STATUSES = new Set<Doc<"tasks">["status"]>([
 	"done",
@@ -33,6 +29,12 @@ export const EMPTY_TASK_RELATION_DATA: TaskRelationData = {
 	blocks: [],
 	unresolvedBlockerCount: 0,
 	isBlocked: false,
+};
+
+export type TaskRelationTransitionEffect = {
+	type: "blocked" | "unblocked";
+	blockedTaskId: Id<"tasks">;
+	blockingTaskId: Id<"tasks">;
 };
 
 type TaskRelationReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
@@ -228,17 +230,16 @@ export async function wouldCreateTaskRelationCycle(
 	return false;
 }
 
-export async function handleBlockingStatusTransitionNotifications(
+export async function computeBlockingStatusTransitionEffects(
 	ctx: MutationCtx,
 	blockingTaskId: Id<"tasks">,
 	oldStatus: Doc<"tasks">["status"],
 	newStatus: Doc<"tasks">["status"],
-	actorId: Id<"users">,
-): Promise<void> {
+): Promise<TaskRelationTransitionEffect[]> {
 	const wasBlocking = isTaskBlockingStatus(oldStatus);
 	const isBlocking = isTaskBlockingStatus(newStatus);
 	if (wasBlocking === isBlocking) {
-		return;
+		return [];
 	}
 
 	const relations = await ctx.db
@@ -248,29 +249,28 @@ export async function handleBlockingStatusTransitionNotifications(
 		)
 		.collect();
 	if (relations.length === 0) {
-		return;
+		return [];
 	}
 
 	const blockedTaskIds = [...new Set(relations.map((r) => r.blockedTaskId))];
-	await Promise.all(
-		blockedTaskIds.map(async (blockedTaskId) => {
-			const unresolvedCount = await countUnresolvedBlockers(ctx, blockedTaskId);
-			if (wasBlocking && !isBlocking && unresolvedCount === 0) {
-				await sendTaskRelationUnblockedNotifications(
+	const effects = await Promise.all(
+		blockedTaskIds.map(
+			async (blockedTaskId): Promise<TaskRelationTransitionEffect | null> => {
+				const unresolvedCount = await countUnresolvedBlockers(
 					ctx,
 					blockedTaskId,
-					blockingTaskId,
-					actorId,
 				);
-			}
-			if (!wasBlocking && isBlocking && unresolvedCount === 1) {
-				await sendTaskRelationBlockedNotifications(
-					ctx,
-					blockedTaskId,
-					blockingTaskId,
-					actorId,
-				);
-			}
-		}),
+				if (wasBlocking && !isBlocking && unresolvedCount === 0) {
+					return { type: "unblocked", blockedTaskId, blockingTaskId };
+				}
+				if (!wasBlocking && isBlocking && unresolvedCount === 1) {
+					return { type: "blocked", blockedTaskId, blockingTaskId };
+				}
+				return null;
+			},
+		),
+	);
+	return effects.filter(
+		(effect): effect is TaskRelationTransitionEffect => effect !== null,
 	);
 }
