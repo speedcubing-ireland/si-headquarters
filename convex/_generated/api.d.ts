@@ -49,6 +49,7 @@ import type * as notifications_dispatch_retry from "../notifications/dispatch/re
 import type * as notifications_emit from "../notifications/emit.js";
 import type * as notifications_index from "../notifications/index.js";
 import type * as notifications_lib_cleanup from "../notifications/lib/cleanup.js";
+import type * as notifications_lib_dispatchClaims from "../notifications/lib/dispatchClaims.js";
 import type * as notifications_lib_emailTemplates from "../notifications/lib/emailTemplates.js";
 import type * as notifications_lib_notificationAccess from "../notifications/lib/notificationAccess.js";
 import type * as notifications_lib_notificationBuilders from "../notifications/lib/notificationBuilders.js";
@@ -139,6 +140,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/emit": typeof notifications_emit;
   "notifications/index": typeof notifications_index;
   "notifications/lib/cleanup": typeof notifications_lib_cleanup;
+  "notifications/lib/dispatchClaims": typeof notifications_lib_dispatchClaims;
   "notifications/lib/emailTemplates": typeof notifications_lib_emailTemplates;
   "notifications/lib/notificationAccess": typeof notifications_lib_notificationAccess;
   "notifications/lib/notificationBuilders": typeof notifications_lib_notificationBuilders;

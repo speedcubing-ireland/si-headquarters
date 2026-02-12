@@ -1520,7 +1520,9 @@ describe("relation notification batch fan-out", () => {
 		);
 		expect(claimedA?.status).toBe("sending");
 		expect(claimedB?.status).toBe("sending");
-		expect(claimedA?.reason?.startsWith("email_group_claim:")).toBe(true);
+		expect(claimedA?.reason?.startsWith("dispatch_group_claim:email:")).toBe(
+			true,
+		);
 		expect(claimedA?.reason).toBe(claimedB?.reason);
 		expect(claimedA?.scheduledFunctionId).toBeUndefined();
 		expect(claimedB?.scheduledFunctionId).toBeUndefined();
@@ -1620,7 +1622,7 @@ describe("dispatch retry and diagnostics behavior", () => {
 				digestMode: "immediate",
 				attempts: 0,
 				maxAttempts: 5,
-				reason: "email_group_claim:test",
+				reason: "dispatch_group_claim:email:0:test",
 				updatedAt: now,
 			});
 			return { dispatchId };
@@ -1629,7 +1631,7 @@ describe("dispatch retry and diagnostics behavior", () => {
 		await t.mutation(internal.notifications._markDispatchesFailed, {
 			dispatchIds: [seeded.dispatchId],
 			reason: "provider_500",
-			claimKey: "email_group_claim:test",
+			claimKey: "dispatch_group_claim:email:0:test",
 		});
 
 		const [dispatch, deadLetters] = await t.run((ctx) =>

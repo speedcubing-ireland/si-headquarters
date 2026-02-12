@@ -82,6 +82,7 @@ import {
 	emailDispatchGroupValidator,
 	type ResolvedEmailDispatchItem,
 } from "./notifications/lib/notificationEmail";
+import { parseDispatchGroupClaim } from "./notifications/lib/dispatchClaims";
 import {
 	computeDueDateDaysDiff,
 	buildDueDateNotificationSpec,
@@ -1292,7 +1293,7 @@ export const _getDispatchGroupForEmail = internalQuery({
 	},
 });
 
-export const _sendEmailDispatchGroup = internalAction({
+export const _sendExternalDispatchGroup = internalAction({
 	args: {
 		dispatchIds: v.array(v.id("notificationDispatches")),
 		claimKey: v.optional(v.string()),
@@ -1303,37 +1304,70 @@ export const _sendEmailDispatchGroup = internalAction({
 			return null;
 		}
 
-		const payload = await ctx.runQuery(
-			internal.notifications._getDispatchGroupForEmail,
-			{
-				dispatchIds: args.dispatchIds,
-				claimKey: args.claimKey,
-			},
-		);
-		if (!payload) {
+		const claim = parseDispatchGroupClaim(args.claimKey);
+		if (!claim) {
 			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
 				dispatchIds: args.dispatchIds,
-				reason: "email_dispatch_payload_unavailable",
+				reason: "dispatch_claim_missing_or_invalid",
 				claimKey: args.claimKey,
 			});
 			return null;
 		}
 
-		const emailChannelAdapter = getChannelAdapter("email");
-		const result = await emailChannelAdapter.send(payload);
-		if (result.ok) {
-			await ctx.runMutation(internal.notifications._markDispatchesSent, {
-				dispatchIds: payload.dispatchIds,
-				claimKey: args.claimKey,
-			});
-			return null;
-		}
+		switch (claim) {
+			case "email": {
+				const payload = await ctx.runQuery(
+					internal.notifications._getDispatchGroupForEmail,
+					{
+						dispatchIds: args.dispatchIds,
+						claimKey: args.claimKey,
+					},
+				);
+				if (!payload) {
+					await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+						dispatchIds: args.dispatchIds,
+						reason: "email_dispatch_payload_unavailable",
+						claimKey: args.claimKey,
+					});
+					return null;
+				}
 
-		await ctx.runMutation(internal.notifications._markDispatchesFailed, {
-			dispatchIds: payload.dispatchIds,
-			reason: result.error,
-			claimKey: args.claimKey,
-		});
+				const channelAdapter = getChannelAdapter("email");
+				if (!channelAdapter.isConfigured()) {
+					await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+						dispatchIds: args.dispatchIds,
+						reason: "email_channel_not_configured",
+						claimKey: args.claimKey,
+					});
+					return null;
+				}
+
+				const result = await channelAdapter.send(payload);
+				if (result.ok) {
+					await ctx.runMutation(internal.notifications._markDispatchesSent, {
+						dispatchIds: payload.dispatchIds,
+						claimKey: args.claimKey,
+					});
+					return null;
+				}
+
+				await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+					dispatchIds: payload.dispatchIds,
+					reason: result.error,
+					claimKey: args.claimKey,
+				});
+				return null;
+			}
+			case "slack":
+			case "push":
+			case "in_app":
+				await ctx.runMutation(internal.notifications._markDispatchesFailed, {
+					dispatchIds: args.dispatchIds,
+					reason: `${claim}_dispatch_payload_not_implemented`,
+					claimKey: args.claimKey,
+				});
+				return null;
+		}
 
 		return null;
 	},

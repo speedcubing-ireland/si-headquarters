@@ -8,45 +8,13 @@ import {
 import { formatEntityTypeLabel } from "../../emails/shared";
 import { parseEmailDispatchSnapshot } from "./notificationHelpers";
 import { notificationType, notificationDigestMode } from "./validators";
-import {
-	EMAIL_CHANNEL,
-	EMAIL_DISPATCH_GROUP_CLAIM_PREFIX,
-	type NotificationType,
-} from "./notificationTypes";
+import { EMAIL_CHANNEL, type NotificationType } from "./notificationTypes";
 
 export function isDispatchDue(
 	dispatch: Pick<Doc<"notificationDispatches">, "scheduledFor">,
 	now: number,
 ): boolean {
 	return dispatch.scheduledFor === undefined || dispatch.scheduledFor <= now;
-}
-
-export function buildEmailDispatchGroupClaimKey(
-	now: number,
-	seedDispatchId: Id<"notificationDispatches">,
-): string {
-	return `${EMAIL_DISPATCH_GROUP_CLAIM_PREFIX}${now}:${seedDispatchId}`;
-}
-
-function parseEmailDispatchGroupClaimTimestamp(
-	reason: string | undefined,
-): number | null {
-	if (!reason?.startsWith(EMAIL_DISPATCH_GROUP_CLAIM_PREFIX)) {
-		return null;
-	}
-	const token = reason.slice(EMAIL_DISPATCH_GROUP_CLAIM_PREFIX.length);
-	const [timestampRaw] = token.split(":", 1);
-	const timestamp = Number(timestampRaw);
-	if (!Number.isFinite(timestamp)) {
-		return null;
-	}
-	return timestamp;
-}
-
-export function hasEmailDispatchGroupClaim(
-	dispatch: Pick<Doc<"notificationDispatches">, "reason">,
-): boolean {
-	return parseEmailDispatchGroupClaimTimestamp(dispatch.reason) !== null;
 }
 
 export async function collectDispatchGroup(

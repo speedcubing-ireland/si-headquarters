@@ -29,7 +29,6 @@ export const DEFAULT_DIGEST_MODE: NotificationDigestMode = "immediate";
 export const DEFAULT_TIMEZONE = NOTIFICATION_DEFAULTS.TIMEZONE;
 export const DEFAULT_SUBSCRIPTION_LIST_LIMIT = 100;
 export const MAX_SUBSCRIPTION_LIST_LIMIT = NOTIFICATION_LIST_LIMITS.MAX;
-export const EMAIL_DISPATCH_GROUP_CLAIM_PREFIX = "email_group_claim:";
 
 export type NotificationMetadata = Infer<typeof notificationMetadata>;
 export type NotificationType = Infer<typeof notificationType>;

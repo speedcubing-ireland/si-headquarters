@@ -1,17 +1,16 @@
 import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import {
-	EMAIL_CHANNEL,
-	EXTERNAL_NOTIFICATION_CHANNELS,
-} from "../lib/notificationTypes";
+import { EXTERNAL_NOTIFICATION_CHANNELS } from "../lib/notificationTypes";
 import {
 	STALE_DISPATCH_THRESHOLD_MS,
-	buildEmailDispatchGroupClaimKey,
 	collectDispatchGroup,
-	hasEmailDispatchGroupClaim,
 	isDispatchDue,
 } from "../lib/notificationEmail";
+import {
+	buildDispatchGroupClaimKey,
+	hasDispatchGroupClaim,
+} from "../lib/dispatchClaims";
 import { getChannelAdapter } from "../channels/registry";
 
 export async function processDispatch(
@@ -40,8 +39,8 @@ export async function processDispatch(
 			continue;
 		}
 		if (
-			seedDispatch.channel === EMAIL_CHANNEL &&
-			hasEmailDispatchGroupClaim(latest)
+			EXTERNAL_NOTIFICATION_CHANNELS.includes(seedDispatch.channel) &&
+			hasDispatchGroupClaim(latest.reason)
 		) {
 			continue;
 		}
@@ -63,8 +62,29 @@ export async function processDispatch(
 		processedAt: now,
 	});
 
-	if (seedDispatch.channel === EMAIL_CHANNEL) {
-		const claimKey = buildEmailDispatchGroupClaimKey(now, seedDispatch._id);
+	if (EXTERNAL_NOTIFICATION_CHANNELS.includes(seedDispatch.channel)) {
+		const channelAdapter = getChannelAdapter(seedDispatch.channel);
+		if (!channelAdapter.isConfigured()) {
+			const reason = `${seedDispatch.channel}_channel_not_configured`;
+			for (const dispatch of dueDispatches) {
+				await ctx.db.patch("notificationDispatches", dispatch._id, {
+					status: "skipped",
+					reason,
+					metadataJson,
+					attempts: dispatch.attempts + 1,
+					lastAttemptAt: now,
+					scheduledFunctionId: undefined,
+					updatedAt: now,
+				});
+			}
+			return dueDispatches.length;
+		}
+
+		const claimKey = buildDispatchGroupClaimKey(
+			seedDispatch.channel,
+			now,
+			seedDispatch._id,
+		);
 		for (const dispatch of dueDispatches) {
 			await ctx.db.patch("notificationDispatches", dispatch._id, {
 				status: "sending",
@@ -77,7 +97,7 @@ export async function processDispatch(
 		}
 		await ctx.scheduler.runAfter(
 			0,
-			internal.notifications._sendEmailDispatchGroup,
+			internal.notifications._sendExternalDispatchGroup,
 			{
 				dispatchIds: dueDispatches.map((dispatch) => dispatch._id),
 				claimKey,
@@ -86,10 +106,7 @@ export async function processDispatch(
 		return dueDispatches.length;
 	}
 
-	const channelAdapter = getChannelAdapter(seedDispatch.channel);
-	const reason = channelAdapter.isConfigured()
-		? "channel_not_implemented"
-		: `${seedDispatch.channel}_channel_not_configured`;
+	const reason = "channel_not_implemented";
 
 	for (const dispatch of dueDispatches) {
 		await ctx.db.patch("notificationDispatches", dispatch._id, {
@@ -119,7 +136,7 @@ export async function sweepStaleDispatches(ctx: MutationCtx): Promise<number> {
 			.collect();
 
 		for (const dispatch of pendingDispatches) {
-			if (channel === EMAIL_CHANNEL && hasEmailDispatchGroupClaim(dispatch)) {
+			if (hasDispatchGroupClaim(dispatch.reason)) {
 				continue;
 			}
 			if (
