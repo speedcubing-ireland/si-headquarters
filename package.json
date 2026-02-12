@@ -17,7 +17,7 @@
 		"test:once": "vitest run",
 		"test:debug": "vitest --inspect-brk --no-file-parallelism",
 		"test:coverage": "vitest run --coverage"
-  },
+	},
 	"dependencies": {
 		"@auth/core": "^0.37.4",
 		"@azure/communication-email": "^1.1.0",

@@ -11,7 +11,6 @@ import { notificationType, notificationDigestMode } from "./validators";
 import {
 	EMAIL_CHANNEL,
 	EMAIL_DISPATCH_GROUP_CLAIM_PREFIX,
-	EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS,
 	type NotificationType,
 } from "./notificationTypes";
 
@@ -44,15 +43,10 @@ function parseEmailDispatchGroupClaimTimestamp(
 	return timestamp;
 }
 
-export function hasUnexpiredEmailDispatchClaim(
+export function hasEmailDispatchGroupClaim(
 	dispatch: Pick<Doc<"notificationDispatches">, "reason">,
-	now: number,
 ): boolean {
-	const timestamp = parseEmailDispatchGroupClaimTimestamp(dispatch.reason);
-	if (timestamp === null) {
-		return false;
-	}
-	return now - timestamp < EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS;
+	return parseEmailDispatchGroupClaimTimestamp(dispatch.reason) !== null;
 }
 
 export async function collectDispatchGroup(
@@ -170,7 +164,7 @@ export async function patchPendingDispatches(
 		const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
 		if (
 			!dispatch ||
-			dispatch.status !== "pending" ||
+			(dispatch.status !== "pending" && dispatch.status !== "sending") ||
 			dispatch.channel !== EMAIL_CHANNEL ||
 			(claimKey !== undefined && dispatch.reason !== claimKey)
 		) {

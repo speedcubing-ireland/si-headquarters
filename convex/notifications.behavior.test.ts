@@ -1518,12 +1518,12 @@ describe("relation notification batch fan-out", () => {
 				ctx.db.get("notificationDispatches", seeded.dispatchB),
 			]),
 		);
-		expect(claimedA?.status).toBe("pending");
-		expect(claimedB?.status).toBe("pending");
+		expect(claimedA?.status).toBe("sending");
+		expect(claimedB?.status).toBe("sending");
 		expect(claimedA?.reason?.startsWith("email_group_claim:")).toBe(true);
 		expect(claimedA?.reason).toBe(claimedB?.reason);
-		expect(claimedA?.scheduledFunctionId).toBeDefined();
-		expect(claimedA?.scheduledFunctionId).toBe(claimedB?.scheduledFunctionId);
+		expect(claimedA?.scheduledFunctionId).toBeUndefined();
+		expect(claimedB?.scheduledFunctionId).toBeUndefined();
 
 		const secondProcessed = await t.mutation(
 			internal.notifications._processDispatch,
@@ -1594,6 +1594,61 @@ describe("dispatch retry and diagnostics behavior", () => {
 		expect(dispatch?.scheduledFunctionId).not.toBe(
 			seeded.oldScheduledFunctionId,
 		);
+	});
+
+	test("_markDispatchesFailed dead-letters claimed email dispatches without scheduling retries", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const userId = await ctx.db.insert("users", {
+				email: "claimed-failure@example.com",
+			});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-claimed-failure",
+				idempotencyKey: "claimed-failure-event",
+				threadKey: "task:claimed-failure",
+				dedupeKey: "task_assigned:task:claimed-failure",
+				createdAt: now,
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "email",
+				status: "sending",
+				digestMode: "immediate",
+				attempts: 0,
+				maxAttempts: 5,
+				reason: "email_group_claim:test",
+				updatedAt: now,
+			});
+			return { dispatchId };
+		});
+
+		await t.mutation(internal.notifications._markDispatchesFailed, {
+			dispatchIds: [seeded.dispatchId],
+			reason: "provider_500",
+			claimKey: "email_group_claim:test",
+		});
+
+		const [dispatch, deadLetters] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchId),
+				ctx.db
+					.query("notificationDeadLetters")
+					.withIndex("by_failed_at")
+					.collect(),
+			]),
+		);
+
+		expect(dispatch?.status).toBe("failed");
+		expect(dispatch?.attempts).toBe(1);
+		expect(dispatch?.scheduledFor).toBeUndefined();
+		expect(dispatch?.scheduledFunctionId).toBeUndefined();
+		expect(deadLetters).toHaveLength(1);
+		expect(deadLetters[0]?.dispatchId).toBe(seeded.dispatchId);
+		expect(deadLetters[0]?.error).toBe("provider_500");
 	});
 
 	test("_markDispatchesFailed dead-letters dispatches after max attempts", async () => {

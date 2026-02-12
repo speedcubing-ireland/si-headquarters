@@ -3,14 +3,13 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import {
 	EMAIL_CHANNEL,
-	EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS,
 	EXTERNAL_NOTIFICATION_CHANNELS,
 } from "../lib/notificationTypes";
 import {
 	STALE_DISPATCH_THRESHOLD_MS,
 	buildEmailDispatchGroupClaimKey,
 	collectDispatchGroup,
-	hasUnexpiredEmailDispatchClaim,
+	hasEmailDispatchGroupClaim,
 	isDispatchDue,
 } from "../lib/notificationEmail";
 import { getChannelAdapter } from "../channels/registry";
@@ -42,7 +41,7 @@ export async function processDispatch(
 		}
 		if (
 			seedDispatch.channel === EMAIL_CHANNEL &&
-			hasUnexpiredEmailDispatchClaim(latest, now)
+			hasEmailDispatchGroupClaim(latest)
 		) {
 			continue;
 		}
@@ -68,7 +67,10 @@ export async function processDispatch(
 		const claimKey = buildEmailDispatchGroupClaimKey(now, seedDispatch._id);
 		for (const dispatch of dueDispatches) {
 			await ctx.db.patch("notificationDispatches", dispatch._id, {
+				status: "sending",
 				reason: claimKey,
+				scheduledFor: undefined,
+				scheduledFunctionId: undefined,
 				lastAttemptAt: now,
 				updatedAt: now,
 			});
@@ -81,17 +83,6 @@ export async function processDispatch(
 				claimKey,
 			},
 		);
-		const recoveryScheduledFunctionId = await ctx.scheduler.runAfter(
-			EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS,
-			internal.notifications._processDispatch,
-			{ dispatchId: seedDispatch._id },
-		);
-		for (const dispatch of dueDispatches) {
-			await ctx.db.patch("notificationDispatches", dispatch._id, {
-				scheduledFunctionId: recoveryScheduledFunctionId,
-				updatedAt: now,
-			});
-		}
 		return dueDispatches.length;
 	}
 
@@ -128,6 +119,9 @@ export async function sweepStaleDispatches(ctx: MutationCtx): Promise<number> {
 			.collect();
 
 		for (const dispatch of pendingDispatches) {
+			if (channel === EMAIL_CHANNEL && hasEmailDispatchGroupClaim(dispatch)) {
+				continue;
+			}
 			if (
 				dispatch.scheduledFor !== undefined &&
 				dispatch.scheduledFor + STALE_DISPATCH_THRESHOLD_MS < now

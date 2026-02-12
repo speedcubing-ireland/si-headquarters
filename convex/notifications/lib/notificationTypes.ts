@@ -30,7 +30,6 @@ export const DEFAULT_TIMEZONE = NOTIFICATION_DEFAULTS.TIMEZONE;
 export const DEFAULT_SUBSCRIPTION_LIST_LIMIT = 100;
 export const MAX_SUBSCRIPTION_LIST_LIMIT = NOTIFICATION_LIST_LIMITS.MAX;
 export const EMAIL_DISPATCH_GROUP_CLAIM_PREFIX = "email_group_claim:";
-export const EMAIL_DISPATCH_GROUP_CLAIM_TTL_MS = 5 * 60 * 1000;
 
 export type NotificationMetadata = Infer<typeof notificationMetadata>;
 export type NotificationType = Infer<typeof notificationType>;
@@ -47,7 +46,12 @@ export type NotificationEntityType =
 	| "comment"
 	| "competition"
 	| "reminder";
-export type DispatchStatus = "pending" | "sent" | "skipped" | "failed";
+export type DispatchStatus =
+	| "pending"
+	| "sending"
+	| "sent"
+	| "skipped"
+	| "failed";
 export type ScheduledFunctionId = Id<"_scheduled_functions">;
 
 export type DbReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;

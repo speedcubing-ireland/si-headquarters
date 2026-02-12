@@ -62,11 +62,12 @@ export async function markDispatchesFailed(
 ): Promise<void> {
 	const eligibleDispatches: Array<Doc<"notificationDispatches">> = [];
 	const canceledScheduledFunctionIds = new Set<Id<"_scheduled_functions">>();
+	const isClaimFlow = args.claimKey !== undefined;
 	for (const dispatchId of args.dispatchIds) {
 		const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
 		if (
 			!dispatch ||
-			dispatch.status !== "pending" ||
+			(dispatch.status !== "pending" && dispatch.status !== "sending") ||
 			(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
 		) {
 			continue;
@@ -84,7 +85,8 @@ export async function markDispatchesFailed(
 	const now = Date.now();
 	for (const dispatch of eligibleDispatches) {
 		const nextAttempt = dispatch.attempts + 1;
-		const hasAttemptsRemaining = nextAttempt < dispatch.maxAttempts;
+		const hasAttemptsRemaining =
+			!isClaimFlow && nextAttempt < dispatch.maxAttempts;
 
 		if (hasAttemptsRemaining) {
 			const scheduledFor = now + computeRetryDelayMs(nextAttempt);

@@ -1237,7 +1237,7 @@ export const _getDispatchGroupForEmail = internalQuery({
 		).filter((dispatch): dispatch is Doc<"notificationDispatches"> =>
 			Boolean(
 				dispatch &&
-					dispatch.status === "pending" &&
+					dispatch.status === "sending" &&
 					dispatch.channel === EMAIL_CHANNEL &&
 					(args.claimKey === undefined || dispatch.reason === args.claimKey),
 			),

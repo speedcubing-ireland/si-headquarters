@@ -60,6 +60,7 @@ export const notificationDigestMode = v.union(
 
 export const NOTIFICATION_DISPATCH_STATUSES = [
 	"pending",
+	"sending",
 	"sent",
 	"skipped",
 	"failed",
