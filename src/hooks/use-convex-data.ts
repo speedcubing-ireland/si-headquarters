@@ -30,7 +30,6 @@ export {
 	useNotificationSubscriptions,
 	useTaskSubscriptionState,
 	useCompetitionSubscriptionState,
-	useViewSubscriptionState,
 	useUnreadCount,
 	useNotificationMutations,
 } from "./convex/use-notifications";

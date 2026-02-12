@@ -159,15 +159,6 @@ export async function getEntitySubscriberIds(
 
 	const userIds = new Set<Id<"users">>();
 	for (const subscription of subscriptions) {
-		if (subscription.subscriptionType !== "entity") {
-			continue;
-		}
-		if (
-			subscription.entityType !== target.entityType ||
-			subscription.entityId !== target.entityId
-		) {
-			continue;
-		}
 		userIds.add(subscription.userId);
 	}
 	return [...userIds];

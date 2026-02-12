@@ -142,7 +142,6 @@ function RouteComponent() {
 	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
 	const isSubscribed = subscriptions.some(
 		(subscription) =>
-			subscription.subscriptionType === "entity" &&
 			subscription.entityType === "competition" &&
 			subscription.entityId === competitionId,
 	);

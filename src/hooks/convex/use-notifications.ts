@@ -43,12 +43,6 @@ export const useCompetitionSubscriptionState = (
 			: "skip",
 	) ?? false;
 
-export const useViewSubscriptionState = (viewId: Id<"savedViews"> | null) =>
-	useQuery(
-		api.notifications.isSubscribedToView,
-		viewId ? { viewId } : "skip",
-	) ?? false;
-
 export const useUnreadCount = () => {
 	const nowMs = usePeriodicNow();
 	return useQuery(api.notifications.getUnreadCount, { nowMs });
@@ -68,8 +62,6 @@ export function useNotificationMutations() {
 	);
 	const subEntityMut = useMutation(api.notifications.subscribeToEntity);
 	const unsubEntityMut = useMutation(api.notifications.unsubscribeFromEntity);
-	const subViewMut = useMutation(api.notifications.subscribeToView);
-	const unsubViewMut = useMutation(api.notifications.unsubscribeFromView);
 	const unsubMut = useMutation(api.notifications.unsubscribe);
 
 	const taskSub = {
@@ -129,8 +121,6 @@ export function useNotificationMutations() {
 		unsubscribeFromCompetition: (id: Id<"competitions">) =>
 			competitionSub.unsubscribe(id),
 		unsubscribeFromComment: (id: Id<"comments">) => commentSub.unsubscribe(id),
-		subscribeToView: (viewId: Id<"savedViews">) => subViewMut({ viewId }),
-		unsubscribeFromView: (viewId: Id<"savedViews">) => unsubViewMut({ viewId }),
 		unsubscribeNotificationSubscription: (
 			id: Id<"notificationSubscriptions">,
 		) => unsubMut({ subscriptionId: id }),

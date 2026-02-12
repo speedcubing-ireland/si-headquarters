@@ -9,7 +9,6 @@ import {
 	notificationPriority,
 	notificationStatus,
 	notificationSubscriberEntityType,
-	notificationSubscriptionType,
 	notificationType,
 } from "./validators";
 import { NOTIFICATION_DEFAULTS, NOTIFICATION_LIST_LIMITS } from "./constants";
@@ -38,7 +37,6 @@ export type NotificationDigestMode = Infer<typeof notificationDigestMode>;
 export type NotificationSubscriberEntityType = Infer<
 	typeof notificationSubscriberEntityType
 >;
-export type NotificationViewEntityType = "tasks" | "competitions";
 export type EntitySubscriptionArg = Infer<typeof entitySubscriptionArgs>;
 
 export type NotificationEntityType =
@@ -119,13 +117,8 @@ export const notificationSettingsReturns = v.object({
 
 export const notificationSubscriptionReturns = v.object({
 	id: v.id("notificationSubscriptions"),
-	subscriptionType: notificationSubscriptionType,
-	entityType: v.optional(notificationSubscriberEntityType),
-	entityId: v.optional(v.string()),
-	viewId: v.optional(v.id("savedViews")),
-	viewEntity: v.optional(
-		v.union(v.literal("tasks"), v.literal("competitions")),
-	),
+	entityType: notificationSubscriberEntityType,
+	entityId: v.string(),
 	label: v.string(),
 	description: v.optional(v.string()),
 	isStale: v.boolean(),
@@ -185,7 +178,6 @@ export type NotificationEmitInput = {
 	idempotencyBase: string;
 	payloadJson?: string;
 	includeEntitySubscribers?: boolean;
-	includeViewSubscribers?: boolean;
 	suppressActorRecipient?: boolean;
 };
 

@@ -10,7 +10,6 @@ import {
 	notificationChannel,
 	notificationDigestMode,
 	notificationDispatchStatus,
-	notificationSubscriptionType,
 	notificationSubscriberEntityType,
 	reminderMetadata,
 	reminderRecurringConfig,
@@ -243,20 +242,13 @@ export default defineSchema({
 
 	notificationSubscriptions: defineTable({
 		userId: v.id("users"),
-		subscriptionType: notificationSubscriptionType,
-		entityType: v.optional(notificationSubscriberEntityType),
-		entityId: v.optional(v.string()),
-		viewId: v.optional(v.id("savedViews")),
-		viewEntity: v.optional(
-			v.union(v.literal("tasks"), v.literal("competitions")),
-		),
+		entityType: notificationSubscriberEntityType,
+		entityId: v.string(),
 		updatedAt: v.number(),
 	})
-		.index("by_type_view_entity", ["subscriptionType", "viewEntity"])
 		.index("by_user_entity", ["userId", "entityType", "entityId"])
 		.index("by_user_updated_at", ["userId", "updatedAt"])
-		.index("by_entity", ["entityType", "entityId"])
-		.index("by_user_view", ["userId", "viewId"]),
+		.index("by_entity", ["entityType", "entityId"]),
 
 	notificationDispatches: defineTable({
 		eventId: v.id("notificationEvents"),
@@ -271,6 +263,7 @@ export default defineSchema({
 		reason: v.optional(v.string()),
 		metadataJson: v.optional(v.string()),
 		attempts: v.number(),
+		maxAttempts: v.optional(v.number()),
 		lastAttemptAt: v.optional(v.number()),
 		sentAt: v.optional(v.number()),
 		updatedAt: v.number(),
@@ -287,6 +280,19 @@ export default defineSchema({
 			"status",
 		])
 		.index("by_channel_status", ["channel", "status"]),
+
+	notificationDeadLetters: defineTable({
+		dispatchId: v.id("notificationDispatches"),
+		eventId: v.id("notificationEvents"),
+		userId: v.id("users"),
+		channel: notificationChannel,
+		error: v.string(),
+		attempts: v.number(),
+		payloadJson: v.optional(v.string()),
+		failedAt: v.number(),
+	})
+		.index("by_failed_at", ["failedAt"])
+		.index("by_channel_failed_at", ["channel", "failedAt"]),
 
 	reminders: defineTable({
 		userId: v.id("users"),

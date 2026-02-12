@@ -84,7 +84,6 @@ import {
 	canUserAccessNotificationEntity,
 	getEntitySubscriberIds,
 } from "./lib/notificationAccess";
-import { getViewSubscriberIds } from "./lib/notificationSubscribers";
 import {
 	getActorInfo,
 	resolveRecipientIds,
@@ -111,8 +110,11 @@ import {
 	MS_PER_DAY,
 	type DueDateNotificationSpec,
 } from "./lib/notificationDueDates";
+import { buildNotificationEmitInput } from "./notifications/emit";
 
 export { notificationReturns } from "./lib/notificationTypes";
+
+const DEFAULT_DISPATCH_MAX_ATTEMPTS = 5;
 
 async function upsertEnabledExternalDispatches(
 	ctx: MutationCtx,
@@ -261,6 +263,7 @@ async function upsertDispatch(
 	const sentAt = args.status === "sent" ? now : existing?.sentAt;
 	const digestMode =
 		args.digestMode ?? existing?.digestMode ?? DEFAULT_DIGEST_MODE;
+	const maxAttempts = existing?.maxAttempts ?? DEFAULT_DISPATCH_MAX_ATTEMPTS;
 	const scheduledFor =
 		args.scheduledFor ??
 		existing?.scheduledFor ??
@@ -280,6 +283,7 @@ async function upsertDispatch(
 		reason: args.reason,
 		metadataJson: args.metadataJson,
 		attempts,
+		maxAttempts,
 		lastAttemptAt: now,
 		sentAt,
 		updatedAt: now,
@@ -523,12 +527,6 @@ async function emitInAppNotifications(
 	if (input.includeEntitySubscribers) {
 		const subscribers = await getEntitySubscriberIds(ctx, input.entity);
 		for (const subscriberId of subscribers) {
-			recipientSet.add(subscriberId);
-		}
-	}
-	if (input.includeViewSubscribers ?? true) {
-		const viewSubscribers = await getViewSubscriberIds(ctx, input.entity);
-		for (const subscriberId of viewSubscribers) {
 			recipientSet.add(subscriberId);
 		}
 	}
@@ -1040,38 +1038,6 @@ async function describeEntitySubscription(
 	};
 }
 
-async function describeSubscription(
-	ctx: QueryCtx,
-	userId: Id<"users">,
-	subscription: Doc<"notificationSubscriptions">,
-): Promise<SubscriptionPresentation> {
-	if (subscription.subscriptionType === "view") {
-		if (!subscription.viewId) return stale("Deleted view", "Saved view");
-		const view = await ctx.db.get("savedViews", subscription.viewId);
-		if (!view || view.userId !== userId)
-			return stale("Deleted view", "Saved view");
-		return {
-			label: view.name,
-			description:
-				view.entity === "tasks"
-					? `Task view (${view.pageId})`
-					: `Competition view (${view.pageId})`,
-			isStale: false,
-		};
-	}
-
-	if (!subscription.entityType || !subscription.entityId) {
-		return stale("Invalid subscription", "Entity");
-	}
-
-	return describeEntitySubscription(
-		ctx,
-		userId,
-		subscription.entityType,
-		subscription.entityId,
-	);
-}
-
 export const listSubscriptions = query({
 	args: {
 		limit: v.optional(v.number()),
@@ -1088,14 +1054,16 @@ export const listSubscriptions = query({
 
 		const rows = await Promise.all(
 			docs.map(async (doc) => {
-				const presentation = await describeSubscription(ctx, userId, doc);
+				const presentation = await describeEntitySubscription(
+					ctx,
+					userId,
+					doc.entityType,
+					doc.entityId,
+				);
 				return {
 					id: doc._id,
-					subscriptionType: doc.subscriptionType,
 					entityType: doc.entityType,
 					entityId: doc.entityId,
-					viewId: doc.viewId,
-					viewEntity: doc.viewEntity,
 					label: presentation.label,
 					description: presentation.description,
 					isStale: presentation.isStale,
@@ -1120,19 +1088,6 @@ function findUserEntitySubscription(
 				.eq("userId", userId)
 				.eq("entityType", entityType)
 				.eq("entityId", entityId),
-		)
-		.first();
-}
-
-function findUserViewSubscription(
-	ctx: Pick<QueryCtx, "db">,
-	userId: Id<"users">,
-	viewId: Id<"savedViews">,
-) {
-	return ctx.db
-		.query("notificationSubscriptions")
-		.withIndex("by_user_view", (q) =>
-			q.eq("userId", userId).eq("viewId", viewId),
 		)
 		.first();
 }
@@ -1167,19 +1122,6 @@ export const isSubscribedToEntity = query({
 	},
 });
 
-export const isSubscribedToView = query({
-	args: {
-		viewId: v.id("savedViews"),
-	},
-	returns: v.boolean(),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const view = await ctx.db.get("savedViews", args.viewId);
-		if (!view || view.userId !== userId) return false;
-		return (await findUserViewSubscription(ctx, userId, args.viewId)) !== null;
-	},
-});
-
 export const subscribeToEntity = mutation({
 	args: {
 		entity: entitySubscriptionArgs,
@@ -1200,7 +1142,6 @@ export const subscribeToEntity = mutation({
 
 		return ctx.db.insert("notificationSubscriptions", {
 			userId,
-			subscriptionType: "entity",
 			entityType: args.entity.entityType,
 			entityId,
 			updatedAt: Date.now(),
@@ -1221,56 +1162,6 @@ export const unsubscribeFromEntity = mutation({
 			args.entity.entityType,
 			`${args.entity.entityId}`,
 		);
-		if (existing)
-			await ctx.db.delete("notificationSubscriptions", existing._id);
-		return null;
-	},
-});
-
-export const subscribeToView = mutation({
-	args: {
-		viewId: v.id("savedViews"),
-	},
-	returns: v.id("notificationSubscriptions"),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const view = await ctx.db.get("savedViews", args.viewId);
-		if (!view || view.userId !== userId) {
-			throw new ConvexError({
-				code: "FORBIDDEN",
-				message: "You do not have access to this view",
-			});
-		}
-
-		const existing = await findUserViewSubscription(ctx, userId, args.viewId);
-		if (existing) {
-			if (existing.viewEntity !== view.entity) {
-				await ctx.db.patch("notificationSubscriptions", existing._id, {
-					viewEntity: view.entity,
-					updatedAt: Date.now(),
-				});
-			}
-			return existing._id;
-		}
-
-		return ctx.db.insert("notificationSubscriptions", {
-			userId,
-			subscriptionType: "view",
-			viewId: args.viewId,
-			viewEntity: view.entity,
-			updatedAt: Date.now(),
-		});
-	},
-});
-
-export const unsubscribeFromView = mutation({
-	args: {
-		viewId: v.id("savedViews"),
-	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const existing = await findUserViewSubscription(ctx, userId, args.viewId);
 		if (existing)
 			await ctx.db.delete("notificationSubscriptions", existing._id);
 		return null;
@@ -1358,25 +1249,27 @@ async function emitFromConfig(
 	config: NotificationTemplateConfig,
 	opts: Omit<
 		NotificationEmitInput,
-		| "title"
-		| "message"
-		| "priority"
-		| "metadata"
-		| "body"
-		| "isBatchable"
-		| "batchKey"
+		"title" | "message" | "priority" | "metadata" | "body" | "isBatchable" | "batchKey"
 	>,
 ): Promise<Id<"notifications"> | null> {
-	const inserted = await emitInAppNotifications(ctx, {
-		...opts,
-		title: config.title,
-		message: config.message,
-		priority: config.priority,
-		metadata: config.metadata,
-		body: config.body,
-		isBatchable: config.isBatchable,
-		batchKey: config.batchKey,
+	const emitInput = buildNotificationEmitInput({
+		eventKey: opts.type,
+		base: {
+			...opts,
+			title: config.title,
+			message: config.message,
+			priority: config.priority,
+			metadata: config.metadata,
+			body: config.body,
+			isBatchable: config.isBatchable,
+			batchKey: config.batchKey,
+		},
+		overrides: {
+			includeEntitySubscribers: opts.includeEntitySubscribers,
+			suppressActorRecipient: opts.suppressActorRecipient,
+		},
 	});
+	const inserted = await emitInAppNotifications(ctx, emitInput);
 	return inserted[0] ?? null;
 }
 
@@ -1408,8 +1301,7 @@ async function createTaskNotification(
 		actorId: args.actorId,
 		idempotencyBase: `${type}:${task._id}:${task.updatedAt}:${eventKey}`,
 		payloadJson: serializePayload(result.payload),
-		includeEntitySubscribers: !isTargeted,
-		includeViewSubscribers: !isTargeted,
+		...(isTargeted ? { includeEntitySubscribers: false } : {}),
 	});
 }
 
@@ -1436,7 +1328,6 @@ async function createCompetitionNotification(
 		actorId: args.actorId,
 		idempotencyBase: `${args.type}:${competition._id}:${competition.updatedAt}:${eventKey}`,
 		payloadJson: serializePayload(result.payload),
-		includeEntitySubscribers: true,
 	});
 }
 
@@ -1473,7 +1364,6 @@ async function createReminderNotification(
 				eventKey,
 			}),
 			includeEntitySubscribers: false,
-			includeViewSubscribers: false,
 			suppressActorRecipient: false,
 		},
 	);
@@ -2136,12 +2026,41 @@ export const _markDispatchesFailed = internalMutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
+		const failedDispatches: Array<Doc<"notificationDispatches">> = [];
+		for (const dispatchId of args.dispatchIds) {
+			const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
+			if (
+				!dispatch ||
+				dispatch.status !== "pending" ||
+				(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
+			) {
+				continue;
+			}
+			failedDispatches.push(dispatch);
+		}
+
 		await patchPendingDispatches(
 			ctx,
 			args.dispatchIds,
 			"failed",
 			args.reason,
 			args.claimKey,
+		);
+
+		const failedAt = Date.now();
+		await Promise.all(
+			failedDispatches.map((dispatch) =>
+				ctx.db.insert("notificationDeadLetters", {
+					dispatchId: dispatch._id,
+					eventId: dispatch.eventId,
+					userId: dispatch.userId,
+					channel: dispatch.channel,
+					error: args.reason,
+					attempts: dispatch.attempts + 1,
+					payloadJson: dispatch.metadataJson,
+					failedAt,
+				}),
+			),
 		);
 		return null;
 	},

@@ -141,11 +141,6 @@ export const notificationDispatchStatus = v.union(
 	...NOTIFICATION_DISPATCH_STATUSES.map((status) => v.literal(status)),
 );
 
-export const notificationSubscriptionType = v.union(
-	v.literal("entity"),
-	v.literal("view"),
-);
-
 export const notificationSubscriberEntityType = v.union(
 	v.literal("task"),
 	v.literal("competition"),

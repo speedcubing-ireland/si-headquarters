@@ -459,7 +459,7 @@ export function InboxSettingsPanel() {
 										)}
 									</div>
 									<p className="text-xs text-muted-foreground">
-										{subscription.description ?? subscription.subscriptionType}
+										{subscription.description ?? subscription.entityType}
 									</p>
 								</div>
 								<Button

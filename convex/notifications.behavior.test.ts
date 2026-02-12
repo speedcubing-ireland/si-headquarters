@@ -794,12 +794,11 @@ async function seedTaskWithWatcher(t: ReturnType<typeof convexTest>) {
 			labelIds: [],
 			updatedAt: Date.now(),
 		});
-		await ctx.db.insert("notificationSubscriptions", {
-			userId: watcherId,
-			subscriptionType: "entity",
-			entityType: "task",
-			entityId: `${taskId}`,
-			updatedAt: Date.now(),
+			await ctx.db.insert("notificationSubscriptions", {
+				userId: watcherId,
+				entityType: "task",
+				entityId: `${taskId}`,
+				updatedAt: Date.now(),
 		});
 		return { actorId, watcherId, competitionId, taskId };
 	});
@@ -919,7 +918,6 @@ describe("watcher and subscriber notification paths", () => {
 			});
 			await ctx.db.insert("notificationSubscriptions", {
 				userId,
-				subscriptionType: "entity",
 				entityType: "task",
 				entityId: `${taskId}`,
 				updatedAt: Date.now(),
@@ -1324,16 +1322,17 @@ describe("relation notification batch fan-out", () => {
 				dedupeKey: "task_assigned:task:1",
 				createdAt: Date.now(),
 			});
-			const dispatchId = await ctx.db.insert("notificationDispatches", {
-				eventId,
-				userId,
-				channel: "in_app",
-				status: "pending",
-				digestMode: "immediate",
-				scheduledFor: Date.now() - 1_000,
-				attempts: 0,
-				updatedAt: Date.now(),
-			});
+				const dispatchId = await ctx.db.insert("notificationDispatches", {
+					eventId,
+					userId,
+					channel: "in_app",
+					status: "pending",
+					digestMode: "immediate",
+					scheduledFor: Date.now() - 1_000,
+					attempts: 0,
+					maxAttempts: 5,
+					updatedAt: Date.now(),
+				});
 			return { dispatchId, eventId };
 		});
 
@@ -1385,28 +1384,30 @@ describe("relation notification batch fan-out", () => {
 				dedupeKey: "task_assigned:task:b",
 				createdAt: Date.now(),
 			});
-			const dispatchA = await ctx.db.insert("notificationDispatches", {
-				eventId: eventA,
-				userId,
-				channel: "in_app",
-				status: "pending",
-				digestMode: "daily",
-				digestWindowKey: "2026-01-02:daily",
-				scheduledFor: Date.now() - 1_000,
-				attempts: 0,
-				updatedAt: Date.now(),
-			});
-			const dispatchB = await ctx.db.insert("notificationDispatches", {
-				eventId: eventB,
-				userId,
-				channel: "in_app",
-				status: "pending",
-				digestMode: "daily",
-				digestWindowKey: "2026-01-02:daily",
-				scheduledFor: Date.now() - 1_000,
-				attempts: 0,
-				updatedAt: Date.now(),
-			});
+				const dispatchA = await ctx.db.insert("notificationDispatches", {
+					eventId: eventA,
+					userId,
+					channel: "in_app",
+					status: "pending",
+					digestMode: "daily",
+					digestWindowKey: "2026-01-02:daily",
+					scheduledFor: Date.now() - 1_000,
+					attempts: 0,
+					maxAttempts: 5,
+					updatedAt: Date.now(),
+				});
+				const dispatchB = await ctx.db.insert("notificationDispatches", {
+					eventId: eventB,
+					userId,
+					channel: "in_app",
+					status: "pending",
+					digestMode: "daily",
+					digestWindowKey: "2026-01-02:daily",
+					scheduledFor: Date.now() - 1_000,
+					attempts: 0,
+					maxAttempts: 5,
+					updatedAt: Date.now(),
+				});
 			return { dispatchA, dispatchB };
 		});
 
@@ -1458,28 +1459,30 @@ describe("relation notification batch fan-out", () => {
 				dedupeKey: "task_assigned:task:email-b",
 				createdAt: Date.now(),
 			});
-			const dispatchA = await ctx.db.insert("notificationDispatches", {
-				eventId: eventA,
-				userId,
-				channel: "email",
-				status: "pending",
-				digestMode: "daily",
-				digestWindowKey: "2026-01-02:daily",
-				scheduledFor: Date.now() - 1_000,
-				attempts: 0,
-				updatedAt: Date.now(),
-			});
-			const dispatchB = await ctx.db.insert("notificationDispatches", {
-				eventId: eventB,
-				userId,
-				channel: "email",
-				status: "pending",
-				digestMode: "daily",
-				digestWindowKey: "2026-01-02:daily",
-				scheduledFor: Date.now() - 1_000,
-				attempts: 0,
-				updatedAt: Date.now(),
-			});
+				const dispatchA = await ctx.db.insert("notificationDispatches", {
+					eventId: eventA,
+					userId,
+					channel: "email",
+					status: "pending",
+					digestMode: "daily",
+					digestWindowKey: "2026-01-02:daily",
+					scheduledFor: Date.now() - 1_000,
+					attempts: 0,
+					maxAttempts: 5,
+					updatedAt: Date.now(),
+				});
+				const dispatchB = await ctx.db.insert("notificationDispatches", {
+					eventId: eventB,
+					userId,
+					channel: "email",
+					status: "pending",
+					digestMode: "daily",
+					digestWindowKey: "2026-01-02:daily",
+					scheduledFor: Date.now() - 1_000,
+					attempts: 0,
+					maxAttempts: 5,
+					updatedAt: Date.now(),
+				});
 			return { dispatchA, dispatchB };
 		});
 

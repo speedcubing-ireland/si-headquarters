@@ -8,85 +8,82 @@ describe("deleteEntitySubscriptions", () => {
 	test("deletes only matching entity subscriptions", async () => {
 		const t = convexTest(schema, modules);
 
-		await t.run(async (ctx) => {
-			const subscriptionUserId = await ctx.db.insert("users", {});
+			await t.run(async (ctx) => {
+				const subscriptionUserId = await ctx.db.insert("users", {});
 
-			await ctx.db.insert("notificationSubscriptions", {
-				userId: subscriptionUserId,
-				subscriptionType: "entity",
-				entityType: "task",
-				entityId: "task-1",
-				updatedAt: Date.now(),
+				await ctx.db.insert("notificationSubscriptions", {
+					userId: subscriptionUserId,
+					entityType: "task",
+					entityId: "task-1",
+					updatedAt: Date.now(),
+				});
+				await ctx.db.insert("notificationSubscriptions", {
+					userId: subscriptionUserId,
+					entityType: "task",
+					entityId: "task-2",
+					updatedAt: Date.now(),
+				});
+				await ctx.db.insert("notificationSubscriptions", {
+					userId: subscriptionUserId,
+					entityType: "competition",
+					entityId: "comp-1",
+					updatedAt: Date.now(),
+				});
+				await ctx.db.insert("notificationSubscriptions", {
+					userId: subscriptionUserId,
+					entityType: "comment",
+					entityId: "comment-1",
+					updatedAt: Date.now(),
+				});
 			});
-			await ctx.db.insert("notificationSubscriptions", {
-				userId: subscriptionUserId,
-				subscriptionType: "entity",
-				entityType: "task",
-				entityId: "task-2",
-				updatedAt: Date.now(),
-			});
-			await ctx.db.insert("notificationSubscriptions", {
-				userId: subscriptionUserId,
-				subscriptionType: "entity",
-				entityType: "competition",
-				entityId: "comp-1",
-				updatedAt: Date.now(),
-			});
-			await ctx.db.insert("notificationSubscriptions", {
-				userId: subscriptionUserId,
-				subscriptionType: "view",
-				viewEntity: "tasks",
-				updatedAt: Date.now(),
-			});
-		});
 
 		await t.run(async (ctx) => {
 			await deleteEntitySubscriptions(ctx, "task", ["task-1", "task-1"]);
 		});
 
-		const rows = await t.run(async (ctx) =>
-			ctx.db.query("notificationSubscriptions").collect(),
-		);
-		expect(rows).toHaveLength(3);
-		expect(
-			rows.some(
-				(row) =>
-					row.subscriptionType === "entity" &&
-					row.entityType === "task" &&
-					row.entityId === "task-1",
-			),
-		).toBe(false);
-		expect(
-			rows.some(
-				(row) =>
-					row.subscriptionType === "entity" &&
-					row.entityType === "task" &&
-					row.entityId === "task-2",
-			),
-		).toBe(true);
-		expect(
-			rows.some(
-				(row) =>
-					row.subscriptionType === "entity" &&
-					row.entityType === "competition" &&
-					row.entityId === "comp-1",
-			),
-		).toBe(true);
-		expect(rows.some((row) => row.subscriptionType === "view")).toBe(true);
-	});
+			const rows = await t.run(async (ctx) =>
+				ctx.db.query("notificationSubscriptions").collect(),
+			);
+			expect(rows).toHaveLength(3);
+			expect(
+				rows.some(
+					(row) =>
+						row.entityType === "task" &&
+						row.entityId === "task-1",
+				),
+			).toBe(false);
+			expect(
+				rows.some(
+					(row) =>
+						row.entityType === "task" &&
+						row.entityId === "task-2",
+				),
+			).toBe(true);
+			expect(
+				rows.some(
+					(row) =>
+						row.entityType === "competition" &&
+						row.entityId === "comp-1",
+				),
+			).toBe(true);
+			expect(
+				rows.some(
+					(row) => row.entityType === "comment" && row.entityId === "comment-1",
+				),
+			).toBe(true);
+		});
 
 	test("returns without changes when no ids are provided", async () => {
 		const t = convexTest(schema, modules);
 
-		await t.run(async (ctx) => {
-			const subscriptionUserId = await ctx.db.insert("users", {});
+			await t.run(async (ctx) => {
+				const subscriptionUserId = await ctx.db.insert("users", {});
 
-			await ctx.db.insert("notificationSubscriptions", {
-				userId: subscriptionUserId,
-				subscriptionType: "entity",
-				entityType: "task",
-				entityId: "task-1",
-				updatedAt: Date.now(),
+				await ctx.db.insert("notificationSubscriptions", {
+					userId: subscriptionUserId,
+					entityType: "task",
+					entityId: "task-1",
+					updatedAt: Date.now(),
 			});
 		});
 
