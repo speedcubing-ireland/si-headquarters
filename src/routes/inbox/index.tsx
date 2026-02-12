@@ -2,13 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
 	Archive,
 	Bell,
-	BookMarked,
 	Calendar,
 	Check,
 	Clock,
 	Inbox,
 	Mail,
 	MoreHorizontal,
+	Settings2,
 	Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -40,10 +40,10 @@ import { formatDate, getInitials } from "@/lib/format-utils";
 import { formatDistanceToNow } from "date-fns";
 import { onMutationError } from "@/lib/utils";
 import { SNOOZE_PRESETS } from "@/lib/reminder-presets";
-import { InboxSettingsPanel } from "@/components/inbox/inbox-settings-panel";
 import { getNotificationIconConfig } from "@/lib/notification-ui-catalog";
+import { getNotificationDestination } from "@/lib/notification-destination";
 
-export const Route = createFileRoute("/inbox")({
+export const Route = createFileRoute("/inbox/")({
 	component: RouteComponent,
 });
 
@@ -79,32 +79,7 @@ function NotificationItem({
 	});
 	const icon = getNotificationIcon(notification.type);
 
-	const getEntityLink = () => {
-		switch (notification.entityType) {
-			case "task":
-				return { to: "/tasks/$id", params: { id: notification.entityId } };
-			case "competition":
-				return {
-					to: "/competitions/$id",
-					params: { id: notification.entityId },
-				};
-			case "comment":
-				return notification.parentEntityId
-					? {
-							to: "/tasks/$id",
-							params: { id: notification.parentEntityId },
-						}
-					: null;
-			case "reminder":
-				return notification.parentEntityId
-					? { to: "/tasks/$id", params: { id: notification.parentEntityId } }
-					: null;
-			default:
-				return null;
-		}
-	};
-
-	const link = getEntityLink();
+	const link = getNotificationDestination(notification);
 
 	return (
 		<div
@@ -312,10 +287,37 @@ function RouteComponent() {
 	]);
 
 	const wrapMutation =
-		<T extends (...args: never[]) => Promise<unknown>>(mutation: T) =>
+		<T extends (...args: never[]) => Promise<undefined | null>>(mutation: T) =>
 		(...args: Parameters<T>) => {
 			void mutation(...args).catch(onMutationError);
 		};
+
+	const notificationTabs = [
+		{
+			value: "unread",
+			items: unreadNotifications,
+			emptyIcon: Bell,
+			emptyMsg: "You're all caught up!",
+		},
+		{
+			value: "snoozed",
+			items: snoozedNotifications,
+			emptyIcon: Clock,
+			emptyMsg: "No snoozed notifications",
+		},
+		{
+			value: "read",
+			items: readNotifications,
+			emptyIcon: Bell,
+			emptyMsg: "No read notifications",
+		},
+		{
+			value: "archived",
+			items: archivedNotifications,
+			emptyIcon: Bell,
+			emptyMsg: "No archived notifications",
+		},
+	];
 
 	const handleMarkRead = wrapMutation(markNotificationRead);
 	const handleArchive = wrapMutation(markNotificationArchived);
@@ -349,17 +351,25 @@ function RouteComponent() {
 						Notifications and updates
 					</p>
 				</div>
-				{unreadTotal > 0 && (
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={handleMarkAllRead}
-						className="text-xs"
-					>
-						<Check className="size-3 mr-1" />
-						Mark all read
+				<div className="flex items-center gap-2">
+					<Button asChild variant="outline" size="sm" className="text-xs">
+						<Link to="/inbox/settings">
+							<Settings2 className="mr-1 size-3.5" />
+							Settings
+						</Link>
 					</Button>
-				)}
+					{unreadTotal > 0 && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleMarkAllRead}
+							className="text-xs"
+						>
+							<Check className="size-3 mr-1" />
+							Mark all read
+						</Button>
+					)}
+				</div>
 			</header>
 
 			<div className="flex-1 p-4 lg:p-6">
@@ -400,41 +410,10 @@ function RouteComponent() {
 								</Badge>
 							)}
 						</TabsTrigger>
-						<TabsTrigger value="settings" className="gap-2">
-							<BookMarked className="size-3.5" />
-							Settings
-						</TabsTrigger>
 						<TabsTrigger value="all">All</TabsTrigger>
 					</TabsList>
 
-					{(
-						[
-							{
-								value: "unread",
-								items: unreadNotifications,
-								emptyIcon: Bell,
-								emptyMsg: "You're all caught up!",
-							},
-							{
-								value: "snoozed",
-								items: snoozedNotifications,
-								emptyIcon: Clock,
-								emptyMsg: "No snoozed notifications",
-							},
-							{
-								value: "read",
-								items: readNotifications,
-								emptyIcon: Bell,
-								emptyMsg: "No read notifications",
-							},
-							{
-								value: "archived",
-								items: archivedNotifications,
-								emptyIcon: Bell,
-								emptyMsg: "No archived notifications",
-							},
-						] as const
-					).map((tab) => (
+					{notificationTabs.map((tab) => (
 						<TabsContent key={tab.value} value={tab.value} className="mt-0">
 							{tab.items.length === 0 ? (
 								<div className="text-center py-12">
@@ -500,9 +479,6 @@ function RouteComponent() {
 								))}
 							</div>
 						)}
-					</TabsContent>
-					<TabsContent value="settings" className="mt-0">
-						<InboxSettingsPanel />
 					</TabsContent>
 					<TabsContent value="all" className="mt-0">
 						{filteredNotifications.length === 0 ? (

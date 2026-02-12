@@ -9,25 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
+import { Route as InboxIndexRouteImport } from './routes/inbox/index'
 import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
 import { Route as TeamsTeamIdRouteImport } from './routes/teams/$teamId'
 import { Route as TasksMyRouteImport } from './routes/tasks/my'
 import { Route as TasksArchivedRouteImport } from './routes/tasks/archived'
 import { Route as TasksIdRouteImport } from './routes/tasks/$id'
+import { Route as InboxSettingsRouteImport } from './routes/inbox/settings'
 import { Route as CompetitionsCalendarRouteImport } from './routes/competitions/calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AdminGodModeRouteImport } from './routes/admin/god-mode'
 import { Route as AdminEmailRouteImport } from './routes/admin/email'
 
-const InboxRoute = InboxRouteImport.update({
-  id: '/inbox',
-  path: '/inbox',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
@@ -41,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 const TasksIndexRoute = TasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxIndexRoute = InboxIndexRouteImport.update({
+  id: '/inbox/',
+  path: '/inbox/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
@@ -68,6 +69,11 @@ const TasksIdRoute = TasksIdRouteImport.update({
   path: '/tasks/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InboxSettingsRoute = InboxSettingsRouteImport.update({
+  id: '/inbox/settings',
+  path: '/inbox/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompetitionsCalendarRoute = CompetitionsCalendarRouteImport.update({
   id: '/competitions/calendar',
   path: '/competitions/calendar',
@@ -92,47 +98,50 @@ const AdminEmailRoute = AdminEmailRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/events': typeof EventsRoute
-  '/inbox': typeof InboxRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/inbox/settings': typeof InboxSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/inbox/': typeof InboxIndexRoute
   '/tasks/': typeof TasksIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/events': typeof EventsRoute
-  '/inbox': typeof InboxRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/inbox/settings': typeof InboxSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/competitions': typeof CompetitionsIndexRoute
+  '/inbox': typeof InboxIndexRoute
   '/tasks': typeof TasksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/events': typeof EventsRoute
-  '/inbox': typeof InboxRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/inbox/settings': typeof InboxSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/tasks/archived': typeof TasksArchivedRoute
   '/tasks/my': typeof TasksMyRoute
   '/teams/$teamId': typeof TeamsTeamIdRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/inbox/': typeof InboxIndexRoute
   '/tasks/': typeof TasksIndexRoute
 }
 export interface FileRouteTypes {
@@ -140,74 +149,71 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/events'
-    | '/inbox'
     | '/admin/email'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
+    | '/inbox/settings'
     | '/tasks/$id'
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
     | '/competitions/'
+    | '/inbox/'
     | '/tasks/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/events'
-    | '/inbox'
     | '/admin/email'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
+    | '/inbox/settings'
     | '/tasks/$id'
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
     | '/competitions'
+    | '/inbox'
     | '/tasks'
   id:
     | '__root__'
     | '/'
     | '/events'
-    | '/inbox'
     | '/admin/email'
     | '/admin/god-mode'
     | '/competitions/$id'
     | '/competitions/calendar'
+    | '/inbox/settings'
     | '/tasks/$id'
     | '/tasks/archived'
     | '/tasks/my'
     | '/teams/$teamId'
     | '/competitions/'
+    | '/inbox/'
     | '/tasks/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EventsRoute: typeof EventsRoute
-  InboxRoute: typeof InboxRoute
   AdminEmailRoute: typeof AdminEmailRoute
   AdminGodModeRoute: typeof AdminGodModeRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
+  InboxSettingsRoute: typeof InboxSettingsRoute
   TasksIdRoute: typeof TasksIdRoute
   TasksArchivedRoute: typeof TasksArchivedRoute
   TasksMyRoute: typeof TasksMyRoute
   TeamsTeamIdRoute: typeof TeamsTeamIdRoute
   CompetitionsIndexRoute: typeof CompetitionsIndexRoute
+  InboxIndexRoute: typeof InboxIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/inbox': {
-      id: '/inbox'
-      path: '/inbox'
-      fullPath: '/inbox'
-      preLoaderRoute: typeof InboxRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/events': {
       id: '/events'
       path: '/events'
@@ -227,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks/'
       preLoaderRoute: typeof TasksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox/': {
+      id: '/inbox/'
+      path: '/inbox'
+      fullPath: '/inbox/'
+      preLoaderRoute: typeof InboxIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/competitions/': {
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inbox/settings': {
+      id: '/inbox/settings'
+      path: '/inbox/settings'
+      fullPath: '/inbox/settings'
+      preLoaderRoute: typeof InboxSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/competitions/calendar': {
       id: '/competitions/calendar'
       path: '/competitions/calendar'
@@ -298,16 +318,17 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EventsRoute: EventsRoute,
-  InboxRoute: InboxRoute,
   AdminEmailRoute: AdminEmailRoute,
   AdminGodModeRoute: AdminGodModeRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   CompetitionsCalendarRoute: CompetitionsCalendarRoute,
+  InboxSettingsRoute: InboxSettingsRoute,
   TasksIdRoute: TasksIdRoute,
   TasksArchivedRoute: TasksArchivedRoute,
   TasksMyRoute: TasksMyRoute,
   TeamsTeamIdRoute: TeamsTeamIdRoute,
   CompetitionsIndexRoute: CompetitionsIndexRoute,
+  InboxIndexRoute: InboxIndexRoute,
   TasksIndexRoute: TasksIndexRoute,
 }
 export const routeTree = rootRouteImport
