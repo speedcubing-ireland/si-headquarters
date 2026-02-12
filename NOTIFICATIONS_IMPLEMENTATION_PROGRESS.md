@@ -8,7 +8,7 @@ Track implementation of `/Users/user/Development/SpeedcubingIreland/headquarters
 
 - [x] Phase 0: Remove legacy/view-subscription paths and establish clean baseline
 - [x] Phase 1: Core contracts (catalog/types/emit) and schema alignment
-- [ ] Phase 2: Recipient pipeline modules (expand/filter/schedule)
+- [x] Phase 2: Recipient pipeline modules (expand/filter/schedule)
 - [ ] Phase 3: Dispatch engine modularization (enqueue/process/retry/dead-letter)
 - [ ] Phase 4: Channel adapters (in-app/email, slack/push stubs)
 - [ ] Phase 5: UI integration cleanup and shared event catalog usage
@@ -85,3 +85,26 @@ Track implementation of `/Users/user/Development/SpeedcubingIreland/headquarters
   - `convex/notifications/dispatch/enqueue.ts`
   - `convex/notifications/dispatch/process.ts`
   - `convex/notifications/dispatch/retry.ts`
+
+### 2026-02-12 - Phase 2 Completed
+
+- Added recipient pipeline modules:
+  - `convex/notifications/recipients/expand.ts`
+  - `convex/notifications/recipients/filter.ts`
+  - `convex/notifications/recipients/schedule.ts`
+- Wired `convex/notifications.ts` to use extracted modules:
+  - recipient expansion now uses `expandRecipientIds`
+  - recipient decision filtering now uses `decideRecipientHandling`
+  - per-recipient in-app scheduling now uses `computeInAppScheduleForRecipient`
+- Updated notification module barrel exports in `convex/notifications/index.ts`.
+- Verification:
+  - `npm run typecheck` passes.
+  - `npm run test:once -- convex/notifications.behavior.test.ts` passes.
+
+### Next Up (Phase 3)
+
+- Split dispatch engine logic from `convex/notifications.ts` into:
+  - `convex/notifications/dispatch/enqueue.ts`
+  - `convex/notifications/dispatch/process.ts`
+  - `convex/notifications/dispatch/retry.ts`
+- Keep behavior identical while reducing `convex/notifications.ts` orchestration complexity.
