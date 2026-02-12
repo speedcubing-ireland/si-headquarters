@@ -15,7 +15,6 @@ import {
 import { Fragment, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
-import { ActivityFeed } from "@/components/tasks/activity-feed";
 import { CommentsSection } from "@/components/tasks/comments-section";
 import { RemindMeDialog } from "@/components/tasks/remind-me-dialog";
 import { useTaskColumns } from "@/components/tasks/columns";
@@ -625,10 +624,6 @@ function RouteComponent() {
 
 						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
 							<CommentsSection taskId={task.id} className="mt-0" />
-						</section>
-
-						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
-							<ActivityFeed taskId={task.id} className="mt-0" />
 						</section>
 					</div>
 				</div>

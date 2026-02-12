@@ -23,12 +23,7 @@ import {
 	scheduleAwaitingReviewNotifications,
 } from "./taskApprovals";
 import { formatCompetitionName } from "./taskFormat";
-import {
-	diffAndLog,
-	logActivity,
-	diffLabels,
-	type ActivityConfig,
-} from "./lib/activity";
+
 import {
 	sendTaskAssigneeChangeNotifications,
 	sendTaskApprovalNotifications,
@@ -466,26 +461,6 @@ const templateTaskCreateArgs = v.object({
 	requiredApprovalIds: v.optional(v.array(v.string())),
 });
 
-const TASK_ACTIVITY_CONFIG: ActivityConfig<Doc<"tasks">> = {
-	status: { type: "status_changed" },
-	priority: { type: "priority_changed" },
-	dueDate: { type: "due_date_changed" },
-	phaseId: { type: "phase_changed" },
-	assigneeId: {
-		type: "assignee_changed",
-		transform: async (val, ctx) => {
-			if (!val) return undefined;
-
-			const user = await ctx?.db.get("users", val as Id<"users">);
-			return user?.name;
-		},
-	},
-	resources: {
-		type: "resources_changed",
-		transform: (r) => (r ? "resources updated" : undefined),
-	},
-};
-
 const ERROR_TASK_RELATION_SELF = "A task cannot block itself";
 const ERROR_TASK_RELATION_SCOPE =
 	"Tasks can only block tasks within the same competition";
@@ -633,27 +608,6 @@ async function runTaskUpdateSideEffects(
 	const newStatus = resolveUpdatedStatus(doc, updates, patch);
 	const oldPriority = doc.priority;
 	const newPriority = resolveUpdatedPriority(doc, updates, patch);
-
-	await diffAndLog(
-		ctx,
-		userId,
-		"task",
-		taskId,
-		doc,
-		patch,
-		TASK_ACTIVITY_CONFIG,
-	);
-
-	if (updates.labelIds) {
-		await diffLabels(
-			ctx,
-			userId,
-			"task",
-			taskId,
-			doc.labelIds,
-			updates.labelIds,
-		);
-	}
 
 	if (oldAssigneeId !== newAssigneeId) {
 		await sendTaskAssigneeChangeNotifications(
@@ -845,7 +799,6 @@ export const create = mutation({
 			status: args.status,
 		});
 
-		await logActivity(ctx, userId, "task", taskId, "created");
 		return taskId;
 	},
 });
@@ -934,8 +887,6 @@ export const createManyFromTemplate = mutation({
 				assigneeId: task.assigneeId,
 				status: task.status,
 			});
-
-			await logActivity(ctx, userId, "task", taskId, "created");
 		}
 
 		return createdTaskIds;
@@ -1126,10 +1077,6 @@ export const addBlockingRelation = mutation({
 			updatedAt: now,
 		});
 
-		await logActivity(ctx, userId, "task", args.blockedTaskId, "updated", {
-			message: `blocked by ${blockingTask.identifier}`,
-		});
-
 		if (isTaskBlockingStatus(blockingTask.status)) {
 			const unresolvedCount = await countUnresolvedBlockers(
 				ctx,
@@ -1183,10 +1130,6 @@ export const removeBlockingRelation = mutation({
 		const removedActiveBlocker = isTaskBlockingStatus(blockingTask.status);
 		await ctx.db.delete("taskRelations", relation._id);
 
-		await logActivity(ctx, userId, "task", args.blockedTaskId, "updated", {
-			message: `unblocked from ${blockingTask.identifier}`,
-		});
-
 		if (removedActiveBlocker) {
 			const unresolvedCount = await countUnresolvedBlockers(
 				ctx,
@@ -1228,13 +1171,6 @@ async function setArchiveState(
 			archivedAt,
 			updatedAt: now,
 		});
-		await logActivity(
-			ctx,
-			userId,
-			"task",
-			id,
-			archived ? "archived" : "unarchived",
-		);
 	}
 }
 
@@ -1260,7 +1196,7 @@ async function modifyApprovers(
 	ctx: MutationCtx,
 	taskId: Id<"tasks">,
 	updateIds: (currentIds: string[]) => string[],
-	activityMessage: string,
+	_activityMessage: string,
 ) {
 	const userId = await requireUserId(ctx);
 	const volunteer = await isVolunteer(ctx);
@@ -1274,9 +1210,6 @@ async function modifyApprovers(
 	await ctx.db.patch("tasks", taskId, {
 		requiredApprovalIds: newIds,
 		updatedAt: Date.now(),
-	});
-	await logActivity(ctx, userId, "task", taskId, "updated", {
-		message: activityMessage,
 	});
 }
 
@@ -1378,7 +1311,6 @@ export const approveTask = mutation({
 			);
 		}
 
-		await logActivity(ctx, userId, "task", args.taskId, "approved");
 		await sendTaskApprovalNotifications(ctx, args.taskId, task, userId);
 		return null;
 	},
@@ -1406,7 +1338,6 @@ export const unapproveTask = mutation({
 			approvedByIds: filteredIds,
 			updatedAt: Date.now(),
 		});
-		await logActivity(ctx, userId, "task", args.taskId, "unapproved");
 		await sendTaskUnapprovalNotifications(ctx, args.taskId, task, userId);
 		return null;
 	},

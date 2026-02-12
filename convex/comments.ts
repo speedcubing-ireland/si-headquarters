@@ -3,7 +3,6 @@ import { mutation, query } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
-import { logActivity } from "./lib/activity";
 import { isDirectorForCtx } from "./admin";
 import { hasCompetitionAccess } from "./competitionAccess";
 import { toUsers, createLens, type UserUI } from "./lib/transforms";
@@ -413,14 +412,6 @@ export const create = mutation({
 			updatedAt: now,
 		});
 
-		await logActivity(
-			ctx,
-			userId,
-			args.parentType,
-			args.parentId,
-			"comment_added",
-		);
-
 		if (args.parentType !== "task") return commentId;
 
 		const taskId = getCommentParentId("task", args.parentId);
@@ -471,13 +462,6 @@ export const update = mutation({
 			contentUpdatedAt: Date.now(),
 			updatedAt: Date.now(),
 		});
-		await logActivity(
-			ctx,
-			userId,
-			doc.parentType,
-			doc.parentId,
-			"comment_edited",
-		);
 		return null;
 	},
 });
@@ -499,13 +483,6 @@ export const remove = mutation({
 			});
 		}
 
-		await logActivity(
-			ctx,
-			userId,
-			doc.parentType,
-			doc.parentId,
-			"comment_deleted",
-		);
 		await deleteCommentEntitySubscriptions(ctx, args.commentId);
 
 		await ctx.db.delete("comments", args.commentId);

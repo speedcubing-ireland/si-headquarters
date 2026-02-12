@@ -4,8 +4,6 @@ import { authTables } from "@convex-dev/auth/server";
 import {
 	taskStatus,
 	taskPriority,
-	activityMetadata,
-	activityType,
 	notificationMetadata,
 	notificationType,
 	notificationPriority,
@@ -167,22 +165,6 @@ export default defineSchema({
 	})
 		.index("by_parent", ["parentType", "parentId"])
 		.index("by_parent_comment", ["parentCommentId"]),
-
-	activityLog: defineTable({
-		entityType: v.union(
-			v.literal("task"),
-			v.literal("update"),
-			v.literal("competition"),
-		),
-		entityId: v.string(),
-		type: activityType,
-		actorId: v.id("users"),
-		oldValue: v.optional(v.string()),
-		newValue: v.optional(v.string()),
-		metadata: activityMetadata,
-	})
-		.index("by_entity", ["entityType", "entityId"])
-		.index("by_actor", ["actorId"]),
 
 	notifications: defineTable({
 		userId: v.id("users"),

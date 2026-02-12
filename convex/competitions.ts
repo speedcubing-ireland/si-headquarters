@@ -3,7 +3,6 @@ import { mutation, query, internalQuery } from "./_generated/server";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
-import { logActivity } from "./lib/activity";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
@@ -418,8 +417,6 @@ export const create = mutation({
 				organiserIds: args.organiserIds ?? [],
 			}),
 		);
-		const userId = await requireUserId(ctx);
-		await logActivity(ctx, userId, "competition", competitionId, "created");
 		return competitionId;
 	},
 });
@@ -585,17 +582,6 @@ export const update = mutation({
 			loadPhaseName(ctx, phaseTransition.newPhaseId),
 		]);
 
-		await logActivity(
-			ctx,
-			userId,
-			"competition",
-			args.competitionId,
-			"phase_changed",
-			{
-				fieldName: "currentPhaseId",
-				message: `${oldPhaseName} -> ${newPhaseName}`,
-			},
-		);
 		await sendCompetitionPhaseChangeNotifications(ctx, {
 			competition: doc,
 			competitionId: args.competitionId,
@@ -656,16 +642,6 @@ export const remove = mutation({
 
 		await deleteTasksAndRelatedData(ctx, taskIdArray);
 
-		const competitionActivityLogs = await ctx.db
-			.query("activityLog")
-			.withIndex("by_entity", (q) =>
-				q.eq("entityType", "competition").eq("entityId", args.competitionId),
-			)
-			.collect();
-
-		await Promise.all(
-			competitionActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
-		);
 		await deleteNotificationArtifactsForEntity(ctx, {
 			entityType: "competition",
 			entityId: `${args.competitionId}`,

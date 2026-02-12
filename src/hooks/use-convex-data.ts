@@ -25,12 +25,6 @@ export {
 } from "./convex/use-comments";
 
 export {
-	useActivityForTask,
-	useRecentActivity,
-	useGlobalActivity,
-} from "./convex/use-activity";
-
-export {
 	useNotifications,
 	useNotificationSettings,
 	useNotificationSubscriptions,

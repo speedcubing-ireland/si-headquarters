@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as EventsRouteImport } from './routes/events'
-import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
@@ -32,11 +31,6 @@ const InboxRoute = InboxRouteImport.update({
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ActivityRoute = ActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -97,7 +91,6 @@ const AdminEmailRoute = AdminEmailRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
   '/admin/email': typeof AdminEmailRoute
@@ -113,7 +106,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
   '/admin/email': typeof AdminEmailRoute
@@ -130,7 +122,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/activity': typeof ActivityRoute
   '/events': typeof EventsRoute
   '/inbox': typeof InboxRoute
   '/admin/email': typeof AdminEmailRoute
@@ -148,7 +139,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/activity'
     | '/events'
     | '/inbox'
     | '/admin/email'
@@ -164,7 +154,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/activity'
     | '/events'
     | '/inbox'
     | '/admin/email'
@@ -180,7 +169,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/activity'
     | '/events'
     | '/inbox'
     | '/admin/email'
@@ -197,7 +185,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ActivityRoute: typeof ActivityRoute
   EventsRoute: typeof EventsRoute
   InboxRoute: typeof InboxRoute
   AdminEmailRoute: typeof AdminEmailRoute
@@ -226,13 +213,6 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/activity': {
-      id: '/activity'
-      path: '/activity'
-      fullPath: '/activity'
-      preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -317,7 +297,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ActivityRoute: ActivityRoute,
   EventsRoute: EventsRoute,
   InboxRoute: InboxRoute,
   AdminEmailRoute: AdminEmailRoute,

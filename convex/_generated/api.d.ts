@@ -8,7 +8,6 @@
  * @module
  */
 
-import type * as activity from "../activity.js";
 import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as commentNotifications from "../commentNotifications.js";
@@ -22,8 +21,6 @@ import type * as emails_NotificationEmail from "../emails/NotificationEmail.js";
 import type * as emails_shared from "../emails/shared.js";
 import type * as http from "../http.js";
 import type * as labels from "../labels.js";
-import type * as lib_activity from "../lib/activity.js";
-import type * as lib_activityTypes from "../lib/activityTypes.js";
 import type * as lib_commentParentId from "../lib/commentParentId.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_email from "../lib/email.js";
@@ -82,7 +79,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  activity: typeof activity;
   admin: typeof admin;
   auth: typeof auth;
   commentNotifications: typeof commentNotifications;
@@ -96,8 +92,6 @@ declare const fullApi: ApiFromModules<{
   "emails/shared": typeof emails_shared;
   http: typeof http;
   labels: typeof labels;
-  "lib/activity": typeof lib_activity;
-  "lib/activityTypes": typeof lib_activityTypes;
   "lib/commentParentId": typeof lib_commentParentId;
   "lib/constants": typeof lib_constants;
   "lib/email": typeof lib_email;

@@ -12,8 +12,7 @@ import {
 	getTaskProgress,
 	getProgressPercent,
 } from "./competition-health-widget";
-import { getTimeGroup, groupByTime } from "./recent-updates-widget";
-import type { Task, Competition, ActivityEntry } from "@/data/types-new";
+import type { Task, Competition } from "@/data/types-new";
 import type { Id } from "@/convex/_generated/dataModel";
 
 const taskId = (id: string) => id as Id<"tasks">;
@@ -58,16 +57,6 @@ function makeCompetition(overrides: Partial<Competition> = {}): Competition {
 		tasks: [],
 		...overrides,
 	} as Competition;
-}
-
-function makeEntry(overrides: Partial<ActivityEntry> = {}): ActivityEntry {
-	return {
-		id: "entry-1",
-		type: "status_changed",
-		timestamp: new Date().toISOString(),
-		actor: { id: "user-1", name: "Alice" },
-		...overrides,
-	} as ActivityEntry;
 }
 
 describe("isUserRequiredApprover", () => {
@@ -508,80 +497,5 @@ describe("getProgressPercent", () => {
 
 	test("returns 100 for all done", () => {
 		expect(getProgressPercent(5, 5)).toBe(100);
-	});
-});
-
-describe("getTimeGroup", () => {
-	beforeEach(() => {
-		vi.useFakeTimers();
-		vi.setSystemTime(new Date("2026-02-06T14:00:00Z"));
-	});
-
-	afterEach(() => {
-		vi.useRealTimers();
-	});
-
-	test("returns 'Today' for timestamps today", () => {
-		expect(getTimeGroup("2026-02-06T10:00:00Z")).toBe("Today");
-	});
-
-	test("returns 'Yesterday' for timestamps yesterday", () => {
-		expect(getTimeGroup("2026-02-05T18:00:00Z")).toBe("Yesterday");
-	});
-
-	test("returns 'Earlier' for older timestamps", () => {
-		expect(getTimeGroup("2026-02-03T10:00:00Z")).toBe("Earlier");
-	});
-});
-
-describe("groupByTime", () => {
-	beforeEach(() => {
-		vi.useFakeTimers();
-		vi.setSystemTime(new Date("2026-02-06T14:00:00Z"));
-	});
-
-	afterEach(() => {
-		vi.useRealTimers();
-	});
-
-	test("returns empty array for no entries", () => {
-		expect(groupByTime([])).toEqual([]);
-	});
-
-	test("groups entries by time period", () => {
-		const entries = [
-			makeEntry({ id: "e1", timestamp: "2026-02-06T10:00:00Z" }),
-			makeEntry({ id: "e2", timestamp: "2026-02-05T18:00:00Z" }),
-			makeEntry({ id: "e3", timestamp: "2026-02-06T12:00:00Z" }),
-			makeEntry({ id: "e4", timestamp: "2026-02-01T10:00:00Z" }),
-		];
-		const groups = groupByTime(entries);
-
-		expect(groups).toHaveLength(3);
-		expect(groups[0].group).toBe("Today");
-		expect(groups[0].entries).toHaveLength(2);
-		expect(groups[1].group).toBe("Yesterday");
-		expect(groups[1].entries).toHaveLength(1);
-		expect(groups[2].group).toBe("Earlier");
-		expect(groups[2].entries).toHaveLength(1);
-	});
-
-	test("preserves order: Today, Yesterday, Earlier", () => {
-		const entries = [
-			makeEntry({ id: "e1", timestamp: "2026-02-01T10:00:00Z" }),
-			makeEntry({ id: "e2", timestamp: "2026-02-06T10:00:00Z" }),
-		];
-		const groups = groupByTime(entries);
-		const order = groups.map((g) => g.group);
-		expect(order).toEqual(["Today", "Earlier"]);
-	});
-
-	test("omits empty groups", () => {
-		const entries = [
-			makeEntry({ id: "e1", timestamp: "2026-02-06T10:00:00Z" }),
-		];
-		const groups = groupByTime(entries);
-		expect(groups).toHaveLength(1);
-		expect(groups[0].group).toBe("Today");
 	});
 });

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import {
-	Activity,
 	Archive,
 	type LucideIcon,
 	Mail,
@@ -78,10 +77,7 @@ export function NavSecondary({
 	const navItems: NavSecondaryItem[] = [
 		...baseNavSecondary,
 		...(isDirector
-			? [
-					{ title: "Activity", to: "/activity", icon: Activity },
-					{ title: "Email Admin", to: "/admin/email", icon: Mail },
-				]
+			? [{ title: "Email Admin", to: "/admin/email", icon: Mail }]
 			: []),
 	];
 

@@ -35,10 +35,6 @@ export type ProgressUpdate = Competition["progressUpdates"][number];
 
 export type Comment = FunctionReturnType<typeof api.comments.listForUI>[number];
 
-export type ActivityEntry = FunctionReturnType<
-	typeof api.activity.listForEntity
->[number];
-
 export type Notification = FunctionReturnType<
 	typeof api.notifications.listForUser
 >[number];

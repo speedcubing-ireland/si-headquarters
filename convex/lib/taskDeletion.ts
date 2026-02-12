@@ -288,16 +288,6 @@ export async function deleteTasksAndRelatedData(
 		relationIdsToDelete.add(relation._id);
 	}
 
-	const taskActivityLogPromises = taskIdArray.map((taskId) =>
-		ctx.db
-			.query("activityLog")
-			.withIndex("by_entity", (q) =>
-				q.eq("entityType", "task").eq("entityId", taskId),
-			)
-			.collect(),
-	);
-	const taskActivityLogs = (await Promise.all(taskActivityLogPromises)).flat();
-
 	for (const reminder of remindersToDelete) {
 		if (reminder.scheduledFunctionId) {
 			await ctx.scheduler.cancel(reminder.scheduledFunctionId);
@@ -309,7 +299,6 @@ export async function deleteTasksAndRelatedData(
 		...Array.from(relationIdsToDelete).map((relationId) =>
 			ctx.db.delete("taskRelations", relationId),
 		),
-		...taskActivityLogs.map((l) => ctx.db.delete("activityLog", l._id)),
 	]);
 
 	const deletedCommentIds = (

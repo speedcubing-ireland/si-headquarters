@@ -44,7 +44,7 @@ import {
 } from "@/hooks/use-convex-data";
 import type { Notification, NotificationType } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
-import { formatRelativeTime } from "@/lib/activity-utils";
+import { formatDistanceToNow } from "date-fns";
 import { onMutationError } from "@/lib/utils";
 import { SNOOZE_PRESETS } from "@/lib/reminder-presets";
 import { InboxSettingsPanel } from "@/components/inbox/inbox-settings-panel";
@@ -124,7 +124,9 @@ function NotificationItem({
 	const isSnoozed =
 		notification.snoozedUntil !== undefined &&
 		new Date(notification.snoozedUntil).getTime() > Date.now();
-	const timeAgo = formatRelativeTime(notification.createdAt);
+	const timeAgo = formatDistanceToNow(new Date(notification.createdAt), {
+		addSuffix: true,
+	});
 	const icon = getNotificationIcon(notification.type);
 
 	const getEntityLink = () => {

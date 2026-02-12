@@ -4,7 +4,6 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { isVolunteer, requireUserId } from "./auth";
-import { logActivity } from "./lib/activity";
 import { hasCompetitionAccess } from "./competitionAccess";
 import { progressUpdateStatus as statusValidator } from "./lib/validators";
 import { sendProgressUpdateNotifications } from "./competitionNotifications";
@@ -83,8 +82,6 @@ export const create = mutation({
 			reactions: [],
 			updatedAt: now,
 		});
-		await logActivity(ctx, userId, "update", id, "created");
-
 		const competition = await ctx.db.get("competitions", args.competitionId);
 		if (competition) {
 			await sendProgressUpdateNotifications(ctx, {
