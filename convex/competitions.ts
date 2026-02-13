@@ -23,6 +23,7 @@ import { toUsers, createLens, toISO, type UserUI } from "./lib/transforms";
 import { phaseShape, taskStatus, userShape } from "./lib/validators";
 import type { TaskStatus } from "./lib/types";
 import { sendCompetitionPhaseChangeNotifications } from "./notifications/triggers/competitions";
+import { competitionSponsorPropertyStatus } from "./lib/sponsorshipValidators";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
@@ -55,6 +56,131 @@ const progressUpdateStatus = v.union(
 	v.literal("at-risk"),
 	v.literal("off-track"),
 );
+type CompetitionSponsorProperty = {
+	sponsorPropertyStatus: "not_offered" | "bidding" | "none" | "sponsor";
+	sponsorPropertyDisplay?: string;
+};
+
+function buildCompetitionSponsorProperty(input: {
+	auctions: Doc<"sponsorshipAuctions">[];
+	winnerNameById: Map<Id<"sponsors">, string>;
+}): CompetitionSponsorProperty {
+	const hasLiveAuction = input.auctions.some(
+		(auction) => auction.state === "active" || auction.state === "scheduled",
+	);
+	if (hasLiveAuction) {
+		return {
+			sponsorPropertyStatus: "bidding",
+		};
+	}
+
+	const latestClosed = input.auctions
+		.filter((auction) => auction.state === "closed")
+		.sort((a, b) => b.endsAt - a.endsAt)[0];
+	if (!latestClosed) {
+		return {
+			sponsorPropertyStatus: "not_offered",
+		};
+	}
+	if (!latestClosed.winnerSponsorId) {
+		return {
+			sponsorPropertyStatus: "none",
+		};
+	}
+
+	return {
+		sponsorPropertyStatus: "sponsor",
+		sponsorPropertyDisplay: input.winnerNameById.get(
+			latestClosed.winnerSponsorId,
+		),
+	};
+}
+
+async function loadCompetitionSponsorProperty(
+	ctx: QueryCtx,
+	competitionId: Id<"competitions">,
+): Promise<CompetitionSponsorProperty> {
+	const auctions = await ctx.db
+		.query("sponsorshipAuctions")
+		.withIndex("by_competition", (q) => q.eq("competitionId", competitionId))
+		.collect();
+	const winnerIds = new Set<Id<"sponsors">>();
+	for (const auction of auctions) {
+		if (auction.winnerSponsorId) {
+			winnerIds.add(auction.winnerSponsorId);
+		}
+	}
+	const winnerSponsors = await Promise.all(
+		[...winnerIds].map((sponsorId) => ctx.db.get("sponsors", sponsorId)),
+	);
+	const winnerNameById = new Map<Id<"sponsors">, string>();
+	for (const sponsor of winnerSponsors) {
+		if (!sponsor) continue;
+		winnerNameById.set(sponsor._id, sponsor.name);
+	}
+
+	return buildCompetitionSponsorProperty({
+		auctions,
+		winnerNameById,
+	});
+}
+
+async function loadCompetitionSponsorProperties(
+	ctx: QueryCtx,
+	competitionIds: Id<"competitions">[],
+): Promise<Map<Id<"competitions">, CompetitionSponsorProperty>> {
+	const competitionIdSet = new Set(competitionIds);
+	if (competitionIdSet.size === 0) {
+		return new Map();
+	}
+
+	const allAuctions = await ctx.db.query("sponsorshipAuctions").collect();
+	const auctionsByCompetition = new Map<
+		Id<"competitions">,
+		Doc<"sponsorshipAuctions">[]
+	>();
+	for (const auction of allAuctions) {
+		if (!competitionIdSet.has(auction.competitionId)) continue;
+		const existing = auctionsByCompetition.get(auction.competitionId);
+		if (existing) {
+			existing.push(auction);
+			continue;
+		}
+		auctionsByCompetition.set(auction.competitionId, [auction]);
+	}
+	const winnerIds = new Set<Id<"sponsors">>();
+	for (const auctions of auctionsByCompetition.values()) {
+		for (const auction of auctions) {
+			if (auction.winnerSponsorId) {
+				winnerIds.add(auction.winnerSponsorId);
+			}
+		}
+	}
+	const winnerSponsors = await Promise.all(
+		[...winnerIds].map((sponsorId) => ctx.db.get("sponsors", sponsorId)),
+	);
+	const winnerNameById = new Map<Id<"sponsors">, string>();
+	for (const sponsor of winnerSponsors) {
+		if (!sponsor) continue;
+		winnerNameById.set(sponsor._id, sponsor.name);
+	}
+
+	const sponsorProperties = new Map<
+		Id<"competitions">,
+		CompetitionSponsorProperty
+	>();
+	for (const competitionId of competitionIdSet) {
+		sponsorProperties.set(
+			competitionId,
+			buildCompetitionSponsorProperty({
+				auctions: auctionsByCompetition.get(competitionId) ?? [],
+				winnerNameById,
+			}),
+		);
+	}
+	return sponsorProperties;
+}
+
 const progressUpdateReactionShape = v.object({
 	emoji: v.string(),
 	users: v.array(userShape),
@@ -82,6 +208,8 @@ export const competitionForUIReturns = v.object({
 	progressUpdates: v.array(progressUpdateForUIReturns),
 	compSheet: v.union(compSheetObject, v.null()),
 	wcaCompetitionId: v.union(v.string(), v.null()),
+	sponsorPropertyStatus: competitionSponsorPropertyStatus,
+	sponsorPropertyDisplay: v.optional(v.string()),
 	tasks: v.array(taskSummaryShape),
 	createdAt: v.string(),
 	updatedAt: v.string(),
@@ -208,6 +336,7 @@ function buildCompetitionUI(
 	phases: ActivePhases,
 	tasks: TaskSummary[],
 	updateDocs: Doc<"competitionUpdates">[],
+	sponsorProperty: CompetitionSponsorProperty,
 ) {
 	const currentPhaseId = d.currentPhaseId ?? phases.defaultPhaseId;
 	const currentPhaseIdx =
@@ -232,6 +361,8 @@ function buildCompetitionUI(
 		progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 		compSheet: d.compSheet ?? null,
 		wcaCompetitionId: d.wcaCompetitionId ?? null,
+		sponsorPropertyStatus: sponsorProperty.sponsorPropertyStatus,
+		sponsorPropertyDisplay: sponsorProperty.sponsorPropertyDisplay,
 		tasks,
 		createdAt: toISO(d._creationTime),
 		updatedAt: toISO(d.updatedAt),
@@ -307,6 +438,11 @@ export const listForUI = query({
 			userArr.map((id) => ctx.db.get("users", id)),
 		);
 		const usersLens = createLens(toUsers(userDocs));
+		const sponsorPropertiesByCompetition =
+			await loadCompetitionSponsorProperties(
+				ctx,
+				docs.map((d) => d._id),
+			);
 
 		return docs.map((d) =>
 			buildCompetitionUI(
@@ -315,6 +451,9 @@ export const listForUI = query({
 				phases,
 				tasksByCompetition.get(d._id) ?? [],
 				updatesByCompetition.get(d._id) ?? [],
+				sponsorPropertiesByCompetition.get(d._id) ?? {
+					sponsorPropertyStatus: "not_offered",
+				},
 			),
 		);
 	},
@@ -355,8 +494,19 @@ export const getForUI = query({
 			userArr.map((id) => ctx.db.get("users", id)),
 		);
 		const usersLens = createLens(toUsers(userDocs));
+		const sponsorProperty = await loadCompetitionSponsorProperty(
+			ctx,
+			args.competitionId,
+		);
 
-		return buildCompetitionUI(d, usersLens, phases, tasks, updateDocs);
+		return buildCompetitionUI(
+			d,
+			usersLens,
+			phases,
+			tasks,
+			updateDocs,
+			sponsorProperty,
+		);
 	},
 });
 

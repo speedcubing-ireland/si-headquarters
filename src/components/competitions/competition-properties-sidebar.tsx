@@ -10,6 +10,7 @@ import {
 	Loader2,
 	MoreHorizontal,
 	Search,
+	Store,
 	Users,
 } from "lucide-react";
 import { useAction } from "convex/react";
@@ -77,6 +78,34 @@ type WcaSearchResult = {
 	end_date: string;
 	event_ids: string[];
 };
+
+function sponsorStatusLabel(competition: Competition): string {
+	switch (competition.sponsorPropertyStatus) {
+		case "not_offered":
+			return "Not Offered";
+		case "bidding":
+			return "Bidding";
+		case "none":
+			return "None";
+		case "sponsor":
+			return competition.sponsorPropertyDisplay ?? "Sponsor";
+	}
+}
+
+function sponsorStatusBadgeVariant(
+	status: Competition["sponsorPropertyStatus"],
+): "secondary" | "outline" | "destructive" | "default" {
+	switch (status) {
+		case "not_offered":
+			return "outline";
+		case "bidding":
+			return "secondary";
+		case "none":
+			return "destructive";
+		case "sponsor":
+			return "default";
+	}
+}
 
 export function CompetitionPropertiesSidebar({
 	competition,
@@ -188,6 +217,18 @@ export function CompetitionPropertiesSidebar({
 							<span className="text-foreground font-medium">{totalTasks}</span>{" "}
 							total
 						</span>
+					</PropertyRow>
+
+					<PropertyRow label="Sponsor" icon={<Store className="size-3.5" />}>
+						<div className="flex min-w-0 items-center gap-2">
+							<Badge
+								variant={sponsorStatusBadgeVariant(
+									competition.sponsorPropertyStatus,
+								)}
+							>
+								{sponsorStatusLabel(competition)}
+							</Badge>
+						</div>
 					</PropertyRow>
 
 					<div className="flex min-h-9 flex-col gap-2 px-3 -mx-3">

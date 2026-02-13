@@ -12,6 +12,7 @@ import {
 	hasDispatchGroupClaim,
 } from "../lib/dispatchClaims";
 import { getChannelAdapter } from "../channels/registry";
+import { markDispatchesFailed } from "./retry";
 
 export async function processDispatch(
 	ctx: MutationCtx,
@@ -125,7 +126,7 @@ export async function processDispatch(
 
 export async function sweepStaleDispatches(ctx: MutationCtx): Promise<number> {
 	const now = Date.now();
-	let rescheduled = 0;
+	let recovered = 0;
 
 	for (const channel of EXTERNAL_NOTIFICATION_CHANNELS) {
 		const pendingDispatches = await ctx.db
@@ -150,10 +151,30 @@ export async function sweepStaleDispatches(ctx: MutationCtx): Promise<number> {
 						dispatchId: dispatch._id,
 					},
 				);
-				rescheduled += 1;
+				recovered += 1;
 			}
+		}
+
+		const sendingDispatches = await ctx.db
+			.query("notificationDispatches")
+			.withIndex("by_channel_status", (q) =>
+				q.eq("channel", channel).eq("status", "sending"),
+			)
+			.collect();
+		for (const dispatch of sendingDispatches) {
+			if (dispatch.updatedAt + STALE_DISPATCH_THRESHOLD_MS >= now) {
+				continue;
+			}
+			await markDispatchesFailed(ctx, {
+				dispatchIds: [dispatch._id],
+				reason: "dispatch_send_timeout",
+				claimKey: hasDispatchGroupClaim(dispatch.reason)
+					? dispatch.reason
+					: undefined,
+			});
+			recovered += 1;
 		}
 	}
 
-	return rescheduled;
+	return recovered;
 }

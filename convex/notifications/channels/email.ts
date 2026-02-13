@@ -1,8 +1,9 @@
 import type { Id } from "../../_generated/dataModel";
 import type { NotificationType } from "../lib/notificationTypes";
 import { buildEntityLink, formatEntityTypeLabel } from "../../emails/shared";
+import { buildDeterministicEmailOperationId } from "../../lib/email";
 import { buildTestEmailData } from "../lib/notificationEmail";
-import type { NotificationChannelAdapter } from "./base";
+import type { ChannelSendResult, NotificationChannelAdapter } from "./base";
 
 type EmailDispatchItem = {
 	dispatchId: Id<"notificationDispatches">;
@@ -33,10 +34,32 @@ export type SendTestEmailPreviewArgs = {
 	actorName: string;
 };
 
+const EMAIL_SEND_POLL_INTERVAL_MS = 15_000;
+const EMAIL_SEND_TRANSIENT_RETRY_MS = 30_000;
+
+function buildEmailOperationId(payload: EmailDispatchGroupPayload): string {
+	const stableDispatchIds = [...payload.dispatchIds].sort();
+	const seed = [
+		"notifications",
+		payload.digestMode,
+		payload.digestWindowKey ?? "",
+		payload.recipientEmail.toLowerCase(),
+		stableDispatchIds.join(","),
+		String(payload.items.length),
+	].join("|");
+	return buildDeterministicEmailOperationId(seed);
+}
+
 async function sendEmailPayload(
 	payload: EmailDispatchGroupPayload,
-): Promise<void> {
-	const { sendEmail } = await import("../../lib/email");
+	operationId: string,
+): Promise<{
+	operationId: string;
+	status: string;
+	retryAfterMs: number;
+	error?: string;
+}> {
+	const { pollEmailSend } = await import("../../lib/email");
 	const {
 		buildNotificationDigestEmailHtml,
 		buildNotificationDigestEmailPlainText,
@@ -66,13 +89,14 @@ async function sendEmailPayload(
 			...emailItemData
 		} = firstItem;
 		const emailContent = { ...emailItemData, appUrl };
-		await sendEmail({
+		return await pollEmailSend({
 			to,
 			subject: buildNotificationEmailSubject(itemType, firstItem.title),
 			html: await buildNotificationEmailHtml(emailContent),
 			plainText: await buildNotificationEmailPlainText(emailContent),
+			operationId,
+			updateIntervalInMs: EMAIL_SEND_POLL_INTERVAL_MS,
 		});
-		return;
 	}
 
 	const digestItems = payload.items.map((item) => ({
@@ -88,7 +112,7 @@ async function sendEmailPayload(
 		appUrl,
 		items: digestItems,
 	};
-	await sendEmail({
+	return await pollEmailSend({
 		to,
 		subject: buildNotificationDigestEmailSubject(
 			payload.digestMode,
@@ -96,22 +120,71 @@ async function sendEmailPayload(
 		),
 		html: await buildNotificationDigestEmailHtml(digestOpts),
 		plainText: await buildNotificationDigestEmailPlainText(digestOpts),
+		operationId,
+		updateIntervalInMs: EMAIL_SEND_POLL_INTERVAL_MS,
 	});
+}
+
+function toChannelResultFromProgress(progress: {
+	status: string;
+	retryAfterMs: number;
+	error?: string;
+}): ChannelSendResult {
+	if (progress.status === "Succeeded") {
+		return { status: "sent" };
+	}
+	if (progress.status === "Failed" || progress.status === "Canceled") {
+		return {
+			status: "failed",
+			error: progress.error ?? "email_send_terminal_failure",
+		};
+	}
+	return {
+		status: "in_progress",
+		retryAfterMs: progress.retryAfterMs,
+		reason: progress.error,
+	};
 }
 
 export const emailChannelAdapter: NotificationChannelAdapter<EmailDispatchGroupPayload> =
 	{
 		channel: "email",
-		isConfigured: () => true,
+		isConfigured: () =>
+			Boolean(process.env.AZURE_EMAIL_CONNECTION_STRING?.trim()) &&
+			Boolean(process.env.EMAIL_SENDER_ADDRESS?.trim()),
 		send: async (payload) => {
+			const operationId = buildEmailOperationId(payload);
 			try {
-				await sendEmailPayload(payload);
-				return { ok: true };
+				const progress = await sendEmailPayload(payload, operationId);
+				return toChannelResultFromProgress(progress);
 			} catch (error) {
+				const {
+					emailErrorMessage,
+					isTransientEmailTransportError,
+					pollEmailSendOperation,
+				} = await import("../../lib/email");
+				const errorMessage = emailErrorMessage(error);
+				if (isTransientEmailTransportError(error)) {
+					try {
+						const progress = await pollEmailSendOperation(operationId);
+						return toChannelResultFromProgress(progress);
+					} catch (pollError) {
+						if (isTransientEmailTransportError(pollError)) {
+							return {
+								status: "in_progress",
+								retryAfterMs: EMAIL_SEND_TRANSIENT_RETRY_MS,
+								reason: errorMessage,
+							};
+						}
+						return {
+							status: "failed",
+							error: emailErrorMessage(pollError),
+						};
+					}
+				}
 				return {
-					ok: false,
-					error:
-						error instanceof Error ? error.message : "unknown_email_send_error",
+					status: "failed",
+					error: errorMessage,
 				};
 			}
 		},

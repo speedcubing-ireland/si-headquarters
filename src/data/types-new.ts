@@ -24,6 +24,36 @@ export type Competition = NonNullable<
 	FunctionReturnType<typeof api.competitions.getForUI>
 >;
 
+export type Sponsor = FunctionReturnType<typeof api.sponsors.list>[number];
+
+export type SponsorshipAuction = FunctionReturnType<
+	typeof api.sponsorshipAuctions.listByCompetition
+>[number];
+
+export type SponsorshipBidIntent = {
+	auctionId: Id<"sponsorshipAuctions">;
+	sponsorId: Id<"sponsors">;
+	mode: "manual" | "proxy";
+	amountCents: number;
+	maxAmountCents?: number;
+	isValid: boolean;
+	createdAt: number;
+};
+
+export type SponsorshipBidEvent =
+	FunctionReturnType<typeof api.sponsorPortal.getAuction> extends infer T
+		? T extends { events: infer Events }
+			? Events extends Array<infer Event>
+				? Event
+				: never
+			: never
+		: never;
+
+export type CompetitionSponsorProperty = Pick<
+	Competition,
+	"sponsorPropertyStatus" | "sponsorPropertyDisplay"
+>;
+
 export type ProgressUpdate = Competition["progressUpdates"][number];
 
 export type Comment = FunctionReturnType<typeof api.comments.listForUI>[number];

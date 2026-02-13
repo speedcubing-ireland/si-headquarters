@@ -82,7 +82,7 @@ import {
 	emailDispatchGroupValidator,
 	type ResolvedEmailDispatchItem,
 } from "./notifications/lib/notificationEmail";
-import { parseDispatchGroupClaim } from "./notifications/lib/dispatchClaims";
+import { parseDispatchGroupClaimInfo } from "./notifications/lib/dispatchClaims";
 import {
 	computeDueDateDaysDiff,
 	buildDueDateNotificationSpec,
@@ -104,6 +104,7 @@ import {
 } from "./notifications/dispatch/process";
 import {
 	markDispatchesFailed,
+	markDispatchesInProgress,
 	markDispatchesSent,
 } from "./notifications/dispatch/retry";
 import {
@@ -1300,12 +1301,14 @@ export const _sendExternalDispatchGroup = internalAction({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
+		const EXTERNAL_SEND_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000;
 		if (args.dispatchIds.length === 0) {
 			return null;
 		}
 
-		const claim = parseDispatchGroupClaim(args.claimKey);
-		if (!claim) {
+		const claimInfo = parseDispatchGroupClaimInfo(args.claimKey);
+		const claim = claimInfo?.channel ?? null;
+		if (!claimInfo || !claim) {
 			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
 				dispatchIds: args.dispatchIds,
 				reason: "dispatch_claim_missing_or_invalid",
@@ -1343,11 +1346,44 @@ export const _sendExternalDispatchGroup = internalAction({
 				}
 
 				const result = await channelAdapter.send(payload);
-				if (result.ok) {
+				if (result.status === "sent") {
 					await ctx.runMutation(internal.notifications._markDispatchesSent, {
 						dispatchIds: payload.dispatchIds,
 						claimKey: args.claimKey,
 					});
+					return null;
+				}
+				if (result.status === "in_progress") {
+					if (
+						claimInfo.timestamp + EXTERNAL_SEND_PROGRESS_TIMEOUT_MS <
+						Date.now()
+					) {
+						await ctx.runMutation(
+							internal.notifications._markDispatchesFailed,
+							{
+								dispatchIds: payload.dispatchIds,
+								reason: "dispatch_send_timeout",
+								claimKey: args.claimKey,
+							},
+						);
+						return null;
+					}
+					await ctx.runMutation(
+						internal.notifications._markDispatchesInProgress,
+						{
+							dispatchIds: payload.dispatchIds,
+							claimKey: args.claimKey,
+							reason: args.claimKey,
+						},
+					);
+					await ctx.scheduler.runAfter(
+						result.retryAfterMs,
+						internal.notifications._sendExternalDispatchGroup,
+						{
+							dispatchIds: payload.dispatchIds,
+							claimKey: args.claimKey,
+						},
+					);
 					return null;
 				}
 
@@ -1399,6 +1435,19 @@ export const _markDispatchesSent = internalMutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		await markDispatchesSent(ctx, args);
+		return null;
+	},
+});
+
+export const _markDispatchesInProgress = internalMutation({
+	args: {
+		dispatchIds: v.array(v.id("notificationDispatches")),
+		claimKey: v.optional(v.string()),
+		reason: v.optional(v.string()),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await markDispatchesInProgress(ctx, args);
 		return null;
 	},
 });

@@ -27,7 +27,7 @@ import {
 import { useCompetitionMutations, useLabels } from "@/hooks/use-convex-data";
 import { useCompetitionForm } from "@/hooks/use-competition-form";
 import { useTemplateTasks } from "@/hooks/use-template-tasks";
-import type { Competition, User } from "@/data/types-new";
+import type { User } from "@/data/types-new";
 import { cn } from "@/lib/utils";
 
 interface CompetitionModalProps {
@@ -385,10 +385,7 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 
 		setIsSubmitting(true);
 		try {
-			const baseData: Omit<
-				Competition,
-				"id" | "tasks" | "createdAt" | "updatedAt" | "progressUpdates"
-			> = {
+			const baseData: Parameters<typeof addCompetition>[0] = {
 				name: name.trim(),
 				description,
 				compStart: format(compStart, "yyyy-MM-dd"),
@@ -396,8 +393,6 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 				compLead,
 				leadDelegate,
 				organisers,
-				phases,
-				currentPhaseIdx,
 				compSheet: compSheet
 					? { type: "google-sheet" as const, sheetId: compSheet }
 					: null,

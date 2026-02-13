@@ -6,5 +6,5 @@ export const inAppChannelAdapter: NotificationChannelAdapter<InAppChannelPayload
 	{
 		channel: "in_app",
 		isConfigured: () => true,
-		send: async () => ({ ok: true }),
+		send: async () => ({ status: "sent" }),
 	};

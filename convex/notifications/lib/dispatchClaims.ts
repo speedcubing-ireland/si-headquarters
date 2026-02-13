@@ -3,9 +3,15 @@ import type { NotificationChannel } from "./notificationTypes";
 
 export const DISPATCH_GROUP_CLAIM_PREFIX = "dispatch_group_claim:";
 
-export function parseDispatchGroupClaim(
+export type DispatchGroupClaim = {
+	channel: NotificationChannel;
+	timestamp: number;
+	seedDispatchId: string;
+};
+
+export function parseDispatchGroupClaimInfo(
 	claimKey: string | undefined,
-): NotificationChannel | null {
+): DispatchGroupClaim | null {
 	if (!claimKey || !claimKey.startsWith(DISPATCH_GROUP_CLAIM_PREFIX)) {
 		return null;
 	}
@@ -26,11 +32,15 @@ export function parseDispatchGroupClaim(
 	) {
 		return null;
 	}
-	return channelRaw;
+	return {
+		channel: channelRaw,
+		timestamp,
+		seedDispatchId,
+	};
 }
 
 export function hasDispatchGroupClaim(reason: string | undefined): boolean {
-	return parseDispatchGroupClaim(reason) !== null;
+	return parseDispatchGroupClaimInfo(reason) !== null;
 }
 
 export function buildDispatchGroupClaimKey(

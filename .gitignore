@@ -40,3 +40,5 @@ tanstack-table-docs/*
 zustand-docs/*
 convex-docs/*
 coverage/*
+better-auth-docs/*
+communication-email-docs/*

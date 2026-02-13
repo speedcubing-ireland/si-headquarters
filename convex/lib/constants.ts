@@ -25,6 +25,7 @@ export const INPUT_LIMITS = {
 export const TEAM_NAMES = {
 	VOLUNTEER: "Volunteer",
 	DIRECTORS: "Directors",
+	FINANCE: "Finance Team",
 } as const;
 
 export const SAT_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;

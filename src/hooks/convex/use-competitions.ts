@@ -4,6 +4,19 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { Competition } from "@/data/types-new";
 import { pickDefined } from "@/lib/utils";
 
+type NewCompetitionInput = Pick<
+	Competition,
+	| "name"
+	| "description"
+	| "compStart"
+	| "compEnd"
+	| "compLead"
+	| "leadDelegate"
+	| "organisers"
+	| "compSheet"
+	| "wcaCompetitionId"
+>;
+
 export const useCompetitions = () => {
 	const d = useQuery(api.competitions.listForUI);
 	return { competitions: d ?? [], isLoading: d === undefined };
@@ -24,12 +37,7 @@ export function useCompetitionMutations() {
 	const removeCompetitionMutation = useMutation(api.competitions.remove);
 
 	return {
-		addCompetition: async (
-			payload: Omit<
-				Competition,
-				"id" | "tasks" | "progressUpdates" | "createdAt" | "updatedAt"
-			>,
-		) => {
+		addCompetition: async (payload: NewCompetitionInput) => {
 			const id = await createCompetition({
 				name: payload.name,
 				description: payload.description,
@@ -41,14 +49,7 @@ export function useCompetitionMutations() {
 				compSheet: payload.compSheet ?? undefined,
 				wcaCompetitionId: payload.wcaCompetitionId ?? undefined,
 			});
-			return {
-				...payload,
-				id,
-				tasks: [],
-				progressUpdates: [],
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-			} satisfies Competition;
+			return { id };
 		},
 
 		updateCompetition: (

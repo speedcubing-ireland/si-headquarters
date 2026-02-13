@@ -8,7 +8,6 @@ async function convexRun(
 	path: string,
 	args: Record<string, string | undefined>,
 ): Promise<unknown> {
-	// Filter out undefined values before passing to Convex
 	const filteredArgs = Object.fromEntries(
 		Object.entries(args).filter(([_, value]) => value !== undefined),
 	) as Record<string, string>;

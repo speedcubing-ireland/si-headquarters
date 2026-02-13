@@ -45,3 +45,14 @@ export {
 	useAdminMembersAndTeams,
 	useAdminMemberMutations,
 } from "./convex/use-admin";
+
+export {
+	useSponsors,
+	useIsSponsorshipManager,
+	useSponsorMutations,
+	useSponsorshipCompetitionsForManager,
+	useSponsorshipAuctionsForCompetition,
+	useSponsorshipAuctionsForManager,
+	useSponsorshipAuctionManagerView,
+	useSponsorshipAuctionMutations,
+} from "./convex/use-sponsorship";

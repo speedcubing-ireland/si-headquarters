@@ -9,7 +9,7 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"**",
-			"!convex/_generated",
+			"!convex/**/_generated",
 			"!src/components/ui",
 			"!**/routeTree.gen.ts",
 			"!project-view-interface",

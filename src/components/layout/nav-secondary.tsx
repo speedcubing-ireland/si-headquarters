@@ -5,10 +5,13 @@ import {
 	Mail,
 	Monitor,
 	Moon,
+	Store,
 	Sun,
 } from "lucide-react";
 import { useIsDirector } from "@/hooks/use-convex-data";
+import { useIsSponsorshipManager } from "@/hooks/use-convex-data";
 import { useTheme } from "@/components/theme-provider";
+import { isSponsorshipEnabled } from "@/lib/feature-flags";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -74,10 +77,14 @@ export function NavSecondary({
 	...props
 }: React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
 	const { isDirector } = useIsDirector();
+	const { isManager: isSponsorshipManager } = useIsSponsorshipManager();
 	const navItems: NavSecondaryItem[] = [
 		...baseNavSecondary,
 		...(isDirector
 			? [{ title: "Email Admin", to: "/admin/email", icon: Mail }]
+			: []),
+		...(isSponsorshipManager && isSponsorshipEnabled
+			? [{ title: "Sponsorship", to: "/admin/sponsorship", icon: Store }]
 			: []),
 	];
 

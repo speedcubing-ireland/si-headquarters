@@ -3,8 +3,13 @@ import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { emitNotificationEvent } from "./notifications";
+import { STALE_DISPATCH_THRESHOLD_MS } from "./notifications/lib/notificationEmail";
 import schema from "./schema";
 import { modules } from "./test.setup";
+
+process.env.AZURE_EMAIL_CONNECTION_STRING ??=
+	"endpoint=https://example.communication.azure.com/;accesskey=test";
+process.env.EMAIL_SENDER_ADDRESS ??= "noreply@example.com";
 
 type NotificationInsert = {
 	userId: Id<"users">;
@@ -1705,6 +1710,61 @@ describe("dispatch retry and diagnostics behavior", () => {
 		expect(deadLetters).toHaveLength(1);
 		expect(deadLetters[0]?.dispatchId).toBe(seeded.dispatchId);
 		expect(deadLetters[0]?.error).toBe("provider_4xx");
+	});
+
+	test("_sweepStaleDispatches dead-letters stale claimed sending dispatches", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const userId = await ctx.db.insert("users", {
+				email: "stale-sending@example.com",
+			});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-stale-sending",
+				idempotencyKey: "stale-sending-event",
+				threadKey: "task:stale-sending",
+				dedupeKey: "task_assigned:task:stale-sending",
+				createdAt: now,
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "email",
+				status: "sending",
+				digestMode: "immediate",
+				attempts: 0,
+				maxAttempts: 5,
+				reason: "dispatch_group_claim:email:0:test-stale",
+				updatedAt: now - STALE_DISPATCH_THRESHOLD_MS - 1,
+			});
+			return { dispatchId };
+		});
+
+		const recovered = await t.mutation(
+			internal.notifications._sweepStaleDispatches,
+			{},
+		);
+
+		const [dispatch, deadLetters] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchId),
+				ctx.db
+					.query("notificationDeadLetters")
+					.withIndex("by_failed_at")
+					.collect(),
+			]),
+		);
+		expect(recovered).toBeGreaterThanOrEqual(1);
+		expect(dispatch?.status).toBe("failed");
+		expect(dispatch?.reason).toBe("dispatch_send_timeout");
+		expect(dispatch?.attempts).toBe(1);
+		expect(dispatch?.scheduledFor).toBeUndefined();
+		expect(dispatch?.scheduledFunctionId).toBeUndefined();
+		expect(deadLetters).toHaveLength(1);
+		expect(deadLetters[0]?.dispatchId).toBe(seeded.dispatchId);
+		expect(deadLetters[0]?.error).toBe("dispatch_send_timeout");
 	});
 
 	test("dispatch diagnostics queries require director access", async () => {

@@ -6,5 +6,8 @@ export const pushChannelAdapter: NotificationChannelAdapter<PushChannelPayload> 
 	{
 		channel: "push",
 		isConfigured: () => false,
-		send: async () => ({ ok: false, error: "push_channel_not_configured" }),
+		send: async () => ({
+			status: "failed",
+			error: "push_channel_not_configured",
+		}),
 	};

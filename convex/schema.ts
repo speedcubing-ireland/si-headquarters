@@ -16,6 +16,13 @@ import {
 	notificationDispatchStatus,
 	notificationSubscriberEntityType,
 } from "./notifications/lib/validators";
+import {
+	sponsorshipAuctionFramework,
+	sponsorshipAuctionState,
+	sponsorshipEmailDispatchStatus,
+	sponsorshipEmailType,
+	sponsorshipBidIntentMode,
+} from "./lib/sponsorshipValidators";
 
 export default defineSchema({
 	...authTables,
@@ -122,6 +129,132 @@ export default defineSchema({
 		.index("by_current_phase", ["currentPhaseId"])
 		.index("by_comp_sheet_id", ["compSheet.sheetId"])
 		.index("by_wca_competition_id", ["wcaCompetitionId"]),
+
+	sponsors: defineTable({
+		name: v.string(),
+		email: v.string(),
+		emailNormalized: v.string(),
+		avatarUrl: v.optional(v.string()),
+		authUserId: v.optional(v.string()),
+		lastAccessEmailSentAt: v.optional(v.number()),
+		active: v.boolean(),
+		createdById: v.id("users"),
+		updatedById: v.id("users"),
+		updatedAt: v.number(),
+	})
+		.index("by_email_normalized", ["emailNormalized"])
+		.index("by_auth_user_id", ["authUserId"])
+		.index("by_name", ["name"]),
+
+	sponsorshipAuctions: defineTable({
+		competitionId: v.id("competitions"),
+		framework: sponsorshipAuctionFramework,
+		state: sponsorshipAuctionState,
+		currency: v.string(),
+		startsAt: v.number(),
+		endsAt: v.number(),
+		antiSnipingWindowMs: v.number(),
+		antiSnipingExtendMs: v.number(),
+		startPriceCents: v.number(),
+		currentPriceCents: v.optional(v.number()),
+		currentLeaderSponsorId: v.optional(v.id("sponsors")),
+		currentLeaderMaxCents: v.optional(v.number()),
+		winnerSponsorId: v.optional(v.id("sponsors")),
+		winningBidId: v.optional(v.id("sponsorshipBidIntents")),
+		settlementAmountCents: v.optional(v.number()),
+		readinessSnapshotJson: v.optional(v.string()),
+		createdById: v.id("users"),
+		updatedById: v.id("users"),
+		updatedAt: v.number(),
+	})
+		.index("by_competition", ["competitionId"])
+		.index("by_state_and_end", ["state", "endsAt"])
+		.index("by_state_and_start", ["state", "startsAt"])
+		.index("by_competition_and_state", ["competitionId", "state"]),
+
+	sponsorshipAuctionInvites: defineTable({
+		auctionId: v.id("sponsorshipAuctions"),
+		sponsorId: v.id("sponsors"),
+		invitedById: v.id("users"),
+		invitedAt: v.number(),
+		inviteSentAt: v.optional(v.number()),
+	})
+		.index("by_auction", ["auctionId"])
+		.index("by_sponsor", ["sponsorId"])
+		.index("by_auction_and_sponsor", ["auctionId", "sponsorId"]),
+
+	sponsorshipBidIntents: defineTable({
+		auctionId: v.id("sponsorshipAuctions"),
+		sponsorId: v.id("sponsors"),
+		mode: sponsorshipBidIntentMode,
+		amountCents: v.number(),
+		maxAmountCents: v.optional(v.number()),
+		isValid: v.boolean(),
+		createdAt: v.number(),
+	})
+		.index("by_auction", ["auctionId"])
+		.index("by_auction_and_sponsor", ["auctionId", "sponsorId"])
+		.index("by_auction_and_created_at", ["auctionId", "createdAt"]),
+
+	sponsorshipBidEvents: defineTable({
+		auctionId: v.id("sponsorshipAuctions"),
+		sponsorId: v.optional(v.id("sponsors")),
+		amountCents: v.number(),
+		isAuto: v.boolean(),
+		intentId: v.optional(v.id("sponsorshipBidIntents")),
+		createdAt: v.number(),
+	})
+		.index("by_auction", ["auctionId"])
+		.index("by_auction_and_created_at", ["auctionId", "createdAt"]),
+
+	sponsorshipEmailDispatches: defineTable({
+		auctionId: v.optional(v.id("sponsorshipAuctions")),
+		sponsorId: v.optional(v.id("sponsors")),
+		emailType: sponsorshipEmailType,
+		recipient: v.string(),
+		recipientName: v.optional(v.string()),
+		subject: v.string(),
+		message: v.string(),
+		contextJson: v.optional(v.string()),
+		idempotencyKey: v.string(),
+		status: sponsorshipEmailDispatchStatus,
+		attempts: v.number(),
+		maxAttempts: v.number(),
+		scheduledFor: v.optional(v.number()),
+		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
+		claimKey: v.optional(v.string()),
+		lastAttemptAt: v.optional(v.number()),
+		providerOperationId: v.optional(v.string()),
+		providerPollerState: v.optional(v.string()),
+		sentAt: v.optional(v.number()),
+		providerMessageId: v.optional(v.string()),
+		error: v.optional(v.string()),
+		createdAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_auction", ["auctionId"])
+		.index("by_sponsor", ["sponsorId"])
+		.index("by_email_type", ["emailType"])
+		.index("by_idempotency_key", ["idempotencyKey"])
+		.index("by_status_and_scheduled_for", ["status", "scheduledFor"])
+		.index("by_status_and_updated_at", ["status", "updatedAt"]),
+
+	sponsorshipEmailDeadLetters: defineTable({
+		dispatchId: v.id("sponsorshipEmailDispatches"),
+		auctionId: v.optional(v.id("sponsorshipAuctions")),
+		sponsorId: v.optional(v.id("sponsors")),
+		emailType: sponsorshipEmailType,
+		recipient: v.string(),
+		subject: v.string(),
+		error: v.string(),
+		attempts: v.number(),
+		payloadJson: v.optional(v.string()),
+		failedAt: v.number(),
+	})
+		.index("by_auction", ["auctionId"])
+		.index("by_sponsor", ["sponsorId"])
+		.index("by_email_type", ["emailType"])
+		.index("by_failed_at", ["failedAt"]),
 
 	competitionAccess: defineTable({
 		competitionId: v.id("competitions"),

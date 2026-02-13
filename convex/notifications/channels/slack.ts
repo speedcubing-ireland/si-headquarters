@@ -6,5 +6,8 @@ export const slackChannelAdapter: NotificationChannelAdapter<SlackChannelPayload
 	{
 		channel: "slack",
 		isConfigured: () => false,
-		send: async () => ({ ok: false, error: "slack_channel_not_configured" }),
+		send: async () => ({
+			status: "failed",
+			error: "slack_channel_not_configured",
+		}),
 	};

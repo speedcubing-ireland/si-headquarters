@@ -1,11 +1,18 @@
 import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { computeExponentialBackoffMs } from "../../lib/retry";
 import { patchPendingDispatches } from "../lib/notificationEmail";
 
 type MarkDispatchesSentArgs = {
 	dispatchIds: Id<"notificationDispatches">[];
 	claimKey?: string;
+};
+
+type MarkDispatchesInProgressArgs = {
+	dispatchIds: Id<"notificationDispatches">[];
+	claimKey?: string;
+	reason?: string;
 };
 
 type MarkDispatchesFailedArgs = {
@@ -18,8 +25,11 @@ const RETRY_BASE_DELAY_MS = 60_000;
 const RETRY_MAX_DELAY_MS = 60 * 60 * 1000;
 
 function computeRetryDelayMs(nextAttempt: number): number {
-	const exponent = Math.max(0, nextAttempt - 1);
-	return Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * 2 ** exponent);
+	return computeExponentialBackoffMs({
+		attempt: nextAttempt,
+		baseDelayMs: RETRY_BASE_DELAY_MS,
+		maxDelayMs: RETRY_MAX_DELAY_MS,
+	});
 }
 
 async function scheduleDispatchRetry(
@@ -54,6 +64,28 @@ export async function markDispatchesSent(
 		undefined,
 		args.claimKey,
 	);
+}
+
+export async function markDispatchesInProgress(
+	ctx: MutationCtx,
+	args: MarkDispatchesInProgressArgs,
+): Promise<void> {
+	const now = Date.now();
+	for (const dispatchId of args.dispatchIds) {
+		const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
+		if (
+			!dispatch ||
+			dispatch.status !== "sending" ||
+			(args.claimKey !== undefined && dispatch.reason !== args.claimKey)
+		) {
+			continue;
+		}
+		await ctx.db.patch("notificationDispatches", dispatch._id, {
+			reason: args.reason ?? dispatch.reason,
+			lastAttemptAt: now,
+			updatedAt: now,
+		});
+	}
 }
 
 export async function markDispatchesFailed(
