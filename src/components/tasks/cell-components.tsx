@@ -135,24 +135,33 @@ function getSubtaskProgress(task: Task): { done: number; total: number } {
 
 interface TaskTitleCellProps {
 	task: Task;
-	hideParentDisplayName?: boolean;
+	parentDisplayMode?: "full" | "none" | "task-only";
 }
+
+export type TaskParentDisplayMode = NonNullable<
+	TaskTitleCellProps["parentDisplayMode"]
+>;
 
 export const TaskTitleCell = memo(
 	function TaskTitleCell({
 		task,
-		hideParentDisplayName = false,
+		parentDisplayMode = "full",
 	}: TaskTitleCellProps) {
 		const { done, total } = getSubtaskProgress(task);
 		const showProgress = total > 0;
-		const parentDisplayName = hideParentDisplayName
-			? null
-			: task.parentDisplayName;
-		const contextName = hideParentDisplayName
-			? null
-			: task.parent?.type === "task"
-				? (task.competitionDisplayName ?? task.phase?.name ?? null)
-				: (task.phase?.name ?? null);
+		let parentDisplayName: string | null = null;
+		let contextName: string | null = null;
+
+		if (parentDisplayMode === "full") {
+			parentDisplayName = task.parentDisplayName;
+			contextName =
+				task.parent?.type === "task"
+					? (task.competitionDisplayName ?? task.phase?.name ?? null)
+					: (task.phase?.name ?? null);
+		} else if (parentDisplayMode === "task-only") {
+			parentDisplayName =
+				task.parent?.type === "task" ? task.parentDisplayName : null;
+		}
 
 		return (
 			<div className="flex items-center min-w-0">
@@ -232,5 +241,5 @@ export const TaskTitleCell = memo(
 	},
 	(prev, next) =>
 		prev.task === next.task &&
-		prev.hideParentDisplayName === next.hideParentDisplayName,
+		prev.parentDisplayMode === next.parentDisplayMode,
 );

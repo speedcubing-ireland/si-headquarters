@@ -234,7 +234,7 @@ function TaskHeader({
 function SubTasksList({ task }: { task: Task }) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isCollapsed, setIsCollapsed] = useState(false);
-	const columns = useTaskColumns({ hideParentDisplayName: true });
+	const columns = useTaskColumns({ parentDisplayMode: "none" });
 	const { tasks } = useTasks(false);
 	const subTasks = useMemo(
 		() =>

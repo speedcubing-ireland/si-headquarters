@@ -240,7 +240,7 @@ export function MyFocusWidget() {
 	const currentUser = useQuery(api.users.getCurrentUser);
 	const { updateTask } = useTaskMutations();
 	const userId = currentUser?._id;
-	const taskColumns = useTaskColumns({ hideParentDisplayName: true });
+	const taskColumns = useTaskColumns({ parentDisplayMode: "full" });
 
 	const focusGroups = useMemo(() => {
 		if (!userId) return [];

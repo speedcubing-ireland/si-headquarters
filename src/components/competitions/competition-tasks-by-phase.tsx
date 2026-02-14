@@ -21,7 +21,7 @@ export function CompetitionTasksByPhase({
 	competition,
 	tasks,
 }: CompetitionTasksByPhaseProps) {
-	const columns = useTaskColumns({ hideParentDisplayName: true });
+	const columns = useTaskColumns({ parentDisplayMode: "task-only" });
 	const { addTask } = useTaskMutations();
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
 		() => new Set(),

@@ -22,6 +22,7 @@ import {
 	PriorityCell,
 	StatusCell,
 	TaskTitleCell,
+	type TaskParentDisplayMode,
 } from "./cell-components";
 
 function SortableHeader({
@@ -231,9 +232,12 @@ const ownerGroupRenderer: GroupValueRenderer = (_value, row) => {
 };
 
 export function useTaskColumns(options?: {
+	parentDisplayMode?: TaskParentDisplayMode;
 	hideParentDisplayName?: boolean;
 }): ColumnDef<Task>[] {
-	const hideParentDisplayName = options?.hideParentDisplayName ?? false;
+	const parentDisplayMode =
+		options?.parentDisplayMode ??
+		(options?.hideParentDisplayName ? "none" : "full");
 	return useMemo(
 		() => [
 			createSortableColumn(
@@ -329,7 +333,7 @@ export function useTaskColumns(options?: {
 				({ row }) => (
 					<TaskTitleCell
 						task={row.original}
-						hideParentDisplayName={hideParentDisplayName}
+						parentDisplayMode={parentDisplayMode}
 					/>
 				),
 				{
@@ -392,6 +396,6 @@ export function useTaskColumns(options?: {
 				} satisfies ColumnDef<Task>["meta"],
 			},
 		],
-		[hideParentDisplayName],
+		[parentDisplayMode],
 	);
 }
