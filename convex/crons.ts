@@ -18,11 +18,4 @@ crons.interval(
 	{},
 );
 
-crons.interval(
-	"sweep sponsorship email dispatches",
-	{ minutes: 5 },
-	internal.sponsorshipEmails._sweepStaleDispatches,
-	{},
-);
-
 export default crons;

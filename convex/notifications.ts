@@ -82,6 +82,14 @@ import {
 	emailDispatchGroupValidator,
 	type ResolvedEmailDispatchItem,
 } from "./notifications/lib/notificationEmail";
+import {
+	buildNotificationDigestEmailHtml,
+	buildNotificationDigestEmailPlainText,
+	buildNotificationDigestEmailSubject,
+	buildNotificationEmailHtml,
+	buildNotificationEmailPlainText,
+	buildNotificationEmailSubject,
+} from "./notifications/lib/emailTemplates";
 import { parseDispatchGroupClaimInfo } from "./notifications/lib/dispatchClaims";
 import {
 	computeDueDateDaysDiff,
@@ -111,8 +119,8 @@ import {
 	getDispatchHealthDiagnostics,
 	listRecentDeadLettersDiagnostics,
 } from "./notifications/dispatch/diagnostics";
-import { getChannelAdapter } from "./notifications/channels/registry";
 import { sendTestEmailPreview } from "./notifications/channels/email";
+import { buildEntityLink, formatEntityTypeLabel } from "./emails/shared";
 
 export { notificationReturns } from "./notifications/lib/notificationTypes";
 
@@ -1287,6 +1295,19 @@ export const _getDispatchGroupForEmail = internalQuery({
 			dispatchIds: items.map((item) => item.dispatchId),
 			digestMode: seed.digestMode,
 			digestWindowKey: seed.digestWindowKey,
+			lastAttemptAt: groupedDispatches.reduce<number | undefined>(
+				(latest, dispatch) => {
+					const current = dispatch.lastAttemptAt;
+					if (current === undefined) {
+						return latest;
+					}
+					if (latest === undefined) {
+						return current;
+					}
+					return Math.max(latest, current);
+				},
+				undefined,
+			),
 			recipientEmail: user.email,
 			recipientName: user.name,
 			items,
@@ -1301,18 +1322,18 @@ export const _sendExternalDispatchGroup = internalAction({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const EXTERNAL_SEND_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000;
 		if (args.dispatchIds.length === 0) {
 			return null;
 		}
 
 		const claimInfo = parseDispatchGroupClaimInfo(args.claimKey);
 		const claim = claimInfo?.channel ?? null;
-		if (!claimInfo || !claim) {
+		const claimKey = args.claimKey;
+		if (!claimInfo || !claim || !claimKey) {
 			await ctx.runMutation(internal.notifications._markDispatchesFailed, {
 				dispatchIds: args.dispatchIds,
 				reason: "dispatch_claim_missing_or_invalid",
-				claimKey: args.claimKey,
+				claimKey,
 			});
 			return null;
 		}
@@ -1335,8 +1356,10 @@ export const _sendExternalDispatchGroup = internalAction({
 					return null;
 				}
 
-				const channelAdapter = getChannelAdapter("email");
-				if (!channelAdapter.isConfigured()) {
+				const emailConfigured =
+					Boolean(process.env.AZURE_EMAIL_CONNECTION_STRING?.trim()) &&
+					Boolean(process.env.EMAIL_SENDER_ADDRESS?.trim());
+				if (!emailConfigured) {
 					await ctx.runMutation(internal.notifications._markDispatchesFailed, {
 						dispatchIds: args.dispatchIds,
 						reason: "email_channel_not_configured",
@@ -1345,53 +1368,105 @@ export const _sendExternalDispatchGroup = internalAction({
 					return null;
 				}
 
-				const result = await channelAdapter.send(payload);
-				if (result.status === "sent") {
-					await ctx.runMutation(internal.notifications._markDispatchesSent, {
-						dispatchIds: payload.dispatchIds,
-						claimKey: args.claimKey,
-					});
-					return null;
-				}
-				if (result.status === "in_progress") {
-					if (
-						claimInfo.timestamp + EXTERNAL_SEND_PROGRESS_TIMEOUT_MS <
-						Date.now()
-					) {
+				const appUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
+				let emailType: "notification_immediate" | "notification_digest" =
+					"notification_digest";
+				let subject = "";
+				let htmlBody = "";
+				let plainTextBody = "";
+
+				if (payload.digestMode === "immediate") {
+					const firstItem = payload.items[0];
+					if (!firstItem) {
 						await ctx.runMutation(
 							internal.notifications._markDispatchesFailed,
 							{
 								dispatchIds: payload.dispatchIds,
-								reason: "dispatch_send_timeout",
-								claimKey: args.claimKey,
+								reason: "email_dispatch_payload_empty",
+								claimKey,
 							},
 						);
 						return null;
 					}
-					await ctx.runMutation(
-						internal.notifications._markDispatchesInProgress,
-						{
-							dispatchIds: payload.dispatchIds,
-							claimKey: args.claimKey,
-							reason: args.claimKey,
-						},
+					emailType = "notification_immediate";
+					subject = buildNotificationEmailSubject(
+						firstItem.type,
+						firstItem.title,
 					);
-					await ctx.scheduler.runAfter(
-						result.retryAfterMs,
-						internal.notifications._sendExternalDispatchGroup,
-						{
-							dispatchIds: payload.dispatchIds,
-							claimKey: args.claimKey,
-						},
+					const emailContent = {
+						title: firstItem.title,
+						message: firstItem.message,
+						body: firstItem.body,
+						entityType: firstItem.entityType,
+						entityId: firstItem.entityId,
+						parentEntityId: firstItem.parentEntityId,
+						actorName: firstItem.actorName,
+						priority: firstItem.priority,
+						appUrl,
+					};
+					[htmlBody, plainTextBody] = await Promise.all([
+						buildNotificationEmailHtml(emailContent),
+						buildNotificationEmailPlainText(emailContent),
+					]);
+				} else {
+					emailType = "notification_digest";
+					subject = buildNotificationDigestEmailSubject(
+						payload.digestMode,
+						payload.items.length,
 					);
-					return null;
+					const digestItems = payload.items.map((item) => ({
+						title: item.title,
+						message: item.message,
+						entityType: formatEntityTypeLabel(item.entityType),
+						priority: item.priority,
+						actorName: item.actorName,
+						link: buildEntityLink(appUrl, item),
+					}));
+					[htmlBody, plainTextBody] = await Promise.all([
+						buildNotificationDigestEmailHtml({
+							mode: payload.digestMode,
+							appUrl,
+							items: digestItems,
+						}),
+						buildNotificationDigestEmailPlainText({
+							mode: payload.digestMode,
+							appUrl,
+							items: digestItems,
+						}),
+					]);
 				}
 
-				await ctx.runMutation(internal.notifications._markDispatchesFailed, {
-					dispatchIds: payload.dispatchIds,
-					reason: result.error,
-					claimKey: args.claimKey,
-				});
+				const stableDispatchIds = [...payload.dispatchIds].sort();
+				const idempotencyKey = [
+					"notification_group",
+					payload.digestMode,
+					payload.digestWindowKey ?? "",
+					payload.recipientEmail.toLowerCase(),
+					stableDispatchIds.join(","),
+				].join("|");
+
+				await ctx.runMutation(
+					internal.sponsorshipEmails._enqueueNotificationDispatchEmail,
+					{
+						idempotencyKey,
+						emailType,
+						recipient: payload.recipientEmail,
+						recipientName: payload.recipientName,
+						subject,
+						htmlBody,
+						plainTextBody,
+						notificationDispatchIds: payload.dispatchIds,
+						notificationClaimKey: claimKey,
+					},
+				);
+				await ctx.runMutation(
+					internal.notifications._markDispatchesInProgress,
+					{
+						dispatchIds: payload.dispatchIds,
+						claimKey,
+						reason: claimKey,
+					},
+				);
 				return null;
 			}
 			case "slack":

@@ -1,4 +1,4 @@
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import type { GenericActionCtx } from "convex/server";
@@ -269,34 +269,53 @@ export const fetchCompetitionDetails = action({
 	returns: v.union(wcaCompetitionDetails, v.null()),
 	handler: async (ctx, args) => {
 		await requireVolunteerAction(ctx);
-		const accessToken = await getValidAccessToken(ctx);
-		if (!accessToken) return null;
-
-		const res = await fetch(
-			`${WCA_API}/competitions/${encodeURIComponent(args.wcaCompetitionId)}`,
-			{ headers: { Authorization: `Bearer ${accessToken}` } },
+		return await fetchCompetitionDetailsWithStoredToken(
+			ctx,
+			args.wcaCompetitionId,
 		);
-
-		if (!res.ok) return null;
-
-		const data = (await res.json()) as Record<string, unknown>;
-
-		return {
-			id: String(data.id ?? ""),
-			name: String(data.name ?? ""),
-			city: String(data.city ?? ""),
-			country_iso2: String(data.country_iso2 ?? ""),
-			start_date: String(data.start_date ?? ""),
-			end_date: String(data.end_date ?? ""),
-			event_ids: Array.isArray(data.event_ids)
-				? (data.event_ids as string[])
-				: [],
-			competitor_limit:
-				typeof data.competitor_limit === "number"
-					? data.competitor_limit
-					: null,
-			venue: String(data.venue ?? ""),
-			url: `${WCA_BASE}/competitions/${encodeURIComponent(String(data.id ?? args.wcaCompetitionId))}`,
-		};
 	},
 });
+
+export const fetchCompetitionDetailsInternal = internalAction({
+	args: { wcaCompetitionId: v.string() },
+	returns: v.union(wcaCompetitionDetails, v.null()),
+	handler: async (ctx, args) => {
+		return await fetchCompetitionDetailsWithStoredToken(
+			ctx,
+			args.wcaCompetitionId,
+		);
+	},
+});
+
+async function fetchCompetitionDetailsWithStoredToken(
+	ctx: GenericActionCtx<DataModel>,
+	wcaCompetitionId: string,
+) {
+	const accessToken = await getValidAccessToken(ctx);
+	if (!accessToken) return null;
+
+	const res = await fetch(
+		`${WCA_API}/competitions/${encodeURIComponent(wcaCompetitionId)}`,
+		{ headers: { Authorization: `Bearer ${accessToken}` } },
+	);
+
+	if (!res.ok) return null;
+
+	const data = (await res.json()) as Record<string, unknown>;
+
+	return {
+		id: String(data.id ?? ""),
+		name: String(data.name ?? ""),
+		city: String(data.city ?? ""),
+		country_iso2: String(data.country_iso2 ?? ""),
+		start_date: String(data.start_date ?? ""),
+		end_date: String(data.end_date ?? ""),
+		event_ids: Array.isArray(data.event_ids)
+			? (data.event_ids as string[])
+			: [],
+		competitor_limit:
+			typeof data.competitor_limit === "number" ? data.competitor_limit : null,
+		venue: String(data.venue ?? ""),
+		url: `${WCA_BASE}/competitions/${encodeURIComponent(String(data.id ?? wcaCompetitionId))}`,
+	};
+}

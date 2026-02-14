@@ -107,6 +107,7 @@ describe("sponsorship bidding engine", () => {
 			leaderSponsorId: "A",
 			leaderIntentId: "a-2",
 			leaderBidCents: 17_000,
+			settlementBidCents: 17_000,
 		});
 	});
 
@@ -129,5 +130,53 @@ describe("sponsorship bidding engine", () => {
 		]);
 		expect(result?.leaderSponsorId).toBe("A");
 		expect(result?.leaderIntentId).toBe("a-1");
+		expect(result?.settlementBidCents).toBe(20_000);
+	});
+
+	test("sealed second-price outcome charges second-highest bid with reserve floor", () => {
+		const result = resolveSealedOutcome(
+			[
+				{
+					intentId: "a-1",
+					sponsorId: "A",
+					amountCents: 21_000,
+					createdAt: 1,
+					createdOrder: 1,
+				},
+				{
+					intentId: "b-1",
+					sponsorId: "B",
+					amountCents: 15_000,
+					createdAt: 2,
+					createdOrder: 2,
+				},
+			],
+			{
+				pricing: "second_price",
+				reservePriceCents: 10_000,
+			},
+		);
+		expect(result?.leaderSponsorId).toBe("A");
+		expect(result?.leaderBidCents).toBe(21_000);
+		expect(result?.settlementBidCents).toBe(15_000);
+	});
+
+	test("sealed second-price uses reserve when there is no runner-up bid", () => {
+		const result = resolveSealedOutcome(
+			[
+				{
+					intentId: "a-1",
+					sponsorId: "A",
+					amountCents: 21_000,
+					createdAt: 1,
+					createdOrder: 1,
+				},
+			],
+			{
+				pricing: "second_price",
+				reservePriceCents: 10_000,
+			},
+		);
+		expect(result?.settlementBidCents).toBe(10_000);
 	});
 });

@@ -1,0 +1,253 @@
+import { useMutation } from "convex/react";
+import { Loader2, Mail, Send, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { api } from "@/convex/_generated/api";
+import { useNotificationDiagnostics } from "@/hooks/use-convex-data";
+import { formatDate } from "@/lib/format-utils";
+import { onMutationError } from "@/lib/utils";
+import { ConnectionStatusCardContainer } from "@/components/admin/connection-status-card";
+import { LabelsSection } from "@/components/admin/labels-section";
+import { MembersAndTeamsSection } from "@/components/admin/members-and-teams-section";
+import { PhasesSection } from "@/components/admin/phases-section";
+import { AppPageHeader } from "@/components/shared/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type GodModeTab = "users" | "services" | "data" | "email";
+
+export function GodModeAdminContent({
+	defaultTab = "users",
+}: {
+	defaultTab?: GodModeTab;
+}) {
+	return (
+		<div className="flex h-full min-h-0 flex-col">
+			<AppPageHeader
+				title="God Mode"
+				subtitle="Directors-only administration"
+			/>
+			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 pt-0 lg:p-6 lg:pt-0">
+				<Tabs defaultValue={defaultTab} className="flex flex-1 flex-col gap-4">
+					<TabsList className="grid h-auto grid-cols-2 sm:grid-cols-4">
+						<TabsTrigger value="users">Users</TabsTrigger>
+						<TabsTrigger value="services">Services</TabsTrigger>
+						<TabsTrigger value="data">Data</TabsTrigger>
+						<TabsTrigger value="email">Email</TabsTrigger>
+					</TabsList>
+					<TabsContent value="users" className="mt-0 space-y-4">
+						<MembersAndTeamsSection />
+					</TabsContent>
+					<TabsContent value="services" className="mt-0 space-y-4">
+						<ConnectionStatusCardContainer
+							title="Google Sheets"
+							description="Used to read schedule data from competition sheets (Events page)."
+							disconnectCommand="bun run auth:google-sheets"
+							oAuthInstructions="Add http://localhost:3847 to Google Cloud Console → Credentials → OAuth redirect URIs."
+							query={api.sheetsQueries.getGoogleSheetsConnectionStatus}
+						/>
+						<ConnectionStatusCardContainer
+							title="WCA (World Cube Association)"
+							description="Used to search and link competitions to their WCA page."
+							disconnectCommand="bun run auth:wca"
+							oAuthInstructions="Add http://localhost:3848 to WCA → OAuth Applications → Redirect URI."
+							query={api.wcaQueries.getWcaConnectionStatus}
+						/>
+					</TabsContent>
+					<TabsContent value="data" className="mt-0 space-y-4">
+						<LabelsSection />
+						<PhasesSection />
+					</TabsContent>
+					<TabsContent value="email" className="mt-0">
+						<EmailAdminPanel />
+					</TabsContent>
+				</Tabs>
+			</div>
+		</div>
+	);
+}
+
+function EmailAdminPanel() {
+	const sendTestDigestSeries = useMutation(
+		api.notifications.sendTestDigestSeries,
+	);
+	const {
+		dispatchHealth,
+		deadLetters,
+		isLoading: diagnosticsLoading,
+	} = useNotificationDiagnostics();
+	const [toEmail, setToEmail] = useState("");
+	const [isSending, setIsSending] = useState(false);
+
+	const handleSendSeries = async () => {
+		setIsSending(true);
+		try {
+			const result = await sendTestDigestSeries({
+				toEmail: toEmail.trim() || undefined,
+			});
+			toast.success(
+				`Queued ${result.emailCount} test digest emails to ${result.toEmail}`,
+			);
+		} catch (error) {
+			onMutationError(error);
+		} finally {
+			setIsSending(false);
+		}
+	};
+
+	return (
+		<div className="space-y-4 pb-4">
+			<Card className="max-w-2xl">
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<Mail className="size-4 text-muted-foreground" />
+						Send Test Email Series
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<p className="text-sm text-muted-foreground">
+						Sends three test emails using real notification templates: an
+						immediate notification (1 item), an hourly digest (3 items), and a
+						3x daily digest (5 items).
+					</p>
+					<div className="space-y-2">
+						<Label htmlFor="digest-test-email">
+							Recipient email (optional)
+						</Label>
+						<Input
+							id="digest-test-email"
+							type="email"
+							value={toEmail}
+							onChange={(event) => setToEmail(event.target.value)}
+							placeholder="Leave empty to send to your own account email"
+						/>
+					</div>
+					<Button
+						onClick={() => void handleSendSeries()}
+						disabled={isSending}
+						className="w-full sm:w-auto"
+					>
+						{isSending ? (
+							<Loader2 className="size-4 animate-spin" />
+						) : (
+							<Send className="size-4" />
+						)}
+						Send Test Series
+					</Button>
+				</CardContent>
+			</Card>
+			<Card className="max-w-4xl">
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<TriangleAlert className="size-4 text-muted-foreground" />
+						Dispatch Diagnostics
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					{diagnosticsLoading || !dispatchHealth ? (
+						<div className="flex items-center gap-2 text-sm text-muted-foreground">
+							<Loader2 className="size-4 animate-spin" />
+							Loading diagnostics...
+						</div>
+					) : (
+						<>
+							<div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+								<div className="rounded-md border p-3">
+									<p className="text-xs text-muted-foreground">Pending</p>
+									<p className="text-lg font-semibold">
+										{dispatchHealth.totals.pending}
+									</p>
+								</div>
+								<div className="rounded-md border p-3">
+									<p className="text-xs text-muted-foreground">Sent</p>
+									<p className="text-lg font-semibold">
+										{dispatchHealth.totals.sent}
+									</p>
+								</div>
+								<div className="rounded-md border p-3">
+									<p className="text-xs text-muted-foreground">Failed</p>
+									<p className="text-lg font-semibold">
+										{dispatchHealth.totals.failed}
+									</p>
+								</div>
+								<div className="rounded-md border p-3">
+									<p className="text-xs text-muted-foreground">
+										Dead letters (24h)
+									</p>
+									<p className="text-lg font-semibold">
+										{dispatchHealth.deadLettersLast24h}
+									</p>
+								</div>
+							</div>
+							<div className="rounded-md border p-3">
+								<p className="text-xs text-muted-foreground">
+									Stale pending dispatches
+								</p>
+								<p className="text-lg font-semibold">
+									{dispatchHealth.stalePendingCount}
+								</p>
+							</div>
+							<div className="space-y-2">
+								<p className="text-sm font-medium">By channel</p>
+								<div className="grid gap-2 text-xs sm:grid-cols-2">
+									{dispatchHealth.byChannel.map((row) => (
+										<div key={row.channel} className="rounded-md border p-3">
+											<p className="mb-2 text-sm font-medium capitalize">
+												{row.channel.replace("_", " ")}
+											</p>
+											<div className="grid grid-cols-2 gap-1 text-muted-foreground">
+												<span>Pending: {row.pending}</span>
+												<span>Sent: {row.sent}</span>
+												<span>Skipped: {row.skipped}</span>
+												<span>Failed: {row.failed}</span>
+											</div>
+										</div>
+									))}
+								</div>
+							</div>
+						</>
+					)}
+				</CardContent>
+			</Card>
+			<Card className="max-w-4xl">
+				<CardHeader>
+					<CardTitle>Recent Dead Letters</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{diagnosticsLoading ? (
+						<p className="text-sm text-muted-foreground">Loading...</p>
+					) : deadLetters.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							No dead letters recorded.
+						</p>
+					) : (
+						<div className="space-y-2">
+							{deadLetters.map((item) => (
+								<div key={item.id} className="rounded-md border p-3 text-sm">
+									<div className="mb-1 flex flex-wrap items-center gap-2">
+										<Badge variant="secondary">{item.channel}</Badge>
+										{item.eventType ? (
+											<Badge variant="outline">{item.eventType}</Badge>
+										) : null}
+										<span className="text-xs text-muted-foreground">
+											{formatDate(item.failedAt)}
+										</span>
+									</div>
+									<p className="font-medium">{item.error}</p>
+									<p className="text-xs text-muted-foreground">
+										Attempts: {item.attempts} | User:{" "}
+										{item.userName ?? item.userEmail ?? item.userId}
+									</p>
+								</div>
+							))}
+						</div>
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	);
+}

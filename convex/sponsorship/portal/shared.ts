@@ -4,9 +4,15 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { requireSponsorByAuthSessionToken } from "../authAccounts";
 import { minNextBidCents } from "../../lib/sponsorshipBidding";
 import {
+	isProxyAuctionFramework,
+	isSealedAuctionFramework,
 	sponsorshipAuctionFramework,
 	sponsorshipAuctionState,
 } from "../../lib/sponsorshipValidators";
+import {
+	sponsorshipCompetitionSummary,
+	sponsorshipCompetitionSummarySource,
+} from "../../lib/sponsorshipCompetitionSnapshot";
 
 type SponsorCtx = QueryCtx | MutationCtx;
 type SponsorBidStatus =
@@ -24,6 +30,8 @@ export const sponsorAuctionListItem = v.object({
 	framework: sponsorshipAuctionFramework,
 	state: sponsorshipAuctionState,
 	currency: v.string(),
+	competitionSummary: sponsorshipCompetitionSummary,
+	competitionSummarySource: sponsorshipCompetitionSummarySource,
 	startsAt: v.number(),
 	endsAt: v.number(),
 	startPriceCents: v.number(),
@@ -96,6 +104,15 @@ export async function requireAuctionInvite(
 export function toSponsorAuctionListItem(input: {
 	auction: Doc<"sponsorshipAuctions">;
 	competitionName: string;
+	competitionSummary: {
+		name: string;
+		address: string;
+		startDate: string;
+		endDate: string;
+		competitorLimit?: number;
+		eventIds: string[];
+	};
+	competitionSummarySource: "competition_record" | "wca";
 	hasAnyValidBid: boolean;
 	sponsorId?: Id<"sponsors">;
 	hasSponsorValidBid?: boolean;
@@ -103,25 +120,24 @@ export function toSponsorAuctionListItem(input: {
 	const {
 		auction,
 		competitionName,
+		competitionSummary,
+		competitionSummarySource,
 		hasAnyValidBid,
 		sponsorId,
 		hasSponsorValidBid,
 	} = input;
-	const isSealed = auction.framework === "first_sealed";
+	const isSealed = isSealedAuctionFramework(auction.framework);
 	const effectiveCurrentPriceCents = hasAnyValidBid
 		? (auction.currentPriceCents ?? auction.startPriceCents)
 		: null;
-	const currentPriceCents =
-		isSealed && auction.state !== "closed"
-			? undefined
-			: auction.currentPriceCents;
+	const currentPriceCents = isSealed ? undefined : auction.currentPriceCents;
 	const minimumNextBidCents = isSealed
 		? auction.startPriceCents
 		: minNextBidCents(effectiveCurrentPriceCents, auction.startPriceCents);
 	const sponsorBidStatus: SponsorBidStatus | undefined =
 		sponsorId === undefined
 			? undefined
-			: auction.framework === "ebay_proxy"
+			: isProxyAuctionFramework(auction.framework)
 				? auction.state === "active"
 					? auction.currentLeaderSponsorId === sponsorId
 						? "winning"
@@ -131,11 +147,17 @@ export function toSponsorAuctionListItem(input: {
 							? "winner"
 							: "not_winner"
 						: undefined
-				: auction.state === "active" || auction.state === "closed"
+				: auction.state === "active"
 					? hasSponsorValidBid
 						? "bid_submitted"
 						: "no_bid_submitted"
-					: undefined;
+					: auction.state === "closed"
+						? hasSponsorValidBid
+							? auction.winnerSponsorId === sponsorId
+								? "winner"
+								: "not_winner"
+							: "no_bid_submitted"
+						: undefined;
 
 	return {
 		id: auction._id,
@@ -144,6 +166,8 @@ export function toSponsorAuctionListItem(input: {
 		framework: auction.framework,
 		state: auction.state,
 		currency: auction.currency,
+		competitionSummary,
+		competitionSummarySource,
 		startsAt: auction.startsAt,
 		endsAt: auction.endsAt,
 		startPriceCents: auction.startPriceCents,

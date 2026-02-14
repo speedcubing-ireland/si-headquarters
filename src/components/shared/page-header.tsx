@@ -2,6 +2,12 @@ import type { LucideIcon } from "lucide-react";
 import { LayersPlus } from "lucide-react";
 import { useState } from "react";
 import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+	BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import {
 	AlertDialog,
 	AlertDialogAction,
 	AlertDialogCancel,
@@ -26,14 +32,17 @@ import type { SavedView } from "@/store/saved-views-store";
 function PageHeaderRoot({
 	children,
 	className,
+	withBottomBorder = true,
 }: {
 	children: React.ReactNode;
 	className?: string;
+	withBottomBorder?: boolean;
 }) {
 	return (
 		<header
 			className={cn(
-				"flex min-h-14 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-12 sm:min-h-12",
+				"flex min-h-14 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-12 sm:min-h-12",
+				withBottomBorder && "border-b",
 				className,
 			)}
 		>
@@ -41,6 +50,18 @@ function PageHeaderRoot({
 				{children}
 			</div>
 		</header>
+	);
+}
+
+function PageHeaderDivider({ className }: { className?: string }) {
+	return (
+		<Separator
+			orientation="vertical"
+			className={cn(
+				"hidden data-[orientation=vertical]:h-3 sm:block",
+				className,
+			)}
+		/>
 	);
 }
 
@@ -176,8 +197,46 @@ function PageHeaderActions({ children }: { children: React.ReactNode }) {
 	);
 }
 
+interface AppPageHeaderProps {
+	title: string;
+	subtitle?: string;
+	actions?: React.ReactNode;
+	withBottomBorder?: boolean;
+}
+
+export function AppPageHeader({
+	title,
+	subtitle,
+	actions,
+	withBottomBorder = false,
+}: AppPageHeaderProps) {
+	return (
+		<PageHeader.Root withBottomBorder={withBottomBorder}>
+			<SidebarTrigger className="-ml-1 shrink-0" />
+			<PageHeader.Divider className="mr-2" />
+			<Breadcrumb>
+				<BreadcrumbList>
+					<BreadcrumbItem>
+						<BreadcrumbPage>{title}</BreadcrumbPage>
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</Breadcrumb>
+			{subtitle && (
+				<>
+					<PageHeader.Divider className="mx-2" />
+					<span className="hidden text-xs text-muted-foreground sm:inline">
+						{subtitle}
+					</span>
+				</>
+			)}
+			{actions ? <PageHeader.Actions>{actions}</PageHeader.Actions> : null}
+		</PageHeader.Root>
+	);
+}
+
 export const PageHeader = {
 	Root: PageHeaderRoot,
+	Divider: PageHeaderDivider,
 	Primary: PageHeaderPrimary,
 	Secondary: PageHeaderSecondary,
 	Views: PageHeaderViews,

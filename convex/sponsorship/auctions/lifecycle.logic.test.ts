@@ -152,4 +152,70 @@ describe("sponsorship auction lifecycle closure", () => {
 			settlementAmountCents: 20_000,
 		});
 	});
+
+	test("vickrey closure uses second-highest bid as winning bid", async () => {
+		const now = Date.now();
+		const auction = makeAuction({
+			framework: "vickrey",
+			startPriceCents: 10_000,
+		});
+		const intents = [
+			makeIntent({
+				_id: "intent-a-1" as IntentDoc["_id"],
+				sponsorId: "sA" as IntentDoc["sponsorId"],
+				amountCents: 25_000,
+				maxAmountCents: 25_000,
+				createdAt: now - 2_000,
+				_creationTime: now - 2_000,
+			}),
+			makeIntent({
+				_id: "intent-b-1" as IntentDoc["_id"],
+				sponsorId: "sB" as IntentDoc["sponsorId"],
+				amountCents: 20_000,
+				maxAmountCents: 20_000,
+				createdAt: now - 1_000,
+				_creationTime: now - 1_000,
+			}),
+		];
+		const { ctx, patches } = createCtx({ auction, intents });
+
+		await closeAuctionInternal(ctx, auction);
+
+		expect(patches).toHaveLength(1);
+		expect(patches[0]).toMatchObject({
+			state: "closed",
+			winnerSponsorId: "sA",
+			winningBidId: "intent-a-1",
+			settlementAmountCents: 20_000,
+		});
+	});
+
+	test("vickrey closure uses start price when there is no second bid", async () => {
+		const now = Date.now();
+		const auction = makeAuction({
+			framework: "vickrey",
+			startPriceCents: 10_000,
+		});
+		const intents = [
+			makeIntent({
+				_id: "intent-a-1" as IntentDoc["_id"],
+				sponsorId: "sA" as IntentDoc["sponsorId"],
+				amountCents: 25_000,
+				maxAmountCents: 25_000,
+				createdAt: now - 2_000,
+				_creationTime: now - 2_000,
+			}),
+		];
+		const { ctx, patches } = createCtx({ auction, intents });
+
+		await closeAuctionInternal(ctx, auction);
+
+		expect(patches).toHaveLength(1);
+		expect(patches[0]).toMatchObject({
+			state: "closed",
+			winnerSponsorId: "sA",
+			winningBidId: "intent-a-1",
+			settlementAmountCents: 10_000,
+		});
+	});
 });

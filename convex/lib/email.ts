@@ -34,7 +34,7 @@ const UUID_REGEX =
 const DEFAULT_POLL_INTERVAL_MS = 15_000;
 const MIN_POLL_INTERVAL_MS = 5_000;
 const MAX_POLL_INTERVAL_MS = 60_000;
-const EMAIL_REQUEST_TIMEOUT_MS = 20_000;
+const EMAIL_REQUEST_TIMEOUT_MS = 15_000;
 const EMAIL_OPERATION_ID_NAMESPACE = "9ef7006e-65ca-4f75-861f-f61f7cdafd84";
 
 function getEmailClient(): EmailClient {
@@ -152,6 +152,8 @@ export function isTransientEmailTransportError(error: unknown): boolean {
 		code === "econnreset" ||
 		code === "econnrefused" ||
 		code === "enotfound" ||
+		code === "abort_err" ||
+		name === "aborterror" ||
 		name === "timeouterror"
 	) {
 		return true;
@@ -159,6 +161,7 @@ export function isTransientEmailTransportError(error: unknown): boolean {
 
 	const message = emailErrorMessage(error).toLowerCase();
 	return (
+		message.includes("the operation was aborted") ||
 		message.includes("gateway timeout") ||
 		message.includes("origin timeout") ||
 		message.includes("service unavailable") ||
@@ -167,6 +170,46 @@ export function isTransientEmailTransportError(error: unknown): boolean {
 		message.includes("operation id already exists") ||
 		message.includes("status code 504") ||
 		message.includes("status code 503")
+	);
+}
+
+export function isAmbiguousEmailTransportError(error: unknown): boolean {
+	if (!error || typeof error !== "object") {
+		return false;
+	}
+	const maybeError = error as {
+		statusCode?: unknown;
+		code?: unknown;
+		name?: unknown;
+	};
+	if (typeof maybeError.statusCode === "number") {
+		return false;
+	}
+	const code =
+		typeof maybeError.code === "string" ? maybeError.code.toLowerCase() : "";
+	const name =
+		typeof maybeError.name === "string" ? maybeError.name.toLowerCase() : "";
+	if (
+		code === "origintimeout" ||
+		code === "gatewaytimeout" ||
+		code === "requesttimeout" ||
+		code === "etimedout" ||
+		code === "econnreset" ||
+		code === "econnrefused" ||
+		code === "enotfound" ||
+		code === "abort_err" ||
+		name === "aborterror" ||
+		name === "timeouterror"
+	) {
+		return true;
+	}
+	const message = emailErrorMessage(error).toLowerCase();
+	return (
+		message.includes("the operation was aborted") ||
+		message.includes("gateway timeout") ||
+		message.includes("origin timeout") ||
+		message.includes("timed out") ||
+		message.includes("status code 504")
 	);
 }
 

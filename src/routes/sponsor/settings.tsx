@@ -18,6 +18,10 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
+import {
+	SponsorPageHeader,
+	SponsorPageShell,
+} from "@/components/sponsorship/sponsor-page-layout";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -198,138 +202,131 @@ function SponsorSettingsEnabled() {
 	};
 
 	return (
-		<div className="min-h-svh bg-gradient-to-b from-muted/40 to-background px-4 py-6">
-			<div className="mx-auto w-full max-w-3xl space-y-4">
-				<header className="flex flex-wrap items-center justify-between gap-3">
-					<div>
-						<p className="text-xs uppercase tracking-wide text-muted-foreground">
-							Sponsor Portal
-						</p>
-						<h1 className="text-2xl font-semibold">Settings</h1>
-					</div>
-					<div className="flex items-center gap-2">
+		<SponsorPageShell maxWidthClassName="max-w-3xl">
+			<SponsorPageHeader
+				title="Settings"
+				actions={
+					<>
 						<ThemeToggleButton />
 						<Button variant="outline" onClick={() => void onLogout()}>
 							<LogOut className="size-4" />
 							Log out
 						</Button>
-					</div>
-				</header>
+					</>
+				}
+			/>
 
-				<Button asChild variant="outline" size="sm">
-					<Link to="/sponsor/auctions">
-						<ArrowLeft className="size-4" />
-						Back to auctions
-					</Link>
-				</Button>
+			<Button asChild variant="outline" size="sm">
+				<Link to="/sponsor/auctions">
+					<ArrowLeft className="size-4" />
+					Back to auctions
+				</Link>
+			</Button>
 
-				<div className="grid gap-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Profile</CardTitle>
-							<CardDescription>
-								Update your sponsor display name.
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<form className="space-y-3" onSubmit={onSaveDisplayName}>
-								<div className="space-y-2">
-									<Label htmlFor="displayName">Display name</Label>
-									<Input
-										id="displayName"
-										value={displayName}
-										onChange={(event) => setDisplayName(event.target.value)}
-										required
-										disabled={isSavingName}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="email">Email</Label>
-									<Input id="email" value={me?.email ?? ""} readOnly disabled />
-								</div>
-								<Button type="submit" size="sm" disabled={isSavingName}>
-									{isSavingName ? (
-										<Loader2 className="size-4 animate-spin" />
-									) : (
-										"Save name"
-									)}
-								</Button>
-							</form>
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle>Security</CardTitle>
-							<CardDescription>
-								Add a passkey and change your password.
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="rounded-md border p-3">
-								<p className="font-medium">Passkey</p>
-								<p className="mb-2 text-sm text-muted-foreground">
-									Use a passkey for fast phishing-resistant sign-in.
-								</p>
-								<Button
-									size="sm"
-									variant="outline"
-									disabled={isAddingPasskey}
-									onClick={() => void onAddPasskey()}
-								>
-									{isAddingPasskey ? (
-										<Loader2 className="size-4 animate-spin" />
-									) : (
-										"Add passkey"
-									)}
-								</Button>
+			<div className="grid gap-4">
+				<Card>
+					<CardHeader>
+						<CardTitle>Profile</CardTitle>
+						<CardDescription>Update your sponsor display name.</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<form className="space-y-3" onSubmit={onSaveDisplayName}>
+							<div className="space-y-2">
+								<Label htmlFor="displayName">Display name</Label>
+								<Input
+									id="displayName"
+									value={displayName}
+									onChange={(event) => setDisplayName(event.target.value)}
+									required
+									disabled={isSavingName}
+								/>
 							</div>
+							<div className="space-y-2">
+								<Label htmlFor="email">Email</Label>
+								<Input id="email" value={me?.email ?? ""} readOnly disabled />
+							</div>
+							<Button type="submit" size="sm" disabled={isSavingName}>
+								{isSavingName ? (
+									<Loader2 className="size-4 animate-spin" />
+								) : (
+									"Save name"
+								)}
+							</Button>
+						</form>
+					</CardContent>
+				</Card>
 
-							<form className="space-y-3" onSubmit={onChangePassword}>
-								<div className="space-y-2">
-									<Label htmlFor="currentPassword">Current password</Label>
-									<Input
-										id="currentPassword"
-										type="password"
-										autoComplete="current-password"
-										value={currentPassword}
-										onChange={(event) => setCurrentPassword(event.target.value)}
-										required
-										disabled={isChangingPassword}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="newPassword">New password</Label>
-									<Input
-										id="newPassword"
-										type="password"
-										autoComplete="new-password"
-										minLength={12}
-										value={newPassword}
-										onChange={(event) => setNewPassword(event.target.value)}
-										required
-										disabled={isChangingPassword}
-									/>
-								</div>
-								<p className="text-xs text-muted-foreground">
-									For forgotten passwords, use reset on the{" "}
-									<Link to="/sponsor/login" className="underline">
-										sign-in page
-									</Link>
-									.
-								</p>
-								<Button type="submit" size="sm" disabled={isChangingPassword}>
-									{isChangingPassword ? (
-										<Loader2 className="size-4 animate-spin" />
-									) : (
-										"Change password"
-									)}
-								</Button>
-							</form>
-						</CardContent>
-					</Card>
-				</div>
+				<Card>
+					<CardHeader>
+						<CardTitle>Security</CardTitle>
+						<CardDescription>
+							Add a passkey and change your password.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						<div className="rounded-md border p-3">
+							<p className="font-medium">Passkey</p>
+							<p className="mb-2 text-sm text-muted-foreground">
+								Use a passkey for fast phishing-resistant sign-in.
+							</p>
+							<Button
+								size="sm"
+								variant="outline"
+								disabled={isAddingPasskey}
+								onClick={() => void onAddPasskey()}
+							>
+								{isAddingPasskey ? (
+									<Loader2 className="size-4 animate-spin" />
+								) : (
+									"Add passkey"
+								)}
+							</Button>
+						</div>
+
+						<form className="space-y-3" onSubmit={onChangePassword}>
+							<div className="space-y-2">
+								<Label htmlFor="currentPassword">Current password</Label>
+								<Input
+									id="currentPassword"
+									type="password"
+									autoComplete="current-password"
+									value={currentPassword}
+									onChange={(event) => setCurrentPassword(event.target.value)}
+									required
+									disabled={isChangingPassword}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="newPassword">New password</Label>
+								<Input
+									id="newPassword"
+									type="password"
+									autoComplete="new-password"
+									minLength={12}
+									value={newPassword}
+									onChange={(event) => setNewPassword(event.target.value)}
+									required
+									disabled={isChangingPassword}
+								/>
+							</div>
+							<p className="text-xs text-muted-foreground">
+								For forgotten passwords, use reset on the{" "}
+								<Link to="/sponsor/login" className="underline">
+									sign-in page
+								</Link>
+								.
+							</p>
+							<Button type="submit" size="sm" disabled={isChangingPassword}>
+								{isChangingPassword ? (
+									<Loader2 className="size-4 animate-spin" />
+								) : (
+									"Change password"
+								)}
+							</Button>
+						</form>
+					</CardContent>
+				</Card>
 			</div>
-		</div>
+		</SponsorPageShell>
 	);
 }

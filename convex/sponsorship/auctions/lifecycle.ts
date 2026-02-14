@@ -7,11 +7,19 @@ import {
 	resolveProxyState,
 	resolveSealedOutcome,
 } from "../../lib/sponsorshipBidding";
+import {
+	isSealedAuctionFramework,
+	sealedAuctionPricingRule,
+} from "../../lib/sponsorshipValidators";
 import { resolveAuctionStartTargetState } from "../../lib/sponsorshipLifecycle";
 import {
 	requireNoOpenAuctionForCompetition,
 	type SponsorshipReadinessSnapshot,
 } from "./shared";
+import {
+	cacheCompetitionFallbackSnapshot,
+	scheduleCompetitionSnapshotRefresh,
+} from "./competitionSnapshot";
 import { sendAuctionClosureEmails, sendAuctionStartedEmails } from "./emails";
 import { syncLifecycleRuntimeCron } from "./runtimeCron";
 
@@ -59,7 +67,7 @@ export async function closeAuctionInternal(
 	let winningBidId: Id<"sponsorshipBidIntents"> | undefined;
 	let settlementAmountCents: number | undefined;
 
-	if (auction.framework === "first_sealed") {
+	if (isSealedAuctionFramework(auction.framework)) {
 		const sealedState = resolveSealedOutcome(
 			validIntents.map((intent) => ({
 				intentId: String(intent._id),
@@ -68,6 +76,10 @@ export async function closeAuctionInternal(
 				createdAt: intent.createdAt,
 				createdOrder: intent._creationTime,
 			})),
+			{
+				pricing: sealedAuctionPricingRule(auction.framework),
+				reservePriceCents: auction.startPriceCents,
+			},
 		);
 		if (sealedState) {
 			const winnerIntent = validIntents.find(
@@ -76,7 +88,7 @@ export async function closeAuctionInternal(
 			if (winnerIntent) {
 				winnerSponsorId = winnerIntent.sponsorId;
 				winningBidId = winnerIntent._id;
-				settlementAmountCents = sealedState.leaderBidCents;
+				settlementAmountCents = sealedState.settlementBidCents;
 			}
 		}
 	} else {
@@ -173,6 +185,14 @@ export const start = mutation({
 					"Competition must be linked to a WCA competition before starting sponsorship.",
 			});
 		}
+		await cacheCompetitionFallbackSnapshot(ctx, { auction, competition });
+		if (auction.competitionSnapshot?.source !== "wca") {
+			throw new ConvexError({
+				code: "PRECONDITION_FAILED",
+				message:
+					"Competition details are not synced from WCA yet. Refresh competition data before opening.",
+			});
+		}
 		await requireNoOpenAuctionForCompetition(
 			ctx,
 			auction.competitionId,
@@ -193,6 +213,7 @@ export const start = mutation({
 				await sendAuctionStartedEmails(ctx, refreshed);
 			}
 		}
+		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
 		await syncLifecycleRuntimeCron(ctx);
 		return null;
 	},
@@ -205,7 +226,12 @@ export const close = mutation({
 		await requireSponsorshipManager(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
+		const competition = await ctx.db.get("competitions", auction.competitionId);
+		if (competition) {
+			await cacheCompetitionFallbackSnapshot(ctx, { auction, competition });
+		}
 		await closeAuctionInternal(ctx, auction);
+		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
 		await syncLifecycleRuntimeCron(ctx);
 		return null;
 	},

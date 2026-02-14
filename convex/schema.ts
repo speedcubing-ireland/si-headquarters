@@ -23,6 +23,7 @@ import {
 	sponsorshipEmailType,
 	sponsorshipBidIntentMode,
 } from "./lib/sponsorshipValidators";
+import { sponsorshipCompetitionSnapshot } from "./lib/sponsorshipCompetitionSnapshot";
 
 export default defineSchema({
 	...authTables,
@@ -162,6 +163,7 @@ export default defineSchema({
 		winnerSponsorId: v.optional(v.id("sponsors")),
 		winningBidId: v.optional(v.id("sponsorshipBidIntents")),
 		settlementAmountCents: v.optional(v.number()),
+		competitionSnapshot: v.optional(sponsorshipCompetitionSnapshot),
 		readinessSnapshotJson: v.optional(v.string()),
 		createdById: v.id("users"),
 		updatedById: v.id("users"),
@@ -216,6 +218,12 @@ export default defineSchema({
 		subject: v.string(),
 		message: v.string(),
 		contextJson: v.optional(v.string()),
+		htmlBody: v.optional(v.string()),
+		plainTextBody: v.optional(v.string()),
+		notificationDispatchIds: v.optional(
+			v.array(v.id("notificationDispatches")),
+		),
+		notificationClaimKey: v.optional(v.string()),
 		idempotencyKey: v.string(),
 		status: sponsorshipEmailDispatchStatus,
 		attempts: v.number(),
@@ -237,7 +245,15 @@ export default defineSchema({
 		.index("by_email_type", ["emailType"])
 		.index("by_idempotency_key", ["idempotencyKey"])
 		.index("by_status_and_scheduled_for", ["status", "scheduledFor"])
+		.index("by_status_and_created_at", ["status", "createdAt"])
 		.index("by_status_and_updated_at", ["status", "updatedAt"]),
+
+	sponsorshipEmailPollerState: defineTable({
+		key: v.string(),
+		scheduledFor: v.optional(v.number()),
+		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
+		updatedAt: v.number(),
+	}).index("by_key", ["key"]),
 
 	sponsorshipEmailDeadLetters: defineTable({
 		dispatchId: v.id("sponsorshipEmailDispatches"),

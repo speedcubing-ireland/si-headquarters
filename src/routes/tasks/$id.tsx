@@ -25,6 +25,7 @@ import { TaskPropertiesSidebar } from "@/components/tasks/task-properties-sideba
 import { TaskReminderStrip } from "@/components/tasks/task-reminder-strip";
 import { TaskResourcesSection } from "@/components/tasks/task-resources";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
+import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
 	Breadcrumb,
@@ -42,7 +43,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { requireTaskId } from "@/lib/convex-ids";
@@ -127,9 +127,9 @@ function TaskHeader({
 	);
 
 	return (
-		<header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
+		<PageHeader.Root withBottomBorder={false}>
 			<SidebarTrigger className="shrink-0" />
-			<Separator orientation="vertical" className="hidden h-4 sm:block" />
+			<PageHeader.Divider />
 			<nav
 				className="flex min-w-0 flex-1 items-center gap-2"
 				aria-label="Breadcrumb"
@@ -164,10 +164,7 @@ function TaskHeader({
 			</nav>
 			{task.owner && "members" in task.owner && (
 				<>
-					<Separator
-						orientation="vertical"
-						className="mx-2 h-4 hidden sm:block"
-					/>
+					<PageHeader.Divider className="mx-2" />
 					<Link
 						to="/teams/$teamId"
 						params={{ teamId: task.owner.id }}
@@ -230,7 +227,7 @@ function TaskHeader({
 					</Button>
 				</Link>
 			</div>
-		</header>
+		</PageHeader.Root>
 	);
 }
 
@@ -458,7 +455,7 @@ function RouteComponent() {
 				onDeleteClick={() => setDeleteDialogOpen(true)}
 			/>
 			<div className="flex flex-1 overflow-hidden">
-				<div className="flex-1 overflow-auto px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6">
+				<div className="flex-1 overflow-auto px-3 pb-4 pt-0 sm:px-4 sm:pb-5 sm:pt-0 lg:px-6 lg:pb-6 lg:pt-0">
 					<div className="mx-auto w-full max-w-5xl space-y-4 pb-10 sm:space-y-5">
 						<TaskReminderStrip task={task} />
 						{task.isBlocked && unresolvedBlockers.length > 0 && (

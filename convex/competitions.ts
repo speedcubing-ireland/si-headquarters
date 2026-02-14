@@ -23,7 +23,10 @@ import { toUsers, createLens, toISO, type UserUI } from "./lib/transforms";
 import { phaseShape, taskStatus, userShape } from "./lib/validators";
 import type { TaskStatus } from "./lib/types";
 import { sendCompetitionPhaseChangeNotifications } from "./notifications/triggers/competitions";
-import { competitionSponsorPropertyStatus } from "./lib/sponsorshipValidators";
+import {
+	competitionSponsorPropertyStatus,
+	isSealedAuctionFramework,
+} from "./lib/sponsorshipValidators";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
@@ -59,6 +62,7 @@ const progressUpdateStatus = v.union(
 type CompetitionSponsorProperty = {
 	sponsorPropertyStatus: "not_offered" | "bidding" | "none" | "sponsor";
 	sponsorPropertyDisplay?: string;
+	sponsorWinningBidCents?: number;
 };
 
 function buildCompetitionSponsorProperty(input: {
@@ -93,6 +97,11 @@ function buildCompetitionSponsorProperty(input: {
 		sponsorPropertyDisplay: input.winnerNameById.get(
 			latestClosed.winnerSponsorId,
 		),
+		sponsorWinningBidCents: isSealedAuctionFramework(latestClosed.framework)
+			? (latestClosed.settlementAmountCents ??
+				latestClosed.currentPriceCents ??
+				latestClosed.startPriceCents)
+			: undefined,
 	};
 }
 
@@ -210,6 +219,7 @@ export const competitionForUIReturns = v.object({
 	wcaCompetitionId: v.union(v.string(), v.null()),
 	sponsorPropertyStatus: competitionSponsorPropertyStatus,
 	sponsorPropertyDisplay: v.optional(v.string()),
+	sponsorWinningBidCents: v.optional(v.number()),
 	tasks: v.array(taskSummaryShape),
 	createdAt: v.string(),
 	updatedAt: v.string(),
@@ -363,6 +373,7 @@ function buildCompetitionUI(
 		wcaCompetitionId: d.wcaCompetitionId ?? null,
 		sponsorPropertyStatus: sponsorProperty.sponsorPropertyStatus,
 		sponsorPropertyDisplay: sponsorProperty.sponsorPropertyDisplay,
+		sponsorWinningBidCents: sponsorProperty.sponsorWinningBidCents,
 		tasks,
 		createdAt: toISO(d._creationTime),
 		updatedAt: toISO(d.updatedAt),

@@ -1,9 +1,38 @@
 import { v } from "convex/values";
 
+export const SPONSORSHIP_AUCTION_FRAMEWORKS = [
+	"first_sealed",
+	"vickrey",
+	"ebay_proxy",
+] as const;
+export type SponsorshipAuctionFramework =
+	(typeof SPONSORSHIP_AUCTION_FRAMEWORKS)[number];
+
 export const sponsorshipAuctionFramework = v.union(
 	v.literal("first_sealed"),
+	v.literal("vickrey"),
 	v.literal("ebay_proxy"),
 );
+
+export function isProxyAuctionFramework(
+	framework: SponsorshipAuctionFramework,
+): boolean {
+	return framework === "ebay_proxy";
+}
+
+export function isSealedAuctionFramework(
+	framework: SponsorshipAuctionFramework,
+): boolean {
+	return !isProxyAuctionFramework(framework);
+}
+
+export type SealedAuctionPricingRule = "first_price" | "second_price";
+
+export function sealedAuctionPricingRule(
+	framework: SponsorshipAuctionFramework,
+): SealedAuctionPricingRule {
+	return framework === "first_sealed" ? "first_price" : "second_price";
+}
 
 export const sponsorshipAuctionState = v.union(
 	v.literal("draft"),
@@ -18,7 +47,9 @@ export type SponsorshipEmailType =
 	| "auction_winner"
 	| "auction_outbid"
 	| "auction_closed_none"
-	| "internal_invoice";
+	| "internal_invoice"
+	| "notification_immediate"
+	| "notification_digest";
 
 export const sponsorshipEmailType = v.union(
 	v.literal("invite"),
@@ -27,6 +58,8 @@ export const sponsorshipEmailType = v.union(
 	v.literal("auction_outbid"),
 	v.literal("auction_closed_none"),
 	v.literal("internal_invoice"),
+	v.literal("notification_immediate"),
+	v.literal("notification_digest"),
 );
 
 export type SponsorshipEmailDispatchStatus =

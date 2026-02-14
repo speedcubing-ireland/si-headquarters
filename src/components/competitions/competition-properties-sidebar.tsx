@@ -57,6 +57,7 @@ import { Separator } from "@/components/ui/separator";
 import { useCompetitionMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
+import { formatEuroFromCents } from "@/lib/sponsorship-ui";
 import { cn, onMutationError } from "@/lib/utils";
 
 interface CompetitionPropertiesSidebarProps {
@@ -220,7 +221,7 @@ export function CompetitionPropertiesSidebar({
 					</PropertyRow>
 
 					<PropertyRow label="Sponsor" icon={<Store className="size-3.5" />}>
-						<div className="flex min-w-0 items-center gap-2">
+						<div className="flex min-w-0 flex-col items-start gap-1">
 							<Badge
 								variant={sponsorStatusBadgeVariant(
 									competition.sponsorPropertyStatus,
@@ -228,6 +229,13 @@ export function CompetitionPropertiesSidebar({
 							>
 								{sponsorStatusLabel(competition)}
 							</Badge>
+							{competition.sponsorPropertyStatus === "sponsor" &&
+							competition.sponsorWinningBidCents !== undefined ? (
+								<span className="text-xs text-muted-foreground">
+									Winning bid{" "}
+									{formatEuroFromCents(competition.sponsorWinningBidCents)}
+								</span>
+							) : null}
 						</div>
 					</PropertyRow>
 

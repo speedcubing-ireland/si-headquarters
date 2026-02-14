@@ -6,6 +6,7 @@ import {
 	sponsorshipAuctionFramework,
 	sponsorshipAuctionState,
 } from "../../lib/sponsorshipValidators";
+import { sponsorshipCompetitionSnapshot } from "../../lib/sponsorshipCompetitionSnapshot";
 
 export const DEFAULT_SCHEDULE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -29,6 +30,7 @@ export const auctionForManager = v.object({
 	currentLeaderSponsorId: v.optional(v.id("sponsors")),
 	winnerSponsorId: v.optional(v.id("sponsors")),
 	settlementAmountCents: v.optional(v.number()),
+	competitionSnapshot: v.optional(sponsorshipCompetitionSnapshot),
 	updatedAt: v.number(),
 });
 
@@ -173,6 +175,7 @@ export function toManagerAuction(auction: Doc<"sponsorshipAuctions">) {
 		currentLeaderSponsorId: auction.currentLeaderSponsorId,
 		winnerSponsorId: auction.winnerSponsorId,
 		settlementAmountCents: auction.settlementAmountCents,
+		competitionSnapshot: auction.competitionSnapshot,
 		updatedAt: auction.updatedAt,
 	};
 }

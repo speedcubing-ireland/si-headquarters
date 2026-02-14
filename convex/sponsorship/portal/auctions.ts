@@ -3,7 +3,11 @@ import { mutation, query } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { placeSponsorshipBid } from "../../lib/sponsorshipBidPlacement";
-import { competitionSponsorPropertyStatus } from "../../lib/sponsorshipValidators";
+import { buildCompetitionRecordSummary } from "../../lib/sponsorshipCompetitionSnapshot";
+import {
+	competitionSponsorPropertyStatus,
+	isProxyAuctionFramework,
+} from "../../lib/sponsorshipValidators";
 import {
 	isBidHistoryVisibleToSponsor,
 	isSponsorVisibleAuctionState,
@@ -36,20 +40,13 @@ async function listInvitedVisibleAuctions(
 	});
 }
 
-function buildBidderLabelBySponsorId(input: {
-	events: Doc<"sponsorshipBidEvents">[];
+export function sponsorBidEventLabel(input: {
+	eventSponsorId: Id<"sponsors"> | undefined;
 	currentSponsorId: Id<"sponsors">;
-}): Map<string, string> {
-	const labels = new Map<string, string>();
-	let nextBidderNumber = 1;
-	for (const event of input.events) {
-		if (!event.sponsorId || event.sponsorId === input.currentSponsorId)
-			continue;
-		if (labels.has(event.sponsorId)) continue;
-		labels.set(event.sponsorId, `Bidder ${nextBidderNumber}`);
-		nextBidderNumber += 1;
-	}
-	return labels;
+}): string {
+	if (!input.eventSponsorId) return "System";
+	if (input.eventSponsorId === input.currentSponsorId) return "You";
+	return "Bidder";
 }
 
 function compareIntentChronology(
@@ -83,9 +80,11 @@ export const listAuctions = query({
 			),
 		);
 		const competitionNames = new Map<Id<"competitions">, string>();
+		const competitionById = new Map<Id<"competitions">, Doc<"competitions">>();
 		for (const competition of competitions) {
 			if (!competition) continue;
 			competitionNames.set(competition._id, competition.name);
+			competitionById.set(competition._id, competition);
 		}
 		const hasAnyValidBidByAuctionId = new Map<
 			Id<"sponsorshipAuctions">,
@@ -113,17 +112,38 @@ export const listAuctions = query({
 
 		return auctionDocs
 			.sort((a, b) => b.endsAt - a.endsAt)
-			.map((auction) =>
-				toSponsorAuctionListItem({
+			.map((auction) => {
+				const competitionName =
+					competitionNames.get(auction.competitionId) ?? "Competition";
+				const competition = competitionById.get(auction.competitionId);
+				const competitionSummary =
+					auction.competitionSnapshot?.summary ??
+					(competition
+						? buildCompetitionRecordSummary({
+								name: competition.name,
+								compStart: competition.compStart,
+								compEnd: competition.compEnd,
+							})
+						: buildCompetitionRecordSummary({
+								name: competitionName,
+								compStart: new Date(auction.startsAt)
+									.toISOString()
+									.slice(0, 10),
+								compEnd: new Date(auction.endsAt).toISOString().slice(0, 10),
+							}));
+				const competitionSummarySource =
+					auction.competitionSnapshot?.source ?? "competition_record";
+				return toSponsorAuctionListItem({
 					auction,
-					competitionName:
-						competitionNames.get(auction.competitionId) ?? "Competition",
+					competitionName,
+					competitionSummary,
+					competitionSummarySource,
 					hasAnyValidBid: hasAnyValidBidByAuctionId.get(auction._id) ?? false,
 					sponsorId: sponsor._id,
 					hasSponsorValidBid:
 						hasSponsorValidBidByAuctionId.get(auction._id) ?? false,
-				}),
-			);
+				});
+			});
 	},
 });
 
@@ -175,10 +195,6 @@ export const getAuction = query({
 			(intent) => intent.sponsorId === sponsor._id,
 		);
 		const hasAnyValidBid = auctionIntents.some((intent) => intent.isValid);
-		const bidderLabelBySponsorId = buildBidderLabelBySponsorId({
-			events,
-			currentSponsorId: sponsor._id,
-		});
 		const latestSponsorIntent = sponsorIntents
 			.filter((intent) => intent.isValid)
 			.sort(compareIntentChronology)
@@ -198,11 +214,22 @@ export const getAuction = query({
 				: auction.winnerSponsorId
 					? "sponsor"
 					: "none";
+		const competitionSummary =
+			auction.competitionSnapshot?.summary ??
+			buildCompetitionRecordSummary({
+				name: competition.name,
+				compStart: competition.compStart,
+				compEnd: competition.compEnd,
+			});
+		const competitionSummarySource =
+			auction.competitionSnapshot?.source ?? "competition_record";
 
 		return {
 			auction: toSponsorAuctionListItem({
 				auction,
 				competitionName: competition.name,
+				competitionSummary,
+				competitionSummarySource,
 				hasAnyValidBid,
 				sponsorId: sponsor._id,
 				hasSponsorValidBid,
@@ -210,12 +237,10 @@ export const getAuction = query({
 			events: events.map((event) =>
 				toSponsorBidEventForUI({
 					event,
-					sponsorLabel:
-						event.sponsorId === sponsor._id
-							? "You"
-							: event.sponsorId
-								? (bidderLabelBySponsorId.get(event.sponsorId) ?? "Bidder")
-								: "System",
+					sponsorLabel: sponsorBidEventLabel({
+						eventSponsorId: event.sponsorId,
+						currentSponsorId: sponsor._id,
+					}),
 					isOwnBid: event.sponsorId === sponsor._id,
 				}),
 			),
@@ -309,10 +334,10 @@ export async function setMaxBidHandler(
 			message: "Auction not found.",
 		});
 	}
-	if (auction.framework !== "ebay_proxy") {
+	if (!isProxyAuctionFramework(auction.framework)) {
 		throw new ConvexError({
 			code: "BAD_REQUEST",
-			message: "Max bids are only available for eBay proxy auctions.",
+			message: "Max bids are only available for Proxy Bidding auctions.",
 		});
 	}
 	const result = await placeSponsorshipBid(ctx, {

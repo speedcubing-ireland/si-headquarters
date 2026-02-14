@@ -6,6 +6,10 @@ import {
 	resolveProxyState,
 	resolveSealedOutcome,
 } from "./sponsorshipBidding";
+import {
+	isSealedAuctionFramework,
+	sealedAuctionPricingRule,
+} from "./sponsorshipValidators";
 
 export type PlaceSponsorshipBidInput = {
 	auction: Doc<"sponsorshipAuctions">;
@@ -132,6 +136,10 @@ async function placeSealedBid(
 				createdAt: intent.createdAt,
 				createdOrder: intent._creationTime,
 			})),
+		{
+			pricing: sealedAuctionPricingRule(input.auction.framework),
+			reservePriceCents: input.auction.startPriceCents,
+		},
 	);
 	if (!sealedState) {
 		throw new ConvexError({
@@ -158,7 +166,8 @@ async function placeSealedBid(
 	});
 
 	return {
-		currentPriceCents: sealedState.leaderBidCents,
+		// Sealed auctions never expose the current leading bid while active.
+		currentPriceCents: input.auction.startPriceCents,
 	};
 }
 
@@ -396,7 +405,7 @@ export async function placeSponsorshipBid(
 		.withIndex("by_auction", (q) => q.eq("auctionId", input.auction._id))
 		.collect();
 
-	if (input.auction.framework === "first_sealed") {
+	if (isSealedAuctionFramework(input.auction.framework)) {
 		return placeSealedBid(ctx, input, existingIntents, now);
 	}
 	return placeProxyBid(ctx, input, existingIntents, now);

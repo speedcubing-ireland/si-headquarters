@@ -45,7 +45,7 @@ function getCopy(props: SponsorshipOutcomeEmailProps): {
 				preview: "You are the winning sponsor",
 				body:
 					props.settlementAmountCents !== undefined
-						? `Congratulations. Your winning settlement is EUR ${(props.settlementAmountCents / 100).toFixed(2)}. Finance will follow up with invoice details.`
+						? `Congratulations. Your winning bid is EUR ${(props.settlementAmountCents / 100).toFixed(2)}. Finance will follow up with invoice details.`
 						: "Congratulations. You are the confirmed sponsor. Finance will follow up with invoice details.",
 				ctaLabel: "View result",
 				statusLabel: "Winner confirmed",
@@ -96,7 +96,7 @@ export default function SponsorshipOutcomeEmail(
 				{props.settlementAmountCents !== undefined ? (
 					<Section className="mt-3">
 						<SponsorshipInfoBlock
-							label="Settlement"
+							label="Winning bid"
 							value={`EUR ${(props.settlementAmountCents / 100).toFixed(2)}`}
 						/>
 					</Section>

@@ -1,11 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { Blocks, Box, CircleCheck, Inbox, ListTodo, Users } from "lucide-react";
+import {
+	Blocks,
+	Box,
+	CircleCheck,
+	Inbox,
+	ListTodo,
+	Shield,
+	Store,
+	Users,
+} from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { NavSecondary } from "@/components/layout/nav-secondary";
 import {
 	NavSection,
 	type NavSectionData,
+	type NavSectionItem,
 } from "@/components/layout/nav-section";
 import { NavUser } from "@/components/layout/nav-user";
 import {
@@ -17,7 +27,13 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useTeams, useUnreadCount } from "@/hooks/use-convex-data";
+import {
+	useIsDirector,
+	useIsSponsorshipManager,
+	useTeams,
+	useUnreadCount,
+} from "@/hooks/use-convex-data";
+import { isSponsorshipEnabled } from "@/lib/feature-flags";
 
 const navSections = [
 	{
@@ -79,6 +95,8 @@ const navSections = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const user = useQuery(api.users.getCurrentUser);
 	const isVolunteer = useQuery(api.auth.isVolunteerQuery) ?? false;
+	const { isDirector } = useIsDirector();
+	const { isManager: isSponsorshipManager } = useIsSponsorshipManager();
 	const { teams } = useTeams();
 	const unreadCount = useUnreadCount();
 
@@ -145,6 +163,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 						})),
 					},
 				];
+	const dashboardItems: NavSectionItem[] = [];
+	if (isSponsorshipManager && isSponsorshipEnabled) {
+		dashboardItems.push({
+			type: "item",
+			name: "Sponsorship",
+			url: { to: "/admin/sponsorship" as const },
+			icon: Store,
+		});
+	}
+	if (isDirector) {
+		dashboardItems.push({
+			type: "item",
+			name: "God Mode",
+			url: { to: "/admin/god-mode" as const },
+			icon: Shield,
+		});
+	}
+	const dashboardSections: NavSectionData[] =
+		dashboardItems.length === 0
+			? []
+			: [
+					{
+						title: "Dashboard",
+						items: dashboardItems,
+					},
+				];
 
 	return (
 		<Sidebar variant="inset" {...props}>
@@ -168,11 +212,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				</SidebarMenu>
 			</SidebarHeader>
 			<SidebarContent>
-				{navSectionsWithBadge.map((section) => (
-					<NavSection key={section.title} {...section} />
+				{navSectionsWithBadge.map((section, index) => (
+					<NavSection
+						key={`${section.title ?? "primary"}-${index}`}
+						{...section}
+					/>
 				))}
-				{teamSections.map((section) => (
-					<NavSection key={section.title} {...section} />
+				{dashboardSections.map((section, index) => (
+					<NavSection
+						key={`${section.title ?? "dashboard"}-${index}`}
+						{...section}
+					/>
+				))}
+				{teamSections.map((section, index) => (
+					<NavSection
+						key={`${section.title ?? "teams"}-${index}`}
+						{...section}
+					/>
 				))}
 				<NavSecondary className="mt-auto" />
 			</SidebarContent>

@@ -51,7 +51,7 @@ export type SponsorshipBidEvent =
 
 export type CompetitionSponsorProperty = Pick<
 	Competition,
-	"sponsorPropertyStatus" | "sponsorPropertyDisplay"
+	"sponsorPropertyStatus" | "sponsorPropertyDisplay" | "sponsorWinningBidCents"
 >;
 
 export type ProgressUpdate = Competition["progressUpdates"][number];

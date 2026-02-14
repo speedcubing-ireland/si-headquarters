@@ -1,7 +1,12 @@
 import { describe, expect, test } from "vitest";
 import type { Doc } from "../../_generated/dataModel";
+import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { placeBidHandler, setMaxBidHandler } from "./auctions";
+import {
+	placeBidHandler,
+	setMaxBidHandler,
+	sponsorBidEventLabel,
+} from "./auctions";
 
 type AuctionDoc = Doc<"sponsorshipAuctions">;
 type IntentDoc = Doc<"sponsorshipBidIntents">;
@@ -162,7 +167,7 @@ describe("sponsor portal auction mutations", () => {
 		).rejects.toMatchObject({
 			data: {
 				code: "BAD_REQUEST",
-				message: "Max bids are only available for eBay proxy auctions.",
+				message: "Max bids are only available for Proxy Bidding auctions.",
 			},
 		});
 	});
@@ -176,14 +181,14 @@ describe("sponsor portal auction mutations", () => {
 		const result = await placeBidHandler(ctx, {
 			sessionToken: "session-token",
 			auctionId: auction._id,
-			amountCents: 10_000,
+			amountCents: 12_000,
 		});
 
 		expect(result).toEqual({ currentPriceCents: 10_000 });
 		expect(patches[patches.length - 1]).toMatchObject({
-			currentPriceCents: 10_000,
+			currentPriceCents: 12_000,
 			currentLeaderSponsorId: sponsorId,
-			currentLeaderMaxCents: 10_000,
+			currentLeaderMaxCents: 12_000,
 		});
 	});
 
@@ -219,11 +224,70 @@ describe("sponsor portal auction mutations", () => {
 			amountCents: 15_000,
 		});
 
-		expect(result).toEqual({ currentPriceCents: 15_000 });
+		expect(result).toEqual({ currentPriceCents: 10_000 });
 		expect(patches[patches.length - 1]).toMatchObject({
 			currentPriceCents: 15_000,
 			currentLeaderSponsorId: sponsorId,
 			currentLeaderMaxCents: 15_000,
 		});
+	});
+});
+
+describe("sponsor bid event labels", () => {
+	const selfSponsorId = "sponsor-self" as Id<"sponsors">;
+
+	test("uses one shared label for all non-self bidders", () => {
+		expect(
+			sponsorBidEventLabel({
+				eventSponsorId: "sponsor-a" as Id<"sponsors">,
+				currentSponsorId: selfSponsorId,
+			}),
+		).toBe("Bidder");
+		expect(
+			sponsorBidEventLabel({
+				eventSponsorId: "sponsor-a" as Id<"sponsors">,
+				currentSponsorId: selfSponsorId,
+			}),
+		).toBe("Bidder");
+		expect(
+			sponsorBidEventLabel({
+				eventSponsorId: "sponsor-b" as Id<"sponsors">,
+				currentSponsorId: selfSponsorId,
+			}),
+		).toBe("Bidder");
+		expect(
+			sponsorBidEventLabel({
+				eventSponsorId: selfSponsorId,
+				currentSponsorId: selfSponsorId,
+			}),
+		).toBe("You");
+		expect(
+			sponsorBidEventLabel({
+				eventSponsorId: undefined,
+				currentSponsorId: selfSponsorId,
+			}),
+		).toBe("System");
+	});
+
+	test("label stream is identical for one external bidder vs multiple bidders", () => {
+		const oneBidderSequence = ["sponsor-a", "sponsor-a", "sponsor-a"] as const;
+		const twoBidderSequence = ["sponsor-a", "sponsor-b", "sponsor-a"] as const;
+
+		const oneBidderLabels = oneBidderSequence.map((sponsorId) =>
+			sponsorBidEventLabel({
+				eventSponsorId: sponsorId as Id<"sponsors">,
+				currentSponsorId: selfSponsorId,
+			}),
+		);
+		const twoBidderLabels = twoBidderSequence.map((sponsorId) =>
+			sponsorBidEventLabel({
+				eventSponsorId: sponsorId as Id<"sponsors">,
+				currentSponsorId: selfSponsorId,
+			}),
+		);
+
+		expect(oneBidderLabels).toEqual(["Bidder", "Bidder", "Bidder"]);
+		expect(twoBidderLabels).toEqual(["Bidder", "Bidder", "Bidder"]);
+		expect(oneBidderLabels).toEqual(twoBidderLabels);
 	});
 });

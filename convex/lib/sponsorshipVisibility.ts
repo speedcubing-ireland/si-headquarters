@@ -1,4 +1,5 @@
 import type { Doc } from "../_generated/dataModel";
+import { isSealedAuctionFramework } from "./sponsorshipValidators";
 
 type AuctionVisibilityInput = Pick<
 	Doc<"sponsorshipAuctions">,
@@ -14,7 +15,7 @@ export function isSponsorVisibleAuctionState(
 export function isBidHistoryVisibleToSponsor(
 	auction: AuctionVisibilityInput,
 ): boolean {
-	if (auction.framework === "first_sealed") {
+	if (isSealedAuctionFramework(auction.framework)) {
 		return false;
 	}
 	return auction.state === "active" || auction.state === "closed";

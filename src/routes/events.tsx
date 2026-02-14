@@ -221,7 +221,10 @@ function EventsPage() {
 			<header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
 				<div className="flex min-w-0 flex-1 items-center gap-3">
 					<SidebarTrigger className="shrink-0" />
-					<Separator orientation="vertical" className="hidden h-4 sm:block" />
+					<Separator
+						orientation="vertical"
+						className="hidden data-[orientation=vertical]:h-3 sm:block"
+					/>
 					<h1 className="text-sm font-semibold">Events</h1>
 					{lastUpdated != null && (
 						<span className="hidden text-xs text-muted-foreground sm:inline">

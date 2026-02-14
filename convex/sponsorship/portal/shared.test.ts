@@ -51,13 +51,25 @@ function mockEvent(
 	};
 }
 
+const baseCompetitionSummary = {
+	name: "Irish Open",
+	address: "Main Hall, Dublin, IE",
+	startDate: "2026-01-01",
+	endDate: "2026-01-02",
+	eventIds: ["333"],
+};
+
 describe("sponsor portal payload redaction", () => {
 	test("auction payload does not expose leader max", () => {
 		const payload = toSponsorAuctionListItem({
 			auction: mockAuction(),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 		});
+		expect(payload.competitionSummary).toEqual(baseCompetitionSummary);
+		expect(payload.competitionSummarySource).toBe("wca");
 		expect(
 			(payload as { currentLeaderSponsorId?: string }).currentLeaderSponsorId,
 		).toBeUndefined();
@@ -75,6 +87,8 @@ describe("sponsor portal payload redaction", () => {
 				currentPriceCents: 100,
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: false,
 		});
 		expect(payload.minimumNextBidCents).toBe(100);
@@ -87,6 +101,8 @@ describe("sponsor portal payload redaction", () => {
 				currentPriceCents: 100,
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 		});
 		expect(payload.minimumNextBidCents).toBe(120);
@@ -101,6 +117,8 @@ describe("sponsor portal payload redaction", () => {
 					"sponsor1" as Doc<"sponsorshipAuctions">["currentLeaderSponsorId"],
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 			sponsorId: "sponsor1" as Doc<"sponsors">["_id"],
 		});
@@ -115,6 +133,8 @@ describe("sponsor portal payload redaction", () => {
 					"sponsor2" as Doc<"sponsorshipAuctions">["winnerSponsorId"],
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 			sponsorId: "sponsor1" as Doc<"sponsors">["_id"],
 		});
@@ -128,11 +148,31 @@ describe("sponsor portal payload redaction", () => {
 				framework: "first_sealed",
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 			sponsorId: "sponsor1" as Doc<"sponsors">["_id"],
 			hasSponsorValidBid: true,
 		});
 		expect(payload.sponsorBidStatus).toBe("bid_submitted");
+	});
+
+	test("closed sealed auction with a submitted bid resolves to win status", () => {
+		const payload = toSponsorAuctionListItem({
+			auction: mockAuction({
+				state: "closed",
+				framework: "vickrey",
+				winnerSponsorId:
+					"sponsor2" as Doc<"sponsorshipAuctions">["winnerSponsorId"],
+			}),
+			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
+			hasAnyValidBid: true,
+			sponsorId: "sponsor1" as Doc<"sponsors">["_id"],
+			hasSponsorValidBid: true,
+		});
+		expect(payload.sponsorBidStatus).toBe("not_winner");
 	});
 
 	test("sealed auction uses no-bid status when sponsor has not bid", () => {
@@ -142,6 +182,8 @@ describe("sponsor portal payload redaction", () => {
 				framework: "first_sealed",
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 			sponsorId: "sponsor1" as Doc<"sponsors">["_id"],
 			hasSponsorValidBid: false,
@@ -157,6 +199,8 @@ describe("sponsor portal payload redaction", () => {
 				currentPriceCents: 15_000,
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 		});
 		expect(payload.minimumNextBidCents).toBe(10_000);
@@ -170,9 +214,62 @@ describe("sponsor portal payload redaction", () => {
 				currentPriceCents: 18_000,
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: false,
 		});
 		expect(payload.minimumNextBidCents).toBe(12_000);
+	});
+
+	test("vickrey auctions follow sealed visibility and minimum rules", () => {
+		const payload = toSponsorAuctionListItem({
+			auction: mockAuction({
+				framework: "vickrey",
+				state: "active",
+				startPriceCents: 12_000,
+				currentPriceCents: 18_000,
+			}),
+			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
+			hasAnyValidBid: true,
+		});
+		expect(payload.currentPriceCents).toBeUndefined();
+		expect(payload.minimumNextBidCents).toBe(12_000);
+	});
+
+	test("closed vickrey auction keeps settlement visible without exposing leading bid", () => {
+		const payload = toSponsorAuctionListItem({
+			auction: mockAuction({
+				framework: "vickrey",
+				state: "closed",
+				currentPriceCents: 20_000,
+				settlementAmountCents: 12_000,
+			}),
+			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
+			hasAnyValidBid: true,
+		});
+		expect(payload.currentPriceCents).toBeUndefined();
+		expect(payload.settlementAmountCents).toBe(12_000);
+	});
+
+	test("closed first-price sealed auction does not expose leading bid", () => {
+		const payload = toSponsorAuctionListItem({
+			auction: mockAuction({
+				framework: "first_sealed",
+				state: "closed",
+				currentPriceCents: 20_000,
+				settlementAmountCents: 20_000,
+			}),
+			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
+			hasAnyValidBid: true,
+		});
+		expect(payload.currentPriceCents).toBeUndefined();
+		expect(payload.settlementAmountCents).toBe(20_000);
 	});
 
 	test("sealed auctions hide current price before close", () => {
@@ -183,6 +280,8 @@ describe("sponsor portal payload redaction", () => {
 				currentPriceCents: 15_000,
 			}),
 			competitionName: "Irish Open",
+			competitionSummary: baseCompetitionSummary,
+			competitionSummarySource: "wca",
 			hasAnyValidBid: true,
 		});
 		expect(payload.currentPriceCents).toBeUndefined();

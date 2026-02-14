@@ -22,6 +22,7 @@ export type EmailDispatchGroupPayload = {
 	dispatchIds: Id<"notificationDispatches">[];
 	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
 	digestWindowKey?: string;
+	lastAttemptAt?: number;
 	recipientEmail: string;
 	recipientName?: string;
 	items: EmailDispatchItem[];

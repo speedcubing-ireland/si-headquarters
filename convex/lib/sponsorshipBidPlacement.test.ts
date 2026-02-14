@@ -953,15 +953,15 @@ describe("sponsorship bid placement", () => {
 		const result = await placeSponsorshipBid(ctx, {
 			auction,
 			sponsorId: "s1" as BidIntentDoc["sponsorId"],
-			amountCents: 10_000,
+			amountCents: 12_000,
 		});
 
 		expect(result).toEqual({ currentPriceCents: 10_000 });
 		expect(events).toHaveLength(0);
 		expect(patches[patches.length - 1]?.patch).toMatchObject({
-			currentPriceCents: 10_000,
+			currentPriceCents: 12_000,
 			currentLeaderSponsorId: "s1",
-			currentLeaderMaxCents: 10_000,
+			currentLeaderMaxCents: 12_000,
 		});
 		expect(patches[patches.length - 1]?.patch.endsAt).toBeUndefined();
 	});
@@ -993,7 +993,7 @@ describe("sponsorship bid placement", () => {
 			amountCents: 15_000,
 		});
 
-		expect(result).toEqual({ currentPriceCents: 15_000 });
+		expect(result).toEqual({ currentPriceCents: 10_000 });
 		expect(events).toHaveLength(0);
 		expect(intents[intents.length - 1]).toMatchObject({
 			sponsorId: "s1",

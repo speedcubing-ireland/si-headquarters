@@ -1540,6 +1540,76 @@ describe("relation notification batch fan-out", () => {
 		);
 		expect(secondProcessed).toBe(0);
 	});
+
+	test("_sendExternalDispatchGroup enqueues a shared queue email dispatch and keeps claimed dispatch sending", async () => {
+		const t = convexTest(schema, modules);
+
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const staleClaimTimestamp = now - 11 * 60 * 1000;
+			const claimKey = `dispatch_group_claim:email:${staleClaimTimestamp}:seed`;
+			const userId = await ctx.db.insert("users", {
+				email: "heartbeat-check@example.com",
+			});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-heartbeat",
+				idempotencyKey: "dispatch-heartbeat-event",
+				threadKey: "task:heartbeat",
+				dedupeKey: "task_assigned:task:heartbeat",
+				createdAt: now,
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "email",
+				status: "sending",
+				digestMode: "immediate",
+				digestWindowKey: undefined,
+				reason: claimKey,
+				metadataJson: undefined,
+				scheduledFor: undefined,
+				scheduledFunctionId: undefined,
+				attempts: 0,
+				maxAttempts: 5,
+				lastAttemptAt: now - 2_000,
+				sentAt: undefined,
+				updatedAt: now - 2_000,
+			});
+			return {
+				dispatchId,
+				claimKey,
+				previousLastAttemptAt: now - 2_000,
+			};
+		});
+
+		await t.action(internal.notifications._sendExternalDispatchGroup, {
+			dispatchIds: [seeded.dispatchId],
+			claimKey: seeded.claimKey,
+		});
+
+		const [dispatch, queuedEmail] = await t.run(async (ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchId),
+				ctx.db
+					.query("sponsorshipEmailDispatches")
+					.withIndex("by_status_and_created_at", (q) =>
+						q.eq("status", "pending"),
+					)
+					.order("desc")
+					.first(),
+			]),
+		);
+		expect(dispatch?.status).toBe("sending");
+		expect(dispatch?.reason).toBe(seeded.claimKey);
+		expect(dispatch?.attempts).toBe(0);
+		expect((dispatch?.lastAttemptAt ?? 0) > seeded.previousLastAttemptAt).toBe(
+			true,
+		);
+		expect(queuedEmail?.notificationClaimKey).toBe(seeded.claimKey);
+		expect(queuedEmail?.notificationDispatchIds?.[0]).toBe(seeded.dispatchId);
+	});
 });
 
 describe("dispatch retry and diagnostics behavior", () => {

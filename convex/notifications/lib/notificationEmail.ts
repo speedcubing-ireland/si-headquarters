@@ -302,6 +302,7 @@ export const emailDispatchGroupValidator = v.object({
 	dispatchIds: v.array(v.id("notificationDispatches")),
 	digestMode: notificationDigestMode,
 	digestWindowKey: v.optional(v.string()),
+	lastAttemptAt: v.optional(v.number()),
 	recipientEmail: v.string(),
 	recipientName: v.optional(v.string()),
 	items: v.array(emailDispatchItemValidator),

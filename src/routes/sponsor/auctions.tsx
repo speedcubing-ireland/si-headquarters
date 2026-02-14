@@ -12,6 +12,13 @@ import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
+import { AuctionBiddingHelpOverview } from "@/components/sponsorship/auction-bidding-help";
+import { AuctionCompetitionSummaryCompact } from "@/components/sponsorship/competition-summary-panel";
+import { SponsorBidStatusBadge } from "@/components/sponsorship/sponsor-bid-status-badge";
+import {
+	SponsorPageHeader,
+	SponsorPageShell,
+} from "@/components/sponsorship/sponsor-page-layout";
 import { useTheme } from "@/components/theme-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +41,8 @@ import { sponsorAuthClient } from "@/lib/sponsor-auth-client";
 import {
 	formatDateTime,
 	formatEuroFromCents,
+	isSealedSponsorshipFramework,
+	SPONSORSHIP_BIDDING_HELP_TITLE,
 	sponsorshipFrameworkLabel,
 	sponsorshipStateBadgeVariant,
 	sponsorshipStateLabel,
@@ -47,57 +56,11 @@ const VISIBLE_STATES = ["active", "scheduled", "closed"] as const;
 type VisibleState = (typeof VISIBLE_STATES)[number];
 type Theme = "light" | "dark" | "system";
 
-const THEMES: Array<{
-	value: Theme;
-	label: string;
-	icon: LucideIcon;
-}> = [
+const THEMES: Array<{ value: Theme; label: string; icon: LucideIcon }> = [
 	{ value: "light", label: "Light", icon: Sun },
 	{ value: "dark", label: "Dark", icon: Moon },
 	{ value: "system", label: "System", icon: Monitor },
 ];
-
-function sponsorBidStatusLabel(
-	status:
-		| "winning"
-		| "not_winning"
-		| "winner"
-		| "not_winner"
-		| "bid_submitted"
-		| "no_bid_submitted",
-) {
-	switch (status) {
-		case "winning":
-			return "Winning";
-		case "not_winning":
-			return "Not winning";
-		case "winner":
-			return "Winner";
-		case "not_winner":
-			return "Not winner";
-		case "bid_submitted":
-			return "Bid submitted";
-		case "no_bid_submitted":
-			return "No bid submitted";
-	}
-}
-
-function sponsorBidStatusClassName(
-	status:
-		| "winning"
-		| "not_winning"
-		| "winner"
-		| "not_winner"
-		| "bid_submitted"
-		| "no_bid_submitted",
-) {
-	if (status === "bid_submitted") {
-		return "inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-400";
-	}
-	return status === "winning" || status === "winner"
-		? "inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:text-green-400"
-		: "inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:text-red-400";
-}
 
 function SponsorAuctionsRoute() {
 	if (!isSponsorshipEnabled) {
@@ -188,18 +151,11 @@ function SponsorAuctionsEnabled() {
 	};
 
 	return (
-		<div className="min-h-svh bg-gradient-to-b from-muted/40 to-background px-4 py-6">
-			<div className="mx-auto w-full max-w-6xl space-y-4">
-				<header className="flex flex-wrap items-center justify-between gap-3">
-					<div>
-						<p className="text-xs uppercase tracking-wide text-muted-foreground">
-							Sponsor Portal
-						</p>
-						<h1 className="text-2xl font-semibold">
-							{me?.name ? `${me.name} Auctions` : "Your Auctions"}
-						</h1>
-					</div>
-					<div className="flex items-center gap-2">
+		<SponsorPageShell maxWidthClassName="max-w-6xl">
+			<SponsorPageHeader
+				title={me?.name ? `${me.name} Auctions` : "Your Auctions"}
+				actions={
+					<>
 						<ThemeToggleButton />
 						<Button asChild variant="outline" size="icon">
 							<Link to="/sponsor/settings">
@@ -211,116 +167,141 @@ function SponsorAuctionsEnabled() {
 							<LogOut className="size-4" />
 							Log out
 						</Button>
-					</div>
-				</header>
+					</>
+				}
+			/>
 
-				<div className="grid gap-3 sm:grid-cols-3">
-					<Card>
-						<CardHeader className="pb-2">
-							<CardDescription className="text-xs">Active</CardDescription>
-							<CardTitle className="text-2xl">
-								{auctionsByState.active.length}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="text-xs text-muted-foreground">
-							Bidding currently open
-						</CardContent>
-					</Card>
-					<Card>
-						<CardHeader className="pb-2">
-							<CardDescription className="text-xs">Scheduled</CardDescription>
-							<CardTitle className="text-2xl">
-								{auctionsByState.scheduled.length}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="text-xs text-muted-foreground">
-							Upcoming opportunities
-						</CardContent>
-					</Card>
-					<Card>
-						<CardHeader className="pb-2">
-							<CardDescription className="text-xs">Closed</CardDescription>
-							<CardTitle className="text-2xl">
-								{auctionsByState.closed.length}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="text-xs text-muted-foreground">
-							Completed sponsorship outcomes
-						</CardContent>
-					</Card>
-				</div>
-
+			<div className="grid gap-3 sm:grid-cols-3">
 				<Card>
-					<CardHeader>
-						<CardTitle>Auctions</CardTitle>
-						<CardDescription>
-							View active, scheduled, and closed auctions available to your
-							account.
-						</CardDescription>
+					<CardHeader className="pb-2">
+						<CardDescription className="text-xs">Active</CardDescription>
+						<CardTitle className="text-2xl">
+							{auctionsByState.active.length}
+						</CardTitle>
 					</CardHeader>
-					<CardContent>
-						{auctions === undefined ? (
-							<div className="flex items-center justify-center py-12">
-								<Loader2 className="size-5 animate-spin text-muted-foreground" />
-							</div>
-						) : auctions.length === 0 ? (
-							<div className="rounded-md border border-dashed p-8 text-sm text-muted-foreground">
-								No sponsor auctions are available for your account yet.
-							</div>
-						) : (
-							<Tabs defaultValue="active" className="space-y-3">
-								<TabsList className="grid grid-cols-3">
-									{VISIBLE_STATES.map((state) => (
-										<TabsTrigger key={state} value={state}>
-											{sponsorshipStateLabel(state)} (
-											{auctionsByState[state].length})
-										</TabsTrigger>
-									))}
-								</TabsList>
-								{VISIBLE_STATES.map((state: VisibleState) => {
-									const stateAuctions = auctionsByState[state];
-									return (
-										<TabsContent
-											key={state}
-											value={state}
-											className="space-y-2"
-										>
-											{stateAuctions.length === 0 ? (
-												<p className="text-sm text-muted-foreground">
-													No {sponsorshipStateLabel(state).toLowerCase()}{" "}
-													auctions.
-												</p>
-											) : (
-												stateAuctions.map((auction) => (
-													<div
-														key={auction.id}
-														className="rounded-lg border p-3"
-													>
-														<div className="flex flex-wrap items-start justify-between gap-3">
-															<div className="space-y-1">
-																<div className="flex items-center gap-2">
-																	<p className="font-medium">
-																		{auction.competitionName}
-																	</p>
-																	<Badge
-																		variant={sponsorshipStateBadgeVariant(
-																			auction.state,
-																		)}
-																	>
-																		{sponsorshipStateLabel(auction.state)}
-																	</Badge>
-																</div>
-																<p className="text-sm text-muted-foreground">
-																	{sponsorshipFrameworkLabel(auction.framework)}
+					<CardContent className="text-xs text-muted-foreground">
+						Bidding currently open
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className="pb-2">
+						<CardDescription className="text-xs">Scheduled</CardDescription>
+						<CardTitle className="text-2xl">
+							{auctionsByState.scheduled.length}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="text-xs text-muted-foreground">
+						Upcoming opportunities
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className="pb-2">
+						<CardDescription className="text-xs">Closed</CardDescription>
+						<CardTitle className="text-2xl">
+							{auctionsByState.closed.length}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="text-xs text-muted-foreground">
+						Completed sponsorship outcomes
+					</CardContent>
+				</Card>
+			</div>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>{SPONSORSHIP_BIDDING_HELP_TITLE}</CardTitle>
+					<CardDescription>
+						Each auction uses one of these formats. Open any auction for
+						detail-specific guidance.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<AuctionBiddingHelpOverview />
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Auctions</CardTitle>
+					<CardDescription>
+						View active, scheduled, and closed auctions available to your
+						account.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{auctions === undefined ? (
+						<div className="flex items-center justify-center py-12">
+							<Loader2 className="size-5 animate-spin text-muted-foreground" />
+						</div>
+					) : auctions.length === 0 ? (
+						<div className="rounded-md border border-dashed p-8 text-sm text-muted-foreground">
+							No sponsor auctions are available for your account yet.
+						</div>
+					) : (
+						<Tabs defaultValue="active" className="space-y-3">
+							<TabsList className="grid grid-cols-3">
+								{VISIBLE_STATES.map((state) => (
+									<TabsTrigger key={state} value={state}>
+										{sponsorshipStateLabel(state)} (
+										{auctionsByState[state].length})
+									</TabsTrigger>
+								))}
+							</TabsList>
+							{VISIBLE_STATES.map((state: VisibleState) => {
+								const stateAuctions = auctionsByState[state];
+								return (
+									<TabsContent key={state} value={state} className="space-y-2">
+										{stateAuctions.length === 0 ? (
+											<p className="text-sm text-muted-foreground">
+												No {sponsorshipStateLabel(state).toLowerCase()}{" "}
+												auctions.
+											</p>
+										) : (
+											stateAuctions.map((auction) => (
+												<div key={auction.id} className="rounded-lg border p-3">
+													<div className="flex flex-wrap items-start justify-between gap-3">
+														<div className="space-y-1">
+															<div className="flex items-center gap-2">
+																<p className="font-medium">
+																	{auction.competitionName}
 																</p>
-																<p className="text-xs text-muted-foreground">
-																	Window: {formatDateTime(auction.startsAt)} -{" "}
-																	{formatDateTime(auction.endsAt)}
+																<Badge
+																	variant={sponsorshipStateBadgeVariant(
+																		auction.state,
+																	)}
+																>
+																	{sponsorshipStateLabel(auction.state)}
+																</Badge>
+															</div>
+															<p className="text-sm text-muted-foreground">
+																{sponsorshipFrameworkLabel(auction.framework)}
+															</p>
+															<p className="text-xs text-muted-foreground">
+																Window: {formatDateTime(auction.startsAt)} -{" "}
+																{formatDateTime(auction.endsAt)}
+															</p>
+															<AuctionCompetitionSummaryCompact
+																summary={auction.competitionSummary}
+															/>
+															{auction.competitionSummarySource !== "wca" ? (
+																<p className="text-xs text-amber-700">
+																	Detailed competition data is still syncing
+																	from WCA.
 																</p>
-																<p className="text-xs text-muted-foreground">
-																	{auction.framework === "first_sealed" &&
-																	auction.state !== "closed"
-																		? `Minimum bid: ${formatEuroFromCents(auction.startPriceCents)} · Price sealed until close`
+															) : null}
+															<p className="text-xs text-muted-foreground">
+																{isSealedSponsorshipFramework(
+																	auction.framework,
+																) && auction.state !== "closed"
+																	? `Minimum bid: ${formatEuroFromCents(auction.startPriceCents)} · Price sealed until close`
+																	: isSealedSponsorshipFramework(
+																				auction.framework,
+																			) && auction.state === "closed"
+																		? `Winning bid: ${formatEuroFromCents(
+																				auction.settlementAmountCents ??
+																					auction.currentPriceCents ??
+																					auction.startPriceCents,
+																			)}`
 																		: `Current: ${formatEuroFromCents(
 																				auction.currentPriceCents ??
 																					auction.startPriceCents,
@@ -328,46 +309,40 @@ function SponsorAuctionsEnabled() {
 																				auction.state === "closed" &&
 																				auction.settlementAmountCents !==
 																					undefined
-																					? ` · Settlement: ${formatEuroFromCents(auction.settlementAmountCents)}`
+																					? ` · Winning bid: ${formatEuroFromCents(auction.settlementAmountCents)}`
 																					: ""
 																			}`}
-																</p>
-																{auction.sponsorBidStatus ? (
-																	<div className="pt-1">
-																		<span
-																			className={sponsorBidStatusClassName(
-																				auction.sponsorBidStatus,
-																			)}
-																		>
-																			{sponsorBidStatusLabel(
-																				auction.sponsorBidStatus,
-																			)}
-																		</span>
-																	</div>
-																) : null}
-															</div>
-															<Button asChild size="sm">
-																<Link
-																	to="/sponsor/auctions/$auctionId"
-																	params={{ auctionId: auction.id }}
-																>
-																	{auction.state === "closed"
-																		? "View result"
-																		: "Open auction"}
-																</Link>
-															</Button>
+															</p>
+															{auction.sponsorBidStatus ? (
+																<div className="pt-1">
+																	<SponsorBidStatusBadge
+																		status={auction.sponsorBidStatus}
+																		size="compact"
+																	/>
+																</div>
+															) : null}
 														</div>
+														<Button asChild size="sm">
+															<Link
+																to="/sponsor/auctions/$auctionId"
+																params={{ auctionId: auction.id }}
+															>
+																{auction.state === "closed"
+																	? "View result"
+																	: "Open auction"}
+															</Link>
+														</Button>
 													</div>
-												))
-											)}
-										</TabsContent>
-									);
-								})}
-							</Tabs>
-						)}
-					</CardContent>
-				</Card>
-			</div>
-		</div>
+												</div>
+											))
+										)}
+									</TabsContent>
+								);
+							})}
+						</Tabs>
+					)}
+				</CardContent>
+			</Card>
+		</SponsorPageShell>
 	);
 }

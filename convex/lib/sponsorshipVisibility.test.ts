@@ -46,5 +46,11 @@ describe("sponsorship visibility rules", () => {
 				framework: "first_sealed",
 			}),
 		).toBe(false);
+		expect(
+			isBidHistoryVisibleToSponsor({
+				state: "active",
+				framework: "vickrey",
+			}),
+		).toBe(false);
 	});
 });

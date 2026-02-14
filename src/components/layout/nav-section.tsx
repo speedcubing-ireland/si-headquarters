@@ -1,7 +1,7 @@
 import type { LinkProps } from "@tanstack/react-router";
 import { Link, useLocation } from "@tanstack/react-router";
 import { ChevronRight, type LucideIcon } from "lucide-react";
-import type { ComponentProps } from "react";
+import * as React from "react";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -17,8 +17,10 @@ import {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 const BADGE_MAX_DISPLAY = 99;
+const NAV_SECTION_STORAGE_PREFIX = "hq.sidebar.section";
 
 type LinkOptions = Omit<LinkProps, "children">;
 type NavLinkUrl = LinkOptions | LinkOptions["to"];
@@ -142,14 +144,83 @@ export function NavSection({
 	title: string | null;
 	items: (NavSectionDropdownItem | NavSectionItem)[];
 }) {
+	const sectionStorageKey = React.useMemo(() => {
+		const normalizedTitle = (title ?? "section")
+			.toLowerCase()
+			.trim()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/(^-|-$)/g, "");
+		return `${NAV_SECTION_STORAGE_PREFIX}.${normalizedTitle || "section"}`;
+	}, [title]);
+	const [isOpen, setIsOpen] = React.useState(true);
+
+	React.useEffect(() => {
+		if (title == null) {
+			return;
+		}
+		const stored = window.localStorage.getItem(sectionStorageKey);
+		if (stored === "open" || stored === "closed") {
+			setIsOpen(stored === "open");
+		}
+	}, [sectionStorageKey, title]);
+
+	const onOpenChange = React.useCallback(
+		(nextOpen: boolean) => {
+			setIsOpen(nextOpen);
+			if (title == null) {
+				return;
+			}
+			window.localStorage.setItem(
+				sectionStorageKey,
+				nextOpen ? "open" : "closed",
+			);
+		},
+		[sectionStorageKey, title],
+	);
+
+	if (title == null) {
+		return (
+			<SidebarGroup>
+				<SidebarMenu>
+					{items.map((item) => itemComponents[item.type](item))}
+				</SidebarMenu>
+			</SidebarGroup>
+		);
+	}
+
 	return (
-		<SidebarGroup>
-			{title && <SidebarGroupLabel>{title}</SidebarGroupLabel>}
-			<SidebarMenu>
-				{items.map((item) => itemComponents[item.type](item))}
-			</SidebarMenu>
-		</SidebarGroup>
+		<Collapsible
+			open={isOpen}
+			onOpenChange={onOpenChange}
+			className="group/nav-section"
+		>
+			<SidebarGroup>
+				<CollapsibleTrigger asChild>
+					<SidebarGroupLabel asChild>
+						<button
+							type="button"
+							className="group/section-trigger w-full cursor-pointer"
+						>
+							<span>{title}</span>
+							<ChevronRight
+								className={cn(
+									"ml-auto transition-all duration-200 group-data-[state=open]/nav-section:rotate-90",
+									isOpen
+										? "opacity-0 group-hover/section-trigger:opacity-100 group-focus-visible/section-trigger:opacity-100"
+										: "opacity-100",
+								)}
+							/>
+						</button>
+					</SidebarGroupLabel>
+				</CollapsibleTrigger>
+				<CollapsibleContent>
+					<SidebarMenu>
+						{items.map((item) => itemComponents[item.type](item))}
+					</SidebarMenu>
+				</CollapsibleContent>
+			</SidebarGroup>
+		</Collapsible>
 	);
 }
 
-export type NavSectionData = ComponentProps<typeof NavSection>;
+export type NavSectionData = React.ComponentProps<typeof NavSection>;

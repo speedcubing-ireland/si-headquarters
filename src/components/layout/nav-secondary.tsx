@@ -1,17 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import {
-	Archive,
-	type LucideIcon,
-	Mail,
-	Monitor,
-	Moon,
-	Store,
-	Sun,
-} from "lucide-react";
-import { useIsDirector } from "@/hooks/use-convex-data";
-import { useIsSponsorshipManager } from "@/hooks/use-convex-data";
+import { Archive, type LucideIcon, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { isSponsorshipEnabled } from "@/lib/feature-flags";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -76,17 +65,7 @@ const baseNavSecondary: NavSecondaryItem[] = [
 export function NavSecondary({
 	...props
 }: React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
-	const { isDirector } = useIsDirector();
-	const { isManager: isSponsorshipManager } = useIsSponsorshipManager();
-	const navItems: NavSecondaryItem[] = [
-		...baseNavSecondary,
-		...(isDirector
-			? [{ title: "Email Admin", to: "/admin/email", icon: Mail }]
-			: []),
-		...(isSponsorshipManager && isSponsorshipEnabled
-			? [{ title: "Sponsorship", to: "/admin/sponsorship", icon: Store }]
-			: []),
-	];
+	const navItems: NavSecondaryItem[] = [...baseNavSecondary];
 
 	return (
 		<SidebarGroup {...props}>

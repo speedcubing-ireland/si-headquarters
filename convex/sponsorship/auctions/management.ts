@@ -4,6 +4,11 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
 import { sponsorshipAuctionFramework } from "../../lib/sponsorshipValidators";
 import {
+	buildCompetitionRecordSummary,
+	sponsorshipCompetitionSummary,
+	sponsorshipCompetitionSummarySource,
+} from "../../lib/sponsorshipCompetitionSnapshot";
+import {
 	auctionForManager,
 	auctionTableRowForManager,
 	competitionForSponsorshipManager,
@@ -12,7 +17,22 @@ import {
 	requireNoOpenAuctionForCompetition,
 	toManagerAuction,
 } from "./shared";
+import {
+	buildFallbackSnapshotForCompetition,
+	scheduleCompetitionSnapshotRefresh,
+} from "./competitionSnapshot";
 import { syncLifecycleRuntimeCron } from "./runtimeCron";
+
+function compareIntentChronology(
+	a: Doc<"sponsorshipBidIntents">,
+	b: Doc<"sponsorshipBidIntents">,
+): number {
+	if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
+	if (a._creationTime !== b._creationTime) {
+		return a._creationTime - b._creationTime;
+	}
+	return String(a._id).localeCompare(String(b._id));
+}
 
 export const create = mutation({
 	args: {
@@ -63,6 +83,7 @@ export const create = mutation({
 			antiSnipingExtendMs:
 				args.antiSnipingExtendMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
 			startPriceCents: args.startPriceCents,
+			competitionSnapshot: buildFallbackSnapshotForCompetition(competition),
 			createdById: actorId,
 			updatedById: actorId,
 			updatedAt: now,
@@ -73,6 +94,7 @@ export const create = mutation({
 			sponsorIds: args.invitedSponsorIds,
 			actorId,
 		});
+		await scheduleCompetitionSnapshotRefresh(ctx, auctionId);
 
 		return auctionId;
 	},
@@ -169,6 +191,13 @@ export const update = mutation({
 		const actorId = await requireSponsorshipManager(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
+		const competition = await ctx.db.get("competitions", auction.competitionId);
+		if (!competition) {
+			throw new ConvexError({
+				code: "NOT_FOUND",
+				message: "Competition not found.",
+			});
+		}
 		if (auction.state === "closed") {
 			throw new ConvexError({
 				code: "FORBIDDEN",
@@ -216,6 +245,11 @@ export const update = mutation({
 		}
 
 		await ctx.db.patch("sponsorshipAuctions", auction._id, patch);
+		if (auction.competitionSnapshot?.source !== "wca") {
+			await ctx.db.patch("sponsorshipAuctions", auction._id, {
+				competitionSnapshot: buildFallbackSnapshotForCompetition(competition),
+			});
+		}
 		if (args.invitedSponsorIds !== undefined) {
 			await replaceAuctionInvites(ctx, {
 				auctionId: auction._id,
@@ -223,6 +257,7 @@ export const update = mutation({
 				actorId,
 			});
 		}
+		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
 
 		return null;
 	},
@@ -424,9 +459,27 @@ export const getManagerView = query({
 	returns: v.union(
 		v.object({
 			auction: auctionForManager,
+			competitionSummary: sponsorshipCompetitionSummary,
+			competitionSummarySource: sponsorshipCompetitionSummarySource,
+			competitionSummaryFetchedAt: v.optional(v.number()),
+			competitionWcaCompetitionId: v.optional(v.string()),
 			inviteSponsorIds: v.array(v.id("sponsors")),
 			intentCount: v.number(),
 			eventCount: v.number(),
+			sponsorOutcomes: v.array(
+				v.object({
+					sponsorId: v.id("sponsors"),
+					isInvited: v.boolean(),
+					isWinner: v.boolean(),
+					totalBidCount: v.number(),
+					validBidCount: v.number(),
+					latestValidBidCents: v.optional(v.number()),
+					latestValidBidAt: v.optional(v.number()),
+					latestValidBidMode: v.optional(
+						v.union(v.literal("manual"), v.literal("proxy")),
+					),
+				}),
+			),
 		}),
 		v.null(),
 	),
@@ -434,7 +487,8 @@ export const getManagerView = query({
 		await requireSponsorshipManager(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
-		const [invites, intents, events] = await Promise.all([
+		const [competition, invites, intents, events] = await Promise.all([
+			ctx.db.get("competitions", auction.competitionId),
 			ctx.db
 				.query("sponsorshipAuctionInvites")
 				.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
@@ -448,12 +502,83 @@ export const getManagerView = query({
 				.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
 				.collect(),
 		]);
+		if (!competition) return null;
+		const competitionSummary =
+			auction.competitionSnapshot?.summary ??
+			buildCompetitionRecordSummary({
+				name: competition.name,
+				compStart: competition.compStart,
+				compEnd: competition.compEnd,
+			});
+		const competitionSummarySource =
+			auction.competitionSnapshot?.source ?? "competition_record";
+		const competitionSummaryFetchedAt = auction.competitionSnapshot?.fetchedAt;
+		const inviteSponsorIds = invites.map((invite) => invite.sponsorId);
+		const invitedSponsorSet = new Set<Id<"sponsors">>(inviteSponsorIds);
+		const totalBidCountBySponsor = new Map<Id<"sponsors">, number>();
+		const validBidCountBySponsor = new Map<Id<"sponsors">, number>();
+		const latestValidIntentBySponsor = new Map<
+			Id<"sponsors">,
+			Doc<"sponsorshipBidIntents">
+		>();
+		for (const intent of intents) {
+			totalBidCountBySponsor.set(
+				intent.sponsorId,
+				(totalBidCountBySponsor.get(intent.sponsorId) ?? 0) + 1,
+			);
+			if (!intent.isValid) continue;
+			validBidCountBySponsor.set(
+				intent.sponsorId,
+				(validBidCountBySponsor.get(intent.sponsorId) ?? 0) + 1,
+			);
+			const latestIntent = latestValidIntentBySponsor.get(intent.sponsorId);
+			if (!latestIntent || compareIntentChronology(intent, latestIntent) > 0) {
+				latestValidIntentBySponsor.set(intent.sponsorId, intent);
+			}
+		}
+		const outcomeSponsorIds = new Set<Id<"sponsors">>(inviteSponsorIds);
+		for (const intent of intents) {
+			outcomeSponsorIds.add(intent.sponsorId);
+		}
+		const sponsorOutcomes = [...outcomeSponsorIds]
+			.map((sponsorId) => {
+				const latestValidIntent = latestValidIntentBySponsor.get(sponsorId);
+				return {
+					sponsorId,
+					isInvited: invitedSponsorSet.has(sponsorId),
+					isWinner: auction.winnerSponsorId === sponsorId,
+					totalBidCount: totalBidCountBySponsor.get(sponsorId) ?? 0,
+					validBidCount: validBidCountBySponsor.get(sponsorId) ?? 0,
+					latestValidBidCents: latestValidIntent?.amountCents,
+					latestValidBidAt: latestValidIntent?.createdAt,
+					latestValidBidMode: latestValidIntent?.mode,
+				};
+			})
+			.sort((a, b) => {
+				if (a.isWinner && !b.isWinner) return -1;
+				if (!a.isWinner && b.isWinner) return 1;
+				const aBid = a.latestValidBidCents ?? -1;
+				const bBid = b.latestValidBidCents ?? -1;
+				if (aBid !== bBid) return bBid - aBid;
+				if (a.validBidCount !== b.validBidCount) {
+					return b.validBidCount - a.validBidCount;
+				}
+				if (a.totalBidCount !== b.totalBidCount) {
+					return b.totalBidCount - a.totalBidCount;
+				}
+				return String(a.sponsorId).localeCompare(String(b.sponsorId));
+			});
 
 		return {
 			auction: toManagerAuction(auction),
-			inviteSponsorIds: invites.map((invite) => invite.sponsorId),
+			competitionSummary,
+			competitionSummarySource,
+			competitionSummaryFetchedAt,
+			competitionWcaCompetitionId: competition.wcaCompetitionId,
+			inviteSponsorIds,
 			intentCount: intents.length,
 			eventCount: events.length,
+			sponsorOutcomes,
 		};
 	},
 });

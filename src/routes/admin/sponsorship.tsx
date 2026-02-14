@@ -5,6 +5,7 @@ import {
 	LockOpen,
 	Loader2,
 	Plus,
+	RefreshCw,
 	Send,
 	ShieldX,
 	Trash2,
@@ -14,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
+import { AuctionBiddingHelpOverview } from "@/components/sponsorship/auction-bidding-help";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { AppPageHeader } from "@/components/shared/page-header";
 import {
 	Select,
 	SelectContent,
@@ -36,7 +39,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	useIsSponsorshipManager,
@@ -52,6 +54,8 @@ import {
 	SPONSORSHIP_FRAMEWORKS,
 	formatDateTime,
 	formatEuroFromCents,
+	isSponsorshipFramework,
+	isSealedSponsorshipFramework,
 	type SponsorshipFramework,
 	sponsorshipFrameworkLabel,
 	sponsorshipStateBadgeVariant,
@@ -103,6 +107,132 @@ function sponsorPropertyStatusLabel(
 	}
 }
 
+function formatCompetitionSummaryDateRange(summary: {
+	startDate: string;
+	endDate: string;
+}): string {
+	const start = summary.startDate.trim() || "TBC";
+	const end = summary.endDate.trim() || "TBC";
+	return start === end ? start : `${start} - ${end}`;
+}
+
+type SponsorBidOutcomeDisplay = {
+	sponsorId: Id<"sponsors">;
+	sponsorName: string;
+	isWinner: boolean;
+	isInvited: boolean;
+	validBidCount: number;
+	totalBidCount: number;
+	latestValidBidCents?: number;
+	latestValidBidAt?: number;
+	latestValidBidMode?: "proxy" | "manual";
+};
+
+type InvitedSponsorDisplay = {
+	sponsorId: Id<"sponsors">;
+	sponsorName: string;
+};
+
+function AuctionSponsorBidBreakdown(props: {
+	outcomes: SponsorBidOutcomeDisplay[];
+	flat?: boolean;
+}) {
+	return (
+		<div
+			className={props.flat ? "space-y-1" : "space-y-1 rounded-md border p-2"}
+		>
+			<p className="text-xs text-muted-foreground">Sponsor bid breakdown</p>
+			{props.outcomes.length === 0 ? (
+				<p className="text-xs text-muted-foreground">
+					No sponsor outcomes available.
+				</p>
+			) : (
+				props.outcomes.map((outcome) => (
+					<div
+						key={`outcome-${outcome.sponsorId}`}
+						className="flex items-center justify-between gap-3 rounded border px-2 py-1.5"
+					>
+						<div className="min-w-0">
+							<p className="truncate text-sm font-medium">
+								{outcome.sponsorName}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{outcome.isWinner
+									? "Winner"
+									: outcome.validBidCount > 0
+										? "Bidder"
+										: "No valid bid"}{" "}
+								· {outcome.isInvited ? "Invited" : "Not invited"} · Valid bids:{" "}
+								{outcome.validBidCount}/{outcome.totalBidCount}
+							</p>
+						</div>
+						<div className="text-right">
+							<p className="text-sm font-medium tabular-nums">
+								{outcome.latestValidBidCents !== undefined
+									? formatEuroFromCents(outcome.latestValidBidCents)
+									: "No valid bid"}
+							</p>
+							<p className="text-xs text-muted-foreground">
+								{outcome.latestValidBidAt
+									? `${outcome.latestValidBidMode === "proxy" ? "Proxy" : "Manual"} · ${formatDateTime(outcome.latestValidBidAt)}`
+									: "No final valid bid"}
+							</p>
+						</div>
+					</div>
+				))
+			)}
+		</div>
+	);
+}
+
+function AuctionBidStatusSection(props: {
+	intentCount: number;
+	eventCount: number;
+	invitedSponsors?: InvitedSponsorDisplay[];
+	outcomes: SponsorBidOutcomeDisplay[];
+	flatBreakdown?: boolean;
+}) {
+	return (
+		<div className="space-y-2">
+			<div className="flex flex-wrap gap-2">
+				<Badge variant="outline">Bid intents: {props.intentCount}</Badge>
+				<Badge variant="outline">Bid events: {props.eventCount}</Badge>
+				{props.invitedSponsors ? (
+					<Badge variant="outline">
+						Invited sponsors: {props.invitedSponsors.length}
+					</Badge>
+				) : null}
+			</div>
+			{props.invitedSponsors ? (
+				<div className="space-y-1 rounded-md border p-2">
+					<p className="text-xs text-muted-foreground">Invited sponsors</p>
+					{props.invitedSponsors.length === 0 ? (
+						<p className="text-xs text-muted-foreground">
+							No invited sponsors on record.
+						</p>
+					) : (
+						<div className="flex flex-wrap gap-1.5">
+							{props.invitedSponsors.map((sponsor) => (
+								<Badge
+									key={`invite-${sponsor.sponsorId}`}
+									variant="secondary"
+									className="text-[11px]"
+								>
+									{sponsor.sponsorName}
+								</Badge>
+							))}
+						</div>
+					)}
+				</div>
+			) : null}
+			<AuctionSponsorBidBreakdown
+				outcomes={props.outcomes}
+				flat={props.flatBreakdown}
+			/>
+		</div>
+	);
+}
+
 function SponsorshipAdminRoute() {
 	if (!isSponsorshipEnabled) {
 		return <Navigate to="/" />;
@@ -141,22 +271,30 @@ function SponsorshipAdminContent() {
 	const {
 		createAuction,
 		updateAuction,
+		refreshCompetitionSnapshot,
 		startAuction,
 		closeAuction,
 		deleteBeforeOpen,
 	} = useSponsorshipAuctionMutations();
 
-	const [activeTab, setActiveTab] = useState<"open" | "closed" | "sponsors">(
-		"open",
-	);
-	const [searchQuery, setSearchQuery] = useState("");
+	const [activeTab, setActiveTab] = useState<
+		"open" | "closed" | "sponsors" | "auctionTypes"
+	>("open");
+	const [openSearchQuery, setOpenSearchQuery] = useState("");
+	const [closedSearchQuery, setClosedSearchQuery] = useState("");
 	const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
 	const [selectedAuctionId, setSelectedAuctionId] =
+		useState<Id<"sponsorshipAuctions"> | null>(null);
+	const [selectedClosedAuctionId, setSelectedClosedAuctionId] =
 		useState<Id<"sponsorshipAuctions"> | null>(null);
 	const { managerView, isLoading: isLoadingManagerView } =
 		useSponsorshipAuctionManagerView(
 			editorMode === "edit" ? selectedAuctionId : null,
 		);
+	const {
+		managerView: closedAuctionManagerView,
+		isLoading: isLoadingClosedAuctionManagerView,
+	} = useSponsorshipAuctionManagerView(selectedClosedAuctionId);
 
 	const [createCompetitionId, setCreateCompetitionId] =
 		useState<Id<"competitions"> | null>(null);
@@ -189,6 +327,8 @@ function SponsorshipAdminContent() {
 	const [isSavingAuction, setIsSavingAuction] = useState(false);
 	const [busyAuctionId, setBusyAuctionId] =
 		useState<Id<"sponsorshipAuctions"> | null>(null);
+	const [refreshingAuctionId, setRefreshingAuctionId] =
+		useState<Id<"sponsorshipAuctions"> | null>(null);
 
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
@@ -200,6 +340,10 @@ function SponsorshipAdminContent() {
 
 	const activeSponsors = useMemo(
 		() => sponsors.filter((sponsor) => sponsor.active),
+		[sponsors],
+	);
+	const sponsorById = useMemo(
+		() => new Map(sponsors.map((sponsor) => [sponsor.id, sponsor])),
 		[sponsors],
 	);
 	const auctionById = useMemo(
@@ -230,28 +374,29 @@ function SponsorshipAdminContent() {
 		() => auctions.filter((auction) => auction.state === "closed"),
 		[auctions],
 	);
-	const searchText = normalizeSearchText(searchQuery);
+	const openSearchText = normalizeSearchText(openSearchQuery);
+	const closedSearchText = normalizeSearchText(closedSearchQuery);
 	const filteredOpenAuctions = useMemo(
 		() =>
 			openAuctions.filter((auction) => {
-				if (!searchText) return true;
+				if (!openSearchText) return true;
 				return (
-					auction.competitionName.toLowerCase().includes(searchText) ||
-					auction.competitionPhaseName.toLowerCase().includes(searchText)
+					auction.competitionName.toLowerCase().includes(openSearchText) ||
+					auction.competitionPhaseName.toLowerCase().includes(openSearchText)
 				);
 			}),
-		[openAuctions, searchText],
+		[openAuctions, openSearchText],
 	);
 	const filteredClosedAuctions = useMemo(
 		() =>
 			closedAuctions.filter((auction) => {
-				if (!searchText) return true;
+				if (!closedSearchText) return true;
 				return (
-					auction.competitionName.toLowerCase().includes(searchText) ||
-					auction.competitionPhaseName.toLowerCase().includes(searchText)
+					auction.competitionName.toLowerCase().includes(closedSearchText) ||
+					auction.competitionPhaseName.toLowerCase().includes(closedSearchText)
 				);
 			}),
-		[closedAuctions, searchText],
+		[closedAuctions, closedSearchText],
 	);
 
 	const unsponsoredCompetitionsByPhase = useMemo(() => {
@@ -303,6 +448,13 @@ function SponsorshipAdminContent() {
 	}, [auctionById, editorMode, selectedAuctionId]);
 
 	useEffect(() => {
+		if (!selectedClosedAuctionId) return;
+		const selected = auctionById.get(selectedClosedAuctionId);
+		if (selected && selected.state === "closed") return;
+		setSelectedClosedAuctionId(null);
+	}, [auctionById, selectedClosedAuctionId]);
+
+	useEffect(() => {
 		if (!managerView || editorMode !== "edit") return;
 		setEditFramework(managerView.auction.framework);
 		setIsEditFrameworkUnlocked(false);
@@ -322,10 +474,65 @@ function SponsorshipAdminContent() {
 		editorMode === "edit" && selectedAuctionId
 			? (auctionById.get(selectedAuctionId) ?? null)
 			: null;
+	const selectedClosedAuction = useMemo(() => {
+		if (selectedClosedAuctionId === null) return null;
+		const auction = auctionById.get(selectedClosedAuctionId) ?? null;
+		return auction?.state === "closed" ? auction : null;
+	}, [auctionById, selectedClosedAuctionId]);
+	const selectedClosedAuctionWinnerName = selectedClosedAuction?.winnerSponsorId
+		? (sponsorById.get(selectedClosedAuction.winnerSponsorId)?.name ??
+			"Unknown sponsor")
+		: "No winner";
+	const selectedClosedAuctionWinningBidCents = selectedClosedAuction
+		? (selectedClosedAuction.settlementAmountCents ??
+			selectedClosedAuction.currentPriceCents ??
+			selectedClosedAuction.startPriceCents)
+		: null;
+	const selectedClosedAuctionInvitedSponsors =
+		closedAuctionManagerView?.inviteSponsorIds.map((sponsorId) => ({
+			sponsorId,
+			sponsorName: sponsorById.get(sponsorId)?.name ?? "Unknown sponsor",
+		})) ?? [];
+	const selectedClosedAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[] = (
+		closedAuctionManagerView?.sponsorOutcomes ?? []
+	).map((outcome) => ({
+		...outcome,
+		sponsorName: sponsorById.get(outcome.sponsorId)?.name ?? "Unknown sponsor",
+	}));
+	const selectedOpenAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[] = (
+		managerView?.sponsorOutcomes ?? []
+	).map((outcome) => ({
+		...outcome,
+		sponsorName: sponsorById.get(outcome.sponsorId)?.name ?? "Unknown sponsor",
+	}));
+	const selectedAuctionCompetitionSummary =
+		managerView?.competitionSummary ?? null;
+	const selectedAuctionCompetitionSummarySource =
+		managerView?.competitionSummarySource ?? null;
+	const selectedAuctionCompetitionSummaryFetchedAt =
+		managerView?.competitionSummaryFetchedAt;
+	const isSelectedAuctionCompetitionSummaryReady =
+		selectedAuctionCompetitionSummarySource === "wca";
 	const selectedCompetition =
 		createCompetitionId !== null
 			? (competitionById.get(createCompetitionId) ?? null)
 			: null;
+	const panelCompetitionId =
+		editorMode === "edit"
+			? (selectedAuction?.competitionId ?? null)
+			: createCompetitionId;
+	const previousClosedAuctionsForPanel = useMemo(() => {
+		if (!panelCompetitionId) return [];
+		return auctions
+			.filter(
+				(auction) =>
+					auction.state === "closed" &&
+					auction.competitionId === panelCompetitionId &&
+					auction.id !== selectedAuction?.id,
+			)
+			.sort((a, b) => b.endsAt - a.endsAt)
+			.slice(0, 5);
+	}, [auctions, panelCompetitionId, selectedAuction?.id]);
 	const hasPendingEditChanges = useMemo(() => {
 		if (editorMode !== "edit" || !managerView) return false;
 		const startsAt = parseDatetimeLocalInput(editStartsAtInput);
@@ -421,6 +628,7 @@ function SponsorshipAdminContent() {
 				invitedSponsorIds: createInvitedSponsorIds,
 			});
 			toast.success("Auction draft created.");
+			void onRefreshAuctionCompetitionData(auctionId, false);
 			setSelectedAuctionId(auctionId);
 			setEditorMode("edit");
 		} catch (error) {
@@ -468,6 +676,9 @@ function SponsorshipAdminContent() {
 				startPriceCents: Math.round(startPrice * 100),
 				invitedSponsorIds: editInvitedSponsorIds,
 			});
+			await refreshCompetitionSnapshot(selectedAuctionId).catch(
+				() => undefined,
+			);
 			toast.success("Auction updated.");
 		} catch (error) {
 			const message =
@@ -478,6 +689,35 @@ function SponsorshipAdminContent() {
 		}
 	};
 
+	const onRefreshAuctionCompetitionData = async (
+		auctionId: Id<"sponsorshipAuctions">,
+		notify = true,
+	) => {
+		setRefreshingAuctionId(auctionId);
+		try {
+			const result = await refreshCompetitionSnapshot(auctionId);
+			if (notify) {
+				if (result.status === "ready") {
+					toast.success("Competition details synced from WCA.");
+				} else {
+					toast.error(result.message);
+				}
+			}
+			return result;
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to refresh competition details.";
+			if (notify) {
+				toast.error(message);
+			}
+			throw error;
+		} finally {
+			setRefreshingAuctionId(null);
+		}
+	};
+
 	const onStartAuction = async (auctionId: Id<"sponsorshipAuctions">) => {
 		if (hasPendingEditChanges) {
 			toast.error("Save pending changes before starting this auction.");
@@ -485,6 +725,14 @@ function SponsorshipAdminContent() {
 		}
 		setBusyAuctionId(auctionId);
 		try {
+			const refreshResult = await onRefreshAuctionCompetitionData(
+				auctionId,
+				false,
+			);
+			if (refreshResult.status !== "ready") {
+				toast.error(refreshResult.message);
+				return;
+			}
 			await startAuction(auctionId);
 			toast.success("Auction started.");
 		} catch (error) {
@@ -619,11 +867,14 @@ function SponsorshipAdminContent() {
 		}
 	};
 
-	const renderAuctionTable = (
-		rows: typeof auctions,
-		emptyText: string,
-		allowEdit: boolean,
-	) => {
+	const renderAuctionTable = (input: {
+		rows: typeof auctions;
+		emptyText: string;
+		selectedId: Id<"sponsorshipAuctions"> | null;
+		actionLabel: string;
+		onSelect: (auctionId: Id<"sponsorshipAuctions">) => void;
+	}) => {
+		const { rows, emptyText, selectedId, actionLabel, onSelect } = input;
 		if (isLoadingAuctions) {
 			return (
 				<div className="flex items-center justify-center py-10">
@@ -644,13 +895,22 @@ function SponsorshipAdminContent() {
 							<th className="px-3 py-2 text-left font-medium">State</th>
 							<th className="px-3 py-2 text-left font-medium">Framework</th>
 							<th className="px-3 py-2 text-left font-medium">Window</th>
-							<th className="px-3 py-2 text-left font-medium">Current</th>
+							<th className="px-3 py-2 text-left font-medium">Price</th>
 							<th className="px-3 py-2 text-right font-medium">Action</th>
 						</tr>
 					</thead>
 					<tbody>
 						{rows.map((auction) => {
-							const isSelected = selectedAuctionId === auction.id;
+							const isSelected = selectedId === auction.id;
+							const isClosedAuction = auction.state === "closed";
+							const displayAmountCents = isClosedAuction
+								? (auction.settlementAmountCents ??
+									auction.currentPriceCents ??
+									auction.startPriceCents)
+								: (auction.currentPriceCents ?? auction.startPriceCents);
+							const isSealedClosedAuction =
+								isSealedSponsorshipFramework(auction.framework) &&
+								isClosedAuction;
 							return (
 								<tr
 									key={auction.id}
@@ -681,18 +941,27 @@ function SponsorshipAdminContent() {
 										{formatDateTime(auction.endsAt)}
 									</td>
 									<td className="px-3 py-2">
-										{formatEuroFromCents(
-											auction.currentPriceCents ?? auction.startPriceCents,
-										)}
+										<div className="space-y-0.5">
+											<p>{formatEuroFromCents(displayAmountCents)}</p>
+											{isSealedClosedAuction ? (
+												<p className="text-xs text-muted-foreground">
+													Winning bid
+												</p>
+											) : auction.state === "closed" &&
+												auction.settlementAmountCents !== undefined ? (
+												<p className="text-xs text-muted-foreground">
+													Winning bid
+												</p>
+											) : null}
+										</div>
 									</td>
 									<td className="px-3 py-2 text-right">
 										<Button
 											size="sm"
 											variant="outline"
-											onClick={() => selectAuctionForEditing(auction.id)}
-											disabled={!allowEdit}
+											onClick={() => onSelect(auction.id)}
 										>
-											{allowEdit ? "Edit" : "View"}
+											{actionLabel}
 										</Button>
 									</td>
 								</tr>
@@ -705,17 +974,12 @@ function SponsorshipAdminContent() {
 	};
 
 	return (
-		<div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-			<header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
-				<SidebarTrigger className="shrink-0" />
-				<Separator orientation="vertical" className="hidden h-4 sm:block" />
-				<h1 className="text-sm font-semibold">Sponsorship Admin</h1>
-				<span className="hidden text-xs text-muted-foreground sm:inline">
-					Directors + Finance Team
-				</span>
-			</header>
-
-			<div className="flex flex-1 flex-col gap-4 px-4 pb-4 lg:px-6">
+		<div className="flex h-full min-h-0 flex-col">
+			<AppPageHeader
+				title="Sponsorship Admin"
+				subtitle="Directors + Finance Team"
+			/>
+			<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pt-0 lg:p-6 lg:pt-0">
 				<div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
 					<Card>
 						<CardHeader className="pb-2">
@@ -773,16 +1037,19 @@ function SponsorshipAdminContent() {
 				<Tabs
 					value={activeTab}
 					onValueChange={(value) =>
-						setActiveTab(value as "open" | "closed" | "sponsors")
+						setActiveTab(
+							value as "open" | "closed" | "sponsors" | "auctionTypes",
+						)
 					}
 					className="space-y-4"
 				>
-					<TabsList className="grid w-full max-w-md grid-cols-3">
+					<TabsList className="grid w-full max-w-2xl grid-cols-4">
 						<TabsTrigger value="open">
 							<Gavel className="size-4" />
 							Open
 						</TabsTrigger>
 						<TabsTrigger value="closed">Closed</TabsTrigger>
+						<TabsTrigger value="auctionTypes">Auction Types</TabsTrigger>
 						<TabsTrigger value="sponsors">
 							<Users className="size-4" />
 							Sponsors
@@ -802,8 +1069,10 @@ function SponsorshipAdminContent() {
 									<div className="flex flex-wrap items-center gap-2">
 										<Input
 											placeholder="Search competitions or phases"
-											value={searchQuery}
-											onChange={(event) => setSearchQuery(event.target.value)}
+											value={openSearchQuery}
+											onChange={(event) =>
+												setOpenSearchQuery(event.target.value)
+											}
 											className="max-w-sm"
 										/>
 										<Button
@@ -814,11 +1083,13 @@ function SponsorshipAdminContent() {
 											New auction draft
 										</Button>
 									</div>
-									{renderAuctionTable(
-										filteredOpenAuctions,
-										"No open auctions.",
-										true,
-									)}
+									{renderAuctionTable({
+										rows: filteredOpenAuctions,
+										emptyText: "No open auctions.",
+										selectedId: selectedAuctionId,
+										actionLabel: "Edit",
+										onSelect: selectAuctionForEditing,
+									})}
 								</CardContent>
 							</Card>
 
@@ -889,13 +1160,27 @@ function SponsorshipAdminContent() {
 													</SelectContent>
 												</Select>
 												{selectedCompetition ? (
-													<p className="text-xs text-muted-foreground">
-														Phase: {selectedCompetition.currentPhaseName} ·
-														Sponsor status:{" "}
-														{sponsorPropertyStatusLabel(
-															selectedCompetition.sponsorPropertyStatus,
-														)}
-													</p>
+													<div className="space-y-2 rounded-md border p-3">
+														<p className="text-xs text-muted-foreground">
+															Phase: {selectedCompetition.currentPhaseName} ·
+															Sponsor status:{" "}
+															{sponsorPropertyStatusLabel(
+																selectedCompetition.sponsorPropertyStatus,
+															)}
+														</p>
+														<p className="text-sm font-medium">
+															{selectedCompetition.name}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															Dates: {selectedCompetition.compStart} -{" "}
+															{selectedCompetition.compEnd}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															{selectedCompetition.wcaCompetitionId
+																? "WCA link present. Full competition details will sync after draft creation."
+																: "No WCA link yet. Full competition details cannot sync until linked."}
+														</p>
+													</div>
 												) : null}
 											</div>
 
@@ -929,13 +1214,16 @@ function SponsorshipAdminContent() {
 												</div>
 												<Select
 													value={createFramework}
-													onValueChange={(value) =>
-														setCreateFramework(value as SponsorshipFramework)
-													}
+													onValueChange={(value) => {
+														if (!isSponsorshipFramework(value)) return;
+														setCreateFramework(value);
+													}}
 													disabled={!isCreateFrameworkUnlocked}
 												>
 													<SelectTrigger className="w-full">
-														<SelectValue placeholder="Select auction type" />
+														<SelectValue placeholder="Select auction type">
+															{sponsorshipFrameworkLabel(createFramework)}
+														</SelectValue>
 													</SelectTrigger>
 													<SelectContent>
 														{SPONSORSHIP_FRAMEWORKS.map((framework) => (
@@ -1057,6 +1345,67 @@ function SponsorshipAdminContent() {
 													</Badge>
 												</div>
 											</div>
+											<div className="space-y-2 rounded-md border p-3 text-sm">
+												<div className="flex flex-wrap items-center justify-between gap-2">
+													<p className="text-xs text-muted-foreground">
+														Competition data status
+													</p>
+													<Badge
+														variant={
+															isSelectedAuctionCompetitionSummaryReady
+																? "default"
+																: "secondary"
+														}
+													>
+														{isSelectedAuctionCompetitionSummaryReady
+															? "Synced from WCA"
+															: "Needs WCA sync"}
+													</Badge>
+												</div>
+												{selectedAuctionCompetitionSummary ? (
+													<>
+														<p className="font-medium">
+															{selectedAuctionCompetitionSummary.name}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															Dates:{" "}
+															{formatCompetitionSummaryDateRange(
+																selectedAuctionCompetitionSummary,
+															)}
+														</p>
+														<p className="text-xs text-muted-foreground">
+															Competitor limit:{" "}
+															{selectedAuctionCompetitionSummary.competitorLimit !==
+															undefined
+																? `${selectedAuctionCompetitionSummary.competitorLimit}`
+																: "Not set"}
+														</p>
+													</>
+												) : null}
+												<p className="text-xs text-muted-foreground">
+													{selectedAuctionCompetitionSummaryFetchedAt
+														? `Last synced: ${formatDateTime(selectedAuctionCompetitionSummaryFetchedAt)}`
+														: "Last synced: not yet"}
+												</p>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													disabled={refreshingAuctionId === selectedAuction.id}
+													onClick={() =>
+														void onRefreshAuctionCompetitionData(
+															selectedAuction.id,
+														)
+													}
+												>
+													{refreshingAuctionId === selectedAuction.id ? (
+														<Loader2 className="size-4 animate-spin" />
+													) : (
+														<RefreshCw className="size-4" />
+													)}
+													Refresh competition data
+												</Button>
+											</div>
 
 											<form
 												className="space-y-3"
@@ -1092,13 +1441,16 @@ function SponsorshipAdminContent() {
 													</div>
 													<Select
 														value={editFramework}
-														onValueChange={(value) =>
-															setEditFramework(value as SponsorshipFramework)
-														}
+														onValueChange={(value) => {
+															if (!isSponsorshipFramework(value)) return;
+															setEditFramework(value);
+														}}
 														disabled={!isEditFrameworkUnlocked}
 													>
 														<SelectTrigger className="w-full">
-															<SelectValue placeholder="Select auction type" />
+															<SelectValue placeholder="Select auction type">
+																{sponsorshipFrameworkLabel(editFramework)}
+															</SelectValue>
 														</SelectTrigger>
 														<SelectContent>
 															{SPONSORSHIP_FRAMEWORKS.map((framework) => (
@@ -1207,7 +1559,8 @@ function SponsorshipAdminContent() {
 														size="sm"
 														disabled={
 															busyAuctionId === selectedAuction.id ||
-															hasPendingEditChanges
+															hasPendingEditChanges ||
+															refreshingAuctionId === selectedAuction.id
 														}
 														onClick={() =>
 															void onStartAuction(selectedAuction.id)
@@ -1246,35 +1599,223 @@ function SponsorshipAdminContent() {
 													</Button>
 												) : null}
 											</div>
+											{selectedAuction.state !== "draft" &&
+											selectedAuction.state !== "scheduled" ? (
+												<>
+													<Separator />
+													<AuctionBidStatusSection
+														intentCount={managerView.intentCount}
+														eventCount={managerView.eventCount}
+														outcomes={selectedOpenAuctionSponsorOutcomes}
+														flatBreakdown
+													/>
+												</>
+											) : null}
 										</div>
 									)}
+									<Separator />
+									<div className="space-y-2">
+										<div className="flex items-center justify-between">
+											<p className="text-xs text-muted-foreground">
+												Previous closed auctions for this competition
+											</p>
+											{panelCompetitionId ? (
+												<Badge variant="outline">
+													{previousClosedAuctionsForPanel.length}
+												</Badge>
+											) : null}
+										</div>
+										{panelCompetitionId === null ? (
+											<p className="text-sm text-muted-foreground">
+												Select a competition to view historical outcomes.
+											</p>
+										) : previousClosedAuctionsForPanel.length === 0 ? (
+											<p className="text-sm text-muted-foreground">
+												No previous closed auctions for this competition.
+											</p>
+										) : (
+											<div className="space-y-2">
+												{previousClosedAuctionsForPanel.map((auction) => {
+													const winningBidCents =
+														auction.settlementAmountCents ??
+														auction.currentPriceCents ??
+														auction.startPriceCents;
+													const winnerName = auction.winnerSponsorId
+														? (sponsorById.get(auction.winnerSponsorId)?.name ??
+															"Unknown sponsor")
+														: "No winner";
+													return (
+														<div
+															key={`history-${auction.id}`}
+															className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+														>
+															<div className="space-y-1">
+																<p className="font-medium">
+																	{formatDateTime(auction.endsAt)}
+																</p>
+																<p className="text-xs text-muted-foreground">
+																	{sponsorshipFrameworkLabel(auction.framework)}{" "}
+																	· {winnerName}
+																</p>
+																<p className="text-xs text-muted-foreground">
+																	Winning bid:{" "}
+																	{formatEuroFromCents(winningBidCents)}
+																</p>
+															</div>
+															<Button
+																size="sm"
+																variant="outline"
+																onClick={() => {
+																	setSelectedClosedAuctionId(auction.id);
+																	setActiveTab("closed");
+																}}
+															>
+																View
+															</Button>
+														</div>
+													);
+												})}
+											</div>
+										)}
+									</div>
 								</CardContent>
 							</Card>
 						</div>
 					</TabsContent>
 
 					<TabsContent value="closed" className="space-y-4">
-						<Card>
-							<CardHeader>
-								<CardTitle>Closed Auctions</CardTitle>
-								<CardDescription>
-									Historical auctions and settlements.
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="space-y-3">
-								<Input
-									placeholder="Search competitions or phases"
-									value={searchQuery}
-									onChange={(event) => setSearchQuery(event.target.value)}
-									className="max-w-sm"
-								/>
-								{renderAuctionTable(
-									filteredClosedAuctions,
-									"No closed auctions.",
-									false,
-								)}
-							</CardContent>
-						</Card>
+						<div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+							<Card>
+								<CardHeader>
+									<CardTitle>Closed Auctions</CardTitle>
+									<CardDescription>
+										Historical auctions and winning bids.
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="space-y-3">
+									<Input
+										placeholder="Search competitions or phases"
+										value={closedSearchQuery}
+										onChange={(event) =>
+											setClosedSearchQuery(event.target.value)
+										}
+										className="max-w-sm"
+									/>
+									{renderAuctionTable({
+										rows: filteredClosedAuctions,
+										emptyText: "No closed auctions.",
+										selectedId: selectedClosedAuctionId,
+										actionLabel: "View",
+										onSelect: (auctionId) =>
+											setSelectedClosedAuctionId(auctionId),
+									})}
+								</CardContent>
+							</Card>
+
+							<Card>
+								<CardHeader>
+									<CardTitle>Auction Outcome</CardTitle>
+									<CardDescription>
+										Review winner and final amount for previous auctions.
+									</CardDescription>
+								</CardHeader>
+								<CardContent className="space-y-3">
+									{selectedClosedAuction === null ? (
+										<p className="text-sm text-muted-foreground">
+											Select a closed auction from the table.
+										</p>
+									) : (
+										<>
+											<div className="space-y-1 rounded-md border p-3 text-sm">
+												<p className="font-medium">
+													{selectedClosedAuction.competitionName}
+												</p>
+												<p className="text-xs text-muted-foreground">
+													{sponsorshipFrameworkLabel(
+														selectedClosedAuction.framework,
+													)}{" "}
+													· {selectedClosedAuction.competitionPhaseName}
+												</p>
+												<div className="mt-2 flex flex-wrap items-center gap-2">
+													<Badge
+														variant={sponsorshipStateBadgeVariant(
+															selectedClosedAuction.state,
+														)}
+													>
+														{sponsorshipStateLabel(selectedClosedAuction.state)}
+													</Badge>
+													<Badge variant="outline">
+														Closed{" "}
+														{formatDateTime(selectedClosedAuction.endsAt)}
+													</Badge>
+												</div>
+											</div>
+											<div className="space-y-2 rounded-md border p-3 text-sm">
+												<div className="flex items-center justify-between gap-2">
+													<span className="text-muted-foreground">Winner</span>
+													<span className="font-medium">
+														{selectedClosedAuctionWinnerName}
+													</span>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<span className="text-muted-foreground">
+														Winning bid
+													</span>
+													<span className="font-medium tabular-nums">
+														{formatEuroFromCents(
+															selectedClosedAuctionWinningBidCents ??
+																selectedClosedAuction.startPriceCents,
+														)}
+													</span>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<span className="text-muted-foreground">
+														Start price
+													</span>
+													<span className="font-medium tabular-nums">
+														{formatEuroFromCents(
+															selectedClosedAuction.startPriceCents,
+														)}
+													</span>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<span className="text-muted-foreground">Started</span>
+													<span className="font-medium">
+														{formatDateTime(selectedClosedAuction.startsAt)}
+													</span>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<span className="text-muted-foreground">Closed</span>
+													<span className="font-medium">
+														{formatDateTime(selectedClosedAuction.endsAt)}
+													</span>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<span className="text-muted-foreground">
+														Last updated
+													</span>
+													<span className="font-medium">
+														{formatDateTime(selectedClosedAuction.updatedAt)}
+													</span>
+												</div>
+											</div>
+											{isLoadingClosedAuctionManagerView ? (
+												<div className="flex items-center justify-center py-4">
+													<Loader2 className="size-4 animate-spin text-muted-foreground" />
+												</div>
+											) : closedAuctionManagerView ? (
+												<AuctionBidStatusSection
+													intentCount={closedAuctionManagerView.intentCount}
+													eventCount={closedAuctionManagerView.eventCount}
+													invitedSponsors={selectedClosedAuctionInvitedSponsors}
+													outcomes={selectedClosedAuctionSponsorOutcomes}
+												/>
+											) : null}
+										</>
+									)}
+								</CardContent>
+							</Card>
+						</div>
 					</TabsContent>
 
 					<TabsContent value="sponsors" className="space-y-4">
@@ -1416,6 +1957,20 @@ function SponsorshipAdminContent() {
 								</CardContent>
 							</Card>
 						</div>
+					</TabsContent>
+
+					<TabsContent value="auctionTypes" className="space-y-4">
+						<Card>
+							<CardHeader>
+								<CardTitle>Auction Types</CardTitle>
+								<CardDescription>
+									Each auction uses one of these formats.
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								<AuctionBiddingHelpOverview />
+							</CardContent>
+						</Card>
 					</TabsContent>
 				</Tabs>
 

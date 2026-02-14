@@ -30,6 +30,14 @@ export type SealedOutcome<
 	leaderSponsorId: TSponsorId;
 	leaderIntentId: TIntentId;
 	leaderBidCents: number;
+	settlementBidCents: number;
+};
+
+export type SealedPricing = "first_price" | "second_price";
+
+type SealedResolutionOptions = {
+	pricing?: SealedPricing;
+	reservePriceCents?: number;
 };
 
 type IncrementBracket = {
@@ -140,6 +148,7 @@ export function resolveSealedOutcome<
 	TIntentId extends string,
 >(
 	intents: SealedBidIntent<TSponsorId, TIntentId>[],
+	options?: SealedResolutionOptions,
 ): SealedOutcome<TSponsorId, TIntentId> | null {
 	const latestIntentBySponsorId = new Map<
 		TSponsorId,
@@ -165,9 +174,17 @@ export function resolveSealedOutcome<
 	});
 	const leader = contenders[0];
 	if (!leader) return null;
+	const pricing = options?.pricing ?? "first_price";
+	const reservePriceCents = options?.reservePriceCents ?? 0;
+	const runnerUpBidCents = contenders[1]?.amountCents;
+	const settlementBidCents =
+		pricing === "second_price"
+			? Math.max(reservePriceCents, runnerUpBidCents ?? reservePriceCents)
+			: leader.amountCents;
 	return {
 		leaderSponsorId: leader.sponsorId,
 		leaderIntentId: leader.intentId,
 		leaderBidCents: leader.amountCents,
+		settlementBidCents,
 	};
 }

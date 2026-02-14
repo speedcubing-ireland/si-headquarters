@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -92,12 +92,17 @@ export function useSponsorshipAuctionMutations() {
 	const updateAuction = useMutation(api.sponsorshipAuctions.update);
 	const startAuction = useMutation(api.sponsorshipAuctions.start);
 	const closeAuction = useMutation(api.sponsorshipAuctions.close);
+	const refreshCompetitionSnapshot = useAction(
+		api.sponsorshipAuctions.refreshCompetitionSnapshot,
+	);
 	const deleteBeforeOpen = useMutation(
 		api.sponsorshipAuctions.removeBeforeOpen,
 	);
 	return {
 		createAuction,
 		updateAuction,
+		refreshCompetitionSnapshot: (auctionId: Id<"sponsorshipAuctions">) =>
+			refreshCompetitionSnapshot({ auctionId }),
 		startAuction: (auctionId: Id<"sponsorshipAuctions">) =>
 			startAuction({ auctionId }),
 		closeAuction: (auctionId: Id<"sponsorshipAuctions">) =>

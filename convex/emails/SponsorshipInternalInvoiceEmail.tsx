@@ -39,7 +39,7 @@ export default function SponsorshipInternalInvoiceEmail(
 				{props.settlementAmountCents !== undefined ? (
 					<Section className="mt-3">
 						<SponsorshipInfoBlock
-							label="Settlement amount"
+							label="Winning bid"
 							value={`EUR ${(props.settlementAmountCents / 100).toFixed(2)}`}
 						/>
 					</Section>

@@ -5,6 +5,7 @@ import { CompetitionDetails } from "@/components/competitions/competition-detail
 import { CompetitionLatestUpdate } from "@/components/competitions/competition-latest-update";
 import { CompetitionPropertiesSidebar } from "@/components/competitions/competition-properties-sidebar";
 import { CompetitionTasksByPhase } from "@/components/competitions/competition-tasks-by-phase";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -65,9 +66,9 @@ function CompetitionHeader({
 	onToggleSubscription: () => void;
 }) {
 	return (
-		<header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
+		<PageHeader.Root withBottomBorder={false}>
 			<SidebarTrigger className="shrink-0" />
-			<Separator orientation="vertical" className="hidden h-4 sm:block" />
+			<PageHeader.Divider />
 			<Link
 				to="/competitions"
 				className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
@@ -75,7 +76,7 @@ function CompetitionHeader({
 				<ArrowLeft className="size-4" />
 				<span className="text-sm hidden sm:inline">Back to Competitions</span>
 			</Link>
-			<Separator orientation="vertical" className="mx-2 hidden h-4 sm:block" />
+			<PageHeader.Divider className="mx-2" />
 			<h1 className="max-w-[180px] truncate text-sm font-semibold sm:max-w-[300px]">
 				{competition.name}
 			</h1>
@@ -125,7 +126,7 @@ function CompetitionHeader({
 					</a>
 				)}
 			</div>
-		</header>
+		</PageHeader.Root>
 	);
 }
 
@@ -216,7 +217,7 @@ function RouteComponent() {
 			<div className="flex min-w-0 flex-1 overflow-hidden">
 				<main className="min-w-0 flex-1 overflow-x-hidden">
 					<div className="h-full overflow-y-auto overflow-x-hidden">
-						<div className="mx-auto w-full max-w-5xl min-w-0 space-y-6 px-3 py-4 sm:space-y-7 sm:px-4 sm:py-5 lg:space-y-8 lg:px-8 lg:py-8">
+						<div className="mx-auto w-full max-w-5xl min-w-0 space-y-6 px-3 pb-4 pt-0 sm:space-y-7 sm:px-4 sm:pb-5 sm:pt-0 lg:space-y-8 lg:px-8 lg:pb-8 lg:pt-0">
 							<section className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
 								<div className="mb-3 flex items-center justify-between gap-2">
 									<h2 className="text-sm font-medium text-muted-foreground">
