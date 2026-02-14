@@ -979,7 +979,7 @@ function SponsorshipAdminContent() {
 				title="Sponsorship Admin"
 				subtitle="Directors + Finance Team"
 			/>
-			<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 pt-0 lg:p-6 lg:pt-0">
+			<div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-0 lg:px-6">
 				<div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
 					<Card>
 						<CardHeader className="pb-2">
