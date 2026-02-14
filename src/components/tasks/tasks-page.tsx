@@ -108,7 +108,7 @@ function TasksPageInner(props: TasksPageProps) {
 
 			<Separator
 				orientation="vertical"
-				className="mx-2 data-[orientation=vertical]:h-4"
+				className="mx-2 hidden data-[orientation=vertical]:h-4 sm:block"
 			/>
 			{savedViews.views.length > 0 ? (
 				<PageHeader.Views
@@ -127,7 +127,7 @@ function TasksPageInner(props: TasksPageProps) {
 				{showCreateButton ? (
 					<Button variant="ghost" size="sm" onClick={openTask}>
 						<Plus className="size-4" />
-						Add task
+						<span className="hidden sm:inline">Add task</span>
 					</Button>
 				) : null}
 				<SidebarTrigger />

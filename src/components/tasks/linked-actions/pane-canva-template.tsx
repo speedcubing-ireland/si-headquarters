@@ -3,13 +3,9 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, Share2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import type { TaskLinkedAction } from "@/data/types-new";
+import { ResponsiveModal } from "@/components/shared/responsive-modal";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -224,8 +220,12 @@ export function CanvaTemplatePane({
 				</Button>
 			) : null}
 
-			<Dialog open={manualDialogOpen} onOpenChange={onManualDialogOpenChange}>
-				<DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[540px]">
+			<ResponsiveModal
+				open={manualDialogOpen}
+				onOpenChange={onManualDialogOpenChange}
+				dialogContentClassName="sm:max-w-[540px]"
+				sheetContentClassName="p-6"
+			>
 					<DialogHeader>
 						<DialogTitle>Link Existing Canva Design</DialogTitle>
 					</DialogHeader>
@@ -297,8 +297,7 @@ export function CanvaTemplatePane({
 							</div>
 						) : null}
 					</div>
-				</DialogContent>
-			</Dialog>
+			</ResponsiveModal>
 		</div>
 	);
 }

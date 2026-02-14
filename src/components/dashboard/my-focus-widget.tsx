@@ -68,6 +68,15 @@ const FOCUS_COLUMN_KEYS = new Set([
 	"status",
 	"title",
 ]);
+const MOBILE_COMPACT_HIDDEN_COLUMN_KEYS = new Set([
+	"priority",
+	"identifier",
+	"status",
+]);
+type FocusColumnMeta = {
+	cellClassName?: string;
+	headerClassName?: string;
+};
 
 const FOCUS_ORDERING = { field: null, direction: "asc" } as const;
 
@@ -262,10 +271,24 @@ export function MyFocusWidget() {
 	);
 
 	const focusColumns = useMemo<ColumnDef<Task, unknown>[]>(() => {
-		const reusableColumns = taskColumns.filter((column) => {
-			const key = getColumnKey(column);
-			return key ? FOCUS_COLUMN_KEYS.has(key) : false;
-		});
+		const reusableColumns = taskColumns
+			.filter((column) => {
+				const key = getColumnKey(column);
+				return key ? FOCUS_COLUMN_KEYS.has(key) : false;
+			})
+			.map((column) => {
+				const key = getColumnKey(column);
+				if (!key || !MOBILE_COMPACT_HIDDEN_COLUMN_KEYS.has(key)) return column;
+				const meta = (column.meta as FocusColumnMeta | undefined) ?? undefined;
+				return {
+					...column,
+					meta: {
+						...meta,
+						cellClassName: cn(meta?.cellClassName, "hidden sm:table-cell"),
+						headerClassName: cn(meta?.headerClassName, "hidden sm:table-cell"),
+					} satisfies FocusColumnMeta,
+				};
+			});
 
 		const markDoneColumn: ColumnDef<Task, unknown> = {
 			id: "mark-done",
@@ -329,13 +352,13 @@ export function MyFocusWidget() {
 	const showLoading = isLoading || currentUser === undefined;
 
 	return (
-		<Card className="flex flex-col">
-			<CardHeader className="pb-2">
+		<Card className="min-w-0 flex flex-col">
+			<CardHeader className="px-4 pb-2 sm:px-6">
 				<CardTitle className="flex items-center gap-2 text-sm font-medium">
 					My Focus
 				</CardTitle>
 			</CardHeader>
-			<CardContent className="flex flex-1 flex-col">
+			<CardContent className="flex min-w-0 flex-1 flex-col px-4 sm:px-6">
 				{showLoading ? (
 					<div className="space-y-2">
 						{Array.from({ length: 5 }).map((_, i) => (
@@ -357,17 +380,17 @@ export function MyFocusWidget() {
 						</span>
 					</div>
 				) : (
-					<div className="space-y-3">
+					<div className="min-w-0 space-y-3">
 						{focusGroups.map(({ group, tasks: groupTasks }) => {
 							const config = GROUP_CONFIG[group];
 							return (
-								<div key={group}>
+								<div key={group} className="min-w-0">
 									<div className="mb-1 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
 										{config.label}
 									</div>
 									<div
 										className={cn(
-											"overflow-hidden rounded-md border border-border/70",
+											"min-w-0 overflow-hidden rounded-md border border-border/70",
 											config.borderClass && `border-l-2 ${config.borderClass}`,
 										)}
 									>

@@ -90,31 +90,31 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 		<Link
 			to="/competitions/$id"
 			params={{ id: competition.id }}
-			className="block rounded-lg border p-3 transition-colors hover:bg-muted/50"
+			className="block min-w-0 rounded-lg border p-3 transition-colors hover:bg-muted/50"
 		>
-			<div className="flex items-center gap-2">
+			<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
 				<Badge variant="outline" className="shrink-0 text-[10px]">
 					{phaseName}
 				</Badge>
-				<span className="min-w-0 truncate text-sm font-medium">
+				<span className="min-w-0 flex-1 truncate text-sm font-medium">
 					{competition.name}
 				</span>
-				<span className="ml-auto shrink-0 text-xs text-muted-foreground">
+				<span className="basis-full text-xs text-muted-foreground sm:ml-auto sm:basis-auto">
 					{daysText}
 				</span>
 			</div>
-			<div className="mt-2 flex items-center gap-3">
+			<div className="mt-2 flex min-w-0 flex-wrap items-center gap-2.5">
 				{competition.compLead && (
-					<div className="flex shrink-0 items-center gap-1.5">
+					<div className="flex min-w-0 max-w-full items-center gap-1.5 sm:max-w-[55%]">
 						<UserAvatar user={competition.compLead} size="xs" />
-						<span className="text-xs text-muted-foreground">
+						<span className="truncate text-xs text-muted-foreground">
 							{competition.compLead.name}
 						</span>
 					</div>
 				)}
 
 				{total > 0 && (
-					<div className="flex min-w-0 flex-1 items-center gap-2">
+					<div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto">
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
@@ -136,7 +136,7 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 			</div>
 			<div className="mt-1.5">
 				{latestUpdate ? (
-					<div className="flex items-center gap-1.5">
+					<div className="flex min-w-0 items-center gap-1.5">
 						<span
 							className={cn(
 								"inline-block size-2 shrink-0 rounded-full",
@@ -176,14 +176,14 @@ export function CompetitionHealthWidget() {
 	}, [competitions]);
 
 	return (
-		<Card className="flex flex-col">
-			<CardHeader className="pb-2">
+		<Card className="min-w-0 flex flex-col">
+			<CardHeader className="px-4 pb-2 sm:px-6">
 				<CardTitle className="flex items-center gap-2 text-sm font-medium">
 					<Trophy className="size-4 text-muted-foreground" />
 					Competition Health
 				</CardTitle>
 			</CardHeader>
-			<CardContent className="flex flex-1 flex-col">
+			<CardContent className="flex min-w-0 flex-1 flex-col px-4 sm:px-6">
 				{isLoading ? (
 					<div className="space-y-3">
 						{Array.from({ length: 3 }).map((_, i) => (
@@ -209,7 +209,7 @@ export function CompetitionHealthWidget() {
 						</span>
 					</div>
 				) : (
-					<div className="space-y-2">
+					<div className="min-w-0 space-y-2">
 						{activeCompetitions.slice(0, MAX_COMPETITIONS).map((comp) => (
 							<CompetitionCard key={comp.id} competition={comp} />
 						))}

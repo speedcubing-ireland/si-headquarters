@@ -3,10 +3,10 @@ import { CalendarIcon, X } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import React from "react";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { ResponsiveModal } from "@/components/shared/responsive-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
 	FormModalHeader,
 	FormModalFooter,
@@ -574,19 +574,21 @@ export function TaskModal({
 	const formKey = getTaskModalFormKey(open, defaultParent);
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[600px] p-0">
-				<TaskModalContent
-					key={formKey}
-					open={open}
-					onOpenChange={onOpenChange}
-					defaultParent={defaultParent}
-					users={users}
-					teams={teams}
-					labels={labels}
-					addTask={addTask}
-				/>
-			</DialogContent>
-		</Dialog>
+		<ResponsiveModal
+			open={open}
+			onOpenChange={onOpenChange}
+			dialogContentClassName="sm:max-w-[600px] p-0"
+		>
+			<TaskModalContent
+				key={formKey}
+				open={open}
+				onOpenChange={onOpenChange}
+				defaultParent={defaultParent}
+				users={users}
+				teams={teams}
+				labels={labels}
+				addTask={addTask}
+			/>
+		</ResponsiveModal>
 	);
 }

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
+import { ResponsiveModal } from "@/components/shared/responsive-modal";
 import {
-	Dialog,
-	DialogContent,
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
@@ -30,8 +29,12 @@ export function CanvaPickerDialog({
 	children,
 }: CanvaPickerDialogProps) {
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[720px]">
+		<ResponsiveModal
+			open={open}
+			onOpenChange={onOpenChange}
+			dialogContentClassName="sm:max-w-[720px]"
+			sheetContentClassName="p-6"
+		>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{description}</DialogDescription>
@@ -44,7 +47,6 @@ export function CanvaPickerDialog({
 					/>
 					{children}
 				</div>
-			</DialogContent>
-		</Dialog>
+		</ResponsiveModal>
 	);
 }

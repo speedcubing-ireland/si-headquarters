@@ -1,9 +1,8 @@
 import { Check, ChevronRight, FileText, Plus, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ResponsiveModal } from "@/components/shared/responsive-modal";
 import { Button } from "@/components/ui/button";
 import {
-	Dialog,
-	DialogContent,
 	DialogDescription,
 	DialogHeader,
 	DialogTitle,
@@ -57,8 +56,12 @@ export function TemplateSelector({
 	);
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-2xl">
+		<ResponsiveModal
+			open={open}
+			onOpenChange={onOpenChange}
+			dialogContentClassName="max-w-2xl"
+			sheetContentClassName="p-6"
+		>
 				<DialogHeader>
 					<DialogTitle>
 						{type === "competition" ? "Create Competition" : "Create Task"}
@@ -129,7 +132,6 @@ export function TemplateSelector({
 						<ChevronRight className="size-4 ml-1" />
 					</Button>
 				</div>
-			</DialogContent>
-		</Dialog>
+		</ResponsiveModal>
 	);
 }

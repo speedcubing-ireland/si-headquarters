@@ -18,13 +18,9 @@ import {
 	LinkedActionStateNote,
 	LinkedActionStatusBadge,
 } from "@/components/tasks/linked-actions/linked-action-status";
+import { ResponsiveModal } from "@/components/shared/responsive-modal";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 interface TaskLinkedActionsSectionProps {
@@ -92,8 +88,12 @@ function AddLinkedActionDialog({
 	}, [attachedDefinitionIds, definitions, search]);
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[560px]">
+		<ResponsiveModal
+			open={open}
+			onOpenChange={onOpenChange}
+			dialogContentClassName="sm:max-w-[560px]"
+			sheetContentClassName="p-6"
+		>
 				<DialogHeader>
 					<DialogTitle>Add Linked Integration</DialogTitle>
 				</DialogHeader>
@@ -141,8 +141,7 @@ function AddLinkedActionDialog({
 						)}
 					</div>
 				</div>
-			</DialogContent>
-		</Dialog>
+		</ResponsiveModal>
 	);
 }
 

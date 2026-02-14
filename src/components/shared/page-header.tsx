@@ -178,20 +178,20 @@ function PageHeaderNewView({
 	return (
 		<Button
 			variant="ghost"
-			size={showLabel ? "sm" : "icon"}
+			size="icon"
 			onClick={onClick}
 			title="New view"
-			className="shrink-0"
+			className={cn("shrink-0", showLabel && "sm:h-8 sm:w-auto sm:px-2.5")}
 		>
 			<LayersPlus className="size-4" />
-			{showLabel && "New view"}
+			{showLabel ? <span className="hidden sm:inline">New view</span> : null}
 		</Button>
 	);
 }
 
 function PageHeaderActions({ children }: { children: React.ReactNode }) {
 	return (
-		<div className="ml-auto flex w-full items-center justify-end gap-2 sm:w-auto">
+		<div className="ml-auto flex shrink-0 items-center justify-end gap-2">
 			{children}
 		</div>
 	);

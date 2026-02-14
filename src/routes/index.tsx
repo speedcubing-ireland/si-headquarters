@@ -20,7 +20,7 @@ function Index() {
 	return (
 		<>
 			<header className="flex h-16 shrink-0 items-center gap-2">
-				<div className="flex items-center gap-2 px-4">
+				<div className="flex min-w-0 items-center gap-2 px-3 sm:px-4">
 					<SidebarTrigger className="-ml-1" />
 					<Separator
 						orientation="vertical"
@@ -29,17 +29,23 @@ function Index() {
 					<Breadcrumb>
 						<BreadcrumbList>
 							<BreadcrumbItem>
-								<BreadcrumbPage>Headquarters</BreadcrumbPage>
+								<BreadcrumbPage className="truncate">
+									Headquarters
+								</BreadcrumbPage>
 							</BreadcrumbItem>
 						</BreadcrumbList>
 					</Breadcrumb>
 				</div>
 			</header>
-			<div className="flex flex-1 flex-col gap-6 p-4 pt-0">
+			<div className="flex min-w-0 flex-1 flex-col gap-4 p-3 pt-0 sm:gap-6 sm:p-4 sm:pt-0">
 				<AttentionBar />
-				<div className="grid gap-6 md:grid-cols-[3fr_2fr]">
-					<MyFocusWidget />
-					<CompetitionHealthWidget />
+				<div className="grid min-w-0 gap-4 sm:gap-6 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+					<div className="min-w-0">
+						<MyFocusWidget />
+					</div>
+					<div className="min-w-0">
+						<CompetitionHealthWidget />
+					</div>
 				</div>
 				<RecentUpdatesWidget />
 			</div>

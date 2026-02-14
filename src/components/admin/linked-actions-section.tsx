@@ -12,14 +12,10 @@ import {
 	type SelectedCanvaTemplate,
 	CanvaTemplatePickerDialog,
 } from "@/components/admin/linked-actions/canva-template-picker-dialog";
+import { ResponsiveModal } from "@/components/shared/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -415,8 +411,12 @@ export function LinkedActionsSection() {
 				onOpenChange={setTemplatePickerOpen}
 				onSelect={onSelectTemplate}
 			/>
-			<Dialog open={folderInputOpen} onOpenChange={setFolderInputOpen}>
-				<DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-[520px]">
+			<ResponsiveModal
+				open={folderInputOpen}
+				onOpenChange={setFolderInputOpen}
+				dialogContentClassName="sm:max-w-[520px]"
+				sheetContentClassName="p-6"
+			>
 					<DialogHeader>
 						<DialogTitle>Set Canva Destination Folder</DialogTitle>
 					</DialogHeader>
@@ -452,8 +452,7 @@ export function LinkedActionsSection() {
 							</Button>
 						</div>
 					</div>
-				</DialogContent>
-			</Dialog>
+			</ResponsiveModal>
 		</div>
 	);
 }

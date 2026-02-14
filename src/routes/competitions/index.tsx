@@ -84,16 +84,21 @@ function FiltersContent() {
 
 	return (
 		<>
-			<div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
+			<div className="flex shrink-0 items-center gap-2">
 				<FilterPopover />
 			</div>
-			<div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+			<div className="order-3 flex min-w-0 basis-full flex-wrap items-center gap-2 sm:order-none sm:basis-auto sm:flex-1">
 				<FilterChips />
 			</div>
-			<div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:shrink-0">
+			<div className="ml-auto flex shrink-0 items-center gap-2">
 				<DisplaySettings />
 				{hasActiveFilters && (
-					<Button variant="ghost" size="sm" onClick={toggleMatchMode}>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={toggleMatchMode}
+						className="hidden sm:inline-flex"
+					>
 						<span className="sm:hidden">
 							{matchMode === "any" ? "Any filter" : "All filters"}
 						</span>

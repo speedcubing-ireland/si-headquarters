@@ -3,11 +3,11 @@ import { CalendarIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import React from "react";
 import { toast } from "sonner";
+import { ResponsiveModal } from "@/components/shared/responsive-modal";
 import { TemplateSelector } from "@/components/template-selector";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
 	FormModalHeader,
 	FormModalFooter,
@@ -46,9 +46,13 @@ const CompetitionModalRoot = React.memo(function CompetitionModalRoot({
 	children: React.ReactNode;
 }) {
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[640px] p-0">{children}</DialogContent>
-		</Dialog>
+		<ResponsiveModal
+			open={open}
+			onOpenChange={onOpenChange}
+			dialogContentClassName="sm:max-w-[640px] p-0"
+		>
+			{children}
+		</ResponsiveModal>
 	);
 });
 
