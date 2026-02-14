@@ -35,8 +35,9 @@ export async function convexRun<T>(path: string, args: ConvexArgs): Promise<T> {
 	const filteredArgs = Object.fromEntries(
 		Object.entries(args).filter(([_, value]) => value !== undefined),
 	) as Record<string, string>;
+	const prod = process.env.CONVEX_PROD === "1" || process.env.CONVEX_PROD === "true";
 	const proc = Bun.spawn(
-		["bunx", "convex", "run", path, JSON.stringify(filteredArgs)],
+		["bunx", "convex", "run", ...(prod ? ["--prod"] : []), path, JSON.stringify(filteredArgs)],
 		{
 			cwd: `${import.meta.dir}/../..`,
 			stdout: "pipe",
@@ -135,7 +136,10 @@ function requireCliToken(commandName: string): string | null {
 export async function runOAuthTerminalFlow(
 	config: OAuthTerminalFlowConfig,
 ): Promise<boolean> {
-	console.log(`${config.providerDisplayName} OAuth (terminal flow)\n`);
+	const prod = process.env.CONVEX_PROD === "1" || process.env.CONVEX_PROD === "true";
+	console.log(
+		`${config.providerDisplayName} OAuth (terminal flow)${prod ? " [production]" : ""}\n`,
+	);
 	const redirectLines = [`Redirect URI: ${config.redirectUri}`];
 	if (config.redirectHint) {
 		redirectLines.push(config.redirectHint);
