@@ -2,7 +2,7 @@
 
 import { action } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { google } from "googleapis";
@@ -668,11 +668,13 @@ export const pushScheduleToWca = action({
 		}),
 	),
 	handler: async (ctx, args): Promise<PushScheduleResult> => {
-		const isVolunteer = await ctx.runQuery(internal.auth.getIsVolunteer, {});
-		if (!isVolunteer) {
+		const competitionForUser = await ctx.runQuery(api.competitions.get, {
+			competitionId: args.competitionId,
+		});
+		if (!competitionForUser) {
 			throw new ConvexError({
 				code: "FORBIDDEN",
-				message: "Volunteer access required",
+				message: "You do not have access to this competition.",
 			});
 		}
 

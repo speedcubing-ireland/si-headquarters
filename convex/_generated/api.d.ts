@@ -10,6 +10,10 @@
 
 import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
+import type * as canva from "../canva.js";
+import type * as canva_helpers from "../canva/helpers.js";
+import type * as canva_oauth from "../canva/oauth.js";
+import type * as canvaQueries from "../canvaQueries.js";
 import type * as comments from "../comments.js";
 import type * as competitionAccess from "../competitionAccess.js";
 import type * as competitions from "../competitions.js";
@@ -23,6 +27,8 @@ import type * as emails_shared from "../emails/shared.js";
 import type * as emails_sponsorshipShared from "../emails/sponsorshipShared.js";
 import type * as http from "../http.js";
 import type * as labels from "../labels.js";
+import type * as lib_canvaClient from "../lib/canvaClient.js";
+import type * as lib_canvaSharing from "../lib/canvaSharing.js";
 import type * as lib_commentParentId from "../lib/commentParentId.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_email from "../lib/email.js";
@@ -47,6 +53,11 @@ import type * as lib_taskTransforms from "../lib/taskTransforms.js";
 import type * as lib_transforms from "../lib/transforms.js";
 import type * as lib_types from "../lib/types.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as linkedActions from "../linkedActions.js";
+import type * as linkedActions_config from "../linkedActions/config.js";
+import type * as linkedActions_permissions from "../linkedActions/permissions.js";
+import type * as linkedActions_runners from "../linkedActions/runners.js";
+import type * as linkedActions_shapes from "../linkedActions/shapes.js";
 import type * as notifications from "../notifications.js";
 import type * as notifications_catalog from "../notifications/catalog.js";
 import type * as notifications_channels_base from "../notifications/channels/base.js";
@@ -134,6 +145,10 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   auth: typeof auth;
+  canva: typeof canva;
+  "canva/helpers": typeof canva_helpers;
+  "canva/oauth": typeof canva_oauth;
+  canvaQueries: typeof canvaQueries;
   comments: typeof comments;
   competitionAccess: typeof competitionAccess;
   competitions: typeof competitions;
@@ -147,6 +162,8 @@ declare const fullApi: ApiFromModules<{
   "emails/sponsorshipShared": typeof emails_sponsorshipShared;
   http: typeof http;
   labels: typeof labels;
+  "lib/canvaClient": typeof lib_canvaClient;
+  "lib/canvaSharing": typeof lib_canvaSharing;
   "lib/commentParentId": typeof lib_commentParentId;
   "lib/constants": typeof lib_constants;
   "lib/email": typeof lib_email;
@@ -171,6 +188,11 @@ declare const fullApi: ApiFromModules<{
   "lib/transforms": typeof lib_transforms;
   "lib/types": typeof lib_types;
   "lib/validators": typeof lib_validators;
+  linkedActions: typeof linkedActions;
+  "linkedActions/config": typeof linkedActions_config;
+  "linkedActions/permissions": typeof linkedActions_permissions;
+  "linkedActions/runners": typeof linkedActions_runners;
+  "linkedActions/shapes": typeof linkedActions_shapes;
   notifications: typeof notifications;
   "notifications/catalog": typeof notifications_catalog;
   "notifications/channels/base": typeof notifications_channels_base;

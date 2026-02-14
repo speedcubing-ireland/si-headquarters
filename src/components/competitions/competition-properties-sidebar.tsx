@@ -2,7 +2,6 @@
 
 import {
 	CalendarDays,
-	CalendarSync,
 	Circle,
 	ExternalLink,
 	FileSpreadsheet,
@@ -90,6 +89,8 @@ function sponsorStatusLabel(competition: Competition): string {
 			return "None";
 		case "sponsor":
 			return competition.sponsorPropertyDisplay ?? "Sponsor";
+		default:
+			return "None";
 	}
 }
 
@@ -105,6 +106,8 @@ function sponsorStatusBadgeVariant(
 			return "destructive";
 		case "sponsor":
 			return "default";
+		default:
+			return "outline";
 	}
 }
 
@@ -131,10 +134,8 @@ export function CompetitionPropertiesSidebar({
 	const [wcaPopoverOpen, setWcaPopoverOpen] = useState(false);
 	const [wcaLinking, setWcaLinking] = useState<string | null>(null);
 	const [wcaSearchAll, setWcaSearchAll] = useState(false);
-	const [wcaPushing, setWcaPushing] = useState(false);
 	const searchWcaCompetitions = useAction(api.wca.searchCompetitions);
 	const fetchMyWcaCompetitions = useAction(api.wca.fetchMyCompetitions);
-	const pushScheduleToWca = useAction(api.wcaSchedule.pushScheduleToWca);
 
 	const totalTasks = tasks.length;
 	const completedTasks = tasks.filter((task) => task.status === "done").length;
@@ -390,39 +391,6 @@ export function CompetitionPropertiesSidebar({
 												Open
 											</a>
 										</DropdownMenuItem>
-										{competition.compSheet && (
-											<DropdownMenuItem
-												disabled={wcaPushing}
-												onClick={() => {
-													setWcaPushing(true);
-													void pushScheduleToWca({
-														competitionId: competition.id,
-													})
-														.then((result) => {
-															if (result.success) {
-																toast.success(
-																	`Schedule pushed to WCA (${result.activitiesCreated} activities)`,
-																);
-															} else {
-																toast.error(
-																	result.error ?? "Failed to push schedule",
-																);
-															}
-														})
-														.catch(() => {
-															toast.error("Failed to push schedule to WCA");
-														})
-														.finally(() => setWcaPushing(false));
-												}}
-											>
-												{wcaPushing ? (
-													<Loader2 className="size-4 animate-spin" />
-												) : (
-													<CalendarSync className="size-4" />
-												)}
-												Push schedule to WCA
-											</DropdownMenuItem>
-										)}
 										<DropdownMenuSeparator />
 										<DropdownMenuItem
 											variant="destructive"

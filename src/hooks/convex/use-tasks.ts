@@ -302,6 +302,7 @@ export function useTaskMutations(): TaskMutations {
 				blocks: [],
 				unresolvedBlockerCount: 0,
 				isBlocked: false,
+				canEdit: true,
 				resources: [],
 				subTasks: [],
 				createdAt: new Date().toISOString(),

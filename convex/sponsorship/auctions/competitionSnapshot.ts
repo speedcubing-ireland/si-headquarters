@@ -240,19 +240,17 @@ async function authorizeSnapshotRefresh(
 	}
 
 	try {
-		const auction = await ctx.runQuery(api.sponsorPortal.getAuction, {
+		await ctx.runQuery(api.sponsorPortal.getAuction, {
 			sessionToken: args.sessionToken,
 			auctionId: args.auctionId,
 		});
-		if (auction) return;
 	} catch {
-		// Ignore and rethrow with a generic access error below.
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message:
+				"You do not have access to refresh this auction competition data.",
+		});
 	}
-
-	throw new ConvexError({
-		code: "FORBIDDEN",
-		message: "You do not have access to refresh this auction competition data.",
-	});
 }
 
 export const refreshCompetitionSnapshot = action({

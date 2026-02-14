@@ -108,6 +108,65 @@ export const canvaResource = v.object({
 
 export const linkedResource = v.union(googleSheetResource, canvaResource);
 
+export const LINKED_ACTION_TYPES = ["canva_template", "linked_sheet"] as const;
+
+export const linkedActionType = v.union(
+	...LINKED_ACTION_TYPES.map((type) => v.literal(type)),
+);
+
+export const LINKED_ACTION_RUN_PERMISSIONS = [
+	"anyone",
+	"volunteer",
+	"owner",
+	"assignee",
+] as const;
+
+export const linkedActionRunPermission = v.union(
+	...LINKED_ACTION_RUN_PERMISSIONS.map((permission) => v.literal(permission)),
+);
+
+export const linkedSheetOperation = v.union(
+	v.literal("transfer_schedule_to_wca"),
+	v.literal("populate_checkin_sheet"),
+);
+
+export const canvaNamingMode = v.literal("parent_plus_suffix");
+
+export const canvaNamingConfig = v.object({
+	mode: canvaNamingMode,
+	defaultSuffix: v.string(),
+});
+
+export const canvaTemplateActionConfig = v.object({
+	sourceBrandTemplateId: v.string(),
+	destinationFolderId: v.string(),
+	naming: canvaNamingConfig,
+});
+
+export const linkedSheetActionConfig = v.object({
+	operation: linkedSheetOperation,
+});
+
+export const linkedActionConfig = v.union(
+	canvaTemplateActionConfig,
+	linkedSheetActionConfig,
+);
+
+export const linkedTaskActionStatus = v.union(
+	v.literal("idle"),
+	v.literal("running"),
+	v.literal("awaiting_manual_share"),
+	v.literal("completed"),
+	v.literal("error"),
+);
+
+export type LinkedActionType = Infer<typeof linkedActionType>;
+export type LinkedActionRunPermission = Infer<typeof linkedActionRunPermission>;
+export type LinkedActionConfig = Infer<typeof linkedActionConfig>;
+export type CanvaTemplateActionConfig = Infer<typeof canvaTemplateActionConfig>;
+export type LinkedSheetActionConfig = Infer<typeof linkedSheetActionConfig>;
+export type LinkedTaskActionStatus = Infer<typeof linkedTaskActionStatus>;
+
 export const activityMetadata = v.optional(
 	v.object({
 		fieldName: v.optional(v.string()),

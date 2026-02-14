@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import React from "react";
+import { toast } from "sonner";
 import { TemplateSelector } from "@/components/template-selector";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -402,7 +403,17 @@ function CompetitionModalImpl({ open, onOpenChange }: CompetitionModalProps) {
 			const created = await addCompetition(baseData);
 
 			if (selectedTemplate) {
-				await createTasksFromTemplate(created.id, selectedTemplate, phases);
+				const result = await createTasksFromTemplate(
+					created.id,
+					selectedTemplate,
+					phases,
+				);
+				const missingShortIds = result?.missingLinkedActionShortIds ?? [];
+				if (missingShortIds.length > 0) {
+					toast.warning(
+						`Some linked integrations were missing: ${missingShortIds.join(", ")}`,
+					);
+				}
 			}
 
 			onOpenChange(false);

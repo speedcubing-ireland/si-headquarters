@@ -25,6 +25,7 @@ type TemplateCreateTaskInput = {
 	phaseId?: Id<"phases">;
 	labelIds: Id<"labels">[];
 	requiredApprovalIds?: string[];
+	linkedActionShortIds?: string[];
 };
 
 type CompetitionTaskTemplate = {
@@ -112,6 +113,9 @@ export function buildTemplateCreateTaskInputs({
 			...(phaseId && { phaseId }),
 			labelIds: resolveLabelIds(task.labels),
 			...(requiredApprovalIds && { requiredApprovalIds }),
+			...(task.linkedActionShortIds?.length
+				? { linkedActionShortIds: task.linkedActionShortIds }
+				: {}),
 		});
 
 		for (const subTask of task.subTasks ?? []) {
@@ -151,7 +155,7 @@ export function useTemplateTasks(
 
 			if (tasksToCreate.length === 0) return;
 
-			await createManyFromTemplateMutation({
+			return await createManyFromTemplateMutation({
 				competitionId: parseCompetitionId(competitionId) as Id<"competitions">,
 				tasks: tasksToCreate,
 			});

@@ -5,7 +5,7 @@ import { requireUserId } from "../auth";
 const TOKEN_EXPIRY_BUFFER_SEC = 5 * 60;
 
 export function createTokenMutations(
-	tableName: "googleSheetsTokens" | "wcaTokens",
+	tableName: "googleSheetsTokens" | "wcaTokens" | "canvaTokens",
 ) {
 	return {
 		setTokens: internalMutation({

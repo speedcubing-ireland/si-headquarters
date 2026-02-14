@@ -166,7 +166,6 @@ async function placeSealedBid(
 	});
 
 	return {
-		// Sealed auctions never expose the current leading bid while active.
 		currentPriceCents: input.auction.startPriceCents,
 	};
 }

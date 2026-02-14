@@ -1,4 +1,4 @@
-import { v, ConvexError } from "convex/values";
+import { v, ConvexError, type Infer } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
@@ -12,6 +12,7 @@ import {
 	ERROR_TASK_MOVE,
 	ERROR_TASK_NO_ACCESS,
 	hasTaskCompetitionAccess,
+	hasTaskWriteAccess,
 	hasStandaloneTaskAccess,
 	listOrganisedCompetitionIds,
 	requireTaskAccess,
@@ -295,6 +296,7 @@ export const taskForUIReturns = v.object({
 	blocks: v.array(relationTaskShape),
 	unresolvedBlockerCount: v.number(),
 	isBlocked: v.boolean(),
+	canEdit: v.boolean(),
 	resources: v.array(linkedResource),
 	subTasks: v.array(subtaskMinimalShape),
 	createdAt: v.string(),
@@ -308,7 +310,10 @@ export const listForUI = query({
 		competitionId: v.optional(v.id("competitions")),
 	},
 	returns: v.array(taskForUIReturns),
-	handler: async (ctx, args) => {
+	handler: async (
+		ctx,
+		args,
+	): Promise<Array<Infer<typeof taskForUIReturns>>> => {
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
 		const archived = args.archived ?? false;
@@ -350,42 +355,43 @@ export const listForUI = query({
 			}),
 		);
 
-		return tasks.map((t) =>
-			transformTaskToUI(ctx, t, {
-				maps,
-				subTasks: subtaskRowsByParent.get(t._id) ?? [],
-				relationData: relationDataByTask.get(t._id) ?? EMPTY_TASK_RELATION_DATA,
-			}),
-		);
+		return tasks.map((t) => {
+			const canEdit =
+				volunteer ||
+				(!t.parentCompetitionId
+					? hasStandaloneTaskAccess(t, userId)
+					: accessibleCompetitionIds.has(t.parentCompetitionId));
+
+			return {
+				...transformTaskToUI(ctx, t, {
+					maps,
+					subTasks: subtaskRowsByParent.get(t._id) ?? [],
+					relationData:
+						relationDataByTask.get(t._id) ?? EMPTY_TASK_RELATION_DATA,
+				}),
+				canEdit,
+			};
+		});
 	},
 });
 
 export const getForUI = query({
 	args: { taskId: v.id("tasks") },
 	returns: v.union(taskForUIReturns, v.null()),
-	handler: async (ctx, args) => {
+	handler: async (
+		ctx,
+		args,
+	): Promise<Infer<typeof taskForUIReturns> | null> => {
 		const userId = await requireUserId(ctx);
 		const t = await ctx.db.get(args.taskId);
 		if (!t) return null;
 
 		const volunteer = await isVolunteer(ctx);
-		if (!volunteer) {
-			if (!t.parentCompetitionId) {
-				if (!hasStandaloneTaskAccess(t, userId)) {
-					return null;
-				}
-			} else {
-				const hasAccess = await hasTaskCompetitionAccess(
-					ctx,
-					volunteer,
-					userId,
-					t.parentCompetitionId,
-				);
-				if (!hasAccess) {
-					return null;
-				}
-			}
+		const canEdit = await hasTaskWriteAccess(ctx, volunteer, userId, t);
+		if (!canEdit) {
+			return null;
 		}
+		const canEditForUi: boolean = canEdit;
 
 		const [relationDataByTask, maps, childTasks] = await Promise.all([
 			buildTaskRelationDataMap(ctx, [args.taskId]),
@@ -427,13 +433,16 @@ export const getForUI = query({
 			}
 		}
 
-		return transformTaskToUI(ctx, t, {
-			maps,
-			subTasks,
-			relationData:
-				relationDataByTask.get(args.taskId) ?? EMPTY_TASK_RELATION_DATA,
-			parentDisplayNameOverride: parentDisplayName,
-		});
+		return {
+			...transformTaskToUI(ctx, t, {
+				maps,
+				subTasks,
+				relationData:
+					relationDataByTask.get(args.taskId) ?? EMPTY_TASK_RELATION_DATA,
+				parentDisplayNameOverride: parentDisplayName,
+			}),
+			canEdit: canEditForUi,
+		};
 	},
 });
 
@@ -467,6 +476,7 @@ const templateTaskCreateArgs = v.object({
 	phaseId: v.optional(v.id("phases")),
 	labelIds: v.array(v.id("labels")),
 	requiredApprovalIds: v.optional(v.array(v.string())),
+	linkedActionShortIds: v.optional(v.array(v.string())),
 });
 
 const ERROR_TASK_RELATION_SELF = "A task cannot block itself";
@@ -755,7 +765,10 @@ export const createManyFromTemplate = mutation({
 		competitionId: v.id("competitions"),
 		tasks: v.array(templateTaskCreateArgs),
 	},
-	returns: v.array(v.id("tasks")),
+	returns: v.object({
+		taskIds: v.array(v.id("tasks")),
+		missingLinkedActionShortIds: v.array(v.string()),
+	}),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
@@ -767,12 +780,37 @@ export const createManyFromTemplate = mutation({
 			ERROR_TASK_NO_ACCESS,
 		);
 
-		if (args.tasks.length === 0) return [];
+		if (args.tasks.length === 0) {
+			return {
+				taskIds: [],
+				missingLinkedActionShortIds: [],
+			};
+		}
 
 		const identifiers = await reserveTaskIdentifiers(ctx, args.tasks.length);
 		const tempIdToTaskId = new Map<string, Id<"tasks">>();
 		const createdTaskIds: Id<"tasks">[] = [];
 		const now = Date.now();
+		const requestedShortIds = [
+			...new Set(args.tasks.flatMap((task) => task.linkedActionShortIds ?? [])),
+		];
+		const linkedActionIdByShortId = new Map<
+			string,
+			Id<"linkedActionDefinitions">
+		>();
+		const missingLinkedActionShortIds: string[] = [];
+
+		for (const shortId of requestedShortIds) {
+			const definition = await ctx.db
+				.query("linkedActionDefinitions")
+				.withIndex("by_short_id", (q) => q.eq("shortId", shortId))
+				.first();
+			if (!definition || definition.archived) {
+				missingLinkedActionShortIds.push(shortId);
+				continue;
+			}
+			linkedActionIdByShortId.set(shortId, definition._id);
+		}
 
 		for (const [index, task] of args.tasks.entries()) {
 			if (!task.title.trim()) {
@@ -814,6 +852,26 @@ export const createManyFromTemplate = mutation({
 				updatedAt: now,
 			});
 
+			const linkedActionIds = [
+				...new Set(
+					(task.linkedActionShortIds ?? [])
+						.map((shortId) => linkedActionIdByShortId.get(shortId))
+						.filter(
+							(id): id is Id<"linkedActionDefinitions"> => id !== undefined,
+						),
+				),
+			];
+			for (const linkedActionId of linkedActionIds) {
+				await ctx.db.insert("taskLinkedActions", {
+					taskId,
+					linkedActionId,
+					status: "idle",
+					createdById: userId,
+					createdAt: now,
+					updatedAt: now,
+				});
+			}
+
 			tempIdToTaskId.set(task.tempId, taskId);
 			createdTaskIds.push(taskId);
 
@@ -833,7 +891,10 @@ export const createManyFromTemplate = mutation({
 			});
 		}
 
-		return createdTaskIds;
+		return {
+			taskIds: createdTaskIds,
+			missingLinkedActionShortIds,
+		};
 	},
 });
 

@@ -6,6 +6,12 @@ import type {
 	TaskPriority,
 	LinkedResource,
 	PhaseUI,
+	LinkedActionType,
+	LinkedActionRunPermission,
+	LinkedActionConfig,
+	LinkedTaskActionStatus,
+	CanvaTemplateActionConfig,
+	LinkedSheetActionConfig,
 } from "../../convex/lib/types";
 import {
 	DEFAULT_PHASES,
@@ -66,6 +72,14 @@ export type Reminder = FunctionReturnType<
 	typeof api.reminders.listForUser
 >[number];
 
+export type LinkedActionDefinition = FunctionReturnType<
+	typeof api.linkedActions.listDefinitions
+>[number];
+
+export type TaskLinkedAction = FunctionReturnType<
+	typeof api.linkedActions.listForTask
+>[number];
+
 export { TASK_STATUSES, TASK_PRIORITIES } from "../../convex/lib/validators";
 
 export type { TaskStatus, TaskPriority };
@@ -77,6 +91,14 @@ export type GoogleSheetResource = Extract<
 export type CanvaResource = Extract<LinkedResource, { type: "canva-design" }>;
 
 export type { LinkedResource };
+export type {
+	LinkedActionType,
+	LinkedActionRunPermission,
+	LinkedActionConfig,
+	LinkedTaskActionStatus,
+	CanvaTemplateActionConfig,
+	LinkedSheetActionConfig,
+};
 
 export type CompetitionPhase = PhaseUI;
 
@@ -134,6 +156,7 @@ export type TemplateTask = {
 	suggestedAssigneeId?: string | null;
 	phase: string | null;
 	requiredApprovalByTeamNames?: SeededTeamName[];
+	linkedActionShortIds?: string[];
 	subTasks?: TemplateTask[];
 };
 

@@ -56,6 +56,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			ownerTeamName: "Competitions Team",
 			requiredApprovalByTeamNames: ["Delegates"],
 			phase: "Pre-Announcement",
+			linkedActionShortIds: ["sheet.transfer-schedule-to-wca"],
 		},
 		{
 			title: "Sponsorship",
@@ -129,6 +130,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 					ownerTeamName: "Competitions Team",
 					requiredApprovalByTeamNames: ["Graphics Team"],
 					phase: "Post-Announcement",
+					linkedActionShortIds: ["canva.certificates"],
 				},
 			],
 		},
@@ -141,6 +143,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			ownerTeamName: "Graphics Team",
 			requiredApprovalByTeamNames: ["Graphics Team"],
 			phase: "Post-Announcement",
+			linkedActionShortIds: ["canva.lanyards"],
 		},
 		{
 			title: "Groups and printing done",
@@ -204,6 +207,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			labels: ["Registration"],
 			ownerTeamName: "Competitions Team",
 			phase: "Pre-Competition",
+			linkedActionShortIds: ["sheet.populate-checkin"],
 		},
 		{
 			title: "All expenses submitted",

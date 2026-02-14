@@ -373,4 +373,54 @@ describe("tasks access control (non-volunteer)", () => {
 		expect(task?.approvedByIds).toContain(seeded.directorId);
 		expect(task?.status).toBe("awaiting-review");
 	});
+
+	test("createManyFromTemplate rejects inaccessible competition even with linked action IDs", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const actorId = await ctx.db.insert("users", {});
+			const ownerId = await ctx.db.insert("users", {});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Denied Competition",
+				description: "",
+				compStart: "2026-08-01",
+				compEnd: "2026-08-02",
+				organiserIds: [ownerId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: ownerId,
+			});
+			await ctx.db.insert("linkedActionDefinitions", {
+				name: "Check-in Sheet",
+				shortId: "sheet.populate-checkin",
+				type: "linked_sheet",
+				runPermission: "anyone",
+				config: { operation: "populate_checkin_sheet" },
+				archived: false,
+				createdById: ownerId,
+				updatedById: ownerId,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
+			});
+			return { actorId, competitionId };
+		});
+		const authed = t.withIdentity({ subject: seeded.actorId });
+
+		await expect(
+			authed.mutation(api.tasks.createManyFromTemplate, {
+				competitionId: seeded.competitionId,
+				tasks: [
+					{
+						tempId: "task-1",
+						title: "Denied template task",
+						status: "to-do",
+						priority: "medium",
+						labelIds: [],
+						linkedActionShortIds: ["sheet.populate-checkin"],
+					},
+				],
+			}),
+		).rejects.toBeTruthy();
+	});
 });

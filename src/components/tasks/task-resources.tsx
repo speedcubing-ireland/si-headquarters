@@ -53,11 +53,11 @@ function ResourceCard({
 	const getResourceIcon = () => {
 		switch (resource.type) {
 			case "canva-design":
-				return <Palette className="size-4 text-pink-500" />;
+				return <Palette className="size-4 text-primary" />;
 			case "google-sheet":
-				return <FileSpreadsheet className="size-4 text-green-500" />;
+				return <FileSpreadsheet className="size-4 text-secondary-foreground" />;
 			default:
-				return <Link2 className="size-4 text-blue-500" />;
+				return <Link2 className="size-4 text-muted-foreground" />;
 		}
 	};
 

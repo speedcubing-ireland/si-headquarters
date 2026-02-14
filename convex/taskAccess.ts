@@ -33,33 +33,39 @@ export async function listOrganisedCompetitionIds(
 }
 
 export async function requireTaskAccess(
-	ctx: MutationCtx,
+	ctx: TaskAccessCtx,
 	volunteer: boolean,
 	userId: Id<"users">,
 	task: Doc<"tasks">,
 ): Promise<void> {
-	if (volunteer) return;
-
-	if (!task.parentCompetitionId) {
-		if (hasStandaloneTaskAccess(task, userId)) return;
+	const hasAccess = await hasTaskWriteAccess(ctx, volunteer, userId, task);
+	if (!hasAccess) {
+		const message = task.parentCompetitionId
+			? ERROR_TASK_NO_ACCESS
+			: ERROR_TASK_NO_COMPETITION;
 		throw new ConvexError({
 			code: "FORBIDDEN",
-			message: ERROR_TASK_NO_COMPETITION,
+			message,
 		});
 	}
+}
 
-	const hasAccess = await hasTaskCompetitionAccess(
+export async function hasTaskWriteAccess(
+	ctx: TaskAccessCtx,
+	volunteer: boolean,
+	userId: Id<"users">,
+	task: Doc<"tasks">,
+): Promise<boolean> {
+	if (volunteer) return true;
+	if (!task.parentCompetitionId) {
+		return hasStandaloneTaskAccess(task, userId);
+	}
+	return hasTaskCompetitionAccess(
 		ctx,
 		volunteer,
 		userId,
 		task.parentCompetitionId,
 	);
-	if (!hasAccess) {
-		throw new ConvexError({
-			code: "FORBIDDEN",
-			message: ERROR_TASK_NO_ACCESS,
-		});
-	}
 }
 
 export function hasStandaloneTaskAccess(

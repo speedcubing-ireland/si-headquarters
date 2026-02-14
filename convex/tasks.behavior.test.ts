@@ -239,4 +239,55 @@ describe("tasks behavior characterization", () => {
 			}),
 		).rejects.toBeTruthy();
 	});
+
+	test("createManyFromTemplate links resolved action short IDs and reports missing ones", async () => {
+		const t = convexTest(schema, modules);
+		const { userId, competitionId } = await seedUserAndCompetition(t);
+		const authed = t.withIdentity({ subject: userId });
+		const definitionId = await t.run((ctx) =>
+			ctx.db.insert("linkedActionDefinitions", {
+				name: "Check-in Sheet",
+				shortId: "sheet.populate-checkin",
+				type: "linked_sheet",
+				runPermission: "anyone",
+				config: { operation: "populate_checkin_sheet" },
+				archived: false,
+				createdById: userId,
+				updatedById: userId,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
+			}),
+		);
+
+		const result = await authed.mutation(api.tasks.createManyFromTemplate, {
+			competitionId,
+			tasks: [
+				{
+					tempId: "task-1",
+					title: "Check-in task",
+					status: "to-do",
+					priority: "medium",
+					labelIds: [],
+					linkedActionShortIds: [
+						"sheet.populate-checkin",
+						"sheet.missing-action",
+					],
+				},
+			],
+		});
+
+		expect(result.taskIds).toHaveLength(1);
+		expect(result.missingLinkedActionShortIds).toEqual([
+			"sheet.missing-action",
+		]);
+
+		const linkedRows = await t.run((ctx) =>
+			ctx.db
+				.query("taskLinkedActions")
+				.withIndex("by_task", (q) => q.eq("taskId", result.taskIds[0]))
+				.collect(),
+		);
+		expect(linkedRows).toHaveLength(1);
+		expect(linkedRows[0].linkedActionId).toBe(definitionId);
+	});
 });

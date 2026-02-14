@@ -98,4 +98,30 @@ describe("buildTemplateCreateTaskInputs", () => {
 		expect(tasks).toHaveLength(1);
 		expect(tasks[0].assigneeId).toBe(bob.id);
 	});
+
+	test("passes through linked action short IDs to template create payload", () => {
+		const alice = makeUser("user-alice", "Alice");
+		const tasks = buildTemplateCreateTaskInputs({
+			template: {
+				defaultTasks: [
+					makeTemplateTask({
+						linkedActionShortIds: [
+							"sheet.populate-checkin",
+							"canva.certificates",
+						],
+					}),
+				],
+			},
+			competitionPhases: [makePhase("phase-concept", "Concept")],
+			teams: [makeTeam("team-comp", "Competitions Team", [alice])],
+			users: [alice],
+			labels: [makeLabel("label-venue", "Venue")],
+		});
+
+		expect(tasks).toHaveLength(1);
+		expect(tasks[0].linkedActionShortIds).toEqual([
+			"sheet.populate-checkin",
+			"canva.certificates",
+		]);
+	});
 });

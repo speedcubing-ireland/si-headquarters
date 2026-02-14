@@ -21,9 +21,9 @@ import { useTaskColumns } from "@/components/tasks/columns";
 import { TasksDataTable } from "@/components/tasks/data-table";
 import { TaskListGroup } from "@/components/tasks/task-list-group";
 import { TaskModal } from "@/components/tasks/task-modal";
+import { TaskLinkedActionsSection } from "@/components/tasks/task-linked-actions";
 import { TaskPropertiesSidebar } from "@/components/tasks/task-properties-sidebar";
 import { TaskReminderStrip } from "@/components/tasks/task-reminder-strip";
-import { TaskResourcesSection } from "@/components/tasks/task-resources";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -471,7 +471,7 @@ function RouteComponent() {
 											<Link
 												to="/tasks/$id"
 												params={{ id: relation.task.id }}
-												className="underline underline-offset-2 break-words [overflow-wrap:anywhere]"
+												className="underline underline-offset-2 wrap-break-word"
 											>
 												{relation.task.identifier} {relation.task.title}
 											</Link>
@@ -613,9 +613,7 @@ function RouteComponent() {
 							</div>
 						</section>
 
-						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
-							<TaskResourcesSection task={task} />
-						</section>
+						<TaskLinkedActionsSection task={task} readOnly={!task.canEdit} />
 
 						<SubTasksList task={task} />
 

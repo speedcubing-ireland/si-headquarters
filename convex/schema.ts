@@ -6,6 +6,10 @@ import {
 	taskPriority,
 	reminderMetadata,
 	reminderRecurringConfig,
+	linkedActionType,
+	linkedActionRunPermission,
+	linkedActionConfig,
+	linkedTaskActionStatus,
 } from "./lib/validators";
 import {
 	notificationMetadata,
@@ -109,6 +113,37 @@ export default defineSchema({
 	taskCounter: defineTable({
 		next: v.number(),
 	}),
+
+	linkedActionDefinitions: defineTable({
+		name: v.string(),
+		shortId: v.string(),
+		type: linkedActionType,
+		runPermission: linkedActionRunPermission,
+		config: linkedActionConfig,
+		archived: v.boolean(),
+		createdById: v.id("users"),
+		updatedById: v.id("users"),
+		createdAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_short_id", ["shortId"])
+		.index("by_archived", ["archived"])
+		.index("by_type", ["type"]),
+
+	taskLinkedActions: defineTable({
+		taskId: v.id("tasks"),
+		linkedActionId: v.id("linkedActionDefinitions"),
+		status: linkedTaskActionStatus,
+		lastRunAt: v.optional(v.number()),
+		lastRunMessage: v.optional(v.string()),
+		lastOutputJson: v.optional(v.string()),
+		createdById: v.id("users"),
+		createdAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_task", ["taskId"])
+		.index("by_linked_action", ["linkedActionId"])
+		.index("by_task_and_linked_action", ["taskId", "linkedActionId"]),
 
 	competitions: defineTable({
 		name: v.string(),
@@ -501,6 +536,13 @@ export default defineSchema({
 	}),
 
 	wcaTokens: defineTable({
+		accessToken: v.string(),
+		refreshToken: v.string(),
+		expiresAt: v.number(),
+		updatedAt: v.number(),
+	}),
+
+	canvaTokens: defineTable({
 		accessToken: v.string(),
 		refreshToken: v.string(),
 		expiresAt: v.number(),
