@@ -21,7 +21,7 @@ interface CanvaTemplatePaneProps {
 	isLinking: boolean;
 	onRun: () => void;
 	onConfirmManualShare: () => void;
-	onManualLink: (designInput: string) => Promise<void>;
+	onManualLink: (designInput: string) => Promise<boolean>;
 }
 
 function parseOutput(outputJson: string | null): {
@@ -43,7 +43,8 @@ function parseOutput(outputJson: string | null): {
 			previewImageUrl:
 				parsed.previewImageUrl ?? parsed.preview_image_url ?? null,
 		};
-	} catch {
+	} catch (error) {
+		console.warn("Failed to parse linked action output JSON.", { error });
 		return { designId: null, url: null, previewImageUrl: null };
 	}
 }
@@ -85,8 +86,14 @@ export function CanvaTemplatePane({
 					previewImageUrl: metadata.previewImageUrl,
 				});
 			})
-			.catch(() => {
+			.catch((error) => {
 				if (isCancelled) return;
+				console.warn("Failed to fetch Canva design metadata.", {
+					designId,
+					taskId: item.taskId,
+					taskLinkedActionId: item.id,
+					error,
+				});
 				setLiveMetadata(null);
 			});
 		return () => {
@@ -143,9 +150,9 @@ export function CanvaTemplatePane({
 
 	const attachManualDesign = () => {
 		if (!manualCandidate) return;
-		void onManualLink(manualCandidate.id)
-			.then(() => onManualDialogOpenChange(false))
-			.catch(() => undefined);
+		void onManualLink(manualCandidate.id).then((linked) => {
+			if (linked) onManualDialogOpenChange(false);
+		});
 	};
 
 	return (

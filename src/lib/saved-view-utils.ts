@@ -40,7 +40,8 @@ export function parseFiltersJson<TFilters>(
 			filters: data.filters ?? fallbackFilters,
 			matchMode: data.matchMode ?? "all",
 		};
-	} catch {
+	} catch (error) {
+		console.warn("Failed to parse saved view filters JSON.", { error });
 		return { filters: fallbackFilters, matchMode: "all" };
 	}
 }
@@ -61,7 +62,10 @@ export function parseDisplaySettingsJson(json: string): DisplaySettings {
 				direction: ordering.direction === "desc" ? "desc" : "asc",
 			},
 		};
-	} catch {
+	} catch (error) {
+		console.warn("Failed to parse saved view display settings JSON.", {
+			error,
+		});
 		return cloneDefaultDisplaySettings();
 	}
 }

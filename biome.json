@@ -12,7 +12,7 @@
 			"!convex/**/_generated",
 			"!src/components/ui",
 			"!**/routeTree.gen.ts",
-			"!project-view-interface",
+			"!external-docs",
 			"!.agents",
 			"!.cursor",
 			"!.opencode"

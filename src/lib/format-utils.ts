@@ -16,7 +16,12 @@ function formatWithPattern(
 	if (!date) return "";
 	try {
 		return format(new Date(date), pattern);
-	} catch {
+	} catch (error) {
+		console.warn("Failed to format date with pattern.", {
+			date,
+			pattern,
+			error,
+		});
 		return date;
 	}
 }

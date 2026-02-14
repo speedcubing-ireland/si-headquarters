@@ -204,8 +204,8 @@ export function TaskLinkedActionsSection({
 	const manualLinkCanvaDesign = (
 		item: TaskLinkedAction,
 		designInput: string,
-	): Promise<void> => {
-		if (readOnly || !item.canRun) return Promise.resolve();
+	): Promise<boolean> => {
+		if (readOnly || !item.canRun) return Promise.resolve(false);
 		setLinkingId(item.id);
 		return linkTaskCanvaDesign({
 			taskId: task.id,
@@ -215,13 +215,14 @@ export function TaskLinkedActionsSection({
 			.then((result) => {
 				if (result.success) {
 					toast.success(result.message);
-					return;
+					return true;
 				}
-				throw new Error(result.message);
+				onMutationError(new Error(result.message));
+				return false;
 			})
 			.catch((error) => {
 				onMutationError(error);
-				throw error;
+				return false;
 			})
 			.finally(() => setLinkingId(null));
 	};

@@ -417,7 +417,10 @@ export function CompetitionPropertiesSidebar({
 												setWcaMyComps(results as WcaSearchResult[]);
 												setWcaMyCompsLoaded(true);
 											})
-											.catch(() => {
+											.catch((error) => {
+												console.warn("Failed to load WCA competitions.", {
+													error,
+												});
 												toast.error("Failed to load your WCA competitions");
 											})
 											.finally(() => setWcaSearching(false));
@@ -474,7 +477,14 @@ export function CompetitionPropertiesSidebar({
 														.then((results) => {
 															setWcaSearchResults(results as WcaSearchResult[]);
 														})
-														.catch(() => {
+														.catch((error) => {
+															console.warn(
+																"Failed to search WCA competitions.",
+																{
+																	query: wcaSearchQuery.trim(),
+																	error,
+																},
+															);
 															toast.error("Failed to search WCA competitions");
 														})
 														.finally(() => setWcaSearching(false));
@@ -495,7 +505,14 @@ export function CompetitionPropertiesSidebar({
 														.then((results) => {
 															setWcaSearchResults(results as WcaSearchResult[]);
 														})
-														.catch(() => {
+														.catch((error) => {
+															console.warn(
+																"Failed to search WCA competitions.",
+																{
+																	query: wcaSearchQuery.trim(),
+																	error,
+																},
+															);
 															toast.error("Failed to search WCA competitions");
 														})
 														.finally(() => setWcaSearching(false));

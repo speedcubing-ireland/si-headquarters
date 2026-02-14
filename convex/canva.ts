@@ -36,6 +36,23 @@ export {
 	parseCanvaFolderInput,
 } from "./canva/helpers";
 
+function extractConvexErrorCode(error: unknown): string | null {
+	if (!(error instanceof ConvexError)) return null;
+	const data = error.data;
+	if (!data || typeof data !== "object" || !("code" in data)) {
+		return null;
+	}
+	const code = (data as { code?: unknown }).code;
+	return typeof code === "string" ? code : null;
+}
+
+function isTaskAccessError(error: unknown): boolean {
+	const code = extractConvexErrorCode(error);
+	return (
+		code === "UNAUTHENTICATED" || code === "FORBIDDEN" || code === "NOT_FOUND"
+	);
+}
+
 async function requireCanvaRunAccess(
 	ctx: ActionCtx,
 	args: {
@@ -54,8 +71,15 @@ async function requireCanvaRunAccess(
 			if (match && match.definition.type === "canva_template" && match.canRun) {
 				return;
 			}
-		} catch {
-			
+		} catch (error) {
+			if (!isTaskAccessError(error)) {
+				console.error("Unexpected failure while validating Canva run access.", {
+					taskId: args.taskId,
+					taskLinkedActionId: args.taskLinkedActionId,
+					error,
+				});
+				throw error;
+			}
 		}
 	}
 	await requireVolunteerAction(ctx);
@@ -85,8 +109,18 @@ async function requireCanvaDesignAccess(
 			if (match && match.definition.type === "canva_template") {
 				return;
 			}
-		} catch {
-			
+		} catch (error) {
+			if (!isTaskAccessError(error)) {
+				console.error(
+					"Unexpected failure while validating Canva design access.",
+					{
+						taskId: args.taskId,
+						taskLinkedActionId: args.taskLinkedActionId,
+						error,
+					},
+				);
+				throw error;
+			}
 		}
 	}
 	await requireVolunteerAction(ctx);

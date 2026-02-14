@@ -411,7 +411,8 @@ function parseOutputObject(
 			return parsed as Record<string, unknown>;
 		}
 		return null;
-	} catch {
+	} catch (error) {
+		console.warn("Failed to parse linked action output JSON.", { error });
 		return null;
 	}
 }

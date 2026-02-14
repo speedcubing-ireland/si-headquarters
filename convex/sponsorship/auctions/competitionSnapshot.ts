@@ -44,6 +44,21 @@ const auctionSnapshotContext = v.object({
 	competitionSnapshot: v.optional(sponsorshipCompetitionSnapshot),
 });
 
+function extractConvexErrorCode(error: unknown): string | null {
+	if (!(error instanceof ConvexError)) return null;
+	const data = error.data;
+	if (!data || typeof data !== "object" || !("code" in data)) {
+		return null;
+	}
+	const code = (data as { code?: unknown }).code;
+	return typeof code === "string" ? code : null;
+}
+
+function isExpectedSponsorAccessError(error: unknown): boolean {
+	const code = extractConvexErrorCode(error);
+	return code === "UNAUTHENTICATED" || code === "FORBIDDEN";
+}
+
 function buildFallbackSnapshotFromContext(context: {
 	competitionName: string;
 	competitionCompStart: string;
@@ -244,7 +259,14 @@ async function authorizeSnapshotRefresh(
 			sessionToken: args.sessionToken,
 			auctionId: args.auctionId,
 		});
-	} catch {
+	} catch (error) {
+		if (!isExpectedSponsorAccessError(error)) {
+			console.error("Unexpected error while authorizing snapshot refresh.", {
+				auctionId: args.auctionId,
+				error,
+			});
+			throw error;
+		}
 		throw new ConvexError({
 			code: "FORBIDDEN",
 			message:
