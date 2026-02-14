@@ -13,6 +13,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useUsers, useTeams, useTasks } from "@/hooks/use-convex-data";
 import type { Task, Team, User } from "@/data/types-new";
 
@@ -101,10 +102,10 @@ export function AddApproverDialog({
 									>
 										<div className="flex items-center gap-2">
 											{user.avatarUrl ? (
-												<img
-													src={user.avatarUrl}
-													alt={user.name}
-													className="w-6 h-6 rounded-full"
+												<UserAvatar
+													name={user.name}
+													avatarUrl={user.avatarUrl}
+													size="md"
 												/>
 											) : null}
 											<span>{user.name}</span>

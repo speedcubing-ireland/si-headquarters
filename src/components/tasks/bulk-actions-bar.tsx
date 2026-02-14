@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -283,10 +284,11 @@ export function BulkActionsBar({
 									onClick={() => handleAssigneeChange(user)}
 								>
 									{user.avatarUrl ? (
-										<img
-											src={user.avatarUrl}
-											alt={user.name}
-											className="size-5 rounded-full mr-2"
+										<UserAvatar
+											name={user.name}
+											avatarUrl={user.avatarUrl}
+											size="sm"
+											className="mr-2"
 										/>
 									) : null}
 									{user.name}
@@ -404,10 +406,11 @@ export function BulkActionsBar({
 									key={user.id}
 									onClick={() => handleAssigneeChange(user)}
 								>
-									<img
-										src={user.avatarUrl}
-										alt=""
-										className="size-5 rounded-full mr-2"
+									<UserAvatar
+										name={user.name}
+										avatarUrl={user.avatarUrl}
+										size="sm"
+										className="mr-2"
 									/>
 									{user.name}
 								</DropdownMenuItem>
