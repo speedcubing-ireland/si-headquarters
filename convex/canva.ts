@@ -402,7 +402,6 @@ export const validateDesignInput = action({
 			});
 		}
 		const designUrl =
-			design.url ??
 			design.urls?.edit_url ??
 			design.urls?.view_url ??
 			`https://www.canva.com/design/${designId}/edit`;
@@ -568,7 +567,6 @@ export const getDesignMetadata = action({
 		const designMeta = await getDesign(client, args.designId);
 		const design = designMeta.design;
 		const url =
-			design?.url ??
 			design?.urls?.edit_url ??
 			design?.urls?.view_url ??
 			`https://www.canva.com/design/${args.designId}/edit`;

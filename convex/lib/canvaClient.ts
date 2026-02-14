@@ -1,6 +1,7 @@
 "use node";
 
 import createClient from "openapi-fetch";
+import type { components, paths } from "../canva/api/types";
 
 type ErrorBody = {
 	code?: string;
@@ -9,207 +10,23 @@ type ErrorBody = {
 	error_description?: string;
 };
 
-export type CanvaBrandTemplateSummary = {
-	id: string;
-	title?: string;
-	url?: string;
-	view_url?: string;
-	create_url?: string;
-	created_at?: number;
-	updated_at?: number;
-};
+export type CanvaBrandTemplateSummary = components["schemas"]["BrandTemplate"];
+type BrandTemplatesListBody =
+	components["schemas"]["ListBrandTemplatesResponse"];
+type BrandTemplateDatasetBody =
+	components["schemas"]["GetBrandTemplateDatasetResponse"];
+type FolderItemsListBody = components["schemas"]["ListFolderItemsResponse"];
+type FolderGetBody = components["schemas"]["GetFolderResponse"];
+type DesignGetBody = components["schemas"]["GetDesignResponse"];
+type CreateAutofillJobBody =
+	components["schemas"]["CreateDesignAutofillJobResponse"];
+type AutofillJobBody = components["schemas"]["GetDesignAutofillJobResponse"];
+type FolderItemType = components["schemas"]["FolderItemType"];
+type FolderItemSortBy = components["schemas"]["FolderItemSortBy"];
+type DatasetFilter = components["schemas"]["DatasetFilter"];
+type CanvaDataset = components["schemas"]["Dataset"];
 
-type BrandTemplatesListBody = {
-	items: Array<
-		CanvaBrandTemplateSummary | { brand_template?: CanvaBrandTemplateSummary }
-	>;
-	continuation?: string;
-};
-
-type BrandTemplateDatasetBody = {
-	dataset?: Record<string, { type?: "image" | "text" | "chart" }>;
-};
-
-type FolderItemFolder = {
-	type: "folder";
-	folder?: { id: string; name?: string };
-};
-
-type FolderItemDesign = {
-	type: "design";
-	design?: { id: string; title?: string };
-};
-
-type FolderItemImage = {
-	type: "image";
-	image?: { id: string; name?: string };
-};
-
-type FolderItemsListBody = {
-	items: Array<FolderItemFolder | FolderItemDesign | FolderItemImage>;
-	continuation?: string;
-};
-
-type FolderGetBody = {
-	folder?: {
-		id: string;
-		name?: string;
-	};
-};
-
-type DesignGetBody = {
-	design?: {
-		id: string;
-		title?: string;
-		url?: string;
-		urls?: {
-			edit_url?: string;
-			view_url?: string;
-		};
-		thumbnail?: {
-			url?: string;
-		};
-	};
-};
-
-type AutofillJobBody = {
-	job: {
-		id: string;
-		status: "in_progress" | "success" | "failed";
-		result?: {
-			type: "create_design";
-			design?: {
-				id: string;
-				title?: string;
-				url?: string;
-				urls?: {
-					edit_url?: string;
-					view_url?: string;
-				};
-				thumbnail?: {
-					url?: string;
-				};
-			};
-		};
-		error?: {
-			code?: string;
-			message?: string;
-		};
-	};
-};
-
-interface CanvaPaths {
-	"/v1/brand-templates": {
-		get: {
-			parameters: {
-				query?: {
-					query?: string;
-					continuation?: string;
-					limit?: number;
-					dataset?: "any" | "non_empty";
-				};
-			};
-			responses: {
-				200: { content: { "application/json": BrandTemplatesListBody } };
-			};
-		};
-	};
-	"/v1/brand-templates/{brandTemplateId}/dataset": {
-		get: {
-			parameters: {
-				path: { brandTemplateId: string };
-			};
-			responses: {
-				200: { content: { "application/json": BrandTemplateDatasetBody } };
-			};
-		};
-	};
-	"/v1/folders/{folderId}/items": {
-		get: {
-			parameters: {
-				path: { folderId: string };
-				query?: {
-					continuation?: string;
-					limit?: number;
-					item_types?: Array<"folder" | "design" | "image">;
-					sort_by?:
-						| "created_ascending"
-						| "created_descending"
-						| "modified_ascending"
-						| "modified_descending"
-						| "title_ascending"
-						| "title_descending";
-				};
-			};
-			responses: {
-				200: { content: { "application/json": FolderItemsListBody } };
-			};
-		};
-	};
-	"/v1/folders/{folderId}": {
-		get: {
-			parameters: {
-				path: { folderId: string };
-			};
-			responses: {
-				200: { content: { "application/json": FolderGetBody } };
-			};
-		};
-	};
-	"/v1/designs/{designId}": {
-		get: {
-			parameters: {
-				path: { designId: string };
-			};
-			responses: {
-				200: { content: { "application/json": DesignGetBody } };
-			};
-		};
-	};
-	"/v1/autofills": {
-		post: {
-			requestBody: {
-				content: {
-					"application/json": {
-						brand_template_id: string;
-						title?: string;
-						data: Record<string, unknown>;
-					};
-				};
-			};
-			responses: {
-				200: { content: { "application/json": AutofillJobBody } };
-			};
-		};
-	};
-	"/v1/autofills/{jobId}": {
-		get: {
-			parameters: {
-				path: { jobId: string };
-			};
-			responses: {
-				200: { content: { "application/json": AutofillJobBody } };
-			};
-		};
-	};
-	"/v1/folders/move": {
-		post: {
-			requestBody: {
-				content: {
-					"application/json": {
-						to_folder_id: string;
-						item_id: string;
-					};
-				};
-			};
-			responses: {
-				204: never;
-			};
-		};
-	};
-}
-
-type CanvaClient = ReturnType<typeof createClient<CanvaPaths>>;
+type CanvaClient = ReturnType<typeof createClient<paths>>;
 
 function getErrorMessage(error: ErrorBody | undefined): string {
 	if (!error) return "Unknown Canva API error";
@@ -223,7 +40,7 @@ function getErrorMessage(error: ErrorBody | undefined): string {
 }
 
 export function createCanvaClient(accessToken: string): CanvaClient {
-	return createClient<CanvaPaths>({
+	return createClient<paths>({
 		baseUrl: "https://api.canva.com/rest",
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
@@ -238,9 +55,9 @@ export async function listBrandTemplates(
 		query?: string;
 		continuation?: string;
 		limit?: number;
-		dataset?: "any" | "non_empty";
+		dataset?: DatasetFilter;
 	},
-) {
+): Promise<BrandTemplatesListBody> {
 	const { data, error } = await client.GET("/v1/brand-templates", {
 		params: {
 			query: {
@@ -260,7 +77,7 @@ export async function listBrandTemplates(
 export async function getBrandTemplateDataset(
 	client: CanvaClient,
 	brandTemplateId: string,
-) {
+): Promise<BrandTemplateDatasetBody> {
 	const { data, error } = await client.GET(
 		"/v1/brand-templates/{brandTemplateId}/dataset",
 		{
@@ -283,16 +100,10 @@ export async function listFolderItems(
 		folderId: string;
 		continuation?: string;
 		limit?: number;
-		itemTypes?: Array<"folder" | "design" | "image">;
-		sortBy?:
-			| "created_ascending"
-			| "created_descending"
-			| "modified_ascending"
-			| "modified_descending"
-			| "title_ascending"
-			| "title_descending";
+		itemTypes?: FolderItemType[];
+		sortBy?: FolderItemSortBy;
 	},
-) {
+): Promise<FolderItemsListBody> {
 	const { data, error } = await client.GET("/v1/folders/{folderId}/items", {
 		params: {
 			path: { folderId: args.folderId },
@@ -312,7 +123,10 @@ export async function listFolderItems(
 	return data;
 }
 
-export async function getFolder(client: CanvaClient, folderId: string) {
+export async function getFolder(
+	client: CanvaClient,
+	folderId: string,
+): Promise<FolderGetBody> {
 	const { data, error } = await client.GET("/v1/folders/{folderId}", {
 		params: {
 			path: { folderId },
@@ -324,7 +138,10 @@ export async function getFolder(client: CanvaClient, folderId: string) {
 	return data;
 }
 
-export async function getDesign(client: CanvaClient, designId: string) {
+export async function getDesign(
+	client: CanvaClient,
+	designId: string,
+): Promise<DesignGetBody> {
 	const { data, error } = await client.GET("/v1/designs/{designId}", {
 		params: {
 			path: { designId },
@@ -340,10 +157,10 @@ export async function createAutofillJob(
 	client: CanvaClient,
 	args: {
 		brandTemplateId: string;
-		title: string;
-		data?: Record<string, unknown>;
+		title?: string;
+		data?: CanvaDataset;
 	},
-) {
+): Promise<CreateAutofillJobBody> {
 	const { data, error } = await client.POST("/v1/autofills", {
 		body: {
 			brand_template_id: args.brandTemplateId,
@@ -357,7 +174,10 @@ export async function createAutofillJob(
 	return data;
 }
 
-export async function getAutofillJob(client: CanvaClient, jobId: string) {
+export async function getAutofillJob(
+	client: CanvaClient,
+	jobId: string,
+): Promise<AutofillJobBody> {
 	const { data, error } = await client.GET("/v1/autofills/{jobId}", {
 		params: {
 			path: { jobId },

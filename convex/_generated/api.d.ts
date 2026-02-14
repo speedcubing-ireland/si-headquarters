@@ -11,6 +11,7 @@
 import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as canva from "../canva.js";
+import type * as canva_api_types from "../canva/api/types.js";
 import type * as canva_helpers from "../canva/helpers.js";
 import type * as canva_oauth from "../canva/oauth.js";
 import type * as canvaQueries from "../canvaQueries.js";
@@ -143,6 +144,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   auth: typeof auth;
   canva: typeof canva;
+  "canva/api/types": typeof canva_api_types;
   "canva/helpers": typeof canva_helpers;
   "canva/oauth": typeof canva_oauth;
   canvaQueries: typeof canvaQueries;

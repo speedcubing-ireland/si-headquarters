@@ -1,27 +1,27 @@
 "use node";
 
 import { ConvexError } from "convex/values";
+import type { components } from "./api/types";
 
-type BrandTemplateApiItem = {
-	id: string;
-	title?: string;
-	url?: string;
-	view_url?: string;
-	create_url?: string;
-};
+type BrandTemplateApiItem = Pick<components["schemas"]["BrandTemplate"], "id"> &
+	Partial<
+		Pick<
+			components["schemas"]["BrandTemplate"],
+			"title" | "view_url" | "create_url"
+		>
+	> & {
+		url?: string;
+	};
 
 type BrandTemplateApiResponse = {
+	continuation?: components["schemas"]["ListBrandTemplatesResponse"]["continuation"];
 	items?: Array<
 		BrandTemplateApiItem | { brand_template?: BrandTemplateApiItem }
 	>;
-	continuation?: string;
 };
 
-type BrandTemplateDataset = Record<
-	string,
-	{ type?: "image" | "text" | "chart" }
->;
-type AutofillTextValue = { type: "text"; text: string };
+type BrandTemplateDataset = components["schemas"]["DatasetDefinition"];
+type AutofillTextValue = components["schemas"]["DatasetTextValue"];
 
 function isWrappedBrandTemplateItem(
 	item: BrandTemplateApiItem | { brand_template?: BrandTemplateApiItem },
