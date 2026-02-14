@@ -18,6 +18,7 @@ import {
 } from "./lib/canvaClient";
 import {
 	buildCanvaAutofillData,
+	buildCanvaDesignEditUrl,
 	mapBrandTemplatePickerItems,
 	parseCanvaDesignInput,
 	parseCanvaFolderInput,
@@ -31,6 +32,7 @@ import {
 
 export {
 	buildCanvaAutofillData,
+	buildCanvaDesignEditUrl,
 	mapBrandTemplatePickerItems,
 	parseCanvaDesignInput,
 	parseCanvaFolderInput,
@@ -401,10 +403,7 @@ export const validateDesignInput = action({
 				message: "Canva design not found.",
 			});
 		}
-		const designUrl =
-			design.urls?.edit_url ??
-			design.urls?.view_url ??
-			`https://www.canva.com/design/${designId}/edit`;
+		const designUrl = buildCanvaDesignEditUrl(designId);
 
 		return {
 			id: designId,
@@ -518,8 +517,7 @@ export const runTemplateAction = action({
 				} catch {
 					previewImageUrl = null;
 				}
-				const designUrl =
-					design.url ?? design.urls?.edit_url ?? design.urls?.view_url ?? null;
+				const designUrl = buildCanvaDesignEditUrl(design.id);
 
 				return {
 					designId: design.id,
@@ -566,10 +564,7 @@ export const getDesignMetadata = action({
 		const client = createCanvaClient(accessToken);
 		const designMeta = await getDesign(client, args.designId);
 		const design = designMeta.design;
-		const url =
-			design?.urls?.edit_url ??
-			design?.urls?.view_url ??
-			`https://www.canva.com/design/${args.designId}/edit`;
+		const url = buildCanvaDesignEditUrl(args.designId);
 		return {
 			title: design?.title ?? null,
 			url,

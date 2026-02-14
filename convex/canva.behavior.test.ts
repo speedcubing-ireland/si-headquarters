@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	buildCanvaAutofillData,
+	buildCanvaDesignEditUrl,
 	mapBrandTemplatePickerItems,
 	parseCanvaDesignInput,
 	parseCanvaFolderInput,
@@ -22,6 +23,12 @@ describe("canva brand template mapping", () => {
 				"https://www.canva.com/design/DAG_bVVbgUM/ttYM-SpMZAY0znZpQSvfcQ/edit",
 			),
 		).toBe("DAG_bVVbgUM");
+	});
+
+	test("builds stable Canva edit URLs from design IDs", () => {
+		expect(buildCanvaDesignEditUrl("DAG_bVVbgUM")).toBe(
+			"https://www.canva.com/design/DAG_bVVbgUM/edit",
+		);
 	});
 
 	test("maps flat Canva template item responses", () => {

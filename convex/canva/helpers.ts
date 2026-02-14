@@ -69,6 +69,10 @@ export function buildCanvaAutofillData(
 	);
 }
 
+export function buildCanvaDesignEditUrl(designId: string): string {
+	return `https://www.canva.com/design/${encodeURIComponent(designId.trim())}/edit`;
+}
+
 function parseCanvaFolderIdFromUrl(raw: string): string | null {
 	try {
 		const url = new URL(raw);
