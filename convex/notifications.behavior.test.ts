@@ -3,7 +3,6 @@ import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { emitNotificationEvent } from "./notifications";
-import { STALE_DISPATCH_THRESHOLD_MS } from "./notifications/lib/notificationEmail";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -1332,6 +1331,112 @@ describe("relation notification batch fan-out", () => {
 		expect(notifications[0]?.type).toBe("due_date_changed");
 	});
 
+	test("emitNotificationEvent(task_assigned) does not reopen terminal email dispatches for duplicate idempotency keys", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const actorId = await ctx.db.insert("users", {});
+			const recipientId = await ctx.db.insert("users", {
+				email: "duplicate-terminal@example.com",
+			});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Duplicate terminal comp",
+				description: "",
+				compStart: "2026-11-01",
+				compEnd: "2026-11-02",
+				organiserIds: [actorId, recipientId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: recipientId,
+			});
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-510",
+				title: "Duplicate terminal task",
+				description: "",
+				status: "to-do",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				assigneeId: recipientId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			return { actorId, recipientId, taskId };
+		});
+		const recipientAuthed = t.withIdentity({ subject: seeded.recipientId });
+		await recipientAuthed.mutation(api.notifications.upsertPreference, {
+			type: "task_assigned",
+			channel: "email",
+			enabled: true,
+			digestMode: "immediate",
+		});
+
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
+				taskId: seeded.taskId,
+				recipientId: seeded.recipientId,
+				actorId: seeded.actorId,
+				eventKey: "duplicate-terminal",
+			}),
+		);
+
+		const seededDispatch = await t.run(async (ctx) => {
+			const pendingEmailDispatch = await ctx.db
+				.query("notificationDispatches")
+				.withIndex("by_user_status", (q) =>
+					q.eq("userId", seeded.recipientId).eq("status", "pending"),
+				)
+				.first();
+			if (!pendingEmailDispatch || pendingEmailDispatch.channel !== "email") {
+				throw new Error("Expected pending email dispatch");
+			}
+			await ctx.db.patch("notificationDispatches", pendingEmailDispatch._id, {
+				status: "sent",
+				attempts: 2,
+				scheduledFor: undefined,
+				scheduledFunctionId: undefined,
+				updatedAt: Date.now(),
+			});
+			return {
+				dispatchId: pendingEmailDispatch._id,
+				eventId: pendingEmailDispatch.eventId,
+			};
+		});
+
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
+				taskId: seeded.taskId,
+				recipientId: seeded.recipientId,
+				actorId: seeded.actorId,
+				eventKey: "duplicate-terminal",
+			}),
+		);
+
+		const [dispatchAfter, allEmailDispatches] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seededDispatch.dispatchId),
+				ctx.db
+					.query("notificationDispatches")
+					.withIndex("by_event", (q) => q.eq("eventId", seededDispatch.eventId))
+					.collect()
+					.then((rows) => rows.filter((row) => row.channel === "email")),
+			]),
+		);
+
+		expect(dispatchAfter?.status).toBe("sent");
+		expect(dispatchAfter?.attempts).toBe(2);
+		expect(dispatchAfter?.scheduledFor).toBeUndefined();
+		expect(dispatchAfter?.scheduledFunctionId).toBeUndefined();
+		expect(allEmailDispatches).toHaveLength(1);
+	});
+
 	test("_processDispatch marks a due pending dispatch as skipped", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
@@ -1610,10 +1715,179 @@ describe("relation notification batch fan-out", () => {
 		expect(queuedEmail?.notificationClaimKey).toBe(seeded.claimKey);
 		expect(queuedEmail?.notificationDispatchIds?.[0]).toBe(seeded.dispatchId);
 	});
+
+	test("_sendExternalDispatchGroup marks claimed notification dispatches sent when a matching queue email is already sent", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const claimKey = `dispatch_group_claim:email:${now - 10_000}:seed`;
+			const userId = await ctx.db.insert("users", {
+				email: "queue-sent@example.com",
+			});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-queue-sent",
+				idempotencyKey: "queue-sent-event",
+				threadKey: "task:queue-sent",
+				dedupeKey: "task_assigned:task:queue-sent",
+				createdAt: now,
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "email",
+				status: "sending",
+				digestMode: "immediate",
+				reason: claimKey,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: now,
+			});
+			const idempotencyKey = [
+				"notification_group",
+				"immediate",
+				"",
+				"queue-sent@example.com",
+				dispatchId,
+			].join("|");
+			await ctx.db.insert("sponsorshipEmailDispatches", {
+				auctionId: undefined,
+				sponsorId: undefined,
+				emailType: "notification_immediate",
+				recipient: "queue-sent@example.com",
+				recipientName: "Queue Sent",
+				subject: "Queue Sent",
+				message: "Queue Sent",
+				contextJson: undefined,
+				htmlBody: "<p>Queue Sent</p>",
+				plainTextBody: "Queue Sent",
+				notificationDispatchIds: [dispatchId],
+				notificationClaimKey: claimKey,
+				idempotencyKey,
+				status: "sent",
+				attempts: 1,
+				maxAttempts: 5,
+				scheduledFor: undefined,
+				scheduledFunctionId: undefined,
+				claimKey: undefined,
+				lastAttemptAt: now,
+				providerOperationId: "provider-op-sent",
+				providerPollerState: undefined,
+				sentAt: now,
+				providerMessageId: "provider-msg-sent",
+				error: undefined,
+				createdAt: now,
+				updatedAt: now,
+			});
+			return { dispatchId, claimKey };
+		});
+
+		await t.action(internal.notifications._sendExternalDispatchGroup, {
+			dispatchIds: [seeded.dispatchId],
+			claimKey: seeded.claimKey,
+		});
+
+		const dispatch = await t.run((ctx) =>
+			ctx.db.get("notificationDispatches", seeded.dispatchId),
+		);
+		expect(dispatch?.status).toBe("sent");
+		expect(dispatch?.reason).toBeUndefined();
+		expect(dispatch?.attempts).toBe(1);
+		expect(typeof dispatch?.sentAt).toBe("number");
+	});
+
+	test("_sendExternalDispatchGroup marks claimed notification dispatches failed when a matching queue email is already failed", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const claimKey = `dispatch_group_claim:email:${now - 10_000}:seed`;
+			const userId = await ctx.db.insert("users", {
+				email: "queue-failed@example.com",
+			});
+			const eventId = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-queue-failed",
+				idempotencyKey: "queue-failed-event",
+				threadKey: "task:queue-failed",
+				dedupeKey: "task_assigned:task:queue-failed",
+				createdAt: now,
+			});
+			const dispatchId = await ctx.db.insert("notificationDispatches", {
+				eventId,
+				userId,
+				channel: "email",
+				status: "sending",
+				digestMode: "immediate",
+				reason: claimKey,
+				attempts: 0,
+				maxAttempts: 5,
+				updatedAt: now,
+			});
+			const idempotencyKey = [
+				"notification_group",
+				"immediate",
+				"",
+				"queue-failed@example.com",
+				dispatchId,
+			].join("|");
+			await ctx.db.insert("sponsorshipEmailDispatches", {
+				auctionId: undefined,
+				sponsorId: undefined,
+				emailType: "notification_immediate",
+				recipient: "queue-failed@example.com",
+				recipientName: "Queue Failed",
+				subject: "Queue Failed",
+				message: "Queue Failed",
+				contextJson: undefined,
+				htmlBody: "<p>Queue Failed</p>",
+				plainTextBody: "Queue Failed",
+				notificationDispatchIds: [dispatchId],
+				notificationClaimKey: claimKey,
+				idempotencyKey,
+				status: "failed",
+				attempts: 1,
+				maxAttempts: 5,
+				scheduledFor: undefined,
+				scheduledFunctionId: undefined,
+				claimKey: undefined,
+				lastAttemptAt: now,
+				providerOperationId: "provider-op-failed",
+				providerPollerState: undefined,
+				sentAt: undefined,
+				providerMessageId: undefined,
+				error: "queue_terminal_failure",
+				createdAt: now,
+				updatedAt: now,
+			});
+			return { dispatchId, claimKey };
+		});
+
+		await t.action(internal.notifications._sendExternalDispatchGroup, {
+			dispatchIds: [seeded.dispatchId],
+			claimKey: seeded.claimKey,
+		});
+
+		const [dispatch, deadLetters] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchId),
+				ctx.db
+					.query("notificationDeadLetters")
+					.withIndex("by_failed_at")
+					.collect(),
+			]),
+		);
+		expect(dispatch?.status).toBe("failed");
+		expect(dispatch?.reason).toBe("queue_terminal_failure");
+		expect(dispatch?.attempts).toBe(1);
+		expect(deadLetters).toHaveLength(1);
+		expect(deadLetters[0]?.error).toBe("queue_terminal_failure");
+	});
 });
 
 describe("dispatch retry and diagnostics behavior", () => {
-	test("_markDispatchesFailed reschedules retryable pending dispatches with a fresh scheduled function", async () => {
+	test("_markDispatchesFailed dead-letters pending dispatches without retry scheduling", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const now = Date.now();
@@ -1652,25 +1926,28 @@ describe("dispatch retry and diagnostics behavior", () => {
 			return { dispatchId, oldScheduledFunctionId };
 		});
 
-		const beforeFailure = Date.now();
 		await t.mutation(internal.notifications._markDispatchesFailed, {
 			dispatchIds: [seeded.dispatchId],
 			reason: "provider_timeout",
 		});
 
-		const dispatch = await t.run((ctx) =>
-			ctx.db.get("notificationDispatches", seeded.dispatchId),
+		const [dispatch, deadLetters] = await t.run((ctx) =>
+			Promise.all([
+				ctx.db.get("notificationDispatches", seeded.dispatchId),
+				ctx.db
+					.query("notificationDeadLetters")
+					.withIndex("by_failed_at")
+					.collect(),
+			]),
 		);
-		expect(dispatch?.status).toBe("pending");
+		expect(dispatch?.status).toBe("failed");
 		expect(dispatch?.reason).toBe("provider_timeout");
 		expect(dispatch?.attempts).toBe(1);
-		expect(dispatch?.scheduledFor).toBeGreaterThanOrEqual(
-			beforeFailure + 59_000,
-		);
-		expect(dispatch?.scheduledFunctionId).toBeDefined();
-		expect(dispatch?.scheduledFunctionId).not.toBe(
-			seeded.oldScheduledFunctionId,
-		);
+		expect(dispatch?.scheduledFor).toBeUndefined();
+		expect(dispatch?.scheduledFunctionId).toBeUndefined();
+		expect(deadLetters).toHaveLength(1);
+		expect(deadLetters[0]?.dispatchId).toBe(seeded.dispatchId);
+		expect(deadLetters[0]?.error).toBe("provider_timeout");
 	});
 
 	test("_markDispatchesFailed dead-letters claimed email dispatches without scheduling retries", async () => {
@@ -1780,61 +2057,6 @@ describe("dispatch retry and diagnostics behavior", () => {
 		expect(deadLetters).toHaveLength(1);
 		expect(deadLetters[0]?.dispatchId).toBe(seeded.dispatchId);
 		expect(deadLetters[0]?.error).toBe("provider_4xx");
-	});
-
-	test("_sweepStaleDispatches dead-letters stale claimed sending dispatches", async () => {
-		const t = convexTest(schema, modules);
-		const seeded = await t.run(async (ctx) => {
-			const now = Date.now();
-			const userId = await ctx.db.insert("users", {
-				email: "stale-sending@example.com",
-			});
-			const eventId = await ctx.db.insert("notificationEvents", {
-				type: "task_assigned",
-				entityType: "task",
-				entityId: "task-stale-sending",
-				idempotencyKey: "stale-sending-event",
-				threadKey: "task:stale-sending",
-				dedupeKey: "task_assigned:task:stale-sending",
-				createdAt: now,
-			});
-			const dispatchId = await ctx.db.insert("notificationDispatches", {
-				eventId,
-				userId,
-				channel: "email",
-				status: "sending",
-				digestMode: "immediate",
-				attempts: 0,
-				maxAttempts: 5,
-				reason: "dispatch_group_claim:email:0:test-stale",
-				updatedAt: now - STALE_DISPATCH_THRESHOLD_MS - 1,
-			});
-			return { dispatchId };
-		});
-
-		const recovered = await t.mutation(
-			internal.notifications._sweepStaleDispatches,
-			{},
-		);
-
-		const [dispatch, deadLetters] = await t.run((ctx) =>
-			Promise.all([
-				ctx.db.get("notificationDispatches", seeded.dispatchId),
-				ctx.db
-					.query("notificationDeadLetters")
-					.withIndex("by_failed_at")
-					.collect(),
-			]),
-		);
-		expect(recovered).toBeGreaterThanOrEqual(1);
-		expect(dispatch?.status).toBe("failed");
-		expect(dispatch?.reason).toBe("dispatch_send_timeout");
-		expect(dispatch?.attempts).toBe(1);
-		expect(dispatch?.scheduledFor).toBeUndefined();
-		expect(dispatch?.scheduledFunctionId).toBeUndefined();
-		expect(deadLetters).toHaveLength(1);
-		expect(deadLetters[0]?.dispatchId).toBe(seeded.dispatchId);
-		expect(deadLetters[0]?.error).toBe("dispatch_send_timeout");
 	});
 
 	test("dispatch diagnostics queries require director access", async () => {

@@ -2,17 +2,11 @@ import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { EXTERNAL_NOTIFICATION_CHANNELS } from "../lib/notificationTypes";
-import {
-	STALE_DISPATCH_THRESHOLD_MS,
-	collectDispatchGroup,
-	isDispatchDue,
-} from "../lib/notificationEmail";
+import { collectDispatchGroup, isDispatchDue } from "../lib/notificationEmail";
 import {
 	buildDispatchGroupClaimKey,
 	hasDispatchGroupClaim,
 } from "../lib/dispatchClaims";
-import { getChannelAdapter } from "../channels/registry";
-import { markDispatchesFailed } from "./retry";
 
 export async function processDispatch(
 	ctx: MutationCtx,
@@ -64,23 +58,6 @@ export async function processDispatch(
 	});
 
 	if (EXTERNAL_NOTIFICATION_CHANNELS.includes(seedDispatch.channel)) {
-		const channelAdapter = getChannelAdapter(seedDispatch.channel);
-		if (!channelAdapter.isConfigured()) {
-			const reason = `${seedDispatch.channel}_channel_not_configured`;
-			for (const dispatch of dueDispatches) {
-				await ctx.db.patch("notificationDispatches", dispatch._id, {
-					status: "skipped",
-					reason,
-					metadataJson,
-					attempts: dispatch.attempts + 1,
-					lastAttemptAt: now,
-					scheduledFunctionId: undefined,
-					updatedAt: now,
-				});
-			}
-			return dueDispatches.length;
-		}
-
 		const claimKey = buildDispatchGroupClaimKey(
 			seedDispatch.channel,
 			now,
@@ -122,59 +99,4 @@ export async function processDispatch(
 	}
 
 	return dueDispatches.length;
-}
-
-export async function sweepStaleDispatches(ctx: MutationCtx): Promise<number> {
-	const now = Date.now();
-	let recovered = 0;
-
-	for (const channel of EXTERNAL_NOTIFICATION_CHANNELS) {
-		const pendingDispatches = await ctx.db
-			.query("notificationDispatches")
-			.withIndex("by_channel_status", (q) =>
-				q.eq("channel", channel).eq("status", "pending"),
-			)
-			.collect();
-
-		for (const dispatch of pendingDispatches) {
-			if (hasDispatchGroupClaim(dispatch.reason)) {
-				continue;
-			}
-			if (
-				dispatch.scheduledFor !== undefined &&
-				dispatch.scheduledFor + STALE_DISPATCH_THRESHOLD_MS < now
-			) {
-				await ctx.scheduler.runAfter(
-					0,
-					internal.notifications._processDispatch,
-					{
-						dispatchId: dispatch._id,
-					},
-				);
-				recovered += 1;
-			}
-		}
-
-		const sendingDispatches = await ctx.db
-			.query("notificationDispatches")
-			.withIndex("by_channel_status", (q) =>
-				q.eq("channel", channel).eq("status", "sending"),
-			)
-			.collect();
-		for (const dispatch of sendingDispatches) {
-			if (dispatch.updatedAt + STALE_DISPATCH_THRESHOLD_MS >= now) {
-				continue;
-			}
-			await markDispatchesFailed(ctx, {
-				dispatchIds: [dispatch._id],
-				reason: "dispatch_send_timeout",
-				claimKey: hasDispatchGroupClaim(dispatch.reason)
-					? dispatch.reason
-					: undefined,
-			});
-			recovered += 1;
-		}
-	}
-
-	return recovered;
 }

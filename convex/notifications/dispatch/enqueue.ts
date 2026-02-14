@@ -105,24 +105,92 @@ export async function upsertDispatch(
 		.first();
 
 	const now = Date.now();
-	const attempts = (existing?.attempts ?? 0) + 1;
-	const sentAt = args.status === "sent" ? now : existing?.sentAt;
-	const digestMode =
-		args.digestMode ?? existing?.digestMode ?? DEFAULT_DIGEST_MODE;
-	const maxAttempts = existing
-		? existing.maxAttempts
-		: DEFAULT_DISPATCH_MAX_ATTEMPTS;
+
+	if (existing) {
+		if (args.status === "pending") {
+			if (existing.status !== "pending") {
+				await ctx.db.patch("notificationDispatches", existing._id, {
+					notificationId: args.notificationId ?? existing.notificationId,
+					metadataJson: args.metadataJson ?? existing.metadataJson,
+					updatedAt: now,
+				});
+				return;
+			}
+
+			const digestMode = args.digestMode ?? existing.digestMode;
+			const scheduledFor = existing.scheduledFor ?? args.scheduledFor ?? now;
+			const digestWindowKey = args.digestWindowKey ?? existing.digestWindowKey;
+			const shouldSchedule = shouldScheduleDispatchProcessing(
+				existing.status,
+				scheduledFor,
+			);
+			const needsNewSchedule =
+				shouldSchedule && existing.scheduledFunctionId === undefined;
+
+			await ctx.db.patch("notificationDispatches", existing._id, {
+				digestMode,
+				scheduledFor,
+				digestWindowKey,
+				metadataJson: args.metadataJson ?? existing.metadataJson,
+				notificationId: args.notificationId ?? existing.notificationId,
+				updatedAt: now,
+			});
+
+			if (needsNewSchedule) {
+				const scheduledFunctionId = await scheduleDispatchProcessing(
+					ctx,
+					existing._id,
+					scheduledFor,
+				);
+				await attachDispatchScheduleIfPending(
+					ctx,
+					existing._id,
+					scheduledFunctionId,
+				);
+			}
+			return;
+		}
+
+		if (existing.scheduledFunctionId) {
+			await ctx.scheduler.cancel(existing.scheduledFunctionId);
+		}
+
+		const digestMode = args.digestMode ?? existing.digestMode;
+		const digestWindowKey = args.digestWindowKey ?? existing.digestWindowKey;
+		await ctx.db.patch("notificationDispatches", existing._id, {
+			status: args.status,
+			digestMode,
+			scheduledFor: undefined,
+			scheduledFunctionId: undefined,
+			digestWindowKey,
+			reason: args.reason,
+			metadataJson: args.metadataJson ?? existing.metadataJson,
+			attempts: existing.attempts,
+			maxAttempts: existing.maxAttempts,
+			lastAttemptAt: existing.lastAttemptAt,
+			sentAt:
+				args.status === "sent" ? (existing.sentAt ?? now) : existing.sentAt,
+			updatedAt: now,
+			notificationId: args.notificationId ?? existing.notificationId,
+		});
+		return;
+	}
+
+	const digestMode = args.digestMode ?? DEFAULT_DIGEST_MODE;
+	const maxAttempts = DEFAULT_DISPATCH_MAX_ATTEMPTS;
 	const scheduledFor =
-		args.scheduledFor ??
-		existing?.scheduledFor ??
-		(args.status === "pending" ? now : undefined);
-	const digestWindowKey = args.digestWindowKey ?? existing?.digestWindowKey;
+		args.scheduledFor ?? (args.status === "pending" ? now : undefined);
+	const digestWindowKey = args.digestWindowKey;
 	const shouldSchedule = shouldScheduleDispatchProcessing(
 		args.status,
 		scheduledFor,
 	);
 
-	const commonFields = {
+	const dispatchId = await ctx.db.insert("notificationDispatches", {
+		eventId: args.eventId,
+		notificationId: args.notificationId,
+		userId: args.userId,
+		channel: args.channel,
 		status: args.status,
 		digestMode,
 		scheduledFor,
@@ -130,42 +198,11 @@ export async function upsertDispatch(
 		digestWindowKey,
 		reason: args.reason,
 		metadataJson: args.metadataJson,
-		attempts,
+		attempts: 0,
 		maxAttempts,
-		lastAttemptAt: now,
-		sentAt,
+		lastAttemptAt: undefined,
+		sentAt: args.status === "sent" ? now : undefined,
 		updatedAt: now,
-	} as const;
-
-	if (existing) {
-		if (existing.scheduledFunctionId) {
-			await ctx.scheduler.cancel(existing.scheduledFunctionId);
-		}
-		await ctx.db.patch("notificationDispatches", existing._id, {
-			...commonFields,
-			notificationId: args.notificationId ?? existing.notificationId,
-		});
-		if (shouldSchedule) {
-			const scheduledFunctionId = await scheduleDispatchProcessing(
-				ctx,
-				existing._id,
-				scheduledFor,
-			);
-			await attachDispatchScheduleIfPending(
-				ctx,
-				existing._id,
-				scheduledFunctionId,
-			);
-		}
-		return;
-	}
-
-	const dispatchId = await ctx.db.insert("notificationDispatches", {
-		...commonFields,
-		eventId: args.eventId,
-		notificationId: args.notificationId,
-		userId: args.userId,
-		channel: args.channel,
 	});
 	if (!shouldSchedule) {
 		return;

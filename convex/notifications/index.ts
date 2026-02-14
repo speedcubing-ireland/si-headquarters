@@ -5,7 +5,7 @@ export {
 	upsertDispatch,
 	upsertEnabledExternalDispatches,
 } from "./dispatch/enqueue";
-export { processDispatch, sweepStaleDispatches } from "./dispatch/process";
+export { processDispatch } from "./dispatch/process";
 export { markDispatchesFailed, markDispatchesSent } from "./dispatch/retry";
 export {
 	getDispatchHealthDiagnostics,
@@ -20,14 +20,7 @@ export {
 	deleteNotificationArtifactsForNotifications,
 	deleteNotificationArtifactsForTaskTree,
 } from "./lib/cleanup";
-export {
-	getChannelAdapter,
-	notificationChannelRegistry,
-} from "./channels/registry";
-export { emailChannelAdapter, sendTestEmailPreview } from "./channels/email";
-export { inAppChannelAdapter } from "./channels/in_app";
-export { slackChannelAdapter } from "./channels/slack";
-export { pushChannelAdapter } from "./channels/push";
+export { sendTestEmailPreview } from "./lib/emailPreview";
 export type {
 	BuildEmitInputArgs,
 	NotificationCatalogEntry,

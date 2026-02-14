@@ -1,7 +1,5 @@
-import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { computeExponentialBackoffMs } from "../../lib/retry";
 import { patchPendingDispatches } from "../lib/notificationEmail";
 
 type MarkDispatchesSentArgs = {
@@ -20,38 +18,6 @@ type MarkDispatchesFailedArgs = {
 	reason: string;
 	claimKey?: string;
 };
-
-const RETRY_BASE_DELAY_MS = 60_000;
-const RETRY_MAX_DELAY_MS = 60 * 60 * 1000;
-
-function computeRetryDelayMs(nextAttempt: number): number {
-	return computeExponentialBackoffMs({
-		attempt: nextAttempt,
-		baseDelayMs: RETRY_BASE_DELAY_MS,
-		maxDelayMs: RETRY_MAX_DELAY_MS,
-	});
-}
-
-async function scheduleDispatchRetry(
-	ctx: MutationCtx,
-	dispatchId: Id<"notificationDispatches">,
-	scheduledFor: number,
-): Promise<void> {
-	const scheduledFunctionId = await ctx.scheduler.runAt(
-		scheduledFor,
-		internal.notifications._processDispatch,
-		{ dispatchId },
-	);
-	const latest = await ctx.db.get("notificationDispatches", dispatchId);
-	if (!latest || latest.status !== "pending") {
-		await ctx.scheduler.cancel(scheduledFunctionId);
-		return;
-	}
-	await ctx.db.patch("notificationDispatches", dispatchId, {
-		scheduledFunctionId,
-		updatedAt: Date.now(),
-	});
-}
 
 export async function markDispatchesSent(
 	ctx: MutationCtx,
@@ -94,7 +60,6 @@ export async function markDispatchesFailed(
 ): Promise<void> {
 	const eligibleDispatches: Array<Doc<"notificationDispatches">> = [];
 	const canceledScheduledFunctionIds = new Set<Id<"_scheduled_functions">>();
-	const isClaimFlow = args.claimKey !== undefined;
 	for (const dispatchId of args.dispatchIds) {
 		const dispatch = await ctx.db.get("notificationDispatches", dispatchId);
 		if (
@@ -117,24 +82,6 @@ export async function markDispatchesFailed(
 	const now = Date.now();
 	for (const dispatch of eligibleDispatches) {
 		const nextAttempt = dispatch.attempts + 1;
-		const hasAttemptsRemaining =
-			!isClaimFlow && nextAttempt < dispatch.maxAttempts;
-
-		if (hasAttemptsRemaining) {
-			const scheduledFor = now + computeRetryDelayMs(nextAttempt);
-			await ctx.db.patch("notificationDispatches", dispatch._id, {
-				status: "pending",
-				reason: args.reason,
-				attempts: nextAttempt,
-				scheduledFor,
-				lastAttemptAt: now,
-				scheduledFunctionId: undefined,
-				updatedAt: now,
-			});
-			await scheduleDispatchRetry(ctx, dispatch._id, scheduledFor);
-			continue;
-		}
-
 		await ctx.db.patch("notificationDispatches", dispatch._id, {
 			status: "failed",
 			reason: args.reason,
