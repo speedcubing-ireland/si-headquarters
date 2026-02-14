@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as EventsRouteImport } from './routes/events'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
@@ -34,6 +35,11 @@ import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/a
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -140,6 +146,7 @@ const SponsorAuctionsAuctionIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/events': typeof EventsRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/events': typeof EventsRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
@@ -187,6 +195,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/events': typeof EventsRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/events'
     | '/admin/email'
     | '/admin/god-mode'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/events'
     | '/admin/email'
     | '/admin/god-mode'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/events'
     | '/admin/email'
     | '/admin/god-mode'
@@ -282,6 +294,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   EventsRoute: typeof EventsRoute
   AdminEmailRoute: typeof AdminEmailRoute
   AdminGodModeRoute: typeof AdminGodModeRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -469,6 +489,7 @@ const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   EventsRoute: EventsRoute,
   AdminEmailRoute: AdminEmailRoute,
   AdminGodModeRoute: AdminGodModeRoute,

@@ -88,9 +88,14 @@ export function NavUser({
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
 						<DropdownMenuGroup>
-							<DropdownMenuItem>
-								<BadgeCheck />
-								Account
+							<DropdownMenuItem asChild>
+								<Link
+									to="/account"
+									className="flex cursor-pointer items-center"
+								>
+									<BadgeCheck />
+									Account
+								</Link>
 							</DropdownMenuItem>
 							<DropdownMenuItem asChild>
 								<Link to="/inbox" className="flex cursor-pointer items-center">

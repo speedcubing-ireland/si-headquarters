@@ -1,8 +1,6 @@
 import Google from "@auth/core/providers/google";
 import type { OAuthConfig, OAuthUserConfig } from "@auth/core/providers";
 import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
-import { botttsNeutral } from "@dicebear/collection";
-import { createAvatar } from "@dicebear/core";
 import {
 	internalQuery,
 	query,
@@ -13,11 +11,8 @@ import { ConvexError } from "convex/values";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { TEAM_NAMES } from "./lib/constants";
+import { buildDefaultAvatarUrl } from "./lib/defaultAvatar";
 import { normalizeEmail } from "./lib/sanitize";
-
-function buildDefaultAvatarUrl(seed: string): string {
-	return createAvatar(botttsNeutral, { seed }).toDataUri();
-}
 
 function hasAvatarImage(image: string | null | undefined): boolean {
 	return typeof image === "string" && image.trim().length > 0;

@@ -32,6 +32,7 @@ import type * as lib_canvaClient from "../lib/canvaClient.js";
 import type * as lib_canvaSharing from "../lib/canvaSharing.js";
 import type * as lib_commentParentId from "../lib/commentParentId.js";
 import type * as lib_constants from "../lib/constants.js";
+import type * as lib_defaultAvatar from "../lib/defaultAvatar.js";
 import type * as lib_email from "../lib/email.js";
 import type * as lib_emailDispatchCore from "../lib/emailDispatchCore.js";
 import type * as lib_entityAccess from "../lib/entityAccess.js";
@@ -165,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   "lib/canvaSharing": typeof lib_canvaSharing;
   "lib/commentParentId": typeof lib_commentParentId;
   "lib/constants": typeof lib_constants;
+  "lib/defaultAvatar": typeof lib_defaultAvatar;
   "lib/email": typeof lib_email;
   "lib/emailDispatchCore": typeof lib_emailDispatchCore;
   "lib/entityAccess": typeof lib_entityAccess;
