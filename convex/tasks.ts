@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id, Doc } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
+import { isDirectorForCtx } from "./admin";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
@@ -1155,6 +1156,18 @@ async function modifyApprovers(
 	});
 }
 
+async function requireTaskApprovalPermission(
+	ctx: MutationCtx,
+	volunteer: boolean,
+	userId: Id<"users">,
+	task: Doc<"tasks">,
+): Promise<void> {
+	if (volunteer) return;
+	const isDirector = await isDirectorForCtx(ctx);
+	if (isDirector) return;
+	await requireTaskAccess(ctx, volunteer, userId, task);
+}
+
 export const addRequiredApprover = mutation({
 	args: {
 		taskId: v.id("tasks"),
@@ -1204,7 +1217,7 @@ export const approveTask = mutation({
 			throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
 		}
 
-		await requireTaskAccess(ctx, volunteer, userId, task);
+		await requireTaskApprovalPermission(ctx, volunteer, userId, task);
 
 		const currentApprovedIds = task.approvedByIds ?? [];
 		if (currentApprovedIds.includes(userId)) {
@@ -1275,7 +1288,7 @@ export const unapproveTask = mutation({
 			throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
 		}
 
-		await requireTaskAccess(ctx, volunteer, userId, task);
+		await requireTaskApprovalPermission(ctx, volunteer, userId, task);
 
 		const currentApprovedIds = task.approvedByIds ?? [];
 		const filteredIds = currentApprovedIds.filter((id) => id !== userId);

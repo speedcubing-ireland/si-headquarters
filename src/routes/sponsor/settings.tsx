@@ -110,6 +110,11 @@ function SponsorSettingsEnabled() {
 	const navigate = useNavigate();
 	const { data: authSession, isPending: authPending } =
 		sponsorAuthClient.useSession();
+	const {
+		data: passkeys,
+		isPending: passkeysPending,
+		error: passkeysError,
+	} = sponsorAuthClient.useListPasskeys();
 	const sessionToken = authSession?.session.token ?? null;
 	const me = useQuery(
 		api.sponsorPortal.me,
@@ -163,6 +168,13 @@ function SponsorSettingsEnabled() {
 		try {
 			const result = await sponsorAuthClient.passkey.addPasskey();
 			if (result.error) {
+				const code = "code" in result.error ? result.error.code : undefined;
+				if (code === "ERROR_CEREMONY_ABORTED") {
+					throw new Error("Passkey registration was cancelled.");
+				}
+				if (code === "ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED") {
+					throw new Error("This passkey is already registered.");
+				}
 				throw new Error(result.error.message ?? "Failed to add passkey.");
 			}
 			toast.success("Passkey added.");
@@ -281,6 +293,29 @@ function SponsorSettingsEnabled() {
 									"Add passkey"
 								)}
 							</Button>
+							<div className="mt-3 space-y-1 text-xs text-muted-foreground">
+								{passkeysPending ? (
+									<p>Loading registered passkeys…</p>
+								) : passkeysError ? (
+									<p>Could not load your passkeys right now.</p>
+								) : passkeys && passkeys.length > 0 ? (
+									<>
+										<p>
+											{passkeys.length} passkey
+											{passkeys.length === 1 ? "" : "s"} registered:
+										</p>
+										<ul className="list-disc pl-4">
+											{passkeys.map((passkey) => (
+												<li key={passkey.id}>
+													{passkey.name?.trim() || "Unnamed passkey"}
+												</li>
+											))}
+										</ul>
+									</>
+								) : (
+									<p>No passkeys registered yet.</p>
+								)}
+							</div>
 						</div>
 
 						<form className="space-y-3" onSubmit={onChangePassword}>

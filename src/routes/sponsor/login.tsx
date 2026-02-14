@@ -187,7 +187,15 @@ function SponsorLoginEnabled() {
 
 	const onPasskeySignIn = async () => {
 		await runAuthAction(async () => {
-			const result = await sponsorAuthClient.signIn.passkey({ autoFill: true });
+			const result = await sponsorAuthClient.signIn.passkey();
+			if (result.error) {
+				const code = "code" in result.error ? result.error.code : undefined;
+				if (code === "AUTH_CANCELLED") {
+					throw new Error(
+						"Passkey sign-in was cancelled or no matching passkey was selected.",
+					);
+				}
+			}
 			ensureNoAuthError(result, "Passkey sign-in failed.");
 			toast.success("Signed in with passkey.");
 			await navigate({ to: "/sponsor/auctions" });

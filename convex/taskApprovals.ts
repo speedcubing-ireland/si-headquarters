@@ -1,5 +1,6 @@
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { TEAM_NAMES } from "./lib/constants";
 import { emitNotificationEvent } from "./notifications";
 
 const APPROVAL_PREFIX_USER = "user:";
@@ -144,6 +145,15 @@ export async function computeApprovalCompleteness(
 	}
 
 	if (requiredTeamIds.length > 0) {
+		const directorsTeam = await ctx.db
+			.query("teams")
+			.withIndex("by_name", (q) => q.eq("name", TEAM_NAMES.DIRECTORS))
+			.unique();
+		const hasDirectorApproval =
+			directorsTeam?.memberIds.some((memberId) =>
+				approvingUserIds.has(memberId),
+			) ?? false;
+
 		const teamDocs = await Promise.all(
 			requiredTeamIds.map((id) => ctx.db.get("teams", id)),
 		);
@@ -157,6 +167,9 @@ export async function computeApprovalCompleteness(
 		for (const { team, encoded } of teamApprovals) {
 			if (!team) {
 				pendingKeys.push(encoded);
+				continue;
+			}
+			if (hasDirectorApproval) {
 				continue;
 			}
 

@@ -6,6 +6,7 @@ import {
 	resolveApprovalData,
 } from "./taskApprovals";
 import type { Id } from "./_generated/dataModel";
+import { TEAM_NAMES } from "./lib/constants";
 
 const userId = (id: string) => id as Id<"users">;
 const teamId = (id: string) => id as Id<"teams">;
@@ -72,7 +73,10 @@ describe("decodeApprovalId", () => {
 });
 
 describe("computeApprovalCompleteness", () => {
-	function makeMockCtx(teams: Record<string, { memberIds: string[] }>) {
+	function makeMockCtx(
+		teams: Record<string, { memberIds: string[] }>,
+		directorMemberIds: string[] = [],
+	) {
 		return {
 			db: {
 				get: async (_table: string, id: string) => {
@@ -82,6 +86,28 @@ describe("computeApprovalCompleteness", () => {
 					}
 					return null;
 				},
+				query: () => ({
+					withIndex: (
+						_index: string,
+						filter: (q: {
+							eq: (_field: string, value: string) => string;
+						}) => string,
+					) => ({
+						unique: async () => {
+							const teamName = filter({
+								eq: (_field: string, value: string) => value,
+							});
+							if (teamName !== TEAM_NAMES.DIRECTORS) {
+								return null;
+							}
+							return {
+								_id: teamId("directors-team"),
+								name: TEAM_NAMES.DIRECTORS,
+								memberIds: directorMemberIds,
+							};
+						},
+					}),
+				}),
 			},
 		} as never;
 	}
@@ -143,6 +169,32 @@ describe("computeApprovalCompleteness", () => {
 		);
 		expect(result.isFullyApproved).toBe(false);
 		expect(result.pendingKeys).toContain("team:t1");
+	});
+
+	test("team approval is satisfied when a director approves", async () => {
+		const ctx = makeMockCtx({ t1: { memberIds: ["memberA", "memberB"] } }, [
+			"director1",
+		]);
+		const result = await computeApprovalCompleteness(
+			ctx,
+			["team:t1"],
+			["director1" as Id<"users">],
+		);
+		expect(result.isFullyApproved).toBe(true);
+		expect(result.pendingKeys).toEqual([]);
+	});
+
+	test("director approval does not satisfy direct user requirements", async () => {
+		const ctx = makeMockCtx({ t1: { memberIds: ["memberA", "memberB"] } }, [
+			"director1",
+		]);
+		const result = await computeApprovalCompleteness(
+			ctx,
+			["team:t1", "user:u1"],
+			["director1" as Id<"users">],
+		);
+		expect(result.isFullyApproved).toBe(false);
+		expect(result.pendingKeys).toEqual(["user:u1"]);
 	});
 
 	test("missing team is treated as pending", async () => {

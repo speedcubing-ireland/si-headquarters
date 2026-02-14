@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
+import { TEAM_NAMES } from "./lib/constants";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -171,6 +172,68 @@ async function seedTaskAccessFixture(
 	});
 }
 
+async function seedDirectorApprovalFixture(
+	t: ReturnType<typeof convexTest>,
+	includeRequiredUserApproval = false,
+): Promise<{
+	directorId: Id<"users">;
+	taskId: Id<"tasks">;
+	requiredUserId: Id<"users"> | null;
+}> {
+	return t.run(async (ctx) => {
+		const now = Date.now();
+		const directorId = await ctx.db.insert("users", {});
+		const organiserId = await ctx.db.insert("users", {});
+		const approverTeamMemberId = await ctx.db.insert("users", {});
+		const requiredUserId = includeRequiredUserApproval
+			? await ctx.db.insert("users", {})
+			: null;
+
+		await ctx.db.insert("teams", {
+			name: TEAM_NAMES.DIRECTORS,
+			memberIds: [directorId],
+		});
+		const approverTeamId = await ctx.db.insert("teams", {
+			name: "Approvals Team",
+			memberIds: [approverTeamMemberId],
+		});
+
+		const inaccessibleCompetitionId = await ctx.db.insert("competitions", {
+			name: "Inaccessible Competition",
+			description: "",
+			compStart: "2026-06-01",
+			compEnd: "2026-06-02",
+			organiserIds: [organiserId],
+			updatedAt: now,
+		});
+		await ctx.db.insert("competitionAccess", {
+			competitionId: inaccessibleCompetitionId,
+			userId: organiserId,
+		});
+
+		const requiredApprovalIds = [`team:${approverTeamId}`];
+		if (requiredUserId) {
+			requiredApprovalIds.push(`user:${requiredUserId}`);
+		}
+
+		const taskId = await ctx.db.insert("tasks", {
+			identifier: "HQ-DIRECTOR-APPROVAL",
+			title: "Director Approval Task",
+			description: "",
+			status: "awaiting-review",
+			priority: "medium",
+			archived: false,
+			parentCompetitionId: inaccessibleCompetitionId,
+			labelIds: [],
+			requiredApprovalIds,
+			approvedByIds: [],
+			updatedAt: now,
+		});
+
+		return { directorId, taskId, requiredUserId };
+	});
+}
+
 describe("tasks access control (non-volunteer)", () => {
 	test("listForUI returns accessible competition and standalone tasks", async () => {
 		const t = convexTest(schema, modules);
@@ -276,5 +339,38 @@ describe("tasks access control (non-volunteer)", () => {
 		});
 		expect(updatedTask?.title).toBe("Allowed update");
 		expect(updatedOwnedStandaloneTask?.title).toBe("Owned standalone update");
+	});
+
+	test("director can approve inaccessible team-gated tasks without task list visibility", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedDirectorApprovalFixture(t);
+		const director = t.withIdentity({ subject: seeded.directorId });
+
+		await director.mutation(api.tasks.approveTask, {
+			taskId: seeded.taskId,
+		});
+
+		const [task, visibleTasks] = await Promise.all([
+			t.run((ctx) => ctx.db.get("tasks", seeded.taskId)),
+			director.query(api.tasks.listForUI, { archived: false }),
+		]);
+
+		expect(task?.approvedByIds).toContain(seeded.directorId);
+		expect(task?.status).toBe("done");
+		expect(visibleTasks.some((task) => task.id === seeded.taskId)).toBe(false);
+	});
+
+	test("director approval does not satisfy direct user approvals", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedDirectorApprovalFixture(t, true);
+		const director = t.withIdentity({ subject: seeded.directorId });
+
+		await director.mutation(api.tasks.approveTask, {
+			taskId: seeded.taskId,
+		});
+
+		const task = await t.run((ctx) => ctx.db.get("tasks", seeded.taskId));
+		expect(task?.approvedByIds).toContain(seeded.directorId);
+		expect(task?.status).toBe("awaiting-review");
 	});
 });

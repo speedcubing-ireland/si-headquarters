@@ -62,11 +62,7 @@ function RouteComponent() {
 			pageIcon={Users}
 			pagePredicates={pagePredicates}
 			pagePredicateMode="all"
-			defaultDisplaySettings={{
-				grouping: "status",
-				subGrouping: null,
-				ordering: { field: null, direction: "asc" },
-			}}
+			defaultDisplaySettings={{}}
 			showCreateButton={false}
 			subHeader={
 				<TriageBar filter={triageFilter} onFilterChange={setTriageFilter} />

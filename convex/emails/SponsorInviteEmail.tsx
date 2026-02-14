@@ -18,19 +18,15 @@ export default function SponsorInviteEmail(props: SponsorInviteEmailProps) {
 			<Section className="rounded-lg bg-brand-cream px-4 py-3">
 				<Text className="m-0 text-xs text-brand-muted">Getting started</Text>
 				<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
-					1) Open the sponsor portal using the button above.
+					1) Open the sponsor portal using the button below.
 				</Text>
 				<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
-					2) Sign in using a one-time email code (recommended for first login).
-				</Text>
-				<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
-					3) After login, set a password and optionally add a passkey from your
-					profile.
+					2) Sign in using a one-time email code or by resetting your password.
 				</Text>
 			</Section>
 			<Section className="mt-3 rounded-lg border border-brand-border px-4 py-3">
 				<Text className="m-0 text-xs text-brand-muted">Portal URL</Text>
-				<Text className="m-0 mt-1 text-xs leading-5 text-brand-foreground [overflow-wrap:anywhere]">
+				<Text className="m-0 mt-1 text-xs leading-5 text-brand-foreground wrap-anywhere">
 					<Link href={props.portalUrl}>{props.portalUrl}</Link>
 				</Text>
 				<Text className="m-0 mt-2 text-xs leading-5 text-brand-muted">

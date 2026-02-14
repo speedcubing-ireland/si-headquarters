@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import type { Id } from "@/convex/_generated/dataModel";
 import { ListTodo } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { useTeams, useCompetitions } from "@/hooks/use-convex-data";
 import { TasksPage } from "@/components/tasks/tasks-page";
 import type { TaskPredicate } from "@/lib/task-filter-utils";
 
@@ -13,8 +11,6 @@ export const Route = createFileRoute("/tasks/my")({
 
 function RouteComponent() {
 	const currentUser = useQuery(api.users.getCurrentUser);
-	const { teams } = useTeams();
-	const { competitions } = useCompetitions();
 
 	if (!currentUser) {
 		return (
@@ -25,18 +21,10 @@ function RouteComponent() {
 	}
 
 	const currentUserId = currentUser._id;
-	const myTeams = teams.filter((t) =>
-		t.members.some((member) => member.id === currentUserId),
-	);
-	const myIds = [currentUserId, ...myTeams.map((t) => t.id)];
-
-	const myCompetitions = competitions
-		.filter((c) => c.compLead?.id === currentUserId)
-		.map((c) => c.id);
 
 	const pagePredicates: TaskPredicate[] = [
 		(t) => t.assignee?.id === currentUserId,
-		(t) => (t.owner?.id ? myIds.includes(t.owner.id) : false),
+		(t) => t.owner?.id === currentUserId,
 		(t) =>
 			t.requiredApprovalBy.some((entity) => {
 				if ("members" in entity) {
@@ -44,9 +32,6 @@ function RouteComponent() {
 				}
 				return entity.id === currentUserId;
 			}),
-		(t) =>
-			t.parent?.type === "competition" &&
-			myCompetitions.includes(t.parent.linkedId as Id<"competitions">),
 	];
 
 	return (
@@ -56,11 +41,7 @@ function RouteComponent() {
 			pageIcon={ListTodo}
 			pagePredicates={pagePredicates}
 			pagePredicateMode="any"
-			defaultDisplaySettings={{
-				grouping: "status",
-				subGrouping: null,
-				ordering: { field: null, direction: "asc" },
-			}}
+			defaultDisplaySettings={{}}
 		/>
 	);
 }

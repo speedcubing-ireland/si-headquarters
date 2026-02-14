@@ -11,7 +11,7 @@ import {
 	Trash2,
 	Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -312,6 +312,7 @@ function SponsorshipAdminContent() {
 	const [createInvitedSponsorIds, setCreateInvitedSponsorIds] = useState<
 		Id<"sponsors">[]
 	>([]);
+	const hasInitializedCreateInvitesRef = useRef(false);
 
 	const [editFramework, setEditFramework] =
 		useState<SponsorshipFramework>("first_sealed");
@@ -322,6 +323,8 @@ function SponsorshipAdminContent() {
 	const [editInvitedSponsorIds, setEditInvitedSponsorIds] = useState<
 		Id<"sponsors">[]
 	>([]);
+	const lastInitializedEditAuctionIdRef =
+		useRef<Id<"sponsorshipAuctions"> | null>(null);
 
 	const [isCreatingAuction, setIsCreatingAuction] = useState(false);
 	const [isSavingAuction, setIsSavingAuction] = useState(false);
@@ -426,10 +429,11 @@ function SponsorshipAdminContent() {
 	);
 
 	useEffect(() => {
-		if (createInvitedSponsorIds.length > 0) return;
+		if (hasInitializedCreateInvitesRef.current) return;
 		if (activeSponsors.length === 0) return;
 		setCreateInvitedSponsorIds(activeSponsors.map((sponsor) => sponsor.id));
-	}, [activeSponsors, createInvitedSponsorIds.length]);
+		hasInitializedCreateInvitesRef.current = true;
+	}, [activeSponsors]);
 
 	useEffect(() => {
 		if (createCompetitionId !== null) return;
@@ -456,6 +460,10 @@ function SponsorshipAdminContent() {
 
 	useEffect(() => {
 		if (!managerView || editorMode !== "edit") return;
+		if (lastInitializedEditAuctionIdRef.current === managerView.auction.id) {
+			return;
+		}
+		lastInitializedEditAuctionIdRef.current = managerView.auction.id;
 		setEditFramework(managerView.auction.framework);
 		setIsEditFrameworkUnlocked(false);
 		setEditStartsAtInput(
@@ -469,6 +477,11 @@ function SponsorshipAdminContent() {
 		);
 		setEditInvitedSponsorIds(managerView.inviteSponsorIds);
 	}, [editorMode, managerView]);
+
+	useEffect(() => {
+		if (editorMode === "edit" && selectedAuctionId) return;
+		lastInitializedEditAuctionIdRef.current = null;
+	}, [editorMode, selectedAuctionId]);
 
 	const selectedAuction =
 		editorMode === "edit" && selectedAuctionId
@@ -571,6 +584,7 @@ function SponsorshipAdminContent() {
 		);
 		setCreateStartPriceEuros("100");
 		setCreateInvitedSponsorIds(activeSponsors.map((sponsor) => sponsor.id));
+		hasInitializedCreateInvitesRef.current = true;
 	};
 
 	const selectAuctionForEditing = (auctionId: Id<"sponsorshipAuctions">) => {

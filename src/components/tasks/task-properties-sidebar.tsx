@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { useTaskMutations } from "@/hooks/use-convex-data";
+import { useIsDirector } from "@/hooks/convex/use-admin";
 import { api } from "@/convex/_generated/api";
 import type { Task, Team, User } from "@/data/types-new";
 import { cn, onMutationError } from "@/lib/utils";
@@ -54,6 +55,7 @@ interface TaskPropertiesSidebarProps {
 function ApprovalBadge({
 	approver,
 	isApproved,
+	canToggleApproval,
 	isCurrentUser,
 	onRemove,
 	onApprove,
@@ -61,6 +63,7 @@ function ApprovalBadge({
 }: {
 	approver: Team | User;
 	isApproved: boolean;
+	canToggleApproval: boolean;
 	isCurrentUser: boolean;
 	onRemove: () => void;
 	onApprove: () => void;
@@ -99,7 +102,7 @@ function ApprovalBadge({
 			</div>
 
 			<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-				{isCurrentUser &&
+				{canToggleApproval &&
 					(isApproved ? (
 						<Button
 							variant="ghost"
@@ -154,6 +157,7 @@ export function TaskPropertiesSidebar({
 		unapproveTask,
 	} = useTaskMutations();
 	const currentUser = useQuery(api.users.getCurrentUser);
+	const { isDirector } = useIsDirector();
 
 	const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 	const [isApproverDialogOpen, setIsApproverDialogOpen] = useState(false);
@@ -412,6 +416,9 @@ export function TaskPropertiesSidebar({
 									key={approver.id}
 									approver={approver}
 									isApproved={isApproved}
+									canToggleApproval={
+										isDirector || isCurrentUserApprover(approver)
+									}
 									isCurrentUser={isCurrentUserApprover(approver)}
 									onRemove={() => handleRemoveApprover(approver.id)}
 									onApprove={handleApprove}
