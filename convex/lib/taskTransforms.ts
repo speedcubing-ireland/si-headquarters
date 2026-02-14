@@ -90,6 +90,9 @@ export function transformTaskToUI(
 				: (maps.competitionIdToName.get(parent.linkedId) ?? null)
 			: null;
 	}
+	const competitionDisplayName = t.parentCompetitionId
+		? (maps.competitionIdToName.get(t.parentCompetitionId) ?? null)
+		: null;
 
 	const combinedTeamsMap = new Map(maps.teamsMap);
 	for (const [key, value] of maps.approvalTeamsMap) {
@@ -108,6 +111,7 @@ export function transformTaskToUI(
 		identifier: t.identifier,
 		parent,
 		parentDisplayName,
+		competitionDisplayName,
 		title: t.title,
 		description: t.description,
 		owner: owner ?? null,

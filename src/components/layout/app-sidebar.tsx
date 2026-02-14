@@ -5,6 +5,7 @@ import {
 	Box,
 	CircleCheck,
 	Inbox,
+	KeyRound,
 	ListTodo,
 	Shield,
 	Store,
@@ -28,6 +29,7 @@ import {
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import {
+	useCanAccessWca2fa,
 	useIsDirector,
 	useIsSponsorshipManager,
 	useTeams,
@@ -96,6 +98,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const user = useQuery(api.users.getCurrentUser);
 	const isVolunteer = useQuery(api.auth.isVolunteerQuery) ?? false;
 	const { isDirector } = useIsDirector();
+	const { canAccess: canAccessWca2fa } = useCanAccessWca2fa();
 	const { isManager: isSponsorshipManager } = useIsSponsorshipManager();
 	const { teams } = useTeams();
 	const unreadCount = useUnreadCount();
@@ -178,6 +181,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			name: "God Mode",
 			url: { to: "/admin/god-mode" as const },
 			icon: Shield,
+		});
+	}
+	if (canAccessWca2fa) {
+		dashboardItems.push({
+			type: "item",
+			name: "WCA 2FA",
+			url: { to: "/admin/wca-2fa" as const },
+			icon: KeyRound,
 		});
 	}
 	const dashboardSections: NavSectionData[] =

@@ -279,6 +279,7 @@ export const taskForUIReturns = v.object({
 	identifier: v.string(),
 	parent: parentShape,
 	parentDisplayName: v.union(v.string(), v.null()),
+	competitionDisplayName: v.union(v.string(), v.null()),
 	title: v.string(),
 	description: v.string(),
 	owner: v.union(v.null(), userShape, teamShape),

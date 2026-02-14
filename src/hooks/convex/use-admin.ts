@@ -7,6 +7,11 @@ export const useIsDirector = () => {
 	return { isDirector: result === true, isLoading: result === undefined };
 };
 
+export const useCanAccessWca2fa = () => {
+	const result = useQuery(api.admin.canAccessWca2fa, {});
+	return { canAccess: result === true, isLoading: result === undefined };
+};
+
 export const useAdminMembersAndTeams = () => {
 	const d = useQuery(api.admin.listMembersAndTeams, {});
 	return {

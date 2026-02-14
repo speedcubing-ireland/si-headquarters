@@ -286,6 +286,7 @@ export function useTaskMutations(): TaskMutations {
 				identifier: "",
 				parent: payload.parent,
 				parentDisplayName: null,
+				competitionDisplayName: null,
 				title: payload.title,
 				description: payload.description,
 				owner: payload.owner,

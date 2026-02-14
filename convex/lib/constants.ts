@@ -25,6 +25,7 @@ export const INPUT_LIMITS = {
 export const TEAM_NAMES = {
 	VOLUNTEER: "Volunteer",
 	DIRECTORS: "Directors",
+	COMPETITIONS: "Competitions Team",
 	FINANCE: "Finance Team",
 } as const;
 

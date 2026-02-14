@@ -42,6 +42,7 @@ export {
 
 export {
 	useIsDirector,
+	useCanAccessWca2fa,
 	useAdminMembersAndTeams,
 	useAdminMemberMutations,
 } from "./convex/use-admin";

@@ -148,16 +148,20 @@ export const TaskTitleCell = memo(
 		const parentDisplayName = hideParentDisplayName
 			? null
 			: task.parentDisplayName;
-		const phaseName = hideParentDisplayName ? null : task.phase?.name;
+		const contextName = hideParentDisplayName
+			? null
+			: task.parent?.type === "task"
+				? (task.competitionDisplayName ?? task.phase?.name ?? null)
+				: (task.phase?.name ?? null);
 
 		return (
 			<div className="flex items-center min-w-0">
 				<span className="min-w-0 truncate">
 					<span className="font-medium text-foreground">{task.title}</span>
-					{(parentDisplayName || phaseName) && (
+					{(parentDisplayName || contextName) && (
 						<span className="ml-1 text-xs text-muted-foreground/80">
 							{parentDisplayName && <> · {parentDisplayName}</>}
-							{phaseName && <> · {phaseName}</>}
+							{contextName && <> · {contextName}</>}
 						</span>
 					)}
 				</span>

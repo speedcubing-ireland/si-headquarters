@@ -7,21 +7,28 @@ import { TEAM_NAMES } from "./lib/constants";
 import { normalizeEmail, validateEmail } from "./lib/sanitize";
 
 const DIRECTORS_TEAM_NAME = TEAM_NAMES.DIRECTORS;
+const COMPETITIONS_TEAM_NAME = TEAM_NAMES.COMPETITIONS;
 
 type AuthCtx = QueryCtx | MutationCtx;
+
+async function isUserOnNamedTeam(
+	ctx: AuthCtx,
+	userId: Id<"users">,
+	teamName: string,
+): Promise<boolean> {
+	const team = await ctx.db
+		.query("teams")
+		.withIndex("by_name", (q) => q.eq("name", teamName))
+		.unique();
+
+	return team?.memberIds.includes(userId) ?? false;
+}
 
 export async function isDirectorForCtx(ctx: AuthCtx): Promise<boolean> {
 	const userId = await getAuthUserId(ctx);
 	if (userId === null) return false;
 
-	const team = await ctx.db
-		.query("teams")
-		.withIndex("by_name", (q) => q.eq("name", DIRECTORS_TEAM_NAME))
-		.unique();
-
-	if (!team) return false;
-
-	return team.memberIds.includes(userId);
+	return await isUserOnNamedTeam(ctx, userId, DIRECTORS_TEAM_NAME);
 }
 
 export async function requireDirector(ctx: AuthCtx): Promise<void> {
@@ -72,6 +79,22 @@ export const isDirector = query({
 	returns: v.boolean(),
 	handler: async (ctx) => {
 		return await isDirectorForCtx(ctx);
+	},
+});
+
+export const canAccessWca2fa = query({
+	args: {},
+	returns: v.boolean(),
+	handler: async (ctx) => {
+		const userId = await getAuthUserId(ctx);
+		if (userId === null) return false;
+
+		const [isDirector, isCompetitionsTeamMember] = await Promise.all([
+			isUserOnNamedTeam(ctx, userId, DIRECTORS_TEAM_NAME),
+			isUserOnNamedTeam(ctx, userId, COMPETITIONS_TEAM_NAME),
+		]);
+
+		return isDirector || isCompetitionsTeamMember;
 	},
 });
 

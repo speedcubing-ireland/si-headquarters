@@ -25,6 +25,7 @@ import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
 import { Route as InboxSettingsRouteImport } from './routes/inbox/settings'
 import { Route as CompetitionsCalendarRouteImport } from './routes/competitions/calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
+import { Route as AdminWca2faRouteImport } from './routes/admin/wca-2fa'
 import { Route as AdminSponsorshipRouteImport } from './routes/admin/sponsorship'
 import { Route as AdminGodModeRouteImport } from './routes/admin/god-mode'
 import { Route as AdminEmailRouteImport } from './routes/admin/email'
@@ -110,6 +111,11 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   path: '/competitions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWca2faRoute = AdminWca2faRouteImport.update({
+  id: '/admin/wca-2fa',
+  path: '/admin/wca-2fa',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSponsorshipRoute = AdminSponsorshipRouteImport.update({
   id: '/admin/sponsorship',
   path: '/admin/sponsorship',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
+  '/admin/wca-2fa': typeof AdminWca2faRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/inbox/settings': typeof InboxSettingsRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
+  '/admin/wca-2fa': typeof AdminWca2faRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/inbox/settings': typeof InboxSettingsRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
+  '/admin/wca-2fa': typeof AdminWca2faRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/inbox/settings': typeof InboxSettingsRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/admin/email'
     | '/admin/god-mode'
     | '/admin/sponsorship'
+    | '/admin/wca-2fa'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/inbox/settings'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/admin/email'
     | '/admin/god-mode'
     | '/admin/sponsorship'
+    | '/admin/wca-2fa'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/inbox/settings'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/admin/email'
     | '/admin/god-mode'
     | '/admin/sponsorship'
+    | '/admin/wca-2fa'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/inbox/settings'
@@ -274,6 +286,7 @@ export interface RootRouteChildren {
   AdminEmailRoute: typeof AdminEmailRoute
   AdminGodModeRoute: typeof AdminGodModeRoute
   AdminSponsorshipRoute: typeof AdminSponsorshipRoute
+  AdminWca2faRoute: typeof AdminWca2faRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
   InboxSettingsRoute: typeof InboxSettingsRoute
@@ -404,6 +417,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/wca-2fa': {
+      id: '/admin/wca-2fa'
+      path: '/admin/wca-2fa'
+      fullPath: '/admin/wca-2fa'
+      preLoaderRoute: typeof AdminWca2faRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/sponsorship': {
       id: '/admin/sponsorship'
       path: '/admin/sponsorship'
@@ -453,6 +473,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminEmailRoute: AdminEmailRoute,
   AdminGodModeRoute: AdminGodModeRoute,
   AdminSponsorshipRoute: AdminSponsorshipRoute,
+  AdminWca2faRoute: AdminWca2faRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   CompetitionsCalendarRoute: CompetitionsCalendarRoute,
   InboxSettingsRoute: InboxSettingsRoute,

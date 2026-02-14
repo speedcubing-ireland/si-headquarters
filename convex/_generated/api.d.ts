@@ -120,6 +120,7 @@ import type * as views from "../views.js";
 import type * as wca from "../wca.js";
 import type * as wca_client from "../wca/client.js";
 import type * as wca_oauth from "../wca/oauth.js";
+import type * as wca2fa from "../wca2fa.js";
 import type * as wcaQueries from "../wcaQueries.js";
 import type * as wcaSchedule from "../wcaSchedule.js";
 import type * as weekendOverrides from "../weekendOverrides.js";
@@ -243,6 +244,7 @@ declare const fullApi: ApiFromModules<{
   wca: typeof wca;
   "wca/client": typeof wca_client;
   "wca/oauth": typeof wca_oauth;
+  wca2fa: typeof wca2fa;
   wcaQueries: typeof wcaQueries;
   wcaSchedule: typeof wcaSchedule;
   weekendOverrides: typeof weekendOverrides;
