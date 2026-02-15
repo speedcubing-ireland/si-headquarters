@@ -3,7 +3,7 @@ import { mutation, query } from "../_generated/server";
 import { normalizeEmail, validateEmail } from "../lib/sanitize";
 import { requireSponsorshipManager } from "../lib/sponsorshipAccess";
 import { sponsorForUI } from "../lib/sponsorshipValidators";
-import { enqueueSponsorshipEmailBatch } from "./emails";
+import { enqueueSponsorshipEmailBatch } from "./emailQueue";
 import {
 	ensureSponsorAuthAccount,
 	revokeSponsorAuthSessions,

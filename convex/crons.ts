@@ -11,4 +11,11 @@ crons.cron(
 	{},
 );
 
+crons.cron(
+	"sweep email queue",
+	CRON_EXPRESSIONS.EMAIL_QUEUE_SWEEP_EVERY_10_MINUTES,
+	internal.emailQueue._runSweep,
+	{},
+);
+
 export default crons;

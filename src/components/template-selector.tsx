@@ -62,76 +62,74 @@ export function TemplateSelector({
 			dialogContentClassName="max-w-2xl"
 			sheetContentClassName="p-6"
 		>
-				<DialogHeader>
-					<DialogTitle>
-						{type === "competition" ? "Create Competition" : "Create Task"}
-					</DialogTitle>
-					<DialogDescription>
-						Choose a template or start from scratch
-					</DialogDescription>
-				</DialogHeader>
+			<DialogHeader>
+				<DialogTitle>
+					{type === "competition" ? "Create Competition" : "Create Task"}
+				</DialogTitle>
+				<DialogDescription>
+					Choose a template or start from scratch
+				</DialogDescription>
+			</DialogHeader>
 
-				<div className="grid grid-cols-3 gap-4 mt-4">
+			<div className="grid grid-cols-3 gap-4 mt-4">
+				<button
+					type="button"
+					onClick={handleBlank}
+					className={`flex flex-col items-center justify-center p-4 border rounded-lg transition-colors text-left ${
+						selectedId === "" ? "border-primary bg-primary/5" : "hover:bg-muted"
+					}`}
+				>
+					<div className="size-10 rounded-full bg-muted flex items-center justify-center mb-2">
+						<Plus className="size-5" />
+					</div>
+					<span className="font-medium text-sm">Blank</span>
+					<span className="text-xs text-muted-foreground mt-1">
+						Start fresh
+					</span>
+				</button>
+				{filteredTemplates.map((template) => (
 					<button
 						type="button"
-						onClick={handleBlank}
-						className={`flex flex-col items-center justify-center p-4 border rounded-lg transition-colors text-left ${
-							selectedId === ""
+						key={template.id}
+						onClick={() => handleSelect(template.id)}
+						className={`flex flex-col items-start p-4 border rounded-lg transition-colors text-left relative ${
+							selectedId === template.id
 								? "border-primary bg-primary/5"
 								: "hover:bg-muted"
 						}`}
 					>
+						{selectedId === template.id && (
+							<div className="absolute top-2 right-2">
+								<Check className="size-4 text-primary" />
+							</div>
+						)}
 						<div className="size-10 rounded-full bg-muted flex items-center justify-center mb-2">
-							<Plus className="size-5" />
+							{type === "competition" ? (
+								<Trophy className="size-5" />
+							) : (
+								<FileText className="size-5" />
+							)}
 						</div>
-						<span className="font-medium text-sm">Blank</span>
-						<span className="text-xs text-muted-foreground mt-1">
-							Start fresh
+						<span className="font-medium text-sm">{template.name}</span>
+						<span className="text-xs text-muted-foreground mt-1 line-clamp-2">
+							{template.description}
 						</span>
 					</button>
-					{filteredTemplates.map((template) => (
-						<button
-							type="button"
-							key={template.id}
-							onClick={() => handleSelect(template.id)}
-							className={`flex flex-col items-start p-4 border rounded-lg transition-colors text-left relative ${
-								selectedId === template.id
-									? "border-primary bg-primary/5"
-									: "hover:bg-muted"
-							}`}
-						>
-							{selectedId === template.id && (
-								<div className="absolute top-2 right-2">
-									<Check className="size-4 text-primary" />
-								</div>
-							)}
-							<div className="size-10 rounded-full bg-muted flex items-center justify-center mb-2">
-								{type === "competition" ? (
-									<Trophy className="size-5" />
-								) : (
-									<FileText className="size-5" />
-								)}
-							</div>
-							<span className="font-medium text-sm">{template.name}</span>
-							<span className="text-xs text-muted-foreground mt-1 line-clamp-2">
-								{template.description}
-							</span>
-						</button>
-					))}
-				</div>
+				))}
+			</div>
 
-				<div className="flex justify-end gap-2 mt-4">
-					<Button variant="ghost" onClick={() => onOpenChange(false)}>
-						Cancel
-					</Button>
-					<Button
-						onClick={handleConfirm}
-						disabled={!selectedId && selectedId !== ""}
-					>
-						Continue
-						<ChevronRight className="size-4 ml-1" />
-					</Button>
-				</div>
+			<div className="flex justify-end gap-2 mt-4">
+				<Button variant="ghost" onClick={() => onOpenChange(false)}>
+					Cancel
+				</Button>
+				<Button
+					onClick={handleConfirm}
+					disabled={!selectedId && selectedId !== ""}
+				>
+					Continue
+					<ChevronRight className="size-4 ml-1" />
+				</Button>
+			</div>
 		</ResponsiveModal>
 	);
 }

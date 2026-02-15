@@ -7,7 +7,8 @@ import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
-import { sendEmail } from "./lib/email";
+import type { MutationCtx } from "./_generated/server";
+import { enqueueDispatch } from "./emailQueue/enqueue";
 import schema from "./sponsorAuth/schema";
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth";
@@ -58,11 +59,14 @@ function resolveSponsorAuthSecret(requireConfiguredSecret: boolean): string {
 	return SPONSOR_AUTH_DEV_SECRET;
 }
 
-async function sendSponsorOtpEmail(args: {
-	email: string;
-	otp: string;
-	type: "sign-in" | "forget-password" | "email-verification";
-}): Promise<void> {
+async function sendSponsorOtpEmail(
+	ctx: GenericCtx<DataModel>,
+	args: {
+		email: string;
+		otp: string;
+		type: "sign-in" | "forget-password" | "email-verification";
+	},
+): Promise<void> {
 	const purposeLabel =
 		args.type === "sign-in"
 			? "sign in"
@@ -89,11 +93,16 @@ async function sendSponsorOtpEmail(args: {
 		`<p><a href="${portalUrl}">Open sponsor portal</a></p>`,
 	].join("");
 
-	await sendEmail({
-		to: [{ address: args.email }],
+	const dedupeKey = `sponsor_auth_otp:${args.type}:${args.email.toLowerCase()}:${args.otp}`;
+	await enqueueDispatch(ctx as unknown as MutationCtx, {
+		dedupeKey,
+		sourceKind: "sponsor_auth",
+		sourceRef: dedupeKey,
+		templateKey: "sponsor_auth_otp",
+		recipientEmail: args.email,
 		subject,
-		html,
-		plainText,
+		htmlBody: html,
+		plainTextBody: plainText,
 	});
 }
 
@@ -158,7 +167,7 @@ export function createSponsorAuthOptions(
 				storeOTP: "hashed",
 				allowedAttempts: 5,
 				sendVerificationOTP: async ({ email, otp, type }) => {
-					await sendSponsorOtpEmail({ email, otp, type });
+					await sendSponsorOtpEmail(ctx, { email, otp, type });
 				},
 			}),
 			passkey({

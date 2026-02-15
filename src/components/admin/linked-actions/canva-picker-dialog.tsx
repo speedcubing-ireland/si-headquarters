@@ -35,18 +35,18 @@ export function CanvaPickerDialog({
 			dialogContentClassName="sm:max-w-[720px]"
 			sheetContentClassName="p-6"
 		>
-				<DialogHeader>
-					<DialogTitle>{title}</DialogTitle>
-					<DialogDescription>{description}</DialogDescription>
-				</DialogHeader>
-				<div className="space-y-3">
-					<Input
-						value={searchValue}
-						onChange={(event) => onSearchChange(event.target.value)}
-						placeholder={searchPlaceholder}
-					/>
-					{children}
-				</div>
+			<DialogHeader>
+				<DialogTitle>{title}</DialogTitle>
+				<DialogDescription>{description}</DialogDescription>
+			</DialogHeader>
+			<div className="space-y-3">
+				<Input
+					value={searchValue}
+					onChange={(event) => onSearchChange(event.target.value)}
+					placeholder={searchPlaceholder}
+				/>
+				{children}
+			</div>
 		</ResponsiveModal>
 	);
 }

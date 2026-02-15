@@ -17,17 +17,20 @@ import {
 	notificationPriority,
 	notificationChannel,
 	notificationDigestMode,
-	notificationDispatchStatus,
 	notificationSubscriberEntityType,
 } from "./notifications/lib/validators";
 import {
 	sponsorshipAuctionFramework,
 	sponsorshipAuctionState,
-	sponsorshipEmailDispatchStatus,
-	sponsorshipEmailType,
 	sponsorshipBidIntentMode,
 } from "./lib/sponsorshipValidators";
 import { sponsorshipCompetitionSnapshot } from "./lib/sponsorshipCompetitionSnapshot";
+import {
+	emailDispatchStatus,
+	emailSourceKind,
+	stageDigestMode,
+	stageStatus,
+} from "./emailQueue/types";
 
 export default defineSchema({
 	...authTables,
@@ -244,68 +247,61 @@ export default defineSchema({
 		.index("by_auction", ["auctionId"])
 		.index("by_auction_and_created_at", ["auctionId", "createdAt"]),
 
-	sponsorshipEmailDispatches: defineTable({
-		auctionId: v.optional(v.id("sponsorshipAuctions")),
-		sponsorId: v.optional(v.id("sponsors")),
-		emailType: sponsorshipEmailType,
-		recipient: v.string(),
+	emailDispatches: defineTable({
+		dedupeKey: v.string(),
+		sourceKind: emailSourceKind,
+		sourceRef: v.optional(v.string()),
+		templateKey: v.string(),
+		recipientEmail: v.string(),
 		recipientName: v.optional(v.string()),
 		subject: v.string(),
-		message: v.string(),
-		contextJson: v.optional(v.string()),
 		htmlBody: v.optional(v.string()),
-		plainTextBody: v.optional(v.string()),
-		notificationDispatchIds: v.optional(
-			v.array(v.id("notificationDispatches")),
-		),
-		notificationClaimKey: v.optional(v.string()),
-		idempotencyKey: v.string(),
-		status: sponsorshipEmailDispatchStatus,
-		attempts: v.number(),
-		maxAttempts: v.number(),
-		scheduledFor: v.optional(v.number()),
-		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
+		plainTextBody: v.string(),
+		payloadJson: v.optional(v.string()),
+		scheduledFor: v.number(),
+		status: emailDispatchStatus,
 		claimKey: v.optional(v.string()),
-		lastAttemptAt: v.optional(v.number()),
-		providerOperationId: v.optional(v.string()),
+		providerOperationId: v.string(),
+		providerStatus: v.optional(v.string()),
 		providerPollerState: v.optional(v.string()),
+		sendAttemptCount: v.number(),
+		pollAttemptCount: v.number(),
+		lastProviderCheckAt: v.optional(v.number()),
 		sentAt: v.optional(v.number()),
-		providerMessageId: v.optional(v.string()),
 		error: v.optional(v.string()),
+		deadLetteredAt: v.optional(v.number()),
 		createdAt: v.number(),
 		updatedAt: v.number(),
 	})
-		.index("by_auction", ["auctionId"])
-		.index("by_sponsor", ["sponsorId"])
-		.index("by_email_type", ["emailType"])
-		.index("by_idempotency_key", ["idempotencyKey"])
-		.index("by_status_and_scheduled_for", ["status", "scheduledFor"])
-		.index("by_status_and_created_at", ["status", "createdAt"])
-		.index("by_status_and_updated_at", ["status", "updatedAt"]),
+		.index("by_dedupe_key", ["dedupeKey"])
+		.index("by_status_scheduled_for", ["status", "scheduledFor"])
+		.index("by_status_updated_at", ["status", "updatedAt"])
+		.index("by_source_status_created_at", [
+			"sourceKind",
+			"status",
+			"createdAt",
+		]),
 
-	sponsorshipEmailPollerState: defineTable({
-		key: v.string(),
-		scheduledFor: v.optional(v.number()),
-		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
-		updatedAt: v.number(),
-	}).index("by_key", ["key"]),
-
-	sponsorshipEmailDeadLetters: defineTable({
-		dispatchId: v.id("sponsorshipEmailDispatches"),
-		auctionId: v.optional(v.id("sponsorshipAuctions")),
-		sponsorId: v.optional(v.id("sponsors")),
-		emailType: sponsorshipEmailType,
-		recipient: v.string(),
+	emailDeadLetters: defineTable({
+		dispatchId: v.id("emailDispatches"),
+		dedupeKey: v.string(),
+		sourceKind: emailSourceKind,
+		sourceRef: v.optional(v.string()),
+		templateKey: v.string(),
+		recipientEmail: v.string(),
 		subject: v.string(),
 		error: v.string(),
-		attempts: v.number(),
+		providerOperationId: v.string(),
+		providerStatus: v.optional(v.string()),
 		payloadJson: v.optional(v.string()),
+		sendAttemptCount: v.number(),
+		pollAttemptCount: v.number(),
 		failedAt: v.number(),
+		replayCount: v.number(),
 	})
-		.index("by_auction", ["auctionId"])
-		.index("by_sponsor", ["sponsorId"])
-		.index("by_email_type", ["emailType"])
-		.index("by_failed_at", ["failedAt"]),
+		.index("by_failed_at", ["failedAt"])
+		.index("by_source_and_failed_at", ["sourceKind", "failedAt"])
+		.index("by_dispatch", ["dispatchId"]),
 
 	competitionAccess: defineTable({
 		competitionId: v.id("competitions"),
@@ -436,49 +432,30 @@ export default defineSchema({
 		.index("by_user_updated_at", ["userId", "updatedAt"])
 		.index("by_entity", ["entityType", "entityId"]),
 
-	notificationDispatches: defineTable({
-		eventId: v.id("notificationEvents"),
-		notificationId: v.optional(v.id("notifications")),
+	notificationEmailStageItems: defineTable({
+		stageKey: v.string(),
 		userId: v.id("users"),
-		channel: notificationChannel,
-		digestMode: notificationDigestMode,
-		scheduledFor: v.optional(v.number()),
-		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
+		notificationId: v.optional(v.id("notifications")),
+		eventId: v.id("notificationEvents"),
+		digestMode: stageDigestMode,
 		digestWindowKey: v.optional(v.string()),
-		status: notificationDispatchStatus,
-		reason: v.optional(v.string()),
+		scheduledFor: v.number(),
+		status: stageStatus,
+		emailDispatchId: v.optional(v.id("emailDispatches")),
 		metadataJson: v.optional(v.string()),
-		attempts: v.number(),
-		maxAttempts: v.number(),
-		lastAttemptAt: v.optional(v.number()),
-		sentAt: v.optional(v.number()),
+		createdAt: v.number(),
 		updatedAt: v.number(),
 	})
-		.index("by_event_user_channel", ["eventId", "userId", "channel"])
-		.index("by_event", ["eventId"])
-		.index("by_notification", ["notificationId"])
-		.index("by_user_status", ["userId", "status"])
-		.index("by_user_channel_mode_window_status", [
+		.index("by_stage_key", ["stageKey"])
+		.index("by_user_mode_window_status", [
 			"userId",
-			"channel",
 			"digestMode",
 			"digestWindowKey",
 			"status",
 		])
-		.index("by_channel_status", ["channel", "status"]),
-
-	notificationDeadLetters: defineTable({
-		dispatchId: v.id("notificationDispatches"),
-		eventId: v.id("notificationEvents"),
-		userId: v.id("users"),
-		channel: notificationChannel,
-		error: v.string(),
-		attempts: v.number(),
-		payloadJson: v.optional(v.string()),
-		failedAt: v.number(),
-	})
-		.index("by_failed_at", ["failedAt"])
-		.index("by_channel_failed_at", ["channel", "failedAt"]),
+		.index("by_status_scheduled_for", ["status", "scheduledFor"])
+		.index("by_notification", ["notificationId"])
+		.index("by_event", ["eventId"]),
 
 	reminders: defineTable({
 		userId: v.id("users"),

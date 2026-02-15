@@ -417,41 +417,41 @@ export function LinkedActionsSection() {
 				dialogContentClassName="sm:max-w-[520px]"
 				sheetContentClassName="p-6"
 			>
-					<DialogHeader>
-						<DialogTitle>Set Canva Destination Folder</DialogTitle>
-					</DialogHeader>
-					<div className="space-y-3">
-						<Label htmlFor="canva-folder-input">
-							Folder ID or Canva folder link
-						</Label>
-						<Input
-							id="canva-folder-input"
-							value={folderInputValue}
-							onChange={(event) => setFolderInputValue(event.target.value)}
-							placeholder="FAF... or https://www.canva.com/folder/FAF..."
-						/>
-						<p className="text-xs text-muted-foreground">
-							Use <code>root</code> to save at top level.
-						</p>
-						<div className="flex justify-end gap-2">
-							<Button
-								variant="outline"
-								onClick={() => setFolderInputOpen(false)}
-								disabled={isValidatingFolder}
-							>
-								Cancel
-							</Button>
-							<Button
-								onClick={onValidateFolder}
-								disabled={!folderInputValue.trim() || isValidatingFolder}
-							>
-								{isValidatingFolder ? (
-									<Loader2 className="size-4 animate-spin" />
-								) : null}
-								Validate & Use
-							</Button>
-						</div>
+				<DialogHeader>
+					<DialogTitle>Set Canva Destination Folder</DialogTitle>
+				</DialogHeader>
+				<div className="space-y-3">
+					<Label htmlFor="canva-folder-input">
+						Folder ID or Canva folder link
+					</Label>
+					<Input
+						id="canva-folder-input"
+						value={folderInputValue}
+						onChange={(event) => setFolderInputValue(event.target.value)}
+						placeholder="FAF... or https://www.canva.com/folder/FAF..."
+					/>
+					<p className="text-xs text-muted-foreground">
+						Use <code>root</code> to save at top level.
+					</p>
+					<div className="flex justify-end gap-2">
+						<Button
+							variant="outline"
+							onClick={() => setFolderInputOpen(false)}
+							disabled={isValidatingFolder}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={onValidateFolder}
+							disabled={!folderInputValue.trim() || isValidatingFolder}
+						>
+							{isValidatingFolder ? (
+								<Loader2 className="size-4 animate-spin" />
+							) : null}
+							Validate & Use
+						</Button>
 					</div>
+				</div>
 			</ResponsiveModal>
 		</div>
 	);

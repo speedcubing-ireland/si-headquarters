@@ -226,77 +226,73 @@ export function CanvaTemplatePane({
 				dialogContentClassName="sm:max-w-[540px]"
 				sheetContentClassName="p-6"
 			>
-					<DialogHeader>
-						<DialogTitle>Link Existing Canva Design</DialogTitle>
-					</DialogHeader>
-					<div className="space-y-3">
-						<div className="space-y-1.5">
-							<Label htmlFor={`canva-manual-link-${item.id}`}>
-								Design URL or ID
-							</Label>
-							<Input
-								id={`canva-manual-link-${item.id}`}
-								value={manualInput}
-								onChange={(event) => setManualInput(event.target.value)}
-								placeholder="https://www.canva.com/design/..."
-								disabled={isValidatingManual || isLinking}
-							/>
-							{manualError ? (
-								<p className="text-xs text-destructive">{manualError}</p>
-							) : null}
-						</div>
-						<div className="flex flex-wrap items-center gap-2">
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								onClick={validateManualDesign}
-								disabled={
-									manualInput.trim().length === 0 ||
-									isValidatingManual ||
-									isLinking
-								}
-							>
-								{isValidatingManual ? (
-									<Loader2 className="size-4 animate-spin" />
-								) : null}
-								Validate
-							</Button>
-							<Button
-								type="button"
-								size="sm"
-								onClick={attachManualDesign}
-								disabled={!manualCandidate || isValidatingManual || isLinking}
-							>
-								{isLinking ? <Loader2 className="size-4 animate-spin" /> : null}
-								Use Design
-							</Button>
-						</div>
-						{manualCandidate ? (
-							<div className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
-								<p className="text-sm font-medium">{manualCandidate.title}</p>
-								{manualCandidate.previewImageUrl ? (
-									<div className="overflow-hidden rounded-md border border-border/70 bg-background p-2">
-										<img
-											src={manualCandidate.previewImageUrl}
-											alt={`${manualCandidate.title} preview`}
-											className="max-h-[22rem] w-full object-contain"
-										/>
-									</div>
-								) : null}
-								<Button asChild size="sm" variant="outline">
-									<a
-										href={manualCandidate.url}
-										target="_blank"
-										rel="noreferrer"
-									>
-										<ExternalLink className="size-3.5" />
-										Open design
-									</a>
-								</Button>
-							</div>
+				<DialogHeader>
+					<DialogTitle>Link Existing Canva Design</DialogTitle>
+				</DialogHeader>
+				<div className="space-y-3">
+					<div className="space-y-1.5">
+						<Label htmlFor={`canva-manual-link-${item.id}`}>
+							Design URL or ID
+						</Label>
+						<Input
+							id={`canva-manual-link-${item.id}`}
+							value={manualInput}
+							onChange={(event) => setManualInput(event.target.value)}
+							placeholder="https://www.canva.com/design/..."
+							disabled={isValidatingManual || isLinking}
+						/>
+						{manualError ? (
+							<p className="text-xs text-destructive">{manualError}</p>
 						) : null}
 					</div>
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onClick={validateManualDesign}
+							disabled={
+								manualInput.trim().length === 0 ||
+								isValidatingManual ||
+								isLinking
+							}
+						>
+							{isValidatingManual ? (
+								<Loader2 className="size-4 animate-spin" />
+							) : null}
+							Validate
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							onClick={attachManualDesign}
+							disabled={!manualCandidate || isValidatingManual || isLinking}
+						>
+							{isLinking ? <Loader2 className="size-4 animate-spin" /> : null}
+							Use Design
+						</Button>
+					</div>
+					{manualCandidate ? (
+						<div className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
+							<p className="text-sm font-medium">{manualCandidate.title}</p>
+							{manualCandidate.previewImageUrl ? (
+								<div className="overflow-hidden rounded-md border border-border/70 bg-background p-2">
+									<img
+										src={manualCandidate.previewImageUrl}
+										alt={`${manualCandidate.title} preview`}
+										className="max-h-[22rem] w-full object-contain"
+									/>
+								</div>
+							) : null}
+							<Button asChild size="sm" variant="outline">
+								<a href={manualCandidate.url} target="_blank" rel="noreferrer">
+									<ExternalLink className="size-3.5" />
+									Open design
+								</a>
+							</Button>
+						</div>
+					) : null}
+				</div>
 			</ResponsiveModal>
 		</div>
 	);

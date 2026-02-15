@@ -47,9 +47,7 @@ export type SponsorshipEmailType =
 	| "auction_winner"
 	| "auction_outbid"
 	| "auction_closed_none"
-	| "internal_invoice"
-	| "notification_immediate"
-	| "notification_digest";
+	| "internal_invoice";
 
 export const sponsorshipEmailType = v.union(
 	v.literal("invite"),
@@ -58,21 +56,6 @@ export const sponsorshipEmailType = v.union(
 	v.literal("auction_outbid"),
 	v.literal("auction_closed_none"),
 	v.literal("internal_invoice"),
-	v.literal("notification_immediate"),
-	v.literal("notification_digest"),
-);
-
-export type SponsorshipEmailDispatchStatus =
-	| "pending"
-	| "sending"
-	| "sent"
-	| "failed";
-
-export const sponsorshipEmailDispatchStatus = v.union(
-	v.literal("pending"),
-	v.literal("sending"),
-	v.literal("sent"),
-	v.literal("failed"),
 );
 
 export const sponsorshipBidIntentMode = v.union(

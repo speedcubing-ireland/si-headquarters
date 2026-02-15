@@ -54,11 +54,11 @@ export async function deleteNotificationArtifactsForNotifications(
 		}
 	}
 
-	const dispatchRowsByNotification = (
+	const stageRowsByNotification = (
 		await Promise.all(
 			Array.from(notificationIds).map((notificationId) =>
 				ctx.db
-					.query("notificationDispatches")
+					.query("notificationEmailStageItems")
 					.withIndex("by_notification", (q) =>
 						q.eq("notificationId", notificationId),
 					)
@@ -66,36 +66,24 @@ export async function deleteNotificationArtifactsForNotifications(
 			),
 		)
 	).flat();
-	const dispatchRowsByEvent = (
+	const stageRowsByEvent = (
 		await Promise.all(
 			Array.from(eventIds).map((eventId) =>
 				ctx.db
-					.query("notificationDispatches")
+					.query("notificationEmailStageItems")
 					.withIndex("by_event", (q) => q.eq("eventId", eventId))
 					.collect(),
 			),
 		)
 	).flat();
-	const dispatchRows = dedupeById([
-		...dispatchRowsByNotification,
-		...dispatchRowsByEvent,
+	const stageRows = dedupeById([
+		...stageRowsByNotification,
+		...stageRowsByEvent,
 	]);
 
-	const scheduledIds = new Set<Id<"_scheduled_functions">>();
-	for (const dispatch of dispatchRows) {
-		if (dispatch.scheduledFunctionId) {
-			scheduledIds.add(dispatch.scheduledFunctionId);
-		}
-	}
-	await Promise.all(
-		Array.from(scheduledIds).map((scheduledId) =>
-			ctx.scheduler.cancel(scheduledId),
-		),
-	);
-
 	await Promise.all([
-		...dispatchRows.map((dispatch) =>
-			ctx.db.delete("notificationDispatches", dispatch._id),
+		...stageRows.map((stageRow) =>
+			ctx.db.delete("notificationEmailStageItems", stageRow._id),
 		),
 		...Array.from(notificationIds).map((notificationId) =>
 			ctx.db.delete("notifications", notificationId),

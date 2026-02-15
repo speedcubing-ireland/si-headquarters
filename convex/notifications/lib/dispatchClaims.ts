@@ -1,4 +1,3 @@
-import type { Id } from "../../_generated/dataModel";
 import type { NotificationChannel } from "./notificationTypes";
 
 export const DISPATCH_GROUP_CLAIM_PREFIX = "dispatch_group_claim:";
@@ -46,7 +45,7 @@ export function hasDispatchGroupClaim(reason: string | undefined): boolean {
 export function buildDispatchGroupClaimKey(
 	channel: NotificationChannel,
 	now: number,
-	seedDispatchId: Id<"notificationDispatches">,
+	seedDispatchId: string,
 ): string {
 	return `${DISPATCH_GROUP_CLAIM_PREFIX}${channel}:${now}:${seedDispatchId}`;
 }

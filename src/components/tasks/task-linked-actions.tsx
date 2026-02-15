@@ -94,53 +94,53 @@ function AddLinkedActionDialog({
 			dialogContentClassName="sm:max-w-[560px]"
 			sheetContentClassName="p-6"
 		>
-				<DialogHeader>
-					<DialogTitle>Add Linked Integration</DialogTitle>
-				</DialogHeader>
-				<div className="space-y-3">
-					<Input
-						value={search}
-						onChange={(event) => setSearch(event.target.value)}
-						placeholder="Search by name or short ID"
-					/>
-					<div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-						{filtered.length === 0 ? (
-							<p className="text-sm text-muted-foreground">
-								No available actions.
-							</p>
-						) : (
-							filtered.map((definition) => (
-								<div
-									key={definition.id}
-									className="flex items-center justify-between rounded-md border px-3 py-2"
-								>
-									<div className="min-w-0">
-										<p className="truncate text-sm font-medium">
-											{definition.name}
-										</p>
-										<p className="truncate text-xs text-muted-foreground">
-											{definition.shortId} · {definition.type}
-										</p>
-									</div>
-									<Button
-										size="sm"
-										disabled={readOnly}
-										onClick={() => {
-											void attachToTask({
-												taskId,
-												linkedActionId: definition.id,
-											})
-												.then(() => onOpenChange(false))
-												.catch(onMutationError);
-										}}
-									>
-										Add
-									</Button>
+			<DialogHeader>
+				<DialogTitle>Add Linked Integration</DialogTitle>
+			</DialogHeader>
+			<div className="space-y-3">
+				<Input
+					value={search}
+					onChange={(event) => setSearch(event.target.value)}
+					placeholder="Search by name or short ID"
+				/>
+				<div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+					{filtered.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							No available actions.
+						</p>
+					) : (
+						filtered.map((definition) => (
+							<div
+								key={definition.id}
+								className="flex items-center justify-between rounded-md border px-3 py-2"
+							>
+								<div className="min-w-0">
+									<p className="truncate text-sm font-medium">
+										{definition.name}
+									</p>
+									<p className="truncate text-xs text-muted-foreground">
+										{definition.shortId} · {definition.type}
+									</p>
 								</div>
-							))
-						)}
-					</div>
+								<Button
+									size="sm"
+									disabled={readOnly}
+									onClick={() => {
+										void attachToTask({
+											taskId,
+											linkedActionId: definition.id,
+										})
+											.then(() => onOpenChange(false))
+											.catch(onMutationError);
+									}}
+								>
+									Add
+								</Button>
+							</div>
+						))
+					)}
 				</div>
+			</div>
 		</ResponsiveModal>
 	);
 }

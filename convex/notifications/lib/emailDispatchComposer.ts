@@ -1,4 +1,3 @@
-import type { Id } from "../../_generated/dataModel";
 import { buildEntityLink, formatEntityTypeLabel } from "../../emails/shared";
 import type { NotificationType } from "./notificationTypes";
 import {
@@ -148,14 +147,11 @@ export function buildNotificationGroupIdempotencyKey(args: {
 	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
 	digestWindowKey?: string;
 	recipientEmail: string;
-	dispatchIds: Id<"notificationDispatches">[];
 }): string {
-	const stableDispatchIds = [...args.dispatchIds].sort();
 	return [
 		"notification_group",
 		args.digestMode,
 		args.digestWindowKey ?? "",
 		args.recipientEmail.toLowerCase(),
-		stableDispatchIds.join(","),
 	].join("|");
 }

@@ -158,7 +158,7 @@ function EmailAdminPanel() {
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2">
 						<TriangleAlert className="size-4 text-muted-foreground" />
-						Dispatch Diagnostics
+						Email Queue Diagnostics
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
@@ -199,7 +199,7 @@ function EmailAdminPanel() {
 							</div>
 							<div className="rounded-md border p-3">
 								<p className="text-xs text-muted-foreground">
-									Stale pending dispatches
+									Stale queued emails
 								</p>
 								<p className="text-lg font-semibold">
 									{dispatchHealth.stalePendingCount}
@@ -208,19 +208,27 @@ function EmailAdminPanel() {
 							<div className="space-y-2">
 								<p className="text-sm font-medium">By channel</p>
 								<div className="grid gap-2 text-xs sm:grid-cols-2">
-									{dispatchHealth.byChannel.map((row) => (
-										<div key={row.channel} className="rounded-md border p-3">
-											<p className="mb-2 text-sm font-medium capitalize">
-												{row.channel.replace("_", " ")}
-											</p>
-											<div className="grid grid-cols-2 gap-1 text-muted-foreground">
-												<span>Pending: {row.pending}</span>
-												<span>Sent: {row.sent}</span>
-												<span>Skipped: {row.skipped}</span>
-												<span>Failed: {row.failed}</span>
+									{dispatchHealth.byChannel.map(
+										(row: {
+											channel: string;
+											pending: number;
+											sent: number;
+											skipped: number;
+											failed: number;
+										}) => (
+											<div key={row.channel} className="rounded-md border p-3">
+												<p className="mb-2 text-sm font-medium capitalize">
+													{row.channel.replace("_", " ")}
+												</p>
+												<div className="grid grid-cols-2 gap-1 text-muted-foreground">
+													<span>Pending: {row.pending}</span>
+													<span>Sent: {row.sent}</span>
+													<span>Skipped: {row.skipped}</span>
+													<span>Failed: {row.failed}</span>
+												</div>
 											</div>
-										</div>
-									))}
+										),
+									)}
 								</div>
 							</div>
 						</>
@@ -240,24 +248,36 @@ function EmailAdminPanel() {
 						</p>
 					) : (
 						<div className="space-y-2">
-							{deadLetters.map((item) => (
-								<div key={item.id} className="rounded-md border p-3 text-sm">
-									<div className="mb-1 flex flex-wrap items-center gap-2">
-										<Badge variant="secondary">{item.channel}</Badge>
-										{item.eventType ? (
-											<Badge variant="outline">{item.eventType}</Badge>
-										) : null}
-										<span className="text-xs text-muted-foreground">
-											{formatDate(item.failedAt)}
-										</span>
+							{deadLetters.map(
+								(item: {
+									id: string;
+									channel: string;
+									eventType?: string;
+									failedAt: string;
+									error: string;
+									attempts: number;
+									userName?: string;
+									userEmail?: string;
+									userId?: string;
+								}) => (
+									<div key={item.id} className="rounded-md border p-3 text-sm">
+										<div className="mb-1 flex flex-wrap items-center gap-2">
+											<Badge variant="secondary">{item.channel}</Badge>
+											{item.eventType ? (
+												<Badge variant="outline">{item.eventType}</Badge>
+											) : null}
+											<span className="text-xs text-muted-foreground">
+												{formatDate(item.failedAt)}
+											</span>
+										</div>
+										<p className="font-medium">{item.error}</p>
+										<p className="text-xs text-muted-foreground">
+											Attempts: {item.attempts} | User:{" "}
+											{item.userName ?? item.userEmail ?? item.userId}
+										</p>
 									</div>
-									<p className="font-medium">{item.error}</p>
-									<p className="text-xs text-muted-foreground">
-										Attempts: {item.attempts} | User:{" "}
-										{item.userName ?? item.userEmail ?? item.userId}
-									</p>
-								</div>
-							))}
+								),
+							)}
 						</div>
 					)}
 				</CardContent>

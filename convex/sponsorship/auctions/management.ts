@@ -115,29 +115,20 @@ export const removeBeforeOpen = mutation({
 			});
 		}
 
-		const [invites, intents, events, emailDispatches, deadLetters] =
-			await Promise.all([
-				ctx.db
-					.query("sponsorshipAuctionInvites")
-					.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-					.collect(),
-				ctx.db
-					.query("sponsorshipBidIntents")
-					.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-					.collect(),
-				ctx.db
-					.query("sponsorshipBidEvents")
-					.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-					.collect(),
-				ctx.db
-					.query("sponsorshipEmailDispatches")
-					.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-					.collect(),
-				ctx.db
-					.query("sponsorshipEmailDeadLetters")
-					.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-					.collect(),
-			]);
+		const [invites, intents, events] = await Promise.all([
+			ctx.db
+				.query("sponsorshipAuctionInvites")
+				.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
+				.collect(),
+			ctx.db
+				.query("sponsorshipBidIntents")
+				.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
+				.collect(),
+			ctx.db
+				.query("sponsorshipBidEvents")
+				.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
+				.collect(),
+		]);
 
 		await Promise.all([
 			...invites.map((invite) =>
@@ -149,28 +140,7 @@ export const removeBeforeOpen = mutation({
 			...events.map((event) =>
 				ctx.db.delete("sponsorshipBidEvents", event._id),
 			),
-			...emailDispatches.map((dispatch) =>
-				ctx.db.delete("sponsorshipEmailDispatches", dispatch._id),
-			),
-			...deadLetters.map((deadLetter) =>
-				ctx.db.delete("sponsorshipEmailDeadLetters", deadLetter._id),
-			),
 		]);
-		const scheduledFunctionIds = [
-			...new Set(
-				emailDispatches
-					.map((dispatch) => dispatch.scheduledFunctionId)
-					.filter(
-						(scheduledId): scheduledId is Id<"_scheduled_functions"> =>
-							scheduledId !== undefined,
-					),
-			),
-		];
-		await Promise.all(
-			scheduledFunctionIds.map((scheduledId) =>
-				ctx.scheduler.cancel(scheduledId),
-			),
-		);
 		await ctx.db.delete("sponsorshipAuctions", auction._id);
 		await syncLifecycleRuntimeCron(ctx);
 		return null;

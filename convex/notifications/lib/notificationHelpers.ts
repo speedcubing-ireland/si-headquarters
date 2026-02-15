@@ -172,14 +172,22 @@ export async function countDispatchesByStatus(
 	userId: Id<"users">,
 	status: DispatchStatus,
 ): Promise<number> {
-	return paginatedCount((cursor) =>
-		ctx.db
-			.query("notificationDispatches")
-			.withIndex("by_user_status", (q) =>
-				q.eq("userId", userId).eq("status", status),
-			)
-			.paginate({ cursor, numItems: NOTIFICATION_LIST_LIMITS.MAX }),
-	);
+	void userId;
+	const queueStatus =
+		status === "pending"
+			? ("queued" as const)
+			: status === "failed"
+				? ("dead_letter" as const)
+				: status === "sent"
+					? ("sent" as const)
+					: ("canceled" as const);
+	const rows = await ctx.db
+		.query("emailDispatches")
+		.withIndex("by_source_status_created_at", (q) =>
+			q.eq("sourceKind", "notification").eq("status", queueStatus),
+		)
+		.collect();
+	return rows.length;
 }
 
 function validateQuietHour(value: number | undefined, fieldName: string): void {

@@ -155,10 +155,10 @@ export const notificationDispatchHealthReturns = v.object({
 });
 
 export const notificationDeadLetterReturns = v.object({
-	id: v.id("notificationDeadLetters"),
-	dispatchId: v.id("notificationDispatches"),
-	eventId: v.id("notificationEvents"),
-	userId: v.id("users"),
+	id: v.id("emailDeadLetters"),
+	dispatchId: v.id("emailDispatches"),
+	eventId: v.optional(v.id("notificationEvents")),
+	userId: v.optional(v.id("users")),
 	userName: v.optional(v.string()),
 	userEmail: v.optional(v.string()),
 	channel: notificationChannel,
