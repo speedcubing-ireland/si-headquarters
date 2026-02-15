@@ -74,7 +74,8 @@ export const exchangeCodeAndStoreTokens = action({
 			? tokens.created_at + (tokens.expires_in ?? 7200)
 			: Math.floor(Date.now() / 1000) + (tokens.expires_in ?? 7200);
 
-		await ctx.runMutation(internal.wcaQueries.setWcaTokens, {
+		await ctx.runMutation(internal.services.tokens.setTokens, {
+			service: "wca",
 			accessToken: tokens.access_token,
 			refreshToken: tokens.refresh_token ?? "",
 			expiresAt,

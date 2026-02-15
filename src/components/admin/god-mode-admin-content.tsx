@@ -52,21 +52,24 @@ export function GodModeAdminContent({
 							description="Used to read schedule data from competition sheets (Events page)."
 							disconnectCommand="bun run auth:google-sheets"
 							oAuthInstructions="Add http://localhost:3847 to Google Cloud Console → Credentials → OAuth redirect URIs."
-							query={api.sheetsQueries.getGoogleSheetsConnectionStatus}
+							service="google"
+							query={api.services.tokens.getConnectionStatus}
 						/>
 						<ConnectionStatusCardContainer
 							title="WCA (World Cube Association)"
 							description="Used to search and link competitions to their WCA page."
 							disconnectCommand="bun run auth:wca"
 							oAuthInstructions="Add http://localhost:3848 to WCA → OAuth Applications → Redirect URI."
-							query={api.wcaQueries.getWcaConnectionStatus}
+							service="wca"
+							query={api.services.tokens.getConnectionStatus}
 						/>
 						<ConnectionStatusCardContainer
 							title="Canva"
 							description="Used by linked integrations to generate assets from configured templates."
 							disconnectCommand="bun run auth:canva"
 							oAuthInstructions="Add http://127.0.0.1:3849 to Canva Connect OAuth redirect URIs."
-							query={api.canvaQueries.getCanvaConnectionStatus}
+							service="canva"
+							query={api.services.tokens.getConnectionStatus}
 						/>
 					</TabsContent>
 					<TabsContent value="data" className="mt-0 space-y-4">

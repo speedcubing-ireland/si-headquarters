@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { google } from "googleapis";
-import { SCHEDULE_CACHE_TTL_MS, TOKEN_VALID_BUFFER_SEC } from "./lib/constants";
+import { SCHEDULE_CACHE_TTL_MS } from "./lib/constants";
 import { requireVolunteerAction } from "./lib/oauth";
 
 const RANGE = "Schedule!A6:B22";
@@ -96,7 +96,8 @@ export const exchangeCodeAndStoreTokens = action({
 			const expiresAt = tokens.expiry_date
 				? Math.floor(tokens.expiry_date / 1000)
 				: Math.floor(Date.now() / 1000) + 3600;
-			await ctx.runMutation(internal.sheetsQueries.setGoogleSheetsTokens, {
+			await ctx.runMutation(internal.services.tokens.setTokens, {
+				service: "google",
 				accessToken: tokens.access_token,
 				refreshToken: tokens.refresh_token,
 				expiresAt,
@@ -109,39 +110,12 @@ export const exchangeCodeAndStoreTokens = action({
 	},
 });
 
-async function getValidAccessToken(
+async function getGoogleAccessToken(
 	ctx: GenericActionCtx<DataModel>,
 ): Promise<string | null> {
-	const token = (await ctx.runQuery(
-		internal.sheetsQueries.getGoogleSheetsToken,
-		{},
-	)) as {
-		accessToken: string;
-		refreshToken: string;
-		expiresAt: number;
-	} | null;
-	if (!token) return null;
-	const nowSec = Math.floor(Date.now() / 1000);
-	if (token.expiresAt > nowSec + TOKEN_VALID_BUFFER_SEC)
-		return token.accessToken;
-	const clientId = process.env.AUTH_GOOGLE_ID;
-	const clientSecret = process.env.AUTH_GOOGLE_SECRET;
-	if (!clientId || !clientSecret) return token.accessToken;
-	const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
-	oauth2.setCredentials({
-		access_token: token.accessToken,
-		refresh_token: token.refreshToken,
+	return await ctx.runAction(internal.services.tokens.getValidAccessToken, {
+		service: "google",
 	});
-	const { credentials } = await oauth2.refreshAccessToken();
-	if (credentials.access_token && credentials.expiry_date) {
-		await ctx.runMutation(internal.sheetsQueries.setGoogleSheetsTokens, {
-			accessToken: credentials.access_token,
-			refreshToken: credentials.refresh_token ?? token.refreshToken,
-			expiresAt: Math.floor(credentials.expiry_date / 1000),
-		});
-		return credentials.access_token;
-	}
-	return token.accessToken;
 }
 
 export const fetchScheduleEvents = action({
@@ -187,7 +161,7 @@ export const fetchScheduleEvents = action({
 			};
 		}
 
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getGoogleAccessToken(ctx);
 		if (!accessToken) {
 			return {
 				error:

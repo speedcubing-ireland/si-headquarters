@@ -56,7 +56,7 @@ function ConnectionStatusCard({
 type ConnectionStatusQuery = FunctionReference<
 	"query",
 	"public",
-	{ nowSec?: number },
+	{ service: "google" | "wca" | "canva"; nowSec?: number },
 	{ connected: boolean }
 >;
 
@@ -66,6 +66,7 @@ interface ConnectionStatusCardContainerProps {
 	connectedText?: string;
 	disconnectCommand: string;
 	oAuthInstructions: string;
+	service: "google" | "wca" | "canva";
 	query: ConnectionStatusQuery;
 }
 
@@ -75,6 +76,7 @@ export function ConnectionStatusCardContainer({
 	connectedText,
 	disconnectCommand,
 	oAuthInstructions,
+	service,
 	query,
 }: ConnectionStatusCardContainerProps) {
 	const [nowSec, setNowSec] = useState(
@@ -88,7 +90,7 @@ export function ConnectionStatusCardContainer({
 		return () => window.clearInterval(intervalId);
 	}, []);
 
-	const connectionStatus = useQuery(query, { nowSec });
+	const connectionStatus = useQuery(query, { service, nowSec });
 	const connected = connectionStatus?.connected ?? false;
 
 	return (

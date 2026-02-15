@@ -27,8 +27,13 @@ import {
 	buildCanvaOAuthUrl,
 	exchangeToken,
 	getCanvaClientId,
-	getValidAccessToken,
 } from "./canva/oauth";
+
+type TaskLinkedActionListItem = {
+	id: Id<"taskLinkedActions">;
+	definition: { type: string };
+	canRun?: boolean;
+};
 
 export {
 	buildCanvaAutofillData,
@@ -68,7 +73,7 @@ async function requireCanvaRunAccess(
 				taskId: args.taskId,
 			});
 			const match = taskActions.find(
-				(item) => item.id === args.taskLinkedActionId,
+				(item: TaskLinkedActionListItem) => item.id === args.taskLinkedActionId,
 			);
 			if (match && match.definition.type === "canva_template" && match.canRun) {
 				return;
@@ -106,7 +111,7 @@ async function requireCanvaDesignAccess(
 				taskId: args.taskId,
 			});
 			const match = taskActions.find(
-				(item) => item.id === args.taskLinkedActionId,
+				(item: TaskLinkedActionListItem) => item.id === args.taskLinkedActionId,
 			);
 			if (match && match.definition.type === "canva_template") {
 				return;
@@ -126,6 +131,12 @@ async function requireCanvaDesignAccess(
 		}
 	}
 	await requireVolunteerAction(ctx);
+}
+
+async function getCanvaAccessToken(ctx: ActionCtx): Promise<string | null> {
+	return await ctx.runAction(internal.services.tokens.getValidAccessToken, {
+		service: "canva",
+	});
 }
 
 export const getCanvaOAuthUrl = action({
@@ -172,7 +183,12 @@ export const exchangeCodeAndStoreTokens = action({
 				redirectUri: args.redirectUri,
 				codeVerifier: args.codeVerifier,
 			});
-			await ctx.runMutation(internal.canvaQueries.setCanvaTokens, token);
+			await ctx.runMutation(internal.services.tokens.setTokens, {
+				service: "canva",
+				accessToken: token.accessToken,
+				refreshToken: token.refreshToken,
+				expiresAt: token.expiresAt,
+			});
 			return { success: true };
 		} catch (error) {
 			return {
@@ -201,7 +217,7 @@ export const listBrandTemplates = action({
 	}),
 	handler: async (ctx, args) => {
 		await requireCanvaPickerAccess(ctx);
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getCanvaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
@@ -261,7 +277,7 @@ export const listFolderItems = action({
 	}),
 	handler: async (ctx, args) => {
 		await requireCanvaPickerAccess(ctx);
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getCanvaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
@@ -340,7 +356,7 @@ export const validateFolderInput = action({
 			};
 		}
 
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getCanvaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
@@ -386,7 +402,7 @@ export const validateDesignInput = action({
 			taskLinkedActionId: args.taskLinkedActionId,
 		});
 		const designId = parseCanvaDesignInput(args.value);
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getCanvaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
@@ -437,7 +453,7 @@ export const runTemplateAction = action({
 			taskId: args.taskId,
 			taskLinkedActionId: args.taskLinkedActionId,
 		});
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getCanvaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
@@ -554,7 +570,7 @@ export const getDesignMetadata = action({
 			taskId: args.taskId,
 			taskLinkedActionId: args.taskLinkedActionId,
 		});
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getCanvaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",

@@ -4,30 +4,32 @@ import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
-describe("canvaQueries behavior characterization", () => {
-	test("getCanvaConnectionStatus returns false when no token exists", async () => {
+describe("canva token behavior characterization", () => {
+	test("getConnectionStatus returns false when no token exists", async () => {
 		const t = convexTest(schema, modules);
 		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: userId });
 
-		const status = await authed.query(
-			api.canvaQueries.getCanvaConnectionStatus,
-			{},
-		);
+		const status = await authed.query(api.services.tokens.getConnectionStatus, {
+			service: "canva",
+		});
 		expect(status.connected).toBe(false);
 	});
 
-	test("setCanvaTokens and getCanvaToken round-trip values", async () => {
+	test("setTokens and getToken round-trip values", async () => {
 		const t = convexTest(schema, modules);
 		const nowSec = Math.floor(Date.now() / 1000);
 
-		await t.mutation(internal.canvaQueries.setCanvaTokens, {
+		await t.mutation(internal.services.tokens.setTokens, {
+			service: "canva",
 			accessToken: "access",
 			refreshToken: "refresh",
 			expiresAt: nowSec + 1800,
 		});
 
-		const token = await t.query(internal.canvaQueries.getCanvaToken, {});
+		const token = await t.query(internal.services.tokens.getToken, {
+			service: "canva",
+		});
 		expect(token).toEqual({
 			accessToken: "access",
 			refreshToken: "refresh",
@@ -35,14 +37,15 @@ describe("canvaQueries behavior characterization", () => {
 		});
 	});
 
-	test("getCanvaConnectionStatus returns true for expired access token when refresh token exists", async () => {
+	test("getConnectionStatus returns true for expired access token when refresh token exists", async () => {
 		const t = convexTest(schema, modules);
 		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: userId });
 		const nowSec = Math.floor(Date.now() / 1000);
 
 		await t.run((ctx) =>
-			ctx.db.insert("canvaTokens", {
+			ctx.db.insert("serviceTokens", {
+				service: "canva",
 				accessToken: "access",
 				refreshToken: "refresh",
 				expiresAt: nowSec - 3600,
@@ -50,10 +53,9 @@ describe("canvaQueries behavior characterization", () => {
 			}),
 		);
 
-		const status = await authed.query(
-			api.canvaQueries.getCanvaConnectionStatus,
-			{},
-		);
+		const status = await authed.query(api.services.tokens.getConnectionStatus, {
+			service: "canva",
+		});
 		expect(status.connected).toBe(true);
 	});
 });

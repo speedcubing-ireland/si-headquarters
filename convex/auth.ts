@@ -8,15 +8,28 @@ import {
 	type QueryCtx,
 } from "./_generated/server";
 import { ConvexError } from "convex/values";
-import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { TEAM_NAMES } from "./lib/constants";
 import { buildDefaultAvatarUrl } from "./lib/defaultAvatar";
 import { normalizeEmail } from "./lib/sanitize";
+import { z } from "zod";
+import { v } from "convex/values";
 
 function hasAvatarImage(image: string | null | undefined): boolean {
 	return typeof image === "string" && image.trim().length > 0;
 }
+
+const wcaMeSchema = z.object({
+	id: z.number(),
+	name: z.string(),
+	email: z.string(),
+	avatar: z.optional(
+		z.object({
+			url: z.optional(z.string()),
+			thumb_url: z.optional(z.string()),
+		}),
+	),
+});
 
 function WCA(
 	options: OAuthUserConfig<{
@@ -47,18 +60,12 @@ function WCA(
 		clientId: options.clientId,
 		clientSecret: options.clientSecret,
 		profile(profile) {
-			type WcaMe = {
-				id: number;
-				name?: string;
-				email?: string;
-				avatar?: { url?: string; thumb_url?: string };
-			};
-			const wcaUser = (profile as { me?: WcaMe }).me ?? (profile as WcaMe);
+			const me = wcaMeSchema.parse(profile);
 			return {
-				id: String(wcaUser.id),
-				name: wcaUser.name ?? wcaUser.email?.split("@")[0] ?? "WCA User",
-				email: wcaUser.email,
-				image: wcaUser.avatar?.url ?? wcaUser.avatar?.thumb_url,
+				id: String(me.id),
+				name: me.name,
+				email: me.email,
+				image: me.avatar?.url ?? me.avatar?.thumb_url,
 			};
 		},
 	};

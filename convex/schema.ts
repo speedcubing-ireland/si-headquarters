@@ -506,27 +506,6 @@ export default defineSchema({
 		updatedAt: v.number(),
 	}).index("by_sat_date", ["satDate"]),
 
-	googleSheetsTokens: defineTable({
-		accessToken: v.string(),
-		refreshToken: v.string(),
-		expiresAt: v.number(),
-		updatedAt: v.number(),
-	}),
-
-	wcaTokens: defineTable({
-		accessToken: v.string(),
-		refreshToken: v.string(),
-		expiresAt: v.number(),
-		updatedAt: v.number(),
-	}),
-
-	canvaTokens: defineTable({
-		accessToken: v.string(),
-		refreshToken: v.string(),
-		expiresAt: v.number(),
-		updatedAt: v.number(),
-	}),
-
 	sheetScheduleCache: defineTable({
 		sheetId: v.string(),
 		events: v.array(
@@ -537,4 +516,13 @@ export default defineSchema({
 		),
 		fetchedAt: v.number(),
 	}).index("by_sheet_id", ["sheetId"]),
+
+	// ##################### CLEANED
+	serviceTokens: defineTable({
+		service: v.union(v.literal("google"), v.literal("wca"), v.literal("canva")),
+		accessToken: v.string(),
+		refreshToken: v.string(),
+		expiresAt: v.number(),
+		updatedAt: v.number(),
+	}).index("by_service", ["service"]),
 });

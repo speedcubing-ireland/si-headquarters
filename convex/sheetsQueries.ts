@@ -1,15 +1,6 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { isVolunteer } from "./auth";
-import { createTokenMutations } from "./lib/oauthTokens";
-
-const tokens = createTokenMutations("googleSheetsTokens");
-
-export const {
-	setTokens: setGoogleSheetsTokens,
-	getToken: getGoogleSheetsToken,
-	getConnectionStatus: getGoogleSheetsConnectionStatus,
-} = tokens;
 
 const scheduleEventShape = v.object({
 	eventName: v.string(),

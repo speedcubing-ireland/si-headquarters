@@ -1,9 +1,6 @@
 "use node";
 
 import { ConvexError } from "convex/values";
-import type { ActionCtx } from "../_generated/server";
-import { internal } from "../_generated/api";
-import { TOKEN_VALID_BUFFER_SEC } from "../lib/constants";
 
 export const CANVA_AUTH_URL = "https://www.canva.com/api/oauth/authorize";
 const CANVA_TOKEN_URL = "https://api.canva.com/rest/v1/oauth/token";
@@ -112,30 +109,6 @@ export function buildCanvaOAuthUrl(args: {
 		url.searchParams.set("code_challenge_method", "S256");
 	}
 	return url.toString();
-}
-
-export async function getValidAccessToken(ctx: ActionCtx) {
-	const token = (await ctx.runQuery(
-		internal.canvaQueries.getCanvaToken,
-		{},
-	)) as CanvaToken | null;
-	if (!token) return null;
-
-	const nowSec = Math.floor(Date.now() / 1000);
-	if (token.expiresAt > nowSec + TOKEN_VALID_BUFFER_SEC) {
-		return token.accessToken;
-	}
-	if (!token.refreshToken) {
-		return token.accessToken;
-	}
-
-	const refreshed = await exchangeToken({
-		grantType: "refresh_token",
-		refreshToken: token.refreshToken,
-	});
-
-	await ctx.runMutation(internal.canvaQueries.setCanvaTokens, refreshed);
-	return refreshed.accessToken;
 }
 
 export function getCanvaClientId() {

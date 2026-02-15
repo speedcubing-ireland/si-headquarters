@@ -7,7 +7,6 @@ import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { google } from "googleapis";
 import { fromZonedTime } from "date-fns-tz";
-import { TOKEN_VALID_BUFFER_SEC } from "./lib/constants";
 import type {
 	Activity,
 	Event,
@@ -163,142 +162,13 @@ type PushScheduleResult =
 	| { success: true; activitiesCreated: number }
 	| { success: false; error: string };
 
-type TokenData = {
-	accessToken: string;
-	refreshToken: string;
-	expiresAt: number;
-};
-
-type RefreshResult = {
-	accessToken: string;
-	refreshToken: string;
-	expiresAt: number;
-};
-
-async function manageAccessToken(
-	_getToken: () => Promise<TokenData | null>,
-	refreshToken: (token: TokenData) => Promise<RefreshResult | null>,
-	saveToken: (result: RefreshResult) => Promise<void>,
-): Promise<string | null> {
-	const token = await _getToken();
-	if (!token) return null;
-
-	const nowSec = Math.floor(Date.now() / 1000);
-	const isValid = token.expiresAt > nowSec + TOKEN_VALID_BUFFER_SEC;
-	if (isValid) return token.accessToken;
-
-	const refreshed = await refreshToken(token);
-	if (!refreshed) return token.accessToken;
-
-	await saveToken(refreshed);
-	return refreshed.accessToken;
-}
-
-async function refreshGoogleToken(
-	token: TokenData,
-): Promise<RefreshResult | null> {
-	const clientId = process.env.AUTH_GOOGLE_ID;
-	const clientSecret = process.env.AUTH_GOOGLE_SECRET;
-	if (!clientId || !clientSecret) return null;
-
-	const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
-	oauth2.setCredentials({
-		access_token: token.accessToken,
-		refresh_token: token.refreshToken,
-	});
-
-	const { credentials } = await oauth2.refreshAccessToken();
-	if (!credentials.access_token || !credentials.expiry_date) {
-		return null;
-	}
-
-	return {
-		accessToken: credentials.access_token,
-		refreshToken: (credentials.refresh_token as string) ?? token.refreshToken,
-		expiresAt: Math.floor(credentials.expiry_date / 1000),
-	};
-}
-
-async function getGoogleAccessToken(
+async function getServiceAccessToken(
 	ctx: GenericActionCtx<DataModel>,
+	service: "google" | "wca",
 ): Promise<string | null> {
-	return manageAccessToken(
-		() =>
-			ctx.runQuery(
-				internal.sheetsQueries.getGoogleSheetsToken,
-				{},
-			) as Promise<TokenData | null>,
-		refreshGoogleToken,
-		async (result) => {
-			await ctx.runMutation(internal.sheetsQueries.setGoogleSheetsTokens, {
-				accessToken: result.accessToken,
-				refreshToken: result.refreshToken,
-				expiresAt: result.expiresAt,
-			});
-		},
-	);
-}
-
-async function refreshWcaToken(
-	token: TokenData,
-): Promise<RefreshResult | null> {
-	if (!token.refreshToken) return null;
-
-	const clientId = process.env.AUTH_WCA_ID;
-	const clientSecret = process.env.AUTH_WCA_SECRET;
-	if (!clientId || !clientSecret) return null;
-
-	const res = await fetch(`${WCA_BASE}/oauth/token`, {
-		method: "POST",
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams({
-			grant_type: "refresh_token",
-			refresh_token: token.refreshToken,
-			client_id: clientId,
-			client_secret: clientSecret,
-		}),
+	return await ctx.runAction(internal.services.tokens.getValidAccessToken, {
+		service,
 	});
-
-	if (!res.ok) return null;
-
-	const newTokens = (await res.json()) as {
-		access_token?: string;
-		refresh_token?: string;
-		expires_in?: number;
-		created_at?: number;
-	};
-
-	if (!newTokens.access_token) return null;
-
-	const expiresAt = newTokens.created_at
-		? newTokens.created_at + (newTokens.expires_in ?? 7200)
-		: Math.floor(Date.now() / 1000) + (newTokens.expires_in ?? 7200);
-
-	return {
-		accessToken: newTokens.access_token,
-		refreshToken: newTokens.refresh_token ?? token.refreshToken,
-		expiresAt,
-	};
-}
-
-async function getWcaAccessToken(
-	ctx: GenericActionCtx<DataModel>,
-): Promise<string | null> {
-	return manageAccessToken(
-		() =>
-			ctx.runQuery(
-				internal.wcaQueries.getWcaToken,
-				{},
-			) as Promise<TokenData | null>,
-		refreshWcaToken,
-		async (result) => {
-			await ctx.runMutation(internal.wcaQueries.setWcaTokens, {
-				accessToken: result.accessToken,
-				refreshToken: result.refreshToken,
-				expiresAt: result.expiresAt,
-			});
-		},
-	);
 }
 
 function parseDuration(length: string): number {
@@ -701,7 +571,7 @@ export const pushScheduleToWca = action({
 			};
 		}
 
-		const googleToken = await getGoogleAccessToken(ctx);
+		const googleToken = await getServiceAccessToken(ctx, "google");
 		if (!googleToken) {
 			return {
 				success: false as const,
@@ -709,7 +579,7 @@ export const pushScheduleToWca = action({
 			};
 		}
 
-		const wcaToken = await getWcaAccessToken(ctx);
+		const wcaToken = await getServiceAccessToken(ctx, "wca");
 		if (!wcaToken) {
 			return {
 				success: false as const,

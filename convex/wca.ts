@@ -3,7 +3,6 @@ import type { DataModel } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
-import { TOKEN_VALID_BUFFER_SEC } from "./lib/constants";
 import { requireVolunteerAction } from "./lib/oauth";
 
 const WCA_BASE = "https://www.worldcubeassociation.org";
@@ -82,7 +81,8 @@ export const exchangeCodeAndStoreTokens = action({
 			? tokens.created_at + (tokens.expires_in ?? 7200)
 			: Math.floor(Date.now() / 1000) + (tokens.expires_in ?? 7200);
 
-		await ctx.runMutation(internal.wcaQueries.setWcaTokens, {
+		await ctx.runMutation(internal.services.tokens.setTokens, {
+			service: "wca",
 			accessToken: tokens.access_token,
 			refreshToken: tokens.refresh_token ?? "",
 			expiresAt,
@@ -92,58 +92,12 @@ export const exchangeCodeAndStoreTokens = action({
 	},
 });
 
-async function getValidAccessToken(
+async function getWcaAccessToken(
 	ctx: GenericActionCtx<DataModel>,
 ): Promise<string | null> {
-	const token = (await ctx.runQuery(internal.wcaQueries.getWcaToken, {})) as {
-		accessToken: string;
-		refreshToken: string;
-		expiresAt: number;
-	} | null;
-	if (!token) return null;
-	const nowSec = Math.floor(Date.now() / 1000);
-	if (token.expiresAt > nowSec + TOKEN_VALID_BUFFER_SEC)
-		return token.accessToken;
-
-	if (!token.refreshToken) return token.accessToken;
-
-	const clientId = process.env.AUTH_WCA_ID;
-	const clientSecret = process.env.AUTH_WCA_SECRET;
-	if (!clientId || !clientSecret) return token.accessToken;
-
-	const res = await fetch(`${WCA_BASE}/oauth/token`, {
-		method: "POST",
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams({
-			grant_type: "refresh_token",
-			refresh_token: token.refreshToken,
-			client_id: clientId,
-			client_secret: clientSecret,
-		}),
+	return await ctx.runAction(internal.services.tokens.getValidAccessToken, {
+		service: "wca",
 	});
-
-	if (!res.ok) return token.accessToken;
-
-	const newTokens = (await res.json()) as {
-		access_token?: string;
-		refresh_token?: string;
-		expires_in?: number;
-		created_at?: number;
-	};
-
-	if (!newTokens.access_token) return token.accessToken;
-
-	const expiresAt = newTokens.created_at
-		? newTokens.created_at + (newTokens.expires_in ?? 7200)
-		: Math.floor(Date.now() / 1000) + (newTokens.expires_in ?? 7200);
-
-	await ctx.runMutation(internal.wcaQueries.setWcaTokens, {
-		accessToken: newTokens.access_token,
-		refreshToken: newTokens.refresh_token ?? token.refreshToken,
-		expiresAt,
-	});
-
-	return newTokens.access_token;
 }
 
 async function wcaFetch(accessToken: string, path: string): Promise<unknown> {
@@ -173,7 +127,7 @@ export const searchCompetitions = action({
 		await requireVolunteerAction(ctx);
 		if (!args.query.trim()) return [];
 
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getWcaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
@@ -214,7 +168,7 @@ export const fetchMyCompetitions = action({
 	handler: async (ctx) => {
 		await requireVolunteerAction(ctx);
 
-		const accessToken = await getValidAccessToken(ctx);
+		const accessToken = await getWcaAccessToken(ctx);
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
@@ -291,7 +245,7 @@ async function fetchCompetitionDetailsWithStoredToken(
 	ctx: GenericActionCtx<DataModel>,
 	wcaCompetitionId: string,
 ) {
-	const accessToken = await getValidAccessToken(ctx);
+	const accessToken = await getWcaAccessToken(ctx);
 	if (!accessToken) return null;
 
 	const res = await fetch(
