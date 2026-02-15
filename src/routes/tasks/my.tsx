@@ -25,7 +25,7 @@ function RouteComponent() {
 	const pagePredicates: TaskPredicate[] = [
 		(t) => t.assignee?.id === currentUserId,
 		(t) => t.owner?.id === currentUserId,
-		(t) =>
+		(t) => t.status === "awaiting-review" &&
 			t.requiredApprovalBy.some((entity) => {
 				if ("members" in entity) {
 					return entity.members.some((m) => m.id === currentUserId);
