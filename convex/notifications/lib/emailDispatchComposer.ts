@@ -31,10 +31,15 @@ export type NotificationGroupEmailContent = {
 
 export async function buildNotificationGroupEmailContent(args: {
 	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
+	isQuietHoursBatch?: boolean;
 	items: NotificationEmailGroupItem[];
 	appUrl: string;
 }): Promise<NotificationGroupEmailContent> {
-	if (args.digestMode === "immediate") {
+	const shouldSendImmediate =
+		args.digestMode === "immediate" &&
+		!args.isQuietHoursBatch &&
+		args.items.length === 1;
+	if (shouldSendImmediate) {
 		const firstItem = args.items[0];
 		if (!firstItem) {
 			throw new Error("email_dispatch_payload_empty");
@@ -83,6 +88,8 @@ export async function buildNotificationGroupEmailContent(args: {
 	if (digestItems.some((item) => !item.link)) {
 		throw new Error("email_dispatch_link_missing");
 	}
+	const digestModeForTemplate =
+		args.digestMode === "immediate" ? "quiet_hours" : args.digestMode;
 	const typedDigestItems = digestItems as Array<{
 		title: string;
 		message: string;
@@ -92,17 +99,17 @@ export async function buildNotificationGroupEmailContent(args: {
 		link: string;
 	}>;
 	const subject = buildNotificationDigestEmailSubject(
-		args.digestMode,
+		digestModeForTemplate,
 		typedDigestItems.length,
 	);
 	const [htmlBody, plainTextBody] = await Promise.all([
 		buildNotificationDigestEmailHtml({
-			mode: args.digestMode,
+			mode: digestModeForTemplate,
 			appUrl: args.appUrl,
 			items: typedDigestItems,
 		}),
 		buildNotificationDigestEmailPlainText({
-			mode: args.digestMode,
+			mode: digestModeForTemplate,
 			appUrl: args.appUrl,
 			items: typedDigestItems,
 		}),

@@ -4,6 +4,75 @@ import { toISO } from "../lib/transforms";
 import { type dispatchStatuses, staleDispatchThresholdMs } from "./types";
 
 const sourceKinds = ["sponsorship", "notification", "sponsor_auth"] as const;
+const PAGE_SIZE = 256;
+
+async function countQueryRows<T>(args: {
+	queryFactory: (
+		cursor: string | null,
+	) => Promise<{ page: T[]; isDone: boolean; continueCursor: string }>;
+	predicate?: (row: T) => boolean;
+}): Promise<number> {
+	let cursor: string | null = null;
+	let count = 0;
+	while (true) {
+		const page = await args.queryFactory(cursor);
+		if (args.predicate) {
+			count += page.page.filter(args.predicate).length;
+		} else {
+			count += page.page.length;
+		}
+		if (page.isDone) {
+			return count;
+		}
+		cursor = page.continueCursor;
+	}
+}
+
+async function countDispatchesBySourceAndStatus(args: {
+	ctx: QueryCtx;
+	sourceKind: (typeof sourceKinds)[number];
+	status: (typeof dispatchStatuses)[number];
+}): Promise<number> {
+	return countQueryRows({
+		queryFactory: (cursor) =>
+			args.ctx.db
+				.query("emailDispatches")
+				.withIndex("by_source_status_created_at", (q) =>
+					q.eq("sourceKind", args.sourceKind).eq("status", args.status),
+				)
+				.paginate({ cursor, numItems: PAGE_SIZE }),
+	});
+}
+
+async function countStaleQueuedDispatches(
+	ctx: QueryCtx,
+	now: number,
+): Promise<number> {
+	return countQueryRows({
+		queryFactory: (cursor) =>
+			ctx.db
+				.query("emailDispatches")
+				.withIndex("by_status_updated_at", (q) => q.eq("status", "queued"))
+				.paginate({ cursor, numItems: PAGE_SIZE }),
+		predicate: (dispatch) =>
+			dispatch.updatedAt + staleDispatchThresholdMs < now,
+	});
+}
+
+async function countDeadLettersLast24h(
+	ctx: QueryCtx,
+	now: number,
+): Promise<number> {
+	return countQueryRows({
+		queryFactory: (cursor) =>
+			ctx.db
+				.query("emailDeadLetters")
+				.withIndex("by_failed_at", (q) =>
+					q.gte("failedAt", now - 24 * 60 * 60 * 1000),
+				)
+				.paginate({ cursor, numItems: PAGE_SIZE }),
+	});
+}
 
 export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 	totals: {
@@ -26,9 +95,7 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 	staleQueuedCount: number;
 	deadLettersLast24h: number;
 }> {
-	const allDispatches = await ctx.db.query("emailDispatches").collect();
 	const now = Date.now();
-
 	const totals = {
 		queued: 0,
 		sending: 0,
@@ -53,64 +120,63 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 		});
 	}
 
-	for (const dispatch of allDispatches) {
-		switch (dispatch.status) {
-			case "queued":
-				totals.queued += 1;
-				break;
-			case "sending":
-				totals.sending += 1;
-				break;
-			case "awaiting_provider":
-				totals.awaitingProvider += 1;
-				break;
-			case "sent":
-				totals.sent += 1;
-				break;
-			case "dead_letter":
-				totals.deadLetter += 1;
-				break;
-			case "canceled":
-				totals.canceled += 1;
-				break;
+	for (const sourceKind of sourceKinds) {
+		const source = bySourceMap.get(sourceKind);
+		if (!source) {
+			continue;
 		}
+		const [queued, sending, awaitingProvider, sent, deadLetter, canceled] =
+			await Promise.all([
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "queued",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "sending",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "awaiting_provider",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "sent",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "dead_letter",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "canceled",
+				}),
+			]);
+		source.queued = queued;
+		source.sending = sending;
+		source.awaitingProvider = awaitingProvider;
+		source.sent = sent;
+		source.deadLetter = deadLetter;
+		source.canceled = canceled;
 
-		const source = bySourceMap.get(dispatch.sourceKind);
-		if (!source) continue;
-		switch (dispatch.status) {
-			case "queued":
-				source.queued += 1;
-				break;
-			case "sending":
-				source.sending += 1;
-				break;
-			case "awaiting_provider":
-				source.awaitingProvider += 1;
-				break;
-			case "sent":
-				source.sent += 1;
-				break;
-			case "dead_letter":
-				source.deadLetter += 1;
-				break;
-			case "canceled":
-				source.canceled += 1;
-				break;
-		}
+		totals.queued += queued;
+		totals.sending += sending;
+		totals.awaitingProvider += awaitingProvider;
+		totals.sent += sent;
+		totals.deadLetter += deadLetter;
+		totals.canceled += canceled;
 	}
 
-	const staleQueuedCount = allDispatches.filter(
-		(dispatch) =>
-			dispatch.status === "queued" &&
-			dispatch.updatedAt + staleDispatchThresholdMs < now,
-	).length;
-
-	const deadLetters = await ctx.db
-		.query("emailDeadLetters")
-		.withIndex("by_failed_at", (q) =>
-			q.gte("failedAt", now - 24 * 60 * 60 * 1000),
-		)
-		.collect();
+	const [staleQueuedCount, deadLettersLast24h] = await Promise.all([
+		countStaleQueuedDispatches(ctx, now),
+		countDeadLettersLast24h(ctx, now),
+	]);
 
 	return {
 		totals,
@@ -126,7 +192,7 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 			}),
 		})),
 		staleQueuedCount,
-		deadLettersLast24h: deadLetters.length,
+		deadLettersLast24h,
 	};
 }
 

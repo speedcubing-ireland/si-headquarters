@@ -9,6 +9,7 @@ import type {
 type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 type NotificationDigestMode = (typeof NOTIFICATION_DIGEST_MODES)[number];
 type BatchDigestMode = Exclude<NotificationDigestMode, "immediate">;
+type DigestEmailMode = BatchDigestMode | "quiet_hours";
 
 export type EmailTemplateInput = {
 	title: string;
@@ -32,7 +33,7 @@ export type DigestEmailItemInput = {
 };
 
 export type DigestEmailTemplateInput = {
-	mode: BatchDigestMode;
+	mode: DigestEmailMode;
 	items: DigestEmailItemInput[];
 	appUrl: string;
 };
@@ -45,7 +46,7 @@ export function buildNotificationEmailSubject(
 }
 
 export function buildNotificationDigestEmailSubject(
-	mode: BatchDigestMode,
+	mode: DigestEmailMode,
 	itemCount: number,
 ): string {
 	const countText = `${itemCount} ${itemCount === 1 ? "update" : "updates"}`;
@@ -56,6 +57,8 @@ export function buildNotificationDigestEmailSubject(
 			return `[HQ] Daily digest: ${countText}`;
 		case "three_daily":
 			return `[HQ] 3x daily digest: ${countText}`;
+		case "quiet_hours":
+			return `[HQ] Quiet hours digest: ${countText}`;
 	}
 }
 

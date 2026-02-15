@@ -133,6 +133,14 @@ function formatHourKey(parts: ZonedDateParts): string {
 	return `${formatDateKey(parts)}T${pad2(parts.hour)}`;
 }
 
+function formatMinuteKey(parts: ZonedDateParts): string {
+	return `${formatDateKey(parts)}T${pad2(parts.hour)}:${pad2(parts.minute)}`;
+}
+
+function truncateToMinute(timestamp: number): number {
+	return timestamp - (timestamp % (60 * 1000));
+}
+
 function getLocalMinuteOfDay(timestamp: number, timezone: string): number {
 	const parts = getZonedDateParts(timestamp, timezone);
 	return parts.hour * 60 + parts.minute;
@@ -231,68 +239,91 @@ export function computeDispatchSchedule(args: {
 		NOTIFICATION_DEFAULTS.MAX_DIGEST_LOOKAHEAD_MINUTES;
 
 	if (args.digestMode === "immediate") {
+		const delayed = applyQuietHoursDelay(
+			args.now,
+			args.timezone,
+			args.quietHoursStartMin,
+			args.quietHoursEndMin,
+		);
+		if (delayed > args.now) {
+			const scheduledFor = truncateToMinute(delayed);
+			const scheduledParts = getZonedDateParts(scheduledFor, args.timezone);
+			return {
+				scheduledFor,
+				digestWindowKey: `quiet:${formatMinuteKey(scheduledParts)}`,
+			};
+		}
 		return {
-			scheduledFor: applyQuietHoursDelay(
-				args.now,
-				args.timezone,
-				args.quietHoursStartMin,
-				args.quietHoursEndMin,
-			),
+			scheduledFor: args.now,
 		};
 	}
 
 	if (args.digestMode === "hourly") {
-		const scheduledFor = findNextTimestampMatchingLocalMinuteOfHour(
-			args.now,
-			args.timezone,
-			0,
-			maxLookaheadMinutes,
+		const scheduledForBase = truncateToMinute(
+			findNextTimestampMatchingLocalMinuteOfHour(
+				args.now,
+				args.timezone,
+				0,
+				maxLookaheadMinutes,
+			),
 		);
-		return {
-			scheduledFor: applyQuietHoursDelay(
-				scheduledFor,
+		const scheduledFor = truncateToMinute(
+			applyQuietHoursDelay(
+				scheduledForBase,
 				args.timezone,
 				args.quietHoursStartMin,
 				args.quietHoursEndMin,
 			),
+		);
+		return {
+			scheduledFor,
 			digestWindowKey: formatHourKey(localNowParts),
 		};
 	}
 
 	if (args.digestMode === "three_daily") {
-		const scheduledFor = findNextTimestampMatchingAnyLocalMinute(
-			args.now,
-			args.timezone,
-			NOTIFICATION_DEFAULTS.THREE_DAILY_DIGEST_SEND_MINUTES,
-			maxLookaheadMinutes,
-		);
-		const scheduledParts = getZonedDateParts(scheduledFor, args.timezone);
-		return {
-			scheduledFor: applyQuietHoursDelay(
-				scheduledFor,
+		const scheduledForBase = truncateToMinute(
+			findNextTimestampMatchingAnyLocalMinute(
+				args.now,
 				args.timezone,
-				args.quietHoursStartMin,
-				args.quietHoursEndMin,
+				NOTIFICATION_DEFAULTS.THREE_DAILY_DIGEST_SEND_MINUTES,
+				maxLookaheadMinutes,
+			),
+		);
+		const scheduledParts = getZonedDateParts(scheduledForBase, args.timezone);
+		return {
+			scheduledFor: truncateToMinute(
+				applyQuietHoursDelay(
+					scheduledForBase,
+					args.timezone,
+					args.quietHoursStartMin,
+					args.quietHoursEndMin,
+				),
 			),
 			digestWindowKey: `${formatDateKey(scheduledParts)}T${pad2(scheduledParts.hour)}`,
 		};
 	}
 
 	const dailyTargetMinute = NOTIFICATION_DEFAULTS.DAILY_DIGEST_SEND_MINUTE;
-	const scheduledFor = findNextTimestampMatchingLocalMinute(
-		args.now,
-		args.timezone,
-		dailyTargetMinute,
-		maxLookaheadMinutes,
+	const scheduledForBase = truncateToMinute(
+		findNextTimestampMatchingLocalMinute(
+			args.now,
+			args.timezone,
+			dailyTargetMinute,
+			maxLookaheadMinutes,
+		),
 	);
 
+	const scheduledParts = getZonedDateParts(scheduledForBase, args.timezone);
 	return {
-		scheduledFor: applyQuietHoursDelay(
-			scheduledFor,
-			args.timezone,
-			args.quietHoursStartMin,
-			args.quietHoursEndMin,
+		scheduledFor: truncateToMinute(
+			applyQuietHoursDelay(
+				scheduledForBase,
+				args.timezone,
+				args.quietHoursStartMin,
+				args.quietHoursEndMin,
+			),
 		),
-		digestWindowKey: formatDateKey(localNowParts),
+		digestWindowKey: formatDateKey(scheduledParts),
 	};
 }

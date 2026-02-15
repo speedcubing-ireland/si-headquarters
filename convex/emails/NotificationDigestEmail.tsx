@@ -16,7 +16,11 @@ import {
 } from "@react-email/components";
 import { emailTailwindConfig, getPriorityBadge } from "./shared";
 
-export type NotificationDigestMode = "hourly" | "daily" | "three_daily";
+export type NotificationDigestMode =
+	| "hourly"
+	| "daily"
+	| "three_daily"
+	| "quiet_hours";
 
 export interface NotificationDigestItem {
 	title: string;
@@ -41,6 +45,8 @@ function digestModeLabel(mode: NotificationDigestMode): string {
 			return "Daily digest";
 		case "three_daily":
 			return "3x daily digest";
+		case "quiet_hours":
+			return "Quiet hours digest";
 	}
 }
 

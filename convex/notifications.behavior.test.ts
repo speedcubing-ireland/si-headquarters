@@ -1,5 +1,6 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
+import type { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { emitNotificationEvent } from "./notifications";
 import schema from "./schema";
@@ -331,6 +332,372 @@ describe("notifications behavior", () => {
 		expect(stageRow?.emailDispatchId).toBeDefined();
 		expect(emailDispatches).toHaveLength(1);
 		expect(emailDispatches[0]?.recipientEmail).toBe("stage-user@example.com");
+	});
+
+	test("immediate stage rows use unique group keys outside quiet hours", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const actorId = await ctx.db.insert("users", {});
+			const recipientId = await ctx.db.insert("users", {
+				email: "immediate-groups@example.com",
+			});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Immediate groups comp",
+				description: "",
+				compStart: "2026-12-01",
+				compEnd: "2026-12-02",
+				organiserIds: [actorId, recipientId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: recipientId,
+			});
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-610",
+				title: "Immediate scheduling task",
+				description: "",
+				status: "to-do",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				assigneeId: recipientId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			return { actorId, recipientId, taskId };
+		});
+		const recipientAuthed = t.withIdentity({ subject: seeded.recipientId });
+		await recipientAuthed.mutation(api.notifications.upsertPreference, {
+			type: "task_assigned",
+			channel: "email",
+			enabled: true,
+			digestMode: "immediate",
+		});
+
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
+				taskId: seeded.taskId,
+				recipientId: seeded.recipientId,
+				actorId: seeded.actorId,
+				eventKey: "immediate-group-a",
+			}),
+		);
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
+				taskId: seeded.taskId,
+				recipientId: seeded.recipientId,
+				actorId: seeded.actorId,
+				eventKey: "immediate-group-b",
+			}),
+		);
+
+		const stageRows = await t.run((ctx) =>
+			ctx.db.query("notificationEmailStageItems").collect(),
+		);
+		const recipientRows = stageRows.filter(
+			(row) =>
+				row.userId === seeded.recipientId && row.digestMode === "immediate",
+		);
+		const digestWindowKeys = recipientRows.map((row) => row.digestWindowKey);
+		const uniqueDigestWindowKeys = new Set(digestWindowKeys);
+
+		expect(recipientRows).toHaveLength(2);
+		expect(digestWindowKeys.every((key) => typeof key === "string")).toBe(true);
+		expect(uniqueDigestWindowKeys.size).toBe(2);
+		expect(
+			digestWindowKeys.every(
+				(key) => typeof key === "string" && !key.startsWith("quiet:"),
+			),
+		).toBe(true);
+	});
+
+	test("_composeNotificationEmailStageGroup reschedules remaining pending rows", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
+			const userId = await ctx.db.insert("users", {
+				email: "stage-reschedule@example.com",
+				name: "Stage Reschedule",
+			});
+			const eventA = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-stage-a",
+				idempotencyKey: "stage-reschedule-a",
+				threadKey: "task:task-stage-a",
+				dedupeKey: "task_assigned:task-stage-a",
+				createdAt: now,
+			});
+			const eventB = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-stage-b",
+				idempotencyKey: "stage-reschedule-b",
+				threadKey: "task:task-stage-b",
+				dedupeKey: "task_assigned:task-stage-b",
+				createdAt: now,
+			});
+			const digestWindowKey = "quiet:2026-01-10T07:00";
+			const dueStageId = await ctx.db.insert("notificationEmailStageItems", {
+				stageKey: `${eventA}:${userId}`,
+				userId,
+				eventId: eventA,
+				digestMode: "immediate",
+				digestWindowKey,
+				scheduledFor: now - 1_000,
+				status: "pending",
+				metadataJson: JSON.stringify({
+					type: "task_assigned",
+					title: "Due stage row",
+					message: "Due stage row",
+					entityType: "task",
+					entityId: "task-stage-a",
+					priority: "normal",
+				}),
+				createdAt: now,
+				updatedAt: now,
+			});
+			const futureScheduledFor = now + 60_000;
+			const futureStageId = await ctx.db.insert("notificationEmailStageItems", {
+				stageKey: `${eventB}:${userId}`,
+				userId,
+				eventId: eventB,
+				digestMode: "immediate",
+				digestWindowKey,
+				scheduledFor: futureScheduledFor,
+				status: "pending",
+				metadataJson: JSON.stringify({
+					type: "task_assigned",
+					title: "Future stage row",
+					message: "Future stage row",
+					entityType: "task",
+					entityId: "task-stage-b",
+					priority: "normal",
+				}),
+				createdAt: now,
+				updatedAt: now,
+			});
+			return {
+				userId,
+				dueStageId,
+				futureStageId,
+				digestWindowKey,
+				futureScheduledFor,
+			};
+		});
+
+		const composed = await t.mutation(
+			internal.notifications._composeNotificationEmailStageGroup,
+			{
+				userId: seeded.userId,
+				digestMode: "immediate",
+				digestWindowKey: seeded.digestWindowKey,
+			},
+		);
+		expect(composed.staged).toBe(1);
+
+		const result = await t.run(async (ctx) => {
+			const dueRow = await ctx.db.get(
+				"notificationEmailStageItems",
+				seeded.dueStageId,
+			);
+			const futureRow = await ctx.db.get(
+				"notificationEmailStageItems",
+				seeded.futureStageId,
+			);
+			const scheduledDoc = futureRow?.scheduledFunctionId
+				? await ctx.db.system.get(
+						"_scheduled_functions",
+						futureRow.scheduledFunctionId,
+					)
+				: null;
+			const queuedDispatches = await ctx.db
+				.query("emailDispatches")
+				.withIndex("by_source_status_created_at", (q) =>
+					q.eq("sourceKind", "notification").eq("status", "queued"),
+				)
+				.collect();
+			return {
+				dueRow,
+				futureRow,
+				scheduledDoc,
+				queuedDispatches,
+			};
+		});
+
+		expect(result.dueRow?.status).toBe("composed");
+		expect(result.futureRow?.status).toBe("pending");
+		expect(result.futureRow?.scheduledFunctionId).toBeDefined();
+		expect(result.scheduledDoc).toBeTruthy();
+		expect(result.scheduledDoc?.scheduledTime).toBeGreaterThanOrEqual(
+			seeded.futureScheduledFor,
+		);
+		expect(result.queuedDispatches).toHaveLength(1);
+		expect(result.queuedDispatches[0]?.templateKey).toBe("notification_digest");
+	});
+
+	test("daily digest stage rows in same group reuse one scheduled function", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const actorId = await ctx.db.insert("users", {});
+			const recipientId = await ctx.db.insert("users", {
+				email: "digest-schedule@example.com",
+			});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Digest scheduling comp",
+				description: "",
+				compStart: "2026-12-01",
+				compEnd: "2026-12-02",
+				organiserIds: [actorId, recipientId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: recipientId,
+			});
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-600",
+				title: "Digest scheduling task",
+				description: "",
+				status: "to-do",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				assigneeId: recipientId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			return { actorId, recipientId, taskId };
+		});
+
+		const recipientAuthed = t.withIdentity({ subject: seeded.recipientId });
+		await recipientAuthed.mutation(api.notifications.upsertPreference, {
+			type: "task_assigned",
+			channel: "email",
+			enabled: true,
+			digestMode: "daily",
+		});
+
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
+				taskId: seeded.taskId,
+				recipientId: seeded.recipientId,
+				actorId: seeded.actorId,
+				eventKey: "digest-schedule-a",
+			}),
+		);
+		await t.run((ctx) =>
+			emitNotificationEvent(ctx, {
+				type: "task_assigned",
+				taskId: seeded.taskId,
+				recipientId: seeded.recipientId,
+				actorId: seeded.actorId,
+				eventKey: "digest-schedule-b",
+			}),
+		);
+
+		const result = await t.run(async (ctx) => {
+			const stageRows = await ctx.db
+				.query("notificationEmailStageItems")
+				.withIndex("by_status_scheduled_for", (q) => q.eq("status", "pending"))
+				.collect();
+			const recipientRows = stageRows.filter(
+				(row) =>
+					row.userId === seeded.recipientId && row.digestMode === "daily",
+			);
+			const scheduledFunctionIds = [
+				...new Set(
+					recipientRows
+						.map((row) => row.scheduledFunctionId)
+						.filter((id): id is Id<"_scheduled_functions"> => id !== undefined),
+				),
+			];
+			const scheduledDoc =
+				scheduledFunctionIds.length > 0
+					? await ctx.db.system.get(
+							"_scheduled_functions",
+							scheduledFunctionIds[0],
+						)
+					: null;
+			return {
+				rowCount: recipientRows.length,
+				scheduledFunctionIds,
+				hasScheduledDoc: scheduledDoc !== null,
+			};
+		});
+
+		expect(result.rowCount).toBe(2);
+		expect(result.scheduledFunctionIds).toHaveLength(1);
+		expect(result.hasScheduledDoc).toBe(true);
+	});
+
+	test("_recoverPendingNotificationEmailStages groups due rows and schedules compose jobs", async () => {
+		const t = convexTest(schema, modules);
+		await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {
+				email: "recover-user@example.com",
+			});
+			const eventA = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-recover-a",
+				idempotencyKey: "recover-event-a",
+				threadKey: "task:task-recover-a",
+				dedupeKey: "task_assigned:task-recover-a",
+				createdAt: Date.now(),
+			});
+			const eventB = await ctx.db.insert("notificationEvents", {
+				type: "task_assigned",
+				entityType: "task",
+				entityId: "task-recover-b",
+				idempotencyKey: "recover-event-b",
+				threadKey: "task:task-recover-b",
+				dedupeKey: "task_assigned:task-recover-b",
+				createdAt: Date.now(),
+			});
+
+			await ctx.db.insert("notificationEmailStageItems", {
+				stageKey: `${eventA}:${userId}`,
+				userId,
+				eventId: eventA,
+				digestMode: "immediate",
+				digestWindowKey: undefined,
+				scheduledFor: Date.now() - 1_000,
+				status: "pending",
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("notificationEmailStageItems", {
+				stageKey: `${eventB}:${userId}`,
+				userId,
+				eventId: eventB,
+				digestMode: "immediate",
+				digestWindowKey: undefined,
+				scheduledFor: Date.now() - 1_000,
+				status: "pending",
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
+			});
+		});
+
+		const result = await t.mutation(
+			internal.notifications._recoverPendingNotificationEmailStages,
+			{ limit: 100 },
+		);
+		expect(result.rows).toBe(2);
+		expect(result.groups).toBe(1);
 	});
 
 	test("dispatch diagnostics queries require director access", async () => {

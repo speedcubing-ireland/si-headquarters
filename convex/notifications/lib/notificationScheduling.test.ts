@@ -86,6 +86,7 @@ describe("computeDispatchSchedule", () => {
 
 			expect(scheduledDate.getUTCHours()).toBe(7);
 			expect(scheduledDate.getUTCMinutes()).toBe(0);
+			expect(result.digestWindowKey).toBe("quiet:2025-01-16T07:00");
 		});
 
 		test("sends immediately if outside quiet hours", () => {
@@ -184,7 +185,7 @@ describe("computeDispatchSchedule", () => {
 			});
 
 			expect(result.digestWindowKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-			expect(result.digestWindowKey).toBe("2025-01-15");
+			expect(result.digestWindowKey).toBe("2025-01-16");
 		});
 
 		test("schedules same-day if before the daily digest time", () => {

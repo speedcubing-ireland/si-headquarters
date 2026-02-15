@@ -442,6 +442,7 @@ export default defineSchema({
 		scheduledFor: v.number(),
 		status: stageStatus,
 		emailDispatchId: v.optional(v.id("emailDispatches")),
+		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
 		metadataJson: v.optional(v.string()),
 		createdAt: v.number(),
 		updatedAt: v.number(),

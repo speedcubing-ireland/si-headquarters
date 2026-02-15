@@ -145,12 +145,203 @@ function buildStageKey(
 	return `${eventId}:${userId}`;
 }
 
+function isQuietHoursDigestWindowKey(
+	digestWindowKey: string | undefined,
+): boolean {
+	return digestWindowKey?.startsWith("quiet:") ?? false;
+}
+
+function resolveStageDigestWindowKey(args: {
+	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
+	stageKey: string;
+	scheduledDigestWindowKey: string | undefined;
+}): string | undefined {
+	if (args.digestMode !== "immediate") {
+		return args.scheduledDigestWindowKey;
+	}
+	if (isQuietHoursDigestWindowKey(args.scheduledDigestWindowKey)) {
+		return args.scheduledDigestWindowKey;
+	}
+	return args.stageKey;
+}
+
 function buildNotificationGroupSourceRef(args: {
 	userId: Id<"users">;
 	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
 	digestWindowKey?: string;
 }): string {
 	return `notification_group:${args.userId}:${args.digestMode}:${args.digestWindowKey ?? "immediate"}`;
+}
+
+type NotificationEmailStageGroupArgs = {
+	userId: Id<"users">;
+	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
+	digestWindowKey?: string;
+};
+
+type ScheduledFunctionStateDoc = {
+	scheduledTime?: number;
+	state?: {
+		kind?: string;
+	};
+};
+
+function normalizeScheduledFunctionState(kind: string | undefined): string {
+	return (kind ?? "").toLowerCase().replace(/[_-]/g, "");
+}
+
+function isPendingScheduledFunctionState(kind: string | undefined): boolean {
+	const normalized = normalizeScheduledFunctionState(kind);
+	return normalized === "pending" || normalized === "inprogress";
+}
+
+async function findReusableNotificationStageSchedule(
+	ctx: MutationCtx,
+	pendingRows: Array<
+		Doc<"notificationEmailStageItems"> & {
+			scheduledFunctionId?: Id<"_scheduled_functions">;
+		}
+	>,
+	targetScheduledFor: number,
+): Promise<Id<"_scheduled_functions"> | undefined> {
+	const candidateIds = [
+		...new Set(
+			pendingRows
+				.map((row) => row.scheduledFunctionId)
+				.filter(
+					(
+						scheduledFunctionId,
+					): scheduledFunctionId is Id<"_scheduled_functions"> =>
+						scheduledFunctionId !== undefined,
+				),
+		),
+	];
+
+	for (const scheduledFunctionId of candidateIds) {
+		const scheduledDoc = (await ctx.db.system.get(
+			"_scheduled_functions",
+			scheduledFunctionId,
+		)) as ScheduledFunctionStateDoc | null;
+		if (!scheduledDoc) {
+			continue;
+		}
+		if (!isPendingScheduledFunctionState(scheduledDoc.state?.kind)) {
+			continue;
+		}
+		if (
+			typeof scheduledDoc.scheduledTime === "number" &&
+			scheduledDoc.scheduledTime <= targetScheduledFor
+		) {
+			return scheduledFunctionId;
+		}
+	}
+
+	return undefined;
+}
+
+async function ensureNotificationEmailStageGroupScheduled(
+	ctx: MutationCtx,
+	args: NotificationEmailStageGroupArgs,
+): Promise<void> {
+	const pendingRows = await ctx.db
+		.query("notificationEmailStageItems")
+		.withIndex("by_user_mode_window_status", (q) =>
+			q
+				.eq("userId", args.userId)
+				.eq("digestMode", args.digestMode)
+				.eq("digestWindowKey", args.digestWindowKey)
+				.eq("status", "pending"),
+		)
+		.collect();
+	if (pendingRows.length === 0) {
+		return;
+	}
+
+	const now = Date.now();
+	const targetScheduledFor = pendingRows.reduce(
+		(minScheduledFor, row) => Math.min(minScheduledFor, row.scheduledFor),
+		Number.POSITIVE_INFINITY,
+	);
+	const targetRows = pendingRows.filter(
+		(row) => row.scheduledFor === targetScheduledFor,
+	);
+
+	const composeArgs = {
+		userId: args.userId,
+		digestMode: args.digestMode,
+		digestWindowKey: args.digestWindowKey,
+	} as const;
+
+	const reusableScheduledFunctionId =
+		await findReusableNotificationStageSchedule(
+			ctx,
+			targetRows,
+			targetScheduledFor,
+		);
+
+	const scheduledFunctionId =
+		reusableScheduledFunctionId ??
+		(targetScheduledFor <= now
+			? await ctx.scheduler.runAfter(
+					0,
+					internal.notifications._composeNotificationEmailStageGroup,
+					composeArgs,
+				)
+			: await ctx.scheduler.runAt(
+					targetScheduledFor,
+					internal.notifications._composeNotificationEmailStageGroup,
+					composeArgs,
+				));
+
+	await Promise.all(
+		pendingRows.map((row) =>
+			row.scheduledFor === targetScheduledFor
+				? row.scheduledFunctionId === scheduledFunctionId
+					? Promise.resolve()
+					: ctx.db.patch("notificationEmailStageItems", row._id, {
+							scheduledFunctionId,
+							updatedAt: now,
+						})
+				: row.scheduledFunctionId !== scheduledFunctionId
+					? Promise.resolve()
+					: ctx.db.patch("notificationEmailStageItems", row._id, {
+							scheduledFunctionId: undefined,
+							updatedAt: now,
+						}),
+		),
+	);
+}
+
+async function scheduleNextPendingNotificationEmailStageGroup(
+	ctx: MutationCtx,
+	args: NotificationEmailStageGroupArgs,
+	previousPendingCount: number,
+	dueRowCount: number,
+): Promise<void> {
+	if (previousPendingCount <= dueRowCount) {
+		return;
+	}
+	await ensureNotificationEmailStageGroupScheduled(ctx, args);
+}
+
+async function clearScheduledFunctionForRows(
+	ctx: MutationCtx,
+	rows: Doc<"notificationEmailStageItems">[],
+	patch: {
+		status: "skipped" | "composed";
+		emailDispatchId?: Id<"emailDispatches">;
+	},
+	now: number,
+): Promise<void> {
+	await Promise.all(
+		rows.map((row) =>
+			ctx.db.patch("notificationEmailStageItems", row._id, {
+				...patch,
+				scheduledFunctionId: undefined,
+				updatedAt: now,
+			}),
+		),
+	);
 }
 
 async function queueNotificationEmailStageItem(
@@ -173,14 +364,6 @@ async function queueNotificationEmailStageItem(
 		return;
 	}
 
-	const timezone = await getNotificationUserTimezone(ctx, args.userId);
-	const schedule = computeDispatchSchedule({
-		now: Date.now(),
-		timezone,
-		digestMode: preference.digestMode,
-		quietHoursStartMin: preference.quietHoursStartMin,
-		quietHoursEndMin: preference.quietHoursEndMin,
-	});
 	const stageKey = buildStageKey(args.eventId, args.userId);
 	const existing = await ctx.db
 		.query("notificationEmailStageItems")
@@ -189,31 +372,43 @@ async function queueNotificationEmailStageItem(
 	if (existing) {
 		return;
 	}
+
 	const now = Date.now();
+	const timezone = await getNotificationUserTimezone(ctx, args.userId);
+	const schedule = computeDispatchSchedule({
+		now,
+		timezone,
+		digestMode: preference.digestMode,
+		quietHoursStartMin: preference.quietHoursStartMin,
+		quietHoursEndMin: preference.quietHoursEndMin,
+	});
+	const stageDigestWindowKey = resolveStageDigestWindowKey({
+		digestMode: preference.digestMode,
+		stageKey,
+		scheduledDigestWindowKey: schedule.digestWindowKey,
+	});
+
 	await ctx.db.insert("notificationEmailStageItems", {
 		stageKey,
 		userId: args.userId,
 		notificationId: args.notificationId,
 		eventId: args.eventId,
 		digestMode: preference.digestMode,
-		digestWindowKey: schedule.digestWindowKey,
+		digestWindowKey: stageDigestWindowKey,
 		scheduledFor: schedule.scheduledFor,
 		status: "pending",
 		emailDispatchId: undefined,
+		scheduledFunctionId: undefined,
 		metadataJson: args.metadataJson,
 		createdAt: now,
 		updatedAt: now,
 	});
 
-	await ctx.scheduler.runAt(
-		schedule.scheduledFor,
-		internal.notifications._composeNotificationEmailStageGroup,
-		{
-			userId: args.userId,
-			digestMode: preference.digestMode,
-			digestWindowKey: schedule.digestWindowKey,
-		},
-	);
+	await ensureNotificationEmailStageGroupScheduled(ctx, {
+		userId: args.userId,
+		digestMode: preference.digestMode,
+		digestWindowKey: stageDigestWindowKey,
+	});
 }
 
 async function emitInAppNotifications(
@@ -1317,16 +1512,21 @@ export const _composeNotificationEmailStageGroup = internalMutation({
 		if (dueRows.length === 0) {
 			return { staged: 0, queued: false };
 		}
+		const pendingCount = stageRows.length;
 
 		const user = await ctx.db.get("users", args.userId);
 		if (!user?.email) {
-			await Promise.all(
-				dueRows.map((row) =>
-					ctx.db.patch("notificationEmailStageItems", row._id, {
-						status: "skipped",
-						updatedAt: now,
-					}),
-				),
+			await clearScheduledFunctionForRows(
+				ctx,
+				dueRows,
+				{ status: "skipped" },
+				now,
+			);
+			await scheduleNextPendingNotificationEmailStageGroup(
+				ctx,
+				args,
+				pendingCount,
+				dueRows.length,
 			);
 			return { staged: dueRows.length, queued: false };
 		}
@@ -1372,13 +1572,17 @@ export const _composeNotificationEmailStageGroup = internalMutation({
 		}
 
 		if (items.length === 0) {
-			await Promise.all(
-				dueRows.map((row) =>
-					ctx.db.patch("notificationEmailStageItems", row._id, {
-						status: "skipped",
-						updatedAt: now,
-					}),
-				),
+			await clearScheduledFunctionForRows(
+				ctx,
+				dueRows,
+				{ status: "skipped" },
+				now,
+			);
+			await scheduleNextPendingNotificationEmailStageGroup(
+				ctx,
+				args,
+				pendingCount,
+				dueRows.length,
 			);
 			return { staged: dueRows.length, queued: false };
 		}
@@ -1386,6 +1590,9 @@ export const _composeNotificationEmailStageGroup = internalMutation({
 		const appUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
 		const composed = await buildNotificationGroupEmailContent({
 			digestMode: args.digestMode,
+			isQuietHoursBatch:
+				args.digestMode === "immediate" &&
+				isQuietHoursDigestWindowKey(args.digestWindowKey),
 			items: mapDispatchItemsToEmailGroupItems({
 				appUrl,
 				items,
@@ -1419,19 +1626,75 @@ export const _composeNotificationEmailStageGroup = internalMutation({
 			}),
 		});
 
-		await Promise.all(
-			dueRows.map((row) =>
-				ctx.db.patch("notificationEmailStageItems", row._id, {
-					status: "composed",
-					emailDispatchId: queued.dispatchId,
-					updatedAt: now,
-				}),
-			),
+		await clearScheduledFunctionForRows(
+			ctx,
+			dueRows,
+			{
+				status: "composed",
+				emailDispatchId: queued.dispatchId,
+			},
+			now,
+		);
+		await scheduleNextPendingNotificationEmailStageGroup(
+			ctx,
+			args,
+			pendingCount,
+			dueRows.length,
 		);
 
 		return {
 			staged: dueRows.length,
 			queued: queued.created,
+		};
+	},
+});
+
+export const _recoverPendingNotificationEmailStages = internalMutation({
+	args: {
+		limit: v.optional(v.number()),
+	},
+	returns: v.object({
+		rows: v.number(),
+		groups: v.number(),
+	}),
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		const limit = Math.max(1, Math.min(args.limit ?? 200, 1000));
+		const pendingRows = await ctx.db
+			.query("notificationEmailStageItems")
+			.withIndex("by_status_scheduled_for", (q) =>
+				q.eq("status", "pending").lte("scheduledFor", now),
+			)
+			.take(limit);
+
+		const groups = new Map<
+			string,
+			{
+				userId: Id<"users">;
+				digestMode: "immediate" | "hourly" | "daily" | "three_daily";
+				digestWindowKey?: string;
+			}
+		>();
+
+		for (const row of pendingRows) {
+			const key = `${row.userId}:${row.digestMode}:${row.digestWindowKey ?? ""}`;
+			if (groups.has(key)) {
+				continue;
+			}
+			groups.set(key, {
+				userId: row.userId,
+				digestMode: row.digestMode,
+				digestWindowKey: row.digestWindowKey,
+			});
+		}
+
+		for (const group of groups.values()) {
+			await ensureNotificationEmailStageGroupScheduled(ctx, group);
+		}
+
+		return {
+			rows: pendingRows.length,
+			groups: groups.size,
 		};
 	},
 });
