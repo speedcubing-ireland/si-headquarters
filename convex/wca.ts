@@ -1,113 +1,22 @@
 import { action, internalAction } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { requireVolunteerAction } from "./lib/oauth";
-
-const WCA_BASE = "https://www.worldcubeassociation.org";
-const WCA_API = `${WCA_BASE}/api/v0`;
-const WCA_OAUTH_SCOPE = "public email manage_competitions";
-
-export const getWcaOAuthUrl = action({
-	args: {
-		redirectUri: v.string(),
-		cliToken: v.optional(v.string()),
-	},
-	returns: v.object({ url: v.string() }),
-	handler: async (ctx, args) => {
-		await requireVolunteerAction(ctx, args.cliToken);
-		const clientId = process.env.AUTH_WCA_ID;
-		if (!clientId) {
-			throw new Error("Missing AUTH_WCA_ID env var.");
-		}
-		const state = crypto.randomUUID();
-		const url = new URL(`${WCA_BASE}/oauth/authorize`);
-		url.searchParams.set("client_id", clientId);
-		url.searchParams.set("redirect_uri", args.redirectUri);
-		url.searchParams.set("response_type", "code");
-		url.searchParams.set("scope", WCA_OAUTH_SCOPE);
-		url.searchParams.set("state", state);
-		return { url: url.toString() };
-	},
-});
-
-export const exchangeCodeAndStoreTokens = action({
-	args: {
-		code: v.string(),
-		redirectUri: v.string(),
-		cliToken: v.optional(v.string()),
-	},
-	returns: v.object({ success: v.boolean(), error: v.optional(v.string()) }),
-	handler: async (ctx, args) => {
-		await requireVolunteerAction(ctx, args.cliToken);
-		const clientId = process.env.AUTH_WCA_ID;
-		const clientSecret = process.env.AUTH_WCA_SECRET;
-		if (!clientId || !clientSecret) {
-			return {
-				success: false,
-				error: "Missing AUTH_WCA_ID or AUTH_WCA_SECRET in Convex env.",
-			};
-		}
-		const res = await fetch(`${WCA_BASE}/oauth/token`, {
-			method: "POST",
-			headers: { "Content-Type": "application/x-www-form-urlencoded" },
-			body: new URLSearchParams({
-				grant_type: "authorization_code",
-				code: args.code,
-				redirect_uri: args.redirectUri,
-				client_id: clientId,
-				client_secret: clientSecret,
-			}),
-		});
-
-		if (!res.ok) {
-			const text = await res.text();
-			return { success: false, error: `Token exchange failed: ${text}` };
-		}
-
-		const tokens = (await res.json()) as {
-			access_token?: string;
-			refresh_token?: string;
-			expires_in?: number;
-			created_at?: number;
-		};
-
-		if (!tokens.access_token) {
-			return { success: false, error: "WCA did not return an access_token." };
-		}
-
-		const expiresAt = tokens.created_at
-			? tokens.created_at + (tokens.expires_in ?? 7200)
-			: Math.floor(Date.now() / 1000) + (tokens.expires_in ?? 7200);
-
-		await ctx.runMutation(internal.services.tokens.setTokens, {
-			service: "wca",
-			accessToken: tokens.access_token,
-			refreshToken: tokens.refresh_token ?? "",
-			expiresAt,
-		});
-
-		return { success: true };
-	},
-});
+import {
+	WCA_BASE,
+	SEARCH_RESULTS_LIMIT,
+	MY_COMPETITIONS_LIMIT,
+	mapCompetitionResult,
+	type WcaCompetition,
+	wcaFetch,
+} from "./services/wca";
+import { getServiceAccessToken } from "./services/tokens/runtime";
 
 async function getWcaAccessToken(
 	ctx: GenericActionCtx<DataModel>,
 ): Promise<string | null> {
-	return await ctx.runAction(internal.services.tokens.getValidAccessToken, {
-		service: "wca",
-	});
-}
-
-async function wcaFetch(accessToken: string, path: string): Promise<unknown> {
-	const res = await fetch(`${WCA_API}${path}`, {
-		headers: { Authorization: `Bearer ${accessToken}` },
-	});
-	if (!res.ok) {
-		throw new Error(`WCA API ${path} failed: ${res.status} ${res.statusText}`);
-	}
-	return res.json();
+	return await getServiceAccessToken(ctx, "wca");
 }
 
 const wcaCompetitionResult = v.object({
@@ -132,7 +41,7 @@ export const searchCompetitions = action({
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
 				message:
-					"No WCA token. Run bun run auth:wca from repo root to connect.",
+					"No WCA token. Run bun run auth wca from repo root to connect.",
 			});
 		}
 
@@ -141,24 +50,10 @@ export const searchCompetitions = action({
 		const data = (await wcaFetch(
 			accessToken,
 			`/competitions?${params}`,
-		)) as Array<{
-			id: string;
-			name: string;
-			city: string;
-			country_iso2: string;
-			start_date: string;
-			end_date: string;
-			event_ids: string[];
-		}>;
-		return (Array.isArray(data) ? data : []).slice(0, 10).map((c) => ({
-			id: c.id,
-			name: c.name,
-			city: c.city ?? "",
-			country_iso2: c.country_iso2 ?? "",
-			start_date: c.start_date ?? "",
-			end_date: c.end_date ?? "",
-			event_ids: c.event_ids ?? [],
-		}));
+		)) as WcaCompetition[];
+		return (Array.isArray(data) ? data : [])
+			.slice(0, SEARCH_RESULTS_LIMIT)
+			.map(mapCompetitionResult);
 	},
 });
 
@@ -173,7 +68,7 @@ export const fetchMyCompetitions = action({
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
 				message:
-					"No WCA token. Run bun run auth:wca from repo root to connect.",
+					"No WCA token. Run bun run auth wca from repo root to connect.",
 			});
 		}
 
@@ -184,24 +79,10 @@ export const fetchMyCompetitions = action({
 		const data = (await wcaFetch(
 			accessToken,
 			`/competitions?${params}`,
-		)) as Array<{
-			id: string;
-			name: string;
-			city: string;
-			country_iso2: string;
-			start_date: string;
-			end_date: string;
-			event_ids: string[];
-		}>;
-		return (Array.isArray(data) ? data : []).slice(0, 20).map((c) => ({
-			id: c.id,
-			name: c.name,
-			city: c.city ?? "",
-			country_iso2: c.country_iso2 ?? "",
-			start_date: c.start_date ?? "",
-			end_date: c.end_date ?? "",
-			event_ids: c.event_ids ?? [],
-		}));
+		)) as WcaCompetition[];
+		return (Array.isArray(data) ? data : [])
+			.slice(0, MY_COMPETITIONS_LIMIT)
+			.map(mapCompetitionResult);
 	},
 });
 
@@ -249,7 +130,7 @@ async function fetchCompetitionDetailsWithStoredToken(
 	if (!accessToken) return null;
 
 	const res = await fetch(
-		`${WCA_API}/competitions/${encodeURIComponent(wcaCompetitionId)}`,
+		`${WCA_BASE}/api/v0/competitions/${encodeURIComponent(wcaCompetitionId)}`,
 		{ headers: { Authorization: `Bearer ${accessToken}` } },
 	);
 

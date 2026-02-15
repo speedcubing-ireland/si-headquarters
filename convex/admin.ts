@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { TEAM_NAMES } from "./lib/constants";
@@ -75,6 +75,14 @@ async function addMemberToTeamIfMissing(
 }
 
 export const isDirector = query({
+	args: {},
+	returns: v.boolean(),
+	handler: async (ctx) => {
+		return await isDirectorForCtx(ctx);
+	},
+});
+
+export const getIsDirectorInternal = internalQuery({
 	args: {},
 	returns: v.boolean(),
 	handler: async (ctx) => {

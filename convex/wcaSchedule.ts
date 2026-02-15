@@ -575,7 +575,7 @@ export const pushScheduleToWca = action({
 		if (!googleToken) {
 			return {
 				success: false as const,
-				error: "No Google Sheets token. Run: bun run auth:google-sheets",
+				error: "No Google Sheets token. Run: bun run auth google-sheets",
 			};
 		}
 
@@ -583,7 +583,7 @@ export const pushScheduleToWca = action({
 		if (!wcaToken) {
 			return {
 				success: false as const,
-				error: "No WCA token. Run: bun run auth:wca",
+				error: "No WCA token. Run: bun run auth wca",
 			};
 		}
 

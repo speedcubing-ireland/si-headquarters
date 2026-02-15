@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { listBrandTemplates, listFolderItems } from "./canvaClient";
+import { listBrandTemplates, listFolderItems } from "../services/canva/client";
 
 describe("canvaClient", () => {
 	test("listBrandTemplates forwards pagination arguments", async () => {

@@ -3,7 +3,7 @@
 import { ConvexError, v } from "convex/values";
 import { action, type ActionCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { requireVolunteerAction } from "./lib/oauth";
 import {
 	createAutofillJob,
@@ -15,7 +15,7 @@ import {
 	listBrandTemplates as listBrandTemplatesApi,
 	listFolderItems as listFolderItemsApi,
 	moveFolderItem,
-} from "./lib/canvaClient";
+} from "./services/canva/client";
 import {
 	buildCanvaAutofillData,
 	buildCanvaDesignEditUrl,
@@ -23,11 +23,7 @@ import {
 	parseCanvaDesignInput,
 	parseCanvaFolderInput,
 } from "./canva/helpers";
-import {
-	buildCanvaOAuthUrl,
-	exchangeToken,
-	getCanvaClientId,
-} from "./canva/oauth";
+import { getServiceAccessToken } from "./services/tokens/runtime";
 
 type TaskLinkedActionListItem = {
 	id: Id<"taskLinkedActions">;
@@ -69,9 +65,12 @@ async function requireCanvaRunAccess(
 ) {
 	if (args.taskId && args.taskLinkedActionId) {
 		try {
-			const taskActions = await ctx.runQuery(api.linkedActions.listForTask, {
-				taskId: args.taskId,
-			});
+			const taskActions = await ctx.runQuery(
+				internal.linkedActions.listForTaskInternal,
+				{
+					taskId: args.taskId,
+				},
+			);
 			const match = taskActions.find(
 				(item: TaskLinkedActionListItem) => item.id === args.taskLinkedActionId,
 			);
@@ -93,7 +92,10 @@ async function requireCanvaRunAccess(
 }
 
 async function requireCanvaPickerAccess(ctx: ActionCtx) {
-	const isDirector = await ctx.runQuery(api.admin.isDirector, {});
+	const isDirector = await ctx.runQuery(
+		internal.admin.getIsDirectorInternal,
+		{},
+	);
 	if (isDirector) return;
 	await requireVolunteerAction(ctx);
 }
@@ -107,9 +109,12 @@ async function requireCanvaDesignAccess(
 ) {
 	if (args.taskId && args.taskLinkedActionId) {
 		try {
-			const taskActions = await ctx.runQuery(api.linkedActions.listForTask, {
-				taskId: args.taskId,
-			});
+			const taskActions = await ctx.runQuery(
+				internal.linkedActions.listForTaskInternal,
+				{
+					taskId: args.taskId,
+				},
+			);
 			const match = taskActions.find(
 				(item: TaskLinkedActionListItem) => item.id === args.taskLinkedActionId,
 			);
@@ -134,70 +139,8 @@ async function requireCanvaDesignAccess(
 }
 
 async function getCanvaAccessToken(ctx: ActionCtx): Promise<string | null> {
-	return await ctx.runAction(internal.services.tokens.getValidAccessToken, {
-		service: "canva",
-	});
+	return await getServiceAccessToken(ctx, "canva");
 }
-
-export const getCanvaOAuthUrl = action({
-	args: {
-		redirectUri: v.string(),
-		codeChallenge: v.optional(v.string()),
-		state: v.optional(v.string()),
-		cliToken: v.optional(v.string()),
-	},
-	returns: v.object({
-		url: v.string(),
-		state: v.string(),
-	}),
-	handler: async (ctx, args) => {
-		await requireVolunteerAction(ctx, args.cliToken);
-		const clientId = getCanvaClientId();
-
-		const state = args.state ?? crypto.randomUUID();
-		const url = buildCanvaOAuthUrl({
-			redirectUri: args.redirectUri,
-			clientId,
-			codeChallenge: args.codeChallenge,
-			state,
-		});
-
-		return { url, state };
-	},
-});
-
-export const exchangeCodeAndStoreTokens = action({
-	args: {
-		code: v.string(),
-		redirectUri: v.string(),
-		codeVerifier: v.optional(v.string()),
-		cliToken: v.optional(v.string()),
-	},
-	returns: v.object({ success: v.boolean(), error: v.optional(v.string()) }),
-	handler: async (ctx, args) => {
-		await requireVolunteerAction(ctx, args.cliToken);
-		try {
-			const token = await exchangeToken({
-				grantType: "authorization_code",
-				code: args.code,
-				redirectUri: args.redirectUri,
-				codeVerifier: args.codeVerifier,
-			});
-			await ctx.runMutation(internal.services.tokens.setTokens, {
-				service: "canva",
-				accessToken: token.accessToken,
-				refreshToken: token.refreshToken,
-				expiresAt: token.expiresAt,
-			});
-			return { success: true };
-		} catch (error) {
-			return {
-				success: false,
-				error: error instanceof Error ? error.message : "Canva OAuth failed.",
-			};
-		}
-	},
-});
 
 export const listBrandTemplates = action({
 	args: {
@@ -221,7 +164,7 @@ export const listBrandTemplates = action({
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
-				message: "No Canva token. Run bun run auth:canva from repo root.",
+				message: "No Canva token. Run bun run auth canva from repo root.",
 			});
 		}
 
@@ -281,7 +224,7 @@ export const listFolderItems = action({
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
-				message: "No Canva token. Run bun run auth:canva from repo root.",
+				message: "No Canva token. Run bun run auth canva from repo root.",
 			});
 		}
 
@@ -360,7 +303,7 @@ export const validateFolderInput = action({
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
-				message: "No Canva token. Run bun run auth:canva from repo root.",
+				message: "No Canva token. Run bun run auth canva from repo root.",
 			});
 		}
 		const client = createCanvaClient(accessToken);
@@ -406,7 +349,7 @@ export const validateDesignInput = action({
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
-				message: "No Canva token. Run bun run auth:canva from repo root.",
+				message: "No Canva token. Run bun run auth canva from repo root.",
 			});
 		}
 
@@ -457,7 +400,7 @@ export const runTemplateAction = action({
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
-				message: "No Canva token. Run bun run auth:canva from repo root.",
+				message: "No Canva token. Run bun run auth canva from repo root.",
 			});
 		}
 
@@ -574,7 +517,7 @@ export const getDesignMetadata = action({
 		if (!accessToken) {
 			throw new ConvexError({
 				code: "PRECONDITION_FAILED",
-				message: "No Canva token. Run bun run auth:canva from repo root.",
+				message: "No Canva token. Run bun run auth canva from repo root.",
 			});
 		}
 		const client = createCanvaClient(accessToken);

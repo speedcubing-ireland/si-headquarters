@@ -18,7 +18,7 @@ const HTML_HEADERS = { "Content-Type": "text/html; charset=utf-8" } as const;
 export type OAuthTerminalFlowConfig = {
 	providerDisplayName: string;
 	successHeading: string;
-	commandName: `auth:${string}`;
+	commandName: string;
 	port: number;
 	redirectUri: string;
 	redirectHint?: string;
@@ -182,8 +182,17 @@ export async function runOAuthTerminalFlow(
 	const donePromise = new Promise<void>((resolve) => {
 		onDoneRef.current = resolve;
 	});
+	const redirectUrl = new URL(config.redirectUri);
+	const callbackHostname = redirectUrl.hostname;
+	const allowedLoopbackHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+	if (!allowedLoopbackHosts.has(callbackHostname)) {
+		throw new Error(
+			`Unsafe redirect URI host '${callbackHostname}'. Use a loopback host (localhost or 127.0.0.1).`,
+		);
+	}
 
 	const server = Bun.serve({
+		hostname: callbackHostname,
 		port: config.port,
 		async fetch(req) {
 			const url = new URL(req.url);

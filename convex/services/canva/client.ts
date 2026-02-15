@@ -1,7 +1,7 @@
 "use node";
 
 import createClient from "openapi-fetch";
-import type { components, paths } from "../canva/api/types";
+import type { components, paths } from "./api/types";
 
 type ErrorBody = {
 	code?: string;
@@ -26,7 +26,7 @@ type FolderItemSortBy = components["schemas"]["FolderItemSortBy"];
 type DatasetFilter = components["schemas"]["DatasetFilter"];
 type CanvaDataset = components["schemas"]["Dataset"];
 
-type CanvaClient = ReturnType<typeof createClient<paths>>;
+export type CanvaClient = ReturnType<typeof createClient<paths>>;
 
 function getErrorMessage(error: ErrorBody | undefined): string {
 	if (!error) return "Unknown Canva API error";

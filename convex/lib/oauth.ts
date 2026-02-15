@@ -3,13 +3,18 @@ import { internal } from "../_generated/api";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError } from "convex/values";
 
+function hasValidCliToken(cliToken: string | undefined): boolean {
+	if (!cliToken) return false;
+	const expectedToken = process.env.CLI_AUTH_TOKEN;
+	return Boolean(expectedToken && cliToken === expectedToken);
+}
+
 export async function requireVolunteerAction(
 	ctx: GenericActionCtx<DataModel>,
 	cliToken?: string,
 ): Promise<void> {
+	if (hasValidCliToken(cliToken)) return;
 	if (cliToken) {
-		const expectedToken = process.env.CLI_AUTH_TOKEN;
-		if (expectedToken && cliToken === expectedToken) return;
 		throw new ConvexError({
 			code: "UNAUTHENTICATED",
 			message: "Invalid CLI token",
@@ -24,20 +29,25 @@ export async function requireVolunteerAction(
 	}
 }
 
-export function buildOAuthUrl(params: {
-	baseUrl: string;
-	clientId: string;
-	redirectUri: string;
-	scope: string;
-	state?: string;
-}): string {
-	const url = new URL(params.baseUrl);
-	url.searchParams.set("client_id", params.clientId);
-	url.searchParams.set("redirect_uri", params.redirectUri);
-	url.searchParams.set("response_type", "code");
-	url.searchParams.set("scope", params.scope);
-	if (params.state) {
-		url.searchParams.set("state", params.state);
+export async function requireDirectorAction(
+	ctx: GenericActionCtx<DataModel>,
+	cliToken?: string,
+): Promise<void> {
+	if (hasValidCliToken(cliToken)) return;
+	if (cliToken) {
+		throw new ConvexError({
+			code: "UNAUTHENTICATED",
+			message: "Invalid CLI token",
+		});
 	}
-	return url.toString();
+	const isDirector = await ctx.runQuery(
+		internal.admin.getIsDirectorInternal,
+		{},
+	);
+	if (!isDirector) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: "Directors only.",
+		});
+	}
 }

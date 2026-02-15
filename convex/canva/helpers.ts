@@ -1,7 +1,7 @@
 "use node";
 
 import { ConvexError } from "convex/values";
-import type { components } from "./api/types";
+import type { components } from "../services/canva/api/types";
 
 type BrandTemplateApiItem = Pick<components["schemas"]["BrandTemplate"], "id"> &
 	Partial<

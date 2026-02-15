@@ -246,6 +246,57 @@ export const listForTask = query({
 	},
 });
 
+export const listForTaskInternal = internalQuery({
+	args: {
+		taskId: v.id("tasks"),
+	},
+	returns: v.array(linkedTaskActionShape),
+	handler: async (ctx, args) => {
+		const userId = await requireUserId(ctx);
+		const volunteer = await isVolunteer(ctx);
+		const task = await ensureTaskAccess(ctx, userId, args.taskId, volunteer);
+
+		const rows = await ctx.db
+			.query("taskLinkedActions")
+			.withIndex("by_task", (q) => q.eq("taskId", args.taskId))
+			.collect();
+
+		const definitions = await Promise.all(
+			rows.map((row) =>
+				ctx.db.get("linkedActionDefinitions", row.linkedActionId),
+			),
+		);
+
+		const rowsForUi = await Promise.all(
+			rows.map(async (row, index) => {
+				const definition = definitions[index];
+				if (!definition) return null;
+				const canRun = await canUserRunForTask(ctx, {
+					userId,
+					volunteer,
+					task,
+					actionType: definition.type,
+					runPermission: definition.runPermission,
+				});
+				return {
+					id: row._id,
+					taskId: row.taskId,
+					status: row.status,
+					lastRunAt: row.lastRunAt ?? null,
+					lastRunMessage: row.lastRunMessage ?? null,
+					lastOutputJson: row.lastOutputJson ?? null,
+					canRun,
+					definition: toDefinitionView(definition),
+				};
+			}),
+		);
+
+		return rowsForUi
+			.filter((row): row is Infer<typeof linkedTaskActionShape> => row !== null)
+			.sort((a, b) => a.definition.name.localeCompare(b.definition.name));
+	},
+});
+
 export const attachToTask = mutation({
 	args: {
 		taskId: v.id("tasks"),
