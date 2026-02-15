@@ -254,7 +254,7 @@ async function loadActionDispatch(
 	ctx: ActionCtx,
 	dispatchId: Id<"emailDispatches">,
 	claimKey: string,
-): Promise<Doc<"emailDispatches"> | null> {
+) {
 	return ctx.runQuery(internal.emailQueue._getDispatchForClaim, {
 		dispatchId,
 		claimKey,

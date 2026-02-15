@@ -2,8 +2,8 @@ import { ConvexError, v } from "convex/values";
 import {
 	mutation,
 	query,
+	internalQuery,
 	internalMutation,
-	internalAction,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -78,10 +78,9 @@ import {
 	type CompetitionNotificationBuildArgs,
 } from "./notifications/lib/notificationBuilders";
 import {
-	buildNotificationGroupEmailContent,
-	buildNotificationGroupIdempotencyKey,
-	mapDispatchItemsToEmailGroupItems,
-} from "./notifications/lib/emailDispatchComposer";
+	type NotificationEmailStageGroupArgs,
+	resolveStageDigestWindowKey,
+} from "./notifications/lib/emailStageGrouping";
 import { computeDispatchSchedule } from "./notifications/lib/notificationScheduling";
 import {
 	computeDueDateDaysDiff,
@@ -93,12 +92,10 @@ import { buildNotificationEmitInput } from "./notifications/emit";
 import { expandRecipientIds } from "./notifications/recipients/expand";
 import { decideRecipientHandling } from "./notifications/recipients/filter";
 import { computeInAppScheduleForRecipient } from "./notifications/recipients/schedule";
-import { enqueueDispatch } from "./emailQueue/enqueue";
 import {
 	queryEmailDispatchHealth,
 	queryRecentEmailDeadLetters,
 } from "./emailQueue";
-import { sendTestEmailPreview } from "./notifications/lib/emailPreview";
 
 export { notificationReturns } from "./notifications/lib/notificationTypes";
 
@@ -144,40 +141,6 @@ function buildStageKey(
 ): string {
 	return `${eventId}:${userId}`;
 }
-
-function isQuietHoursDigestWindowKey(
-	digestWindowKey: string | undefined,
-): boolean {
-	return digestWindowKey?.startsWith("quiet:") ?? false;
-}
-
-function resolveStageDigestWindowKey(args: {
-	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
-	stageKey: string;
-	scheduledDigestWindowKey: string | undefined;
-}): string | undefined {
-	if (args.digestMode !== "immediate") {
-		return args.scheduledDigestWindowKey;
-	}
-	if (isQuietHoursDigestWindowKey(args.scheduledDigestWindowKey)) {
-		return args.scheduledDigestWindowKey;
-	}
-	return args.stageKey;
-}
-
-function buildNotificationGroupSourceRef(args: {
-	userId: Id<"users">;
-	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
-	digestWindowKey?: string;
-}): string {
-	return `notification_group:${args.userId}:${args.digestMode}:${args.digestWindowKey ?? "immediate"}`;
-}
-
-type NotificationEmailStageGroupArgs = {
-	userId: Id<"users">;
-	digestMode: "immediate" | "hourly" | "daily" | "three_daily";
-	digestWindowKey?: string;
-};
 
 type ScheduledFunctionStateDoc = {
 	scheduledTime?: number;
@@ -284,12 +247,12 @@ async function ensureNotificationEmailStageGroupScheduled(
 		(targetScheduledFor <= now
 			? await ctx.scheduler.runAfter(
 					0,
-					internal.notifications._composeNotificationEmailStageGroup,
+					internal.notificationsNode._composeNotificationEmailStageGroup,
 					composeArgs,
 				)
 			: await ctx.scheduler.runAt(
 					targetScheduledFor,
-					internal.notifications._composeNotificationEmailStageGroup,
+					internal.notificationsNode._composeNotificationEmailStageGroup,
 					composeArgs,
 				));
 
@@ -1146,12 +1109,16 @@ export const sendTestDigestSeries = mutation({
 
 		const actorName = user?.name ?? "Test User";
 		for (const type of ["immediate", "hourly", "three_daily"] as const) {
-			await ctx.scheduler.runAfter(0, internal.notifications._sendTestEmail, {
-				type,
-				toEmail,
-				recipientName: user?.name,
-				actorName,
-			});
+			await ctx.scheduler.runAfter(
+				0,
+				internal.notificationsNode._sendTestEmail,
+				{
+					type,
+					toEmail,
+					recipientName: user?.name,
+					actorName,
+				},
+			);
 		}
 
 		return {
@@ -1486,15 +1453,29 @@ async function emitDueDateUrgencyNotification(
 	});
 }
 
-export const _composeNotificationEmailStageGroup = internalMutation({
+const notificationEmailComposeItemReturns = v.object({
+	type: notificationType,
+	title: v.string(),
+	message: v.string(),
+	body: v.optional(v.string()),
+	entityType: v.string(),
+	entityId: v.string(),
+	parentEntityId: v.optional(v.string()),
+	priority: v.string(),
+	actorName: v.optional(v.string()),
+});
+
+export const _getNotificationEmailStageGroupComposeData = internalQuery({
 	args: {
 		userId: v.id("users"),
 		digestMode: notificationDigestMode,
 		digestWindowKey: v.optional(v.string()),
 	},
 	returns: v.object({
-		staged: v.number(),
-		queued: v.boolean(),
+		dueStageIds: v.array(v.id("notificationEmailStageItems")),
+		recipientEmail: v.optional(v.string()),
+		recipientName: v.optional(v.string()),
+		items: v.array(notificationEmailComposeItemReturns),
 	}),
 	handler: async (ctx, args) => {
 		const stageRows = await ctx.db
@@ -1510,27 +1491,15 @@ export const _composeNotificationEmailStageGroup = internalMutation({
 		const now = Date.now();
 		const dueRows = stageRows.filter((row) => row.scheduledFor <= now);
 		if (dueRows.length === 0) {
-			return { staged: 0, queued: false };
+			return {
+				dueStageIds: [],
+				recipientEmail: undefined,
+				recipientName: undefined,
+				items: [],
+			};
 		}
-		const pendingCount = stageRows.length;
 
 		const user = await ctx.db.get("users", args.userId);
-		if (!user?.email) {
-			await clearScheduledFunctionForRows(
-				ctx,
-				dueRows,
-				{ status: "skipped" },
-				now,
-			);
-			await scheduleNextPendingNotificationEmailStageGroup(
-				ctx,
-				args,
-				pendingCount,
-				dueRows.length,
-			);
-			return { staged: dueRows.length, queued: false };
-		}
-
 		const items: Array<{
 			type: NotificationType;
 			title: string;
@@ -1542,7 +1511,6 @@ export const _composeNotificationEmailStageGroup = internalMutation({
 			priority: string;
 			actorName?: string;
 		}> = [];
-
 		for (const row of dueRows) {
 			if (row.notificationId) {
 				const notification = await ctx.db.get(
@@ -1570,82 +1538,77 @@ export const _composeNotificationEmailStageGroup = internalMutation({
 				items.push(snapshot);
 			}
 		}
+		return {
+			dueStageIds: dueRows.map((row) => row._id),
+			recipientEmail: user?.email,
+			recipientName: user?.name,
+			items,
+		};
+	},
+});
 
-		if (items.length === 0) {
-			await clearScheduledFunctionForRows(
-				ctx,
-				dueRows,
-				{ status: "skipped" },
-				now,
-			);
-			await scheduleNextPendingNotificationEmailStageGroup(
-				ctx,
-				args,
-				pendingCount,
-				dueRows.length,
-			);
-			return { staged: dueRows.length, queued: false };
+export const _finalizeNotificationEmailStageGroupCompose = internalMutation({
+	args: {
+		userId: v.id("users"),
+		digestMode: notificationDigestMode,
+		digestWindowKey: v.optional(v.string()),
+		dueStageIds: v.array(v.id("notificationEmailStageItems")),
+		status: v.union(v.literal("composed"), v.literal("skipped")),
+		emailDispatchId: v.optional(v.id("emailDispatches")),
+	},
+	returns: v.object({
+		staged: v.number(),
+	}),
+	handler: async (ctx, args) => {
+		if (args.status === "composed" && !args.emailDispatchId) {
+			throw new ConvexError({
+				code: "BAD_REQUEST",
+				message: "emailDispatchId is required when finalizing composed rows.",
+			});
+		}
+		if (args.dueStageIds.length === 0) {
+			return { staged: 0 };
 		}
 
-		const appUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
-		const composed = await buildNotificationGroupEmailContent({
-			digestMode: args.digestMode,
-			isQuietHoursBatch:
-				args.digestMode === "immediate" &&
-				isQuietHoursDigestWindowKey(args.digestWindowKey),
-			items: mapDispatchItemsToEmailGroupItems({
-				appUrl,
-				items,
-			}),
-			appUrl,
-		});
-		const dedupeKey = buildNotificationGroupIdempotencyKey({
-			digestMode: args.digestMode,
-			digestWindowKey: args.digestWindowKey,
-			recipientEmail: user.email,
-		});
-		const queued = await enqueueDispatch(ctx, {
-			dedupeKey,
-			sourceKind: "notification",
-			sourceRef: buildNotificationGroupSourceRef({
-				userId: args.userId,
-				digestMode: args.digestMode,
-				digestWindowKey: args.digestWindowKey,
-			}),
-			templateKey: composed.emailType,
-			recipientEmail: user.email,
-			recipientName: user.name,
-			subject: composed.subject,
-			htmlBody: composed.htmlBody,
-			plainTextBody: composed.plainTextBody,
-			payloadJson: JSON.stringify({
-				userId: args.userId,
-				digestMode: args.digestMode,
-				digestWindowKey: args.digestWindowKey,
-				stageIds: dueRows.map((row) => row._id),
-			}),
-		});
+		const stageRows = await ctx.db
+			.query("notificationEmailStageItems")
+			.withIndex("by_user_mode_window_status", (q) =>
+				q
+					.eq("userId", args.userId)
+					.eq("digestMode", args.digestMode)
+					.eq("digestWindowKey", args.digestWindowKey)
+					.eq("status", "pending"),
+			)
+			.collect();
+		const now = Date.now();
+		const dueStageIdSet = new Set(args.dueStageIds);
+		const dueRows = stageRows.filter(
+			(row) => dueStageIdSet.has(row._id) && row.scheduledFor <= now,
+		);
+		if (dueRows.length === 0) {
+			return { staged: 0 };
+		}
 
 		await clearScheduledFunctionForRows(
 			ctx,
 			dueRows,
 			{
-				status: "composed",
-				emailDispatchId: queued.dispatchId,
+				status: args.status,
+				emailDispatchId: args.emailDispatchId,
 			},
 			now,
 		);
 		await scheduleNextPendingNotificationEmailStageGroup(
 			ctx,
-			args,
-			pendingCount,
+			{
+				userId: args.userId,
+				digestMode: args.digestMode,
+				digestWindowKey: args.digestWindowKey,
+			},
+			stageRows.length,
 			dueRows.length,
 		);
-
-		return {
-			staged: dueRows.length,
-			queued: queued.created,
-		};
+		return { staged: dueRows.length };
 	},
 });
 
@@ -1696,24 +1659,6 @@ export const _recoverPendingNotificationEmailStages = internalMutation({
 			rows: pendingRows.length,
 			groups: groups.size,
 		};
-	},
-});
-
-export const _sendTestEmail = internalAction({
-	args: {
-		type: v.union(
-			v.literal("immediate"),
-			v.literal("hourly"),
-			v.literal("three_daily"),
-		),
-		toEmail: v.string(),
-		recipientName: v.optional(v.string()),
-		actorName: v.string(),
-	},
-	returns: v.null(),
-	handler: async (_ctx, args) => {
-		await sendTestEmailPreview(args);
-		return null;
 	},
 });
 

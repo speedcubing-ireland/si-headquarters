@@ -73,6 +73,7 @@ import type * as notifications_lib_cleanup from "../notifications/lib/cleanup.js
 import type * as notifications_lib_dispatchClaims from "../notifications/lib/dispatchClaims.js";
 import type * as notifications_lib_emailDispatchComposer from "../notifications/lib/emailDispatchComposer.js";
 import type * as notifications_lib_emailPreview from "../notifications/lib/emailPreview.js";
+import type * as notifications_lib_emailStageGrouping from "../notifications/lib/emailStageGrouping.js";
 import type * as notifications_lib_emailTemplates from "../notifications/lib/emailTemplates.js";
 import type * as notifications_lib_notificationAccess from "../notifications/lib/notificationAccess.js";
 import type * as notifications_lib_notificationBuilders from "../notifications/lib/notificationBuilders.js";
@@ -92,6 +93,7 @@ import type * as notifications_triggers_comments from "../notifications/triggers
 import type * as notifications_triggers_competitions from "../notifications/triggers/competitions.js";
 import type * as notifications_triggers_tasks from "../notifications/triggers/tasks.js";
 import type * as notifications_types from "../notifications/types.js";
+import type * as notificationsNode from "../notificationsNode.js";
 import type * as phases from "../phases.js";
 import type * as reminders from "../reminders.js";
 import type * as seed from "../seed.js";
@@ -115,6 +117,7 @@ import type * as sponsorship_portal_index from "../sponsorship/portal/index.js";
 import type * as sponsorship_portal_shared from "../sponsorship/portal/shared.js";
 import type * as sponsorship_sponsors from "../sponsorship/sponsors.js";
 import type * as sponsorshipAuctions from "../sponsorshipAuctions.js";
+import type * as sponsorshipNode from "../sponsorshipNode.js";
 import type * as taskAccess from "../taskAccess.js";
 import type * as taskApprovals from "../taskApprovals.js";
 import type * as taskFormat from "../taskFormat.js";
@@ -206,6 +209,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/lib/dispatchClaims": typeof notifications_lib_dispatchClaims;
   "notifications/lib/emailDispatchComposer": typeof notifications_lib_emailDispatchComposer;
   "notifications/lib/emailPreview": typeof notifications_lib_emailPreview;
+  "notifications/lib/emailStageGrouping": typeof notifications_lib_emailStageGrouping;
   "notifications/lib/emailTemplates": typeof notifications_lib_emailTemplates;
   "notifications/lib/notificationAccess": typeof notifications_lib_notificationAccess;
   "notifications/lib/notificationBuilders": typeof notifications_lib_notificationBuilders;
@@ -225,6 +229,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/triggers/competitions": typeof notifications_triggers_competitions;
   "notifications/triggers/tasks": typeof notifications_triggers_tasks;
   "notifications/types": typeof notifications_types;
+  notificationsNode: typeof notificationsNode;
   phases: typeof phases;
   reminders: typeof reminders;
   seed: typeof seed;
@@ -248,6 +253,7 @@ declare const fullApi: ApiFromModules<{
   "sponsorship/portal/shared": typeof sponsorship_portal_shared;
   "sponsorship/sponsors": typeof sponsorship_sponsors;
   sponsorshipAuctions: typeof sponsorshipAuctions;
+  sponsorshipNode: typeof sponsorshipNode;
   taskAccess: typeof taskAccess;
   taskApprovals: typeof taskApprovals;
   taskFormat: typeof taskFormat;

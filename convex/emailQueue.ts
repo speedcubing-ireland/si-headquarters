@@ -98,7 +98,33 @@ export const _getDispatchForClaim = internalQuery({
 		) {
 			return null;
 		}
-		return dispatch;
+		return {
+			_id: dispatch._id,
+			dedupeKey: dispatch.dedupeKey,
+			sourceKind: dispatch.sourceKind,
+			sourceRef: dispatch.sourceRef,
+			templateKey: dispatch.templateKey,
+			recipientEmail: dispatch.recipientEmail,
+			recipientName: dispatch.recipientName,
+			subject: dispatch.subject,
+			htmlBody: dispatch.htmlBody,
+			plainTextBody: dispatch.plainTextBody,
+			payloadJson: dispatch.payloadJson,
+			scheduledFor: dispatch.scheduledFor,
+			status: dispatch.status,
+			claimKey: dispatch.claimKey,
+			providerOperationId: dispatch.providerOperationId,
+			providerStatus: dispatch.providerStatus,
+			providerPollerState: dispatch.providerPollerState,
+			sendAttemptCount: dispatch.sendAttemptCount,
+			pollAttemptCount: dispatch.pollAttemptCount,
+			lastProviderCheckAt: dispatch.lastProviderCheckAt,
+			sentAt: dispatch.sentAt,
+			error: dispatch.error,
+			deadLetteredAt: dispatch.deadLetteredAt,
+			createdAt: dispatch.createdAt,
+			updatedAt: dispatch.updatedAt,
+		};
 	},
 });
 

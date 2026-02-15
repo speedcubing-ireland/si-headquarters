@@ -306,8 +306,8 @@ describe("notifications behavior", () => {
 			return { userId, stageId };
 		});
 
-		const composed = await t.mutation(
-			internal.notifications._composeNotificationEmailStageGroup,
+		const composed = await t.action(
+			internal.notificationsNode._composeNotificationEmailStageGroup,
 			{
 				userId: seeded.userId,
 				digestMode: "immediate",
@@ -493,8 +493,8 @@ describe("notifications behavior", () => {
 			};
 		});
 
-		const composed = await t.mutation(
-			internal.notifications._composeNotificationEmailStageGroup,
+		const composed = await t.action(
+			internal.notificationsNode._composeNotificationEmailStageGroup,
 			{
 				userId: seeded.userId,
 				digestMode: "immediate",
