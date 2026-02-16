@@ -100,7 +100,7 @@ describe("wca2fa security", () => {
 		process.env[WCA_2FA_SECRET_ENV] = originalSecret;
 	});
 
-	test("returns 6-digit code and 60s period; payload never includes secret", async () => {
+	test("returns 6-digit code and 30s period; payload never includes secret", async () => {
 		process.env[WCA_2FA_SECRET_ENV] = VALID_32CHAR_SECRET;
 		const { testHarness, userId } = await seedAuthorizedUserWithTeam(
 			TEAM_NAMES.COMPETITIONS,
@@ -111,7 +111,7 @@ describe("wca2fa security", () => {
 		const serializedResult = JSON.stringify(result);
 
 		expect(result.code).toMatch(/^\d{6}$/);
-		expect(result.periodSeconds).toBe(60);
+		expect(result.periodSeconds).toBe(30);
 		expect(result.digits).toBe(6);
 		expect(serializedResult).not.toContain(VALID_32CHAR_SECRET);
 		expect(Object.keys(result).sort()).toEqual(

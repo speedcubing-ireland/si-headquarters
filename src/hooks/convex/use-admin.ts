@@ -2,14 +2,45 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 
+const DEFAULT_PERMISSION_SNAPSHOT = {
+	isDirector: false,
+	isVolunteer: false,
+	canAccessWca2fa: false,
+	isSponsorshipManager: false,
+	canAccessSocialMediaDashboard: false,
+} as const;
+
+export const usePermissionSnapshot = () => {
+	const snapshot = useQuery(api.admin.getPermissionSnapshot, {});
+	return {
+		permissions: snapshot ?? DEFAULT_PERMISSION_SNAPSHOT,
+		isLoading: snapshot === undefined,
+	};
+};
+
 export const useIsDirector = () => {
-	const result = useQuery(api.admin.isDirector, {});
-	return { isDirector: result === true, isLoading: result === undefined };
+	const { permissions, isLoading } = usePermissionSnapshot();
+	return { isDirector: permissions.isDirector, isLoading };
+};
+
+export const useIsVolunteer = () => {
+	const { permissions, isLoading } = usePermissionSnapshot();
+	return { isVolunteer: permissions.isVolunteer, isLoading };
 };
 
 export const useCanAccessWca2fa = () => {
-	const result = useQuery(api.admin.canAccessWca2fa, {});
-	return { canAccess: result === true, isLoading: result === undefined };
+	const { permissions, isLoading } = usePermissionSnapshot();
+	return { canAccess: permissions.canAccessWca2fa, isLoading };
+};
+
+export const useCanAccessSocialMediaDashboard = () => {
+	const { permissions, isLoading } = usePermissionSnapshot();
+	return { canAccess: permissions.canAccessSocialMediaDashboard, isLoading };
+};
+
+export const useIsSponsorshipManager = () => {
+	const { permissions, isLoading } = usePermissionSnapshot();
+	return { isManager: permissions.isSponsorshipManager, isLoading };
 };
 
 export const useAdminMembersAndTeams = () => {

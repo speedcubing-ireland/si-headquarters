@@ -3,6 +3,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useUsers, useTeams, usePhases } from "@/hooks/use-convex-data";
 import { getCompetitionTemplates, getTeamBySeededName } from "@/data/templates";
 import { getRoleSelectUsers } from "@/lib/team-utils";
+import { TEAM_NAMES } from "../../convex/lib/constants";
 import type {
 	CompetitionPhase,
 	CompetitionTemplate,
@@ -21,11 +22,11 @@ export function useCompetitionForm({ open }: UseCompetitionFormProps) {
 
 	const competitionTemplatesList = useMemo(() => getCompetitionTemplates(), []);
 	const competitionsTeam = useMemo(
-		() => getTeamBySeededName(teams, "Competitions Team"),
+		() => getTeamBySeededName(teams, TEAM_NAMES.COMPETITIONS),
 		[teams],
 	);
 	const delegatesTeam = useMemo(
-		() => getTeamBySeededName(teams, "Delegates"),
+		() => getTeamBySeededName(teams, TEAM_NAMES.DELEGATES),
 		[teams],
 	);
 

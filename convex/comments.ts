@@ -4,7 +4,7 @@ import type { Id, Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireUserId, isVolunteer } from "./auth";
 import { isDirectorForCtx } from "./admin";
-import { hasCompetitionAccess } from "./competitionAccess";
+import { canAccessCompetitionResource } from "./lib/permissions/resources";
 import { toUsers, createLens, type UserUI } from "./lib/transforms";
 import { validateRequiredText } from "./lib/sanitize";
 import { getCommentParentId } from "./lib/commentParentId";
@@ -149,12 +149,11 @@ async function ensureCommentParentAccess(
 
 	const hasAccess =
 		parentLookup.competitionId !== undefined &&
-		(await hasCompetitionAccess(
-			ctx,
-			args.volunteer,
-			args.userId,
-			parentLookup.competitionId,
-		));
+		(await canAccessCompetitionResource(ctx, {
+			userId: args.userId,
+			competitionId: parentLookup.competitionId,
+			isVolunteer: args.volunteer,
+		}));
 	if (!hasAccess) {
 		throw new ConvexError({
 			code: "FORBIDDEN",
@@ -183,12 +182,11 @@ async function canReadCommentParent(
 	if (!parentLookup.competitionId) {
 		return false;
 	}
-	return hasCompetitionAccess(
-		ctx,
-		args.volunteer,
-		args.userId,
-		parentLookup.competitionId,
-	);
+	return canAccessCompetitionResource(ctx, {
+		userId: args.userId,
+		competitionId: parentLookup.competitionId,
+		isVolunteer: args.volunteer,
+	});
 }
 
 function collectCommentUserIds(docs: CommentDoc[]): Set<Id<"users">> {
@@ -454,6 +452,14 @@ export const update = mutation({
 		const userId = await requireUserId(ctx);
 		const doc = await ctx.db.get("comments", args.commentId);
 		if (!doc || doc.authorId !== userId) return null;
+		const volunteer = await isVolunteer(ctx);
+		const canReadParent = await canReadCommentParent(ctx, {
+			parentType: doc.parentType,
+			parentId: doc.parentId,
+			userId,
+			volunteer,
+		});
+		if (!canReadParent) return null;
 
 		const sanitizedContent = validateRequiredText(args.content, "Comment");
 

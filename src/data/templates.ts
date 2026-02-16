@@ -4,6 +4,7 @@ import type {
 	Team,
 	SeededTeamName,
 } from "./types-new";
+import { TEAM_NAMES } from "../../convex/lib/constants";
 
 export function getTeamBySeededName(
 	teams: Team[],
@@ -20,7 +21,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Venue"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Concept",
 		},
 		{
@@ -29,7 +30,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Budget"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Concept",
 		},
 		{
@@ -40,9 +41,9 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Venue", "Budget"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Pre-Announcement",
-			requiredApprovalByTeamNames: ["Finance Team"],
+			requiredApprovalByTeamNames: [TEAM_NAMES.FINANCE],
 		},
 		{
 			title: "Schedule made",
@@ -53,8 +54,8 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Schedule"],
-			ownerTeamName: "Competitions Team",
-			requiredApprovalByTeamNames: ["Delegates"],
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
+			requiredApprovalByTeamNames: [TEAM_NAMES.DELEGATES],
 			phase: "Pre-Announcement",
 			linkedActionShortIds: ["sheet.transfer-schedule-to-wca"],
 		},
@@ -64,7 +65,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "medium",
 			labels: ["Sponsors"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Pre-Announcement",
 			subTasks: [
 				{
@@ -73,7 +74,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 					status: "backlog",
 					priority: "high",
 					labels: ["Sponsors"],
-					ownerTeamName: "Finance Team",
+					ownerTeamName: TEAM_NAMES.FINANCE,
 					phase: "Pre-Announcement",
 				},
 			],
@@ -86,7 +87,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "medium",
 			labels: ["Promotion"],
-			ownerTeamName: "Social Media Team",
+			ownerTeamName: TEAM_NAMES.SOCIAL_MEDIA,
 			phase: "Post-Announcement",
 			subTasks: [
 				{
@@ -96,7 +97,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 					status: "backlog",
 					priority: "medium",
 					labels: ["Promotion"],
-					ownerTeamName: "Social Media Team",
+					ownerTeamName: TEAM_NAMES.SOCIAL_MEDIA,
 					phase: "Post-Announcement",
 				},
 			],
@@ -108,7 +109,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "low",
 			labels: ["Registration"],
-			ownerTeamName: "Delegates",
+			ownerTeamName: TEAM_NAMES.DELEGATES,
 			phase: "Post-Announcement",
 		},
 		{
@@ -117,7 +118,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "medium",
 			labels: ["Printing"],
-			ownerTeamName: "Finance Team",
+			ownerTeamName: TEAM_NAMES.FINANCE,
 			phase: "Post-Announcement",
 			subTasks: [
 				{
@@ -127,8 +128,8 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 					status: "backlog",
 					priority: "medium",
 					labels: ["Design", "Certificate"],
-					ownerTeamName: "Competitions Team",
-					requiredApprovalByTeamNames: ["Graphics Team"],
+					ownerTeamName: TEAM_NAMES.COMPETITIONS,
+					requiredApprovalByTeamNames: [TEAM_NAMES.GRAPHICS],
 					phase: "Post-Announcement",
 					linkedActionShortIds: ["canva.certificates"],
 				},
@@ -140,8 +141,8 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "low",
 			labels: ["Design"],
-			ownerTeamName: "Graphics Team",
-			requiredApprovalByTeamNames: ["Graphics Team"],
+			ownerTeamName: TEAM_NAMES.GRAPHICS,
+			requiredApprovalByTeamNames: [TEAM_NAMES.GRAPHICS],
 			phase: "Post-Announcement",
 			linkedActionShortIds: ["canva.lanyards"],
 		},
@@ -154,7 +155,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Registration", "Printing"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Pre-Competition",
 			subTasks: [
 				{
@@ -164,8 +165,8 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 					status: "backlog",
 					priority: "high",
 					labels: ["Schedule"],
-					ownerTeamName: "Competitions Team",
-					requiredApprovalByTeamNames: ["Delegates"],
+					ownerTeamName: TEAM_NAMES.COMPETITIONS,
+					requiredApprovalByTeamNames: [TEAM_NAMES.DELEGATES],
 					phase: "Pre-Competition",
 				},
 				{
@@ -174,7 +175,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 					status: "backlog",
 					priority: "high",
 					labels: ["Registration"],
-					ownerTeamName: "Delegates",
+					ownerTeamName: TEAM_NAMES.DELEGATES,
 					phase: "Pre-Competition",
 				},
 			],
@@ -186,7 +187,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Registration", "Budget"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Pre-Competition",
 		},
 		{
@@ -196,7 +197,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "medium",
 			labels: ["Registration"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Pre-Competition",
 		},
 		{
@@ -205,7 +206,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "medium",
 			labels: ["Registration"],
-			ownerTeamName: "Competitions Team",
+			ownerTeamName: TEAM_NAMES.COMPETITIONS,
 			phase: "Pre-Competition",
 			linkedActionShortIds: ["sheet.populate-checkin"],
 		},
@@ -215,7 +216,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Budget"],
-			ownerTeamName: "Finance Team",
+			ownerTeamName: TEAM_NAMES.FINANCE,
 			phase: "Post-Competition",
 		},
 		{
@@ -224,7 +225,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "high",
 			labels: ["Promotion"],
-			ownerTeamName: "Social Media Team",
+			ownerTeamName: TEAM_NAMES.SOCIAL_MEDIA,
 			phase: "Post-Competition",
 		},
 		{
@@ -234,7 +235,7 @@ function createStandardCompetitionTemplate(): CompetitionTemplate {
 			status: "backlog",
 			priority: "low",
 			labels: ["Budget"],
-			ownerTeamName: "Finance Team",
+			ownerTeamName: TEAM_NAMES.FINANCE,
 			phase: "Post-Competition",
 		},
 	];

@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useAction, useQuery } from "convex/react";
+import { useAction } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { useCompetitions } from "@/hooks/use-convex-data";
+import { useCompetitions, useIsVolunteer } from "@/hooks/use-convex-data";
 import {
 	Table,
 	TableBody,
@@ -16,6 +16,7 @@ import { RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 
 export const Route = createFileRoute("/events")({
 	component: EventsPage,
@@ -81,7 +82,7 @@ async function fetchSchedulesForComps(
 }
 
 function EventsPage() {
-	const isVolunteer = useQuery(api.auth.isVolunteerQuery);
+	const { isVolunteer, isLoading: isVolunteerLoading } = useIsVolunteer();
 	const { competitions, isLoading: competitionsLoading } = useCompetitions();
 	const fetchScheduleEvents = useAction(api.sheets.fetchScheduleEvents);
 	const [sheetResults, setSheetResults] = useState<Map<string, SheetResult>>(
@@ -200,118 +201,122 @@ function EventsPage() {
 		return latest > 0 ? latest : null;
 	}, [sheetResults]);
 
-	if (isVolunteer === false) {
-		return (
-			<div className="flex h-full flex-col items-center justify-center gap-4 px-4">
-				<p className="text-sm text-muted-foreground">
-					Access to Events is restricted to volunteers.
-				</p>
-				<Link
-					to="/competitions"
-					className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-				>
-					Back to Competitions
-				</Link>
-			</div>
-		);
-	}
-
 	return (
-		<div className="flex h-full flex-col">
-			<header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
-				<div className="flex min-w-0 flex-1 items-center gap-3">
-					<SidebarTrigger className="shrink-0" />
-					<Separator
-						orientation="vertical"
-						className="hidden data-[orientation=vertical]:h-3 sm:block"
-					/>
-					<h1 className="text-sm font-semibold">Events</h1>
-					{lastUpdated != null && (
-						<span className="hidden text-xs text-muted-foreground sm:inline">
-							Last updated{" "}
-							{formatDistanceToNow(lastUpdated, { addSuffix: true })}
-						</span>
-					)}
+		<PermissionGuard
+			isLoading={isVolunteerLoading}
+			canAccess={isVolunteer}
+			fallback={
+				<div className="flex h-full flex-col items-center justify-center gap-4 px-4">
+					<p className="text-sm text-muted-foreground">
+						Access to Events is restricted to volunteers.
+					</p>
+					<Link
+						to="/competitions"
+						className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+					>
+						Back to Competitions
+					</Link>
 				</div>
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					disabled={refreshing || compsWithSheet.length === 0}
-					onClick={handleRefresh}
-					className="gap-2"
-				>
-					<RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
-					Refresh
-				</Button>
-			</header>
-			<div className="flex-1 overflow-y-auto">
-				<div className="w-full px-4 py-4 lg:px-6 lg:py-6">
-					{loading && (
-						<p className="text-sm text-muted-foreground">Loading events…</p>
-					)}
-					{!loading && compsWithSheet.length === 0 && (
-						<p className="text-sm text-muted-foreground">
-							No competitions with a linked Google Sheet.
-						</p>
-					)}
-					{!loading && competitionRows.length > 0 && (
-						<div className="w-full overflow-x-auto rounded-md border">
-							<Table className="text-xs">
-								<TableHeader>
-									<TableRow>
-										<TableHead className="sticky left-0 z-10 min-w-36 bg-background px-2 py-1.5 font-semibold">
-											Competition
-										</TableHead>
-										{eventColumns.map((eventName) => (
-											<TableHead
-												key={eventName}
-												className="px-1.5 py-1.5 text-center font-medium whitespace-nowrap"
-											>
-												{eventDisplayName(eventName)}
+			}
+		>
+			<div className="flex h-full flex-col">
+				<header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4 lg:h-12 lg:flex-nowrap lg:px-6 lg:py-0">
+					<div className="flex min-w-0 flex-1 items-center gap-3">
+						<SidebarTrigger className="shrink-0" />
+						<Separator
+							orientation="vertical"
+							className="hidden data-[orientation=vertical]:h-3 sm:block"
+						/>
+						<h1 className="text-sm font-semibold">Events</h1>
+						{lastUpdated != null && (
+							<span className="hidden text-xs text-muted-foreground sm:inline">
+								Last updated{" "}
+								{formatDistanceToNow(lastUpdated, { addSuffix: true })}
+							</span>
+						)}
+					</div>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						disabled={refreshing || compsWithSheet.length === 0}
+						onClick={handleRefresh}
+						className="gap-2"
+					>
+						<RefreshCw
+							className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+						/>
+						Refresh
+					</Button>
+				</header>
+				<div className="flex-1 overflow-y-auto">
+					<div className="w-full px-4 py-4 lg:px-6 lg:py-6">
+						{loading && (
+							<p className="text-sm text-muted-foreground">Loading events…</p>
+						)}
+						{!loading && compsWithSheet.length === 0 && (
+							<p className="text-sm text-muted-foreground">
+								No competitions with a linked Google Sheet.
+							</p>
+						)}
+						{!loading && competitionRows.length > 0 && (
+							<div className="w-full overflow-x-auto rounded-md border">
+								<Table className="text-xs">
+									<TableHeader>
+										<TableRow>
+											<TableHead className="sticky left-0 z-10 min-w-36 bg-background px-2 py-1.5 font-semibold">
+												Competition
 											</TableHead>
-										))}
-										<TableHead className="sticky right-0 z-10 bg-background px-2 py-1.5 text-center font-semibold">
-											Total
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{competitionRows.map((row) => (
-										<TableRow key={row.competitionId}>
-											<TableCell className="sticky left-0 z-10 bg-background px-2 py-1.5 font-medium">
-												{row.error
-													? `${row.competitionName} (${row.error})`
-													: row.competitionName}
-											</TableCell>
-											{eventColumns.map((eventName) => {
-												const value = row.error
-													? "—"
-													: (row.eventRounds.get(eventName) ?? "—");
-												return (
-													<TableCell
-														key={eventName}
-														className={`px-1.5 py-1.5 text-center ${
-															value === "—"
-																? "text-muted-foreground/40"
-																: "text-foreground"
-														}`}
-													>
-														{value}
-													</TableCell>
-												);
-											})}
-											<TableCell className="sticky right-0 z-10 bg-background px-2 py-1.5 text-center font-semibold tabular-nums">
-												{row.error ? "—" : row.totalRounds}
-											</TableCell>
+											{eventColumns.map((eventName) => (
+												<TableHead
+													key={eventName}
+													className="px-1.5 py-1.5 text-center font-medium whitespace-nowrap"
+												>
+													{eventDisplayName(eventName)}
+												</TableHead>
+											))}
+											<TableHead className="sticky right-0 z-10 bg-background px-2 py-1.5 text-center font-semibold">
+												Total
+											</TableHead>
 										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					)}
+									</TableHeader>
+									<TableBody>
+										{competitionRows.map((row) => (
+											<TableRow key={row.competitionId}>
+												<TableCell className="sticky left-0 z-10 bg-background px-2 py-1.5 font-medium">
+													{row.error
+														? `${row.competitionName} (${row.error})`
+														: row.competitionName}
+												</TableCell>
+												{eventColumns.map((eventName) => {
+													const value = row.error
+														? "—"
+														: (row.eventRounds.get(eventName) ?? "—");
+													return (
+														<TableCell
+															key={eventName}
+															className={`px-1.5 py-1.5 text-center ${
+																value === "—"
+																	? "text-muted-foreground/40"
+																	: "text-foreground"
+															}`}
+														>
+															{value}
+														</TableCell>
+													);
+												})}
+												<TableCell className="sticky right-0 z-10 bg-background px-2 py-1.5 text-center font-semibold tabular-nums">
+													{row.error ? "—" : row.totalRounds}
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
-		</div>
+		</PermissionGuard>
 	);
 }

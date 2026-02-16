@@ -1,7 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
 import { Box, Plus } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import { columns } from "@/components/competitions/columns";
 import { DataTable } from "@/components/competitions/data-table";
 import { DisplaySettings } from "@/components/competitions/display-settings";
@@ -13,6 +11,7 @@ import {
 } from "@/components/shared/list-page-layout";
 import { SharedPageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
+import { useIsVolunteer } from "@/hooks/use-convex-data";
 import { useIsDetailRoute } from "@/hooks/use-is-detail-route";
 import { useListPageState } from "@/hooks/use-list-page-state";
 import { useCompetitionsSavedViews } from "@/store/use-competitions-saved-views";
@@ -114,7 +113,7 @@ function FiltersContent() {
 
 function RouteComponentInner() {
 	const savedViews = useCompetitionsSavedViews();
-	const isVolunteer = useQuery(api.auth.isVolunteerQuery);
+	const { isVolunteer } = useIsVolunteer();
 	const urlState = useCompetitionsUrlContext();
 	const listState = useListPageState({
 		savedViews,

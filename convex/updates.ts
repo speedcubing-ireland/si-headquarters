@@ -4,7 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { isVolunteer, requireUserId } from "./auth";
-import { hasCompetitionAccess } from "./competitionAccess";
+import { canAccessCompetitionResource } from "./lib/permissions/resources";
 import { progressUpdateStatus as statusValidator } from "./lib/validators";
 import { sendProgressUpdateNotifications } from "./notifications/triggers/competitions";
 
@@ -12,6 +12,7 @@ async function getUpdateAndAssertAuth(
 	ctx: MutationCtx,
 	updateId: Id<"competitionUpdates">,
 	userId: Id<"users">,
+	volunteer: boolean,
 	action: "edit" | "delete",
 ): Promise<Doc<"competitionUpdates">> {
 	const doc = await ctx.db.get("competitionUpdates", updateId);
@@ -19,12 +20,11 @@ async function getUpdateAndAssertAuth(
 		throw new ConvexError({ code: "NOT_FOUND", message: "Update not found" });
 	}
 	const isAuthor = doc.authorId === userId;
-	const canManage = await hasCompetitionAccess(
-		ctx,
-		false,
+	const canManage = await canAccessCompetitionResource(ctx, {
 		userId,
-		doc.competitionId,
-	);
+		competitionId: doc.competitionId,
+		isVolunteer: volunteer,
+	});
 	if (!isAuthor && !canManage) {
 		const message =
 			action === "edit"
@@ -61,12 +61,12 @@ export const create = mutation({
 	returns: v.id("competitionUpdates"),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		const canManage = await hasCompetitionAccess(
-			ctx,
-			false,
+		const volunteer = await isVolunteer(ctx);
+		const canManage = await canAccessCompetitionResource(ctx, {
 			userId,
-			args.competitionId,
-		);
+			competitionId: args.competitionId,
+			isVolunteer: volunteer,
+		});
 		if (!canManage) {
 			throw new ConvexError({
 				code: "FORBIDDEN",
@@ -106,7 +106,8 @@ export const update = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		await getUpdateAndAssertAuth(ctx, args.updateId, userId, "edit");
+		const volunteer = await isVolunteer(ctx);
+		await getUpdateAndAssertAuth(ctx, args.updateId, userId, volunteer, "edit");
 		const hasChanges = args.status !== undefined || args.message !== undefined;
 		if (!hasChanges) return null;
 		const patch: Partial<Doc<"competitionUpdates">> = {
@@ -124,7 +125,14 @@ export const remove = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		await getUpdateAndAssertAuth(ctx, args.updateId, userId, "delete");
+		const volunteer = await isVolunteer(ctx);
+		await getUpdateAndAssertAuth(
+			ctx,
+			args.updateId,
+			userId,
+			volunteer,
+			"delete",
+		);
 		await ctx.db.delete("competitionUpdates", args.updateId);
 		return null;
 	},
@@ -146,12 +154,11 @@ export const addReaction = mutation({
 			});
 		}
 		const volunteer = await isVolunteer(ctx);
-		const canAccess = await hasCompetitionAccess(
-			ctx,
-			volunteer,
+		const canAccess = await canAccessCompetitionResource(ctx, {
 			userId,
-			doc.competitionId,
-		);
+			competitionId: doc.competitionId,
+			isVolunteer: volunteer,
+		});
 		if (!canAccess) {
 			throw new ConvexError({
 				code: "FORBIDDEN",

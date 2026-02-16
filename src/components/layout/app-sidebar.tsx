@@ -29,9 +29,7 @@ import {
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import {
-	useCanAccessWca2fa,
-	useIsDirector,
-	useIsSponsorshipManager,
+	usePermissionSnapshot,
 	useTeams,
 	useUnreadCount,
 } from "@/hooks/use-convex-data";
@@ -96,10 +94,11 @@ const navSections = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const user = useQuery(api.users.getCurrentUser);
-	const isVolunteer = useQuery(api.auth.isVolunteerQuery) ?? false;
-	const { isDirector } = useIsDirector();
-	const { canAccess: canAccessWca2fa } = useCanAccessWca2fa();
-	const { isManager: isSponsorshipManager } = useIsSponsorshipManager();
+	const { permissions } = usePermissionSnapshot();
+	const isVolunteer = permissions.isVolunteer;
+	const isDirector = permissions.isDirector;
+	const canAccessWca2fa = permissions.canAccessWca2fa;
+	const isSponsorshipManager = permissions.isSponsorshipManager;
 	const { teams } = useTeams();
 	const unreadCount = useUnreadCount();
 

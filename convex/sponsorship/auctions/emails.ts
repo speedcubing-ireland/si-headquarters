@@ -1,5 +1,7 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { TEAM_NAMES } from "../../lib/constants";
+import { listMembersForTeams } from "../../lib/permissions/teams";
 import { enqueueSponsorshipEmailBatch } from "../emailQueue";
 
 type AuctionEmailType =
@@ -169,21 +171,10 @@ export async function sendAuctionClosureEmails(
 		});
 	}
 
-	const managerTeams = await Promise.all([
-		ctx.db
-			.query("teams")
-			.withIndex("by_name", (q) => q.eq("name", "Directors"))
-			.unique(),
-		ctx.db
-			.query("teams")
-			.withIndex("by_name", (q) => q.eq("name", "Finance Team"))
-			.unique(),
+	const managerIds = await listMembersForTeams(ctx, [
+		TEAM_NAMES.DIRECTORS,
+		TEAM_NAMES.FINANCE,
 	]);
-	const managerIds = new Set<Id<"users">>();
-	for (const team of managerTeams) {
-		if (!team) continue;
-		for (const userId of team.memberIds) managerIds.add(userId);
-	}
 	const managerUsers = await Promise.all(
 		[...managerIds].map((userId) => ctx.db.get("users", userId)),
 	);

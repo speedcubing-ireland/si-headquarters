@@ -15,6 +15,7 @@ import {
 	hasTaskWriteAccess,
 	hasStandaloneTaskAccess,
 	listOrganisedCompetitionIds,
+	requireCompetitionTaskAccess,
 	requireTaskAccess,
 } from "./taskAccess";
 import {
@@ -487,31 +488,6 @@ const ERROR_TASK_RELATION_CYCLE =
 
 type TaskPatchForUpdate = ReturnType<typeof buildTaskPatch>;
 
-async function ensureCompetitionWriteAccess(
-	ctx: MutationCtx,
-	volunteer: boolean,
-	userId: Id<"users">,
-	competitionId: Id<"competitions">,
-	errorMessage: string,
-): Promise<void> {
-	if (volunteer) {
-		return;
-	}
-	const hasAccess = await hasTaskCompetitionAccess(
-		ctx,
-		volunteer,
-		userId,
-		competitionId,
-	);
-	if (hasAccess) {
-		return;
-	}
-	throw new ConvexError({
-		code: "FORBIDDEN",
-		message: errorMessage,
-	});
-}
-
 async function ensureTaskMoveAccess(
 	ctx: MutationCtx,
 	volunteer: boolean,
@@ -521,13 +497,12 @@ async function ensureTaskMoveAccess(
 	if (parentCompetitionId === undefined || parentCompetitionId === null) {
 		return;
 	}
-	await ensureCompetitionWriteAccess(
-		ctx,
+	await requireCompetitionTaskAccess(ctx, {
 		volunteer,
 		userId,
-		parentCompetitionId,
-		ERROR_TASK_MOVE,
-	);
+		competitionId: parentCompetitionId,
+		forbiddenMessage: ERROR_TASK_MOVE,
+	});
 }
 
 async function buildPreparedTaskPatch(
@@ -697,13 +672,12 @@ export const create = mutation({
 		const isStandaloneTask = args.parentCompetitionId === undefined;
 
 		if (args.parentCompetitionId) {
-			await ensureCompetitionWriteAccess(
-				ctx,
+			await requireCompetitionTaskAccess(ctx, {
 				volunteer,
 				userId,
-				args.parentCompetitionId,
-				ERROR_TASK_NO_ACCESS,
-			);
+				competitionId: args.parentCompetitionId,
+				forbiddenMessage: ERROR_TASK_NO_ACCESS,
+			});
 		}
 
 		const now = Date.now();
@@ -772,13 +746,12 @@ export const createManyFromTemplate = mutation({
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		const volunteer = await isVolunteer(ctx);
-		await ensureCompetitionWriteAccess(
-			ctx,
+		await requireCompetitionTaskAccess(ctx, {
 			volunteer,
 			userId,
-			args.competitionId,
-			ERROR_TASK_NO_ACCESS,
-		);
+			competitionId: args.competitionId,
+			forbiddenMessage: ERROR_TASK_NO_ACCESS,
+		});
 
 		if (args.tasks.length === 0) {
 			return {

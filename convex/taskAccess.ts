@@ -6,6 +6,7 @@ import {
 	hasCompetitionAccess,
 	listAccessibleCompetitionIds,
 } from "./competitionAccess";
+import { requireCompetitionResourceAccess } from "./lib/permissions/resources";
 
 export const ERROR_TASK_NO_COMPETITION =
 	"You can only modify standalone tasks assigned to you";
@@ -75,4 +76,21 @@ export function hasStandaloneTaskAccess(
 	if (task.parentCompetitionId) return false;
 	if (task.assigneeId === userId) return true;
 	return task.ownerType === "user" && task.ownerId === userId;
+}
+
+export async function requireCompetitionTaskAccess(
+	ctx: TaskAccessCtx,
+	args: {
+		userId: Id<"users">;
+		competitionId: Id<"competitions"> | null | undefined;
+		volunteer: boolean;
+		forbiddenMessage: string;
+	},
+): Promise<void> {
+	await requireCompetitionResourceAccess(ctx, {
+		userId: args.userId,
+		competitionId: args.competitionId,
+		isVolunteer: args.volunteer,
+		forbiddenMessage: args.forbiddenMessage,
+	});
 }

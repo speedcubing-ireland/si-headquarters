@@ -1,44 +1,24 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { internalQuery, mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { TEAM_NAMES } from "./lib/constants";
+import {
+	canAccessWca2faForCtx,
+	canAccessSocialMediaDashboardForCtx,
+	getPermissionSnapshot as getPermissionSnapshotForCtx,
+	isDirectorForCtx,
+	requirePermission,
+	PERMISSION_KEYS,
+} from "./lib/permissions/policies";
+import { requireAuthenticatedUserId } from "./lib/permissions/authn";
 import { normalizeEmail, validateEmail } from "./lib/sanitize";
-
-const DIRECTORS_TEAM_NAME = TEAM_NAMES.DIRECTORS;
-const COMPETITIONS_TEAM_NAME = TEAM_NAMES.COMPETITIONS;
 
 type AuthCtx = QueryCtx | MutationCtx;
 
-async function isUserOnNamedTeam(
-	ctx: AuthCtx,
-	userId: Id<"users">,
-	teamName: string,
-): Promise<boolean> {
-	const team = await ctx.db
-		.query("teams")
-		.withIndex("by_name", (q) => q.eq("name", teamName))
-		.unique();
-
-	return team?.memberIds.includes(userId) ?? false;
-}
-
-export async function isDirectorForCtx(ctx: AuthCtx): Promise<boolean> {
-	const userId = await getAuthUserId(ctx);
-	if (userId === null) return false;
-
-	return await isUserOnNamedTeam(ctx, userId, DIRECTORS_TEAM_NAME);
-}
+export { isDirectorForCtx } from "./lib/permissions/policies";
 
 export async function requireDirector(ctx: AuthCtx): Promise<void> {
-	const isDirector = await isDirectorForCtx(ctx);
-	if (!isDirector) {
-		throw new ConvexError({
-			code: "FORBIDDEN",
-			message: "Directors only.",
-		});
-	}
+	await requirePermission(ctx, PERMISSION_KEYS.DIRECTOR);
 }
 
 async function findUserIdByEmail(
@@ -94,15 +74,31 @@ export const canAccessWca2fa = query({
 	args: {},
 	returns: v.boolean(),
 	handler: async (ctx) => {
-		const userId = await getAuthUserId(ctx);
-		if (userId === null) return false;
+		return canAccessWca2faForCtx(ctx);
+	},
+});
 
-		const [isDirector, isCompetitionsTeamMember] = await Promise.all([
-			isUserOnNamedTeam(ctx, userId, DIRECTORS_TEAM_NAME),
-			isUserOnNamedTeam(ctx, userId, COMPETITIONS_TEAM_NAME),
-		]);
+const permissionSnapshotShape = v.object({
+	isDirector: v.boolean(),
+	isVolunteer: v.boolean(),
+	canAccessWca2fa: v.boolean(),
+	isSponsorshipManager: v.boolean(),
+	canAccessSocialMediaDashboard: v.boolean(),
+});
 
-		return isDirector || isCompetitionsTeamMember;
+export const getPermissionSnapshot = query({
+	args: {},
+	returns: permissionSnapshotShape,
+	handler: async (ctx) => {
+		return getPermissionSnapshotForCtx(ctx);
+	},
+});
+
+export const canAccessSocialMediaDashboard = query({
+	args: {},
+	returns: v.boolean(),
+	handler: async (ctx) => {
+		return canAccessSocialMediaDashboardForCtx(ctx);
 	},
 });
 
@@ -265,13 +261,7 @@ export const addPendingTeamMember = mutation({
 
 		if (existingPending) return null;
 
-		const createdById = await getAuthUserId(ctx);
-		if (!createdById) {
-			throw new ConvexError({
-				code: "UNAUTHENTICATED",
-				message: "Authentication required",
-			});
-		}
+		const createdById = await requireAuthenticatedUserId(ctx);
 
 		await ctx.db.insert("pendingTeamMembers", {
 			email: normalizedEmail,

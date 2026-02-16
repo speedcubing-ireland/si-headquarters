@@ -28,6 +28,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { AppPageHeader } from "@/components/shared/page-header";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import {
 	Select,
 	SelectContent,
@@ -242,17 +243,11 @@ function SponsorshipAdminRoute() {
 
 function SponsorshipAdminGate() {
 	const { isManager, isLoading } = useIsSponsorshipManager();
-	if (isLoading) {
-		return (
-			<div className="flex h-full items-center justify-center">
-				<Loader2 className="size-6 animate-spin text-muted-foreground" />
-			</div>
-		);
-	}
-	if (!isManager) {
-		return <Navigate to="/" />;
-	}
-	return <SponsorshipAdminContent />;
+	return (
+		<PermissionGuard isLoading={isLoading} canAccess={isManager}>
+			<SponsorshipAdminContent />
+		</PermissionGuard>
+	);
 }
 
 function SponsorshipAdminContent() {

@@ -1,7 +1,7 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { isVolunteer } from "../../auth";
-import { hasCompetitionAccess } from "../../competitionAccess";
+import { canAccessCompetitionResource } from "../../lib/permissions/resources";
 import { hasTaskCompetitionAccess } from "../../taskAccess";
 import { getCommentParentId } from "../../lib/commentParentId";
 import type {
@@ -42,7 +42,11 @@ export async function canUserAccessCompetition(
 	competitionId: Id<"competitions">,
 ): Promise<boolean> {
 	const volunteer = await isVolunteer(ctx);
-	return hasCompetitionAccess(ctx, volunteer, userId, competitionId);
+	return canAccessCompetitionResource(ctx, {
+		userId,
+		competitionId,
+		isVolunteer: volunteer,
+	});
 }
 
 export async function canUserAccessComment(

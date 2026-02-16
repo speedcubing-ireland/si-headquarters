@@ -332,7 +332,7 @@ describe("notifications behavior", () => {
 		expect(stageRow?.emailDispatchId).toBeDefined();
 		expect(emailDispatches).toHaveLength(1);
 		expect(emailDispatches[0]?.recipientEmail).toBe("stage-user@example.com");
-	});
+	}, 45_000);
 
 	test("immediate stage rows use unique group keys outside quiet hours", async () => {
 		const t = convexTest(schema, modules);

@@ -28,7 +28,26 @@ export const TEAM_NAMES = {
 	DIRECTORS: "Directors",
 	COMPETITIONS: "Competitions Team",
 	FINANCE: "Finance Team",
+	SOCIAL_MEDIA: "Social Media Team",
+	DELEGATES: "Delegates",
+	MERCH: "Merch Team",
+	SOFTWARE: "Software Team",
+	GRAPHICS: "Graphics Team",
 } as const;
+
+export type TeamName = (typeof TEAM_NAMES)[keyof typeof TEAM_NAMES];
+
+export const SEEDED_TEAM_NAMES = [
+	TEAM_NAMES.DIRECTORS,
+	TEAM_NAMES.DELEGATES,
+	TEAM_NAMES.COMPETITIONS,
+	TEAM_NAMES.SOCIAL_MEDIA,
+	TEAM_NAMES.FINANCE,
+	TEAM_NAMES.MERCH,
+	TEAM_NAMES.SOFTWARE,
+	TEAM_NAMES.GRAPHICS,
+	TEAM_NAMES.VOLUNTEER,
+] as const satisfies readonly TeamName[];
 
 export const SAT_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 

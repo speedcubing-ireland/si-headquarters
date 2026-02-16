@@ -1,16 +1,17 @@
 import Google from "@auth/core/providers/google";
 import type { OAuthConfig, OAuthUserConfig } from "@auth/core/providers";
-import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
+import { convexAuth } from "@convex-dev/auth/server";
 import {
 	internalQuery,
 	query,
 	type MutationCtx,
 	type QueryCtx,
 } from "./_generated/server";
-import { ConvexError } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { TEAM_NAMES } from "./lib/constants";
 import { buildDefaultAvatarUrl } from "./lib/defaultAvatar";
+import { requireAuthenticatedUserId } from "./lib/permissions/authn";
+import { isVolunteerForCtx } from "./lib/permissions/policies";
 import { normalizeEmail } from "./lib/sanitize";
 import { z } from "zod";
 import { v } from "convex/values";
@@ -110,28 +111,11 @@ type AuthCtx = QueryCtx | MutationCtx;
 export async function requireUserId(
 	ctx: QueryCtx | MutationCtx,
 ): Promise<Id<"users">> {
-	const userId = await getAuthUserId(ctx);
-	if (userId === null) {
-		throw new ConvexError({
-			code: "UNAUTHENTICATED",
-			message: "Authentication required",
-		});
-	}
-	return userId;
+	return requireAuthenticatedUserId(ctx);
 }
 
 export async function isVolunteer(ctx: AuthCtx): Promise<boolean> {
-	const userId = await getAuthUserId(ctx);
-	if (userId === null) return false;
-
-	const team = await ctx.db
-		.query("teams")
-		.withIndex("by_name", (q) => q.eq("name", VOLUNTEER_TEAM_NAME))
-		.unique();
-
-	if (!team) return false;
-
-	return team.memberIds.includes(userId);
+	return isVolunteerForCtx(ctx);
 }
 
 export const getIsVolunteer = internalQuery({

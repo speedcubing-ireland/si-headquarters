@@ -41,8 +41,11 @@ export {
 } from "./convex/use-reminders";
 
 export {
+	usePermissionSnapshot,
 	useIsDirector,
+	useIsVolunteer,
 	useCanAccessWca2fa,
+	useCanAccessSocialMediaDashboard,
 	useAdminMembersAndTeams,
 	useAdminMemberMutations,
 } from "./convex/use-admin";

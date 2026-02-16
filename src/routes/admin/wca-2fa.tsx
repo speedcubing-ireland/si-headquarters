@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useAction } from "convex/react";
 import {
 	AlertTriangle,
@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { AppPageHeader } from "@/components/shared/page-header";
+import { PermissionGuard } from "@/components/shared/permission-guard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,19 +61,11 @@ export const Route = createFileRoute("/admin/wca-2fa")({
 function Wca2faRoute() {
 	const { canAccess, isLoading } = useCanAccessWca2fa();
 
-	if (isLoading) {
-		return (
-			<div className="flex h-full items-center justify-center">
-				<Loader2 className="size-6 animate-spin text-muted-foreground" />
-			</div>
-		);
-	}
-
-	if (!canAccess) {
-		return <Navigate to="/" />;
-	}
-
-	return <Wca2faPage />;
+	return (
+		<PermissionGuard isLoading={isLoading} canAccess={canAccess}>
+			<Wca2faPage />
+		</PermissionGuard>
+	);
 }
 
 function Wca2faPage() {

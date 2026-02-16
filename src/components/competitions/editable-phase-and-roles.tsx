@@ -47,6 +47,7 @@ import {
 } from "@/lib/competition-phase-config";
 import { getInitials } from "@/lib/format-utils";
 import { onMutationError } from "@/lib/utils";
+import { TEAM_NAMES } from "../../../convex/lib/constants";
 
 interface EditableUserCellProps {
 	emptyLabel: string;
@@ -224,7 +225,7 @@ export function EditableCompLeadCell({
 	const { updateCompetition } = useCompetitionMutations();
 
 	const allUsers = React.useMemo(() => {
-		const team = getTeamBySeededName(teams, "Competitions Team");
+		const team = getTeamBySeededName(teams, TEAM_NAMES.COMPETITIONS);
 		return getRoleSelectUsers(team, competition.compLead);
 	}, [teams, competition.compLead]);
 
@@ -251,7 +252,7 @@ export function EditableLeadDelegateCell({
 	const { updateCompetition } = useCompetitionMutations();
 
 	const allUsers = React.useMemo(() => {
-		const team = getTeamBySeededName(teams, "Delegates");
+		const team = getTeamBySeededName(teams, TEAM_NAMES.DELEGATES);
 		return getRoleSelectUsers(team, competition.leadDelegate);
 	}, [teams, competition.leadDelegate]);
 

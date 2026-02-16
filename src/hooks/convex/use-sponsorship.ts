@@ -1,6 +1,7 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { usePermissionSnapshot } from "./use-admin";
 
 export function useSponsors(enabled = true) {
 	const sponsors = useQuery(api.sponsors.list, enabled ? {} : "skip");
@@ -11,8 +12,8 @@ export function useSponsors(enabled = true) {
 }
 
 export function useIsSponsorshipManager() {
-	const isManager = useQuery(api.sponsors.isSponsorshipManagerQuery, {});
-	return { isManager: isManager ?? false, isLoading: isManager === undefined };
+	const { permissions, isLoading } = usePermissionSnapshot();
+	return { isManager: permissions.isSponsorshipManager, isLoading };
 }
 
 export function useSponsorMutations() {

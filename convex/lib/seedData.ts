@@ -1,3 +1,5 @@
+import { SEEDED_TEAM_NAMES as TEAM_NAME_SEED_SOURCE } from "./constants";
+
 export const DEFAULT_LABELS = [
 	{ name: "Venue", color: "#2563eb" },
 	{ name: "Budget", color: "#16a34a" },
@@ -46,16 +48,6 @@ export const COMPETITION_PHASE_KEYS = [
 	"archive",
 ] as const;
 
-export const SEEDED_TEAM_NAMES = [
-	"Directors",
-	"Delegates",
-	"Competitions Team",
-	"Social Media Team",
-	"Finance Team",
-	"Merch Team",
-	"Software Team",
-	"Graphics Team",
-	"Volunteer",
-] as const;
+export const SEEDED_TEAM_NAMES = TEAM_NAME_SEED_SOURCE;
 
 export type SeededTeamName = (typeof SEEDED_TEAM_NAMES)[number];
