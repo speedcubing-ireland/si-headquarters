@@ -2757,7 +2757,6 @@ paths:
           description: Not authorized to manage competition
         '404':
           description: Competition not found
-  "/v0/competitions/{competitionId}/wcif/update":
     patch:
       summary: Update competition WCIF
       tags:
@@ -3281,6 +3280,7 @@ components:
           - '1'
           - '2'
           - '3'
+          - '5'
           - a
           - m
         timeLimit:

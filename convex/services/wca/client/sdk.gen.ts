@@ -628,7 +628,7 @@ export const getCompetitionWcif = <ThrowOnError extends boolean = false>(options
  */
 export const updateCompetitionWcif = <ThrowOnError extends boolean = false>(options: Options<UpdateCompetitionWcifData, ThrowOnError>) => (options.client ?? client).patch<UpdateCompetitionWcifResponses, UpdateCompetitionWcifErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v0/competitions/{competitionId}/wcif/update',
+    url: '/v0/competitions/{competitionId}/wcif',
     ...options,
     headers: {
         'Content-Type': 'application/json',

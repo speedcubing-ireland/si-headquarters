@@ -57,7 +57,7 @@ const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"]);
 function getRoundFormat(
 	eventId: string,
 	attemptCount: number,
-): "1" | "2" | "3" | "a" | "m" {
+): "1" | "2" | "3" | "5" | "a" | "m" {
 	if (eventId === "333fm") {
 		if (attemptCount >= 3) return "m";
 		if (attemptCount === 2) return "2";
@@ -70,7 +70,7 @@ function getRoundFormat(
 		return "3";
 	}
 
-	if (eventId === "333bf") return "3";
+	if (eventId === "333bf") return "5";
 
 	if (eventId === "666" || eventId === "777") return "m";
 
@@ -183,7 +183,7 @@ describe("Schedule Activity Name Mapping", () => {
 		});
 
 		it("should return correct format for 333bf (Bo5)", () => {
-			expect(getRoundFormat("333bf", 1)).toBe("3");
+			expect(getRoundFormat("333bf", 1)).toBe("5");
 		});
 
 		it("should return correct format for 6x6 and 7x7 (mo3)", () => {

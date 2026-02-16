@@ -187,7 +187,7 @@ export type WcifScrambleSet = {
 
 export type WcifRound = {
     id: string;
-    format: '1' | '2' | '3' | 'a' | 'm';
+    format: '1' | '2' | '3' | '5' | 'a' | 'm';
     timeLimit?: WcifTimeLimit;
     cutoff?: WcifCutoff;
     advancementCondition?: WcifAdvancementCondition;
@@ -3162,7 +3162,7 @@ export type UpdateCompetitionWcifData = {
         competitionId: string;
     };
     query?: never;
-    url: '/v0/competitions/{competitionId}/wcif/update';
+    url: '/v0/competitions/{competitionId}/wcif';
 };
 
 export type UpdateCompetitionWcifErrors = {

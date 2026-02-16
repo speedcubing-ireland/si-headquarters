@@ -91,7 +91,7 @@ const ROUND_FORMATS: Record<string, string> = {
 	"333mbf-1": "3",
 	"333mbf-2": "2",
 	"333mbf-3": "3",
-	"333bf": "3",
+	"333bf": "5",
 	"666": "m",
 	"777": "m",
 	"444bf": "3",
@@ -101,10 +101,10 @@ const ROUND_FORMATS: Record<string, string> = {
 export function getRoundFormat(
 	eventId: string,
 	attemptCount: number,
-): "1" | "2" | "3" | "a" | "m" {
+): "1" | "2" | "3" | "5" | "a" | "m" {
 	const key = `${eventId}-${attemptCount}`;
 	const format = ROUND_FORMATS[key] || ROUND_FORMATS[eventId];
-	return (format as "1" | "2" | "3" | "a" | "m") || "a";
+	return (format as "1" | "2" | "3" | "5" | "a" | "m") || "a";
 }
 
 function defaultTimeLimit(eventId: string) {
@@ -353,6 +353,11 @@ async function updateWcaSchedule(
 	competitionId: string,
 	wcif: CompetitionWcif,
 ): Promise<{ success: true } | { success: false; error: string }> {
+	console.log(
+		"[pushScheduleToWca] Sending WCIF payload to WCA",
+		JSON.stringify({ competitionId, wcif }, null, 2),
+	);
+
 	/**
 	 * WCA's WCIF update endpoint accepts a full WCIF competition payload.
 	 * The current OpenAPI schema models this body more narrowly.

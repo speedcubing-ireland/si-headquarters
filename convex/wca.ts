@@ -4,10 +4,7 @@ import type { DataModel } from "./_generated/dataModel";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { requireVolunteerAction } from "./lib/oauth";
-import {
-	WCA_BASE,
-	SEARCH_RESULTS_LIMIT,
-} from "./services/wca";
+import { WCA_BASE, SEARCH_RESULTS_LIMIT } from "./services/wca";
 import { createWcaClient } from "./services/wca/client";
 import {
 	competitionById,
