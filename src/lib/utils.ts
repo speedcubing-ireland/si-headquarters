@@ -7,15 +7,43 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-function getErrorMessage(error: unknown): string {
-	if (error instanceof ConvexError) {
-		const data = error.data;
-		if (typeof data === "string") return data;
-		if (data && typeof data === "object" && "message" in data) {
-			return String(data.message);
+/** Extract code and message from ConvexError for use in UI or custom error messages. */
+export function getConvexErrorData(error: unknown): {
+	code?: string;
+	message?: string;
+} {
+	if (
+		typeof error === "object" &&
+		error !== null &&
+		"data" in error &&
+		typeof (error as { data: unknown }).data === "string"
+	) {
+		try {
+			return JSON.parse((error as { data: string }).data) as {
+				code?: string;
+				message?: string;
+			};
+		} catch {
+			return {};
 		}
-		return "Something went wrong";
 	}
+	if (
+		error instanceof ConvexError &&
+		typeof error.data === "object" &&
+		error.data !== null
+	) {
+		const data = error.data as { code?: string; message?: string };
+		return {
+			...(typeof data.code === "string" && { code: data.code }),
+			...(typeof data.message === "string" && { message: data.message }),
+		};
+	}
+	return {};
+}
+
+function getErrorMessage(error: unknown): string {
+	const data = getConvexErrorData(error);
+	if (data.message) return data.message;
 	if (error instanceof Error) return error.message;
 	return "Something went wrong";
 }

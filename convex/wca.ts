@@ -1,4 +1,5 @@
 import { action, internalAction } from "./_generated/server";
+import { api } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
@@ -8,13 +9,36 @@ import {
 	SEARCH_RESULTS_LIMIT,
 	MY_COMPETITIONS_LIMIT,
 } from "./services/wca";
-import { createClient, createConfig } from "./services/wca/client/client/index";
+import { createWcaClient } from "./services/wca/client";
 import {
 	competitionById,
 	competitionList2,
 	getMyCompetitions,
 } from "./services/wca/client/sdk.gen";
 import { getServiceAccessToken } from "./services/tokens/runtime";
+
+const SPONSOR_PATTERNS = [
+	{ pattern: /\bkewbz\b/i, label: "Kewbz" },
+	{ pattern: /\bu[\s-]*twist[\s-]*cubes?\b/i, label: "UTwistCubes" },
+] as const;
+
+function detectSponsorLabels(text: string): string[] {
+	return SPONSOR_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(
+		({ label }) => label,
+	);
+}
+
+function uniqueCompetitionIds(competitions: Array<{ id?: string }>): string[] {
+	const seen = new Set<string>();
+	const ids: string[] = [];
+	for (const competition of competitions) {
+		const id = competition.id;
+		if (!id || seen.has(id)) continue;
+		seen.add(id);
+		ids.push(id);
+	}
+	return ids;
+}
 
 type WcaCompetition = {
 	id: string;
@@ -52,17 +76,34 @@ async function getWcaAccessToken(
 	return await getServiceAccessToken(ctx, "wca");
 }
 
-function createWcaClient(accessToken: string) {
-	return createClient(
-		createConfig({
-			baseUrl: "https://www.worldcubeassociation.org/api",
-			headers: new Headers({
-				Authorization: `Bearer ${accessToken}`,
-			}),
-		}),
-	);
+function wcaCompetitionUrl(competitionId: string): string {
+	return `${WCA_BASE}/competitions/${encodeURIComponent(competitionId)}`;
 }
 
+type MyCompetitionsData = NonNullable<
+	Awaited<ReturnType<typeof getMyCompetitions>>["data"]
+>;
+
+async function getWcaClientAndMyCompetitionsData(
+	ctx: GenericActionCtx<DataModel>,
+): Promise<{
+	client: ReturnType<typeof createWcaClient>;
+	data: MyCompetitionsData;
+}> {
+	const accessToken = await getWcaAccessToken(ctx);
+	if (!accessToken) {
+		throw new ConvexError({
+			code: "PRECONDITION_FAILED",
+			message: "No WCA token. Run bun run auth wca from repo root to connect.",
+		});
+	}
+	const client = createWcaClient(accessToken);
+	const r = await getMyCompetitions({ client });
+	if (r.error) throw new Error(`WCA my competitions failed: ${r.error}`);
+	const data = r.data;
+	if (!data) throw new Error("WCA my competitions: no data");
+	return { client, data };
+}
 const wcaCompetitionResult = v.object({
 	id: v.string(),
 	name: v.string(),
@@ -88,7 +129,6 @@ export const searchCompetitions = action({
 					"No WCA token. Run bun run auth wca from repo root to connect.",
 			});
 		}
-
 		const client = createWcaClient(accessToken);
 		const r = await competitionList2({
 			client,
@@ -108,21 +148,7 @@ export const fetchMyCompetitions = action({
 	returns: v.array(wcaCompetitionResult),
 	handler: async (ctx) => {
 		await requireVolunteerAction(ctx);
-
-		const accessToken = await getWcaAccessToken(ctx);
-		if (!accessToken) {
-			throw new ConvexError({
-				code: "PRECONDITION_FAILED",
-				message:
-					"No WCA token. Run bun run auth wca from repo root to connect.",
-			});
-		}
-
-		const client = createWcaClient(accessToken);
-		const r = await getMyCompetitions({ client });
-		if (r.error) throw new Error(`WCA my competitions failed: ${r.error}`);
-		const data = r.data;
-		if (!data) throw new Error("WCA my competitions: no data");
+		const { data } = await getWcaClientAndMyCompetitionsData(ctx);
 		const all = [
 			...(data.past_competitions ?? []),
 			...(data.future_competitions ?? []),
@@ -139,6 +165,89 @@ export const fetchMyCompetitions = action({
 			}),
 		);
 		return all.slice(0, MY_COMPETITIONS_LIMIT);
+	},
+});
+
+const socialDashboardCompetitionShape = v.object({
+	id: v.string(),
+	name: v.string(),
+	start_date: v.string(),
+	end_date: v.string(),
+	event_ids: v.array(v.string()),
+	competitor_limit: v.union(v.number(), v.null()),
+	registration_open: v.union(v.string(), v.null()),
+	sponsor_labels: v.array(v.string()),
+	url: v.string(),
+});
+
+type SocialDashboardCompetition = {
+	id: string;
+	name: string;
+	start_date: string;
+	end_date: string;
+	event_ids: string[];
+	competitor_limit: number | null;
+	registration_open: string | null;
+	sponsor_labels: string[];
+	url: string;
+};
+
+export const fetchSocialMediaDashboardCompetitions = action({
+	args: {},
+	returns: v.array(socialDashboardCompetitionShape),
+	handler: async (ctx) => {
+		const canAccess = await ctx.runQuery(
+			api.admin.canAccessSocialMediaDashboard,
+			{},
+		);
+		if (!canAccess) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "Directors or Social Media Team only.",
+			});
+		}
+
+		const { client, data } = await getWcaClientAndMyCompetitionsData(ctx);
+		const allIds = uniqueCompetitionIds([...(data.future_competitions ?? [])]);
+
+		const detailResults = await Promise.all(
+			allIds.map(async (id): Promise<SocialDashboardCompetition | null> => {
+				const dr = await competitionById({
+					client,
+					path: { competitionId: id },
+				});
+				if (dr.error || !dr.data) return null;
+
+				const d = dr.data;
+				const text = [
+					d.name,
+					d.information,
+					d.venue,
+					d.extra_registration_requirements,
+				]
+					.filter(Boolean)
+					.join(" ");
+				const sponsor_labels = detectSponsorLabels(text);
+
+				return {
+					id: d.id ?? id,
+					name: d.name ?? "",
+					start_date: d.start_date ?? "",
+					end_date: d.end_date ?? "",
+					event_ids: Array.isArray(d.event_ids) ? d.event_ids : [],
+					competitor_limit:
+						typeof d.competitor_limit === "number" ? d.competitor_limit : null,
+					registration_open: d.registration_open ?? null,
+					sponsor_labels,
+					url: wcaCompetitionUrl(d.id ?? id),
+				};
+			}),
+		);
+
+		return detailResults.filter(
+			(competition): competition is SocialDashboardCompetition =>
+				competition !== null,
+		);
 	},
 });
 
@@ -204,6 +313,6 @@ async function fetchCompetitionDetailsWithStoredToken(
 		competitor_limit:
 			typeof data.competitor_limit === "number" ? data.competitor_limit : null,
 		venue: data.venue ?? "",
-		url: `${WCA_BASE}/competitions/${encodeURIComponent(data.id ?? wcaCompetitionId)}`,
+		url: wcaCompetitionUrl(data.id ?? wcaCompetitionId),
 	};
 }

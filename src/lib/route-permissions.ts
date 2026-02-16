@@ -16,6 +16,7 @@ export const PROTECTED_ROUTES: Record<string, RoutePermissionKey> = {
 	"/admin/god-mode": "isDirector",
 	"/admin/email": "isDirector",
 	"/admin/wca-2fa": "canAccessWca2fa",
+	"/admin/social-media": "canAccessSocialMediaDashboard",
 	"/admin/sponsorship": "isSponsorshipManager",
 	"/events": "isVolunteer",
 };
@@ -28,4 +29,5 @@ export const SIDEBAR_DASHBOARD_ITEMS: ReadonlyArray<{
 	{ path: "/admin/sponsorship", permission: "isSponsorshipManager" },
 	{ path: "/admin/god-mode", permission: "isDirector" },
 	{ path: "/admin/wca-2fa", permission: "canAccessWca2fa" },
+	{ path: "/admin/social-media", permission: "canAccessSocialMediaDashboard" },
 ];

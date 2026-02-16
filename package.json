@@ -49,7 +49,6 @@
 		"@tailwindcss/vite": "^4.1.18",
 		"@tanstack/react-router": "^1.157.16",
 		"@tanstack/react-table": "^8.21.3",
-		"@wca/helpers": "^1.1.6",
 		"better-auth": "1.4.9",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",

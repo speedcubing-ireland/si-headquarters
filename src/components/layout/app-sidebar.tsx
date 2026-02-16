@@ -7,6 +7,7 @@ import {
 	Inbox,
 	KeyRound,
 	ListTodo,
+	Megaphone,
 	Shield,
 	Store,
 	Users,
@@ -98,6 +99,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const isVolunteer = permissions.isVolunteer;
 	const isDirector = permissions.isDirector;
 	const canAccessWca2fa = permissions.canAccessWca2fa;
+	const canAccessSocialMediaDashboard =
+		permissions.canAccessSocialMediaDashboard;
 	const isSponsorshipManager = permissions.isSponsorshipManager;
 	const { teams } = useTeams();
 	const unreadCount = useUnreadCount();
@@ -188,6 +191,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			name: "WCA 2FA",
 			url: { to: "/admin/wca-2fa" as const },
 			icon: KeyRound,
+		});
+	}
+	if (canAccessSocialMediaDashboard) {
+		dashboardItems.push({
+			type: "item",
+			name: "Social Media",
+			url: { to: "/admin/social-media" as const },
+			icon: Megaphone,
 		});
 	}
 	const dashboardSections: NavSectionData[] =

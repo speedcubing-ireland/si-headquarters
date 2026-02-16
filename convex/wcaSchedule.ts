@@ -5,33 +5,25 @@ import type { DataModel } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
-import { google } from "googleapis";
 import { fromZonedTime } from "date-fns-tz";
 import type {
-	Activity,
-	Event,
-	Round,
-	Schedule,
-	Venue,
-	Room,
-	Competition as WcifCompetition,
-	EventId,
-} from "@wca/helpers";
-import { createClient, createConfig } from "./services/wca/client/client/index";
+	WcifActivity as Activity,
+	WcifEvent as Event,
+	WcifRound as Round,
+	WcifSchedule as Schedule,
+	WcifVenue as Venue,
+	WcifRoom as Room,
+	WcifTimeLimit,
+} from "./services/wca/client/types.gen";
+import { createWcaClient } from "./services/wca/client";
 import {
 	competitionById,
 	getCompetitionWcif,
 	updateCompetitionWcif,
 } from "./services/wca/client/sdk.gen";
+import { fetchGoogleSheetValues } from "./services/google/sheetsClient";
 
-function createWcaClient(token: string) {
-	return createClient(
-		createConfig({
-			baseUrl: "https://www.worldcubeassociation.org/api",
-			headers: new Headers({ Authorization: `Bearer ${token}` }),
-		}),
-	);
-}
+type WcaApiClient = ReturnType<typeof createWcaClient>;
 
 const SATURDAY_RANGE = "Schedule!AH6:AK";
 const SUNDAY_RANGE = "Schedule!AM6:AP";
@@ -116,7 +108,7 @@ export function getRoundFormat(
 }
 
 function defaultTimeLimit(eventId: string) {
-	if (eventId === "333fm" || eventId === "333mbf") return null;
+	if (eventId === "333fm" || eventId === "333mbf") return undefined;
 	return { centiseconds: 60000, cumulativeRoundIds: [] };
 }
 
@@ -175,6 +167,12 @@ type PushScheduleResult =
 	| { success: true; activitiesCreated: number }
 	| { success: false; error: string };
 
+type CompetitionWcif = {
+	id: string;
+	events: Event[];
+	schedule: Schedule;
+};
+
 async function getServiceAccessToken(
 	ctx: GenericActionCtx<DataModel>,
 	service: "google" | "wca",
@@ -185,11 +183,11 @@ async function getServiceAccessToken(
 }
 
 function parseDuration(length: string): number {
-	const parts = length.split(":").map(Number);
-	if (parts.length === 3) {
-		return parts[0] * 60 + parts[1];
-	}
-	return parts[0] * 60 + parts[1] || 0;
+	const [hours = 0, minutes = 0] = length.split(":").map(Number);
+	return (
+		(Number.isFinite(hours) ? hours : 0) * 60 +
+		(Number.isFinite(minutes) ? minutes : 0)
+	);
 }
 
 function parseSheetRows(rows: string[][]): SheetRow[] {
@@ -207,25 +205,36 @@ async function fetchScheduleFromSheets(
 	spreadsheetId: string,
 	accessToken: string,
 ): Promise<{ saturday: SheetRow[]; sunday: SheetRow[] }> {
-	const oauth2 = new google.auth.OAuth2();
-	oauth2.setCredentials({ access_token: accessToken });
-	const sheets = google.sheets({ version: "v4", auth: oauth2 });
-
-	const [satRes, sunRes] = await Promise.all([
-		sheets.spreadsheets.values.get({
+	const [saturdayRows, sundayRows] = await Promise.all([
+		fetchGoogleSheetValues({
+			accessToken,
 			spreadsheetId,
 			range: SATURDAY_RANGE,
 		}),
-		sheets.spreadsheets.values.get({
+		fetchGoogleSheetValues({
+			accessToken,
 			spreadsheetId,
 			range: SUNDAY_RANGE,
 		}),
 	]);
 
 	return {
-		saturday: parseSheetRows((satRes.data.values ?? []) as string[][]),
-		sunday: parseSheetRows((sunRes.data.values ?? []) as string[][]),
+		saturday: parseSheetRows(saturdayRows),
+		sunday: parseSheetRows(sundayRows),
 	};
+}
+
+async function fetchCompetitionWcif(
+	client: WcaApiClient,
+	competitionId: string,
+): Promise<CompetitionWcif | null> {
+	const r = await getCompetitionWcif({
+		client,
+		path: { competitionId },
+	});
+	if (r.error || !r.data) return null;
+	// WCA WCIF endpoint returns a full WCIF competition payload.
+	return r.data as unknown as CompetitionWcif;
 }
 
 function formatDublinTime(
@@ -269,7 +278,7 @@ function buildActivity(row: SheetRow, dateStr: string, id: number): Activity {
 			endDate.getMinutes(),
 		),
 		childActivities: [],
-		scrambleSetId: null,
+		scrambleSetId: undefined,
 		extensions: [],
 	};
 }
@@ -293,40 +302,30 @@ function buildDayActivities(
 }
 
 async function fetchWcaCompetition(
+	client: WcaApiClient,
 	competitionId: string,
-	token: string,
-): Promise<WcifCompetition | null> {
-	const client = createWcaClient(token);
-	const r = await getCompetitionWcif({
-		client,
-		path: { competitionId },
-	});
-	if (r.error || !r.data) return null;
-	return r.data as WcifCompetition;
+): Promise<CompetitionWcif | null> {
+	return fetchCompetitionWcif(client, competitionId);
 }
 
 async function fetchIrelandTemplate(
-	token: string,
+	client: WcaApiClient,
 ): Promise<Map<string, Round>> {
-	const client = createWcaClient(token);
-	const r = await getCompetitionWcif({
+	const wcif = await fetchCompetitionWcif(
 		client,
-		path: { competitionId: IRELAND_TEMPLATE_COMPETITION_ID },
-	});
-	if (r.error || !r.data) return new Map();
-	const wcif = r.data as WcifCompetition;
-	const roundsMap = new Map<string, Round>();
-	for (const event of wcif.events) {
-		for (const round of event.rounds) {
-			roundsMap.set(round.id, round);
-		}
-	}
-	return roundsMap;
+		IRELAND_TEMPLATE_COMPETITION_ID,
+	);
+	if (!wcif) return new Map();
+	return new Map(
+		wcif.events.flatMap((event) =>
+			event.rounds.map((round) => [round.id, round] as const),
+		),
+	);
 }
 
 async function fetchCompetitionVenueInfo(
+	client: WcaApiClient,
 	competitionId: string,
-	token: string,
 ): Promise<{
 	name: string;
 	detail: string;
@@ -334,7 +333,6 @@ async function fetchCompetitionVenueInfo(
 	lng: number;
 	country: string;
 } | null> {
-	const client = createWcaClient(token);
 	const r = await competitionById({
 		client,
 		path: { competitionId },
@@ -351,15 +349,21 @@ async function fetchCompetitionVenueInfo(
 }
 
 async function updateWcaSchedule(
+	client: WcaApiClient,
 	competitionId: string,
-	token: string,
-	wcif: { id: string; events: Event[]; schedule: Schedule },
+	wcif: CompetitionWcif,
 ): Promise<{ success: true } | { success: false; error: string }> {
-	const client = createWcaClient(token);
+	/**
+	 * WCA's WCIF update endpoint accepts a full WCIF competition payload.
+	 * The current OpenAPI schema models this body more narrowly.
+	 */
+	const body = wcif as unknown as Parameters<
+		typeof updateCompetitionWcif
+	>[0]["body"];
 	const r = await updateCompetitionWcif({
 		client,
 		path: { competitionId },
-		body: wcif as Parameters<typeof updateCompetitionWcif>[0]["body"],
+		body,
 	});
 	if (r.error) {
 		return {
@@ -368,6 +372,35 @@ async function updateWcaSchedule(
 		};
 	}
 	return { success: true as const };
+}
+
+function buildCompetitionActivities(
+	scheduleData: { saturday: SheetRow[]; sunday: SheetRow[] },
+	startDate: string,
+	numberOfDays: number,
+): Activity[] {
+	const daySchedules: Array<{ rows: SheetRow[]; date: string }> = [
+		{ rows: scheduleData.saturday, date: startDate },
+	];
+	if (numberOfDays > 1) {
+		daySchedules.push({
+			rows: scheduleData.sunday,
+			date: getNextDay(startDate),
+		});
+	}
+
+	let nextId = 1;
+	const allActivities: Activity[] = [];
+	for (const daySchedule of daySchedules) {
+		const built = buildDayActivities(
+			daySchedule.rows,
+			daySchedule.date,
+			nextId,
+		);
+		allActivities.push(...built.activities);
+		nextId = built.nextId;
+	}
+	return allActivities;
 }
 
 function extractEventRounds(activities: Activity[]): Map<string, Set<number>> {
@@ -422,20 +455,23 @@ function createRound(
 			advancementCondition: templateRound.advancementCondition,
 			results: [],
 			scrambleSetCount: templateRound.scrambleSetCount,
+			scrambleSets: templateRound.scrambleSets ?? [],
 			extensions: [],
 		};
 	}
 
 	const format = getRoundFormat(eventId, isMultiAttempt ? attemptCount : 1);
+	const timeLimit: WcifTimeLimit | undefined = defaultTimeLimit(eventId);
 
 	return {
 		id: roundId,
 		format,
-		timeLimit: defaultTimeLimit(eventId),
-		cutoff: null,
-		advancementCondition: null,
+		timeLimit,
+		cutoff: undefined,
+		advancementCondition: undefined,
 		results: [],
 		scrambleSetCount: 1,
+		scrambleSets: [],
 		extensions: [],
 	};
 }
@@ -454,7 +490,7 @@ function buildEvents(
 	const events: Event[] = [];
 
 	for (const [eventId, roundNums] of roundsMap) {
-		const existingEvent = existingEventsMap.get(eventId as EventId);
+		const existingEvent = existingEventsMap.get(eventId);
 		const sortedRounds = [...roundNums].sort((a, b) => a - b);
 		const isMultiAttempt = MULTI_ATTEMPT_EVENTS.has(eventId);
 		const attemptCount = attemptCounts.get(eventId) || sortedRounds.length;
@@ -475,11 +511,11 @@ function buildEvents(
 		});
 
 		events.push({
-			id: eventId as EventId,
+			id: eventId,
 			rounds,
 			extensions: existingEvent?.extensions ?? [],
-			competitorLimit: existingEvent?.competitorLimit ?? null,
-			qualification: existingEvent?.qualification ?? null,
+			competitorLimit: existingEvent?.competitorLimit,
+			qualification: existingEvent?.qualification,
 		});
 	}
 
@@ -582,6 +618,7 @@ export const pushScheduleToWca = action({
 				error: "No WCA token. Run: bun run auth wca",
 			};
 		}
+		const wcaClient = createWcaClient(wcaToken);
 
 		let scheduleData: { saturday: SheetRow[]; sunday: SheetRow[] };
 		try {
@@ -607,8 +644,8 @@ export const pushScheduleToWca = action({
 		}
 
 		const wcif = await fetchWcaCompetition(
+			wcaClient,
 			competition.wcaCompetitionId,
-			wcaToken,
 		);
 
 		if (!wcif) {
@@ -619,25 +656,18 @@ export const pushScheduleToWca = action({
 		}
 
 		const [templateRounds, venueInfo] = await Promise.all([
-			fetchIrelandTemplate(wcaToken),
+			fetchIrelandTemplate(wcaClient),
 			wcif.schedule.venues[0]
 				? Promise.resolve(null)
-				: fetchCompetitionVenueInfo(competition.wcaCompetitionId, wcaToken),
+				: fetchCompetitionVenueInfo(wcaClient, competition.wcaCompetitionId),
 		]);
 
 		const startDate = wcif.schedule.startDate;
-		const day2 = wcif.schedule.numberOfDays > 1 ? getNextDay(startDate) : null;
-
-		let activityId = 1;
-		const { activities: saturdayActivities, nextId: nextId1 } =
-			buildDayActivities(scheduleData.saturday, startDate, activityId);
-		activityId = nextId1;
-
-		const sundayActivities = day2
-			? buildDayActivities(scheduleData.sunday, day2, activityId).activities
-			: [];
-
-		const allActivities = [...saturdayActivities, ...sundayActivities];
+		const allActivities = buildCompetitionActivities(
+			scheduleData,
+			startDate,
+			wcif.schedule.numberOfDays,
+		);
 
 		const existingVenue = wcif.schedule.venues[0];
 		const room = buildRoom(existingVenue, venueInfo, allActivities);
@@ -668,9 +698,13 @@ export const pushScheduleToWca = action({
 		}
 
 		const result = await updateWcaSchedule(
+			wcaClient,
 			competition.wcaCompetitionId,
-			wcaToken,
-			{ id: wcif.id, events, schedule },
+			{
+				id: wcif.id,
+				events,
+				schedule,
+			},
 		);
 
 		if (!result.success) {

@@ -2966,7 +2966,7 @@ export type DeleteAssetResponses = {
     /**
      * OK
      */
-    204: undefined;
+    204: void;
 };
 
 export type DeleteAssetResponse = DeleteAssetResponses[keyof DeleteAssetResponses];
@@ -4045,7 +4045,7 @@ export type DeleteFolderResponses = {
     /**
      * OK
      */
-    204: undefined;
+    204: void;
 };
 
 export type DeleteFolderResponse = DeleteFolderResponses[keyof DeleteFolderResponses];
@@ -4184,7 +4184,7 @@ export type MoveFolderItemResponses = {
     /**
      * OK
      */
-    204: undefined;
+    204: void;
 };
 
 export type MoveFolderItemResponse = MoveFolderItemResponses[keyof MoveFolderItemResponses];
