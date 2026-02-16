@@ -1,5 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
-import { listBrandTemplates, listFolderItems } from "../services/canva/client";
+import {
+	listBrandTemplates as listBrandTemplatesApi,
+	listFolderItems as listFolderItemsApi,
+} from "../services/canva/client/sdk.gen";
 
 describe("canvaClient", () => {
 	test("listBrandTemplates forwards pagination arguments", async () => {
@@ -16,27 +19,31 @@ describe("canvaClient", () => {
 			continuation: "next-page",
 		};
 		const client = {
-			GET: vi.fn().mockResolvedValue({ data, error: undefined }),
+			get: vi.fn().mockResolvedValue({ data, error: undefined }),
 		};
 
-		const result = await listBrandTemplates(client as never, {
-			query: "cert",
-			continuation: "cursor-1",
-			limit: 25,
-			dataset: "non_empty",
+		const result = await listBrandTemplatesApi({
+			client: client as never,
+			query: {
+				query: "cert",
+				continuation: "cursor-1",
+				limit: 25,
+				dataset: "non_empty",
+			},
 		});
 
-		expect(client.GET).toHaveBeenCalledWith("/v1/brand-templates", {
-			params: {
+		expect(client.get).toHaveBeenCalledWith(
+			expect.objectContaining({
+				url: "/v1/brand-templates",
 				query: {
 					query: "cert",
 					continuation: "cursor-1",
 					limit: 25,
 					dataset: "non_empty",
 				},
-			},
-		});
-		expect(result).toEqual(data);
+			}),
+		);
+		expect(result.data).toEqual(data);
 	});
 
 	test("listFolderItems forwards folder filters and sorting", async () => {
@@ -50,19 +57,23 @@ describe("canvaClient", () => {
 			continuation: "next-folder-page",
 		};
 		const client = {
-			GET: vi.fn().mockResolvedValue({ data, error: undefined }),
+			get: vi.fn().mockResolvedValue({ data, error: undefined }),
 		};
 
-		const result = await listFolderItems(client as never, {
-			folderId: "root",
-			continuation: "cursor-2",
-			limit: 50,
-			itemTypes: ["folder"],
-			sortBy: "title_ascending",
+		const result = await listFolderItemsApi({
+			client: client as never,
+			path: { folderId: "root" },
+			query: {
+				continuation: "cursor-2",
+				limit: 50,
+				item_types: ["folder"],
+				sort_by: "title_ascending",
+			},
 		});
 
-		expect(client.GET).toHaveBeenCalledWith("/v1/folders/{folderId}/items", {
-			params: {
+		expect(client.get).toHaveBeenCalledWith(
+			expect.objectContaining({
+				url: "/v1/folders/{folderId}/items",
 				path: { folderId: "root" },
 				query: {
 					continuation: "cursor-2",
@@ -70,8 +81,8 @@ describe("canvaClient", () => {
 					item_types: ["folder"],
 					sort_by: "title_ascending",
 				},
-			},
-		});
-		expect(result).toEqual(data);
+			}),
+		);
+		expect(result.data).toEqual(data);
 	});
 });

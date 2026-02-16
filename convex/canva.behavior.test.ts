@@ -5,7 +5,7 @@ import {
 	mapBrandTemplatePickerItems,
 	parseCanvaDesignInput,
 	parseCanvaFolderInput,
-} from "./canva";
+} from "./canva/helpers";
 
 describe("canva brand template mapping", () => {
 	test("parses Canva folder IDs and links", () => {

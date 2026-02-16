@@ -1,21 +1,19 @@
-"use node";
-
 import { ConvexError, v } from "convex/values";
 import { action, type ActionCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireVolunteerAction } from "./lib/oauth";
+import { createCanvaClient } from "./services/canva/client";
 import {
-	createAutofillJob,
-	createCanvaClient,
+	createDesignAutofillJob,
 	getBrandTemplateDataset,
 	getDesign,
+	getDesignAutofillJob,
 	getFolder,
-	getAutofillJob,
 	listBrandTemplates as listBrandTemplatesApi,
 	listFolderItems as listFolderItemsApi,
 	moveFolderItem,
-} from "./services/canva/client";
+} from "./services/canva/client/sdk.gen";
 import {
 	buildCanvaAutofillData,
 	buildCanvaDesignEditUrl,
@@ -25,19 +23,30 @@ import {
 } from "./canva/helpers";
 import { getServiceAccessToken } from "./services/tokens/runtime";
 
+function canvaError(
+	err:
+		| {
+				message?: string;
+				error?: string;
+				error_description?: string;
+				code?: string;
+		  }
+		| undefined,
+): string {
+	return (
+		err?.message ??
+		err?.error_description ??
+		err?.error ??
+		err?.code ??
+		"Unknown Canva API error"
+	);
+}
+
 type TaskLinkedActionListItem = {
 	id: Id<"taskLinkedActions">;
 	definition: { type: string };
 	canRun?: boolean;
 };
-
-export {
-	buildCanvaAutofillData,
-	buildCanvaDesignEditUrl,
-	mapBrandTemplatePickerItems,
-	parseCanvaDesignInput,
-	parseCanvaFolderInput,
-} from "./canva/helpers";
 
 function extractConvexErrorCode(error: unknown): string | null {
 	if (!(error instanceof ConvexError)) return null;
@@ -169,12 +178,18 @@ export const listBrandTemplates = action({
 		}
 
 		const client = createCanvaClient(accessToken);
-		const data = await listBrandTemplatesApi(client, {
-			query: args.query,
-			continuation: args.continuation,
-			limit: args.limit,
-			dataset: "non_empty",
+		const r = await listBrandTemplatesApi({
+			client,
+			query: {
+				query: args.query,
+				continuation: args.continuation,
+				limit: args.limit,
+				dataset: "non_empty",
+			},
 		});
+		if (r.error)
+			throw new Error(`Canva list templates: ${canvaError(r.error)}`);
+		const data = r.data;
 		const items = mapBrandTemplatePickerItems(data);
 		return {
 			items,
@@ -229,14 +244,19 @@ export const listFolderItems = action({
 		}
 
 		const client = createCanvaClient(accessToken);
-		const data = await listFolderItemsApi(client, {
-			folderId: args.folderId ?? "root",
-			continuation: args.continuation,
-			limit: args.limit,
-			itemTypes: args.itemTypes,
-			sortBy: args.sortBy,
+		const r = await listFolderItemsApi({
+			client,
+			path: { folderId: args.folderId ?? "root" },
+			query: {
+				continuation: args.continuation,
+				limit: args.limit,
+				item_types: args.itemTypes,
+				sort_by: args.sortBy,
+			},
 		});
-
+		if (r.error)
+			throw new Error(`Canva list folder items: ${canvaError(r.error)}`);
+		const data = r.data;
 		const items = (data.items ?? [])
 			.map((item) => {
 				if (item.type === "folder" && item.folder) {
@@ -308,8 +328,9 @@ export const validateFolderInput = action({
 		}
 		const client = createCanvaClient(accessToken);
 		try {
-			const response = await getFolder(client, folderId);
-			const name = response.folder?.name ?? folderId;
+			const r = await getFolder({ client, path: { folderId } });
+			if (r.error) throw new Error(`Canva get folder: ${canvaError(r.error)}`);
+			const name = r.data.folder?.name ?? folderId;
 			return {
 				id: folderId,
 				name,
@@ -354,8 +375,9 @@ export const validateDesignInput = action({
 		}
 
 		const client = createCanvaClient(accessToken);
-		const designMeta = await getDesign(client, designId);
-		const design = designMeta.design;
+		const r = await getDesign({ client, path: { designId } });
+		if (r.error) throw new Error(`Canva get design: ${canvaError(r.error)}`);
+		const design = r.data.design;
 		if (!design) {
 			throw new ConvexError({
 				code: "NOT_FOUND",
@@ -405,10 +427,12 @@ export const runTemplateAction = action({
 		}
 
 		const client = createCanvaClient(accessToken);
-		const dataset = await getBrandTemplateDataset(
+		const dr = await getBrandTemplateDataset({
 			client,
-			args.sourceBrandTemplateId,
-		);
+			path: { brandTemplateId: args.sourceBrandTemplateId },
+		});
+		if (dr.error) throw new Error(`Canva get dataset: ${canvaError(dr.error)}`);
+		const dataset = dr.data;
 		const hasAutofillFields = Boolean(
 			dataset.dataset && Object.keys(dataset.dataset).length > 0,
 		);
@@ -436,16 +460,24 @@ export const runTemplateAction = action({
 			competitionName,
 		);
 
-		const start = await createAutofillJob(client, {
-			brandTemplateId: args.sourceBrandTemplateId,
-			title: args.outputTitle,
-			data: autofillData,
+		const sr = await createDesignAutofillJob({
+			client,
+			body: {
+				brand_template_id: args.sourceBrandTemplateId,
+				title: args.outputTitle,
+				data: autofillData,
+			},
 		});
-		const jobId = start.job.id;
+		if (sr.error)
+			throw new Error(`Canva autofill start: ${canvaError(sr.error)}`);
+		const jobId = sr.data.job.id;
 
 		let attempt = 0;
 		while (attempt < 30) {
-			const poll = await getAutofillJob(client, jobId);
+			const pr = await getDesignAutofillJob({ client, path: { jobId } });
+			if (pr.error)
+				throw new Error(`Canva autofill poll: ${canvaError(pr.error)}`);
+			const poll = pr.data;
 			if (poll.job.status === "failed") {
 				throw new ConvexError({
 					code: "BAD_REQUEST",
@@ -462,16 +494,24 @@ export const runTemplateAction = action({
 				}
 
 				if (args.destinationFolderId !== "root") {
-					await moveFolderItem(client, {
-						itemId: design.id,
-						toFolderId: args.destinationFolderId,
+					const mr = await moveFolderItem({
+						client,
+						body: {
+							item_id: design.id,
+							to_folder_id: args.destinationFolderId,
+						},
 					});
+					if (mr.error)
+						throw new Error(`Canva move item: ${canvaError(mr.error)}`);
 				}
 				let previewImageUrl: string | null = design.thumbnail?.url ?? null;
 				try {
 					if (!previewImageUrl) {
-						const designMeta = await getDesign(client, design.id);
-						previewImageUrl = designMeta.design?.thumbnail?.url ?? null;
+						const dr2 = await getDesign({
+							client,
+							path: { designId: design.id },
+						});
+						previewImageUrl = dr2.data?.design?.thumbnail?.url ?? null;
 					}
 				} catch {
 					previewImageUrl = null;
@@ -521,13 +561,14 @@ export const getDesignMetadata = action({
 			});
 		}
 		const client = createCanvaClient(accessToken);
-		const designMeta = await getDesign(client, args.designId);
-		const design = designMeta.design;
+		const r = await getDesign({ client, path: { designId: args.designId } });
+		if (r.error) throw new Error(`Canva get design: ${canvaError(r.error)}`);
+		const designMeta = r.data.design;
 		const url = buildCanvaDesignEditUrl(args.designId);
 		return {
-			title: design?.title ?? null,
+			title: designMeta?.title ?? null,
 			url,
-			previewImageUrl: design?.thumbnail?.url ?? null,
+			previewImageUrl: designMeta?.thumbnail?.url ?? null,
 		};
 	},
 });

@@ -10,6 +10,7 @@
 		"includes": [
 			"**",
 			"!convex/**/_generated",
+			"!convex/services/**/client",
 			"!src/components/ui",
 			"!**/routeTree.gen.ts",
 			"!external-docs",

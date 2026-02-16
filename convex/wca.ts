@@ -7,16 +7,60 @@ import {
 	WCA_BASE,
 	SEARCH_RESULTS_LIMIT,
 	MY_COMPETITIONS_LIMIT,
-	mapCompetitionResult,
-	type WcaCompetition,
-	wcaFetch,
 } from "./services/wca";
+import { createClient, createConfig } from "./services/wca/client/client/index";
+import {
+	competitionById,
+	competitionList2,
+	getMyCompetitions,
+} from "./services/wca/client/sdk.gen";
 import { getServiceAccessToken } from "./services/tokens/runtime";
+
+type WcaCompetition = {
+	id: string;
+	name: string;
+	city: string;
+	country_iso2: string;
+	start_date: string;
+	end_date: string;
+	event_ids: string[];
+};
+
+function mapCompetition(c: {
+	id?: string;
+	name?: string;
+	city?: string;
+	country_iso2?: string;
+	start_date?: string;
+	end_date?: string;
+	event_ids?: string[];
+}): WcaCompetition {
+	return {
+		id: c.id ?? "",
+		name: c.name ?? "",
+		city: c.city ?? "",
+		country_iso2: c.country_iso2 ?? "",
+		start_date: c.start_date ?? "",
+		end_date: c.end_date ?? "",
+		event_ids: c.event_ids ?? [],
+	};
+}
 
 async function getWcaAccessToken(
 	ctx: GenericActionCtx<DataModel>,
 ): Promise<string | null> {
 	return await getServiceAccessToken(ctx, "wca");
+}
+
+function createWcaClient(accessToken: string) {
+	return createClient(
+		createConfig({
+			baseUrl: "https://www.worldcubeassociation.org/api",
+			headers: new Headers({
+				Authorization: `Bearer ${accessToken}`,
+			}),
+		}),
+	);
 }
 
 const wcaCompetitionResult = v.object({
@@ -45,15 +89,17 @@ export const searchCompetitions = action({
 			});
 		}
 
-		const params = new URLSearchParams({ q: args.query });
-		if (args.managedByMe) params.set("managed_by_me", "true");
-		const data = (await wcaFetch(
-			accessToken,
-			`/competitions?${params}`,
-		)) as WcaCompetition[];
-		return (Array.isArray(data) ? data : [])
-			.slice(0, SEARCH_RESULTS_LIMIT)
-			.map(mapCompetitionResult);
+		const client = createWcaClient(accessToken);
+		const r = await competitionList2({
+			client,
+			query: {
+				q: args.query,
+				...(args.managedByMe && { sort: "-start_date" }),
+			},
+		});
+		if (r.error) throw new Error(`WCA search failed: ${r.error}`);
+		const list = Array.isArray(r.data) ? r.data : [];
+		return list.slice(0, SEARCH_RESULTS_LIMIT).map(mapCompetition);
 	},
 });
 
@@ -72,17 +118,27 @@ export const fetchMyCompetitions = action({
 			});
 		}
 
-		const params = new URLSearchParams({
-			managed_by_me: "true",
-			sort: "-start_date",
-		});
-		const data = (await wcaFetch(
-			accessToken,
-			`/competitions?${params}`,
-		)) as WcaCompetition[];
-		return (Array.isArray(data) ? data : [])
-			.slice(0, MY_COMPETITIONS_LIMIT)
-			.map(mapCompetitionResult);
+		const client = createWcaClient(accessToken);
+		const r = await getMyCompetitions({ client });
+		if (r.error) throw new Error(`WCA my competitions failed: ${r.error}`);
+		const data = r.data;
+		if (!data) throw new Error("WCA my competitions: no data");
+		const all = [
+			...(data.past_competitions ?? []),
+			...(data.future_competitions ?? []),
+			...(data.bookmarked_competitions ?? []),
+		].map((c) =>
+			mapCompetition({
+				id: c.id,
+				name: c.name,
+				city: c.city,
+				country_iso2: c.country_iso2,
+				start_date: c.start_date,
+				end_date: c.end_date,
+				event_ids: [],
+			}),
+		);
+		return all.slice(0, MY_COMPETITIONS_LIMIT);
 	},
 });
 
@@ -129,28 +185,25 @@ async function fetchCompetitionDetailsWithStoredToken(
 	const accessToken = await getWcaAccessToken(ctx);
 	if (!accessToken) return null;
 
-	const res = await fetch(
-		`${WCA_BASE}/api/v0/competitions/${encodeURIComponent(wcaCompetitionId)}`,
-		{ headers: { Authorization: `Bearer ${accessToken}` } },
-	);
-
-	if (!res.ok) return null;
-
-	const data = (await res.json()) as Record<string, unknown>;
+	const client = createWcaClient(accessToken);
+	const r = await competitionById({
+		client,
+		path: { competitionId: wcaCompetitionId },
+	});
+	if (r.error || !r.data) return null;
+	const data = r.data;
 
 	return {
-		id: String(data.id ?? ""),
-		name: String(data.name ?? ""),
-		city: String(data.city ?? ""),
-		country_iso2: String(data.country_iso2 ?? ""),
-		start_date: String(data.start_date ?? ""),
-		end_date: String(data.end_date ?? ""),
-		event_ids: Array.isArray(data.event_ids)
-			? (data.event_ids as string[])
-			: [],
+		id: data.id ?? "",
+		name: data.name ?? "",
+		city: data.city ?? "",
+		country_iso2: data.country_iso2 ?? "",
+		start_date: data.start_date ?? "",
+		end_date: data.end_date ?? "",
+		event_ids: Array.isArray(data.event_ids) ? data.event_ids : [],
 		competitor_limit:
 			typeof data.competitor_limit === "number" ? data.competitor_limit : null,
-		venue: String(data.venue ?? ""),
-		url: `${WCA_BASE}/competitions/${encodeURIComponent(String(data.id ?? wcaCompetitionId))}`,
+		venue: data.venue ?? "",
+		url: `${WCA_BASE}/competitions/${encodeURIComponent(data.id ?? wcaCompetitionId)}`,
 	};
 }

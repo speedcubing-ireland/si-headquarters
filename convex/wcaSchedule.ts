@@ -17,9 +17,22 @@ import type {
 	Competition as WcifCompetition,
 	EventId,
 } from "@wca/helpers";
+import { createClient, createConfig } from "./services/wca/client/client/index";
+import {
+	competitionById,
+	getCompetitionWcif,
+	updateCompetitionWcif,
+} from "./services/wca/client/sdk.gen";
 
-const WCA_BASE = "https://www.worldcubeassociation.org";
-const WCA_API = `${WCA_BASE}/api/v0`;
+function createWcaClient(token: string) {
+	return createClient(
+		createConfig({
+			baseUrl: "https://www.worldcubeassociation.org/api",
+			headers: new Headers({ Authorization: `Bearer ${token}` }),
+		}),
+	);
+}
+
 const SATURDAY_RANGE = "Schedule!AH6:AK";
 const SUNDAY_RANGE = "Schedule!AM6:AP";
 const DUBLIN_TIMEZONE = "Europe/Dublin";
@@ -283,32 +296,31 @@ async function fetchWcaCompetition(
 	competitionId: string,
 	token: string,
 ): Promise<WcifCompetition | null> {
-	const res = await fetch(
-		`${WCA_API}/competitions/${encodeURIComponent(competitionId)}/wcif`,
-		{ headers: { Authorization: `Bearer ${token}` } },
-	);
-	return res.ok ? ((await res.json()) as WcifCompetition) : null;
+	const client = createWcaClient(token);
+	const r = await getCompetitionWcif({
+		client,
+		path: { competitionId },
+	});
+	if (r.error || !r.data) return null;
+	return r.data as WcifCompetition;
 }
 
 async function fetchIrelandTemplate(
 	token: string,
 ): Promise<Map<string, Round>> {
-	const res = await fetch(
-		`${WCA_API}/competitions/${encodeURIComponent(IRELAND_TEMPLATE_COMPETITION_ID)}/wcif`,
-		{ headers: { Authorization: `Bearer ${token}` } },
-	);
-
-	if (!res.ok) return new Map();
-
-	const wcif = (await res.json()) as WcifCompetition;
+	const client = createWcaClient(token);
+	const r = await getCompetitionWcif({
+		client,
+		path: { competitionId: IRELAND_TEMPLATE_COMPETITION_ID },
+	});
+	if (r.error || !r.data) return new Map();
+	const wcif = r.data as WcifCompetition;
 	const roundsMap = new Map<string, Round>();
-
 	for (const event of wcif.events) {
 		for (const round of event.rounds) {
 			roundsMap.set(round.id, round);
 		}
 	}
-
 	return roundsMap;
 }
 
@@ -322,21 +334,13 @@ async function fetchCompetitionVenueInfo(
 	lng: number;
 	country: string;
 } | null> {
-	const res = await fetch(
-		`${WCA_API}/competitions/${encodeURIComponent(competitionId)}`,
-		{ headers: { Authorization: `Bearer ${token}` } },
-	);
-
-	if (!res.ok) return null;
-
-	const info = (await res.json()) as {
-		venue?: string;
-		venue_details?: string;
-		latitude_degrees?: number;
-		longitude_degrees?: number;
-		country_iso2?: string;
-	};
-
+	const client = createWcaClient(token);
+	const r = await competitionById({
+		client,
+		path: { competitionId },
+	});
+	if (r.error || !r.data) return null;
+	const info = r.data;
 	return {
 		name: info.venue ?? "Main Venue",
 		detail: info.venue_details ?? "Main Stage",
@@ -351,26 +355,18 @@ async function updateWcaSchedule(
 	token: string,
 	wcif: { id: string; events: Event[]; schedule: Schedule },
 ): Promise<{ success: true } | { success: false; error: string }> {
-	const res = await fetch(
-		`${WCA_API}/competitions/${encodeURIComponent(competitionId)}/wcif`,
-		{
-			method: "PATCH",
-			headers: {
-				Authorization: `Bearer ${token}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(wcif),
-		},
-	);
-
-	if (!res.ok) {
-		const text = await res.text();
+	const client = createWcaClient(token);
+	const r = await updateCompetitionWcif({
+		client,
+		path: { competitionId },
+		body: wcif as Parameters<typeof updateCompetitionWcif>[0]["body"],
+	});
+	if (r.error) {
 		return {
 			success: false as const,
-			error: `WCA rejected WCIF update: ${res.status} ${text}`,
+			error: `WCA rejected WCIF update: ${JSON.stringify(r.error)}`,
 		};
 	}
-
 	return { success: true as const };
 }
 

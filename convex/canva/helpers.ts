@@ -1,27 +1,22 @@
-"use node";
-
 import { ConvexError } from "convex/values";
-import type { components } from "../services/canva/api/types";
+import type {
+	BrandTemplate,
+	DatasetDefinition,
+	DatasetTextValue,
+	ListBrandTemplatesResponse,
+} from "../services/canva/client/types.gen";
 
-type BrandTemplateApiItem = Pick<components["schemas"]["BrandTemplate"], "id"> &
-	Partial<
-		Pick<
-			components["schemas"]["BrandTemplate"],
-			"title" | "view_url" | "create_url"
-		>
-	> & {
+type BrandTemplateApiItem = Pick<BrandTemplate, "id"> &
+	Partial<Pick<BrandTemplate, "title" | "view_url" | "create_url">> & {
 		url?: string;
 	};
 
 type BrandTemplateApiResponse = {
-	continuation?: components["schemas"]["ListBrandTemplatesResponse"]["continuation"];
+	continuation?: ListBrandTemplatesResponse["continuation"];
 	items?: Array<
 		BrandTemplateApiItem | { brand_template?: BrandTemplateApiItem }
 	>;
 };
-
-type BrandTemplateDataset = components["schemas"]["DatasetDefinition"];
-type AutofillTextValue = components["schemas"]["DatasetTextValue"];
 
 function isWrappedBrandTemplateItem(
 	item: BrandTemplateApiItem | { brand_template?: BrandTemplateApiItem },
@@ -50,13 +45,13 @@ export function mapBrandTemplatePickerItems(data: BrandTemplateApiResponse) {
 }
 
 export function buildCanvaAutofillData(
-	dataset: BrandTemplateDataset | undefined,
+	dataset: DatasetDefinition | undefined,
 	competitionName: string | null | undefined,
-): Record<string, AutofillTextValue> {
+): Record<string, DatasetTextValue> {
 	if (!dataset) return {};
 
 	const compIdValue = competitionName?.trim() ?? "";
-	return Object.entries(dataset).reduce<Record<string, AutofillTextValue>>(
+	return Object.entries(dataset).reduce<Record<string, DatasetTextValue>>(
 		(acc, [fieldKey, field]) => {
 			if (field.type !== "text") return acc;
 			acc[fieldKey] = {
