@@ -7,6 +7,9 @@ import { modules } from "./test.setup";
 
 const WCA_2FA_SECRET_ENV = "WCA_2FA_SECRET";
 
+// 32-character Base32 secret (WCA format; ≥16 bytes for otplib default guardrails)
+const VALID_32CHAR_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
+
 function getConvexErrorMessage(error: unknown): string {
 	if (
 		typeof error === "object" &&
@@ -40,6 +43,34 @@ function getConvexErrorMessage(error: unknown): string {
 	return String(error);
 }
 
+function getConvexErrorCode(error: unknown): string | null {
+	if (
+		typeof error === "object" &&
+		error !== null &&
+		"data" in error &&
+		typeof error.data === "string"
+	) {
+		try {
+			const parsed = JSON.parse(error.data) as { code?: unknown };
+			return typeof parsed.code === "string" ? parsed.code : null;
+		} catch {
+			return null;
+		}
+	}
+	if (
+		typeof error === "object" &&
+		error !== null &&
+		"data" in error &&
+		typeof error.data === "object" &&
+		error.data !== null &&
+		"code" in error.data &&
+		typeof error.data.code === "string"
+	) {
+		return error.data.code;
+	}
+	return null;
+}
+
 async function seedAuthorizedUserWithTeam(teamName: string): Promise<{
 	testHarness: ReturnType<typeof convexTest>;
 	userId: string;
@@ -69,9 +100,8 @@ describe("wca2fa security", () => {
 		process.env[WCA_2FA_SECRET_ENV] = originalSecret;
 	});
 
-	test("action payload never includes configured secret (plain Base32)", async () => {
-		const secret = "MZXW6YTBOI======";
-		process.env[WCA_2FA_SECRET_ENV] = secret;
+	test("returns 6-digit code and 60s period; payload never includes secret", async () => {
+		process.env[WCA_2FA_SECRET_ENV] = VALID_32CHAR_SECRET;
 		const { testHarness, userId } = await seedAuthorizedUserWithTeam(
 			TEAM_NAMES.COMPETITIONS,
 		);
@@ -81,9 +111,9 @@ describe("wca2fa security", () => {
 		const serializedResult = JSON.stringify(result);
 
 		expect(result.code).toMatch(/^\d{6}$/);
-		expect(result.periodSeconds).toBe(30);
+		expect(result.periodSeconds).toBe(60);
 		expect(result.digits).toBe(6);
-		expect(serializedResult).not.toContain(secret);
+		expect(serializedResult).not.toContain(VALID_32CHAR_SECRET);
 		expect(Object.keys(result).sort()).toEqual(
 			[
 				"code",
@@ -94,25 +124,6 @@ describe("wca2fa security", () => {
 				"serverNowMs",
 			].sort(),
 		);
-	});
-
-	test("action payload never includes configured secret (otpauth URI)", async () => {
-		const secret = "KRSXG5BRGIZTIMJV";
-		process.env[WCA_2FA_SECRET_ENV] =
-			`otpauth://totp/WCA:Shared?secret=${secret}&issuer=WCA&period=45&digits=8`;
-		const { testHarness, userId } = await seedAuthorizedUserWithTeam(
-			TEAM_NAMES.DIRECTORS,
-		);
-		const authed = testHarness.withIdentity({ subject: userId });
-
-		const result = await authed.action(api.wca2fa.generateCode, {});
-		const serializedResult = JSON.stringify(result);
-
-		expect(result.code).toMatch(/^\d{8}$/);
-		expect(result.periodSeconds).toBe(45);
-		expect(result.digits).toBe(8);
-		expect(serializedResult).not.toContain(secret);
-		expect(serializedResult).not.toContain("otpauth://");
 	});
 
 	test("error responses do not echo invalid secret values", async () => {
@@ -135,30 +146,3 @@ describe("wca2fa security", () => {
 		expect(getConvexErrorMessage(capturedError)).not.toContain(invalidSecret);
 	});
 });
-function getConvexErrorCode(error: unknown): string | null {
-	if (
-		typeof error === "object" &&
-		error !== null &&
-		"data" in error &&
-		typeof error.data === "string"
-	) {
-		try {
-			const parsed = JSON.parse(error.data) as { code?: unknown };
-			return typeof parsed.code === "string" ? parsed.code : null;
-		} catch {
-			return null;
-		}
-	}
-	if (
-		typeof error === "object" &&
-		error !== null &&
-		"data" in error &&
-		typeof error.data === "object" &&
-		error.data !== null &&
-		"code" in error.data &&
-		typeof error.data.code === "string"
-	) {
-		return error.data.code;
-	}
-	return null;
-}
