@@ -7,7 +7,6 @@ import { requireVolunteerAction } from "./lib/oauth";
 import {
 	WCA_BASE,
 	SEARCH_RESULTS_LIMIT,
-	MY_COMPETITIONS_LIMIT,
 } from "./services/wca";
 import { createWcaClient } from "./services/wca/client";
 import {
@@ -149,22 +148,30 @@ export const fetchMyCompetitions = action({
 	handler: async (ctx) => {
 		await requireVolunteerAction(ctx);
 		const { data } = await getWcaClientAndMyCompetitionsData(ctx);
-		const all = [
-			...(data.past_competitions ?? []),
+		const ordered = [
 			...(data.future_competitions ?? []),
+			...(data.past_competitions ?? []),
 			...(data.bookmarked_competitions ?? []),
-		].map((c) =>
-			mapCompetition({
-				id: c.id,
-				name: c.name,
-				city: c.city,
-				country_iso2: c.country_iso2,
-				start_date: c.start_date,
-				end_date: c.end_date,
-				event_ids: [],
-			}),
-		);
-		return all.slice(0, MY_COMPETITIONS_LIMIT);
+		];
+		const seen = new Set<string>();
+		const all: WcaCompetition[] = [];
+		for (const c of ordered) {
+			const id = c.id;
+			if (!id || seen.has(id)) continue;
+			seen.add(id);
+			all.push(
+				mapCompetition({
+					id: c.id,
+					name: c.name,
+					city: c.city,
+					country_iso2: c.country_iso2,
+					start_date: c.start_date,
+					end_date: c.end_date,
+					event_ids: [],
+				}),
+			);
+		}
+		return all;
 	},
 });
 
