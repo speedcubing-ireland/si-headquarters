@@ -1,5 +1,5 @@
-import { useMutation } from "convex/react";
-import { Loader2, Mail, Send, TriangleAlert } from "lucide-react";
+import { useAction, useMutation } from "convex/react";
+import { Loader2, Mail, Send, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -20,6 +20,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type GodModeTab = "users" | "services" | "data" | "linked-actions" | "email";
+type ServiceType = "google" | "wca" | "canva";
+
+const SERVICE_LABELS: Record<ServiceType, string> = {
+	google: "Google Sheets",
+	wca: "WCA (World Cube Association)",
+	canva: "Canva",
+};
 
 export function GodModeAdminContent({
 	defaultTab = "users",
@@ -47,6 +54,7 @@ export function GodModeAdminContent({
 						<MembersAndTeamsSection />
 					</TabsContent>
 					<TabsContent value="services" className="mt-0 space-y-4">
+						<ServicesTokenCheckCard />
 						<ConnectionStatusCardContainer
 							title="Google Sheets"
 							description="Used to read schedule data from competition sheets (Events page)."
@@ -85,6 +93,110 @@ export function GodModeAdminContent({
 				</Tabs>
 			</div>
 		</div>
+	);
+}
+
+function ServicesTokenCheckCard() {
+	const checkConnections = useAction(api.services.tokens.checkConnections);
+	const [isChecking, setIsChecking] = useState(false);
+	const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
+	const [lastResults, setLastResults] = useState<
+		Array<{
+			service: ServiceType;
+			status: "valid" | "invalid" | "missing";
+			message: string;
+		}>
+	>([]);
+
+	const handleCheckConnections = () => {
+		setIsChecking(true);
+		void checkConnections({})
+			.then((result) => {
+				setLastCheckedAt(result.checkedAt);
+				setLastResults(result.results);
+				const invalidResults = result.results.filter(
+					(row) => row.status === "invalid",
+				);
+				if (invalidResults.length === 0) {
+					toast.success("Service token check complete.");
+					return;
+				}
+				toast.error(
+					`Reconnect required for: ${invalidResults
+						.map((row) => SERVICE_LABELS[row.service])
+						.join(", ")}`,
+				);
+			})
+			.catch(onMutationError)
+			.finally(() => setIsChecking(false));
+	};
+
+	return (
+		<Card>
+			<CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<div className="space-y-1">
+					<CardTitle className="flex items-center gap-2">
+						<ShieldCheck className="size-4 text-muted-foreground" />
+						Service Token Health Check
+					</CardTitle>
+					<p className="text-xs text-muted-foreground">
+						Refreshes each saved token once to verify service access is still
+						valid.
+					</p>
+				</div>
+				<Button
+					onClick={handleCheckConnections}
+					disabled={isChecking}
+					className="w-full sm:w-auto"
+				>
+					{isChecking ? (
+						<Loader2 className="size-4 animate-spin" />
+					) : (
+						<ShieldCheck className="size-4" />
+					)}
+					Check
+				</Button>
+			</CardHeader>
+			{lastResults.length > 0 ? (
+				<CardContent className="space-y-3 pt-0">
+					{lastCheckedAt ? (
+						<p className="text-xs text-muted-foreground">
+							Last checked: {new Date(lastCheckedAt).toLocaleString()}
+						</p>
+					) : null}
+					<div className="grid gap-2 lg:grid-cols-3">
+						{lastResults.map((row) => (
+							<div key={row.service} className="rounded-md border p-3">
+								<div className="flex items-center justify-between gap-2">
+									<p className="text-sm font-medium">
+										{SERVICE_LABELS[row.service]}
+									</p>
+									<Badge
+										variant={
+											row.status === "valid"
+												? "secondary"
+												: row.status === "missing"
+													? "outline"
+													: "destructive"
+										}
+										className="whitespace-nowrap"
+									>
+										{row.status === "valid"
+											? "Valid"
+											: row.status === "missing"
+												? "Not linked"
+												: "Reconnect"}
+									</Badge>
+								</div>
+								<p className="mt-1 text-xs text-muted-foreground">
+									{row.message}
+								</p>
+							</div>
+						))}
+					</div>
+				</CardContent>
+			) : null}
+		</Card>
 	);
 }
 

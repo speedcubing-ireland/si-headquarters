@@ -1,4 +1,5 @@
 import {
+	action,
 	internalAction,
 	internalMutation,
 	internalQuery,
@@ -7,6 +8,7 @@ import {
 import { v } from "convex/values";
 import { requireUserId } from "../auth";
 import { internal } from "../_generated/api";
+import { requireDirectorAction } from "../lib/oauth";
 import schema from "../schema";
 import { refreshTokenWithDefinition } from "./tokens/tokenDefinition";
 import type { ServiceType, TokenData } from "./tokens/types";
@@ -23,6 +25,17 @@ const tokenDataValidator = {
 };
 
 const tokenDataObjectValidator = v.object(tokenDataValidator);
+const tokenCheckResultValidator = v.object({
+	service: serviceValidator,
+	status: v.union(
+		v.literal("valid"),
+		v.literal("invalid"),
+		v.literal("missing"),
+	),
+	message: v.string(),
+});
+
+const serviceTypes: ServiceType[] = ["google", "wca", "canva"];
 
 function hasUsableAccessToken(token: TokenData, nowSec: number): boolean {
 	return token.expiresAt > nowSec + TOKEN_EXPIRY_BUFFER_SEC;
@@ -132,5 +145,71 @@ export const getValidAccessToken = internalAction({
 			expiresAt: refreshed.expiresAt,
 		});
 		return refreshed.accessToken;
+	},
+});
+
+export const checkConnections = action({
+	args: {},
+	returns: v.object({
+		checkedAt: v.number(),
+		results: v.array(tokenCheckResultValidator),
+	}),
+	handler: async (ctx) => {
+		await requireDirectorAction(ctx);
+
+		const results: Array<{
+			service: ServiceType;
+			status: "valid" | "invalid" | "missing";
+			message: string;
+		}> = [];
+		for (const service of serviceTypes) {
+			const token: TokenData | null = await ctx.runQuery(
+				internal.services.tokens.getToken,
+				{ service },
+			);
+			if (!token) {
+				results.push({
+					service,
+					status: "missing",
+					message: "No token saved for this service.",
+				});
+				continue;
+			}
+			if (!token.refreshToken.trim()) {
+				results.push({
+					service,
+					status: "invalid",
+					message: "Missing refresh token. Reconnect this service.",
+				});
+				continue;
+			}
+
+			const refreshed = await refreshTokenForService(service, token);
+			if (!refreshed) {
+				results.push({
+					service,
+					status: "invalid",
+					message: "Refresh failed. Reconnect this service.",
+				});
+				continue;
+			}
+
+			await ctx.runMutation(internal.services.tokens.setTokens, {
+				service,
+				accessToken: refreshed.accessToken,
+				refreshToken: refreshed.refreshToken,
+				expiresAt: refreshed.expiresAt,
+			});
+			results.push({
+				service,
+				status: "valid",
+				message: "Refresh successful.",
+			});
+		}
+
+		return {
+			checkedAt: Date.now(),
+			results,
+		};
 	},
 });
