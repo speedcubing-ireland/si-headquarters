@@ -48,19 +48,8 @@ export const emailDispatchStatsReturns = v.object({
 	canceled: v.number(),
 });
 
-export const emailDispatchHealthBySourceReturns = v.object({
-	sourceKind: emailSourceKind,
-	queued: v.number(),
-	sending: v.number(),
-	awaitingProvider: v.number(),
-	sent: v.number(),
-	deadLetter: v.number(),
-	canceled: v.number(),
-});
-
 export const emailDispatchHealthReturns = v.object({
 	totals: emailDispatchStatsReturns,
-	bySource: v.array(emailDispatchHealthBySourceReturns),
 	staleQueuedCount: v.number(),
 	deadLettersLast24h: v.number(),
 });

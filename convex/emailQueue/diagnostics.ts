@@ -6,25 +6,20 @@ import { type dispatchStatuses, staleDispatchThresholdMs } from "./types";
 const sourceKinds = ["sponsorship", "notification", "sponsor_auth"] as const;
 const PAGE_SIZE = 256;
 
-async function countQueryRows<T>(args: {
-	queryFactory: (
-		cursor: string | null,
-	) => Promise<{ page: T[]; isDone: boolean; continueCursor: string }>;
+async function countWithTake<T>(args: {
+	runPage: (cursor: number | null) => Promise<T[]>;
+	getCursor: (doc: T) => number;
 	predicate?: (row: T) => boolean;
 }): Promise<number> {
-	let cursor: string | null = null;
+	let cursor: number | null = null;
 	let count = 0;
 	while (true) {
-		const page = await args.queryFactory(cursor);
-		if (args.predicate) {
-			count += page.page.filter(args.predicate).length;
-		} else {
-			count += page.page.length;
-		}
-		if (page.isDone) {
-			return count;
-		}
-		cursor = page.continueCursor;
+		const page = await args.runPage(cursor);
+		count += args.predicate ? page.filter(args.predicate).length : page.length;
+		if (page.length < PAGE_SIZE) return count;
+		const last = page[page.length - 1];
+		if (!last) return count;
+		cursor = args.getCursor(last);
 	}
 }
 
@@ -33,14 +28,22 @@ async function countDispatchesBySourceAndStatus(args: {
 	sourceKind: (typeof sourceKinds)[number];
 	status: (typeof dispatchStatuses)[number];
 }): Promise<number> {
-	return countQueryRows({
-		queryFactory: (cursor) =>
-			args.ctx.db
+	const { ctx, sourceKind, status } = args;
+	return countWithTake({
+		runPage: (cursor) =>
+			ctx.db
 				.query("emailDispatches")
 				.withIndex("by_source_status_created_at", (q) =>
-					q.eq("sourceKind", args.sourceKind).eq("status", args.status),
+					cursor === null
+						? q.eq("sourceKind", sourceKind).eq("status", status)
+						: q
+								.eq("sourceKind", sourceKind)
+								.eq("status", status)
+								.gt("createdAt", cursor),
 				)
-				.paginate({ cursor, numItems: PAGE_SIZE }),
+				.order("asc")
+				.take(PAGE_SIZE),
+		getCursor: (doc) => doc.createdAt,
 	});
 }
 
@@ -48,29 +51,42 @@ async function countStaleQueuedDispatches(
 	ctx: QueryCtx,
 	now: number,
 ): Promise<number> {
-	return countQueryRows({
-		queryFactory: (cursor) =>
+	return countWithTake({
+		runPage: (cursor) =>
 			ctx.db
 				.query("emailDispatches")
-				.withIndex("by_status_updated_at", (q) => q.eq("status", "queued"))
-				.paginate({ cursor, numItems: PAGE_SIZE }),
+				.withIndex("by_status_updated_at", (q) =>
+					cursor === null
+						? q.eq("status", "queued")
+						: q.eq("status", "queued").gt("updatedAt", cursor),
+				)
+				.order("asc")
+				.take(PAGE_SIZE),
+		getCursor: (doc) => doc.updatedAt,
 		predicate: (dispatch) =>
 			dispatch.updatedAt + staleDispatchThresholdMs < now,
 	});
 }
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
 async function countDeadLettersLast24h(
 	ctx: QueryCtx,
 	now: number,
 ): Promise<number> {
-	return countQueryRows({
-		queryFactory: (cursor) =>
+	const cutoff = now - ONE_DAY_MS;
+	return countWithTake({
+		runPage: (cursor) =>
 			ctx.db
 				.query("emailDeadLetters")
 				.withIndex("by_failed_at", (q) =>
-					q.gte("failedAt", now - 24 * 60 * 60 * 1000),
+					cursor === null
+						? q.gte("failedAt", cutoff)
+						: q.gt("failedAt", cursor),
 				)
-				.paginate({ cursor, numItems: PAGE_SIZE }),
+				.order("asc")
+				.take(PAGE_SIZE),
+		getCursor: (doc) => doc.failedAt,
 	});
 }
 
@@ -83,15 +99,6 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 		deadLetter: number;
 		canceled: number;
 	};
-	bySource: Array<{
-		sourceKind: "sponsorship" | "notification" | "sponsor_auth";
-		queued: number;
-		sending: number;
-		awaitingProvider: number;
-		sent: number;
-		deadLetter: number;
-		canceled: number;
-	}>;
 	staleQueuedCount: number;
 	deadLettersLast24h: number;
 }> {
@@ -105,26 +112,7 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 		canceled: 0,
 	};
 
-	const bySourceMap = new Map<
-		"sponsorship" | "notification" | "sponsor_auth",
-		typeof totals
-	>();
 	for (const sourceKind of sourceKinds) {
-		bySourceMap.set(sourceKind, {
-			queued: 0,
-			sending: 0,
-			awaitingProvider: 0,
-			sent: 0,
-			deadLetter: 0,
-			canceled: 0,
-		});
-	}
-
-	for (const sourceKind of sourceKinds) {
-		const source = bySourceMap.get(sourceKind);
-		if (!source) {
-			continue;
-		}
 		const [queued, sending, awaitingProvider, sent, deadLetter, canceled] =
 			await Promise.all([
 				countDispatchesBySourceAndStatus({
@@ -158,13 +146,6 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 					status: "canceled",
 				}),
 			]);
-		source.queued = queued;
-		source.sending = sending;
-		source.awaitingProvider = awaitingProvider;
-		source.sent = sent;
-		source.deadLetter = deadLetter;
-		source.canceled = canceled;
-
 		totals.queued += queued;
 		totals.sending += sending;
 		totals.awaitingProvider += awaitingProvider;
@@ -180,17 +161,6 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 
 	return {
 		totals,
-		bySource: sourceKinds.map((sourceKind) => ({
-			sourceKind,
-			...(bySourceMap.get(sourceKind) ?? {
-				queued: 0,
-				sending: 0,
-				awaitingProvider: 0,
-				sent: 0,
-				deadLetter: 0,
-				canceled: 0,
-			}),
-		})),
 		staleQueuedCount,
 		deadLettersLast24h,
 	};
