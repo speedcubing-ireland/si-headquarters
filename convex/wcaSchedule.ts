@@ -353,11 +353,6 @@ async function updateWcaSchedule(
 	competitionId: string,
 	wcif: CompetitionWcif,
 ): Promise<{ success: true } | { success: false; error: string }> {
-	console.log(
-		"[pushScheduleToWca] Sending WCIF payload to WCA",
-		JSON.stringify({ competitionId, wcif }, null, 2),
-	);
-
 	/**
 	 * WCA's WCIF update endpoint accepts a full WCIF competition payload.
 	 * The current OpenAPI schema models this body more narrowly.
