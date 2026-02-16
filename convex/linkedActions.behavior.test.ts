@@ -184,7 +184,7 @@ describe("linkedActions behavior characterization", () => {
 		expect(rows[0].linkedActionId).toBe(definitionId);
 	});
 
-	test("runTaskLinkedAction executes noop linked sheet operation and marks completed", async () => {
+	test("runTaskLinkedAction reports error when check-in sheet preconditions are missing", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskAccessFixture(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
@@ -216,18 +216,18 @@ describe("linkedActions behavior characterization", () => {
 			taskId: seeded.taskId,
 			taskLinkedActionId: setup.taskLinkedActionId,
 		});
-		expect(result.success).toBe(true);
+		expect(result.success).toBe(false);
+		expect(result.message).toContain(
+			"Competition is not linked to WCA. Link it first.",
+		);
 
 		const row = await t.run((ctx) =>
 			ctx.db.get("taskLinkedActions", setup.taskLinkedActionId),
 		);
-		expect(row?.status).toBe("completed");
-		expect(row?.lastRunMessage).toContain("not implemented");
-		expect(row?.lastOutputJson).toBeTruthy();
-		expect(JSON.parse(row?.lastOutputJson ?? "{}")).toEqual({
-			operation: "populate_checkin_sheet",
-			status: "noop",
-		});
+		expect(row?.status).toBe("error");
+		expect(row?.lastRunMessage).toContain(
+			"Competition is not linked to WCA. Link it first.",
+		);
 	});
 
 	test("assignee run permission allows only task assignee", async () => {
@@ -522,7 +522,10 @@ describe("linkedActions behavior characterization", () => {
 			taskId: seeded.taskId,
 			taskLinkedActionId: seeded.taskLinkedActionId,
 		});
-		expect(result.success).toBe(true);
+		expect(result.success).toBe(false);
+		expect(result.message).toContain(
+			"Competition is not linked to WCA. Link it first.",
+		);
 	});
 
 	test("confirmCanvaManualShareComplete moves Canva action to completed", async () => {

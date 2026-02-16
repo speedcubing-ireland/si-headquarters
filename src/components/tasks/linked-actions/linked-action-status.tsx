@@ -102,5 +102,12 @@ export function LinkedActionStateNote({
 			</p>
 		);
 	}
+	if (status === "awaiting_manual_share") {
+		return (
+			<p className="text-xs text-muted-foreground">
+				Next step required before this action can complete.
+			</p>
+		);
+	}
 	return null;
 }

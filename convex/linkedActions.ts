@@ -22,6 +22,7 @@ import {
 	assertConfigMatchesType,
 	assertShortId,
 	canonicalizeConfigForType,
+	isLinkedSheetConfig,
 	normalizeRunPermissionForType,
 } from "./linkedActions/config";
 import {
@@ -741,10 +742,14 @@ export const runTaskLinkedAction = action({
 			const result = await runner(ctx, runContext, {
 				nameInput: args.nameInput,
 			});
-			const nextStatus =
-				runContext.definition.type === "canva_template"
-					? "awaiting_manual_share"
-					: "completed";
+			const shouldAwaitFollowUp =
+				runContext.definition.type === "canva_template" ||
+				(runContext.definition.type === "linked_sheet" &&
+					isLinkedSheetConfig(runContext.definition.config) &&
+					runContext.definition.config.operation === "populate_checkin_sheet");
+			const nextStatus = shouldAwaitFollowUp
+				? "awaiting_manual_share"
+				: "completed";
 
 			await ctx.runMutation(
 				internal.linkedActions.setTaskLinkedActionRunState,
@@ -783,5 +788,150 @@ export const runTaskLinkedAction = action({
 				message,
 			};
 		}
+	},
+});
+
+export const completeLinkedSheetShareWithLaptops = action({
+	args: {
+		taskId: v.id("tasks"),
+		taskLinkedActionId: v.id("taskLinkedActions"),
+	},
+	returns: v.union(
+		v.object({
+			success: v.literal(true),
+			message: v.string(),
+		}),
+		v.object({
+			success: v.literal(false),
+			message: v.string(),
+		}),
+	),
+	handler: async (ctx, args): Promise<RunTaskLinkedActionResult> => {
+		const currentUser = await ctx.runQuery(api.users.getCurrentUser, {});
+		if (!currentUser) {
+			return { success: false as const, message: "Authentication required." };
+		}
+		const volunteer = await ctx.runQuery(api.auth.isVolunteerQuery, {});
+		const task = await ctx.runQuery(api.tasks.get, {
+			taskId: args.taskId,
+		});
+		if (!task) {
+			return { success: false as const, message: "Task not found." };
+		}
+
+		const runContext: Infer<typeof runContextShape> = await ctx.runQuery(
+			internal.linkedActions.getTaskLinkedActionRunContext,
+			{
+				taskId: args.taskId,
+				taskLinkedActionId: args.taskLinkedActionId,
+			},
+		);
+		if (!runContext || runContext.definition.archived) {
+			return {
+				success: false as const,
+				message: "Linked integration is unavailable.",
+			};
+		}
+		if (
+			runContext.definition.type !== "linked_sheet" ||
+			!isLinkedSheetConfig(runContext.definition.config) ||
+			runContext.definition.config.operation !== "populate_checkin_sheet"
+		) {
+			return {
+				success: false as const,
+				message:
+					"Laptop sharing follow-up is only available for populate check-in sheet actions.",
+			};
+		}
+
+		const canRun = await ctx.runQuery(
+			internal.linkedActions.canUserRunTaskLinkedAction,
+			{
+				taskId: args.taskId,
+				taskLinkedActionId: args.taskLinkedActionId,
+				userId: currentUser._id,
+				volunteer,
+			},
+		);
+		if (!canRun) {
+			return {
+				success: false as const,
+				message: "You do not have permission to run this linked integration.",
+			};
+		}
+
+		const linkedActions = await ctx.runQuery(api.linkedActions.listForTask, {
+			taskId: args.taskId,
+		});
+		const row = linkedActions.find(
+			(item) => item.id === args.taskLinkedActionId,
+		);
+		if (!row) {
+			return {
+				success: false as const,
+				message: "Linked integration row not found for task.",
+			};
+		}
+		if (row.status === "running") {
+			return {
+				success: false as const,
+				message: "Action is still running.",
+			};
+		}
+		if (row.status === "idle" || row.status === "error") {
+			return {
+				success: false as const,
+				message: "Run the check-in sheet population step first.",
+			};
+		}
+		if (row.status === "completed") {
+			return {
+				success: true as const,
+				message: "Sheet already shared with laptops.",
+			};
+		}
+
+		const competitionId = runContext.task.parentCompetitionId;
+		if (!competitionId) {
+			return {
+				success: false as const,
+				message: "Task must belong to a competition to share the sheet.",
+			};
+		}
+
+		const shareResult = await ctx.runAction(
+			api.wcaSchedule.shareSheetWithLaptops,
+			{
+				competitionId,
+			},
+		);
+		if (!shareResult.success) {
+			return {
+				success: false as const,
+				message: shareResult.error,
+			};
+		}
+
+		const now = Date.now();
+		const output = parseOutputObject(row.lastOutputJson ?? undefined) ?? {};
+		const nextOutput = JSON.stringify({
+			...output,
+			laptopShareCompleted: true,
+			laptopShareCompletedAt: now,
+			sharedWith: shareResult.sharedWith,
+		});
+
+		await ctx.runMutation(internal.linkedActions.setTaskLinkedActionRunState, {
+			taskLinkedActionId: row.id,
+			status: "completed",
+			lastRunAt: now,
+			lastRunMessage: `Shared sheet with ${shareResult.sharedWith}.`,
+			lastOutputJson: nextOutput,
+		});
+
+		return {
+			success: true as const,
+			message: `Shared sheet with ${shareResult.sharedWith}.`,
+		};
 	},
 });

@@ -268,7 +268,7 @@ export function LinkedActionsSection() {
 										Transfer schedule to WCA
 									</SelectItem>
 									<SelectItem value="populate_checkin_sheet">
-										Populate check-in sheet (noop)
+										Populate check-in sheet from WCA data
 									</SelectItem>
 								</SelectContent>
 							</Select>

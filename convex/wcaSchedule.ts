@@ -7,8 +7,10 @@ import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { fromZonedTime } from "date-fns-tz";
 import type {
+	RegistrationDataV2,
 	WcifActivity as Activity,
 	WcifEvent as Event,
+	WcifPerson,
 	WcifRound as Round,
 	WcifSchedule as Schedule,
 	WcifVenue as Venue,
@@ -19,16 +21,44 @@ import { createWcaClient } from "./services/wca/client";
 import {
 	competitionById,
 	getCompetitionWcif,
+	getRegistrationsAdmin,
 	updateCompetitionWcif,
 } from "./services/wca/client/sdk.gen";
-import { fetchGoogleSheetValues } from "./services/google/sheetsClient";
+import {
+	clearGoogleSheetValues,
+	fetchGoogleSheetValues,
+	type GoogleSheetCellValue,
+	shareGoogleSheetWithUser,
+	updateGoogleSheetValues,
+} from "./services/google/sheetsClient";
 
 type WcaApiClient = ReturnType<typeof createWcaClient>;
 
 const SATURDAY_RANGE = "Schedule!AH6:AK";
 const SUNDAY_RANGE = "Schedule!AM6:AP";
+const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U";
+const WCA_DATA_WRITE_RANGE = "WCA Data!A3";
+const LAPTOP_SHARE_EMAIL = "laptop@speedcubingireland.com";
 const DUBLIN_TIMEZONE = "Europe/Dublin";
 const IRELAND_TEMPLATE_COMPETITION_ID = "IrelandTemplate2100";
+const CHECKIN_EVENT_COLUMNS = [
+	"333",
+	"222",
+	"444",
+	"555",
+	"666",
+	"777",
+	"333bf",
+	"333fm",
+	"clock",
+	"pyram",
+	"skewb",
+	"333mbf",
+] as const;
+const REGION_DISPLAY_NAMES =
+	typeof Intl.DisplayNames === "function"
+		? new Intl.DisplayNames(["en"], { type: "region" })
+		: null;
 
 export const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"]);
 
@@ -167,10 +197,18 @@ type PushScheduleResult =
 	| { success: true; activitiesCreated: number }
 	| { success: false; error: string };
 
+type PopulateCheckinSheetResult =
+	| { success: true; rowsWritten: number }
+	| { success: false; error: string };
+type ShareSheetWithLaptopsResult =
+	| { success: true; sharedWith: string }
+	| { success: false; error: string };
+
 type CompetitionWcif = {
 	id: string;
 	events: Event[];
 	schedule: Schedule;
+	persons?: WcifPerson[];
 };
 
 async function getServiceAccessToken(
@@ -235,6 +273,126 @@ async function fetchCompetitionWcif(
 	if (r.error || !r.data) return null;
 	// WCA WCIF endpoint returns a full WCIF competition payload.
 	return r.data as unknown as CompetitionWcif;
+}
+
+function firstNameFromFullName(name: string): string {
+	const [firstName = ""] = name.trim().split(/\s+/);
+	return firstName;
+}
+
+function buildWcifPersonLookup(persons: WcifPerson[] | undefined) {
+	const byUserId = new Map<number, WcifPerson>();
+	const byRegistrantId = new Map<number, WcifPerson>();
+
+	for (const person of persons ?? []) {
+		if (person.wcaUserId) {
+			byUserId.set(person.wcaUserId, person);
+		}
+		if (person.registrantId) {
+			byRegistrantId.set(person.registrantId, person);
+		}
+	}
+
+	return { byUserId, byRegistrantId };
+}
+
+function resolvePersonForRegistration(
+	registration: RegistrationDataV2,
+	lookup: ReturnType<typeof buildWcifPersonLookup>,
+): WcifPerson | undefined {
+	return (
+		lookup.byUserId.get(registration.user_id) ??
+		lookup.byRegistrantId.get(registration.registrant_id)
+	);
+}
+
+function readString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function countryIso2ToName(countryIso2: string): string {
+	const normalized = countryIso2.trim().toUpperCase();
+	if (!normalized) return "";
+	if (!REGION_DISPLAY_NAMES) return normalized;
+	return REGION_DISPLAY_NAMES.of(normalized) ?? normalized;
+}
+
+export function getRegistrationStatus(
+	registration: RegistrationDataV2,
+): string {
+	const competingRecord = registration.competing as Record<string, unknown>;
+	const registrationRecord = registration as unknown as Record<string, unknown>;
+	return (
+		readString(competingRecord.registration_status) ??
+		readString(competingRecord.status) ??
+		readString(registrationRecord.registration_status) ??
+		readString(registrationRecord.status) ??
+		""
+	).trim();
+}
+
+function isAcceptedRegistration(registration: RegistrationDataV2): boolean {
+	return getRegistrationStatus(registration).toLowerCase() === "accepted";
+}
+
+function blankToNull(value: string | null | undefined): string | null {
+	const normalized = (value ?? "").trim();
+	return normalized ? normalized : null;
+}
+
+export function buildCheckinSheetRows(
+	registrations: RegistrationDataV2[],
+	wcifPersons: WcifPerson[] | undefined,
+): GoogleSheetCellValue[][] {
+	const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+	const personLookup = buildWcifPersonLookup(wcifPersons);
+
+	const rows = registrations
+		.filter(isAcceptedRegistration)
+		.map((registration) => {
+			const registrationStatus = getRegistrationStatus(registration);
+			const name = (registration.user.name ?? "").trim();
+			const firstName = firstNameFromFullName(name);
+			const eventIds = new Set(registration.competing.event_ids ?? []);
+			const person = resolvePersonForRegistration(registration, personLookup);
+
+			return {
+				firstName,
+				name,
+				sortKey: `${firstName} ${name}`.trim(),
+				registrantId: registration.registrant_id,
+				row: [
+					blankToNull(registrationStatus),
+					blankToNull(name),
+					blankToNull(
+						countryIso2ToName((registration.user.country_iso2 ?? "").trim()),
+					),
+					blankToNull(registration.user.wca_id),
+					blankToNull(person?.birthdate),
+					blankToNull(registration.user.gender),
+					...CHECKIN_EVENT_COLUMNS.map((eventId) =>
+						eventIds.has(eventId) ? ("1" as const) : null,
+					),
+					blankToNull(person?.email),
+					typeof registration.guests === "number"
+						? String(registration.guests)
+						: null,
+					null,
+				],
+			};
+		});
+
+	rows.sort((a, b) => {
+		const firstNameCmp = collator.compare(a.firstName, b.firstName);
+		if (firstNameCmp !== 0) return firstNameCmp;
+		const nameCmp = collator.compare(a.name, b.name);
+		if (nameCmp !== 0) return nameCmp;
+		const sortKeyCmp = collator.compare(a.sortKey, b.sortKey);
+		if (sortKeyCmp !== 0) return sortKeyCmp;
+		return a.registrantId - b.registrantId;
+	});
+
+	return rows.map((entry) => entry.row);
 }
 
 function formatDublinTime(
@@ -712,5 +870,190 @@ export const pushScheduleToWca = action({
 		}
 
 		return { success: true as const, activitiesCreated: allActivities.length };
+	},
+});
+
+export const populateCheckinSheetFromWca = action({
+	args: { competitionId: v.id("competitions") },
+	returns: v.union(
+		v.object({
+			success: v.literal(true),
+			rowsWritten: v.number(),
+		}),
+		v.object({
+			success: v.literal(false),
+			error: v.string(),
+		}),
+	),
+	handler: async (ctx, args): Promise<PopulateCheckinSheetResult> => {
+		const competitionForUser = await ctx.runQuery(api.competitions.get, {
+			competitionId: args.competitionId,
+		});
+		if (!competitionForUser) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "You do not have access to this competition.",
+			});
+		}
+
+		const competition = (await ctx.runQuery(internal.competitions.getInternal, {
+			id: args.competitionId,
+		})) as CompetitionInfo | null;
+
+		if (!competition) {
+			return { success: false as const, error: "Competition not found" };
+		}
+
+		if (!competition.wcaCompetitionId) {
+			return {
+				success: false as const,
+				error: "Competition is not linked to WCA. Link it first.",
+			};
+		}
+
+		if (!competition.compSheet) {
+			return {
+				success: false as const,
+				error: "No Google Sheet linked. Add a Google Sheet first.",
+			};
+		}
+
+		const googleToken = await getServiceAccessToken(ctx, "google");
+		if (!googleToken) {
+			return {
+				success: false as const,
+				error: "No Google Sheets token. Run: bun run auth google-sheets",
+			};
+		}
+
+		const wcaToken = await getServiceAccessToken(ctx, "wca");
+		if (!wcaToken) {
+			return {
+				success: false as const,
+				error: "No WCA token. Run: bun run auth wca",
+			};
+		}
+		const wcaClient = createWcaClient(wcaToken);
+
+		const registrationsResponse = await getRegistrationsAdmin({
+			client: wcaClient,
+			path: { competitionId: competition.wcaCompetitionId },
+		});
+		if (registrationsResponse.error) {
+			return {
+				success: false as const,
+				error: `Failed to fetch admin competition registrations: ${JSON.stringify(registrationsResponse.error)}`,
+			};
+		}
+
+		const registrations = Array.isArray(registrationsResponse.data)
+			? registrationsResponse.data
+			: [];
+		const hasStatusFields = registrations.some(
+			(registration) => getRegistrationStatus(registration) !== "",
+		);
+		if (registrations.length > 0 && !hasStatusFields) {
+			return {
+				success: false as const,
+				error:
+					"WCA admin registrations are missing status fields. Ensure your WCA token has organizer/delegate access for this competition.",
+			};
+		}
+		const wcif = await fetchCompetitionWcif(
+			wcaClient,
+			competition.wcaCompetitionId,
+		);
+		const rows = buildCheckinSheetRows(registrations, wcif?.persons);
+
+		try {
+			await clearGoogleSheetValues({
+				accessToken: googleToken,
+				spreadsheetId: competition.compSheet.sheetId,
+				range: WCA_DATA_CLEAR_RANGE,
+			});
+			if (rows.length > 0) {
+				await updateGoogleSheetValues({
+					accessToken: googleToken,
+					spreadsheetId: competition.compSheet.sheetId,
+					range: WCA_DATA_WRITE_RANGE,
+					values: rows,
+				});
+			}
+		} catch (err) {
+			return {
+				success: false as const,
+				error: `Failed to update check-in sheet: ${err instanceof Error ? err.message : "Unknown error"}`,
+			};
+		}
+
+		return {
+			success: true as const,
+			rowsWritten: rows.length,
+		};
+	},
+});
+
+export const shareSheetWithLaptops = action({
+	args: { competitionId: v.id("competitions") },
+	returns: v.union(
+		v.object({
+			success: v.literal(true),
+			sharedWith: v.string(),
+		}),
+		v.object({
+			success: v.literal(false),
+			error: v.string(),
+		}),
+	),
+	handler: async (ctx, args): Promise<ShareSheetWithLaptopsResult> => {
+		const competitionForUser = await ctx.runQuery(api.competitions.get, {
+			competitionId: args.competitionId,
+		});
+		if (!competitionForUser) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message: "You do not have access to this competition.",
+			});
+		}
+
+		const competition = (await ctx.runQuery(internal.competitions.getInternal, {
+			id: args.competitionId,
+		})) as CompetitionInfo | null;
+
+		if (!competition) {
+			return { success: false as const, error: "Competition not found" };
+		}
+		if (!competition.compSheet) {
+			return {
+				success: false as const,
+				error: "No Google Sheet linked. Add a Google Sheet first.",
+			};
+		}
+
+		const googleToken = await getServiceAccessToken(ctx, "google");
+		if (!googleToken) {
+			return {
+				success: false as const,
+				error: "No Google Sheets token. Run: bun run auth google-sheets",
+			};
+		}
+
+		try {
+			await shareGoogleSheetWithUser({
+				accessToken: googleToken,
+				spreadsheetId: competition.compSheet.sheetId,
+				email: LAPTOP_SHARE_EMAIL,
+				role: "writer",
+				notificationMessage:
+					"A Speedcubing Ireland competition sheet has been shared with this address for laptop check-in support.",
+			});
+		} catch (err) {
+			return {
+				success: false as const,
+				error: `Failed to share sheet with laptops: ${err instanceof Error ? err.message : "Unknown error"}`,
+			};
+		}
+
+		return { success: true as const, sharedWith: LAPTOP_SHARE_EMAIL };
 	},
 });

@@ -157,6 +157,9 @@ export function TaskLinkedActionsSection({
 		api.linkedActions.confirmCanvaManualShareComplete,
 	);
 	const runTaskLinkedAction = useAction(api.linkedActions.runTaskLinkedAction);
+	const completeLinkedSheetShareWithLaptops = useAction(
+		api.linkedActions.completeLinkedSheetShareWithLaptops,
+	);
 	const linkTaskCanvaDesign = useAction(api.linkedActions.linkTaskCanvaDesign);
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [runningId, setRunningId] = useState<TaskLinkedAction["id"] | null>(
@@ -168,6 +171,9 @@ export function TaskLinkedActionsSection({
 	const [linkingId, setLinkingId] = useState<TaskLinkedAction["id"] | null>(
 		null,
 	);
+	const [sharingSheetId, setSharingSheetId] = useState<
+		TaskLinkedAction["id"] | null
+	>(null);
 
 	const items = linkedActions ?? [];
 
@@ -224,6 +230,24 @@ export function TaskLinkedActionsSection({
 				return false;
 			})
 			.finally(() => setLinkingId(null));
+	};
+
+	const shareSheetWithLaptops = (item: TaskLinkedAction) => {
+		if (readOnly || !item.canRun) return;
+		setSharingSheetId(item.id);
+		void completeLinkedSheetShareWithLaptops({
+			taskId: task.id,
+			taskLinkedActionId: item.id,
+		})
+			.then((result) => {
+				if (result.success) {
+					toast.success(result.message);
+				} else {
+					toast.error(result.message);
+				}
+			})
+			.catch(onMutationError)
+			.finally(() => setSharingSheetId(null));
 	};
 
 	return (
@@ -311,14 +335,27 @@ export function TaskLinkedActionsSection({
 								/>
 							) : null}
 							{item.definition.type === "linked_sheet" &&
-							isLinkedSheetConfig(item.definition.config) ? (
-								<LinkedSheetPane
-									config={item.definition.config}
-									isRunning={runningId === item.id || item.status === "running"}
-									isReadOnly={readOnly || !item.canRun}
-									onRun={() => runAction(item)}
-								/>
-							) : null}
+							isLinkedSheetConfig(item.definition.config)
+								? (() => {
+										const isAwaitingShareStep =
+											item.definition.config.operation ===
+												"populate_checkin_sheet" &&
+											item.status === "awaiting_manual_share";
+										return (
+											<LinkedSheetPane
+												config={item.definition.config}
+												isRunning={
+													runningId === item.id || item.status === "running"
+												}
+												isAwaitingShare={isAwaitingShareStep}
+												isSharingWithLaptops={sharingSheetId === item.id}
+												isReadOnly={readOnly || !item.canRun}
+												onRun={() => runAction(item)}
+												onShareWithLaptops={() => shareSheetWithLaptops(item)}
+											/>
+										);
+									})()
+								: null}
 							<LinkedActionStateNote
 								status={item.status}
 								canRun={item.canRun}

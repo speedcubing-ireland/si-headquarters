@@ -72,14 +72,37 @@ const runLinkedSheetAction: LinkedActionRunner = async (ctx, runContext) => {
 	}
 
 	switch (runContext.definition.config.operation) {
-		case "populate_checkin_sheet":
+		case "populate_checkin_sheet": {
+			const competitionId = runContext.task.parentCompetitionId;
+			if (!competitionId) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message:
+						"Task must belong to a competition to populate the check-in sheet.",
+				});
+			}
+
+			const result = await ctx.runAction(
+				api.wcaSchedule.populateCheckinSheetFromWca,
+				{
+					competitionId,
+				},
+			);
+			if (!result.success) {
+				const errorMessage =
+					"error" in result
+						? result.error
+						: "Failed to populate check-in sheet.";
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: errorMessage,
+				});
+			}
 			return {
-				message: "Populate check-in sheet is not implemented yet.",
-				outputJson: JSON.stringify({
-					operation: "populate_checkin_sheet",
-					status: "noop",
-				}),
+				message: `Populated check-in sheet with ${result.rowsWritten} accepted registrations.`,
+				outputJson: JSON.stringify(result),
 			};
+		}
 		case "transfer_schedule_to_wca": {
 			const competitionId = runContext.task.parentCompetitionId;
 			if (!competitionId) {

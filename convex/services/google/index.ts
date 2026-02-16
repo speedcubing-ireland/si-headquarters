@@ -9,8 +9,10 @@ export const googleTokenRefreshDefinition = createTokenRefreshDefinition({
 	defaultExpiresInSec: 3600,
 });
 
-export const GOOGLE_OAUTH_SCOPE =
-	"https://www.googleapis.com/auth/spreadsheets.readonly";
+export const GOOGLE_OAUTH_SCOPE = [
+	"https://www.googleapis.com/auth/spreadsheets",
+	"https://www.googleapis.com/auth/drive",
+].join(" ");
 const googleOauthDefinition: ServiceDefinition["oauth"] =
 	createOAuthServiceDefinition({
 		providerDisplayName: "Google",
