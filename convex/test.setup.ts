@@ -1,6 +1,8 @@
+/// <reference types="vite/client" />
+
 import { afterEach, beforeEach, vi } from "vitest";
 
-export const modules = import.meta.glob("./**/!(*.*.*)*.*s");
+export const modules = import.meta.glob<string[]>("./**/!(*.*.*)*.*s");
 
 beforeEach(() => {
 	vi.useFakeTimers();

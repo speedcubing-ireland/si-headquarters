@@ -26,10 +26,6 @@ function parseOriginList(value: string | undefined): string[] {
 const allowedOrigins = Array.from(
 	new Set(
 		[
-			"http://localhost:5173",
-			"http://localhost:3000",
-			"https://hq.speedcubing.ie",
-			"https://headquarters-demo-ui.vercel.app",
 			normalizeOrigin(process.env.SITE_URL),
 			normalizeOrigin(process.env.NEXT_PUBLIC_SITE_URL),
 			...parseOriginList(process.env.CORS_ALLOWED_ORIGINS),
