@@ -4,8 +4,8 @@ import { createOAuthServiceDefinition } from "../oauth";
 
 export const wcaTokenRefreshDefinition = createTokenRefreshDefinition({
 	tokenUrl: "https://www.worldcubeassociation.org/oauth/token",
-	clientIdEnvVar: "AUTH_WCA_ID",
-	clientSecretEnvVar: "AUTH_WCA_SECRET",
+	clientIdEnvVar: "SERVICE_WCA_ID",
+	clientSecretEnvVar: "SERVICE_WCA_SECRET",
 	defaultExpiresInSec: 7200,
 	useCreatedAt: true,
 });
@@ -22,7 +22,7 @@ const wcaOauthDefinition: ServiceDefinition["oauth"] =
 		tokenDefinition: wcaTokenRefreshDefinition,
 		authorizationUrl: `${WCA_BASE}/oauth/authorize`,
 		scope: WCA_OAUTH_SCOPE,
-		getMissingClientIdError: () => new Error("Missing AUTH_WCA_ID env var."),
+		getMissingClientIdError: () => new Error("Missing SERVICE_WCA_ID env var."),
 		cli: {
 			providerDisplayName: "WCA",
 			successHeading: "WCA account linked",
@@ -32,7 +32,7 @@ const wcaOauthDefinition: ServiceDefinition["oauth"] =
 			redirectHost: "localhost",
 			redirectHint: "Add it in your WCA OAuth application settings if needed.",
 			missingAuthUrlMessage:
-				"Could not get OAuth URL. Check AUTH_WCA_ID in Convex env.",
+				"Could not get OAuth URL. Check SERVICE_WCA_ID in Convex env.",
 			useState: true,
 		},
 	});

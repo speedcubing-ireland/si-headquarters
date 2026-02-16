@@ -5,8 +5,8 @@ import { ConvexError } from "convex/values";
 
 export const canvaTokenRefreshDefinition = createTokenRefreshDefinition({
 	tokenUrl: "https://api.canva.com/rest/v1/oauth/token",
-	clientIdEnvVar: "AUTH_CANVA_ID",
-	clientSecretEnvVar: "AUTH_CANVA_SECRET",
+	clientIdEnvVar: "SERVICE_CANVA_ID",
+	clientSecretEnvVar: "SERVICE_CANVA_SECRET",
 	defaultExpiresInSec: 14_400,
 	authStyle: "basic_auth",
 });
@@ -29,7 +29,7 @@ const canvaOauthDefinition: ServiceDefinition["oauth"] =
 		getMissingClientIdError: () =>
 			new ConvexError({
 				code: "PRECONDITION_FAILED",
-				message: "Missing AUTH_CANVA_ID in Convex env.",
+				message: "Missing SERVICE_CANVA_ID in Convex env.",
 			}),
 		getAuthorizeExtraParams: ({ codeChallenge }) =>
 			codeChallenge
@@ -46,7 +46,7 @@ const canvaOauthDefinition: ServiceDefinition["oauth"] =
 			port: 3849,
 			redirectHost: "127.0.0.1",
 			missingAuthUrlMessage:
-				"Could not get OAuth URL. Check AUTH_CANVA_ID in Convex env.",
+				"Could not get OAuth URL. Check SERVICE_CANVA_ID in Convex env.",
 			usePkce: true,
 			useState: true,
 		},

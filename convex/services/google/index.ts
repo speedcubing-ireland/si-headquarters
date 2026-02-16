@@ -4,8 +4,8 @@ import { createOAuthServiceDefinition } from "../oauth";
 
 export const googleTokenRefreshDefinition = createTokenRefreshDefinition({
 	tokenUrl: "https://oauth2.googleapis.com/token",
-	clientIdEnvVar: "AUTH_GOOGLE_ID",
-	clientSecretEnvVar: "AUTH_GOOGLE_SECRET",
+	clientIdEnvVar: "SERVICE_GOOGLE_ID",
+	clientSecretEnvVar: "SERVICE_GOOGLE_SECRET",
 	defaultExpiresInSec: 3600,
 });
 
@@ -22,7 +22,7 @@ const googleOauthDefinition: ServiceDefinition["oauth"] =
 		requireRefreshToken: true,
 		getMissingClientIdError: () =>
 			new Error(
-				"Missing AUTH_GOOGLE_ID. Set it in Convex dashboard (same as Google sign-in).",
+				"Missing SERVICE_GOOGLE_ID in Convex env.",
 			),
 		getAuthorizeExtraParams: () => ({
 			access_type: "offline",
@@ -38,7 +38,7 @@ const googleOauthDefinition: ServiceDefinition["oauth"] =
 			redirectHost: "localhost",
 			redirectHint: "Add it in Google Cloud Console if needed.",
 			missingAuthUrlMessage:
-				"Could not get OAuth URL. Check AUTH_GOOGLE_ID in Convex env.",
+				"Could not get OAuth URL. Check SERVICE_GOOGLE_ID in Convex env.",
 			useState: true,
 		},
 	});
