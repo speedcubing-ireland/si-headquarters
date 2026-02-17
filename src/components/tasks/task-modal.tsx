@@ -183,7 +183,7 @@ const TaskModalFormFields = React.memo(function TaskModalFormFields({
 	return (
 		<div className="px-6 py-4 space-y-4">
 			<Input
-				placeholder="Describe the task..."
+				placeholder="Task title..."
 				value={title}
 				onChange={(e) => setTitle(e.target.value)}
 				className="text-lg font-medium border-0 px-0 focus-visible:ring-0 placeholder:text-muted-foreground"
