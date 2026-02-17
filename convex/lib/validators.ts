@@ -156,6 +156,7 @@ export const linkedTaskActionStatus = v.union(
 	v.literal("idle"),
 	v.literal("running"),
 	v.literal("awaiting_manual_share"),
+	v.literal("awaiting_manual_events_confirmation"),
 	v.literal("completed"),
 	v.literal("error"),
 );

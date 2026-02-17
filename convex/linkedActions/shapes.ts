@@ -41,6 +41,12 @@ export const runContextShape = v.union(
 			parentCompetitionId: v.union(v.id("competitions"), v.null()),
 		}),
 		competitionName: v.union(v.string(), v.null()),
+		competition: v.union(
+			v.null(),
+			v.object({
+				wcaCompetitionId: v.union(v.string(), v.null()),
+			}),
+		),
 		definition: definitionShape,
 	}),
 );

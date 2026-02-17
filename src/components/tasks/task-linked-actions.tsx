@@ -156,6 +156,9 @@ export function TaskLinkedActionsSection({
 	const confirmCanvaManualShareComplete = useMutation(
 		api.linkedActions.confirmCanvaManualShareComplete,
 	);
+	const confirmWcaEventsConfirmation = useMutation(
+		api.linkedActions.confirmWcaEventsManualConfirmation,
+	);
 	const runTaskLinkedAction = useAction(api.linkedActions.runTaskLinkedAction);
 	const completeLinkedSheetShareWithLaptops = useAction(
 		api.linkedActions.completeLinkedSheetShareWithLaptops,
@@ -174,15 +177,22 @@ export function TaskLinkedActionsSection({
 	const [sharingSheetId, setSharingSheetId] = useState<
 		TaskLinkedAction["id"] | null
 	>(null);
+	const [confirmingEventsId, setConfirmingEventsId] = useState<
+		TaskLinkedAction["id"] | null
+	>(null);
 
 	const items = linkedActions ?? [];
 
-	const runAction = (item: TaskLinkedAction) => {
+	const runAction = (
+		item: TaskLinkedAction,
+		options?: { overwriteEvents?: boolean },
+	) => {
 		if (readOnly || !item.canRun) return;
 		setRunningId(item.id);
 		void runTaskLinkedAction({
 			taskId: task.id,
 			taskLinkedActionId: item.id,
+			overwriteEvents: options?.overwriteEvents,
 		})
 			.then((result) => {
 				if (result.success) {
@@ -249,6 +259,28 @@ export function TaskLinkedActionsSection({
 			.catch(onMutationError)
 			.finally(() => setSharingSheetId(null));
 	};
+
+	const confirmEvents = (item: TaskLinkedAction) => {
+		if (readOnly || !item.canRun) return;
+		setConfirmingEventsId(item.id);
+		void confirmWcaEventsConfirmation({
+			taskId: task.id,
+			taskLinkedActionId: item.id,
+		})
+			.catch(onMutationError)
+			.finally(() => setConfirmingEventsId(null));
+	};
+
+	function parseOutputJson(
+		outputJson: string | null,
+	): Record<string, unknown> | null {
+		if (!outputJson) return null;
+		try {
+			return JSON.parse(outputJson) as Record<string, unknown>;
+		} catch {
+			return null;
+		}
+	}
 
 	return (
 		<div className="space-y-3">
@@ -337,21 +369,27 @@ export function TaskLinkedActionsSection({
 							{item.definition.type === "linked_sheet" &&
 							isLinkedSheetConfig(item.definition.config)
 								? (() => {
-										const isAwaitingShareStep =
-											item.definition.config.operation ===
-												"populate_checkin_sheet" &&
-											item.status === "awaiting_manual_share";
+										const output = parseOutputJson(item.lastOutputJson);
+										const eventsEditUrl =
+											typeof output?.eventsEditUrl === "string"
+												? output.eventsEditUrl
+												: null;
 										return (
 											<LinkedSheetPane
 												config={item.definition.config}
+												status={item.status}
 												isRunning={
 													runningId === item.id || item.status === "running"
 												}
-												isAwaitingShare={isAwaitingShareStep}
 												isSharingWithLaptops={sharingSheetId === item.id}
+												isConfirmingEvents={confirmingEventsId === item.id}
 												isReadOnly={readOnly || !item.canRun}
-												onRun={() => runAction(item)}
+												eventsEditUrl={eventsEditUrl}
+												onRun={(overwriteEvents) =>
+													runAction(item, { overwriteEvents })
+												}
 												onShareWithLaptops={() => shareSheetWithLaptops(item)}
+												onConfirmEvents={() => confirmEvents(item)}
 											/>
 										);
 									})()

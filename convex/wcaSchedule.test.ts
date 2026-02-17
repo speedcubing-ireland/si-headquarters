@@ -101,19 +101,28 @@ function getActivityCode(name: string, round: number): string {
 	);
 }
 
-function _getActivityDisplayName(name: string): string {
-	const normalized = normalize(name);
-
-	const otherDef = OTHER_ACTIVITIES[normalized];
-	if (otherDef) {
-		return otherDef.displayName;
-	}
-
-	return name;
-}
-
 function isEvent(name: string): boolean {
 	return !!EVENT_NAME_TO_ID[normalize(name)];
+}
+
+type WcifAdvancementCondition =
+	| { type: "ranking"; level: number }
+	| { type: "percent"; level: number }
+	| { type: "attemptResult"; level: number };
+
+function buildAdvancementCondition(
+	previousRoundSize: number,
+	progressionValue: number | null,
+): WcifAdvancementCondition | undefined {
+	if (progressionValue === null || previousRoundSize <= 0) return undefined;
+
+	const percentValue = (progressionValue / previousRoundSize) * 100;
+	const isApprox75 = percentValue >= 72 && percentValue <= 78;
+
+	if (isApprox75) {
+		return { type: "percent", level: 75 };
+	}
+	return { type: "ranking", level: Math.round(progressionValue) };
 }
 
 describe("Schedule Activity Name Mapping", () => {
@@ -231,6 +240,102 @@ describe("Schedule Activity Name Mapping", () => {
 		testCases.forEach(({ input, round, expected }) => {
 			it(`should map "${input}" round ${round} to "${expected}"`, () => {
 				expect(getActivityCode(input, round)).toBe(expected);
+			});
+		});
+	});
+});
+
+describe("Advancement Condition Builder", () => {
+	describe("75% Percent Threshold", () => {
+		it("should return 75% percent when progression is approximately 75%", () => {
+			expect(buildAdvancementCondition(100, 75)).toEqual({
+				type: "percent",
+				level: 75,
+			});
+			expect(buildAdvancementCondition(100, 72)).toEqual({
+				type: "percent",
+				level: 75,
+			});
+			expect(buildAdvancementCondition(100, 78)).toEqual({
+				type: "percent",
+				level: 75,
+			});
+			expect(buildAdvancementCondition(125, 93)).toEqual({
+				type: "percent",
+				level: 75,
+			});
+		});
+
+		it("should not return percent for values outside 72-78% range", () => {
+			expect(buildAdvancementCondition(100, 71)).toEqual({
+				type: "ranking",
+				level: 71,
+			});
+			expect(buildAdvancementCondition(100, 79)).toEqual({
+				type: "ranking",
+				level: 79,
+			});
+		});
+	});
+
+	describe("Ranking (Top N)", () => {
+		it("should return ranking for non-75% values", () => {
+			expect(buildAdvancementCondition(100, 50)).toEqual({
+				type: "ranking",
+				level: 50,
+			});
+			expect(buildAdvancementCondition(116, 72)).toEqual({
+				type: "ranking",
+				level: 72,
+			});
+			expect(buildAdvancementCondition(84, 48)).toEqual({
+				type: "ranking",
+				level: 48,
+			});
+		});
+
+		it("should round non-integer progression values", () => {
+			expect(buildAdvancementCondition(100, 50.6)).toEqual({
+				type: "ranking",
+				level: 51,
+			});
+			expect(buildAdvancementCondition(100, 50.4)).toEqual({
+				type: "ranking",
+				level: 50,
+			});
+		});
+	});
+
+	describe("Edge Cases", () => {
+		it("should return undefined for null progression value", () => {
+			expect(buildAdvancementCondition(100, null)).toBeUndefined();
+		});
+
+		it("should return undefined for zero or negative previous round size", () => {
+			expect(buildAdvancementCondition(0, 50)).toBeUndefined();
+			expect(buildAdvancementCondition(-10, 50)).toBeUndefined();
+		});
+
+		it("should handle sample data from sheet", () => {
+			expect(buildAdvancementCondition(125, 93)).toEqual({
+				type: "percent",
+				level: 75,
+			});
+			expect(buildAdvancementCondition(93, 48)).toEqual({
+				type: "ranking",
+				level: 48,
+			});
+			expect(buildAdvancementCondition(48, 24)).toEqual({
+				type: "ranking",
+				level: 24,
+			});
+			expect(buildAdvancementCondition(116, 72)).toEqual({
+				type: "ranking",
+				level: 72,
+			});
+			expect(buildAdvancementCondition(72, 24)).toEqual({
+				type: "ranking",
+				level: 24,
 			});
 		});
 	});

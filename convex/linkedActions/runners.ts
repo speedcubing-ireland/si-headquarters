@@ -17,7 +17,7 @@ export type RunnerResult = {
 type LinkedActionRunner = (
 	ctx: ActionCtx,
 	runContext: RunnerContext,
-	args: { nameInput?: string },
+	args: { nameInput?: string; overwriteEvents?: boolean },
 ) => Promise<RunnerResult>;
 
 function getParentName(runContext: RunnerContext): string {
@@ -63,7 +63,11 @@ const runCanvaTemplateAction: LinkedActionRunner = async (
 	};
 };
 
-const runLinkedSheetAction: LinkedActionRunner = async (ctx, runContext) => {
+const runLinkedSheetAction: LinkedActionRunner = async (
+	ctx,
+	runContext,
+	args,
+) => {
 	if (!isLinkedSheetConfig(runContext.definition.config)) {
 		throw new ConvexError({
 			code: "BAD_REQUEST",
@@ -114,6 +118,7 @@ const runLinkedSheetAction: LinkedActionRunner = async (ctx, runContext) => {
 
 			const result = await ctx.runAction(api.wcaSchedule.pushScheduleToWca, {
 				competitionId,
+				overwriteEvents: args.overwriteEvents,
 			});
 			if (!result.success) {
 				const errorMessage =
@@ -123,9 +128,20 @@ const runLinkedSheetAction: LinkedActionRunner = async (ctx, runContext) => {
 					message: errorMessage,
 				});
 			}
+
+			const wcaCompetitionId = runContext.competition?.wcaCompetitionId;
+			const eventsEditUrl = wcaCompetitionId
+				? `https://www.worldcubeassociation.org/competitions/${wcaCompetitionId}/events/edit`
+				: null;
+
 			return {
-				message: `Pushed ${result.activitiesCreated} activities to WCA.`,
-				outputJson: JSON.stringify(result),
+				message: `Pushed ${result.activitiesCreated} activities to WCA. Please verify cutoffs and progressions are correct.`,
+				outputJson: JSON.stringify({
+					...result,
+					eventsEditUrl,
+					requiresManualEventsConfirmation: true,
+					manualEventsConfirmed: false,
+				}),
 			};
 		}
 	}

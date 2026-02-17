@@ -27,6 +27,11 @@ const STATUS_META: Record<
 		className: "bg-accent text-accent-foreground",
 		Icon: Clock3,
 	},
+	awaiting_manual_events_confirmation: {
+		label: "Awaiting confirmation",
+		className: "bg-accent text-accent-foreground",
+		Icon: Clock3,
+	},
 	completed: {
 		label: "Completed",
 		className: "bg-primary/15 text-primary",
@@ -106,6 +111,13 @@ export function LinkedActionStateNote({
 		return (
 			<p className="text-xs text-muted-foreground">
 				Next step required before this action can complete.
+			</p>
+		);
+	}
+	if (status === "awaiting_manual_events_confirmation") {
+		return (
+			<p className="text-xs text-muted-foreground">
+				Please verify the events on WCA and confirm when done.
 			</p>
 		);
 	}

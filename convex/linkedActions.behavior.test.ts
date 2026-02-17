@@ -610,3 +610,85 @@ describe("linkedActions behavior characterization", () => {
 		expect(typeof output.manualShareConfirmedAt).toBe("number");
 	});
 });
+
+describe("confirmWcaEventsManualConfirmation", () => {
+	test("should mark task linked action as completed with events confirmed", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {});
+			await ctx.db.insert("teams", {
+				name: TEAM_NAMES.VOLUNTEER,
+				memberIds: [userId],
+			});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Comp",
+				description: "",
+				compStart: "2026-12-01",
+				compEnd: "2026-12-02",
+				organiserIds: [userId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId,
+			});
+			const taskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-LINKED-SHEET",
+				title: "Schedule task",
+				description: "",
+				status: "to-do",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			const definitionId = await ctx.db.insert("linkedActionDefinitions", {
+				name: "Transfer Schedule",
+				shortId: "sheet.transfer-schedule",
+				type: "linked_sheet",
+				runPermission: "anyone",
+				config: {
+					operation: "transfer_schedule_to_wca",
+				},
+				archived: false,
+				createdById: userId,
+				updatedById: userId,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
+			});
+			const taskLinkedActionId = await ctx.db.insert("taskLinkedActions", {
+				taskId,
+				linkedActionId: definitionId,
+				status: "awaiting_manual_events_confirmation",
+				lastOutputJson: JSON.stringify({
+					activitiesCreated: 10,
+					eventsEditUrl:
+						"https://www.worldcubeassociation.org/competitions/TestComp2026/events/edit",
+					manualEventsConfirmed: false,
+				}),
+				createdById: userId,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
+			});
+			return { userId, taskId, taskLinkedActionId };
+		});
+		const authed = t.withIdentity({ subject: seeded.userId });
+
+		await authed.mutation(
+			api.linkedActions.confirmWcaEventsManualConfirmation,
+			{
+				taskId: seeded.taskId,
+				taskLinkedActionId: seeded.taskLinkedActionId,
+			},
+		);
+
+		const row = await t.run((ctx) =>
+			ctx.db.get("taskLinkedActions", seeded.taskLinkedActionId),
+		);
+		expect(row?.status).toBe("completed");
+		const output = JSON.parse(row?.lastOutputJson ?? "{}");
+		expect(output.manualEventsConfirmed).toBe(true);
+		expect(typeof output.manualEventsConfirmedAt).toBe("number");
+	});
+});

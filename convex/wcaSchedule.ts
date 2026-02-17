@@ -9,6 +9,7 @@ import { fromZonedTime } from "date-fns-tz";
 import type {
 	RegistrationDataV2,
 	WcifActivity as Activity,
+	WcifAdvancementCondition,
 	WcifEvent as Event,
 	WcifPerson,
 	WcifRound as Round,
@@ -40,11 +41,14 @@ type WcaApiClient = ReturnType<typeof createWcaClient>;
 
 const SATURDAY_RANGE = "Schedule!AH6:AK";
 const SUNDAY_RANGE = "Schedule!AM6:AP";
+const PROGRESSION_RANGE = "Schedule!A2:F";
 const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U";
 const WCA_DATA_WRITE_RANGE = "WCA Data!A3";
 const LAPTOP_SHARE_EMAIL = "laptop@speedcubingireland.com";
 const DUBLIN_TIMEZONE = "Europe/Dublin";
 const IRELAND_TEMPLATE_COMPETITION_ID = "IrelandTemplate2100";
+const PERCENT_75_THRESHOLD_MIN = 72;
+const PERCENT_75_THRESHOLD_MAX = 78;
 const CHECKIN_EVENT_COLUMNS = [
 	"333",
 	"222",
@@ -190,6 +194,12 @@ type SheetRow = {
 	round: string;
 };
 
+type ProgressionRow = {
+	eventId: string;
+	roundCount: number;
+	progressions: (number | null)[];
+};
+
 type CompetitionInfo = {
 	wcaCompetitionId?: string;
 	compSheet?: { sheetId: string };
@@ -243,6 +253,48 @@ function parseSheetRows(rows: string[][]): SheetRow[] {
 		.filter((r) => r.time && r.event);
 }
 
+function parseProgressionRows(rows: string[][]): ProgressionRow[] {
+	return rows
+		.map((row) => {
+			const eventName = (row[0] ?? "").trim();
+			const eventId = EVENT_NAME_TO_ID[normalize(eventName)];
+			if (!eventId) return null;
+
+			const roundCount = Number.parseInt((row[1] ?? "").trim(), 10) || 0;
+			const progressions: (number | null)[] = [];
+
+			for (let i = 2; i < 6; i++) {
+				const val = (row[i] ?? "").trim();
+				if (val === "") {
+					progressions.push(null);
+				} else {
+					const num = Number.parseFloat(val);
+					progressions.push(Number.isFinite(num) ? num : null);
+				}
+			}
+
+			return { eventId, roundCount, progressions };
+		})
+		.filter((r): r is ProgressionRow => r !== null);
+}
+
+function buildAdvancementCondition(
+	previousRoundSize: number,
+	progressionValue: number | null,
+): WcifAdvancementCondition | undefined {
+	if (progressionValue === null || previousRoundSize <= 0) return undefined;
+
+	const percentValue = (progressionValue / previousRoundSize) * 100;
+	const isApprox75 =
+		percentValue >= PERCENT_75_THRESHOLD_MIN &&
+		percentValue <= PERCENT_75_THRESHOLD_MAX;
+
+	if (isApprox75) {
+		return { type: "percent", level: 75 };
+	}
+	return { type: "ranking", level: Math.round(progressionValue) };
+}
+
 async function fetchScheduleFromSheets(
 	spreadsheetId: string,
 	accessToken: string,
@@ -264,6 +316,18 @@ async function fetchScheduleFromSheets(
 		saturday: parseSheetRows(saturdayRows),
 		sunday: parseSheetRows(sundayRows),
 	};
+}
+
+async function fetchProgressionFromSheets(
+	spreadsheetId: string,
+	accessToken: string,
+): Promise<ProgressionRow[]> {
+	const rows = await fetchGoogleSheetValues({
+		accessToken,
+		spreadsheetId,
+		range: PROGRESSION_RANGE,
+	});
+	return parseProgressionRows(rows);
 }
 
 async function fetchCompetitionWcif(
@@ -584,8 +648,10 @@ function createRound(
 	attemptCount: number,
 	existingRound: Round | undefined,
 	templateRound: Round | undefined,
+	progressionCondition: WcifAdvancementCondition | undefined,
+	overwriteEvents: boolean,
 ): Round {
-	if (existingRound) return existingRound;
+	if (existingRound && !overwriteEvents) return existingRound;
 
 	if (templateRound) {
 		return {
@@ -593,7 +659,8 @@ function createRound(
 			format: templateRound.format,
 			timeLimit: templateRound.timeLimit,
 			cutoff: templateRound.cutoff,
-			advancementCondition: templateRound.advancementCondition,
+			advancementCondition:
+				progressionCondition ?? templateRound.advancementCondition,
 			results: [],
 			scrambleSetCount: templateRound.scrambleSetCount,
 			scrambleSets: templateRound.scrambleSets ?? [],
@@ -609,7 +676,7 @@ function createRound(
 		format,
 		timeLimit,
 		cutoff: undefined,
-		advancementCondition: undefined,
+		advancementCondition: progressionCondition,
 		results: [],
 		scrambleSetCount: 1,
 		scrambleSets: [],
@@ -621,11 +688,16 @@ function buildEvents(
 	activities: Activity[],
 	existingEvents: Event[],
 	templateRounds: Map<string, Round>,
+	progressionRows: ProgressionRow[],
+	overwriteEvents: boolean,
 ): Event[] {
 	const roundsMap = extractEventRounds(activities);
 	const attemptCounts = countMultiAttempts(activities);
 	const existingEventsMap = new Map<string, Event>(
 		existingEvents.map((e) => [e.id, e]),
+	);
+	const progressionMap = new Map<string, ProgressionRow>(
+		progressionRows.map((r) => [r.eventId, r]),
 	);
 
 	const events: Event[] = [];
@@ -635,11 +707,24 @@ function buildEvents(
 		const sortedRounds = [...roundNums].sort((a, b) => a - b);
 		const isMultiAttempt = MULTI_ATTEMPT_EVENTS.has(eventId);
 		const attemptCount = attemptCounts.get(eventId) || sortedRounds.length;
+		const progressionRow = progressionMap.get(eventId);
 
-		const rounds: Round[] = sortedRounds.map((roundNum) => {
+		const rounds: Round[] = sortedRounds.map((roundNum, idx) => {
 			const roundId = `${eventId}-r${roundNum}`;
 			const existingRound = existingEvent?.rounds.find((r) => r.id === roundId);
 			const templateRound = templateRounds.get(roundId);
+
+			let progressionCondition: WcifAdvancementCondition | undefined;
+			if (progressionRow && idx + 1 < progressionRow.progressions.length) {
+				const previousSize = progressionRow.progressions[idx];
+				const progressionValue = progressionRow.progressions[idx + 1];
+				if (previousSize !== null && previousSize > 0) {
+					progressionCondition = buildAdvancementCondition(
+						previousSize,
+						progressionValue,
+					);
+				}
+			}
 
 			return createRound(
 				roundId,
@@ -648,6 +733,8 @@ function buildEvents(
 				attemptCount,
 				existingRound,
 				templateRound,
+				progressionCondition,
+				overwriteEvents,
 			);
 		});
 
@@ -699,7 +786,10 @@ function buildVenue(
 }
 
 export const pushScheduleToWca = action({
-	args: { competitionId: v.id("competitions") },
+	args: {
+		competitionId: v.id("competitions"),
+		overwriteEvents: v.optional(v.boolean()),
+	},
 	returns: v.union(
 		v.object({
 			success: v.literal(true),
@@ -711,6 +801,8 @@ export const pushScheduleToWca = action({
 		}),
 	),
 	handler: async (ctx, args): Promise<PushScheduleResult> => {
+		const overwriteEvents = args.overwriteEvents ?? false;
+
 		const competitionForUser = await ctx.runQuery(api.competitions.get, {
 			competitionId: args.competitionId,
 		});
@@ -796,11 +888,12 @@ export const pushScheduleToWca = action({
 			};
 		}
 
-		const [templateRounds, venueInfo] = await Promise.all([
+		const [templateRounds, venueInfo, progressionRows] = await Promise.all([
 			fetchIrelandTemplate(wcaClient),
 			wcif.schedule.venues[0]
 				? Promise.resolve(null)
 				: fetchCompetitionVenueInfo(wcaClient, competition.wcaCompetitionId),
+			fetchProgressionFromSheets(competition.compSheet.sheetId, googleToken),
 		]);
 
 		const startDate = wcif.schedule.startDate;
@@ -820,7 +913,13 @@ export const pushScheduleToWca = action({
 			venues: [venue],
 		};
 
-		const events = buildEvents(allActivities, wcif.events, templateRounds);
+		const events = buildEvents(
+			allActivities,
+			wcif.events,
+			templateRounds,
+			progressionRows,
+			overwriteEvents,
+		);
 
 		if (events.length === 0) {
 			return {

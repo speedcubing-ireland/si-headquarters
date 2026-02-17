@@ -7,7 +7,8 @@ import {
 	mutation,
 	query,
 } from "./_generated/server";
-import type { Id, Doc } from "./_generated/dataModel";
+import type { GenericMutationCtx } from "convex/server";
+import type { Id, Doc, DataModel } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { requireDirector } from "./admin";
 import { isVolunteer, requireUserId } from "./auth";
@@ -384,10 +385,18 @@ export const getTaskLinkedActionRunContext = internalQuery({
 		]);
 		if (!task || !definition) return null;
 
-		const competitionName = task.parentCompetitionId
-			? ((await ctx.db.get("competitions", task.parentCompetitionId))?.name ??
-				null)
-			: null;
+		let competitionName: string | null = null;
+		let competition: { wcaCompetitionId: string | null } | null = null;
+
+		if (task.parentCompetitionId) {
+			const comp = await ctx.db.get("competitions", task.parentCompetitionId);
+			if (comp) {
+				competitionName = comp.name ?? null;
+				competition = {
+					wcaCompetitionId: comp.wcaCompetitionId ?? null,
+				};
+			}
+		}
 
 		return {
 			taskLinkedActionId: row._id,
@@ -397,6 +406,7 @@ export const getTaskLinkedActionRunContext = internalQuery({
 				parentCompetitionId: task.parentCompetitionId ?? null,
 			},
 			competitionName,
+			competition,
 			definition: toDefinitionView(definition),
 		};
 	},
@@ -469,85 +479,128 @@ function parseOutputObject(
 	}
 }
 
+type ConfirmationConfig = {
+	expectedType: Doc<"linkedActionDefinitions">["type"];
+	expectedStatus: Doc<"taskLinkedActions">["status"];
+	actionName: string;
+	confirmationKey: string;
+};
+
+async function confirmManualAction(
+	ctx: GenericMutationCtx<DataModel>,
+	args: { taskId: Id<"tasks">; taskLinkedActionId: Id<"taskLinkedActions"> },
+	config: ConfirmationConfig,
+): Promise<null> {
+	const userId = await requireUserId(ctx);
+	const volunteer = await isVolunteer(ctx);
+	const task = await ensureTaskAccess(ctx, userId, args.taskId, volunteer);
+	const row = await ctx.db.get("taskLinkedActions", args.taskLinkedActionId);
+
+	if (!row || row.taskId !== args.taskId) {
+		throw new ConvexError({
+			code: "NOT_FOUND",
+			message: "Linked integration row not found for task.",
+		});
+	}
+
+	const definition = await ctx.db.get(
+		"linkedActionDefinitions",
+		row.linkedActionId,
+	);
+
+	if (!definition || definition.archived) {
+		throw new ConvexError({
+			code: "NOT_FOUND",
+			message: "Linked integration definition is unavailable.",
+		});
+	}
+
+	const canRun = await canUserRunForTask(ctx, {
+		userId,
+		volunteer,
+		task,
+		actionType: definition.type,
+		runPermission: definition.runPermission,
+	});
+
+	if (!canRun) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: "You do not have permission to confirm this action.",
+		});
+	}
+
+	if (definition.type !== config.expectedType) {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: `${config.actionName} is only available for ${config.expectedType} actions.`,
+		});
+	}
+
+	if (row.status === "running") {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: "Action is still running.",
+		});
+	}
+
+	if (row.status === "idle" || row.status === "error") {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: `Run the ${config.actionName} action before confirming.`,
+		});
+	}
+
+	if (row.status === "completed") {
+		return null;
+	}
+
+	const now = Date.now();
+	const output = parseOutputObject(row.lastOutputJson) ?? {};
+	const nextOutput = JSON.stringify({
+		...output,
+		[config.confirmationKey]: true,
+		[`${config.confirmationKey}At`]: now,
+	});
+
+	await ctx.db.patch("taskLinkedActions", row._id, {
+		status: "completed",
+		lastRunAt: now,
+		lastOutputJson: nextOutput,
+		updatedAt: now,
+	});
+
+	return null;
+}
+
 export const confirmCanvaManualShareComplete = mutation({
 	args: {
 		taskId: v.id("tasks"),
 		taskLinkedActionId: v.id("taskLinkedActions"),
 	},
 	returns: v.null(),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const volunteer = await isVolunteer(ctx);
-		const task = await ensureTaskAccess(ctx, userId, args.taskId, volunteer);
-		const row = await ctx.db.get("taskLinkedActions", args.taskLinkedActionId);
-		if (!row || row.taskId !== args.taskId) {
-			throw new ConvexError({
-				code: "NOT_FOUND",
-				message: "Linked integration row not found for task.",
-			});
-		}
-		const definition = await ctx.db.get(
-			"linkedActionDefinitions",
-			row.linkedActionId,
-		);
-		if (!definition || definition.archived) {
-			throw new ConvexError({
-				code: "NOT_FOUND",
-				message: "Linked integration definition is unavailable.",
-			});
-		}
-		const canRun = await canUserRunForTask(ctx, {
-			userId,
-			volunteer,
-			task,
-			actionType: definition.type,
-			runPermission: definition.runPermission,
-		});
-		if (!canRun) {
-			throw new ConvexError({
-				code: "FORBIDDEN",
-				message: "You do not have permission to confirm this action.",
-			});
-		}
-		if (definition.type !== "canva_template") {
-			throw new ConvexError({
-				code: "BAD_REQUEST",
-				message:
-					"Manual share confirmation is only available for Canva actions.",
-			});
-		}
-		if (row.status === "running") {
-			throw new ConvexError({
-				code: "BAD_REQUEST",
-				message: "Action is still running.",
-			});
-		}
-		if (row.status === "idle" || row.status === "error") {
-			throw new ConvexError({
-				code: "BAD_REQUEST",
-				message: "Run the Canva action before confirming sharing.",
-			});
-		}
-		if (row.status === "completed") {
-			return null;
-		}
+	handler: (ctx, args) =>
+		confirmManualAction(ctx, args, {
+			expectedType: "canva_template",
+			expectedStatus: "awaiting_manual_share",
+			actionName: "Manual share confirmation",
+			confirmationKey: "manualShareConfirmed",
+		}),
+});
 
-		const now = Date.now();
-		const output = parseOutputObject(row.lastOutputJson) ?? {};
-		const nextOutput = JSON.stringify({
-			...output,
-			manualShareConfirmed: true,
-			manualShareConfirmedAt: now,
-		});
-
-		await ctx.db.patch("taskLinkedActions", row._id, {
-			status: "completed",
-			lastRunAt: now,
-			lastOutputJson: nextOutput,
-			updatedAt: now,
-		});
-		return null;
+export const confirmWcaEventsManualConfirmation = mutation({
+	args: {
+		taskId: v.id("tasks"),
+		taskLinkedActionId: v.id("taskLinkedActions"),
 	},
+	returns: v.null(),
+	handler: (ctx, args) =>
+		confirmManualAction(ctx, args, {
+			expectedType: "linked_sheet",
+			expectedStatus: "awaiting_manual_events_confirmation",
+			actionName: "Events confirmation",
+			confirmationKey: "manualEventsConfirmed",
+		}),
 });
 
 export const linkTaskCanvaDesign = action({
@@ -677,6 +730,7 @@ export const runTaskLinkedAction = action({
 		taskId: v.id("tasks"),
 		taskLinkedActionId: v.id("taskLinkedActions"),
 		nameInput: v.optional(v.string()),
+		overwriteEvents: v.optional(v.boolean()),
 	},
 	returns: v.union(
 		v.object({
@@ -741,15 +795,27 @@ export const runTaskLinkedAction = action({
 			const runner = runners[runContext.definition.type];
 			const result = await runner(ctx, runContext, {
 				nameInput: args.nameInput,
+				overwriteEvents: args.overwriteEvents,
 			});
-			const shouldAwaitFollowUp =
-				runContext.definition.type === "canva_template" ||
-				(runContext.definition.type === "linked_sheet" &&
-					isLinkedSheetConfig(runContext.definition.config) &&
-					runContext.definition.config.operation === "populate_checkin_sheet");
-			const nextStatus = shouldAwaitFollowUp
-				? "awaiting_manual_share"
-				: "completed";
+
+			let nextStatus: Infer<typeof linkedTaskActionStatus> = "completed";
+
+			if (runContext.definition.type === "canva_template") {
+				nextStatus = "awaiting_manual_share";
+			} else if (
+				runContext.definition.type === "linked_sheet" &&
+				isLinkedSheetConfig(runContext.definition.config)
+			) {
+				if (
+					runContext.definition.config.operation === "populate_checkin_sheet"
+				) {
+					nextStatus = "awaiting_manual_share";
+				} else if (
+					runContext.definition.config.operation === "transfer_schedule_to_wca"
+				) {
+					nextStatus = "awaiting_manual_events_confirmation";
+				}
+			}
 
 			await ctx.runMutation(
 				internal.linkedActions.setTaskLinkedActionRunState,
