@@ -1,8 +1,12 @@
-/**
- * Single source of truth for which routes require which permission (from
- * admin.getPermissionSnapshot). Used to keep route guards and sidebar
- * visibility aligned and to document mandatory permission usage.
- */
+import {
+	HandCoins,
+	KeyRound,
+	type LucideIcon,
+	Megaphone,
+	Shield,
+	Store,
+} from "lucide-react";
+import type { FileRoutesByTo } from "@/routeTree.gen";
 
 export type RoutePermissionKey =
 	| "isDirector"
@@ -11,23 +15,52 @@ export type RoutePermissionKey =
 	| "isSponsorshipManager"
 	| "canAccessSocialMediaDashboard";
 
-/** Routes that are protected by PermissionGuard and the snapshot key they require. */
 export const PROTECTED_ROUTES: Record<string, RoutePermissionKey> = {
 	"/admin/god-mode": "isDirector",
 	"/admin/email": "isDirector",
+	"/admin/refunds": "isVolunteer",
 	"/admin/wca-2fa": "canAccessWca2fa",
 	"/admin/social-media": "canAccessSocialMediaDashboard",
 	"/admin/sponsorship": "isSponsorshipManager",
 	"/events": "isVolunteer",
 };
 
-/** Dashboard section sidebar items that link to protected admin routes. */
 export const SIDEBAR_DASHBOARD_ITEMS: ReadonlyArray<{
-	path: string;
+	path: keyof FileRoutesByTo;
 	permission: RoutePermissionKey;
+	orPermissions?: readonly RoutePermissionKey[];
+	name: string;
+	icon: LucideIcon;
 }> = [
-	{ path: "/admin/sponsorship", permission: "isSponsorshipManager" },
-	{ path: "/admin/god-mode", permission: "isDirector" },
-	{ path: "/admin/wca-2fa", permission: "canAccessWca2fa" },
-	{ path: "/admin/social-media", permission: "canAccessSocialMediaDashboard" },
+	{
+		path: "/admin/sponsorship",
+		permission: "isSponsorshipManager",
+		name: "Sponsorship",
+		icon: Store,
+	},
+	{
+		path: "/admin/god-mode",
+		permission: "isDirector",
+		name: "God Mode",
+		icon: Shield,
+	},
+	{
+		path: "/admin/refunds",
+		permission: "isVolunteer",
+		orPermissions: ["isDirector"],
+		name: "Refunds",
+		icon: HandCoins,
+	},
+	{
+		path: "/admin/wca-2fa",
+		permission: "canAccessWca2fa",
+		name: "WCA 2FA",
+		icon: KeyRound,
+	},
+	{
+		path: "/admin/social-media",
+		permission: "canAccessSocialMediaDashboard",
+		name: "Social Media",
+		icon: Megaphone,
+	},
 ];

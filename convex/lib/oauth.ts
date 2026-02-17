@@ -9,17 +9,19 @@ function hasValidCliToken(cliToken: string | undefined): boolean {
 	return Boolean(expectedToken && cliToken === expectedToken);
 }
 
+function throwInvalidCliToken(): never {
+	throw new ConvexError({
+		code: "UNAUTHENTICATED",
+		message: "Invalid CLI token",
+	});
+}
+
 export async function requireVolunteerAction(
 	ctx: GenericActionCtx<DataModel>,
 	cliToken?: string,
 ): Promise<void> {
 	if (hasValidCliToken(cliToken)) return;
-	if (cliToken) {
-		throw new ConvexError({
-			code: "UNAUTHENTICATED",
-			message: "Invalid CLI token",
-		});
-	}
+	if (cliToken) throwInvalidCliToken();
 	const isVol = await ctx.runQuery(internal.auth.getIsVolunteer, {});
 	if (!isVol) {
 		throw new ConvexError({
@@ -34,12 +36,7 @@ export async function requireDirectorAction(
 	cliToken?: string,
 ): Promise<void> {
 	if (hasValidCliToken(cliToken)) return;
-	if (cliToken) {
-		throw new ConvexError({
-			code: "UNAUTHENTICATED",
-			message: "Invalid CLI token",
-		});
-	}
+	if (cliToken) throwInvalidCliToken();
 	const isDirector = await ctx.runQuery(
 		internal.admin.getIsDirectorInternal,
 		{},
@@ -48,6 +45,26 @@ export async function requireDirectorAction(
 		throw new ConvexError({
 			code: "FORBIDDEN",
 			message: "Directors only.",
+		});
+	}
+}
+
+export async function requireDirectorOrVolunteerAction(
+	ctx: GenericActionCtx<DataModel>,
+	cliToken?: string,
+): Promise<void> {
+	if (hasValidCliToken(cliToken)) return;
+	if (cliToken) throwInvalidCliToken();
+
+	const [isDirector, isVolunteer] = await Promise.all([
+		ctx.runQuery(internal.admin.getIsDirectorInternal, {}),
+		ctx.runQuery(internal.auth.getIsVolunteer, {}),
+	]);
+
+	if (!isDirector && !isVolunteer) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: "Directors or volunteers only.",
 		});
 	}
 }

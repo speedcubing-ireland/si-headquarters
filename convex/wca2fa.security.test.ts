@@ -7,7 +7,6 @@ import { modules } from "./test.setup";
 
 const WCA_2FA_SECRET_ENV = "WCA_2FA_SECRET";
 
-// 32-character Base32 secret (WCA format; ≥16 bytes for otplib default guardrails)
 const VALID_32CHAR_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
 
 function getConvexErrorMessage(error: unknown): string {

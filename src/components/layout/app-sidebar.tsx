@@ -1,19 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import {
-	Blocks,
-	Box,
-	CircleCheck,
-	Inbox,
-	KeyRound,
-	ListTodo,
-	Megaphone,
-	Shield,
-	Store,
-	Users,
-} from "lucide-react";
+import { Blocks, Box, CircleCheck, Inbox, ListTodo, Users } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { NavSecondary } from "@/components/layout/nav-secondary";
+import { SIDEBAR_DASHBOARD_ITEMS } from "@/lib/route-permissions";
 import {
 	NavSection,
 	type NavSectionData,
@@ -97,11 +87,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const user = useQuery(api.users.getCurrentUser);
 	const { permissions } = usePermissionSnapshot();
 	const isVolunteer = permissions.isVolunteer;
-	const isDirector = permissions.isDirector;
-	const canAccessWca2fa = permissions.canAccessWca2fa;
-	const canAccessSocialMediaDashboard =
-		permissions.canAccessSocialMediaDashboard;
-	const isSponsorshipManager = permissions.isSponsorshipManager;
 	const { teams } = useTeams();
 	const unreadCount = useUnreadCount();
 
@@ -169,37 +154,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					},
 				];
 	const dashboardItems: NavSectionItem[] = [];
-	if (isSponsorshipManager && isSponsorshipEnabled) {
-		dashboardItems.push({
-			type: "item",
-			name: "Sponsorship",
-			url: { to: "/admin/sponsorship" as const },
-			icon: Store,
-		});
-	}
-	if (isDirector) {
-		dashboardItems.push({
-			type: "item",
-			name: "God Mode",
-			url: { to: "/admin/god-mode" as const },
-			icon: Shield,
-		});
-	}
-	if (canAccessWca2fa) {
-		dashboardItems.push({
-			type: "item",
-			name: "WCA 2FA",
-			url: { to: "/admin/wca-2fa" as const },
-			icon: KeyRound,
-		});
-	}
-	if (canAccessSocialMediaDashboard) {
-		dashboardItems.push({
-			type: "item",
-			name: "Social Media",
-			url: { to: "/admin/social-media" as const },
-			icon: Megaphone,
-		});
+	for (const item of SIDEBAR_DASHBOARD_ITEMS) {
+		const hasPermission =
+			permissions[item.permission] ||
+			(item.orPermissions?.some((p) => permissions[p]) ?? false);
+		const show =
+			hasPermission &&
+			(item.path !== "/admin/sponsorship" || isSponsorshipEnabled);
+		if (show) {
+			dashboardItems.push({
+				type: "item",
+				name: item.name,
+				url: { to: item.path },
+				icon: item.icon,
+			});
+		}
 	}
 	const dashboardSections: NavSectionData[] =
 		dashboardItems.length === 0

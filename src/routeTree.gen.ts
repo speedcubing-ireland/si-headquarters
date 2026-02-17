@@ -29,6 +29,7 @@ import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AdminWca2faRouteImport } from './routes/admin/wca-2fa'
 import { Route as AdminSponsorshipRouteImport } from './routes/admin/sponsorship'
 import { Route as AdminSocialMediaRouteImport } from './routes/admin/social-media'
+import { Route as AdminRefundsRouteImport } from './routes/admin/refunds'
 import { Route as AdminGodModeRouteImport } from './routes/admin/god-mode'
 import { Route as AdminEmailRouteImport } from './routes/admin/email'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
@@ -133,6 +134,11 @@ const AdminSocialMediaRoute = AdminSocialMediaRouteImport.update({
   path: '/admin/social-media',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRefundsRoute = AdminRefundsRouteImport.update({
+  id: '/admin/refunds',
+  path: '/admin/refunds',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminGodModeRoute = AdminGodModeRouteImport.update({
   id: '/admin/god-mode',
   path: '/admin/god-mode',
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
+  '/admin/refunds': typeof AdminRefundsRoute
   '/admin/social-media': typeof AdminSocialMediaRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/admin/wca-2fa': typeof AdminWca2faRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
+  '/admin/refunds': typeof AdminRefundsRoute
   '/admin/social-media': typeof AdminSocialMediaRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/admin/wca-2fa': typeof AdminWca2faRoute
@@ -207,6 +215,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/admin/email': typeof AdminEmailRoute
   '/admin/god-mode': typeof AdminGodModeRoute
+  '/admin/refunds': typeof AdminRefundsRoute
   '/admin/social-media': typeof AdminSocialMediaRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/admin/wca-2fa': typeof AdminWca2faRoute
@@ -234,6 +243,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/admin/email'
     | '/admin/god-mode'
+    | '/admin/refunds'
     | '/admin/social-media'
     | '/admin/sponsorship'
     | '/admin/wca-2fa'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/admin/email'
     | '/admin/god-mode'
+    | '/admin/refunds'
     | '/admin/social-media'
     | '/admin/sponsorship'
     | '/admin/wca-2fa'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/admin/email'
     | '/admin/god-mode'
+    | '/admin/refunds'
     | '/admin/social-media'
     | '/admin/sponsorship'
     | '/admin/wca-2fa'
@@ -310,6 +322,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   AdminEmailRoute: typeof AdminEmailRoute
   AdminGodModeRoute: typeof AdminGodModeRoute
+  AdminRefundsRoute: typeof AdminRefundsRoute
   AdminSocialMediaRoute: typeof AdminSocialMediaRoute
   AdminSponsorshipRoute: typeof AdminSponsorshipRoute
   AdminWca2faRoute: typeof AdminWca2faRoute
@@ -471,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSocialMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/refunds': {
+      id: '/admin/refunds'
+      path: '/admin/refunds'
+      fullPath: '/admin/refunds'
+      preLoaderRoute: typeof AdminRefundsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/god-mode': {
       id: '/admin/god-mode'
       path: '/admin/god-mode'
@@ -513,6 +533,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   AdminEmailRoute: AdminEmailRoute,
   AdminGodModeRoute: AdminGodModeRoute,
+  AdminRefundsRoute: AdminRefundsRoute,
   AdminSocialMediaRoute: AdminSocialMediaRoute,
   AdminSponsorshipRoute: AdminSponsorshipRoute,
   AdminWca2faRoute: AdminWca2faRoute,

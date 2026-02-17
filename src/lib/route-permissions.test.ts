@@ -4,6 +4,7 @@ import {
 	SIDEBAR_DASHBOARD_ITEMS,
 	type RoutePermissionKey,
 } from "./route-permissions";
+import type { FileRoutesByTo } from "@/routeTree.gen";
 
 describe("route-permissions alignment", () => {
 	test("every sidebar dashboard item has a route permission and it matches", () => {
@@ -21,15 +22,19 @@ describe("route-permissions alignment", () => {
 	});
 
 	test("every protected admin route that has a sidebar link is in SIDEBAR_DASHBOARD_ITEMS with same permission", () => {
-		const sidebarPaths = new Set(SIDEBAR_DASHBOARD_ITEMS.map((i) => i.path));
-		const sidebarByPath = new Map(
+		const sidebarPaths = new Set<keyof FileRoutesByTo>(
+			SIDEBAR_DASHBOARD_ITEMS.map((i) => i.path),
+		);
+		const sidebarByPath = new Map<keyof FileRoutesByTo, RoutePermissionKey>(
 			SIDEBAR_DASHBOARD_ITEMS.map((i) => [i.path, i.permission]),
 		);
 		for (const path of Object.keys(PROTECTED_ROUTES)) {
 			if (!path.startsWith("/admin/")) continue;
 			const routePermission = PROTECTED_ROUTES[path] as RoutePermissionKey;
-			if (sidebarPaths.has(path)) {
-				expect(sidebarByPath.get(path)).toBe(routePermission);
+			if (sidebarPaths.has(path as keyof FileRoutesByTo)) {
+				expect(sidebarByPath.get(path as keyof FileRoutesByTo)).toBe(
+					routePermission,
+				);
 			}
 		}
 	});

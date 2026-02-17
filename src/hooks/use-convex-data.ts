@@ -50,6 +50,8 @@ export {
 	useAdminMemberMutations,
 } from "./convex/use-admin";
 
+export { useRefundVolunteers, useRefundMutations } from "./convex/use-refunds";
+
 export {
 	useSponsors,
 	useIsSponsorshipManager,

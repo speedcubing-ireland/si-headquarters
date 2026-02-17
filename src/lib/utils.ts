@@ -41,7 +41,7 @@ export function getConvexErrorData(error: unknown): {
 	return {};
 }
 
-function getErrorMessage(error: unknown): string {
+export function getErrorMessage(error: unknown): string {
 	const data = getConvexErrorData(error);
 	if (data.message) return data.message;
 	if (error instanceof Error) return error.message;

@@ -31,6 +31,10 @@ import {
 	shareGoogleSheetWithUser,
 	updateGoogleSheetValues,
 } from "./services/google/sheetsClient";
+import {
+	getRegistrationStatus,
+	isAcceptedRegistration,
+} from "./lib/wca/registrations";
 
 type WcaApiClient = ReturnType<typeof createWcaClient>;
 
@@ -306,34 +310,13 @@ function resolvePersonForRegistration(
 	);
 }
 
-function readString(value: unknown): string | undefined {
-	return typeof value === "string" ? value : undefined;
-}
-
 function countryIso2ToName(countryIso2: string): string {
 	const normalized = countryIso2.trim().toUpperCase();
 	if (!normalized) return "";
 	if (!REGION_DISPLAY_NAMES) return normalized;
 	return REGION_DISPLAY_NAMES.of(normalized) ?? normalized;
 }
-
-export function getRegistrationStatus(
-	registration: RegistrationDataV2,
-): string {
-	const competingRecord = registration.competing as Record<string, unknown>;
-	const registrationRecord = registration as unknown as Record<string, unknown>;
-	return (
-		readString(competingRecord.registration_status) ??
-		readString(competingRecord.status) ??
-		readString(registrationRecord.registration_status) ??
-		readString(registrationRecord.status) ??
-		""
-	).trim();
-}
-
-function isAcceptedRegistration(registration: RegistrationDataV2): boolean {
-	return getRegistrationStatus(registration).toLowerCase() === "accepted";
-}
+export { getRegistrationStatus } from "./lib/wca/registrations";
 
 function blankToNull(value: string | null | undefined): string | null {
 	const normalized = (value ?? "").trim();

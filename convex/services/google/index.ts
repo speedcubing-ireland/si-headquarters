@@ -21,9 +21,7 @@ const googleOauthDefinition: ServiceDefinition["oauth"] =
 		scope: GOOGLE_OAUTH_SCOPE,
 		requireRefreshToken: true,
 		getMissingClientIdError: () =>
-			new Error(
-				"Missing SERVICE_GOOGLE_ID in Convex env.",
-			),
+			new Error("Missing SERVICE_GOOGLE_ID in Convex env."),
 		getAuthorizeExtraParams: () => ({
 			access_type: "offline",
 			prompt: "consent",

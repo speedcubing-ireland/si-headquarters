@@ -46,6 +46,13 @@ export default defineSchema({
 		archived: v.boolean(),
 	}).index("by_order", ["order"]),
 
+	refundVolunteers: defineTable({
+		name: v.string(),
+		wcaId: v.optional(v.string()),
+		transferToWcaIds: v.optional(v.array(v.string())),
+		archived: v.boolean(),
+	}).index("by_wca_id", ["wcaId"]),
+
 	teams: defineTable({
 		name: v.string(),
 		memberIds: v.array(v.id("users")),
@@ -517,7 +524,6 @@ export default defineSchema({
 		fetchedAt: v.number(),
 	}).index("by_sheet_id", ["sheetId"]),
 
-	// ##################### CLEANED
 	serviceTokens: defineTable({
 		service: v.union(v.literal("google"), v.literal("wca"), v.literal("canva")),
 		accessToken: v.string(),

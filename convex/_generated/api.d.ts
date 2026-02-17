@@ -42,6 +42,7 @@ import type * as lib_permissions_policies from "../lib/permissions/policies.js";
 import type * as lib_permissions_require from "../lib/permissions/require.js";
 import type * as lib_permissions_resources from "../lib/permissions/resources.js";
 import type * as lib_permissions_teams from "../lib/permissions/teams.js";
+import type * as lib_refunds from "../lib/refunds.js";
 import type * as lib_retry from "../lib/retry.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as lib_seedData from "../lib/seedData.js";
@@ -60,6 +61,7 @@ import type * as lib_taskTransforms from "../lib/taskTransforms.js";
 import type * as lib_transforms from "../lib/transforms.js";
 import type * as lib_types from "../lib/types.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as lib_wca_registrations from "../lib/wca/registrations.js";
 import type * as linkedActions from "../linkedActions.js";
 import type * as linkedActions_config from "../linkedActions/config.js";
 import type * as linkedActions_permissions from "../linkedActions/permissions.js";
@@ -95,6 +97,7 @@ import type * as notifications_triggers_tasks from "../notifications/triggers/ta
 import type * as notifications_types from "../notifications/types.js";
 import type * as notificationsNode from "../notificationsNode.js";
 import type * as phases from "../phases.js";
+import type * as refunds from "../refunds.js";
 import type * as reminders from "../reminders.js";
 import type * as seed from "../seed.js";
 import type * as services_canva_client from "../services/canva/client.js";
@@ -192,6 +195,7 @@ declare const fullApi: ApiFromModules<{
   "lib/permissions/require": typeof lib_permissions_require;
   "lib/permissions/resources": typeof lib_permissions_resources;
   "lib/permissions/teams": typeof lib_permissions_teams;
+  "lib/refunds": typeof lib_refunds;
   "lib/retry": typeof lib_retry;
   "lib/sanitize": typeof lib_sanitize;
   "lib/seedData": typeof lib_seedData;
@@ -210,6 +214,7 @@ declare const fullApi: ApiFromModules<{
   "lib/transforms": typeof lib_transforms;
   "lib/types": typeof lib_types;
   "lib/validators": typeof lib_validators;
+  "lib/wca/registrations": typeof lib_wca_registrations;
   linkedActions: typeof linkedActions;
   "linkedActions/config": typeof linkedActions_config;
   "linkedActions/permissions": typeof linkedActions_permissions;
@@ -245,6 +250,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/types": typeof notifications_types;
   notificationsNode: typeof notificationsNode;
   phases: typeof phases;
+  refunds: typeof refunds;
   reminders: typeof reminders;
   seed: typeof seed;
   "services/canva/client": typeof services_canva_client;
