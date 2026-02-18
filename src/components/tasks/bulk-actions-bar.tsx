@@ -255,12 +255,12 @@ export function BulkActionsBar({
 									<span
 										className={`size-2 rounded-full mr-2 ${
 											priority === "urgent"
-												? "bg-red-500"
+												? "bg-error"
 												: priority === "high"
-													? "bg-orange-500"
+													? "bg-warning"
 													: priority === "medium"
-														? "bg-yellow-500"
-														: "bg-gray-400"
+														? "bg-info"
+														: "bg-muted-foreground"
 										}`}
 									/>
 									<span className="capitalize">{priority}</span>
@@ -375,12 +375,12 @@ export function BulkActionsBar({
 									<span
 										className={`size-2 rounded-full mr-2 ${
 											priority === "urgent"
-												? "bg-red-500"
+												? "bg-error"
 												: priority === "high"
-													? "bg-orange-500"
+													? "bg-warning"
 													: priority === "medium"
-														? "bg-yellow-500"
-														: "bg-gray-400"
+														? "bg-info"
+														: "bg-muted-foreground"
 										}`}
 									/>
 									<span className="capitalize">{priority}</span>

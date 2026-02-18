@@ -169,7 +169,7 @@ export function MembersAndTeamsSection() {
 											user.teamIds.includes(selectedTeam.id) ? (
 												<Badge
 													variant="outline"
-													className="border-amber-500 text-amber-700 text-[10px]"
+													className="border-warning text-warning-foreground text-[10px]"
 												>
 													Director
 												</Badge>

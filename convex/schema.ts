@@ -505,6 +505,12 @@ export default defineSchema({
 		lastUsedAt: v.optional(v.number()),
 	}).index("by_user_entity_page", ["userId", "entity", "pageId"]),
 
+	userThemeSettings: defineTable({
+		userId: v.id("users"),
+		themeJson: v.string(),
+		updatedAt: v.number(),
+	}).index("by_user", ["userId"]),
+
 	weekendOverrides: defineTable({
 		satDate: v.string(),
 		eventNote: v.optional(v.string()),

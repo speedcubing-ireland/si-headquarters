@@ -220,9 +220,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 						{...section}
 					/>
 				))}
-				<NavSecondary className="mt-auto" />
 			</SidebarContent>
-			<SidebarFooter>
+			<SidebarFooter className="flex flex-col gap-0">
+				<NavSecondary className="pt-0" />
 				<NavUser
 					user={
 						user

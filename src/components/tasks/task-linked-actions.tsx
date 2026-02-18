@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { Link2, Palette, Plus, Sheet, Trash2 } from "lucide-react";
@@ -19,6 +17,7 @@ import {
 	LinkedActionStatusBadge,
 } from "@/components/tasks/linked-actions/linked-action-status";
 import { ResponsiveModal } from "@/components/shared/responsive-modal";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -288,9 +287,7 @@ export function TaskLinkedActionsSection({
 				<h3 className="flex items-center gap-1.5 text-sm font-semibold">
 					<Link2 className="size-4" />
 					Linked Integrations
-					<span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-						{items.length}
-					</span>
+					<Badge variant="secondary">{items.length}</Badge>
 				</h3>
 				<Button
 					variant="outline"

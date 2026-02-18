@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { AlertTriangle } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
+import { Badge } from "@/components/ui/badge";
 import {
 	Tooltip,
 	TooltipContent,
@@ -177,10 +178,10 @@ export const TaskTitleCell = memo(
 				{task.isBlocked && (
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<span className="ml-1.5 inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 whitespace-nowrap">
-								<AlertTriangle className="size-3" />
+							<Badge variant="warning-outline" className="ml-1.5">
+								<AlertTriangle />
 								<span>Blocked</span>
-							</span>
+							</Badge>
 						</TooltipTrigger>
 						<TooltipContent side="top" sideOffset={6}>
 							{task.unresolvedBlockerCount} active blocker
@@ -191,7 +192,7 @@ export const TaskTitleCell = memo(
 				{showProgress && (
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<span className="ml-1.5 inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs text-muted-foreground bg-background whitespace-nowrap">
+							<Badge variant="outline" className="ml-1.5 shrink-0 gap-1">
 								<svg className="size-3" viewBox="0 0 16 16" fill="none">
 									<title>Subtask progress</title>
 									<circle
@@ -216,7 +217,7 @@ export const TaskTitleCell = memo(
 								<span>
 									{done}/{total}
 								</span>
-							</span>
+							</Badge>
 						</TooltipTrigger>
 						<TooltipContent side="top" sideOffset={6}>
 							<div className="space-y-1 text-xs">

@@ -63,11 +63,11 @@ type SortableColumnOptions = {
 type GroupValueRenderer = (value: unknown, row: Row<Task>) => React.ReactNode;
 const statusDotColors: Record<TaskStatus, string> = {
 	backlog: "bg-muted-foreground/40",
-	"to-do": "bg-blue-500",
-	"in-progress": "bg-yellow-500",
-	"awaiting-review": "bg-purple-500",
-	done: "bg-green-500",
-	cancelled: "bg-red-500",
+	"to-do": "bg-info",
+	"in-progress": "bg-warning",
+	"awaiting-review": "bg-info",
+	done: "bg-success",
+	cancelled: "bg-error",
 };
 
 const isTaskStatus = (value: string): value is TaskStatus =>

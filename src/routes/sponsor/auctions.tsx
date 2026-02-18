@@ -7,8 +7,7 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { Loader2, LogOut, Monitor, Moon, Settings, Sun } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Loader2, LogOut, Settings, Sun, Moon } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -20,6 +19,7 @@ import {
 	SponsorPageShell,
 } from "@/components/sponsorship/sponsor-page-layout";
 import { useTheme } from "@/components/theme-provider";
+import { builtInThemes } from "@/lib/theme-constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,13 +54,6 @@ export const Route = createFileRoute("/sponsor/auctions")({
 
 const VISIBLE_STATES = ["active", "scheduled", "closed"] as const;
 type VisibleState = (typeof VISIBLE_STATES)[number];
-type Theme = "light" | "dark" | "system";
-
-const THEMES: Array<{ value: Theme; label: string; icon: LucideIcon }> = [
-	{ value: "light", label: "Light", icon: Sun },
-	{ value: "dark", label: "Dark", icon: Moon },
-	{ value: "system", label: "System", icon: Monitor },
-];
 
 function SponsorAuctionsRoute() {
 	if (!isSponsorshipEnabled) {
@@ -82,7 +75,7 @@ function ThemeToggleButton() {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
-				{THEMES.map(({ value, label, icon: Icon }) => (
+				{builtInThemes.map(({ value, label, icon: Icon }) => (
 					<DropdownMenuItem key={value} onClick={() => setTheme(value)}>
 						<Icon className="mr-2 size-4" />
 						<span>{label}</span>
@@ -284,7 +277,7 @@ function SponsorAuctionsEnabled() {
 																summary={auction.competitionSummary}
 															/>
 															{auction.competitionSummarySource !== "wca" ? (
-																<p className="text-xs text-amber-700">
+																<p className="text-xs text-warning-foreground">
 																	Detailed competition data is still syncing
 																	from WCA.
 																</p>

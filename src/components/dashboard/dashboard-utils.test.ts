@@ -351,7 +351,7 @@ describe("getDueBadge", () => {
 	test("returns overdue text for past dates", () => {
 		const result = getDueBadge("2026-02-04");
 		expect(result?.text).toBe("2 days ago");
-		expect(result?.className).toContain("red");
+		expect(result?.className).toContain("error");
 	});
 
 	test("returns singular for 1 day overdue", () => {
@@ -362,19 +362,19 @@ describe("getDueBadge", () => {
 	test("returns 'Today' for today", () => {
 		const result = getDueBadge("2026-02-06");
 		expect(result?.text).toBe("Today");
-		expect(result?.className).toContain("red");
+		expect(result?.className).toContain("error");
 	});
 
 	test("returns 'Tomorrow' for tomorrow", () => {
 		const result = getDueBadge("2026-02-07");
 		expect(result?.text).toBe("Tomorrow");
-		expect(result?.className).toContain("orange");
+		expect(result?.className).toContain("warning");
 	});
 
 	test("returns 'in Xd' for within 3 days", () => {
 		const result = getDueBadge("2026-02-08");
 		expect(result?.text).toBe("in 2d");
-		expect(result?.className).toContain("orange");
+		expect(result?.className).toContain("warning");
 	});
 
 	test("returns 'in Xd' with no color for dates beyond 3 days", () => {

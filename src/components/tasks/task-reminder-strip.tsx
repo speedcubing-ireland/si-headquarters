@@ -34,8 +34,8 @@ export function TaskReminderStrip({ task }: TaskReminderStripProps) {
 
 	return (
 		<>
-			<div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-sm">
-				<Calendar className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+			<div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm">
+				<Calendar className="size-4 shrink-0 text-warning-foreground" />
 				<span className="min-w-0 flex-1 text-muted-foreground">
 					Reminder
 					{nextReminder &&

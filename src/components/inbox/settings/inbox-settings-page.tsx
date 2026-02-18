@@ -33,7 +33,7 @@ function SaveStateText({ state }: { state: SettingSaveState }) {
 			aria-live="polite"
 			className={cn(
 				"text-xs",
-				state === "saved" && "text-emerald-500",
+				state === "saved" && "text-success-foreground",
 				state === "saving" && "text-muted-foreground",
 				state === "error" && "text-destructive",
 			)}

@@ -1,43 +1,38 @@
 import type { Competition, CompetitionPhaseKey } from "@/data/types-new";
+import type { BadgeVariant } from "@/components/ui/badge";
 
 const phaseConfig: Record<
 	CompetitionPhaseKey,
-	{ label: string; className: string }
+	{ label: string; variant: BadgeVariant }
 > = {
 	concept: {
 		label: "Concept",
-		className:
-			"bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-700",
+		variant: "secondary",
 	},
 	"pre-announcement": {
 		label: "Pre-Announcement",
-		className:
-			"bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-300 border border-red-300 dark:border-red-700",
+		variant: "error-outline",
 	},
 	"post-announcement": {
 		label: "Post-Announcement",
-		className:
-			"bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-700",
+		variant: "info-outline",
 	},
 	"pre-competition": {
 		label: "Pre-Competition",
-		className:
-			"bg-teal-100 text-teal-900 dark:bg-teal-950 dark:text-teal-300 border border-teal-300 dark:border-teal-700",
+		variant: "warning-outline",
 	},
 	"post-competition": {
 		label: "Post-Competition",
-		className:
-			"bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-300 border border-green-300 dark:border-green-700",
+		variant: "success-outline",
 	},
 	archive: {
 		label: "Archive",
-		className:
-			"bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-600",
+		variant: "secondary",
 	},
 };
 
-export function getPhaseClass(key: CompetitionPhaseKey): string {
-	return phaseConfig[key].className;
+export function getPhaseVariant(key: CompetitionPhaseKey): BadgeVariant {
+	return phaseConfig[key].variant;
 }
 
 export function getPhaseLabel(key: CompetitionPhaseKey): string {

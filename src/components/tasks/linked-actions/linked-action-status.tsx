@@ -6,40 +6,41 @@ import {
 	type LucideIcon,
 	MinusCircle,
 } from "lucide-react";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import type { TaskLinkedAction } from "@/data/types-new";
 
 const STATUS_META: Record<
 	TaskLinkedAction["status"],
-	{ label: string; className: string; Icon: LucideIcon }
+	{ label: string; variant: BadgeVariant; Icon: LucideIcon }
 > = {
 	idle: {
 		label: "Not run",
-		className: "bg-muted text-muted-foreground",
+		variant: "secondary",
 		Icon: MinusCircle,
 	},
 	running: {
 		label: "Running",
-		className: "bg-secondary text-secondary-foreground",
+		variant: "default",
 		Icon: Loader2,
 	},
 	awaiting_manual_share: {
 		label: "Awaiting share",
-		className: "bg-accent text-accent-foreground",
+		variant: "outline",
 		Icon: Clock3,
 	},
 	awaiting_manual_events_confirmation: {
 		label: "Awaiting confirmation",
-		className: "bg-accent text-accent-foreground",
+		variant: "outline",
 		Icon: Clock3,
 	},
 	completed: {
 		label: "Completed",
-		className: "bg-primary/15 text-primary",
+		variant: "success",
 		Icon: CheckCircle2,
 	},
 	error: {
 		label: "Error",
-		className: "bg-destructive/15 text-destructive",
+		variant: "error",
 		Icon: AlertCircle,
 	},
 };
@@ -58,12 +59,10 @@ export function LinkedActionStatusBadge({
 			? "Linked"
 			: meta.label;
 	return (
-		<span
-			className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.className}`}
-		>
+		<Badge variant={meta.variant} className="text-[11px]">
 			<meta.Icon className={`size-3.5 ${spinning ? "animate-spin" : ""}`} />
 			{label}
-		</span>
+		</Badge>
 	);
 }
 

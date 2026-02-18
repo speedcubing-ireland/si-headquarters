@@ -217,25 +217,25 @@ export function getDueBadge(dueDate: string | null): {
 		const absDays = Math.abs(diffDays);
 		return {
 			text: absDays === 1 ? "1 day ago" : `${absDays} days ago`,
-			className: "border-red-500/50 text-red-600 dark:text-red-400",
+			className: "border-error/50 text-error-foreground",
 		};
 	}
 	if (diffDays === 0) {
 		return {
 			text: "Today",
-			className: "border-red-500/50 text-red-600 dark:text-red-400",
+			className: "border-error/50 text-error-foreground",
 		};
 	}
 	if (diffDays === 1) {
 		return {
 			text: "Tomorrow",
-			className: "border-orange-500/50 text-orange-600 dark:text-orange-400",
+			className: "border-warning/50 text-warning-foreground",
 		};
 	}
 	if (diffDays <= 3) {
 		return {
 			text: `in ${diffDays}d`,
-			className: "border-orange-500/50 text-orange-600 dark:text-orange-400",
+			className: "border-warning/50 text-warning-foreground",
 		};
 	}
 	return {
@@ -331,7 +331,7 @@ export function MyFocusWidget() {
 								className="inline-flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-muted/50 focus-visible:opacity-100 group-hover:opacity-100"
 								aria-label={`Mark "${task.title}" as done`}
 							>
-								<CheckCircle2 className="size-4 text-muted-foreground hover:text-green-500" />
+								<CheckCircle2 className="size-4 text-muted-foreground hover:text-success-foreground" />
 							</button>
 						</TooltipTrigger>
 						<TooltipContent side="left" sideOffset={4}>
@@ -374,7 +374,7 @@ export function MyFocusWidget() {
 					</div>
 				) : focusGroups.length === 0 ? (
 					<div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
-						<CheckCircle2 className="size-8 text-green-500" />
+						<CheckCircle2 className="size-8 text-success-foreground" />
 						<span className="text-sm text-muted-foreground">
 							No tasks assigned to you
 						</span>

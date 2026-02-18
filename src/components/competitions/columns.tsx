@@ -22,7 +22,7 @@ import {
 } from "@/data/types-new";
 import {
 	getCurrentPhaseKey,
-	getPhaseClass,
+	getPhaseVariant,
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
 import { formatDate, getInitials } from "@/lib/format-utils";
@@ -83,7 +83,7 @@ const phaseGroupRenderer: GroupValueRenderer = (value, row) => {
 		typeof value === "string" && isCompetitionPhaseKey(value)
 			? value
 			: getCurrentPhaseKey(row.original);
-	return <Badge className={getPhaseClass(key)}>{getPhaseLabel(key)}</Badge>;
+	return <Badge variant={getPhaseVariant(key)}>{getPhaseLabel(key)}</Badge>;
 };
 
 const dateGroupRenderer: GroupValueRenderer = (value) => {

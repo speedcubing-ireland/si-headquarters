@@ -2,7 +2,7 @@ import { SharedFilterChip } from "@/components/shared/filters/filter-chip";
 import { Badge } from "@/components/ui/badge";
 import { useUsers } from "@/hooks/use-convex-data";
 import type { CompetitionPhaseKey, User } from "@/data/types-new";
-import { getPhaseClass, getPhaseLabel } from "@/lib/competition-phase-config";
+import { getPhaseVariant, getPhaseLabel } from "@/lib/competition-phase-config";
 import { type FilterType, filterConfigs } from "@/lib/filter-config";
 import { renderUserValueForFilter } from "@/lib/user-render-utils";
 import { useCompetitionsUrlContext } from "@/lib/competitions-url-context";
@@ -29,7 +29,7 @@ const filterTypeConfigs: FilterTypeConfigMap = {
 	phase: {
 		renderValue: (value) => {
 			const key = value as CompetitionPhaseKey;
-			return <Badge className={getPhaseClass(key)}>{getPhaseLabel(key)}</Badge>;
+			return <Badge variant={getPhaseVariant(key)}>{getPhaseLabel(key)}</Badge>;
 		},
 		getIcon: () => filterConfigs.phase.icon,
 	},

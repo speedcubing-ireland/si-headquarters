@@ -168,12 +168,18 @@ function TaskHeader({
 					<Link
 						to="/teams/$teamId"
 						params={{ teamId: task.owner.id }}
-						className="inline-flex max-w-[170px] items-center gap-1 rounded-full border px-2 py-1 text-xs hover:bg-muted sm:max-w-[220px]"
+						className="max-w-[170px] sm:max-w-[220px]"
 					>
-						<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
-							T
-						</span>
-						<span className="truncate max-w-[160px]">{task.owner.name}</span>
+						<Badge variant="outline" asChild className="gap-1">
+							<span>
+								<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+									T
+								</span>
+								<span className="truncate max-w-[160px]">
+									{task.owner.name}
+								</span>
+							</span>
+						</Badge>
 					</Link>
 				</>
 			)}
@@ -459,8 +465,8 @@ function RouteComponent() {
 					<div className="mx-auto w-full max-w-5xl space-y-4 pb-10 sm:space-y-5">
 						<TaskReminderStrip task={task} />
 						{task.isBlocked && unresolvedBlockers.length > 0 && (
-							<div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
-								<div className="flex items-center gap-2 text-sm font-medium text-amber-700">
+							<div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5">
+								<div className="flex items-center gap-2 text-sm font-medium text-warning-foreground">
 									<AlertTriangle className="size-4" />
 									Blocked by {unresolvedBlockers.length} task
 									{unresolvedBlockers.length === 1 ? "" : "s"}
@@ -490,7 +496,7 @@ function RouteComponent() {
 							<TaskQuickStat
 								label="Priority"
 								value={priorityLabel}
-								tone={task.priority === "urgent" ? "danger" : "warning"}
+								tone={task.priority === "urgent" ? "danger" : "default"}
 							/>
 							<TaskQuickStat
 								label="Due"

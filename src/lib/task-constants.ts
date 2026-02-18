@@ -21,9 +21,9 @@ export const DEFAULT_TASK_PRIORITY: TaskPriority = "medium";
 
 export const statusColors: Record<TaskStatus, string> = {
 	backlog: "bg-muted text-muted-foreground",
-	"to-do": "bg-blue-500/20 text-blue-400",
-	"in-progress": "bg-yellow-500/20 text-yellow-400",
-	"awaiting-review": "bg-purple-500/20 text-purple-400",
-	done: "bg-green-500/20 text-green-400",
-	cancelled: "bg-red-500/20 text-red-400",
+	"to-do": "bg-info/15 text-info",
+	"in-progress": "bg-warning/15 text-warning",
+	"awaiting-review": "bg-secondary text-secondary-foreground",
+	done: "bg-success/15 text-success",
+	cancelled: "bg-error/15 text-error",
 };

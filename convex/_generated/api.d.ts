@@ -147,6 +147,7 @@ import type * as tasks_creation from "../tasks/creation.js";
 import type * as tasks_dueDate from "../tasks/dueDate.js";
 import type * as teams from "../teams.js";
 import type * as updates from "../updates.js";
+import type * as userThemeSettings from "../userThemeSettings.js";
 import type * as users from "../users.js";
 import type * as views from "../views.js";
 import type * as wca from "../wca.js";
@@ -300,6 +301,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/dueDate": typeof tasks_dueDate;
   teams: typeof teams;
   updates: typeof updates;
+  userThemeSettings: typeof userThemeSettings;
   users: typeof users;
   views: typeof views;
   wca: typeof wca;

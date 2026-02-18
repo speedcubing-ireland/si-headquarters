@@ -22,7 +22,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
 	getCurrentPhaseKey,
-	getPhaseClass,
+	getPhaseVariant,
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
 import { formatDate, getInitials } from "@/lib/format-utils";
@@ -211,7 +211,7 @@ export const calendarColumns: ColumnDef<Weekend>[] = [
 			const comp = row.original.competition;
 			if (!comp) return emptyCell;
 			const key = getCurrentPhaseKey(comp) as CompetitionPhaseKey;
-			return <Badge className={getPhaseClass(key)}>{getPhaseLabel(key)}</Badge>;
+			return <Badge variant={getPhaseVariant(key)}>{getPhaseLabel(key)}</Badge>;
 		},
 	},
 	{

@@ -5,15 +5,7 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import {
-	ArrowLeft,
-	Loader2,
-	LogOut,
-	Monitor,
-	Moon,
-	Sun,
-	type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft, Loader2, LogOut, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
@@ -23,6 +15,7 @@ import {
 	SponsorPageShell,
 } from "@/components/sponsorship/sponsor-page-layout";
 import { useTheme } from "@/components/theme-provider";
+import { builtInThemes } from "@/lib/theme-constants";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -42,18 +35,6 @@ import { Label } from "@/components/ui/label";
 import { isSponsorshipEnabled } from "@/lib/feature-flags";
 import { sponsorAuthClient } from "@/lib/sponsor-auth-client";
 
-type Theme = "light" | "dark" | "system";
-
-const THEMES: Array<{
-	value: Theme;
-	label: string;
-	icon: LucideIcon;
-}> = [
-	{ value: "light", label: "Light", icon: Sun },
-	{ value: "dark", label: "Dark", icon: Moon },
-	{ value: "system", label: "System", icon: Monitor },
-];
-
 export const Route = createFileRoute("/sponsor/settings")({
 	component: SponsorSettingsRoute,
 });
@@ -71,7 +52,7 @@ function ThemeToggleButton() {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
-				{THEMES.map(({ value, label, icon: Icon }) => (
+				{builtInThemes.map(({ value, label, icon: Icon }) => (
 					<DropdownMenuItem key={value} onClick={() => setTheme(value)}>
 						<Icon className="mr-2 size-4" />
 						<span>{label}</span>

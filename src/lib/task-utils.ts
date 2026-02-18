@@ -26,10 +26,10 @@ import {
 export const statusIconColors: Record<TaskStatus, string> = {
 	backlog: "text-muted-foreground/60",
 	"to-do": "text-muted-foreground",
-	"in-progress": "text-yellow-500",
-	"awaiting-review": "text-purple-500",
-	done: "text-green-500",
-	cancelled: "text-red-500",
+	"in-progress": "text-warning",
+	"awaiting-review": "text-secondary-foreground",
+	done: "text-success",
+	cancelled: "text-error",
 };
 
 export function isUserRequiredApprover(task: Task, userId: string): boolean {

@@ -1,4 +1,5 @@
 import { Smile } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Popover,
@@ -62,11 +63,15 @@ export function ReactionDisplay({
 					key={reaction.emoji}
 					type="button"
 					onClick={() => onAddReaction(reaction.emoji)}
-					className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted rounded-full text-xs hover:bg-muted/80 transition-colors"
 					title={reaction.users.map((u) => u.name).join(", ")}
 				>
-					<span>{reaction.emoji}</span>
-					<span>{reaction.users.length}</span>
+					<Badge
+						variant="secondary"
+						className="hover:bg-secondary/80 transition-colors"
+					>
+						<span>{reaction.emoji}</span>
+						<span>{reaction.users.length}</span>
+					</Badge>
 				</button>
 			))}
 		</div>

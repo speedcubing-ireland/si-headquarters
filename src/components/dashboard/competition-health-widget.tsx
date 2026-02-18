@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils";
 const MAX_COMPETITIONS = 5;
 
 const STATUS_DOT_COLORS: Record<string, string> = {
-	"on-track": "bg-green-500",
-	"at-risk": "bg-orange-500",
-	"off-track": "bg-red-500",
+	"on-track": "bg-success",
+	"at-risk": "bg-warning",
+	"off-track": "bg-error",
 };
 
 const STATUS_SORT_ORDER: Record<string, number> = {

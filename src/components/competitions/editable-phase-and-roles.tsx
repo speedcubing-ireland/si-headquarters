@@ -42,7 +42,7 @@ import {
 } from "@/data/types-new";
 import {
 	getCurrentPhaseKey,
-	getPhaseClass,
+	getPhaseVariant,
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
 import { getInitials } from "@/lib/format-utils";
@@ -183,7 +183,7 @@ export function EditablePhaseCell({
 					size="sm"
 					className="h-7 min-w-0 max-w-full px-2 justify-start"
 				>
-					<Badge className={getPhaseClass(currentKey)}>
+					<Badge variant={getPhaseVariant(currentKey)}>
 						{getPhaseLabel(currentKey)}
 					</Badge>
 				</Button>

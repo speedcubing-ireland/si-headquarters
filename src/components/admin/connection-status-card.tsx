@@ -26,7 +26,7 @@ function ConnectionStatusCard({
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
 					{connected ? (
-						<CheckCircle2 className="size-4 text-green-600" />
+						<CheckCircle2 className="size-4 text-success-foreground" />
 					) : (
 						<Link2Off className="size-4 text-muted-foreground" />
 					)}

@@ -3,6 +3,7 @@ import React from "react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn, onMutationError } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
 	Command,
 	CommandEmpty,
@@ -447,27 +448,24 @@ export function EditableTaskLabels({
 							)}
 						>
 							{labels.slice(0, wrap ? labels.length : 2).map((label) => (
-								<span
-									key={label.id}
-									className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs"
-								>
+								<Badge key={label.id} variant="outline" className="gap-1">
 									<span
 										className="size-2 rounded-full shrink-0"
 										style={{ backgroundColor: label.color }}
 									/>
 									<span className="truncate max-w-[80px]">{label.name}</span>
-								</span>
+								</Badge>
 							))}
 							{!wrap && labels.length >= 3 && (
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
+										<Badge variant="secondary" className="gap-1">
 											<span className="size-2 rounded-full bg-muted-foreground/40 shrink-0" />
 											<span className="whitespace-nowrap">
 												+{labels.length - 2}{" "}
 												{labels.length - 2 === 1 ? "label" : "labels"}
 											</span>
-										</span>
+										</Badge>
 									</TooltipTrigger>
 									<TooltipContent side="top" sideOffset={6}>
 										<div className="max-w-[240px]">
@@ -563,12 +561,12 @@ export function EditableTaskOwner({
 	const renderTriggerContent = () => {
 		if (owner && "members" in owner) {
 			return (
-				<div className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+				<Badge variant="outline" className="gap-1">
 					<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
 						T
 					</span>
 					<span className="truncate max-w-[80px]">{owner.name}</span>
-				</div>
+				</Badge>
 			);
 		}
 

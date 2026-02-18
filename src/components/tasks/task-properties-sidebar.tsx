@@ -76,14 +76,16 @@ function ApprovalBadge({
 			className={cn(
 				"flex items-center gap-2 px-2 py-1.5 rounded-md border text-sm group",
 				isApproved
-					? "border-green-500/30 bg-green-500/10"
+					? "border-success/30 bg-success/10"
 					: "border-muted bg-muted/50",
 			)}
 		>
 			<div
 				className={cn(
 					"flex items-center justify-center w-5 h-5 rounded-full",
-					isApproved ? "bg-green-500 text-white" : "bg-muted-foreground/20",
+					isApproved
+						? "bg-success text-success-foreground"
+						: "bg-muted-foreground/20",
 				)}
 			>
 				{isApproved ? (
@@ -111,7 +113,7 @@ function ApprovalBadge({
 							onClick={onUnapprove}
 							title="Unapprove"
 						>
-							<XCircle className="size-3.5 text-red-500" />
+							<XCircle className="size-3.5 text-error-foreground" />
 						</Button>
 					) : (
 						<Button
@@ -121,7 +123,7 @@ function ApprovalBadge({
 							onClick={onApprove}
 							title="Approve"
 						>
-							<CheckCircle2 className="size-3.5 text-green-500" />
+							<CheckCircle2 className="size-3.5 text-success-foreground" />
 						</Button>
 					))}
 				<Button
@@ -259,7 +261,7 @@ export function TaskPropertiesSidebar({
 						Dependencies
 					</h3>
 					{task.isBlocked && (
-						<span className="text-xs font-medium text-amber-600">
+						<span className="text-xs font-medium text-warning-foreground">
 							{task.unresolvedBlockerCount} active
 						</span>
 					)}
@@ -281,14 +283,14 @@ export function TaskPropertiesSidebar({
 									className={cn(
 										"flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5 text-sm",
 										relation.isResolved
-											? "border-green-500/30 bg-green-500/10"
-											: "border-amber-500/30 bg-amber-500/10",
+											? "border-success/30 bg-success/10"
+											: "border-warning/30 bg-warning/10",
 									)}
 								>
 									{relation.isResolved ? (
-										<CheckCircle2 className="size-4 shrink-0 text-green-500" />
+										<CheckCircle2 className="size-4 shrink-0 text-success-foreground" />
 									) : (
-										<AlertTriangle className="size-4 shrink-0 text-amber-500" />
+										<AlertTriangle className="size-4 shrink-0 text-warning-foreground" />
 									)}
 									<div className="min-w-0 flex-1">
 										<Link
@@ -384,8 +386,8 @@ export function TaskPropertiesSidebar({
 							className={cn(
 								"text-xs font-medium",
 								approvalStatus.isFullyApproved
-									? "text-green-500"
-									: "text-amber-500",
+									? "text-success-foreground"
+									: "text-warning-foreground",
 							)}
 						>
 							{approvalStatus.approvedCount}/{approvalStatus.requiredCount}
@@ -442,7 +444,7 @@ export function TaskPropertiesSidebar({
 				{task.status === "done" &&
 					approvalStatus.requiredCount > 0 &&
 					!approvalStatus.isFullyApproved && (
-						<div className="mt-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600">
+						<div className="mt-2 p-2 rounded-md bg-warning/10 border border-warning/20 text-xs text-warning-foreground">
 							Task is marked done but missing required approvals (
 							{approvalStatus.pending.length} pending)
 						</div>

@@ -5,6 +5,7 @@ import React, {
 	type ReactNode,
 	type Ref,
 } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -47,9 +48,9 @@ const SharedFilterPopoverTrigger = React.memo(
 				<Icon className="size-4" />
 				<span>{label}</span>
 				{count > 0 ? (
-					<span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs">
+					<Badge variant="default" className="ml-1 px-1.5 py-0 text-[10px]">
 						{count}
-					</span>
+					</Badge>
 				) : null}
 				<ChevronDown className="size-4" />
 			</Button>
