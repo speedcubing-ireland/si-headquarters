@@ -254,7 +254,7 @@ export function CompetitionPropertiesSidebar({
 										target="_blank"
 										rel="noreferrer"
 									>
-										<FileSpreadsheet className="size-3.5 shrink-0 text-success-foreground" />
+										<FileSpreadsheet className="size-3.5 shrink-0 text-success" />
 										<span className="truncate">Open sheet</span>
 										<ExternalLink className="size-3 shrink-0 text-muted-foreground" />
 									</a>
@@ -304,7 +304,7 @@ export function CompetitionPropertiesSidebar({
 							>
 								<PopoverTrigger asChild>
 									<Button variant="outline" size="sm" className="h-7">
-										<FileSpreadsheet className="size-3.5 text-success-foreground" />
+										<FileSpreadsheet className="size-3.5 text-success" />
 										Add sheet
 									</Button>
 								</PopoverTrigger>
@@ -365,9 +365,9 @@ export function CompetitionPropertiesSidebar({
 										target="_blank"
 										rel="noreferrer"
 									>
-										<Globe className="size-3.5 shrink-0 text-info-foreground" />
+										<Globe className="size-3.5 shrink-0 text-info" />
 										<span className="truncate">Open on WCA</span>
-										<ExternalLink className="size-3 shrink-0 text-muted-foreground" />
+										<ExternalLink className="size-3 shrink-0 text-muted" />
 									</a>
 								</Button>
 								<DropdownMenu>

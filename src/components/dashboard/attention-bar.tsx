@@ -82,8 +82,8 @@ export function AttentionBar() {
 	if (!hasAny) {
 		return (
 			<div className="flex items-center gap-2 rounded-lg bg-muted/30 px-4 py-2.5">
-				<CheckCircle2 className="size-4 text-success-foreground" />
-				<span className="text-sm text-muted-foreground">All clear</span>
+				<CheckCircle2 className="size-4 text-success" />
+				<span className="text-sm text-foreground">All clear</span>
 			</div>
 		);
 	}
@@ -97,16 +97,13 @@ export function AttentionBar() {
 				</Badge>
 			)}
 			{needsReview > 0 && (
-				<Badge
-					variant="outline"
-					className="gap-1.5 border-warning/50 text-warning-foreground"
-				>
+				<Badge variant="warning" className="gap-1.5">
 					<Eye className="size-3" />
 					{needsReview} Need Review
 				</Badge>
 			)}
 			{dueSoon > 0 && (
-				<Badge variant="outline" className="gap-1.5">
+				<Badge variant="info" className="gap-1.5">
 					<Clock className="size-3" />
 					{dueSoon} Due Soon
 				</Badge>

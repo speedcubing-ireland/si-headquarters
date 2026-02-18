@@ -95,7 +95,12 @@ async function getWcaClientAndMyCompetitionsData(
 	}
 	const client = createWcaClient(accessToken);
 	const r = await getMyCompetitions({ client });
-	if (r.error) throw new Error(`WCA my competitions failed: ${r.error}`);
+	if (r.error) {
+		const err = r.error as { status?: number; statusText?: string };
+		throw new Error(
+			`WCA my competitions failed: ${err.status ?? "unknown"} ${err.statusText ?? ""}`.trim(),
+		);
+	}
 	const data = r.data;
 	if (!data) throw new Error("WCA my competitions: no data");
 	return { client, data };

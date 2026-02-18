@@ -83,9 +83,7 @@ function ApprovalBadge({
 			<div
 				className={cn(
 					"flex items-center justify-center w-5 h-5 rounded-full",
-					isApproved
-						? "bg-success text-success-foreground"
-						: "bg-muted-foreground/20",
+					isApproved ? "text-success" : "bg-muted-foreground/20",
 				)}
 			>
 				{isApproved ? (
@@ -97,7 +95,12 @@ function ApprovalBadge({
 
 			<div className="flex-1 min-w-0">
 				<div className="font-medium truncate">{approver.name}</div>
-				<div className="text-xs text-muted-foreground">
+				<div
+					className={cn(
+						"text-xs",
+						isApproved ? "text-success" : "text-muted-foreground",
+					)}
+				>
 					{isTeam ? "Team" : isCurrentUser ? "You" : "User"} •{" "}
 					{isApproved ? "Approved" : "Pending"}
 				</div>
@@ -123,7 +126,7 @@ function ApprovalBadge({
 							onClick={onApprove}
 							title="Approve"
 						>
-							<CheckCircle2 className="size-3.5 text-success-foreground" />
+							<CheckCircle2 className="size-3.5 text-success" />
 						</Button>
 					))}
 				<Button
@@ -288,19 +291,24 @@ export function TaskPropertiesSidebar({
 									)}
 								>
 									{relation.isResolved ? (
-										<CheckCircle2 className="size-4 shrink-0 text-success-foreground" />
+										<CheckCircle2 className="size-4 shrink-0 text-success" />
 									) : (
-										<AlertTriangle className="size-4 shrink-0 text-warning-foreground" />
+										<AlertTriangle className="size-4 shrink-0 text-warning" />
 									)}
 									<div className="min-w-0 flex-1">
 										<Link
 											to="/tasks/$id"
 											params={{ id: relation.task.id }}
-											className="block font-medium leading-snug break-words [overflow-wrap:anywhere] hover:underline underline-offset-2"
+											className="block font-medium leading-snug wrap-break-words hover:underline underline-offset-2"
 										>
 											{relation.task.identifier} {relation.task.title}
 										</Link>
-										<div className="text-xs text-muted-foreground">
+										<div
+											className={cn(
+												"text-xs",
+												relation.isResolved ? "text-success" : "text-warning",
+											)}
+										>
 											{relation.isResolved ? "Resolved" : "Blocking"}
 										</div>
 									</div>

@@ -1,7 +1,5 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Trophy } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
 	Tooltip,
@@ -9,6 +7,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { DashboardWidgetCard } from "@/components/dashboard/dashboard-widget-card";
 import { useCompetitions } from "@/hooks/use-convex-data";
 import type { Competition } from "@/data/types-new";
 import { cn } from "@/lib/utils";
@@ -176,59 +175,47 @@ export function CompetitionHealthWidget() {
 	}, [competitions]);
 
 	return (
-		<Card className="min-w-0 flex flex-col">
-			<CardHeader className="px-4 pb-2 sm:px-6">
-				<CardTitle className="flex items-center gap-2 text-sm font-medium">
-					<Trophy className="size-4 text-muted-foreground" />
-					Competition Health
-				</CardTitle>
-			</CardHeader>
-			<CardContent className="flex min-w-0 flex-1 flex-col px-4 sm:px-6">
-				{isLoading ? (
-					<div className="space-y-3">
-						{Array.from({ length: 3 }).map((_, i) => (
-							<div
-								key={`skeleton-${i.toString()}`}
-								className="rounded-lg border p-3"
-							>
-								<div className="flex items-center gap-2">
-									<div className="h-5 w-20 animate-pulse rounded bg-muted" />
-									<div className="h-4 flex-1 animate-pulse rounded bg-muted" />
-								</div>
-								<div className="mt-2 flex items-center gap-2">
-									<div className="size-4 animate-pulse rounded-full bg-muted" />
-									<div className="h-1.5 flex-1 animate-pulse rounded-full bg-muted" />
-								</div>
+		<DashboardWidgetCard
+			title="Competitions"
+			footerText="View all competitions"
+			footerTo="/competitions"
+		>
+			{isLoading ? (
+				<div className="space-y-3">
+					{Array.from({ length: 3 }).map((_, i) => (
+						<div
+							key={`skeleton-${i.toString()}`}
+							className="rounded-lg border p-3"
+						>
+							<div className="flex items-center gap-2">
+								<div className="h-5 w-20 animate-pulse rounded bg-muted" />
+								<div className="h-4 flex-1 animate-pulse rounded bg-muted" />
 							</div>
-						))}
-					</div>
-				) : activeCompetitions.length === 0 ? (
-					<div className="flex flex-1 items-center justify-center py-8">
-						<span className="text-sm text-muted-foreground">
-							No active competitions
-						</span>
-					</div>
-				) : (
-					<div className="min-w-0 space-y-2">
-						{activeCompetitions.slice(0, MAX_COMPETITIONS).map((comp) => (
-							<CompetitionCard key={comp.id} competition={comp} />
-						))}
-						{activeCompetitions.length > MAX_COMPETITIONS && (
-							<p className="px-2 text-xs text-muted-foreground">
-								and {activeCompetitions.length - MAX_COMPETITIONS} more
-							</p>
-						)}
-					</div>
-				)}
-
-				<Link
-					to="/competitions"
-					className="mt-auto flex items-center gap-1 border-t pt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
-				>
-					View all competitions
-					<ArrowRight className="size-3" />
-				</Link>
-			</CardContent>
-		</Card>
+							<div className="mt-2 flex items-center gap-2">
+								<div className="size-4 animate-pulse rounded-full bg-muted" />
+								<div className="h-1.5 flex-1 animate-pulse rounded-full bg-muted" />
+							</div>
+						</div>
+					))}
+				</div>
+			) : activeCompetitions.length === 0 ? (
+				<div className="flex flex-1 items-center justify-center py-8">
+					<span className="text-sm text-muted-foreground">
+						No active competitions
+					</span>
+				</div>
+			) : (
+				<div className="min-w-0 space-y-2">
+					{activeCompetitions.slice(0, MAX_COMPETITIONS).map((comp) => (
+						<CompetitionCard key={comp.id} competition={comp} />
+					))}
+					{activeCompetitions.length > MAX_COMPETITIONS && (
+						<p className="px-2 text-xs text-muted-foreground">
+							and {activeCompetitions.length - MAX_COMPETITIONS} more
+						</p>
+					)}
+				</div>
+			)}
+		</DashboardWidgetCard>
 	);
 }

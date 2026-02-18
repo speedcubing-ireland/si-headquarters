@@ -124,10 +124,9 @@ export const getValidAccessToken = internalAction({
 	args: { service: serviceValidator },
 	returns: v.union(v.string(), v.null()),
 	handler: async (ctx, args): Promise<string | null> => {
-		const token: TokenData | null = await ctx.runQuery(
-			internal.services.tokens.getToken,
-			{ service: args.service },
-		);
+		const token = await ctx.runQuery(internal.services.tokens.getToken, {
+			service: args.service,
+		});
 		if (!token) return null;
 
 		const nowSec = Math.floor(Date.now() / 1000);
@@ -136,15 +135,27 @@ export const getValidAccessToken = internalAction({
 		}
 
 		const refreshed = await refreshTokenForService(args.service, token);
-		if (!refreshed) return token.accessToken;
+		if (refreshed) {
+			await ctx.runMutation(internal.services.tokens.setTokens, {
+				service: args.service,
+				accessToken: refreshed.accessToken,
+				refreshToken: refreshed.refreshToken,
+				expiresAt: refreshed.expiresAt,
+			});
+			return refreshed.accessToken;
+		}
 
-		await ctx.runMutation(internal.services.tokens.setTokens, {
-			service: args.service,
-			accessToken: refreshed.accessToken,
-			refreshToken: refreshed.refreshToken,
-			expiresAt: refreshed.expiresAt,
-		});
-		return refreshed.accessToken;
+		const recheckedToken = await ctx.runQuery(
+			internal.services.tokens.getToken,
+			{
+				service: args.service,
+			},
+		);
+		if (recheckedToken && hasUsableAccessToken(recheckedToken, nowSec)) {
+			return recheckedToken.accessToken;
+		}
+
+		return null;
 	},
 });
 

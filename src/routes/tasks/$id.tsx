@@ -466,7 +466,7 @@ function RouteComponent() {
 						<TaskReminderStrip task={task} />
 						{task.isBlocked && unresolvedBlockers.length > 0 && (
 							<div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5">
-								<div className="flex items-center gap-2 text-sm font-medium text-warning-foreground">
+								<div className="flex items-center gap-2 text-sm font-medium text-warning">
 									<AlertTriangle className="size-4" />
 									Blocked by {unresolvedBlockers.length} task
 									{unresolvedBlockers.length === 1 ? "" : "s"}

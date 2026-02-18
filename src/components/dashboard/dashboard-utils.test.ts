@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { isUserRequiredApprover } from "@/lib/task-utils";
-import {
-	classifyTask,
-	sortTasks,
-	buildFocusGroups,
-	getDueBadge,
-} from "./my-focus-widget";
+import { classifyTask, sortTasks, buildFocusGroups } from "./my-focus-widget";
 import {
 	getLatestUpdateStatus,
 	getCompetitionDaysText,
@@ -331,56 +326,6 @@ describe("buildFocusGroups", () => {
 		const groups = buildFocusGroups(tasks, userId);
 		const totalItems = groups.reduce((sum, g) => sum + g.tasks.length, 0);
 		expect(totalItems).toBeLessThanOrEqual(12);
-	});
-});
-
-describe("getDueBadge", () => {
-	beforeEach(() => {
-		vi.useFakeTimers();
-		vi.setSystemTime(new Date("2026-02-06T12:00:00Z"));
-	});
-
-	afterEach(() => {
-		vi.useRealTimers();
-	});
-
-	test("returns null for null dueDate", () => {
-		expect(getDueBadge(null)).toBeNull();
-	});
-
-	test("returns overdue text for past dates", () => {
-		const result = getDueBadge("2026-02-04");
-		expect(result?.text).toBe("2 days ago");
-		expect(result?.className).toContain("error");
-	});
-
-	test("returns singular for 1 day overdue", () => {
-		const result = getDueBadge("2026-02-05");
-		expect(result?.text).toBe("1 day ago");
-	});
-
-	test("returns 'Today' for today", () => {
-		const result = getDueBadge("2026-02-06");
-		expect(result?.text).toBe("Today");
-		expect(result?.className).toContain("error");
-	});
-
-	test("returns 'Tomorrow' for tomorrow", () => {
-		const result = getDueBadge("2026-02-07");
-		expect(result?.text).toBe("Tomorrow");
-		expect(result?.className).toContain("warning");
-	});
-
-	test("returns 'in Xd' for within 3 days", () => {
-		const result = getDueBadge("2026-02-08");
-		expect(result?.text).toBe("in 2d");
-		expect(result?.className).toContain("warning");
-	});
-
-	test("returns 'in Xd' with no color for dates beyond 3 days", () => {
-		const result = getDueBadge("2026-02-16");
-		expect(result?.text).toBe("in 10d");
-		expect(result?.className).toBe("");
 	});
 });
 

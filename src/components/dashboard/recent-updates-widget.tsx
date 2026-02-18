@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowRight, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardWidgetCard } from "@/components/dashboard/dashboard-widget-card";
 import type { Notification } from "@/data/types-new";
 import { useNotifications } from "@/hooks/use-convex-data";
 import { getNotificationDestination } from "@/lib/notification-destination";
@@ -82,50 +82,44 @@ export function RecentUpdatesWidget() {
 	);
 
 	return (
-		<Card>
-			<CardHeader className="pb-2">
-				<CardTitle className="flex items-center gap-2 text-sm font-medium">
+		<DashboardWidgetCard
+			title={
+				<span className="flex items-center gap-2 text-sm font-medium">
 					<Inbox className="size-4 text-muted-foreground" />
 					Recent Updates
-				</CardTitle>
-			</CardHeader>
-			<CardContent>
-				{isLoading ? (
-					<div className="space-y-2">
-						{Array.from({ length: MAX_RECENT_NOTIFICATIONS }).map((_, i) => (
-							<div
-								key={`recent-update-skeleton-${i.toString()}`}
-								className="h-16 animate-pulse rounded-lg border bg-muted/30"
-							/>
-						))}
-					</div>
-				) : recentNotifications.length === 0 ? (
-					<div className="py-8 text-center text-sm text-muted-foreground">
-						No recent updates
-					</div>
-				) : (
-					<div className="space-y-2">
-						{recentNotifications.map((notification) => (
-							<RecentUpdateRow
-								key={notification.id}
-								notification={notification}
-							/>
-						))}
-						{remainingCount > 0 ? (
-							<div className="px-1 pt-1">
-								<Badge variant="outline">+{remainingCount} more in inbox</Badge>
-							</div>
-						) : null}
-					</div>
-				)}
-				<Link
-					to="/inbox"
-					className="mt-4 flex items-center gap-1 border-t pt-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
-				>
-					View inbox
-					<ArrowRight className="size-3" />
-				</Link>
-			</CardContent>
-		</Card>
+				</span>
+			}
+			footerText="View inbox"
+			footerTo="/inbox"
+		>
+			{isLoading ? (
+				<div className="space-y-2">
+					{Array.from({ length: MAX_RECENT_NOTIFICATIONS }).map((_, i) => (
+						<div
+							key={`recent-update-skeleton-${i.toString()}`}
+							className="h-16 animate-pulse rounded-lg border bg-muted/30"
+						/>
+					))}
+				</div>
+			) : recentNotifications.length === 0 ? (
+				<div className="py-8 text-center text-sm text-muted-foreground">
+					No recent updates
+				</div>
+			) : (
+				<div className="space-y-2">
+					{recentNotifications.map((notification) => (
+						<RecentUpdateRow
+							key={notification.id}
+							notification={notification}
+						/>
+					))}
+					{remainingCount > 0 ? (
+						<div className="px-1 pt-1">
+							<Badge variant="outline">+{remainingCount} more in inbox</Badge>
+						</div>
+					) : null}
+				</div>
+			)}
+		</DashboardWidgetCard>
 	);
 }
