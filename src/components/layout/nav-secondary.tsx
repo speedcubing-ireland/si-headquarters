@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Archive, Moon, Palette, Sun, Monitor } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { CustomThemeModal } from "@/components/theme/custom-theme-modal";
 import { builtInThemes } from "@/lib/theme-constants";
 import {
 	DropdownMenu,
@@ -24,6 +23,12 @@ const customThemes = [
 	{ value: "custom-dark", label: "Dark (Custom)", icon: Moon },
 	{ value: "custom-system", label: "System (Custom)", icon: Monitor },
 ] as const;
+
+const CustomThemeModal = lazy(() =>
+	import("@/components/theme/custom-theme-modal").then((module) => ({
+		default: module.CustomThemeModal,
+	})),
+);
 
 function ThemeToggleItem() {
 	const { theme, setTheme, customTheme } = useTheme();
@@ -83,10 +88,14 @@ function ThemeToggleItem() {
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</SidebarMenuItem>
-			<CustomThemeModal
-				open={customModalOpen}
-				onOpenChange={setCustomModalOpen}
-			/>
+			{customModalOpen ? (
+				<Suspense fallback={null}>
+					<CustomThemeModal
+						open={customModalOpen}
+						onOpenChange={setCustomModalOpen}
+					/>
+				</Suspense>
+			) : null}
 		</>
 	);
 }
