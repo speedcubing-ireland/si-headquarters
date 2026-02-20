@@ -183,10 +183,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 	const { isVolunteer } = useIsVolunteer();
 	const { openTask, openCompetition } = useCreateModalsStore();
 
-	const searchQuery = useMemo(
-		() => deferredSearch.trim().toLowerCase(),
-		[deferredSearch],
-	);
+	const searchQuery = deferredSearch.trim().toLowerCase();
 
 	const searchItems = useMemo(
 		() => buildSearchItems(tasks, competitions, users, teams),
@@ -288,9 +285,9 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 	];
 
 	useEffect(() => {
-		if (!open) {
-			setTimeout(() => setSearch(""), 200);
-		}
+		if (open) return;
+		const timeoutId = window.setTimeout(() => setSearch(""), 200);
+		return () => window.clearTimeout(timeoutId);
 	}, [open]);
 
 	const hasResults = results.length > 0;
