@@ -1,7 +1,7 @@
 import { glass } from "@dicebear/collection";
 import { createAvatar } from "@dicebear/core";
 import { CalendarDays, Trash2, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	EditableCompLeadCell,
 	EditableLeadDelegateCell,
@@ -48,6 +48,17 @@ export function CompetitionDetails({
 
 	const canEdit = isEditable && typeof onUpdate === "function";
 	const canDelete = isEditable && typeof onDelete === "function";
+
+	useEffect(() => {
+		if (isEditingDates) return;
+		setStartDraft(competition.compStart);
+		setEndDraft(competition.compEnd);
+	}, [competition.compStart, competition.compEnd, isEditingDates]);
+
+	useEffect(() => {
+		if (isEditingDescription) return;
+		setDescriptionDraft(competition.description ?? "");
+	}, [competition.description, isEditingDescription]);
 
 	const handleCommitDates = () => {
 		if (!canEdit) {

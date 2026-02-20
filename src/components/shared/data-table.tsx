@@ -434,7 +434,6 @@ function DataTableProviderInner<TData, TFilterState>({
 			getRowId,
 			selectionEnabled,
 			selection?.autoHide,
-			expanded,
 		],
 	);
 

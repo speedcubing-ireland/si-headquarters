@@ -425,7 +425,7 @@ function RouteComponent() {
 			return;
 		}
 		const parentId = task.parent?.type === "task" ? task.parent.linkedId : null;
-		await navigate(
+		void navigate(
 			parentId
 				? { to: "/tasks/$id", params: { id: parentId } }
 				: { to: "/tasks" },
