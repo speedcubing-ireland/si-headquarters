@@ -192,10 +192,10 @@ function mapVolunteerDoc(doc: {
 }
 
 async function listOrderedVolunteers(ctx: QueryCtx | MutationCtx) {
-	const allDocs = await ctx.db.query("refundVolunteers").collect();
-	const active = allDocs.filter((doc) => !doc.archived);
-	active.sort((a, b) => a.name.localeCompare(b.name));
-	return active;
+	return await ctx.db
+		.query("refundVolunteers")
+		.withIndex("by_archived_name", (q) => q.eq("archived", false))
+		.collect();
 }
 
 async function ensureUniqueVolunteerWcaId(

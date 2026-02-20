@@ -51,7 +51,9 @@ export default defineSchema({
 		wcaId: v.optional(v.string()),
 		transferToWcaIds: v.optional(v.array(v.string())),
 		archived: v.boolean(),
-	}).index("by_wca_id", ["wcaId"]),
+	})
+		.index("by_wca_id", ["wcaId"])
+		.index("by_archived_name", ["archived", "name"]),
 
 	teams: defineTable({
 		name: v.string(),
