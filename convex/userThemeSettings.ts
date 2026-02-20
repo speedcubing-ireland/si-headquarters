@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
@@ -37,7 +37,10 @@ export const upsertUserThemeSettings = mutation({
 	handler: async (ctx, args) => {
 		const userId = await getAuthUserId(ctx);
 		if (userId === null) {
-			throw new Error("Not authenticated");
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "Not authenticated",
+			});
 		}
 
 		const existing = await ctx.db
@@ -70,7 +73,10 @@ export const deleteUserThemeSettings = mutation({
 	handler: async (ctx) => {
 		const userId = await getAuthUserId(ctx);
 		if (userId === null) {
-			throw new Error("Not authenticated");
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "Not authenticated",
+			});
 		}
 
 		const existing = await ctx.db
