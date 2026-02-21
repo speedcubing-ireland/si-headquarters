@@ -6,9 +6,9 @@ import {
 	CircleDashed,
 	CircleDot,
 	Eye,
-	Dice1,
-	Dice2,
-	Dice3,
+	SignalHigh,
+	SignalLow,
+	SignalMedium,
 	Folder,
 	Tag,
 	TriangleAlert,
@@ -39,6 +39,30 @@ export const taskPriorityOrder: Record<TaskPriority, number> = {
 	high: 2,
 	urgent: 3,
 };
+
+export const taskStatusIcon: Record<TaskStatus, LucideIcon> = {
+	backlog: CircleDashed,
+	"to-do": Circle,
+	"in-progress": CircleDot,
+	"awaiting-review": Eye,
+	done: CheckCircle2,
+	cancelled: XCircle,
+};
+
+export const taskPriorityIcon: Record<TaskPriority, LucideIcon> = {
+	low: SignalLow,
+	medium: SignalMedium,
+	high: SignalHigh,
+	urgent: TriangleAlert,
+};
+
+export function getTaskStatusIcon(status: TaskStatus): LucideIcon {
+	return taskStatusIcon[status];
+}
+
+export function getTaskPriorityIcon(priority: TaskPriority): LucideIcon {
+	return taskPriorityIcon[priority];
+}
 
 export type TaskFilterValue = {
 	value: string;
@@ -73,24 +97,24 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 			{
 				value: "backlog",
 				label: "Backlog",
-				icon: CircleDashed,
+				icon: taskStatusIcon.backlog,
 			},
-			{ value: "to-do", label: "To Do", icon: Circle },
+			{ value: "to-do", label: "To Do", icon: taskStatusIcon["to-do"] },
 			{
 				value: "in-progress",
 				label: "In Progress",
-				icon: CircleDot,
+				icon: taskStatusIcon["in-progress"],
 			},
 			{
 				value: "awaiting-review",
 				label: "Awaiting Review",
-				icon: Eye,
+				icon: taskStatusIcon["awaiting-review"],
 			},
-			{ value: "done", label: "Done", icon: CheckCircle2 },
+			{ value: "done", label: "Done", icon: taskStatusIcon.done },
 			{
 				value: "cancelled",
 				label: "Cancelled",
-				icon: XCircle,
+				icon: taskStatusIcon.cancelled,
 			},
 		],
 	},
@@ -98,15 +122,15 @@ export const TASK_FILTER_TYPES: TaskFilterType[] = [
 		id: "priority",
 		type: "fixed",
 		displayName: "Priority",
-		displayIcon: Dice2,
+		displayIcon: SignalMedium,
 		values: [
-			{ value: "low", label: "Low", icon: Dice1 },
-			{ value: "medium", label: "Medium", icon: Dice2 },
-			{ value: "high", label: "High", icon: Dice3 },
+			{ value: "low", label: "Low", icon: taskPriorityIcon.low },
+			{ value: "medium", label: "Medium", icon: taskPriorityIcon.medium },
+			{ value: "high", label: "High", icon: taskPriorityIcon.high },
 			{
 				value: "urgent",
 				label: "Urgent",
-				icon: TriangleAlert,
+				icon: taskPriorityIcon.urgent,
 			},
 		],
 	},

@@ -201,10 +201,18 @@ function RouteComponent() {
 		(task) => task.isBlocked && task.unresolvedBlockerCount > 0,
 	).length;
 	const taskSummary = { total, done, inProgress, blocked };
+	const currentPhaseId = competition.phases[competition.currentPhaseIdx]?.id;
+	const currentPhaseTasks = currentPhaseId
+		? scopedTasks.filter((task) => task.phase?.id === currentPhaseId)
+		: scopedTasks;
+	const currentPhaseDone = currentPhaseTasks.filter(
+		(task) => task.status === "done",
+	).length;
+	const phaseTaskCount = currentPhaseTasks.length;
 	const completionPercent =
-		taskSummary.total === 0
+		currentPhaseTasks.length === 0
 			? 0
-			: Math.round((taskSummary.done / taskSummary.total) * 100);
+			: Math.round((currentPhaseDone / currentPhaseTasks.length) * 100);
 
 	return (
 		<div className="flex h-full flex-col overflow-x-hidden">
@@ -229,8 +237,8 @@ function RouteComponent() {
 								</div>
 								<div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
 									<SummaryStat
-										label="Total tasks"
-										value={String(taskSummary.total)}
+										label="Phase tasks"
+										value={String(phaseTaskCount)}
 									/>
 									<SummaryStat
 										label="Done"
@@ -250,7 +258,7 @@ function RouteComponent() {
 								</div>
 								<div className="mt-3 rounded-lg border border-border/70 bg-background/80 px-3 py-2.5">
 									<div className="flex items-center justify-between gap-2 text-xs">
-										<span className="text-muted-foreground">Completion</span>
+										<span className="text-muted-foreground">Phase Completion</span>
 										<span className="font-medium">
 											{completionPercent}% done
 										</span>

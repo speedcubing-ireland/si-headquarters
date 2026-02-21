@@ -65,8 +65,12 @@ export function getTaskProgress(comp: Competition): {
 	total: number;
 } {
 	const tasks = comp.tasks ?? [];
-	const done = tasks.filter((t) => t.status === "done").length;
-	return { done, total: tasks.length };
+	const currentPhaseId = comp.phases?.[comp.currentPhaseIdx ?? 0]?.id;
+	const tasksInCurrentPhase = currentPhaseId
+		? tasks.filter((task) => task.phaseId === currentPhaseId)
+		: tasks;
+	const done = tasksInCurrentPhase.filter((task) => task.status === "done").length;
+	return { done, total: tasksInCurrentPhase.length };
 }
 
 export function getProgressPercent(done: number, total: number): number {

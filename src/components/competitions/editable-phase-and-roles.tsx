@@ -42,6 +42,7 @@ import {
 } from "@/data/types-new";
 import {
 	getCurrentPhaseKey,
+	getPhaseKeyFromName,
 	getPhaseVariant,
 	getPhaseLabel,
 } from "@/lib/competition-phase-config";
@@ -147,20 +148,7 @@ export function EditablePhaseCell({
 	const handleChange = (key: CompetitionPhaseKey) => {
 		const targetPhase =
 			competition.phases.find((phase) => {
-				const phaseName = phase.name.toLowerCase();
-				const derivedKey = (() => {
-					if (phaseName.startsWith("concept")) return "concept";
-					if (phaseName.startsWith("pre-announcement"))
-						return "pre-announcement";
-					if (phaseName.startsWith("post-announcement"))
-						return "post-announcement";
-					if (phaseName.startsWith("pre-competition")) return "pre-competition";
-					if (phaseName.startsWith("post-competition"))
-						return "post-competition";
-					if (phaseName.startsWith("archive")) return "archive";
-					return "concept";
-				})();
-				return derivedKey === key;
+				return getPhaseKeyFromName(phase.name) === key;
 			}) ?? competition.phases[competition.currentPhaseIdx];
 
 		const targetPhaseId = targetPhase?.id ?? competition.phases[0]?.id;

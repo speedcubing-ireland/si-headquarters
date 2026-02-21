@@ -55,6 +55,7 @@ const competitionDoc = v.object({
 const taskSummaryShape = v.object({
 	id: v.id("tasks"),
 	status: taskStatus,
+	phaseId: v.optional(v.id("phases")),
 });
 
 const progressUpdateStatus = v.union(
@@ -351,7 +352,11 @@ export const get = query({
 	},
 });
 
-type TaskSummary = { id: Id<"tasks">; status: TaskStatus };
+type TaskSummary = {
+	id: Id<"tasks">;
+	status: TaskStatus;
+	phaseId?: Id<"phases">;
+};
 
 async function loadTaskSummariesForCompetition(
 	ctx: QueryCtx,
@@ -363,7 +368,11 @@ async function loadTaskSummariesForCompetition(
 			q.eq("parentCompetitionId", competitionId).eq("archived", false),
 		)
 		.collect();
-	return taskDocs.map((t) => ({ id: t._id, status: t.status }));
+	return taskDocs.map((t) => ({
+		id: t._id,
+		status: t.status,
+		phaseId: t.phaseId,
+	}));
 }
 
 function collectUserIdsFromUpdates(
