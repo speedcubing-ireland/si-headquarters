@@ -65,11 +65,11 @@ export async function hydrateTaskEntities(
 
 	const [labelDocs, userDocs, teamDocs, approvalTeamDocs, phaseDocs] =
 		await Promise.all([
-			Promise.all(labelArr.map((id) => ctx.db.get(id))),
-			Promise.all(userArr.map((id) => ctx.db.get(id))),
-			Promise.all(teamArr.map((id) => ctx.db.get(id))),
-			Promise.all(approvalTeamArr.map((id) => ctx.db.get(id))),
-			Promise.all(phaseArr.map((id) => ctx.db.get(id))),
+			Promise.all(labelArr.map((id) => ctx.db.get("labels", id))),
+			Promise.all(userArr.map((id) => ctx.db.get("users", id))),
+			Promise.all(teamArr.map((id) => ctx.db.get("teams", id))),
+			Promise.all(approvalTeamArr.map((id) => ctx.db.get("teams", id))),
+			Promise.all(phaseArr.map((id) => ctx.db.get("phases", id))),
 		]);
 
 	const labelsMap = new Map<Id<"labels">, LabelRef>();
@@ -94,7 +94,7 @@ export async function hydrateTaskEntities(
 		}
 	}
 	const memberDocs = await Promise.all(
-		[...memberIds].map((id) => ctx.db.get(id)),
+		[...memberIds].map((id) => ctx.db.get("users", id)),
 	);
 	const memberMap = new Map<Id<"users">, UserRef>();
 	[...memberIds].forEach((id, i) => {
@@ -144,7 +144,7 @@ export async function hydrateTaskEntities(
 		),
 	];
 	const competitionDocs = await Promise.all(
-		parentCompetitionIds.map((id) => ctx.db.get(id)),
+		parentCompetitionIds.map((id) => ctx.db.get("competitions", id)),
 	);
 	const competitionIdToName = new Map<Id<"competitions">, string>();
 	parentCompetitionIds.forEach((id, i) => {

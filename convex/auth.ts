@@ -92,12 +92,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 				return;
 			}
 
-			const user = await ctx.db.get(args.userId);
+			const user = await ctx.db.get("users", args.userId);
 			if (!user || hasAvatarImage(user.image)) {
 				return;
 			}
 
-			await ctx.db.patch(args.userId, {
+			await ctx.db.patch("users", args.userId, {
 				image: buildDefaultAvatarUrl(String(args.userId)),
 			});
 		},

@@ -97,7 +97,7 @@ export const updateCurrentUserName = mutation({
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
 		const nextName = sanitizeName(args.name);
-		await ctx.db.patch(userId, { name: nextName });
+		await ctx.db.patch("users", userId, { name: nextName });
 		return nextName;
 	},
 });
@@ -135,7 +135,7 @@ export const setCurrentUserAvatarFromStorage = mutation({
 		if (!avatarUrl) {
 			throw new ConvexError("Unable to read uploaded avatar.");
 		}
-		await ctx.db.patch(userId, { image: avatarUrl });
+		await ctx.db.patch("users", userId, { image: avatarUrl });
 		return avatarUrl;
 	},
 });
@@ -146,7 +146,7 @@ export const rerollCurrentUserAvatar = mutation({
 	handler: async (ctx) => {
 		const userId = await requireUserId(ctx);
 		const avatarUrl = buildDefaultAvatarUrl(`${userId}-${Date.now()}`);
-		await ctx.db.patch(userId, { image: avatarUrl });
+		await ctx.db.patch("users", userId, { image: avatarUrl });
 		return avatarUrl;
 	},
 });

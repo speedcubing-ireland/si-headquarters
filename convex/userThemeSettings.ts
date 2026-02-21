@@ -51,7 +51,7 @@ export const upsertUserThemeSettings = mutation({
 		const now = Date.now();
 
 		if (existing) {
-			await ctx.db.patch(existing._id, {
+			await ctx.db.patch("userThemeSettings", existing._id, {
 				themeJson: args.themeJson,
 				updatedAt: now,
 			});
@@ -85,7 +85,7 @@ export const deleteUserThemeSettings = mutation({
 			.first();
 
 		if (existing) {
-			await ctx.db.delete(existing._id);
+			await ctx.db.delete("userThemeSettings", existing._id);
 		}
 
 		return null;

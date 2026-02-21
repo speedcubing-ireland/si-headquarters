@@ -289,7 +289,7 @@ export const updateVolunteer = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		await requireDirector(ctx);
-		const doc = await ctx.db.get(args.id);
+		const doc = await ctx.db.get("refundVolunteers", args.id);
 		if (!doc) {
 			throw new ConvexError({
 				code: "NOT_FOUND",
@@ -339,7 +339,7 @@ export const updateVolunteer = mutation({
 		}
 
 		if (Object.keys(patch).length === 0) return null;
-		await ctx.db.patch(args.id, patch);
+		await ctx.db.patch("refundVolunteers", args.id, patch);
 		return null;
 	},
 });
@@ -349,9 +349,9 @@ export const deleteVolunteer = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		await requireDirector(ctx);
-		const doc = await ctx.db.get(args.id);
+		const doc = await ctx.db.get("refundVolunteers", args.id);
 		if (!doc) return null;
-		await ctx.db.delete(args.id);
+		await ctx.db.delete("refundVolunteers", args.id);
 		return null;
 	},
 });
