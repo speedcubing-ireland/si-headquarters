@@ -2,6 +2,7 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
+import { TEAM_NAMES } from "./lib/constants";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -249,5 +250,128 @@ describe("competitions behavior characterization", () => {
 		expect(updated?.compLeadId).toBeUndefined();
 		expect(updated?.leadDelegateId).toBeUndefined();
 		expect(updated?.compSheet).toBeUndefined();
+	});
+
+	test("manual sponsor status update requires sponsorship manager permission", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const userId = await ctx.db.insert("users", {});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Permission Check",
+				description: "",
+				compStart: "2026-11-01",
+				compEnd: "2026-11-02",
+				compLeadId: userId,
+				organiserIds: [userId],
+				updatedAt: Date.now(),
+			});
+			return { userId, competitionId };
+		});
+		const authed = t.withIdentity({ subject: seeded.userId });
+
+		await expect(
+			authed.mutation(api.competitions.update, {
+				competitionId: seeded.competitionId,
+				updates: { manualSponsorPropertyStatus: "none" },
+			}),
+		).rejects.toBeTruthy();
+	});
+
+	test("manual sponsor status override is applied and can be cleared", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const managerId = await ctx.db.insert("users", {});
+			await ctx.db.insert("teams", {
+				name: TEAM_NAMES.FINANCE,
+				memberIds: [managerId],
+			});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Override Check",
+				description: "",
+				compStart: "2026-11-01",
+				compEnd: "2026-11-02",
+				compLeadId: managerId,
+				organiserIds: [managerId],
+				updatedAt: Date.now(),
+			});
+			const winnerSponsorId = await ctx.db.insert("sponsors", {
+				name: "Winner Sponsor",
+				email: "winner@example.com",
+				emailNormalized: "winner@example.com",
+				active: true,
+				createdById: managerId,
+				updatedById: managerId,
+				updatedAt: Date.now(),
+			});
+			const manualSponsorId = await ctx.db.insert("sponsors", {
+				name: "Manual Sponsor",
+				email: "manual@example.com",
+				emailNormalized: "manual@example.com",
+				active: true,
+				createdById: managerId,
+				updatedById: managerId,
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("sponsorshipAuctions", {
+				competitionId,
+				framework: "first_sealed",
+				state: "closed",
+				currency: "EUR",
+				startsAt: Date.now() - 100_000,
+				endsAt: Date.now() - 50_000,
+				antiSnipingWindowMs: 300_000,
+				antiSnipingExtendMs: 300_000,
+				startPriceCents: 10_000,
+				currentPriceCents: 15_000,
+				winnerSponsorId,
+				settlementAmountCents: 15_000,
+				createdById: managerId,
+				updatedById: managerId,
+				updatedAt: Date.now(),
+			});
+			return { managerId, competitionId, manualSponsorId };
+		});
+		const authed = t.withIdentity({ subject: seeded.managerId });
+
+		const beforeOverride = await authed.query(api.competitions.getForUI, {
+			competitionId: seeded.competitionId,
+		});
+		expect(beforeOverride?.sponsorPropertyStatus).toBe("sponsor");
+
+		await authed.mutation(api.competitions.update, {
+			competitionId: seeded.competitionId,
+			updates: { manualSponsorPropertyStatus: "none" },
+		});
+		const overridden = await authed.query(api.competitions.getForUI, {
+			competitionId: seeded.competitionId,
+		});
+		expect(overridden?.sponsorPropertyStatus).toBe("none");
+
+		await authed.mutation(api.competitions.update, {
+			competitionId: seeded.competitionId,
+			updates: {
+				manualSponsorPropertyStatus: "sponsor",
+				manualSponsorId: seeded.manualSponsorId,
+			},
+		});
+		const manualSponsorOverride = await authed.query(
+			api.competitions.getForUI,
+			{
+				competitionId: seeded.competitionId,
+			},
+		);
+		expect(manualSponsorOverride?.sponsorPropertyStatus).toBe("sponsor");
+		expect(manualSponsorOverride?.sponsorPropertyDisplay).toBe(
+			"Manual Sponsor",
+		);
+
+		await authed.mutation(api.competitions.update, {
+			competitionId: seeded.competitionId,
+			updates: { manualSponsorPropertyStatus: null, manualSponsorId: null },
+		});
+		const afterClear = await authed.query(api.competitions.getForUI, {
+			competitionId: seeded.competitionId,
+		});
+		expect(afterClear?.sponsorPropertyStatus).toBe("sponsor");
 	});
 });

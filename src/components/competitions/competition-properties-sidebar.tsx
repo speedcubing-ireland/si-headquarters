@@ -1,11 +1,14 @@
 "use client";
 
 import {
+	CheckIcon,
+	AlertTriangle,
 	CalendarDays,
 	Circle,
 	ExternalLink,
 	FileSpreadsheet,
 	Globe,
+	Gavel,
 	Loader2,
 	MoreHorizontal,
 	Search,
@@ -13,7 +16,8 @@ import {
 	Users,
 } from "lucide-react";
 import { useAction } from "convex/react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 
@@ -37,6 +41,13 @@ import { PropertiesSidebarLayout } from "@/components/shared/properties-sidebar-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import {
 	DropdownMenu,
@@ -53,10 +64,18 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { useCompetitionMutations } from "@/hooks/use-convex-data";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+	useCompetitionMutations,
+	useIsSponsorshipManager,
+	useSponsors,
+} from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
 import { formatDateShort } from "@/lib/format-utils";
-import { formatEuroFromCents } from "@/lib/sponsorship-ui";
 import { cn, onMutationError } from "@/lib/utils";
 
 interface CompetitionPropertiesSidebarProps {
@@ -111,6 +130,20 @@ function sponsorStatusBadgeVariant(
 	}
 }
 
+function auctionDerivedSponsorLabel(competition: Competition): string {
+	if (competition.auctionDerivedSponsorPropertyStatus === "sponsor") {
+		return competition.auctionDerivedSponsorPropertyDisplay ?? "Sponsor";
+	}
+	switch (competition.auctionDerivedSponsorPropertyStatus) {
+		case "bidding":
+			return "Bidding in progress";
+		case "none":
+			return "No sponsor";
+		default:
+			return "Not offered";
+	}
+}
+
 export function CompetitionPropertiesSidebar({
 	competition,
 	tasks,
@@ -121,6 +154,11 @@ export function CompetitionPropertiesSidebar({
 	showMobileTrigger = true,
 }: CompetitionPropertiesSidebarProps) {
 	const { updateCompetition } = useCompetitionMutations();
+	const {
+		isManager: isSponsorshipManager,
+		isLoading: isSponsorshipAccessLoading,
+	} = useIsSponsorshipManager();
+	const { sponsors } = useSponsors(isSponsorshipManager);
 	const [dateOpen, setDateOpen] = useState(false);
 	const [sheetInput, setSheetInput] = useState("");
 	const [sheetPopoverOpen, setSheetPopoverOpen] = useState(false);
@@ -136,6 +174,108 @@ export function CompetitionPropertiesSidebar({
 	const [wcaSearchAll, setWcaSearchAll] = useState(false);
 	const searchWcaCompetitions = useAction(api.wca.searchCompetitions);
 	const fetchMyWcaCompetitions = useAction(api.wca.fetchMyCompetitions);
+	const sponsorOverrideValue = competition.manualSponsorId
+		? `sponsor:${competition.manualSponsorId}`
+		: competition.manualSponsorPropertyStatus === "none"
+			? "none"
+			: "auto";
+	const activeSponsors = useMemo(
+		() => sponsors.filter((sponsor) => sponsor.active),
+		[sponsors],
+	);
+	const sponsorOptions = useMemo(() => {
+		const byId = new Map(
+			activeSponsors.map((sponsor) => [sponsor.id, sponsor]),
+		);
+		if (competition.manualSponsorId && !byId.has(competition.manualSponsorId)) {
+			const currentManualSponsor = sponsors.find(
+				(sponsor) => sponsor.id === competition.manualSponsorId,
+			);
+			if (currentManualSponsor) {
+				byId.set(currentManualSponsor.id, currentManualSponsor);
+			}
+		}
+		return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+	}, [activeSponsors, competition.manualSponsorId, sponsors]);
+	const hasManualSponsorOverride =
+		competition.manualSponsorPropertyStatus !== undefined ||
+		competition.manualSponsorId !== undefined;
+	const derivedSponsorOverrideValue =
+		competition.auctionDerivedSponsorPropertyStatus === "sponsor" &&
+		competition.auctionDerivedSponsorId
+			? `sponsor:${competition.auctionDerivedSponsorId}`
+			: competition.auctionDerivedSponsorPropertyStatus === "none"
+				? "none"
+				: "auto";
+	const handleSponsorOverrideChange = useCallback(
+		(nextValue: string) => {
+			if (!isSponsorshipManager) return;
+			const mismatch =
+				nextValue !== "auto" && nextValue !== derivedSponsorOverrideValue;
+			if (mismatch) {
+				const shouldApplyOverride = window.confirm(
+					`Auction status currently suggests "${auctionDerivedSponsorLabel(competition)}". Apply manual sponsor override anyway?`,
+				);
+				if (!shouldApplyOverride) return;
+			}
+			if (nextValue === "auto") {
+				void updateCompetition(competition.id, {
+					sponsorPropertyStatusOverride: null,
+					sponsorOverrideSponsorId: null,
+				}).catch(onMutationError);
+				return;
+			}
+			if (nextValue === "none") {
+				void updateCompetition(competition.id, {
+					sponsorPropertyStatusOverride: "none",
+					sponsorOverrideSponsorId: null,
+				}).catch(onMutationError);
+				return;
+			}
+			const sponsorId = nextValue.replace("sponsor:", "") as Id<"sponsors">;
+			void updateCompetition(competition.id, {
+				sponsorPropertyStatusOverride: "sponsor",
+				sponsorOverrideSponsorId: sponsorId,
+			}).catch(onMutationError);
+		},
+		[
+			competition,
+			derivedSponsorOverrideValue,
+			isSponsorshipManager,
+			updateCompetition,
+		],
+	);
+	const SponsorStatusIcon = hasManualSponsorOverride
+		? AlertTriangle
+		: competition.sponsorPropertyStatus === "sponsor"
+			? Gavel
+			: null;
+	const sponsorStatusText = sponsorStatusLabel(competition);
+	const sponsorStatusTooltip = hasManualSponsorOverride
+		? "Manual sponsor override"
+		: competition.sponsorPropertyStatus === "sponsor"
+			? "Winning bid from auction"
+			: null;
+	const sponsorStatusBadge = (
+		<Badge
+			variant={sponsorStatusBadgeVariant(competition.sponsorPropertyStatus)}
+		>
+			{SponsorStatusIcon ? (
+				<SponsorStatusIcon className="size-3.5 mr-1" />
+			) : null}
+			{sponsorStatusText}
+		</Badge>
+	);
+	const sponsorStatusBadgeWithTooltip = sponsorStatusTooltip ? (
+		<Tooltip>
+			<TooltipTrigger asChild>{sponsorStatusBadge}</TooltipTrigger>
+			<TooltipContent side="top" sideOffset={6}>
+				{sponsorStatusTooltip}
+			</TooltipContent>
+		</Tooltip>
+	) : (
+		sponsorStatusBadge
+	);
 
 	const totalTasks = tasks.length;
 	const completedTasks = tasks.filter((task) => task.status === "done").length;
@@ -223,20 +363,86 @@ export function CompetitionPropertiesSidebar({
 
 					<PropertyRow label="Sponsor" icon={<Store className="size-3.5" />}>
 						<div className="flex min-w-0 flex-col items-start gap-1">
-							<Badge
-								variant={sponsorStatusBadgeVariant(
-									competition.sponsorPropertyStatus,
-								)}
-							>
-								{sponsorStatusLabel(competition)}
-							</Badge>
-							{competition.sponsorPropertyStatus === "sponsor" &&
-							competition.sponsorWinningBidCents !== undefined ? (
+							{isSponsorshipAccessLoading ? (
 								<span className="text-xs text-muted-foreground">
-									Winning bid{" "}
-									{formatEuroFromCents(competition.sponsorWinningBidCents)}
+									Checking sponsor permissions...
 								</span>
-							) : null}
+							) : isSponsorshipManager ? (
+								<div className="space-y-2">
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-7 min-w-0 max-w-full px-2 justify-start"
+											>
+												{sponsorStatusBadgeWithTooltip}
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent className="w-64 p-0" align="start">
+											<Command>
+												<CommandList>
+													<CommandEmpty>
+														No sponsor options available.
+													</CommandEmpty>
+													<CommandGroup>
+														<CommandItem
+															value="auto"
+															onSelect={() =>
+																handleSponsorOverrideChange("auto")
+															}
+															className="flex items-center justify-between"
+														>
+															<span className="text-xs">
+																Follow auction outcome
+															</span>
+															{sponsorOverrideValue === "auto" ? (
+																<CheckIcon size={14} className="ml-auto" />
+															) : null}
+														</CommandItem>
+														<CommandItem
+															value="none"
+															onSelect={() =>
+																handleSponsorOverrideChange("none")
+															}
+															className="flex items-center justify-between"
+														>
+															<span className="text-xs">
+																No sponsor (override)
+															</span>
+															{sponsorOverrideValue === "none" ? (
+																<CheckIcon size={14} className="ml-auto" />
+															) : null}
+														</CommandItem>
+														{sponsorOptions.map((sponsor) => {
+															const value = `sponsor:${sponsor.id}`;
+															return (
+																<CommandItem
+																	key={sponsor.id}
+																	value={sponsor.name}
+																	onSelect={() =>
+																		handleSponsorOverrideChange(value)
+																	}
+																	className="flex items-center justify-between"
+																>
+																	<span className="text-xs">
+																		{sponsor.name} (override)
+																	</span>
+																	{sponsorOverrideValue === value ? (
+																		<CheckIcon size={14} className="ml-auto" />
+																	) : null}
+																</CommandItem>
+															);
+														})}
+													</CommandGroup>
+												</CommandList>
+											</Command>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</div>
+							) : (
+								sponsorStatusBadgeWithTooltip
+							)}
 						</div>
 					</PropertyRow>
 
@@ -640,8 +846,8 @@ export function CompetitionPropertiesSidebar({
 								className={cn(
 									"flex min-w-0 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors",
 									isCurrent
-										? "bg-accent text-foreground"
-										: "hover:bg-accent text-muted-foreground",
+										? "bg-accent text-accent-foreground"
+										: "hover:bg-accent text-muted-foreground hover:text-accent-foreground",
 								)}
 							>
 								<div className="flex min-w-0 items-center gap-2">

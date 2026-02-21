@@ -42,6 +42,8 @@ export const competitionForSponsorshipManager = v.object({
 	wcaCompetitionId: v.optional(v.string()),
 	currentPhaseName: v.string(),
 	sponsorPropertyStatus: competitionSponsorPropertyStatus,
+	manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
+	manualSponsorId: v.optional(v.id("sponsors")),
 });
 
 export const auctionTableRowForManager = v.object({

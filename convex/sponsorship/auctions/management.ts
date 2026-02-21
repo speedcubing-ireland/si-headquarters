@@ -306,7 +306,11 @@ export const listCompetitionsForManager = query({
 				sponsorPropertyStatus: resolveCompetitionSponsorStatus({
 					auctionStates: scopedAuctions.map((auction) => auction.state),
 					hasClosedWinner,
+					manualSponsorId: competition.manualSponsorId,
+					manualStatus: competition.manualSponsorPropertyStatus,
 				}),
+				manualSponsorPropertyStatus: competition.manualSponsorPropertyStatus,
+				manualSponsorId: competition.manualSponsorId,
 			};
 		});
 	},
@@ -315,7 +319,15 @@ export const listCompetitionsForManager = query({
 function resolveCompetitionSponsorStatus(input: {
 	auctionStates: Doc<"sponsorshipAuctions">["state"][];
 	hasClosedWinner: boolean;
+	manualSponsorId?: Id<"sponsors">;
+	manualStatus?: "not_offered" | "bidding" | "none" | "sponsor";
 }): "not_offered" | "bidding" | "none" | "sponsor" {
+	if (input.manualSponsorId) {
+		return "sponsor";
+	}
+	if (input.manualStatus) {
+		return input.manualStatus;
+	}
 	if (input.auctionStates.some((state) => state !== "closed")) {
 		return "bidding";
 	}
@@ -375,6 +387,7 @@ export const listForManager = query({
 		>();
 		for (const competitionId of competitionIds) {
 			const scopedAuctions = auctionsByCompetition.get(competitionId) ?? [];
+			const competition = competitionById.get(competitionId);
 			const hasClosedWinner = scopedAuctions.some(
 				(auction) =>
 					auction.state === "closed" && auction.winnerSponsorId !== undefined,
@@ -384,6 +397,8 @@ export const listForManager = query({
 				resolveCompetitionSponsorStatus({
 					auctionStates: scopedAuctions.map((auction) => auction.state),
 					hasClosedWinner,
+					manualSponsorId: competition?.manualSponsorId,
+					manualStatus: competition?.manualSponsorPropertyStatus,
 				}),
 			);
 		}
