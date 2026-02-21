@@ -1,11 +1,26 @@
-import { Plus } from "lucide-react";
+import { Plus, SquareDashedKanban } from "lucide-react";
 import { useState } from "react";
 
 import { useTaskColumns } from "@/components/tasks/columns";
 import { TasksDataTable } from "@/components/tasks/data-table";
 import { TaskListGroup } from "@/components/tasks/task-list-group";
+import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTaskMutations } from "@/hooks/use-convex-data";
 import type { Competition, Task } from "@/data/types-new";
+import {
+	buildCompetitionPhaseTaskView,
+	countVisibleTasks,
+	isArchivePhaseName,
+	togglePhaseCollapsedState,
+} from "@/lib/competition-phase-task-view";
 import {
 	groupTasksByCompetitionPhase,
 	sortTasksByStatusThenPriority,
@@ -23,40 +38,68 @@ export function CompetitionTasksByPhase({
 }: CompetitionTasksByPhaseProps) {
 	const columns = useTaskColumns({ parentDisplayMode: "task-only" });
 	const { addTask } = useTaskMutations();
-	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+	const [hideFinishedTasks, setHideFinishedTasks] = useState(false);
+	const [collapseCompletedPhases, setCollapseCompletedPhases] = useState(true);
+	const [showSubtasks, setShowSubtasks] = useState(false);
+	const [manuallyCollapsedPhaseKeys, setManuallyCollapsedPhaseKeys] = useState<
+		Set<string>
+	>(() => new Set());
+	const [
+		manuallyExpandedCompletedPhaseKeys,
+		setManuallyExpandedCompletedPhaseKeys,
+	] = useState<Set<string>>(
 		() => new Set(),
 	);
 
-	if (tasks.length === 0) {
-		return (
-			<section className="space-y-2">
-				<div className="flex items-center justify-between">
-					<h2 className="text-sm font-medium text-muted-foreground">
-						Tasks by phase
-					</h2>
-				</div>
-				<p className="text-sm text-muted-foreground">
-					No tasks linked to this competition yet.
-				</p>
-			</section>
-		);
-	}
+	const phasesWithoutArchive = competition.phases.filter(
+		(phase) => !isArchivePhaseName(phase.name),
+	);
+	const groups = groupTasksByCompetitionPhase(tasks, {
+		...competition,
+		phases: phasesWithoutArchive,
+	});
+	const groupViews = buildCompetitionPhaseTaskView(groups, {
+		hideFinishedTasks,
+		collapseCompletedPhases,
+		showSubtasks,
+		manuallyCollapsedPhaseKeys,
+		manuallyExpandedCompletedPhaseKeys,
+	});
+	const visibleTaskCount = countVisibleTasks(groupViews);
 
-	const groups = groupTasksByCompetitionPhase(tasks, competition);
-
-	const toggleGroup = (key: string) => {
-		setCollapsedGroups((prev) => {
-			const next = new Set(prev);
-			if (next.has(key)) {
-				next.delete(key);
-			} else {
-				next.add(key);
-			}
-			return next;
+	const toggleGroup = (
+		key: string,
+		phaseCompleted: boolean,
+		phaseName: string | null,
+		phaseIsEmpty: boolean,
+	) => {
+		const next = togglePhaseCollapsedState({
+			groupKey: key,
+			phaseCompleted,
+			phaseName,
+			phaseIsEmpty,
+			collapseCompletedPhases,
+			manuallyCollapsedPhaseKeys,
+			manuallyExpandedCompletedPhaseKeys,
 		});
+		setManuallyCollapsedPhaseKeys(next.manuallyCollapsedPhaseKeys);
+		setManuallyExpandedCompletedPhaseKeys(
+			next.manuallyExpandedCompletedPhaseKeys,
+		);
 	};
 
-	const handleAddTaskForGroup = (_groupKey: string, phaseId?: string) => {
+	const handleAddTaskForGroup = (groupKey: string, phaseId?: string) => {
+		setManuallyCollapsedPhaseKeys((prev) => {
+			const next = new Set(prev);
+			next.delete(groupKey);
+			return next;
+		});
+		setManuallyExpandedCompletedPhaseKeys((prev) => {
+			const next = new Set(prev);
+			next.add(groupKey);
+			return next;
+		});
+
 		const phase = phaseId
 			? (competition.phases.find((p) => p.id === phaseId) ?? null)
 			: null;
@@ -80,80 +123,131 @@ export function CompetitionTasksByPhase({
 				<h2 className="text-sm font-medium text-muted-foreground">
 					Tasks by phase
 				</h2>
-				<span className="text-xs text-muted-foreground">
-					{tasks.length} task{tasks.length === 1 ? "" : "s"}
-				</span>
+				<div className="flex items-center gap-2">
+					<span className="text-xs text-muted-foreground">
+						{visibleTaskCount} shown · {tasks.length} total
+					</span>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline" size="sm">
+								<SquareDashedKanban className="size-4" />
+								Display
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-56">
+							<DropdownMenuLabel>Task visibility</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							<DropdownMenuCheckboxItem
+								checked={hideFinishedTasks}
+								onCheckedChange={(checked) =>
+									setHideFinishedTasks(checked === true)
+								}
+							>
+								Hide finished tasks
+							</DropdownMenuCheckboxItem>
+							<DropdownMenuCheckboxItem
+								checked={collapseCompletedPhases}
+								onCheckedChange={(checked) =>
+									setCollapseCompletedPhases(checked === true)
+								}
+							>
+								Collapse completed phases
+							</DropdownMenuCheckboxItem>
+							<DropdownMenuCheckboxItem
+								checked={showSubtasks}
+								onCheckedChange={(checked) =>
+									setShowSubtasks(checked === true)
+								}
+							>
+								Show subtasks
+							</DropdownMenuCheckboxItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
 			</div>
 
-			<div className="space-y-5 sm:space-y-6">
-				{groups.map((group) => {
-					const groupKey = group.phase?.id ?? "unassigned";
-					const sortedTasks = sortTasksByStatusThenPriority(group.tasks);
-					const doneCount = sortedTasks.filter(
-						(task) => task.status === "done",
-					).length;
-					const inProgressCount = sortedTasks.filter(
-						(task) => task.status === "in-progress",
-					).length;
-					const isCollapsed = collapsedGroups.has(groupKey);
+			{groupViews.length === 0 ? (
+				<p className="text-sm text-muted-foreground">No phases configured.</p>
+			) : (
+				<div className="space-y-5 sm:space-y-6">
+					{groupViews.map((groupView) => {
+						const { group, groupKey, phaseCompleted, phaseIsEmpty } = groupView;
+						const sortedTasks = sortTasksByStatusThenPriority(
+							groupView.visibleTasks,
+						);
+						const doneCount = sortedTasks.filter(
+							(task) => task.status === "done",
+						).length;
+						const inProgressCount = sortedTasks.filter(
+							(task) => task.status === "in-progress",
+						).length;
+						const isCollapsed = groupView.isCollapsed;
 
-					return (
-						<TaskListGroup
-							key={groupKey}
-							title={group.phase ? group.phase.name : "No phase"}
-							countLabel={`${sortedTasks.length} task${sortedTasks.length === 1 ? "" : "s"}`}
-							isCollapsed={isCollapsed}
-							onToggle={() => toggleGroup(groupKey)}
-							headerMeta={
-								<div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-									<span>
-										<span className="font-medium text-foreground">
-											{doneCount}
-										</span>{" "}
-										done
-									</span>
-									<span>
-										<span className="font-medium text-foreground">
-											{inProgressCount}
-										</span>{" "}
-										in progress
-									</span>
-									<button
-										type="button"
-										className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
-										onClick={() =>
-											handleAddTaskForGroup(groupKey, group.phase?.id)
-										}
-									>
-										<Plus className="size-3" />
-										Add task
-									</button>
+						return (
+							<TaskListGroup
+								key={groupKey}
+								title={group.phase ? group.phase.name : "No phase"}
+								countLabel={`${sortedTasks.length} task${sortedTasks.length === 1 ? "" : "s"}`}
+								isCollapsed={isCollapsed}
+								onToggle={() =>
+									toggleGroup(
+										groupKey,
+										phaseCompleted,
+										group.phase?.name ?? null,
+										phaseIsEmpty,
+									)
+								}
+								headerMeta={
+									<div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+										<span>
+											<span className="font-medium text-foreground">
+												{doneCount}
+											</span>{" "}
+											done
+										</span>
+										<span>
+											<span className="font-medium text-foreground">
+												{inProgressCount}
+											</span>{" "}
+											in progress
+										</span>
+										<button
+											type="button"
+											className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/60"
+											onClick={() =>
+												handleAddTaskForGroup(groupKey, group.phase?.id)
+											}
+										>
+											<Plus className="size-3" />
+											Add task
+										</button>
+									</div>
+								}
+							>
+								<div className="min-w-0 w-full max-w-full overflow-hidden rounded-md border border-border">
+									<TasksDataTable
+										columns={columns}
+										tasks={sortedTasks}
+										filters={{
+											status: [],
+											priority: [],
+											assignee: [],
+											labels: [],
+											owner: [],
+											parentType: [],
+										}}
+										matchMode="all"
+										grouping={null}
+										subGrouping={null}
+										ordering={{ field: null, direction: "asc" }}
+										onOrderingChange={() => {}}
+									/>
 								</div>
-							}
-						>
-							<div className="min-w-0 w-full max-w-full overflow-hidden rounded-md border border-border">
-								<TasksDataTable
-									columns={columns}
-									tasks={sortedTasks}
-									filters={{
-										status: [],
-										priority: [],
-										assignee: [],
-										labels: [],
-										owner: [],
-										parentType: [],
-									}}
-									matchMode="all"
-									grouping={null}
-									subGrouping={null}
-									ordering={{ field: null, direction: "asc" }}
-									onOrderingChange={() => {}}
-								/>
-							</div>
-						</TaskListGroup>
-					);
-				})}
-			</div>
+							</TaskListGroup>
+						);
+					})}
+				</div>
+			)}
 		</section>
 	);
 }

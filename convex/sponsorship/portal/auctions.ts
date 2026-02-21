@@ -204,7 +204,7 @@ export const getAuction = query({
 			? (latestSponsorIntent.maxAmountCents ?? latestSponsorIntent.amountCents)
 			: undefined;
 		const hasSponsorValidBid = sponsorIntents.some((intent) => intent.isValid);
-		const sponsorPropertyStatus:
+		const derivedSponsorPropertyStatus:
 			| "bidding"
 			| "none"
 			| "not_offered"
@@ -214,6 +214,10 @@ export const getAuction = query({
 				: auction.winnerSponsorId
 					? "sponsor"
 					: "none";
+		const sponsorPropertyStatus = competition.manualSponsorId
+			? "sponsor"
+			: (competition.manualSponsorPropertyStatus ??
+				derivedSponsorPropertyStatus);
 		const competitionSummary =
 			auction.competitionSnapshot?.summary ??
 			buildCompetitionRecordSummary({

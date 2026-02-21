@@ -67,7 +67,13 @@ export function useCompetitionMutations() {
 					| "compSheet"
 					| "wcaCompetitionId"
 				>
-			> & { currentPhaseId?: Id<"phases"> | null },
+			> & {
+				currentPhaseId?: Id<"phases"> | null;
+				sponsorPropertyStatusOverride?:
+					| Competition["sponsorPropertyStatus"]
+					| null;
+				sponsorOverrideSponsorId?: Id<"sponsors"> | null;
+			},
 		) =>
 			updateCompetitionMutation({
 				competitionId: id,
@@ -99,6 +105,14 @@ export function useCompetitionMutations() {
 					wcaCompetitionId:
 						updates.wcaCompetitionId !== undefined
 							? (updates.wcaCompetitionId ?? null)
+							: undefined,
+					manualSponsorPropertyStatus:
+						updates.sponsorPropertyStatusOverride !== undefined
+							? updates.sponsorPropertyStatusOverride
+							: undefined,
+					manualSponsorId:
+						updates.sponsorOverrideSponsorId !== undefined
+							? updates.sponsorOverrideSponsorId
 							: undefined,
 				}),
 			}),

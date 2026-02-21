@@ -91,30 +91,19 @@ export function groupTasksByCompetitionPhase(
 	tasks: Task[],
 	competition: Competition,
 ): TasksByPhaseGroup[] {
-	if (tasks.length === 0) return [];
-
-	const phaseById = new Map<string, CompetitionPhase>();
+	const groups = new Map<string, TasksByPhaseGroup>();
 	for (const phase of competition.phases) {
-		phaseById.set(phase.id, phase);
+		groups.set(phase.id, { phase, tasks: [] });
 	}
 
-	const groups = new Map<string, TasksByPhaseGroup>();
 	let unassignedGroup: TasksByPhaseGroup | null = null;
 
 	for (const task of tasks) {
 		const phaseId = task.phase?.id;
 
-		if (phaseId && phaseById.has(phaseId)) {
-			const key = phaseId;
-			const existing = groups.get(key);
-			if (existing) {
-				existing.tasks.push(task);
-			} else {
-				groups.set(key, {
-					phase: phaseById.get(phaseId) ?? null,
-					tasks: [task],
-				});
-			}
+		if (phaseId && groups.has(phaseId)) {
+			const existing = groups.get(phaseId);
+			existing?.tasks.push(task);
 		} else {
 			if (!unassignedGroup) {
 				unassignedGroup = {
@@ -130,9 +119,8 @@ export function groupTasksByCompetitionPhase(
 
 	for (const phase of competition.phases) {
 		const group = groups.get(phase.id);
-		if (group) {
-			ordered.push(group);
-		}
+		if (!group) continue;
+		ordered.push(group);
 	}
 
 	if (unassignedGroup && unassignedGroup.tasks.length > 0) {

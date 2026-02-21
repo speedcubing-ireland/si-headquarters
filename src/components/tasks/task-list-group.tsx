@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,13 @@ export function TaskListGroup({
 						type="button"
 						className="flex items-center gap-2 text-left"
 						onClick={onToggle}
+						aria-expanded={!isCollapsed}
 					>
+						{isCollapsed ? (
+							<ChevronRight className="size-4 text-muted-foreground" />
+						) : (
+							<ChevronDown className="size-4 text-muted-foreground" />
+						)}
 						{titleRow}
 					</button>
 				) : (

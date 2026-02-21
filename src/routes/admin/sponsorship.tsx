@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import {
+	AlertTriangle,
 	Gavel,
 	Lock,
 	LockOpen,
@@ -16,6 +17,7 @@ import type { FormEvent } from "react";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
 import { AuctionBiddingHelpOverview } from "@/components/sponsorship/auction-bidding-help";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +44,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+	useCompetitionMutations,
 	useIsSponsorshipManager,
 	useSponsorshipAuctionManagerView,
 	useSponsorshipAuctionMutations,
@@ -62,6 +65,8 @@ import {
 	sponsorshipStateBadgeVariant,
 	sponsorshipStateLabel,
 } from "@/lib/sponsorship-ui";
+
+type SponsorPropertyStatus = "none" | "not_offered" | "bidding" | "sponsor";
 
 export const Route = createFileRoute("/admin/sponsorship")({
 	component: SponsorshipAdminRoute,
@@ -93,9 +98,7 @@ function hasSameIdSet<T>(left: T[], right: T[]): boolean {
 	return sortedLeft.every((value, index) => value === sortedRight[index]);
 }
 
-function sponsorPropertyStatusLabel(
-	status: "none" | "not_offered" | "bidding" | "sponsor",
-): string {
+function sponsorPropertyStatusLabel(status: SponsorPropertyStatus): string {
 	switch (status) {
 		case "bidding":
 			return "Bidding in progress";
@@ -256,6 +259,7 @@ function SponsorshipAdminContent() {
 	const { auctions, isLoading: isLoadingAuctions } =
 		useSponsorshipAuctionsForManager();
 	const { sponsors, isLoading: isLoadingSponsors } = useSponsors();
+	const { updateCompetition } = useCompetitionMutations();
 	const {
 		createSponsor,
 		archiveSponsor,
@@ -335,6 +339,8 @@ function SponsorshipAdminContent() {
 	const [busySponsorId, setBusySponsorId] = useState<Id<"sponsors"> | null>(
 		null,
 	);
+	const [busyCompetitionId, setBusyCompetitionId] =
+		useState<Id<"competitions"> | null>(null);
 
 	const activeSponsors = useMemo(
 		() => sponsors.filter((sponsor) => sponsor.active),
@@ -529,6 +535,16 @@ function SponsorshipAdminContent() {
 		editorMode === "edit"
 			? (selectedAuction?.competitionId ?? null)
 			: createCompetitionId;
+	const panelCompetition =
+		panelCompetitionId !== null
+			? (competitionById.get(panelCompetitionId) ?? null)
+			: null;
+	const panelCompetitionHasManualSponsorOverride =
+		panelCompetition?.manualSponsorPropertyStatus !== undefined ||
+		panelCompetition?.manualSponsorId !== undefined;
+	const panelCompetitionManualSponsorName = panelCompetition?.manualSponsorId
+		? (sponsorById.get(panelCompetition.manualSponsorId)?.name ?? "Sponsor")
+		: undefined;
 	const previousClosedAuctionsForPanel = useMemo(() => {
 		if (!panelCompetitionId) return [];
 		return auctions
@@ -602,6 +618,31 @@ function SponsorshipAdminContent() {
 				? current.filter((id) => id !== sponsorId)
 				: [...current, sponsorId],
 		);
+	};
+
+	const onRevertCompetitionSponsorOverride = async (
+		competitionId: Id<"competitions">,
+	) => {
+		const shouldRevert = window.confirm(
+			"Revert manual sponsor override and return to auction-derived sponsor status?",
+		);
+		if (!shouldRevert) return;
+		setBusyCompetitionId(competitionId);
+		try {
+			await updateCompetition(competitionId, {
+				sponsorPropertyStatusOverride: null,
+				sponsorOverrideSponsorId: null,
+			});
+			toast.success("Sponsor override reverted.");
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to revert sponsor override.";
+			toast.error(message);
+		} finally {
+			setBusyCompetitionId(null);
+		}
 	};
 
 	const onCreateAuction = async (event: FormEvent) => {
@@ -1171,11 +1212,7 @@ function SponsorshipAdminContent() {
 												{selectedCompetition ? (
 													<div className="space-y-2 rounded-md border p-3">
 														<p className="text-xs text-muted-foreground">
-															Phase: {selectedCompetition.currentPhaseName} ·
-															Sponsor status:{" "}
-															{sponsorPropertyStatusLabel(
-																selectedCompetition.sponsorPropertyStatus,
-															)}
+															Phase: {selectedCompetition.currentPhaseName}
 														</p>
 														<p className="text-sm font-medium">
 															{selectedCompetition.name}
@@ -1185,10 +1222,56 @@ function SponsorshipAdminContent() {
 															{selectedCompetition.compEnd}
 														</p>
 														<p className="text-xs text-muted-foreground">
+															Sponsor status:{" "}
+															{sponsorPropertyStatusLabel(
+																selectedCompetition.sponsorPropertyStatus,
+															)}
+														</p>
+														<p className="text-xs text-muted-foreground">
 															{selectedCompetition.wcaCompetitionId
 																? "WCA link present. Full competition details will sync after draft creation."
 																: "No WCA link yet. Full competition details cannot sync until linked."}
 														</p>
+														{selectedCompetition.manualSponsorPropertyStatus !==
+															undefined ||
+														selectedCompetition.manualSponsorId !==
+															undefined ? (
+															<Alert>
+																<AlertTriangle className="size-4" />
+																<AlertTitle>
+																	Manual sponsor override active
+																</AlertTitle>
+																<AlertDescription className="space-y-2">
+																	<p>
+																		Override:{" "}
+																		{selectedCompetition.manualSponsorId
+																			? (sponsorById.get(
+																					selectedCompetition.manualSponsorId,
+																				)?.name ?? "Sponsor")
+																			: sponsorPropertyStatusLabel(
+																					selectedCompetition.manualSponsorPropertyStatus ??
+																						"none",
+																				)}
+																	</p>
+																	<Button
+																		type="button"
+																		variant="outline"
+																		size="sm"
+																		disabled={
+																			busyCompetitionId ===
+																			selectedCompetition.id
+																		}
+																		onClick={() =>
+																			void onRevertCompetitionSponsorOverride(
+																				selectedCompetition.id,
+																			)
+																		}
+																	>
+																		Revert override
+																	</Button>
+																</AlertDescription>
+															</Alert>
+														) : null}
 													</div>
 												) : null}
 											</div>
@@ -1415,6 +1498,42 @@ function SponsorshipAdminContent() {
 													Refresh competition data
 												</Button>
 											</div>
+											{panelCompetitionHasManualSponsorOverride &&
+											panelCompetition ? (
+												<Alert>
+													<AlertTriangle className="size-4" />
+													<AlertTitle>
+														Manual sponsor override active
+													</AlertTitle>
+													<AlertDescription className="space-y-2">
+														<p>
+															Override:{" "}
+															{panelCompetition.manualSponsorId
+																? (panelCompetitionManualSponsorName ??
+																	"Sponsor")
+																: sponsorPropertyStatusLabel(
+																		panelCompetition.manualSponsorPropertyStatus ??
+																			"none",
+																	)}
+														</p>
+														<Button
+															type="button"
+															variant="outline"
+															size="sm"
+															disabled={
+																busyCompetitionId === panelCompetition.id
+															}
+															onClick={() =>
+																void onRevertCompetitionSponsorOverride(
+																	panelCompetition.id,
+																)
+															}
+														>
+															Revert override
+														</Button>
+													</AlertDescription>
+												</Alert>
+											) : null}
 
 											<form
 												className="space-y-3"

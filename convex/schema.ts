@@ -20,6 +20,7 @@ import {
 	notificationSubscriberEntityType,
 } from "./notifications/lib/validators";
 import {
+	competitionSponsorPropertyStatus,
 	sponsorshipAuctionFramework,
 	sponsorshipAuctionState,
 	sponsorshipBidIntentMode,
@@ -169,6 +170,8 @@ export default defineSchema({
 			v.object({ type: v.literal("google-sheet"), sheetId: v.string() }),
 		),
 		wcaCompetitionId: v.optional(v.string()),
+		manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
+		manualSponsorId: v.optional(v.id("sponsors")),
 		currentPhaseId: v.optional(v.id("phases")),
 		updatedAt: v.number(),
 	})

@@ -27,6 +27,7 @@ import {
 	competitionSponsorPropertyStatus,
 	isSealedAuctionFramework,
 } from "./lib/sponsorshipValidators";
+import { isSponsorshipManager } from "./lib/sponsorshipAccess";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
@@ -46,6 +47,8 @@ const competitionDoc = v.object({
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(compSheetObject),
 	wcaCompetitionId: v.optional(v.string()),
+	manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
+	manualSponsorId: v.optional(v.id("sponsors")),
 	updatedAt: v.number(),
 });
 
@@ -63,12 +66,28 @@ type CompetitionSponsorProperty = {
 	sponsorPropertyStatus: "not_offered" | "bidding" | "none" | "sponsor";
 	sponsorPropertyDisplay?: string;
 	sponsorWinningBidCents?: number;
+	auctionDerivedSponsorPropertyStatus:
+		| "not_offered"
+		| "bidding"
+		| "none"
+		| "sponsor";
+	auctionDerivedSponsorPropertyDisplay?: string;
+	auctionDerivedSponsorId?: Id<"sponsors">;
+	manualSponsorPropertyStatus?: "not_offered" | "bidding" | "none" | "sponsor";
+	manualSponsorId?: Id<"sponsors">;
 };
 
-function buildCompetitionSponsorProperty(input: {
+type DerivedCompetitionSponsorProperty = {
+	sponsorPropertyStatus: "not_offered" | "bidding" | "none" | "sponsor";
+	sponsorPropertyDisplay?: string;
+	sponsorWinningBidCents?: number;
+	sponsorId?: Id<"sponsors">;
+};
+
+function buildDerivedCompetitionSponsorProperty(input: {
 	auctions: Doc<"sponsorshipAuctions">[];
 	winnerNameById: Map<Id<"sponsors">, string>;
-}): CompetitionSponsorProperty {
+}): DerivedCompetitionSponsorProperty {
 	const hasLiveAuction = input.auctions.some(
 		(auction) => auction.state === "active" || auction.state === "scheduled",
 	);
@@ -94,6 +113,7 @@ function buildCompetitionSponsorProperty(input: {
 
 	return {
 		sponsorPropertyStatus: "sponsor",
+		sponsorId: latestClosed.winnerSponsorId,
 		sponsorPropertyDisplay: input.winnerNameById.get(
 			latestClosed.winnerSponsorId,
 		),
@@ -105,13 +125,58 @@ function buildCompetitionSponsorProperty(input: {
 	};
 }
 
+function applyManualSponsorPropertyStatus(input: {
+	derived: DerivedCompetitionSponsorProperty;
+	sponsorNameById: Map<Id<"sponsors">, string>;
+	manualStatus: CompetitionSponsorProperty["sponsorPropertyStatus"] | undefined;
+	manualSponsorId: Id<"sponsors"> | undefined;
+}): CompetitionSponsorProperty {
+	const hasManualOverride =
+		input.manualStatus !== undefined || input.manualSponsorId !== undefined;
+	const base = {
+		auctionDerivedSponsorPropertyStatus: input.derived.sponsorPropertyStatus,
+		auctionDerivedSponsorPropertyDisplay: input.derived.sponsorPropertyDisplay,
+		auctionDerivedSponsorId: input.derived.sponsorId,
+		manualSponsorPropertyStatus: input.manualStatus,
+		manualSponsorId: input.manualSponsorId,
+	};
+	if (!hasManualOverride) {
+		return {
+			sponsorPropertyStatus: input.derived.sponsorPropertyStatus,
+			sponsorPropertyDisplay: input.derived.sponsorPropertyDisplay,
+			sponsorWinningBidCents: input.derived.sponsorWinningBidCents,
+			...base,
+		};
+	}
+	if (input.manualSponsorId) {
+		return {
+			sponsorPropertyStatus: "sponsor",
+			sponsorPropertyDisplay:
+				input.sponsorNameById.get(input.manualSponsorId) ?? "Sponsor",
+			...base,
+		};
+	}
+	if (input.manualStatus && input.manualStatus !== "sponsor") {
+		return {
+			sponsorPropertyStatus: input.manualStatus,
+			...base,
+		};
+	}
+	return {
+		sponsorPropertyStatus: "sponsor",
+		sponsorPropertyDisplay: input.derived.sponsorPropertyDisplay,
+		sponsorWinningBidCents: input.derived.sponsorWinningBidCents,
+		...base,
+	};
+}
+
 async function loadCompetitionSponsorProperty(
 	ctx: QueryCtx,
-	competitionId: Id<"competitions">,
+	competition: Doc<"competitions">,
 ): Promise<CompetitionSponsorProperty> {
 	const auctions = await ctx.db
 		.query("sponsorshipAuctions")
-		.withIndex("by_competition", (q) => q.eq("competitionId", competitionId))
+		.withIndex("by_competition", (q) => q.eq("competitionId", competition._id))
 		.collect();
 	const winnerIds = new Set<Id<"sponsors">>();
 	for (const auction of auctions) {
@@ -119,26 +184,36 @@ async function loadCompetitionSponsorProperty(
 			winnerIds.add(auction.winnerSponsorId);
 		}
 	}
+	if (competition.manualSponsorId) {
+		winnerIds.add(competition.manualSponsorId);
+	}
 	const winnerSponsors = await Promise.all(
 		[...winnerIds].map((sponsorId) => ctx.db.get("sponsors", sponsorId)),
 	);
-	const winnerNameById = new Map<Id<"sponsors">, string>();
+	const sponsorNameById = new Map<Id<"sponsors">, string>();
 	for (const sponsor of winnerSponsors) {
 		if (!sponsor) continue;
-		winnerNameById.set(sponsor._id, sponsor.name);
+		sponsorNameById.set(sponsor._id, sponsor.name);
 	}
 
-	return buildCompetitionSponsorProperty({
-		auctions,
-		winnerNameById,
+	return applyManualSponsorPropertyStatus({
+		derived: buildDerivedCompetitionSponsorProperty({
+			auctions,
+			winnerNameById: sponsorNameById,
+		}),
+		sponsorNameById,
+		manualStatus: competition.manualSponsorPropertyStatus,
+		manualSponsorId: competition.manualSponsorId,
 	});
 }
 
 async function loadCompetitionSponsorProperties(
 	ctx: QueryCtx,
-	competitionIds: Id<"competitions">[],
+	competitions: Doc<"competitions">[],
 ): Promise<Map<Id<"competitions">, CompetitionSponsorProperty>> {
-	const competitionIdSet = new Set(competitionIds);
+	const competitionIdSet = new Set(
+		competitions.map((competition) => competition._id),
+	);
 	if (competitionIdSet.size === 0) {
 		return new Map();
 	}
@@ -157,33 +232,43 @@ async function loadCompetitionSponsorProperties(
 		}
 		auctionsByCompetition.set(auction.competitionId, [auction]);
 	}
-	const winnerIds = new Set<Id<"sponsors">>();
+	const sponsorIds = new Set<Id<"sponsors">>();
 	for (const auctions of auctionsByCompetition.values()) {
 		for (const auction of auctions) {
 			if (auction.winnerSponsorId) {
-				winnerIds.add(auction.winnerSponsorId);
+				sponsorIds.add(auction.winnerSponsorId);
 			}
 		}
 	}
-	const winnerSponsors = await Promise.all(
-		[...winnerIds].map((sponsorId) => ctx.db.get("sponsors", sponsorId)),
+	for (const competition of competitions) {
+		if (competition.manualSponsorId) {
+			sponsorIds.add(competition.manualSponsorId);
+		}
+	}
+	const sponsors = await Promise.all(
+		[...sponsorIds].map((sponsorId) => ctx.db.get("sponsors", sponsorId)),
 	);
-	const winnerNameById = new Map<Id<"sponsors">, string>();
-	for (const sponsor of winnerSponsors) {
+	const sponsorNameById = new Map<Id<"sponsors">, string>();
+	for (const sponsor of sponsors) {
 		if (!sponsor) continue;
-		winnerNameById.set(sponsor._id, sponsor.name);
+		sponsorNameById.set(sponsor._id, sponsor.name);
 	}
 
 	const sponsorProperties = new Map<
 		Id<"competitions">,
 		CompetitionSponsorProperty
 	>();
-	for (const competitionId of competitionIdSet) {
+	for (const competition of competitions) {
 		sponsorProperties.set(
-			competitionId,
-			buildCompetitionSponsorProperty({
-				auctions: auctionsByCompetition.get(competitionId) ?? [],
-				winnerNameById,
+			competition._id,
+			applyManualSponsorPropertyStatus({
+				derived: buildDerivedCompetitionSponsorProperty({
+					auctions: auctionsByCompetition.get(competition._id) ?? [],
+					winnerNameById: sponsorNameById,
+				}),
+				sponsorNameById,
+				manualStatus: competition.manualSponsorPropertyStatus,
+				manualSponsorId: competition.manualSponsorId,
 			}),
 		);
 	}
@@ -220,6 +305,11 @@ export const competitionForUIReturns = v.object({
 	sponsorPropertyStatus: competitionSponsorPropertyStatus,
 	sponsorPropertyDisplay: v.optional(v.string()),
 	sponsorWinningBidCents: v.optional(v.number()),
+	auctionDerivedSponsorPropertyStatus: competitionSponsorPropertyStatus,
+	auctionDerivedSponsorPropertyDisplay: v.optional(v.string()),
+	auctionDerivedSponsorId: v.optional(v.id("sponsors")),
+	manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
+	manualSponsorId: v.optional(v.id("sponsors")),
 	tasks: v.array(taskSummaryShape),
 	createdAt: v.string(),
 	updatedAt: v.string(),
@@ -374,6 +464,13 @@ function buildCompetitionUI(
 		sponsorPropertyStatus: sponsorProperty.sponsorPropertyStatus,
 		sponsorPropertyDisplay: sponsorProperty.sponsorPropertyDisplay,
 		sponsorWinningBidCents: sponsorProperty.sponsorWinningBidCents,
+		auctionDerivedSponsorPropertyStatus:
+			sponsorProperty.auctionDerivedSponsorPropertyStatus,
+		auctionDerivedSponsorPropertyDisplay:
+			sponsorProperty.auctionDerivedSponsorPropertyDisplay,
+		auctionDerivedSponsorId: sponsorProperty.auctionDerivedSponsorId,
+		manualSponsorPropertyStatus: sponsorProperty.manualSponsorPropertyStatus,
+		manualSponsorId: sponsorProperty.manualSponsorId,
 		tasks,
 		createdAt: toISO(d._creationTime),
 		updatedAt: toISO(d.updatedAt),
@@ -450,10 +547,7 @@ export const listForUI = query({
 		);
 		const usersLens = createLens(toUsers(userDocs));
 		const sponsorPropertiesByCompetition =
-			await loadCompetitionSponsorProperties(
-				ctx,
-				docs.map((d) => d._id),
-			);
+			await loadCompetitionSponsorProperties(ctx, docs);
 
 		return docs.map((d) =>
 			buildCompetitionUI(
@@ -464,6 +558,7 @@ export const listForUI = query({
 				updatesByCompetition.get(d._id) ?? [],
 				sponsorPropertiesByCompetition.get(d._id) ?? {
 					sponsorPropertyStatus: "not_offered",
+					auctionDerivedSponsorPropertyStatus: "not_offered",
 				},
 			),
 		);
@@ -505,10 +600,7 @@ export const getForUI = query({
 			userArr.map((id) => ctx.db.get("users", id)),
 		);
 		const usersLens = createLens(toUsers(userDocs));
-		const sponsorProperty = await loadCompetitionSponsorProperty(
-			ctx,
-			args.competitionId,
-		);
+		const sponsorProperty = await loadCompetitionSponsorProperty(ctx, d);
 
 		return buildCompetitionUI(
 			d,
@@ -595,6 +687,10 @@ const competitionUpdateValidator = v.object({
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(v.union(compSheetObject, v.null())),
 	wcaCompetitionId: v.optional(v.union(v.string(), v.null())),
+	manualSponsorPropertyStatus: v.optional(
+		v.union(competitionSponsorPropertyStatus, v.null()),
+	),
+	manualSponsorId: v.optional(v.union(v.id("sponsors"), v.null())),
 });
 
 type CompetitionUpdates = {
@@ -608,6 +704,10 @@ type CompetitionUpdates = {
 	currentPhaseId?: Id<"phases">;
 	compSheet?: Doc<"competitions">["compSheet"] | null;
 	wcaCompetitionId?: string | null;
+	manualSponsorPropertyStatus?:
+		| CompetitionSponsorProperty["sponsorPropertyStatus"]
+		| null;
+	manualSponsorId?: Id<"sponsors"> | null;
 };
 
 type CompetitionPatch = Partial<Doc<"competitions">> & { updatedAt: number };
@@ -637,6 +737,13 @@ function buildCompetitionPatch(updates: CompetitionUpdates): CompetitionPatch {
 		patch.compSheet = updates.compSheet ?? undefined;
 	if (updates.wcaCompetitionId !== undefined)
 		patch.wcaCompetitionId = updates.wcaCompetitionId ?? undefined;
+	if (updates.manualSponsorPropertyStatus !== undefined) {
+		patch.manualSponsorPropertyStatus =
+			updates.manualSponsorPropertyStatus ?? undefined;
+	}
+	if (updates.manualSponsorId !== undefined) {
+		patch.manualSponsorId = updates.manualSponsorId ?? undefined;
+	}
 	return patch;
 }
 
@@ -708,6 +815,49 @@ export const update = mutation({
 				code: "FORBIDDEN",
 				message: "You do not have access to update this competition",
 			});
+		}
+		const hasManualSponsorOverrideUpdate =
+			args.updates.manualSponsorPropertyStatus !== undefined ||
+			args.updates.manualSponsorId !== undefined;
+		if (hasManualSponsorOverrideUpdate) {
+			const sponsorshipManager = await isSponsorshipManager(ctx);
+			if (!sponsorshipManager) {
+				throw new ConvexError({
+					code: "FORBIDDEN",
+					message:
+						"Only sponsorship managers can change competition sponsor status.",
+				});
+			}
+			const nextManualSponsorStatus =
+				args.updates.manualSponsorPropertyStatus === undefined
+					? doc.manualSponsorPropertyStatus
+					: (args.updates.manualSponsorPropertyStatus ?? undefined);
+			const nextManualSponsorId =
+				args.updates.manualSponsorId === undefined
+					? doc.manualSponsorId
+					: (args.updates.manualSponsorId ?? undefined);
+			if (nextManualSponsorId) {
+				const sponsor = await ctx.db.get("sponsors", nextManualSponsorId);
+				if (!sponsor) {
+					throw new ConvexError({
+						code: "BAD_REQUEST",
+						message: "Selected sponsor override does not exist.",
+					});
+				}
+				if (nextManualSponsorStatus !== "sponsor") {
+					throw new ConvexError({
+						code: "BAD_REQUEST",
+						message:
+							"Sponsor override status must be Sponsored when a sponsor is selected.",
+					});
+				}
+			}
+			if (!nextManualSponsorId && nextManualSponsorStatus === "sponsor") {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: "Select a sponsor or clear the sponsor override.",
+				});
+			}
 		}
 
 		const patch = buildCompetitionPatch(args.updates);
