@@ -39,16 +39,20 @@ export function getPhaseLabel(key: CompetitionPhaseKey): string {
 	return phaseConfig[key].label;
 }
 
+export function getPhaseKeyFromName(name: string | null | undefined): CompetitionPhaseKey {
+	const normalized = name?.trim().toLowerCase() ?? "concept";
+	if (normalized.startsWith("concept")) return "concept";
+	if (normalized.startsWith("pre-announcement")) return "pre-announcement";
+	if (normalized.startsWith("post-announcement")) return "post-announcement";
+	if (normalized.startsWith("pre-competition")) return "pre-competition";
+	if (normalized.startsWith("post-competition")) return "post-competition";
+	if (normalized.startsWith("archive")) return "archive";
+	return "concept";
+}
+
 export function getCurrentPhaseKey(
 	competition: Competition,
 ): CompetitionPhaseKey {
 	const phase = competition.phases[competition.currentPhaseIdx];
-	const name = phase?.name.toLowerCase() ?? "concept";
-	if (name.startsWith("concept")) return "concept";
-	if (name.startsWith("pre-announcement")) return "pre-announcement";
-	if (name.startsWith("post-announcement")) return "post-announcement";
-	if (name.startsWith("pre-competition")) return "pre-competition";
-	if (name.startsWith("post-competition")) return "post-competition";
-	if (name.startsWith("archive")) return "archive";
-	return "concept";
+	return getPhaseKeyFromName(phase?.name);
 }

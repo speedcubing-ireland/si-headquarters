@@ -1,16 +1,4 @@
-import {
-	CheckCircle2,
-	Circle,
-	CircleDashed,
-	CircleDot,
-	Dice1,
-	Dice2,
-	Dice3,
-	Eye,
-	type LucideIcon,
-	TriangleAlert,
-	XCircle,
-} from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 import type {
 	Competition,
 	CompetitionPhase,
@@ -19,6 +7,8 @@ import type {
 	TaskStatus,
 } from "@/data/types-new";
 import {
+	getTaskPriorityIcon,
+	getTaskStatusIcon,
 	taskPriorityOrder,
 	taskStatusOrder,
 } from "@/lib/task-filter-definitions";
@@ -42,33 +32,11 @@ export function isUserRequiredApprover(task: Task, userId: string): boolean {
 }
 
 export function getPriorityIcon(priority: TaskPriority): LucideIcon {
-	switch (priority) {
-		case "urgent":
-			return TriangleAlert;
-		case "high":
-			return Dice3;
-		case "medium":
-			return Dice2;
-		case "low":
-			return Dice1;
-	}
+	return getTaskPriorityIcon(priority);
 }
 
 export function getStatusIcon(status: TaskStatus): LucideIcon {
-	switch (status) {
-		case "backlog":
-			return CircleDashed;
-		case "to-do":
-			return Circle;
-		case "in-progress":
-			return CircleDot;
-		case "awaiting-review":
-			return Eye;
-		case "done":
-			return CheckCircle2;
-		case "cancelled":
-			return XCircle;
-	}
+	return getTaskStatusIcon(status);
 }
 
 export type TasksByPhaseGroup = {

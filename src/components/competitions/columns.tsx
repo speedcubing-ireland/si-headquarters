@@ -190,8 +190,12 @@ const leadDelegateGroupRenderer: GroupValueRenderer = (_value, row) => {
 };
 
 function getTasksSummary(comp: Competition): TasksSummary {
-	const total = comp.tasks.length;
-	const completed = comp.tasks.filter(
+	const currentPhaseId = comp.phases[comp.currentPhaseIdx]?.id;
+	const phaseTasks = currentPhaseId
+		? comp.tasks.filter((task) => task.phaseId === currentPhaseId)
+		: comp.tasks;
+	const total = phaseTasks.length;
+	const completed = phaseTasks.filter(
 		(task) => task.status === "done" || task.status === "cancelled",
 	).length;
 	const open = total - completed;
