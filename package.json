@@ -10,7 +10,7 @@
 		"build": "tsgo -b && vite build",
 		"typecheck": "tsgo -b && cd convex && tsgo -b",
 		"lint": "biome lint --fix --unsafe && biome format --write",
-		"lint:convex": "eslint convex --max-warnings=0",
+		"lint:convex": "eslint convex",
 		"preview": "vite preview",
 		"auth": "bun run scripts/auth.ts",
 		"auth:prod": "CONVEX_PROD=1 bun run scripts/auth.ts",

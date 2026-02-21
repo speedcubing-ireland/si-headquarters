@@ -72,7 +72,7 @@ export const setTokens = internalMutation({
 			updatedAt: now,
 		};
 		if (existing) {
-			await ctx.db.patch(existing._id, row);
+			await ctx.db.patch("serviceTokens", existing._id, row);
 		} else {
 			await ctx.db.insert("serviceTokens", row);
 		}

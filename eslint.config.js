@@ -1,6 +1,10 @@
 import { defineConfig } from "eslint/config";
 import tsParser from "@typescript-eslint/parser";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import convexPlugin from "@convex-dev/eslint-plugin";
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig([
 	{
@@ -8,6 +12,10 @@ export default defineConfig([
 			parser: tsParser,
 			ecmaVersion: "latest",
 			sourceType: "module",
+			parserOptions: {
+				project: ["./tsconfig.json", "./convex/tsconfig.json"],
+				tsconfigRootDir: configDir,
+			},
 		},
 	},
 	{

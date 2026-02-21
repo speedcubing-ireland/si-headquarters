@@ -384,7 +384,7 @@ export const getForUI = query({
 		args,
 	): Promise<Infer<typeof taskForUIReturns> | null> => {
 		const userId = await requireUserId(ctx);
-		const t = await ctx.db.get(args.taskId);
+		const t = await ctx.db.get("tasks", args.taskId);
 		if (!t) return null;
 
 		const volunteer = await isVolunteer(ctx);
@@ -414,7 +414,7 @@ export const getForUI = query({
 		let parentDisplayName: string | null = null;
 		if (parent) {
 			if (parent.type === "task") {
-				const parentTask = await ctx.db.get(parent.linkedId);
+				const parentTask = await ctx.db.get("tasks", parent.linkedId);
 				if (parentTask) {
 					if (volunteer) {
 						parentDisplayName = parentTask.title;
@@ -429,7 +429,7 @@ export const getForUI = query({
 					}
 				}
 			} else {
-				const comp = await ctx.db.get(parent.linkedId);
+				const comp = await ctx.db.get("competitions", parent.linkedId);
 				parentDisplayName = comp ? formatCompetitionName(comp.name) : null;
 			}
 		}

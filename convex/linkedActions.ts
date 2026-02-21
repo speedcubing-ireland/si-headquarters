@@ -135,7 +135,7 @@ export const updateDefinition = mutation({
 	handler: async (ctx, args) => {
 		await requireDirector(ctx);
 		const userId = await requireUserId(ctx);
-		const row = await ctx.db.get(args.id);
+		const row = await ctx.db.get("linkedActionDefinitions", args.id);
 		if (!row) {
 			throw new ConvexError({
 				code: "NOT_FOUND",
@@ -192,7 +192,7 @@ export const updateDefinition = mutation({
 		if (args.updates.archived !== undefined)
 			patch.archived = args.updates.archived;
 
-		await ctx.db.patch(args.id, patch);
+		await ctx.db.patch("linkedActionDefinitions", args.id, patch);
 		return null;
 	},
 });

@@ -229,7 +229,7 @@ export const getInternal = internalQuery({
 	args: { id: v.id("competitions") },
 	returns: v.union(competitionDoc, v.null()),
 	handler: async (ctx, args) => {
-		return await ctx.db.get(args.id);
+		return await ctx.db.get("competitions", args.id);
 	},
 });
 
