@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getInitials } from "@/lib/format-utils";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 export const Route = createFileRoute("/account")({
 	component: RouteComponent,
@@ -37,7 +38,8 @@ function toErrorMessage(error: unknown, fallback: string): string {
 }
 
 function RouteComponent() {
-	const user = useQuery(api.users.getCurrentUser);
+	const userResult = useQuery(api.users.getCurrentUser);
+	const userState = useRetainedQueryResult(userResult);
 	const updateCurrentUserName = useMutation(api.users.updateCurrentUserName);
 	const generateAvatarUploadUrl = useMutation(
 		api.users.generateAvatarUploadUrl,
@@ -55,9 +57,10 @@ function RouteComponent() {
 	const [isRerollingAvatar, setIsRerollingAvatar] = useState(false);
 
 	useEffect(() => {
+		const user = userState.data;
 		if (!user) return;
 		setNameInput(user.name ?? "");
-	}, [user]);
+	}, [userState.data]);
 
 	const onSaveName = async (event: FormEvent) => {
 		event.preventDefault();
@@ -130,13 +133,14 @@ function RouteComponent() {
 		}
 	};
 
-	if (user === undefined) {
+	if (userState.isLoading) {
 		return (
 			<div className="flex min-h-[50vh] items-center justify-center">
 				<Loader2 className="size-5 animate-spin text-muted-foreground" />
 			</div>
 		);
 	}
+	const user = userState.data;
 
 	if (user === null) {
 		return (

@@ -25,6 +25,7 @@ import {
 	useUnreadCount,
 } from "@/hooks/use-convex-data";
 import { isSponsorshipEnabled } from "@/lib/feature-flags";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 const navSections = [
 	{
@@ -84,7 +85,8 @@ const navSections = [
 ] satisfies NavSectionData[];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-	const user = useQuery(api.users.getCurrentUser);
+	const userResult = useQuery(api.users.getCurrentUser);
+	const { data: user } = useRetainedQueryResult(userResult);
 	const { permissions } = usePermissionSnapshot();
 	const isVolunteer = permissions.isVolunteer;
 	const { teams } = useTeams();

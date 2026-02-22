@@ -12,6 +12,7 @@ import {
 	serializeDisplaySettings,
 	serializeFilters,
 } from "@/lib/saved-view-utils";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 interface UseTasksSavedViewsOptions {
 	entity: SavedViewEntity;
@@ -36,6 +37,10 @@ export function useTasksSavedViews({
 		entity,
 		pageId,
 	});
+	const { data: stableListResult } = useRetainedQueryResult(
+		listResult,
+		`${entity}:${pageId}`,
+	);
 
 	const createViewMutation = useMutation(api.views.createView);
 	const deleteViewMutation = useMutation(api.views.deleteView);
@@ -52,7 +57,7 @@ export function useTasksSavedViews({
 
 	const views: SavedView[] = useMemo(
 		() =>
-			listResult?.map((v) => ({
+			stableListResult?.map((v) => ({
 				id: v.id,
 				name: v.name,
 				entity: v.entity,
@@ -66,7 +71,7 @@ export function useTasksSavedViews({
 					? new Date(v.lastUsedAt).toISOString()
 					: undefined,
 			})) ?? [],
-		[listResult],
+		[stableListResult],
 	);
 
 	const activeViewId = viewId;

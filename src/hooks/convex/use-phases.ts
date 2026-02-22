@@ -2,12 +2,14 @@ import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { api } from "@/convex/_generated/api";
 import type { CompetitionPhase } from "@/data/types-new";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function usePhases(): {
 	phases: CompetitionPhase[];
 	isLoading: boolean;
 } {
-	const data = useQuery(api.phases.list, {});
+	const result = useQuery(api.phases.list, {});
+	const { data, isLoading } = useRetainedQueryResult(result);
 	const phases = useMemo<CompetitionPhase[]>(
 		() =>
 			(data ?? []).map((p) => ({
@@ -19,6 +21,6 @@ export function usePhases(): {
 	);
 	return {
 		phases,
-		isLoading: data === undefined,
+		isLoading,
 	};
 }

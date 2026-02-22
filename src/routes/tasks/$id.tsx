@@ -8,6 +8,7 @@ import {
 	MoreHorizontal,
 	PanelRight,
 	Plus,
+	Loader2,
 	Trash2,
 	UserRound,
 	X,
@@ -374,7 +375,15 @@ function RouteComponent() {
 		debounceMs: 250,
 	});
 
-	if (!task) {
+	if (task === undefined) {
+		return (
+			<div className="flex h-full items-center justify-center">
+				<Loader2 className="size-5 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	if (task === null) {
 		return (
 			<div className="flex items-center justify-center h-full">
 				<div className="text-center">

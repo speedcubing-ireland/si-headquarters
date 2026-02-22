@@ -26,6 +26,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { onMutationError } from "@/lib/utils";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 type ActionType = "canva_template" | "linked_sheet";
 type LinkedSheetOperation = LinkedSheetActionConfig["operation"];
@@ -75,7 +76,9 @@ export function canCreateLinkedActionDraft(args: {
 }
 
 export function LinkedActionsSection() {
-	const definitions = useQuery(api.linkedActions.listDefinitions, {}) ?? [];
+	const definitionsResult = useQuery(api.linkedActions.listDefinitions, {});
+	const { data: definitions, isLoading: definitionsLoading } =
+		useRetainedQueryResult(definitionsResult);
 	const createDefinition = useMutation(api.linkedActions.createDefinition);
 	const updateDefinition = useMutation(api.linkedActions.updateDefinition);
 	const [name, setName] = useState("");
@@ -101,7 +104,7 @@ export function LinkedActionsSection() {
 
 	const orderedDefinitions = useMemo(
 		() =>
-			[...definitions].sort((a, b) => {
+			[...(definitions ?? [])].sort((a, b) => {
 				if (a.archived !== b.archived) return a.archived ? 1 : -1;
 				return a.name.localeCompare(b.name);
 			}),
@@ -365,7 +368,12 @@ export function LinkedActionsSection() {
 					<CardTitle>Integration Bank</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-2">
-					{orderedDefinitions.length === 0 ? (
+					{definitionsLoading ? (
+						<div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+							<Loader2 className="size-4 animate-spin" />
+							Loading linked integrations...
+						</div>
+					) : orderedDefinitions.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							No linked integrations configured yet.
 						</p>

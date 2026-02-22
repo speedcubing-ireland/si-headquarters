@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
-import { CheckCircle2, Link2Off } from "lucide-react";
+import { CheckCircle2, Link2Off, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 interface ConnectionStatusCardProps {
 	title: string;
 	description: string;
 	connected: boolean;
+	isLoading?: boolean;
 	connectedText?: string;
 	disconnectCommand: string;
 	oAuthInstructions: string;
@@ -17,6 +19,7 @@ function ConnectionStatusCard({
 	title,
 	description,
 	connected,
+	isLoading = false,
 	connectedText = "Account connected.",
 	disconnectCommand,
 	oAuthInstructions,
@@ -25,7 +28,9 @@ function ConnectionStatusCard({
 		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-2">
-					{connected ? (
+					{isLoading ? (
+						<Loader2 className="size-4 animate-spin text-muted-foreground" />
+					) : connected ? (
 						<CheckCircle2 className="size-4 text-success" />
 					) : (
 						<Link2Off className="size-4 text-muted" />
@@ -35,7 +40,12 @@ function ConnectionStatusCard({
 				<span className="text-xs text-muted-foreground">{description}</span>
 			</CardHeader>
 			<CardContent className="space-y-2">
-				{connected ? (
+				{isLoading ? (
+					<p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+						<Loader2 className="size-4 animate-spin" />
+						Checking connection...
+					</p>
+				) : connected ? (
 					<p className="text-sm text-muted-foreground">{connectedText}</p>
 				) : (
 					<>
@@ -90,7 +100,11 @@ export function ConnectionStatusCardContainer({
 		return () => window.clearInterval(intervalId);
 	}, []);
 
-	const connectionStatus = useQuery(query, { service, nowSec });
+	const result = useQuery(query, { service, nowSec });
+	const { data: connectionStatus, isLoading } = useRetainedQueryResult(
+		result,
+		service,
+	);
 	const connected = connectionStatus?.connected ?? false;
 
 	return (
@@ -98,6 +112,7 @@ export function ConnectionStatusCardContainer({
 			title={title}
 			description={description}
 			connected={connected}
+			isLoading={isLoading}
 			connectedText={connectedText}
 			disconnectCommand={disconnectCommand}
 			oAuthInstructions={oAuthInstructions}

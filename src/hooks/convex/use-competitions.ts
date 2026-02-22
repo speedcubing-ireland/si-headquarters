@@ -3,6 +3,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Competition } from "@/data/types-new";
 import { pickDefined } from "@/lib/utils";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 type NewCompetitionInput = Pick<
 	Competition,
@@ -18,15 +19,17 @@ type NewCompetitionInput = Pick<
 >;
 
 export const useCompetitions = () => {
-	const d = useQuery(api.competitions.listForUI);
-	return { competitions: d ?? [], isLoading: d === undefined };
+	const result = useQuery(api.competitions.listForUI);
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
+	return { competitions: data ?? [], isLoading, isRefreshing };
 };
 
 export const useCompetition = (competitionId: Id<"competitions"> | null) => {
-	const data = useQuery(
+	const result = useQuery(
 		api.competitions.getForUI,
 		competitionId ? { competitionId } : "skip",
 	);
+	const { data } = useRetainedQueryResult(result, competitionId ?? "skip");
 	if (competitionId == null) return null;
 	return data;
 };

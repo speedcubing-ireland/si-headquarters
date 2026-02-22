@@ -6,6 +6,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 const getErrorMessage = (error: unknown) =>
 	error instanceof Error ? error.message : "Something went wrong.";
@@ -22,7 +23,9 @@ type AdminPhase = {
 };
 
 function useAdminPhases(): { phases: AdminPhase[]; isLoading: boolean } {
-	const data = useQuery(api.admin.listPhasesWithUsage, {});
+	const dataResult = useQuery(api.admin.listPhasesWithUsage, {});
+	const dataState = useRetainedQueryResult(dataResult);
+	const data = dataState.data;
 	const phases: AdminPhase[] =
 		data?.map((p) => ({
 			id: p.id,
@@ -36,7 +39,7 @@ function useAdminPhases(): { phases: AdminPhase[]; isLoading: boolean } {
 		})) ?? [];
 	return {
 		phases,
-		isLoading: data === undefined,
+		isLoading: dataState.isLoading,
 	};
 }
 

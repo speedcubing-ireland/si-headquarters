@@ -14,6 +14,7 @@ import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Comment, User } from "@/data/types-new";
 import { formatDate, getInitials } from "@/lib/format-utils";
 import { cn, onMutationError } from "@/lib/utils";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 import {
 	ReactionButton,
 	ReactionDisplay,
@@ -280,7 +281,8 @@ interface CommentsSectionProps {
 
 export function CommentsSection({ taskId, className }: CommentsSectionProps) {
 	const { users } = useUsers();
-	const authUser = useQuery(api.users.getCurrentUser);
+	const authUserResult = useQuery(api.users.getCurrentUser);
+	const { data: authUser } = useRetainedQueryResult(authUserResult);
 	const { comments: allComments } = useCommentsForTask(taskId);
 	const comments = useMemo(
 		() =>

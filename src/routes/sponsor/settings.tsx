@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isSponsorshipEnabled } from "@/lib/feature-flags";
 import { sponsorAuthClient } from "@/lib/sponsor-auth-client";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 export const Route = createFileRoute("/sponsor/settings")({
 	component: SponsorSettingsRoute,
@@ -97,10 +98,12 @@ function SponsorSettingsEnabled() {
 		error: passkeysError,
 	} = sponsorAuthClient.useListPasskeys();
 	const sessionToken = authSession?.session.token ?? null;
-	const me = useQuery(
+	const meResult = useQuery(
 		api.sponsorPortal.me,
 		sessionToken ? { sessionToken } : "skip",
 	);
+	const meState = useRetainedQueryResult(meResult, sessionToken ?? "skip");
+	const me = meState.data;
 	const updateDisplayName = useMutation(api.sponsorPortal.updateDisplayName);
 	const [displayName, setDisplayName] = useState("");
 	const [currentPassword, setCurrentPassword] = useState("");
@@ -120,7 +123,7 @@ function SponsorSettingsEnabled() {
 		setDisplayName(me.name);
 	}, [me?.name]);
 
-	if (authPending || !sessionToken) {
+	if (authPending || !sessionToken || meState.isLoading) {
 		return (
 			<div className="flex min-h-svh items-center justify-center">
 				<Loader2 className="size-5 animate-spin text-muted-foreground" />

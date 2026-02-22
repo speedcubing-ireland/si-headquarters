@@ -2,51 +2,72 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { usePeriodicNow } from "./use-periodic-now";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const useNotifications = () => {
 	const nowMs = usePeriodicNow();
-	const d = useQuery(api.notifications.listForUser, { nowMs });
-	return { notifications: d ?? [], isLoading: d === undefined };
+	const result = useQuery(api.notifications.listForUser, { nowMs });
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
+	return { notifications: data ?? [], isLoading, isRefreshing };
 };
 
 export const useNotificationSettings = () => {
-	const s = useQuery(api.notifications.getSettings, {});
+	const result = useQuery(api.notifications.getSettings, {});
+	const {
+		data: settings,
+		isLoading,
+		isRefreshing,
+	} = useRetainedQueryResult(result);
 	return {
-		settings: s,
-		preferences: s?.preferences ?? [],
-		timezone: s?.timezone ?? "Europe/Dublin",
-		defaultDigestMode: s?.defaultDigestMode ?? "immediate",
-		quietHoursStartMin: s?.quietHoursStartMin,
-		quietHoursEndMin: s?.quietHoursEndMin,
-		isLoading: s === undefined,
+		settings,
+		preferences: settings?.preferences ?? [],
+		timezone: settings?.timezone ?? "Europe/Dublin",
+		defaultDigestMode: settings?.defaultDigestMode ?? "immediate",
+		quietHoursStartMin: settings?.quietHoursStartMin,
+		quietHoursEndMin: settings?.quietHoursEndMin,
+		isLoading,
+		isRefreshing,
 	};
 };
 
 export const useNotificationSubscriptions = () => {
-	const d = useQuery(api.notifications.listSubscriptions, { limit: 500 });
-	return { subscriptions: d ?? [], isLoading: d === undefined };
+	const result = useQuery(api.notifications.listSubscriptions, { limit: 500 });
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
+	return { subscriptions: data ?? [], isLoading, isRefreshing };
 };
 
-export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) =>
-	useQuery(
+export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) => {
+	const result = useQuery(
 		api.notifications.isSubscribedToEntity,
 		taskId ? { entity: { entityType: "task", entityId: taskId } } : "skip",
-	) ?? false;
+	);
+	const { data } = useRetainedQueryResult(result, taskId ?? "skip");
+	return data ?? false;
+};
 
 export const useUnreadCount = () => {
 	const nowMs = usePeriodicNow();
-	return useQuery(api.notifications.getUnreadCount, { nowMs });
+	const result = useQuery(api.notifications.getUnreadCount, { nowMs });
+	const { data } = useRetainedQueryResult(result);
+	return data;
 };
 
 export const useNotificationDiagnostics = () => {
-	const dispatchHealth = useQuery(api.notifications.getDispatchHealth, {});
-	const deadLetters = useQuery(api.notifications.listRecentDeadLetters, {
+	const dispatchHealthResult = useQuery(
+		api.notifications.getDispatchHealth,
+		{},
+	);
+	const deadLettersResult = useQuery(api.notifications.listRecentDeadLetters, {
 		limit: 20,
 	});
+	const dispatchHealthState = useRetainedQueryResult(dispatchHealthResult);
+	const deadLettersState = useRetainedQueryResult(deadLettersResult);
 	return {
-		dispatchHealth,
-		deadLetters: deadLetters ?? [],
-		isLoading: dispatchHealth === undefined || deadLetters === undefined,
+		dispatchHealth: dispatchHealthState.data,
+		deadLetters: deadLettersState.data ?? [],
+		isLoading: dispatchHealthState.isLoading || deadLettersState.isLoading,
+		isRefreshing:
+			dispatchHealthState.isRefreshing || deadLettersState.isRefreshing,
 	};
 };
 
