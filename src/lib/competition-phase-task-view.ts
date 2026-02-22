@@ -67,10 +67,15 @@ export function resolveGroupCollapseState({
 	collapseCompletedPhases,
 	manuallyCollapsedPhaseKeys,
 	manuallyExpandedCompletedPhaseKeys,
-}: ResolveGroupCollapseStateArgs): { autoCollapsed: boolean; isCollapsed: boolean } {
+}: ResolveGroupCollapseStateArgs): {
+	autoCollapsed: boolean;
+	isCollapsed: boolean;
+} {
 	const isArchivePhase = isArchivePhaseName(phaseName);
 	const shouldAutoCollapse =
-		isArchivePhase || phaseIsEmpty || (collapseCompletedPhases && phaseCompleted);
+		isArchivePhase ||
+		phaseIsEmpty ||
+		(collapseCompletedPhases && phaseCompleted);
 	const autoCollapsed =
 		shouldAutoCollapse && !manuallyExpandedCompletedPhaseKeys.has(groupKey);
 
@@ -184,6 +189,8 @@ export function buildCompetitionPhaseTaskView(
 	});
 }
 
-export function countVisibleTasks(groups: CompetitionPhaseTaskGroupView[]): number {
+export function countVisibleTasks(
+	groups: CompetitionPhaseTaskGroupView[],
+): number {
 	return groups.reduce((count, group) => count + group.visibleTasks.length, 0);
 }

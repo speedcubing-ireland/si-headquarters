@@ -23,12 +23,17 @@ import { isSponsorshipEnabled } from "@/lib/feature-flags";
 const RootLayout = () => <RootLayoutInner />;
 
 function RootLayoutInner() {
-	const isSponsorPath = useRouterState({
-		select: (state) =>
-			isSponsorshipEnabled && state.location.pathname.startsWith("/sponsor"),
+	const isPublicAuthBypassPath = useRouterState({
+		select: (state) => {
+			const normalizedPath = state.location.pathname.replace(/\/+$/, "") || "/";
+			return (
+				normalizedPath === "/auth/login-ticket" ||
+				(isSponsorshipEnabled && normalizedPath.startsWith("/sponsor"))
+			);
+		},
 	});
 
-	if (isSponsorPath) {
+	if (isPublicAuthBypassPath) {
 		return (
 			<ErrorBoundary>
 				<Outlet />

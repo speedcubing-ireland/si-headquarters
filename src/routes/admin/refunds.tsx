@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RefundsDashboard } from "@/components/admin/refunds-dashboard";
 import { PermissionGuard } from "@/components/shared/permission-guard";
-import { useIsDirector, useIsVolunteer } from "@/hooks/use-convex-data";
+import { useIsDelegate, useIsDirector } from "@/hooks/use-convex-data";
 
 export const Route = createFileRoute("/admin/refunds")({
 	component: RefundsRoute,
@@ -9,9 +9,9 @@ export const Route = createFileRoute("/admin/refunds")({
 
 function RefundsRoute() {
 	const { isDirector, isLoading: loadingDirector } = useIsDirector();
-	const { isVolunteer, isLoading: loadingVolunteer } = useIsVolunteer();
-	const isLoading = loadingDirector || loadingVolunteer;
-	const canAccess = isDirector || isVolunteer;
+	const { isDelegate, isLoading: loadingDelegate } = useIsDelegate();
+	const isLoading = loadingDirector || loadingDelegate;
+	const canAccess = isDirector || isDelegate;
 
 	return (
 		<PermissionGuard isLoading={isLoading} canAccess={canAccess}>

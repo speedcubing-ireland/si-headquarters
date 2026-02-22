@@ -68,3 +68,23 @@ export async function requireDirectorOrVolunteerAction(
 		});
 	}
 }
+
+export async function requireDirectorOrDelegateAction(
+	ctx: GenericActionCtx<DataModel>,
+	cliToken?: string,
+): Promise<void> {
+	if (hasValidCliToken(cliToken)) return;
+	if (cliToken) throwInvalidCliToken();
+
+	const [isDirector, isDelegate] = await Promise.all([
+		ctx.runQuery(internal.admin.getIsDirectorInternal, {}),
+		ctx.runQuery(internal.admin.getIsDelegateInternal, {}),
+	]);
+
+	if (!isDirector && !isDelegate) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: "Directors or delegates only.",
+		});
+	}
+}

@@ -10,6 +10,7 @@ import { ConnectionStatusCardContainer } from "@/components/admin/connection-sta
 import { LabelsSection } from "@/components/admin/labels-section";
 import { LinkedActionsSection } from "@/components/admin/linked-actions-section";
 import { MembersAndTeamsSection } from "@/components/admin/members-and-teams-section";
+import { IncognitoLoginLinksSection } from "@/components/admin/incognito-login-links-section";
 import { PhasesSection } from "@/components/admin/phases-section";
 import { AppPageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ export function GodModeAdminContent({
 					</TabsList>
 					<TabsContent value="users" className="mt-0 space-y-4">
 						<MembersAndTeamsSection />
+						<IncognitoLoginLinksSection />
 					</TabsContent>
 					<TabsContent value="services" className="mt-0 space-y-4">
 						<ServicesTokenCheckCard />

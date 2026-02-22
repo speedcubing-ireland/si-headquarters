@@ -157,9 +157,9 @@ describe("competition phase task view", () => {
 			manuallyCollapsedPhaseKeys: new Set<string>(),
 			manuallyExpandedCompletedPhaseKeys: new Set<string>(),
 		});
-		expect(expandedOverride.manuallyExpandedCompletedPhaseKeys.has(groupKey)).toBe(
-			true,
-		);
+		expect(
+			expandedOverride.manuallyExpandedCompletedPhaseKeys.has(groupKey),
+		).toBe(true);
 
 		const expandedState = resolveGroupCollapseState({
 			groupKey,
@@ -206,9 +206,9 @@ describe("competition phase task view", () => {
 			manuallyCollapsedPhaseKeys: new Set<string>(),
 			manuallyExpandedCompletedPhaseKeys: new Set<string>(),
 		});
-		expect(expandedOverride.manuallyExpandedCompletedPhaseKeys.has(groupKey)).toBe(
-			true,
-		);
+		expect(
+			expandedOverride.manuallyExpandedCompletedPhaseKeys.has(groupKey),
+		).toBe(true);
 	});
 
 	test("auto-collapses empty phase even when not completed", () => {
@@ -232,9 +232,9 @@ describe("competition phase task view", () => {
 			manuallyCollapsedPhaseKeys: new Set<string>(),
 			manuallyExpandedCompletedPhaseKeys: new Set<string>(),
 		});
-		expect(expandedOverride.manuallyExpandedCompletedPhaseKeys.has(groupKey)).toBe(
-			true,
-		);
+		expect(
+			expandedOverride.manuallyExpandedCompletedPhaseKeys.has(groupKey),
+		).toBe(true);
 	});
 
 	test("toggles manual collapse for non-completed phases", () => {
