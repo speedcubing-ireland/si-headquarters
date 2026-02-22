@@ -1,7 +1,6 @@
 import { memo } from "react";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2, Eye } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import {
 	Tooltip,
 	TooltipContent,
@@ -19,15 +18,7 @@ import {
 	EditableTaskPriority,
 	EditableTaskStatus,
 } from "@/components/tasks/editable-cells";
-
-const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 6;
-
-function getSubtaskProgress(task: Task): { done: number; total: number } {
-	const subtasks = task.subTasks || [];
-	const relevant = subtasks.filter((t) => t.status !== "cancelled");
-	const done = relevant.filter((t) => t.status === "done").length;
-	return { done, total: relevant.length };
-}
+import { TaskIndicators } from "@/components/tasks/task-indicators";
 
 interface CompactTaskRowProps {
 	task: Task;
@@ -40,9 +31,6 @@ export const CompactTaskRow = memo(function CompactTaskRow({
 	onMarkDone,
 	showViewAction,
 }: CompactTaskRowProps) {
-	const { done, total } = getSubtaskProgress(task);
-	const showProgress = total > 0;
-
 	const parentDisplayName = task.parentDisplayName;
 	const contextName =
 		task.parent?.type === "task"
@@ -93,46 +81,12 @@ export const CompactTaskRow = memo(function CompactTaskRow({
 							{contextName && <>· {contextName}</>}
 						</span>
 					)}
-					{task.isBlocked && (
-						<Badge
-							variant="warning-outline"
-							className="ml-1.5 hidden shrink-0 @[20rem]:flex"
-						>
-							<CheckCircle2 className="size-3" />
-							<span>Blocked</span>
-						</Badge>
-					)}
-					{showProgress && (
-						<Badge
-							variant="outline"
-							className="ml-1.5 hidden shrink-0 gap-1 @[20rem]:flex"
-						>
-							<svg className="size-3" viewBox="0 0 16 16" fill="none">
-								<title>Subtask progress</title>
-								<circle
-									cx="8"
-									cy="8"
-									r="6"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeOpacity="0.3"
-								/>
-								<circle
-									cx="8"
-									cy="8"
-									r="6"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeDasharray={`${(done / total) * CIRCLE_CIRCUMFERENCE} ${CIRCLE_CIRCUMFERENCE}`}
-									strokeLinecap="round"
-									transform="rotate(-90 8 8)"
-								/>
-							</svg>
-							<span>
-								{done}/{total}
-							</span>
-						</Badge>
-					)}
+					<TaskIndicators
+						task={task}
+						blockedClassName="ml-1.5 hidden shrink-0 @[20rem]:flex"
+						progressClassName="ml-1.5 hidden shrink-0 gap-1 @[20rem]:flex"
+						blockedIcon={<CheckCircle2 className="size-3" />}
+					/>
 				</div>
 			</div>
 

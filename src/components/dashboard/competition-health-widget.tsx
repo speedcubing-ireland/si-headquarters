@@ -10,6 +10,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { DashboardWidgetCard } from "@/components/dashboard/dashboard-widget-card";
 import { useCompetitions } from "@/hooks/use-convex-data";
 import type { Competition } from "@/data/types-new";
+import { isFinishedTask } from "@/lib/competition-phase-task-view";
 import { cn } from "@/lib/utils";
 
 const MAX_COMPETITIONS = 5;
@@ -61,7 +62,7 @@ export function getCompetitionDaysText(
 }
 
 export function getTaskProgress(comp: Competition): {
-	done: number;
+	completed: number;
 	total: number;
 } {
 	const tasks = comp.tasks ?? [];
@@ -69,10 +70,8 @@ export function getTaskProgress(comp: Competition): {
 	const tasksInCurrentPhase = currentPhaseId
 		? tasks.filter((task) => task.phaseId === currentPhaseId)
 		: tasks;
-	const done = tasksInCurrentPhase.filter(
-		(task) => task.status === "done",
-	).length;
-	return { done, total: tasksInCurrentPhase.length };
+	const completed = tasksInCurrentPhase.filter(isFinishedTask).length;
+	return { completed, total: tasksInCurrentPhase.length };
 }
 
 export function getProgressPercent(done: number, total: number): number {
@@ -87,8 +86,8 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 		competition.compStart,
 		competition.compEnd,
 	);
-	const { done, total } = getTaskProgress(competition);
-	const percent = getProgressPercent(done, total);
+	const { completed, total } = getTaskProgress(competition);
+	const percent = getProgressPercent(completed, total);
 	const latestUpdate = getLatestUpdateStatus(competition);
 
 	return (
@@ -134,7 +133,7 @@ function CompetitionCard({ competition }: { competition: Competition }) {
 							</TooltipContent>
 						</Tooltip>
 						<span className="shrink-0 text-[11px] text-muted-foreground">
-							{done}/{total}
+							{completed}/{total}
 						</span>
 					</div>
 				)}
