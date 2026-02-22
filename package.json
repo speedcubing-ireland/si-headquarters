@@ -14,10 +14,10 @@
 		"preview": "vite preview",
 		"auth": "bun run scripts/auth.ts",
 		"auth:prod": "CONVEX_PROD=1 bun run scripts/auth.ts",
-		"test": "vitest",
-		"test:once": "vitest run",
-		"test:debug": "vitest --inspect-brk --no-file-parallelism",
-		"test:coverage": "vitest run --coverage",
+		"test": "vitest --isolate",
+		"test:once": "vitest run --isolate",
+		"test:debug": "vitest --inspect-brk --no-file-parallelism --isolate",
+		"test:coverage": "vitest run --coverage --isolate",
 		"openapi-ts": "openapi-ts"
 	},
 	"dependencies": {
