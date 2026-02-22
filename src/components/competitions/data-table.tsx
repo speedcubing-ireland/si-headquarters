@@ -24,7 +24,7 @@ export function DataTable({ columns }: DataTableProps) {
 	);
 
 	const router = useRouter();
-	const { competitions } = useCompetitions();
+	const { competitions, isLoading } = useCompetitions();
 
 	const filterFn: SharedDataTableProps<
 		Competition,
@@ -49,6 +49,7 @@ export function DataTable({ columns }: DataTableProps) {
 		<SharedDataTable<Competition, typeof filterState>
 			columns={columns}
 			data={competitions}
+			isLoading={isLoading}
 			filterState={filterState}
 			filterFn={filterFn}
 			grouping={displaySettings.grouping}
@@ -56,6 +57,7 @@ export function DataTable({ columns }: DataTableProps) {
 			ordering={displaySettings.ordering}
 			setOrdering={setOrdering}
 			containerClassName="px-3 sm:px-4"
+			loadingLabel="Loading competitions..."
 			emptyLabel="No results."
 			onRowClick={handleRowClick}
 		/>

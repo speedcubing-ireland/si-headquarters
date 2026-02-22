@@ -38,6 +38,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useTaskMutations } from "@/hooks/use-convex-data";
 import { useIsDirector } from "@/hooks/convex/use-admin";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 import { api } from "@/convex/_generated/api";
 import type { Task, Team, User } from "@/data/types-new";
 import { cn, onMutationError } from "@/lib/utils";
@@ -161,7 +162,8 @@ export function TaskPropertiesSidebar({
 		approveTask,
 		unapproveTask,
 	} = useTaskMutations();
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const { data: currentUser } = useRetainedQueryResult(currentUserResult);
 	const { isDirector } = useIsDirector();
 
 	const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);

@@ -71,7 +71,9 @@ function TasksPageInner(props: TasksPageProps) {
 	const urlState = useTasksUrlContext();
 	const savedViews = useTasksSavedViews({ entity: "tasks", pageId });
 
-	const { tasks: allTasks } = useTasks(taskSource === "archived");
+	const { tasks: allTasks, isLoading: tasksLoading } = useTasks(
+		taskSource === "archived",
+	);
 
 	const pageTasks = useMemo(() => {
 		if (pagePredicates.length === 0) return allTasks;
@@ -149,6 +151,7 @@ function TasksPageInner(props: TasksPageProps) {
 				subGrouping={urlState.displaySettings.subGrouping}
 				ordering={urlState.displaySettings.ordering}
 				onOrderingChange={urlState.setOrdering}
+				isLoading={tasksLoading}
 				enableRowSelection={true}
 				rowSelection={listState.rowSelection}
 				onRowSelectionChange={listState.setRowSelection}

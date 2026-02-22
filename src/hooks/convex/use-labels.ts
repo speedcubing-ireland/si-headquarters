@@ -3,9 +3,11 @@ import { useMemo } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { TaskLabel } from "@/data/types-new";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function useLabels(): { labels: TaskLabel[]; isLoading: boolean } {
-	const data = useQuery(api.labels.list);
+	const result = useQuery(api.labels.list);
+	const { data, isLoading } = useRetainedQueryResult(result);
 	const labels = useMemo(
 		() =>
 			(data ?? []).map((l) => ({
@@ -17,7 +19,7 @@ export function useLabels(): { labels: TaskLabel[]; isLoading: boolean } {
 	);
 	return {
 		labels,
-		isLoading: data === undefined,
+		isLoading,
 	};
 }
 

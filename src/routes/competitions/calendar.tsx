@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Loader2, Plus } from "lucide-react";
 import { calendarColumns } from "@/components/competitions/calendar-columns";
 import { SharedPageHeader } from "@/components/shared/page-header";
 import {
@@ -24,16 +24,19 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 export const Route = createFileRoute("/competitions/calendar")({
 	component: CompetitionsCalendarPage,
 });
 
 function CompetitionsCalendarPage() {
-	const { competitions } = useCompetitions();
-	const overridesList = useQuery(api.weekendOverrides.list);
+	const { competitions, isLoading: competitionsLoading } = useCompetitions();
+	const overridesListResult = useQuery(api.weekendOverrides.list);
+	const overridesState = useRetainedQueryResult(overridesListResult);
+	const overridesList = overridesState.data;
 	const overrides = useMemo(() => {
-		if (overridesList === undefined) return {};
+		if (!overridesList) return {};
 		return Object.fromEntries(
 			overridesList.map((o) => [
 				o.satDate,
@@ -127,7 +130,14 @@ function CompetitionsCalendarPage() {
 									colSpan={calendarColumns.length}
 									className="h-24 text-center text-muted-foreground"
 								>
-									No weekends in range.
+									{competitionsLoading || overridesState.isLoading ? (
+										<span className="inline-flex items-center gap-2">
+											<Loader2 className="size-4 animate-spin" />
+											Loading calendar...
+										</span>
+									) : (
+										"No weekends in range."
+									)}
 								</TableCell>
 							</TableRow>
 						) : (

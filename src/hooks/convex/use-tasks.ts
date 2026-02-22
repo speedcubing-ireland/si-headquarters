@@ -4,31 +4,45 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Task, User, Team, TaskLabel } from "@/data/types-new";
 import { pickDefined } from "@/lib/utils";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const useTasks = (archived = false) => {
-	const tasks = useQuery(api.tasks.listForUI, { archived });
+	const result = useQuery(api.tasks.listForUI, { archived });
+	const {
+		data: tasks,
+		isLoading,
+		isRefreshing,
+	} = useRetainedQueryResult(result, archived ? "archived" : "active");
 	return {
 		tasks: tasks ?? [],
-		isLoading: tasks === undefined,
+		isLoading,
+		isRefreshing,
 	};
 };
 
 export const useTask = (taskId: Id<"tasks"> | null) => {
-	const data = useQuery(api.tasks.getForUI, taskId ? { taskId } : "skip");
+	const result = useQuery(api.tasks.getForUI, taskId ? { taskId } : "skip");
+	const { data } = useRetainedQueryResult(result, taskId ?? "skip");
 	if (taskId == null) return null;
-	return data ?? null;
+	return data;
 };
 
 export const useTasksForCompetition = (
 	competitionId: Id<"competitions"> | null,
 ) => {
-	const tasks = useQuery(
+	const result = useQuery(
 		api.tasks.listForUI,
 		competitionId ? { archived: false, competitionId } : "skip",
 	);
+	const {
+		data: tasks,
+		isLoading,
+		isRefreshing,
+	} = useRetainedQueryResult(result, competitionId ?? "skip");
 	return {
 		tasks: tasks ?? [],
-		isLoading: tasks === undefined,
+		isLoading: competitionId !== null && isLoading,
+		isRefreshing: competitionId !== null && isRefreshing,
 	};
 };
 

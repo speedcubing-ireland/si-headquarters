@@ -12,6 +12,7 @@ import {
 	serializeDisplaySettings,
 	serializeFilters,
 } from "@/lib/saved-view-utils";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 export interface CompetitionsSavedViewsHook {
 	views: SavedView[];
@@ -28,6 +29,10 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 		entity: "competitions",
 		pageId: "all",
 	});
+	const { data: stableListResult } = useRetainedQueryResult(
+		listResult,
+		"competitions:all",
+	);
 	const createViewMutation = useMutation(api.views.createView);
 	const deleteViewMutation = useMutation(api.views.deleteView);
 
@@ -43,7 +48,7 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 
 	const views: SavedView[] = useMemo(
 		() =>
-			listResult?.map((v) => ({
+			stableListResult?.map((v) => ({
 				id: v.id,
 				name: v.name,
 				entity: v.entity,
@@ -57,7 +62,7 @@ export function useCompetitionsSavedViews(): CompetitionsSavedViewsHook {
 					? new Date(v.lastUsedAt).toISOString()
 					: undefined,
 			})) ?? [],
-		[listResult],
+		[stableListResult],
 	);
 
 	const activeViewId = viewId;

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { Link2, Palette, Plus, Sheet, Trash2 } from "lucide-react";
+import { Link2, Loader2, Palette, Plus, Sheet, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import type {
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 interface TaskLinkedActionsSectionProps {
 	task: Task;
@@ -61,11 +62,20 @@ function AddLinkedActionDialog({
 	taskId: Task["id"];
 	readOnly: boolean;
 }) {
-	const definitions =
-		useQuery(api.linkedActions.listAvailableDefinitionsForTask, { taskId }) ??
-		[];
-	const linkedActions =
-		useQuery(api.linkedActions.listForTask, { taskId }) ?? [];
+	const definitionsResult = useQuery(
+		api.linkedActions.listAvailableDefinitionsForTask,
+		{ taskId },
+	);
+	const linkedActionsResult = useQuery(api.linkedActions.listForTask, {
+		taskId,
+	});
+	const definitionsState = useRetainedQueryResult(definitionsResult, taskId);
+	const linkedActionsState = useRetainedQueryResult(
+		linkedActionsResult,
+		taskId,
+	);
+	const definitions = definitionsState.data ?? [];
+	const linkedActions = linkedActionsState.data ?? [];
 	const attachToTask = useMutation(api.linkedActions.attachToTask);
 	const [search, setSearch] = useState("");
 
@@ -103,7 +113,12 @@ function AddLinkedActionDialog({
 					placeholder="Search by name or short ID"
 				/>
 				<div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-					{filtered.length === 0 ? (
+					{definitionsState.isLoading || linkedActionsState.isLoading ? (
+						<p className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+							<Loader2 className="size-4 animate-spin" />
+							Loading actions...
+						</p>
+					) : filtered.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							No available actions.
 						</p>
@@ -148,9 +163,13 @@ export function TaskLinkedActionsSection({
 	task,
 	readOnly = false,
 }: TaskLinkedActionsSectionProps) {
-	const linkedActions = useQuery(api.linkedActions.listForTask, {
+	const linkedActionsResult = useQuery(api.linkedActions.listForTask, {
 		taskId: task.id,
 	});
+	const linkedActionsState = useRetainedQueryResult(
+		linkedActionsResult,
+		task.id,
+	);
 	const detachFromTask = useMutation(api.linkedActions.detachFromTask);
 	const confirmCanvaManualShareComplete = useMutation(
 		api.linkedActions.confirmCanvaManualShareComplete,
@@ -180,7 +199,7 @@ export function TaskLinkedActionsSection({
 		TaskLinkedAction["id"] | null
 	>(null);
 
-	const items = linkedActions ?? [];
+	const items = linkedActionsState.data ?? [];
 
 	const runAction = (
 		item: TaskLinkedAction,
@@ -300,9 +319,12 @@ export function TaskLinkedActionsSection({
 				</Button>
 			</div>
 
-			{linkedActions === undefined ? (
+			{linkedActionsState.isLoading ? (
 				<div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-					Loading linked integrations...
+					<span className="inline-flex items-center gap-2">
+						<Loader2 className="size-4 animate-spin" />
+						Loading linked integrations...
+					</span>
 				</div>
 			) : items.length === 0 ? (
 				<div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">

@@ -2,10 +2,15 @@ import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Team } from "@/data/types-new";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function useTeams(): { teams: Team[]; isLoading: boolean } {
-	const teamsRaw = useQuery(api.teams.list);
-	const usersData = useQuery(api.users.listUsers);
+	const teamsRawResult = useQuery(api.teams.list);
+	const usersDataResult = useQuery(api.users.listUsers);
+	const teamsRawState = useRetainedQueryResult(teamsRawResult);
+	const usersDataState = useRetainedQueryResult(usersDataResult);
+	const teamsRaw = teamsRawState.data;
+	const usersData = usersDataState.data;
 	const teams = useMemo(() => {
 		if (teamsRaw == null || usersData == null) return [];
 		const userMap = new Map(usersData.map((u) => [u.id, u]));
@@ -20,6 +25,6 @@ export function useTeams(): { teams: Team[]; isLoading: boolean } {
 	}, [teamsRaw, usersData]);
 	return {
 		teams,
-		isLoading: teamsRaw === undefined || usersData === undefined,
+		isLoading: teamsRawState.isLoading || usersDataState.isLoading,
 	};
 }

@@ -4,18 +4,30 @@ import { ListTodo } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { TasksPage } from "@/components/tasks/tasks-page";
 import type { TaskPredicate } from "@/lib/task-filter-utils";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 export const Route = createFileRoute("/tasks/my")({
 	component: RouteComponent,
 });
 
 function RouteComponent() {
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const currentUserState = useRetainedQueryResult(currentUserResult);
 
-	if (!currentUser) {
+	if (currentUserState.isLoading) {
 		return (
 			<div className="flex h-full flex-1 items-center justify-center">
 				<p className="text-muted-foreground">Loading...</p>
+			</div>
+		);
+	}
+	const currentUser = currentUserState.data;
+	if (currentUser === null) {
+		return (
+			<div className="flex h-full flex-1 items-center justify-center">
+				<p className="text-muted-foreground">
+					Unable to load your user profile.
+				</p>
 			</div>
 		);
 	}

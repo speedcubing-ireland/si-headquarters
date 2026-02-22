@@ -2,15 +2,22 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function useRefundVolunteers(enabled = true) {
-	const volunteers = useQuery(
-		api.refunds.listVolunteers,
-		enabled ? {} : "skip",
+	const result = useQuery(api.refunds.listVolunteers, enabled ? {} : "skip");
+	const {
+		data: volunteers,
+		isLoading,
+		isRefreshing,
+	} = useRetainedQueryResult(
+		enabled ? result : undefined,
+		enabled ? "on" : "off",
 	);
 	return {
 		volunteers: volunteers ?? [],
-		isLoading: enabled && volunteers === undefined,
+		isLoading: enabled && isLoading,
+		isRefreshing: enabled && isRefreshing,
 	};
 }
 

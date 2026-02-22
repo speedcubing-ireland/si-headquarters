@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 const DEFAULT_PERMISSION_SNAPSHOT = {
 	isDirector: false,
@@ -12,10 +13,16 @@ const DEFAULT_PERMISSION_SNAPSHOT = {
 } as const;
 
 export const usePermissionSnapshot = () => {
-	const snapshot = useQuery(api.admin.getPermissionSnapshot, {});
+	const result = useQuery(api.admin.getPermissionSnapshot, {});
+	const {
+		data: snapshot,
+		isLoading,
+		isRefreshing,
+	} = useRetainedQueryResult(result);
 	return {
 		permissions: snapshot ?? DEFAULT_PERMISSION_SNAPSHOT,
-		isLoading: snapshot === undefined,
+		isLoading,
+		isRefreshing,
 	};
 };
 
@@ -50,21 +57,25 @@ export const useIsSponsorshipManager = () => {
 };
 
 export const useAdminMembersAndTeams = () => {
-	const d = useQuery(api.admin.listMembersAndTeams, {});
+	const result = useQuery(api.admin.listMembersAndTeams, {});
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return {
-		users: d?.users ?? [],
-		teams: d?.teams ?? [],
-		pendingTeamMembers: d?.pendingTeamMembers ?? [],
-		isLoading: d === undefined,
+		users: data?.users ?? [],
+		teams: data?.teams ?? [],
+		pendingTeamMembers: data?.pendingTeamMembers ?? [],
+		isLoading,
+		isRefreshing,
 	};
 };
 
 export const useAdminImpersonationTargets = () => {
-	const d = useQuery(api.admin.listImpersonationTargets, {});
+	const result = useQuery(api.admin.listImpersonationTargets, {});
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return {
-		users: d?.users ?? [],
-		sponsors: d?.sponsors ?? [],
-		isLoading: d === undefined,
+		users: data?.users ?? [],
+		sponsors: data?.sponsors ?? [],
+		isLoading,
+		isRefreshing,
 	};
 };
 

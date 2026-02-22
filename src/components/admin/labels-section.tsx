@@ -8,12 +8,15 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 const getErrorMessage = (error: unknown) =>
 	error instanceof Error ? error.message : "Something went wrong.";
 
 function useAdminLabels() {
-	const data = useQuery(api.admin.listLabelsWithUsage, {});
+	const dataResult = useQuery(api.admin.listLabelsWithUsage, {});
+	const dataState = useRetainedQueryResult(dataResult);
+	const data = dataState.data;
 	const labels =
 		data?.map((l) => ({
 			id: l.id,
@@ -24,7 +27,7 @@ function useAdminLabels() {
 		})) ?? [];
 	return {
 		labels,
-		isLoading: data === undefined,
+		isLoading: dataState.isLoading,
 	};
 }
 

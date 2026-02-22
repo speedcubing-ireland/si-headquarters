@@ -21,7 +21,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Plus } from "lucide-react";
 import type React from "react";
 import {
 	createContext,
@@ -40,6 +40,7 @@ import {
 export interface SharedDataTableProps<TData, TFilterState> {
 	columns: ColumnDef<TData, unknown>[];
 	data: TData[];
+	isLoading?: boolean;
 	filterState: TFilterState;
 	filterFn: (rows: TData[], filterState: TFilterState) => TData[];
 	grouping: string | null;
@@ -50,6 +51,7 @@ export interface SharedDataTableProps<TData, TFilterState> {
 	};
 	setOrdering: (field: string | null, direction: "asc" | "desc") => void;
 	emptyLabel?: string;
+	loadingLabel?: string;
 	containerClassName?: string;
 	cellPaddingXClassName?: string;
 	showHeader?: boolean;
@@ -72,6 +74,7 @@ export interface DataTableSelectionConfig<TData> {
 export interface DataTableProviderProps<TData, TFilterState> {
 	columns: ColumnDef<TData, unknown>[];
 	data: TData[];
+	isLoading?: boolean;
 	filterState: TFilterState;
 	filterFn: (rows: TData[], filterState: TFilterState) => TData[];
 	grouping: string | null;
@@ -79,6 +82,7 @@ export interface DataTableProviderProps<TData, TFilterState> {
 	ordering: { field: string | null; direction: "asc" | "desc" };
 	setOrdering: (field: string | null, direction: "asc" | "desc") => void;
 	emptyLabel?: string;
+	loadingLabel?: string;
 	containerClassName?: string;
 	cellPaddingXClassName?: string;
 	onRowClick?: (row: TData) => void;
@@ -92,6 +96,8 @@ interface DataTableState<TData> {
 	table: TanStackTable<TData>;
 	tableColumns: ColumnDef<TData, unknown>[];
 	emptyLabel: string;
+	loadingLabel: string;
+	isLoading: boolean;
 	cellPaddingXClassName: string;
 	onRowClick?: (row: TData) => void;
 	containerRef: React.RefObject<HTMLDivElement | null>;
@@ -165,6 +171,7 @@ function RowSelectionCheckbox<TData>({
 function DataTableProviderInner<TData, TFilterState>({
 	columns,
 	data,
+	isLoading = false,
 	filterState,
 	filterFn,
 	grouping,
@@ -172,6 +179,7 @@ function DataTableProviderInner<TData, TFilterState>({
 	ordering,
 	setOrdering,
 	emptyLabel = "No results.",
+	loadingLabel = "Loading...",
 	containerClassName,
 	cellPaddingXClassName = "px-2",
 	onRowClick,
@@ -411,6 +419,8 @@ function DataTableProviderInner<TData, TFilterState>({
 				table,
 				tableColumns,
 				emptyLabel,
+				loadingLabel,
+				isLoading,
 				cellPaddingXClassName,
 				onRowClick,
 				containerRef,
@@ -428,6 +438,8 @@ function DataTableProviderInner<TData, TFilterState>({
 			table,
 			tableColumns,
 			emptyLabel,
+			loadingLabel,
+			isLoading,
 			cellPaddingXClassName,
 			onRowClick,
 			updateRowSelection,
@@ -650,8 +662,15 @@ function DataTableDataRow<TData = unknown>({
 
 function DataTableBodyInner<TData>() {
 	const { state } = useDataTableContext<TData>();
-	const { table, tableColumns, emptyLabel, cellPaddingXClassName, onRowClick } =
-		state;
+	const {
+		table,
+		tableColumns,
+		emptyLabel,
+		loadingLabel,
+		isLoading,
+		cellPaddingXClassName,
+		onRowClick,
+	} = state;
 
 	if (table.getRowModel().rows.length === 0) {
 		return (
@@ -661,7 +680,14 @@ function DataTableBodyInner<TData>() {
 						colSpan={tableColumns.length}
 						className="h-24 text-center text-muted-foreground"
 					>
-						{emptyLabel}
+						{isLoading ? (
+							<span className="inline-flex items-center gap-2">
+								<Loader2 className="size-4 animate-spin" />
+								{loadingLabel}
+							</span>
+						) : (
+							emptyLabel
+						)}
 					</TableCell>
 				</TableRow>
 			</TableBody>
@@ -703,6 +729,7 @@ const DataTable = {
 export function SharedDataTable<TData, TFilterState>({
 	columns,
 	data,
+	isLoading = false,
 	filterState,
 	filterFn,
 	grouping,
@@ -710,6 +737,7 @@ export function SharedDataTable<TData, TFilterState>({
 	ordering,
 	setOrdering,
 	emptyLabel = "No results.",
+	loadingLabel = "Loading...",
 	containerClassName,
 	cellPaddingXClassName = "px-2",
 	showHeader = true,
@@ -735,6 +763,7 @@ export function SharedDataTable<TData, TFilterState>({
 		<DataTable.Provider
 			columns={columns}
 			data={data}
+			isLoading={isLoading}
 			filterState={filterState}
 			filterFn={filterFn}
 			grouping={grouping}
@@ -742,6 +771,7 @@ export function SharedDataTable<TData, TFilterState>({
 			ordering={ordering}
 			setOrdering={setOrdering}
 			emptyLabel={emptyLabel}
+			loadingLabel={loadingLabel}
 			containerClassName={containerClassName}
 			cellPaddingXClassName={cellPaddingXClassName}
 			onRowClick={onRowClick}

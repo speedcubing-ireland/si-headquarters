@@ -2,15 +2,24 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Comment, User } from "@/data/types-new";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const useCommentsForTask = (
 	taskId: Id<"tasks"> | Id<"competitionUpdates"> | null,
 ) => {
-	const d = useQuery(
+	const result = useQuery(
 		api.comments.listForUI,
 		taskId ? { parentType: "task", parentId: taskId } : "skip",
 	);
-	return { comments: d ?? [], isLoading: d === undefined };
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(
+		result,
+		taskId ?? "skip",
+	);
+	return {
+		comments: data ?? [],
+		isLoading: taskId !== null && isLoading,
+		isRefreshing: taskId !== null && isRefreshing,
+	};
 };
 
 export function useCommentMutations() {

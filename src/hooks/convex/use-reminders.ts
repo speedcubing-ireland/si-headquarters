@@ -2,18 +2,28 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Reminder } from "@/data/types-new";
+import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const usePendingReminders = () => {
-	const d = useQuery(api.reminders.listPendingForUser, {});
-	return { reminders: d ?? [], isLoading: d === undefined };
+	const result = useQuery(api.reminders.listPendingForUser, {});
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
+	return { reminders: data ?? [], isLoading, isRefreshing };
 };
 
 export const usePendingRemindersForTask = (taskId: Id<"tasks"> | null) => {
-	const d = useQuery(
+	const result = useQuery(
 		api.reminders.listPendingForTask,
 		taskId ? { taskId } : "skip",
 	);
-	return { reminders: d ?? [], isLoading: d === undefined };
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(
+		result,
+		taskId ?? "skip",
+	);
+	return {
+		reminders: data ?? [],
+		isLoading: taskId !== null && isLoading,
+		isRefreshing: taskId !== null && isRefreshing,
+	};
 };
 
 export function useReminderMutations() {

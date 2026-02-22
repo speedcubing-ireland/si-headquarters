@@ -5,14 +5,14 @@ import {
 	SharedDataTable,
 	type SharedDataTableProps,
 } from "@/components/shared/data-table";
-import { useTasks } from "@/hooks/use-convex-data";
 import type { Task } from "@/data/types-new";
 import { filterTasksWithState } from "@/lib/task-filters";
 import type { TasksFilters, MatchMode } from "@/lib/filter-types";
 
 interface TasksDataTableProps {
 	columns: ColumnDef<Task, unknown>[];
-	tasks?: Task[];
+	tasks: Task[];
+	isLoading?: boolean;
 	filters: TasksFilters;
 	matchMode: MatchMode;
 	grouping: string | null;
@@ -28,7 +28,8 @@ interface TasksDataTableProps {
 
 export function TasksDataTable({
 	columns,
-	tasks: overrideTasks,
+	tasks,
+	isLoading = false,
 	filters,
 	matchMode,
 	grouping,
@@ -52,8 +53,6 @@ export function TasksDataTable({
 	);
 
 	const router = useRouter();
-	const { tasks: storeTasks } = useTasks(false);
-	const tasks = overrideTasks ?? storeTasks;
 	const tableRef = useRef<HTMLDivElement>(null);
 
 	const filterFn: SharedDataTableProps<Task, typeof filterState>["filterFn"] =
@@ -81,6 +80,7 @@ export function TasksDataTable({
 			<SharedDataTable<Task, typeof filterState>
 				columns={columns}
 				data={tasks}
+				isLoading={isLoading}
 				filterState={filterState}
 				filterFn={filterFn}
 				getRowId={(task) => task.id}
@@ -91,6 +91,7 @@ export function TasksDataTable({
 				containerClassName=""
 				cellPaddingXClassName="px-1"
 				showHeader={false}
+				loadingLabel="Loading tasks..."
 				emptyLabel="No tasks found."
 				onRowClick={handleRowClick}
 				enableRowSelection={enableRowSelection}

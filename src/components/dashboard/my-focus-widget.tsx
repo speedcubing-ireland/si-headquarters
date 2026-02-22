@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Task, TaskPriority } from "@/data/types-new";
 import { useTasks, useTaskMutations } from "@/hooks/use-convex-data";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 import { isUserRequiredApprover } from "@/lib/task-utils";
 import { cn, onMutationError } from "@/lib/utils";
 
@@ -167,7 +168,9 @@ export function buildFocusGroups(
 
 export function MyFocusWidget() {
 	const { tasks, isLoading } = useTasks(false);
-	const currentUser = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const currentUserState = useRetainedQueryResult(currentUserResult);
+	const currentUser = currentUserState.data;
 	const { updateTask } = useTaskMutations();
 	const userId = currentUser?._id;
 
@@ -185,7 +188,7 @@ export function MyFocusWidget() {
 		[updateTask],
 	);
 
-	const showLoading = isLoading || currentUser === undefined;
+	const showLoading = isLoading || currentUserState.isLoading;
 
 	return (
 		<DashboardWidgetCard

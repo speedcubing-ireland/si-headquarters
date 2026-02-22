@@ -38,6 +38,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isSponsorshipEnabled } from "@/lib/feature-flags";
 import { sponsorAuthClient } from "@/lib/sponsor-auth-client";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 import {
 	formatDateTime,
 	formatEuroFromCents,
@@ -102,14 +103,21 @@ function SponsorAuctionsEnabled() {
 	const { data: authSession, isPending: authPending } =
 		sponsorAuthClient.useSession();
 	const sessionToken = authSession?.session.token ?? null;
-	const me = useQuery(
+	const meResult = useQuery(
 		api.sponsorPortal.me,
 		sessionToken ? { sessionToken } : "skip",
 	);
-	const auctions = useQuery(
+	const auctionsResult = useQuery(
 		api.sponsorPortal.listAuctions,
 		sessionToken ? { sessionToken } : "skip",
 	);
+	const meState = useRetainedQueryResult(meResult, sessionToken ?? "skip");
+	const auctionsState = useRetainedQueryResult(
+		auctionsResult,
+		sessionToken ?? "skip",
+	);
+	const me = meState.data;
+	const auctions = auctionsState.data ?? [];
 
 	useEffect(() => {
 		if (authPending) return;
@@ -118,7 +126,7 @@ function SponsorAuctionsEnabled() {
 	}, [authPending, navigate, sessionToken]);
 
 	const auctionsByState = useMemo(() => {
-		const items = auctions ?? [];
+		const items = auctions;
 		return {
 			active: items.filter((auction) => auction.state === "active"),
 			scheduled: items.filter((auction) => auction.state === "scheduled"),
@@ -169,7 +177,7 @@ function SponsorAuctionsEnabled() {
 					<CardHeader className="pb-2">
 						<CardDescription className="text-xs">Active</CardDescription>
 						<CardTitle className="text-2xl">
-							{auctionsByState.active.length}
+							{auctionsState.isLoading ? "..." : auctionsByState.active.length}
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="text-xs text-muted-foreground">
@@ -180,7 +188,9 @@ function SponsorAuctionsEnabled() {
 					<CardHeader className="pb-2">
 						<CardDescription className="text-xs">Scheduled</CardDescription>
 						<CardTitle className="text-2xl">
-							{auctionsByState.scheduled.length}
+							{auctionsState.isLoading
+								? "..."
+								: auctionsByState.scheduled.length}
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="text-xs text-muted-foreground">
@@ -191,7 +201,7 @@ function SponsorAuctionsEnabled() {
 					<CardHeader className="pb-2">
 						<CardDescription className="text-xs">Closed</CardDescription>
 						<CardTitle className="text-2xl">
-							{auctionsByState.closed.length}
+							{auctionsState.isLoading ? "..." : auctionsByState.closed.length}
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="text-xs text-muted-foreground">
@@ -222,7 +232,7 @@ function SponsorAuctionsEnabled() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					{auctions === undefined ? (
+					{auctionsState.isLoading ? (
 						<div className="flex items-center justify-center py-12">
 							<Loader2 className="size-5 animate-spin text-muted-foreground" />
 						</div>
