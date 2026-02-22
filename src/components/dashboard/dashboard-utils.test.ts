@@ -411,10 +411,10 @@ describe("getCompetitionDaysText", () => {
 describe("getTaskProgress", () => {
 	test("returns 0/0 for no tasks", () => {
 		const comp = makeCompetition({ tasks: [] });
-		expect(getTaskProgress(comp)).toEqual({ done: 0, total: 0 });
+		expect(getTaskProgress(comp)).toEqual({ completed: 0, total: 0 });
 	});
 
-	test("counts done tasks only in current phase", () => {
+	test("counts completed tasks (done/cancelled) in current phase", () => {
 		const comp = makeCompetition({
 			phases: [
 				{ id: "phase-a", name: "Phase A", description: "" },
@@ -425,22 +425,24 @@ describe("getTaskProgress", () => {
 				{ status: "done", phaseId: "phase-a" },
 				{ status: "to-do", phaseId: "phase-a" },
 				{ status: "done", phaseId: "phase-b" },
+				{ status: "cancelled", phaseId: "phase-b" },
 				{ status: "in-progress", phaseId: "phase-b" },
 				{ status: "done" },
 			] as Competition["tasks"],
 		});
-		expect(getTaskProgress(comp)).toEqual({ done: 1, total: 2 });
+		expect(getTaskProgress(comp)).toEqual({ completed: 2, total: 3 });
 	});
 
 	test("falls back to all tasks when current phase id is unavailable", () => {
 		const comp = makeCompetition({
 			tasks: [
 				{ status: "done" },
+				{ status: "cancelled" },
 				{ status: "to-do" },
 				{ status: "done" },
 			] as Competition["tasks"],
 		});
-		expect(getTaskProgress(comp)).toEqual({ done: 2, total: 3 });
+		expect(getTaskProgress(comp)).toEqual({ completed: 3, total: 4 });
 	});
 });
 
