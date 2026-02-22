@@ -258,7 +258,9 @@ function RouteComponent() {
 								</div>
 								<div className="mt-3 rounded-lg border border-border/70 bg-background/80 px-3 py-2.5">
 									<div className="flex items-center justify-between gap-2 text-xs">
-										<span className="text-muted-foreground">Phase Completion</span>
+										<span className="text-muted-foreground">
+											Phase Completion
+										</span>
 										<span className="font-medium">
 											{completionPercent}% done
 										</span>

@@ -9,9 +9,10 @@ import {
 	type QueryCtx,
 } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { requireDirector } from "./admin";
 import { buildRefundDecision, WCA_BASE_URL } from "./lib/refunds";
-import { requireDirectorOrVolunteerAction } from "./lib/oauth";
+import { requireDirectorOrDelegateAction } from "./lib/oauth";
+import { requireAuthenticatedUserId } from "./lib/permissions/authn";
+import { hasPermission, PERMISSION_KEYS } from "./lib/permissions/policies";
 import {
 	isAcceptedRegistration,
 	normalizeWcaId,
@@ -94,6 +95,22 @@ export type CompetitionRefundSummary = Infer<
 export type RefundComputationResult = Infer<
 	typeof refundComputationResultShape
 >;
+
+async function requireRefundsAccess(
+	ctx: QueryCtx | MutationCtx,
+): Promise<void> {
+	const userId = await requireAuthenticatedUserId(ctx);
+	const [isDirector, isDelegate] = await Promise.all([
+		hasPermission(ctx, PERMISSION_KEYS.DIRECTOR, userId),
+		hasPermission(ctx, PERMISSION_KEYS.DELEGATE, userId),
+	]);
+	if (!isDirector && !isDelegate) {
+		throw new ConvexError({
+			code: "FORBIDDEN",
+			message: "Directors or delegates only.",
+		});
+	}
+}
 
 function normalizeVolunteerName(name: string): string {
 	return name.trim();
@@ -223,7 +240,7 @@ export const listVolunteers = query({
 	args: {},
 	returns: v.array(listVolunteerShape),
 	handler: async (ctx) => {
-		await requireDirector(ctx);
+		await requireRefundsAccess(ctx);
 		const docs = await listOrderedVolunteers(ctx);
 		return docs.map(mapVolunteerDoc);
 	},
@@ -246,7 +263,7 @@ export const createVolunteer = mutation({
 	},
 	returns: v.id("refundVolunteers"),
 	handler: async (ctx, args) => {
-		await requireDirector(ctx);
+		await requireRefundsAccess(ctx);
 		const name = normalizeVolunteerName(args.name);
 		if (!name) {
 			throw new ConvexError({
@@ -288,7 +305,7 @@ export const updateVolunteer = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireDirector(ctx);
+		await requireRefundsAccess(ctx);
 		const doc = await ctx.db.get("refundVolunteers", args.id);
 		if (!doc) {
 			throw new ConvexError({
@@ -348,7 +365,7 @@ export const deleteVolunteer = mutation({
 	args: { id: v.id("refundVolunteers") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireDirector(ctx);
+		await requireRefundsAccess(ctx);
 		const doc = await ctx.db.get("refundVolunteers", args.id);
 		if (!doc) return null;
 		await ctx.db.delete("refundVolunteers", args.id);
@@ -360,7 +377,7 @@ export const computeRefunds = action({
 	args: {},
 	returns: refundComputationResultShape,
 	handler: async (ctx): Promise<RefundComputationResult> => {
-		await requireDirectorOrVolunteerAction(ctx);
+		await requireDirectorOrDelegateAction(ctx);
 
 		const volunteerDocs: RefundVolunteerRecord[] = await ctx.runQuery(
 			internal.refunds.listVolunteersInternal,

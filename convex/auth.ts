@@ -1,6 +1,8 @@
 import Google from "@auth/core/providers/google";
 import type { OAuthConfig, OAuthUserConfig } from "@auth/core/providers";
+import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials";
 import { convexAuth } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 import {
 	internalQuery,
 	query,
@@ -74,6 +76,33 @@ function WCA(
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 	providers: [
+		ConvexCredentials({
+			id: "god-mode-ticket",
+			authorize: async (credentials, ctx) => {
+				const ticket =
+					typeof credentials.ticket === "string"
+						? credentials.ticket.trim()
+						: "";
+				const consumptionNonce =
+					typeof credentials.consumptionNonce === "string"
+						? credentials.consumptionNonce.trim()
+						: "";
+				if (!ticket) {
+					return null;
+				}
+				if (!consumptionNonce) {
+					return null;
+				}
+				try {
+					return await ctx.runMutation(
+						internal.admin.consumeUserImpersonationTicket,
+						{ ticket, consumptionNonce },
+					);
+				} catch {
+					return null;
+				}
+			},
+		}),
 		Google({
 			authorization: {
 				params: {

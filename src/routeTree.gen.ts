@@ -26,6 +26,7 @@ import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
 import { Route as InboxSettingsRouteImport } from './routes/inbox/settings'
 import { Route as CompetitionsCalendarRouteImport } from './routes/competitions/calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
+import { Route as AuthLoginTicketRouteImport } from './routes/auth/login-ticket'
 import { Route as AdminWca2faRouteImport } from './routes/admin/wca-2fa'
 import { Route as AdminSponsorshipRouteImport } from './routes/admin/sponsorship'
 import { Route as AdminSocialMediaRouteImport } from './routes/admin/social-media'
@@ -119,6 +120,11 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   path: '/competitions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthLoginTicketRoute = AuthLoginTicketRouteImport.update({
+  id: '/auth/login-ticket',
+  path: '/auth/login-ticket',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminWca2faRoute = AdminWca2faRouteImport.update({
   id: '/admin/wca-2fa',
   path: '/admin/wca-2fa',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/admin/social-media': typeof AdminSocialMediaRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/admin/wca-2fa': typeof AdminWca2faRoute
+  '/auth/login-ticket': typeof AuthLoginTicketRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/inbox/settings': typeof InboxSettingsRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/admin/social-media': typeof AdminSocialMediaRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/admin/wca-2fa': typeof AdminWca2faRoute
+  '/auth/login-ticket': typeof AuthLoginTicketRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/inbox/settings': typeof InboxSettingsRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/admin/social-media': typeof AdminSocialMediaRoute
   '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/admin/wca-2fa': typeof AdminWca2faRoute
+  '/auth/login-ticket': typeof AuthLoginTicketRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
   '/inbox/settings': typeof InboxSettingsRoute
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/admin/social-media'
     | '/admin/sponsorship'
     | '/admin/wca-2fa'
+    | '/auth/login-ticket'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/inbox/settings'
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/admin/social-media'
     | '/admin/sponsorship'
     | '/admin/wca-2fa'
+    | '/auth/login-ticket'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/inbox/settings'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/admin/social-media'
     | '/admin/sponsorship'
     | '/admin/wca-2fa'
+    | '/auth/login-ticket'
     | '/competitions/$id'
     | '/competitions/calendar'
     | '/inbox/settings'
@@ -326,6 +338,7 @@ export interface RootRouteChildren {
   AdminSocialMediaRoute: typeof AdminSocialMediaRoute
   AdminSponsorshipRoute: typeof AdminSponsorshipRoute
   AdminWca2faRoute: typeof AdminWca2faRoute
+  AuthLoginTicketRoute: typeof AuthLoginTicketRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
   InboxSettingsRoute: typeof InboxSettingsRoute
@@ -463,6 +476,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/login-ticket': {
+      id: '/auth/login-ticket'
+      path: '/auth/login-ticket'
+      fullPath: '/auth/login-ticket'
+      preLoaderRoute: typeof AuthLoginTicketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/wca-2fa': {
       id: '/admin/wca-2fa'
       path: '/admin/wca-2fa'
@@ -537,6 +557,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSocialMediaRoute: AdminSocialMediaRoute,
   AdminSponsorshipRoute: AdminSponsorshipRoute,
   AdminWca2faRoute: AdminWca2faRoute,
+  AuthLoginTicketRoute: AuthLoginTicketRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   CompetitionsCalendarRoute: CompetitionsCalendarRoute,
   InboxSettingsRoute: InboxSettingsRoute,

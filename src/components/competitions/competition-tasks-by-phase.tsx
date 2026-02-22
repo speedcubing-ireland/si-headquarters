@@ -47,9 +47,7 @@ export function CompetitionTasksByPhase({
 	const [
 		manuallyExpandedCompletedPhaseKeys,
 		setManuallyExpandedCompletedPhaseKeys,
-	] = useState<Set<string>>(
-		() => new Set(),
-	);
+	] = useState<Set<string>>(() => new Set());
 
 	const phasesWithoutArchive = competition.phases.filter(
 		(phase) => !isArchivePhaseName(phase.name),
@@ -155,9 +153,7 @@ export function CompetitionTasksByPhase({
 							</DropdownMenuCheckboxItem>
 							<DropdownMenuCheckboxItem
 								checked={showSubtasks}
-								onCheckedChange={(checked) =>
-									setShowSubtasks(checked === true)
-								}
+								onCheckedChange={(checked) => setShowSubtasks(checked === true)}
 							>
 								Show subtasks
 							</DropdownMenuCheckboxItem>

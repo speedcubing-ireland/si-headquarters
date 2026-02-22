@@ -4,6 +4,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 const DEFAULT_PERMISSION_SNAPSHOT = {
 	isDirector: false,
+	isDelegate: false,
 	isVolunteer: false,
 	canAccessWca2fa: false,
 	isSponsorshipManager: false,
@@ -21,6 +22,11 @@ export const usePermissionSnapshot = () => {
 export const useIsDirector = () => {
 	const { permissions, isLoading } = usePermissionSnapshot();
 	return { isDirector: permissions.isDirector, isLoading };
+};
+
+export const useIsDelegate = () => {
+	const { permissions, isLoading } = usePermissionSnapshot();
+	return { isDelegate: permissions.isDelegate, isLoading };
 };
 
 export const useIsVolunteer = () => {
@@ -53,6 +59,15 @@ export const useAdminMembersAndTeams = () => {
 	};
 };
 
+export const useAdminImpersonationTargets = () => {
+	const d = useQuery(api.admin.listImpersonationTargets, {});
+	return {
+		users: d?.users ?? [],
+		sponsors: d?.sponsors ?? [],
+		isLoading: d === undefined,
+	};
+};
+
 export function useAdminMemberMutations() {
 	const updateTeamMembersMut = useMutation(api.admin.updateTeamMembers);
 	const addPendingMut = useMutation(api.admin.addPendingTeamMember);
@@ -64,5 +79,18 @@ export function useAdminMemberMutations() {
 			addPendingMut({ teamId, email }),
 		removePendingTeamMember: (id: Id<"pendingTeamMembers">) =>
 			removePendingMut({ pendingTeamMemberId: id }),
+	};
+}
+
+export function useAdminImpersonationMutations() {
+	const createImpersonationLoginLink = useMutation(
+		api.admin.createImpersonationLoginLink,
+	);
+	const consumeSponsorImpersonationTicket = useMutation(
+		api.admin.consumeSponsorImpersonationTicket,
+	);
+	return {
+		createImpersonationLoginLink,
+		consumeSponsorImpersonationTicket,
 	};
 }

@@ -146,6 +146,7 @@ import type * as tasks from "../tasks.js";
 import type * as tasks_creation from "../tasks/creation.js";
 import type * as tasks_dueDate from "../tasks/dueDate.js";
 import type * as teams from "../teams.js";
+import type * as test_utils_convexError from "../test_utils/convexError.js";
 import type * as updates from "../updates.js";
 import type * as userThemeSettings from "../userThemeSettings.js";
 import type * as users from "../users.js";
@@ -300,6 +301,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/creation": typeof tasks_creation;
   "tasks/dueDate": typeof tasks_dueDate;
   teams: typeof teams;
+  "test_utils/convexError": typeof test_utils_convexError;
   updates: typeof updates;
   userThemeSettings: typeof userThemeSettings;
   users: typeof users;

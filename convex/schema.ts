@@ -70,6 +70,21 @@ export default defineSchema({
 		.index("by_email", ["email"])
 		.index("by_team_and_email", ["teamId", "email"]),
 
+	adminImpersonationTickets: defineTable({
+		tokenHash: v.string(),
+		targetType: v.union(v.literal("user"), v.literal("sponsor")),
+		userId: v.optional(v.id("users")),
+		sponsorId: v.optional(v.id("sponsors")),
+		sponsorAuthUserId: v.optional(v.string()),
+		createdById: v.id("users"),
+		createdAt: v.number(),
+		expiresAt: v.number(),
+		usedAt: v.optional(v.number()),
+		consumedByNonceHash: v.optional(v.string()),
+	})
+		.index("by_token_hash", ["tokenHash"])
+		.index("by_expires_at", ["expiresAt"]),
+
 	labels: defineTable({
 		name: v.string(),
 		color: v.string(),

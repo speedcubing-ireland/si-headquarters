@@ -10,6 +10,7 @@ import type { FileRoutesByTo } from "@/routeTree.gen";
 
 export type RoutePermissionKey =
 	| "isDirector"
+	| "isDelegate"
 	| "isVolunteer"
 	| "canAccessWca2fa"
 	| "isSponsorshipManager"
@@ -18,7 +19,7 @@ export type RoutePermissionKey =
 export const PROTECTED_ROUTES: Record<string, RoutePermissionKey> = {
 	"/admin/god-mode": "isDirector",
 	"/admin/email": "isDirector",
-	"/admin/refunds": "isVolunteer",
+	"/admin/refunds": "isDelegate",
 	"/admin/wca-2fa": "canAccessWca2fa",
 	"/admin/social-media": "canAccessSocialMediaDashboard",
 	"/admin/sponsorship": "isSponsorshipManager",
@@ -46,7 +47,7 @@ export const SIDEBAR_DASHBOARD_ITEMS: ReadonlyArray<{
 	},
 	{
 		path: "/admin/refunds",
-		permission: "isVolunteer",
+		permission: "isDelegate",
 		orPermissions: ["isDirector"],
 		name: "Refunds",
 		icon: HandCoins,

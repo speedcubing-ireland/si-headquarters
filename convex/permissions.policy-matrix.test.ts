@@ -58,6 +58,27 @@ describe("permissions policy matrix", () => {
 			expect(noneSnap.isDirector).toBe(false);
 		});
 
+		test("delegate: only Delegates team has isDelegate", async () => {
+			const t = convexTest(schema, modules);
+			const delegate = await seedUserInTeam(t, TEAM_NAMES.DELEGATES);
+			const director = await seedUserInTeam(t, TEAM_NAMES.DIRECTORS);
+			const none = await seedUserInNoTeam(t);
+
+			const delegateSnap = await t
+				.withIdentity({ subject: delegate.userId })
+				.query(api.admin.getPermissionSnapshot, {});
+			const directorSnap = await t
+				.withIdentity({ subject: director.userId })
+				.query(api.admin.getPermissionSnapshot, {});
+			const noneSnap = await t
+				.withIdentity({ subject: none.userId })
+				.query(api.admin.getPermissionSnapshot, {});
+
+			expect(delegateSnap.isDelegate).toBe(true);
+			expect(directorSnap.isDelegate).toBe(false);
+			expect(noneSnap.isDelegate).toBe(false);
+		});
+
 		test("volunteer: only Volunteer team has isVolunteer", async () => {
 			const t = convexTest(schema, modules);
 			const director = await seedUserInTeam(t, TEAM_NAMES.DIRECTORS);

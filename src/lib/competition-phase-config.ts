@@ -39,7 +39,9 @@ export function getPhaseLabel(key: CompetitionPhaseKey): string {
 	return phaseConfig[key].label;
 }
 
-export function getPhaseKeyFromName(name: string | null | undefined): CompetitionPhaseKey {
+export function getPhaseKeyFromName(
+	name: string | null | undefined,
+): CompetitionPhaseKey {
 	const normalized = name?.trim().toLowerCase() ?? "concept";
 	if (normalized.startsWith("concept")) return "concept";
 	if (normalized.startsWith("pre-announcement")) return "pre-announcement";

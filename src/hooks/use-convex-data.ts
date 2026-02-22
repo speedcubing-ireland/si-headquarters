@@ -43,11 +43,14 @@ export {
 export {
 	usePermissionSnapshot,
 	useIsDirector,
+	useIsDelegate,
 	useIsVolunteer,
 	useCanAccessWca2fa,
 	useCanAccessSocialMediaDashboard,
 	useAdminMembersAndTeams,
 	useAdminMemberMutations,
+	useAdminImpersonationTargets,
+	useAdminImpersonationMutations,
 } from "./convex/use-admin";
 
 export { useRefundVolunteers, useRefundMutations } from "./convex/use-refunds";

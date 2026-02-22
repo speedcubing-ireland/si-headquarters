@@ -4,71 +4,14 @@ import { api } from "./_generated/api";
 import { TEAM_NAMES } from "./lib/constants";
 import schema from "./schema";
 import { modules } from "./test.setup";
+import {
+	getConvexErrorCode,
+	getConvexErrorMessage,
+} from "./test_utils/convexError";
 
 const WCA_2FA_SECRET_ENV = "WCA_2FA_SECRET";
 
 const VALID_32CHAR_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
-
-function getConvexErrorMessage(error: unknown): string {
-	if (
-		typeof error === "object" &&
-		error !== null &&
-		"data" in error &&
-		typeof error.data === "string"
-	) {
-		try {
-			const parsed = JSON.parse(error.data) as { message?: unknown };
-			if (typeof parsed.message === "string") {
-				return parsed.message;
-			}
-		} catch {
-			return error.data;
-		}
-	}
-	if (
-		typeof error === "object" &&
-		error !== null &&
-		"data" in error &&
-		typeof error.data === "object" &&
-		error.data !== null &&
-		"message" in error.data &&
-		typeof error.data.message === "string"
-	) {
-		return error.data.message;
-	}
-	if (error instanceof Error) {
-		return error.message;
-	}
-	return String(error);
-}
-
-function getConvexErrorCode(error: unknown): string | null {
-	if (
-		typeof error === "object" &&
-		error !== null &&
-		"data" in error &&
-		typeof error.data === "string"
-	) {
-		try {
-			const parsed = JSON.parse(error.data) as { code?: unknown };
-			return typeof parsed.code === "string" ? parsed.code : null;
-		} catch {
-			return null;
-		}
-	}
-	if (
-		typeof error === "object" &&
-		error !== null &&
-		"data" in error &&
-		typeof error.data === "object" &&
-		error.data !== null &&
-		"code" in error.data &&
-		typeof error.data.code === "string"
-	) {
-		return error.data.code;
-	}
-	return null;
-}
 
 async function seedAuthorizedUserWithTeam(teamName: string): Promise<{
 	testHarness: ReturnType<typeof convexTest>;

@@ -1,19 +1,37 @@
 import { ConvexError, v } from "convex/values";
-import { internalQuery, mutation, query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import { components } from "./_generated/api";
+import {
+	internalMutation,
+	internalQuery,
+	mutation,
+	query,
+} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
 	canAccessWca2faForCtx,
 	canAccessSocialMediaDashboardForCtx,
 	getPermissionSnapshot as getPermissionSnapshotForCtx,
+	isDelegateForCtx,
 	isDirectorForCtx,
 	requirePermission,
 	PERMISSION_KEYS,
 } from "./lib/permissions/policies";
 import { requireAuthenticatedUserId } from "./lib/permissions/authn";
 import { normalizeEmail, validateEmail } from "./lib/sanitize";
+import { ensureSponsorAuthAccount } from "./sponsorship/authAccounts";
 
 type AuthCtx = QueryCtx | MutationCtx;
+type ImpersonationTargetType = "user" | "sponsor";
+
+const IMPERSONATION_TICKET_TTL_MS = 5 * 60 * 1000;
+const IMPERSONATION_SESSION_TTL_MS = 60 * 60 * 1000;
+const SPONSOR_OTT_TTL_MS = 3 * 60 * 1000;
+const MIN_CONSUMPTION_NONCE_LENGTH = 16;
+const INVALID_IMPERSONATION_LINK_MESSAGE =
+	"Invalid or expired impersonation link.";
+const EXCLUSIVE_TARGET_ID_MESSAGE =
+	"Provide either user id or sponsor id, not both, for impersonation.";
 
 export { isDirectorForCtx } from "./lib/permissions/policies";
 
@@ -54,6 +72,82 @@ async function addMemberToTeamIfMissing(
 	});
 }
 
+function bytesToHex(bytes: Uint8Array): string {
+	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	);
+}
+
+function generateSecureToken(byteLength = 32): string {
+	const bytes = new Uint8Array(byteLength);
+	crypto.getRandomValues(bytes);
+	return bytesToHex(bytes);
+}
+
+async function sha256Hex(value: string): Promise<string> {
+	const encoded = new TextEncoder().encode(value);
+	const digest = await crypto.subtle.digest("SHA-256", encoded);
+	return bytesToHex(new Uint8Array(digest));
+}
+
+function resolveSiteUrl(): string {
+	const siteUrl =
+		process.env.SITE_URL ??
+		(process.env.NODE_ENV === "production"
+			? "https://hq.speedcubing.ie"
+			: "http://localhost:5173");
+	return siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl;
+}
+
+type AdminImpersonationTicket = Doc<"adminImpersonationTickets">;
+
+function throwInvalidImpersonationLink(): never {
+	throw new ConvexError({
+		code: "UNAUTHENTICATED",
+		message: INVALID_IMPERSONATION_LINK_MESSAGE,
+	});
+}
+
+function normalizeConsumptionNonce(consumptionNonce: string): string {
+	const normalized = consumptionNonce.trim();
+	if (normalized.length < MIN_CONSUMPTION_NONCE_LENGTH) {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: "Invalid login request.",
+		});
+	}
+	return normalized;
+}
+
+async function getConsumableTicketByToken(
+	ctx: MutationCtx,
+	ticket: string,
+	consumedByNonceHash: string,
+): Promise<{
+	ticket: AdminImpersonationTicket;
+	alreadyConsumedByNonce: boolean;
+}> {
+	const trimmed = ticket.trim();
+	if (trimmed.length < 32) {
+		throwInvalidImpersonationLink();
+	}
+	const tokenHash = await sha256Hex(trimmed);
+	const row = await ctx.db
+		.query("adminImpersonationTickets")
+		.withIndex("by_token_hash", (q) => q.eq("tokenHash", tokenHash))
+		.unique();
+	if (!row || row.expiresAt < Date.now()) {
+		throwInvalidImpersonationLink();
+	}
+	if (row.usedAt === undefined) {
+		return { ticket: row, alreadyConsumedByNonce: false };
+	}
+	if (row.consumedByNonceHash === consumedByNonceHash) {
+		return { ticket: row, alreadyConsumedByNonce: true };
+	}
+	throwInvalidImpersonationLink();
+}
+
 export const isDirector = query({
 	args: {},
 	returns: v.boolean(),
@@ -70,6 +164,14 @@ export const getIsDirectorInternal = internalQuery({
 	},
 });
 
+export const getIsDelegateInternal = internalQuery({
+	args: {},
+	returns: v.boolean(),
+	handler: async (ctx) => {
+		return await isDelegateForCtx(ctx);
+	},
+});
+
 export const canAccessWca2fa = query({
 	args: {},
 	returns: v.boolean(),
@@ -80,6 +182,7 @@ export const canAccessWca2fa = query({
 
 const permissionSnapshotShape = v.object({
 	isDirector: v.boolean(),
+	isDelegate: v.boolean(),
 	isVolunteer: v.boolean(),
 	canAccessWca2fa: v.boolean(),
 	isSponsorshipManager: v.boolean(),
@@ -544,5 +647,278 @@ export const deletePhaseIfUnused = mutation({
 
 		await ctx.db.delete("phases", args.id);
 		return null;
+	},
+});
+
+const impersonationUserShape = v.object({
+	id: v.id("users"),
+	name: v.string(),
+	email: v.string(),
+});
+
+const impersonationSponsorShape = v.object({
+	id: v.id("sponsors"),
+	name: v.string(),
+	email: v.string(),
+	active: v.boolean(),
+});
+
+export const listImpersonationTargets = query({
+	args: {},
+	returns: v.object({
+		users: v.array(impersonationUserShape),
+		sponsors: v.array(impersonationSponsorShape),
+	}),
+	handler: async (ctx) => {
+		await requireDirector(ctx);
+
+		const [users, sponsors] = await Promise.all([
+			ctx.db.query("users").withIndex("email").collect(),
+			ctx.db.query("sponsors").withIndex("by_name").order("asc").collect(),
+		]);
+
+		return {
+			users: users
+				.map((user) => ({
+					id: user._id,
+					name: user.name?.trim() || "Unnamed user",
+					email: user.email?.trim() || "",
+				}))
+				.sort((a, b) => {
+					const nameSort = a.name.localeCompare(b.name);
+					if (nameSort !== 0) return nameSort;
+					return a.email.localeCompare(b.email);
+				}),
+			sponsors: sponsors.map((sponsor) => ({
+				id: sponsor._id,
+				name: sponsor.name,
+				email: sponsor.email,
+				active: sponsor.active,
+			})),
+		};
+	},
+});
+
+const createImpersonationLinkArgs = v.object({
+	targetType: v.union(v.literal("user"), v.literal("sponsor")),
+	userId: v.optional(v.id("users")),
+	sponsorId: v.optional(v.id("sponsors")),
+});
+
+export const createImpersonationLoginLink = mutation({
+	args: createImpersonationLinkArgs,
+	returns: v.object({
+		url: v.string(),
+		expiresAt: v.number(),
+		targetType: v.union(v.literal("user"), v.literal("sponsor")),
+		targetName: v.string(),
+		targetEmail: v.string(),
+	}),
+	handler: async (ctx, args) => {
+		const actorId = await requirePermission(ctx, PERMISSION_KEYS.DIRECTOR);
+		const now = Date.now();
+		const expiresAt = now + IMPERSONATION_TICKET_TTL_MS;
+		const ticket = generateSecureToken(32);
+		const tokenHash = await sha256Hex(ticket);
+		const siteUrl = resolveSiteUrl();
+
+		let targetType: ImpersonationTargetType;
+		let targetName: string;
+		let targetEmail: string;
+
+		if (args.targetType === "user") {
+			if (!args.userId) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: "User id is required for user impersonation.",
+				});
+			}
+			if (args.sponsorId) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: EXCLUSIVE_TARGET_ID_MESSAGE,
+				});
+			}
+			const user = await ctx.db.get("users", args.userId);
+			if (!user) {
+				throw new ConvexError({
+					code: "NOT_FOUND",
+					message: "User not found.",
+				});
+			}
+
+			targetType = "user";
+			targetName = user.name?.trim() || "Unnamed user";
+			targetEmail = user.email?.trim() || "";
+
+			await ctx.db.insert("adminImpersonationTickets", {
+				tokenHash,
+				targetType,
+				userId: user._id,
+				createdById: actorId,
+				createdAt: now,
+				expiresAt,
+			});
+		} else {
+			if (!args.sponsorId) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: "Sponsor id is required for sponsor impersonation.",
+				});
+			}
+			if (args.userId) {
+				throw new ConvexError({
+					code: "BAD_REQUEST",
+					message: EXCLUSIVE_TARGET_ID_MESSAGE,
+				});
+			}
+			const sponsor = await ctx.db.get("sponsors", args.sponsorId);
+			if (!sponsor || !sponsor.active) {
+				throw new ConvexError({
+					code: "NOT_FOUND",
+					message: "Active sponsor not found.",
+				});
+			}
+			const { authUserId } = await ensureSponsorAuthAccount(ctx, {
+				sponsor,
+				updatedById: actorId,
+			});
+
+			targetType = "sponsor";
+			targetName = sponsor.name;
+			targetEmail = sponsor.email;
+
+			await ctx.db.insert("adminImpersonationTickets", {
+				tokenHash,
+				targetType,
+				sponsorId: sponsor._id,
+				sponsorAuthUserId: authUserId,
+				createdById: actorId,
+				createdAt: now,
+				expiresAt,
+			});
+		}
+
+		const url = new URL("/auth/login-ticket", siteUrl);
+		url.searchParams.set("ticket", ticket);
+		url.searchParams.set("kind", targetType);
+
+		return {
+			url: url.toString(),
+			expiresAt,
+			targetType,
+			targetName,
+			targetEmail,
+		};
+	},
+});
+
+export const consumeUserImpersonationTicket = internalMutation({
+	args: { ticket: v.string(), consumptionNonce: v.string() },
+	returns: v.object({ userId: v.id("users") }),
+	handler: async (ctx, args) => {
+		const consumptionNonce = normalizeConsumptionNonce(args.consumptionNonce);
+		const consumedByNonceHash = await sha256Hex(consumptionNonce);
+		const { ticket: row, alreadyConsumedByNonce } =
+			await getConsumableTicketByToken(ctx, args.ticket, consumedByNonceHash);
+		if (row.targetType !== "user" || !row.userId) {
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "Invalid impersonation link.",
+			});
+		}
+
+		const user = await ctx.db.get("users", row.userId);
+		if (!user) {
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "User account no longer exists.",
+			});
+		}
+
+		if (!alreadyConsumedByNonce) {
+			await ctx.db.patch("adminImpersonationTickets", row._id, {
+				usedAt: Date.now(),
+				consumedByNonceHash,
+			});
+		}
+		return { userId: row.userId };
+	},
+});
+
+export const consumeSponsorImpersonationTicket = mutation({
+	args: { ticket: v.string(), consumptionNonce: v.string() },
+	returns: v.object({ oneTimeToken: v.string() }),
+	handler: async (ctx, args) => {
+		const consumptionNonce = normalizeConsumptionNonce(args.consumptionNonce);
+		const consumedByNonceHash = await sha256Hex(consumptionNonce);
+		const { ticket: row, alreadyConsumedByNonce } =
+			await getConsumableTicketByToken(ctx, args.ticket, consumedByNonceHash);
+		if (row.targetType !== "sponsor" || !row.sponsorId) {
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "Invalid impersonation link.",
+			});
+		}
+
+		const sponsor = await ctx.db.get("sponsors", row.sponsorId);
+		if (!sponsor || !sponsor.active) {
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "Sponsor account is inactive.",
+			});
+		}
+
+		const sponsorAuthUserId = row.sponsorAuthUserId ?? sponsor.authUserId;
+		if (!sponsorAuthUserId) {
+			throw new ConvexError({
+				code: "UNAUTHENTICATED",
+				message: "Sponsor auth account is unavailable.",
+			});
+		}
+
+		const now = Date.now();
+		const sessionToken = generateSecureToken(32);
+		const oneTimeToken = await sha256Hex(
+			`sponsor:${args.ticket.trim()}:${consumptionNonce}`,
+		);
+
+		if (alreadyConsumedByNonce) {
+			return { oneTimeToken };
+		}
+
+		await ctx.runMutation(components.sponsorAuth.adapter.create, {
+			input: {
+				model: "session",
+				data: {
+					expiresAt: now + IMPERSONATION_SESSION_TTL_MS,
+					token: sessionToken,
+					createdAt: now,
+					updatedAt: now,
+					ipAddress: null,
+					userAgent: "god-mode-impersonation",
+					userId: sponsorAuthUserId,
+				},
+			},
+		});
+
+		await ctx.runMutation(components.sponsorAuth.adapter.create, {
+			input: {
+				model: "verification",
+				data: {
+					identifier: `one-time-token:${oneTimeToken}`,
+					value: sessionToken,
+					expiresAt: now + SPONSOR_OTT_TTL_MS,
+					createdAt: now,
+					updatedAt: now,
+				},
+			},
+		});
+
+		await ctx.db.patch("adminImpersonationTickets", row._id, {
+			usedAt: now,
+			consumedByNonceHash,
+		});
+		return { oneTimeToken };
 	},
 });

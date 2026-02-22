@@ -42,6 +42,7 @@ describe("route-permissions alignment", () => {
 	test("PROTECTED_ROUTES uses only known permission keys", () => {
 		const known: RoutePermissionKey[] = [
 			"isDirector",
+			"isDelegate",
 			"isVolunteer",
 			"canAccessWca2fa",
 			"isSponsorshipManager",
