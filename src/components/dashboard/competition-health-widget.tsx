@@ -41,8 +41,8 @@ export function getCompetitionDaysText(
 ): string {
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
-	const start = new Date(compStart);
-	const end = new Date(compEnd);
+	const start = new Date(`${compStart}T00:00:00`);
+	const end = new Date(`${compEnd}T00:00:00`);
 
 	const daysToStart = Math.ceil(
 		(start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),

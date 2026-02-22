@@ -46,7 +46,10 @@ export async function canUserRunForTask(
 		return args.task.ownerId === args.userId;
 	}
 	if (args.task.ownerType === "team") {
-		const ownerTeam = await ctx.db.get("teams", args.task.ownerId as Id<"teams">);
+		const ownerTeam = await ctx.db.get(
+			"teams",
+			args.task.ownerId as Id<"teams">,
+		);
 		return ownerTeam?.memberIds.includes(args.userId) ?? false;
 	}
 	return false;
