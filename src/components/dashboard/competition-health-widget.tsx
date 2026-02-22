@@ -42,12 +42,12 @@ export function getCompetitionDaysText(
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 	const start = new Date(`${compStart}T00:00:00`);
-	const end = new Date(`${compEnd}T00:00:00`);
+	const end = new Date(`${compEnd}T23:59:59`);
 
 	const daysToStart = Math.ceil(
 		(start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
 	);
-	const daysToEnd = Math.ceil(
+	const daysToEnd = Math.floor(
 		(end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
 	);
 
