@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { requireCompetitionId } from "@/lib/convex-ids";
+import { isFinishedTask } from "@/lib/competition-phase-task-view";
 import {
 	useCompetition,
 	useNotificationMutations,
@@ -205,14 +206,12 @@ function RouteComponent() {
 	const currentPhaseTasks = currentPhaseId
 		? scopedTasks.filter((task) => task.phase?.id === currentPhaseId)
 		: scopedTasks;
-	const currentPhaseDone = currentPhaseTasks.filter(
-		(task) => task.status === "done",
-	).length;
+	const currentPhaseCompleted = currentPhaseTasks.filter(isFinishedTask).length;
 	const phaseTaskCount = currentPhaseTasks.length;
 	const completionPercent =
 		currentPhaseTasks.length === 0
 			? 0
-			: Math.round((currentPhaseDone / currentPhaseTasks.length) * 100);
+			: Math.round((currentPhaseCompleted / currentPhaseTasks.length) * 100);
 
 	return (
 		<div className="flex h-full flex-col overflow-x-hidden">
@@ -262,7 +261,7 @@ function RouteComponent() {
 											Phase Completion
 										</span>
 										<span className="font-medium">
-											{completionPercent}% done
+											{completionPercent}% complete
 										</span>
 									</div>
 									<div className="mt-2 h-2 rounded-full bg-muted">
