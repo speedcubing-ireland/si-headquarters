@@ -189,13 +189,13 @@ export const defaultLightColors: ThemeColors = {
 	"code-selection": "oklch(0.9482 0.0248 65.5805)",
 	"code-border": "oklch(0.8919 0.0199 65.12)",
 	success: tw.green[500],
-	"success-foreground": tw.green[700],
+	"success-foreground": "oklch(1 0 0)",
 	warning: tw.amber[500],
-	"warning-foreground": tw.amber[700],
+	"warning-foreground": "oklch(1 0 0)",
 	error: tw.red[500],
-	"error-foreground": tw.red[700],
+	"error-foreground": "oklch(1 0 0)",
 	info: tw.blue[500],
-	"info-foreground": tw.blue[700],
+	"info-foreground": "oklch(1 0 0)",
 };
 
 export const defaultDarkColors: ThemeColors = {
@@ -242,13 +242,13 @@ export const defaultDarkColors: ThemeColors = {
 	"code-selection": "oklch(0.4542 0.0419 42.4197)",
 	"code-border": "oklch(0.4542 0.0419 42.4197)",
 	success: tw.green[400],
-	"success-foreground": tw.green[600],
+	"success-foreground": "oklch(1 0 0)",
 	warning: tw.amber[400],
-	"warning-foreground": tw.amber[600],
+	"warning-foreground": "oklch(1 0 0)",
 	error: tw.red[400],
-	"error-foreground": tw.red[600],
+	"error-foreground": "oklch(1 0 0)",
 	info: tw.blue[400],
-	"info-foreground": tw.blue[600],
+	"info-foreground": "oklch(1 0 0)",
 };
 
 export function createDefaultCustomTheme(): CustomTheme {

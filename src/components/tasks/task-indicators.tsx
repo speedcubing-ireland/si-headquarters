@@ -6,12 +6,25 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Task } from "@/data/types-new";
+import type { TaskStatus } from "@/data/types-new";
 import { getStatusIcon } from "@/lib/task-utils";
 
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 6;
 
-function getSubtaskProgress(task: Task): { done: number; total: number } {
+export interface TaskIndicatorsTask {
+	isBlocked: boolean;
+	unresolvedBlockerCount: number;
+	subTasks?: Array<{
+		id: string;
+		title: string;
+		status: TaskStatus;
+	}>;
+}
+
+function getSubtaskProgress(task: TaskIndicatorsTask): {
+	done: number;
+	total: number;
+} {
 	const subtasks = task.subTasks || [];
 	const relevant = subtasks.filter((t) => t.status !== "cancelled");
 	const done = relevant.filter((t) => t.status === "done").length;
@@ -19,7 +32,7 @@ function getSubtaskProgress(task: Task): { done: number; total: number } {
 }
 
 interface TaskIndicatorsProps {
-	task: Task;
+	task: TaskIndicatorsTask;
 	blockedClassName?: string;
 	progressClassName?: string;
 	blockedIcon?: ReactNode;
@@ -90,7 +103,7 @@ export function TaskIndicators({
 					</TooltipTrigger>
 					<TooltipContent side={tooltipSide} sideOffset={tooltipSideOffset}>
 						<div className="space-y-1 text-xs">
-							{task.subTasks.map((subtask) => {
+							{(task.subTasks ?? []).map((subtask) => {
 								const SubStatusIcon = getStatusIcon(subtask.status);
 								return (
 									<div

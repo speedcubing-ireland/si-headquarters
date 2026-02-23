@@ -245,7 +245,7 @@ export function CustomThemeModal({
 						value={jsonValue}
 						onChange={(e) => handleJsonChange(e.target.value)}
 						className={cn(
-							"font-mono text-xs min-h-[300px] resize-y bg-code text-code-foreground",
+							"font-mono text-xs h-56 min-h-40 max-h-[60vh] resize-y bg-code text-code-foreground",
 							validationError &&
 								"border-destructive focus-visible:ring-destructive/20",
 						)}

@@ -24,6 +24,7 @@ import { Route as SponsorSettingsRouteImport } from './routes/sponsor/settings'
 import { Route as SponsorLoginRouteImport } from './routes/sponsor/login'
 import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
 import { Route as InboxSettingsRouteImport } from './routes/inbox/settings'
+import { Route as DemoUiRouteImport } from './routes/demo/ui'
 import { Route as CompetitionsCalendarRouteImport } from './routes/competitions/calendar'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AuthLoginTicketRouteImport } from './routes/auth/login-ticket'
@@ -110,6 +111,11 @@ const InboxSettingsRoute = InboxSettingsRouteImport.update({
   path: '/inbox/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemoUiRoute = DemoUiRouteImport.update({
+  id: '/demo/ui',
+  path: '/demo/ui',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompetitionsCalendarRoute = CompetitionsCalendarRouteImport.update({
   id: '/competitions/calendar',
   path: '/competitions/calendar',
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/auth/login-ticket': typeof AuthLoginTicketRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/demo/ui': typeof DemoUiRoute
   '/inbox/settings': typeof InboxSettingsRoute
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/login': typeof SponsorLoginRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/auth/login-ticket': typeof AuthLoginTicketRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/demo/ui': typeof DemoUiRoute
   '/inbox/settings': typeof InboxSettingsRoute
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/login': typeof SponsorLoginRoute
@@ -230,6 +238,7 @@ export interface FileRoutesById {
   '/auth/login-ticket': typeof AuthLoginTicketRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/competitions/calendar': typeof CompetitionsCalendarRoute
+  '/demo/ui': typeof DemoUiRoute
   '/inbox/settings': typeof InboxSettingsRoute
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/login': typeof SponsorLoginRoute
@@ -259,6 +268,7 @@ export interface FileRouteTypes {
     | '/auth/login-ticket'
     | '/competitions/$id'
     | '/competitions/calendar'
+    | '/demo/ui'
     | '/inbox/settings'
     | '/sponsor/auctions'
     | '/sponsor/login'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/auth/login-ticket'
     | '/competitions/$id'
     | '/competitions/calendar'
+    | '/demo/ui'
     | '/inbox/settings'
     | '/sponsor/auctions'
     | '/sponsor/login'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/auth/login-ticket'
     | '/competitions/$id'
     | '/competitions/calendar'
+    | '/demo/ui'
     | '/inbox/settings'
     | '/sponsor/auctions'
     | '/sponsor/login'
@@ -341,6 +353,7 @@ export interface RootRouteChildren {
   AuthLoginTicketRoute: typeof AuthLoginTicketRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   CompetitionsCalendarRoute: typeof CompetitionsCalendarRoute
+  DemoUiRoute: typeof DemoUiRoute
   InboxSettingsRoute: typeof InboxSettingsRoute
   SponsorAuctionsRoute: typeof SponsorAuctionsRouteWithChildren
   SponsorLoginRoute: typeof SponsorLoginRoute
@@ -462,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InboxSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/demo/ui': {
+      id: '/demo/ui'
+      path: '/demo/ui'
+      fullPath: '/demo/ui'
+      preLoaderRoute: typeof DemoUiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/competitions/calendar': {
       id: '/competitions/calendar'
       path: '/competitions/calendar'
@@ -560,6 +580,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginTicketRoute: AuthLoginTicketRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   CompetitionsCalendarRoute: CompetitionsCalendarRoute,
+  DemoUiRoute: DemoUiRoute,
   InboxSettingsRoute: InboxSettingsRoute,
   SponsorAuctionsRoute: SponsorAuctionsRouteWithChildren,
   SponsorLoginRoute: SponsorLoginRoute,
