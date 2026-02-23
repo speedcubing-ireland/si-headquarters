@@ -2,6 +2,7 @@ import {
 	sponsorBidStatusLabel,
 	type SponsorBidStatus,
 } from "@/lib/sponsorship-ui";
+import { Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -17,21 +18,18 @@ export function SponsorBidStatusBadge(props: {
 
 	const isPositive = status === "winning" || status === "winner";
 	const isInfo = status === "bid_submitted";
+	const isCheck = isPositive || isInfo;
 
 	const variant = isInfo ? "info" : isPositive ? "success" : "error";
 
-	const dotClassName = isInfo
-		? "size-2 rounded-full bg-info"
-		: isPositive
-			? "size-2 rounded-full bg-success"
-			: "size-2 rounded-full bg-error";
+	const IndicatorIcon = isCheck ? Check : X;
 
 	return (
 		<Badge
 			variant={variant}
 			className={cn(size === "compact" && "text-[11px]")}
 		>
-			{showDot ? <span className={dotClassName} /> : null}
+			{showDot ? <IndicatorIcon className="size-3" /> : null}
 			{sponsorBidStatusLabel(status)}
 		</Badge>
 	);

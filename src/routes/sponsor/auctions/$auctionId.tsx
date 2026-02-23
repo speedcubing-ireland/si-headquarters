@@ -2,29 +2,24 @@ import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, Clock3, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { AuctionBiddingHelpAlert } from "@/components/sponsorship/auction-bidding-help";
+import {
+	AuctionAmountEntryCard,
+	AuctionBidActivityCard,
+	AuctionBiddingSummaryCard,
+} from "@/components/sponsorship/auction-bidding-cards";
 import { AuctionCompetitionSummaryPanel } from "@/components/sponsorship/competition-summary-panel";
-import { SponsorBidStatusBadge } from "@/components/sponsorship/sponsor-bid-status-badge";
 import {
 	SponsorPageHeader,
 	SponsorPageShell,
 } from "@/components/sponsorship/sponsor-page-layout";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
 import { isSponsorshipEnabled } from "@/lib/feature-flags";
 import {
 	formatDateTime,
@@ -275,6 +270,17 @@ function SponsorAuctionDetailEnabled() {
 				data.auction.currentPriceCents ??
 				data.auction.startPriceCents)
 			: (data.auction.currentPriceCents ?? data.auction.startPriceCents ?? 0);
+	const bidActivityItems = data.events
+		.slice()
+		.reverse()
+		.map((event) => ({
+			id: event.id,
+			sponsorLabel: event.sponsorLabel,
+			amountLabel: formatEuroFromCents(event.amountCents),
+			isOwnBid: event.isOwnBid,
+			typeLabel: event.isOwnBid ? (event.isAuto ? "Auto" : "Manual") : "Bid",
+			createdAtLabel: formatDateTime(event.createdAt),
+		}));
 
 	return (
 		<SponsorPageShell maxWidthClassName="max-w-5xl">
@@ -291,63 +297,38 @@ function SponsorAuctionDetailEnabled() {
 				}
 			/>
 
-			<section className="space-y-3 rounded-lg border bg-card p-4">
-				<div className="flex flex-wrap items-center gap-2">
-					<Badge variant={sponsorshipStateBadgeVariant(data.auction.state)}>
-						{sponsorshipStateLabel(data.auction.state)}
-					</Badge>
-					<Badge variant="outline">
-						{sponsorshipFrameworkLabel(data.auction.framework)}
-					</Badge>
-					<Button
-						type="button"
-						variant="link"
-						className="h-auto p-0"
-						onClick={() => setIsHowBiddingOpen((current) => !current)}
-					>
-						{SPONSORSHIP_BIDDING_HELP_TITLE}
-					</Button>
-				</div>
-				{isHowBiddingOpen ? (
-					<AuctionBiddingHelpAlert framework={data.auction.framework} />
-				) : null}
-				<div className="space-y-2 text-sm">
-					<p className="text-muted-foreground">
-						<span className="font-medium text-foreground">Closes: </span>
-						{closingStatusText}
-					</p>
-					<div className="space-y-1">
-						<p className="font-medium">
-							{isClosedSealedAuction ? "Winning bid" : "Current price"}
-						</p>
-						<div className="flex flex-wrap items-center gap-2">
-							<p className="text-2xl font-semibold tabular-nums">
-								{isSealedPriceHidden
-									? "Sealed until close"
-									: formatEuroFromCents(currentPriceCentsForDisplay)}
-							</p>
-							<SponsorBidStatusBadge
-								status={data.auction.sponsorBidStatus}
-								showDot
-							/>
-						</div>
-					</div>
-					<p className="text-muted-foreground">
-						<span className="font-medium text-foreground">My last bid:</span>{" "}
-						{data.myLastBidCents !== undefined
-							? formatEuroFromCents(data.myLastBidCents)
-							: "Not set"}
-					</p>
-					{isProxyAuction ? (
-						<p className="text-muted-foreground">
-							<span className="font-medium text-foreground">My max bid:</span>{" "}
-							{data.myMaxBidCents !== undefined
-								? formatEuroFromCents(data.myMaxBidCents)
-								: "Not set"}
-						</p>
-					) : null}
-				</div>
-			</section>
+			<AuctionBiddingSummaryCard
+				stateLabel={sponsorshipStateLabel(data.auction.state)}
+				stateVariant={sponsorshipStateBadgeVariant(data.auction.state)}
+				frameworkLabel={sponsorshipFrameworkLabel(data.auction.framework)}
+				helpTitle={SPONSORSHIP_BIDDING_HELP_TITLE}
+				onHelpToggle={() => setIsHowBiddingOpen((current) => !current)}
+				helpContent={
+					isHowBiddingOpen ? (
+						<AuctionBiddingHelpAlert framework={data.auction.framework} />
+					) : null
+				}
+				closesAtText={closingStatusText}
+				priceLabel={isClosedSealedAuction ? "Winning bid" : "Current price"}
+				priceValue={
+					isSealedPriceHidden
+						? "Sealed until close"
+						: formatEuroFromCents(currentPriceCentsForDisplay)
+				}
+				sponsorBidStatus={data.auction.sponsorBidStatus}
+				myLastBidText={
+					data.myLastBidCents !== undefined
+						? formatEuroFromCents(data.myLastBidCents)
+						: "Not set"
+				}
+				myMaxBidText={
+					isProxyAuction
+						? data.myMaxBidCents !== undefined
+							? formatEuroFromCents(data.myMaxBidCents)
+							: "Not set"
+						: undefined
+				}
+			/>
 			<AuctionCompetitionSummaryPanel
 				summary={data.auction.competitionSummary}
 				source={data.auction.competitionSummarySource}
@@ -355,119 +336,55 @@ function SponsorAuctionDetailEnabled() {
 
 			{data.auction.state === "active" ? (
 				<div className="space-y-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Place Bid</CardTitle>
-							<CardDescription>
-								{isProxyAuction
-									? "Submit a direct bid amount."
-									: "Submit a sealed bid. You can raise or lower it before close; only your latest bid is counted."}
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className="mb-3 border-l-2 border-primary/40 pl-3">
-								<p className="text-xs uppercase tracking-wide text-muted-foreground">
-									{isProxyAuction
-										? "Current minimum next bid"
-										: "Competition minimum bid"}
-								</p>
-								<p className="text-xl font-semibold tabular-nums leading-none">
-									{formatEuroFromCents(minimumBidCents)}
-								</p>
-								{!isProxyAuction ? (
-									<p className="mt-1 text-xs text-muted-foreground">
-										No minimum increment ladder applies in sealed mode.
-									</p>
-								) : null}
-							</div>
-							<form
-								className="grid gap-3 sm:grid-cols-[1fr_auto]"
-								onSubmit={submitBid}
-							>
-								<div className="space-y-2">
-									<Label htmlFor="amount">Bid amount (EUR)</Label>
-									<Input
-										id="amount"
-										type="number"
-										min={minimumBidEuros}
-										step="0.01"
-										value={amountEuros}
-										onChange={(event) => setAmountEuros(event.target.value)}
-										placeholder={minimumBidEuros}
-										disabled={isSubmittingBid}
-									/>
-								</div>
-								<div className="flex items-end">
-									<Button
-										type="submit"
-										className="w-full"
-										disabled={isSubmittingBid}
-									>
-										{isSubmittingBid ? (
-											<Loader2 className="size-4 animate-spin" />
-										) : isProxyAuction ? (
-											"Submit bid"
-										) : (
-											"Submit sealed bid"
-										)}
-									</Button>
-								</div>
-							</form>
-						</CardContent>
-					</Card>
+					<AuctionAmountEntryCard
+						title="Place Bid"
+						description={
+							isProxyAuction
+								? "Submit a direct bid amount."
+								: "Submit a sealed bid. You can raise or lower it before close; only your latest bid is counted."
+						}
+						minimumLabel={
+							isProxyAuction
+								? "Current minimum next bid"
+								: "Competition minimum bid"
+						}
+						minimumValue={formatEuroFromCents(minimumBidCents)}
+						minimumHint={
+							!isProxyAuction
+								? "No minimum increment ladder applies in sealed mode."
+								: undefined
+						}
+						inputId="amount"
+						inputLabel="Bid amount (EUR)"
+						inputValue={amountEuros}
+						inputMin={minimumBidEuros}
+						inputPlaceholder={minimumBidEuros}
+						onInputChange={setAmountEuros}
+						onSubmit={submitBid}
+						submitLabel={isProxyAuction ? "Submit bid" : "Submit sealed bid"}
+						isSubmitting={isSubmittingBid}
+					/>
 
 					{isProxyAuction ? (
-						<Card>
-							<CardHeader>
-								<CardTitle>Set Max Bid</CardTitle>
-								<CardDescription>{maxBidFormHint}</CardDescription>
-							</CardHeader>
-							<CardContent>
-								<div className="mb-3 border-l-2 border-primary/40 pl-3">
-									<p className="text-xs uppercase tracking-wide text-muted-foreground">
-										Current max bid
-									</p>
-									<p className="text-xl font-semibold tabular-nums leading-none">
-										{data.myMaxBidCents !== undefined
-											? formatEuroFromCents(data.myMaxBidCents)
-											: "Not set"}
-									</p>
-								</div>
-								<form
-									className="grid gap-3 sm:grid-cols-[1fr_auto]"
-									onSubmit={submitMaxBid}
-								>
-									<div className="space-y-2">
-										<Label htmlFor="max">Max amount (EUR)</Label>
-										<Input
-											id="max"
-											type="number"
-											min={minimumNextBidEuros}
-											step="0.01"
-											value={maxAmountEuros}
-											onChange={(event) =>
-												setMaxAmountEuros(event.target.value)
-											}
-											placeholder={minimumNextBidEuros}
-											disabled={isSubmittingMaxBid}
-										/>
-									</div>
-									<div className="flex items-end">
-										<Button
-											type="submit"
-											className="w-full"
-											disabled={isSubmittingMaxBid}
-										>
-											{isSubmittingMaxBid ? (
-												<Loader2 className="size-4 animate-spin" />
-											) : (
-												"Save max bid"
-											)}
-										</Button>
-									</div>
-								</form>
-							</CardContent>
-						</Card>
+						<AuctionAmountEntryCard
+							title="Set Max Bid"
+							description={maxBidFormHint}
+							minimumLabel="Current max bid"
+							minimumValue={
+								data.myMaxBidCents !== undefined
+									? formatEuroFromCents(data.myMaxBidCents)
+									: "Not set"
+							}
+							inputId="max"
+							inputLabel="Max amount (EUR)"
+							inputValue={maxAmountEuros}
+							inputMin={minimumNextBidEuros}
+							inputPlaceholder={minimumNextBidEuros}
+							onInputChange={setMaxAmountEuros}
+							onSubmit={submitMaxBid}
+							submitLabel="Save max bid"
+							isSubmitting={isSubmittingMaxBid}
+						/>
 					) : null}
 				</div>
 			) : (
@@ -478,66 +395,19 @@ function SponsorAuctionDetailEnabled() {
 				</Card>
 			)}
 
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<ShieldCheck className="size-4" />
-						Bid Activity
-					</CardTitle>
-					<CardDescription>
-						{isProxyAuction ? (
-							<>
-								<Clock3 className="mr-1 inline size-3.5" />
-								Your bids are marked as You. Other sponsors are anonymized.
-							</>
-						) : (
-							"Sealed bid activity is hidden until auction close."
-						)}
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-2">
-					{!isProxyAuction ? (
-						<div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-							Only your own submitted amount is visible in your bid form.
-						</div>
-					) : !data.bidHistoryVisible ? (
-						<div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-							Bid history is unavailable until bidding opens.
-						</div>
-					) : data.events.length === 0 ? (
-						<div className="text-sm text-muted-foreground">No bids yet.</div>
-					) : (
-						data.events
-							.slice()
-							.reverse()
-							.map((event) => (
-								<div
-									key={event.id}
-									className="flex items-center justify-between gap-2 rounded border px-3 py-2 text-sm"
-								>
-									<div className="flex items-center gap-2">
-										<Badge variant={event.isOwnBid ? "default" : "secondary"}>
-											{event.sponsorLabel}
-										</Badge>
-										<span className="font-medium tabular-nums">
-											{formatEuroFromCents(event.amountCents)}
-										</span>
-										<Badge variant="outline">
-											{event.isOwnBid
-												? event.isAuto
-													? "Auto"
-													: "Manual"
-												: "Bid"}
-										</Badge>
-									</div>
-									<span className="text-xs text-muted-foreground">
-										{formatDateTime(event.createdAt)}
-									</span>
-								</div>
-							))
-					)}
-				</CardContent>
-			</Card>
+			<AuctionBidActivityCard
+				isProxyAuction={isProxyAuction}
+				description={
+					isProxyAuction
+						? "Your bids are marked as You. Other sponsors are anonymized."
+						: "Sealed bid activity is hidden until auction close."
+				}
+				bidHistoryVisible={data.bidHistoryVisible}
+				items={bidActivityItems}
+				sealedMessage="Only your own submitted amount is visible in your bid form."
+				unavailableMessage="Bid history is unavailable until bidding opens."
+				emptyMessage="No bids yet."
+			/>
 		</SponsorPageShell>
 	);
 }
