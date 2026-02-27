@@ -28,7 +28,7 @@
 		"@convex-dev/better-auth": "^0.10.10",
 		"@convex-dev/crons": "^0.2.0",
 		"@dicebear/collection": "^9.3.1",
-		"@dicebear/core": "^9.3.1",
+		"@dicebear/core": "^9.3.2",
 		"@diceui/mention": "^0.8.0",
 		"@radix-ui/react-alert-dialog": "^1.1.15",
 		"@radix-ui/react-avatar": "^1.1.11",
