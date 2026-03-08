@@ -6,8 +6,8 @@
 # environment variables to your Convex deployment.
 #
 # Usage:
-#   chmod +x scripts/set-convex-env.sh
-#   ./scripts/set-convex-env.sh
+#   ./scripts/set-convex-env.sh            # targets dev deployment (default)
+#   ./scripts/set-convex-env.sh --prod     # targets production deployment
 #
 # IMPORTANT: Do NOT commit this file with real values filled in.
 #            A pre-commit hook (githooks/pre-commit) will block you if you try.
@@ -19,51 +19,63 @@
 
 set -euo pipefail
 
+PROD_FLAG=""
+TARGET="development"
+
+if [[ "${1:-}" == "--prod" ]]; then
+    PROD_FLAG="--prod"
+    TARGET="production"
+fi
+
+echo "Targeting ${TARGET} deployment."
+echo ""
+
 # -- User Authentication ------------------------------------------------------
 # OAuth credentials for staff (Google) and competitor (WCA) login.
 # Source: README.md > Environment Variables > User Authentication
 
-bunx convex env set AUTH_GOOGLE_ID        "<YOUR_AUTH_GOOGLE_ID>"
-bunx convex env set AUTH_GOOGLE_SECRET    "<YOUR_AUTH_GOOGLE_SECRET>"
-bunx convex env set AUTH_WCA_ID           "<YOUR_AUTH_WCA_ID>"
-bunx convex env set AUTH_WCA_SECRET       "<YOUR_AUTH_WCA_SECRET>"
+bunx convex env set $PROD_FLAG AUTH_GOOGLE_ID        "<YOUR_AUTH_GOOGLE_ID>"
+bunx convex env set $PROD_FLAG AUTH_GOOGLE_SECRET    "<YOUR_AUTH_GOOGLE_SECRET>"
+bunx convex env set $PROD_FLAG AUTH_WCA_ID           "<YOUR_AUTH_WCA_ID>"
+bunx convex env set $PROD_FLAG AUTH_WCA_SECRET       "<YOUR_AUTH_WCA_SECRET>"
 
 # Optional — only needed if the WCA service account uses 2FA (base32-encoded TOTP secret).
-# bunx convex env set WCA_2FA_SECRET      "<YOUR_WCA_2FA_SECRET>"
+# bunx convex env set $PROD_FLAG WCA_2FA_SECRET      "<YOUR_WCA_2FA_SECRET>"
 
 # -- Service Integrations -----------------------------------------------------
 # Machine-to-machine OAuth credentials for external APIs.
 # After setting these, complete the OAuth flow by running:
-#   bun run auth canva
-#   bun run auth google-sheets
-#   bun run auth wca
+#   bun run auth canva            (dev)
+#   bun run auth:prod canva       (prod)
 
-bunx convex env set SERVICE_CANVA_ID      "<YOUR_SERVICE_CANVA_ID>"
-bunx convex env set SERVICE_CANVA_SECRET  "<YOUR_SERVICE_CANVA_SECRET>"
-bunx convex env set SERVICE_GOOGLE_ID     "<YOUR_SERVICE_GOOGLE_ID>"
-bunx convex env set SERVICE_GOOGLE_SECRET "<YOUR_SERVICE_GOOGLE_SECRET>"
-bunx convex env set SERVICE_WCA_ID        "<YOUR_SERVICE_WCA_ID>"
-bunx convex env set SERVICE_WCA_SECRET    "<YOUR_SERVICE_WCA_SECRET>"
+bunx convex env set $PROD_FLAG SERVICE_CANVA_ID      "<YOUR_SERVICE_CANVA_ID>"
+bunx convex env set $PROD_FLAG SERVICE_CANVA_SECRET  "<YOUR_SERVICE_CANVA_SECRET>"
+bunx convex env set $PROD_FLAG SERVICE_GOOGLE_ID     "<YOUR_SERVICE_GOOGLE_ID>"
+bunx convex env set $PROD_FLAG SERVICE_GOOGLE_SECRET "<YOUR_SERVICE_GOOGLE_SECRET>"
+bunx convex env set $PROD_FLAG SERVICE_WCA_ID        "<YOUR_SERVICE_WCA_ID>"
+bunx convex env set $PROD_FLAG SERVICE_WCA_SECRET    "<YOUR_SERVICE_WCA_SECRET>"
 
 # -- Email --------------------------------------------------------------------
 # Azure Communication Services. Connection string format:
 #   endpoint=https://<resource>.communication.azure.com/;accesskey=<key>
 # The sender address domain must be verified in Azure.
 
-bunx convex env set AZURE_EMAIL_CONNECTION_STRING "<YOUR_AZURE_EMAIL_CONNECTION_STRING>"
-bunx convex env set EMAIL_SENDER_ADDRESS          "<YOUR_EMAIL_SENDER_ADDRESS>"
+bunx convex env set $PROD_FLAG AZURE_EMAIL_CONNECTION_STRING "<YOUR_AZURE_EMAIL_CONNECTION_STRING>"
+bunx convex env set $PROD_FLAG EMAIL_SENDER_ADDRESS          "<YOUR_EMAIL_SENDER_ADDRESS>"
 
 # -- Site Configuration -------------------------------------------------------
 # These have sensible defaults (localhost:5173 for dev, hq.speedcubing.ie for
 # prod) and only need to be set if you require a different base URL or custom
 # CORS origins.
-# bunx convex env set SITE_URL                    "<YOUR_SITE_URL>"
-# bunx convex env set CORS_ALLOWED_ORIGINS        "<YOUR_CORS_ALLOWED_ORIGINS>"
+# bunx convex env set $PROD_FLAG SITE_URL                    "<YOUR_SITE_URL>"
+# bunx convex env set $PROD_FLAG CORS_ALLOWED_ORIGINS        "<YOUR_CORS_ALLOWED_ORIGINS>"
 
 echo ""
-echo "Convex environment variables set successfully."
+echo "Convex ${TARGET} environment variables set successfully."
 echo ""
+AUTH_CMD="bun run auth"
+[[ -n "$PROD_FLAG" ]] && AUTH_CMD="bun run auth:prod"
 echo "Next: complete the OAuth flow for each service integration:"
-echo "  bun run auth canva"
-echo "  bun run auth google-sheets"
-echo "  bun run auth wca"
+echo "  $AUTH_CMD canva"
+echo "  $AUTH_CMD google-sheets"
+echo "  $AUTH_CMD wca"

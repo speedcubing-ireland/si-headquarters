@@ -49,20 +49,31 @@ Before pushing code for the first time, set the session encryption secrets in yo
 **First, start `convex dev` in a separate terminal** (it will show errors about missing env vars until they're all configured — that's expected):
 
 ```sh
-npx convex dev
+bunx convex dev
 ```
 
 **Then, in another terminal, set these secrets:**
 
 ```sh
-npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-npx convex env set SPONSOR_BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-npx convex env set CLI_AUTH_TOKEN "$(openssl rand -hex 32)"
+bunx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
+bunx convex env set SPONSOR_BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
+bunx convex env set CLI_AUTH_TOKEN "$(openssl rand -hex 32)"
 ```
 
 The `convex dev` terminal will restart automatically once env vars are set. See [Environment Variables](#environment-variables) for the complete list of what goes where.
 
-### 4. Start development
+### 4. Set remaining environment variables
+
+A setup script is provided to push all other Convex environment variables (OAuth credentials, service integrations, email, etc.) in one go. Fill in the placeholder values in the script, then run it:
+
+```sh
+./scripts/set-convex-env.sh            # targets dev deployment (default)
+./scripts/set-convex-env.sh --prod     # targets production deployment
+```
+
+See [Environment Variables](#environment-variables) for details on each variable. A pre-commit hook will block you from accidentally committing the script with real values filled in.
+
+### 5. Start development
 
 ```sh
 bun run dev
@@ -73,7 +84,7 @@ This runs two processes in parallel:
 - `vite` — frontend dev server with HMR
 - `convex dev` — watches `convex/` and pushes functions/schema to your dev deployment on every save
 
-### 5. Configure auth providers (optional)
+### 6. Configure auth providers (optional)
 
 OAuth tokens are stored per deployment. Each provider needs its credentials set as Convex environment variables first (see [Environment Variables](#environment-variables)), then linked via the CLI:
 
@@ -160,7 +171,7 @@ bun run typecheck       # type-check frontend and convex
 │   ├── store/           # Zustand state stores
 │   └── data/            # Static data
 ├── openapi/             # OpenAPI specs (WCA, Canva)
-├── scripts/             # CLI utilities (auth setup)
+├── scripts/             # CLI utilities (auth setup, env setup)
 └── public/              # Static assets
 ```
 
@@ -173,7 +184,7 @@ Environment variables are configured in two places:
 
 ### Convex-side variables
 
-These are set individually via `npx convex env set`.
+These are set individually via `bunx convex env set`, or in bulk using the [setup script](#4-set-remaining-environment-variables).
 
 #### Development Secrets
 
