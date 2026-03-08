@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Blocks commits to scripts/set-convex-env.sh that contain real secret values.
+# Placeholder values must match the pattern: "<SOMETHING>" (angle-bracket wrapped).
+
+SETUP_SCRIPT="scripts/set-convex-env.sh"
+
+if git diff --cached --name-only | grep -qF "$SETUP_SCRIPT"; then
+    staged=$(git show ":${SETUP_SCRIPT}" 2>/dev/null || true)
+
+    # Find active (non-commented) convex env set lines whose value is NOT a <placeholder>.
+    leaked=$(printf '%s\n' "$staged" \
+        | grep -E '^[[:space:]]*(bunx |npx )?convex env set [A-Z_]+' \
+        | grep -vE '"<[^"]+"')
+
+    if [ -n "$leaked" ]; then
+        printf '\n\033[1;31mERROR\033[0m: %s contains real secret values.\n' "$SETUP_SCRIPT"
+        printf 'Replace all filled-in values with their original <PLACEHOLDER> before committing.\n\n'
+        printf 'Affected lines:\n'
+        printf '%s\n' "$leaked" | sed 's/^/  /'
+        printf '\n'
+        exit 1
+    fi
+fi
