@@ -10,7 +10,7 @@ if git diff --cached --name-only | grep -qF "$SETUP_SCRIPT"; then
     # Find active (non-commented) convex env set lines whose value is NOT a <placeholder>.
     leaked=$(printf '%s\n' "$staged" \
         | grep -E '^[[:space:]]*(bunx |npx )?convex env set [A-Z_]+' \
-        | grep -vE '"<[^"]+"')
+        | grep -vE '"<[^"]+>"')
 
     if [ -n "$leaked" ]; then
         printf '\n\033[1;31mERROR\033[0m: %s contains real secret values.\n' "$SETUP_SCRIPT"
