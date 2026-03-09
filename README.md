@@ -52,15 +52,16 @@ Before pushing code for the first time, set the session encryption secrets in yo
 bunx convex dev
 ```
 
-**Then, in another terminal, set these secrets:**
+**Then, in another terminal, generate the auth JWT keys and set the remaining secrets:**
 
 ```sh
+bunx @convex-dev/auth jwks
 bunx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
 bunx convex env set SPONSOR_BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
 bunx convex env set CLI_AUTH_TOKEN "$(openssl rand -hex 32)"
 ```
 
-The `convex dev` terminal will restart automatically once env vars are set. See [Environment Variables](#environment-variables) for the complete list of what goes where.
+The `jwks` command generates `JWT_PRIVATE_KEY` and `JWKS` and sets them on your deployment automatically. The `convex dev` terminal will restart once env vars are set. See [Environment Variables](#environment-variables) for the complete list of what goes where.
 
 ### 4. Set remaining environment variables
 
@@ -192,6 +193,8 @@ These should been set during initial setup (see [step 3](#3-set-critical-secrets
 
 | Variable | Purpose | How to Generate |
 |---|---|---|
+| `JWT_PRIVATE_KEY` | Signs auth session tokens | `bunx @convex-dev/auth jwks` (sets both automatically) |
+| `JWKS` | Public key set for token verification | `bunx @convex-dev/auth jwks` (sets both automatically) |
 | `BETTER_AUTH_SECRET` | Session encryption for sponsor auth | `openssl rand -base64 32` (min 32 chars, required for deployment) |
 | `SPONSOR_BETTER_AUTH_SECRET` | Session encryption for sponsor portal | `openssl rand -base64 32` (falls back to `BETTER_AUTH_SECRET` if not set) |
 | `CLI_AUTH_TOKEN` | Authenticates CLI auth scripts | `openssl rand -hex 32` |
@@ -232,7 +235,7 @@ Machine-to-machine OAuth credentials for calling external APIs. After setting ea
 
 | Variable | Notes |
 |---|---|
-| `SITE_URL` | Base URL for email links and auth callbacks. Defaults to `http://localhost:5173` in dev, `https://hq.speedcubing.ie` in prod. |
+| `SITE_URL` | Base URL for email links and auth callbacks. The [setup script](#4-set-remaining-environment-variables) sets this to `http://localhost:5173` for dev. Production defaults to `https://hq.speedcubing.ie`. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins for sponsor auth. Automatically includes `SITE_URL`. |
 
 ### Client-Side variables

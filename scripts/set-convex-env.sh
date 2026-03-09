@@ -64,11 +64,13 @@ bunx convex env set $PROD_FLAG AZURE_EMAIL_CONNECTION_STRING "<YOUR_AZURE_EMAIL_
 bunx convex env set $PROD_FLAG EMAIL_SENDER_ADDRESS          "<YOUR_EMAIL_SENDER_ADDRESS>"
 
 # -- Site Configuration -------------------------------------------------------
-# These have sensible defaults (localhost:5173 for dev, hq.speedcubing.ie for
-# prod) and only need to be set if you require a different base URL or custom
-# CORS origins.
-# bunx convex env set $PROD_FLAG SITE_URL                    "<YOUR_SITE_URL>"
-# bunx convex env set $PROD_FLAG CORS_ALLOWED_ORIGINS        "<YOUR_CORS_ALLOWED_ORIGINS>"
+# SITE_URL is required for development. Production defaults to https://hq.speedcubing.ie.
+# CORS_ALLOWED_ORIGINS is optional — it automatically includes SITE_URL.
+
+if [[ -z "$PROD_FLAG" ]]; then
+    bunx convex env set SITE_URL                         "http://localhost:5173"  # safe-value
+fi
+# bunx convex env set $PROD_FLAG CORS_ALLOWED_ORIGINS    "<YOUR_CORS_ALLOWED_ORIGINS>"
 
 echo ""
 echo "Convex ${TARGET} environment variables set successfully."
