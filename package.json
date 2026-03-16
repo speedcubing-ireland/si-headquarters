@@ -4,6 +4,7 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
+		"prepare": "git config core.hooksPath githooks && chmod +x githooks/pre-commit || true",
 		"dev": "npm-run-all --parallel dev:frontend dev:backend",
 		"dev:frontend": "vite --open",
 		"dev:backend": "convex dev",
