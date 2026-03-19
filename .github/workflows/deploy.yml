@@ -3,12 +3,10 @@ name: Deploy to Vercel
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 concurrency:
-  group: deploy-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'production' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   ci:
@@ -21,8 +19,7 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      CONVEX_DEPLOY_KEY: ${{ github.event_name == 'push' && secrets.CONVEX_DEPLOY_KEY || secrets.CONVEX_PREVIEW_DEPLOY_KEY }}
-      CONVEX_PREVIEW_NAME: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || '' }}
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,21 +34,10 @@ jobs:
         run: bun install -g vercel
 
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=${{ github.event_name == 'push' && 'production' || 'preview' }} --token=$VERCEL_TOKEN
+        run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
 
       - name: Build
-        run: vercel build ${{ github.event_name == 'push' && '--prod' || '' }} --token=$VERCEL_TOKEN
+        run: vercel build --prod --token=$VERCEL_TOKEN
 
       - name: Deploy
-        id: deploy
-        run: |
-          url=$(vercel deploy --prebuilt ${{ github.event_name == 'push' && '--prod' || '' }} --token=$VERCEL_TOKEN)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-
-      - name: Comment preview URL on PR
-        if: github.event_name == 'pull_request'
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} --edit-last --body "Preview: ${{ steps.deploy.outputs.url }}" 2>/dev/null ||
-          gh pr comment ${{ github.event.pull_request.number }} --body "Preview: ${{ steps.deploy.outputs.url }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
+        run: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
