@@ -1,10 +1,13 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
-	"buildCommand": "bun convex deploy --cmd 'bun run build'",
+	"buildCommand": "bun run build:deploy",
 	"rewrites": [
 		{
 			"source": "/(.*)",
 			"destination": "/index.html"
 		}
-	]
+	],
+	"git": {
+		"deploymentEnabled": false
+	}
 }
