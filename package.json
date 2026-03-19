@@ -20,7 +20,7 @@
 		"test:debug": "vitest --inspect-brk --no-file-parallelism --isolate",
 		"test:coverage": "vitest run --coverage --isolate",
 		"openapi-ts": "openapi-ts",
-		"build:deploy": "bun convex deploy --cmd 'bun run build'"
+		"build:deploy": "bun convex deploy ${CONVEX_PREVIEW_NAME:+--preview-name $CONVEX_PREVIEW_NAME} --cmd 'bun run build'"
 	},
 	"dependencies": {
 		"@auth/core": "^0.37.0",
