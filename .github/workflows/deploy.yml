@@ -40,8 +40,6 @@ jobs:
 
       - name: Build
         run: vercel build ${{ github.event_name == 'push' && '--prod' || '' }} --token=$VERCEL_TOKEN
-        env:
-          CONVEX_PREVIEW_NAME: ${{ github.event_name == 'pull_request' && github.head_ref || '' }}
 
       - name: Deploy
         id: deploy
