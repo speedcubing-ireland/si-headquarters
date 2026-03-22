@@ -6,7 +6,9 @@ import schema from "./schema";
 import { modules } from "./test.setup";
 import { TEAM_NAMES } from "./lib/constants";
 
-async function seedUser(t: ReturnType<typeof convexTest>): Promise<Id<"users">> {
+async function seedUser(
+	t: ReturnType<typeof convexTest>,
+): Promise<Id<"users">> {
 	return t.run(async (ctx) => {
 		const userId = await ctx.db.insert("users", {});
 		await ctx.db.insert("teams", {

@@ -6,9 +6,7 @@ import schema from "./schema";
 import { modules } from "./test.setup";
 import { TEAM_NAMES } from "./lib/constants";
 
-async function seedTaskWithAccess(
-	t: ReturnType<typeof convexTest>,
-): Promise<{
+async function seedTaskWithAccess(t: ReturnType<typeof convexTest>): Promise<{
 	userId: Id<"users">;
 	competitionId: Id<"competitions">;
 	taskId: Id<"tasks">;
@@ -92,10 +90,7 @@ describe("tasks archive behavior", () => {
 
 		await authed.mutation(api.tasks.archive, { taskIds: [taskId, task2Id] });
 		const [t1, t2] = await t.run((ctx) =>
-			Promise.all([
-				ctx.db.get("tasks", taskId),
-				ctx.db.get("tasks", task2Id),
-			]),
+			Promise.all([ctx.db.get("tasks", taskId), ctx.db.get("tasks", task2Id)]),
 		);
 
 		expect(t1?.archived).toBe(true);
@@ -211,10 +206,7 @@ describe("tasks archive behavior", () => {
 		await authed.mutation(api.tasks.remove, { taskIds: [taskId] });
 
 		const [parent, child] = await t.run((ctx) =>
-			Promise.all([
-				ctx.db.get("tasks", taskId),
-				ctx.db.get("tasks", childId),
-			]),
+			Promise.all([ctx.db.get("tasks", taskId), ctx.db.get("tasks", childId)]),
 		);
 		expect(parent).toBeNull();
 		expect(child).toBeNull();

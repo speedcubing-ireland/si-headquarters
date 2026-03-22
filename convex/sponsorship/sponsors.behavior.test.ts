@@ -25,13 +25,10 @@ describe("sponsors behavior", () => {
 		const managerId = await seedSponsorshipManager(t);
 		const manager = t.withIdentity({ subject: managerId });
 
-		const sponsorId = await manager.mutation(
-			api.sponsorship.sponsors.create,
-			{
-				name: "Acme Corp",
-				email: " Sponsor@EXAMPLE.com ",
-			},
-		);
+		const sponsorId = await manager.mutation(api.sponsorship.sponsors.create, {
+			name: "Acme Corp",
+			email: " Sponsor@EXAMPLE.com ",
+		});
 
 		const doc = await t.run((ctx) => ctx.db.get("sponsors", sponsorId));
 		expect(doc?.name).toBe("Acme Corp");
@@ -63,13 +60,10 @@ describe("sponsors behavior", () => {
 		const managerId = await seedSponsorshipManager(t);
 		const manager = t.withIdentity({ subject: managerId });
 
-		const sponsorId = await manager.mutation(
-			api.sponsorship.sponsors.create,
-			{
-				name: "Old Name",
-				email: "old@example.com",
-			},
-		);
+		const sponsorId = await manager.mutation(api.sponsorship.sponsors.create, {
+			name: "Old Name",
+			email: "old@example.com",
+		});
 
 		await manager.mutation(api.sponsorship.sponsors.update, {
 			sponsorId,

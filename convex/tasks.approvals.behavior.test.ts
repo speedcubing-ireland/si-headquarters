@@ -79,20 +79,16 @@ describe("task approval behavior", () => {
 			approverId: seeded.approverId,
 		});
 
-		const taskBefore = await t.run((ctx) =>
-			ctx.db.get("tasks", seeded.taskId),
-		);
+		const taskBefore = await t.run((ctx) => ctx.db.get("tasks", seeded.taskId));
 		const approverKey = taskBefore?.requiredApprovalIds?.[0];
 		expect(approverKey).toBeTruthy();
 
 		await authed.mutation(api.tasks.removeRequiredApprover, {
 			taskId: seeded.taskId,
-			approverKey: approverKey!,
+			approverKey: approverKey as string,
 		});
 
-		const taskAfter = await t.run((ctx) =>
-			ctx.db.get("tasks", seeded.taskId),
-		);
+		const taskAfter = await t.run((ctx) => ctx.db.get("tasks", seeded.taskId));
 		expect(taskAfter?.requiredApprovalIds).toHaveLength(0);
 	});
 
@@ -136,9 +132,7 @@ describe("task approval behavior", () => {
 		const notifications = await t.run((ctx) =>
 			ctx.db.query("notifications").collect(),
 		);
-		expect(
-			notifications.some((n) => n.type === "task_approved"),
-		).toBeTruthy();
+		expect(notifications.some((n) => n.type === "task_approved")).toBeTruthy();
 	}, 15_000);
 
 	test("unapproveTask removes user from approvedByIds", async () => {

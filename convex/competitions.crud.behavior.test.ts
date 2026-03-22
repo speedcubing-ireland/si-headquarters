@@ -1,12 +1,14 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import { modules } from "./test.setup";
 import { TEAM_NAMES } from "./lib/constants";
 
-async function seedDirectorAndVolunteer(t: ReturnType<typeof convexTest>): Promise<{
+async function seedDirectorAndVolunteer(
+	t: ReturnType<typeof convexTest>,
+): Promise<{
 	directorId: Id<"users">;
 	volunteerId: Id<"users">;
 }> {

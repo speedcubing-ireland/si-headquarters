@@ -89,8 +89,7 @@ describe("task creation behavior", () => {
 			ctx.db.query("notifications").collect(),
 		);
 		const assigned = notifications.filter(
-			(n) =>
-				n.type === "task_assigned" && n.userId === seeded.assigneeId,
+			(n) => n.type === "task_assigned" && n.userId === seeded.assigneeId,
 		);
 		expect(assigned.length).toBeGreaterThanOrEqual(1);
 	}, 15_000);

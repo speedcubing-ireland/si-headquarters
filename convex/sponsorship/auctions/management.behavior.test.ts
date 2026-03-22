@@ -4,7 +4,7 @@ import type { Id } from "../../_generated/dataModel";
 import { api } from "../../_generated/api";
 import schema from "../../schema";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore -- no package export for component schema
+// @ts-expect-error -- no package export for component schema
 import cronsSchema from "../../../node_modules/@convex-dev/crons/src/component/schema";
 import { modules } from "../../test.setup";
 import { TEAM_NAMES } from "../../lib/constants";
@@ -54,8 +54,7 @@ async function seedAuctionPrereqs(t: ReturnType<typeof convexTest>): Promise<{
 describe("auction management behavior", () => {
 	test("create auction stores record in draft state with competition snapshot", async () => {
 		const t = createHarness();
-		const { managerId, competitionId, sponsorId } =
-			await seedAuctionPrereqs(t);
+		const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t);
 		const manager = t.withIdentity({ subject: managerId });
 
 		const now = Date.now();
@@ -83,8 +82,7 @@ describe("auction management behavior", () => {
 
 	test("update changes framework and dates in draft state", async () => {
 		const t = createHarness();
-		const { managerId, competitionId, sponsorId } =
-			await seedAuctionPrereqs(t);
+		const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t);
 		const manager = t.withIdentity({ subject: managerId });
 
 		const now = Date.now();
@@ -101,15 +99,12 @@ describe("auction management behavior", () => {
 
 		const newStart = now + 200_000_000;
 		const newEnd = now + 300_000_000;
-		await manager.mutation(
-			api.sponsorship.auctions.management.update,
-			{
-				auctionId,
-				framework: "vickrey",
-				startsAt: newStart,
-				endsAt: newEnd,
-			},
-		);
+		await manager.mutation(api.sponsorship.auctions.management.update, {
+			auctionId,
+			framework: "vickrey",
+			startsAt: newStart,
+			endsAt: newEnd,
+		});
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("sponsorshipAuctions", auctionId),
@@ -121,8 +116,7 @@ describe("auction management behavior", () => {
 
 	test("removeBeforeOpen deletes draft auction", async () => {
 		const t = createHarness();
-		const { managerId, competitionId, sponsorId } =
-			await seedAuctionPrereqs(t);
+		const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t);
 		const manager = t.withIdentity({ subject: managerId });
 
 		const now = Date.now();
@@ -183,10 +177,9 @@ describe("auction management behavior", () => {
 		);
 
 		await expect(
-			manager.mutation(
-				api.sponsorship.auctions.management.removeBeforeOpen,
-				{ auctionId },
-			),
+			manager.mutation(api.sponsorship.auctions.management.removeBeforeOpen, {
+				auctionId,
+			}),
 		).rejects.toBeTruthy();
 	});
 });

@@ -6,7 +6,9 @@ import schema from "./schema";
 import { modules } from "./test.setup";
 import { TEAM_NAMES } from "./lib/constants";
 
-async function seedCompetitionWithAccess(t: ReturnType<typeof convexTest>): Promise<{
+async function seedCompetitionWithAccess(
+	t: ReturnType<typeof convexTest>,
+): Promise<{
 	userId: Id<"users">;
 	otherUserId: Id<"users">;
 	competitionId: Id<"competitions">;
@@ -100,9 +102,7 @@ describe("updates CRUD behavior", () => {
 		const notifications = await t.run((ctx) =>
 			ctx.db
 				.query("notifications")
-				.withIndex("by_user", (q) =>
-					q.eq("userId", seeded.subscriberId),
-				)
+				.withIndex("by_user", (q) => q.eq("userId", seeded.subscriberId))
 				.collect(),
 		);
 		expect(
@@ -112,8 +112,7 @@ describe("updates CRUD behavior", () => {
 
 	test("create rejects users without competition access", async () => {
 		const t = convexTest(schema, modules);
-		const { otherUserId, competitionId } =
-			await seedCompetitionWithAccess(t);
+		const { otherUserId, competitionId } = await seedCompetitionWithAccess(t);
 		const denied = t.withIdentity({ subject: otherUserId });
 
 		await expect(

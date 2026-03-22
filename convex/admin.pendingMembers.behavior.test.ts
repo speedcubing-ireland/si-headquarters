@@ -84,11 +84,11 @@ describe("pending team members behavior", () => {
 		expect(record).toBeTruthy();
 
 		await director.mutation(api.admin.removePendingTeamMember, {
-			pendingTeamMemberId: record!._id,
+			pendingTeamMemberId: record?._id,
 		});
 
 		const afterRemove = await t.run((ctx) =>
-			ctx.db.get("pendingTeamMembers", record!._id),
+			ctx.db.get("pendingTeamMembers", record?._id),
 		);
 		expect(afterRemove).toBeNull();
 	});

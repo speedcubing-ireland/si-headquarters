@@ -117,9 +117,7 @@ describe("comments replies behavior", () => {
 			content: "Edited content",
 		});
 
-		const doc = await t.run((ctx) =>
-			ctx.db.get("comments", seeded.commentId),
-		);
+		const doc = await t.run((ctx) => ctx.db.get("comments", seeded.commentId));
 		expect(doc?.content).toBe("Edited content");
 		expect(doc?.contentUpdatedAt).toBeTypeOf("number");
 	});
@@ -134,9 +132,7 @@ describe("comments replies behavior", () => {
 			content: "Hijacked",
 		});
 
-		const doc = await t.run((ctx) =>
-			ctx.db.get("comments", seeded.commentId),
-		);
+		const doc = await t.run((ctx) => ctx.db.get("comments", seeded.commentId));
 		expect(doc?.content).toBe("Original comment");
 	});
 });
