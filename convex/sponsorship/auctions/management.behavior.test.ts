@@ -3,8 +3,6 @@ import { describe, expect, test } from "vitest";
 import type { Id } from "../../_generated/dataModel";
 import { api } from "../../_generated/api";
 import schema from "../../schema";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error -- no package export for component schema
 import cronsSchema from "../../../node_modules/@convex-dev/crons/src/component/schema";
 import { modules } from "../../test.setup";
 import { TEAM_NAMES } from "../../lib/constants";

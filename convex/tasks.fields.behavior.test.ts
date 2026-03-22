@@ -72,7 +72,9 @@ describe("task field edit behavior", () => {
 
 		const after = await t.run((ctx) => ctx.db.get("tasks", seeded.taskId));
 		expect(after?.title).toBe("Updated Title");
-		expect(after?.updatedAt).toBeGreaterThanOrEqual(before?.updatedAt);
+		expect(after?.updatedAt).toBeGreaterThanOrEqual(
+			before?.updatedAt as number,
+		);
 	});
 
 	test("edit description updates description and updatedAt", async () => {

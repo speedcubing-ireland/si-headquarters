@@ -81,14 +81,15 @@ describe("pending team members behavior", () => {
 			ctx.db.query("pendingTeamMembers").collect(),
 		);
 		const record = pending.find((p) => p.email === "toremove@example.com");
-		expect(record).toBeTruthy();
+		expect(record).toBeDefined();
+		const recordId = record?._id as Id<"pendingTeamMembers">;
 
 		await director.mutation(api.admin.removePendingTeamMember, {
-			pendingTeamMemberId: record?._id,
+			pendingTeamMemberId: recordId,
 		});
 
 		const afterRemove = await t.run((ctx) =>
-			ctx.db.get("pendingTeamMembers", record?._id),
+			ctx.db.get("pendingTeamMembers", recordId),
 		);
 		expect(afterRemove).toBeNull();
 	});
