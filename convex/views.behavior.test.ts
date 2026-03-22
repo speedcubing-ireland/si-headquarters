@@ -113,7 +113,9 @@ describe("saved views behavior", () => {
 
 		expect(after?.name).toBe("Renamed");
 		expect(after?.description).toBe("New desc");
-		expect(after?.updatedAt).toBeGreaterThanOrEqual(before?.updatedAt);
+		expect(after?.updatedAt).toBeGreaterThanOrEqual(
+			before?.updatedAt as number,
+		);
 	});
 
 	test("updateView throws FORBIDDEN for another user's view", async () => {
