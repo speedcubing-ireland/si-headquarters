@@ -201,7 +201,7 @@ These should been set during initial setup (see [step 3](#3-set-critical-secrets
 
 #### User Authentication
 
-OAuth providers for signing into the application.
+OAuth providers for signing into the application. These are handled by [Convex Auth](https://labs.convex.dev/auth) (`convex/auth.ts`). The redirect URI for each provider is automatically constructed as `{CONVEX_SITE_URL}/api/auth/callback/{provider}` — in local dev this looks like `http://127.0.0.1:3211/api/auth/callback/wca`. This redirect URI must be registered in the provider's OAuth application settings.
 
 | Variable | Source | Notes |
 |---|---|---|
@@ -214,6 +214,13 @@ OAuth providers for signing into the application.
 #### Service Integrations
 
 Machine-to-machine OAuth credentials for calling external APIs. After setting each pair, run `bun run auth <provider>` to complete the OAuth flow and store refresh tokens.
+
+These are a **separate set of OAuth applications** from the user authentication credentials above. The CLI-based flow (`convex/services/`) spins up a temporary local HTTP server to capture the OAuth callback — each provider uses its own port (Google: `localhost:3847`, WCA: `localhost:3848`). These redirect URIs also need to be registered in the respective provider's OAuth application settings.
+
+| Provider | User Auth (`AUTH_*`) | Service (`SERVICE_*`) |
+|---|---|---|
+| **Google** | Staff login (scope: `openid email profile`) | Sheets & Drive API (scope: `spreadsheets drive`) |
+| **WCA** | Competitor login (scope: `public email`) | Competition management API (scope: `public email manage_competitions`) |
 
 | Variable | Source | CLI Command | Notes |
 |---|---|---|---|
@@ -247,3 +254,9 @@ These are embedded into the frontend build. `VITE_CONVEX_URL` and `VITE_CONVEX_S
 | `VITE_CONVEX_URL` | Convex (auto) | WebSocket URL for Convex backend. |
 | `VITE_CONVEX_SITE_URL` | Convex (auto) | HTTP URL for Convex HTTP routes. |
 | `VITE_SPONSORSHIP_ENABLED` | Developer (optional) | Feature flag. Set to `1`, `true`, or `yes` to enable sponsor portal. |
+
+## Documentation
+
+Additional guides are in the [`docs/`](docs/) folder:
+
+- [Manual Testing by Persona](docs/manual-testing-personas.md) — how to log in as each user role for local testing

@@ -171,6 +171,40 @@ describe("reminders behavior characterization", () => {
 		).rejects.toBeTruthy();
 	});
 
+	test("reschedule updates remindAt to new future timestamp", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedReminderFixture(t);
+		const allowed = t.withIdentity({ subject: seeded.allowedUserId });
+		const reminderId = await allowed.mutation(
+			api.reminders.create,
+			reminderArgs(seeded.allowedTaskId),
+		);
+
+		const newRemindAt = new Date(Date.now() + 7_200_000).toISOString();
+		await allowed.mutation(api.reminders.reschedule, {
+			reminderId,
+			remindAt: newRemindAt,
+		});
+
+		const doc = await t.run((ctx) => ctx.db.get("reminders", reminderId));
+		expect(doc?.remindAt).toBe(Date.parse(newRemindAt));
+	});
+
+	test("cancel deletes the reminder record", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedReminderFixture(t);
+		const allowed = t.withIdentity({ subject: seeded.allowedUserId });
+		const reminderId = await allowed.mutation(
+			api.reminders.create,
+			reminderArgs(seeded.allowedTaskId),
+		);
+
+		await allowed.mutation(api.reminders.cancel, { reminderId });
+
+		const doc = await t.run((ctx) => ctx.db.get("reminders", reminderId));
+		expect(doc).toBeNull();
+	});
+
 	test("_triggerReminder marks due reminders triggered and creates reminder notifications", async () => {
 		vi.useFakeTimers();
 		try {
