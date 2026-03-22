@@ -29,7 +29,10 @@ async function seedTwoTasks(t: ReturnType<typeof convexTest>): Promise<{
 			updatedAt: Date.now(),
 		});
 		await ctx.db.insert("competitionAccess", { competitionId, userId });
-		await ctx.db.insert("competitionAccess", { competitionId, userId: subscriberId });
+		await ctx.db.insert("competitionAccess", {
+			competitionId,
+			userId: subscriberId,
+		});
 		const taskAId = await ctx.db.insert("tasks", {
 			identifier: "HQ-300",
 			title: "Task A",

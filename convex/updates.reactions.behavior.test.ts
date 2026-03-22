@@ -6,7 +6,9 @@ import schema from "./schema";
 import { modules } from "./test.setup";
 import { TEAM_NAMES } from "./lib/constants";
 
-async function seedCompetitionWithUpdate(t: ReturnType<typeof convexTest>): Promise<{
+async function seedCompetitionWithUpdate(
+	t: ReturnType<typeof convexTest>,
+): Promise<{
 	userId: Id<"users">;
 	competitionId: Id<"competitions">;
 	updateId: Id<"competitionUpdates">;

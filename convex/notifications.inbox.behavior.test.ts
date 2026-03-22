@@ -1,13 +1,11 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
-async function seedNotification(
-	t: ReturnType<typeof convexTest>,
-): Promise<{
+async function seedNotification(t: ReturnType<typeof convexTest>): Promise<{
 	userId: Id<"users">;
 	notificationId: Id<"notifications">;
 }> {
@@ -119,7 +117,7 @@ describe("notifications inbox behavior", () => {
 		);
 		expect(doc?.status).toBe("unread");
 		expect(doc?.snoozedUntil).toBeTypeOf("number");
-		expect(doc!.snoozedUntil!).toBeGreaterThan(Date.now());
+		expect(doc?.snoozedUntil).toBeGreaterThan(Date.now());
 	});
 
 	test("unsnooze clears snoozedUntil", async () => {
@@ -150,10 +148,7 @@ describe("notifications inbox behavior", () => {
 			defaultDigestMode: "daily",
 		});
 
-		const settings = await authed.query(
-			api.notifications.getUserSettings,
-			{},
-		);
+		const settings = await authed.query(api.notifications.getUserSettings, {});
 		expect(settings.timezone).toBe("Europe/Dublin");
 		expect(settings.defaultDigestMode).toBe("daily");
 	});

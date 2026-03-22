@@ -99,9 +99,7 @@ describe("comments CRUD behavior", () => {
 				.withIndex("by_user", (q) => q.eq("userId", seeded.otherId))
 				.collect(),
 		);
-		expect(
-			notifications.some((n) => n.type === "comment_added"),
-		).toBeTruthy();
+		expect(notifications.some((n) => n.type === "comment_added")).toBeTruthy();
 	}, 15_000);
 
 	test("create comment on update stores record with update parentType", async () => {

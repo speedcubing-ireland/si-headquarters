@@ -6,7 +6,9 @@ import schema from "./schema";
 import { modules } from "./test.setup";
 import { TEAM_NAMES } from "./lib/constants";
 
-async function seedTaskWithSubscribers(t: ReturnType<typeof convexTest>): Promise<{
+async function seedTaskWithSubscribers(
+	t: ReturnType<typeof convexTest>,
+): Promise<{
 	actorId: Id<"users">;
 	oldAssigneeId: Id<"users">;
 	newAssigneeId: Id<"users">;
@@ -66,14 +68,10 @@ describe("task notification behavior", () => {
 			ctx.db.query("notifications").collect(),
 		);
 		const assigned = notifications.filter(
-			(n) =>
-				n.type === "task_assigned" &&
-				n.userId === seeded.newAssigneeId,
+			(n) => n.type === "task_assigned" && n.userId === seeded.newAssigneeId,
 		);
 		const unassigned = notifications.filter(
-			(n) =>
-				n.type === "task_unassigned" &&
-				n.userId === seeded.oldAssigneeId,
+			(n) => n.type === "task_unassigned" && n.userId === seeded.oldAssigneeId,
 		);
 		expect(assigned.length).toBeGreaterThanOrEqual(1);
 		expect(unassigned.length).toBeGreaterThanOrEqual(1);

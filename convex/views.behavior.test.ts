@@ -94,7 +94,7 @@ describe("saved views behavior", () => {
 		await authed.mutation(api.views.touchView, { id: viewId });
 		const after = await t.run((ctx) => ctx.db.get("savedViews", viewId));
 
-		expect(after?.lastUsedAt).toBeGreaterThanOrEqual(before!.lastUsedAt!);
+		expect(after?.lastUsedAt).toBeGreaterThanOrEqual(before?.lastUsedAt ?? 0);
 		expect(after?.updatedAt).toBe(before?.updatedAt);
 	});
 
@@ -113,7 +113,7 @@ describe("saved views behavior", () => {
 
 		expect(after?.name).toBe("Renamed");
 		expect(after?.description).toBe("New desc");
-		expect(after?.updatedAt).toBeGreaterThanOrEqual(before!.updatedAt);
+		expect(after?.updatedAt).toBeGreaterThanOrEqual(before?.updatedAt);
 	});
 
 	test("updateView throws FORBIDDEN for another user's view", async () => {
