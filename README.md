@@ -176,6 +176,7 @@ bun run typecheck       # type-check frontend and convex
 └── public/              # Static assets
 ```
 
+
 ## Environment Variables
 
 Environment variables are configured in two places:
