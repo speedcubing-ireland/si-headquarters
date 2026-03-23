@@ -27,7 +27,7 @@
 		"@azure/communication-email": "^1.1.0",
 		"@better-auth/passkey": "1.4.18",
 		"@convex-dev/auth": "^0.0.90",
-		"@convex-dev/better-auth": "^0.10.13",
+		"@convex-dev/better-auth": "^0.11.3",
 		"@convex-dev/crons": "^0.2.0",
 		"@dicebear/collection": "^9.4.2",
 		"@dicebear/core": "^9.4.2",
