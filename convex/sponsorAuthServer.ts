@@ -6,9 +6,8 @@ import type { BetterAuthOptions } from "better-auth";
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins";
 import { components } from "./_generated/api";
+import { internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
-import { enqueueDispatch } from "./emailQueue/enqueue";
 import schema from "./sponsorAuth/schema";
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth";
@@ -20,11 +19,11 @@ const DEFAULT_SPONSOR_SITE_URL =
 		? "https://hq.speedcubing.ie"
 		: "http://localhost:5173";
 
-function trimTrailingSlash(value: string): string {
+export function trimTrailingSlash(value: string): string {
 	return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
-function uniqueOrigins(values: (string | undefined)[]): string[] {
+export function uniqueOrigins(values: (string | undefined)[]): string[] {
 	const normalized = values
 		.filter((value): value is string => typeof value === "string")
 		.map((value) => trimTrailingSlash(value))
@@ -45,7 +44,9 @@ function resolveSponsorSiteOrigin(): string {
 	return new URL(siteUrl).origin;
 }
 
-function resolveSponsorAuthSecret(requireConfiguredSecret: boolean): string {
+export function resolveSponsorAuthSecret(
+	requireConfiguredSecret: boolean,
+): string {
 	const configured =
 		process.env.SPONSOR_BETTER_AUTH_SECRET ?? process.env.BETTER_AUTH_SECRET;
 	if (configured && configured.length >= 32) {
@@ -59,14 +60,11 @@ function resolveSponsorAuthSecret(requireConfiguredSecret: boolean): string {
 	return SPONSOR_AUTH_DEV_SECRET;
 }
 
-async function sendSponsorOtpEmail(
-	ctx: GenericCtx<DataModel>,
-	args: {
-		email: string;
-		otp: string;
-		type: "sign-in" | "forget-password" | "email-verification";
-	},
-): Promise<void> {
+export function buildSponsorOtpEmail(args: {
+	email: string;
+	otp: string;
+	type: "sign-in" | "forget-password" | "email-verification";
+}) {
 	const purposeLabel =
 		args.type === "sign-in"
 			? "sign in"
@@ -94,16 +92,16 @@ async function sendSponsorOtpEmail(
 	].join("");
 
 	const dedupeKey = `sponsor_auth_otp:${args.type}:${args.email.toLowerCase()}:${args.otp}`;
-	await enqueueDispatch(ctx as unknown as MutationCtx, {
+	return {
 		dedupeKey,
-		sourceKind: "sponsor_auth",
+		sourceKind: "sponsor_auth" as const,
 		sourceRef: dedupeKey,
 		templateKey: "sponsor_auth_otp",
 		recipientEmail: args.email,
 		subject,
 		htmlBody: html,
 		plainTextBody: plainText,
-	});
+	};
 }
 
 export const sponsorAuthComponent = createClient<DataModel, typeof schema>(
@@ -167,7 +165,15 @@ export function createSponsorAuthOptions(
 				storeOTP: "hashed",
 				allowedAttempts: 5,
 				sendVerificationOTP: async ({ email, otp, type }) => {
-					await sendSponsorOtpEmail(ctx, { email, otp, type });
+					if (!("runMutation" in ctx)) {
+						throw new Error(
+							"sendVerificationOTP requires a mutation or action context",
+						);
+					}
+					await ctx.runMutation(
+						internal.emailQueue._enqueueDispatch,
+						buildSponsorOtpEmail({ email, otp, type }),
+					);
 				},
 			}),
 			passkey({
