@@ -23,7 +23,7 @@
 		"build:deploy": "bun convex deploy --cmd 'bun run build'"
 	},
 	"dependencies": {
-		"@auth/core": "^0.37.4",
+		"@auth/core": "^0.41.1",
 		"@azure/communication-email": "^1.1.0",
 		"@better-auth/passkey": "1.4.18",
 		"@convex-dev/auth": "^0.0.90",
