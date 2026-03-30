@@ -85,7 +85,13 @@ This runs two processes in parallel:
 - `vite` — frontend dev server with HMR
 - `convex dev` — watches `convex/` and pushes functions/schema to your dev deployment on every save
 
-### 6. Configure auth providers (optional)
+> **Chrome users:** When Chrome prompts you, allow the site to use **Apps on device** in the site settings.
+
+### 6. Seed the database (fresh deployments only)
+
+Once `bun run dev` is running and has pushed functions to your deployment, open the [Convex dashboard](https://dashboard.convex.dev), navigate to your project's **Functions** panel, and run `seed:seedInitialData`. This creates the default teams, labels, and competition phases that the app expects. You only need to do this once per deployment.
+
+### 7. Configure auth providers (optional)
 
 OAuth tokens are stored per deployment. Each provider needs its credentials set as Convex environment variables first (see [Environment Variables](#environment-variables)), then linked via the CLI:
 
