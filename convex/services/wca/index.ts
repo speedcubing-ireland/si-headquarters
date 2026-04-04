@@ -2,15 +2,20 @@ import { createTokenRefreshDefinition } from "../tokens/tokenDefinition";
 import type { ServiceDefinition } from "../types";
 import { createOAuthServiceDefinition } from "../oauth";
 
+export const WCA_BASE_URL =
+	process.env.WCA_BASE_URL ?? "https://www.worldcubeassociation.org";
+
+export function wcaCompetitionUrl(competitionId: string): string {
+	return `${WCA_BASE_URL}/competitions/${encodeURIComponent(competitionId)}`;
+}
+
 export const wcaTokenRefreshDefinition = createTokenRefreshDefinition({
-	tokenUrl: "https://www.worldcubeassociation.org/oauth/token",
+	tokenUrl: `${WCA_BASE_URL}/oauth/token`,
 	clientIdEnvVar: "SERVICE_WCA_ID",
 	clientSecretEnvVar: "SERVICE_WCA_SECRET",
 	defaultExpiresInSec: 7200,
 	useCreatedAt: true,
 });
-
-export const WCA_BASE = "https://www.worldcubeassociation.org";
 export const WCA_OAUTH_SCOPE = "public email manage_competitions";
 
 export const SEARCH_RESULTS_LIMIT = 10;
@@ -20,7 +25,7 @@ const wcaOauthDefinition: ServiceDefinition["oauth"] =
 	createOAuthServiceDefinition({
 		providerDisplayName: "WCA",
 		tokenDefinition: wcaTokenRefreshDefinition,
-		authorizationUrl: `${WCA_BASE}/oauth/authorize`,
+		authorizationUrl: `${WCA_BASE_URL}/oauth/authorize`,
 		scope: WCA_OAUTH_SCOPE,
 		getMissingClientIdError: () => new Error("Missing SERVICE_WCA_ID env var."),
 		cli: {

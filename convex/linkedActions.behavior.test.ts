@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { api } from "./_generated/api";
 import { TEAM_NAMES } from "./lib/constants";
+import { WCA_BASE_URL } from "./services/wca";
 import schema from "./schema";
 import { modules } from "./test.setup";
 
@@ -663,8 +664,7 @@ describe("confirmWcaEventsManualConfirmation", () => {
 				status: "awaiting_manual_events_confirmation",
 				lastOutputJson: JSON.stringify({
 					activitiesCreated: 10,
-					eventsEditUrl:
-						"https://www.worldcubeassociation.org/competitions/TestComp2026/events/edit",
+					eventsEditUrl: `${WCA_BASE_URL}/competitions/TestComp2026/events/edit`,
 					manualEventsConfirmed: false,
 				}),
 				createdById: userId,

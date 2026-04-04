@@ -8,6 +8,7 @@ import {
 	isLinkedSheetConfig,
 } from "./config";
 import type { RunnerContext } from "./shapes";
+import { WCA_BASE_URL } from "../services/wca";
 
 export type RunnerResult = {
 	message: string;
@@ -131,7 +132,7 @@ const runLinkedSheetAction: LinkedActionRunner = async (
 
 			const wcaCompetitionId = runContext.competition?.wcaCompetitionId;
 			const eventsEditUrl = wcaCompetitionId
-				? `https://www.worldcubeassociation.org/competitions/${wcaCompetitionId}/events/edit`
+				? `${WCA_BASE_URL}/competitions/${wcaCompetitionId}/events/edit`
 				: null;
 
 			return {
