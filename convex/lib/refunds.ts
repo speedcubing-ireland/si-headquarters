@@ -5,8 +5,6 @@ import {
 	normalizeWcaId,
 } from "./wca/registrations";
 
-export const WCA_BASE_URL = "https://www.worldcubeassociation.org";
-
 type RegistrationNote = {
 	firstName: string;
 	comment: string;
