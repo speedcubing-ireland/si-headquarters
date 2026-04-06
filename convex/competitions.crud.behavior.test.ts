@@ -85,7 +85,7 @@ describe("competitions CRUD behavior", () => {
 			organiserIds: [directorId],
 		});
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: compId,
 			updates: {
 				name: "New Name",
@@ -120,7 +120,7 @@ describe("competitions CRUD behavior", () => {
 			organiserIds: [directorId],
 		});
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: compId,
 			updates: { currentPhaseId: phaseId },
 		});
@@ -142,7 +142,7 @@ describe("competitions CRUD behavior", () => {
 		});
 
 		// Add volunteerId as organiser
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: compId,
 			updates: { organiserIds: [directorId, volunteerId] },
 		});

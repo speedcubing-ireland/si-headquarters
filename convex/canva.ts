@@ -22,6 +22,7 @@ import {
 	parseCanvaFolderInput,
 } from "./canva/helpers";
 import { getServiceAccessToken } from "./services/tokens/runtime";
+import { applyResourcePrefix } from "./lib/deploymentGuard";
 
 function canvaError(
 	err:
@@ -460,11 +461,13 @@ export const runTemplateAction = action({
 			competitionName,
 		);
 
+		const title = applyResourcePrefix(args.outputTitle);
+
 		const sr = await createDesignAutofillJob({
 			client,
 			body: {
 				brand_template_id: args.sourceBrandTemplateId,
-				title: args.outputTitle,
+				title,
 				data: autofillData,
 			},
 		});

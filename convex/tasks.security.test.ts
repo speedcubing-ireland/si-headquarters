@@ -241,7 +241,7 @@ describe("tasks access control (non-volunteer)", () => {
 		const authed = t.withIdentity({ subject: viewerUserId });
 
 		const tasks = await authed.query(api.tasks.listForUI, { archived: false });
-		const taskIds = new Set(tasks.map((task) => task.id));
+		const taskIds = new Set(tasks.map((task: { id: string }) => task.id));
 
 		expect(taskIds.has(fixture.allowedParentTaskId)).toBe(true);
 		expect(taskIds.has(fixture.allowedChildTaskId)).toBe(true);
@@ -253,9 +253,10 @@ describe("tasks access control (non-volunteer)", () => {
 		expect(taskIds.has(fixture.noCompetitionChildTaskId)).toBe(false);
 
 		const parent = tasks.find(
-			(task) => task.id === fixture.allowedParentTaskId,
+			(task: { id: string }) => task.id === fixture.allowedParentTaskId,
 		);
-		const subTaskIds = parent?.subTasks.map((subTask) => subTask.id) ?? [];
+		const subTaskIds =
+			parent?.subTasks.map((subTask: { id: string }) => subTask.id) ?? [];
 		expect(subTaskIds).toEqual([fixture.allowedChildTaskId]);
 	});
 
@@ -265,7 +266,7 @@ describe("tasks access control (non-volunteer)", () => {
 		const authed = t.withIdentity({ subject: viewerUserId });
 
 		const tasks = await authed.query(api.tasks.list, { archived: false });
-		const taskIds = new Set(tasks.map((task) => task._id));
+		const taskIds = new Set(tasks.map((task: { _id: string }) => task._id));
 
 		expect(taskIds.has(fixture.allowedParentTaskId)).toBe(true);
 		expect(taskIds.has(fixture.allowedChildTaskId)).toBe(true);
@@ -357,7 +358,9 @@ describe("tasks access control (non-volunteer)", () => {
 
 		expect(task?.approvedByIds).toContain(seeded.directorId);
 		expect(task?.status).toBe("done");
-		expect(visibleTasks.some((task) => task.id === seeded.taskId)).toBe(false);
+		expect(
+			visibleTasks.some((task: { id: string }) => task.id === seeded.taskId),
+		).toBe(false);
 	});
 
 	test("director approval does not satisfy direct user approvals", async () => {
