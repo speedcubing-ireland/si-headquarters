@@ -28,6 +28,7 @@ import {
 	isSealedAuctionFramework,
 } from "./lib/sponsorshipValidators";
 import { isSponsorshipManager } from "./lib/sponsorshipAccess";
+import { wcaCompetitionUrl } from "./services/wca";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
@@ -303,6 +304,7 @@ export const competitionForUIReturns = v.object({
 	progressUpdates: v.array(progressUpdateForUIReturns),
 	compSheet: v.union(compSheetObject, v.null()),
 	wcaCompetitionId: v.union(v.string(), v.null()),
+	wcaUrl: v.union(v.string(), v.null()),
 	sponsorPropertyStatus: competitionSponsorPropertyStatus,
 	sponsorPropertyDisplay: v.optional(v.string()),
 	sponsorWinningBidCents: v.optional(v.number()),
@@ -470,6 +472,7 @@ function buildCompetitionUI(
 		progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 		compSheet: d.compSheet ?? null,
 		wcaCompetitionId: d.wcaCompetitionId ?? null,
+		wcaUrl: d.wcaCompetitionId ? wcaCompetitionUrl(d.wcaCompetitionId) : null,
 		sponsorPropertyStatus: sponsorProperty.sponsorPropertyStatus,
 		sponsorPropertyDisplay: sponsorProperty.sponsorPropertyDisplay,
 		sponsorWinningBidCents: sponsorProperty.sponsorWinningBidCents,

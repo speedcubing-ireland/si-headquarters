@@ -9,7 +9,8 @@ import {
 	type QueryCtx,
 } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { buildRefundDecision, WCA_BASE_URL } from "./lib/refunds";
+import { buildRefundDecision } from "./lib/refunds";
+import { WCA_BASE_URL } from "./services/wca";
 import { requireDirectorOrDelegateAction } from "./lib/oauth";
 import { requireAuthenticatedUserId } from "./lib/permissions/authn";
 import { hasPermission, PERMISSION_KEYS } from "./lib/permissions/policies";
@@ -57,6 +58,7 @@ const volunteerMatchShape = v.object({
 	unpaidAdminComments: v.array(v.string()),
 	dueRegistrationId: v.union(v.number(), v.null()),
 	dueRegistrationFirstName: v.union(v.string(), v.null()),
+	dueRegistrationEditUrl: v.union(v.string(), v.null()),
 });
 
 const competitionRefundStatusShape = v.union(
@@ -515,6 +517,10 @@ export const computeRefunds = action({
 										unpaidFirstNames: match.unpaidFirstNames,
 										dueRegistrationId: match.dueRegistrationId,
 										dueRegistrationFirstName: match.dueRegistrationFirstName,
+										dueRegistrationEditUrl:
+											match.dueRegistrationId !== null
+												? `${WCA_BASE_URL}/registrations/${match.dueRegistrationId}/edit`
+												: null,
 									};
 								})
 								.filter(
