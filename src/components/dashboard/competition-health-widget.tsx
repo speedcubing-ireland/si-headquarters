@@ -68,7 +68,9 @@ export function getTaskProgress(comp: Competition): {
 	const tasks = comp.tasks ?? [];
 	const currentPhaseId = comp.phases?.[comp.currentPhaseIdx ?? 0]?.id;
 	const tasksInCurrentPhase = currentPhaseId
-		? tasks.filter((task: Competition["tasks"][number]) => task.phaseId === currentPhaseId)
+		? tasks.filter(
+				(task: Competition["tasks"][number]) => task.phaseId === currentPhaseId,
+			)
 		: tasks;
 	const completed = tasksInCurrentPhase.filter(isFinishedTask).length;
 	return { completed, total: tasksInCurrentPhase.length };
@@ -211,9 +213,11 @@ export function CompetitionHealthWidget() {
 				</div>
 			) : (
 				<div className="min-w-0 space-y-2">
-					{activeCompetitions.slice(0, MAX_COMPETITIONS).map((comp: Competition) => (
-						<CompetitionCard key={comp.id} competition={comp} />
-					))}
+					{activeCompetitions
+						.slice(0, MAX_COMPETITIONS)
+						.map((comp: Competition) => (
+							<CompetitionCard key={comp.id} competition={comp} />
+						))}
 					{activeCompetitions.length > MAX_COMPETITIONS && (
 						<p className="px-2 text-xs text-muted-foreground">
 							and {activeCompetitions.length - MAX_COMPETITIONS} more

@@ -99,7 +99,9 @@ export function CompetitionTasksByPhase({
 		});
 
 		const phase = phaseId
-			? (competition.phases.find((p: Competition["phases"][number]) => p.id === phaseId) ?? null)
+			? (competition.phases.find(
+					(p: Competition["phases"][number]) => p.id === phaseId,
+				) ?? null)
 			: null;
 		void addTask({
 			parent: { type: "competition", linkedId: competition.id },

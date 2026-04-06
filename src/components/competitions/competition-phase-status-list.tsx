@@ -79,56 +79,58 @@ export function CompetitionPhaseStatusList({
 }: CompetitionPhaseStatusListProps) {
 	return (
 		<div className="flex flex-col gap-0.5">
-			{competition.phases.map((phase: Competition["phases"][number], index: number) => {
-				const isCurrent = index === competition.currentPhaseIdx;
-				const phaseKey = getPhaseKeyFromName(phase.name);
-				const phaseStyles = PHASE_LIST_STYLES[phaseKey];
+			{competition.phases.map(
+				(phase: Competition["phases"][number], index: number) => {
+					const isCurrent = index === competition.currentPhaseIdx;
+					const phaseKey = getPhaseKeyFromName(phase.name);
+					const phaseStyles = PHASE_LIST_STYLES[phaseKey];
 
-				return (
-					<button
-						key={phase.id}
-						type="button"
-						onClick={() => {
-							if (disableSelection) return;
-							onSelectPhase?.(phase.id);
-						}}
-						className={cn(
-							"group flex min-w-0 w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-							isCurrent
-								? phaseStyles.rowCurrentClass
-								: phaseStyles.rowDefaultClass,
-							disableSelection && "cursor-default",
-						)}
-					>
-						<div className="flex min-w-0 items-center gap-2">
-							<Circle
-								className={cn(
-									"size-2 transition-colors",
-									isCurrent
-										? phaseStyles.dotCurrentClass
-										: phaseStyles.dotDefaultClass,
-								)}
-							/>
-							<span
-								className={cn("min-w-0 truncate", isCurrent && "font-medium")}
-							>
-								{phase.name}
-							</span>
-						</div>
-						{isCurrent && (
-							<Badge
-								variant="outline"
-								className={cn(
-									"h-5 text-[10px] font-normal",
-									phaseStyles.currentBadgeClass,
-								)}
-							>
-								Current
-							</Badge>
-						)}
-					</button>
-				);
-			})}
+					return (
+						<button
+							key={phase.id}
+							type="button"
+							onClick={() => {
+								if (disableSelection) return;
+								onSelectPhase?.(phase.id);
+							}}
+							className={cn(
+								"group flex min-w-0 w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+								isCurrent
+									? phaseStyles.rowCurrentClass
+									: phaseStyles.rowDefaultClass,
+								disableSelection && "cursor-default",
+							)}
+						>
+							<div className="flex min-w-0 items-center gap-2">
+								<Circle
+									className={cn(
+										"size-2 transition-colors",
+										isCurrent
+											? phaseStyles.dotCurrentClass
+											: phaseStyles.dotDefaultClass,
+									)}
+								/>
+								<span
+									className={cn("min-w-0 truncate", isCurrent && "font-medium")}
+								>
+									{phase.name}
+								</span>
+							</div>
+							{isCurrent && (
+								<Badge
+									variant="outline"
+									className={cn(
+										"h-5 text-[10px] font-normal",
+										phaseStyles.currentBadgeClass,
+									)}
+								>
+									Current
+								</Badge>
+							)}
+						</button>
+					);
+				},
+			)}
 		</div>
 	);
 }

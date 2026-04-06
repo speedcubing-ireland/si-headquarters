@@ -48,7 +48,9 @@ export function useCompetitionMutations() {
 				compEnd: payload.compEnd,
 				compLeadId: payload.compLead?.id ?? undefined,
 				leadDelegateId: payload.leadDelegate?.id ?? undefined,
-				organiserIds: payload.organisers.map((u: Competition["organisers"][number]) => u.id),
+				organiserIds: payload.organisers.map(
+					(u: Competition["organisers"][number]) => u.id,
+				),
 				compSheet: payload.compSheet ?? undefined,
 				wcaCompetitionId: payload.wcaCompetitionId ?? undefined,
 			});
@@ -95,7 +97,9 @@ export function useCompetitionMutations() {
 							: undefined,
 					organiserIds:
 						updates.organisers !== undefined
-							? updates.organisers.map((u: Competition["organisers"][number]) => u.id)
+							? updates.organisers.map(
+									(u: Competition["organisers"][number]) => u.id,
+								)
 							: undefined,
 					currentPhaseId:
 						updates.currentPhaseId !== undefined
