@@ -122,9 +122,9 @@ const organisersGroupRenderer: GroupValueRenderer = (_value, row) => {
 	const tooltipContent = (
 		<div className="flex flex-col gap-0.5">
 			{organisers
-				.map((o) => o.name)
-				.sort((a, b) => a.localeCompare(b))
-				.map((name) => (
+				.map((o: Competition["organisers"][number]) => o.name)
+				.sort((a: string, b: string) => a.localeCompare(b))
+				.map((name: string) => (
 					<div key={name}>{name}</div>
 				))}
 		</div>
@@ -132,7 +132,7 @@ const organisersGroupRenderer: GroupValueRenderer = (_value, row) => {
 
 	const avatarGroup = (
 		<AvatarGroup className="group-data-[size=sm]/avatar-group:*:data-[slot=avatar]:size-4">
-			{organisers.slice(0, 3).map((org) => (
+			{organisers.slice(0, 3).map((org: Competition["organisers"][number]) => (
 				<Avatar key={org.id} className="size-4">
 					<AvatarImage src={org.avatarUrl} alt={org.name} />
 					<AvatarFallback className="text-[10px]">
@@ -192,11 +192,11 @@ const leadDelegateGroupRenderer: GroupValueRenderer = (_value, row) => {
 function getTasksSummary(comp: Competition): TasksSummary {
 	const currentPhaseId = comp.phases[comp.currentPhaseIdx]?.id;
 	const phaseTasks = currentPhaseId
-		? comp.tasks.filter((task) => task.phaseId === currentPhaseId)
+		? comp.tasks.filter((task: Competition["tasks"][number]) => task.phaseId === currentPhaseId)
 		: comp.tasks;
 	const total = phaseTasks.length;
 	const completed = phaseTasks.filter(
-		(task) => task.status === "done" || task.status === "cancelled",
+		(task: Competition["tasks"][number]) => task.status === "done" || task.status === "cancelled",
 	).length;
 	const open = total - completed;
 	return { completed, open, total };
@@ -303,15 +303,15 @@ export const columns: ColumnDef<Competition>[] = [
 		accessorFn: (row) =>
 			row.organisers.length > 0
 				? row.organisers
-						.map((u) => u.name)
-						.sort((a, b) => a.localeCompare(b))
+						.map((u: Competition["organisers"][number]) => u.name)
+						.sort((a: string, b: string) => a.localeCompare(b))
 						.join(", ")
 				: "No organisers",
 		getGroupingValue: (row) =>
 			row.organisers.length > 0
 				? row.organisers
-						.map((u) => u.id)
-						.sort((a, b) => a.localeCompare(b))
+						.map((u: Competition["organisers"][number]) => u.id)
+						.sort((a: string, b: string) => a.localeCompare(b))
 						.join(",")
 				: "none",
 		header: "Organisers",

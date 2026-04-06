@@ -44,7 +44,7 @@ const competitionEngine = createFilterEngine<Competition, CompetitionsFilters>(
 			key: "leadDelegate",
 			getValue: (comp) => (comp.leadDelegate ? [comp.leadDelegate.id] : []),
 		},
-		{ key: "organisers", getValue: (comp) => comp.organisers.map((u) => u.id) },
+		{ key: "organisers", getValue: (comp) => comp.organisers.map((u: Competition["organisers"][number]) => u.id) },
 	],
 	buildDateMatcher,
 );
