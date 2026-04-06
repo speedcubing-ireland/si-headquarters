@@ -559,7 +559,7 @@ export function CompetitionPropertiesSidebar({
 					</div>
 
 					<div className="flex min-h-9 flex-col gap-2 px-3 -mx-3">
-						{competition.wcaCompetitionId ? (
+						{competition.wcaUrl ? (
 							<div className="flex items-center gap-1">
 								<Button
 									variant="ghost"
@@ -567,11 +567,7 @@ export function CompetitionPropertiesSidebar({
 									className="h-7 min-w-0 flex-1 justify-start gap-1.5 px-2 font-normal"
 									asChild
 								>
-									<a
-										href={`https://www.worldcubeassociation.org/competitions/${competition.wcaCompetitionId}`}
-										target="_blank"
-										rel="noreferrer"
-									>
+									<a href={competition.wcaUrl} target="_blank" rel="noreferrer">
 										<Globe className="size-3.5 shrink-0 text-info" />
 										<span className="truncate">Open on WCA</span>
 										<ExternalLink className="size-3 shrink-0 text-muted" />
@@ -590,7 +586,7 @@ export function CompetitionPropertiesSidebar({
 									<DropdownMenuContent align="end" className="w-56">
 										<DropdownMenuItem asChild>
 											<a
-												href={`https://www.worldcubeassociation.org/competitions/${competition.wcaCompetitionId}`}
+												href={competition.wcaUrl}
 												target="_blank"
 												rel="noreferrer"
 											>

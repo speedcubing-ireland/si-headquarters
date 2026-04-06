@@ -4,7 +4,7 @@ import type { DataModel } from "./_generated/dataModel";
 import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { requireVolunteerAction } from "./lib/oauth";
-import { WCA_BASE, SEARCH_RESULTS_LIMIT } from "./services/wca";
+import { wcaCompetitionUrl, SEARCH_RESULTS_LIMIT } from "./services/wca";
 import { createWcaClient } from "./services/wca/client";
 import {
 	competitionById,
@@ -70,10 +70,6 @@ async function getWcaAccessToken(
 	ctx: GenericActionCtx<DataModel>,
 ): Promise<string | null> {
 	return await getServiceAccessToken(ctx, "wca");
-}
-
-function wcaCompetitionUrl(competitionId: string): string {
-	return `${WCA_BASE}/competitions/${encodeURIComponent(competitionId)}`;
 }
 
 type MyCompetitionsData = NonNullable<

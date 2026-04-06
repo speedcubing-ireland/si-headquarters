@@ -21,8 +21,6 @@ import type {
 } from "@/convex/refunds";
 import { formatDateRangeForDisplay } from "@/lib/format-utils";
 
-const WCA_BASE_URL = "https://www.worldcubeassociation.org";
-
 const STATUS_CONFIG: Record<
 	CompetitionRefundSummary["status"],
 	{ label: string; variant: "destructive" | "secondary" | "outline" }
@@ -71,7 +69,7 @@ function VolunteerMatchCard({ match }: { match: RefundVolunteerMatch }) {
 					<Tooltip key={key}>
 						<TooltipTrigger asChild>
 							<a
-								href={`${WCA_BASE_URL}/registrations/${match.dueRegistrationId}/edit`}
+								href={match.dueRegistrationEditUrl ?? ""}
 								target="_blank"
 								rel="noreferrer"
 							>

@@ -72,6 +72,9 @@ if [[ -z "$PROD_FLAG" ]]; then
 fi
 # bunx convex env set $PROD_FLAG CORS_ALLOWED_ORIGINS    "<YOUR_CORS_ALLOWED_ORIGINS>"
 
+# WCA_BASE_URL defaults to https://www.worldcubeassociation.org — only set for local/staging WCA.
+# bunx convex env set $PROD_FLAG WCA_BASE_URL            "http://localhost:3000"
+
 echo ""
 echo "Convex ${TARGET} environment variables set successfully."
 echo ""

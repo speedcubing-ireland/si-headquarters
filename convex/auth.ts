@@ -17,6 +17,7 @@ import { isVolunteerForCtx } from "./lib/permissions/policies";
 import { normalizeEmail } from "./lib/sanitize";
 import { z } from "zod";
 import { v } from "convex/values";
+import { WCA_BASE_URL } from "./services/wca";
 
 function hasAvatarImage(image: string | null | undefined): boolean {
 	return typeof image === "string" && image.trim().length > 0;
@@ -53,13 +54,13 @@ function WCA(
 		type: "oauth",
 		checks: ["state"],
 		authorization: {
-			url: "https://www.worldcubeassociation.org/oauth/authorize",
+			url: `${WCA_BASE_URL}/oauth/authorize`,
 			params: {
 				scope: "public email",
 			},
 		},
-		token: "https://www.worldcubeassociation.org/oauth/token",
-		userinfo: "https://www.worldcubeassociation.org/api/v0/me",
+		token: `${WCA_BASE_URL}/oauth/token`,
+		userinfo: `${WCA_BASE_URL}/api/v0/me`,
 		clientId: options.clientId,
 		clientSecret: options.clientSecret,
 		profile(profile) {

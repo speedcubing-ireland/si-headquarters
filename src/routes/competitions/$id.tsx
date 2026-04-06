@@ -114,12 +114,8 @@ function CompetitionHeader({
 						</Button>
 					</a>
 				)}
-				{competition.wcaCompetitionId && (
-					<a
-						href={`https://www.worldcubeassociation.org/competitions/${competition.wcaCompetitionId}`}
-						target="_blank"
-						rel="noreferrer"
-					>
+				{competition.wcaUrl && (
+					<a href={competition.wcaUrl} target="_blank" rel="noreferrer">
 						<Button variant="ghost" size="sm" className="gap-1">
 							<Globe className="size-4" />
 							<span className="hidden sm:inline">WCA</span>
