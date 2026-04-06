@@ -939,7 +939,7 @@ export const _update = internalMutation({
 export const update = action({
 	args: updateArgs,
 	returns: v.union(v.null(), v.string()),
-	handler: async (ctx, args) => {
+	handler: async (ctx, args): Promise<string | null> => {
 		const sheetUpdate = args.updates.compSheet;
 		if (sheetUpdate?.sheetId && !isProductionDeployment()) {
 			const guardError: string | null = await ctx.runAction(

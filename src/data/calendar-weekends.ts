@@ -87,13 +87,14 @@ export function mergeWeekendsWithOverrides(
 	weekends: Weekend[],
 	overrides: Record<string, WeekendOverride>,
 ): Weekend[] {
-	return weekends.map((w) => {
+	return weekends.map((w): Weekend => {
 		const rowKey = getCalendarWeekendRowKey(
 			w.satDate,
 			w.competition?.id ?? null,
 		);
 		const override = overrides[rowKey];
-		if (!override || w.competition) return w;
+		if (!override) return w;
+		if (w.competition) return w;
 		const info = w.weekendInfo;
 		return {
 			...w,

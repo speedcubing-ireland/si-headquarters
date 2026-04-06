@@ -79,7 +79,7 @@ export function CompetitionPhaseStatusList({
 }: CompetitionPhaseStatusListProps) {
 	return (
 		<div className="flex flex-col gap-0.5">
-			{competition.phases.map((phase, index) => {
+			{competition.phases.map((phase: Competition["phases"][number], index: number) => {
 				const isCurrent = index === competition.currentPhaseIdx;
 				const phaseKey = getPhaseKeyFromName(phase.name);
 				const phaseStyles = PHASE_LIST_STYLES[phaseKey];
