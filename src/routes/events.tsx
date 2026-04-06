@@ -94,7 +94,9 @@ function EventsPage() {
 	const compsWithSheet = useMemo(
 		() =>
 			competitions.filter(
-				(c: Competition): c is Competition & { compSheet: { sheetId: string } } =>
+				(
+					c: Competition,
+				): c is Competition & { compSheet: { sheetId: string } } =>
 					Boolean(c.compSheet?.sheetId),
 			),
 		[competitions],

@@ -192,11 +192,14 @@ const leadDelegateGroupRenderer: GroupValueRenderer = (_value, row) => {
 function getTasksSummary(comp: Competition): TasksSummary {
 	const currentPhaseId = comp.phases[comp.currentPhaseIdx]?.id;
 	const phaseTasks = currentPhaseId
-		? comp.tasks.filter((task: Competition["tasks"][number]) => task.phaseId === currentPhaseId)
+		? comp.tasks.filter(
+				(task: Competition["tasks"][number]) => task.phaseId === currentPhaseId,
+			)
 		: comp.tasks;
 	const total = phaseTasks.length;
 	const completed = phaseTasks.filter(
-		(task: Competition["tasks"][number]) => task.status === "done" || task.status === "cancelled",
+		(task: Competition["tasks"][number]) =>
+			task.status === "done" || task.status === "cancelled",
 	).length;
 	const open = total - completed;
 	return { completed, open, total };
