@@ -85,15 +85,19 @@ describe("refunds security", () => {
 		});
 
 		const beforeDelete = await delegate.query(api.refunds.listVolunteers, {});
-		expect(beforeDelete.some((volunteer) => volunteer.id === volunteerId)).toBe(
-			true,
-		);
+		expect(
+			beforeDelete.some(
+				(volunteer: { id: string }) => volunteer.id === volunteerId,
+			),
+		).toBe(true);
 
 		await delegate.mutation(api.refunds.deleteVolunteer, { id: volunteerId });
 		const afterDelete = await delegate.query(api.refunds.listVolunteers, {});
-		expect(afterDelete.some((volunteer) => volunteer.id === volunteerId)).toBe(
-			false,
-		);
+		expect(
+			afterDelete.some(
+				(volunteer: { id: string }) => volunteer.id === volunteerId,
+			),
+		).toBe(false);
 	});
 
 	test("volunteers cannot compute refunds", async () => {

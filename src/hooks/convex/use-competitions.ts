@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
+import { useAction, useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Competition } from "@/data/types-new";
@@ -36,7 +36,7 @@ export const useCompetition = (competitionId: Id<"competitions"> | null) => {
 
 export function useCompetitionMutations() {
 	const createCompetition = useMutation(api.competitions.create);
-	const updateCompetitionMutation = useMutation(api.competitions.update);
+	const updateCompetitionAction = useAction(api.competitions.update);
 	const removeCompetitionMutation = useMutation(api.competitions.remove);
 
 	return {
@@ -78,7 +78,7 @@ export function useCompetitionMutations() {
 				sponsorOverrideSponsorId?: Id<"sponsors"> | null;
 			},
 		) =>
-			updateCompetitionMutation({
+			updateCompetitionAction({
 				competitionId: id,
 				updates: pickDefined({
 					name: updates.name,
@@ -118,6 +118,8 @@ export function useCompetitionMutations() {
 							? updates.sponsorOverrideSponsorId
 							: undefined,
 				}),
+			}).then((error) => {
+				if (error) throw new Error(error);
 			}),
 
 		deleteCompetition: (id: Id<"competitions">) =>

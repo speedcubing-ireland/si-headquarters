@@ -27,11 +27,13 @@ import {
 } from "./services/wca/client/sdk.gen";
 import {
 	clearGoogleSheetValues,
+	fetchGoogleSheetTitle,
 	fetchGoogleSheetValues,
 	type GoogleSheetCellValue,
 	shareGoogleSheetWithUser,
 	updateGoogleSheetValues,
 } from "./services/google/sheetsClient";
+import { checkResourceNamingGuard } from "./lib/deploymentGuard";
 import {
 	getRegistrationStatus,
 	isAcceptedRegistration,
@@ -135,6 +137,23 @@ const ROUND_FORMATS: Record<string, string> = {
 	"444bf": "3",
 	"555bf": "3",
 };
+
+async function guardSheetNaming(
+	sheetId: string,
+	googleToken: string,
+): Promise<{ success: false; error: string } | null> {
+	const error = await checkResourceNamingGuard({
+		resourceType: "Google Sheet",
+		resourceId: sheetId,
+		fetchResourceName: () =>
+			fetchGoogleSheetTitle({
+				accessToken: googleToken,
+				spreadsheetId: sheetId,
+			}),
+	});
+	if (error) return { success: false, error };
+	return null;
+}
 
 export function getRoundFormat(
 	eventId: string,
@@ -1015,6 +1034,13 @@ export const populateCheckinSheetFromWca = action({
 				error: "No WCA token. Run: bun run auth wca",
 			};
 		}
+
+		const guardError = await guardSheetNaming(
+			competition.compSheet.sheetId,
+			googleToken,
+		);
+		if (guardError) return guardError;
+
 		const wcaClient = createWcaClient(wcaToken);
 
 		const registrationsResponse = await getRegistrationsAdmin({
@@ -1119,6 +1145,12 @@ export const shareSheetWithLaptops = action({
 				error: "No Google Sheets token. Run: bun run auth google-sheets",
 			};
 		}
+
+		const guardError = await guardSheetNaming(
+			competition.compSheet.sheetId,
+			googleToken,
+		);
+		if (guardError) return guardError;
 
 		try {
 			await shareGoogleSheetWithUser({

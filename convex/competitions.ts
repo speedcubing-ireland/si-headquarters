@@ -1,8 +1,16 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import {
+	action,
+	internalMutation,
+	mutation,
+	query,
+	internalQuery,
+} from "./_generated/server";
+import { internal } from "./_generated/api";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserId, isVolunteer } from "./auth";
+import { isProductionDeployment } from "./lib/deploymentGuard";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
@@ -810,11 +818,13 @@ async function promoteBacklogTasksInPhase(
 	);
 }
 
-export const update = mutation({
-	args: {
-		competitionId: v.id("competitions"),
-		updates: competitionUpdateValidator,
-	},
+const updateArgs = {
+	competitionId: v.id("competitions"),
+	updates: competitionUpdateValidator,
+};
+
+export const _update = internalMutation({
+	args: updateArgs,
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
@@ -922,6 +932,26 @@ export const update = mutation({
 			);
 		}
 
+		return null;
+	},
+});
+
+export const update = action({
+	args: updateArgs,
+	returns: v.union(v.null(), v.string()),
+	handler: async (ctx, args) => {
+		const sheetUpdate = args.updates.compSheet;
+		if (sheetUpdate?.sheetId && !isProductionDeployment()) {
+			const guardError: string | null = await ctx.runAction(
+				internal.competitionsNodeActions.checkSheetNamingGuard,
+				{ sheetId: sheetUpdate.sheetId },
+			);
+			if (guardError) {
+				return guardError;
+			}
+		}
+
+		await ctx.runMutation(internal.competitions._update, args);
 		return null;
 	},
 });
