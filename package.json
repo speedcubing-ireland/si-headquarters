@@ -79,7 +79,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.4",
-		"@convex-dev/eslint-plugin": "^1.2.1",
+		"@convex-dev/eslint-plugin": "^2.0.0",
 		"@edge-runtime/vm": "^5.0.0",
 		"@hey-api/openapi-ts": "0.92.4",
 		"@tanstack/router-plugin": "^1.167.4",
