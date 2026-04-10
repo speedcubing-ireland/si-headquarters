@@ -50,7 +50,7 @@
 		"@react-email/components": "^1.0.10",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.2.2",
-		"@tanstack/react-router": "^1.168.3",
+		"@tanstack/react-router": "^1.168.10",
 		"@tanstack/react-table": "^8.21.3",
 		"better-auth": "1.4.18",
 		"class-variance-authority": "^0.7.1",
