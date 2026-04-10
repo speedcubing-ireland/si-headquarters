@@ -3,6 +3,7 @@ import { useAction } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useCompetitions, useIsVolunteer } from "@/hooks/use-convex-data";
+import type { Competition } from "@/data/types-new";
 import {
 	Table,
 	TableBody,
@@ -93,7 +94,9 @@ function EventsPage() {
 	const compsWithSheet = useMemo(
 		() =>
 			competitions.filter(
-				(c): c is typeof c & { compSheet: { sheetId: string } } =>
+				(
+					c: Competition,
+				): c is Competition & { compSheet: { sheetId: string } } =>
 					Boolean(c.compSheet?.sheetId),
 			),
 		[competitions],
@@ -102,7 +105,7 @@ function EventsPage() {
 	const compsWithSheetKey = useMemo(
 		() =>
 			compsWithSheet
-				.map((c) => `${c.id}:${c.compSheet.sheetId}`)
+				.map((c: CompWithSheet) => `${c.id}:${c.compSheet.sheetId}`)
 				.sort()
 				.join(","),
 		[compsWithSheet],
@@ -160,7 +163,7 @@ function EventsPage() {
 
 	const competitionRows = useMemo(() => {
 		return compsWithSheet
-			.map((comp) => {
+			.map((comp: CompWithSheet) => {
 				const result = sheetResults.get(comp.id);
 				if (!result) return null;
 				if ("error" in result) {

@@ -124,7 +124,8 @@ describe("notifications behavior", () => {
 			{},
 		);
 		const inApp = preferences.find(
-			(row) => row.type === "task_assigned" && row.channel === "in_app",
+			(row: { type: string; channel: string }) =>
+				row.type === "task_assigned" && row.channel === "in_app",
 		);
 		expect(inApp?.digestMode).toBe("immediate");
 	});

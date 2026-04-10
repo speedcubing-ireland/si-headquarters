@@ -97,8 +97,8 @@ export function CompetitionLatestUpdate({
 
 	const active = isCreating ? undefined : latest;
 	const statusInfo = active
-		? statusConfig[active.status]
-		: statusConfig[status];
+		? statusConfig[active.status as keyof typeof statusConfig]
+		: statusConfig[status as keyof typeof statusConfig];
 	const StatusIcon = statusInfo.icon;
 
 	return (

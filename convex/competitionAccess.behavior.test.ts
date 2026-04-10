@@ -39,14 +39,14 @@ describe("competition access index behavior", () => {
 
 		const aliceInitially = await alice.query(api.competitions.listForUI, {});
 		const bobInitially = await bob.query(api.competitions.listForUI, {});
-		expect(aliceInitially.map((competition) => competition.id)).toContain(
-			competitionId,
-		);
-		expect(bobInitially.map((competition) => competition.id)).not.toContain(
-			competitionId,
-		);
+		expect(
+			aliceInitially.map((competition: { id: string }) => competition.id),
+		).toContain(competitionId);
+		expect(
+			bobInitially.map((competition: { id: string }) => competition.id),
+		).not.toContain(competitionId);
 
-		await alice.mutation(api.competitions.update, {
+		await alice.action(api.competitions.update, {
 			competitionId,
 			updates: {
 				organiserIds: [seeded.bobId],
@@ -59,10 +59,10 @@ describe("competition access index behavior", () => {
 		);
 		const bobAfterTransfer = await bob.query(api.competitions.listForUI, {});
 		expect(
-			aliceAfterTransfer.map((competition) => competition.id),
+			aliceAfterTransfer.map((competition: { id: string }) => competition.id),
 		).not.toContain(competitionId);
-		expect(bobAfterTransfer.map((competition) => competition.id)).toContain(
-			competitionId,
-		);
+		expect(
+			bobAfterTransfer.map((competition: { id: string }) => competition.id),
+		).toContain(competitionId);
 	});
 });

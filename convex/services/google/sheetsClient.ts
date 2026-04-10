@@ -58,6 +58,18 @@ export async function updateGoogleSheetValues(args: {
 	});
 }
 
+export async function fetchGoogleSheetTitle(args: {
+	accessToken: string;
+	spreadsheetId: string;
+}): Promise<string> {
+	const sheets = createSheetsClient(args.accessToken);
+	const response = await sheets.spreadsheets.get({
+		spreadsheetId: args.spreadsheetId,
+		fields: "properties.title",
+	});
+	return response.data.properties?.title ?? "";
+}
+
 export async function shareGoogleSheetWithUser(args: {
 	accessToken: string;
 	spreadsheetId: string;

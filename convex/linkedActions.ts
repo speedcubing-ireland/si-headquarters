@@ -930,7 +930,7 @@ export const completeLinkedSheetShareWithLaptops = action({
 			taskId: args.taskId,
 		});
 		const row = linkedActions.find(
-			(item) => item.id === args.taskLinkedActionId,
+			(item: { id: string }) => item.id === args.taskLinkedActionId,
 		);
 		if (!row) {
 			return {
