@@ -130,7 +130,9 @@ function buildSearchItems(
 			competition,
 			name: competition.name,
 			description: competition.description,
-			phaseNames: competition.phases.map((phase) => phase.name),
+			phaseNames: competition.phases.map(
+				(phase: Competition["phases"][number]) => phase.name,
+			),
 		}),
 	);
 

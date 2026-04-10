@@ -147,7 +147,7 @@ export function EditablePhaseCell({
 
 	const handleChange = (key: CompetitionPhaseKey) => {
 		const targetPhase =
-			competition.phases.find((phase) => {
+			competition.phases.find((phase: Competition["phases"][number]) => {
 				return getPhaseKeyFromName(phase.name) === key;
 			}) ?? competition.phases[competition.currentPhaseIdx];
 
@@ -267,11 +267,15 @@ export function EditableOrganisersCell({
 	const { updateCompetition } = useCompetitionMutations();
 	const [open, setOpen] = React.useState(false);
 
-	const organiserIds = new Set(competition.organisers.map((u) => u.id));
+	const organiserIds = new Set(
+		competition.organisers.map((u: Competition["organisers"][number]) => u.id),
+	);
 
 	const toggleOrganiser = (user: User) => {
 		const nextOrganisers = organiserIds.has(user.id)
-			? competition.organisers.filter((u) => u.id !== user.id)
+			? competition.organisers.filter(
+					(u: Competition["organisers"][number]) => u.id !== user.id,
+				)
 			: [...competition.organisers, user];
 		void updateCompetition(competition.id, {
 			organisers: nextOrganisers,
@@ -293,14 +297,16 @@ export function EditableOrganisersCell({
 									<TooltipTrigger asChild>
 										<span>
 											<AvatarGroup className="group-data-[size=sm]/avatar-group:*:data-[slot=avatar]:size-5">
-												{competition.organisers.slice(0, 3).map((org) => (
-													<Avatar key={org.id} className="size-5">
-														<AvatarImage src={org.avatarUrl} alt={org.name} />
-														<AvatarFallback className="text-[10px]">
-															{getInitials(org.name)}
-														</AvatarFallback>
-													</Avatar>
-												))}
+												{competition.organisers
+													.slice(0, 3)
+													.map((org: Competition["organisers"][number]) => (
+														<Avatar key={org.id} className="size-5">
+															<AvatarImage src={org.avatarUrl} alt={org.name} />
+															<AvatarFallback className="text-[10px]">
+																{getInitials(org.name)}
+															</AvatarFallback>
+														</Avatar>
+													))}
 												{competition.organisers.length > 3 && (
 													<AvatarGroupCount className="size-5 text-[10px]">
 														+{competition.organisers.length - 3}
@@ -312,9 +318,9 @@ export function EditableOrganisersCell({
 									<TooltipContent sideOffset={6}>
 										<div className="flex flex-col gap-0.5">
 											{competition.organisers
-												.map((o) => o.name)
-												.sort((a, b) => a.localeCompare(b))
-												.map((name) => (
+												.map((o: Competition["organisers"][number]) => o.name)
+												.sort((a: string, b: string) => a.localeCompare(b))
+												.map((name: string) => (
 													<div key={name}>{name}</div>
 												))}
 										</div>
@@ -322,14 +328,16 @@ export function EditableOrganisersCell({
 								</Tooltip>
 							) : (
 								<AvatarGroup className="group-data-[size=sm]/avatar-group:*:data-[slot=avatar]:size-5">
-									{competition.organisers.slice(0, 1).map((org) => (
-										<Avatar key={org.id} className="size-5">
-											<AvatarImage src={org.avatarUrl} alt={org.name} />
-											<AvatarFallback className="text-[10px]">
-												{getInitials(org.name)}
-											</AvatarFallback>
-										</Avatar>
-									))}
+									{competition.organisers
+										.slice(0, 1)
+										.map((org: Competition["organisers"][number]) => (
+											<Avatar key={org.id} className="size-5">
+												<AvatarImage src={org.avatarUrl} alt={org.name} />
+												<AvatarFallback className="text-[10px]">
+													{getInitials(org.name)}
+												</AvatarFallback>
+											</Avatar>
+										))}
 								</AvatarGroup>
 							)}
 							{competition.organisers.length === 1 && (

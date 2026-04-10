@@ -109,7 +109,7 @@ describe("competitions behavior characterization", () => {
 		const denied = t.withIdentity({ subject: seeded.deniedUser });
 
 		await expect(
-			denied.mutation(api.competitions.update, {
+			denied.action(api.competitions.update, {
 				competitionId: seeded.competitionId,
 				updates: { description: "Should fail" },
 			}),
@@ -179,7 +179,7 @@ describe("competitions behavior characterization", () => {
 			};
 		});
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: seeded.competitionId,
 			updates: { currentPhaseId: seeded.phaseBId },
 		});
@@ -220,7 +220,7 @@ describe("competitions behavior characterization", () => {
 			}),
 		);
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: seeded.competitionId,
 			updates: { description: "Rename only" },
 		});
@@ -234,7 +234,7 @@ describe("competitions behavior characterization", () => {
 		const seeded = await seedCompetitionFixture(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: seeded.competitionId,
 			updates: {
 				compLeadId: null,
@@ -270,7 +270,7 @@ describe("competitions behavior characterization", () => {
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		await expect(
-			authed.mutation(api.competitions.update, {
+			authed.action(api.competitions.update, {
 				competitionId: seeded.competitionId,
 				updates: { manualSponsorPropertyStatus: "none" },
 			}),
@@ -338,7 +338,7 @@ describe("competitions behavior characterization", () => {
 		});
 		expect(beforeOverride?.sponsorPropertyStatus).toBe("sponsor");
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: seeded.competitionId,
 			updates: { manualSponsorPropertyStatus: "none" },
 		});
@@ -347,7 +347,7 @@ describe("competitions behavior characterization", () => {
 		});
 		expect(overridden?.sponsorPropertyStatus).toBe("none");
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: seeded.competitionId,
 			updates: {
 				manualSponsorPropertyStatus: "sponsor",
@@ -365,7 +365,7 @@ describe("competitions behavior characterization", () => {
 			"Manual Sponsor",
 		);
 
-		await authed.mutation(api.competitions.update, {
+		await authed.action(api.competitions.update, {
 			competitionId: seeded.competitionId,
 			updates: { manualSponsorPropertyStatus: null, manualSponsorId: null },
 		});

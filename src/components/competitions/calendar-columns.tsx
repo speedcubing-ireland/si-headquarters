@@ -43,7 +43,8 @@ function getTasksSummary(comp: Competition): {
 } {
 	const total = comp.tasks.length;
 	const completed = comp.tasks.filter(
-		(task) => task.status === "done" || task.status === "cancelled",
+		(task: Competition["tasks"][number]) =>
+			task.status === "done" || task.status === "cancelled",
 	).length;
 	const open = total - completed;
 	return { completed, open, total };
@@ -230,8 +231,8 @@ export const calendarColumns: ColumnDef<Weekend>[] = [
 		id: "organisers",
 		accessorFn: (row) =>
 			row.competition?.organisers
-				?.map((u) => u.name)
-				.sort((a, b) => a.localeCompare(b))
+				?.map((u: Competition["organisers"][number]) => u.name)
+				.sort((a: string, b: string) => a.localeCompare(b))
 				.join(", ") ?? "",
 		header: "Organisers",
 		cell: ({ row }) => {
@@ -240,14 +241,16 @@ export const calendarColumns: ColumnDef<Weekend>[] = [
 			return (
 				<span className="flex items-center gap-1">
 					<AvatarGroup className="group-data-[size=sm]/avatar-group:*:data-[slot=avatar]:size-4">
-						{organisers.slice(0, 3).map((org) => (
-							<Avatar key={org.id} className="size-4">
-								<AvatarImage src={org.avatarUrl} alt={org.name} />
-								<AvatarFallback className="text-[10px]">
-									{getInitials(org.name)}
-								</AvatarFallback>
-							</Avatar>
-						))}
+						{organisers
+							.slice(0, 3)
+							.map((org: Competition["organisers"][number]) => (
+								<Avatar key={org.id} className="size-4">
+									<AvatarImage src={org.avatarUrl} alt={org.name} />
+									<AvatarFallback className="text-[10px]">
+										{getInitials(org.name)}
+									</AvatarFallback>
+								</Avatar>
+							))}
 						{organisers.length > 3 && (
 							<AvatarGroupCount className="size-4 text-[10px]">
 								+{organisers.length - 3}

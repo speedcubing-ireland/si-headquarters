@@ -68,7 +68,9 @@ export function getTaskProgress(comp: Competition): {
 	const tasks = comp.tasks ?? [];
 	const currentPhaseId = comp.phases?.[comp.currentPhaseIdx ?? 0]?.id;
 	const tasksInCurrentPhase = currentPhaseId
-		? tasks.filter((task) => task.phaseId === currentPhaseId)
+		? tasks.filter(
+				(task: Competition["tasks"][number]) => task.phaseId === currentPhaseId,
+			)
 		: tasks;
 	const completed = tasksInCurrentPhase.filter(isFinishedTask).length;
 	return { completed, total: tasksInCurrentPhase.length };
@@ -166,9 +168,9 @@ export function CompetitionHealthWidget() {
 
 	const activeCompetitions = useMemo(() => {
 		const today = new Date().toISOString().split("T")[0];
-		const active = competitions.filter((c) => c.compEnd >= today);
+		const active = competitions.filter((c: Competition) => c.compEnd >= today);
 
-		return active.toSorted((a, b) => {
+		return active.toSorted((a: Competition, b: Competition) => {
 			const aUpdate = getLatestUpdateStatus(a);
 			const bUpdate = getLatestUpdateStatus(b);
 			const aOrder = aUpdate ? (STATUS_SORT_ORDER[aUpdate.status] ?? 3) : 3;
@@ -211,9 +213,11 @@ export function CompetitionHealthWidget() {
 				</div>
 			) : (
 				<div className="min-w-0 space-y-2">
-					{activeCompetitions.slice(0, MAX_COMPETITIONS).map((comp) => (
-						<CompetitionCard key={comp.id} competition={comp} />
-					))}
+					{activeCompetitions
+						.slice(0, MAX_COMPETITIONS)
+						.map((comp: Competition) => (
+							<CompetitionCard key={comp.id} competition={comp} />
+						))}
 					{activeCompetitions.length > MAX_COMPETITIONS && (
 						<p className="px-2 text-xs text-muted-foreground">
 							and {activeCompetitions.length - MAX_COMPETITIONS} more

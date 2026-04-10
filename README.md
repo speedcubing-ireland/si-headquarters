@@ -252,6 +252,7 @@ These are a **separate set of OAuth applications** from the user authentication 
 | `SITE_URL` | Base URL for email links and auth callbacks. The [setup script](#4-set-remaining-environment-variables) sets this to `http://localhost:5173` for dev. Production defaults to `https://hq.speedcubing.ie`. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins for sponsor auth. Automatically includes `SITE_URL`. |
 | `WCA_BASE_URL` | Base URL for WCA website links and API calls. Defaults to `https://www.worldcubeassociation.org`. Override to point at a staging WCA instance for testing. |
+| `DEPLOYMENT_CONTEXT` | Set to `"production"` for the production deployment. Any other value (or unset) is treated as non-production, which enables naming convention guards on external resources (resource names must start with `[DEV]`). See [dev/prod isolation](docs/dev-prod-isolation-canva-google-sheets.md). |
 
 ### Client-Side variables
 

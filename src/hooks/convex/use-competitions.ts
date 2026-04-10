@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
+import { useAction, useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Competition } from "@/data/types-new";
@@ -36,7 +36,7 @@ export const useCompetition = (competitionId: Id<"competitions"> | null) => {
 
 export function useCompetitionMutations() {
 	const createCompetition = useMutation(api.competitions.create);
-	const updateCompetitionMutation = useMutation(api.competitions.update);
+	const updateCompetitionAction = useAction(api.competitions.update);
 	const removeCompetitionMutation = useMutation(api.competitions.remove);
 
 	return {
@@ -48,7 +48,9 @@ export function useCompetitionMutations() {
 				compEnd: payload.compEnd,
 				compLeadId: payload.compLead?.id ?? undefined,
 				leadDelegateId: payload.leadDelegate?.id ?? undefined,
-				organiserIds: payload.organisers.map((u) => u.id),
+				organiserIds: payload.organisers.map(
+					(u: Competition["organisers"][number]) => u.id,
+				),
 				compSheet: payload.compSheet ?? undefined,
 				wcaCompetitionId: payload.wcaCompetitionId ?? undefined,
 			});
@@ -78,7 +80,7 @@ export function useCompetitionMutations() {
 				sponsorOverrideSponsorId?: Id<"sponsors"> | null;
 			},
 		) =>
-			updateCompetitionMutation({
+			updateCompetitionAction({
 				competitionId: id,
 				updates: pickDefined({
 					name: updates.name,
@@ -95,7 +97,9 @@ export function useCompetitionMutations() {
 							: undefined,
 					organiserIds:
 						updates.organisers !== undefined
-							? updates.organisers.map((u) => u.id)
+							? updates.organisers.map(
+									(u: Competition["organisers"][number]) => u.id,
+								)
 							: undefined,
 					currentPhaseId:
 						updates.currentPhaseId !== undefined
@@ -118,6 +122,8 @@ export function useCompetitionMutations() {
 							? updates.sponsorOverrideSponsorId
 							: undefined,
 				}),
+			}).then((error) => {
+				if (error) throw new Error(error);
 			}),
 
 		deleteCompetition: (id: Id<"competitions">) =>

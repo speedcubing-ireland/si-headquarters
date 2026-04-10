@@ -50,7 +50,7 @@ export function CompetitionTasksByPhase({
 	] = useState<Set<string>>(() => new Set());
 
 	const phasesWithoutArchive = competition.phases.filter(
-		(phase) => !isArchivePhaseName(phase.name),
+		(phase: Competition["phases"][number]) => !isArchivePhaseName(phase.name),
 	);
 	const groups = groupTasksByCompetitionPhase(tasks, {
 		...competition,
@@ -99,7 +99,9 @@ export function CompetitionTasksByPhase({
 		});
 
 		const phase = phaseId
-			? (competition.phases.find((p) => p.id === phaseId) ?? null)
+			? (competition.phases.find(
+					(p: Competition["phases"][number]) => p.id === phaseId,
+				) ?? null)
 			: null;
 		void addTask({
 			parent: { type: "competition", linkedId: competition.id },

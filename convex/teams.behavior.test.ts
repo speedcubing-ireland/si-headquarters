@@ -66,7 +66,7 @@ describe("teams behavior", () => {
 		await director.mutation(api.teams.create, { name: "Beta" });
 
 		const rows = await director.query(api.teams.list, {});
-		const names = rows.map((r) => r.name);
+		const names = rows.map((r: { name: string }) => r.name);
 		expect(names).toContain("Alpha");
 		expect(names).toContain("Beta");
 	});
