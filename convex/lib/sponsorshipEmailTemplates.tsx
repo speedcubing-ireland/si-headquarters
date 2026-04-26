@@ -4,6 +4,7 @@ import SponsorshipInternalInvoiceEmail from "../emails/SponsorshipInternalInvoic
 import SponsorshipOutcomeEmail, {
 	type SponsorshipOutcomeVariant,
 } from "../emails/SponsorshipOutcomeEmail";
+import SponsorshipScheduledEmail from "../emails/SponsorshipScheduledEmail";
 import type { SponsorshipEmailType } from "./sponsorshipValidators";
 
 export type SponsorshipEmailContext = {
@@ -14,6 +15,9 @@ export type SponsorshipEmailContext = {
 	winnerSponsorName?: string;
 	startsAt?: number;
 	endsAt?: number;
+	frameworkDescription?: string;
+	startPriceCents?: number;
+	currency?: string;
 };
 
 function resolveInviteTemplateData(
@@ -38,6 +42,23 @@ export async function buildSponsorshipEmailHtml(input: {
 				portalUrl={inviteData.portalUrl}
 			/>,
 		);
+	}
+
+	if (input.emailType === "auction_scheduled") {
+		if (input.context?.competitionName && input.context.portalUrl) {
+			return render(
+				<SponsorshipScheduledEmail
+					recipientName={input.recipientName}
+					competitionName={input.context.competitionName}
+					startsAt={input.context.startsAt}
+					endsAt={input.context.endsAt}
+					frameworkDescription={input.context.frameworkDescription}
+					startPriceCents={input.context.startPriceCents}
+					currency={input.context.currency}
+					portalUrl={input.context.portalUrl}
+				/>,
+			);
+		}
 	}
 
 	if (
@@ -92,6 +113,24 @@ export async function buildSponsorshipEmailPlainText(input: {
 			/>,
 			{ plainText: true },
 		);
+	}
+
+	if (input.emailType === "auction_scheduled") {
+		if (input.context?.competitionName && input.context.portalUrl) {
+			return render(
+				<SponsorshipScheduledEmail
+					recipientName={input.recipientName}
+					competitionName={input.context.competitionName}
+					startsAt={input.context.startsAt}
+					endsAt={input.context.endsAt}
+					frameworkDescription={input.context.frameworkDescription}
+					startPriceCents={input.context.startPriceCents}
+					currency={input.context.currency}
+					portalUrl={input.context.portalUrl}
+				/>,
+				{ plainText: true },
+			);
+		}
 	}
 
 	if (

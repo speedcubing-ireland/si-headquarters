@@ -20,7 +20,11 @@ import {
 	cacheCompetitionFallbackSnapshot,
 	scheduleCompetitionSnapshotRefresh,
 } from "./competitionSnapshot";
-import { sendAuctionClosureEmails, sendAuctionStartedEmails } from "./emails";
+import {
+	sendAuctionClosureEmails,
+	sendAuctionScheduledEmails,
+	sendAuctionStartedEmails,
+} from "./emails";
 import { syncLifecycleRuntimeCron } from "./runtimeCron";
 
 function compareIntentChronology(
@@ -207,6 +211,12 @@ export const start = mutation({
 			readinessSnapshotJson: JSON.stringify(readinessSnapshot),
 		});
 
+		if (targetState === "scheduled") {
+			const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id);
+			if (refreshed) {
+				await sendAuctionScheduledEmails(ctx, refreshed);
+			}
+		}
 		if (targetState === "active") {
 			const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id);
 			if (refreshed) {
