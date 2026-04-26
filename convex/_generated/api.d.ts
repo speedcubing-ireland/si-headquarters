@@ -27,6 +27,7 @@ import type * as emails_NotificationEmail from "../emails/NotificationEmail.js";
 import type * as emails_SponsorInviteEmail from "../emails/SponsorInviteEmail.js";
 import type * as emails_SponsorshipInternalInvoiceEmail from "../emails/SponsorshipInternalInvoiceEmail.js";
 import type * as emails_SponsorshipOutcomeEmail from "../emails/SponsorshipOutcomeEmail.js";
+import type * as emails_SponsorshipScheduledEmail from "../emails/SponsorshipScheduledEmail.js";
 import type * as emails_shared from "../emails/shared.js";
 import type * as emails_sponsorshipShared from "../emails/sponsorshipShared.js";
 import type * as http from "../http.js";
@@ -184,6 +185,7 @@ declare const fullApi: ApiFromModules<{
   "emails/SponsorInviteEmail": typeof emails_SponsorInviteEmail;
   "emails/SponsorshipInternalInvoiceEmail": typeof emails_SponsorshipInternalInvoiceEmail;
   "emails/SponsorshipOutcomeEmail": typeof emails_SponsorshipOutcomeEmail;
+  "emails/SponsorshipScheduledEmail": typeof emails_SponsorshipScheduledEmail;
   "emails/shared": typeof emails_shared;
   "emails/sponsorshipShared": typeof emails_sponsorshipShared;
   http: typeof http;

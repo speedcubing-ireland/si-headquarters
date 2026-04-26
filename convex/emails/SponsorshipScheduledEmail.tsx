@@ -41,7 +41,7 @@ export default function SponsorshipScheduledEmail(
 	return (
 		<SponsorshipEmailShell
 			preview={`${props.competitionName}: bidding opening soon`}
-			title={`${props.competitionName} sponsorship scheduled`}
+			title={`${props.competitionName}: : bidding opening soon`}
 			subtitle={subtitle}
 			ctaLabel="View in portal"
 			ctaUrl={props.portalUrl}
