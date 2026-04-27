@@ -9,8 +9,8 @@ import { enqueueSponsorshipEmailBatch } from "../emailQueue";
 type AuctionEmailType =
 	| "auction_scheduled"
 	| "auction_started"
-	| "auction_winner"
-	| "auction_outbid"
+	| "auction_closed_winner"
+	| "auction_closed_outbid"
 	| "auction_closed_none"
 	| "internal_invoice";
 
@@ -158,7 +158,7 @@ export async function sendAuctionClosureEmails(
 		if (winner) {
 			await queueAuctionEmails(ctx, {
 				auction,
-				type: "auction_winner",
+				type: "auction_closed_winner",
 				recipients: [
 					{
 						sponsorId: winner._id,
@@ -181,7 +181,7 @@ export async function sendAuctionClosureEmails(
 		);
 		await queueAuctionEmails(ctx, {
 			auction,
-			type: "auction_outbid",
+			type: "auction_closed_outbid",
 			recipients: outbidRecipients,
 			subject: `${competition.name}: sponsorship auction closed`,
 			message:

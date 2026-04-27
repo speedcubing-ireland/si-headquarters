@@ -45,8 +45,8 @@ export type SponsorshipEmailType =
 	| "invite"
 	| "auction_scheduled"
 	| "auction_started"
-	| "auction_winner"
-	| "auction_outbid"
+	| "auction_closed_winner"
+	| "auction_closed_outbid"
 	| "auction_closed_none"
 	| "internal_invoice";
 
@@ -54,8 +54,8 @@ export const sponsorshipEmailType = v.union(
 	v.literal("invite"),
 	v.literal("auction_scheduled"),
 	v.literal("auction_started"),
-	v.literal("auction_winner"),
-	v.literal("auction_outbid"),
+	v.literal("auction_closed_winner"),
+	v.literal("auction_closed_outbid"),
 	v.literal("auction_closed_none"),
 	v.literal("internal_invoice"),
 );
