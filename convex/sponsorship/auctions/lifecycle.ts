@@ -21,10 +21,17 @@ import {
 	scheduleCompetitionSnapshotRefresh,
 } from "./competitionSnapshot";
 import {
+	sendAuctionActiveReminderEmail,
 	sendAuctionClosureEmails,
 	sendAuctionScheduledEmails,
 	sendAuctionStartedEmails,
 } from "./emails";
+import {
+	dueAuctionActiveReminders,
+	markReminderSent,
+	markReminderSkipped,
+	scheduleAuctionActiveRemindersOnActivation,
+} from "./reminders";
 import { syncLifecycleRuntimeCron } from "./runtimeCron";
 
 function compareIntentChronology(
@@ -221,6 +228,7 @@ export const start = mutation({
 			const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id);
 			if (refreshed) {
 				await sendAuctionStartedEmails(ctx, refreshed);
+				await scheduleAuctionActiveRemindersOnActivation(ctx, refreshed);
 			}
 		}
 		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
@@ -270,6 +278,7 @@ export const _tickLifecycle = internalMutation({
 			const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id);
 			if (refreshed) {
 				await sendAuctionStartedEmails(ctx, refreshed);
+				await scheduleAuctionActiveRemindersOnActivation(ctx, refreshed);
 			}
 			activated += 1;
 		}
@@ -285,6 +294,21 @@ export const _tickLifecycle = internalMutation({
 			await closeAuctionInternal(ctx, auction);
 			closed += 1;
 		}
+
+		const due = await dueAuctionActiveReminders(ctx, now);
+		for (const reminder of due) {
+			const [reminderAuction, sponsor] = await Promise.all([
+				ctx.db.get("sponsorshipAuctions", reminder.auctionId),
+				ctx.db.get("sponsors", reminder.sponsorId),
+			]);
+			if (!reminderAuction || reminderAuction.state !== "active" || !sponsor) {
+				await markReminderSkipped(ctx, reminder._id);
+				continue;
+			}
+			await sendAuctionActiveReminderEmail(ctx, reminderAuction, sponsor);
+			await markReminderSent(ctx, reminder._id);
+		}
+
 		await syncLifecycleRuntimeCron(ctx);
 		return { activated, closed };
 	},
