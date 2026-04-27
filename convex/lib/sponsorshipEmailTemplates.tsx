@@ -63,8 +63,8 @@ export async function buildSponsorshipEmailHtml(input: {
 
 	if (
 		input.emailType === "auction_started" ||
-		input.emailType === "auction_winner" ||
-		input.emailType === "auction_outbid" ||
+		input.emailType === "auction_closed_winner" ||
+		input.emailType === "auction_closed_outbid" ||
 		input.emailType === "auction_closed_none"
 	) {
 		if (input.context?.competitionName && input.context.portalUrl) {
@@ -135,8 +135,8 @@ export async function buildSponsorshipEmailPlainText(input: {
 
 	if (
 		input.emailType === "auction_started" ||
-		input.emailType === "auction_winner" ||
-		input.emailType === "auction_outbid" ||
+		input.emailType === "auction_closed_winner" ||
+		input.emailType === "auction_closed_outbid" ||
 		input.emailType === "auction_closed_none"
 	) {
 		if (input.context?.competitionName && input.context.portalUrl) {

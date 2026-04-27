@@ -6,8 +6,8 @@ import {
 
 export type SponsorshipOutcomeVariant =
 	| "auction_started"
-	| "auction_winner"
-	| "auction_outbid"
+	| "auction_closed_winner"
+	| "auction_closed_outbid"
 	| "auction_closed_none";
 
 export type SponsorshipOutcomeEmailProps = {
@@ -39,7 +39,7 @@ function getCopy(props: SponsorshipOutcomeEmailProps): {
 				ctaLabel: "Open auction",
 				statusLabel: "Bidding open",
 			};
-		case "auction_winner":
+		case "auction_closed_winner":
 			return {
 				title: `You won ${props.competitionName}`,
 				preview: "You are the winning sponsor",
@@ -50,7 +50,7 @@ function getCopy(props: SponsorshipOutcomeEmailProps): {
 				ctaLabel: "View result",
 				statusLabel: "Winner confirmed",
 			};
-		case "auction_outbid":
+		case "auction_closed_outbid":
 			return {
 				title: `${props.competitionName} bidding closed`,
 				preview: "Auction has closed",
@@ -128,7 +128,7 @@ export default function SponsorshipOutcomeEmail(
 SponsorshipOutcomeEmail.PreviewProps = {
 	recipientName: "Sponsor Team",
 	competitionName: "Irish Open 2026",
-	variant: "auction_winner",
+	variant: "auction_closed_winner",
 	settlementAmountCents: 125000,
 	portalUrl: "https://hq.speedcubing.ie/sponsor/auctions",
 } satisfies SponsorshipOutcomeEmailProps;
