@@ -107,9 +107,7 @@ async function getScheduledEmailArgs(
 	t: ReturnType<typeof createHarness>,
 ): Promise<Array<{ emailType: string; recipients: unknown[] }>> {
 	return t.run(async (ctx) => {
-		const all = await ctx.db.system
-			.query("_scheduled_functions")
-			.collect();
+		const all = await ctx.db.system.query("_scheduled_functions").collect();
 		return all
 			.filter((fn) => fn.name.includes("enqueueSponsorshipEmailBatch"))
 			.map((fn) => {
