@@ -2,9 +2,12 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { TEAM_NAMES } from "../../lib/constants";
 import { listMembersForTeams } from "../../lib/permissions/teams";
+import type { SponsorshipEmailContext } from "../../lib/sponsorshipEmailTemplates";
+import type { SponsorshipAuctionFramework } from "../../lib/sponsorshipValidators";
 import { enqueueSponsorshipEmailBatch } from "../emailQueue";
 
 type AuctionEmailType =
+	| "auction_scheduled"
 	| "auction_started"
 	| "auction_winner"
 	| "auction_outbid"
@@ -21,6 +24,40 @@ function sponsorshipAdminUrl(): string {
 	return `${siteUrl}/admin/sponsorship`;
 }
 
+async function resolveAuctionEmailRecipients(
+	ctx: MutationCtx,
+	auction: Doc<"sponsorshipAuctions">,
+): Promise<{
+	competition: Doc<"competitions">;
+	sponsors: Doc<"sponsors">[];
+} | null> {
+	const [competition, invites] = await Promise.all([
+		ctx.db.get("competitions", auction.competitionId),
+		ctx.db
+			.query("sponsorshipAuctionInvites")
+			.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
+			.collect(),
+	]);
+	if (!competition) return null;
+	const allSponsors = await Promise.all(
+		invites.map((invite) => ctx.db.get("sponsors", invite.sponsorId)),
+	);
+	const sponsors = allSponsors.filter((sponsor): sponsor is Doc<"sponsors"> =>
+		Boolean(sponsor),
+	);
+	return { competition, sponsors };
+}
+
+function toRecipientList(
+	sponsors: Doc<"sponsors">[],
+): { sponsorId: Id<"sponsors">; email: string; name: string }[] {
+	return sponsors.map((sponsor) => ({
+		sponsorId: sponsor._id,
+		email: sponsor.email,
+		name: sponsor.name,
+	}));
+}
+
 async function queueAuctionEmails(
 	ctx: MutationCtx,
 	input: {
@@ -29,15 +66,7 @@ async function queueAuctionEmails(
 		recipients: { sponsorId?: Id<"sponsors">; email: string; name?: string }[];
 		subject: string;
 		message: string;
-		context?: {
-			competitionName?: string;
-			portalUrl?: string;
-			adminUrl?: string;
-			settlementAmountCents?: number;
-			winnerSponsorName?: string;
-			startsAt?: number;
-			endsAt?: number;
-		};
+		context?: SponsorshipEmailContext;
 	},
 ): Promise<void> {
 	if (input.recipients.length === 0) return;
@@ -52,32 +81,56 @@ async function queueAuctionEmails(
 	});
 }
 
+export function describeAuctionFramework(
+	framework: SponsorshipAuctionFramework,
+): string {
+	switch (framework) {
+		case "first_sealed":
+			return "This is a sealed-bid auction. All bids are hidden. The highest bidder wins and pays their bid amount.";
+		case "vickrey":
+			return "This is a sealed-bid auction. All bids are hidden. The highest bidder wins but pays the second-highest bid amount.";
+		case "ebay_proxy":
+			return "This is a proxy-bid auction. You set a maximum bid and the system bids on your behalf up to that amount.";
+	}
+}
+
+export async function sendAuctionScheduledEmails(
+	ctx: MutationCtx,
+	auction: Doc<"sponsorshipAuctions">,
+): Promise<void> {
+	const resolved = await resolveAuctionEmailRecipients(ctx, auction);
+	if (!resolved) return;
+	const { competition, sponsors } = resolved;
+	await queueAuctionEmails(ctx, {
+		auction,
+		type: "auction_scheduled",
+		recipients: toRecipientList(sponsors),
+		subject: `${competition.name}: bidding opening soon`,
+		message:
+			"A sponsorship auction has been scheduled. You will be notified when bidding opens.",
+		context: {
+			competitionName: competition.name,
+			portalUrl: sponsorAuctionUrl(auction._id),
+			startsAt: auction.startsAt,
+			endsAt: auction.endsAt,
+			frameworkDescription: describeAuctionFramework(auction.framework),
+			startPriceCents: auction.startPriceCents,
+			currency: auction.currency,
+		},
+	});
+}
+
 export async function sendAuctionStartedEmails(
 	ctx: MutationCtx,
 	auction: Doc<"sponsorshipAuctions">,
 ): Promise<void> {
-	const [competition, invites] = await Promise.all([
-		ctx.db.get("competitions", auction.competitionId),
-		ctx.db
-			.query("sponsorshipAuctionInvites")
-			.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-			.collect(),
-	]);
-	if (!competition) return;
-	const sponsors = await Promise.all(
-		invites.map((invite) => ctx.db.get("sponsors", invite.sponsorId)),
-	);
-	const recipients = sponsors
-		.filter((sponsor): sponsor is Doc<"sponsors"> => Boolean(sponsor))
-		.map((sponsor) => ({
-			sponsorId: sponsor._id,
-			email: sponsor.email,
-			name: sponsor.name,
-		}));
+	const resolved = await resolveAuctionEmailRecipients(ctx, auction);
+	if (!resolved) return;
+	const { competition, sponsors } = resolved;
 	await queueAuctionEmails(ctx, {
 		auction,
 		type: "auction_started",
-		recipients,
+		recipients: toRecipientList(sponsors),
 		subject: `${competition.name}: sponsorship bidding is live`,
 		message:
 			"Sponsorship bidding is now live in the HQ sponsor portal. Please submit your bid before closing time.",
@@ -94,20 +147,9 @@ export async function sendAuctionClosureEmails(
 	ctx: MutationCtx,
 	auction: Doc<"sponsorshipAuctions">,
 ): Promise<void> {
-	const [competition, invites] = await Promise.all([
-		ctx.db.get("competitions", auction.competitionId),
-		ctx.db
-			.query("sponsorshipAuctionInvites")
-			.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-			.collect(),
-	]);
-	if (!competition) return;
-	const sponsors = await Promise.all(
-		invites.map((invite) => ctx.db.get("sponsors", invite.sponsorId)),
-	);
-	const recipients = sponsors.filter((sponsor): sponsor is Doc<"sponsors"> =>
-		Boolean(sponsor),
-	);
+	const resolved = await resolveAuctionEmailRecipients(ctx, auction);
+	if (!resolved) return;
+	const { competition, sponsors: recipients } = resolved;
 
 	if (auction.winnerSponsorId && auction.settlementAmountCents !== undefined) {
 		const winner = recipients.find(
@@ -134,13 +176,9 @@ export async function sendAuctionClosureEmails(
 				},
 			});
 		}
-		const outbidRecipients = recipients
-			.filter((sponsor) => sponsor._id !== auction.winnerSponsorId)
-			.map((sponsor) => ({
-				sponsorId: sponsor._id,
-				email: sponsor.email,
-				name: sponsor.name,
-			}));
+		const outbidRecipients = toRecipientList(
+			recipients.filter((sponsor) => sponsor._id !== auction.winnerSponsorId),
+		);
 		await queueAuctionEmails(ctx, {
 			auction,
 			type: "auction_outbid",
@@ -157,11 +195,7 @@ export async function sendAuctionClosureEmails(
 		await queueAuctionEmails(ctx, {
 			auction,
 			type: "auction_closed_none",
-			recipients: recipients.map((sponsor) => ({
-				sponsorId: sponsor._id,
-				email: sponsor.email,
-				name: sponsor.name,
-			})),
+			recipients: toRecipientList(recipients),
 			subject: `${competition.name}: sponsorship auction closed`,
 			message: "This sponsorship auction closed without a winning bid.",
 			context: {

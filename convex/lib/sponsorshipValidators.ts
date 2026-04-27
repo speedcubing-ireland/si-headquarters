@@ -43,6 +43,7 @@ export const sponsorshipAuctionState = v.union(
 
 export type SponsorshipEmailType =
 	| "invite"
+	| "auction_scheduled"
 	| "auction_started"
 	| "auction_winner"
 	| "auction_outbid"
@@ -51,6 +52,7 @@ export type SponsorshipEmailType =
 
 export const sponsorshipEmailType = v.union(
 	v.literal("invite"),
+	v.literal("auction_scheduled"),
 	v.literal("auction_started"),
 	v.literal("auction_winner"),
 	v.literal("auction_outbid"),
