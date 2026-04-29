@@ -261,6 +261,12 @@ export default defineSchema({
 		.index("by_auction", ["auctionId"])
 		.index("by_auction_and_sponsor", ["auctionId", "sponsorId"]),
 
+	sponsorshipAuctionOutbidNotices: defineTable({
+		auctionId: v.id("sponsorshipAuctions"),
+		sponsorId: v.id("sponsors"),
+		sentAt: v.number(),
+	}).index("by_auction_and_sponsor", ["auctionId", "sponsorId"]),
+
 	sponsorshipBidIntents: defineTable({
 		auctionId: v.id("sponsorshipAuctions"),
 		sponsorId: v.id("sponsors"),

@@ -21,6 +21,7 @@ export type PlaceSponsorshipBidInput = {
 export type PlaceSponsorshipBidResult = {
 	currentPriceCents: number;
 	extendedEndsAt?: number;
+	outbidSponsorId?: Id<"sponsors">;
 };
 
 function compareIntentChronology(
@@ -387,9 +388,16 @@ async function placeProxyBid(
 		updatedAt: now,
 	});
 
+	const outbidSponsorId =
+		previousLeaderSponsorId !== undefined &&
+		previousLeaderSponsorId !== state.leaderSponsorId
+			? previousLeaderSponsorId
+			: undefined;
+
 	return {
 		currentPriceCents: visibleCurrentPriceCents,
 		extendedEndsAt,
+		outbidSponsorId,
 	};
 }
 
