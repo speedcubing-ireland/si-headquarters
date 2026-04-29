@@ -27,6 +27,7 @@ const sponsorshipEmailContextValidator = v.object({
 	frameworkDescription: v.optional(v.string()),
 	startPriceCents: v.optional(v.number()),
 	currency: v.optional(v.string()),
+	sponsorHasBid: v.optional(v.boolean()),
 });
 
 function buildDispatchDedupeKey(args: {
