@@ -3,13 +3,17 @@ import type { MutationCtx } from "../../_generated/server";
 import { TEAM_NAMES } from "../../lib/constants";
 import { listMembersForTeams } from "../../lib/permissions/teams";
 import type { SponsorshipEmailContext } from "../../lib/sponsorshipEmailTemplates";
-import type { SponsorshipAuctionFramework } from "../../lib/sponsorshipValidators";
+import {
+	isProxyAuctionFramework,
+	type SponsorshipAuctionFramework,
+} from "../../lib/sponsorshipValidators";
 import { enqueueSponsorshipEmailBatch } from "../emailQueue";
 
 type AuctionEmailType =
 	| "auction_scheduled"
 	| "auction_started"
 	| "auction_active_reminder"
+	| "auction_ebay_outbid"
 	| "auction_closed_winner"
 	| "auction_closed_outbid"
 	| "auction_closed_none"
@@ -173,6 +177,56 @@ export async function sendAuctionActiveReminderEmail(
 			portalUrl: sponsorAuctionUrl(auction._id),
 			endsAt: auction.endsAt,
 			sponsorHasBid,
+		},
+	});
+}
+
+export async function sendEbayAuctionOutbidEmail(
+	ctx: MutationCtx,
+	auction: Doc<"sponsorshipAuctions">,
+	outbidSponsorId: Id<"sponsors">,
+): Promise<void> {
+	if (!isProxyAuctionFramework(auction.framework)) return;
+
+	const now = Date.now();
+	const throttleWindowMs = 10 * 60 * 1000;
+	const latestNotice = await ctx.db
+		.query("sponsorshipAuctionOutbidNotices")
+		.withIndex("by_auction_and_sponsor", (q) =>
+			q.eq("auctionId", auction._id).eq("sponsorId", outbidSponsorId),
+		)
+		.order("desc")
+		.first();
+	if (latestNotice && latestNotice.sentAt > now - throttleWindowMs) return;
+
+	const [sponsor, competition] = await Promise.all([
+		ctx.db.get("sponsors", outbidSponsorId),
+		ctx.db.get("competitions", auction.competitionId),
+	]);
+	if (!sponsor || !sponsor.active) return;
+	if (!competition) return;
+
+	await ctx.db.insert("sponsorshipAuctionOutbidNotices", {
+		auctionId: auction._id,
+		sponsorId: outbidSponsorId,
+		sentAt: now,
+	});
+
+	const throttleBucket = Math.floor(now / throttleWindowMs);
+	await enqueueSponsorshipEmailBatch(ctx, {
+		batchKey: `auction:${auction._id}:auction_ebay_outbid:${outbidSponsorId}:${throttleBucket}`,
+		auctionId: auction._id,
+		emailType: "auction_ebay_outbid",
+		subject: `${competition.name}: you have been outbid`,
+		message:
+			"You have been outbid in this sponsorship auction. Place a new bid to stay in contention.",
+		recipients: [
+			{ sponsorId: outbidSponsorId, email: sponsor.email, name: sponsor.name },
+		],
+		context: {
+			competitionName: competition.name,
+			portalUrl: sponsorAuctionUrl(auction._id),
+			endsAt: auction.endsAt,
 		},
 	});
 }

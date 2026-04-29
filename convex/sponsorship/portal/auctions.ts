@@ -8,6 +8,7 @@ import {
 	competitionSponsorPropertyStatus,
 	isProxyAuctionFramework,
 } from "../../lib/sponsorshipValidators";
+import { sendEbayAuctionOutbidEmail } from "../auctions/emails";
 import {
 	isBidHistoryVisibleToSponsor,
 	isSponsorVisibleAuctionState,
@@ -20,6 +21,22 @@ import {
 	toSponsorBidEventForUI,
 	toSponsorAuctionListItem,
 } from "./shared";
+
+async function maybeNotifyEbayOutbid(
+	ctx: MutationCtx,
+	auction: Doc<"sponsorshipAuctions">,
+	result: { outbidSponsorId?: Id<"sponsors">; extendedEndsAt?: number },
+): Promise<void> {
+	if (!result.outbidSponsorId) return;
+	const auctionForEmail = result.extendedEndsAt
+		? { ...auction, endsAt: result.extendedEndsAt }
+		: auction;
+	await sendEbayAuctionOutbidEmail(
+		ctx,
+		auctionForEmail,
+		result.outbidSponsorId,
+	);
+}
 
 async function listInvitedVisibleAuctions(
 	ctx: QueryCtx,
@@ -318,6 +335,7 @@ export async function placeBidHandler(
 		sponsorId: sponsor._id,
 		amountCents: args.amountCents,
 	});
+	await maybeNotifyEbayOutbid(ctx, auction, result);
 	return {
 		currentPriceCents: result.currentPriceCents,
 		extendedEndsAt: result.extendedEndsAt,
@@ -349,6 +367,7 @@ export async function setMaxBidHandler(
 		sponsorId: sponsor._id,
 		maxAmountCents: args.maxAmountCents,
 	});
+	await maybeNotifyEbayOutbid(ctx, auction, result);
 	return {
 		currentPriceCents: result.currentPriceCents,
 		extendedEndsAt: result.extendedEndsAt,
