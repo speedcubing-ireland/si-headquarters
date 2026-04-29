@@ -1,5 +1,6 @@
 import { render } from "@react-email/components";
 import SponsorInviteEmail from "../emails/SponsorInviteEmail";
+import SponsorshipAuctionActiveReminderEmail from "../emails/SponsorshipAuctionActiveReminderEmail";
 import SponsorshipInternalInvoiceEmail from "../emails/SponsorshipInternalInvoiceEmail";
 import SponsorshipOutcomeEmail, {
 	type SponsorshipOutcomeVariant,
@@ -18,6 +19,7 @@ export type SponsorshipEmailContext = {
 	frameworkDescription?: string;
 	startPriceCents?: number;
 	currency?: string;
+	sponsorHasBid?: boolean;
 };
 
 function resolveInviteTemplateData(
@@ -56,6 +58,24 @@ export async function buildSponsorshipEmailHtml(input: {
 					startPriceCents={input.context.startPriceCents}
 					currency={input.context.currency}
 					portalUrl={input.context.portalUrl}
+				/>,
+			);
+		}
+	}
+
+	if (input.emailType === "auction_active_reminder") {
+		if (
+			input.context?.competitionName &&
+			input.context.portalUrl &&
+			input.context.endsAt !== undefined
+		) {
+			return render(
+				<SponsorshipAuctionActiveReminderEmail
+					recipientName={input.recipientName}
+					competitionName={input.context.competitionName}
+					endsAt={input.context.endsAt}
+					portalUrl={input.context.portalUrl}
+					sponsorHasBid={input.context.sponsorHasBid ?? false}
 				/>,
 			);
 		}
@@ -127,6 +147,25 @@ export async function buildSponsorshipEmailPlainText(input: {
 					startPriceCents={input.context.startPriceCents}
 					currency={input.context.currency}
 					portalUrl={input.context.portalUrl}
+				/>,
+				{ plainText: true },
+			);
+		}
+	}
+
+	if (input.emailType === "auction_active_reminder") {
+		if (
+			input.context?.competitionName &&
+			input.context.portalUrl &&
+			input.context.endsAt !== undefined
+		) {
+			return render(
+				<SponsorshipAuctionActiveReminderEmail
+					recipientName={input.recipientName}
+					competitionName={input.context.competitionName}
+					endsAt={input.context.endsAt}
+					portalUrl={input.context.portalUrl}
+					sponsorHasBid={input.context.sponsorHasBid ?? false}
 				/>,
 				{ plainText: true },
 			);

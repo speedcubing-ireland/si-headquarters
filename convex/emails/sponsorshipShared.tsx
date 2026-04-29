@@ -89,6 +89,14 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
 	);
 }
 
+export function formatDateTime(timestamp: number): string {
+	return new Date(timestamp).toLocaleString("en-IE", {
+		dateStyle: "full",
+		timeStyle: "short",
+		timeZone: "Europe/Dublin",
+	});
+}
+
 export function SponsorshipInfoBlock(props: { label: string; value: string }) {
 	return (
 		<Section className="rounded-lg border border-brand-border px-4 py-3">

@@ -25,6 +25,7 @@ import type * as emailQueue_worker from "../emailQueue/worker.js";
 import type * as emails_NotificationDigestEmail from "../emails/NotificationDigestEmail.js";
 import type * as emails_NotificationEmail from "../emails/NotificationEmail.js";
 import type * as emails_SponsorInviteEmail from "../emails/SponsorInviteEmail.js";
+import type * as emails_SponsorshipAuctionActiveReminderEmail from "../emails/SponsorshipAuctionActiveReminderEmail.js";
 import type * as emails_SponsorshipInternalInvoiceEmail from "../emails/SponsorshipInternalInvoiceEmail.js";
 import type * as emails_SponsorshipOutcomeEmail from "../emails/SponsorshipOutcomeEmail.js";
 import type * as emails_SponsorshipScheduledEmail from "../emails/SponsorshipScheduledEmail.js";
@@ -130,6 +131,7 @@ import type * as sponsorship_auctions_emails from "../sponsorship/auctions/email
 import type * as sponsorship_auctions_index from "../sponsorship/auctions/index.js";
 import type * as sponsorship_auctions_lifecycle from "../sponsorship/auctions/lifecycle.js";
 import type * as sponsorship_auctions_management from "../sponsorship/auctions/management.js";
+import type * as sponsorship_auctions_reminders from "../sponsorship/auctions/reminders.js";
 import type * as sponsorship_auctions_runtimeCron from "../sponsorship/auctions/runtimeCron.js";
 import type * as sponsorship_auctions_shared from "../sponsorship/auctions/shared.js";
 import type * as sponsorship_authAccounts from "../sponsorship/authAccounts.js";
@@ -183,6 +185,7 @@ declare const fullApi: ApiFromModules<{
   "emails/NotificationDigestEmail": typeof emails_NotificationDigestEmail;
   "emails/NotificationEmail": typeof emails_NotificationEmail;
   "emails/SponsorInviteEmail": typeof emails_SponsorInviteEmail;
+  "emails/SponsorshipAuctionActiveReminderEmail": typeof emails_SponsorshipAuctionActiveReminderEmail;
   "emails/SponsorshipInternalInvoiceEmail": typeof emails_SponsorshipInternalInvoiceEmail;
   "emails/SponsorshipOutcomeEmail": typeof emails_SponsorshipOutcomeEmail;
   "emails/SponsorshipScheduledEmail": typeof emails_SponsorshipScheduledEmail;
@@ -288,6 +291,7 @@ declare const fullApi: ApiFromModules<{
   "sponsorship/auctions/index": typeof sponsorship_auctions_index;
   "sponsorship/auctions/lifecycle": typeof sponsorship_auctions_lifecycle;
   "sponsorship/auctions/management": typeof sponsorship_auctions_management;
+  "sponsorship/auctions/reminders": typeof sponsorship_auctions_reminders;
   "sponsorship/auctions/runtimeCron": typeof sponsorship_auctions_runtimeCron;
   "sponsorship/auctions/shared": typeof sponsorship_auctions_shared;
   "sponsorship/authAccounts": typeof sponsorship_authAccounts;

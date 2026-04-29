@@ -250,6 +250,17 @@ export default defineSchema({
 		.index("by_sponsor", ["sponsorId"])
 		.index("by_auction_and_sponsor", ["auctionId", "sponsorId"]),
 
+	sponsorshipAuctionReminders: defineTable({
+		auctionId: v.id("sponsorshipAuctions"),
+		sponsorId: v.id("sponsors"),
+		scheduledFor: v.number(),
+		sent: v.boolean(),
+		sentAt: v.optional(v.number()),
+	})
+		.index("by_sent_and_scheduled", ["sent", "scheduledFor"])
+		.index("by_auction", ["auctionId"])
+		.index("by_auction_and_sponsor", ["auctionId", "sponsorId"]),
+
 	sponsorshipBidIntents: defineTable({
 		auctionId: v.id("sponsorshipAuctions"),
 		sponsorId: v.id("sponsors"),
