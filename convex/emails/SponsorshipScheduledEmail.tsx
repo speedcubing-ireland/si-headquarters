@@ -2,6 +2,7 @@ import { Section, Text } from "@react-email/components";
 import {
 	SponsorshipEmailShell,
 	SponsorshipInfoBlock,
+	formatDateTime,
 } from "./sponsorshipShared";
 
 export type SponsorshipScheduledEmailProps = {
@@ -14,14 +15,6 @@ export type SponsorshipScheduledEmailProps = {
 	currency?: string;
 	portalUrl: string;
 };
-
-function formatDateTime(timestamp: number): string {
-	return new Date(timestamp).toLocaleString("en-IE", {
-		dateStyle: "full",
-		timeStyle: "short",
-		timeZone: "Europe/Dublin",
-	});
-}
 
 function formatPrice(cents: number, currency: string): string {
 	return `${currency} ${(cents / 100).toFixed(2)}`;

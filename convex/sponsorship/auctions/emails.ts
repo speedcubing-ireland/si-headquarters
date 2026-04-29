@@ -9,6 +9,7 @@ import { enqueueSponsorshipEmailBatch } from "../emailQueue";
 type AuctionEmailType =
 	| "auction_scheduled"
 	| "auction_started"
+	| "auction_active_reminder"
 	| "auction_closed_winner"
 	| "auction_closed_outbid"
 	| "auction_closed_none"
@@ -139,6 +140,39 @@ export async function sendAuctionStartedEmails(
 			portalUrl: sponsorAuctionUrl(auction._id),
 			startsAt: auction.startsAt,
 			endsAt: auction.endsAt,
+		},
+	});
+}
+
+export async function sendAuctionActiveReminderEmail(
+	ctx: MutationCtx,
+	auction: Doc<"sponsorshipAuctions">,
+	sponsor: Doc<"sponsors">,
+): Promise<void> {
+	const competition = await ctx.db.get("competitions", auction.competitionId);
+	if (!competition) return;
+	const intents = await ctx.db
+		.query("sponsorshipBidIntents")
+		.withIndex("by_auction_and_sponsor", (q) =>
+			q.eq("auctionId", auction._id).eq("sponsorId", sponsor._id),
+		)
+		.collect();
+	const sponsorHasBid = intents.some((i) => i.isValid);
+	await enqueueSponsorshipEmailBatch(ctx, {
+		batchKey: `auction:${auction._id}:auction_active_reminder:${sponsor._id}`,
+		auctionId: auction._id,
+		emailType: "auction_active_reminder",
+		subject: `${competition.name}: bidding closes in 1 hour`,
+		message:
+			"Bidding for this sponsorship auction closes in approximately 1 hour.",
+		recipients: [
+			{ sponsorId: sponsor._id, email: sponsor.email, name: sponsor.name },
+		],
+		context: {
+			competitionName: competition.name,
+			portalUrl: sponsorAuctionUrl(auction._id),
+			endsAt: auction.endsAt,
+			sponsorHasBid,
 		},
 	});
 }
