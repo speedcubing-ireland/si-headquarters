@@ -6,82 +6,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAdminImpersonationMutations } from "@/hooks/use-convex-data";
 import { sponsorAuthClient } from "@/lib/sponsor-auth-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-type LoginTicketKind = "user" | "sponsor";
+import {
+	clearConsumptionNonce,
+	getOrCreateConsumptionNonce,
+	parseKind,
+} from "@/lib/login-ticket-utils";
 
 type StatusState =
 	| { type: "working"; message: string }
 	| { type: "error"; message: string };
-
-const CONSUMPTION_NONCE_STORAGE_KEY = "god-mode-impersonation-consumption";
-
-function parseKind(value: string | null): LoginTicketKind | null {
-	if (value === "user" || value === "sponsor") {
-		return value;
-	}
-	return null;
-}
-
-function createConsumptionNonce(): string {
-	if (typeof crypto !== "undefined") {
-		if (typeof crypto.randomUUID === "function") {
-			return crypto.randomUUID();
-		}
-		const bytes = new Uint8Array(16);
-		crypto.getRandomValues(bytes);
-		return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-			"",
-		);
-	}
-	return `fallback-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function getOrCreateConsumptionNonce(ticket: string): string {
-	if (!ticket || typeof window === "undefined") {
-		return createConsumptionNonce();
-	}
-
-	try {
-		const raw = window.sessionStorage.getItem(CONSUMPTION_NONCE_STORAGE_KEY);
-		if (raw) {
-			const parsed = JSON.parse(raw) as { ticket?: string; nonce?: string };
-			if (
-				parsed.ticket === ticket &&
-				typeof parsed.nonce === "string" &&
-				parsed.nonce.trim().length >= 16
-			) {
-				return parsed.nonce.trim();
-			}
-		}
-	} catch {
-		// Ignore malformed storage values and regenerate.
-	}
-
-	const nonce = createConsumptionNonce();
-	try {
-		window.sessionStorage.setItem(
-			CONSUMPTION_NONCE_STORAGE_KEY,
-			JSON.stringify({ ticket, nonce }),
-		);
-	} catch {
-		// Ignore storage failures (e.g. blocked storage); nonce still works in-memory.
-	}
-	return nonce;
-}
-
-function clearConsumptionNonce(ticket: string): void {
-	if (!ticket || typeof window === "undefined") return;
-	try {
-		const raw = window.sessionStorage.getItem(CONSUMPTION_NONCE_STORAGE_KEY);
-		if (!raw) return;
-		const parsed = JSON.parse(raw) as { ticket?: string };
-		if (parsed.ticket === ticket) {
-			window.sessionStorage.removeItem(CONSUMPTION_NONCE_STORAGE_KEY);
-		}
-	} catch {
-		// Ignore cleanup failures.
-	}
-}
 
 export const Route = createFileRoute("/auth/login-ticket")({
 	component: LoginTicketRoute,
@@ -113,16 +46,10 @@ function LoginTicketRoute() {
 		[ticket],
 	);
 	const attemptedRequestKeyRef = useRef<string | null>(null);
-	const isMountedRef = useRef(true);
-
-	useEffect(() => {
-		return () => {
-			isMountedRef.current = false;
-		};
-	}, []);
 
 	useEffect(() => {
 		const requestKey = kind ? `${kind}:${ticket}:${consumptionNonce}` : null;
+		let cancelled = false;
 
 		if (requestKey && attemptedRequestKeyRef.current === requestKey) {
 			return;
@@ -133,7 +60,7 @@ function LoginTicketRoute() {
 
 		const run = async () => {
 			if (!ticket || !kind) {
-				if (isMountedRef.current) {
+				if (!cancelled) {
 					setStatus({
 						type: "error",
 						message: "Invalid login link.",
@@ -152,7 +79,7 @@ function LoginTicketRoute() {
 						ticket,
 						consumptionNonce,
 					});
-					if (!isMountedRef.current) return;
+					if (cancelled) return;
 					if (!result.signingIn) {
 						throw new Error("Login link is invalid or expired.");
 					}
@@ -173,7 +100,7 @@ function LoginTicketRoute() {
 					ticket,
 					consumptionNonce,
 				});
-				if (!isMountedRef.current) return;
+				if (cancelled) return;
 				const crossDomain = (
 					sponsorAuthClient as typeof sponsorAuthClient & {
 						crossDomain: {
@@ -190,26 +117,24 @@ function LoginTicketRoute() {
 				const verified = await crossDomain.oneTimeToken.verify({
 					token: oneTimeToken,
 				});
-				if (!isMountedRef.current) return;
-				const sessionToken = verified.data?.session?.token;
-				if (!sessionToken) {
+				if (cancelled) return;
+				if (!verified.data?.session?.token) {
 					throw new Error(
 						verified.error?.message ?? "Failed to establish sponsor session.",
 					);
 				}
-				await sponsorAuthClient.getSession({
-					fetchOptions: {
-						headers: {
-							Authorization: `Bearer ${sessionToken}`,
-						},
-					},
-				});
-				if (!isMountedRef.current) return;
+				// Populate the session cache before navigating so the sponsor portal
+				// reads it immediately. The crossDomainClient sends the cookie that
+				// was stored by the verify call above; calling getSession here with
+				// an Authorization header would cause the plugin's onSuccess to clear
+				// that cookie when the header causes the server to return null.
+				await sponsorAuthClient.getSession();
+				if (cancelled) return;
 				crossDomain.updateSession?.();
 				clearConsumptionNonce(ticket);
 				await navigate({ to: "/sponsor/auctions" });
 			} catch (error) {
-				if (isMountedRef.current) {
+				if (!cancelled) {
 					setStatus({
 						type: "error",
 						message:
@@ -222,6 +147,14 @@ function LoginTicketRoute() {
 		};
 
 		void run();
+
+		return () => {
+			cancelled = true;
+			// Allow StrictMode's remount to retry the same key.
+			if (requestKey && attemptedRequestKeyRef.current === requestKey) {
+				attemptedRequestKeyRef.current = null;
+			}
+		};
 	}, [
 		consumeSponsorImpersonationTicket,
 		consumptionNonce,
