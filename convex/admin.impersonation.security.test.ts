@@ -210,10 +210,10 @@ describe("admin impersonation security", () => {
 
 		expect(capturedError).toBeTruthy();
 		expect(getConvexErrorCode(capturedError)).toBe("UNAUTHENTICATED");
+		vi.useRealTimers();
 	});
 
 	test("sponsor ticket consumption is idempotent for same nonce and blocks replay with another nonce", async () => {
-		const previousBetterAuthSecret = process.env.BETTER_AUTH_SECRET;
 		const previousSponsorBetterAuthSecret =
 			process.env.SPONSOR_BETTER_AUTH_SECRET;
 		process.env.SPONSOR_BETTER_AUTH_SECRET =
@@ -263,11 +263,6 @@ describe("admin impersonation security", () => {
 			expect(capturedError).toBeTruthy();
 			expect(getConvexErrorCode(capturedError)).toBe("UNAUTHENTICATED");
 		} finally {
-			if (previousBetterAuthSecret === undefined) {
-				delete process.env.BETTER_AUTH_SECRET;
-			} else {
-				process.env.BETTER_AUTH_SECRET = previousBetterAuthSecret;
-			}
 			if (previousSponsorBetterAuthSecret === undefined) {
 				delete process.env.SPONSOR_BETTER_AUTH_SECRET;
 			} else {
@@ -310,6 +305,50 @@ describe("admin impersonation security", () => {
 
 		expect(shortNonceError).toBeTruthy();
 		expect(getConvexErrorCode(shortNonceError)).toBe("BAD_REQUEST");
+	});
+
+	test("expired sponsor ticket cannot be consumed", async () => {
+		const previousSponsorBetterAuthSecret =
+			process.env.SPONSOR_BETTER_AUTH_SECRET;
+		process.env.SPONSOR_BETTER_AUTH_SECRET =
+			"test-sponsor-better-auth-secret-1234567890";
+
+		const t = createHarness({ withSponsorAuth: true });
+
+		try {
+			const { directorId, activeSponsorId } = await seedDirectorFixture(t);
+			const director = t.withIdentity({ subject: directorId });
+			const now = new Date("2026-01-10T10:00:00.000Z");
+			vi.setSystemTime(now);
+
+			const { url, expiresAt } = await director.mutation(
+				api.admin.createImpersonationLoginLink,
+				{
+					targetType: "sponsor",
+					sponsorId: activeSponsorId,
+				},
+			);
+			const ticket = extractTicket(url);
+			vi.setSystemTime(new Date(expiresAt + 1));
+
+			const capturedError = await captureError(() =>
+				t.mutation(api.admin.consumeSponsorImpersonationTicket, {
+					ticket,
+					consumptionNonce: "sponsor-expired-nonce-12345",
+				}),
+			);
+
+			expect(capturedError).toBeTruthy();
+			expect(getConvexErrorCode(capturedError)).toBe("UNAUTHENTICATED");
+		} finally {
+			vi.useRealTimers();
+			if (previousSponsorBetterAuthSecret === undefined) {
+				delete process.env.SPONSOR_BETTER_AUTH_SECRET;
+			} else {
+				process.env.SPONSOR_BETTER_AUTH_SECRET =
+					previousSponsorBetterAuthSecret;
+			}
+		}
 	});
 
 	test("user ticket cannot be consumed via sponsor endpoint", async () => {
