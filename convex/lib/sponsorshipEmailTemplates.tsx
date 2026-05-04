@@ -1,6 +1,7 @@
 import { render } from "@react-email/components";
 import SponsorInviteEmail from "../emails/SponsorInviteEmail";
 import SponsorshipAuctionActiveReminderEmail from "../emails/SponsorshipAuctionActiveReminderEmail";
+import SponsorshipEbayAuctionOutbidEmail from "../emails/SponsorshipEbayAuctionOutbidEmail";
 import SponsorshipInternalInvoiceEmail from "../emails/SponsorshipInternalInvoiceEmail";
 import SponsorshipOutcomeEmail, {
 	type SponsorshipOutcomeVariant,
@@ -76,6 +77,23 @@ export async function buildSponsorshipEmailHtml(input: {
 					endsAt={input.context.endsAt}
 					portalUrl={input.context.portalUrl}
 					sponsorHasBid={input.context.sponsorHasBid ?? false}
+				/>,
+			);
+		}
+	}
+
+	if (input.emailType === "auction_ebay_outbid") {
+		if (
+			input.context?.competitionName &&
+			input.context.portalUrl &&
+			input.context.endsAt !== undefined
+		) {
+			return render(
+				<SponsorshipEbayAuctionOutbidEmail
+					recipientName={input.recipientName}
+					competitionName={input.context.competitionName}
+					endsAt={input.context.endsAt}
+					portalUrl={input.context.portalUrl}
 				/>,
 			);
 		}
@@ -166,6 +184,24 @@ export async function buildSponsorshipEmailPlainText(input: {
 					endsAt={input.context.endsAt}
 					portalUrl={input.context.portalUrl}
 					sponsorHasBid={input.context.sponsorHasBid ?? false}
+				/>,
+				{ plainText: true },
+			);
+		}
+	}
+
+	if (input.emailType === "auction_ebay_outbid") {
+		if (
+			input.context?.competitionName &&
+			input.context.portalUrl &&
+			input.context.endsAt !== undefined
+		) {
+			return render(
+				<SponsorshipEbayAuctionOutbidEmail
+					recipientName={input.recipientName}
+					competitionName={input.context.competitionName}
+					endsAt={input.context.endsAt}
+					portalUrl={input.context.portalUrl}
 				/>,
 				{ plainText: true },
 			);

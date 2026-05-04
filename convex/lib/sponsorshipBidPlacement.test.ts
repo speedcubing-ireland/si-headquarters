@@ -1061,4 +1061,175 @@ describe("sponsorship bid placement", () => {
 			currentLeaderMaxCents: 20_000,
 		});
 	});
+
+	describe("outbidSponsorId in result", () => {
+		test("first bid returns no outbidSponsorId", async () => {
+			const auction = activeAuction({
+				startPriceCents: 1000,
+				currentPriceCents: undefined,
+				currentLeaderSponsorId: undefined,
+			});
+			const { ctx } = createMockMutationCtx();
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sA" as BidIntentDoc["sponsorId"],
+				amountCents: 1000,
+			});
+
+			expect(result.outbidSponsorId).toBeUndefined();
+		});
+
+		test("self-bump returns no outbidSponsorId", async () => {
+			const auction = activeAuction({
+				startPriceCents: 1000,
+				currentPriceCents: 1000,
+				currentLeaderSponsorId:
+					"sA" as Doc<"sponsorshipAuctions">["currentLeaderSponsorId"],
+				currentLeaderMaxCents: 1000,
+			});
+			const { ctx } = createMockMutationCtx([
+				mockIntent({
+					_id: "intent-a" as BidIntentDoc["_id"],
+					sponsorId: "sA" as BidIntentDoc["sponsorId"],
+					amountCents: 1000,
+					maxAmountCents: 1000,
+					createdAt: Date.now() - 1000,
+					_creationTime: Date.now() - 1000,
+				}),
+			]);
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sA" as BidIntentDoc["sponsorId"],
+				amountCents: 2000,
+				maxAmountCents: 5000,
+			});
+
+			expect(result.outbidSponsorId).toBeUndefined();
+		});
+
+		test("leadership change returns previous leader as outbidSponsorId", async () => {
+			const auction = activeAuction({
+				startPriceCents: 1000,
+				currentPriceCents: 1000,
+				currentLeaderSponsorId:
+					"sA" as Doc<"sponsorshipAuctions">["currentLeaderSponsorId"],
+				currentLeaderMaxCents: 2000,
+			});
+			const { ctx } = createMockMutationCtx([
+				mockIntent({
+					_id: "intent-a" as BidIntentDoc["_id"],
+					sponsorId: "sA" as BidIntentDoc["sponsorId"],
+					amountCents: 1000,
+					maxAmountCents: 2000,
+					createdAt: Date.now() - 1000,
+					_creationTime: Date.now() - 1000,
+				}),
+			]);
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sB" as BidIntentDoc["sponsorId"],
+				amountCents: 1100,
+				maxAmountCents: 3000,
+			});
+
+			expect(result.outbidSponsorId).toBe("sA");
+		});
+
+		test("sealed auction returns no outbidSponsorId", async () => {
+			const auction = activeAuction({
+				framework: "first_sealed",
+				startPriceCents: 10_000,
+				currentPriceCents: undefined,
+				currentLeaderSponsorId: undefined,
+			});
+			const { ctx } = createMockMutationCtx();
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sA" as BidIntentDoc["sponsorId"],
+				amountCents: 12_000,
+			});
+
+			expect(result.outbidSponsorId).toBeUndefined();
+		});
+
+		test("leadership change with anti-sniping returns both outbidSponsorId and extendedEndsAt", async () => {
+			const now = Date.now();
+			const auction = activeAuction({
+				startPriceCents: 1000,
+				currentPriceCents: 1000,
+				currentLeaderSponsorId:
+					"sA" as Doc<"sponsorshipAuctions">["currentLeaderSponsorId"],
+				currentLeaderMaxCents: 2000,
+				endsAt: now + 60_000,
+				antiSnipingWindowMs: 5 * 60_000,
+				antiSnipingExtendMs: 5 * 60_000,
+			});
+			const { ctx } = createMockMutationCtx([
+				mockIntent({
+					_id: "intent-a" as BidIntentDoc["_id"],
+					sponsorId: "sA" as BidIntentDoc["sponsorId"],
+					amountCents: 1000,
+					maxAmountCents: 2000,
+					createdAt: now - 1000,
+					_creationTime: now - 1000,
+				}),
+			]);
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sB" as BidIntentDoc["sponsorId"],
+				amountCents: 1100,
+				maxAmountCents: 3000,
+			});
+
+			expect(result.outbidSponsorId).toBe("sA");
+			expect(result.extendedEndsAt).toBe(now + 60_000 + 5 * 60_000);
+		});
+	});
+
+	describe("anti-sniping extension", () => {
+		test("bid within sniping window returns extendedEndsAt", async () => {
+			const now = Date.now();
+			const auction = activeAuction({
+				startPriceCents: 1000,
+				currentPriceCents: undefined,
+				endsAt: now + 60_000,
+				antiSnipingWindowMs: 5 * 60_000,
+				antiSnipingExtendMs: 5 * 60_000,
+			});
+			const { ctx } = createMockMutationCtx();
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sA" as BidIntentDoc["sponsorId"],
+				amountCents: 1000,
+			});
+
+			expect(result.extendedEndsAt).toBe(now + 60_000 + 5 * 60_000);
+		});
+
+		test("bid outside sniping window does not return extendedEndsAt", async () => {
+			const now = Date.now();
+			const auction = activeAuction({
+				startPriceCents: 1000,
+				currentPriceCents: undefined,
+				endsAt: now + 10 * 60_000,
+				antiSnipingWindowMs: 5 * 60_000,
+				antiSnipingExtendMs: 5 * 60_000,
+			});
+			const { ctx } = createMockMutationCtx();
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sA" as BidIntentDoc["sponsorId"],
+				amountCents: 1000,
+			});
+
+			expect(result.extendedEndsAt).toBeUndefined();
+		});
+	});
 });
