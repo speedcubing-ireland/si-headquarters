@@ -8,6 +8,7 @@ import { emailOTP } from "better-auth/plugins";
 import { components } from "./_generated/api";
 import { internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
+import { getSponsorshipSenderAddress } from "./lib/email";
 import schema from "./sponsorAuth/schema";
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth";
@@ -98,6 +99,7 @@ export function buildSponsorOtpEmail(args: {
 		sourceRef: dedupeKey,
 		templateKey: "sponsor_auth_otp",
 		recipientEmail: args.email,
+		senderAddress: getSponsorshipSenderAddress(),
 		subject,
 		htmlBody: html,
 		plainTextBody: plainText,

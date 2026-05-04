@@ -111,6 +111,46 @@ describe("resolveSponsorAuthSecret", () => {
 	});
 });
 
+describe("buildSponsorOtpEmail sender address", () => {
+	const saved = process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS;
+
+	afterEach(() => {
+		if (saved !== undefined)
+			process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = saved;
+		else delete process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS;
+	});
+
+	test("uses SPONSORSHIP_EMAIL_SENDER_ADDRESS env var when set", () => {
+		process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = "custom@example.com";
+		const result = buildSponsorOtpEmail({
+			email: "user@example.com",
+			otp: "123456",
+			type: "sign-in",
+		});
+		expect(result.senderAddress).toBe("custom@example.com");
+	});
+
+	test("falls back to sponsorship@speedcubingireland.com when env unset", () => {
+		delete process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS;
+		const result = buildSponsorOtpEmail({
+			email: "user@example.com",
+			otp: "123456",
+			type: "sign-in",
+		});
+		expect(result.senderAddress).toBe("sponsorship@speedcubingireland.com");
+	});
+
+	test("falls back to default when env var is whitespace", () => {
+		process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = "   ";
+		const result = buildSponsorOtpEmail({
+			email: "user@example.com",
+			otp: "123456",
+			type: "sign-in",
+		});
+		expect(result.senderAddress).toBe("sponsorship@speedcubingireland.com");
+	});
+});
+
 describe("buildSponsorOtpEmail", () => {
 	test("builds forget-password email with correct subject", () => {
 		const result = buildSponsorOtpEmail({

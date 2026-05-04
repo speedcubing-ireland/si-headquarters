@@ -289,6 +289,7 @@ export async function sendDispatch(
 			html: dispatch.htmlBody ?? `<p>${dispatch.plainTextBody}</p>`,
 			plainText: dispatch.plainTextBody,
 			operationId: dispatch.providerOperationId,
+			senderAddress: dispatch.senderAddress,
 			updateIntervalInMs: EMAIL_SEND_POLL_INTERVAL_MS,
 		});
 

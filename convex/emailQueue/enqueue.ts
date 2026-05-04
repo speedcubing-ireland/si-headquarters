@@ -14,6 +14,7 @@ export type EnqueueEmailDispatchArgs = {
 	templateKey: string;
 	recipientEmail: string;
 	recipientName?: string;
+	senderAddress?: string;
 	subject: string;
 	htmlBody?: string;
 	plainTextBody: string;
@@ -94,6 +95,7 @@ export async function enqueueDispatch(
 		templateKey: args.templateKey,
 		recipientEmail,
 		recipientName: args.recipientName,
+		senderAddress: args.senderAddress,
 		subject: args.subject,
 		htmlBody: args.htmlBody,
 		plainTextBody: args.plainTextBody,
