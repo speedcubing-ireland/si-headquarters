@@ -298,6 +298,7 @@ export default defineSchema({
 		templateKey: v.string(),
 		recipientEmail: v.string(),
 		recipientName: v.optional(v.string()),
+		senderAddress: v.optional(v.string()),
 		subject: v.string(),
 		htmlBody: v.optional(v.string()),
 		plainTextBody: v.string(),

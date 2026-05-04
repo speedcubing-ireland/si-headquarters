@@ -7,6 +7,7 @@ import {
 	buildSponsorshipEmailHtml,
 	buildSponsorshipEmailPlainText,
 } from "./lib/sponsorshipEmailTemplates";
+import { getSponsorshipSenderAddress } from "./lib/email";
 import { normalizeEmail } from "./lib/sanitize";
 import { sponsorshipEmailType } from "./lib/sponsorshipValidators";
 
@@ -98,6 +99,7 @@ export const _enqueueSponsorshipEmailBatch = internalAction({
 					templateKey: args.emailType,
 					recipientEmail,
 					recipientName: recipient.name,
+					senderAddress: getSponsorshipSenderAddress(),
 					subject: args.subject,
 					htmlBody,
 					plainTextBody,
