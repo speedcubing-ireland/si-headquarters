@@ -15,7 +15,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { isSponsorshipEnabled } from "@/lib/feature-flags";
+import {
+	isSponsorshipEnabled,
+	isSponsorPasswordAuthEnabled,
+} from "@/lib/feature-flags";
 import { sponsorAuthClient } from "@/lib/sponsor-auth-client";
 
 const OTP_REQUEST_UI_TIMEOUT_MS = 3_000;
@@ -38,6 +41,7 @@ function SponsorLoginEnabled() {
 	const [signInEmail, setSignInEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [signInOtp, setSignInOtp] = useState("");
+	const [otpSent, setOtpSent] = useState(false);
 	const [resetEmail, setResetEmail] = useState("");
 	const [resetOtp, setResetOtp] = useState("");
 	const [newPassword, setNewPassword] = useState("");
@@ -80,7 +84,7 @@ function SponsorLoginEnabled() {
 		task: () => Promise<void>,
 		successMessage: string,
 		fallbackMessage: string,
-	) => {
+	): Promise<boolean> => {
 		const timedOut = Symbol("otp-send-timeout");
 		setIsBusy(true);
 		const request = task();
@@ -99,16 +103,18 @@ function SponsorLoginEnabled() {
 						toast.error(message);
 					}
 				});
-				return;
+				return true;
 			}
 			toast.success(successMessage);
+			return true;
 		} catch (error) {
 			const message = getErrorMessage(error, fallbackMessage);
 			if (isLikelyTimeoutMessage(message)) {
 				toast.success(successMessage);
-				return;
+				return true;
 			}
 			toast.error(message);
+			return false;
 		} finally {
 			setIsBusy(false);
 		}
@@ -129,7 +135,7 @@ function SponsorLoginEnabled() {
 	};
 
 	const onSendSignInOtp = async () => {
-		await runOtpSendAction(
+		const sent = await runOtpSendAction(
 			async () => {
 				const result = await sponsorAuthClient.emailOtp.sendVerificationOtp({
 					email: normalizeEmail(signInEmail),
@@ -140,6 +146,7 @@ function SponsorLoginEnabled() {
 			"Sign-in code sent.",
 			"Failed to send code.",
 		);
+		if (sent) setOtpSent(true);
 	};
 
 	const onOtpSignIn = async (event: FormEvent) => {
@@ -223,9 +230,12 @@ function SponsorLoginEnabled() {
 								<Badge className="w-fit" variant="secondary">
 									Sponsor Portal
 								</Badge>
-								<CardTitle className="text-2xl">Sponsor sign-in</CardTitle>
+								<CardTitle className="text-2xl">
+									Sponsor sign-in in 4 steps
+								</CardTitle>
 								<CardDescription>
-									Enter your sponsor email first. Then choose how to sign in.
+									1. Enter the email address you were registered as a sponsor
+									with.
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
@@ -236,7 +246,10 @@ function SponsorLoginEnabled() {
 										type="email"
 										autoComplete="email"
 										value={signInEmail}
-										onChange={(event) => setSignInEmail(event.target.value)}
+										onChange={(event) => {
+											setSignInEmail(event.target.value);
+											setOtpSent(false);
+										}}
 										required
 										disabled={isBusy}
 									/>
@@ -245,56 +258,78 @@ function SponsorLoginEnabled() {
 						</Card>
 						<Card className="border-muted-foreground/10 shadow-sm">
 							<CardContent className="space-y-6 pt-6">
-								<form className="space-y-4" onSubmit={onPasswordSignIn}>
-									<div className="space-y-2">
-										<Label htmlFor="password">Password</Label>
-										<Input
-											id="password"
-											type="password"
-											autoComplete="current-password"
-											value={password}
-											onChange={(event) => setPassword(event.target.value)}
-											required
+								{isSponsorPasswordAuthEnabled && (
+									<>
+										<form className="space-y-4" onSubmit={onPasswordSignIn}>
+											<div className="space-y-2">
+												<Label htmlFor="password">Password</Label>
+												<Input
+													id="password"
+													type="password"
+													autoComplete="current-password"
+													value={password}
+													onChange={(event) => setPassword(event.target.value)}
+													required
+													disabled={isBusy}
+												/>
+											</div>
+											<Button
+												className="w-full"
+												type="submit"
+												disabled={isBusy || !signInEmail.trim()}
+											>
+												{isBusy ? (
+													<Loader2 className="size-4 animate-spin" />
+												) : (
+													"Sign in"
+												)}
+											</Button>
+										</form>
+										<div className="flex items-center gap-3 text-xs uppercase text-muted-foreground">
+											<Separator className="flex-1" />
+											<span>or</span>
+											<Separator className="flex-1" />
+										</div>
+										<Button
+											className="w-full"
+											type="button"
+											variant="outline"
 											disabled={isBusy}
-										/>
-									</div>
-									<Button
-										className="w-full"
-										type="submit"
-										disabled={isBusy || !signInEmail.trim()}
-									>
-										{isBusy ? (
-											<Loader2 className="size-4 animate-spin" />
-										) : (
-											"Sign in"
-										)}
-									</Button>
-								</form>
-								<div className="flex items-center gap-3 text-xs uppercase text-muted-foreground">
-									<Separator className="flex-1" />
-									<span>or</span>
-									<Separator className="flex-1" />
-								</div>
-								<Button
-									className="w-full"
-									type="button"
-									variant="outline"
-									disabled={isBusy}
-									onClick={() => void onPasskeySignIn()}
-								>
-									{isBusy ? (
-										<Loader2 className="size-4 animate-spin" />
-									) : (
-										"Sign in with passkey"
-									)}
-								</Button>
-								<div className="flex items-center gap-3 text-xs uppercase text-muted-foreground">
-									<Separator className="flex-1" />
-									<span>or</span>
-									<Separator className="flex-1" />
-								</div>
+											onClick={() => void onPasskeySignIn()}
+										>
+											{isBusy ? (
+												<Loader2 className="size-4 animate-spin" />
+											) : (
+												"Sign in with passkey"
+											)}
+										</Button>
+										<div className="flex items-center gap-3 text-xs uppercase text-muted-foreground">
+											<Separator className="flex-1" />
+											<span>or</span>
+											<Separator className="flex-1" />
+										</div>
+									</>
+								)}
 								<form className="space-y-3" onSubmit={onOtpSignIn}>
 									<Label htmlFor="signInOtp">One-time email code</Label>
+									<p className="text-sm text-muted-foreground">
+										2. Click <strong>Send code</strong> — a one-time code will
+										be emailed to you. This can take up to 2 minutes.
+									</p>
+									<div className="flex gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											disabled={isBusy || !signInEmail.trim()}
+											onClick={() => void onSendSignInOtp()}
+										>
+											Send code
+										</Button>
+									</div>
+									<p className="text-sm text-muted-foreground">
+										3. Go to your inbox, copy the code from the automated email
+										and paste the code into the field below.
+									</p>
 									<div className="flex gap-2">
 										<Input
 											id="signInOtp"
@@ -305,36 +340,33 @@ function SponsorLoginEnabled() {
 											required
 											disabled={isBusy}
 										/>
-										<Button
-											type="button"
-											variant="outline"
-											disabled={isBusy || !signInEmail.trim()}
-											onClick={() => void onSendSignInOtp()}
-										>
-											Send code
-										</Button>
 									</div>
 									<Button
 										className="w-full"
 										type="submit"
-										disabled={isBusy || !signInEmail.trim()}
+										disabled={isBusy || !signInEmail.trim() || !otpSent}
 									>
-										Sign in with OTP
+										4. Sign in with OTP
 									</Button>
+									<p className="text-center text-xs text-muted-foreground">
+										You will stay signed in for 30 days (unless you log out).
+									</p>
 								</form>
-								<Button
-									type="button"
-									variant="link"
-									className="h-auto px-0 text-sm"
-									disabled={isBusy}
-									onClick={onOpenResetPanel}
-								>
-									Reset password with OTP
-								</Button>
+								{isSponsorPasswordAuthEnabled && (
+									<Button
+										type="button"
+										variant="link"
+										className="h-auto px-0 text-sm"
+										disabled={isBusy}
+										onClick={onOpenResetPanel}
+									>
+										Reset password with OTP
+									</Button>
+								)}
 							</CardContent>
 						</Card>
 					</>
-				) : (
+				) : isSponsorPasswordAuthEnabled ? (
 					<Card className="border-muted-foreground/10 shadow-sm">
 						<CardHeader className="space-y-3">
 							<Badge className="w-fit" variant="secondary">
@@ -414,7 +446,7 @@ function SponsorLoginEnabled() {
 							</form>
 						</CardContent>
 					</Card>
-				)}
+				) : null}
 			</div>
 		</div>
 	);

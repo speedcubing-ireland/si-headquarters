@@ -2,7 +2,6 @@ import { ConvexError } from "convex/values";
 import { components } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { createSponsorAuth } from "../sponsorAuthServer";
 
 type SponsorAuthUserDoc = {
 	_id: string;
@@ -26,18 +25,6 @@ type SponsorAuthSessionDoc = {
 };
 
 type SponsorCtx = MutationCtx | QueryCtx;
-
-function generateTemporaryPassword(length = 32): string {
-	const alphabet =
-		"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
-	const bytes = new Uint8Array(length);
-	crypto.getRandomValues(bytes);
-	let password = "";
-	for (const byte of bytes) {
-		password += alphabet[byte % alphabet.length];
-	}
-	return password;
-}
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
@@ -217,24 +204,34 @@ export async function ensureSponsorAuthAccount(
 		return { authUserId: existingByEmail._id, created: false };
 	}
 
-	const auth = createSponsorAuth(ctx);
-	const created = await auth.api.signUpEmail({
-		headers: new Headers(),
-		body: {
-			name: args.sponsor.name,
-			email: canonicalEmail,
-			password: generateTemporaryPassword(),
+	const newUser = await ctx.runMutation(components.sponsorAuth.adapter.create, {
+		input: {
+			model: "user",
+			data: {
+				email: canonicalEmail,
+				name: args.sponsor.name,
+				emailVerified: false,
+				createdAt: now,
+				updatedAt: now,
+			},
 		},
 	});
+	const newUserDoc = parseSponsorAuthUserDoc(newUser);
+	if (!newUserDoc) {
+		throw new ConvexError({
+			code: "INTERNAL_ERROR",
+			message: "Failed to create sponsor auth account.",
+		});
+	}
 
 	await ctx.db.patch("sponsors", args.sponsor._id, {
 		email: canonicalEmail,
 		emailNormalized: canonicalEmail,
-		authUserId: created.user.id,
+		authUserId: newUserDoc._id,
 		updatedById: args.updatedById,
 		updatedAt: now,
 	});
-	return { authUserId: created.user.id, created: true };
+	return { authUserId: newUserDoc._id, created: true };
 }
 
 export async function syncSponsorAuthUserProfile(

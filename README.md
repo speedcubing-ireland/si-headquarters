@@ -254,6 +254,12 @@ These are a **separate set of OAuth applications** from the user authentication 
 | `WCA_BASE_URL` | Base URL for WCA website links and API calls. Defaults to `https://www.worldcubeassociation.org`. Override to point at a staging WCA instance for testing. |
 | `DEPLOYMENT_CONTEXT` | Set to `production` for the production deployment. Any other value (or unset) is treated as non-production, which enables naming convention guards on external resources (resource names must start with `[DEV]`). See [dev/prod isolation](docs/dev-prod-isolation-canva-google-sheets.md). |
 
+#### Feature Flags
+
+| Variable | Notes |
+|---|---|
+| `SPONSOR_PASSWORD_AUTH_ENABLED` | Enables password sign-in, passkey sign-in, and password reset on `/sponsor/login`. Set to `1`/`true`/`yes` to enable. Default (unset/false): only one-time email code is accepted; password and passkey BetterAuth endpoints reject requests. **Must be kept in sync with the client-side `VITE_SPONSOR_PASSWORD_AUTH_ENABLED`.** |
+
 ### Client-Side variables
 
 These are embedded into the frontend build. `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` are written automatically by `convex dev` to `.env.local` — don't edit them manually.
@@ -263,6 +269,7 @@ These are embedded into the frontend build. `VITE_CONVEX_URL` and `VITE_CONVEX_S
 | `VITE_CONVEX_URL` | Convex (auto) | WebSocket URL for Convex backend. |
 | `VITE_CONVEX_SITE_URL` | Convex (auto) | HTTP URL for Convex HTTP routes. |
 | `VITE_SPONSORSHIP_ENABLED` | Developer (optional) | Feature flag. Set to `1`, `true`, or `yes` to enable sponsor portal. |
+| `VITE_SPONSOR_PASSWORD_AUTH_ENABLED` | Developer (optional) | Feature flag. Set to `1`, `true`, or `yes` to show password + passkey + reset UI on `/sponsor/login`. Default hides them — OTP only. **Must be kept in sync with Convex-side `SPONSOR_PASSWORD_AUTH_ENABLED`.** |
 
 ## Documentation
 
