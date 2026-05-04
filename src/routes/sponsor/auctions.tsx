@@ -53,7 +53,7 @@ export const Route = createFileRoute("/sponsor/auctions")({
 	component: SponsorAuctionsRoute,
 });
 
-const VISIBLE_STATES = ["active", "scheduled", "closed"] as const;
+const VISIBLE_STATES = ["scheduled", "active", "closed"] as const;
 type VisibleState = (typeof VISIBLE_STATES)[number];
 
 function SponsorAuctionsRoute() {
@@ -175,17 +175,6 @@ function SponsorAuctionsEnabled() {
 			<div className="grid gap-3 sm:grid-cols-3">
 				<Card>
 					<CardHeader className="pb-2">
-						<CardDescription className="text-xs">Active</CardDescription>
-						<CardTitle className="text-2xl">
-							{auctionsState.isLoading ? "..." : auctionsByState.active.length}
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="text-xs text-muted-foreground">
-						Bidding currently open
-					</CardContent>
-				</Card>
-				<Card>
-					<CardHeader className="pb-2">
 						<CardDescription className="text-xs">Scheduled</CardDescription>
 						<CardTitle className="text-2xl">
 							{auctionsState.isLoading
@@ -195,6 +184,17 @@ function SponsorAuctionsEnabled() {
 					</CardHeader>
 					<CardContent className="text-xs text-muted-foreground">
 						Upcoming opportunities
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className="pb-2">
+						<CardDescription className="text-xs">Active</CardDescription>
+						<CardTitle className="text-2xl">
+							{auctionsState.isLoading ? "..." : auctionsByState.active.length}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="text-xs text-muted-foreground">
+						Bidding currently open
 					</CardContent>
 				</Card>
 				<Card>
@@ -212,22 +212,9 @@ function SponsorAuctionsEnabled() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>{SPONSORSHIP_BIDDING_HELP_TITLE}</CardTitle>
-					<CardDescription>
-						Each auction uses one of these formats. Open any auction for
-						detail-specific guidance.
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<AuctionBiddingHelpOverview />
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
 					<CardTitle>Auctions</CardTitle>
 					<CardDescription>
-						View active, scheduled, and closed auctions available to your
+						View scheduled, active, and closed auctions available to your
 						account.
 					</CardDescription>
 				</CardHeader>
@@ -276,23 +263,25 @@ function SponsorAuctionsEnabled() {
 																	{sponsorshipStateLabel(auction.state)}
 																</Badge>
 															</div>
-															<p className="text-sm text-muted-foreground">
-																{sponsorshipFrameworkLabel(auction.framework)}
-															</p>
-															<p className="text-xs text-muted-foreground">
-																Window: {formatDateTime(auction.startsAt)} -{" "}
-																{formatDateTime(auction.endsAt)}
-															</p>
 															<AuctionCompetitionSummaryCompact
 																summary={auction.competitionSummary}
 															/>
+															<p className="text-sm text-muted-foreground">
+																Auction Type:{" "}
+																{sponsorshipFrameworkLabel(auction.framework)}
+															</p>
+															<p className="text-sm text-muted-foreground">
+																Auction Window:{" "}
+																{formatDateTime(auction.startsAt)} to{" "}
+																{formatDateTime(auction.endsAt)}
+															</p>
 															{auction.competitionSummarySource !== "wca" ? (
-																<p className="text-xs text-warning-foreground">
+																<p className="text-sm text-warning-foreground">
 																	Detailed competition data is still syncing
 																	from WCA.
 																</p>
 															) : null}
-															<p className="text-xs text-muted-foreground">
+															<p className="text-sm text-muted-foreground">
 																{isSealedSponsorshipFramework(
 																	auction.framework,
 																) && auction.state !== "closed"
@@ -344,6 +333,19 @@ function SponsorAuctionsEnabled() {
 							})}
 						</Tabs>
 					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>{SPONSORSHIP_BIDDING_HELP_TITLE}</CardTitle>
+					<CardDescription>
+						Each auction uses one of these formats. Open any auction for
+						detail-specific guidance.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<AuctionBiddingHelpOverview />
 				</CardContent>
 			</Card>
 		</SponsorPageShell>
