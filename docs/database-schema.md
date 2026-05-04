@@ -1,8 +1,8 @@
 # Convex Database Schema
 
-> Last updated: 2026-03-29 — based on commit [`3cd49d2`](../../commit/3cd49d2b78f0fcd67045a4be1d0fac0380d3f4b4) on `main`
+> Last updated: 2026-05-04 — based on commit [`05448c2`](../../commit/05448c237d5e9eb2a01211c696caf7c554e355b3) on `main`
 
-An overview of the database schema organized by domain. There are **30 tables** (plus auth tables) across 8 logical areas.
+An overview of the database schema organized by domain. There are **32 tables** (plus auth tables) across 8 logical areas.
 
 ## Auth & Identity
 
@@ -53,6 +53,8 @@ Sponsor auth (`convex/sponsorAuth/schema.ts`) has its own `user`, `session`, `ac
 | `sponsorshipAuctionInvites` | Which sponsors were invited to which auction |
 | `sponsorshipBidIntents` | A sponsor's bid (manual or proxy with max amount) |
 | `sponsorshipBidEvents` | Immutable log of every bid placed (including auto-proxy bids) |
+| `sponsorshipAuctionReminders` | Scheduled reminder emails to sponsors before an auction ends |
+| `sponsorshipAuctionOutbidNotices` | Tracks outbid notification emails sent per sponsor per auction |
 
 **Auction frameworks:** `first_sealed` | `vickrey` | `ebay_proxy`
 
@@ -133,6 +135,8 @@ competitions ──┬── sponsorshipAuctions
 
 sponsors ──┬── sponsorshipAuctions (winner)
            ├── sponsorshipAuctionInvites
+           ├── sponsorshipAuctionReminders
+           ├── sponsorshipAuctionOutbidNotices
            ├── sponsorshipBidIntents
            └── sponsorshipBidEvents
 
