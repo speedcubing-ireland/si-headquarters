@@ -128,6 +128,7 @@ export async function buildSponsorshipEmailHtml(input: {
 					winnerSponsorName={input.context.winnerSponsorName}
 					settlementAmountCents={input.context.settlementAmountCents}
 					adminUrl={input.context.adminUrl}
+					message={input.messageFallback}
 				/>,
 			);
 		}
@@ -238,6 +239,7 @@ export async function buildSponsorshipEmailPlainText(input: {
 					winnerSponsorName={input.context.winnerSponsorName}
 					settlementAmountCents={input.context.settlementAmountCents}
 					adminUrl={input.context.adminUrl}
+					message={input.messageFallback}
 				/>,
 				{ plainText: true },
 			);

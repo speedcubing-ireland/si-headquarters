@@ -1,4 +1,4 @@
-import { Section, Text } from "@react-email/components";
+import { Hr, Section, Text } from "@react-email/components";
 import {
 	SponsorshipEmailShell,
 	SponsorshipInfoBlock,
@@ -9,6 +9,7 @@ export type SponsorshipInternalInvoiceEmailProps = {
 	winnerSponsorName?: string;
 	settlementAmountCents?: number;
 	adminUrl: string;
+	message?: string;
 };
 
 export default function SponsorshipInternalInvoiceEmail(
@@ -44,18 +45,28 @@ export default function SponsorshipInternalInvoiceEmail(
 						/>
 					</Section>
 				) : null}
-				<Section className="mt-3 rounded-lg border border-brand-border px-4 py-3">
-					<Text className="m-0 text-xs text-brand-muted">Next steps</Text>
-					<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
-						1) Confirm sponsorship status on the competition record.
-					</Text>
-					<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
-						2) Send invoice and payment instructions (if winner confirmed).
-					</Text>
-					<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
-						3) Record follow-up actions in HQ.
-					</Text>
-				</Section>
+				{props.message ? (
+					<Section className="mt-3">
+						<Hr className="border-brand-border" />
+						<Text className="m-0 mt-3 text-sm font-medium text-brand-foreground">
+							{props.message}
+						</Text>
+					</Section>
+				) : null}
+				{hasWinner ? (
+					<Section className="mt-3 rounded-lg border border-brand-border px-4 py-3">
+						<Text className="m-0 text-xs text-brand-muted">Next steps</Text>
+						<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
+							1) Confirm sponsorship status on the competition record.
+						</Text>
+						<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
+							2) Send invoice and payment instructions.
+						</Text>
+						<Text className="m-0 mt-1 text-sm leading-6 text-brand-foreground">
+							3) Record follow-up actions in HQ.
+						</Text>
+					</Section>
+				) : null}
 			</Section>
 		</SponsorshipEmailShell>
 	);
@@ -66,4 +77,6 @@ SponsorshipInternalInvoiceEmail.PreviewProps = {
 	winnerSponsorName: "Example Sponsor",
 	settlementAmountCents: 125000,
 	adminUrl: "https://hq.speedcubing.ie/admin/sponsorship",
+	message:
+		"Winner confirmed: Example Sponsor at EUR 1250.00. Send invoice follow-up.",
 } satisfies SponsorshipInternalInvoiceEmailProps;

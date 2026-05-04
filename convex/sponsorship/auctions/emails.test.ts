@@ -380,3 +380,69 @@ describe("buildSponsorshipEmailHtml — auction_scheduled template", () => {
 		expect(html).not.toContain("fallback");
 	});
 });
+
+describe("buildSponsorshipEmailHtml — internal_invoice template", () => {
+	const baseContext = {
+		competitionName: "Irish Open 2026",
+		adminUrl: "https://hq.speedcubing.ie/admin/sponsorship",
+	};
+
+	test("renders HTML with action message and next steps when there is a winner", async () => {
+		const html = await buildSponsorshipEmailHtml({
+			emailType: "internal_invoice",
+			context: {
+				...baseContext,
+				winnerSponsorName: "Acme Corp",
+				settlementAmountCents: 125000,
+			},
+			messageFallback:
+				"Winner confirmed: Acme Corp at EUR 1250.00. Send invoice follow-up.",
+		});
+		expect(html).toContain("Irish Open 2026");
+		expect(html).toContain("Acme Corp");
+		expect(html).toContain(
+			"Winner confirmed: Acme Corp at EUR 1250.00. Send invoice follow-up.",
+		);
+		expect(html).toContain("Next steps");
+	});
+
+	test("renders HTML with action message and no next steps when no winner", async () => {
+		const html = await buildSponsorshipEmailHtml({
+			emailType: "internal_invoice",
+			context: baseContext,
+			messageFallback:
+				"No winning sponsor. Mark competition sponsorship status as None or relaunch.",
+		});
+		expect(html).toContain("Irish Open 2026");
+		expect(html).toContain(
+			"No winning sponsor. Mark competition sponsorship status as None or relaunch.",
+		);
+		expect(html).not.toContain("Next steps");
+	});
+
+	test("renders plain text with action message", async () => {
+		const text = await buildSponsorshipEmailPlainText({
+			emailType: "internal_invoice",
+			context: {
+				...baseContext,
+				winnerSponsorName: "Acme Corp",
+				settlementAmountCents: 125000,
+			},
+			messageFallback:
+				"Winner confirmed: Acme Corp at EUR 1250.00. Send invoice follow-up.",
+		});
+		expect(text).toContain("Irish Open 2026");
+		expect(text).toContain(
+			"Winner confirmed: Acme Corp at EUR 1250.00. Send invoice follow-up.",
+		);
+	});
+
+	test("falls back to messageFallback when context is missing adminUrl", async () => {
+		const html = await buildSponsorshipEmailHtml({
+			emailType: "internal_invoice",
+			context: { competitionName: "Irish Open 2026" },
+			messageFallback: "Invoice follow-up needed",
+		});
+		expect(html).toContain("Invoice follow-up needed");
+	});
+});
