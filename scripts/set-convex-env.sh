@@ -75,6 +75,12 @@ fi
 # WCA_BASE_URL defaults to https://www.worldcubeassociation.org — only set for local/staging WCA.
 # bunx convex env set $PROD_FLAG WCA_BASE_URL            "http://localhost:3000"
 
+# -- Feature Flags ------------------------------------------------------------
+# Sponsor portal password + passkey auth. Leave unset (or set to "false") to
+# restrict /sponsor/login to one-time email codes only. Set to "true" to
+# re-enable password and passkey sign-in plus password reset.
+# bunx convex env set $PROD_FLAG SPONSOR_PASSWORD_AUTH_ENABLED "true"
+
 echo ""
 echo "Convex ${TARGET} environment variables set successfully."
 echo ""

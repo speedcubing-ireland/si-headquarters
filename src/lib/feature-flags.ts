@@ -7,3 +7,7 @@ function parseBooleanFlag(value: string | undefined): boolean {
 export const isSponsorshipEnabled = parseBooleanFlag(
 	import.meta.env.VITE_SPONSORSHIP_ENABLED,
 );
+
+export const isSponsorPasswordAuthEnabled = parseBooleanFlag(
+	import.meta.env.VITE_SPONSOR_PASSWORD_AUTH_ENABLED,
+);

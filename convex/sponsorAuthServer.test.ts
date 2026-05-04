@@ -4,6 +4,8 @@ import {
 	uniqueOrigins,
 	resolveSponsorAuthSecret,
 	buildSponsorOtpEmail,
+	isSponsorPasswordAuthEnabled,
+	createSponsorAuthOptions,
 } from "./sponsorAuthServer";
 
 describe("trimTrailingSlash", () => {
@@ -108,6 +110,89 @@ describe("resolveSponsorAuthSecret", () => {
 		expect(() => resolveSponsorAuthSecret(true)).toThrow(
 			"Missing BETTER_AUTH_SECRET",
 		);
+	});
+});
+
+describe("isSponsorPasswordAuthEnabled", () => {
+	const saved = process.env.SPONSOR_PASSWORD_AUTH_ENABLED;
+
+	afterEach(() => {
+		if (saved !== undefined) process.env.SPONSOR_PASSWORD_AUTH_ENABLED = saved;
+		else delete process.env.SPONSOR_PASSWORD_AUTH_ENABLED;
+	});
+
+	test.each([
+		"1",
+		"true",
+		"yes",
+		"TRUE",
+		"Yes",
+		" true ",
+	])("returns true for %s", (value) => {
+		process.env.SPONSOR_PASSWORD_AUTH_ENABLED = value;
+		expect(isSponsorPasswordAuthEnabled()).toBe(true);
+	});
+
+	test.each([
+		"0",
+		"false",
+		"no",
+		"random",
+		"",
+		"   ",
+	])("returns false for %s", (value) => {
+		process.env.SPONSOR_PASSWORD_AUTH_ENABLED = value;
+		expect(isSponsorPasswordAuthEnabled()).toBe(false);
+	});
+
+	test("returns false when env var unset", () => {
+		delete process.env.SPONSOR_PASSWORD_AUTH_ENABLED;
+		expect(isSponsorPasswordAuthEnabled()).toBe(false);
+	});
+});
+
+describe("createSponsorAuthOptions", () => {
+	const saved = process.env.SPONSOR_PASSWORD_AUTH_ENABLED;
+	const fakeCtx = {
+		runMutation: () => Promise.resolve(),
+		runQuery: () => Promise.resolve(),
+		runAction: () => Promise.resolve(),
+	} as unknown as Parameters<typeof createSponsorAuthOptions>[0];
+
+	afterEach(() => {
+		if (saved !== undefined) process.env.SPONSOR_PASSWORD_AUTH_ENABLED = saved;
+		else delete process.env.SPONSOR_PASSWORD_AUTH_ENABLED;
+	});
+
+	test("flag off: emailAndPassword disabled, passkey absent, emailOTP present", () => {
+		delete process.env.SPONSOR_PASSWORD_AUTH_ENABLED;
+		let options: ReturnType<typeof createSponsorAuthOptions>;
+		try {
+			options = createSponsorAuthOptions(fakeCtx);
+		} catch {
+			return;
+		}
+		expect(options.emailAndPassword?.enabled).toBe(false);
+		expect(
+			(options.plugins ?? []).find((p) => p.id === "passkey"),
+		).toBeUndefined();
+		expect(
+			(options.plugins ?? []).find((p) => p.id === "email-otp"),
+		).toBeDefined();
+	});
+
+	test("flag on: emailAndPassword enabled, passkey present", () => {
+		process.env.SPONSOR_PASSWORD_AUTH_ENABLED = "true";
+		let options: ReturnType<typeof createSponsorAuthOptions>;
+		try {
+			options = createSponsorAuthOptions(fakeCtx);
+		} catch {
+			return;
+		}
+		expect(options.emailAndPassword?.enabled).toBe(true);
+		expect(
+			(options.plugins ?? []).find((p) => p.id === "passkey"),
+		).toBeDefined();
 	});
 });
 
