@@ -6,7 +6,6 @@ import {
 	Head,
 	Heading,
 	Html,
-	Hr,
 	Preview,
 	Section,
 	Tailwind,
@@ -38,8 +37,8 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
 						}}
 					/>
 				</Head>
-				<Preview>{props.preview}</Preview>
 				<Body className="bg-brand-bg font-sans py-10">
+					<Preview>{props.preview}</Preview>
 					<Container className="mx-auto max-w-xl rounded-xl border border-solid border-brand-border bg-brand-surface px-6 py-6">
 						<Text className="m-0 text-xs uppercase tracking-wide text-brand-muted">
 							Speedcubing Ireland Sponsorship
@@ -56,6 +55,10 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
 							</Text>
 						) : null}
 						<Section className="mt-4">{props.children}</Section>
+						<Text className="m-0 mt-4 text-xs leading-5 text-brand-muted">
+							Need help with {props.title}? Reply to this email and the
+							Sponsorship Team will assist.
+						</Text>
 						{props.ctaLabel && props.ctaUrl ? (
 							<Section className="mt-4">
 								<Button
@@ -77,11 +80,6 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
 								</Button>
 							</Section>
 						) : null}
-						<Hr className="my-4 border-brand-border" />
-						<Text className="m-0 text-xs leading-5 text-brand-muted">
-							Need help? Reply to this email and the Sponsorship Team will
-							assist.
-						</Text>
 					</Container>
 				</Body>
 			</Tailwind>
