@@ -106,6 +106,11 @@ export function buildSponsorOtpEmail(args: {
 	};
 }
 
+export function isSponsorPasswordAuthEnabled(): boolean {
+	const value = process.env.SPONSOR_PASSWORD_AUTH_ENABLED?.trim().toLowerCase();
+	return value === "1" || value === "true" || value === "yes";
+}
+
 export const sponsorAuthComponent = createClient<DataModel, typeof schema>(
 	components.sponsorAuth,
 	{
@@ -133,6 +138,8 @@ export function createSponsorAuthOptions(
 		"https://hq.speedcubing.ie",
 	]);
 
+	const passwordAuthEnabled = isSponsorPasswordAuthEnabled();
+
 	return {
 		appName: "Speedcubing Ireland Sponsor Portal",
 		baseURL: trimTrailingSlash(baseUrl),
@@ -150,7 +157,7 @@ export function createSponsorAuthOptions(
 			},
 		},
 		emailAndPassword: {
-			enabled: true,
+			enabled: passwordAuthEnabled,
 			minPasswordLength: 12,
 		},
 		session: {
@@ -178,11 +185,15 @@ export function createSponsorAuthOptions(
 					);
 				},
 			}),
-			passkey({
-				rpID: passkeyRpId,
-				rpName: "Speedcubing Ireland Sponsor Portal",
-				origin: trustedOrigins,
-			}),
+			...(passwordAuthEnabled
+				? [
+						passkey({
+							rpID: passkeyRpId,
+							rpName: "Speedcubing Ireland Sponsor Portal",
+							origin: trustedOrigins,
+						}),
+					]
+				: []),
 		],
 	};
 }
