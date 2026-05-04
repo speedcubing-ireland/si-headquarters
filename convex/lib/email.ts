@@ -12,6 +12,7 @@ type SendEmailInput = {
 	html: string;
 	plainText: string;
 	operationId?: string;
+	senderAddress?: string;
 };
 
 type PollEmailSendInput = SendEmailInput & {
@@ -55,6 +56,15 @@ function getSenderAddress(): string {
 		throw new Error("EMAIL_SENDER_ADDRESS environment variable is not set");
 	}
 	return sender;
+}
+
+const DEFAULT_SPONSORSHIP_SENDER_ADDRESS = "sponsorship@speedcubingireland.com";
+
+export function getSponsorshipSenderAddress(): string {
+	return (
+		process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS?.trim() ||
+		DEFAULT_SPONSORSHIP_SENDER_ADDRESS
+	);
 }
 
 function toValidOperationId(
@@ -215,7 +225,7 @@ export function isAmbiguousEmailTransportError(error: unknown): boolean {
 
 function toEmailMessage(input: SendEmailInput) {
 	return {
-		senderAddress: getSenderAddress(),
+		senderAddress: input.senderAddress?.trim() || getSenderAddress(),
 		content: {
 			subject: input.subject,
 			html: input.html,
