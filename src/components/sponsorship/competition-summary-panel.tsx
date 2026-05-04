@@ -41,7 +41,7 @@ function formatDate(date: string): string {
 function formatDateRange(summary: CompetitionSummary): string {
 	const start = formatDate(summary.startDate);
 	const end = formatDate(summary.endDate);
-	return start === end ? start : `${start} - ${end}`;
+	return start === end ? start : `${start} to ${end}`;
 }
 
 function eventLabel(eventId: string): string {
@@ -131,8 +131,8 @@ export function AuctionCompetitionSummaryCompact(props: {
 			? `${props.summary.eventIds.length} events`
 			: "Events not listed";
 	return (
-		<p className="text-xs text-muted-foreground">
-			{dateRange} · {limitLabel} · {eventsLabel}
+		<p className="text-sm text-muted-foreground">
+			Competition Summary: {dateRange} · {limitLabel} · {eventsLabel}
 		</p>
 	);
 }
