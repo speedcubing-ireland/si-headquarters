@@ -1,4 +1,5 @@
 import { Section, Text } from "@react-email/components";
+import { sponsorPortalAuctionsIndexUrl } from "../lib/siteUrls";
 import {
 	SponsorshipEmailShell,
 	SponsorshipInfoBlock,
@@ -94,5 +95,5 @@ SponsorshipScheduledEmail.PreviewProps = {
 		"This is a sealed-bid auction. All bids are hidden. The highest bidder wins and pays their bid amount.",
 	startPriceCents: 10_000,
 	currency: "EUR",
-	portalUrl: "https://hq.speedcubing.ie/sponsor/auctions",
+	portalUrl: sponsorPortalAuctionsIndexUrl(),
 } satisfies SponsorshipScheduledEmailProps;

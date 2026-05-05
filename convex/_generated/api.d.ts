@@ -51,6 +51,7 @@ import type * as lib_refunds from "../lib/refunds.js";
 import type * as lib_retry from "../lib/retry.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as lib_seedData from "../lib/seedData.js";
+import type * as lib_siteUrls from "../lib/siteUrls.js";
 import type * as lib_sponsorshipAccess from "../lib/sponsorshipAccess.js";
 import type * as lib_sponsorshipBidPlacement from "../lib/sponsorshipBidPlacement.js";
 import type * as lib_sponsorshipBidding from "../lib/sponsorshipBidding.js";
@@ -212,6 +213,7 @@ declare const fullApi: ApiFromModules<{
   "lib/retry": typeof lib_retry;
   "lib/sanitize": typeof lib_sanitize;
   "lib/seedData": typeof lib_seedData;
+  "lib/siteUrls": typeof lib_siteUrls;
   "lib/sponsorshipAccess": typeof lib_sponsorshipAccess;
   "lib/sponsorshipBidPlacement": typeof lib_sponsorshipBidPlacement;
   "lib/sponsorshipBidding": typeof lib_sponsorshipBidding;

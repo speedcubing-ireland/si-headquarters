@@ -7,6 +7,10 @@ import {
 	isProxyAuctionFramework,
 	type SponsorshipAuctionFramework,
 } from "../../lib/sponsorshipValidators";
+import {
+	sponsorPortalAuctionUrl,
+	sponsorshipAdminPageUrl,
+} from "../../lib/siteUrls";
 import { enqueueSponsorshipEmailBatch } from "../emailQueue";
 
 type AuctionEmailType =
@@ -20,13 +24,11 @@ type AuctionEmailType =
 	| "internal_invoice";
 
 function sponsorAuctionUrl(auctionId: Id<"sponsorshipAuctions">): string {
-	const siteUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
-	return `${siteUrl}/sponsor/auctions/${auctionId}`;
+	return sponsorPortalAuctionUrl(String(auctionId));
 }
 
 function sponsorshipAdminUrl(): string {
-	const siteUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
-	return `${siteUrl}/admin/sponsorship`;
+	return sponsorshipAdminPageUrl();
 }
 
 async function resolveAuctionEmailRecipients(

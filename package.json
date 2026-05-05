@@ -21,6 +21,7 @@
 		"test:debug": "vitest --inspect-brk --no-file-parallelism --isolate",
 		"test:coverage": "vitest run --coverage --isolate",
 		"openapi-ts": "openapi-ts",
+		"email:dev": "email dev --dir convex/emails --port 3000",
 		"build:deploy": "bun convex deploy --cmd 'bun run build'"
 	},
 	"dependencies": {
@@ -83,6 +84,7 @@
 		"@convex-dev/eslint-plugin": "^1.2.2",
 		"@edge-runtime/vm": "^5.0.0",
 		"@hey-api/openapi-ts": "0.92.4",
+		"@react-email/ui": "^6.0.8",
 		"@tanstack/router-plugin": "^1.167.32",
 		"@types/bun": "^1.3.13",
 		"@types/node": "^25.6.0",
@@ -95,6 +97,7 @@
 		"convex-test": "^0.0.41",
 		"eslint": "^9.39.4",
 		"npm-run-all2": "^8.0.4",
+		"react-email": "^6.0.8",
 		"tw-animate-css": "^1.4.0",
 		"typescript": "^5.9.3",
 		"unplugin-fonts": "^1.4.0",
