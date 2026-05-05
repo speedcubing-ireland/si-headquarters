@@ -32,7 +32,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isSponsorshipEnabled } from "@/lib/feature-flags";
+import {
+	isSponsorPasswordAuthEnabled,
+	isSponsorshipEnabled,
+} from "@/lib/feature-flags";
 import { sponsorAuthClient } from "@/lib/sponsor-auth-client";
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
@@ -88,64 +91,16 @@ function SponsorSettingsRoute() {
 	return <SponsorSettingsEnabled />;
 }
 
-function SponsorSettingsEnabled() {
-	const navigate = useNavigate();
-	const { data: authSession, isPending: authPending } =
-		sponsorAuthClient.useSession();
+function SponsorPasswordSecurityCard() {
 	const {
 		data: passkeys,
 		isPending: passkeysPending,
 		error: passkeysError,
 	} = sponsorAuthClient.useListPasskeys();
-	const sessionToken = authSession?.session.token ?? null;
-	const meResult = useQuery(
-		api.sponsorPortal.me,
-		sessionToken ? { sessionToken } : "skip",
-	);
-	const meState = useRetainedQueryResult(meResult, sessionToken ?? "skip");
-	const me = meState.data;
-	const updateDisplayName = useMutation(api.sponsorPortal.updateDisplayName);
-	const [displayName, setDisplayName] = useState("");
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
-	const [isSavingName, setIsSavingName] = useState(false);
 	const [isAddingPasskey, setIsAddingPasskey] = useState(false);
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
-
-	useEffect(() => {
-		if (authPending) return;
-		if (sessionToken) return;
-		void navigate({ to: "/sponsor/login" });
-	}, [authPending, navigate, sessionToken]);
-
-	useEffect(() => {
-		if (!me?.name) return;
-		setDisplayName(me.name);
-	}, [me?.name]);
-
-	if (authPending || !sessionToken || meState.isLoading) {
-		return (
-			<div className="flex min-h-svh items-center justify-center">
-				<Loader2 className="size-5 animate-spin text-muted-foreground" />
-			</div>
-		);
-	}
-
-	const onSaveDisplayName = async (event: FormEvent) => {
-		event.preventDefault();
-		setIsSavingName(true);
-		try {
-			await updateDisplayName({
-				sessionToken,
-				displayName,
-			});
-			toast.success("Display name updated.");
-		} catch (error) {
-			toast.error(toActionError(error, "Failed to update display name."));
-		} finally {
-			setIsSavingName(false);
-		}
-	};
 
 	const onAddPasskey = async () => {
 		setIsAddingPasskey(true);
@@ -188,6 +143,153 @@ function SponsorSettingsEnabled() {
 			toast.error(toActionError(error, "Failed to change password."));
 		} finally {
 			setIsChangingPassword(false);
+		}
+	};
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Security</CardTitle>
+				<CardDescription>
+					Add a passkey and change your password.
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				<div className="rounded-md border p-3">
+					<p className="font-medium">Passkey</p>
+					<p className="mb-2 text-sm text-muted-foreground">
+						Use a passkey for fast phishing-resistant sign-in.
+					</p>
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={isAddingPasskey}
+						onClick={() => void onAddPasskey()}
+					>
+						{isAddingPasskey ? (
+							<Loader2 className="size-4 animate-spin" />
+						) : (
+							"Add passkey"
+						)}
+					</Button>
+					<div className="mt-3 space-y-1 text-xs text-muted-foreground">
+						{passkeysPending ? (
+							<p>Loading registered passkeys…</p>
+						) : passkeysError ? (
+							<p>Could not load your passkeys right now.</p>
+						) : passkeys && passkeys.length > 0 ? (
+							<>
+								<p>
+									{passkeys.length} passkey
+									{passkeys.length === 1 ? "" : "s"} registered:
+								</p>
+								<ul className="list-disc pl-4">
+									{passkeys.map((passkey) => (
+										<li key={passkey.id}>
+											{passkey.name?.trim() || "Unnamed passkey"}
+										</li>
+									))}
+								</ul>
+							</>
+						) : (
+							<p>No passkeys registered yet.</p>
+						)}
+					</div>
+				</div>
+
+				<form className="space-y-3" onSubmit={onChangePassword}>
+					<div className="space-y-2">
+						<Label htmlFor="currentPassword">Current password</Label>
+						<Input
+							id="currentPassword"
+							type="password"
+							autoComplete="current-password"
+							value={currentPassword}
+							onChange={(event) => setCurrentPassword(event.target.value)}
+							required
+							disabled={isChangingPassword}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="newPassword">New password</Label>
+						<Input
+							id="newPassword"
+							type="password"
+							autoComplete="new-password"
+							minLength={12}
+							value={newPassword}
+							onChange={(event) => setNewPassword(event.target.value)}
+							required
+							disabled={isChangingPassword}
+						/>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						For forgotten passwords, use reset on the{" "}
+						<Link to="/sponsor/login" className="underline">
+							sign-in page
+						</Link>
+						.
+					</p>
+					<Button type="submit" size="sm" disabled={isChangingPassword}>
+						{isChangingPassword ? (
+							<Loader2 className="size-4 animate-spin" />
+						) : (
+							"Change password"
+						)}
+					</Button>
+				</form>
+			</CardContent>
+		</Card>
+	);
+}
+
+function SponsorSettingsEnabled() {
+	const navigate = useNavigate();
+	const { data: authSession, isPending: authPending } =
+		sponsorAuthClient.useSession();
+	const sessionToken = authSession?.session.token ?? null;
+	const meResult = useQuery(
+		api.sponsorPortal.me,
+		sessionToken ? { sessionToken } : "skip",
+	);
+	const meState = useRetainedQueryResult(meResult, sessionToken ?? "skip");
+	const me = meState.data;
+	const updateDisplayName = useMutation(api.sponsorPortal.updateDisplayName);
+	const [displayName, setDisplayName] = useState("");
+	const [isSavingName, setIsSavingName] = useState(false);
+
+	useEffect(() => {
+		if (authPending) return;
+		if (sessionToken) return;
+		void navigate({ to: "/sponsor/login" });
+	}, [authPending, navigate, sessionToken]);
+
+	useEffect(() => {
+		if (!me?.name) return;
+		setDisplayName(me.name);
+	}, [me?.name]);
+
+	if (authPending || !sessionToken || meState.isLoading) {
+		return (
+			<div className="flex min-h-svh items-center justify-center">
+				<Loader2 className="size-5 animate-spin text-muted-foreground" />
+			</div>
+		);
+	}
+
+	const onSaveDisplayName = async (event: FormEvent) => {
+		event.preventDefault();
+		setIsSavingName(true);
+		try {
+			await updateDisplayName({
+				sessionToken,
+				displayName,
+			});
+			toast.success("Display name updated.");
+		} catch (error) {
+			toast.error(toActionError(error, "Failed to update display name."));
+		} finally {
+			setIsSavingName(false);
 		}
 	};
 
@@ -252,99 +354,7 @@ function SponsorSettingsEnabled() {
 					</CardContent>
 				</Card>
 
-				<Card>
-					<CardHeader>
-						<CardTitle>Security</CardTitle>
-						<CardDescription>
-							Add a passkey and change your password.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="rounded-md border p-3">
-							<p className="font-medium">Passkey</p>
-							<p className="mb-2 text-sm text-muted-foreground">
-								Use a passkey for fast phishing-resistant sign-in.
-							</p>
-							<Button
-								size="sm"
-								variant="outline"
-								disabled={isAddingPasskey}
-								onClick={() => void onAddPasskey()}
-							>
-								{isAddingPasskey ? (
-									<Loader2 className="size-4 animate-spin" />
-								) : (
-									"Add passkey"
-								)}
-							</Button>
-							<div className="mt-3 space-y-1 text-xs text-muted-foreground">
-								{passkeysPending ? (
-									<p>Loading registered passkeys…</p>
-								) : passkeysError ? (
-									<p>Could not load your passkeys right now.</p>
-								) : passkeys && passkeys.length > 0 ? (
-									<>
-										<p>
-											{passkeys.length} passkey
-											{passkeys.length === 1 ? "" : "s"} registered:
-										</p>
-										<ul className="list-disc pl-4">
-											{passkeys.map((passkey) => (
-												<li key={passkey.id}>
-													{passkey.name?.trim() || "Unnamed passkey"}
-												</li>
-											))}
-										</ul>
-									</>
-								) : (
-									<p>No passkeys registered yet.</p>
-								)}
-							</div>
-						</div>
-
-						<form className="space-y-3" onSubmit={onChangePassword}>
-							<div className="space-y-2">
-								<Label htmlFor="currentPassword">Current password</Label>
-								<Input
-									id="currentPassword"
-									type="password"
-									autoComplete="current-password"
-									value={currentPassword}
-									onChange={(event) => setCurrentPassword(event.target.value)}
-									required
-									disabled={isChangingPassword}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="newPassword">New password</Label>
-								<Input
-									id="newPassword"
-									type="password"
-									autoComplete="new-password"
-									minLength={12}
-									value={newPassword}
-									onChange={(event) => setNewPassword(event.target.value)}
-									required
-									disabled={isChangingPassword}
-								/>
-							</div>
-							<p className="text-xs text-muted-foreground">
-								For forgotten passwords, use reset on the{" "}
-								<Link to="/sponsor/login" className="underline">
-									sign-in page
-								</Link>
-								.
-							</p>
-							<Button type="submit" size="sm" disabled={isChangingPassword}>
-								{isChangingPassword ? (
-									<Loader2 className="size-4 animate-spin" />
-								) : (
-									"Change password"
-								)}
-							</Button>
-						</form>
-					</CardContent>
-				</Card>
+				{isSponsorPasswordAuthEnabled ? <SponsorPasswordSecurityCard /> : null}
 			</div>
 		</SponsorPageShell>
 	);
