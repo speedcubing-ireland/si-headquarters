@@ -18,7 +18,7 @@ const SPONSOR_AUTH_DEV_SECRET =
 const DEFAULT_SPONSOR_SITE_URL =
 	process.env.NODE_ENV === "production"
 		? "https://hq.speedcubing.ie"
-		: "http://localhost:5173";
+		: "http://localhost:5174";
 
 export function trimTrailingSlash(value: string): string {
 	return value.endsWith("/") ? value.slice(0, -1) : value;
@@ -33,12 +33,14 @@ export function uniqueOrigins(values: (string | undefined)[]): string[] {
 }
 
 function sponsorPortalUrl(): string {
-	const siteUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
+	const siteUrl =
+		process.env.SPONSOR_SITE_URL ?? process.env.SITE_URL ?? "https://hq.speedcubing.ie";
 	return new URL("/sponsor/login", siteUrl).toString();
 }
 
 function resolveSponsorSiteOrigin(): string {
 	const siteUrl =
+		process.env.SPONSOR_SITE_URL ??
 		process.env.SITE_URL ??
 		process.env.NEXT_PUBLIC_SITE_URL ??
 		DEFAULT_SPONSOR_SITE_URL;
@@ -130,10 +132,12 @@ export function createSponsorAuthOptions(
 	);
 
 	const trustedOrigins = uniqueOrigins([
+		process.env.SPONSOR_SITE_URL,
 		process.env.SITE_URL,
 		process.env.NEXT_PUBLIC_SITE_URL,
 		sponsorSiteOrigin,
 		"http://localhost:5173",
+		"http://localhost:5174",
 		"http://localhost:3000",
 		"https://hq.speedcubing.ie",
 	]);

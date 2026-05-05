@@ -65,10 +65,14 @@ bunx convex env set $PROD_FLAG EMAIL_SENDER_ADDRESS          "<YOUR_EMAIL_SENDER
 
 # -- Site Configuration -------------------------------------------------------
 # SITE_URL is required for development. Production defaults to https://hq.speedcubing.ie.
-# CORS_ALLOWED_ORIGINS is optional — it automatically includes SITE_URL.
+# SPONSOR_SITE_URL is optional — set it when the sponsor portal uses a different
+# origin (e.g. different subdomain or dev port).
+# CORS_ALLOWED_ORIGINS is optional — it automatically includes SITE_URL (and is
+# also used to allow SPONSOR_SITE_URL to call sponsor auth endpoints).
 
 if [[ -z "$PROD_FLAG" ]]; then
     bunx convex env set SITE_URL                         "http://localhost:5173"  # safe-value
+    bunx convex env set SPONSOR_SITE_URL                 "http://localhost:5174"  # safe-value
 fi
 # bunx convex env set $PROD_FLAG CORS_ALLOWED_ORIGINS    "<YOUR_CORS_ALLOWED_ORIGINS>"
 
