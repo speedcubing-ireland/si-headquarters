@@ -96,6 +96,7 @@ const FRAMEWORK_GUIDES: Record<
 		rules: [
 			"Bids are visible while the auction is active.",
 			"Set a max bid to let the system auto-bid on your behalf.",
+      "Near auction closing, new bids may extend the closing time.",
 			"You pay only the final winning bid, not always your max.",
 		],
 	},
