@@ -12,6 +12,7 @@ import {
 	themeColorKeys,
 	parseCustomTheme,
 } from "@/lib/theme-schema";
+import exampleThemes from "@/components/theme/custom-themes.json";
 
 type Theme =
 	| "dark"
@@ -72,19 +73,34 @@ function getCustomThemeMode(theme: Theme): "light" | "dark" | "system" {
 	return "system";
 }
 
+function isSponsorContext(): boolean {
+	if (typeof window === "undefined") return false;
+	const { hostname, port } = window.location;
+	return hostname.startsWith("sponsors.") || port === "5174";
+}
+
+const owlTheme =
+	(exampleThemes as CustomTheme[]).find((theme) => theme.name === "Owl") ?? null;
+
 export function ThemeProvider({
 	children,
 	defaultTheme = "system",
 	storageKey = "vite-ui-theme",
 	...props
 }: ThemeProviderProps) {
+	const forceOwl = isSponsorContext() && owlTheme !== null;
+
 	const [theme, setThemeState] = useState<Theme>(
-		() => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
+		() => {
+			if (forceOwl) return "custom-system";
+			return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
+		},
 	);
 
 	const [customTheme, setCustomThemeState] = useState<CustomTheme | null>(
 		() => {
 			if (typeof window === "undefined") return null;
+			if (forceOwl) return owlTheme;
 			const stored = localStorage.getItem(CUSTOM_THEME_STORAGE_KEY);
 			if (!stored) return null;
 			const parsed = parseCustomTheme(stored);
@@ -152,13 +168,15 @@ export function ThemeProvider({
 
 	const setTheme = useCallback(
 		(newTheme: Theme) => {
+			if (forceOwl) return;
 			localStorage.setItem(storageKey, newTheme);
 			setThemeState(newTheme);
 		},
-		[storageKey],
+		[storageKey, forceOwl],
 	);
 
 	const setCustomTheme = useCallback((newTheme: CustomTheme | null) => {
+		if (forceOwl) return;
 		setCustomThemeState(newTheme);
 		if (newTheme) {
 			localStorage.setItem(
@@ -168,7 +186,7 @@ export function ThemeProvider({
 		} else {
 			localStorage.removeItem(CUSTOM_THEME_STORAGE_KEY);
 		}
-	}, []);
+	}, [forceOwl]);
 
 	const value = useMemo(
 		() => ({

@@ -6,8 +6,8 @@
 	"scripts": {
 		"prepare": "git config core.hooksPath githooks && chmod +x githooks/pre-commit || true",
 		"dev": "npm-run-all --parallel dev:frontend dev:sponsor dev:backend",
-		"dev:frontend": "VITE_SPONSOR_SITE_URL=http://localhost:5174 vite --port 5173 --open",
-		"dev:sponsor": "VITE_SPONSORSHIP_ENABLED=1 vite --port 5174 --open /sponsor/login",
+		"dev:frontend": "vite --port 5173 --open",
+		"dev:sponsor": "vite --port 5174 --open /sponsor/login",
 		"dev:backend": "convex dev",
 		"build": "tsgo -b && vite build",
 		"typecheck": "tsgo -b && cd convex && tsgo -b",
