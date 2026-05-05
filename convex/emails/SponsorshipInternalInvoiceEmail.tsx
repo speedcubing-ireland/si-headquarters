@@ -1,4 +1,5 @@
 import { Hr, Section, Text } from "@react-email/components";
+import { sponsorshipAdminPageUrl } from "../lib/siteUrls";
 import {
 	SponsorshipEmailShell,
 	SponsorshipInfoBlock,
@@ -76,7 +77,7 @@ SponsorshipInternalInvoiceEmail.PreviewProps = {
 	competitionName: "Irish Open 2026",
 	winnerSponsorName: "Example Sponsor",
 	settlementAmountCents: 125000,
-	adminUrl: "https://hq.speedcubing.ie/admin/sponsorship",
+	adminUrl: sponsorshipAdminPageUrl(),
 	message:
 		"Winner confirmed: Example Sponsor at EUR 1250.00. Send invoice follow-up.",
 } satisfies SponsorshipInternalInvoiceEmailProps;

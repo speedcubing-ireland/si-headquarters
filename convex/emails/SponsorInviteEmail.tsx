@@ -1,4 +1,5 @@
 import { Link, Section, Text } from "@react-email/components";
+import { sponsorPortalLoginUrl } from "../lib/siteUrls";
 import { SponsorshipEmailShell } from "./sponsorshipShared";
 
 export type SponsorInviteEmailProps = {
@@ -39,5 +40,5 @@ export default function SponsorInviteEmail(props: SponsorInviteEmailProps) {
 
 SponsorInviteEmail.PreviewProps = {
 	sponsorName: "Example Sponsor",
-	portalUrl: "https://hq.speedcubing.ie/sponsor/login",
+	portalUrl: sponsorPortalLoginUrl(),
 } satisfies SponsorInviteEmailProps;

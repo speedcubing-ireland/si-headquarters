@@ -1,4 +1,5 @@
 import { Section, Text } from "@react-email/components";
+import { sponsorPortalAuctionsIndexUrl } from "../lib/siteUrls";
 import {
 	SponsorshipEmailShell,
 	SponsorshipInfoBlock,
@@ -130,5 +131,5 @@ SponsorshipOutcomeEmail.PreviewProps = {
 	competitionName: "Irish Open 2026",
 	variant: "auction_closed_winner",
 	settlementAmountCents: 125000,
-	portalUrl: "https://hq.speedcubing.ie/sponsor/auctions",
+	portalUrl: sponsorPortalAuctionsIndexUrl(),
 } satisfies SponsorshipOutcomeEmailProps;

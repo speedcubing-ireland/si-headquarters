@@ -7,6 +7,7 @@ import SponsorshipOutcomeEmail, {
 	type SponsorshipOutcomeVariant,
 } from "../emails/SponsorshipOutcomeEmail";
 import SponsorshipScheduledEmail from "../emails/SponsorshipScheduledEmail";
+import { sponsorPortalLoginUrl } from "./siteUrls";
 import type { SponsorshipEmailType } from "./sponsorshipValidators";
 
 export type SponsorshipEmailContext = {
@@ -27,7 +28,7 @@ function resolveInviteTemplateData(
 	context: SponsorshipEmailContext | undefined,
 ): { portalUrl: string } {
 	return {
-		portalUrl: context?.portalUrl ?? "https://hq.speedcubing.ie/sponsor/login",
+		portalUrl: context?.portalUrl ?? sponsorPortalLoginUrl(),
 	};
 }
 

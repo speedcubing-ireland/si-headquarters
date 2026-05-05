@@ -9,17 +9,16 @@ import { components } from "./_generated/api";
 import { internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { getSponsorshipSenderAddress } from "./lib/email";
+import {
+	resolveSponsorPortalOriginForAuth,
+	sponsorPortalLoginUrl,
+} from "./lib/siteUrls";
 import schema from "./sponsorAuth/schema";
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth";
 const SPONSOR_OTP_EXPIRES_SECONDS = 10 * 60;
 const SPONSOR_AUTH_DEV_SECRET =
 	"dev-only-sponsor-auth-secret-change-in-production";
-const DEFAULT_SPONSOR_SITE_URL =
-	process.env.NODE_ENV === "production"
-		? "https://hq.speedcubing.ie"
-		: "http://localhost:5174";
-
 export function trimTrailingSlash(value: string): string {
 	return value.endsWith("/") ? value.slice(0, -1) : value;
 }
@@ -33,18 +32,11 @@ export function uniqueOrigins(values: (string | undefined)[]): string[] {
 }
 
 function sponsorPortalUrl(): string {
-	const siteUrl =
-		process.env.SPONSOR_SITE_URL ?? process.env.SITE_URL ?? "https://hq.speedcubing.ie";
-	return new URL("/sponsor/login", siteUrl).toString();
+	return sponsorPortalLoginUrl();
 }
 
 function resolveSponsorSiteOrigin(): string {
-	const siteUrl =
-		process.env.SPONSOR_SITE_URL ??
-		process.env.SITE_URL ??
-		process.env.NEXT_PUBLIC_SITE_URL ??
-		DEFAULT_SPONSOR_SITE_URL;
-	return new URL(siteUrl).origin;
+	return resolveSponsorPortalOriginForAuth();
 }
 
 export function resolveSponsorAuthSecret(

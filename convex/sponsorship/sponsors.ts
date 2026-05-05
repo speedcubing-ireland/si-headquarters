@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { normalizeEmail, validateEmail } from "../lib/sanitize";
+import { sponsorPortalLoginUrl } from "../lib/siteUrls";
 import { requireSponsorshipManager } from "../lib/sponsorshipAccess";
 import { sponsorForUI } from "../lib/sponsorshipValidators";
 import { enqueueSponsorshipEmailBatch } from "./emailQueue";
@@ -215,8 +216,7 @@ export const sendAccessEmail = mutation({
 		const refreshedSponsor = await ctx.db.get("sponsors", sponsor._id);
 		const sponsorEmail = refreshedSponsor?.email ?? sponsor.email;
 		const now = Date.now();
-		const siteUrl = process.env.SITE_URL ?? "https://hq.speedcubing.ie";
-		const portalUrl = new URL("/sponsor/login", siteUrl).toString();
+		const portalUrl = sponsorPortalLoginUrl();
 		const message =
 			"Open the sponsor portal and use a one-time email code for first sign-in, then set a password or passkey.";
 		await enqueueSponsorshipEmailBatch(ctx, {
