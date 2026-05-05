@@ -27,6 +27,7 @@ const allowedOrigins = Array.from(
 	new Set(
 		[
 			normalizeOrigin(process.env.SITE_URL),
+			normalizeOrigin(process.env.SPONSOR_SITE_URL),
 			normalizeOrigin(process.env.NEXT_PUBLIC_SITE_URL),
 			...parseOriginList(process.env.CORS_ALLOWED_ORIGINS),
 		].filter((origin): origin is string => Boolean(origin)),
