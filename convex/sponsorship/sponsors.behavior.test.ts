@@ -75,4 +75,117 @@ describe("sponsors behavior", () => {
 		expect(doc?.name).toBe("New Name");
 		expect(doc?.email).toBe("new@example.com");
 	});
+
+	test("archiving a sponsor invalidates open bids and recomputes the auction leader", async () => {
+		const t = convexTest(schema, modules);
+		const managerId = await seedSponsorshipManager(t);
+		const manager = t.withIdentity({ subject: managerId });
+		const now = Date.now();
+		const sponsorA = await t.run((ctx) =>
+			ctx.db.insert("sponsors", {
+				name: "Sponsor A",
+				email: "a@example.com",
+				emailNormalized: "a@example.com",
+				active: true,
+				createdById: managerId,
+				updatedById: managerId,
+				updatedAt: now,
+			}),
+		);
+		const sponsorB = await t.run((ctx) =>
+			ctx.db.insert("sponsors", {
+				name: "Sponsor B",
+				email: "b@example.com",
+				emailNormalized: "b@example.com",
+				active: true,
+				createdById: managerId,
+				updatedById: managerId,
+				updatedAt: now,
+			}),
+		);
+		const competitionId = await t.run((ctx) =>
+			ctx.db.insert("competitions", {
+				name: "Archive Test Open",
+				description: "",
+				compStart: "2026-09-01",
+				compEnd: "2026-09-02",
+				organiserIds: [managerId],
+				updatedAt: now,
+			}),
+		);
+		const auctionId = await t.run((ctx) =>
+			ctx.db.insert("sponsorshipAuctions", {
+				competitionId,
+				framework: "ebay_proxy",
+				state: "active",
+				currency: "EUR",
+				startsAt: now - 60_000,
+				endsAt: now + 60_000,
+				antiSnipingWindowMs: 300_000,
+				antiSnipingExtendMs: 300_000,
+				startPriceCents: 1_000,
+				currentPriceCents: 1_700,
+				currentLeaderSponsorId: sponsorA,
+				currentLeaderMaxCents: 2_000,
+				competitionSnapshot: {
+					summary: {
+						name: "Archive Test Open",
+						address: "",
+						startDate: "2026-09-01",
+						endDate: "2026-09-02",
+						eventIds: [],
+					},
+					source: "competition_record",
+					fetchedAt: now,
+				},
+				createdById: managerId,
+				updatedById: managerId,
+				updatedAt: now,
+			}),
+		);
+		await t.run(async (ctx) => {
+			await ctx.db.insert("sponsorshipBidIntents", {
+				auctionId,
+				sponsorId: sponsorA,
+				mode: "proxy",
+				amountCents: 1_500,
+				maxAmountCents: 2_000,
+				isValid: true,
+				createdAt: now - 2_000,
+			});
+			await ctx.db.insert("sponsorshipBidIntents", {
+				auctionId,
+				sponsorId: sponsorB,
+				mode: "manual",
+				amountCents: 1_500,
+				maxAmountCents: 1_500,
+				isValid: true,
+				createdAt: now - 1_000,
+			});
+		});
+
+		await manager.mutation(api.sponsorship.sponsors.update, {
+			sponsorId: sponsorA,
+			active: false,
+		});
+
+		const [auction, sponsorAIntents] = await Promise.all([
+			t.run((ctx) => ctx.db.get("sponsorshipAuctions", auctionId)),
+			t.run((ctx) =>
+				ctx.db
+					.query("sponsorshipBidIntents")
+					.withIndex("by_auction_and_sponsor", (q) =>
+						q.eq("auctionId", auctionId).eq("sponsorId", sponsorA),
+					)
+					.collect(),
+			),
+		]);
+
+		expect(sponsorAIntents.every((intent) => intent.isValid === false)).toBe(
+			true,
+		);
+		expect(auction?.currentLeaderSponsorId).toBe(sponsorB);
+		expect(auction?.currentLeaderMaxCents).toBe(1_500);
+		expect(auction?.currentPriceCents).toBe(1_000);
+	});
 });

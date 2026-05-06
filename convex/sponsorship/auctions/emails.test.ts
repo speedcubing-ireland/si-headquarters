@@ -254,6 +254,36 @@ describe("sendAuctionScheduledEmails", () => {
 		expect(args.recipients[0].sponsorId).toBe("sA");
 	});
 
+	test("filters out inactive sponsors from lifecycle emails", async () => {
+		const auction = makeAuction();
+		const competition = makeCompetition();
+		const sponsorA = makeSponsor("sA");
+		const sponsorB = makeSponsor("sB", { active: false });
+		const invites = [
+			makeInvite("auction1", "sA"),
+			makeInvite("auction1", "sB"),
+		];
+
+		const { ctx, scheduledCalls } = createEmailCtx({
+			competition,
+			invites,
+			sponsors: new Map([
+				["sA", sponsorA],
+				["sB", sponsorB],
+			]),
+		});
+
+		await sendAuctionScheduledEmails(ctx, auction);
+
+		expect(scheduledCalls).toHaveLength(1);
+		const args = scheduledCalls[0].args as {
+			recipients: Array<{ sponsorId: string; email: string; name: string }>;
+		};
+		expect(args.recipients).toEqual([
+			{ sponsorId: "sA", email: "sA@example.com", name: "Sponsor sA" },
+		]);
+	});
+
 	describe("framework description is passed through context", () => {
 		const frameworks = ["first_sealed", "vickrey", "ebay_proxy"] as const;
 

@@ -77,9 +77,14 @@ export function toSponsorBidEventForUI(input: {
 export async function requireSponsorSession(
 	ctx: SponsorCtx,
 	sessionToken: string,
-): Promise<{ sponsor: Doc<"sponsors"> }> {
-	const { sponsor } = await requireSponsorByAuthSessionToken(ctx, sessionToken);
-	return { sponsor };
+): Promise<{
+	sponsor: Doc<"sponsors">;
+	session: Awaited<
+		ReturnType<typeof requireSponsorByAuthSessionToken>
+	>["session"];
+	user: Awaited<ReturnType<typeof requireSponsorByAuthSessionToken>>["user"];
+}> {
+	return await requireSponsorByAuthSessionToken(ctx, sessionToken);
 }
 
 export async function requireAuctionInvite(

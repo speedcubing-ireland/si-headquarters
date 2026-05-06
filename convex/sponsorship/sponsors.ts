@@ -1,5 +1,7 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import { mutation, query, type MutationCtx } from "../_generated/server";
+import { resolveAuctionBidState } from "../lib/sponsorshipAuctionState";
 import { normalizeEmail, validateEmail } from "../lib/sanitize";
 import { sponsorPortalLoginUrl } from "../lib/siteUrls";
 import { requireSponsorshipManager } from "../lib/sponsorshipAccess";
@@ -10,6 +12,57 @@ import {
 	revokeSponsorAuthSessions,
 	syncSponsorAuthUserProfile,
 } from "./authAccounts";
+
+async function archiveSponsorFromOpenAuctions(
+	ctx: MutationCtx,
+	args: {
+		actorId: Id<"users">;
+		sponsorId: Id<"sponsors">;
+	},
+): Promise<void> {
+	const openAuctions = await ctx.db.query("sponsorshipAuctions").collect();
+	for (const auction of openAuctions) {
+		if (auction.state === "closed") continue;
+
+		const sponsorIntents = await ctx.db
+			.query("sponsorshipBidIntents")
+			.withIndex("by_auction_and_sponsor", (q) =>
+				q.eq("auctionId", auction._id).eq("sponsorId", args.sponsorId),
+			)
+			.collect();
+		const validSponsorIntents = sponsorIntents.filter((intent) => intent.isValid);
+		if (
+			validSponsorIntents.length === 0 &&
+			auction.currentLeaderSponsorId !== args.sponsorId
+		) {
+			continue;
+		}
+
+		await Promise.all(
+			validSponsorIntents.map((intent) =>
+				ctx.db.patch("sponsorshipBidIntents", intent._id, {
+					isValid: false,
+				}),
+			),
+		);
+
+		const allAuctionIntents = await ctx.db
+			.query("sponsorshipBidIntents")
+			.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
+			.collect();
+		const validIntents = allAuctionIntents.filter(
+			(intent) => intent.isValid && intent.sponsorId !== args.sponsorId,
+		);
+		await ctx.db.patch("sponsorshipAuctions", auction._id, {
+			...resolveAuctionBidState({
+				auction,
+				validIntents,
+			}),
+			updatedById: args.actorId,
+			updatedAt: Date.now(),
+		});
+	}
+}
 
 export const list = query({
 	args: {},
@@ -171,6 +224,13 @@ export const update = mutation({
 
 		if (args.active !== undefined) {
 			patch.active = args.active;
+		}
+
+		if (args.active === false && sponsor.active) {
+			await archiveSponsorFromOpenAuctions(ctx, {
+				sponsorId: sponsor._id,
+				actorId,
+			});
 		}
 
 		await ctx.db.patch("sponsors", sponsor._id, patch);

@@ -1,16 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation } from "../../_generated/server";
-import type { Doc, Id } from "../../_generated/dataModel";
+import type { Doc } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
-import {
-	resolveProxyState,
-	resolveSealedOutcome,
-} from "../../lib/sponsorshipBidding";
-import {
-	isSealedAuctionFramework,
-	sealedAuctionPricingRule,
-} from "../../lib/sponsorshipValidators";
+import { resolveAuctionOutcome } from "../../lib/sponsorshipAuctionState";
 import { resolveAuctionStartTargetState } from "../../lib/sponsorshipLifecycle";
 import {
 	requireNoOpenAuctionForCompetition,
@@ -33,17 +26,6 @@ import {
 	scheduleAuctionActiveRemindersOnActivation,
 } from "./reminders";
 import { syncLifecycleRuntimeCron } from "./runtimeCron";
-
-function compareIntentChronology(
-	a: Doc<"sponsorshipBidIntents">,
-	b: Doc<"sponsorshipBidIntents">,
-): number {
-	if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
-	if (a._creationTime !== b._creationTime) {
-		return a._creationTime - b._creationTime;
-	}
-	return String(a._id).localeCompare(String(b._id));
-}
 
 async function buildReadinessSnapshot(
 	competition: Doc<"competitions">,
@@ -74,81 +56,11 @@ export async function closeAuctionInternal(
 		.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
 		.collect();
 	const validIntents = intents.filter((intent) => intent.isValid);
-	let winnerSponsorId: Id<"sponsors"> | undefined;
-	let winningBidId: Id<"sponsorshipBidIntents"> | undefined;
-	let settlementAmountCents: number | undefined;
-
-	if (isSealedAuctionFramework(auction.framework)) {
-		const sealedState = resolveSealedOutcome(
-			validIntents.map((intent) => ({
-				intentId: String(intent._id),
-				sponsorId: String(intent.sponsorId),
-				amountCents: intent.amountCents,
-				createdAt: intent.createdAt,
-				createdOrder: intent._creationTime,
-			})),
-			{
-				pricing: sealedAuctionPricingRule(auction.framework),
-				reservePriceCents: auction.startPriceCents,
-			},
-		);
-		if (sealedState) {
-			const winnerIntent = validIntents.find(
-				(intent) => String(intent._id) === sealedState.leaderIntentId,
-			);
-			if (winnerIntent) {
-				winnerSponsorId = winnerIntent.sponsorId;
-				winningBidId = winnerIntent._id;
-				settlementAmountCents = sealedState.settlementBidCents;
-			}
-		}
-	} else {
-		let leaderId = auction.currentLeaderSponsorId;
-		let settlement = auction.currentPriceCents ?? auction.startPriceCents;
-		if (!leaderId && validIntents.length > 0) {
-			const latestBySponsor = new Map<
-				Id<"sponsors">,
-				Doc<"sponsorshipBidIntents">
-			>();
-			const firstSeen = new Map<Id<"sponsors">, Doc<"sponsorshipBidIntents">>();
-			for (const intent of validIntents) {
-				const existingFirst = firstSeen.get(intent.sponsorId);
-				if (
-					!existingFirst ||
-					compareIntentChronology(intent, existingFirst) < 0
-				) {
-					firstSeen.set(intent.sponsorId, intent);
-				}
-				const existingLatest = latestBySponsor.get(intent.sponsorId);
-				if (
-					!existingLatest ||
-					compareIntentChronology(intent, existingLatest) > 0
-				) {
-					latestBySponsor.set(intent.sponsorId, intent);
-				}
-			}
-			const contenders = [...latestBySponsor.values()].map((intent) => ({
-				sponsorId: intent.sponsorId,
-				maxAmountCents: intent.maxAmountCents ?? intent.amountCents,
-				firstMaxSetAt:
-					firstSeen.get(intent.sponsorId)?.createdAt ?? intent.createdAt,
-			}));
-			const state = resolveProxyState(contenders, auction.startPriceCents);
-			if (state) {
-				leaderId = state.leaderSponsorId;
-				settlement = state.currentPriceCents;
-			}
-		}
-
-		if (leaderId) {
-			winnerSponsorId = leaderId;
-			settlementAmountCents = settlement;
-			const winnerLatestIntent = validIntents
-				.filter((intent) => intent.sponsorId === winnerSponsorId)
-				.sort((a, b) => compareIntentChronology(b, a))[0];
-			winningBidId = winnerLatestIntent?._id;
-		}
-	}
+	const { settlementAmountCents, winnerSponsorId, winningBidId } =
+		resolveAuctionOutcome({
+			auction,
+			validIntents,
+		});
 
 	await ctx.db.patch("sponsorshipAuctions", auction._id, {
 		state: "closed",
@@ -301,7 +213,11 @@ export const _tickLifecycle = internalMutation({
 				ctx.db.get("sponsorshipAuctions", reminder.auctionId),
 				ctx.db.get("sponsors", reminder.sponsorId),
 			]);
-			if (!reminderAuction || reminderAuction.state !== "active" || !sponsor) {
+			if (
+				!reminderAuction ||
+				reminderAuction.state !== "active" ||
+				!sponsor?.active
+			) {
 				await markReminderSkipped(ctx, reminder._id);
 				continue;
 			}

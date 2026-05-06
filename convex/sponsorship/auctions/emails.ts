@@ -50,7 +50,7 @@ async function resolveAuctionEmailRecipients(
 		invites.map((invite) => ctx.db.get("sponsors", invite.sponsorId)),
 	);
 	const sponsors = allSponsors.filter((sponsor): sponsor is Doc<"sponsors"> =>
-		Boolean(sponsor),
+		Boolean(sponsor?.active),
 	);
 	return { competition, sponsors };
 }

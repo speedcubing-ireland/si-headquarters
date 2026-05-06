@@ -2,6 +2,10 @@ import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import {
+	buildProxyContenders,
+	compareBidIntentChronology,
+} from "./sponsorshipAuctionState";
+import {
 	minNextBidCents,
 	resolveProxyState,
 	resolveSealedOutcome,
@@ -23,17 +27,6 @@ export type PlaceSponsorshipBidResult = {
 	extendedEndsAt?: number;
 	outbidSponsorId?: Id<"sponsors">;
 };
-
-function compareIntentChronology(
-	a: Doc<"sponsorshipBidIntents">,
-	b: Doc<"sponsorshipBidIntents">,
-): number {
-	if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
-	if (a._creationTime !== b._creationTime) {
-		return a._creationTime - b._creationTime;
-	}
-	return 0;
-}
 
 function normalizeAmountCents(input: number): number {
 	const amountCents = Math.floor(input);
@@ -198,7 +191,7 @@ async function placeProxyBid(
 	const isMaxExplicit = explicitMaxAmountCents !== undefined;
 	const latestOwnIntent = existingIntents
 		.filter((intent) => intent.isValid && intent.sponsorId === input.sponsorId)
-		.sort(compareIntentChronology)
+		.sort(compareBidIntentChronology)
 		.slice(-1)[0];
 	const existingOwnMaxCents = latestOwnIntent
 		? (latestOwnIntent.maxAmountCents ?? latestOwnIntent.amountCents)
@@ -262,47 +255,14 @@ async function placeProxyBid(
 	];
 
 	const validIntentsInChronologicalOrder = intents
-		.filter((intent) => intent.isValid)
-		.sort(compareIntentChronology);
-	const contenderBySponsorId = new Map<
-		Id<"sponsors">,
-		{
-			maxAmountCents: number;
-			firstMaxSetAt: number;
-			firstMaxSetOrder: number;
-		}
-	>();
-	for (const [index, intent] of validIntentsInChronologicalOrder.entries()) {
-		const intentMaxAmountCents = intent.maxAmountCents ?? intent.amountCents;
-		const existingContender = contenderBySponsorId.get(intent.sponsorId);
-		if (!existingContender) {
-			contenderBySponsorId.set(intent.sponsorId, {
-				maxAmountCents: intentMaxAmountCents,
-				firstMaxSetAt: intent.createdAt,
-				firstMaxSetOrder: index,
-			});
-			continue;
-		}
-		const maxChanged =
-			existingContender.maxAmountCents !== intentMaxAmountCents;
-		contenderBySponsorId.set(intent.sponsorId, {
-			maxAmountCents: intentMaxAmountCents,
-			firstMaxSetAt: maxChanged
-				? intent.createdAt
-				: existingContender.firstMaxSetAt,
-			firstMaxSetOrder: maxChanged ? index : existingContender.firstMaxSetOrder,
-		});
-	}
-
-	const contenders = [...contenderBySponsorId.entries()].map(
-		([sponsorId, contender]) => ({
-			sponsorId,
-			maxAmountCents: contender.maxAmountCents,
-			firstMaxSetAt: contender.firstMaxSetAt,
-			firstMaxSetOrder: contender.firstMaxSetOrder,
-		}),
+		.filter((intent) => intent.isValid);
+	const state = resolveProxyState(
+		buildProxyContenders(
+			validIntentsInChronologicalOrder,
+			compareBidIntentChronology,
+		),
+		input.auction.startPriceCents,
 	);
-	const state = resolveProxyState(contenders, input.auction.startPriceCents);
 	if (!state) {
 		throw new ConvexError({
 			code: "BAD_REQUEST",

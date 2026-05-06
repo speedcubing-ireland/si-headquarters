@@ -255,10 +255,17 @@ async function authorizeSnapshotRefresh(
 	}
 
 	try {
-		await ctx.runQuery(api.sponsorPortal.getAuction, {
+		const auction = await ctx.runQuery(api.sponsorPortal.getAuction, {
 			sessionToken: args.sessionToken,
 			auctionId: args.auctionId,
 		});
+		if (!auction) {
+			throw new ConvexError({
+				code: "FORBIDDEN",
+				message:
+					"You do not have access to refresh this auction competition data.",
+			});
+		}
 	} catch (error) {
 		if (!isExpectedSponsorAccessError(error)) {
 			console.error("Unexpected error while authorizing snapshot refresh.", {
