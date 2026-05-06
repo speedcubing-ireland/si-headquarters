@@ -1,9 +1,9 @@
-import { useAction, useMutation } from "convex/react";
+import { useAction, useConvex, useMutation } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { Loader2, Mail, Send, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
-import { useNotificationDiagnostics } from "@/hooks/use-convex-data";
 import { formatDate } from "@/lib/format-utils";
 import { onMutationError } from "@/lib/utils";
 import { ConnectionStatusCardContainer } from "@/components/admin/connection-status-card";
@@ -22,6 +22,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type GodModeTab = "users" | "services" | "data" | "linked-actions" | "email";
 type ServiceType = "google" | "wca" | "canva";
+type DispatchHealth = FunctionReturnType<
+	typeof api.notifications.getDispatchHealth
+>;
+type DeadLetter = FunctionReturnType<
+	typeof api.notifications.listRecentDeadLetters
+>[number];
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
 	google: "Google Sheets",
@@ -203,16 +209,20 @@ function ServicesTokenCheckCard() {
 }
 
 function EmailAdminPanel() {
+	const convex = useConvex();
 	const sendTestDigestSeries = useMutation(
 		api.notifications.sendTestDigestSeries,
 	);
-	const {
-		dispatchHealth,
-		deadLetters,
-		isLoading: diagnosticsLoading,
-	} = useNotificationDiagnostics();
+	const [diagnostics, setDiagnostics] = useState<{
+		dispatchHealth: DispatchHealth;
+		deadLetters: DeadLetter[];
+		refreshedAt: number;
+	} | null>(null);
 	const [toEmail, setToEmail] = useState("");
 	const [isSending, setIsSending] = useState(false);
+	const [isRefreshingDiagnostics, setIsRefreshingDiagnostics] = useState(false);
+	const dispatchHealth = diagnostics?.dispatchHealth;
+	const deadLetters = diagnostics?.deadLetters ?? [];
 
 	const handleSendSeries = async () => {
 		setIsSending(true);
@@ -227,6 +237,25 @@ function EmailAdminPanel() {
 			onMutationError(error);
 		} finally {
 			setIsSending(false);
+		}
+	};
+
+	const handleRefreshDiagnostics = async () => {
+		setIsRefreshingDiagnostics(true);
+		try {
+			const [nextDispatchHealth, nextDeadLetters] = await Promise.all([
+				convex.query(api.notifications.getDispatchHealth, {}),
+				convex.query(api.notifications.listRecentDeadLetters, { limit: 20 }),
+			]);
+			setDiagnostics({
+				dispatchHealth: nextDispatchHealth,
+				deadLetters: nextDeadLetters,
+				refreshedAt: Date.now(),
+			});
+		} catch (error) {
+			onMutationError(error);
+		} finally {
+			setIsRefreshingDiagnostics(false);
 		}
 	};
 
@@ -272,20 +301,48 @@ function EmailAdminPanel() {
 				</CardContent>
 			</Card>
 			<Card className="max-w-4xl">
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<TriangleAlert className="size-4 text-muted-foreground" />
-						Email Queue Diagnostics
-					</CardTitle>
+				<CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="space-y-1">
+						<CardTitle className="flex items-center gap-2">
+							<TriangleAlert className="size-4 text-muted-foreground" />
+							Email Queue Diagnostics
+						</CardTitle>
+						<p className="text-xs text-muted-foreground">
+							Manual snapshot only. This avoids keeping the queue diagnostics
+							subscribed while emails are being processed.
+						</p>
+					</div>
+					<Button
+						onClick={() => void handleRefreshDiagnostics()}
+						disabled={isRefreshingDiagnostics}
+						className="w-full sm:w-auto"
+					>
+						{isRefreshingDiagnostics ? (
+							<Loader2 className="size-4 animate-spin" />
+						) : (
+							<TriangleAlert className="size-4" />
+						)}
+						Refresh Diagnostics
+					</Button>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					{diagnosticsLoading || !dispatchHealth ? (
+					{isRefreshingDiagnostics && !dispatchHealth ? (
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							<Loader2 className="size-4 animate-spin" />
 							Loading diagnostics...
 						</div>
+					) : !dispatchHealth ? (
+						<p className="text-sm text-muted-foreground">
+							Click refresh to load a diagnostics snapshot.
+						</p>
 					) : (
 						<>
+							{diagnostics?.refreshedAt ? (
+								<p className="text-xs text-muted-foreground">
+									Last refreshed:{" "}
+									{new Date(diagnostics.refreshedAt).toLocaleString()}
+								</p>
+							) : null}
 							<div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
 								<div className="rounded-md border p-3">
 									<p className="text-xs text-muted-foreground">Pending</p>
@@ -357,8 +414,12 @@ function EmailAdminPanel() {
 					<CardTitle>Recent Dead Letters</CardTitle>
 				</CardHeader>
 				<CardContent>
-					{diagnosticsLoading ? (
+					{isRefreshingDiagnostics && diagnostics === null ? (
 						<p className="text-sm text-muted-foreground">Loading...</p>
+					) : diagnostics === null ? (
+						<p className="text-sm text-muted-foreground">
+							Click refresh diagnostics to load recent dead letters.
+						</p>
 					) : deadLetters.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							No dead letters recorded.

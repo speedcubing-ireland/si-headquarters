@@ -44,7 +44,7 @@ export const CompactTaskRow = memo(function CompactTaskRow({
 			className="group flex min-w-0 items-center border-b border-border/50 px-1 py-2.5 text-sm transition-colors hover:bg-muted/30 h-11 sm:h-10"
 		>
 			<div className="flex shrink-0 items-center">
-				<EditableTaskStatus status={task.status} taskId={task.id}>
+				<EditableTaskStatus status={task.status} taskId={task.id} task={task}>
 					<div className="flex size-6 items-center justify-center">
 						{(() => {
 							const StatusIcon = getStatusIcon(task.status);

@@ -240,7 +240,11 @@ export function TaskPropertiesSidebar({
 				</h3>
 				<div className="flex flex-col gap-1">
 					<PropertyRow label="Status">
-						<EditableTaskStatus status={task.status} taskId={task.id} />
+						<EditableTaskStatus
+							status={task.status}
+							taskId={task.id}
+							task={task}
+						/>
 					</PropertyRow>
 
 					<PropertyRow label="Priority">

@@ -50,15 +50,17 @@ export const PriorityCell = memo(function PriorityCell({
 interface StatusCellProps {
 	status: TaskStatus;
 	taskId: Id<"tasks">;
+	task: Task;
 }
 
 export const StatusCell = memo(function StatusCell({
 	status,
 	taskId,
+	task,
 }: StatusCellProps) {
 	const StatusIcon = getStatusIcon(status);
 	return (
-		<EditableTaskStatus status={status} taskId={taskId}>
+		<EditableTaskStatus status={status} taskId={taskId} task={task}>
 			<StatusIcon className={statusIconColors[status]} />
 		</EditableTaskStatus>
 	);
