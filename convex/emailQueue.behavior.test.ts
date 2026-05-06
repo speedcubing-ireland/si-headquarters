@@ -110,6 +110,29 @@ describe("emailQueue behavior", () => {
 		expect(stored?.senderAddress).toBeUndefined();
 	});
 
+	test("_enqueueDispatch mints claimKey and schedules _sendDispatch", async () => {
+		const t = convexTest(schema, modules);
+		const result = await t.mutation(internal.emailQueue._enqueueDispatch, {
+			dedupeKey: "claim-and-schedule",
+			sourceKind: "notification",
+			templateKey: "notification_immediate",
+			recipientEmail: "user@example.com",
+			subject: "Subject",
+			plainTextBody: "Hi",
+		});
+
+		expect(result.created).toBe(true);
+		const stored = await t.run((ctx) => ctx.db.get(result.dispatchId));
+		expect(stored?.claimKey).toBeDefined();
+		expect(stored?.claimKey).toContain(String(result.dispatchId));
+
+		const sendJobs = await t.run(async (ctx) => {
+			const all = await ctx.db.system.query("_scheduled_functions").collect();
+			return all.filter((fn) => fn.name.includes("_sendDispatch"));
+		});
+		expect(sendJobs.length).toBeGreaterThanOrEqual(1);
+	});
+
 	test("_replayDeadLetter preserves senderAddress from the original dispatch", async () => {
 		const t = convexTest(schema, modules);
 		const { deadLetterId } = await t.run(async (ctx) => {

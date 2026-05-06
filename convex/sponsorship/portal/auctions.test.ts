@@ -159,7 +159,11 @@ function makeProxyPortalCtx(input: {
 }) {
 	const intents: IntentDoc[] = input.leaderIntent ? [input.leaderIntent] : [];
 	const patches: Array<Partial<AuctionDoc>> = [];
-	const scheduledCalls: Array<{ delayMs: number; args: unknown }> = [];
+	const scheduledCalls: Array<{
+		delayMs?: number;
+		scheduledTime?: number;
+		args: unknown;
+	}> = [];
 	const now = Date.now();
 	const sponsorId = "sponsor1";
 	const authUserId = "auth-user-1";
@@ -293,11 +297,17 @@ function makeProxyPortalCtx(input: {
 					throw new Error(`Unexpected patch table: ${table}`);
 				}
 				patches.push(patch);
+				Object.assign(input.auction, patch);
 			},
 		},
 		scheduler: {
+			cancel: async () => {},
 			runAfter: async (delayMs: number, _fnRef: unknown, args: unknown) => {
 				scheduledCalls.push({ delayMs, args });
+			},
+			runAt: async (scheduledTime: number, _fnRef: unknown, args: unknown) => {
+				scheduledCalls.push({ scheduledTime, args });
+				return "scheduled-close-1";
 			},
 		},
 	} as unknown as MutationCtx;
@@ -442,6 +452,14 @@ describe("proxy bid outbid email with anti-sniping", () => {
 		};
 		expect(emailArgs.context.endsAt).toBe(originalEndsAt + antiSnipingExtendMs);
 		expect(emailArgs.recipients[0]?.sponsorId).toBe(leaderSponsorId);
+
+		const closureJob = scheduledCalls.find((call) => {
+			const args = call.args as { auctionId?: string };
+			return args.auctionId === auction._id;
+		});
+		expect(closureJob?.scheduledTime).toBe(
+			originalEndsAt + antiSnipingExtendMs,
+		);
 	});
 
 	test("setMaxBid outside sniping window that displaces leader sends email with original endsAt", async () => {

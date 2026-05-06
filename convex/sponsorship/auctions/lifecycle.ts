@@ -1,7 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation } from "../../_generated/server";
-import type { Doc } from "../../_generated/dataModel";
+import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { components, internal } from "../../_generated/api";
+import { Crons } from "@convex-dev/crons";
 import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
 import { resolveAuctionOutcome } from "../../lib/sponsorshipAuctionState";
 import { resolveAuctionStartTargetState } from "../../lib/sponsorshipLifecycle";
@@ -20,12 +22,29 @@ import {
 	sendAuctionStartedEmails,
 } from "./emails";
 import {
-	dueAuctionActiveReminders,
 	markReminderSent,
 	markReminderSkipped,
+	scheduleAuctionActiveReminder,
 	scheduleAuctionActiveRemindersOnActivation,
 } from "./reminders";
-import { syncLifecycleRuntimeCron } from "./runtimeCron";
+
+const LEGACY_LIFECYCLE_CRON_NAME = "sponsorship-auctions-lifecycle";
+const LIFECYCLE_REPAIR_BATCH_SIZE = 1000;
+
+async function unregisterLegacyAuctionLifecycleCron(
+	ctx: MutationCtx,
+): Promise<boolean> {
+	const crons = new Crons(components.crons);
+	try {
+		await crons.delete(ctx, { name: LEGACY_LIFECYCLE_CRON_NAME });
+		return true;
+	} catch (error) {
+		if (error instanceof Error && error.message.includes("not found")) {
+			return false;
+		}
+		throw error;
+	}
+}
 
 async function buildReadinessSnapshot(
 	competition: Doc<"competitions">,
@@ -76,6 +95,205 @@ export async function closeAuctionInternal(
 	}
 }
 
+async function cancelScheduledOptional(
+	ctx: MutationCtx,
+	id: Id<"_scheduled_functions"> | undefined,
+): Promise<void> {
+	if (!id) return;
+	try {
+		await ctx.scheduler.cancel(id);
+	} catch {
+		// Already completed or invalid
+	}
+}
+
+/** Schedule (or replace) activation at `auction.startsAt`. */
+export async function scheduleAuctionActivation(
+	ctx: MutationCtx,
+	auction: Doc<"sponsorshipAuctions">,
+): Promise<void> {
+	await cancelScheduledOptional(ctx, auction.activationScheduledFunctionId);
+	const scheduledFunctionId = await ctx.scheduler.runAt(
+		Math.max(auction.startsAt, Date.now()),
+		internal.sponsorshipAuctions._activateAuction,
+		{ auctionId: auction._id },
+	);
+	await ctx.db.patch("sponsorshipAuctions", auction._id, {
+		activationScheduledFunctionId: scheduledFunctionId,
+		updatedAt: Date.now(),
+	});
+}
+
+/** Schedule (or replace) automatic close at `auction.endsAt`. */
+export async function scheduleAuctionClosure(
+	ctx: MutationCtx,
+	auction: Doc<"sponsorshipAuctions">,
+): Promise<void> {
+	await cancelScheduledOptional(ctx, auction.closureScheduledFunctionId);
+	const scheduledFunctionId = await ctx.scheduler.runAt(
+		Math.max(auction.endsAt, Date.now()),
+		internal.sponsorshipAuctions._closeAuction,
+		{ auctionId: auction._id },
+	);
+	await ctx.db.patch("sponsorshipAuctions", auction._id, {
+		closureScheduledFunctionId: scheduledFunctionId,
+		updatedAt: Date.now(),
+	});
+}
+
+export const _activateAuction = internalMutation({
+	args: { auctionId: v.id("sponsorshipAuctions") },
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
+		if (!auction) return null;
+		if (auction.state !== "scheduled") return null;
+		const now = Date.now();
+		if (auction.startsAt > now) return null;
+
+		await ctx.db.patch("sponsorshipAuctions", auction._id, {
+			state: "active",
+			updatedAt: now,
+		});
+		const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id);
+		if (!refreshed) return null;
+
+		await sendAuctionStartedEmails(ctx, refreshed);
+		await scheduleAuctionActiveRemindersOnActivation(ctx, refreshed);
+		await scheduleAuctionClosure(ctx, refreshed);
+		return null;
+	},
+});
+
+export const _closeAuction = internalMutation({
+	args: { auctionId: v.id("sponsorshipAuctions") },
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
+		if (!auction) return null;
+		if (auction.state !== "active") return null;
+		const now = Date.now();
+		if (auction.endsAt > now) return null;
+
+		await closeAuctionInternal(ctx, auction);
+		return null;
+	},
+});
+
+export const _fireReminder = internalMutation({
+	args: { reminderId: v.id("sponsorshipAuctionReminders") },
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const reminder = await ctx.db.get(
+			"sponsorshipAuctionReminders",
+			args.reminderId,
+		);
+		if (!reminder || reminder.sent) return null;
+		const now = Date.now();
+		if (reminder.scheduledFor > now) return null;
+
+		const [reminderAuction, sponsor] = await Promise.all([
+			ctx.db.get("sponsorshipAuctions", reminder.auctionId),
+			ctx.db.get("sponsors", reminder.sponsorId),
+		]);
+		if (
+			!reminderAuction ||
+			reminderAuction.state !== "active" ||
+			!sponsor?.active
+		) {
+			await markReminderSkipped(ctx, reminder._id);
+			return null;
+		}
+		if (now >= reminderAuction.endsAt) {
+			await markReminderSkipped(ctx, reminder._id);
+			return null;
+		}
+		await sendAuctionActiveReminderEmail(ctx, reminderAuction, sponsor);
+		await markReminderSent(ctx, reminder._id);
+		return null;
+	},
+});
+
+export const _unregisterLegacyAuctionLifecycleCron = internalMutation({
+	args: {},
+	returns: v.object({ deleted: v.boolean() }),
+	handler: async (ctx) => {
+		return { deleted: await unregisterLegacyAuctionLifecycleCron(ctx) };
+	},
+});
+
+export const _tickLifecycle = internalMutation({
+	args: {},
+	returns: v.object({
+		activated: v.number(),
+		closed: v.number(),
+	}),
+	handler: async (ctx) => {
+		await unregisterLegacyAuctionLifecycleCron(ctx);
+		return { activated: 0, closed: 0 };
+	},
+});
+
+export const _syncLifecycleRuntimeCron = internalMutation({
+	args: {},
+	returns: v.null(),
+	handler: async (ctx) => {
+		await unregisterLegacyAuctionLifecycleCron(ctx);
+		return null;
+	},
+});
+
+export const _repairLifecycleSchedules = internalMutation({
+	args: {},
+	returns: v.object({
+		legacyCronDeleted: v.boolean(),
+		activationsScheduled: v.number(),
+		closuresScheduled: v.number(),
+		remindersScheduled: v.number(),
+	}),
+	handler: async (ctx) => {
+		const legacyCronDeleted = await unregisterLegacyAuctionLifecycleCron(ctx);
+		let activationsScheduled = 0;
+		let closuresScheduled = 0;
+		let remindersScheduled = 0;
+
+		const scheduledAuctions = await ctx.db
+			.query("sponsorshipAuctions")
+			.withIndex("by_state_and_start", (q) => q.eq("state", "scheduled"))
+			.take(LIFECYCLE_REPAIR_BATCH_SIZE);
+		for (const auction of scheduledAuctions) {
+			await scheduleAuctionActivation(ctx, auction);
+			activationsScheduled += 1;
+		}
+
+		const activeAuctions = await ctx.db
+			.query("sponsorshipAuctions")
+			.withIndex("by_state_and_end", (q) => q.eq("state", "active"))
+			.take(LIFECYCLE_REPAIR_BATCH_SIZE);
+		for (const auction of activeAuctions) {
+			await scheduleAuctionClosure(ctx, auction);
+			closuresScheduled += 1;
+		}
+
+		const pendingReminders = await ctx.db
+			.query("sponsorshipAuctionReminders")
+			.withIndex("by_sent_and_scheduled", (q) => q.eq("sent", false))
+			.take(LIFECYCLE_REPAIR_BATCH_SIZE);
+		for (const reminder of pendingReminders) {
+			if (reminder.scheduledFunctionId) continue;
+			await scheduleAuctionActiveReminder(ctx, reminder);
+			remindersScheduled += 1;
+		}
+
+		return {
+			legacyCronDeleted,
+			activationsScheduled,
+			closuresScheduled,
+			remindersScheduled,
+		};
+	},
+});
+
 export const start = mutation({
 	args: { auctionId: v.id("sponsorshipAuctions") },
 	returns: v.null(),
@@ -96,7 +314,6 @@ export const start = mutation({
 			now,
 		});
 		if (targetState === "noop") {
-			await syncLifecycleRuntimeCron(ctx);
 			return null;
 		}
 
@@ -134,6 +351,7 @@ export const start = mutation({
 			const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id);
 			if (refreshed) {
 				await sendAuctionScheduledEmails(ctx, refreshed);
+				await scheduleAuctionActivation(ctx, refreshed);
 			}
 		}
 		if (targetState === "active") {
@@ -141,10 +359,10 @@ export const start = mutation({
 			if (refreshed) {
 				await sendAuctionStartedEmails(ctx, refreshed);
 				await scheduleAuctionActiveRemindersOnActivation(ctx, refreshed);
+				await scheduleAuctionClosure(ctx, refreshed);
 			}
 		}
 		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
-		await syncLifecycleRuntimeCron(ctx);
 		return null;
 	},
 });
@@ -160,81 +378,10 @@ export const close = mutation({
 		if (competition) {
 			await cacheCompetitionFallbackSnapshot(ctx, { auction, competition });
 		}
+		await cancelScheduledOptional(ctx, auction.activationScheduledFunctionId);
+		await cancelScheduledOptional(ctx, auction.closureScheduledFunctionId);
 		await closeAuctionInternal(ctx, auction);
 		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
-		await syncLifecycleRuntimeCron(ctx);
-		return null;
-	},
-});
-
-export const _tickLifecycle = internalMutation({
-	args: {},
-	returns: v.object({
-		activated: v.number(),
-		closed: v.number(),
-	}),
-	handler: async (ctx) => {
-		const now = Date.now();
-		const scheduled = await ctx.db
-			.query("sponsorshipAuctions")
-			.withIndex("by_state_and_start", (q) =>
-				q.eq("state", "scheduled").lte("startsAt", now),
-			)
-			.collect();
-		let activated = 0;
-		for (const auction of scheduled) {
-			await ctx.db.patch("sponsorshipAuctions", auction._id, {
-				state: "active",
-				updatedAt: now,
-			});
-			const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id);
-			if (refreshed) {
-				await sendAuctionStartedEmails(ctx, refreshed);
-				await scheduleAuctionActiveRemindersOnActivation(ctx, refreshed);
-			}
-			activated += 1;
-		}
-
-		const activeToClose = await ctx.db
-			.query("sponsorshipAuctions")
-			.withIndex("by_state_and_end", (q) =>
-				q.eq("state", "active").lte("endsAt", now),
-			)
-			.collect();
-		let closed = 0;
-		for (const auction of activeToClose) {
-			await closeAuctionInternal(ctx, auction);
-			closed += 1;
-		}
-
-		const due = await dueAuctionActiveReminders(ctx, now);
-		for (const reminder of due) {
-			const [reminderAuction, sponsor] = await Promise.all([
-				ctx.db.get("sponsorshipAuctions", reminder.auctionId),
-				ctx.db.get("sponsors", reminder.sponsorId),
-			]);
-			if (
-				!reminderAuction ||
-				reminderAuction.state !== "active" ||
-				!sponsor?.active
-			) {
-				await markReminderSkipped(ctx, reminder._id);
-				continue;
-			}
-			await sendAuctionActiveReminderEmail(ctx, reminderAuction, sponsor);
-			await markReminderSent(ctx, reminder._id);
-		}
-
-		await syncLifecycleRuntimeCron(ctx);
-		return { activated, closed };
-	},
-});
-
-export const _syncLifecycleRuntimeCron = internalMutation({
-	args: {},
-	returns: v.null(),
-	handler: async (ctx) => {
-		await syncLifecycleRuntimeCron(ctx);
 		return null;
 	},
 });

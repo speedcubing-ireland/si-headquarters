@@ -4,22 +4,19 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import {
 	emailErrorMessage,
+	FALLBACK_RETRY_AFTER_MS,
 	isAmbiguousEmailTransportError,
 	isTransientEmailTransportError,
-	pollEmailSend,
 	pollEmailSendOperation,
+	submitEmail,
 } from "../lib/email";
 import { staleDispatchThresholdMs } from "./types";
 
 const PROVIDER_UNKNOWN_TIMEOUT_MS = 24 * 60 * 60 * 1000;
-const EMAIL_SEND_POLL_INTERVAL_MS = 15_000;
+const STALE_SWEEP_BATCH_SIZE = 256;
 
 function nowMs(): number {
 	return Date.now();
-}
-
-function buildClaimKey(dispatchId: Id<"emailDispatches">): string {
-	return `${dispatchId}:${nowMs()}`;
 }
 
 function isTerminalProviderStatus(status: KnownEmailSendStatus): boolean {
@@ -34,70 +31,37 @@ function hasProviderUnknownTimedOut(dispatch: { createdAt: number }): boolean {
 	return dispatch.createdAt + PROVIDER_UNKNOWN_TIMEOUT_MS < nowMs();
 }
 
-export async function claimDueQueuedDispatches(
+export async function claimDispatchForSend(
 	ctx: MutationCtx,
-): Promise<Array<{ dispatchId: Id<"emailDispatches">; claimKey: string }>> {
+	args: { dispatchId: Id<"emailDispatches">; claimKey: string },
+): Promise<boolean> {
+	const dispatch = await ctx.db.get("emailDispatches", args.dispatchId);
+	if (!dispatch || dispatch.claimKey !== args.claimKey) {
+		return false;
+	}
+	if (
+		dispatch.status === "sent" ||
+		dispatch.status === "dead_letter" ||
+		dispatch.status === "canceled"
+	) {
+		return false;
+	}
+	if (dispatch.status === "awaiting_provider") {
+		return false;
+	}
 	const now = nowMs();
-	const due = await ctx.db
-		.query("emailDispatches")
-		.withIndex("by_status_scheduled_for", (q) =>
-			q.eq("status", "queued").lte("scheduledFor", now),
-		)
-		.collect();
-
-	const claimed: Array<{
-		dispatchId: Id<"emailDispatches">;
-		claimKey: string;
-	}> = [];
-	for (const dispatch of due) {
-		const latest = await ctx.db.get("emailDispatches", dispatch._id);
-		if (!latest || latest.status !== "queued") {
-			continue;
-		}
-		if (latest.sendAttemptCount > 0) {
-			await deadLetter(ctx, {
-				dispatch: latest,
-				error: "no_auto_resend_policy_enforced",
-				providerStatus: latest.providerStatus,
-			});
-			continue;
-		}
-		const claimKey = buildClaimKey(latest._id);
-		await ctx.db.patch("emailDispatches", latest._id, {
+	if (dispatch.status === "queued") {
+		await ctx.db.patch("emailDispatches", dispatch._id, {
 			status: "sending",
-			claimKey,
 			sendAttemptCount: 1,
 			updatedAt: now,
 		});
-		claimed.push({ dispatchId: latest._id, claimKey });
+		return true;
 	}
-	return claimed;
-}
-
-export async function queuePendingPolls(
-	ctx: MutationCtx,
-): Promise<Array<{ dispatchId: Id<"emailDispatches">; claimKey: string }>> {
-	const awaiting = await ctx.db
-		.query("emailDispatches")
-		.withIndex("by_status_updated_at", (q) =>
-			q.eq("status", "awaiting_provider"),
-		)
-		.collect();
-
-	const polls: Array<{ dispatchId: Id<"emailDispatches">; claimKey: string }> =
-		[];
-	for (const dispatch of awaiting) {
-		if (!dispatch.claimKey) {
-			await deadLetter(ctx, {
-				dispatch,
-				error: "dispatch_claim_missing",
-				providerStatus: dispatch.providerStatus,
-			});
-			continue;
-		}
-		polls.push({ dispatchId: dispatch._id, claimKey: dispatch.claimKey });
+	if (dispatch.status === "sending") {
+		return true;
 	}
-	return polls;
+	return false;
 }
 
 export async function markSent(
@@ -139,7 +103,6 @@ export async function markAwaitingProvider(
 		dispatchId: Id<"emailDispatches">;
 		claimKey: string;
 		providerStatus: string;
-		providerPollerState?: string;
 		error?: string;
 	},
 ): Promise<boolean> {
@@ -155,8 +118,6 @@ export async function markAwaitingProvider(
 	await ctx.db.patch("emailDispatches", dispatch._id, {
 		status: "awaiting_provider",
 		providerStatus: args.providerStatus,
-		providerPollerState:
-			args.providerPollerState ?? dispatch.providerPollerState,
 		pollAttemptCount: dispatch.pollAttemptCount + 1,
 		lastProviderCheckAt: now,
 		error: args.error,
@@ -220,35 +181,71 @@ export async function deadLetter(
 	});
 }
 
+/**
+ * Failsafe: re-schedule sends/polls for rows stuck without recent progress.
+ */
 export async function runSweep(ctx: MutationCtx): Promise<{
 	claimed: number;
 	polled: number;
 	staleQueued: number;
 }> {
-	const claimed = await claimDueQueuedDispatches(ctx);
-	for (const item of claimed) {
-		await ctx.scheduler.runAfter(0, internal.emailQueue._sendDispatch, item);
+	const now = nowMs();
+	const cutoff = now - staleDispatchThresholdMs;
+	let rescheduledSend = 0;
+	let rescheduledPoll = 0;
+
+	const statuses = ["queued", "sending", "awaiting_provider"] as const;
+
+	for (const status of statuses) {
+		const stale = await ctx.db
+			.query("emailDispatches")
+			.withIndex("by_status_updated_at", (q) =>
+				q.eq("status", status).lt("updatedAt", cutoff),
+			)
+			.take(STALE_SWEEP_BATCH_SIZE);
+
+		for (const dispatch of stale) {
+			let claimKey = dispatch.claimKey;
+			if (!claimKey) {
+				claimKey = `${dispatch._id}:${nowMs()}`;
+				await ctx.db.patch("emailDispatches", dispatch._id, {
+					claimKey,
+					updatedAt: nowMs(),
+				});
+			}
+			if (status === "queued" || status === "sending") {
+				await ctx.scheduler.runAfter(0, internal.emailQueue._sendDispatch, {
+					dispatchId: dispatch._id,
+					claimKey,
+				});
+				rescheduledSend += 1;
+			} else {
+				await ctx.scheduler.runAfter(0, internal.emailQueue._pollDispatch, {
+					dispatchId: dispatch._id,
+					claimKey,
+				});
+				rescheduledPoll += 1;
+			}
+		}
 	}
 
-	const polled = await queuePendingPolls(ctx);
-	for (const item of polled) {
-		await ctx.scheduler.runAfter(0, internal.emailQueue._pollDispatch, item);
-	}
-
-	const staleQueued = await ctx.db
+	const staleQueuedRows = await ctx.db
 		.query("emailDispatches")
-		.withIndex("by_status_updated_at", (q) => q.eq("status", "queued"))
-		.collect();
-	const staleCount = staleQueued.filter(
-		(dispatch) => dispatch.updatedAt + staleDispatchThresholdMs < nowMs(),
-	).length;
+		.withIndex("by_status_updated_at", (q) =>
+			q.eq("status", "queued").lt("updatedAt", cutoff),
+		)
+		.take(5000);
+	const staleQueued = staleQueuedRows.length;
 
 	return {
-		claimed: claimed.length,
-		polled: polled.length,
-		staleQueued: staleCount,
+		claimed: rescheduledSend,
+		polled: rescheduledPoll,
+		staleQueued,
 	};
 }
+
+/** Convex scheduler.runAfter delay clamp (stay within platform limits). */
+const MAX_SCHEDULER_DELAY_MS = 1000 * 60 * 60 * 24 * 30;
 
 async function loadActionDispatch(
 	ctx: ActionCtx,
@@ -261,6 +258,18 @@ async function loadActionDispatch(
 	});
 }
 
+async function scheduleNextPoll(
+	ctx: ActionCtx,
+	args: { dispatchId: Id<"emailDispatches">; claimKey: string },
+	retryAfterMs: number,
+): Promise<void> {
+	const delayMs = Math.max(
+		1,
+		Math.min(MAX_SCHEDULER_DELAY_MS, retryAfterMs),
+	);
+	await ctx.scheduler.runAfter(delayMs, internal.emailQueue._pollDispatch, args);
+}
+
 export async function sendDispatch(
 	ctx: ActionCtx,
 	args: {
@@ -268,6 +277,14 @@ export async function sendDispatch(
 		claimKey: string;
 	},
 ): Promise<void> {
+	const claimed: boolean = await ctx.runMutation(
+		internal.emailQueue._claimDispatchForSend,
+		args,
+	);
+	if (!claimed) {
+		return;
+	}
+
 	const dispatch = await loadActionDispatch(
 		ctx,
 		args.dispatchId,
@@ -278,7 +295,7 @@ export async function sendDispatch(
 	}
 
 	try {
-		const progress = await pollEmailSend({
+		const progress = await submitEmail({
 			to: [
 				{
 					address: dispatch.recipientEmail,
@@ -290,7 +307,6 @@ export async function sendDispatch(
 			plainText: dispatch.plainTextBody,
 			operationId: dispatch.providerOperationId,
 			senderAddress: dispatch.senderAddress,
-			updateIntervalInMs: EMAIL_SEND_POLL_INTERVAL_MS,
 		});
 
 		if (progress.status === KnownEmailSendStatus.Succeeded) {
@@ -312,24 +328,35 @@ export async function sendDispatch(
 			return;
 		}
 
-		await ctx.runMutation(internal.emailQueue._markAwaitingProvider, {
-			dispatchId: dispatch._id,
-			claimKey: args.claimKey,
-			providerStatus: progress.status,
-			providerPollerState: progress.pollerState,
-		});
+		const marked = await ctx.runMutation(
+			internal.emailQueue._markAwaitingProvider,
+			{
+				dispatchId: dispatch._id,
+				claimKey: args.claimKey,
+				providerStatus: progress.status,
+			},
+		);
+		if (marked) {
+			await scheduleNextPoll(ctx, args, progress.retryAfterMs);
+		}
 	} catch (error) {
 		const message = emailErrorMessage(error);
 		if (
 			isTransientEmailTransportError(error) ||
 			isAmbiguousEmailTransportError(error)
 		) {
-			await ctx.runMutation(internal.emailQueue._markAwaitingProvider, {
-				dispatchId: dispatch._id,
-				claimKey: args.claimKey,
-				providerStatus: "unknown",
-				error: message,
-			});
+			const markedUnknown = await ctx.runMutation(
+				internal.emailQueue._markAwaitingProvider,
+				{
+					dispatchId: dispatch._id,
+					claimKey: args.claimKey,
+					providerStatus: "unknown",
+					error: message,
+				},
+			);
+			if (markedUnknown) {
+				await scheduleNextPoll(ctx, args, FALLBACK_RETRY_AFTER_MS);
+			}
 			return;
 		}
 
@@ -387,12 +414,17 @@ export async function pollDispatch(
 			});
 			return;
 		}
-		await ctx.runMutation(internal.emailQueue._markAwaitingProvider, {
-			dispatchId: dispatch._id,
-			claimKey: args.claimKey,
-			providerStatus: progress.status,
-			providerPollerState: progress.pollerState,
-		});
+		const markedPoll = await ctx.runMutation(
+			internal.emailQueue._markAwaitingProvider,
+			{
+				dispatchId: dispatch._id,
+				claimKey: args.claimKey,
+				providerStatus: progress.status,
+			},
+		);
+		if (markedPoll) {
+			await scheduleNextPoll(ctx, args, progress.retryAfterMs);
+		}
 	} catch (error) {
 		const message = emailErrorMessage(error);
 		if (
@@ -408,12 +440,18 @@ export async function pollDispatch(
 				});
 				return;
 			}
-			await ctx.runMutation(internal.emailQueue._markAwaitingProvider, {
-				dispatchId: dispatch._id,
-				claimKey: args.claimKey,
-				providerStatus: dispatch.providerStatus ?? "unknown",
-				error: message,
-			});
+			const markedRetry = await ctx.runMutation(
+				internal.emailQueue._markAwaitingProvider,
+				{
+					dispatchId: dispatch._id,
+					claimKey: args.claimKey,
+					providerStatus: dispatch.providerStatus ?? "unknown",
+					error: message,
+				},
+			);
+			if (markedRetry) {
+				await scheduleNextPoll(ctx, args, FALLBACK_RETRY_AFTER_MS);
+			}
 			return;
 		}
 		await ctx.runMutation(internal.emailQueue._deadLetter, {

@@ -55,6 +55,49 @@ function buildReplayDedupeKey(
 	return `${dedupeKey}|replay:${Date.now()}`;
 }
 
+async function scheduleSendDispatch(
+	ctx: MutationCtx,
+	args: {
+		dispatchId: Id<"emailDispatches">;
+		claimKey: string;
+		scheduledFor: number;
+	},
+): Promise<void> {
+	await ctx.scheduler.runAt(
+		args.scheduledFor,
+		internal.emailQueue._sendDispatch,
+		{
+			dispatchId: args.dispatchId,
+			claimKey: args.claimKey,
+		},
+	);
+}
+
+/** Ensures a queued row has a claimKey and nudges the send action (e.g. duplicate enqueue). */
+async function kickQueuedDispatch(
+	ctx: MutationCtx,
+	existing: {
+		_id: Id<"emailDispatches">;
+		claimKey?: string;
+		scheduledFor: number;
+	},
+): Promise<void> {
+	const now = Date.now();
+	let claimKey = existing.claimKey;
+	if (!claimKey) {
+		claimKey = `${existing._id}:${now}`;
+		await ctx.db.patch("emailDispatches", existing._id, {
+			claimKey,
+			updatedAt: now,
+		});
+	}
+	await scheduleSendDispatch(ctx, {
+		dispatchId: existing._id,
+		claimKey,
+		scheduledFor: Math.max(existing.scheduledFor, now),
+	});
+}
+
 export async function enqueueDispatch(
 	ctx: MutationCtx,
 	args: EnqueueEmailDispatchArgs,
@@ -71,7 +114,7 @@ export async function enqueueDispatch(
 			.first();
 		if (existing) {
 			if (existing.status === "queued") {
-				await ctx.scheduler.runAfter(0, internal.emailQueue._runSweep, {});
+				await kickQueuedDispatch(ctx, existing);
 			}
 			return {
 				dispatchId: existing._id,
@@ -116,7 +159,17 @@ export async function enqueueDispatch(
 		updatedAt: now,
 	});
 
-	await ctx.scheduler.runAfter(0, internal.emailQueue._runSweep, {});
+	const claimKey = `${dispatchId}:${Date.now()}`;
+	await ctx.db.patch("emailDispatches", dispatchId, {
+		claimKey,
+		updatedAt: Date.now(),
+	});
+
+	await scheduleSendDispatch(ctx, {
+		dispatchId,
+		claimKey,
+		scheduledFor: Math.max(scheduledFor, now),
+	});
 
 	return {
 		dispatchId,

@@ -19,6 +19,7 @@ import {
 	markSent,
 	markAwaitingProvider,
 	deadLetter,
+	claimDispatchForSend,
 } from "./emailQueue/worker";
 import {
 	emailDispatchStatus,
@@ -26,6 +27,15 @@ import {
 	emailDeadLetterRecordReturns,
 	emailSourceKind,
 } from "./emailQueue/types";
+
+export const _claimDispatchForSend = internalMutation({
+	args: {
+		dispatchId: v.id("emailDispatches"),
+		claimKey: v.string(),
+	},
+	returns: v.boolean(),
+	handler: async (ctx, args) => claimDispatchForSend(ctx, args),
+});
 
 export const _enqueueDispatch = internalMutation({
 	args: {
@@ -78,7 +88,6 @@ export const _getDispatchForClaim = internalQuery({
 			claimKey: v.optional(v.string()),
 			providerOperationId: v.string(),
 			providerStatus: v.optional(v.string()),
-			providerPollerState: v.optional(v.string()),
 			sendAttemptCount: v.number(),
 			pollAttemptCount: v.number(),
 			lastProviderCheckAt: v.optional(v.number()),
@@ -118,7 +127,6 @@ export const _getDispatchForClaim = internalQuery({
 			claimKey: dispatch.claimKey,
 			providerOperationId: dispatch.providerOperationId,
 			providerStatus: dispatch.providerStatus,
-			providerPollerState: dispatch.providerPollerState,
 			sendAttemptCount: dispatch.sendAttemptCount,
 			pollAttemptCount: dispatch.pollAttemptCount,
 			lastProviderCheckAt: dispatch.lastProviderCheckAt,
@@ -183,14 +191,10 @@ export const _markAwaitingProvider = internalMutation({
 		dispatchId: v.id("emailDispatches"),
 		claimKey: v.string(),
 		providerStatus: v.string(),
-		providerPollerState: v.optional(v.string()),
 		error: v.optional(v.string()),
 	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await markAwaitingProvider(ctx, args);
-		return null;
-	},
+	returns: v.boolean(),
+	handler: async (ctx, args) => markAwaitingProvider(ctx, args),
 });
 
 export const _deadLetter = internalMutation({

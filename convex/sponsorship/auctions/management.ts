@@ -24,7 +24,7 @@ import {
 	buildFallbackSnapshotForCompetition,
 	scheduleCompetitionSnapshotRefresh,
 } from "./competitionSnapshot";
-import { syncLifecycleRuntimeCron } from "./runtimeCron";
+import { scheduleAuctionActivation } from "./lifecycle";
 
 function normalizePositiveDurationMs(
 	fieldName: string,
@@ -157,7 +157,6 @@ export const removeBeforeOpen = mutation({
 			),
 		]);
 		await ctx.db.delete("sponsorshipAuctions", auction._id);
-		await syncLifecycleRuntimeCron(ctx);
 		return null;
 	},
 });
@@ -243,6 +242,11 @@ export const update = mutation({
 			});
 		}
 		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
+
+		const updated = await ctx.db.get("sponsorshipAuctions", auction._id);
+		if (updated?.state === "scheduled" && args.startsAt !== undefined) {
+			await scheduleAuctionActivation(ctx, updated);
+		}
 
 		return null;
 	},
