@@ -282,6 +282,7 @@ export function useTaskColumns(options?: {
 					<StatusCell
 						status={row.getValue<TaskStatus>("status")}
 						taskId={row.original.id}
+						task={row.original}
 					/>
 				),
 				{

@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/tooltip";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
-	useTask,
 	useUsers,
 	useTeams,
 	useLabels,
@@ -34,6 +33,7 @@ import type {
 	TaskLabel,
 	TaskPriority,
 	TaskStatus,
+	Task,
 	Team,
 	User,
 } from "@/data/types-new";
@@ -160,14 +160,15 @@ function EditableTaskCell<T extends string>({
 export function EditableTaskStatus({
 	status,
 	taskId,
+	task,
 	children,
 }: {
 	status: TaskStatus;
 	taskId: Id<"tasks">;
+	task: Pick<Task, "requiredApprovalBy" | "approvedBy">;
 	children?: React.ReactNode;
 }) {
 	const { updateTask } = useTaskMutations();
-	const task = useTask(taskId);
 	const { users } = useUsers();
 	const StatusIcon = getStatusIcon(status);
 	const filterContext: FilterContext = { users, labels: [], teams: [] };
@@ -177,7 +178,7 @@ export function EditableTaskStatus({
 	);
 
 	const isTaskFullyApproved = (() => {
-		if (!task || task.requiredApprovalBy.length === 0) return true;
+		if (task.requiredApprovalBy.length === 0) return true;
 		const approvedUserIds = new Set(task.approvedBy.map((a) => a.id));
 		return task.requiredApprovalBy.every((approver) => {
 			if ("members" in approver) {
@@ -187,12 +188,9 @@ export function EditableTaskStatus({
 		});
 	})();
 
-	const hasRequiredApprovals =
-		task !== null && task !== undefined && task.requiredApprovalBy.length > 0;
+	const hasRequiredApprovals = task.requiredApprovalBy.length > 0;
 
 	const handleStatusChange = (newStatus: TaskStatus) => {
-		if (!task) return;
-
 		if (newStatus === "done" && hasRequiredApprovals && !isTaskFullyApproved) {
 			return;
 		}
