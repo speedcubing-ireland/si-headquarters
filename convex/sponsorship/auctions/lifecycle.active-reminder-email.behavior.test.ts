@@ -17,6 +17,23 @@ function createHarness() {
 	return t;
 }
 
+async function firePendingRemindersForAuction(
+	t: ReturnType<typeof createHarness>,
+	auctionId: Id<"sponsorshipAuctions">,
+): Promise<void> {
+	const rows = await t.run((ctx) =>
+		ctx.db
+			.query("sponsorshipAuctionReminders")
+			.withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+			.collect(),
+	);
+	for (const row of rows) {
+		await t.mutation(internal.sponsorship.auctions.lifecycle._fireReminder, {
+			reminderId: row._id,
+		});
+	}
+}
+
 async function seedScheduledAuction(t: ReturnType<typeof convexTest>): Promise<{
 	managerId: Id<"users">;
 	competitionId: Id<"competitions">;
@@ -177,10 +194,7 @@ describe("auction active reminder email behavior", () => {
 			}
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await firePendingRemindersForAuction(t, auctionId);
 
 		const emails = await getScheduledEmailArgs(t);
 		const reminders = emails.filter(
@@ -222,10 +236,7 @@ describe("auction active reminder email behavior", () => {
 			}
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await firePendingRemindersForAuction(t, auctionId);
 
 		const emails = await getScheduledEmailArgs(t);
 		const reminders = emails.filter(
@@ -261,10 +272,7 @@ describe("auction active reminder email behavior", () => {
 			});
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await firePendingRemindersForAuction(t, auctionId);
 
 		const emails = await getScheduledEmailArgs(t);
 		const reminderEmails = emails.filter(
@@ -303,10 +311,7 @@ describe("auction active reminder email behavior", () => {
 			}
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await firePendingRemindersForAuction(t, auctionId);
 
 		const emails = await getScheduledEmailArgs(t);
 		const reminders = emails.filter(
@@ -383,10 +388,7 @@ describe("auction active reminder email behavior", () => {
 			}
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await firePendingRemindersForAuction(t, auctionId);
 
 		const emails = await getScheduledEmailArgs(t);
 		const reminderEmails = emails.filter(
@@ -428,10 +430,7 @@ describe("auction active reminder email behavior", () => {
 			});
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await firePendingRemindersForAuction(t, auctionId);
 
 		const emails = await getScheduledEmailArgs(t);
 		const reminderEmails = emails.filter(
@@ -479,10 +478,7 @@ describe("auction active reminder email behavior", () => {
 			}
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await firePendingRemindersForAuction(t, auctionId);
 
 		const batchArgs = await t.run(async (ctx) => {
 			const all = await ctx.db.system.query("_scheduled_functions").collect();

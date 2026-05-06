@@ -12,6 +12,7 @@ import {
 	isProxyAuctionFramework,
 } from "../../lib/sponsorshipValidators";
 import { sendEbayAuctionOutbidEmail } from "../auctions/emails";
+import { scheduleAuctionClosure } from "../auctions/lifecycle";
 import {
 	isBidHistoryVisibleToSponsor,
 	isSponsorVisibleAuctionState,
@@ -39,6 +40,17 @@ async function maybeNotifyEbayOutbid(
 		auctionForEmail,
 		result.outbidSponsorId,
 	);
+}
+
+async function rescheduleClosureWhenExtended(
+	ctx: MutationCtx,
+	auctionId: Id<"sponsorshipAuctions">,
+	extendedEndsAt: number | undefined,
+): Promise<void> {
+	if (extendedEndsAt === undefined) return;
+	const updatedAuction = await ctx.db.get("sponsorshipAuctions", auctionId);
+	if (!updatedAuction || updatedAuction.state !== "active") return;
+	await scheduleAuctionClosure(ctx, updatedAuction);
 }
 
 async function listInvitedVisibleAuctions(
@@ -327,6 +339,7 @@ export async function placeBidHandler(
 		sponsorId: sponsor._id,
 		amountCents: args.amountCents,
 	});
+	await rescheduleClosureWhenExtended(ctx, auction._id, result.extendedEndsAt);
 	await maybeNotifyEbayOutbid(ctx, auction, result);
 	return {
 		currentPriceCents: result.currentPriceCents,
@@ -359,6 +372,7 @@ export async function setMaxBidHandler(
 		sponsorId: sponsor._id,
 		maxAmountCents: args.maxAmountCents,
 	});
+	await rescheduleClosureWhenExtended(ctx, auction._id, result.extendedEndsAt);
 	await maybeNotifyEbayOutbid(ctx, auction, result);
 	return {
 		currentPriceCents: result.currentPriceCents,

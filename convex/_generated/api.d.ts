@@ -53,6 +53,7 @@ import type * as lib_sanitize from "../lib/sanitize.js";
 import type * as lib_seedData from "../lib/seedData.js";
 import type * as lib_siteUrls from "../lib/siteUrls.js";
 import type * as lib_sponsorshipAccess from "../lib/sponsorshipAccess.js";
+import type * as lib_sponsorshipAuctionState from "../lib/sponsorshipAuctionState.js";
 import type * as lib_sponsorshipBidPlacement from "../lib/sponsorshipBidPlacement.js";
 import type * as lib_sponsorshipBidding from "../lib/sponsorshipBidding.js";
 import type * as lib_sponsorshipCompetitionSnapshot from "../lib/sponsorshipCompetitionSnapshot.js";
@@ -134,7 +135,6 @@ import type * as sponsorship_auctions_index from "../sponsorship/auctions/index.
 import type * as sponsorship_auctions_lifecycle from "../sponsorship/auctions/lifecycle.js";
 import type * as sponsorship_auctions_management from "../sponsorship/auctions/management.js";
 import type * as sponsorship_auctions_reminders from "../sponsorship/auctions/reminders.js";
-import type * as sponsorship_auctions_runtimeCron from "../sponsorship/auctions/runtimeCron.js";
 import type * as sponsorship_auctions_shared from "../sponsorship/auctions/shared.js";
 import type * as sponsorship_authAccounts from "../sponsorship/authAccounts.js";
 import type * as sponsorship_emailQueue from "../sponsorship/emailQueue.js";
@@ -215,6 +215,7 @@ declare const fullApi: ApiFromModules<{
   "lib/seedData": typeof lib_seedData;
   "lib/siteUrls": typeof lib_siteUrls;
   "lib/sponsorshipAccess": typeof lib_sponsorshipAccess;
+  "lib/sponsorshipAuctionState": typeof lib_sponsorshipAuctionState;
   "lib/sponsorshipBidPlacement": typeof lib_sponsorshipBidPlacement;
   "lib/sponsorshipBidding": typeof lib_sponsorshipBidding;
   "lib/sponsorshipCompetitionSnapshot": typeof lib_sponsorshipCompetitionSnapshot;
@@ -296,7 +297,6 @@ declare const fullApi: ApiFromModules<{
   "sponsorship/auctions/lifecycle": typeof sponsorship_auctions_lifecycle;
   "sponsorship/auctions/management": typeof sponsorship_auctions_management;
   "sponsorship/auctions/reminders": typeof sponsorship_auctions_reminders;
-  "sponsorship/auctions/runtimeCron": typeof sponsorship_auctions_runtimeCron;
   "sponsorship/auctions/shared": typeof sponsorship_auctions_shared;
   "sponsorship/authAccounts": typeof sponsorship_authAccounts;
   "sponsorship/emailQueue": typeof sponsorship_emailQueue;

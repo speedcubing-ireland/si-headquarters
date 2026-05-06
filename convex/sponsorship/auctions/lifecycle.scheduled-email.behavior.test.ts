@@ -139,6 +139,21 @@ describe("auction scheduled email behavior", () => {
 		const scheduled = emails.filter((e) => e.emailType === "auction_scheduled");
 		expect(scheduled).toHaveLength(1);
 		expect(scheduled[0].recipients).toHaveLength(2);
+
+		const activationCheck = await t.run(async (ctx) => {
+			const auctionRow = await ctx.db.get("sponsorshipAuctions", auctionId);
+			const sfId = auctionRow?.activationScheduledFunctionId;
+			const doc =
+				sfId !== undefined
+					? await ctx.db.system.get("_scheduled_functions", sfId)
+					: null;
+			return {
+				scheduledTime: doc?.scheduledTime,
+				startsAt: auctionRow?.startsAt,
+			};
+		});
+		expect(activationCheck.scheduledTime).toBeDefined();
+		expect(activationCheck.scheduledTime).toBe(activationCheck.startsAt);
 	});
 
 	test("start with past startsAt enqueues auction_started, not auction_scheduled", async () => {
@@ -169,7 +184,7 @@ describe("auction scheduled email behavior", () => {
 		expect(started[0].recipients).toHaveLength(2);
 	});
 
-	test("tickLifecycle sends auction_started but not auction_scheduled", async () => {
+	test("_activateAuction sends auction_started but not auction_scheduled", async () => {
 		const t = createHarness();
 		const { auctionId } = await seedScheduledAuction(t);
 
@@ -180,10 +195,9 @@ describe("auction scheduled email behavior", () => {
 			});
 		});
 
-		await t.mutation(
-			internal.sponsorship.auctions.lifecycle._tickLifecycle,
-			{},
-		);
+		await t.mutation(internal.sponsorship.auctions.lifecycle._activateAuction, {
+			auctionId,
+		});
 
 		const auction = await t.run((ctx) =>
 			ctx.db.get("sponsorshipAuctions", auctionId),

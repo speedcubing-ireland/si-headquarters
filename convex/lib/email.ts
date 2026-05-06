@@ -15,15 +15,9 @@ type SendEmailInput = {
 	senderAddress?: string;
 };
 
-type PollEmailSendInput = SendEmailInput & {
-	resumeFrom?: string;
-	updateIntervalInMs?: number;
-};
-
 export type EmailSendProgress = {
 	operationId: string;
 	status: KnownEmailSendStatus;
-	pollerState?: string;
 	retryAfterMs: number;
 	error?: string;
 };
@@ -32,7 +26,8 @@ let cachedClient: EmailClient | null = null;
 
 const UUID_REGEX =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DEFAULT_POLL_INTERVAL_MS = 15_000;
+/** Used when Azure omits Retry-After on the send/poll response. */
+export const FALLBACK_RETRY_AFTER_MS = 15_000;
 const MIN_POLL_INTERVAL_MS = 5_000;
 const MAX_POLL_INTERVAL_MS = 60_000;
 const EMAIL_REQUEST_TIMEOUT_MS = 15_000;
@@ -76,13 +71,11 @@ function toValidOperationId(
 	return UUID_REGEX.test(trimmed) ? trimmed.toLowerCase() : undefined;
 }
 
-function toClampedPollIntervalMs(
-	retryAfterSeconds: number | undefined,
-): number {
+function toClampedRetryAfterMs(retryAfterSeconds: number | undefined): number {
 	const retryAfterMs =
 		typeof retryAfterSeconds === "number" && Number.isFinite(retryAfterSeconds)
 			? retryAfterSeconds * 1000
-			: DEFAULT_POLL_INTERVAL_MS;
+			: FALLBACK_RETRY_AFTER_MS;
 	return Math.max(
 		MIN_POLL_INTERVAL_MS,
 		Math.min(MAX_POLL_INTERVAL_MS, retryAfterMs),
@@ -263,38 +256,28 @@ type InternalEmailClient = {
 	};
 };
 
-export async function pollEmailSend(
-	input: PollEmailSendInput,
+/**
+ * Submits the email once via Azure `beginSend`. The SDK performs one initial poll
+ * internally; do not call `poller.poll()` again here.
+ */
+export async function submitEmail(
+	input: SendEmailInput,
 ): Promise<EmailSendProgress> {
 	const client = getEmailClient();
 	const abortSignal = createRequestAbortSignal(EMAIL_REQUEST_TIMEOUT_MS);
-	const options = input.resumeFrom
-		? {
-				resumeFrom: input.resumeFrom,
-				...(abortSignal ? { abortSignal } : {}),
-				...(input.updateIntervalInMs !== undefined
-					? { updateIntervalInMs: input.updateIntervalInMs }
-					: {}),
-			}
-		: {
-				operationId: toResolvedOperationId(input.operationId),
-				...(abortSignal ? { abortSignal } : {}),
-				...(input.updateIntervalInMs !== undefined
-					? { updateIntervalInMs: input.updateIntervalInMs }
-					: {}),
-			};
-
-	const poller = await client.beginSend(toEmailMessage(input), options);
-	await poller.poll();
+	const operationId = toResolvedOperationId(input.operationId);
+	const poller = await client.beginSend(toEmailMessage(input), {
+		operationId,
+		...(abortSignal ? { abortSignal } : {}),
+	});
 	const result = poller.getResult() ?? poller.getOperationState().result;
 	if (!result) {
-		throw new Error("Email send poll returned no operation result");
+		throw new Error("Email beginSend returned no operation result");
 	}
 	return {
 		operationId: result.id,
 		status: result.status as KnownEmailSendStatus,
-		pollerState: poller.toString(),
-		retryAfterMs: toClampedPollIntervalMs(result.retryAfter),
+		retryAfterMs: toClampedRetryAfterMs(result.retryAfter),
 		error: result.error?.message ?? result.error?.code,
 	};
 }
@@ -316,7 +299,7 @@ export async function pollEmailSendOperation(
 	return {
 		operationId: result.id ?? validOperationId,
 		status: result.status as KnownEmailSendStatus,
-		retryAfterMs: toClampedPollIntervalMs(result.retryAfter),
+		retryAfterMs: toClampedRetryAfterMs(result.retryAfter),
 		error: result.error?.message ?? result.error?.code,
 	};
 }

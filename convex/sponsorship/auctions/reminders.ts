@@ -1,5 +1,20 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
+import { internal } from "../../_generated/api";
+
+export async function scheduleAuctionActiveReminder(
+	ctx: MutationCtx,
+	reminder: Doc<"sponsorshipAuctionReminders">,
+): Promise<void> {
+	const scheduledFunctionId = await ctx.scheduler.runAt(
+		Math.max(reminder.scheduledFor, Date.now()),
+		internal.sponsorshipAuctions._fireReminder,
+		{ reminderId: reminder._id },
+	);
+	await ctx.db.patch("sponsorshipAuctionReminders", reminder._id, {
+		scheduledFunctionId,
+	});
+}
 
 export async function scheduleAuctionActiveRemindersOnActivation(
 	ctx: MutationCtx,
@@ -11,28 +26,20 @@ export async function scheduleAuctionActiveRemindersOnActivation(
 		.query("sponsorshipAuctionInvites")
 		.withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
 		.collect();
-	await Promise.all(
-		invites.map((invite) =>
-			ctx.db.insert("sponsorshipAuctionReminders", {
-				auctionId: auction._id,
-				sponsorId: invite.sponsorId,
-				scheduledFor,
-				sent: scheduledFor <= now,
-			}),
-		),
-	);
-}
 
-export async function dueAuctionActiveReminders(
-	ctx: MutationCtx,
-	now: number,
-): Promise<Doc<"sponsorshipAuctionReminders">[]> {
-	return ctx.db
-		.query("sponsorshipAuctionReminders")
-		.withIndex("by_sent_and_scheduled", (q) =>
-			q.eq("sent", false).lte("scheduledFor", now),
-		)
-		.collect();
+	for (const invite of invites) {
+		const sent = scheduledFor <= now;
+		const reminderId = await ctx.db.insert("sponsorshipAuctionReminders", {
+			auctionId: auction._id,
+			sponsorId: invite.sponsorId,
+			scheduledFor,
+			sent,
+		});
+		if (sent) continue;
+
+		const reminder = await ctx.db.get("sponsorshipAuctionReminders", reminderId);
+		if (reminder) await scheduleAuctionActiveReminder(ctx, reminder);
+	}
 }
 
 export async function markReminderSent(

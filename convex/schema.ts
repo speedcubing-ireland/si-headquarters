@@ -219,6 +219,8 @@ export default defineSchema({
 		currency: v.string(),
 		startsAt: v.number(),
 		endsAt: v.number(),
+		activationScheduledFunctionId: v.optional(v.id("_scheduled_functions")),
+		closureScheduledFunctionId: v.optional(v.id("_scheduled_functions")),
 		antiSnipingWindowMs: v.number(),
 		antiSnipingExtendMs: v.number(),
 		startPriceCents: v.number(),
@@ -256,6 +258,7 @@ export default defineSchema({
 		scheduledFor: v.number(),
 		sent: v.boolean(),
 		sentAt: v.optional(v.number()),
+		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
 	})
 		.index("by_sent_and_scheduled", ["sent", "scheduledFor"])
 		.index("by_auction", ["auctionId"])
