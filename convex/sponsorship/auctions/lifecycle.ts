@@ -2,8 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { components, internal } from "../../_generated/api";
-import { Crons } from "@convex-dev/crons";
+import { internal } from "../../_generated/api";
 import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
 import { resolveAuctionOutcome } from "../../lib/sponsorshipAuctionState";
 import { resolveAuctionStartTargetState } from "../../lib/sponsorshipLifecycle";
@@ -24,27 +23,8 @@ import {
 import {
 	markReminderSent,
 	markReminderSkipped,
-	scheduleAuctionActiveReminder,
 	scheduleAuctionActiveRemindersOnActivation,
 } from "./reminders";
-
-const LEGACY_LIFECYCLE_CRON_NAME = "sponsorship-auctions-lifecycle";
-const LIFECYCLE_REPAIR_BATCH_SIZE = 1000;
-
-async function unregisterLegacyAuctionLifecycleCron(
-	ctx: MutationCtx,
-): Promise<boolean> {
-	const crons = new Crons(components.crons);
-	try {
-		await crons.delete(ctx, { name: LEGACY_LIFECYCLE_CRON_NAME });
-		return true;
-	} catch (error) {
-		if (error instanceof Error && error.message.includes("not found")) {
-			return false;
-		}
-		throw error;
-	}
-}
 
 async function buildReadinessSnapshot(
 	competition: Doc<"competitions">,
@@ -211,86 +191,6 @@ export const _fireReminder = internalMutation({
 		await sendAuctionActiveReminderEmail(ctx, reminderAuction, sponsor);
 		await markReminderSent(ctx, reminder._id);
 		return null;
-	},
-});
-
-export const _unregisterLegacyAuctionLifecycleCron = internalMutation({
-	args: {},
-	returns: v.object({ deleted: v.boolean() }),
-	handler: async (ctx) => {
-		return { deleted: await unregisterLegacyAuctionLifecycleCron(ctx) };
-	},
-});
-
-export const _tickLifecycle = internalMutation({
-	args: {},
-	returns: v.object({
-		activated: v.number(),
-		closed: v.number(),
-	}),
-	handler: async (ctx) => {
-		await unregisterLegacyAuctionLifecycleCron(ctx);
-		return { activated: 0, closed: 0 };
-	},
-});
-
-export const _syncLifecycleRuntimeCron = internalMutation({
-	args: {},
-	returns: v.null(),
-	handler: async (ctx) => {
-		await unregisterLegacyAuctionLifecycleCron(ctx);
-		return null;
-	},
-});
-
-export const _repairLifecycleSchedules = internalMutation({
-	args: {},
-	returns: v.object({
-		legacyCronDeleted: v.boolean(),
-		activationsScheduled: v.number(),
-		closuresScheduled: v.number(),
-		remindersScheduled: v.number(),
-	}),
-	handler: async (ctx) => {
-		const legacyCronDeleted = await unregisterLegacyAuctionLifecycleCron(ctx);
-		let activationsScheduled = 0;
-		let closuresScheduled = 0;
-		let remindersScheduled = 0;
-
-		const scheduledAuctions = await ctx.db
-			.query("sponsorshipAuctions")
-			.withIndex("by_state_and_start", (q) => q.eq("state", "scheduled"))
-			.take(LIFECYCLE_REPAIR_BATCH_SIZE);
-		for (const auction of scheduledAuctions) {
-			await scheduleAuctionActivation(ctx, auction);
-			activationsScheduled += 1;
-		}
-
-		const activeAuctions = await ctx.db
-			.query("sponsorshipAuctions")
-			.withIndex("by_state_and_end", (q) => q.eq("state", "active"))
-			.take(LIFECYCLE_REPAIR_BATCH_SIZE);
-		for (const auction of activeAuctions) {
-			await scheduleAuctionClosure(ctx, auction);
-			closuresScheduled += 1;
-		}
-
-		const pendingReminders = await ctx.db
-			.query("sponsorshipAuctionReminders")
-			.withIndex("by_sent_and_scheduled", (q) => q.eq("sent", false))
-			.take(LIFECYCLE_REPAIR_BATCH_SIZE);
-		for (const reminder of pendingReminders) {
-			if (reminder.scheduledFunctionId) continue;
-			await scheduleAuctionActiveReminder(ctx, reminder);
-			remindersScheduled += 1;
-		}
-
-		return {
-			legacyCronDeleted,
-			activationsScheduled,
-			closuresScheduled,
-			remindersScheduled,
-		};
 	},
 });
 
