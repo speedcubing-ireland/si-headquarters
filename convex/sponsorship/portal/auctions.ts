@@ -2,6 +2,9 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
+import {
+	compareBidIntentChronology,
+} from "../../lib/sponsorshipAuctionState";
 import { placeSponsorshipBid } from "../../lib/sponsorshipBidPlacement";
 import { buildCompetitionRecordSummary } from "../../lib/sponsorshipCompetitionSnapshot";
 import {
@@ -64,17 +67,6 @@ export function sponsorBidEventLabel(input: {
 	if (!input.eventSponsorId) return "System";
 	if (input.eventSponsorId === input.currentSponsorId) return "You";
 	return "Bidder";
-}
-
-function compareIntentChronology(
-	a: Doc<"sponsorshipBidIntents">,
-	b: Doc<"sponsorshipBidIntents">,
-): number {
-	if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
-	if (a._creationTime !== b._creationTime) {
-		return a._creationTime - b._creationTime;
-	}
-	return 0;
 }
 
 export const listAuctions = query({
@@ -214,7 +206,7 @@ export const getAuction = query({
 		const hasAnyValidBid = auctionIntents.some((intent) => intent.isValid);
 		const latestSponsorIntent = sponsorIntents
 			.filter((intent) => intent.isValid)
-			.sort(compareIntentChronology)
+			.sort(compareBidIntentChronology)
 			.slice(-1)[0];
 		const myLastBidCents = latestSponsorIntent?.amountCents;
 		const myMaxBidCents = latestSponsorIntent

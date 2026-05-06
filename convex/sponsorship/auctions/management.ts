@@ -1,6 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
+import {
+	compareBidIntentChronologyWithIdTieBreak,
+} from "../../lib/sponsorshipAuctionState";
 import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
 import { sponsorshipAuctionFramework } from "../../lib/sponsorshipValidators";
 import {
@@ -23,15 +26,19 @@ import {
 } from "./competitionSnapshot";
 import { syncLifecycleRuntimeCron } from "./runtimeCron";
 
-function compareIntentChronology(
-	a: Doc<"sponsorshipBidIntents">,
-	b: Doc<"sponsorshipBidIntents">,
-): number {
-	if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
-	if (a._creationTime !== b._creationTime) {
-		return a._creationTime - b._creationTime;
+function normalizePositiveDurationMs(
+	fieldName: string,
+	value: number | undefined,
+): number | undefined {
+	if (value === undefined) return undefined;
+	const durationMs = Math.floor(value);
+	if (!Number.isSafeInteger(durationMs) || durationMs <= 0) {
+		throw new ConvexError({
+			code: "BAD_REQUEST",
+			message: `${fieldName} must be a positive whole number of milliseconds.`,
+		});
 	}
-	return String(a._id).localeCompare(String(b._id));
+	return durationMs;
 }
 
 export const create = mutation({
@@ -68,6 +75,14 @@ export const create = mutation({
 				message: "Start price must be at least EUR 1.00.",
 			});
 		}
+		const antiSnipingWindowMs = normalizePositiveDurationMs(
+			"Anti-sniping window",
+			args.antiSnipingWindowMs,
+		);
+		const antiSnipingExtendMs = normalizePositiveDurationMs(
+			"Anti-sniping extension",
+			args.antiSnipingExtendMs,
+		);
 		await requireNoOpenAuctionForCompetition(ctx, args.competitionId);
 
 		const now = Date.now();
@@ -79,9 +94,9 @@ export const create = mutation({
 			startsAt: args.startsAt,
 			endsAt: args.endsAt,
 			antiSnipingWindowMs:
-				args.antiSnipingWindowMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
+				antiSnipingWindowMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
 			antiSnipingExtendMs:
-				args.antiSnipingExtendMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
+				antiSnipingExtendMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
 			startPriceCents: args.startPriceCents,
 			competitionSnapshot: buildFallbackSnapshotForCompetition(competition),
 			createdById: actorId,
@@ -517,7 +532,10 @@ export const getManagerView = query({
 				(validBidCountBySponsor.get(intent.sponsorId) ?? 0) + 1,
 			);
 			const latestIntent = latestValidIntentBySponsor.get(intent.sponsorId);
-			if (!latestIntent || compareIntentChronology(intent, latestIntent) > 0) {
+			if (
+				!latestIntent ||
+				compareBidIntentChronologyWithIdTieBreak(intent, latestIntent) > 0
+			) {
 				latestValidIntentBySponsor.set(intent.sponsorId, intent);
 			}
 		}

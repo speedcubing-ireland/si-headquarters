@@ -180,4 +180,32 @@ describe("auction management behavior", () => {
 			}),
 		).rejects.toBeTruthy();
 	});
+
+	test("create rejects non-positive anti-sniping settings", async () => {
+		const t = createHarness();
+		const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t);
+		const manager = t.withIdentity({ subject: managerId });
+		const now = Date.now();
+
+		await expect(
+			manager.mutation(api.sponsorship.auctions.management.create, {
+				competitionId,
+				startsAt: now + 86_400_000,
+				endsAt: now + 172_800_000,
+				startPriceCents: 5000,
+				invitedSponsorIds: [sponsorId],
+				antiSnipingWindowMs: 0,
+			}),
+		).rejects.toBeTruthy();
+		await expect(
+			manager.mutation(api.sponsorship.auctions.management.create, {
+				competitionId,
+				startsAt: now + 86_400_000,
+				endsAt: now + 172_800_000,
+				startPriceCents: 5000,
+				invitedSponsorIds: [sponsorId],
+				antiSnipingExtendMs: -1,
+			}),
+		).rejects.toBeTruthy();
+	});
 });

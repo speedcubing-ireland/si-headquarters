@@ -406,6 +406,49 @@ describe("auction active reminder email behavior", () => {
 		}
 	});
 
+	test("inactive sponsor reminder is skipped without sending", async () => {
+		const t = createHarness();
+		const { auctionId, sponsorIds } = await seedScheduledAuction(t);
+		const [inactiveSponsorId] = sponsorIds;
+		const now = Date.now();
+
+		await t.run(async (ctx) => {
+			await ctx.db.patch("sponsorshipAuctions", auctionId, {
+				state: "active",
+				endsAt: now + 30 * 60_000,
+			});
+			await ctx.db.patch("sponsors", inactiveSponsorId, {
+				active: false,
+			});
+			await ctx.db.insert("sponsorshipAuctionReminders", {
+				auctionId,
+				sponsorId: inactiveSponsorId,
+				scheduledFor: now - 1_000,
+				sent: false,
+			});
+		});
+
+		await t.mutation(
+			internal.sponsorship.auctions.lifecycle._tickLifecycle,
+			{},
+		);
+
+		const emails = await getScheduledEmailArgs(t);
+		const reminderEmails = emails.filter(
+			(e) => e.emailType === "auction_active_reminder",
+		);
+		expect(reminderEmails).toHaveLength(0);
+
+		const rows = await t.run((ctx) =>
+			ctx.db
+				.query("sponsorshipAuctionReminders")
+				.withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+				.collect(),
+		);
+		expect(rows[0]?.sent).toBe(true);
+		expect(rows[0]?.sentAt).toBeUndefined();
+	});
+
 	test("personalisation: sponsorHasBid correct per sponsor", async () => {
 		const t = createHarness();
 		const { auctionId, sponsorIds } = await seedScheduledAuction(t);

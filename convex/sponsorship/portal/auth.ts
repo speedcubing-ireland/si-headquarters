@@ -11,10 +11,13 @@ export const me = query({
 	returns: v.union(sponsorForUI, v.null()),
 	handler: async (ctx, args) => {
 		try {
-			const { sponsor } = await requireSponsorSession(ctx, args.sessionToken);
+			const { sponsor, user } = await requireSponsorSession(
+				ctx,
+				args.sessionToken,
+			);
 			return {
 				id: sponsor._id,
-				name: sponsor.name,
+				name: user.name.trim() || sponsor.name,
 				email: sponsor.email,
 				avatarUrl: sponsor.avatarUrl,
 				active: sponsor.active,
@@ -36,7 +39,7 @@ export const updateDisplayName = mutation({
 		name: v.string(),
 	}),
 	handler: async (ctx, args) => {
-		const { sponsor } = await requireSponsorSession(ctx, args.sessionToken);
+		const { sponsor, user } = await requireSponsorSession(ctx, args.sessionToken);
 		const name = args.displayName.trim();
 		if (!name) {
 			throw new ConvexError({
@@ -45,20 +48,12 @@ export const updateDisplayName = mutation({
 			});
 		}
 
-		const now = Date.now();
-		await ctx.db.patch("sponsors", sponsor._id, {
+		await syncSponsorAuthUserProfile(ctx, {
+			authUserId: user._id,
 			name,
-			updatedAt: now,
+			email: sponsor.email,
+			avatarUrl: sponsor.avatarUrl,
 		});
-
-		if (sponsor.authUserId) {
-			await syncSponsorAuthUserProfile(ctx, {
-				authUserId: sponsor.authUserId,
-				name,
-				email: sponsor.email,
-				avatarUrl: sponsor.avatarUrl,
-			});
-		}
 
 		return { name };
 	},
