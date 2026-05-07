@@ -152,6 +152,8 @@ export async function enqueueDispatch(
 		sendAttemptCount: 0,
 		pollAttemptCount: 0,
 		lastProviderCheckAt: undefined,
+		submittedAt: undefined,
+		deliveredAt: undefined,
 		sentAt: undefined,
 		error: undefined,
 		deadLetteredAt: undefined,

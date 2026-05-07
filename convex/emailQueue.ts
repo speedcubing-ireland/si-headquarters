@@ -11,6 +11,7 @@ import { enqueueDispatch } from "./emailQueue/enqueue";
 import {
 	listRecentDeadLetters,
 	getDispatchHealth,
+	getDeliveryDiagnostics,
 } from "./emailQueue/diagnostics";
 import {
 	sendDispatch,
@@ -260,6 +261,15 @@ export const _applyDeliveryEvent = internalMutation({
 			status: nextStatus,
 			providerStatus: args.providerStatus,
 			error: args.statusMessage,
+			deliveredAt:
+				nextStatus === "delivered" ||
+				nextStatus === "suppressed" ||
+				nextStatus === "bounced" ||
+				nextStatus === "quarantined" ||
+				nextStatus === "filtered_spam" ||
+				nextStatus === "failed_delivery"
+					? Date.now()
+					: dispatch.deliveredAt,
 			updatedAt: Date.now(),
 		});
 		return true;
@@ -400,6 +410,13 @@ export const _replayDeadLetter = internalMutation({
 
 export async function queryEmailDispatchHealth(ctx: QueryCtx) {
 	return getDispatchHealth(ctx);
+}
+
+export async function queryEmailDeliveryDiagnostics(
+	ctx: QueryCtx,
+	args?: { sampleSize?: number },
+) {
+	return getDeliveryDiagnostics(ctx, args);
 }
 
 export async function queryRecentEmailDeadLetters(

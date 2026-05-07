@@ -316,6 +316,8 @@ export default defineSchema({
 		sendAttemptCount: v.number(),
 		pollAttemptCount: v.number(),
 		lastProviderCheckAt: v.optional(v.number()),
+		submittedAt: v.optional(v.number()),
+		deliveredAt: v.optional(v.number()),
 		sentAt: v.optional(v.number()),
 		error: v.optional(v.string()),
 		deadLetteredAt: v.optional(v.number()),

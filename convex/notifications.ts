@@ -94,6 +94,7 @@ import { decideRecipientHandling } from "./notifications/recipients/filter";
 import { computeInAppScheduleForRecipient } from "./notifications/recipients/schedule";
 import {
 	queryEmailDispatchHealth,
+	queryEmailDeliveryDiagnostics,
 	queryRecentEmailDeadLetters,
 } from "./emailQueue";
 
@@ -1013,10 +1014,16 @@ export const getDispatchStats = query({
 			pending:
 				health.totals.queued +
 				health.totals.sending +
-				health.totals.awaitingProvider,
-			sent: health.totals.sent,
+				health.totals.submitted,
+			sent: health.totals.delivered,
 			skipped: health.totals.canceled,
-			failed: health.totals.deadLetter,
+			failed:
+				health.totals.deadLetter +
+				health.totals.suppressed +
+				health.totals.bounced +
+				health.totals.quarantined +
+				health.totals.filteredSpam +
+				health.totals.failedDelivery,
 		};
 	},
 });
@@ -1030,27 +1037,51 @@ export const getDispatchHealth = query({
 		const pendingCount =
 			health.totals.queued +
 			health.totals.sending +
-			health.totals.awaitingProvider;
+			health.totals.submitted;
 		const channel: NotificationChannel = "email";
+		const failedCount =
+			health.totals.deadLetter +
+			health.totals.suppressed +
+			health.totals.bounced +
+			health.totals.quarantined +
+			health.totals.filteredSpam +
+			health.totals.failedDelivery;
 		return {
 			totals: {
 				pending: pendingCount,
-				sent: health.totals.sent,
+				sent: health.totals.delivered,
 				skipped: health.totals.canceled,
-				failed: health.totals.deadLetter,
+				failed: failedCount,
 			},
 			byChannel: [
 				{
 					channel,
 					pending: pendingCount,
-					sent: health.totals.sent,
+					sent: health.totals.delivered,
 					skipped: health.totals.canceled,
-					failed: health.totals.deadLetter,
+					failed: failedCount,
 				},
 			],
 			stalePendingCount: health.staleQueuedCount,
 			deadLettersLast24h: health.deadLettersLast24h,
 		};
+	},
+});
+
+export const getEmailDeliveryDiagnostics = query({
+	args: {
+		sampleSize: v.optional(v.number()),
+	},
+	returns: v.object({
+		sampleSize: v.number(),
+		latencyMs: v.object({
+			p50: v.union(v.number(), v.null()),
+			p95: v.union(v.number(), v.null()),
+		}),
+	}),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		return await queryEmailDeliveryDiagnostics(ctx, args);
 	},
 });
 

@@ -25,6 +25,9 @@ type ServiceType = "google" | "wca" | "canva";
 type DispatchHealth = FunctionReturnType<
 	typeof api.notifications.getDispatchHealth
 >;
+type DeliveryDiagnostics = FunctionReturnType<
+	typeof api.notifications.getEmailDeliveryDiagnostics
+>;
 type DeadLetter = FunctionReturnType<
 	typeof api.notifications.listRecentDeadLetters
 >[number];
@@ -215,6 +218,7 @@ function EmailAdminPanel() {
 	);
 	const [diagnostics, setDiagnostics] = useState<{
 		dispatchHealth: DispatchHealth;
+		deliveryDiagnostics: DeliveryDiagnostics;
 		deadLetters: DeadLetter[];
 		refreshedAt: number;
 	} | null>(null);
@@ -222,6 +226,7 @@ function EmailAdminPanel() {
 	const [isSending, setIsSending] = useState(false);
 	const [isRefreshingDiagnostics, setIsRefreshingDiagnostics] = useState(false);
 	const dispatchHealth = diagnostics?.dispatchHealth;
+	const deliveryDiagnostics = diagnostics?.deliveryDiagnostics;
 	const deadLetters = diagnostics?.deadLetters ?? [];
 
 	const handleSendSeries = async () => {
@@ -243,12 +248,15 @@ function EmailAdminPanel() {
 	const handleRefreshDiagnostics = async () => {
 		setIsRefreshingDiagnostics(true);
 		try {
-			const [nextDispatchHealth, nextDeadLetters] = await Promise.all([
+			const [nextDispatchHealth, nextDeliveryDiagnostics, nextDeadLetters] =
+				await Promise.all([
 				convex.query(api.notifications.getDispatchHealth, {}),
+				convex.query(api.notifications.getEmailDeliveryDiagnostics, {}),
 				convex.query(api.notifications.listRecentDeadLetters, { limit: 20 }),
 			]);
 			setDiagnostics({
 				dispatchHealth: nextDispatchHealth,
+				deliveryDiagnostics: nextDeliveryDiagnostics,
 				deadLetters: nextDeadLetters,
 				refreshedAt: Date.now(),
 			});
@@ -379,6 +387,30 @@ function EmailAdminPanel() {
 									{dispatchHealth.stalePendingCount}
 								</p>
 							</div>
+							{deliveryDiagnostics ? (
+								<div className="grid gap-2 text-sm sm:grid-cols-2">
+									<div className="rounded-md border p-3">
+										<p className="text-xs text-muted-foreground">
+											Delivery latency p50
+										</p>
+										<p className="text-lg font-semibold">
+											{deliveryDiagnostics.latencyMs.p50 === null
+												? "—"
+												: `${Math.round(deliveryDiagnostics.latencyMs.p50 / 1000)}s`}
+										</p>
+									</div>
+									<div className="rounded-md border p-3">
+										<p className="text-xs text-muted-foreground">
+											Delivery latency p95
+										</p>
+										<p className="text-lg font-semibold">
+											{deliveryDiagnostics.latencyMs.p95 === null
+												? "—"
+												: `${Math.round(deliveryDiagnostics.latencyMs.p95 / 1000)}s`}
+										</p>
+									</div>
+								</div>
+							) : null}
 							<div className="space-y-2">
 								<p className="text-sm font-medium">By channel</p>
 								<div className="grid gap-2 text-xs sm:grid-cols-2">
