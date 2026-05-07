@@ -16,7 +16,7 @@ import {
 import schema from "./sponsorAuth/schema";
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth";
-const SPONSOR_OTP_EXPIRES_SECONDS = 10 * 60;
+const SPONSOR_OTP_EXPIRES_SECONDS = 60 * 60;
 const SPONSOR_AUTH_DEV_SECRET =
 	"dev-only-sponsor-auth-secret-change-in-production";
 export function trimTrailingSlash(value: string): string {
