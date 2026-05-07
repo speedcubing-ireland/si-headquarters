@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "azure-communication-services": {
+      "source": "microsoftdocs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/azure-communication-services/SKILL.md",
+      "computedHash": "efe6b00a744e1490ddfefc71eebb76f033ececd76bc3bb36be37154ddb374cde"
+    },
     "convex": {
       "source": "get-convex/agent-skills",
       "sourceType": "github",

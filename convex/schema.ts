@@ -355,6 +355,19 @@ export default defineSchema({
 		.index("by_source_and_failed_at", ["sourceKind", "failedAt"])
 		.index("by_dispatch", ["dispatchId"]),
 
+	emailDispatchCounters: defineTable({
+		sourceKind: emailSourceKind,
+		status: emailDispatchStatus,
+		count: v.number(),
+		updatedAt: v.number(),
+	}).index("by_source_and_status", ["sourceKind", "status"]),
+
+	emailDeadLetterHourlyCounts: defineTable({
+		hourStart: v.number(), // ms epoch aligned to hour boundary
+		count: v.number(),
+		updatedAt: v.number(),
+	}).index("by_hour_start", ["hourStart"]),
+
 	competitionAccess: defineTable({
 		competitionId: v.id("competitions"),
 		userId: v.id("users"),
