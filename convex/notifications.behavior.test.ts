@@ -5,14 +5,25 @@ import { api, internal } from "./_generated/api";
 import { emitNotificationEvent } from "./notifications";
 import schema from "./schema";
 import { modules } from "./test.setup";
+import workpoolSchema from "../node_modules/@convex-dev/workpool/dist/component/schema";
 
 process.env.AZURE_EMAIL_CONNECTION_STRING ??=
 	"endpoint=https://example.communication.azure.com/;accesskey=test";
 process.env.EMAIL_SENDER_ADDRESS ??= "noreply@example.com";
 
+const workpoolModules = import.meta.glob<string[]>(
+	"../node_modules/@convex-dev/workpool/dist/component/**/!(*.*.*)*.*s",
+);
+
+function createHarness() {
+	const t = convexTest(schema, modules);
+	t.registerComponent("emailWorkpool", workpoolSchema, workpoolModules);
+	return t;
+}
+
 describe("notifications behavior", () => {
 	test("listForUser excludes notifications scheduled in the future", async () => {
-		const t = convexTest(schema, modules);
+		const t = createHarness();
 		const me = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: me });
 
@@ -54,7 +65,7 @@ describe("notifications behavior", () => {
 	});
 
 	test("getUnreadCount ignores snoozed and future-scheduled unread notifications", async () => {
-		const t = convexTest(schema, modules);
+		const t = createHarness();
 		const me = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: me });
 
@@ -108,7 +119,7 @@ describe("notifications behavior", () => {
 	});
 
 	test("upsertPreference keeps in_app digest mode as immediate", async () => {
-		const t = convexTest(schema, modules);
+		const t = createHarness();
 		const me = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: me });
 
@@ -131,7 +142,7 @@ describe("notifications behavior", () => {
 	});
 
 	test("emitNotificationEvent(task_assigned) suppresses actor self-notifications", async () => {
-		const t = convexTest(schema, modules);
+		const t = createHarness();
 		const seeded = await t.run(async (ctx) => {
 			const userId = await ctx.db.insert("users", {});
 			const competitionId = await ctx.db.insert("competitions", {
@@ -178,7 +189,7 @@ describe("notifications behavior", () => {
 	});
 
 	test("emitNotificationEvent(task_assigned) skips recipients without access", async () => {
-		const t = convexTest(schema, modules);
+		const t = createHarness();
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
 			const recipientId = await ctx.db.insert("users", {});
@@ -264,7 +275,7 @@ describe("notifications behavior", () => {
 	});
 
 	test("_composeNotificationEmailStageGroup creates one unified email dispatch", async () => {
-		const t = convexTest(schema, modules);
+		const t = createHarness();
 		const seeded = await t.run(async (ctx) => {
 			const userId = await ctx.db.insert("users", {
 				email: "stage-user@example.com",
@@ -420,7 +431,7 @@ describe("notifications behavior", () => {
 	});
 
 	test("_composeNotificationEmailStageGroup reschedules remaining pending rows", async () => {
-		const t = convexTest(schema, modules);
+		const t = createHarness();
 		const seeded = await t.run(async (ctx) => {
 			const now = Date.now();
 			const userId = await ctx.db.insert("users", {
