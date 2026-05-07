@@ -1015,7 +1015,7 @@ export const getDispatchStats = query({
 				health.totals.queued +
 				health.totals.sending +
 				health.totals.submitted,
-			sent: health.totals.delivered,
+			sent: health.totals.sent + health.totals.delivered,
 			skipped: health.totals.canceled,
 			failed:
 				health.totals.deadLetter +
@@ -1049,7 +1049,7 @@ export const getDispatchHealth = query({
 		return {
 			totals: {
 				pending: pendingCount,
-				sent: health.totals.delivered,
+				sent: health.totals.sent + health.totals.delivered,
 				skipped: health.totals.canceled,
 				failed: failedCount,
 			},
@@ -1057,7 +1057,7 @@ export const getDispatchHealth = query({
 				{
 					channel,
 					pending: pendingCount,
-					sent: health.totals.delivered,
+					sent: health.totals.sent + health.totals.delivered,
 					skipped: health.totals.canceled,
 					failed: failedCount,
 				},

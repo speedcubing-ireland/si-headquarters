@@ -16,9 +16,11 @@ import {
 } from "./emailQueue/diagnostics";
 import {
 	sendDispatch,
+	pollDispatch,
 	runSweep,
 	markSent,
 	markSubmitted,
+	markProviderPoll,
 	deadLetter,
 	claimDispatchForSend,
 	prepareDispatchSendAttempt,
@@ -107,6 +109,8 @@ export const _getDispatchForClaim = internalQuery({
 			sendAttemptCount: v.number(),
 			pollAttemptCount: v.number(),
 			lastProviderCheckAt: v.optional(v.number()),
+			submittedAt: v.optional(v.number()),
+			deliveredAt: v.optional(v.number()),
 			sentAt: v.optional(v.number()),
 			error: v.optional(v.string()),
 			deadLetteredAt: v.optional(v.number()),
@@ -121,7 +125,8 @@ export const _getDispatchForClaim = internalQuery({
 		}
 		if (
 			dispatch.status !== "sending" &&
-			dispatch.status !== "awaiting_provider"
+			dispatch.status !== "awaiting_provider" &&
+			dispatch.status !== "submitted"
 		) {
 			return null;
 		}
@@ -146,6 +151,8 @@ export const _getDispatchForClaim = internalQuery({
 			sendAttemptCount: dispatch.sendAttemptCount,
 			pollAttemptCount: dispatch.pollAttemptCount,
 			lastProviderCheckAt: dispatch.lastProviderCheckAt,
+			submittedAt: dispatch.submittedAt,
+			deliveredAt: dispatch.deliveredAt,
 			sentAt: dispatch.sentAt,
 			error: dispatch.error,
 			deadLetteredAt: dispatch.deadLetteredAt,
@@ -177,6 +184,18 @@ export const _sendDispatch = internalAction({
 	},
 });
 
+export const _pollDispatch = internalAction({
+	args: {
+		dispatchId: v.id("emailDispatches"),
+		claimKey: v.string(),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await pollDispatch(ctx, args);
+		return null;
+	},
+});
+
 export const _markSent = internalMutation({
 	args: {
 		dispatchId: v.id("emailDispatches"),
@@ -199,6 +218,17 @@ export const _markSubmitted = internalMutation({
 	},
 	returns: v.boolean(),
 	handler: async (ctx, args) => markSubmitted(ctx, args),
+});
+
+export const _markProviderPoll = internalMutation({
+	args: {
+		dispatchId: v.id("emailDispatches"),
+		claimKey: v.string(),
+		providerStatus: v.string(),
+		error: v.optional(v.string()),
+	},
+	returns: v.boolean(),
+	handler: async (ctx, args) => markProviderPoll(ctx, args),
 });
 
 export const _applyDeliveryEvent = internalMutation({
@@ -476,6 +506,10 @@ export const _purgeEmailData = internalMutation({
 				limit,
 				includeWorkpool,
 			});
+		} else if (includeWorkpool) {
+			await ctx.runMutation(components.emailWorkpool.config.update, {
+				maxParallelism: 2,
+			});
 		}
 
 		return {
@@ -499,7 +533,9 @@ export const _deadLetter = internalMutation({
 		if (
 			!dispatch ||
 			dispatch.claimKey !== args.claimKey ||
-			(dispatch.status !== "sending" && dispatch.status !== "awaiting_provider")
+			(dispatch.status !== "sending" &&
+				dispatch.status !== "awaiting_provider" &&
+				dispatch.status !== "submitted")
 		) {
 			return null;
 		}

@@ -2,10 +2,9 @@ import { Workpool } from "@convex-dev/workpool";
 import { components } from "../_generated/api";
 
 /**
- * Throttle outbound email work to stay under Azure Communication Services default quotas
- * (custom verified domain: 30 sends/min, 100 sends/hour by default).
+ * Bound concurrent outbound email work. Send rate pacing lives in enqueue.ts so
+ * bursts stay under Azure Communication Services default quotas.
  */
 export const emailSendPool = new Workpool(components.emailWorkpool, {
-	maxParallelism: 10,
+	maxParallelism: 2,
 });
-

@@ -8,6 +8,22 @@ import { emailSendPool } from "./pool";
 import { bumpDispatchCounter } from "./counters";
 
 export const DEFAULT_EMAIL_DELAY_MS = 0;
+const ACS_DEFAULT_SEND_INTERVAL_MS = 36_000;
+const PACE_STATUSES: EmailDispatchStatus[] = [
+	"queued",
+	"sending",
+	"submitted",
+	"sent",
+	"delivered",
+	"suppressed",
+	"bounced",
+	"quarantined",
+	"filtered_spam",
+	"failed_delivery",
+	"awaiting_provider",
+	"dead_letter",
+	"canceled",
+];
 
 export type EnqueueEmailDispatchArgs = {
 	dedupeKey: string;
@@ -73,6 +89,42 @@ async function scheduleSendDispatch(
 	);
 }
 
+function getEmailSendIntervalMs(): number {
+	const raw = process.env.EMAIL_SEND_INTERVAL_MS?.trim();
+	if (!raw) return ACS_DEFAULT_SEND_INTERVAL_MS;
+	const parsed = Number(raw);
+	return Number.isFinite(parsed) && parsed >= 0
+		? Math.min(parsed, 60 * 60 * 1000)
+		: ACS_DEFAULT_SEND_INTERVAL_MS;
+}
+
+async function getNextPacedScheduledFor(
+	ctx: MutationCtx,
+	requestedFor: number,
+): Promise<number> {
+	const latestRows = await Promise.all(
+		PACE_STATUSES.map((status) =>
+			ctx.db
+				.query("emailDispatches")
+				.withIndex("by_status_scheduled_for", (q) => q.eq("status", status))
+				.order("desc")
+				.first(),
+		),
+	);
+	const latestScheduledFor = latestRows.reduce<number | null>(
+		(latest, row) =>
+			row && (latest === null || row.scheduledFor > latest)
+				? row.scheduledFor
+				: latest,
+		null,
+	);
+	const intervalMs = getEmailSendIntervalMs();
+	const earliestFromQueue = latestScheduledFor
+		? latestScheduledFor + intervalMs
+		: requestedFor;
+	return Math.max(requestedFor, earliestFromQueue);
+}
+
 /** Ensures a queued row has a claimKey and nudges the send action (e.g. duplicate enqueue). */
 async function kickQueuedDispatch(
 	ctx: MutationCtx,
@@ -128,7 +180,11 @@ export async function enqueueDispatch(
 	const now = Date.now();
 	const recipientEmail =
 		normalizeEmail(args.recipientEmail) ?? args.recipientEmail;
-	const scheduledFor = args.scheduledFor ?? now + DEFAULT_EMAIL_DELAY_MS;
+	const requestedScheduledFor = args.scheduledFor ?? now + DEFAULT_EMAIL_DELAY_MS;
+	const scheduledFor = await getNextPacedScheduledFor(
+		ctx,
+		Math.max(requestedScheduledFor, now),
+	);
 	const providerOperationId = buildDeterministicEmailOperationId(dedupeKey);
 
 	const dispatchId = await ctx.db.insert("emailDispatches", {
