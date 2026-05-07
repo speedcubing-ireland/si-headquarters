@@ -7,6 +7,7 @@ import {
 	type QueryCtx,
 } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { components, internal } from "./_generated/api";
 import { enqueueDispatch } from "./emailQueue/enqueue";
 import {
 	listRecentDeadLetters,
@@ -319,6 +320,56 @@ export const _migrateLegacyDispatchStatuses = internalMutation({
 		}
 
 		return { migratedSentToSubmitted, deadLetteredAwaitingProvider };
+	},
+});
+
+export const _purgeEmailData = internalMutation({
+	args: {
+		limit: v.optional(v.number()),
+		includeWorkpool: v.optional(v.boolean()),
+	},
+	returns: v.object({
+		pausedWorkpool: v.boolean(),
+		deletedDispatches: v.number(),
+		deletedDeadLetters: v.number(),
+	}),
+	handler: async (ctx, args) => {
+		const limit = args.limit ? Math.max(10, Math.min(args.limit, 500)) : 200;
+		const includeWorkpool = args.includeWorkpool ?? true;
+
+		let pausedWorkpool = false;
+		if (includeWorkpool) {
+			// Pause processing to avoid racing with deletions.
+			await ctx.runMutation(components.emailWorkpool.config.update, {
+				maxParallelism: 0,
+			});
+			pausedWorkpool = true;
+			// Cancel any pending work in the pool (does not interrupt running work).
+			await ctx.runMutation(components.emailWorkpool.lib.cancelAll, {});
+		}
+
+		const dispatches = await ctx.db.query("emailDispatches").take(limit);
+		for (const row of dispatches) {
+			await ctx.db.delete("emailDispatches", row._id);
+		}
+		const deadLetters = await ctx.db.query("emailDeadLetters").take(limit);
+		for (const row of deadLetters) {
+			await ctx.db.delete("emailDeadLetters", row._id);
+		}
+
+		// If there is more to delete, schedule another batch.
+		if (dispatches.length === limit || deadLetters.length === limit) {
+			await ctx.scheduler.runAfter(0, internal.emailQueue._purgeEmailData, {
+				limit,
+				includeWorkpool,
+			});
+		}
+
+		return {
+			pausedWorkpool,
+			deletedDispatches: dispatches.length,
+			deletedDeadLetters: deadLetters.length,
+		};
 	},
 });
 
