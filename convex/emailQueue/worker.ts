@@ -349,12 +349,15 @@ export async function sendDispatch(
 			| undefined;
 		const errorCode =
 			typeof maybeError?.code === "string" ? maybeError.code : undefined;
+		const details =
+			maybeError && typeof maybeError === "object"
+				? (maybeError as { details?: unknown }).details
+				: undefined;
 		const xMsErrorCode =
-			maybeError &&
-			typeof maybeError === "object" &&
-			typeof (maybeError as any).details === "object" &&
-			typeof (maybeError as any).details?.xMsErrorCode === "string"
-				? ((maybeError as any).details.xMsErrorCode as string)
+			details && typeof details === "object"
+				? typeof (details as { xMsErrorCode?: unknown }).xMsErrorCode === "string"
+					? ((details as { xMsErrorCode: string }).xMsErrorCode as string)
+					: undefined
 				: undefined;
 		const statusCode =
 			typeof maybeError?.statusCode === "number"
