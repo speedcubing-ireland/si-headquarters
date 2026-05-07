@@ -147,6 +147,7 @@ export async function markSubmitted(
 		status: "submitted",
 		providerOperationId: args.providerOperationId,
 		providerStatus: args.providerStatus,
+		submittedAt: dispatch.submittedAt ?? now,
 		error: undefined,
 		updatedAt: now,
 	});

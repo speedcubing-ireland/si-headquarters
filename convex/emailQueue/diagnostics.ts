@@ -94,8 +94,13 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 	totals: {
 		queued: number;
 		sending: number;
-		awaitingProvider: number;
-		sent: number;
+		submitted: number;
+		delivered: number;
+		suppressed: number;
+		bounced: number;
+		quarantined: number;
+		filteredSpam: number;
+		failedDelivery: number;
 		deadLetter: number;
 		canceled: number;
 	};
@@ -106,14 +111,31 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 	const totals = {
 		queued: 0,
 		sending: 0,
-		awaitingProvider: 0,
-		sent: 0,
+		submitted: 0,
+		delivered: 0,
+		suppressed: 0,
+		bounced: 0,
+		quarantined: 0,
+		filteredSpam: 0,
+		failedDelivery: 0,
 		deadLetter: 0,
 		canceled: 0,
 	};
 
 	for (const sourceKind of sourceKinds) {
-		const [queued, sending, awaitingProvider, sent, deadLetter, canceled] =
+		const [
+			queued,
+			sending,
+			submitted,
+			delivered,
+			suppressed,
+			bounced,
+			quarantined,
+			filteredSpam,
+			failedDelivery,
+			deadLetter,
+			canceled,
+		] =
 			await Promise.all([
 				countDispatchesBySourceAndStatus({
 					ctx,
@@ -128,12 +150,37 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 				countDispatchesBySourceAndStatus({
 					ctx,
 					sourceKind,
-					status: "awaiting_provider",
+					status: "submitted",
 				}),
 				countDispatchesBySourceAndStatus({
 					ctx,
 					sourceKind,
-					status: "sent",
+					status: "delivered",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "suppressed",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "bounced",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "quarantined",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "filtered_spam",
+				}),
+				countDispatchesBySourceAndStatus({
+					ctx,
+					sourceKind,
+					status: "failed_delivery",
 				}),
 				countDispatchesBySourceAndStatus({
 					ctx,
@@ -148,8 +195,13 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 			]);
 		totals.queued += queued;
 		totals.sending += sending;
-		totals.awaitingProvider += awaitingProvider;
-		totals.sent += sent;
+		totals.submitted += submitted;
+		totals.delivered += delivered;
+		totals.suppressed += suppressed;
+		totals.bounced += bounced;
+		totals.quarantined += quarantined;
+		totals.filteredSpam += filteredSpam;
+		totals.failedDelivery += failedDelivery;
 		totals.deadLetter += deadLetter;
 		totals.canceled += canceled;
 	}
@@ -219,6 +271,38 @@ export async function listRecentDeadLetters(
 		replayCount: row.replayCount,
 		failedAt: toISO(row.failedAt),
 	}));
+}
+
+function percentile(sorted: number[], p: number): number | null {
+	if (sorted.length === 0) return null;
+	const idx = Math.max(0, Math.min(sorted.length - 1, Math.floor(p * (sorted.length - 1))));
+	return sorted[idx] ?? null;
+}
+
+export async function getDeliveryDiagnostics(ctx: QueryCtx, args?: { sampleSize?: number }) {
+	const sampleSize = args?.sampleSize ? Math.max(10, Math.min(args.sampleSize, 500)) : 200;
+	const delivered = await ctx.db
+		.query("emailDispatches")
+		.withIndex("by_status_updated_at", (q) => q.eq("status", "delivered"))
+		.order("desc")
+		.take(sampleSize);
+
+	const latenciesMs = delivered
+		.flatMap((d) =>
+			typeof d.submittedAt === "number" && typeof d.deliveredAt === "number"
+				? [d.deliveredAt - d.submittedAt]
+				: [],
+		)
+		.filter((n) => Number.isFinite(n) && n >= 0)
+		.sort((a, b) => a - b);
+
+	return {
+		sampleSize: delivered.length,
+		latencyMs: {
+			p50: percentile(latenciesMs, 0.5),
+			p95: percentile(latenciesMs, 0.95),
+		},
+	};
 }
 
 export function mapStatusesForLegacyStats(
