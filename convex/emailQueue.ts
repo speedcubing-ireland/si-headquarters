@@ -29,6 +29,11 @@ import {
 	emailDeadLetterRecordReturns,
 	emailSourceKind,
 } from "./emailQueue/types";
+import {
+	bumpDeadLetterHourly,
+	bumpDispatchCounter,
+	transitionDispatchStatus,
+} from "./emailQueue/counters";
 
 export const _claimDispatchForSend = internalMutation({
 	args: {
@@ -258,6 +263,8 @@ export const _applyDeliveryEvent = internalMutation({
 				nextStatus = "submitted";
 		}
 
+		const prev = dispatch.status;
+		const now = Date.now();
 		await ctx.db.patch("emailDispatches", dispatch._id, {
 			status: nextStatus,
 			providerStatus: args.providerStatus,
@@ -269,9 +276,14 @@ export const _applyDeliveryEvent = internalMutation({
 				nextStatus === "quarantined" ||
 				nextStatus === "filtered_spam" ||
 				nextStatus === "failed_delivery"
-					? Date.now()
+					? now
 					: dispatch.deliveredAt,
-			updatedAt: Date.now(),
+			updatedAt: now,
+		});
+		await transitionDispatchStatus(ctx, {
+			dispatch: { _id: dispatch._id, sourceKind: dispatch.sourceKind, status: prev },
+			nextStatus,
+			now,
 		});
 		return true;
 	},
@@ -296,9 +308,16 @@ export const _migrateLegacyDispatchStatuses = internalMutation({
 			.order("asc")
 			.take(limit);
 		for (const dispatch of sentRows) {
+			const prev = dispatch.status;
+			const now = Date.now();
 			await ctx.db.patch("emailDispatches", dispatch._id, {
 				status: "submitted",
-				updatedAt: Date.now(),
+				updatedAt: now,
+			});
+			await transitionDispatchStatus(ctx, {
+				dispatch: { _id: dispatch._id, sourceKind: dispatch.sourceKind, status: prev },
+				nextStatus: "submitted",
+				now,
 			});
 			migratedSentToSubmitted += 1;
 		}
@@ -320,6 +339,89 @@ export const _migrateLegacyDispatchStatuses = internalMutation({
 		}
 
 		return { migratedSentToSubmitted, deadLetteredAwaitingProvider };
+	},
+});
+
+export const _backfillEmailDispatchHealthCounters = internalMutation({
+	args: {
+		limit: v.optional(v.number()),
+		cursor: v.optional(v.string()),
+		phase: v.optional(v.union(v.literal("dispatches"), v.literal("deadLetters"))),
+	},
+	returns: v.object({
+		countedDispatches: v.number(),
+		countedDeadLetters: v.number(),
+		scheduledNext: v.boolean(),
+	}),
+	handler: async (ctx, args) => {
+		const limit = args.limit ? Math.max(10, Math.min(args.limit, 500)) : 200;
+		const phase = args.phase ?? "dispatches";
+
+		if (!args.cursor && phase === "dispatches") {
+			const existingDispatchCounters = await ctx.db
+				.query("emailDispatchCounters")
+				.take(200);
+			for (const row of existingDispatchCounters) {
+				await ctx.db.delete("emailDispatchCounters", row._id);
+			}
+
+			const existingHourlyCounters = await ctx.db
+				.query("emailDeadLetterHourlyCounts")
+				.take(5000);
+			for (const row of existingHourlyCounters) {
+				await ctx.db.delete("emailDeadLetterHourlyCounts", row._id);
+			}
+		}
+
+		if (phase === "dispatches") {
+			const page = await ctx.db
+				.query("emailDispatches")
+				.paginate({ numItems: limit, cursor: args.cursor ?? null });
+			for (const row of page.page) {
+				await bumpDispatchCounter(ctx, {
+					sourceKind: row.sourceKind,
+					status: row.status,
+					delta: 1,
+					now: Date.now(),
+				});
+			}
+			await ctx.scheduler.runAfter(
+				0,
+				internal.emailQueue._backfillEmailDispatchHealthCounters,
+				page.isDone
+					? { limit, phase: "deadLetters" }
+					: { limit, phase, cursor: page.continueCursor },
+			);
+			return {
+				countedDispatches: page.page.length,
+				countedDeadLetters: 0,
+				scheduledNext: true,
+			};
+		}
+
+		const page = await ctx.db
+			.query("emailDeadLetters")
+			.paginate({ numItems: limit, cursor: args.cursor ?? null });
+		for (const row of page.page) {
+			await bumpDeadLetterHourly(ctx, {
+				at: row.failedAt,
+				delta: 1,
+				now: Date.now(),
+			});
+		}
+		if (!page.isDone) {
+			await ctx.scheduler.runAfter(
+				0,
+				internal.emailQueue._backfillEmailDispatchHealthCounters,
+				{ limit, phase, cursor: page.continueCursor },
+			);
+		}
+
+		return {
+			countedDispatches: 0,
+			countedDeadLetters: page.page.length,
+			scheduledNext: !page.isDone,
+		};
 	},
 });
 
@@ -350,10 +452,21 @@ export const _purgeEmailData = internalMutation({
 
 		const dispatches = await ctx.db.query("emailDispatches").take(limit);
 		for (const row of dispatches) {
+			await bumpDispatchCounter(ctx, {
+				sourceKind: row.sourceKind,
+				status: row.status,
+				delta: -1,
+				now: Date.now(),
+			});
 			await ctx.db.delete("emailDispatches", row._id);
 		}
 		const deadLetters = await ctx.db.query("emailDeadLetters").take(limit);
 		for (const row of deadLetters) {
+			await bumpDeadLetterHourly(ctx, {
+				at: row.failedAt,
+				delta: -1,
+				now: Date.now(),
+			});
 			await ctx.db.delete("emailDeadLetters", row._id);
 		}
 

@@ -728,6 +728,7 @@ describe("notifications behavior", () => {
 	test("director can read unified queue diagnostics", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
+			const now = Date.now();
 			const directorId = await ctx.db.insert("users", {
 				email: "director@example.com",
 			});
@@ -744,14 +745,14 @@ describe("notifications behavior", () => {
 				recipientEmail: "director@example.com",
 				subject: "Diagnostic",
 				plainTextBody: "Diagnostic",
-				scheduledFor: Date.now(),
+				scheduledFor: now,
 				status: "dead_letter",
 				providerOperationId: "diag-provider-op",
 				sendAttemptCount: 1,
 				pollAttemptCount: 0,
-				deadLetteredAt: Date.now(),
-				createdAt: Date.now(),
-				updatedAt: Date.now(),
+				deadLetteredAt: now,
+				createdAt: now,
+				updatedAt: now,
 			});
 
 			await ctx.db.insert("emailDeadLetters", {
@@ -766,8 +767,19 @@ describe("notifications behavior", () => {
 				providerOperationId: "diag-provider-op",
 				sendAttemptCount: 1,
 				pollAttemptCount: 0,
-				failedAt: Date.now(),
+				failedAt: now,
 				replayCount: 0,
+			});
+			await ctx.db.insert("emailDispatchCounters", {
+				sourceKind: "notification",
+				status: "dead_letter",
+				count: 1,
+				updatedAt: now,
+			});
+			await ctx.db.insert("emailDeadLetterHourlyCounts", {
+				hourStart: Math.floor(now / (60 * 60 * 1000)) * (60 * 60 * 1000),
+				count: 1,
+				updatedAt: now,
 			});
 
 			return { directorId };

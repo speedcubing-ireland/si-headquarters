@@ -5,6 +5,7 @@ import { buildDeterministicEmailOperationId } from "../lib/email";
 import { normalizeEmail } from "../lib/sanitize";
 import type { EmailDispatchStatus, EmailSourceKind } from "./types";
 import { emailSendPool } from "./pool";
+import { bumpDispatchCounter } from "./counters";
 
 export const DEFAULT_EMAIL_DELAY_MS = 0;
 
@@ -159,6 +160,13 @@ export async function enqueueDispatch(
 		deadLetteredAt: undefined,
 		createdAt: now,
 		updatedAt: now,
+	});
+
+	await bumpDispatchCounter(ctx, {
+		sourceKind: args.sourceKind,
+		status: "queued",
+		delta: 1,
+		now,
 	});
 
 	const claimKey = `${dispatchId}:${Date.now()}`;

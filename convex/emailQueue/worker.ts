@@ -11,6 +11,7 @@ import {
 } from "../lib/email";
 import { staleDispatchThresholdMs } from "./types";
 import { emailSendPool } from "./pool";
+import { bumpDeadLetterHourly, transitionDispatchStatus } from "./counters";
 
 const STALE_SWEEP_BATCH_SIZE = 256;
 const MAX_SEND_ATTEMPTS = 6;
@@ -52,6 +53,7 @@ export async function claimDispatchForSend(
 			sendAttemptCount: dispatch.sendAttemptCount + 1,
 			updatedAt: now,
 		});
+		await transitionDispatchStatus(ctx, { dispatch, nextStatus: "sending", now });
 		return true;
 	}
 	if (dispatch.status === "sending") {
@@ -123,6 +125,7 @@ export async function markSent(
 		error: undefined,
 		updatedAt: now,
 	});
+	await transitionDispatchStatus(ctx, { dispatch, nextStatus: "sent", now });
 	return true;
 }
 
@@ -151,6 +154,7 @@ export async function markSubmitted(
 		error: undefined,
 		updatedAt: now,
 	});
+	await transitionDispatchStatus(ctx, { dispatch, nextStatus: "submitted", now });
 	return true;
 }
 
@@ -176,11 +180,25 @@ export async function deadLetter(
 		deadLetteredAt: now,
 		updatedAt: now,
 	});
+	await transitionDispatchStatus(ctx, {
+		dispatch: {
+			_id: args.dispatch._id,
+			sourceKind: args.dispatch.sourceKind,
+			status: args.dispatch.status,
+		},
+		nextStatus: "dead_letter",
+		now,
+	});
 	const existingDeadLetter = await ctx.db
 		.query("emailDeadLetters")
 		.withIndex("by_dispatch", (q) => q.eq("dispatchId", args.dispatch._id))
 		.first();
 	if (existingDeadLetter) {
+		await bumpDeadLetterHourly(ctx, {
+			at: existingDeadLetter.failedAt,
+			delta: -1,
+			now,
+		});
 		await ctx.db.patch("emailDeadLetters", existingDeadLetter._id, {
 			error: args.error,
 			providerStatus: args.providerStatus ?? args.dispatch.providerStatus,
@@ -188,6 +206,7 @@ export async function deadLetter(
 			pollAttemptCount: args.dispatch.pollAttemptCount,
 			failedAt: now,
 		});
+		await bumpDeadLetterHourly(ctx, { at: now, delta: 1, now });
 		return;
 	}
 	await ctx.db.insert("emailDeadLetters", {
@@ -207,6 +226,7 @@ export async function deadLetter(
 		failedAt: now,
 		replayCount: 0,
 	});
+	await bumpDeadLetterHourly(ctx, { at: now, delta: 1, now });
 }
 
 /**
