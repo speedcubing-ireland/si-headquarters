@@ -338,18 +338,36 @@ export async function sendDispatch(
 			providerOperationId: progress.operationId,
 		});
 	} catch (error) {
-		console.error("emailQueue.sendDispatch failed", {
-			dispatchId: String(args.dispatchId),
-			claimKey: args.claimKey,
-			operationId,
-			error,
-		});
 		const message = emailErrorMessage(error);
 		const normalized = message.toLowerCase();
+		const maybeError = error as
+			| {
+					code?: unknown;
+					statusCode?: unknown;
+					details?: { xMsErrorCode?: unknown } | unknown;
+			  }
+			| undefined;
+		const errorCode =
+			typeof maybeError?.code === "string" ? maybeError.code : undefined;
+		const xMsErrorCode =
+			maybeError &&
+			typeof maybeError === "object" &&
+			typeof (maybeError as any).details === "object" &&
+			typeof (maybeError as any).details?.xMsErrorCode === "string"
+				? ((maybeError as any).details.xMsErrorCode as string)
+				: undefined;
+		const statusCode =
+			typeof maybeError?.statusCode === "number"
+				? maybeError.statusCode
+				: undefined;
+
 		// Azure returns this when the operation already exists. That implies a prior
 		// submission likely succeeded (or is still running) and we should not retry
 		// the send; instead wait for Event Grid delivery reports.
 		if (
+			errorCode === "OperationIdAlreadyExists" ||
+			xMsErrorCode === "OperationIdAlreadyExists" ||
+			(statusCode === 400 && normalized.includes("operationidalreadyexists")) ||
 			normalized.includes("operationid already exists") ||
 			normalized.includes("operation id already exists") ||
 			normalized.includes("operationid already exists.")
@@ -362,6 +380,13 @@ export async function sendDispatch(
 			});
 			return;
 		}
+
+		console.error("emailQueue.sendDispatch failed", {
+			dispatchId: String(args.dispatchId),
+			claimKey: args.claimKey,
+			operationId,
+			error,
+		});
 		if (
 			isTransientEmailTransportError(error) ||
 			isAmbiguousEmailTransportError(error)
