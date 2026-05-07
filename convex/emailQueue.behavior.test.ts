@@ -139,6 +139,119 @@ describe("emailQueue behavior", () => {
 		// Scheduling is mediated by Workpool; we assert no throw and claimKey exists.
 	});
 
+	test("_enqueueDispatch paces newly queued emails", async () => {
+		const previousInterval = process.env.EMAIL_SEND_INTERVAL_MS;
+		process.env.EMAIL_SEND_INTERVAL_MS = "1000";
+		try {
+			const t = createHarness();
+			const first = await t.mutation(internal.emailQueue._enqueueDispatch, {
+				dedupeKey: "paced-1",
+				sourceKind: "notification",
+				templateKey: "notification_immediate",
+				recipientEmail: "user@example.com",
+				subject: "Subject",
+				plainTextBody: "Hi",
+			});
+			const second = await t.mutation(internal.emailQueue._enqueueDispatch, {
+				dedupeKey: "paced-2",
+				sourceKind: "notification",
+				templateKey: "notification_immediate",
+				recipientEmail: "user@example.com",
+				subject: "Subject",
+				plainTextBody: "Hi",
+			});
+
+			const rows = await t.run(async (ctx) => ({
+				first: await ctx.db.get(first.dispatchId),
+				second: await ctx.db.get(second.dispatchId),
+			}));
+			expect(rows.second?.scheduledFor).toBeGreaterThanOrEqual(
+				(rows.first?.scheduledFor ?? 0) + 1000,
+			);
+		} finally {
+			if (previousInterval === undefined) {
+				delete process.env.EMAIL_SEND_INTERVAL_MS;
+			} else {
+				process.env.EMAIL_SEND_INTERVAL_MS = previousInterval;
+			}
+		}
+	});
+
+	test("_prepareDispatchSendAttempt increments real send attempts and eventually dead-letters", async () => {
+		const t = createHarness();
+		const seeded = await seedDispatch(t);
+		await t.run((ctx) =>
+			ctx.db.patch(seeded.dispatchId, {
+				sendAttemptCount: 5,
+				providerOperationClaimKey: undefined,
+			}),
+		);
+
+		const operationId = await t.mutation(
+			internal.emailQueue._prepareDispatchSendAttempt,
+			{
+				dispatchId: seeded.dispatchId,
+				claimKey: "claim:1",
+			},
+		);
+		expect(operationId).toBeTruthy();
+		const afterSixth = await t.run((ctx) => ctx.db.get(seeded.dispatchId));
+		expect(afterSixth?.sendAttemptCount).toBe(6);
+
+		const exhausted = await t.mutation(
+			internal.emailQueue._prepareDispatchSendAttempt,
+			{
+				dispatchId: seeded.dispatchId,
+				claimKey: "claim:1",
+			},
+		);
+		expect(exhausted).toBeNull();
+		const final = await t.run((ctx) => ctx.db.get(seeded.dispatchId));
+		expect(final?.status).toBe("dead_letter");
+		expect(final?.error).toBe("send_attempts_exhausted");
+	});
+
+	test("_markSent accepts submitted rows and delivery events can still refine them", async () => {
+		const t = createHarness();
+		const seeded = await seedDispatch(t);
+		await t.run((ctx) =>
+			ctx.db.patch(seeded.dispatchId, {
+				status: "submitted",
+				submittedAt: Date.now(),
+			}),
+		);
+
+		await t.mutation(internal.emailQueue._markSent, {
+			dispatchId: seeded.dispatchId,
+			claimKey: "claim:1",
+			providerStatus: "Succeeded",
+		});
+		const sent = await t.run((ctx) => ctx.db.get(seeded.dispatchId));
+		expect(sent?.status).toBe("sent");
+
+		await t.mutation(internal.emailQueue._applyDeliveryEvent, {
+			providerOperationId: sent?.providerOperationId ?? "",
+			providerStatus: "Delivered",
+		});
+		const delivered = await t.run((ctx) => ctx.db.get(seeded.dispatchId));
+		expect(delivered?.status).toBe("delivered");
+	});
+
+	test("_runSweep schedules fallback polls for stale submitted rows", async () => {
+		const t = createHarness();
+		const seeded = await seedDispatch(t);
+		await t.run((ctx) =>
+			ctx.db.patch(seeded.dispatchId, {
+				status: "submitted",
+				submittedAt: Date.now() - 10 * 60 * 1000,
+				updatedAt: Date.now() - 10 * 60 * 1000,
+			}),
+		);
+
+		const result = await t.mutation(internal.emailQueue._runSweep, {});
+		expect(result.polled).toBe(1);
+	});
+
 	test("_replayDeadLetter preserves senderAddress from the original dispatch", async () => {
 		const t = createHarness();
 		const { deadLetterId } = await t.run(async (ctx) => {

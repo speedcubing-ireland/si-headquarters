@@ -19,6 +19,7 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 		quarantined: number;
 		filteredSpam: number;
 		failedDelivery: number;
+		sent: number;
 		deadLetter: number;
 		canceled: number;
 	};
@@ -43,6 +44,7 @@ export async function getDispatchHealth(ctx: QueryCtx): Promise<{
 		quarantined: totalsByStatus.quarantined,
 		filteredSpam: totalsByStatus.filtered_spam,
 		failedDelivery: totalsByStatus.failed_delivery,
+		sent: totalsByStatus.sent,
 		deadLetter: totalsByStatus.dead_letter,
 		canceled: totalsByStatus.canceled,
 	};
