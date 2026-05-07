@@ -3,7 +3,8 @@ import type { MutationCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { buildDeterministicEmailOperationId } from "../lib/email";
 import { normalizeEmail } from "../lib/sanitize";
-import type { EmailSourceKind } from "./types";
+import type { EmailDispatchStatus, EmailSourceKind } from "./types";
+import { emailSendPool } from "./pool";
 
 export const DEFAULT_EMAIL_DELAY_MS = 0;
 
@@ -27,13 +28,7 @@ export type EnqueueEmailDispatchArgs = {
 export type EnqueueEmailDispatchResult = {
 	dispatchId: Id<"emailDispatches">;
 	dedupeKey: string;
-	status:
-		| "queued"
-		| "sent"
-		| "dead_letter"
-		| "sending"
-		| "awaiting_provider"
-		| "canceled";
+	status: EmailDispatchStatus;
 	created: boolean;
 };
 
@@ -63,12 +58,16 @@ async function scheduleSendDispatch(
 		scheduledFor: number;
 	},
 ): Promise<void> {
-	await ctx.scheduler.runAt(
-		args.scheduledFor,
+	await emailSendPool.enqueueAction(
+		ctx,
 		internal.emailQueue._sendDispatch,
 		{
 			dispatchId: args.dispatchId,
 			claimKey: args.claimKey,
+		},
+		{
+			runAt: args.scheduledFor,
+			retry: { maxAttempts: 5, initialBackoffMs: 1000, base: 2 },
 		},
 	);
 }
@@ -147,6 +146,7 @@ export async function enqueueDispatch(
 		status: "queued",
 		claimKey: undefined,
 		providerOperationId,
+		providerOperationClaimKey: undefined,
 		providerStatus: undefined,
 		providerPollerState: undefined,
 		sendAttemptCount: 0,

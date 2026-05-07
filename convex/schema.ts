@@ -310,6 +310,7 @@ export default defineSchema({
 		status: emailDispatchStatus,
 		claimKey: v.optional(v.string()),
 		providerOperationId: v.string(),
+		providerOperationClaimKey: v.optional(v.string()),
 		providerStatus: v.optional(v.string()),
 		providerPollerState: v.optional(v.string()),
 		sendAttemptCount: v.number(),
@@ -322,6 +323,7 @@ export default defineSchema({
 		updatedAt: v.number(),
 	})
 		.index("by_dedupe_key", ["dedupeKey"])
+		.index("by_provider_operation_id", ["providerOperationId"])
 		.index("by_status_scheduled_for", ["status", "scheduledFor"])
 		.index("by_status_updated_at", ["status", "updatedAt"])
 		.index("by_source_status_created_at", [

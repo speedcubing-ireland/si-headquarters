@@ -20,6 +20,7 @@ import type * as crons from "../crons.js";
 import type * as emailQueue from "../emailQueue.js";
 import type * as emailQueue_diagnostics from "../emailQueue/diagnostics.js";
 import type * as emailQueue_enqueue from "../emailQueue/enqueue.js";
+import type * as emailQueue_pool from "../emailQueue/pool.js";
 import type * as emailQueue_types from "../emailQueue/types.js";
 import type * as emailQueue_worker from "../emailQueue/worker.js";
 import type * as emails_NotificationDigestEmail from "../emails/NotificationDigestEmail.js";
@@ -161,6 +162,7 @@ import type * as views from "../views.js";
 import type * as wca from "../wca.js";
 import type * as wca2fa from "../wca2fa.js";
 import type * as wcaSchedule from "../wcaSchedule.js";
+import type * as webhooks_azureEmailEvents from "../webhooks/azureEmailEvents.js";
 import type * as weekendOverrides from "../weekendOverrides.js";
 
 import type {
@@ -182,6 +184,7 @@ declare const fullApi: ApiFromModules<{
   emailQueue: typeof emailQueue;
   "emailQueue/diagnostics": typeof emailQueue_diagnostics;
   "emailQueue/enqueue": typeof emailQueue_enqueue;
+  "emailQueue/pool": typeof emailQueue_pool;
   "emailQueue/types": typeof emailQueue_types;
   "emailQueue/worker": typeof emailQueue_worker;
   "emails/NotificationDigestEmail": typeof emails_NotificationDigestEmail;
@@ -323,6 +326,7 @@ declare const fullApi: ApiFromModules<{
   wca: typeof wca;
   wca2fa: typeof wca2fa;
   wcaSchedule: typeof wcaSchedule;
+  "webhooks/azureEmailEvents": typeof webhooks_azureEmailEvents;
   weekendOverrides: typeof weekendOverrides;
 }>;
 
@@ -354,5 +358,6 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   crons: import("@convex-dev/crons/_generated/component.js").ComponentApi<"crons">;
+  emailWorkpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"emailWorkpool">;
   sponsorAuth: import("../sponsorAuth/_generated/component.js").ComponentApi<"sponsorAuth">;
 };

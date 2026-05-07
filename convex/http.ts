@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { createSponsorAuth, sponsorAuthComponent } from "./sponsorAuthServer";
+import { handleAzureEmailEvents } from "./webhooks/azureEmailEvents";
 
 const http = httpRouter();
 
@@ -39,6 +40,12 @@ sponsorAuthComponent.registerRoutes(http, createSponsorAuth, {
 	cors: {
 		allowedOrigins,
 	},
+});
+
+http.route({
+	path: "/webhooks/azure/email-events",
+	method: "POST",
+	handler: handleAzureEmailEvents,
 });
 
 export default http;

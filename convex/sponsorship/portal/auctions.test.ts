@@ -244,11 +244,24 @@ function makeProxyPortalCtx(input: {
 			},
 			get: async (table: string, id: string) => {
 				if (table === "sponsorshipAuctions") return input.auction;
+				if (table === "sponsors" && id === sponsorId) {
+					return {
+						_id: sponsorId,
+						name: "Sponsor",
+						email: "sponsor@example.com",
+						emailNormalized: "sponsor@example.com",
+						active: true,
+						createdById: "u1",
+						updatedById: "u1",
+						updatedAt: now,
+					};
+				}
 				if (table === "sponsors" && id === input.leaderSponsorId) {
 					return {
 						_id: input.leaderSponsorId,
 						name: "Leader Sponsor",
 						email: "leader@example.com",
+						emailNormalized: "leader@example.com",
 						active: true,
 						createdById: "u1",
 						updatedById: "u1",
@@ -510,6 +523,56 @@ describe("proxy bid outbid email with anti-sniping", () => {
 		expect(outbidEmail).toBeDefined();
 		const emailArgs = outbidEmail?.args as { context: { endsAt: number } };
 		expect(emailArgs.context.endsAt).toBe(originalEndsAt);
+	});
+
+	test("placeBid loses to incumbent automatic proxy — outbid email goes to challenger", async () => {
+		const now = Date.now();
+		const leaderSponsorId = "leader-sponsor";
+		const originalEndsAt = now + 10 * 60_000;
+
+		const auction = makeAuction({
+			framework: "ebay_proxy",
+			startPriceCents: 1000,
+			currentPriceCents: 1000,
+			currentLeaderSponsorId:
+				leaderSponsorId as AuctionDoc["currentLeaderSponsorId"],
+			currentLeaderMaxCents: 5000,
+			endsAt: originalEndsAt,
+			antiSnipingWindowMs: 5 * 60_000,
+			antiSnipingExtendMs: 5 * 60_000,
+		});
+
+		const { ctx, scheduledCalls, sponsorId } = makeProxyPortalCtx({
+			auction,
+			leaderSponsorId,
+			leaderIntent: {
+				_id: "intent-leader" as IntentDoc["_id"],
+				_creationTime: now - 1000,
+				auctionId: auction._id,
+				sponsorId: leaderSponsorId as IntentDoc["sponsorId"],
+				mode: "proxy",
+				amountCents: 2000,
+				maxAmountCents: 5000,
+				isValid: true,
+				createdAt: now - 1000,
+			},
+		});
+
+		await placeBidHandler(ctx, {
+			sessionToken: "session-token",
+			auctionId: auction._id,
+			amountCents: 2000,
+		});
+
+		const outbidEmail = scheduledCalls.find((call) => {
+			const args = call.args as { emailType?: string };
+			return args.emailType === "auction_ebay_outbid";
+		});
+		expect(outbidEmail).toBeDefined();
+		const emailArgs = outbidEmail?.args as {
+			recipients: Array<{ sponsorId: string }>;
+		};
+		expect(emailArgs.recipients[0]?.sponsorId).toBe(sponsorId);
 	});
 });
 

@@ -7,7 +7,7 @@ export const NOTIFICATION_THRESHOLDS = {
 
 export const CRON_EXPRESSIONS = {
 	DUE_DATE_CHECK_DAILY_UTC: "0 5 * * *",
-	EMAIL_QUEUE_SWEEP_EVERY_10_MINUTES: "*/10 * * * *",
+	EMAIL_QUEUE_SWEEP_EVERY_MINUTE: "* * * * *",
 } as const;
 
 export const NOTIFICATION_DEFAULTS = {

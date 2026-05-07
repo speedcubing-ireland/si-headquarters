@@ -13,7 +13,7 @@ crons.cron(
 
 crons.cron(
 	"sweep email queue",
-	CRON_EXPRESSIONS.EMAIL_QUEUE_SWEEP_EVERY_10_MINUTES,
+	CRON_EXPRESSIONS.EMAIL_QUEUE_SWEEP_EVERY_MINUTE,
 	internal.emailQueue._runSweep,
 	{},
 );
