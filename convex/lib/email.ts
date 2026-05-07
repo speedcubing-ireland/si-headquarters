@@ -126,6 +126,36 @@ export function emailErrorMessage(error: unknown): string {
 	if (typeof error === "string") {
 		return error;
 	}
+	if (error && typeof error === "object") {
+		const maybe = error as {
+			message?: unknown;
+			code?: unknown;
+			name?: unknown;
+			statusCode?: unknown;
+			details?: unknown;
+		};
+		const parts: string[] = [];
+		if (typeof maybe.name === "string" && maybe.name.trim()) {
+			parts.push(maybe.name.trim());
+		}
+		if (typeof maybe.code === "string" && maybe.code.trim()) {
+			parts.push(maybe.code.trim());
+		}
+		if (typeof maybe.statusCode === "number") {
+			parts.push(`statusCode=${maybe.statusCode}`);
+		}
+		if (typeof maybe.message === "string" && maybe.message.trim()) {
+			parts.push(maybe.message.trim());
+		}
+		if (parts.length > 0) {
+			return parts.join(" ");
+		}
+		try {
+			return JSON.stringify(error);
+		} catch {
+			// ignore
+		}
+	}
 	return "Unknown email error";
 }
 

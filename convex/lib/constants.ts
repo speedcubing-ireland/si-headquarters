@@ -7,7 +7,8 @@ export const NOTIFICATION_THRESHOLDS = {
 
 export const CRON_EXPRESSIONS = {
 	DUE_DATE_CHECK_DAILY_UTC: "0 5 * * *",
-	EMAIL_QUEUE_SWEEP_EVERY_MINUTE: "* * * * *",
+	// Failsafe only (Workpool is primary); keep light.
+	EMAIL_QUEUE_SWEEP_EVERY_MINUTE: "*/10 * * * *",
 } as const;
 
 export const NOTIFICATION_DEFAULTS = {

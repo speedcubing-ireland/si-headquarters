@@ -338,7 +338,30 @@ export async function sendDispatch(
 			providerOperationId: progress.operationId,
 		});
 	} catch (error) {
+		console.error("emailQueue.sendDispatch failed", {
+			dispatchId: String(args.dispatchId),
+			claimKey: args.claimKey,
+			operationId,
+			error,
+		});
 		const message = emailErrorMessage(error);
+		const normalized = message.toLowerCase();
+		// Azure returns this when the operation already exists. That implies a prior
+		// submission likely succeeded (or is still running) and we should not retry
+		// the send; instead wait for Event Grid delivery reports.
+		if (
+			normalized.includes("operationid already exists") ||
+			normalized.includes("operation id already exists") ||
+			normalized.includes("operationid already exists.")
+		) {
+			await ctx.runMutation(internal.emailQueue._markSubmitted, {
+				dispatchId: dispatch._id,
+				claimKey: args.claimKey,
+				providerStatus: KnownEmailSendStatus.Running,
+				providerOperationId: operationId,
+			});
+			return;
+		}
 		if (
 			isTransientEmailTransportError(error) ||
 			isAmbiguousEmailTransportError(error)
