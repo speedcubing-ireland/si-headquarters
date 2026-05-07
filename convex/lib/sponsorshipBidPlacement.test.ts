@@ -551,13 +551,14 @@ describe("sponsorship bid placement", () => {
 			}),
 		]);
 
-		await placeSponsorshipBid(ctx, {
+		const result = await placeSponsorshipBid(ctx, {
 			auction,
 			sponsorId: "sB" as BidIntentDoc["sponsorId"],
 			amountCents: 2000,
 			maxAmountCents: 2000,
 		});
 
+		expect(result.outbidSponsorId).toBe("sB");
 		expect(events).toHaveLength(1);
 		expect(events[0]).toMatchObject({
 			sponsorId: "sA",
@@ -887,7 +888,10 @@ describe("sponsorship bid placement", () => {
 		});
 		const { ctx, events, patches } = createMockMutationCtx([
 			mockIntent({
-				_id: "intent-first" as BidIntentDoc["_id"],
+				// Lexicographically before mock insert ids (`intent-1`, …) so
+				// compareBidIntentChronologyWithIdTieBreak matches true bid order
+				// when createdAt/_creationTime collide (see sponsorshipAuctionState).
+				_id: "intent-0" as BidIntentDoc["_id"],
 				sponsorId: "sB" as BidIntentDoc["sponsorId"],
 				mode: "proxy",
 				amountCents: 10_000,
@@ -1136,6 +1140,36 @@ describe("sponsorship bid placement", () => {
 			});
 
 			expect(result.outbidSponsorId).toBe("sA");
+		});
+
+		test("incumbent proxy retains lead — outbid sponsor is challenger", async () => {
+			const auction = activeAuction({
+				startPriceCents: 1000,
+				currentPriceCents: 1000,
+				currentLeaderSponsorId:
+					"sA" as Doc<"sponsorshipAuctions">["currentLeaderSponsorId"],
+				currentLeaderMaxCents: 5000,
+			});
+			const { ctx } = createMockMutationCtx([
+				mockIntent({
+					_id: "intent-a" as BidIntentDoc["_id"],
+					sponsorId: "sA" as BidIntentDoc["sponsorId"],
+					mode: "proxy",
+					amountCents: 2000,
+					maxAmountCents: 5000,
+					createdAt: Date.now() - 1000,
+					_creationTime: Date.now() - 1000,
+				}),
+			]);
+
+			const result = await placeSponsorshipBid(ctx, {
+				auction,
+				sponsorId: "sB" as BidIntentDoc["sponsorId"],
+				amountCents: 2000,
+				maxAmountCents: 2000,
+			});
+
+			expect(result.outbidSponsorId).toBe("sB");
 		});
 
 		test("sealed auction returns no outbidSponsorId", async () => {

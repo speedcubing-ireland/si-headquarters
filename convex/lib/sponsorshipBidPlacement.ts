@@ -3,7 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import {
 	buildProxyContenders,
-	compareBidIntentChronology,
+	compareBidIntentChronologyWithIdTieBreak,
 } from "./sponsorshipAuctionState";
 import {
 	minNextBidCents,
@@ -191,7 +191,7 @@ async function placeProxyBid(
 	const isMaxExplicit = explicitMaxAmountCents !== undefined;
 	const latestOwnIntent = existingIntents
 		.filter((intent) => intent.isValid && intent.sponsorId === input.sponsorId)
-		.sort(compareBidIntentChronology)
+		.sort(compareBidIntentChronologyWithIdTieBreak)
 		.slice(-1)[0];
 	const existingOwnMaxCents = latestOwnIntent
 		? (latestOwnIntent.maxAmountCents ?? latestOwnIntent.amountCents)
@@ -259,7 +259,7 @@ async function placeProxyBid(
 	const state = resolveProxyState(
 		buildProxyContenders(
 			validIntentsInChronologicalOrder,
-			compareBidIntentChronology,
+			compareBidIntentChronologyWithIdTieBreak,
 		),
 		input.auction.startPriceCents,
 	);
@@ -348,11 +348,17 @@ async function placeProxyBid(
 		updatedAt: now,
 	});
 
-	const outbidSponsorId =
+	/** Who should receive the eBay-style “you were outbid” notice for this mutation. */
+	let outbidSponsorId: Id<"sponsors"> | undefined;
+	if (
 		previousLeaderSponsorId !== undefined &&
 		previousLeaderSponsorId !== state.leaderSponsorId
-			? previousLeaderSponsorId
-			: undefined;
+	) {
+		outbidSponsorId = previousLeaderSponsorId;
+	} else if (state.leaderSponsorId !== input.sponsorId) {
+		// Incumbent stayed leader via automatic proxy counter — notify the challenger.
+		outbidSponsorId = input.sponsorId;
+	}
 
 	return {
 		currentPriceCents: visibleCurrentPriceCents,

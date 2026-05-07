@@ -227,12 +227,21 @@ export function mapStatusesForLegacyStats(
 	switch (status) {
 		case "sent":
 			return "sent";
+		case "delivered":
+			return "sent";
 		case "dead_letter":
 			return "failed";
 		case "canceled":
 			return "skipped";
+		case "suppressed":
+		case "bounced":
+		case "quarantined":
+		case "filtered_spam":
+		case "failed_delivery":
+			return "failed";
 		case "queued":
 		case "sending":
+		case "submitted":
 		case "awaiting_provider":
 			return "pending";
 	}

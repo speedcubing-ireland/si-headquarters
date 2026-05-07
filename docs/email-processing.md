@@ -14,13 +14,16 @@ caller → _enqueueDispatch → emailDispatches (queued)
                   _sendDispatch (Azure beginSend)
                 ┌─────────────────┼─────────────────┐
                 ▼                 ▼                 ▼
-              sent       awaiting_provider     dead_letter
-                                  │
-                                  ▼
-                          _pollDispatch
+           submitted         dead_letter        canceled
+                │
+                ▼
+     Azure Event Grid delivery report
+                │
+                ▼
+ delivered | bounced | quarantined | filtered_spam | failed_delivery | suppressed
 ```
 
-`_enqueueDispatch` (in `convex/emailQueue.ts`) is the single entry point. It deduplicates on `dedupeKey`, persists the dispatch, and schedules `_runSweep`. The sweep moves rows through `queued → sending → awaiting_provider → sent | dead_letter`.
+`_enqueueDispatch` (in `convex/emailQueue.ts`) is the single entry point. It deduplicates on `dedupeKey`, persists the dispatch, and enqueues `_sendDispatch` into a Workpool to throttle parallelism. A minute-by-minute sweep is the recovery path if work is delayed; it nudges stale rows through `queued → sending → submitted` (or `dead_letter` on terminal failures).
 
 ## Sender address
 
@@ -43,9 +46,11 @@ To add a new sender for another source, add a helper alongside `getSponsorshipSe
 
 ## Failure handling
 
-**No automatic retries.** A dispatch gets exactly one provider send attempt. If the worker crashes between claiming the row and getting a provider response, the row is dead-lettered with `no_auto_resend_policy_enforced` on the next sweep — we do not re-attempt blindly because Azure may have already accepted the message.
+**No blind resends.** A dispatch is tied to one deterministic Azure `Operation-Id`. If a worker crashes between claiming the row and getting a provider response, the sweep re-runs the send action with the same operation id; duplicate-operation or transport failures move the row to `awaiting_provider` so we poll the original Azure operation instead of creating a second email.
 
-**Provider state unknown.** If `awaiting_provider` rows can't be resolved within 24h (`PROVIDER_UNKNOWN_TIMEOUT_MS` in `worker.ts`), they dead-letter with `provider_state_unknown_no_resend`.
+**Workpool retries with backoff.** Transient errors while calling Azure are retried by Workpool with exponential backoff. We reuse the same `operationId` for a given send attempt (claimKey) so Azure can de-duplicate if the previous request succeeded but our worker timed out.
+
+**Delivery outcomes are event-driven.** We do not poll for delivery state. Instead, Azure Event Grid `EmailDeliveryReportReceived` updates `emailDispatches.status` to terminal delivery outcomes (delivered/bounced/etc).
 
 **Dead-letter replay.** `_replayDeadLetter` exists as a manual operator hook — it is **not wired to any UI or scheduler**. To replay a failed email today, run it from the Convex dashboard against the `emailDeadLetters` row. It re-enqueues with a fresh dedupe suffix and preserves the original `senderAddress`, recipient, subject, and bodies.
 

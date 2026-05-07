@@ -9,6 +9,13 @@ export const emailSourceKind = v.union(
 export const emailDispatchStatus = v.union(
 	v.literal("queued"),
 	v.literal("sending"),
+	v.literal("submitted"),
+	v.literal("delivered"),
+	v.literal("suppressed"),
+	v.literal("bounced"),
+	v.literal("quarantined"),
+	v.literal("filtered_spam"),
+	v.literal("failed_delivery"),
 	v.literal("awaiting_provider"),
 	v.literal("sent"),
 	v.literal("dead_letter"),
@@ -31,13 +38,20 @@ export const stageStatus = v.union(
 export const dispatchStatuses = [
 	"queued",
 	"sending",
+	"submitted",
+	"delivered",
+	"suppressed",
+	"bounced",
+	"quarantined",
+	"filtered_spam",
+	"failed_delivery",
 	"awaiting_provider",
 	"sent",
 	"dead_letter",
 	"canceled",
 ] as const;
 
-export const staleDispatchThresholdMs = 10 * 60 * 1000;
+export const staleDispatchThresholdMs = 2 * 60 * 1000;
 
 export const emailDispatchStatsReturns = v.object({
 	queued: v.number(),
@@ -72,6 +86,13 @@ export const emailDeadLetterRecordReturns = v.object({
 export type EmailDispatchStatus =
 	| "queued"
 	| "sending"
+	| "submitted"
+	| "delivered"
+	| "suppressed"
+	| "bounced"
+	| "quarantined"
+	| "filtered_spam"
+	| "failed_delivery"
 	| "awaiting_provider"
 	| "sent"
 	| "dead_letter"

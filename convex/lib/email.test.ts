@@ -22,6 +22,15 @@ describe("email transport transient error classification", () => {
 		expect(isTransientEmailTransportError({ code: "ABORT_ERR" })).toBe(true);
 	});
 
+	test("classifies Azure HTTP/2 send request failures as transient", () => {
+		const error = new Error(
+			"client error (SendRequest): http2 error: connection error received: not a result of an error",
+		);
+
+		expect(isTransientEmailTransportError(error)).toBe(true);
+		expect(isAmbiguousEmailTransportError(error)).toBe(true);
+	});
+
 	test("classifies abort text in message as transient", () => {
 		expect(
 			isTransientEmailTransportError(

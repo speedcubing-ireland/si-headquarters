@@ -10,6 +10,7 @@ import {
 	mapDispatchItemsToEmailGroupItems,
 } from "./notifications/lib/emailDispatchComposer";
 import type { NotificationType } from "./notifications/lib/notificationTypes";
+import type { EmailDispatchStatus } from "./emailQueue/types";
 import {
 	buildNotificationGroupSourceRef,
 	isQuietHoursDigestWindowKey,
@@ -48,13 +49,7 @@ type FinalizeResult = {
 type EnqueueResult = {
 	dispatchId: Id<"emailDispatches">;
 	dedupeKey: string;
-	status:
-		| "queued"
-		| "sent"
-		| "dead_letter"
-		| "sending"
-		| "awaiting_provider"
-		| "canceled";
+	status: EmailDispatchStatus;
 	created: boolean;
 };
 

@@ -28,10 +28,26 @@ const UUID_REGEX =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 /** Used when Azure omits Retry-After on the send/poll response. */
 export const FALLBACK_RETRY_AFTER_MS = 15_000;
-const MIN_POLL_INTERVAL_MS = 5_000;
-const MAX_POLL_INTERVAL_MS = 60_000;
 const EMAIL_REQUEST_TIMEOUT_MS = 15_000;
 const EMAIL_OPERATION_ID_NAMESPACE = "9ef7006e-65ca-4f75-861f-f61f7cdafd84";
+const TRANSIENT_TRANSPORT_MESSAGE_PARTS = [
+	"the operation was aborted",
+	"gateway timeout",
+	"origin timeout",
+	"service unavailable",
+	"timed out",
+	"operationid already exists",
+	"operation id already exists",
+	"status code 504",
+	"status code 503",
+	"http2 error",
+	"http/2 error",
+	"connection error received",
+	"client error (sendrequest)",
+	"sendrequest",
+	"socket hang up",
+	"fetch failed",
+];
 
 function getEmailClient(): EmailClient {
 	if (cachedClient) return cachedClient;
@@ -71,15 +87,10 @@ function toValidOperationId(
 	return UUID_REGEX.test(trimmed) ? trimmed.toLowerCase() : undefined;
 }
 
-function toClampedRetryAfterMs(retryAfterSeconds: number | undefined): number {
-	const retryAfterMs =
-		typeof retryAfterSeconds === "number" && Number.isFinite(retryAfterSeconds)
-			? retryAfterSeconds * 1000
-			: FALLBACK_RETRY_AFTER_MS;
-	return Math.max(
-		MIN_POLL_INTERVAL_MS,
-		Math.min(MAX_POLL_INTERVAL_MS, retryAfterMs),
-	);
+function toRetryAfterMs(retryAfterSeconds: number | undefined): number {
+	return typeof retryAfterSeconds === "number" && Number.isFinite(retryAfterSeconds)
+		? retryAfterSeconds * 1000
+		: FALLBACK_RETRY_AFTER_MS;
 }
 
 function createRandomUUID(): string {
@@ -156,6 +167,10 @@ export function isTransientEmailTransportError(error: unknown): boolean {
 		code === "econnrefused" ||
 		code === "enotfound" ||
 		code === "abort_err" ||
+		code === "err_http2_stream_error" ||
+		code === "err_http2_session_error" ||
+		code === "und_err_socket" ||
+		code === "und_err_connect_timeout" ||
 		name === "aborterror" ||
 		name === "timeouterror"
 	) {
@@ -163,16 +178,8 @@ export function isTransientEmailTransportError(error: unknown): boolean {
 	}
 
 	const message = emailErrorMessage(error).toLowerCase();
-	return (
-		message.includes("the operation was aborted") ||
-		message.includes("gateway timeout") ||
-		message.includes("origin timeout") ||
-		message.includes("service unavailable") ||
-		message.includes("timed out") ||
-		message.includes("operationid already exists") ||
-		message.includes("operation id already exists") ||
-		message.includes("status code 504") ||
-		message.includes("status code 503")
+	return TRANSIENT_TRANSPORT_MESSAGE_PARTS.some((part) =>
+		message.includes(part),
 	);
 }
 
@@ -201,18 +208,18 @@ export function isAmbiguousEmailTransportError(error: unknown): boolean {
 		code === "econnrefused" ||
 		code === "enotfound" ||
 		code === "abort_err" ||
+		code === "err_http2_stream_error" ||
+		code === "err_http2_session_error" ||
+		code === "und_err_socket" ||
+		code === "und_err_connect_timeout" ||
 		name === "aborterror" ||
 		name === "timeouterror"
 	) {
 		return true;
 	}
 	const message = emailErrorMessage(error).toLowerCase();
-	return (
-		message.includes("the operation was aborted") ||
-		message.includes("gateway timeout") ||
-		message.includes("origin timeout") ||
-		message.includes("timed out") ||
-		message.includes("status code 504")
+	return TRANSIENT_TRANSPORT_MESSAGE_PARTS.some((part) =>
+		message.includes(part),
 	);
 }
 
@@ -240,22 +247,6 @@ function createRequestAbortSignal(timeoutMs: number): AbortSignal | undefined {
 	return undefined;
 }
 
-type InternalEmailClient = {
-	generatedClient: {
-		email: {
-			getSendResult: (
-				operationId: string,
-				options?: { abortSignal?: AbortSignal },
-			) => Promise<{
-				id: string;
-				status: string;
-				retryAfter?: number;
-				error?: { message?: string; code?: string };
-			}>;
-		};
-	};
-};
-
 /**
  * Submits the email once via Azure `beginSend`. The SDK performs one initial poll
  * internally; do not call `poller.poll()` again here.
@@ -277,29 +268,7 @@ export async function submitEmail(
 	return {
 		operationId: result.id,
 		status: result.status as KnownEmailSendStatus,
-		retryAfterMs: toClampedRetryAfterMs(result.retryAfter),
-		error: result.error?.message ?? result.error?.code,
-	};
-}
-
-export async function pollEmailSendOperation(
-	operationId: string,
-): Promise<EmailSendProgress> {
-	const validOperationId = toValidOperationId(operationId);
-	if (!validOperationId) {
-		throw new Error("Invalid email operationId");
-	}
-	const client = getEmailClient();
-	const internalClient = client as unknown as InternalEmailClient;
-	const abortSignal = createRequestAbortSignal(EMAIL_REQUEST_TIMEOUT_MS);
-	const result = await internalClient.generatedClient.email.getSendResult(
-		validOperationId,
-		abortSignal ? { abortSignal } : undefined,
-	);
-	return {
-		operationId: result.id ?? validOperationId,
-		status: result.status as KnownEmailSendStatus,
-		retryAfterMs: toClampedRetryAfterMs(result.retryAfter),
+		retryAfterMs: toRetryAfterMs(result.retryAfter),
 		error: result.error?.message ?? result.error?.code,
 	};
 }

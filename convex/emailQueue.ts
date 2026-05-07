@@ -14,12 +14,12 @@ import {
 } from "./emailQueue/diagnostics";
 import {
 	sendDispatch,
-	pollDispatch,
 	runSweep,
 	markSent,
-	markAwaitingProvider,
+	markSubmitted,
 	deadLetter,
 	claimDispatchForSend,
+	prepareDispatchSendAttempt,
 } from "./emailQueue/worker";
 import {
 	emailDispatchStatus,
@@ -35,6 +35,15 @@ export const _claimDispatchForSend = internalMutation({
 	},
 	returns: v.boolean(),
 	handler: async (ctx, args) => claimDispatchForSend(ctx, args),
+});
+
+export const _prepareDispatchSendAttempt = internalMutation({
+	args: {
+		dispatchId: v.id("emailDispatches"),
+		claimKey: v.string(),
+	},
+	returns: v.union(v.null(), v.string()),
+	handler: async (ctx, args) => prepareDispatchSendAttempt(ctx, args),
 });
 
 export const _enqueueDispatch = internalMutation({
@@ -161,18 +170,6 @@ export const _sendDispatch = internalAction({
 	},
 });
 
-export const _pollDispatch = internalAction({
-	args: {
-		dispatchId: v.id("emailDispatches"),
-		claimKey: v.string(),
-	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await pollDispatch(ctx, args);
-		return null;
-	},
-});
-
 export const _markSent = internalMutation({
 	args: {
 		dispatchId: v.id("emailDispatches"),
@@ -186,15 +183,133 @@ export const _markSent = internalMutation({
 	},
 });
 
-export const _markAwaitingProvider = internalMutation({
+export const _markSubmitted = internalMutation({
 	args: {
 		dispatchId: v.id("emailDispatches"),
 		claimKey: v.string(),
 		providerStatus: v.string(),
-		error: v.optional(v.string()),
+		providerOperationId: v.string(),
 	},
 	returns: v.boolean(),
-	handler: async (ctx, args) => markAwaitingProvider(ctx, args),
+	handler: async (ctx, args) => markSubmitted(ctx, args),
+});
+
+export const _applyDeliveryEvent = internalMutation({
+	args: {
+		providerOperationId: v.string(),
+		providerStatus: v.string(),
+		statusMessage: v.optional(v.string()),
+	},
+	returns: v.boolean(),
+	handler: async (ctx, args) => {
+		const dispatch = await ctx.db
+			.query("emailDispatches")
+			.withIndex("by_provider_operation_id", (q) =>
+				q.eq("providerOperationId", args.providerOperationId),
+			)
+			.first();
+		if (!dispatch) return false;
+		if (
+			dispatch.status === "dead_letter" ||
+			dispatch.status === "canceled" ||
+			dispatch.status === "delivered" ||
+			dispatch.status === "bounced" ||
+			dispatch.status === "quarantined" ||
+			dispatch.status === "filtered_spam" ||
+			dispatch.status === "failed_delivery" ||
+			dispatch.status === "suppressed"
+		) {
+			return true;
+		}
+
+		let nextStatus:
+			| "delivered"
+			| "suppressed"
+			| "bounced"
+			| "quarantined"
+			| "filtered_spam"
+			| "failed_delivery"
+			| "submitted" = "submitted";
+		switch (args.providerStatus) {
+			case "Delivered":
+				nextStatus = "delivered";
+				break;
+			case "Suppressed":
+				nextStatus = "suppressed";
+				break;
+			case "Bounced":
+				nextStatus = "bounced";
+				break;
+			case "Quarantined":
+				nextStatus = "quarantined";
+				break;
+			case "FilteredSpam":
+				nextStatus = "filtered_spam";
+				break;
+			case "Failed":
+				nextStatus = "failed_delivery";
+				break;
+			case "Expanded":
+				nextStatus = "submitted";
+				break;
+			default:
+				nextStatus = "submitted";
+		}
+
+		await ctx.db.patch("emailDispatches", dispatch._id, {
+			status: nextStatus,
+			providerStatus: args.providerStatus,
+			error: args.statusMessage,
+			updatedAt: Date.now(),
+		});
+		return true;
+	},
+});
+
+export const _migrateLegacyDispatchStatuses = internalMutation({
+	args: {
+		limit: v.optional(v.number()),
+	},
+	returns: v.object({
+		migratedSentToSubmitted: v.number(),
+		deadLetteredAwaitingProvider: v.number(),
+	}),
+	handler: async (ctx, args) => {
+		const limit = args.limit ? Math.max(1, Math.min(args.limit, 500)) : 200;
+		let migratedSentToSubmitted = 0;
+		let deadLetteredAwaitingProvider = 0;
+
+		const sentRows = await ctx.db
+			.query("emailDispatches")
+			.withIndex("by_status_updated_at", (q) => q.eq("status", "sent"))
+			.order("asc")
+			.take(limit);
+		for (const dispatch of sentRows) {
+			await ctx.db.patch("emailDispatches", dispatch._id, {
+				status: "submitted",
+				updatedAt: Date.now(),
+			});
+			migratedSentToSubmitted += 1;
+		}
+
+		const awaitingRows = await ctx.db
+			.query("emailDispatches")
+			.withIndex("by_status_updated_at", (q) =>
+				q.eq("status", "awaiting_provider"),
+			)
+			.order("asc")
+			.take(limit);
+		for (const dispatch of awaitingRows) {
+			await deadLetter(ctx, {
+				dispatch,
+				error: "legacy_polling_removed",
+				providerStatus: dispatch.providerStatus ?? "unknown",
+			});
+			deadLetteredAwaitingProvider += 1;
+		}
+
+		return { migratedSentToSubmitted, deadLetteredAwaitingProvider };
+	},
 });
 
 export const _deadLetter = internalMutation({
