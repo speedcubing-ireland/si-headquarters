@@ -10,7 +10,8 @@ export default defineConfig({
 	},
 	test: {
 		isolate: true,
-		pool: "threads",
+    // threads was causing issues on my mac...
+		pool: "forks",
 		testTimeout: 20_000,
 		projects: [
 			{
@@ -39,7 +40,7 @@ export default defineConfig({
 		},
 		server: {
 			deps: {
-				inline: ["convex-test"],
+				inline: ["convex-test", "zod", "@auth/core", "@convex-dev/auth"],
 			},
 		},
 	},

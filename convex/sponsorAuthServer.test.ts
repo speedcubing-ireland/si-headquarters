@@ -300,13 +300,13 @@ describe("buildSponsorOtpEmail", () => {
 		expect(result.htmlBody).toContain("987654");
 	});
 
-	test("includes 10 minute expiry in body", () => {
+	test("includes 60 minute expiry in body", () => {
 		const result = buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "123456",
 			type: "sign-in",
 		});
-		expect(result.plainTextBody).toContain("10 minutes");
+		expect(result.plainTextBody).toContain("60 minutes");
 	});
 
 	test("sets sourceKind to sponsor_auth", () => {

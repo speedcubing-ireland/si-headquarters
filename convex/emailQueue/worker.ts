@@ -324,10 +324,19 @@ export async function runSweep(ctx: MutationCtx): Promise<{
 				});
 			}
 			if (status === "queued" || status === "sending") {
-				await emailSendPool.enqueueAction(ctx, internal.emailQueue._sendDispatch, {
-					dispatchId: dispatch._id,
-					claimKey,
-				});
+				await emailSendPool.enqueueAction(
+					ctx,
+					internal.emailQueue._sendDispatch,
+					{
+						dispatchId: dispatch._id,
+						claimKey,
+					},
+					{
+						// Match primary enqueue behavior: transient network issues (incl AbortError)
+						// should retry with backoff rather than becoming permanent failures.
+						retry: { maxAttempts: 5, initialBackoffMs: 1000, base: 2 },
+					},
+				);
 				rescheduledSend += 1;
 			} else {
 				await ctx.scheduler.runAfter(0, internal.emailQueue._pollDispatch, {
@@ -507,6 +516,9 @@ export async function sendDispatch(
 		) {
 			// Let Workpool retry with backoff. We reuse the same operationId for this
 			// claimKey so Azure can de-duplicate if the previous request succeeded.
+			if (error instanceof Error) {
+				throw error;
+			}
 			throw new Error(message);
 		}
 
