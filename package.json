@@ -81,7 +81,7 @@
 		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.4.4",
+		"@biomejs/biome": "2.4.14",
 		"@convex-dev/eslint-plugin": "^1.2.2",
 		"@edge-runtime/vm": "^5.0.0",
 		"@hey-api/openapi-ts": "0.92.4",
