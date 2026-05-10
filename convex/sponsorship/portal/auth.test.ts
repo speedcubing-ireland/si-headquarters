@@ -21,18 +21,21 @@ async function seedSponsorSession(t: ReturnType<typeof convexTest>) {
 		ctx.db.insert("users", { email: "owner@example.com" }),
 	);
 	const now = Date.now();
-	const sponsorAuthUser = (await t.mutation(components.sponsorAuth.adapter.create, {
-		input: {
-			model: "user",
-			data: {
-				email: "sponsor@example.com",
-				name: "Portal Sponsor",
-				emailVerified: true,
-				createdAt: now,
-				updatedAt: now,
+	const sponsorAuthUser = (await t.mutation(
+		components.sponsorAuth.adapter.create,
+		{
+			input: {
+				model: "user",
+				data: {
+					email: "sponsor@example.com",
+					name: "Portal Sponsor",
+					emailVerified: true,
+					createdAt: now,
+					updatedAt: now,
+				},
 			},
 		},
-	})) as { _id: string };
+	)) as { _id: string };
 	const sponsorId = await t.run((ctx) =>
 		ctx.db.insert("sponsors", {
 			name: "Canonical Sponsor Ltd",

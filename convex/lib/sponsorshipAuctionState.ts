@@ -8,10 +8,7 @@ import {
 type AuctionDoc = Doc<"sponsorshipAuctions">;
 type IntentDoc = Doc<"sponsorshipBidIntents">;
 
-export function compareBidIntentChronology(
-	a: IntentDoc,
-	b: IntentDoc,
-): number {
+export function compareBidIntentChronology(a: IntentDoc, b: IntentDoc): number {
 	if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
 	if (a._creationTime !== b._creationTime) {
 		return a._creationTime - b._creationTime;
@@ -30,7 +27,10 @@ export function compareBidIntentChronologyWithIdTieBreak(
 
 export function latestBidIntentBySponsor(
 	intents: IntentDoc[],
-	compare: (a: IntentDoc, b: IntentDoc) => number = compareBidIntentChronologyWithIdTieBreak,
+	compare: (
+		a: IntentDoc,
+		b: IntentDoc,
+	) => number = compareBidIntentChronologyWithIdTieBreak,
 ): Map<Id<"sponsors">, IntentDoc> {
 	const latestIntentBySponsor = new Map<Id<"sponsors">, IntentDoc>();
 	for (const intent of intents) {
@@ -44,13 +44,16 @@ export function latestBidIntentBySponsor(
 
 export function buildProxyContenders(
 	intents: IntentDoc[],
-	compare: (a: IntentDoc, b: IntentDoc) => number = compareBidIntentChronologyWithIdTieBreak,
+	compare: (
+		a: IntentDoc,
+		b: IntentDoc,
+	) => number = compareBidIntentChronologyWithIdTieBreak,
 ): Array<{
-		sponsorId: Id<"sponsors">;
-		maxAmountCents: number;
-		firstMaxSetAt: number;
-		firstMaxSetOrder: number;
-	}> {
+	sponsorId: Id<"sponsors">;
+	maxAmountCents: number;
+	firstMaxSetAt: number;
+	firstMaxSetOrder: number;
+}> {
 	const contenderBySponsorId = new Map<
 		Id<"sponsors">,
 		{
@@ -59,9 +62,7 @@ export function buildProxyContenders(
 			maxAmountCents: number;
 		}
 	>();
-	for (const [index, intent] of [...intents]
-		.sort(compare)
-		.entries()) {
+	for (const [index, intent] of [...intents].sort(compare).entries()) {
 		const maxAmountCents = intent.maxAmountCents ?? intent.amountCents;
 		const existingContender = contenderBySponsorId.get(intent.sponsorId);
 		if (!existingContender) {
@@ -78,9 +79,7 @@ export function buildProxyContenders(
 			firstMaxSetAt: maxChanged
 				? intent.createdAt
 				: existingContender.firstMaxSetAt,
-			firstMaxSetOrder: maxChanged
-				? index
-				: existingContender.firstMaxSetOrder,
+			firstMaxSetOrder: maxChanged ? index : existingContender.firstMaxSetOrder,
 		});
 	}
 	return [...contenderBySponsorId.entries()].map(([sponsorId, contender]) => ({

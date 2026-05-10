@@ -39,7 +39,10 @@ export const updateDisplayName = mutation({
 		name: v.string(),
 	}),
 	handler: async (ctx, args) => {
-		const { sponsor, user } = await requireSponsorSession(ctx, args.sessionToken);
+		const { sponsor, user } = await requireSponsorSession(
+			ctx,
+			args.sessionToken,
+		);
 		const name = args.displayName.trim();
 		if (!name) {
 			throw new ConvexError({
