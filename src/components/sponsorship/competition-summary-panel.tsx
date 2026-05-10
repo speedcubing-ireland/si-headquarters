@@ -31,14 +31,19 @@ const WCA_EVENT_NAME_BY_ID: Record<string, string> = {
 	"333mbf": "3x3x3 Multi-Blind",
 };
 
-function formatDate(date: string): string {
+export function formatDate(date: string): string {
 	if (!date.trim()) return "TBC";
 	const parsed = new Date(date);
 	if (Number.isNaN(parsed.getTime())) return date;
-	return parsed.toLocaleDateString();
+	return parsed.toLocaleDateString("en-IE", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		timeZone: "Europe/Dublin",
+	});
 }
 
-function formatDateRange(summary: CompetitionSummary): string {
+export function formatDateRange(summary: CompetitionSummary): string {
 	const start = formatDate(summary.startDate);
 	const end = formatDate(summary.endDate);
 	return start === end ? start : `${start} to ${end}`;
