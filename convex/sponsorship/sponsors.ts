@@ -30,7 +30,9 @@ async function archiveSponsorFromOpenAuctions(
 				q.eq("auctionId", auction._id).eq("sponsorId", args.sponsorId),
 			)
 			.collect();
-		const validSponsorIntents = sponsorIntents.filter((intent) => intent.isValid);
+		const validSponsorIntents = sponsorIntents.filter(
+			(intent) => intent.isValid,
+		);
 		if (
 			validSponsorIntents.length === 0 &&
 			auction.currentLeaderSponsorId !== args.sponsorId

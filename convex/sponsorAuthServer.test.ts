@@ -205,9 +205,9 @@ describe("buildSponsorOtpEmail sender address", () => {
 		else delete process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS;
 	});
 
-	test("uses SPONSORSHIP_EMAIL_SENDER_ADDRESS env var when set", () => {
+	test("uses SPONSORSHIP_EMAIL_SENDER_ADDRESS env var when set", async () => {
 		process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = "custom@example.com";
-		const result = buildSponsorOtpEmail({
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "123456",
 			type: "sign-in",
@@ -215,9 +215,9 @@ describe("buildSponsorOtpEmail sender address", () => {
 		expect(result.senderAddress).toBe("custom@example.com");
 	});
 
-	test("falls back to sponsorship@speedcubingireland.com when env unset", () => {
+	test("falls back to sponsorship@speedcubingireland.com when env unset", async () => {
 		delete process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS;
-		const result = buildSponsorOtpEmail({
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "123456",
 			type: "sign-in",
@@ -225,9 +225,9 @@ describe("buildSponsorOtpEmail sender address", () => {
 		expect(result.senderAddress).toBe("sponsorship@speedcubingireland.com");
 	});
 
-	test("falls back to default when env var is whitespace", () => {
+	test("falls back to default when env var is whitespace", async () => {
 		process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = "   ";
-		const result = buildSponsorOtpEmail({
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "123456",
 			type: "sign-in",
@@ -237,8 +237,8 @@ describe("buildSponsorOtpEmail sender address", () => {
 });
 
 describe("buildSponsorOtpEmail", () => {
-	test("builds forget-password email with correct subject", () => {
-		const result = buildSponsorOtpEmail({
+	test("builds forget-password email with correct subject", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "Test@Example.COM",
 			otp: "123456",
 			type: "forget-password",
@@ -248,8 +248,8 @@ describe("buildSponsorOtpEmail", () => {
 		);
 	});
 
-	test("builds sign-in email with correct subject", () => {
-		const result = buildSponsorOtpEmail({
+	test("builds sign-in email with correct subject", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "654321",
 			type: "sign-in",
@@ -259,8 +259,8 @@ describe("buildSponsorOtpEmail", () => {
 		);
 	});
 
-	test("builds email-verification with sign-in subject", () => {
-		const result = buildSponsorOtpEmail({
+	test("builds email-verification with sign-in subject", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "111111",
 			type: "email-verification",
@@ -270,8 +270,8 @@ describe("buildSponsorOtpEmail", () => {
 		);
 	});
 
-	test("lowercases email in dedupe key", () => {
-		const result = buildSponsorOtpEmail({
+	test("lowercases email in dedupe key", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "Test@Example.COM",
 			otp: "123456",
 			type: "sign-in",
@@ -281,8 +281,8 @@ describe("buildSponsorOtpEmail", () => {
 		);
 	});
 
-	test("preserves original email as recipientEmail", () => {
-		const result = buildSponsorOtpEmail({
+	test("preserves original email as recipientEmail", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "Test@Example.COM",
 			otp: "123456",
 			type: "sign-in",
@@ -290,8 +290,8 @@ describe("buildSponsorOtpEmail", () => {
 		expect(result.recipientEmail).toBe("Test@Example.COM");
 	});
 
-	test("includes OTP in both plain text and HTML body", () => {
-		const result = buildSponsorOtpEmail({
+	test("includes OTP in both plain text and HTML body", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "987654",
 			type: "forget-password",
@@ -300,8 +300,8 @@ describe("buildSponsorOtpEmail", () => {
 		expect(result.htmlBody).toContain("987654");
 	});
 
-	test("includes 60 minute expiry in body", () => {
-		const result = buildSponsorOtpEmail({
+	test("includes 60 minute expiry in body", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "123456",
 			type: "sign-in",
@@ -309,8 +309,8 @@ describe("buildSponsorOtpEmail", () => {
 		expect(result.plainTextBody).toContain("60 minutes");
 	});
 
-	test("sets sourceKind to sponsor_auth", () => {
-		const result = buildSponsorOtpEmail({
+	test("sets sourceKind to sponsor_auth", async () => {
+		const result = await buildSponsorOtpEmail({
 			email: "user@example.com",
 			otp: "123456",
 			type: "sign-in",
@@ -319,29 +319,22 @@ describe("buildSponsorOtpEmail", () => {
 		expect(result.templateKey).toBe("sponsor_auth_otp");
 	});
 
-	test("includes purpose-specific text for each type", () => {
-		expect(
-			buildSponsorOtpEmail({
-				email: "u@e.com",
-				otp: "1",
-				type: "sign-in",
-			}).plainTextBody,
-		).toContain("sign in");
-
-		expect(
+	test("includes purpose-specific text for each type", async () => {
+		const [signIn, forgotPassword, emailVerification] = await Promise.all([
+			buildSponsorOtpEmail({ email: "u@e.com", otp: "1", type: "sign-in" }),
 			buildSponsorOtpEmail({
 				email: "u@e.com",
 				otp: "1",
 				type: "forget-password",
-			}).plainTextBody,
-		).toContain("reset your password");
-
-		expect(
+			}),
 			buildSponsorOtpEmail({
 				email: "u@e.com",
 				otp: "1",
 				type: "email-verification",
-			}).plainTextBody,
-		).toContain("verify your email");
+			}),
+		]);
+		expect(signIn.plainTextBody).toContain("sign in");
+		expect(forgotPassword.plainTextBody).toContain("reset your password");
+		expect(emailVerification.plainTextBody).toContain("verify your email");
 	});
 });

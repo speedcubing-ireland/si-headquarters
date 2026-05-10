@@ -37,7 +37,10 @@ export async function scheduleAuctionActiveRemindersOnActivation(
 		});
 		if (sent) continue;
 
-		const reminder = await ctx.db.get("sponsorshipAuctionReminders", reminderId);
+		const reminder = await ctx.db.get(
+			"sponsorshipAuctionReminders",
+			reminderId,
+		);
 		if (reminder) await scheduleAuctionActiveReminder(ctx, reminder);
 	}
 }

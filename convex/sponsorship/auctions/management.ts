@@ -1,9 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
-import {
-	compareBidIntentChronologyWithIdTieBreak,
-} from "../../lib/sponsorshipAuctionState";
+import { compareBidIntentChronologyWithIdTieBreak } from "../../lib/sponsorshipAuctionState";
 import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
 import { sponsorshipAuctionFramework } from "../../lib/sponsorshipValidators";
 import {
@@ -93,10 +91,8 @@ export const create = mutation({
 			currency: args.currency ?? "EUR",
 			startsAt: args.startsAt,
 			endsAt: args.endsAt,
-			antiSnipingWindowMs:
-				antiSnipingWindowMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
-			antiSnipingExtendMs:
-				antiSnipingExtendMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
+			antiSnipingWindowMs: antiSnipingWindowMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
+			antiSnipingExtendMs: antiSnipingExtendMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
 			startPriceCents: args.startPriceCents,
 			competitionSnapshot: buildFallbackSnapshotForCompetition(competition),
 			createdById: actorId,

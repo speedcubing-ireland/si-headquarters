@@ -1012,9 +1012,7 @@ export const getDispatchStats = query({
 		const health = await queryEmailDispatchHealth(ctx);
 		return {
 			pending:
-				health.totals.queued +
-				health.totals.sending +
-				health.totals.submitted,
+				health.totals.queued + health.totals.sending + health.totals.submitted,
 			sent: health.totals.sent + health.totals.delivered,
 			skipped: health.totals.canceled,
 			failed:
@@ -1035,9 +1033,7 @@ export const getDispatchHealth = query({
 		await requireDirector(ctx);
 		const health = await queryEmailDispatchHealth(ctx);
 		const pendingCount =
-			health.totals.queued +
-			health.totals.sending +
-			health.totals.submitted;
+			health.totals.queued + health.totals.sending + health.totals.submitted;
 		const channel: NotificationChannel = "email";
 		const failedCount =
 			health.totals.deadLetter +

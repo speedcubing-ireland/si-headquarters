@@ -180,7 +180,8 @@ export async function enqueueDispatch(
 	const now = Date.now();
 	const recipientEmail =
 		normalizeEmail(args.recipientEmail) ?? args.recipientEmail;
-	const requestedScheduledFor = args.scheduledFor ?? now + DEFAULT_EMAIL_DELAY_MS;
+	const requestedScheduledFor =
+		args.scheduledFor ?? now + DEFAULT_EMAIL_DELAY_MS;
 	const scheduledFor = await getNextPacedScheduledFor(
 		ctx,
 		Math.max(requestedScheduledFor, now),
