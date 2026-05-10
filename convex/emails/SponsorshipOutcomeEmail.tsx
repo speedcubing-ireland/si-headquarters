@@ -3,6 +3,7 @@ import { sponsorPortalAuctionsIndexUrl } from "../lib/siteUrls";
 import {
 	SponsorshipEmailShell,
 	SponsorshipInfoBlock,
+	formatDateTime,
 } from "./sponsorshipShared";
 
 export type SponsorshipOutcomeVariant =
@@ -35,7 +36,7 @@ function getCopy(props: SponsorshipOutcomeEmailProps): {
 				preview: "Sponsorship bidding has started",
 				body:
 					props.endsAt !== undefined
-						? `Bidding is now live. Submit your bid before ${new Date(props.endsAt).toLocaleString()}.`
+						? `Bidding is now live. Submit your bid before ${formatDateTime(props.endsAt)}.`
 						: "Bidding is now live in the sponsor portal.",
 				ctaLabel: "Open auction",
 				statusLabel: "Bidding open",
@@ -106,7 +107,7 @@ export default function SponsorshipOutcomeEmail(
 					<Section className="mt-3">
 						<SponsorshipInfoBlock
 							label="Starts"
-							value={new Date(props.startsAt).toLocaleString()}
+							value={formatDateTime(props.startsAt)}
 						/>
 					</Section>
 				) : null}
@@ -114,7 +115,7 @@ export default function SponsorshipOutcomeEmail(
 					<Section className="mt-3">
 						<SponsorshipInfoBlock
 							label="Ends"
-							value={new Date(props.endsAt).toLocaleString()}
+							value={formatDateTime(props.endsAt)}
 						/>
 					</Section>
 				) : null}
