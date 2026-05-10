@@ -19,19 +19,26 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useEffect } from "react";
 import { isSponsorshipEnabled } from "@/lib/feature-flags";
+import { getPageTitle } from "@/lib/page-title";
 
 const RootLayout = () => <RootLayoutInner />;
 
 function RootLayoutInner() {
-	const isPublicAuthBypassPath = useRouterState({
+	const { isPublicAuthBypassPath, pathname } = useRouterState({
 		select: (state) => {
 			const normalizedPath = state.location.pathname.replace(/\/+$/, "") || "/";
-			return (
-				normalizedPath === "/auth/login-ticket" ||
-				(isSponsorshipEnabled && normalizedPath.startsWith("/sponsor"))
-			);
+			return {
+				isPublicAuthBypassPath:
+					normalizedPath === "/auth/login-ticket" ||
+					(isSponsorshipEnabled && normalizedPath.startsWith("/sponsor")),
+				pathname: state.location.pathname,
+			};
 		},
 	});
+
+	useEffect(() => {
+		document.title = getPageTitle(pathname);
+	}, [pathname]);
 
 	if (isPublicAuthBypassPath) {
 		return (
