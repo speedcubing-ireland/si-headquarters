@@ -8,6 +8,7 @@ import { emailOTP } from "better-auth/plugins";
 import { components } from "./_generated/api";
 import { internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
+import { renderSponsorPortalOtpEmail } from "./emails/SponsorPortalOtpEmail";
 import { getSponsorshipSenderAddress } from "./lib/email";
 import {
 	resolveSponsorPortalOriginForAuth,
@@ -55,37 +56,30 @@ export function resolveSponsorAuthSecret(
 	return SPONSOR_AUTH_DEV_SECRET;
 }
 
-export function buildSponsorOtpEmail(args: {
+export async function buildSponsorOtpEmail(args: {
 	email: string;
 	otp: string;
 	type: "sign-in" | "forget-password" | "email-verification";
 }) {
 	const purposeLabel =
 		args.type === "sign-in"
-			? "sign in"
+			? ("sign in" as const)
 			: args.type === "forget-password"
-				? "reset your password"
-				: "verify your email";
+				? ("reset your password" as const)
+				: ("verify your email" as const);
 	const subject =
 		args.type === "forget-password"
 			? "Speedcubing Ireland Sponsor Portal password reset code"
 			: "Speedcubing Ireland Sponsor Portal sign-in code";
 	const portalUrl = sponsorPortalUrl();
-	const plainText = [
-		`Use this code to ${purposeLabel}:`,
-		args.otp,
-		"",
-		`This code expires in ${Math.floor(SPONSOR_OTP_EXPIRES_SECONDS / 60)} minutes.`,
-		`Sponsor portal: ${portalUrl}`,
-	].join("\n");
-
-	const html = [
-		"<p>Use this code for the Speedcubing Ireland Sponsor Portal:</p>",
-		`<p style="font-family:monospace;font-size:28px;letter-spacing:0.2em;"><strong>${args.otp}</strong></p>`,
-		`<p>This code expires in ${Math.floor(SPONSOR_OTP_EXPIRES_SECONDS / 60)} minutes.</p>`,
-		`<p><a href="${portalUrl}">Open sponsor portal</a></p>`,
-	].join("");
-
+	const expiresInMinutes = Math.floor(SPONSOR_OTP_EXPIRES_SECONDS / 60);
+	const { html: htmlBody, plainText: plainTextBody } =
+		await renderSponsorPortalOtpEmail({
+			otp: args.otp,
+			purposeLabel,
+			expiresInMinutes,
+			portalUrl,
+		});
 	const dedupeKey = `sponsor_auth_otp:${args.type}:${args.email.toLowerCase()}:${args.otp}`;
 	return {
 		dedupeKey,
@@ -95,8 +89,8 @@ export function buildSponsorOtpEmail(args: {
 		recipientEmail: args.email,
 		senderAddress: getSponsorshipSenderAddress(),
 		subject,
-		htmlBody: html,
-		plainTextBody: plainText,
+		htmlBody,
+		plainTextBody,
 	};
 }
 
@@ -177,7 +171,7 @@ export function createSponsorAuthOptions(
 					}
 					await ctx.runMutation(
 						internal.emailQueue._enqueueDispatch,
-						buildSponsorOtpEmail({ email, otp, type }),
+						await buildSponsorOtpEmail({ email, otp, type }),
 					);
 				},
 			}),

@@ -43,7 +43,9 @@ export const handleAzureEmailEvents = httpAction(async (ctx, req) => {
 	}
 
 	const body = (await req.json()) as unknown;
-	const events: EventGridEvent[] = Array.isArray(body) ? (body as EventGridEvent[]) : [];
+	const events: EventGridEvent[] = Array.isArray(body)
+		? (body as EventGridEvent[])
+		: [];
 	if (events.length === 0) {
 		return new Response("Bad Request", { status: 400 });
 	}
@@ -60,7 +62,8 @@ export const handleAzureEmailEvents = httpAction(async (ctx, req) => {
 	}
 
 	for (const evt of events) {
-		if (evt.eventType !== "Microsoft.Communication.EmailDeliveryReportReceived") continue;
+		if (evt.eventType !== "Microsoft.Communication.EmailDeliveryReportReceived")
+			continue;
 		const data = (evt.data ?? {}) as EmailDeliveryReportReceivedData;
 		const providerOperationId = data.messageId?.toString();
 		const providerStatus = data.status?.toString();
@@ -76,4 +79,3 @@ export const handleAzureEmailEvents = httpAction(async (ctx, req) => {
 
 	return new Response("OK", { status: 200 });
 });
-

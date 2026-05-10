@@ -31,7 +31,9 @@ function isFailedProviderStatus(status: KnownEmailSendStatus): boolean {
 	);
 }
 
-function isFinalDispatchStatus(status: Doc<"emailDispatches">["status"]): boolean {
+function isFinalDispatchStatus(
+	status: Doc<"emailDispatches">["status"],
+): boolean {
 	return (
 		status === "dead_letter" ||
 		status === "canceled" ||
@@ -49,7 +51,8 @@ function isProviderStatusTimedOut(dispatch: {
 	updatedAt: number;
 	createdAt: number;
 }): boolean {
-	const startedAt = dispatch.submittedAt ?? dispatch.updatedAt ?? dispatch.createdAt;
+	const startedAt =
+		dispatch.submittedAt ?? dispatch.updatedAt ?? dispatch.createdAt;
 	return startedAt + PROVIDER_STATUS_TIMEOUT_MS < nowMs();
 }
 
@@ -61,10 +64,7 @@ export async function claimDispatchForSend(
 	if (!dispatch || dispatch.claimKey !== args.claimKey) {
 		return false;
 	}
-	if (
-		dispatch.status === "sent" ||
-		isFinalDispatchStatus(dispatch.status)
-	) {
+	if (dispatch.status === "sent" || isFinalDispatchStatus(dispatch.status)) {
 		return false;
 	}
 	if (dispatch.status === "awaiting_provider") {
@@ -76,7 +76,11 @@ export async function claimDispatchForSend(
 			status: "sending",
 			updatedAt: now,
 		});
-		await transitionDispatchStatus(ctx, { dispatch, nextStatus: "sending", now });
+		await transitionDispatchStatus(ctx, {
+			dispatch,
+			nextStatus: "sending",
+			now,
+		});
 		return true;
 	}
 	if (dispatch.status === "sending") {
@@ -173,7 +177,10 @@ export async function markSubmitted(
 		return false;
 	}
 	if (dispatch.status === "submitted") return true;
-	if (dispatch.status !== "sending" && dispatch.status !== "awaiting_provider") {
+	if (
+		dispatch.status !== "sending" &&
+		dispatch.status !== "awaiting_provider"
+	) {
 		return false;
 	}
 
@@ -186,7 +193,11 @@ export async function markSubmitted(
 		error: undefined,
 		updatedAt: now,
 	});
-	await transitionDispatchStatus(ctx, { dispatch, nextStatus: "submitted", now });
+	await transitionDispatchStatus(ctx, {
+		dispatch,
+		nextStatus: "submitted",
+		now,
+	});
 	return true;
 }
 
@@ -203,11 +214,15 @@ export async function markProviderPoll(
 	if (!dispatch || dispatch.claimKey !== args.claimKey) {
 		return false;
 	}
-	if (dispatch.status !== "submitted" && dispatch.status !== "awaiting_provider") {
+	if (
+		dispatch.status !== "submitted" &&
+		dispatch.status !== "awaiting_provider"
+	) {
 		return false;
 	}
 	const now = nowMs();
-	const nextStatus = dispatch.status === "awaiting_provider" ? "submitted" : dispatch.status;
+	const nextStatus =
+		dispatch.status === "awaiting_provider" ? "submitted" : dispatch.status;
 	await ctx.db.patch("emailDispatches", dispatch._id, {
 		status: nextStatus,
 		providerStatus: args.providerStatus,
@@ -304,7 +319,12 @@ export async function runSweep(ctx: MutationCtx): Promise<{
 	let rescheduledSend = 0;
 	let rescheduledPoll = 0;
 
-	const statuses = ["queued", "sending", "submitted", "awaiting_provider"] as const;
+	const statuses = [
+		"queued",
+		"sending",
+		"submitted",
+		"awaiting_provider",
+	] as const;
 
 	for (const status of statuses) {
 		const stale = await ctx.db
@@ -368,11 +388,12 @@ async function scheduleNextPoll(
 	args: { dispatchId: Id<"emailDispatches">; claimKey: string },
 	retryAfterMs: number,
 ): Promise<void> {
-	const delayMs = Math.max(
-		1,
-		Math.min(MAX_SCHEDULER_DELAY_MS, retryAfterMs),
+	const delayMs = Math.max(1, Math.min(MAX_SCHEDULER_DELAY_MS, retryAfterMs));
+	await ctx.scheduler.runAfter(
+		delayMs,
+		internal.emailQueue._pollDispatch,
+		args,
 	);
-	await ctx.scheduler.runAfter(delayMs, internal.emailQueue._pollDispatch, args);
 }
 
 async function loadActionDispatch(
@@ -475,7 +496,8 @@ export async function sendDispatch(
 				: undefined;
 		const xMsErrorCode =
 			details && typeof details === "object"
-				? typeof (details as { xMsErrorCode?: unknown }).xMsErrorCode === "string"
+				? typeof (details as { xMsErrorCode?: unknown }).xMsErrorCode ===
+					"string"
 					? ((details as { xMsErrorCode: string }).xMsErrorCode as string)
 					: undefined
 				: undefined;
@@ -574,11 +596,14 @@ export async function pollDispatch(
 			});
 			return;
 		}
-		const marked = await ctx.runMutation(internal.emailQueue._markProviderPoll, {
-			dispatchId: dispatch._id,
-			claimKey: args.claimKey,
-			providerStatus: progress.status,
-		});
+		const marked = await ctx.runMutation(
+			internal.emailQueue._markProviderPoll,
+			{
+				dispatchId: dispatch._id,
+				claimKey: args.claimKey,
+				providerStatus: progress.status,
+			},
+		);
 		if (marked) {
 			await scheduleNextPoll(ctx, args, progress.retryAfterMs);
 		}
@@ -593,12 +618,15 @@ export async function pollDispatch(
 			});
 			return;
 		}
-		const marked = await ctx.runMutation(internal.emailQueue._markProviderPoll, {
-			dispatchId: dispatch._id,
-			claimKey: args.claimKey,
-			providerStatus: dispatch.providerStatus ?? "unknown",
-			error: message,
-		});
+		const marked = await ctx.runMutation(
+			internal.emailQueue._markProviderPoll,
+			{
+				dispatchId: dispatch._id,
+				claimKey: args.claimKey,
+				providerStatus: dispatch.providerStatus ?? "unknown",
+				error: message,
+			},
+		);
 		if (marked) {
 			await scheduleNextPoll(ctx, args, FALLBACK_RETRY_AFTER_MS);
 		}

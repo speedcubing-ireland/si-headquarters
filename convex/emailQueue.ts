@@ -311,7 +311,11 @@ export const _applyDeliveryEvent = internalMutation({
 			updatedAt: now,
 		});
 		await transitionDispatchStatus(ctx, {
-			dispatch: { _id: dispatch._id, sourceKind: dispatch.sourceKind, status: prev },
+			dispatch: {
+				_id: dispatch._id,
+				sourceKind: dispatch.sourceKind,
+				status: prev,
+			},
 			nextStatus,
 			now,
 		});
@@ -345,7 +349,11 @@ export const _migrateLegacyDispatchStatuses = internalMutation({
 				updatedAt: now,
 			});
 			await transitionDispatchStatus(ctx, {
-				dispatch: { _id: dispatch._id, sourceKind: dispatch.sourceKind, status: prev },
+				dispatch: {
+					_id: dispatch._id,
+					sourceKind: dispatch.sourceKind,
+					status: prev,
+				},
 				nextStatus: "submitted",
 				now,
 			});
@@ -376,7 +384,9 @@ export const _backfillEmailDispatchHealthCounters = internalMutation({
 	args: {
 		limit: v.optional(v.number()),
 		cursor: v.optional(v.string()),
-		phase: v.optional(v.union(v.literal("dispatches"), v.literal("deadLetters"))),
+		phase: v.optional(
+			v.union(v.literal("dispatches"), v.literal("deadLetters")),
+		),
 	},
 	returns: v.object({
 		countedDispatches: v.number(),

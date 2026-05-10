@@ -254,8 +254,9 @@ async function placeProxyBid(
 		},
 	];
 
-	const validIntentsInChronologicalOrder = intents
-		.filter((intent) => intent.isValid);
+	const validIntentsInChronologicalOrder = intents.filter(
+		(intent) => intent.isValid,
+	);
 	const state = resolveProxyState(
 		buildProxyContenders(
 			validIntentsInChronologicalOrder,

@@ -99,24 +99,20 @@ export async function getDispatchTotalsFromCounters(ctx: QueryCtx): Promise<{
 }> {
 	const rows = await ctx.db.query("emailDispatchCounters").take(200);
 	const bySourceStatus = {
-		sponsorship: Object.fromEntries(dispatchStatuses.map((s) => [s, 0])) as Record<
-			EmailDispatchStatus,
-			number
-		>,
-		notification: Object.fromEntries(dispatchStatuses.map((s) => [s, 0])) as Record<
-			EmailDispatchStatus,
-			number
-		>,
-		sponsor_auth: Object.fromEntries(dispatchStatuses.map((s) => [s, 0])) as Record<
-			EmailDispatchStatus,
-			number
-		>,
+		sponsorship: Object.fromEntries(
+			dispatchStatuses.map((s) => [s, 0]),
+		) as Record<EmailDispatchStatus, number>,
+		notification: Object.fromEntries(
+			dispatchStatuses.map((s) => [s, 0]),
+		) as Record<EmailDispatchStatus, number>,
+		sponsor_auth: Object.fromEntries(
+			dispatchStatuses.map((s) => [s, 0]),
+		) as Record<EmailDispatchStatus, number>,
 	} satisfies Record<EmailSourceKind, Record<EmailDispatchStatus, number>>;
 
-	const totals = Object.fromEntries(dispatchStatuses.map((s) => [s, 0])) as Record<
-		EmailDispatchStatus,
-		number
-	>;
+	const totals = Object.fromEntries(
+		dispatchStatuses.map((s) => [s, 0]),
+	) as Record<EmailDispatchStatus, number>;
 
 	for (const row of rows) {
 		bySourceStatus[row.sourceKind][row.status] =
@@ -127,7 +123,10 @@ export async function getDispatchTotalsFromCounters(ctx: QueryCtx): Promise<{
 	return { bySourceStatus, totals };
 }
 
-export async function getDeadLettersLast24h(ctx: QueryCtx, now: number): Promise<number> {
+export async function getDeadLettersLast24h(
+	ctx: QueryCtx,
+	now: number,
+): Promise<number> {
 	const cutoff = now - ONE_DAY_MS;
 	// Read a small bounded set of buckets; worst-case < 48 for small skew.
 	const buckets = await ctx.db
@@ -154,8 +153,9 @@ export async function getStaleQueuedCountBounded(
 	const cutoff = now - staleDispatchThresholdMs;
 	const stale = await ctx.db
 		.query("emailDispatches")
-		.withIndex("by_status_updated_at", (q) => q.eq("status", "queued").lt("updatedAt", cutoff))
+		.withIndex("by_status_updated_at", (q) =>
+			q.eq("status", "queued").lt("updatedAt", cutoff),
+		)
 		.take(5000);
 	return stale.length;
 }
-

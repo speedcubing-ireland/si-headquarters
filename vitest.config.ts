@@ -10,7 +10,7 @@ export default defineConfig({
 	},
 	test: {
 		isolate: true,
-    // threads was causing issues on my mac...
+		// threads was causing issues on my mac...
 		pool: "forks",
 		testTimeout: 20_000,
 		projects: [

@@ -113,12 +113,20 @@ export async function listRecentDeadLetters(
 
 function percentile(sorted: number[], p: number): number | null {
 	if (sorted.length === 0) return null;
-	const idx = Math.max(0, Math.min(sorted.length - 1, Math.floor(p * (sorted.length - 1))));
+	const idx = Math.max(
+		0,
+		Math.min(sorted.length - 1, Math.floor(p * (sorted.length - 1))),
+	);
 	return sorted[idx] ?? null;
 }
 
-export async function getDeliveryDiagnostics(ctx: QueryCtx, args?: { sampleSize?: number }) {
-	const sampleSize = args?.sampleSize ? Math.max(10, Math.min(args.sampleSize, 500)) : 200;
+export async function getDeliveryDiagnostics(
+	ctx: QueryCtx,
+	args?: { sampleSize?: number },
+) {
+	const sampleSize = args?.sampleSize
+		? Math.max(10, Math.min(args.sampleSize, 500))
+		: 200;
 	const delivered = await ctx.db
 		.query("emailDispatches")
 		.withIndex("by_status_updated_at", (q) => q.eq("status", "delivered"))

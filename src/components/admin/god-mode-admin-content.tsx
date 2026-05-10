@@ -250,10 +250,10 @@ function EmailAdminPanel() {
 		try {
 			const [nextDispatchHealth, nextDeliveryDiagnostics, nextDeadLetters] =
 				await Promise.all([
-				convex.query(api.notifications.getDispatchHealth, {}),
-				convex.query(api.notifications.getEmailDeliveryDiagnostics, {}),
-				convex.query(api.notifications.listRecentDeadLetters, { limit: 20 }),
-			]);
+					convex.query(api.notifications.getDispatchHealth, {}),
+					convex.query(api.notifications.getEmailDeliveryDiagnostics, {}),
+					convex.query(api.notifications.listRecentDeadLetters, { limit: 20 }),
+				]);
 			setDiagnostics({
 				dispatchHealth: nextDispatchHealth,
 				deliveryDiagnostics: nextDeliveryDiagnostics,

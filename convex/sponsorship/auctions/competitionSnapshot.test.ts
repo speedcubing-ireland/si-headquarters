@@ -33,18 +33,21 @@ async function seedSponsorAccess(
 			updatedAt: now,
 		}),
 	);
-	const sponsorAuthUser = (await t.mutation(components.sponsorAuth.adapter.create, {
-		input: {
-			model: "user",
-			data: {
-				email: "sponsor@example.com",
-				name: "Snapshot Sponsor",
-				emailVerified: true,
-				createdAt: now,
-				updatedAt: now,
+	const sponsorAuthUser = (await t.mutation(
+		components.sponsorAuth.adapter.create,
+		{
+			input: {
+				model: "user",
+				data: {
+					email: "sponsor@example.com",
+					name: "Snapshot Sponsor",
+					emailVerified: true,
+					createdAt: now,
+					updatedAt: now,
+				},
 			},
 		},
-	})) as { _id: string };
+	)) as { _id: string };
 	const sponsorId = await t.run((ctx) =>
 		ctx.db.insert("sponsors", {
 			name: "Snapshot Sponsor Ltd",
@@ -131,10 +134,13 @@ describe("refreshCompetitionSnapshot authorization", () => {
 			auctionState: "scheduled",
 		});
 
-		const result = await t.action(api.sponsorshipAuctions.refreshCompetitionSnapshot, {
-			auctionId,
-			sessionToken,
-		});
+		const result = await t.action(
+			api.sponsorshipAuctions.refreshCompetitionSnapshot,
+			{
+				auctionId,
+				sessionToken,
+			},
+		);
 
 		expect(result.status).toBe("missing_wca_link");
 	});

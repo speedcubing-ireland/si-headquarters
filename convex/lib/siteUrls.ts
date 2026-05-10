@@ -6,9 +6,7 @@ function trimTrailingSlash(value: string): string {
  * HQ app origin (volunteer dashboard, admin). Use for internal / staff links only.
  */
 export function resolveHqSiteBaseUrl(): string {
-	return trimTrailingSlash(
-		process.env.SITE_URL ?? "https://hq.speedcubing.ie",
-	);
+	return trimTrailingSlash(process.env.SITE_URL ?? "https://hq.speedcubing.ie");
 }
 
 /**
