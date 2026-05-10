@@ -342,6 +342,59 @@ describe("sendAuctionScheduledEmails", () => {
 	});
 });
 
+describe("buildSponsorshipEmailHtml — outcome template formats dates as en-IE", () => {
+	// 31 Jan 2026 14:30 UTC — day ≠ month so American vs Irish is distinguishable
+	const fixedTs = Date.UTC(2026, 0, 31, 14, 30);
+	const expectedDateSubstring = new Date(fixedTs).toLocaleString("en-IE", {
+		dateStyle: "full",
+		timeStyle: "short",
+		timeZone: "Europe/Dublin",
+	});
+
+	const baseContext = {
+		competitionName: "Irish Open 2026",
+		portalUrl: "https://hq.speedcubing.ie/sponsor/auctions/abc123",
+		startsAt: fixedTs,
+		endsAt: fixedTs,
+	};
+
+	test("auction_started body and Ends row use Irish date format", async () => {
+		const html = await buildSponsorshipEmailHtml({
+			emailType: "auction_started",
+			context: baseContext,
+			messageFallback: "fallback",
+		});
+		expect(html).toContain(expectedDateSubstring);
+		expect(html).not.toContain("1/31/2026");
+		expect(html).not.toContain("01/31/2026");
+		expect(html).not.toMatch(/January\s+31/);
+	});
+
+	test("auction_started plain text uses Irish date format", async () => {
+		const text = await buildSponsorshipEmailPlainText({
+			emailType: "auction_started",
+			context: baseContext,
+			messageFallback: "fallback",
+		});
+		expect(text).toContain(expectedDateSubstring);
+		expect(text).not.toContain("1/31/2026");
+		expect(text).not.toContain("01/31/2026");
+	});
+
+	test("auction_closed_winner Starts and Ends rows use Irish date format", async () => {
+		const html = await buildSponsorshipEmailHtml({
+			emailType: "auction_closed_winner",
+			context: { ...baseContext, settlementAmountCents: 100_000 },
+			messageFallback: "fallback",
+		});
+		// Both Starts and Ends rows are present; expectedDateSubstring should appear twice
+		const occurrences = html.split(expectedDateSubstring).length - 1;
+		expect(occurrences).toBeGreaterThanOrEqual(2);
+		expect(html).not.toContain("1/31/2026");
+		expect(html).not.toContain("01/31/2026");
+	});
+});
+
 describe("buildSponsorshipEmailHtml — auction_scheduled template", () => {
 	const fullContext = {
 		competitionName: "Irish Open 2026",
