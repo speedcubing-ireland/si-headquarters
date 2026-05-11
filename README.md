@@ -80,9 +80,10 @@ See [Environment Variables](#environment-variables) for details on each variable
 bun run dev
 ```
 
-This runs two processes in parallel:
+This runs three processes in parallel:
 
-- `vite` — frontend dev server with HMR
+- `vite` (port 5173) — frontend dev server with HMR
+- `vite` (port 5174) — sponsor portal dev server (requires `VITE_SPONSORSHIP_ENABLED=1`)
 - `convex dev` — watches `convex/` and pushes functions/schema to your dev deployment on every save
 
 > **Chrome users:** When Chrome prompts you, allow the site to use **Apps on device** in the site settings.
@@ -129,7 +130,15 @@ A single Convex project includes both a dev and a prod deployment — you don't 
 bunx convex deploy
 ```
 
-**Build frontend for production** (needs prod URLs):
+**Build and deploy frontend for production** (recommended):
+
+```sh
+bun run build:deploy
+```
+
+This runs `convex deploy` and builds the frontend in one step, injecting the correct `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` automatically.
+
+Alternatively, if you need to build the frontend separately (e.g. for a custom deployment pipeline):
 
 ```sh
 VITE_CONVEX_URL=https://<deployment>.convex.cloud \
@@ -155,6 +164,14 @@ bun run lint:convex     # ESLint for convex/ directory
 bun run typecheck       # type-check frontend and convex
 ```
 
+## Other scripts
+
+```sh
+bun run email:dev       # React Email preview server for templates in convex/emails/
+bun run openapi-ts      # Regenerate OpenAPI clients from openapi/ specs
+bun run build:deploy    # convex deploy + frontend build in one step (preferred for production)
+```
+
 ## Project Structure
 
 ```
@@ -166,8 +183,10 @@ bun run typecheck       # type-check frontend and convex
 │   ├── teams.ts         # Team management
 │   ├── notifications/   # Notification system
 │   ├── emailQueue/      # Email dispatch pipeline
+│   ├── emails/          # React Email templates
 │   ├── sponsorship/     # Sponsorship auction system
 │   ├── canva/           # Canva integration
+│   ├── tasks/           # Task subroutines (access, approvals, patch logic)
 │   ├── services/        # External service integrations (WCA, Google, Canva)
 │   └── *.test.ts        # Backend tests
 ├── src/
@@ -196,7 +215,7 @@ These are set individually via `bunx convex env set`, or in bulk using the [setu
 
 #### Development Secrets
 
-These should been set during initial setup (see [step 3](#3-set-critical-secrets-in-convex)). In which case skip.
+These were set during initial setup (see [step 3](#3-set-critical-secrets-in-convex)). Skip if already done.
 
 | Variable | Purpose | How to Generate |
 |---|---|---|
@@ -253,7 +272,7 @@ These are a **separate set of OAuth applications** from the user authentication 
 | `SPONSOR_SITE_URL` | Base URL for sponsor portal links and sponsor auth origin checks. Set this when the sponsor portal is hosted on a different origin (e.g. `http://localhost:5174` in dev, or `https://sponsors.speedcubing.ie` in production). If unset, it falls back to `SITE_URL`. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins for sponsor auth. Automatically includes `SITE_URL`. |
 | `WCA_BASE_URL` | Base URL for WCA website links and API calls. Defaults to `https://www.worldcubeassociation.org`. Override to point at a staging WCA instance for testing. |
-| `DEPLOYMENT_CONTEXT` | Set to `production` for the production deployment. Any other value (or unset) is treated as non-production, which enables naming convention guards on external resources (resource names must start with `[DEV]`). See [dev/prod isolation](docs/dev-prod-isolation-canva-google-sheets.md). |
+| `DEPLOYMENT_CONTEXT` | Set to `production` for the production deployment. Any other value (or unset) is treated as non-production, which enables naming convention guards on external resources (resource names must start with `[DEV]`). |
 
 #### Feature Flags
 
@@ -277,3 +296,5 @@ These are embedded into the frontend build. `VITE_CONVEX_URL` and `VITE_CONVEX_S
 Additional guides are in the [`docs/`](docs/) folder:
 
 - [Manual Testing by Persona](docs/manual-testing-personas.md) — how to log in as each user role for local testing
+- [Database Schema](docs/database-schema.md) — overview of all Convex tables and their relationships
+- [Email Processing](docs/email-processing.md) — how the email queue and dispatch pipeline work
