@@ -21,8 +21,14 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Verify lint produced no changes
+        run: git diff --exit-code
+
       - name: Lint convex
         run: bun run lint:convex
+
+      - name: Verify lint:convex produced no changes
+        run: git diff --exit-code
 
       - name: Type check
         run: bun run typecheck
