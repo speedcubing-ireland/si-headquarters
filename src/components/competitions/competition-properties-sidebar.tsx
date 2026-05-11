@@ -131,6 +131,10 @@ function sponsorStatusBadgeVariant(
 	}
 }
 
+export function formatWinningBid(cents: number): string {
+	return `€${(cents / 100).toFixed(2)}`;
+}
+
 function auctionDerivedSponsorLabel(competition: Competition): string {
 	if (competition.auctionDerivedSponsorPropertyStatus === "sponsor") {
 		return competition.auctionDerivedSponsorPropertyDisplay ?? "Sponsor";
@@ -446,6 +450,18 @@ export function CompetitionPropertiesSidebar({
 							)}
 						</div>
 					</PropertyRow>
+
+					{competition.sponsorPropertyStatus === "sponsor" &&
+						competition.sponsorWinningBidCents !== undefined && (
+							<PropertyRow
+								label="Winning bid"
+								icon={<Gavel className="size-3.5" />}
+							>
+								<span className="text-sm">
+									{formatWinningBid(competition.sponsorWinningBidCents)}
+								</span>
+							</PropertyRow>
+						)}
 
 					<div className="flex min-h-9 flex-col gap-2 px-3 -mx-3">
 						{competition.compSheet ? (
