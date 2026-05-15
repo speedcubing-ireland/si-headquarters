@@ -85,6 +85,18 @@ fi
 # re-enable password and passkey sign-in plus password reset.
 # bunx convex env set $PROD_FLAG SPONSOR_PASSWORD_AUTH_ENABLED "true"
 
+# -- Discord ------------------------------------------------------------------
+# HTTP webhook integration (no gateway bot required). Provides slash commands
+# and interactive messages. Set these, then register slash commands via:
+#   bunx convex run discord/actions:registerSlashCommandsAction
+# And set the Interactions Endpoint URL in the Discord Developer Portal to:
+#   {CONVEX_SITE_URL}/webhooks/discord/interactions
+
+bunx convex env set $PROD_FLAG DISCORD_TOKEN          "<YOUR_DISCORD_TOKEN>"
+bunx convex env set $PROD_FLAG DISCORD_APPLICATION_ID "<YOUR_DISCORD_APPLICATION_ID>"
+bunx convex env set $PROD_FLAG DISCORD_PUBLIC_KEY     "<YOUR_DISCORD_PUBLIC_KEY>"
+bunx convex env set $PROD_FLAG DISCORD_GUILD_ID       "<YOUR_DISCORD_GUILD_ID>"
+
 echo ""
 echo "Convex ${TARGET} environment variables set successfully."
 echo ""
