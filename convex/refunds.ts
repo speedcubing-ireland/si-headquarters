@@ -10,20 +10,20 @@ import {
 } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { buildRefundDecision } from "./lib/refunds";
-import { WCA_BASE_URL } from "./services/wca";
+import { WCA_BASE_URL } from "./integrations/wca";
 import { requireDirectorOrDelegateAction } from "./lib/oauth";
 import { requireAuthenticatedUserId } from "./lib/permissions/authn";
 import { hasPermission, PERMISSION_KEYS } from "./lib/permissions/policies";
 import {
 	isAcceptedRegistration,
 	normalizeWcaId,
-} from "./lib/wca/registrations";
-import { getServiceAccessToken } from "./services/tokens/runtime";
-import { createWcaClient } from "./services/wca/client";
+} from "./integrations/wca/lib/registrations";
+import { getServiceAccessToken } from "./integrations/tokens/runtime";
+import { createWcaClient } from "./integrations/wca/client/client";
 import {
 	getMyCompetitions,
 	getRegistrationsAdmin,
-} from "./services/wca/client/sdk.gen";
+} from "./integrations/wca/client/client/sdk.gen";
 
 const WCA_ID_REGEX = /^\d{4}[A-Z]{4}\d{2}$/;
 const RECENT_PAST_DAYS_WINDOW = 21;

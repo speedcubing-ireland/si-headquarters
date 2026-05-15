@@ -188,7 +188,7 @@ async function runCompetitionSnapshotRefresh(
 	}
 
 	const details = await ctx.runAction(
-		internal.wca.fetchCompetitionDetailsInternal,
+		internal.integrations.wca.actions.fetchCompetitionDetailsInternal,
 		{
 			wcaCompetitionId: context.wcaCompetitionId,
 		},

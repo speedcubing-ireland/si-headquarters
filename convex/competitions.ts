@@ -36,7 +36,7 @@ import {
 	isSealedAuctionFramework,
 } from "./sponsorship/lib/validators";
 import { isSponsorshipManager } from "./sponsorship/lib/access";
-import { wcaCompetitionUrl } from "./services/wca";
+import { wcaCompetitionUrl } from "./integrations/wca";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),

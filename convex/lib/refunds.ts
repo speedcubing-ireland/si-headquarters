@@ -1,9 +1,9 @@
-import type { RegistrationDataV2 } from "../services/wca/client/types.gen";
+import type { RegistrationDataV2 } from "../integrations/wca/client/client/types.gen";
 import {
 	hasPaid,
 	isAcceptedRegistration,
 	normalizeWcaId,
-} from "./wca/registrations";
+} from "../integrations/wca/lib/registrations";
 
 type RegistrationNote = {
 	firstName: string;

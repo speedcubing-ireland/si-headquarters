@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RegistrationDataV2 } from "./services/wca/client/types.gen";
+import type { RegistrationDataV2 } from "./integrations/wca/client/client/types.gen";
 import { buildRefundDecision, type RefundVolunteer } from "./lib/refunds";
 
 function makeVolunteer(

@@ -177,8 +177,12 @@ export function CompetitionPropertiesSidebar({
 	const [wcaPopoverOpen, setWcaPopoverOpen] = useState(false);
 	const [wcaLinking, setWcaLinking] = useState<string | null>(null);
 	const [wcaSearchAll, setWcaSearchAll] = useState(false);
-	const searchWcaCompetitions = useAction(api.wca.searchCompetitions);
-	const fetchMyWcaCompetitions = useAction(api.wca.fetchMyCompetitions);
+	const searchWcaCompetitions = useAction(
+		api.integrations.wca.actions.searchCompetitions,
+	);
+	const fetchMyWcaCompetitions = useAction(
+		api.integrations.wca.actions.fetchMyCompetitions,
+	);
 	const sponsorOverrideValue = competition.manualSponsorId
 		? `sponsor:${competition.manualSponsorId}`
 		: competition.manualSponsorPropertyStatus === "none"

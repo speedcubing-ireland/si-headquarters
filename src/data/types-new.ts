@@ -77,11 +77,11 @@ export type Reminder = FunctionReturnType<
 >[number];
 
 export type LinkedActionDefinition = FunctionReturnType<
-	typeof api.linkedActions.listDefinitions
+	typeof api.integrations.linkedActions.listDefinitions
 >[number];
 
 export type TaskLinkedAction = FunctionReturnType<
-	typeof api.linkedActions.listForTask
+	typeof api.integrations.linkedActions.listForTask
 >[number];
 
 export { TASK_STATUSES, TASK_PRIORITIES } from "../../convex/lib/validators";

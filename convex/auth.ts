@@ -17,7 +17,7 @@ import { isVolunteerForCtx } from "./lib/permissions/policies";
 import { normalizeEmail } from "./lib/sanitize";
 import { z } from "zod";
 import { v } from "convex/values";
-import { WCA_BASE_URL } from "./services/wca";
+import { WCA_BASE_URL } from "./integrations/wca";
 
 function hasAvatarImage(image: string | null | undefined): boolean {
 	return typeof image === "string" && image.trim().length > 0;

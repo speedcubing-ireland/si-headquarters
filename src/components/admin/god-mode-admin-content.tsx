@@ -72,7 +72,7 @@ export function GodModeAdminContent({
 							disconnectCommand="bun run auth google-sheets"
 							oAuthInstructions="Add http://localhost:3847 to Google Cloud Console → Credentials → OAuth redirect URIs."
 							service="google"
-							query={api.services.tokens.getConnectionStatus}
+							query={api.integrations.tokens.getConnectionStatus}
 						/>
 						<ConnectionStatusCardContainer
 							title="WCA (World Cube Association)"
@@ -80,7 +80,7 @@ export function GodModeAdminContent({
 							disconnectCommand="bun run auth wca"
 							oAuthInstructions="Add http://localhost:3848 to WCA → OAuth Applications → Redirect URI."
 							service="wca"
-							query={api.services.tokens.getConnectionStatus}
+							query={api.integrations.tokens.getConnectionStatus}
 						/>
 						<ConnectionStatusCardContainer
 							title="Canva"
@@ -88,7 +88,7 @@ export function GodModeAdminContent({
 							disconnectCommand="bun run auth canva"
 							oAuthInstructions="Add http://127.0.0.1:3849 to Canva Connect OAuth redirect URIs."
 							service="canva"
-							query={api.services.tokens.getConnectionStatus}
+							query={api.integrations.tokens.getConnectionStatus}
 						/>
 					</TabsContent>
 					<TabsContent value="data" className="mt-0 space-y-4">
@@ -108,7 +108,7 @@ export function GodModeAdminContent({
 }
 
 function ServicesTokenCheckCard() {
-	const checkConnections = useAction(api.services.tokens.checkConnections);
+	const checkConnections = useAction(api.integrations.tokens.checkConnections);
 	const [isChecking, setIsChecking] = useState(false);
 	const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
 	const [lastResults, setLastResults] = useState<

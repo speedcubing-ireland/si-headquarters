@@ -85,7 +85,9 @@ async function fetchSchedulesForComps(
 function EventsPage() {
 	const { isVolunteer, isLoading: isVolunteerLoading } = useIsVolunteer();
 	const { competitions, isLoading: competitionsLoading } = useCompetitions();
-	const fetchScheduleEvents = useAction(api.sheets.fetchScheduleEvents);
+	const fetchScheduleEvents = useAction(
+		api.integrations.google.sheets.fetchScheduleEvents,
+	);
 	const [sheetResults, setSheetResults] = useState<Map<string, SheetResult>>(
 		new Map(),
 	);
