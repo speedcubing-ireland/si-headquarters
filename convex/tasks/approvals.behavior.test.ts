@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import { TEAM_NAMES } from "./lib/constants";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import { TEAM_NAMES } from "../lib/constants";
 
 async function seedTaskWithApprover(t: ReturnType<typeof convexTest>): Promise<{
 	ownerId: Id<"users">;
@@ -53,7 +53,7 @@ describe("task approval behavior", () => {
 		const seeded = await seedTaskWithApprover(t);
 		const authed = t.withIdentity({ subject: seeded.ownerId });
 
-		await authed.mutation(api.tasks.addRequiredApprover, {
+		await authed.mutation(api.tasks.approvals.addRequiredApprover, {
 			taskId: seeded.taskId,
 			approverType: "user",
 			approverId: seeded.approverId,
@@ -73,7 +73,7 @@ describe("task approval behavior", () => {
 		const seeded = await seedTaskWithApprover(t);
 		const authed = t.withIdentity({ subject: seeded.ownerId });
 
-		await authed.mutation(api.tasks.addRequiredApprover, {
+		await authed.mutation(api.tasks.approvals.addRequiredApprover, {
 			taskId: seeded.taskId,
 			approverType: "user",
 			approverId: seeded.approverId,
@@ -83,7 +83,7 @@ describe("task approval behavior", () => {
 		const approverKey = taskBefore?.requiredApprovalIds?.[0];
 		expect(approverKey).toBeTruthy();
 
-		await authed.mutation(api.tasks.removeRequiredApprover, {
+		await authed.mutation(api.tasks.approvals.removeRequiredApprover, {
 			taskId: seeded.taskId,
 			approverKey: approverKey as string,
 		});
@@ -97,7 +97,7 @@ describe("task approval behavior", () => {
 		const seeded = await seedTaskWithApprover(t);
 		const authed = t.withIdentity({ subject: seeded.approverId });
 
-		await authed.mutation(api.tasks.approveTask, {
+		await authed.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
 		await t.finishAllScheduledFunctions(() => {
@@ -122,7 +122,7 @@ describe("task approval behavior", () => {
 		});
 
 		const approver = t.withIdentity({ subject: seeded.approverId });
-		await approver.mutation(api.tasks.approveTask, {
+		await approver.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
 		await t.finishAllScheduledFunctions(() => {
@@ -140,14 +140,14 @@ describe("task approval behavior", () => {
 		const seeded = await seedTaskWithApprover(t);
 		const approver = t.withIdentity({ subject: seeded.approverId });
 
-		await approver.mutation(api.tasks.approveTask, {
+		await approver.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
 		await t.finishAllScheduledFunctions(() => {
 			vi.runAllTimers();
 		});
 
-		await approver.mutation(api.tasks.unapproveTask, {
+		await approver.mutation(api.tasks.approvals.unapproveTask, {
 			taskId: seeded.taskId,
 		});
 		await t.finishAllScheduledFunctions(() => {
@@ -172,14 +172,14 @@ describe("task approval behavior", () => {
 		});
 
 		const approver = t.withIdentity({ subject: seeded.approverId });
-		await approver.mutation(api.tasks.approveTask, {
+		await approver.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
 		await t.finishAllScheduledFunctions(() => {
 			vi.runAllTimers();
 		});
 
-		await approver.mutation(api.tasks.unapproveTask, {
+		await approver.mutation(api.tasks.approvals.unapproveTask, {
 			taskId: seeded.taskId,
 		});
 		await t.finishAllScheduledFunctions(() => {

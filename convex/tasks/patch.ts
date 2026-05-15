@@ -1,9 +1,9 @@
-import type { Doc, Id } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
-import { computeApprovalCompleteness } from "./taskApprovals";
+import type { Doc, Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import { computeApprovalCompleteness } from "./approvalLogic";
 import { v } from "convex/values";
 import type { Infer } from "convex/values";
-import { taskStatus, taskPriority, linkedResource } from "./lib/validators";
+import { taskStatus, taskPriority, linkedResource } from "../lib/validators";
 
 export const taskUpdateArgs = {
 	title: v.optional(v.string()),

@@ -1,7 +1,7 @@
-import type { Id } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
-import { TEAM_NAMES } from "./lib/constants";
-import { emitNotificationEvent } from "./notifications";
+import type { Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import { TEAM_NAMES } from "../lib/constants";
+import { emitNotificationEvent } from "../notifications";
 
 const APPROVAL_PREFIX_USER = "user:";
 const APPROVAL_PREFIX_TEAM = "team:";

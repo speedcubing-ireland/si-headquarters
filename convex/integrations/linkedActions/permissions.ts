@@ -6,7 +6,7 @@ import type {
 	linkedActionRunPermission,
 	linkedActionType,
 } from "../../lib/validators";
-import { requireTaskAccess } from "../../taskAccess";
+import { requireTaskAccess } from "../../tasks/access";
 
 export async function ensureTaskAccess(
 	ctx: QueryCtx | MutationCtx,

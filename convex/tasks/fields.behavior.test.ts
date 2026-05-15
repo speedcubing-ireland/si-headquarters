@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import { TEAM_NAMES } from "./lib/constants";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import { TEAM_NAMES } from "../lib/constants";
 
 async function seedTaskForFieldEdits(
 	t: ReturnType<typeof convexTest>,
@@ -65,7 +65,7 @@ describe("task field edit behavior", () => {
 		const authed = t.withIdentity({ subject: seeded.userId });
 		const before = await t.run((ctx) => ctx.db.get("tasks", seeded.taskId));
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { title: "Updated Title" },
 		});
@@ -82,7 +82,7 @@ describe("task field edit behavior", () => {
 		const seeded = await seedTaskForFieldEdits(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { description: "New description with **markdown**" },
 		});
@@ -96,7 +96,7 @@ describe("task field edit behavior", () => {
 		const seeded = await seedTaskForFieldEdits(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { phaseId: seeded.phaseId },
 		});
@@ -110,7 +110,7 @@ describe("task field edit behavior", () => {
 		const seeded = await seedTaskForFieldEdits(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { labelIds: [seeded.labelId] },
 		});
@@ -124,7 +124,7 @@ describe("task field edit behavior", () => {
 		const seeded = await seedTaskForFieldEdits(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { ownerId: seeded.teamId, ownerType: "team" },
 		});
@@ -140,7 +140,7 @@ describe("task field edit behavior", () => {
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		// Set a due date first
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { dueDate: "2026-08-01T12:00:00.000Z" },
 		});
@@ -148,7 +148,7 @@ describe("task field edit behavior", () => {
 		expect(task?.dueDate).toBeTruthy();
 
 		// Clear it
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { dueDate: null },
 		});
@@ -161,7 +161,7 @@ describe("task field edit behavior", () => {
 		const seeded = await seedTaskForFieldEdits(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { status: "awaiting-review" },
 		});

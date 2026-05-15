@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Id } from "../_generated/dataModel";
-import { computeBlockingStatusTransitionEffects } from "./taskRelations";
+import { computeBlockingStatusTransitionEffects } from "./relationsLogic";
 
 const taskId = (id: string) => id as Id<"tasks">;
 

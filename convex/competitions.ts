@@ -15,7 +15,7 @@ import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
 	deleteCommentsAndReplies,
-} from "./lib/taskDeletion";
+} from "./tasks/deletion";
 import {
 	deleteEntitySubscriptions,
 	deleteNotificationArtifactsForEntity,

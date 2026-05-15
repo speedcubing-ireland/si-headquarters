@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import { TEAM_NAMES } from "./lib/constants";
-import schema from "./schema";
-import { modules } from "./test.setup";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import { TEAM_NAMES } from "../lib/constants";
+import schema from "../schema";
+import { modules } from "../test.setup";
 
 type Fixture = {
 	allowedParentTaskId: Id<"tasks">;
@@ -240,7 +240,9 @@ describe("tasks access control (non-volunteer)", () => {
 		const { viewerUserId, fixture } = await seedTaskAccessFixture(t);
 		const authed = t.withIdentity({ subject: viewerUserId });
 
-		const tasks = await authed.query(api.tasks.listForUI, { archived: false });
+		const tasks = await authed.query(api.tasks.queries.listForUI, {
+			archived: false,
+		});
 		const taskIds = new Set(tasks.map((task: { id: string }) => task.id));
 
 		expect(taskIds.has(fixture.allowedParentTaskId)).toBe(true);
@@ -265,7 +267,9 @@ describe("tasks access control (non-volunteer)", () => {
 		const { viewerUserId, fixture } = await seedTaskAccessFixture(t);
 		const authed = t.withIdentity({ subject: viewerUserId });
 
-		const tasks = await authed.query(api.tasks.list, { archived: false });
+		const tasks = await authed.query(api.tasks.queries.list, {
+			archived: false,
+		});
 		const taskIds = new Set(tasks.map((task: { _id: string }) => task._id));
 
 		expect(taskIds.has(fixture.allowedParentTaskId)).toBe(true);
@@ -283,21 +287,27 @@ describe("tasks access control (non-volunteer)", () => {
 		const { viewerUserId, fixture } = await seedTaskAccessFixture(t);
 		const authed = t.withIdentity({ subject: viewerUserId });
 
-		const allowedTask = await authed.query(api.tasks.getForUI, {
+		const allowedTask = await authed.query(api.tasks.queries.getForUI, {
 			taskId: fixture.allowedParentTaskId,
 		});
-		const deniedTask = await authed.query(api.tasks.getForUI, {
+		const deniedTask = await authed.query(api.tasks.queries.getForUI, {
 			taskId: fixture.deniedTaskId,
 		});
-		const assignedStandaloneTask = await authed.query(api.tasks.getForUI, {
-			taskId: fixture.assignedStandaloneTaskId,
-		});
-		const ownedStandaloneTask = await authed.query(api.tasks.getForUI, {
+		const assignedStandaloneTask = await authed.query(
+			api.tasks.queries.getForUI,
+			{
+				taskId: fixture.assignedStandaloneTaskId,
+			},
+		);
+		const ownedStandaloneTask = await authed.query(api.tasks.queries.getForUI, {
 			taskId: fixture.ownedStandaloneTaskId,
 		});
-		const deniedStandaloneTask = await authed.query(api.tasks.getForUI, {
-			taskId: fixture.deniedStandaloneTaskId,
-		});
+		const deniedStandaloneTask = await authed.query(
+			api.tasks.queries.getForUI,
+			{
+				taskId: fixture.deniedStandaloneTaskId,
+			},
+		);
 
 		expect(allowedTask?.id).toBe(fixture.allowedParentTaskId);
 		expect(deniedTask).toBeNull();
@@ -312,32 +322,35 @@ describe("tasks access control (non-volunteer)", () => {
 		const authed = t.withIdentity({ subject: viewerUserId });
 
 		await expect(
-			authed.mutation(api.tasks.update, {
+			authed.mutation(api.tasks.mutations.update, {
 				taskId: fixture.deniedTaskId,
 				updates: { title: "Should fail" },
 			}),
 		).rejects.toBeTruthy();
 		await expect(
-			authed.mutation(api.tasks.update, {
+			authed.mutation(api.tasks.mutations.update, {
 				taskId: fixture.deniedStandaloneTaskId,
 				updates: { title: "Should also fail" },
 			}),
 		).rejects.toBeTruthy();
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: fixture.allowedParentTaskId,
 			updates: { title: "Allowed update" },
 		});
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: fixture.ownedStandaloneTaskId,
 			updates: { title: "Owned standalone update" },
 		});
-		const updatedTask = await authed.query(api.tasks.getForUI, {
+		const updatedTask = await authed.query(api.tasks.queries.getForUI, {
 			taskId: fixture.allowedParentTaskId,
 		});
-		const updatedOwnedStandaloneTask = await authed.query(api.tasks.getForUI, {
-			taskId: fixture.ownedStandaloneTaskId,
-		});
+		const updatedOwnedStandaloneTask = await authed.query(
+			api.tasks.queries.getForUI,
+			{
+				taskId: fixture.ownedStandaloneTaskId,
+			},
+		);
 		expect(updatedTask?.title).toBe("Allowed update");
 		expect(updatedOwnedStandaloneTask?.title).toBe("Owned standalone update");
 	});
@@ -347,13 +360,13 @@ describe("tasks access control (non-volunteer)", () => {
 		const seeded = await seedDirectorApprovalFixture(t);
 		const director = t.withIdentity({ subject: seeded.directorId });
 
-		await director.mutation(api.tasks.approveTask, {
+		await director.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
 
 		const [task, visibleTasks] = await Promise.all([
 			t.run((ctx) => ctx.db.get("tasks", seeded.taskId)),
-			director.query(api.tasks.listForUI, { archived: false }),
+			director.query(api.tasks.queries.listForUI, { archived: false }),
 		]);
 
 		expect(task?.approvedByIds).toContain(seeded.directorId);
@@ -368,7 +381,7 @@ describe("tasks access control (non-volunteer)", () => {
 		const seeded = await seedDirectorApprovalFixture(t, true);
 		const director = t.withIdentity({ subject: seeded.directorId });
 
-		await director.mutation(api.tasks.approveTask, {
+		await director.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
 
@@ -411,7 +424,7 @@ describe("tasks access control (non-volunteer)", () => {
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		await expect(
-			authed.mutation(api.tasks.createManyFromTemplate, {
+			authed.mutation(api.tasks.mutations.createManyFromTemplate, {
 				competitionId: seeded.competitionId,
 				tasks: [
 					{

@@ -1,10 +1,10 @@
 import type { QueryCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
-import { resolveApprovalData } from "../taskApprovals";
-import { hasStandaloneTaskAccess } from "../taskAccess";
-import { toISO } from "./transforms";
-import type { EMPTY_TASK_RELATION_DATA } from "./taskRelations";
-import type { TaskEntityMaps, LabelRef } from "./taskHydration";
+import { resolveApprovalData } from "./approvalLogic";
+import { hasStandaloneTaskAccess } from "./access";
+import { toISO } from "../lib/transforms";
+import type { EMPTY_TASK_RELATION_DATA } from "./relationsLogic";
+import type { TaskEntityMaps, LabelRef } from "./hydration";
 
 export interface SubtaskFilterOptions {
 	archived: boolean;

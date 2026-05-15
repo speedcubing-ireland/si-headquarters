@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import { TEAM_NAMES } from "./lib/constants";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import { TEAM_NAMES } from "../lib/constants";
 
 async function seedForCreate(t: ReturnType<typeof convexTest>): Promise<{
 	userId: Id<"users">;
@@ -53,7 +53,7 @@ describe("task creation behavior", () => {
 		const seeded = await seedForCreate(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		const taskId = await authed.mutation(api.tasks.create, {
+		const taskId = await authed.mutation(api.tasks.mutations.create, {
 			title: "New Task",
 			status: "to-do",
 			priority: "medium",
@@ -74,7 +74,7 @@ describe("task creation behavior", () => {
 		const seeded = await seedForCreate(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.create, {
+		await authed.mutation(api.tasks.mutations.create, {
 			title: "Assigned Task",
 			status: "to-do",
 			priority: "medium",
@@ -99,7 +99,7 @@ describe("task creation behavior", () => {
 		const seeded = await seedForCreate(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		const taskId = await authed.mutation(api.tasks.create, {
+		const taskId = await authed.mutation(api.tasks.mutations.create, {
 			title: "Assigned Task Direct",
 			status: "to-do",
 			priority: "medium",
@@ -116,14 +116,14 @@ describe("task creation behavior", () => {
 		const seeded = await seedForCreate(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		const parentTaskId = await authed.mutation(api.tasks.create, {
+		const parentTaskId = await authed.mutation(api.tasks.mutations.create, {
 			title: "Parent",
 			status: "to-do",
 			priority: "medium",
 			parentCompetitionId: seeded.competitionId,
 		});
 
-		const childTaskId = await authed.mutation(api.tasks.create, {
+		const childTaskId = await authed.mutation(api.tasks.mutations.create, {
 			title: "Child",
 			status: "to-do",
 			priority: "low",
@@ -140,7 +140,7 @@ describe("task creation behavior", () => {
 		const seeded = await seedForCreate(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		const taskId = await authed.mutation(api.tasks.create, {
+		const taskId = await authed.mutation(api.tasks.mutations.create, {
 			title: "Tagged Task",
 			status: "backlog",
 			priority: "high",
@@ -159,7 +159,7 @@ describe("task creation behavior", () => {
 		const seeded = await seedForCreate(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.create, {
+		await authed.mutation(api.tasks.mutations.create, {
 			title: "Unassigned",
 			status: "to-do",
 			priority: "medium",

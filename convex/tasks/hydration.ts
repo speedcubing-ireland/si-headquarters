@@ -1,7 +1,7 @@
 import type { QueryCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
-import { formatCompetitionName } from "../taskFormat";
-import { decodeApprovalId } from "../taskApprovals";
+import { formatCompetitionName } from "./format";
+import { decodeApprovalId } from "./approvalLogic";
 
 export type UserRef = { id: Id<"users">; name: string; avatarUrl: string };
 export type TeamRef = {

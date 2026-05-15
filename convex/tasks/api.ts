@@ -1,13 +1,13 @@
 import { v, ConvexError, type Infer } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
-import type { Id, Doc } from "./_generated/dataModel";
-import { requireUserId, isVolunteer } from "./auth";
-import { isDirectorForCtx } from "./admin";
+import { mutation, query } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { Id, Doc } from "../_generated/dataModel";
+import { requireUserId, isVolunteer } from "../auth";
+import { isDirectorForCtx } from "../admin";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
-} from "./lib/taskDeletion";
+} from "./deletion";
 import {
 	ERROR_TASK_MOVE,
 	ERROR_TASK_NO_ACCESS,
@@ -17,13 +17,13 @@ import {
 	listOrganisedCompetitionIds,
 	requireCompetitionTaskAccess,
 	requireTaskAccess,
-} from "./taskAccess";
+} from "./access";
 import {
 	encodeApprovalId,
 	computeApprovalCompleteness,
 	scheduleAwaitingReviewNotifications,
-} from "./taskApprovals";
-import { formatCompetitionName } from "./taskFormat";
+} from "./approvalLogic";
+import { formatCompetitionName } from "./format";
 
 import {
 	sendTaskAssigneeChangeNotifications,
@@ -34,13 +34,13 @@ import {
 	sendTaskRelationBlockedNotifications,
 	sendTaskRelationUnblockedNotifications,
 	sendTaskStatusChangeNotifications,
-} from "./notifications/triggers/tasks";
+} from "../notifications/triggers/tasks";
 import {
 	buildTaskPatch,
 	applyAwaitingReviewAutoPromote,
 	taskUpdateArgs,
-} from "./taskPatch";
-import type { TaskUpdate } from "./taskPatch";
+} from "./patch";
+import type { TaskUpdate } from "./patch";
 import {
 	taskStatus,
 	taskPriority,
@@ -50,8 +50,8 @@ import {
 	teamShape,
 	labelShape as taskLabelShape,
 	phaseShape,
-} from "./lib/validators";
-import { MAX_BULK_UPDATE_COUNT } from "./lib/constants";
+} from "../lib/validators";
+import { MAX_BULK_UPDATE_COUNT } from "../lib/constants";
 import {
 	buildTaskRelationDataMap,
 	countUnresolvedBlockers,
@@ -60,20 +60,20 @@ import {
 	type TaskRelationTransitionEffect,
 	isTaskBlockingStatus,
 	EMPTY_TASK_RELATION_DATA,
-} from "./lib/taskRelations";
-import { hydrateTaskEntities } from "./lib/taskHydration";
+} from "./relationsLogic";
+import { hydrateTaskEntities } from "./hydration";
 import {
 	filterAccessibleSubtasks,
 	transformTaskToUI,
 	resolveTaskParent,
-} from "./lib/taskTransforms";
-import { emitNotificationEvent } from "./notifications";
-import { maybeTriggerDueDateCheckForToday } from "./tasks/dueDate";
+} from "./transforms";
+import { emitNotificationEvent } from "../notifications";
+import { maybeTriggerDueDateCheckForToday } from "./dueDate";
 import {
 	assertValidApprovalIds,
 	nextTaskIdentifier,
 	reserveTaskIdentifiers,
-} from "./tasks/creation";
+} from "./creation";
 
 interface FetchAccessibleTasksOptions {
 	archived: boolean;

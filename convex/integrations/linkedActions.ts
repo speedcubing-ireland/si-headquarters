@@ -625,7 +625,7 @@ export const linkTaskCanvaDesign = action({
 			return { success: false as const, message: "Authentication required." };
 		}
 		const volunteer = await ctx.runQuery(api.auth.isVolunteerQuery, {});
-		const task = await ctx.runQuery(api.tasks.get, {
+		const task = await ctx.runQuery(api.tasks.queries.get, {
 			taskId: args.taskId,
 		});
 		if (!task) {
@@ -751,7 +751,7 @@ export const runTaskLinkedAction = action({
 			return { success: false as const, message: "Authentication required." };
 		}
 		const volunteer = await ctx.runQuery(api.auth.isVolunteerQuery, {});
-		const task = await ctx.runQuery(api.tasks.get, {
+		const task = await ctx.runQuery(api.tasks.queries.get, {
 			taskId: args.taskId,
 		});
 		if (!task) {
@@ -884,7 +884,7 @@ export const completeLinkedSheetShareWithLaptops = action({
 			return { success: false as const, message: "Authentication required." };
 		}
 		const volunteer = await ctx.runQuery(api.auth.isVolunteerQuery, {});
-		const task = await ctx.runQuery(api.tasks.get, {
+		const task = await ctx.runQuery(api.tasks.queries.get, {
 			taskId: args.taskId,
 		});
 		if (!task) {

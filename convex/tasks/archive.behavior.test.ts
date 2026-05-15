@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import { TEAM_NAMES } from "./lib/constants";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import { TEAM_NAMES } from "../lib/constants";
 
 async function seedTaskWithAccess(t: ReturnType<typeof convexTest>): Promise<{
 	userId: Id<"users">;
@@ -50,7 +50,7 @@ describe("tasks archive behavior", () => {
 		const { userId, taskId } = await seedTaskWithAccess(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.tasks.archive, { taskIds: [taskId] });
+		await authed.mutation(api.tasks.mutations.archive, { taskIds: [taskId] });
 		const task = await t.run((ctx) => ctx.db.get("tasks", taskId));
 
 		expect(task?.archived).toBe(true);
@@ -62,8 +62,8 @@ describe("tasks archive behavior", () => {
 		const { userId, taskId } = await seedTaskWithAccess(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.tasks.archive, { taskIds: [taskId] });
-		await authed.mutation(api.tasks.unarchive, { taskIds: [taskId] });
+		await authed.mutation(api.tasks.mutations.archive, { taskIds: [taskId] });
+		await authed.mutation(api.tasks.mutations.unarchive, { taskIds: [taskId] });
 		const task = await t.run((ctx) => ctx.db.get("tasks", taskId));
 
 		expect(task?.archived).toBe(false);
@@ -88,7 +88,9 @@ describe("tasks archive behavior", () => {
 		);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.tasks.archive, { taskIds: [taskId, task2Id] });
+		await authed.mutation(api.tasks.mutations.archive, {
+			taskIds: [taskId, task2Id],
+		});
 		const [t1, t2] = await t.run((ctx) =>
 			Promise.all([ctx.db.get("tasks", taskId), ctx.db.get("tasks", task2Id)]),
 		);
@@ -120,7 +122,7 @@ describe("tasks archive behavior", () => {
 			return cId;
 		});
 
-		await authed.mutation(api.tasks.archive, { taskIds: [taskId] });
+		await authed.mutation(api.tasks.mutations.archive, { taskIds: [taskId] });
 
 		const [comment, subs] = await t.run((ctx) =>
 			Promise.all([
@@ -159,7 +161,7 @@ describe("tasks archive behavior", () => {
 			});
 		});
 
-		await authed.mutation(api.tasks.remove, { taskIds: [taskId] });
+		await authed.mutation(api.tasks.mutations.remove, { taskIds: [taskId] });
 
 		const [task, comments, subs] = await t.run((ctx) =>
 			Promise.all([
@@ -203,7 +205,7 @@ describe("tasks archive behavior", () => {
 			}),
 		);
 
-		await authed.mutation(api.tasks.remove, { taskIds: [taskId] });
+		await authed.mutation(api.tasks.mutations.remove, { taskIds: [taskId] });
 
 		const [parent, child] = await t.run((ctx) =>
 			Promise.all([ctx.db.get("tasks", taskId), ctx.db.get("tasks", childId)]),

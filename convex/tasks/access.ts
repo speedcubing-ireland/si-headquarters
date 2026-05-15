@@ -1,12 +1,12 @@
 import { ConvexError } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import type { Doc } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { Doc } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
 	hasCompetitionAccess,
 	listAccessibleCompetitionIds,
-} from "./competitionAccess";
-import { requireCompetitionResourceAccess } from "./lib/permissions/resources";
+} from "../competitionAccess";
+import { requireCompetitionResourceAccess } from "../lib/permissions/resources";
 
 export const ERROR_TASK_NO_COMPETITION =
 	"You can only modify standalone tasks assigned to you";

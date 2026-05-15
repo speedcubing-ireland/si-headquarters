@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import { TEAM_NAMES } from "./lib/constants";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import { TEAM_NAMES } from "../lib/constants";
 
 async function seedTaskWithSubscribers(
 	t: ReturnType<typeof convexTest>,
@@ -56,7 +56,7 @@ describe("task notification behavior", () => {
 		const seeded = await seedTaskWithSubscribers(t);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { assigneeId: seeded.newAssigneeId },
 		});
@@ -82,7 +82,7 @@ describe("task notification behavior", () => {
 		const seeded = await seedTaskWithSubscribers(t);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { status: "in-progress" },
 		});
@@ -108,7 +108,7 @@ describe("task notification behavior", () => {
 		const seeded = await seedTaskWithSubscribers(t);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { priority: "high" },
 		});
@@ -129,7 +129,7 @@ describe("task notification behavior", () => {
 		const seeded = await seedTaskWithSubscribers(t);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
-		await authed.mutation(api.tasks.update, {
+		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { dueDate: "2026-07-15T12:00:00.000Z" },
 		});
