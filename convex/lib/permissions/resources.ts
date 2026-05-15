@@ -1,6 +1,6 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import { hasCompetitionAccess } from "../../competitionAccess";
+import { hasCompetitionAccess } from "../../competitions/access";
 import { getCommentParentId } from "../commentParentId";
 import { throwForbidden } from "./require";
 

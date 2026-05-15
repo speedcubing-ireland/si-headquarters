@@ -99,7 +99,7 @@ export const _composeNotificationEmailStageGroup = internalAction({
 			appUrl,
 		});
 		const queued: EnqueueResult = await ctx.runMutation(
-			internal.emailQueue._enqueueDispatch,
+			internal.emailQueue.api._enqueueDispatch,
 			{
 				dedupeKey: buildNotificationGroupIdempotencyKey({
 					digestMode: args.digestMode,

@@ -87,7 +87,7 @@ export const _enqueueSponsorshipEmailBatch = internalAction({
 			]);
 
 			const result = await ctx.runMutation(
-				internal.emailQueue._enqueueDispatch,
+				internal.emailQueue.api._enqueueDispatch,
 				{
 					dedupeKey: buildDispatchDedupeKey({
 						batchKey: args.batchKey,

@@ -6,7 +6,7 @@ import type { TaskLabel } from "@/data/types-new";
 import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function useLabels(): { labels: TaskLabel[]; isLoading: boolean } {
-	const result = useQuery(api.labels.list);
+	const result = useQuery(api.core.labels.list);
 	const { data, isLoading } = useRetainedQueryResult(result);
 	const labels = useMemo(
 		() =>
@@ -24,12 +24,12 @@ export function useLabels(): { labels: TaskLabel[]; isLoading: boolean } {
 }
 
 export function useLabelMutations() {
-	const createLabelMutation = useMutation(api.labels.create);
-	const updateLabelMutation = useMutation(api.labels.update);
-	const removeLabelMutation = useMutation(api.labels.remove);
-	const adminUpdateLabelMutation = useMutation(api.admin.updateLabelAdmin);
+	const createLabelMutation = useMutation(api.core.labels.create);
+	const updateLabelMutation = useMutation(api.core.labels.update);
+	const removeLabelMutation = useMutation(api.core.labels.remove);
+	const adminUpdateLabelMutation = useMutation(api.core.admin.updateLabelAdmin);
 	const deleteLabelIfUnusedMutation = useMutation(
-		api.admin.deleteLabelIfUnused,
+		api.core.admin.deleteLabelIfUnused,
 	);
 
 	return {

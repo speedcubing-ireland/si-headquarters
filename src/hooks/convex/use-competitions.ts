@@ -19,14 +19,14 @@ type NewCompetitionInput = Pick<
 >;
 
 export const useCompetitions = () => {
-	const result = useQuery(api.competitions.listForUI);
+	const result = useQuery(api.competitions.api.listForUI);
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return { competitions: data ?? [], isLoading, isRefreshing };
 };
 
 export const useCompetition = (competitionId: Id<"competitions"> | null) => {
 	const result = useQuery(
-		api.competitions.getForUI,
+		api.competitions.api.getForUI,
 		competitionId ? { competitionId } : "skip",
 	);
 	const { data } = useRetainedQueryResult(result, competitionId ?? "skip");
@@ -35,9 +35,9 @@ export const useCompetition = (competitionId: Id<"competitions"> | null) => {
 };
 
 export function useCompetitionMutations() {
-	const createCompetition = useMutation(api.competitions.create);
-	const updateCompetitionAction = useAction(api.competitions.update);
-	const removeCompetitionMutation = useMutation(api.competitions.remove);
+	const createCompetition = useMutation(api.competitions.api.create);
+	const updateCompetitionAction = useAction(api.competitions.api.update);
+	const removeCompetitionMutation = useMutation(api.competitions.api.remove);
 
 	return {
 		addCompetition: async (payload: NewCompetitionInput) => {
@@ -132,8 +132,8 @@ export function useCompetitionMutations() {
 }
 
 export function useCompetitionUpdateMutations() {
-	const createUpdateMutation = useMutation(api.updates.create);
-	const addReactionMutation = useMutation(api.updates.addReaction);
+	const createUpdateMutation = useMutation(api.updates.api.create);
+	const addReactionMutation = useMutation(api.updates.api.addReaction);
 	return {
 		createUpdate: (
 			competitionId: Id<"competitions">,

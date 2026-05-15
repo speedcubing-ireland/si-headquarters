@@ -30,7 +30,7 @@ import { cn, onMutationError } from "@/lib/utils";
 import { LeadsDisplay } from "./leads-display";
 
 function useSetWeekendOverride() {
-	const mutate = useMutation(api.weekendOverrides.setOverride);
+	const mutate = useMutation(api.competitions.weekendOverrides.setOverride);
 	return (satDate: string, patch: Partial<WeekendOverride>) => {
 		void mutate({ satDate, ...patch }).catch(onMutationError);
 	};

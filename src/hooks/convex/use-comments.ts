@@ -8,7 +8,7 @@ export const useCommentsForTask = (
 	taskId: Id<"tasks"> | Id<"competitionUpdates"> | null,
 ) => {
 	const result = useQuery(
-		api.comments.listForUI,
+		api.comments.api.listForUI,
 		taskId ? { parentType: "task", parentId: taskId } : "skip",
 	);
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(
@@ -23,10 +23,10 @@ export const useCommentsForTask = (
 };
 
 export function useCommentMutations() {
-	const createCommentMutation = useMutation(api.comments.create);
-	const updateCommentMutation = useMutation(api.comments.update);
-	const removeCommentMutation = useMutation(api.comments.remove);
-	const toggleReactionMutation = useMutation(api.comments.toggleReaction);
+	const createCommentMutation = useMutation(api.comments.api.create);
+	const updateCommentMutation = useMutation(api.comments.api.update);
+	const removeCommentMutation = useMutation(api.comments.api.remove);
+	const toggleReactionMutation = useMutation(api.comments.api.toggleReaction);
 
 	return {
 		addComment: async (

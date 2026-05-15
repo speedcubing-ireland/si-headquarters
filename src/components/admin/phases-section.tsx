@@ -23,7 +23,7 @@ type AdminPhase = {
 };
 
 function useAdminPhases(): { phases: AdminPhase[]; isLoading: boolean } {
-	const dataResult = useQuery(api.admin.listPhasesWithUsage, {});
+	const dataResult = useQuery(api.core.admin.listPhasesWithUsage, {});
 	const dataState = useRetainedQueryResult(dataResult);
 	const data = dataState.data;
 	const phases: AdminPhase[] =
@@ -44,9 +44,9 @@ function useAdminPhases(): { phases: AdminPhase[]; isLoading: boolean } {
 }
 
 function useAdminPhaseMutations() {
-	const createPhaseMutation = useMutation(api.admin.createPhaseAdmin);
-	const updatePhaseMutation = useMutation(api.admin.updatePhaseAdmin);
-	const deletePhaseMutation = useMutation(api.admin.deletePhaseIfUnused);
+	const createPhaseMutation = useMutation(api.core.admin.createPhaseAdmin);
+	const updatePhaseMutation = useMutation(api.core.admin.updatePhaseAdmin);
+	const deletePhaseMutation = useMutation(api.core.admin.deletePhaseIfUnused);
 
 	return {
 		createPhase: async (payload: {

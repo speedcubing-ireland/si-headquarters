@@ -8,7 +8,7 @@ export function usePhases(): {
 	phases: CompetitionPhase[];
 	isLoading: boolean;
 } {
-	const result = useQuery(api.phases.list, {});
+	const result = useQuery(api.core.phases.list, {});
 	const { data, isLoading } = useRetainedQueryResult(result);
 	const phases = useMemo<CompetitionPhase[]>(
 		() =>

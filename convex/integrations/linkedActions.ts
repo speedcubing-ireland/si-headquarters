@@ -10,8 +10,8 @@ import {
 import type { GenericMutationCtx } from "convex/server";
 import type { Id, Doc, DataModel } from "../_generated/dataModel";
 import { api, internal } from "../_generated/api";
-import { requireDirector } from "../admin";
-import { isVolunteer, requireUserId } from "../auth";
+import { requireDirector } from "../core/admin";
+import { isVolunteer, requireUserId } from "../core/auth";
 import {
 	linkedActionConfig,
 	linkedActionRunPermission,
@@ -620,11 +620,11 @@ export const linkTaskCanvaDesign = action({
 		}),
 	),
 	handler: async (ctx, args): Promise<RunTaskLinkedActionResult> => {
-		const currentUser = await ctx.runQuery(api.users.getCurrentUser, {});
+		const currentUser = await ctx.runQuery(api.core.users.getCurrentUser, {});
 		if (!currentUser) {
 			return { success: false as const, message: "Authentication required." };
 		}
-		const volunteer = await ctx.runQuery(api.auth.isVolunteerQuery, {});
+		const volunteer = await ctx.runQuery(api.core.auth.isVolunteerQuery, {});
 		const task = await ctx.runQuery(api.tasks.queries.get, {
 			taskId: args.taskId,
 		});
@@ -746,11 +746,11 @@ export const runTaskLinkedAction = action({
 		}),
 	),
 	handler: async (ctx, args): Promise<RunTaskLinkedActionResult> => {
-		const currentUser = await ctx.runQuery(api.users.getCurrentUser, {});
+		const currentUser = await ctx.runQuery(api.core.users.getCurrentUser, {});
 		if (!currentUser) {
 			return { success: false as const, message: "Authentication required." };
 		}
-		const volunteer = await ctx.runQuery(api.auth.isVolunteerQuery, {});
+		const volunteer = await ctx.runQuery(api.core.auth.isVolunteerQuery, {});
 		const task = await ctx.runQuery(api.tasks.queries.get, {
 			taskId: args.taskId,
 		});
@@ -879,11 +879,11 @@ export const completeLinkedSheetShareWithLaptops = action({
 		}),
 	),
 	handler: async (ctx, args): Promise<RunTaskLinkedActionResult> => {
-		const currentUser = await ctx.runQuery(api.users.getCurrentUser, {});
+		const currentUser = await ctx.runQuery(api.core.users.getCurrentUser, {});
 		if (!currentUser) {
 			return { success: false as const, message: "Authentication required." };
 		}
-		const volunteer = await ctx.runQuery(api.auth.isVolunteerQuery, {});
+		const volunteer = await ctx.runQuery(api.core.auth.isVolunteerQuery, {});
 		const task = await ctx.runQuery(api.tasks.queries.get, {
 			taskId: args.taskId,
 		});

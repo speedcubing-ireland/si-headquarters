@@ -8,14 +8,22 @@
  * @module
  */
 
-import type * as admin from "../admin.js";
-import type * as auth from "../auth.js";
-import type * as comments from "../comments.js";
-import type * as competitionAccess from "../competitionAccess.js";
-import type * as competitions from "../competitions.js";
-import type * as competitionsNodeActions from "../competitionsNodeActions.js";
+import type * as comments_api from "../comments/api.js";
+import type * as competitions_access from "../competitions/access.js";
+import type * as competitions_api from "../competitions/api.js";
+import type * as competitions_nodeActions from "../competitions/nodeActions.js";
+import type * as competitions_weekendOverrides from "../competitions/weekendOverrides.js";
+import type * as core_admin from "../core/admin.js";
+import type * as core_auth from "../core/auth.js";
+import type * as core_labels from "../core/labels.js";
+import type * as core_phases from "../core/phases.js";
+import type * as core_seed from "../core/seed.js";
+import type * as core_teams from "../core/teams.js";
+import type * as core_userThemeSettings from "../core/userThemeSettings.js";
+import type * as core_users from "../core/users.js";
+import type * as core_views from "../core/views.js";
 import type * as crons from "../crons.js";
-import type * as emailQueue from "../emailQueue.js";
+import type * as emailQueue_api from "../emailQueue/api.js";
 import type * as emailQueue_counters from "../emailQueue/counters.js";
 import type * as emailQueue_diagnostics from "../emailQueue/diagnostics.js";
 import type * as emailQueue_enqueue from "../emailQueue/enqueue.js";
@@ -57,7 +65,6 @@ import type * as integrations_wca_index from "../integrations/wca/index.js";
 import type * as integrations_wca_lib_registrations from "../integrations/wca/lib/registrations.js";
 import type * as integrations_wca_schedule from "../integrations/wca/schedule.js";
 import type * as integrations_wca_twoFactor from "../integrations/wca/twoFactor.js";
-import type * as labels from "../labels.js";
 import type * as lib_commentParentId from "../lib/commentParentId.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_defaultAvatar from "../lib/defaultAvatar.js";
@@ -112,10 +119,8 @@ import type * as notifications_triggers_comments from "../notifications/triggers
 import type * as notifications_triggers_competitions from "../notifications/triggers/competitions.js";
 import type * as notifications_triggers_tasks from "../notifications/triggers/tasks.js";
 import type * as notifications_types from "../notifications/types.js";
-import type * as phases from "../phases.js";
-import type * as refunds from "../refunds.js";
-import type * as reminders from "../reminders.js";
-import type * as seed from "../seed.js";
+import type * as refunds_api from "../refunds/api.js";
+import type * as reminders_api from "../reminders/api.js";
 import type * as sponsorship_auctions_competitionSnapshot from "../sponsorship/auctions/competitionSnapshot.js";
 import type * as sponsorship_auctions_emails from "../sponsorship/auctions/emails.js";
 import type * as sponsorship_auctions_index from "../sponsorship/auctions/index.js";
@@ -164,14 +169,9 @@ import type * as tasks_queries from "../tasks/queries.js";
 import type * as tasks_relations from "../tasks/relations.js";
 import type * as tasks_relationsLogic from "../tasks/relationsLogic.js";
 import type * as tasks_transforms from "../tasks/transforms.js";
-import type * as teams from "../teams.js";
 import type * as test_utils_convexError from "../test_utils/convexError.js";
-import type * as updates from "../updates.js";
-import type * as userThemeSettings from "../userThemeSettings.js";
-import type * as users from "../users.js";
-import type * as views from "../views.js";
+import type * as updates_api from "../updates/api.js";
 import type * as webhooks_azureEmailEvents from "../webhooks/azureEmailEvents.js";
-import type * as weekendOverrides from "../weekendOverrides.js";
 
 import type {
   ApiFromModules,
@@ -180,14 +180,22 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  admin: typeof admin;
-  auth: typeof auth;
-  comments: typeof comments;
-  competitionAccess: typeof competitionAccess;
-  competitions: typeof competitions;
-  competitionsNodeActions: typeof competitionsNodeActions;
+  "comments/api": typeof comments_api;
+  "competitions/access": typeof competitions_access;
+  "competitions/api": typeof competitions_api;
+  "competitions/nodeActions": typeof competitions_nodeActions;
+  "competitions/weekendOverrides": typeof competitions_weekendOverrides;
+  "core/admin": typeof core_admin;
+  "core/auth": typeof core_auth;
+  "core/labels": typeof core_labels;
+  "core/phases": typeof core_phases;
+  "core/seed": typeof core_seed;
+  "core/teams": typeof core_teams;
+  "core/userThemeSettings": typeof core_userThemeSettings;
+  "core/users": typeof core_users;
+  "core/views": typeof core_views;
   crons: typeof crons;
-  emailQueue: typeof emailQueue;
+  "emailQueue/api": typeof emailQueue_api;
   "emailQueue/counters": typeof emailQueue_counters;
   "emailQueue/diagnostics": typeof emailQueue_diagnostics;
   "emailQueue/enqueue": typeof emailQueue_enqueue;
@@ -229,7 +237,6 @@ declare const fullApi: ApiFromModules<{
   "integrations/wca/lib/registrations": typeof integrations_wca_lib_registrations;
   "integrations/wca/schedule": typeof integrations_wca_schedule;
   "integrations/wca/twoFactor": typeof integrations_wca_twoFactor;
-  labels: typeof labels;
   "lib/commentParentId": typeof lib_commentParentId;
   "lib/constants": typeof lib_constants;
   "lib/defaultAvatar": typeof lib_defaultAvatar;
@@ -284,10 +291,8 @@ declare const fullApi: ApiFromModules<{
   "notifications/triggers/competitions": typeof notifications_triggers_competitions;
   "notifications/triggers/tasks": typeof notifications_triggers_tasks;
   "notifications/types": typeof notifications_types;
-  phases: typeof phases;
-  refunds: typeof refunds;
-  reminders: typeof reminders;
-  seed: typeof seed;
+  "refunds/api": typeof refunds_api;
+  "reminders/api": typeof reminders_api;
   "sponsorship/auctions/competitionSnapshot": typeof sponsorship_auctions_competitionSnapshot;
   "sponsorship/auctions/emails": typeof sponsorship_auctions_emails;
   "sponsorship/auctions/index": typeof sponsorship_auctions_index;
@@ -336,14 +341,9 @@ declare const fullApi: ApiFromModules<{
   "tasks/relations": typeof tasks_relations;
   "tasks/relationsLogic": typeof tasks_relationsLogic;
   "tasks/transforms": typeof tasks_transforms;
-  teams: typeof teams;
   "test_utils/convexError": typeof test_utils_convexError;
-  updates: typeof updates;
-  userThemeSettings: typeof userThemeSettings;
-  users: typeof users;
-  views: typeof views;
+  "updates/api": typeof updates_api;
   "webhooks/azureEmailEvents": typeof webhooks_azureEmailEvents;
-  weekendOverrides: typeof weekendOverrides;
 }>;
 
 /**

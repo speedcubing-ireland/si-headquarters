@@ -103,7 +103,7 @@ async function requireCanvaRunAccess(
 
 async function requireCanvaPickerAccess(ctx: ActionCtx) {
 	const isDirector = await ctx.runQuery(
-		internal.admin.getIsDirectorInternal,
+		internal.core.admin.getIsDirectorInternal,
 		{},
 	);
 	if (isDirector) return;

@@ -22,14 +22,14 @@ import {
 export type { SeededLabelName, SeededTeamName };
 export { DEFAULT_PHASES, COMPETITION_PHASE_KEYS };
 
-export type User = FunctionReturnType<typeof api.users.listUsers>[number];
+export type User = FunctionReturnType<typeof api.core.users.listUsers>[number];
 
 export type Task = NonNullable<
 	FunctionReturnType<typeof api.tasks.queries.getForUI>
 >;
 
 export type Competition = NonNullable<
-	FunctionReturnType<typeof api.competitions.getForUI>
+	FunctionReturnType<typeof api.competitions.api.getForUI>
 >;
 
 export type Sponsor = FunctionReturnType<
@@ -68,14 +68,16 @@ export type CompetitionSponsorProperty = Pick<
 
 export type ProgressUpdate = Competition["progressUpdates"][number];
 
-export type Comment = FunctionReturnType<typeof api.comments.listForUI>[number];
+export type Comment = FunctionReturnType<
+	typeof api.comments.api.listForUI
+>[number];
 
 export type Notification = FunctionReturnType<
 	typeof api.notifications.inbox.listForUser
 >[number];
 
 export type Reminder = FunctionReturnType<
-	typeof api.reminders.listForUser
+	typeof api.reminders.api.listForUser
 >[number];
 
 export type LinkedActionDefinition = FunctionReturnType<

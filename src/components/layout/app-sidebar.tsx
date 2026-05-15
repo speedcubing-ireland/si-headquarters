@@ -85,7 +85,7 @@ const navSections = [
 ] satisfies NavSectionData[];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-	const userResult = useQuery(api.users.getCurrentUser);
+	const userResult = useQuery(api.core.users.getCurrentUser);
 	const { data: user } = useRetainedQueryResult(userResult);
 	const { permissions } = usePermissionSnapshot();
 	const isVolunteer = permissions.isVolunteer;

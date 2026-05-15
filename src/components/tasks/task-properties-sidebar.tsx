@@ -162,7 +162,7 @@ export function TaskPropertiesSidebar({
 		approveTask,
 		unapproveTask,
 	} = useTaskMutations();
-	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.core.users.getCurrentUser);
 	const { data: currentUser } = useRetainedQueryResult(currentUserResult);
 	const { isDirector } = useIsDirector();
 

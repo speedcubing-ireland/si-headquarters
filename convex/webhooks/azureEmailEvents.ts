@@ -70,7 +70,7 @@ export const handleAzureEmailEvents = httpAction(async (ctx, req) => {
 		const statusMessage = data.deliveryStatusDetails?.statusMessage?.toString();
 		if (!providerOperationId || !providerStatus) continue;
 
-		await ctx.runMutation(internal.emailQueue._applyDeliveryEvent, {
+		await ctx.runMutation(internal.emailQueue.api._applyDeliveryEvent, {
 			providerOperationId,
 			providerStatus,
 			statusMessage,
