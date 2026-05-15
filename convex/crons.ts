@@ -7,7 +7,7 @@ const crons = cronJobs();
 crons.cron(
 	"check due dates",
 	CRON_EXPRESSIONS.DUE_DATE_CHECK_DAILY_UTC,
-	internal.notifications._checkDueDates,
+	internal.notifications.internal._checkDueDates,
 	{},
 );
 

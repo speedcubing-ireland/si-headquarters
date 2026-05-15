@@ -6,13 +6,13 @@ import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const useNotifications = () => {
 	const nowMs = usePeriodicNow();
-	const result = useQuery(api.notifications.listForUser, { nowMs });
+	const result = useQuery(api.notifications.inbox.listForUser, { nowMs });
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return { notifications: data ?? [], isLoading, isRefreshing };
 };
 
 export const useNotificationSettings = () => {
-	const result = useQuery(api.notifications.getSettings, {});
+	const result = useQuery(api.notifications.settings.getSettings, {});
 	const {
 		data: settings,
 		isLoading,
@@ -31,14 +31,16 @@ export const useNotificationSettings = () => {
 };
 
 export const useNotificationSubscriptions = () => {
-	const result = useQuery(api.notifications.listSubscriptions, { limit: 500 });
+	const result = useQuery(api.notifications.subscriptions.listSubscriptions, {
+		limit: 500,
+	});
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return { subscriptions: data ?? [], isLoading, isRefreshing };
 };
 
 export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) => {
 	const result = useQuery(
-		api.notifications.isSubscribedToEntity,
+		api.notifications.subscriptions.isSubscribedToEntity,
 		taskId ? { entity: { entityType: "task", entityId: taskId } } : "skip",
 	);
 	const { data } = useRetainedQueryResult(result, taskId ?? "skip");
@@ -47,19 +49,22 @@ export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) => {
 
 export const useUnreadCount = () => {
 	const nowMs = usePeriodicNow();
-	const result = useQuery(api.notifications.getUnreadCount, { nowMs });
+	const result = useQuery(api.notifications.inbox.getUnreadCount, { nowMs });
 	const { data } = useRetainedQueryResult(result);
 	return data;
 };
 
 export const useNotificationDiagnostics = () => {
 	const dispatchHealthResult = useQuery(
-		api.notifications.getDispatchHealth,
+		api.notifications.admin.getDispatchHealth,
 		{},
 	);
-	const deadLettersResult = useQuery(api.notifications.listRecentDeadLetters, {
-		limit: 20,
-	});
+	const deadLettersResult = useQuery(
+		api.notifications.admin.listRecentDeadLetters,
+		{
+			limit: 20,
+		},
+	);
 	const dispatchHealthState = useRetainedQueryResult(dispatchHealthResult);
 	const deadLettersState = useRetainedQueryResult(deadLettersResult);
 	return {
@@ -72,19 +77,27 @@ export const useNotificationDiagnostics = () => {
 };
 
 export function useNotificationMutations() {
-	const markReadMut = useMutation(api.notifications.markRead);
-	const markArchivedMut = useMutation(api.notifications.markArchived);
-	const markAllReadMut = useMutation(api.notifications.markAllRead);
-	const snoozeMut = useMutation(api.notifications.snooze);
-	const unsnoozeMut = useMutation(api.notifications.unsnooze);
-	const upsertPrefMut = useMutation(api.notifications.upsertPreference);
-	const upsertSettingsMut = useMutation(api.notifications.upsertSettings);
-	const upsertUserSettingsMut = useMutation(
-		api.notifications.upsertUserSettings,
+	const markReadMut = useMutation(api.notifications.inbox.markRead);
+	const markArchivedMut = useMutation(api.notifications.inbox.markArchived);
+	const markAllReadMut = useMutation(api.notifications.inbox.markAllRead);
+	const snoozeMut = useMutation(api.notifications.inbox.snooze);
+	const unsnoozeMut = useMutation(api.notifications.inbox.unsnooze);
+	const upsertPrefMut = useMutation(
+		api.notifications.settings.upsertPreference,
 	);
-	const subEntityMut = useMutation(api.notifications.subscribeToEntity);
-	const unsubEntityMut = useMutation(api.notifications.unsubscribeFromEntity);
-	const unsubMut = useMutation(api.notifications.unsubscribe);
+	const upsertSettingsMut = useMutation(
+		api.notifications.settings.upsertSettings,
+	);
+	const upsertUserSettingsMut = useMutation(
+		api.notifications.settings.upsertUserSettings,
+	);
+	const subEntityMut = useMutation(
+		api.notifications.subscriptions.subscribeToEntity,
+	);
+	const unsubEntityMut = useMutation(
+		api.notifications.subscriptions.unsubscribeFromEntity,
+	);
+	const unsubMut = useMutation(api.notifications.subscriptions.unsubscribe);
 
 	const taskSub = {
 		subscribe: (entityId: Id<"tasks">) =>

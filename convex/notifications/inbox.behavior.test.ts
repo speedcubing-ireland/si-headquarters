@@ -1,9 +1,9 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
 
 async function seedNotification(t: ReturnType<typeof convexTest>): Promise<{
 	userId: Id<"users">;
@@ -33,7 +33,7 @@ describe("notifications inbox behavior", () => {
 		const { userId, notificationId } = await seedNotification(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.markRead, { notificationId });
+		await authed.mutation(api.notifications.inbox.markRead, { notificationId });
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("notifications", notificationId),
@@ -74,7 +74,7 @@ describe("notifications inbox behavior", () => {
 			});
 		});
 
-		await authed.mutation(api.notifications.markAllRead, {});
+		await authed.mutation(api.notifications.inbox.markAllRead, {});
 
 		const unread = await t.run((ctx) =>
 			ctx.db
@@ -92,7 +92,9 @@ describe("notifications inbox behavior", () => {
 		const { userId, notificationId } = await seedNotification(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.markArchived, { notificationId });
+		await authed.mutation(api.notifications.inbox.markArchived, {
+			notificationId,
+		});
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("notifications", notificationId),
@@ -107,7 +109,7 @@ describe("notifications inbox behavior", () => {
 		const authed = t.withIdentity({ subject: userId });
 
 		const futureDate = new Date(Date.now() + 3_600_000).toISOString();
-		await authed.mutation(api.notifications.snooze, {
+		await authed.mutation(api.notifications.inbox.snooze, {
 			notificationId,
 			snoozedUntil: futureDate,
 		});
@@ -126,11 +128,11 @@ describe("notifications inbox behavior", () => {
 		const authed = t.withIdentity({ subject: userId });
 
 		const futureDate = new Date(Date.now() + 3_600_000).toISOString();
-		await authed.mutation(api.notifications.snooze, {
+		await authed.mutation(api.notifications.inbox.snooze, {
 			notificationId,
 			snoozedUntil: futureDate,
 		});
-		await authed.mutation(api.notifications.unsnooze, { notificationId });
+		await authed.mutation(api.notifications.inbox.unsnooze, { notificationId });
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("notifications", notificationId),
@@ -143,12 +145,15 @@ describe("notifications inbox behavior", () => {
 		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.upsertUserSettings, {
+		await authed.mutation(api.notifications.settings.upsertUserSettings, {
 			timezone: "Europe/Dublin",
 			defaultDigestMode: "daily",
 		});
 
-		const settings = await authed.query(api.notifications.getUserSettings, {});
+		const settings = await authed.query(
+			api.notifications.settings.getUserSettings,
+			{},
+		);
 		expect(settings.timezone).toBe("Europe/Dublin");
 		expect(settings.defaultDigestMode).toBe("daily");
 	});

@@ -14,10 +14,13 @@ describe("return validation smoke coverage", () => {
 		const authed = t.withIdentity({ subject: userId });
 
 		const userSettings = await authed.query(
-			api.notifications.getUserSettings,
+			api.notifications.settings.getUserSettings,
 			{},
 		);
-		const settings = await authed.query(api.notifications.getSettings, {});
+		const settings = await authed.query(
+			api.notifications.settings.getSettings,
+			{},
+		);
 
 		expect(typeof userSettings.updatedAt).toBe("string");
 		expect(typeof settings.updatedAt).toBe("string");

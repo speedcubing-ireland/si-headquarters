@@ -1,22 +1,22 @@
 "use node";
 
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
-import { internalAction } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
+import { internalAction } from "../_generated/server";
 import {
 	buildNotificationGroupEmailContent,
 	buildNotificationGroupIdempotencyKey,
 	mapDispatchItemsToEmailGroupItems,
-} from "./notifications/lib/emailDispatchComposer";
-import type { NotificationType } from "./notifications/lib/notificationTypes";
-import type { EmailDispatchStatus } from "./emailQueue/types";
+} from "./lib/emailDispatchComposer";
+import type { NotificationType } from "./lib/notificationTypes";
+import type { EmailDispatchStatus } from "../emailQueue/types";
 import {
 	buildNotificationGroupSourceRef,
 	isQuietHoursDigestWindowKey,
-} from "./notifications/lib/emailStageGrouping";
-import { sendTestEmailPreview } from "./notifications/lib/emailPreview";
-import { notificationDigestMode } from "./notifications/lib/validators";
+} from "./lib/emailStageGrouping";
+import { sendTestEmailPreview } from "./lib/emailPreview";
+import { notificationDigestMode } from "./lib/validators";
 
 type ComposeStageResult = {
 	staged: number;
@@ -65,7 +65,8 @@ export const _composeNotificationEmailStageGroup = internalAction({
 	}),
 	handler: async (ctx, args): Promise<ComposeStageResult> => {
 		const composeData: ComposeData = await ctx.runQuery(
-			internal.notifications._getNotificationEmailStageGroupComposeData,
+			internal.notifications.internal
+				._getNotificationEmailStageGroupComposeData,
 			args,
 		);
 		if (composeData.dueStageIds.length === 0) {
@@ -74,7 +75,8 @@ export const _composeNotificationEmailStageGroup = internalAction({
 
 		if (!composeData.recipientEmail || composeData.items.length === 0) {
 			const finalized: FinalizeResult = await ctx.runMutation(
-				internal.notifications._finalizeNotificationEmailStageGroupCompose,
+				internal.notifications.internal
+					._finalizeNotificationEmailStageGroupCompose,
 				{
 					...args,
 					dueStageIds: composeData.dueStageIds,
@@ -126,7 +128,8 @@ export const _composeNotificationEmailStageGroup = internalAction({
 		);
 
 		const finalized: FinalizeResult = await ctx.runMutation(
-			internal.notifications._finalizeNotificationEmailStageGroupCompose,
+			internal.notifications.internal
+				._finalizeNotificationEmailStageGroupCompose,
 			{
 				...args,
 				dueStageIds: composeData.dueStageIds,
