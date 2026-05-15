@@ -347,6 +347,15 @@ export const list = query({
 	},
 });
 
+export const countInternal = internalQuery({
+	args: {},
+	returns: v.number(),
+	handler: async (ctx) => {
+		const competitions = await ctx.db.query("competitions").collect();
+		return competitions.length;
+	},
+});
+
 export const get = query({
 	args: { competitionId: v.id("competitions") },
 	returns: v.union(competitionDoc, v.null()),

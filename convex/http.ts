@@ -5,6 +5,7 @@ import {
 	sponsorAuthComponent,
 } from "./sponsorship/auth/server";
 import { handleAzureEmailEvents } from "./webhooks/azureEmailEvents";
+import { handleDiscordInteractions } from "./webhooks/discordInteractions";
 
 const http = httpRouter();
 
@@ -49,6 +50,12 @@ http.route({
 	path: "/webhooks/azure/email-events",
 	method: "POST",
 	handler: handleAzureEmailEvents,
+});
+
+http.route({
+	path: "/webhooks/discord/interactions",
+	method: "POST",
+	handler: handleDiscordInteractions,
 });
 
 export default http;

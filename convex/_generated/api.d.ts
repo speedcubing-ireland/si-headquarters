@@ -23,6 +23,14 @@ import type * as core_userThemeSettings from "../core/userThemeSettings.js";
 import type * as core_users from "../core/users.js";
 import type * as core_views from "../core/views.js";
 import type * as crons from "../crons.js";
+import type * as discord_actions from "../discord/actions.js";
+import type * as discord_client from "../discord/client.js";
+import type * as discord_commands from "../discord/commands.js";
+import type * as discord_config from "../discord/config.js";
+import type * as discord_handler from "../discord/handler.js";
+import type * as discord_interactions from "../discord/interactions.js";
+import type * as discord_rest from "../discord/rest.js";
+import type * as discord_slashCommands from "../discord/slashCommands.js";
 import type * as emailQueue_api from "../emailQueue/api.js";
 import type * as emailQueue_counters from "../emailQueue/counters.js";
 import type * as emailQueue_diagnostics from "../emailQueue/diagnostics.js";
@@ -172,6 +180,7 @@ import type * as tasks_transforms from "../tasks/transforms.js";
 import type * as test_utils_convexError from "../test_utils/convexError.js";
 import type * as updates_api from "../updates/api.js";
 import type * as webhooks_azureEmailEvents from "../webhooks/azureEmailEvents.js";
+import type * as webhooks_discordInteractions from "../webhooks/discordInteractions.js";
 
 import type {
   ApiFromModules,
@@ -195,6 +204,14 @@ declare const fullApi: ApiFromModules<{
   "core/users": typeof core_users;
   "core/views": typeof core_views;
   crons: typeof crons;
+  "discord/actions": typeof discord_actions;
+  "discord/client": typeof discord_client;
+  "discord/commands": typeof discord_commands;
+  "discord/config": typeof discord_config;
+  "discord/handler": typeof discord_handler;
+  "discord/interactions": typeof discord_interactions;
+  "discord/rest": typeof discord_rest;
+  "discord/slashCommands": typeof discord_slashCommands;
   "emailQueue/api": typeof emailQueue_api;
   "emailQueue/counters": typeof emailQueue_counters;
   "emailQueue/diagnostics": typeof emailQueue_diagnostics;
@@ -344,6 +361,7 @@ declare const fullApi: ApiFromModules<{
   "test_utils/convexError": typeof test_utils_convexError;
   "updates/api": typeof updates_api;
   "webhooks/azureEmailEvents": typeof webhooks_azureEmailEvents;
+  "webhooks/discordInteractions": typeof webhooks_discordInteractions;
 }>;
 
 /**
