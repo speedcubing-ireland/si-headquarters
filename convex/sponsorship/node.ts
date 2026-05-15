@@ -1,15 +1,15 @@
 "use node";
 
 import { ConvexError, v } from "convex/values";
-import { internal } from "./_generated/api";
-import { internalAction } from "./_generated/server";
+import { internal } from "../_generated/api";
+import { internalAction } from "../_generated/server";
 import {
 	buildSponsorshipEmailHtml,
 	buildSponsorshipEmailPlainText,
-} from "./lib/sponsorshipEmailTemplates";
-import { getSponsorshipSenderAddress } from "./lib/email";
-import { normalizeEmail } from "./lib/sanitize";
-import { sponsorshipEmailType } from "./lib/sponsorshipValidators";
+} from "./lib/emailTemplates";
+import { getSponsorshipSenderAddress } from "../lib/email";
+import { normalizeEmail } from "../lib/sanitize";
+import { sponsorshipEmailType } from "./lib/validators";
 
 const sponsorshipEmailRecipientValidator = v.object({
 	sponsorId: v.optional(v.id("sponsors")),

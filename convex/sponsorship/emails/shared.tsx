@@ -12,7 +12,7 @@ import {
 	Text,
 } from "@react-email/components";
 import type { ReactNode } from "react";
-import { emailTailwindConfig } from "./shared";
+import { emailTailwindConfig } from "../../emails/shared";
 
 type SponsorshipEmailShellProps = {
 	preview: string;

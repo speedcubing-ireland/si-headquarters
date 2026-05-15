@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
 	isBidHistoryVisibleToSponsor,
 	isSponsorVisibleAuctionState,
-} from "./sponsorshipVisibility";
+} from "./visibility";
 
 describe("sponsorship visibility rules", () => {
 	test("sponsors cannot view draft auctions", () => {

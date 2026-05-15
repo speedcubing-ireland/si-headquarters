@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc } from "../../_generated/dataModel";
 
 export const sponsorshipCompetitionSummarySource = v.union(
 	v.literal("competition_record"),
@@ -26,7 +26,7 @@ export type SponsorshipCompetitionSummary = {
 	eventIds: string[];
 };
 
-export const sponsorshipCompetitionSnapshot = v.object({
+export const competitionSnapshot = v.object({
 	summary: sponsorshipCompetitionSummary,
 	source: sponsorshipCompetitionSummarySource,
 	fetchedAt: v.number(),

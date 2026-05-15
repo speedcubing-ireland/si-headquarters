@@ -1,19 +1,19 @@
 import { ConvexError } from "convex/values";
-import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { Doc, Id } from "../../_generated/dataModel";
+import type { MutationCtx } from "../../_generated/server";
 import {
 	buildProxyContenders,
 	compareBidIntentChronologyWithIdTieBreak,
-} from "./sponsorshipAuctionState";
+} from "./auctionState";
 import {
 	minNextBidCents,
 	resolveProxyState,
 	resolveSealedOutcome,
-} from "./sponsorshipBidding";
+} from "./bidding";
 import {
 	isSealedAuctionFramework,
 	sealedAuctionPricingRule,
-} from "./sponsorshipValidators";
+} from "./validators";
 
 export type PlaceSponsorshipBidInput = {
 	auction: Doc<"sponsorshipAuctions">;

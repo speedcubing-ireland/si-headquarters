@@ -3,9 +3,9 @@ import { internalMutation, mutation } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { internal } from "../../_generated/api";
-import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
-import { resolveAuctionOutcome } from "../../lib/sponsorshipAuctionState";
-import { resolveAuctionStartTargetState } from "../../lib/sponsorshipLifecycle";
+import { requireSponsorshipManager } from "../lib/access";
+import { resolveAuctionOutcome } from "../lib/auctionState";
+import { resolveAuctionStartTargetState } from "../lib/lifecycle";
 import {
 	requireNoOpenAuctionForCompetition,
 	type SponsorshipReadinessSnapshot,
@@ -95,7 +95,7 @@ export async function scheduleAuctionActivation(
 	await cancelScheduledOptional(ctx, auction.activationScheduledFunctionId);
 	const scheduledFunctionId = await ctx.scheduler.runAt(
 		Math.max(auction.startsAt, Date.now()),
-		internal.sponsorshipAuctions._activateAuction,
+		internal.sponsorship.auctions.lifecycle._activateAuction,
 		{ auctionId: auction._id },
 	);
 	await ctx.db.patch("sponsorshipAuctions", auction._id, {
@@ -112,7 +112,7 @@ export async function scheduleAuctionClosure(
 	await cancelScheduledOptional(ctx, auction.closureScheduledFunctionId);
 	const scheduledFunctionId = await ctx.scheduler.runAt(
 		Math.max(auction.endsAt, Date.now()),
-		internal.sponsorshipAuctions._closeAuction,
+		internal.sponsorship.auctions.lifecycle._closeAuction,
 		{ auctionId: auction._id },
 	);
 	await ctx.db.patch("sponsorshipAuctions", auction._id, {

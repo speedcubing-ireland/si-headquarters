@@ -8,7 +8,7 @@ export async function scheduleAuctionActiveReminder(
 ): Promise<void> {
 	const scheduledFunctionId = await ctx.scheduler.runAt(
 		Math.max(reminder.scheduledFor, Date.now()),
-		internal.sponsorshipAuctions._fireReminder,
+		internal.sponsorship.auctions.lifecycle._fireReminder,
 		{ reminderId: reminder._id },
 	);
 	await ctx.db.patch("sponsorshipAuctionReminders", reminder._id, {

@@ -1,5 +1,5 @@
 import { createApi } from "@convex-dev/better-auth";
-import { createSponsorAuthOptions } from "../sponsorAuthServer";
+import { createSponsorAuthOptions } from "../../server";
 import schema from "./schema";
 
 export const {

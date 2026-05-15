@@ -4,7 +4,7 @@ import {
 	minNextBidCents,
 	resolveProxyState,
 	resolveSealedOutcome,
-} from "./sponsorshipBidding";
+} from "./bidding";
 
 describe("sponsorship bidding engine", () => {
 	test("increment table boundaries follow EUR brackets", () => {

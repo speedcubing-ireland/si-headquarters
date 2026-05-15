@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
-import type { Doc } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
-import { placeSponsorshipBid } from "./sponsorshipBidPlacement";
+import type { Doc } from "../../_generated/dataModel";
+import type { MutationCtx } from "../../_generated/server";
+import { placeSponsorshipBid } from "./bidPlacement";
 
 type BidIntentDoc = Doc<"sponsorshipBidIntents">;
 type BidEventDoc = Doc<"sponsorshipBidEvents">;
@@ -890,7 +890,7 @@ describe("sponsorship bid placement", () => {
 			mockIntent({
 				// Lexicographically before mock insert ids (`intent-1`, …) so
 				// compareBidIntentChronologyWithIdTieBreak matches true bid order
-				// when createdAt/_creationTime collide (see sponsorshipAuctionState).
+				// when createdAt/_creationTime collide (see auctionState).
 				_id: "intent-0" as BidIntentDoc["_id"],
 				sponsorId: "sB" as BidIntentDoc["sponsorId"],
 				mode: "proxy",

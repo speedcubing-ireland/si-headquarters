@@ -1,10 +1,10 @@
-import type { Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { Id } from "../../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import {
 	isSponsorshipManagerForCtx,
 	requirePermission,
 	PERMISSION_KEYS,
-} from "./permissions/policies";
+} from "../../lib/permissions/policies";
 
 type Ctx = QueryCtx | MutationCtx;
 

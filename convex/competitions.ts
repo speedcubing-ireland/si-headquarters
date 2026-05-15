@@ -34,8 +34,8 @@ import { sendCompetitionPhaseChangeNotifications } from "./notifications/trigger
 import {
 	competitionSponsorPropertyStatus,
 	isSealedAuctionFramework,
-} from "./lib/sponsorshipValidators";
-import { isSponsorshipManager } from "./lib/sponsorshipAccess";
+} from "./sponsorship/lib/validators";
+import { isSponsorshipManager } from "./sponsorship/lib/access";
 import { wcaCompetitionUrl } from "./services/wca";
 
 const compSheetObject = v.object({

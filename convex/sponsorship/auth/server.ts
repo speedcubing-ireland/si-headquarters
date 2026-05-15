@@ -5,16 +5,16 @@ import { passkey } from "@better-auth/passkey";
 import type { BetterAuthOptions } from "better-auth";
 import { betterAuth } from "better-auth";
 import { emailOTP } from "better-auth/plugins";
-import { components } from "./_generated/api";
-import { internal } from "./_generated/api";
-import type { DataModel } from "./_generated/dataModel";
-import { renderSponsorPortalOtpEmail } from "./emails/SponsorPortalOtpEmail";
-import { getSponsorshipSenderAddress } from "./lib/email";
+import { components } from "../../_generated/api";
+import { internal } from "../../_generated/api";
+import type { DataModel } from "../../_generated/dataModel";
+import { renderSponsorPortalOtpEmail } from "../emails/SponsorPortalOtpEmail";
+import { getSponsorshipSenderAddress } from "../../lib/email";
 import {
 	resolveSponsorPortalOriginForAuth,
 	sponsorPortalLoginUrl,
-} from "./lib/siteUrls";
-import schema from "./sponsorAuth/schema";
+} from "../../lib/siteUrls";
+import schema from "./component/sponsorAuth/schema";
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth";
 const SPONSOR_OTP_EXPIRES_SECONDS = 60 * 60;

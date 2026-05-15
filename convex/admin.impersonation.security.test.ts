@@ -4,12 +4,12 @@ import type { Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { TEAM_NAMES } from "./lib/constants";
 import schema from "./schema";
-import sponsorAuthSchema from "./sponsorAuth/schema";
+import sponsorAuthSchema from "./sponsorship/auth/component/sponsorAuth/schema";
 import { modules } from "./test.setup";
 import { captureError, getConvexErrorCode } from "./test_utils/convexError";
 
 const sponsorAuthModules = import.meta.glob<string[]>(
-	"./sponsorAuth/**/!(*.*.*)*.*s",
+	"./sponsorship/auth/component/sponsorAuth/**/!(*.*.*)*.*s",
 );
 
 type DirectorFixture = {

@@ -2,4 +2,4 @@ export {
 	createSponsorAuth,
 	createSponsorAuthOptions,
 	sponsorAuthComponent,
-} from "../sponsorAuthServer";
+} from "../../server";
