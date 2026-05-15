@@ -1,14 +1,14 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
-import { compareBidIntentChronologyWithIdTieBreak } from "../../lib/sponsorshipAuctionState";
-import { requireSponsorshipManager } from "../../lib/sponsorshipAccess";
-import { sponsorshipAuctionFramework } from "../../lib/sponsorshipValidators";
+import { compareBidIntentChronologyWithIdTieBreak } from "../lib/auctionState";
+import { requireSponsorshipManager } from "../lib/access";
+import { sponsorshipAuctionFramework } from "../lib/validators";
 import {
 	buildCompetitionRecordSummary,
 	sponsorshipCompetitionSummary,
 	sponsorshipCompetitionSummarySource,
-} from "../../lib/sponsorshipCompetitionSnapshot";
+} from "../lib/competitionSnapshot";
 import {
 	auctionForManager,
 	auctionTableRowForManager,

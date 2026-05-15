@@ -1,4 +1,4 @@
-import type { Doc } from "../_generated/dataModel";
+import type { Doc } from "../../_generated/dataModel";
 
 type StartTargetInput = Pick<
 	Doc<"sponsorshipAuctions">,

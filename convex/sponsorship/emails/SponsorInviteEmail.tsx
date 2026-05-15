@@ -1,6 +1,6 @@
 import { Link, Section, Text } from "@react-email/components";
-import { sponsorPortalLoginUrl } from "../lib/siteUrls";
-import { SponsorshipEmailShell } from "./sponsorshipShared";
+import { sponsorPortalLoginUrl } from "../../lib/siteUrls";
+import { SponsorshipEmailShell } from "./shared";
 
 export type SponsorInviteEmailProps = {
 	sponsorName: string;

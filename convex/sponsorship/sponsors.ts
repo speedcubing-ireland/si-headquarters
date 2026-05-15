@@ -1,11 +1,11 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx } from "../_generated/server";
-import { resolveAuctionBidState } from "../lib/sponsorshipAuctionState";
+import { resolveAuctionBidState } from "./lib/auctionState";
 import { normalizeEmail, validateEmail } from "../lib/sanitize";
 import { sponsorPortalLoginUrl } from "../lib/siteUrls";
-import { requireSponsorshipManager } from "../lib/sponsorshipAccess";
-import { sponsorForUI } from "../lib/sponsorshipValidators";
+import { requireSponsorshipManager } from "./lib/access";
+import { sponsorForUI } from "./lib/validators";
 import { enqueueSponsorshipEmailBatch } from "./emailQueue";
 import {
 	ensureSponsorAuthAccount,

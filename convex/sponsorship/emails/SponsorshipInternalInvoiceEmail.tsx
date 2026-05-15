@@ -1,9 +1,6 @@
 import { Hr, Section, Text } from "@react-email/components";
-import { sponsorshipAdminPageUrl } from "../lib/siteUrls";
-import {
-	SponsorshipEmailShell,
-	SponsorshipInfoBlock,
-} from "./sponsorshipShared";
+import { sponsorshipAdminPageUrl } from "../../lib/siteUrls";
+import { SponsorshipEmailShell, SponsorshipInfoBlock } from "./shared";
 
 export type SponsorshipInternalInvoiceEmailProps = {
 	competitionName: string;

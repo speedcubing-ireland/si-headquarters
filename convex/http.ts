@@ -1,6 +1,9 @@
 import { httpRouter } from "convex/server";
 import { auth } from "./auth";
-import { createSponsorAuth, sponsorAuthComponent } from "./sponsorAuthServer";
+import {
+	createSponsorAuth,
+	sponsorAuthComponent,
+} from "./sponsorship/auth/server";
 import { handleAzureEmailEvents } from "./webhooks/azureEmailEvents";
 
 const http = httpRouter();

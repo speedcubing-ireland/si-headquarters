@@ -2,8 +2,8 @@ import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import type { SponsorshipEmailContext } from "../lib/sponsorshipEmailTemplates";
-import type { SponsorshipEmailType } from "../lib/sponsorshipValidators";
+import type { SponsorshipEmailContext } from "./lib/emailTemplates";
+import type { SponsorshipEmailType } from "./lib/validators";
 
 type SponsorshipEmailRecipient = {
 	sponsorId?: Id<"sponsors">;
@@ -38,7 +38,7 @@ export async function enqueueSponsorshipEmailBatch(
 	requireEmailRecipients(args.recipients);
 	await ctx.scheduler.runAfter(
 		0,
-		internal.sponsorshipNode._enqueueSponsorshipEmailBatch,
+		internal.sponsorship.node._enqueueSponsorshipEmailBatch,
 		args,
 	);
 }

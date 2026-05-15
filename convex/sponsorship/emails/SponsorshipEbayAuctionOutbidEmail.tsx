@@ -1,10 +1,10 @@
 import { Section, Text } from "@react-email/components";
-import { sponsorPortalAuctionsIndexUrl } from "../lib/siteUrls";
+import { sponsorPortalAuctionsIndexUrl } from "../../lib/siteUrls";
 import {
 	SponsorshipEmailShell,
 	SponsorshipInfoBlock,
 	formatDateTime,
-} from "./sponsorshipShared";
+} from "./shared";
 
 export type SponsorshipEbayAuctionOutbidEmailProps = {
 	recipientName?: string;

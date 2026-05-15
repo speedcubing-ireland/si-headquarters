@@ -1,9 +1,9 @@
-import type { Doc, Id } from "../_generated/dataModel";
-import { resolveProxyState, resolveSealedOutcome } from "./sponsorshipBidding";
+import type { Doc, Id } from "../../_generated/dataModel";
+import { resolveProxyState, resolveSealedOutcome } from "./bidding";
 import {
 	isProxyAuctionFramework,
 	sealedAuctionPricingRule,
-} from "./sponsorshipValidators";
+} from "./validators";
 
 type AuctionDoc = Doc<"sponsorshipAuctions">;
 type IntentDoc = Doc<"sponsorshipBidIntents">;

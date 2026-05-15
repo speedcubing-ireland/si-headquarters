@@ -7,8 +7,8 @@ import SponsorshipOutcomeEmail, {
 	type SponsorshipOutcomeVariant,
 } from "../emails/SponsorshipOutcomeEmail";
 import SponsorshipScheduledEmail from "../emails/SponsorshipScheduledEmail";
-import { sponsorPortalLoginUrl } from "./siteUrls";
-import type { SponsorshipEmailType } from "./sponsorshipValidators";
+import { sponsorPortalLoginUrl } from "../../lib/siteUrls";
+import type { SponsorshipEmailType } from "./validators";
 
 export type SponsorshipEmailContext = {
 	competitionName?: string;

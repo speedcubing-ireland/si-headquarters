@@ -34,7 +34,7 @@ export function sealedAuctionPricingRule(
 	return framework === "first_sealed" ? "first_price" : "second_price";
 }
 
-export const sponsorshipAuctionState = v.union(
+export const auctionState = v.union(
 	v.literal("draft"),
 	v.literal("scheduled"),
 	v.literal("active"),

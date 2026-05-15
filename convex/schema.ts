@@ -22,10 +22,10 @@ import {
 import {
 	competitionSponsorPropertyStatus,
 	sponsorshipAuctionFramework,
-	sponsorshipAuctionState,
+	auctionState,
 	sponsorshipBidIntentMode,
-} from "./lib/sponsorshipValidators";
-import { sponsorshipCompetitionSnapshot } from "./lib/sponsorshipCompetitionSnapshot";
+} from "./sponsorship/lib/validators";
+import { competitionSnapshot } from "./sponsorship/lib/competitionSnapshot";
 import {
 	emailDispatchStatus,
 	emailSourceKind,
@@ -215,7 +215,7 @@ export default defineSchema({
 	sponsorshipAuctions: defineTable({
 		competitionId: v.id("competitions"),
 		framework: sponsorshipAuctionFramework,
-		state: sponsorshipAuctionState,
+		state: auctionState,
 		currency: v.string(),
 		startsAt: v.number(),
 		endsAt: v.number(),
@@ -230,7 +230,7 @@ export default defineSchema({
 		winnerSponsorId: v.optional(v.id("sponsors")),
 		winningBidId: v.optional(v.id("sponsorshipBidIntents")),
 		settlementAmountCents: v.optional(v.number()),
-		competitionSnapshot: v.optional(sponsorshipCompetitionSnapshot),
+		competitionSnapshot: v.optional(competitionSnapshot),
 		readinessSnapshotJson: v.optional(v.string()),
 		createdById: v.id("users"),
 		updatedById: v.id("users"),

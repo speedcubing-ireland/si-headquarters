@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { resolveAuctionStartTargetState } from "./sponsorshipLifecycle";
+import { resolveAuctionStartTargetState } from "./lifecycle";
 
 describe("sponsorship lifecycle start transitions", () => {
 	test("active auctions are idempotent no-op", () => {

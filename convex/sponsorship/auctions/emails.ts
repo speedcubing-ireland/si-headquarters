@@ -2,11 +2,11 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { TEAM_NAMES } from "../../lib/constants";
 import { listMembersForTeams } from "../../lib/permissions/teams";
-import type { SponsorshipEmailContext } from "../../lib/sponsorshipEmailTemplates";
+import type { SponsorshipEmailContext } from "../lib/emailTemplates";
 import {
 	isProxyAuctionFramework,
 	type SponsorshipAuctionFramework,
-} from "../../lib/sponsorshipValidators";
+} from "../lib/validators";
 import {
 	sponsorPortalAuctionUrl,
 	sponsorshipAdminPageUrl,

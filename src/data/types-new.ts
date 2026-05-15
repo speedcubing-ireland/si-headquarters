@@ -30,10 +30,12 @@ export type Competition = NonNullable<
 	FunctionReturnType<typeof api.competitions.getForUI>
 >;
 
-export type Sponsor = FunctionReturnType<typeof api.sponsors.list>[number];
+export type Sponsor = FunctionReturnType<
+	typeof api.sponsorship.sponsors.list
+>[number];
 
 export type SponsorshipAuction = FunctionReturnType<
-	typeof api.sponsorshipAuctions.listByCompetition
+	typeof api.sponsorship.auctions.management.listByCompetition
 >[number];
 
 export type SponsorshipBidIntent = {
@@ -47,7 +49,9 @@ export type SponsorshipBidIntent = {
 };
 
 export type SponsorshipBidEvent =
-	FunctionReturnType<typeof api.sponsorPortal.getAuction> extends infer T
+	FunctionReturnType<
+		typeof api.sponsorship.portal.auctions.getAuction
+	> extends infer T
 		? T extends { events: infer Events }
 			? Events extends Array<infer Event>
 				? Event

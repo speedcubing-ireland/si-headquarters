@@ -88,10 +88,10 @@ function SponsorAuctionDetailEnabled() {
 	const [isSubmittingMaxBid, setIsSubmittingMaxBid] = useState(false);
 	const prefilledAuctionIdRef = useRef<string | null>(null);
 	const refreshedSummaryAuctionIdRef = useRef<string | null>(null);
-	const placeBid = useMutation(api.sponsorPortal.placeBid);
-	const setMaxBid = useMutation(api.sponsorPortal.setMaxBid);
+	const placeBid = useMutation(api.sponsorship.portal.auctions.placeBid);
+	const setMaxBid = useMutation(api.sponsorship.portal.auctions.setMaxBid);
 	const refreshCompetitionSnapshot = useAction(
-		api.sponsorshipAuctions.refreshCompetitionSnapshot,
+		api.sponsorship.auctions.competitionSnapshot.refreshCompetitionSnapshot,
 	);
 
 	useEffect(() => {
@@ -101,7 +101,7 @@ function SponsorAuctionDetailEnabled() {
 	}, [authPending, navigate, sessionToken]);
 
 	const dataResult = useQuery(
-		api.sponsorPortal.getAuction,
+		api.sponsorship.portal.auctions.getAuction,
 		sessionToken
 			? {
 					sessionToken,

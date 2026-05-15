@@ -5,7 +5,7 @@ import { usePermissionSnapshot } from "./use-admin";
 import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function useSponsors(enabled = true) {
-	const result = useQuery(api.sponsors.list, enabled ? {} : "skip");
+	const result = useQuery(api.sponsorship.sponsors.list, enabled ? {} : "skip");
 	const {
 		data: sponsors,
 		isLoading,
@@ -27,10 +27,12 @@ export function useIsSponsorshipManager() {
 }
 
 export function useSponsorMutations() {
-	const createSponsor = useMutation(api.sponsors.create);
-	const updateSponsor = useMutation(api.sponsors.update);
-	const sendAccessEmailMut = useMutation(api.sponsors.sendAccessEmail);
-	const revokeSessions = useMutation(api.sponsors.revokeSessions);
+	const createSponsor = useMutation(api.sponsorship.sponsors.create);
+	const updateSponsor = useMutation(api.sponsorship.sponsors.update);
+	const sendAccessEmailMut = useMutation(
+		api.sponsorship.sponsors.sendAccessEmail,
+	);
+	const revokeSessions = useMutation(api.sponsorship.sponsors.revokeSessions);
 	const setSponsorActive = (sponsorId: Id<"sponsors">, active: boolean) =>
 		updateSponsor({ sponsorId, active });
 	return {
@@ -50,7 +52,7 @@ export function useSponsorMutations() {
 
 export function useSponsorshipCompetitionsForManager(enabled = true) {
 	const result = useQuery(
-		api.sponsorshipAuctions.listCompetitionsForManager,
+		api.sponsorship.auctions.management.listCompetitionsForManager,
 		enabled ? {} : "skip",
 	);
 	const {
@@ -73,7 +75,7 @@ export function useSponsorshipAuctionsForCompetition(
 	enabled = true,
 ) {
 	const result = useQuery(
-		api.sponsorshipAuctions.listByCompetition,
+		api.sponsorship.auctions.management.listByCompetition,
 		competitionId && enabled ? { competitionId } : "skip",
 	);
 	const {
@@ -93,7 +95,7 @@ export function useSponsorshipAuctionsForCompetition(
 
 export function useSponsorshipAuctionsForManager(enabled = true) {
 	const result = useQuery(
-		api.sponsorshipAuctions.listForManager,
+		api.sponsorship.auctions.management.listForManager,
 		enabled ? {} : "skip",
 	);
 	const {
@@ -116,7 +118,7 @@ export function useSponsorshipAuctionManagerView(
 	enabled = true,
 ) {
 	const result = useQuery(
-		api.sponsorshipAuctions.getManagerView,
+		api.sponsorship.auctions.management.getManagerView,
 		auctionId && enabled ? { auctionId } : "skip",
 	);
 	const {
@@ -135,15 +137,15 @@ export function useSponsorshipAuctionManagerView(
 }
 
 export function useSponsorshipAuctionMutations() {
-	const createAuction = useMutation(api.sponsorshipAuctions.create);
-	const updateAuction = useMutation(api.sponsorshipAuctions.update);
-	const startAuction = useMutation(api.sponsorshipAuctions.start);
-	const closeAuction = useMutation(api.sponsorshipAuctions.close);
+	const createAuction = useMutation(api.sponsorship.auctions.management.create);
+	const updateAuction = useMutation(api.sponsorship.auctions.management.update);
+	const startAuction = useMutation(api.sponsorship.auctions.lifecycle.start);
+	const closeAuction = useMutation(api.sponsorship.auctions.lifecycle.close);
 	const refreshCompetitionSnapshot = useAction(
-		api.sponsorshipAuctions.refreshCompetitionSnapshot,
+		api.sponsorship.auctions.competitionSnapshot.refreshCompetitionSnapshot,
 	);
 	const deleteBeforeOpen = useMutation(
-		api.sponsorshipAuctions.removeBeforeOpen,
+		api.sponsorship.auctions.management.removeBeforeOpen,
 	);
 	return {
 		createAuction,

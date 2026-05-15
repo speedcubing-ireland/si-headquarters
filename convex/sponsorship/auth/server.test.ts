@@ -6,7 +6,7 @@ import {
 	buildSponsorOtpEmail,
 	isSponsorPasswordAuthEnabled,
 	createSponsorAuthOptions,
-} from "./sponsorAuthServer";
+} from "./server";
 
 describe("trimTrailingSlash", () => {
 	test("removes trailing slash", () => {

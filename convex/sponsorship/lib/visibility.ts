@@ -1,5 +1,5 @@
-import type { Doc } from "../_generated/dataModel";
-import { isSealedAuctionFramework } from "./sponsorshipValidators";
+import type { Doc } from "../../_generated/dataModel";
+import { isSealedAuctionFramework } from "./validators";
 
 type AuctionVisibilityInput = Pick<
 	Doc<"sponsorshipAuctions">,

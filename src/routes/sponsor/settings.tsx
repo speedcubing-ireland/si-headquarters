@@ -249,12 +249,14 @@ function SponsorSettingsEnabled() {
 		sponsorAuthClient.useSession();
 	const sessionToken = authSession?.session.token ?? null;
 	const meResult = useQuery(
-		api.sponsorPortal.me,
+		api.sponsorship.portal.auth.me,
 		sessionToken ? { sessionToken } : "skip",
 	);
 	const meState = useRetainedQueryResult(meResult, sessionToken ?? "skip");
 	const me = meState.data;
-	const updateDisplayName = useMutation(api.sponsorPortal.updateDisplayName);
+	const updateDisplayName = useMutation(
+		api.sponsorship.portal.auth.updateDisplayName,
+	);
 	const [displayName, setDisplayName] = useState("");
 	const [isSavingName, setIsSavingName] = useState(false);
 

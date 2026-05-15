@@ -2,19 +2,19 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import { compareBidIntentChronology } from "../../lib/sponsorshipAuctionState";
-import { placeSponsorshipBid } from "../../lib/sponsorshipBidPlacement";
-import { buildCompetitionRecordSummary } from "../../lib/sponsorshipCompetitionSnapshot";
+import { compareBidIntentChronology } from "../lib/auctionState";
+import { placeSponsorshipBid } from "../lib/bidPlacement";
+import { buildCompetitionRecordSummary } from "../lib/competitionSnapshot";
 import {
 	competitionSponsorPropertyStatus,
 	isProxyAuctionFramework,
-} from "../../lib/sponsorshipValidators";
+} from "../lib/validators";
 import { sendEbayAuctionOutbidEmail } from "../auctions/emails";
 import { scheduleAuctionClosure } from "../auctions/lifecycle";
 import {
 	isBidHistoryVisibleToSponsor,
 	isSponsorVisibleAuctionState,
-} from "../../lib/sponsorshipVisibility";
+} from "../lib/visibility";
 import {
 	requireAuctionInvite,
 	requireSponsorSession,
