@@ -10,6 +10,7 @@ export {
 	deleteNotificationArtifactsForTaskTree,
 } from "./lib/cleanup";
 export { sendTestEmailPreview } from "./lib/emailPreview";
+export { emitDueDateNotificationsForTask, emitNotificationEvent } from "./api";
 export type {
 	BuildEmitInputArgs,
 	NotificationCatalogEntry,

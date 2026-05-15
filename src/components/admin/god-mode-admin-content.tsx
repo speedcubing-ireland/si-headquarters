@@ -23,13 +23,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type GodModeTab = "users" | "services" | "data" | "linked-actions" | "email";
 type ServiceType = "google" | "wca" | "canva";
 type DispatchHealth = FunctionReturnType<
-	typeof api.notifications.getDispatchHealth
+	typeof api.notifications.admin.getDispatchHealth
 >;
 type DeliveryDiagnostics = FunctionReturnType<
-	typeof api.notifications.getEmailDeliveryDiagnostics
+	typeof api.notifications.admin.getEmailDeliveryDiagnostics
 >;
 type DeadLetter = FunctionReturnType<
-	typeof api.notifications.listRecentDeadLetters
+	typeof api.notifications.admin.listRecentDeadLetters
 >[number];
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
@@ -214,7 +214,7 @@ function ServicesTokenCheckCard() {
 function EmailAdminPanel() {
 	const convex = useConvex();
 	const sendTestDigestSeries = useMutation(
-		api.notifications.sendTestDigestSeries,
+		api.notifications.admin.sendTestDigestSeries,
 	);
 	const [diagnostics, setDiagnostics] = useState<{
 		dispatchHealth: DispatchHealth;
@@ -250,9 +250,11 @@ function EmailAdminPanel() {
 		try {
 			const [nextDispatchHealth, nextDeliveryDiagnostics, nextDeadLetters] =
 				await Promise.all([
-					convex.query(api.notifications.getDispatchHealth, {}),
-					convex.query(api.notifications.getEmailDeliveryDiagnostics, {}),
-					convex.query(api.notifications.listRecentDeadLetters, { limit: 20 }),
+					convex.query(api.notifications.admin.getDispatchHealth, {}),
+					convex.query(api.notifications.admin.getEmailDeliveryDiagnostics, {}),
+					convex.query(api.notifications.admin.listRecentDeadLetters, {
+						limit: 20,
+					}),
 				]);
 			setDiagnostics({
 				dispatchHealth: nextDispatchHealth,

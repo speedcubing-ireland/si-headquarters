@@ -4,25 +4,25 @@ import {
 	query,
 	internalQuery,
 	internalMutation,
-} from "./_generated/server";
-import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { requireUserId } from "./auth";
-import { requireDirector } from "./admin";
-import { getCommentParentId } from "./lib/commentParentId";
+} from "../_generated/server";
+import { internal } from "../_generated/api";
+import type { Doc, Id } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { requireUserId } from "../auth";
+import { requireDirector } from "../admin";
+import { getCommentParentId } from "../lib/commentParentId";
 import {
 	notificationChannel,
 	notificationDigestMode,
 	notificationType,
-} from "./notifications/lib/validators";
+} from "./lib/validators";
 import {
 	NotificationTemplates,
 	type NotificationTemplateConfig,
 	type TaskNotificationType,
-} from "./notifications/lib/notificationTemplates";
-import { toISO } from "./lib/transforms";
-import { normalizeEmail, validateEmail } from "./lib/sanitize";
+} from "./lib/notificationTemplates";
+import { toISO } from "../lib/transforms";
+import { normalizeEmail, validateEmail } from "../lib/sanitize";
 import {
 	EMAIL_CHANNEL,
 	notificationReturns,
@@ -41,7 +41,7 @@ import {
 	type NotificationEntityRef,
 	type NotificationEmitInput,
 	type EmailDispatchSnapshot,
-} from "./notifications/lib/notificationTypes";
+} from "./lib/notificationTypes";
 import {
 	docToNotification,
 	normalizeListLimit,
@@ -53,7 +53,7 @@ import {
 	serializePayload,
 	notificationParentEntityId,
 	defaultThreadKey,
-} from "./notifications/lib/notificationHelpers";
+} from "./lib/notificationHelpers";
 import {
 	getNotificationPreferenceConfig,
 	getNotificationUserTimezone,
@@ -62,13 +62,13 @@ import {
 	buildPreferenceRowsForUser,
 	upsertNotificationPreferenceOverride,
 	formatUserSettings,
-} from "./notifications/lib/notificationSettings";
+} from "./lib/notificationSettings";
 import {
 	canUserAccessTask,
 	canUserAccessCompetition,
 	canUserAccessComment,
 	canUserAccessNotificationEntity,
-} from "./notifications/lib/notificationAccess";
+} from "./lib/notificationAccess";
 import {
 	getActorInfo,
 	resolveRecipientIds,
@@ -76,29 +76,29 @@ import {
 	buildCompetitionNotificationResult,
 	type TaskNotificationBuildArgs,
 	type CompetitionNotificationBuildArgs,
-} from "./notifications/lib/notificationBuilders";
+} from "./lib/notificationBuilders";
 import {
 	type NotificationEmailStageGroupArgs,
 	resolveStageDigestWindowKey,
-} from "./notifications/lib/emailStageGrouping";
-import { computeDispatchSchedule } from "./notifications/lib/notificationScheduling";
+} from "./lib/emailStageGrouping";
+import { computeDispatchSchedule } from "./lib/notificationScheduling";
 import {
 	computeDueDateDaysDiff,
 	buildDueDateNotificationSpec,
 	MS_PER_DAY,
 	type DueDateNotificationSpec,
-} from "./notifications/lib/notificationDueDates";
-import { buildNotificationEmitInput } from "./notifications/emit";
-import { expandRecipientIds } from "./notifications/recipients/expand";
-import { decideRecipientHandling } from "./notifications/recipients/filter";
-import { computeInAppScheduleForRecipient } from "./notifications/recipients/schedule";
+} from "./lib/notificationDueDates";
+import { buildNotificationEmitInput } from "./emit";
+import { expandRecipientIds } from "./recipients/expand";
+import { decideRecipientHandling } from "./recipients/filter";
+import { computeInAppScheduleForRecipient } from "./recipients/schedule";
 import {
 	queryEmailDispatchHealth,
 	queryEmailDeliveryDiagnostics,
 	queryRecentEmailDeadLetters,
-} from "./emailQueue";
+} from "../emailQueue";
 
-export { notificationReturns } from "./notifications/lib/notificationTypes";
+export { notificationReturns } from "./lib/notificationTypes";
 
 async function ensureNotificationEvent(
 	ctx: MutationCtx,
@@ -248,12 +248,12 @@ async function ensureNotificationEmailStageGroupScheduled(
 		(targetScheduledFor <= now
 			? await ctx.scheduler.runAfter(
 					0,
-					internal.notificationsNode._composeNotificationEmailStageGroup,
+					internal.notifications.node._composeNotificationEmailStageGroup,
 					composeArgs,
 				)
 			: await ctx.scheduler.runAt(
 					targetScheduledFor,
-					internal.notificationsNode._composeNotificationEmailStageGroup,
+					internal.notifications.node._composeNotificationEmailStageGroup,
 					composeArgs,
 				));
 
@@ -1138,7 +1138,7 @@ export const sendTestDigestSeries = mutation({
 		for (const type of ["immediate", "hourly", "three_daily"] as const) {
 			await ctx.scheduler.runAfter(
 				0,
-				internal.notificationsNode._sendTestEmail,
+				internal.notifications.node._sendTestEmail,
 				{
 					type,
 					toEmail,

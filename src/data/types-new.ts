@@ -71,7 +71,7 @@ export type ProgressUpdate = Competition["progressUpdates"][number];
 export type Comment = FunctionReturnType<typeof api.comments.listForUI>[number];
 
 export type Notification = FunctionReturnType<
-	typeof api.notifications.listForUser
+	typeof api.notifications.inbox.listForUser
 >[number];
 
 export type Reminder = FunctionReturnType<
@@ -232,13 +232,13 @@ export type ReminderStatus =
 export type RecurringPattern = "daily" | "weekly" | "monthly" | "custom";
 
 export type NotificationPreference = FunctionReturnType<
-	typeof api.notifications.listPreferences
+	typeof api.notifications.settings.listPreferences
 >[number];
 
 export type NotificationSubscription = FunctionReturnType<
-	typeof api.notifications.listSubscriptions
+	typeof api.notifications.subscriptions.listSubscriptions
 >[number];
 
 export type NotificationSettings = FunctionReturnType<
-	typeof api.notifications.getSettings
+	typeof api.notifications.settings.getSettings
 >;

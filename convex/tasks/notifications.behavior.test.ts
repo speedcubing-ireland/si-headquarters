@@ -150,9 +150,12 @@ describe("task notification behavior", () => {
 		const seeded = await seedTaskWithSubscribers(t);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
-		const subId = await authed.mutation(api.notifications.subscribeToEntity, {
-			entity: { entityType: "task", entityId: seeded.taskId },
-		});
+		const subId = await authed.mutation(
+			api.notifications.subscriptions.subscribeToEntity,
+			{
+				entity: { entityType: "task", entityId: seeded.taskId },
+			},
+		);
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("notificationSubscriptions", subId),
@@ -167,13 +170,19 @@ describe("task notification behavior", () => {
 		const seeded = await seedTaskWithSubscribers(t);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
-		const subId = await authed.mutation(api.notifications.subscribeToEntity, {
-			entity: { entityType: "task", entityId: seeded.taskId },
-		});
+		const subId = await authed.mutation(
+			api.notifications.subscriptions.subscribeToEntity,
+			{
+				entity: { entityType: "task", entityId: seeded.taskId },
+			},
+		);
 
-		await authed.mutation(api.notifications.unsubscribeFromEntity, {
-			entity: { entityType: "task", entityId: seeded.taskId },
-		});
+		await authed.mutation(
+			api.notifications.subscriptions.unsubscribeFromEntity,
+			{
+				entity: { entityType: "task", entityId: seeded.taskId },
+			},
+		);
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("notificationSubscriptions", subId),

@@ -1,18 +1,18 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api, internal } from "./_generated/api";
-import { emitNotificationEvent } from "./notifications";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import workpoolSchema from "../node_modules/@convex-dev/workpool/dist/component/schema";
+import type { Id } from "../_generated/dataModel";
+import { api, internal } from "../_generated/api";
+import { emitNotificationEvent } from "./api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import workpoolSchema from "../../node_modules/@convex-dev/workpool/dist/component/schema";
 
 process.env.AZURE_EMAIL_CONNECTION_STRING ??=
 	"endpoint=https://example.communication.azure.com/;accesskey=test";
 process.env.EMAIL_SENDER_ADDRESS ??= "noreply@example.com";
 
 const workpoolModules = import.meta.glob<string[]>(
-	"../node_modules/@convex-dev/workpool/dist/component/**/!(*.*.*)*.*s",
+	"../../node_modules/@convex-dev/workpool/dist/component/**/!(*.*.*)*.*s",
 );
 
 function createHarness() {
@@ -57,7 +57,7 @@ describe("notifications behavior", () => {
 			});
 		});
 
-		const rows = await authed.query(api.notifications.listForUser, {
+		const rows = await authed.query(api.notifications.inbox.listForUser, {
 			limit: 50,
 		});
 		expect(rows).toHaveLength(1);
@@ -112,7 +112,7 @@ describe("notifications behavior", () => {
 		});
 
 		const unreadCount = await authed.query(
-			api.notifications.getUnreadCount,
+			api.notifications.inbox.getUnreadCount,
 			{},
 		);
 		expect(unreadCount).toBe(1);
@@ -123,7 +123,7 @@ describe("notifications behavior", () => {
 		const me = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: me });
 
-		await authed.mutation(api.notifications.upsertPreference, {
+		await authed.mutation(api.notifications.settings.upsertPreference, {
 			type: "task_assigned",
 			channel: "in_app",
 			enabled: true,
@@ -131,7 +131,7 @@ describe("notifications behavior", () => {
 		});
 
 		const preferences = await authed.query(
-			api.notifications.listPreferences,
+			api.notifications.settings.listPreferences,
 			{},
 		);
 		const inApp = preferences.find(
@@ -319,7 +319,7 @@ describe("notifications behavior", () => {
 		});
 
 		const composed = await t.action(
-			internal.notificationsNode._composeNotificationEmailStageGroup,
+			internal.notifications.node._composeNotificationEmailStageGroup,
 			{
 				userId: seeded.userId,
 				digestMode: "immediate",
@@ -384,12 +384,15 @@ describe("notifications behavior", () => {
 			return { actorId, recipientId, taskId };
 		});
 		const recipientAuthed = t.withIdentity({ subject: seeded.recipientId });
-		await recipientAuthed.mutation(api.notifications.upsertPreference, {
-			type: "task_assigned",
-			channel: "email",
-			enabled: true,
-			digestMode: "immediate",
-		});
+		await recipientAuthed.mutation(
+			api.notifications.settings.upsertPreference,
+			{
+				type: "task_assigned",
+				channel: "email",
+				enabled: true,
+				digestMode: "immediate",
+			},
+		);
 
 		await t.run((ctx) =>
 			emitNotificationEvent(ctx, {
@@ -506,7 +509,7 @@ describe("notifications behavior", () => {
 		});
 
 		const composed = await t.action(
-			internal.notificationsNode._composeNotificationEmailStageGroup,
+			internal.notifications.node._composeNotificationEmailStageGroup,
 			{
 				userId: seeded.userId,
 				digestMode: "immediate",
@@ -594,12 +597,15 @@ describe("notifications behavior", () => {
 		});
 
 		const recipientAuthed = t.withIdentity({ subject: seeded.recipientId });
-		await recipientAuthed.mutation(api.notifications.upsertPreference, {
-			type: "task_assigned",
-			channel: "email",
-			enabled: true,
-			digestMode: "daily",
-		});
+		await recipientAuthed.mutation(
+			api.notifications.settings.upsertPreference,
+			{
+				type: "task_assigned",
+				channel: "email",
+				enabled: true,
+				digestMode: "daily",
+			},
+		);
 
 		await t.run((ctx) =>
 			emitNotificationEvent(ctx, {
@@ -705,7 +711,7 @@ describe("notifications behavior", () => {
 		});
 
 		const result = await t.mutation(
-			internal.notifications._recoverPendingNotificationEmailStages,
+			internal.notifications.internal._recoverPendingNotificationEmailStages,
 			{ limit: 100 },
 		);
 		expect(result.rows).toBe(2);
@@ -718,10 +724,10 @@ describe("notifications behavior", () => {
 		const authed = t.withIdentity({ subject: userId });
 
 		await expect(
-			authed.query(api.notifications.getDispatchHealth, {}),
+			authed.query(api.notifications.admin.getDispatchHealth, {}),
 		).rejects.toBeTruthy();
 		await expect(
-			authed.query(api.notifications.listRecentDeadLetters, {}),
+			authed.query(api.notifications.admin.listRecentDeadLetters, {}),
 		).rejects.toBeTruthy();
 	});
 
@@ -787,8 +793,8 @@ describe("notifications behavior", () => {
 
 		const director = t.withIdentity({ subject: seeded.directorId });
 		const [health, deadLetters] = await Promise.all([
-			director.query(api.notifications.getDispatchHealth, {}),
-			director.query(api.notifications.listRecentDeadLetters, {
+			director.query(api.notifications.admin.getDispatchHealth, {}),
+			director.query(api.notifications.admin.listRecentDeadLetters, {
 				channel: "email",
 				limit: 10,
 			}),

@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import { TEAM_NAMES } from "./lib/constants";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import { TEAM_NAMES } from "../lib/constants";
 
 async function seedUser(
 	t: ReturnType<typeof convexTest>,
@@ -25,7 +25,7 @@ describe("notification preferences behavior", () => {
 		const userId = await seedUser(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.upsertPreference, {
+		await authed.mutation(api.notifications.settings.upsertPreference, {
 			type: "task_assigned",
 			channel: "email",
 			enabled: false,
@@ -49,14 +49,14 @@ describe("notification preferences behavior", () => {
 		const userId = await seedUser(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.upsertPreference, {
+		await authed.mutation(api.notifications.settings.upsertPreference, {
 			type: "comment_added",
 			channel: "email",
 			enabled: true,
 			digestMode: "daily",
 		});
 
-		await authed.mutation(api.notifications.upsertPreference, {
+		await authed.mutation(api.notifications.settings.upsertPreference, {
 			type: "comment_added",
 			channel: "email",
 			digestMode: "hourly",
@@ -80,13 +80,13 @@ describe("notification preferences behavior", () => {
 		const userId = await seedUser(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.upsertPreference, {
+		await authed.mutation(api.notifications.settings.upsertPreference, {
 			type: "task_status_changed",
 			channel: "email",
 			enabled: false,
 		});
 
-		await authed.mutation(api.notifications.upsertPreference, {
+		await authed.mutation(api.notifications.settings.upsertPreference, {
 			type: "task_status_changed",
 			channel: "email",
 			clearOverride: true,
@@ -109,13 +109,16 @@ describe("notification preferences behavior", () => {
 		const userId = await seedUser(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.upsertUserSettings, {
+		await authed.mutation(api.notifications.settings.upsertUserSettings, {
 			timezone: "Europe/Dublin",
 			quietHoursStartMin: 1380, // 23:00
 			quietHoursEndMin: 420, // 07:00
 		});
 
-		const settings = await authed.query(api.notifications.getUserSettings, {});
+		const settings = await authed.query(
+			api.notifications.settings.getUserSettings,
+			{},
+		);
 		expect(settings?.timezone).toBe("Europe/Dublin");
 		expect(settings?.quietHoursStartMin).toBe(1380);
 		expect(settings?.quietHoursEndMin).toBe(420);
@@ -126,16 +129,19 @@ describe("notification preferences behavior", () => {
 		const userId = await seedUser(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		await authed.mutation(api.notifications.upsertUserSettings, {
+		await authed.mutation(api.notifications.settings.upsertUserSettings, {
 			quietHoursStartMin: 1380,
 			quietHoursEndMin: 420,
 		});
 
-		await authed.mutation(api.notifications.upsertUserSettings, {
+		await authed.mutation(api.notifications.settings.upsertUserSettings, {
 			clearQuietHours: true,
 		});
 
-		const settings = await authed.query(api.notifications.getUserSettings, {});
+		const settings = await authed.query(
+			api.notifications.settings.getUserSettings,
+			{},
+		);
 		expect(settings?.quietHoursStartMin).toBeUndefined();
 		expect(settings?.quietHoursEndMin).toBeUndefined();
 	});
