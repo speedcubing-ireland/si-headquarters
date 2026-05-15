@@ -233,16 +233,19 @@ describe("permissions policy matrix", () => {
 			const director = t.withIdentity({ subject: directorId });
 			const volunteer = t.withIdentity({ subject: volunteerId });
 
-			const id = await director.mutation(api.linkedActions.createDefinition, {
-				name: "Test Sheet",
-				shortId: "sheet.policy-test",
-				type: "linked_sheet",
-				config: { operation: "populate_checkin_sheet" },
-			});
+			const id = await director.mutation(
+				api.integrations.linkedActions.createDefinition,
+				{
+					name: "Test Sheet",
+					shortId: "sheet.policy-test",
+					type: "linked_sheet",
+					config: { operation: "populate_checkin_sheet" },
+				},
+			);
 			expect(id).toBeDefined();
 
 			await expect(
-				volunteer.mutation(api.linkedActions.createDefinition, {
+				volunteer.mutation(api.integrations.linkedActions.createDefinition, {
 					name: "Other",
 					shortId: "sheet.other",
 					type: "linked_sheet",

@@ -65,7 +65,7 @@ function formatDublinDateTime(date: string | null | undefined): string {
 
 export function SocialMediaDashboard() {
 	const fetchDashboardData = useAction(
-		api.wca.fetchSocialMediaDashboardCompetitions,
+		api.integrations.wca.actions.fetchSocialMediaDashboardCompetitions,
 	);
 	const [competitions, setCompetitions] = useState<
 		DashboardCompetition[] | null

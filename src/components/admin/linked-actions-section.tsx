@@ -76,11 +76,18 @@ export function canCreateLinkedActionDraft(args: {
 }
 
 export function LinkedActionsSection() {
-	const definitionsResult = useQuery(api.linkedActions.listDefinitions, {});
+	const definitionsResult = useQuery(
+		api.integrations.linkedActions.listDefinitions,
+		{},
+	);
 	const { data: definitions, isLoading: definitionsLoading } =
 		useRetainedQueryResult(definitionsResult);
-	const createDefinition = useMutation(api.linkedActions.createDefinition);
-	const updateDefinition = useMutation(api.linkedActions.updateDefinition);
+	const createDefinition = useMutation(
+		api.integrations.linkedActions.createDefinition,
+	);
+	const updateDefinition = useMutation(
+		api.integrations.linkedActions.updateDefinition,
+	);
 	const [name, setName] = useState("");
 	const [shortId, setShortId] = useState("");
 	const [type, setType] = useState<ActionType>("linked_sheet");
@@ -100,7 +107,9 @@ export function LinkedActionsSection() {
 	const [folderInputValue, setFolderInputValue] = useState("");
 	const [isValidatingFolder, setIsValidatingFolder] = useState(false);
 
-	const validateCanvaFolderInput = useAction(api.canva.validateFolderInput);
+	const validateCanvaFolderInput = useAction(
+		api.integrations.canva.actions.validateFolderInput,
+	);
 
 	const orderedDefinitions = useMemo(
 		() =>

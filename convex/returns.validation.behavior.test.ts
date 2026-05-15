@@ -79,7 +79,7 @@ describe("return validation smoke coverage", () => {
 		const t = convexTest(schema, modules);
 
 		const preflight = await t.query(
-			internal.sheetsQueries.getScheduleFetchPreflight,
+			internal.integrations.google.sheetsQueries.getScheduleFetchPreflight,
 			{
 				sheetId: "sheet-1",
 				includeCache: true,
@@ -120,7 +120,7 @@ describe("return validation smoke coverage", () => {
 		const authed = t.withIdentity({ subject: volunteerId });
 
 		const preflight = await authed.query(
-			internal.sheetsQueries.getScheduleFetchPreflight,
+			internal.integrations.google.sheetsQueries.getScheduleFetchPreflight,
 			{
 				sheetId: "sheet-linked",
 				includeCache: true,

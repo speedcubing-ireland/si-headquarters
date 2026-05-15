@@ -63,12 +63,15 @@ function AddLinkedActionDialog({
 	readOnly: boolean;
 }) {
 	const definitionsResult = useQuery(
-		api.linkedActions.listAvailableDefinitionsForTask,
+		api.integrations.linkedActions.listAvailableDefinitionsForTask,
 		{ taskId },
 	);
-	const linkedActionsResult = useQuery(api.linkedActions.listForTask, {
-		taskId,
-	});
+	const linkedActionsResult = useQuery(
+		api.integrations.linkedActions.listForTask,
+		{
+			taskId,
+		},
+	);
 	const definitionsState = useRetainedQueryResult(definitionsResult, taskId);
 	const linkedActionsState = useRetainedQueryResult(
 		linkedActionsResult,
@@ -76,7 +79,7 @@ function AddLinkedActionDialog({
 	);
 	const definitions = definitionsState.data ?? [];
 	const linkedActions = linkedActionsState.data ?? [];
-	const attachToTask = useMutation(api.linkedActions.attachToTask);
+	const attachToTask = useMutation(api.integrations.linkedActions.attachToTask);
 	const [search, setSearch] = useState("");
 
 	const attachedDefinitionIds = useMemo(
@@ -163,25 +166,34 @@ export function TaskLinkedActionsSection({
 	task,
 	readOnly = false,
 }: TaskLinkedActionsSectionProps) {
-	const linkedActionsResult = useQuery(api.linkedActions.listForTask, {
-		taskId: task.id,
-	});
+	const linkedActionsResult = useQuery(
+		api.integrations.linkedActions.listForTask,
+		{
+			taskId: task.id,
+		},
+	);
 	const linkedActionsState = useRetainedQueryResult(
 		linkedActionsResult,
 		task.id,
 	);
-	const detachFromTask = useMutation(api.linkedActions.detachFromTask);
+	const detachFromTask = useMutation(
+		api.integrations.linkedActions.detachFromTask,
+	);
 	const confirmCanvaManualShareComplete = useMutation(
-		api.linkedActions.confirmCanvaManualShareComplete,
+		api.integrations.linkedActions.confirmCanvaManualShareComplete,
 	);
 	const confirmWcaEventsConfirmation = useMutation(
-		api.linkedActions.confirmWcaEventsManualConfirmation,
+		api.integrations.linkedActions.confirmWcaEventsManualConfirmation,
 	);
-	const runTaskLinkedAction = useAction(api.linkedActions.runTaskLinkedAction);
+	const runTaskLinkedAction = useAction(
+		api.integrations.linkedActions.runTaskLinkedAction,
+	);
 	const completeLinkedSheetShareWithLaptops = useAction(
-		api.linkedActions.completeLinkedSheetShareWithLaptops,
+		api.integrations.linkedActions.completeLinkedSheetShareWithLaptops,
 	);
-	const linkTaskCanvaDesign = useAction(api.linkedActions.linkTaskCanvaDesign);
+	const linkTaskCanvaDesign = useAction(
+		api.integrations.linkedActions.linkTaskCanvaDesign,
+	);
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [runningId, setRunningId] = useState<TaskLinkedAction["id"] | null>(
 		null,

@@ -2,8 +2,8 @@
 
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { getServiceAccessToken } from "./services/tokens/runtime";
-import { fetchGoogleSheetTitle } from "./services/google/sheetsClient";
+import { getServiceAccessToken } from "./integrations/tokens/runtime";
+import { fetchGoogleSheetTitle } from "./integrations/google/client/sheetsClient";
 import { checkResourceNamingGuard } from "./lib/deploymentGuard";
 
 export const checkSheetNamingGuard = internalAction({

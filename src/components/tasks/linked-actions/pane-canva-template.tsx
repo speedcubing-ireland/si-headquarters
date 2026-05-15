@@ -55,8 +55,12 @@ export function CanvaTemplatePane({
 	onConfirmManualShare,
 	onManualLink,
 }: CanvaTemplatePaneProps) {
-	const getDesignMetadata = useAction(api.canva.getDesignMetadata);
-	const validateDesignInput = useAction(api.canva.validateDesignInput);
+	const getDesignMetadata = useAction(
+		api.integrations.canva.actions.getDesignMetadata,
+	);
+	const validateDesignInput = useAction(
+		api.integrations.canva.actions.validateDesignInput,
+	);
 	const output = parseOutput(item.lastOutputJson);
 	const designId = output?.designId ?? null;
 	const [liveMetadata, setLiveMetadata] = useState<{
