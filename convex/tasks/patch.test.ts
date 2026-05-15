@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { buildTaskPatch } from "./taskPatch";
-import type { Id } from "./_generated/dataModel";
+import { buildTaskPatch } from "./patch";
+import type { Id } from "../_generated/dataModel";
 
 const taskId = (id: string) => id as Id<"tasks">;
 const compId = (id: string) => id as Id<"competitions">;

@@ -2,7 +2,7 @@ import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { isVolunteer } from "../../auth";
 import { canAccessCompetitionResource } from "../../lib/permissions/resources";
-import { hasTaskCompetitionAccess } from "../../taskAccess";
+import { hasTaskCompetitionAccess } from "../../tasks/access";
 import { getCommentParentId } from "../../lib/commentParentId";
 import type {
 	NotificationEntityRef,

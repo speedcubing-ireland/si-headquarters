@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
-import type { Id } from "./_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import {
 	hasTaskCompetitionAccess,
 	hasStandaloneTaskAccess,
 	listOrganisedCompetitionIds,
-} from "./taskAccess";
+} from "./access";
 
 const userId = (id: string) => id as Id<"users">;
 const competitionId = (id: string) => id as Id<"competitions">;

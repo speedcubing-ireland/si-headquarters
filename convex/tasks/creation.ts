@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { decodeApprovalId } from "../taskApprovals";
+import { decodeApprovalId } from "./approvalLogic";
 import type { MutationCtx } from "../_generated/server";
 
 export function assertValidApprovalIds(requiredApprovalIds: string[]): void {

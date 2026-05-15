@@ -7,7 +7,7 @@ import { internal } from "./_generated/api";
 import { emitNotificationEvent } from "./notifications";
 import { REMINDER_PATTERNS } from "./lib/constants";
 import { toISO } from "./lib/transforms";
-import { hasTaskCompetitionAccess } from "./taskAccess";
+import { hasTaskCompetitionAccess } from "./tasks/access";
 import {
 	reminderStatus,
 	reminderType,

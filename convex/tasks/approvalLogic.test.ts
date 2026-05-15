@@ -4,9 +4,9 @@ import {
 	decodeApprovalId,
 	computeApprovalCompleteness,
 	resolveApprovalData,
-} from "./taskApprovals";
-import type { Id } from "./_generated/dataModel";
-import { TEAM_NAMES } from "./lib/constants";
+} from "./approvalLogic";
+import type { Id } from "../_generated/dataModel";
+import { TEAM_NAMES } from "../lib/constants";
 
 const userId = (id: string) => id as Id<"users">;
 const teamId = (id: string) => id as Id<"teams">;

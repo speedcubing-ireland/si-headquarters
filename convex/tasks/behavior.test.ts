@@ -1,9 +1,9 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
 
 async function seedUserAndCompetition(
 	t: ReturnType<typeof convexTest>,
@@ -32,7 +32,7 @@ describe("tasks behavior characterization", () => {
 		const userId = await t.run((ctx) => ctx.db.insert("users", {}));
 		const authed = t.withIdentity({ subject: userId });
 
-		const taskId = await authed.mutation(api.tasks.create, {
+		const taskId = await authed.mutation(api.tasks.mutations.create, {
 			title: "Task without competition",
 			status: "to-do",
 			priority: "medium",
@@ -50,13 +50,13 @@ describe("tasks behavior characterization", () => {
 		const { userId, competitionId } = await seedUserAndCompetition(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		const firstId = await authed.mutation(api.tasks.create, {
+		const firstId = await authed.mutation(api.tasks.mutations.create, {
 			title: "First task",
 			status: "to-do",
 			priority: "medium",
 			parentCompetitionId: competitionId,
 		});
-		const secondId = await authed.mutation(api.tasks.create, {
+		const secondId = await authed.mutation(api.tasks.mutations.create, {
 			title: "Second task",
 			status: "to-do",
 			priority: "medium",
@@ -83,7 +83,7 @@ describe("tasks behavior characterization", () => {
 			const now = Date.UTC(2026, 0, 15, 9, 0, 0);
 			vi.setSystemTime(now);
 
-			await authed.mutation(api.tasks.create, {
+			await authed.mutation(api.tasks.mutations.create, {
 				title: "Due today task",
 				status: "to-do",
 				priority: "medium",
@@ -148,7 +148,7 @@ describe("tasks behavior characterization", () => {
 			});
 			const authed = t.withIdentity({ subject: seeded.actorId });
 
-			await authed.mutation(api.tasks.update, {
+			await authed.mutation(api.tasks.mutations.update, {
 				taskId: seeded.taskId,
 				updates: { status: "awaiting-review" },
 			});
@@ -170,7 +170,7 @@ describe("tasks behavior characterization", () => {
 		const { userId, competitionId } = await seedUserAndCompetition(t);
 		const authed = t.withIdentity({ subject: userId });
 
-		const taskId = await authed.mutation(api.tasks.create, {
+		const taskId = await authed.mutation(api.tasks.mutations.create, {
 			title: "Anchor task",
 			status: "to-do",
 			priority: "medium",
@@ -178,7 +178,7 @@ describe("tasks behavior characterization", () => {
 		});
 
 		await expect(
-			authed.mutation(api.tasks.bulkUpdate, {
+			authed.mutation(api.tasks.mutations.bulkUpdate, {
 				taskIds: Array.from({ length: 101 }, () => taskId),
 				updates: { priority: "low" },
 			}),
@@ -233,7 +233,7 @@ describe("tasks behavior characterization", () => {
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		await expect(
-			authed.mutation(api.tasks.update, {
+			authed.mutation(api.tasks.mutations.update, {
 				taskId: seeded.taskId,
 				updates: { parentCompetitionId: seeded.deniedCompetitionId },
 			}),
@@ -259,22 +259,25 @@ describe("tasks behavior characterization", () => {
 			}),
 		);
 
-		const result = await authed.mutation(api.tasks.createManyFromTemplate, {
-			competitionId,
-			tasks: [
-				{
-					tempId: "task-1",
-					title: "Check-in task",
-					status: "to-do",
-					priority: "medium",
-					labelIds: [],
-					linkedActionShortIds: [
-						"sheet.populate-checkin",
-						"sheet.missing-action",
-					],
-				},
-			],
-		});
+		const result = await authed.mutation(
+			api.tasks.mutations.createManyFromTemplate,
+			{
+				competitionId,
+				tasks: [
+					{
+						tempId: "task-1",
+						title: "Check-in task",
+						status: "to-do",
+						priority: "medium",
+						labelIds: [],
+						linkedActionShortIds: [
+							"sheet.populate-checkin",
+							"sheet.missing-action",
+						],
+					},
+				],
+			},
+		);
 
 		expect(result.taskIds).toHaveLength(1);
 		expect(result.missingLinkedActionShortIds).toEqual([

@@ -24,7 +24,9 @@ export { DEFAULT_PHASES, COMPETITION_PHASE_KEYS };
 
 export type User = FunctionReturnType<typeof api.users.listUsers>[number];
 
-export type Task = NonNullable<FunctionReturnType<typeof api.tasks.getForUI>>;
+export type Task = NonNullable<
+	FunctionReturnType<typeof api.tasks.queries.getForUI>
+>;
 
 export type Competition = NonNullable<
 	FunctionReturnType<typeof api.competitions.getForUI>

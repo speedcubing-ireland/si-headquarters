@@ -1,10 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import schema from "./schema";
-import { modules } from "./test.setup";
-import { TEAM_NAMES } from "./lib/constants";
+import type { Id } from "../_generated/dataModel";
+import { api } from "../_generated/api";
+import schema from "../schema";
+import { modules } from "../test.setup";
+import { TEAM_NAMES } from "../lib/constants";
 
 async function seedTwoTasks(t: ReturnType<typeof convexTest>): Promise<{
 	userId: Id<"users">;
@@ -65,7 +65,7 @@ describe("task blocking relations behavior", () => {
 		const seeded = await seedTwoTasks(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.addBlockingRelation, {
+		await authed.mutation(api.tasks.relations.addBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
@@ -96,7 +96,7 @@ describe("task blocking relations behavior", () => {
 			});
 		});
 
-		await authed.mutation(api.tasks.addBlockingRelation, {
+		await authed.mutation(api.tasks.relations.addBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
@@ -117,7 +117,7 @@ describe("task blocking relations behavior", () => {
 		const seeded = await seedTwoTasks(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.addBlockingRelation, {
+		await authed.mutation(api.tasks.relations.addBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
@@ -125,7 +125,7 @@ describe("task blocking relations behavior", () => {
 			vi.runAllTimers();
 		});
 
-		await authed.mutation(api.tasks.removeBlockingRelation, {
+		await authed.mutation(api.tasks.relations.removeBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
@@ -151,7 +151,7 @@ describe("task blocking relations behavior", () => {
 			});
 		});
 
-		await authed.mutation(api.tasks.addBlockingRelation, {
+		await authed.mutation(api.tasks.relations.addBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
@@ -159,7 +159,7 @@ describe("task blocking relations behavior", () => {
 			vi.runAllTimers();
 		});
 
-		await authed.mutation(api.tasks.removeBlockingRelation, {
+		await authed.mutation(api.tasks.relations.removeBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
@@ -180,13 +180,13 @@ describe("task blocking relations behavior", () => {
 		const seeded = await seedTwoTasks(t);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
-		await authed.mutation(api.tasks.addBlockingRelation, {
+		await authed.mutation(api.tasks.relations.addBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
 
 		await expect(
-			authed.mutation(api.tasks.addBlockingRelation, {
+			authed.mutation(api.tasks.relations.addBlockingRelation, {
 				blockedTaskId: seeded.taskAId,
 				blockingTaskId: seeded.taskBId,
 			}),

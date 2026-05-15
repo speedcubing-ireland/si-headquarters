@@ -136,7 +136,7 @@ export function useTemplateTasks(
 	labels: TaskLabel[],
 ) {
 	const createManyFromTemplateMutation = useMutation(
-		api.tasks.createManyFromTemplate,
+		api.tasks.mutations.createManyFromTemplate,
 	);
 
 	const createTasksFromTemplate = useCallback(
