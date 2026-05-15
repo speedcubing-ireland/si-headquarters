@@ -822,7 +822,7 @@ export const pushScheduleToWca = action({
 	handler: async (ctx, args): Promise<PushScheduleResult> => {
 		const overwriteEvents = args.overwriteEvents ?? false;
 
-		const competitionForUser = await ctx.runQuery(api.competitions.get, {
+		const competitionForUser = await ctx.runQuery(api.competitions.api.get, {
 			competitionId: args.competitionId,
 		});
 		if (!competitionForUser) {
@@ -832,9 +832,12 @@ export const pushScheduleToWca = action({
 			});
 		}
 
-		const competition = (await ctx.runQuery(internal.competitions.getInternal, {
-			id: args.competitionId,
-		})) as CompetitionInfo | null;
+		const competition = (await ctx.runQuery(
+			internal.competitions.api.getInternal,
+			{
+				id: args.competitionId,
+			},
+		)) as CompetitionInfo | null;
 
 		if (!competition) {
 			return { success: false as const, error: "Competition not found" };
@@ -987,7 +990,7 @@ export const populateCheckinSheetFromWca = action({
 		}),
 	),
 	handler: async (ctx, args): Promise<PopulateCheckinSheetResult> => {
-		const competitionForUser = await ctx.runQuery(api.competitions.get, {
+		const competitionForUser = await ctx.runQuery(api.competitions.api.get, {
 			competitionId: args.competitionId,
 		});
 		if (!competitionForUser) {
@@ -997,9 +1000,12 @@ export const populateCheckinSheetFromWca = action({
 			});
 		}
 
-		const competition = (await ctx.runQuery(internal.competitions.getInternal, {
-			id: args.competitionId,
-		})) as CompetitionInfo | null;
+		const competition = (await ctx.runQuery(
+			internal.competitions.api.getInternal,
+			{
+				id: args.competitionId,
+			},
+		)) as CompetitionInfo | null;
 
 		if (!competition) {
 			return { success: false as const, error: "Competition not found" };
@@ -1114,7 +1120,7 @@ export const shareSheetWithLaptops = action({
 		}),
 	),
 	handler: async (ctx, args): Promise<ShareSheetWithLaptopsResult> => {
-		const competitionForUser = await ctx.runQuery(api.competitions.get, {
+		const competitionForUser = await ctx.runQuery(api.competitions.api.get, {
 			competitionId: args.competitionId,
 		});
 		if (!competitionForUser) {
@@ -1124,9 +1130,12 @@ export const shareSheetWithLaptops = action({
 			});
 		}
 
-		const competition = (await ctx.runQuery(internal.competitions.getInternal, {
-			id: args.competitionId,
-		})) as CompetitionInfo | null;
+		const competition = (await ctx.runQuery(
+			internal.competitions.api.getInternal,
+			{
+				id: args.competitionId,
+			},
+		)) as CompetitionInfo | null;
 
 		if (!competition) {
 			return { success: false as const, error: "Competition not found" };

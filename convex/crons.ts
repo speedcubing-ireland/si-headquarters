@@ -14,7 +14,7 @@ crons.cron(
 crons.cron(
 	"sweep email queue",
 	CRON_EXPRESSIONS.EMAIL_QUEUE_SWEEP_EVERY_MINUTE,
-	internal.emailQueue._runSweep,
+	internal.emailQueue.api._runSweep,
 	{},
 );
 

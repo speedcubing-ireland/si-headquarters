@@ -18,7 +18,7 @@ export const generateCode = action({
 		serverNowMs: v.number(),
 	}),
 	handler: async (ctx) => {
-		const canAccess = await ctx.runQuery(api.admin.canAccessWca2fa, {});
+		const canAccess = await ctx.runQuery(api.core.admin.canAccessWca2fa, {});
 		if (!canAccess) {
 			throw new ConvexError({
 				code: "FORBIDDEN",

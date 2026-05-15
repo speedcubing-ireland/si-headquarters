@@ -170,7 +170,7 @@ export function createSponsorAuthOptions(
 						);
 					}
 					await ctx.runMutation(
-						internal.emailQueue._enqueueDispatch,
+						internal.emailQueue.api._enqueueDispatch,
 						await buildSponsorOtpEmail({ email, otp, type }),
 					);
 				},

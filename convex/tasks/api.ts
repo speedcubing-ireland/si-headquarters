@@ -2,8 +2,8 @@ import { v, ConvexError, type Infer } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
-import { requireUserId, isVolunteer } from "../auth";
-import { isDirectorForCtx } from "../admin";
+import { requireUserId, isVolunteer } from "../core/auth";
+import { isDirectorForCtx } from "../core/admin";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,

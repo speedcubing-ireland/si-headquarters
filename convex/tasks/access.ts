@@ -5,7 +5,7 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
 	hasCompetitionAccess,
 	listAccessibleCompetitionIds,
-} from "../competitionAccess";
+} from "../competitions/access";
 import { requireCompetitionResourceAccess } from "../lib/permissions/resources";
 
 export const ERROR_TASK_NO_COMPETITION =

@@ -32,7 +32,7 @@ export const Route = createFileRoute("/competitions/calendar")({
 
 function CompetitionsCalendarPage() {
 	const { competitions, isLoading: competitionsLoading } = useCompetitions();
-	const overridesListResult = useQuery(api.weekendOverrides.list);
+	const overridesListResult = useQuery(api.competitions.weekendOverrides.list);
 	const overridesState = useRetainedQueryResult(overridesListResult);
 	const overridesList = overridesState.data;
 	const overrides = useMemo(() => {

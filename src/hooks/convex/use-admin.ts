@@ -13,7 +13,7 @@ const DEFAULT_PERMISSION_SNAPSHOT = {
 } as const;
 
 export const usePermissionSnapshot = () => {
-	const result = useQuery(api.admin.getPermissionSnapshot, {});
+	const result = useQuery(api.core.admin.getPermissionSnapshot, {});
 	const {
 		data: snapshot,
 		isLoading,
@@ -57,7 +57,7 @@ export const useIsSponsorshipManager = () => {
 };
 
 export const useAdminMembersAndTeams = () => {
-	const result = useQuery(api.admin.listMembersAndTeams, {});
+	const result = useQuery(api.core.admin.listMembersAndTeams, {});
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return {
 		users: data?.users ?? [],
@@ -69,7 +69,7 @@ export const useAdminMembersAndTeams = () => {
 };
 
 export const useAdminImpersonationTargets = () => {
-	const result = useQuery(api.admin.listImpersonationTargets, {});
+	const result = useQuery(api.core.admin.listImpersonationTargets, {});
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return {
 		users: data?.users ?? [],
@@ -80,9 +80,9 @@ export const useAdminImpersonationTargets = () => {
 };
 
 export function useAdminMemberMutations() {
-	const updateTeamMembersMut = useMutation(api.admin.updateTeamMembers);
-	const addPendingMut = useMutation(api.admin.addPendingTeamMember);
-	const removePendingMut = useMutation(api.admin.removePendingTeamMember);
+	const updateTeamMembersMut = useMutation(api.core.admin.updateTeamMembers);
+	const addPendingMut = useMutation(api.core.admin.addPendingTeamMember);
+	const removePendingMut = useMutation(api.core.admin.removePendingTeamMember);
 	return {
 		updateTeamMembers: (teamId: Id<"teams">, memberIds: Id<"users">[]) =>
 			updateTeamMembersMut({ teamId, memberIds }),
@@ -95,10 +95,10 @@ export function useAdminMemberMutations() {
 
 export function useAdminImpersonationMutations() {
 	const createImpersonationLoginLink = useMutation(
-		api.admin.createImpersonationLoginLink,
+		api.core.admin.createImpersonationLoginLink,
 	);
 	const consumeSponsorImpersonationTicket = useMutation(
-		api.admin.consumeSponsorImpersonationTicket,
+		api.core.admin.consumeSponsorImpersonationTicket,
 	);
 	return {
 		createImpersonationLoginLink,

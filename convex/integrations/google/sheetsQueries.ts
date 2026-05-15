@@ -1,6 +1,6 @@
 import { internalMutation, internalQuery } from "../../_generated/server";
 import { v } from "convex/values";
-import { isVolunteer } from "../../auth";
+import { isVolunteer } from "../../core/auth";
 
 const scheduleEventShape = v.object({
 	eventName: v.string(),

@@ -202,7 +202,7 @@ export const fetchSocialMediaDashboardCompetitions = action({
 	returns: v.array(socialDashboardCompetitionShape),
 	handler: async (ctx) => {
 		const canAccess = await ctx.runQuery(
-			api.admin.canAccessSocialMediaDashboard,
+			api.core.admin.canAccessSocialMediaDashboard,
 			{},
 		);
 		if (!canAccess) {

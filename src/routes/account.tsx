@@ -38,17 +38,19 @@ function toErrorMessage(error: unknown, fallback: string): string {
 }
 
 function RouteComponent() {
-	const userResult = useQuery(api.users.getCurrentUser);
+	const userResult = useQuery(api.core.users.getCurrentUser);
 	const userState = useRetainedQueryResult(userResult);
-	const updateCurrentUserName = useMutation(api.users.updateCurrentUserName);
+	const updateCurrentUserName = useMutation(
+		api.core.users.updateCurrentUserName,
+	);
 	const generateAvatarUploadUrl = useMutation(
-		api.users.generateAvatarUploadUrl,
+		api.core.users.generateAvatarUploadUrl,
 	);
 	const setCurrentUserAvatarFromStorage = useMutation(
-		api.users.setCurrentUserAvatarFromStorage,
+		api.core.users.setCurrentUserAvatarFromStorage,
 	);
 	const rerollCurrentUserAvatar = useMutation(
-		api.users.rerollCurrentUserAvatar,
+		api.core.users.rerollCurrentUserAvatar,
 	);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [nameInput, setNameInput] = useState("");

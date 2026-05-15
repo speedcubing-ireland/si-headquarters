@@ -16,7 +16,7 @@ interface AttentionCounts {
 
 function useAttentionCounts(): AttentionCounts & { isLoading: boolean } {
 	const { tasks, isLoading: tasksLoading } = useTasks(false);
-	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.core.users.getCurrentUser);
 	const currentUserState = useRetainedQueryResult(currentUserResult);
 	const currentUser = currentUserState.data;
 	const unreadCount = useUnreadCount();

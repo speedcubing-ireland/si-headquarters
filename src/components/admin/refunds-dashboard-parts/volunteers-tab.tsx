@@ -4,7 +4,7 @@ import { Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { RefundVolunteerRecord } from "@/convex/refunds";
+import type { RefundVolunteerRecord } from "@/convex/refunds/api";
 import { useRefundMutations } from "@/hooks/use-convex-data";
 import { getErrorMessage } from "@/lib/utils";
 

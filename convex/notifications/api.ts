@@ -8,8 +8,8 @@ import {
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { requireUserId } from "../auth";
-import { requireDirector } from "../admin";
+import { requireUserId } from "../core/auth";
+import { requireDirector } from "../core/admin";
 import { getCommentParentId } from "../lib/commentParentId";
 import {
 	notificationChannel,
@@ -96,7 +96,7 @@ import {
 	queryEmailDispatchHealth,
 	queryEmailDeliveryDiagnostics,
 	queryRecentEmailDeadLetters,
-} from "../emailQueue";
+} from "../emailQueue/api";
 
 export { notificationReturns } from "./lib/notificationTypes";
 

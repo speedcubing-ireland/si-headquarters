@@ -217,9 +217,9 @@ export function useTaskMutations(): TaskMutations {
 		api.tasks.approvals.approveTask,
 	).withOptimisticUpdate((store, { taskId }) => {
 		const current = store.getQuery(api.tasks.queries.getForUI, { taskId });
-		const authUser = store.getQuery(api.users.getCurrentUser, {});
+		const authUser = store.getQuery(api.core.users.getCurrentUser, {});
 		if (!current || !authUser) return;
-		const users = store.getQuery(api.users.listUsers) ?? [];
+		const users = store.getQuery(api.core.users.listUsers) ?? [];
 		const currentUser =
 			users.find((user) => user.id === authUser._id) ??
 			({
@@ -253,7 +253,7 @@ export function useTaskMutations(): TaskMutations {
 		api.tasks.approvals.unapproveTask,
 	).withOptimisticUpdate((store, { taskId }) => {
 		const current = store.getQuery(api.tasks.queries.getForUI, { taskId });
-		const authUser = store.getQuery(api.users.getCurrentUser, {});
+		const authUser = store.getQuery(api.core.users.getCurrentUser, {});
 		const currentUserId = authUser?._id;
 		if (!current || !currentUserId) return;
 

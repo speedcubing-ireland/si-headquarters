@@ -168,7 +168,7 @@ export function buildFocusGroups(
 
 export function MyFocusWidget() {
 	const { tasks, isLoading } = useTasks(false);
-	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.core.users.getCurrentUser);
 	const currentUserState = useRetainedQueryResult(currentUserResult);
 	const currentUser = currentUserState.data;
 	const { updateTask } = useTaskMutations();

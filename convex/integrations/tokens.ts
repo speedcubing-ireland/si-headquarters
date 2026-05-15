@@ -6,7 +6,7 @@ import {
 	query,
 } from "../_generated/server";
 import { v } from "convex/values";
-import { requireUserId } from "../auth";
+import { requireUserId } from "../core/auth";
 import { internal } from "../_generated/api";
 import { requireDirectorAction } from "../lib/oauth";
 import schema from "../schema";
