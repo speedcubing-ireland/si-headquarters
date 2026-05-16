@@ -5,6 +5,7 @@ import {
 	mutation,
 	query,
 } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { requireUserId } from "../core/auth";
 import { requireDirector } from "../core/admin";
@@ -72,6 +73,39 @@ function buildPreferenceRows(
 	}));
 }
 
+function toDiscordLinkReturn(
+	link: Doc<"discordUserLinks"> | null | undefined,
+): {
+	userId: Doc<"discordUserLinks">["userId"];
+	guildId: string;
+	discordUserId: string;
+	discordUsername: string;
+	discordDisplayName?: string;
+	discordAvatarUrl?: string;
+	linkedById: Doc<"discordUserLinks">["linkedById"];
+	linkedAt: number;
+	updatedAt: number;
+} | null {
+	if (!link) {
+		return null;
+	}
+	return {
+		userId: link.userId,
+		guildId: link.guildId,
+		discordUserId: link.discordUserId,
+		discordUsername: link.discordUsername,
+		...(link.discordDisplayName !== undefined && {
+			discordDisplayName: link.discordDisplayName,
+		}),
+		...(link.discordAvatarUrl !== undefined && {
+			discordAvatarUrl: link.discordAvatarUrl,
+		}),
+		linkedById: link.linkedById,
+		linkedAt: link.linkedAt,
+		updatedAt: link.updatedAt,
+	};
+}
+
 export const getCurrentUserSettings = query({
 	args: {},
 	returns: discordSettingsReturns,
@@ -96,7 +130,7 @@ export const getCurrentUserSettings = query({
 			preferenceDocs.map((doc) => [doc.type, doc.enabled]),
 		);
 		return {
-			link: link ?? null,
+			link: toDiscordLinkReturn(link),
 			dmEnabled: settings?.dmEnabled ?? true,
 			preferences: buildPreferenceRows(overrides),
 		};
@@ -173,7 +207,7 @@ export const listLinkedUsers = query({
 				userId: user._id,
 				name: user.name ?? "",
 				email: user.email ?? "",
-				link: linkByUserId.get(user._id) ?? null,
+				link: toDiscordLinkReturn(linkByUserId.get(user._id)),
 			}))
 			.sort(
 				(a, b) =>
@@ -374,6 +408,161 @@ export const executeActionToken = internalMutation({
 		token: v.string(),
 		discordUserId: v.string(),
 	},
+	returns: v.union(
+		v.object({
+			kind: v.literal("message"),
+			content: v.string(),
+			clearMessage: v.boolean(),
+		}),
+		v.object({
+			kind: v.literal("modal"),
+			title: v.string(),
+			label: v.string(),
+			placeholder: v.optional(v.string()),
+		}),
+	),
+	handler: async (ctx, args) => {
+		const [tokenDoc, link] = await Promise.all([
+			ctx.db
+				.query("discordActionTokens")
+				.withIndex("by_token", (q) => q.eq("token", args.token))
+				.unique(),
+			ctx.db
+				.query("discordUserLinks")
+				.withIndex("by_discord_user", (q) =>
+					q.eq("discordUserId", args.discordUserId),
+				)
+				.unique(),
+		]);
+
+		if (!link) {
+			return {
+				kind: "message" as const,
+				content: "Your Discord account is not linked to an HQ user.",
+				clearMessage: false,
+			};
+		}
+		if (!tokenDoc) {
+			return {
+				kind: "message" as const,
+				content: "This Discord action token is invalid.",
+				clearMessage: false,
+			};
+		}
+		if (tokenDoc.expiresAt < Date.now()) {
+			return {
+				kind: "message" as const,
+				content: "This Discord action has expired.",
+				clearMessage: true,
+			};
+		}
+		if (tokenDoc.consumedAt) {
+			return {
+				kind: "message" as const,
+				content: "This Discord action has already been used.",
+				clearMessage: true,
+			};
+		}
+		if (tokenDoc.userId && tokenDoc.userId !== link.userId) {
+			return {
+				kind: "message" as const,
+				content: "This Discord action belongs to a different HQ user.",
+				clearMessage: false,
+			};
+		}
+
+		switch (tokenDoc.actionKind) {
+			case "dismiss_message": {
+				await ctx.db.patch("discordActionTokens", tokenDoc._id, {
+					consumedAt: Date.now(),
+				});
+				return {
+					kind: "message" as const,
+					content: "Notification cleared.",
+					clearMessage: true,
+				};
+			}
+			case "set_task_status": {
+				if (!tokenDoc.taskId || !tokenDoc.status) {
+					throw new ConvexError("Task status action token is missing data.");
+				}
+				await ctx.runMutation(internal.tasks.api.discordSetStatus, {
+					taskId: tokenDoc.taskId,
+					status: tokenDoc.status,
+					actorUserId: link.userId,
+				});
+				await ctx.db.patch("discordActionTokens", tokenDoc._id, {
+					consumedAt: Date.now(),
+				});
+				return {
+					kind: "message" as const,
+					content: `Task moved to ${tokenDoc.status}.`,
+					clearMessage: true,
+				};
+			}
+			case "approve_task": {
+				if (!tokenDoc.taskId) {
+					throw new ConvexError("Approve action token is missing a task.");
+				}
+				await ctx.runMutation(internal.tasks.api.discordApproveTask, {
+					taskId: tokenDoc.taskId,
+					actorUserId: link.userId,
+				});
+				await ctx.db.patch("discordActionTokens", tokenDoc._id, {
+					consumedAt: Date.now(),
+				});
+				return {
+					kind: "message" as const,
+					content: "Task approved.",
+					clearMessage: true,
+				};
+			}
+			case "unapprove_task": {
+				if (!tokenDoc.taskId) {
+					throw new ConvexError("Unapprove action token is missing a task.");
+				}
+				await ctx.runMutation(internal.tasks.api.discordUnapproveTask, {
+					taskId: tokenDoc.taskId,
+					actorUserId: link.userId,
+				});
+				await ctx.db.patch("discordActionTokens", tokenDoc._id, {
+					consumedAt: Date.now(),
+				});
+				return {
+					kind: "message" as const,
+					content: "Task approval removed.",
+					clearMessage: true,
+				};
+			}
+			case "open_task_comment_modal":
+			case "open_task_reply_modal":
+			case "open_update_comment_modal": {
+				return {
+					kind: "modal" as const,
+					title:
+						tokenDoc.actionKind === "open_task_reply_modal"
+							? "Reply in Headquarters"
+							: "Comment in Headquarters",
+					label:
+						tokenDoc.actionKind === "open_task_reply_modal"
+							? "Reply"
+							: "Comment",
+					placeholder:
+						tokenDoc.actionKind === "open_update_comment_modal"
+							? "Add a progress update comment"
+							: "Write your comment",
+				};
+			}
+		}
+	},
+});
+
+export const submitActionModal = internalMutation({
+	args: {
+		token: v.string(),
+		discordUserId: v.string(),
+		content: v.string(),
+	},
 	returns: v.object({
 		content: v.string(),
 		clearMessage: v.boolean(),
@@ -423,124 +612,54 @@ export const executeActionToken = internalMutation({
 			};
 		}
 
-		const consumedAt = Date.now();
-		let content = "Action completed.";
-
 		switch (tokenDoc.actionKind) {
-			case "clear_delivery": {
-				if (tokenDoc.deliveryId) {
-					await ctx.runMutation(internal.discord.api.markDeliveryCleared, {
-						deliveryId: tokenDoc.deliveryId,
-					});
-				}
-				content = "Notification cleared.";
-				break;
-			}
-			case "set_task_status": {
-				if (!tokenDoc.taskId || !tokenDoc.status) {
-					throw new ConvexError("Task status action token is missing data.");
-				}
-				await ctx.runMutation(internal.tasks.api.discordSetStatus, {
-					taskId: tokenDoc.taskId,
-					status: tokenDoc.status,
-					actorUserId: link.userId,
-				});
-				content = `Task moved to ${tokenDoc.status}.`;
-				break;
-			}
-			case "approve_task": {
+			case "open_task_comment_modal": {
 				if (!tokenDoc.taskId) {
-					throw new ConvexError("Approve action token is missing a task.");
+					throw new ConvexError("Comment action token is missing a task.");
 				}
-				await ctx.runMutation(internal.tasks.api.discordApproveTask, {
-					taskId: tokenDoc.taskId,
+				await ctx.runMutation(internal.comments.api.discordCreateComment, {
 					actorUserId: link.userId,
+					parentType: "task",
+					parentId: `${tokenDoc.taskId}`,
+					content: args.content,
 				});
-				content = "Task approved.";
 				break;
 			}
-			case "unapprove_task": {
-				if (!tokenDoc.taskId) {
-					throw new ConvexError("Unapprove action token is missing a task.");
+			case "open_task_reply_modal": {
+				if (!tokenDoc.taskId || !tokenDoc.commentId) {
+					throw new ConvexError("Reply action token is missing comment data.");
 				}
-				await ctx.runMutation(internal.tasks.api.discordUnapproveTask, {
-					taskId: tokenDoc.taskId,
+				await ctx.runMutation(internal.comments.api.discordCreateComment, {
 					actorUserId: link.userId,
+					parentType: "task",
+					parentId: `${tokenDoc.taskId}`,
+					parentCommentId: tokenDoc.commentId,
+					content: args.content,
 				});
-				content = "Task approval removed.";
 				break;
 			}
+			case "open_update_comment_modal": {
+				if (!tokenDoc.updateId) {
+					throw new ConvexError("Update comment token is missing an update.");
+				}
+				await ctx.runMutation(internal.comments.api.discordCreateComment, {
+					actorUserId: link.userId,
+					parentType: "update",
+					parentId: `${tokenDoc.updateId}`,
+					content: args.content,
+				});
+				break;
+			}
+			default:
+				throw new ConvexError("This Discord action does not accept a modal.");
 		}
 
 		await ctx.db.patch("discordActionTokens", tokenDoc._id, {
-			consumedAt,
+			consumedAt: Date.now(),
 		});
-
 		return {
-			content,
-			clearMessage: true,
+			content: "Comment posted.",
+			clearMessage: false,
 		};
-	},
-});
-
-export const markDeliverySent = internalMutation({
-	args: {
-		deliveryId: v.id("discordMessageDeliveries"),
-		messageId: v.string(),
-	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await ctx.db.patch("discordMessageDeliveries", args.deliveryId, {
-			status: "sent",
-			messageId: args.messageId,
-			updatedAt: Date.now(),
-		});
-		return null;
-	},
-});
-
-export const markDeliveryCleared = internalMutation({
-	args: {
-		deliveryId: v.id("discordMessageDeliveries"),
-	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await ctx.db.patch("discordMessageDeliveries", args.deliveryId, {
-			clearedAt: Date.now(),
-			updatedAt: Date.now(),
-		});
-		return null;
-	},
-});
-
-export const markDeliverySkipped = internalMutation({
-	args: {
-		deliveryId: v.id("discordMessageDeliveries"),
-		reason: v.string(),
-	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await ctx.db.patch("discordMessageDeliveries", args.deliveryId, {
-			status: "skipped",
-			reason: args.reason,
-			updatedAt: Date.now(),
-		});
-		return null;
-	},
-});
-
-export const markDeliveryFailed = internalMutation({
-	args: {
-		deliveryId: v.id("discordMessageDeliveries"),
-		reason: v.string(),
-	},
-	returns: v.null(),
-	handler: async (ctx, args) => {
-		await ctx.db.patch("discordMessageDeliveries", args.deliveryId, {
-			status: "failed",
-			reason: args.reason,
-			updatedAt: Date.now(),
-		});
-		return null;
 	},
 });

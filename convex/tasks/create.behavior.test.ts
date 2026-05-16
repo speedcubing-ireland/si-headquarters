@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import { api } from "../_generated/api";
 import schema from "../schema";
@@ -47,10 +47,28 @@ async function seedForCreate(t: ReturnType<typeof convexTest>): Promise<{
 	});
 }
 
+async function linkDiscordUser(
+	t: ReturnType<typeof convexTest>,
+	userId: Id<"users">,
+) {
+	await t.run((ctx) =>
+		ctx.db.insert("discordUserLinks", {
+			userId,
+			guildId: "guild-1",
+			discordUserId: `discord-${userId}`,
+			discordUsername: "linked-user",
+			linkedById: userId,
+			linkedAt: Date.now(),
+			updatedAt: Date.now(),
+		}),
+	);
+}
+
 describe("task creation behavior", () => {
 	test("create task stores record with auto-incremented identifier", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedForCreate(t);
+		await linkDiscordUser(t, seeded.assigneeId);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		const taskId = await authed.mutation(api.tasks.mutations.create, {
@@ -72,6 +90,7 @@ describe("task creation behavior", () => {
 	test("create task with assignee sends task_assigned notification", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedForCreate(t);
+		await linkDiscordUser(t, seeded.assigneeId);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		await authed.mutation(api.tasks.mutations.create, {
@@ -81,15 +100,11 @@ describe("task creation behavior", () => {
 			parentCompetitionId: seeded.competitionId,
 			assigneeId: seeded.assigneeId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		const assigned = notifications.filter(
-			(n) => n.type === "task_assigned" && n.userId === seeded.assigneeId,
+			(token) => token.userId === seeded.assigneeId,
 		);
 		expect(assigned.length).toBeGreaterThanOrEqual(1);
 	}, 15_000);
@@ -165,14 +180,10 @@ describe("task creation behavior", () => {
 			priority: "medium",
 			parentCompetitionId: seeded.competitionId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
-		const assigned = notifications.filter((n) => n.type === "task_assigned");
+		const assigned = notifications.filter((token) => token.userId != null);
 		expect(assigned).toHaveLength(0);
 	}, 15_000);
 });

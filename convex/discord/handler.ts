@@ -6,12 +6,16 @@ import type {
 } from "discord-api-types/v10";
 import {
 	buildCompetitionCountMessage,
+	getModalTextValue,
 	HQ_ACTION_TOKEN_PREFIX,
+	HQ_ACTION_MODAL_PREFIX,
 	HQ_COMPETITIONS_COUNT_BUTTON_ID,
 	interactionMessageResponse,
+	interactionModalResponse,
 	interactionPongResponse,
 	interactionUpdateMessageResponse,
 	isChatInputCommand,
+	isModalSubmitInteraction,
 	isMessageComponent,
 	isPingInteraction,
 } from "./interactions";
@@ -105,6 +109,18 @@ export async function handleDiscordInteraction(
 					discordUserId,
 				},
 			);
+			if (result.kind === "modal") {
+				return jsonResponse(
+					interactionModalResponse({
+						customId: `${HQ_ACTION_MODAL_PREFIX}${customId.slice(
+							HQ_ACTION_TOKEN_PREFIX.length,
+						)}`,
+						title: result.title,
+						label: result.label,
+						placeholder: result.placeholder,
+					}),
+				);
+			}
 			return jsonResponse(
 				interactionUpdateMessageResponse({
 					content: result.content,
@@ -119,6 +135,49 @@ export async function handleDiscordInteraction(
 				components: [],
 			}),
 		);
+	}
+
+	if (isModalSubmitInteraction(interaction)) {
+		const customId = interaction.data.custom_id;
+		if (customId.startsWith(HQ_ACTION_MODAL_PREFIX)) {
+			const discordUserId = getDiscordInteractionUserId(interaction);
+			if (!discordUserId) {
+				return jsonResponse(
+					interactionMessageResponse(
+						{
+							content:
+								"Could not determine which Discord user submitted this form.",
+						},
+						{ ephemeral: true },
+					),
+				);
+			}
+
+			const content = getModalTextValue(interaction);
+			if (!content?.trim()) {
+				return jsonResponse(
+					interactionMessageResponse(
+						{ content: "Please enter a comment before submitting." },
+						{ ephemeral: true },
+					),
+				);
+			}
+
+			const result = await ctx.runMutation(
+				internal.discord.api.submitActionModal,
+				{
+					token: customId.slice(HQ_ACTION_MODAL_PREFIX.length),
+					discordUserId,
+					content,
+				},
+			);
+			return jsonResponse(
+				interactionMessageResponse(
+					{ content: result.content },
+					{ ephemeral: true },
+				),
+			);
+		}
 	}
 
 	return jsonResponse(

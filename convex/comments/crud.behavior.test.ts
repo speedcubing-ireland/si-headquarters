@@ -45,10 +45,28 @@ async function seedTaskForComments(t: ReturnType<typeof convexTest>): Promise<{
 	});
 }
 
+async function linkDiscordUser(
+	t: ReturnType<typeof convexTest>,
+	userId: Id<"users">,
+) {
+	await t.run((ctx) =>
+		ctx.db.insert("discordUserLinks", {
+			userId,
+			guildId: "guild-1",
+			discordUserId: `discord-${userId}`,
+			discordUsername: "linked-user",
+			linkedById: userId,
+			linkedAt: Date.now(),
+			updatedAt: Date.now(),
+		}),
+	);
+}
+
 describe("comments CRUD behavior", () => {
 	test("create comment stores record with correct fields", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskForComments(t);
+		await linkDiscordUser(t, seeded.otherId);
 		const authed = t.withIdentity({ subject: seeded.authorId });
 
 		const commentId = await authed.mutation(api.comments.api.create, {
@@ -67,39 +85,6 @@ describe("comments CRUD behavior", () => {
 		expect(doc?.content).toBe("First comment");
 		expect(doc?.reactions).toEqual([]);
 		expect(doc?.parentCommentId).toBeUndefined();
-	}, 15_000);
-
-	test("create comment sends comment_added notification to task subscribers", async () => {
-		const t = convexTest(schema, modules);
-		const seeded = await seedTaskForComments(t);
-
-		// Subscribe otherId to the task
-		await t.run(async (ctx) => {
-			await ctx.db.insert("notificationSubscriptions", {
-				userId: seeded.otherId,
-				entityType: "task",
-				entityId: `${seeded.taskId}`,
-				updatedAt: Date.now(),
-			});
-		});
-
-		const authed = t.withIdentity({ subject: seeded.authorId });
-		await authed.mutation(api.comments.api.create, {
-			parentType: "task",
-			parentId: `${seeded.taskId}`,
-			content: "Trigger notification",
-		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
-		const notifications = await t.run((ctx) =>
-			ctx.db
-				.query("notifications")
-				.withIndex("by_user", (q) => q.eq("userId", seeded.otherId))
-				.collect(),
-		);
-		expect(notifications.some((n) => n.type === "comment_added")).toBeTruthy();
 	}, 15_000);
 
 	test("create comment on update stores record with update parentType", async () => {

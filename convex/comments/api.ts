@@ -1,5 +1,5 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import { internalMutation, mutation, query } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { requireUserId, isVolunteer } from "../core/auth";
@@ -384,62 +384,101 @@ export const create = mutation({
 	returns: v.id("comments"),
 	handler: async (ctx, args) => {
 		const userId = await requireUserId(ctx);
-		const volunteer = await isVolunteer(ctx);
-		await ensureCommentParentAccess(ctx, {
-			parentType: args.parentType,
-			parentId: args.parentId,
-			userId,
-			volunteer,
-		});
-		const parentComment = await resolveParentComment(ctx, {
-			parentCommentId: args.parentCommentId,
-			parentType: args.parentType,
-			parentId: args.parentId,
-		});
-
-		const sanitizedContent = validateRequiredText(args.content, "Comment");
-
-		const now = Date.now();
-		const commentId = await ctx.db.insert("comments", {
+		return createCommentAsUser(ctx, {
+			actorUserId: userId,
 			parentType: args.parentType,
 			parentId: args.parentId,
 			parentCommentId: args.parentCommentId,
-			authorId: userId,
-			content: sanitizedContent,
-			reactions: [],
-			updatedAt: now,
+			content: args.content,
 		});
-
-		if (args.parentType !== "task") return commentId;
-
-		const taskId = getCommentParentId("task", args.parentId);
-		const task = await ctx.db.get("tasks", taskId);
-		if (!task) return commentId;
-
-		const mentionedUserIds = await extractMentions(ctx, args.content);
-		const mentionNotified = await sendMentionNotifications(ctx, {
-			taskId,
-			commentId,
-			mentionedUserIds,
-			actorId: userId,
-		});
-		const replyNotified = await sendReplyNotifications(ctx, {
-			taskId,
-			commentId,
-			parentComment,
-			actorId: userId,
-			excludedRecipients: mentionNotified,
-		});
-		const allExcluded = new Set([...mentionNotified, ...replyNotified]);
-		await sendCommentAddedNotifications(ctx, {
-			taskId,
-			commentId,
-			task,
-			actorId: userId,
-			excludedRecipients: allExcluded,
-		});
-		return commentId;
 	},
+});
+
+async function createCommentAsUser(
+	ctx: MutationCtx,
+	args: {
+		actorUserId: Id<"users">;
+		parentType: "task" | "update";
+		parentId: string;
+		parentCommentId?: Id<"comments">;
+		content: string;
+	},
+): Promise<Id<"comments">> {
+	const userId = args.actorUserId;
+	const volunteer = await isVolunteer(ctx);
+	await ensureCommentParentAccess(ctx, {
+		parentType: args.parentType,
+		parentId: args.parentId,
+		userId,
+		volunteer,
+	});
+	const parentComment = await resolveParentComment(ctx, {
+		parentCommentId: args.parentCommentId,
+		parentType: args.parentType,
+		parentId: args.parentId,
+	});
+
+	const sanitizedContent = validateRequiredText(args.content, "Comment");
+
+	const now = Date.now();
+	const commentId = await ctx.db.insert("comments", {
+		parentType: args.parentType,
+		parentId: args.parentId,
+		parentCommentId: args.parentCommentId,
+		authorId: userId,
+		content: sanitizedContent,
+		reactions: [],
+		updatedAt: now,
+	});
+
+	if (args.parentType !== "task") return commentId;
+
+	const taskId = getCommentParentId("task", args.parentId);
+	const task = await ctx.db.get("tasks", taskId);
+	if (!task) return commentId;
+
+	const mentionedUserIds = await extractMentions(ctx, args.content);
+	const mentionNotified = await sendMentionNotifications(ctx, {
+		taskId,
+		commentId,
+		mentionedUserIds,
+		actorId: userId,
+	});
+	const replyNotified = await sendReplyNotifications(ctx, {
+		taskId,
+		commentId,
+		parentComment,
+		actorId: userId,
+		excludedRecipients: mentionNotified,
+	});
+	const allExcluded = new Set([...mentionNotified, ...replyNotified]);
+	await sendCommentAddedNotifications(ctx, {
+		taskId,
+		commentId,
+		task,
+		actorId: userId,
+		excludedRecipients: allExcluded,
+	});
+	return commentId;
+}
+
+export const discordCreateComment = internalMutation({
+	args: {
+		actorUserId: v.id("users"),
+		parentType,
+		parentId: v.string(),
+		parentCommentId: v.optional(v.id("comments")),
+		content: v.string(),
+	},
+	returns: v.id("comments"),
+	handler: async (ctx, args) =>
+		createCommentAsUser(ctx, {
+			actorUserId: args.actorUserId,
+			parentType: args.parentType,
+			parentId: args.parentId,
+			parentCommentId: args.parentCommentId,
+			content: args.content,
+		}),
 });
 
 export const update = mutation({

@@ -1,7 +1,6 @@
 "use node";
 
 import { internalAction } from "../_generated/server";
-import { internal } from "../_generated/api";
 import { v } from "convex/values";
 import {
 	ButtonStyle,
@@ -139,10 +138,8 @@ export const listGuildMembersAction = internalAction({
 
 export const sendNotificationMessageAction = internalAction({
 	args: {
-		deliveryId: v.id("discordMessageDeliveries"),
 		destinationKind: v.union(v.literal("dm"), v.literal("channel")),
-		discordUserId: v.optional(v.string()),
-		channelId: v.optional(v.string()),
+		targetId: v.string(),
 		title: v.string(),
 		message: v.string(),
 		url: v.optional(v.string()),
@@ -158,55 +155,27 @@ export const sendNotificationMessageAction = internalAction({
 		messageId: v.string(),
 		channelId: v.string(),
 	}),
-	handler: async (ctx, args) => {
+	handler: async (_ctx, args) => {
 		const rest = getDiscordRest();
-		try {
-			const body: RESTPostAPIChannelMessageJSONBody = {
-				content: args.url ? `${args.message}\n${args.url}` : args.message,
-				embeds: [
-					{
-						title: args.title,
-						description: args.message,
-						color: 0x2563eb,
-					},
-				],
-				components: buildNotificationComponents(args.actions, args.url),
-			};
-			let result:
-				| Awaited<ReturnType<typeof sendDirectMessage>>
-				| Awaited<ReturnType<typeof sendChannelMessage>>;
-			if (args.destinationKind === "dm") {
-				const discordUserId = args.discordUserId;
-				if (!discordUserId) {
-					throw new Error("Discord DM delivery is missing a Discord user ID.");
-				}
-				result = await sendDirectMessage(rest, discordUserId, body);
-			} else {
-				const channelId = args.channelId;
-				if (!channelId) {
-					throw new Error("Discord channel delivery is missing a channel ID.");
-				}
-				result = await sendChannelMessage(rest, channelId, body);
-			}
-			await ctx.runMutation(internal.discord.api.markDeliverySent, {
-				deliveryId: args.deliveryId,
-				messageId: result.id,
-			});
-			return {
-				messageId: result.id,
-				channelId: result.channel_id,
-			};
-		} catch (error) {
-			const reason =
-				error instanceof Error && error.message.trim()
-					? error.message
-					: "Discord delivery failed.";
-			await ctx.runMutation(internal.discord.api.markDeliveryFailed, {
-				deliveryId: args.deliveryId,
-				reason,
-			});
-			throw error;
-		}
+		const body: RESTPostAPIChannelMessageJSONBody = {
+			content: args.url ? `${args.message}\n${args.url}` : args.message,
+			embeds: [
+				{
+					title: args.title,
+					description: args.message,
+					color: 0x2563eb,
+				},
+			],
+			components: buildNotificationComponents(args.actions, args.url),
+		};
+		const result =
+			args.destinationKind === "dm"
+				? await sendDirectMessage(rest, args.targetId, body)
+				: await sendChannelMessage(rest, args.targetId, body);
+		return {
+			messageId: result.id,
+			channelId: result.channel_id,
+		};
 	},
 });
 

@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import { api } from "../_generated/api";
 import schema from "../schema";
@@ -50,28 +50,46 @@ async function seedTaskWithSubscribers(
 	});
 }
 
+async function linkDiscordUsers(
+	t: ReturnType<typeof convexTest>,
+	userIds: Id<"users">[],
+) {
+	await t.run(async (ctx) => {
+		for (const [index, userId] of userIds.entries()) {
+			await ctx.db.insert("discordUserLinks", {
+				userId,
+				guildId: "guild-1",
+				discordUserId: `discord-${index}-${userId}`,
+				discordUsername: `user${index}`,
+				linkedById: userId,
+				linkedAt: Date.now(),
+				updatedAt: Date.now(),
+			});
+		}
+	});
+}
+
 describe("task notification behavior", () => {
 	test("changing assignee sends task_assigned to new and task_unassigned to old", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.oldAssigneeId, seeded.newAssigneeId]);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { assigneeId: seeded.newAssigneeId },
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
-		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+		const tokens = await t.run((ctx) =>
+			ctx.db.query("discordActionTokens").collect(),
 		);
-		const assigned = notifications.filter(
-			(n) => n.type === "task_assigned" && n.userId === seeded.newAssigneeId,
+		const assigned = tokens.filter(
+			(token) =>
+				token.taskId === seeded.taskId && token.userId === seeded.newAssigneeId,
 		);
-		const unassigned = notifications.filter(
-			(n) => n.type === "task_unassigned" && n.userId === seeded.oldAssigneeId,
+		const unassigned = tokens.filter(
+			(token) =>
+				token.taskId === seeded.taskId && token.userId === seeded.oldAssigneeId,
 		);
 		expect(assigned.length).toBeGreaterThanOrEqual(1);
 		expect(unassigned.length).toBeGreaterThanOrEqual(1);
@@ -80,24 +98,21 @@ describe("task notification behavior", () => {
 	test("changing status sends task_status_changed to subscribers (not actor)", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.oldAssigneeId, seeded.newAssigneeId]);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { status: "in-progress" },
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
-		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+		const tokens = await t.run((ctx) =>
+			ctx.db.query("discordActionTokens").collect(),
 		);
-		const statusChanged = notifications.filter(
-			(n) => n.type === "task_status_changed",
+		const statusChanged = tokens.filter(
+			(token) => token.taskId === seeded.taskId,
 		);
 		const actorNotified = statusChanged.filter(
-			(n) => n.userId === seeded.actorId,
+			(token) => token.userId === seeded.actorId,
 		);
 		expect(statusChanged.length).toBeGreaterThanOrEqual(1);
 		expect(actorNotified).toHaveLength(0);
@@ -106,42 +121,36 @@ describe("task notification behavior", () => {
 	test("changing priority sends task_priority_changed", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.oldAssigneeId, seeded.newAssigneeId]);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { priority: "high" },
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		expect(
-			notifications.some((n) => n.type === "task_priority_changed"),
+			notifications.some((token) => token.taskId === seeded.taskId),
 		).toBeTruthy();
 	}, 15_000);
 
 	test("changing due date sends due_date_changed", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.oldAssigneeId, seeded.newAssigneeId]);
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		await authed.mutation(api.tasks.mutations.update, {
 			taskId: seeded.taskId,
 			updates: { dueDate: "2026-07-15T12:00:00.000Z" },
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		expect(
-			notifications.some((n) => n.type === "due_date_changed"),
+			notifications.some((token) => token.taskId === seeded.taskId),
 		).toBeTruthy();
 	}, 15_000);
 
@@ -151,7 +160,7 @@ describe("task notification behavior", () => {
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		const subId = await authed.mutation(
-			api.notifications.subscriptions.subscribeToEntity,
+			api.notifications.api.subscribeToEntity,
 			{
 				entity: { entityType: "task", entityId: seeded.taskId },
 			},
@@ -171,18 +180,15 @@ describe("task notification behavior", () => {
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		const subId = await authed.mutation(
-			api.notifications.subscriptions.subscribeToEntity,
+			api.notifications.api.subscribeToEntity,
 			{
 				entity: { entityType: "task", entityId: seeded.taskId },
 			},
 		);
 
-		await authed.mutation(
-			api.notifications.subscriptions.unsubscribeFromEntity,
-			{
-				entity: { entityType: "task", entityId: seeded.taskId },
-			},
-		);
+		await authed.mutation(api.notifications.api.unsubscribeFromEntity, {
+			entity: { entityType: "task", entityId: seeded.taskId },
+		});
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("notificationSubscriptions", subId),

@@ -1,4 +1,3 @@
-import type { NotificationPreference } from "@/data/types-new";
 import {
 	NOTIFICATION_TYPE_OPTIONS,
 	getNotificationTypeLabel,
@@ -18,9 +17,9 @@ export const DIGEST_OPTIONS = [
 	{ value: "three_daily", label: "3x daily digest" },
 ] as const;
 
-export function isDigestMode(
-	value: string,
-): value is NotificationPreference["digestMode"] {
+type DigestMode = (typeof DIGEST_OPTIONS)[number]["value"];
+
+export function isDigestMode(value: string): value is DigestMode {
 	return DIGEST_OPTIONS.some((option) => option.value === value);
 }
 

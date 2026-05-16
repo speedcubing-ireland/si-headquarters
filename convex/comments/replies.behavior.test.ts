@@ -60,10 +60,28 @@ async function seedTaskWithComment(t: ReturnType<typeof convexTest>): Promise<{
 	});
 }
 
+async function linkDiscordUser(
+	t: ReturnType<typeof convexTest>,
+	userId: Id<"users">,
+) {
+	await t.run((ctx) =>
+		ctx.db.insert("discordUserLinks", {
+			userId,
+			guildId: "guild-1",
+			discordUserId: `discord-${userId}`,
+			discordUsername: "linked-user",
+			linkedById: userId,
+			linkedAt: Date.now(),
+			updatedAt: Date.now(),
+		}),
+	);
+}
+
 describe("comments replies behavior", () => {
 	test("reply creates comment with parentCommentId set", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithComment(t);
+		await linkDiscordUser(t, seeded.authorId);
 		const replier = t.withIdentity({ subject: seeded.replierId });
 
 		const replyId = await replier.mutation(api.comments.api.create, {
@@ -84,6 +102,7 @@ describe("comments replies behavior", () => {
 	test("reply sends comment_replied notification to original author", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithComment(t);
+		await linkDiscordUser(t, seeded.authorId);
 		const replier = t.withIdentity({ subject: seeded.replierId });
 
 		await replier.mutation(api.comments.api.create, {
@@ -92,18 +111,11 @@ describe("comments replies behavior", () => {
 			parentCommentId: seeded.commentId,
 			content: "Reply to trigger notification",
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		const notifications = await t.run((ctx) =>
-			ctx.db
-				.query("notifications")
-				.withIndex("by_user", (q) => q.eq("userId", seeded.authorId))
-				.collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		expect(
-			notifications.some((n) => n.type === "comment_replied"),
+			notifications.some((token) => token.userId === seeded.authorId),
 		).toBeTruthy();
 	}, 15_000);
 
