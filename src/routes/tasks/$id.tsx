@@ -911,7 +911,8 @@ function RouteComponent() {
 												: "text-warning-foreground",
 										)}
 									>
-										{approvalStatus.approvedCount}/{approvalStatus.requiredCount}
+										{approvalStatus.approvedCount}/
+										{approvalStatus.requiredCount}
 									</span>
 								)}
 							</div>
