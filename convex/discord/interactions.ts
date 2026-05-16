@@ -7,8 +7,6 @@ import {
 	type APIInteractionResponse,
 	type APIInteractionResponseCallbackData,
 	type APIMessageComponentInteraction,
-	type APIModalInteractionResponseCallbackData,
-	type APIModalSubmitInteraction,
 	type APIPingInteraction,
 	type RESTPostAPIChannelMessageJSONBody,
 } from "discord-api-types/v10";
@@ -21,9 +19,6 @@ export type DiscordInteractionRequest = {
 };
 
 export const HQ_COMPETITIONS_COUNT_BUTTON_ID = "hq:competitions:count";
-export const PING_ECHO_BUTTON_ID = "hq:ping:echo";
-export const PING_ECHO_MODAL_ID = "hq:ping:echo";
-export const PING_ECHO_MODAL_TEXT_ID = "hq:ping:echo:text";
 
 type DiscordMessageData = APIInteractionResponseCallbackData &
 	RESTPostAPIChannelMessageJSONBody;
@@ -129,38 +124,4 @@ export function isMessageComponent(
 	interaction: APIInteraction,
 ): interaction is APIMessageComponentInteraction {
 	return interaction.type === InteractionType.MessageComponent;
-}
-
-export function isModalSubmitInteraction(
-	interaction: APIInteraction,
-): interaction is APIModalSubmitInteraction {
-	return interaction.type === InteractionType.ModalSubmit;
-}
-
-export function interactionModalResponse(
-	data: APIModalInteractionResponseCallbackData,
-): APIInteractionResponse {
-	return {
-		type: InteractionResponseType.Modal,
-		data,
-	};
-}
-
-export function extractModalTextValue(
-	interaction: APIModalSubmitInteraction,
-	inputCustomId: string,
-): string | null {
-	for (const row of interaction.data.components) {
-		if (row.type === ComponentType.ActionRow) {
-			for (const component of row.components) {
-				if (
-					component.type === ComponentType.TextInput &&
-					component.custom_id === inputCustomId
-				) {
-					return component.value;
-				}
-			}
-		}
-	}
-	return null;
 }

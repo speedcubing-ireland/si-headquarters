@@ -4,22 +4,15 @@ import type {
 	APIApplicationCommandInteraction,
 	APIInteraction,
 } from "discord-api-types/v10";
-import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import {
 	buildCompetitionCountMessage,
 	HQ_COMPETITIONS_COUNT_BUTTON_ID,
 	interactionMessageResponse,
-	interactionModalResponse,
 	interactionPongResponse,
 	interactionUpdateMessageResponse,
 	isChatInputCommand,
 	isMessageComponent,
-	isModalSubmitInteraction,
 	isPingInteraction,
-	extractModalTextValue,
-	PING_ECHO_BUTTON_ID,
-	PING_ECHO_MODAL_ID,
-	PING_ECHO_MODAL_TEXT_ID,
 } from "./interactions";
 
 export async function handleDiscordInteraction(
@@ -34,27 +27,7 @@ export async function handleDiscordInteraction(
 		if (interaction.data.name === "ping") {
 			return jsonResponse(
 				interactionMessageResponse({
-					content: "Pong from headquarters",
-					embeds: [
-						{
-							title: "Pong",
-							description: "Headquarters Discord integration is online",
-							color: 0x5865f2,
-						},
-					],
-					components: [
-						{
-							type: ComponentType.ActionRow,
-							components: [
-								{
-									type: ComponentType.Button,
-									style: ButtonStyle.Primary,
-									label: "Echo",
-									custom_id: PING_ECHO_BUTTON_ID,
-								},
-							],
-						},
-					],
+					content: "Pong from Headquarters.",
 				}),
 			);
 		}
@@ -110,50 +83,10 @@ export async function handleDiscordInteraction(
 			);
 		}
 
-		if (customId === PING_ECHO_BUTTON_ID) {
-			return jsonResponse(
-				interactionModalResponse({
-					custom_id: PING_ECHO_MODAL_ID,
-					title: "Echo",
-					components: [
-						{
-							type: ComponentType.ActionRow,
-							components: [
-								{
-									type: ComponentType.TextInput,
-									custom_id: PING_ECHO_MODAL_TEXT_ID,
-									style: 1,
-									label: "Type something to echo:",
-									required: true,
-								},
-							],
-						},
-					],
-				}),
-			);
-		}
-
 		return jsonResponse(
 			interactionUpdateMessageResponse({
 				content: `Unknown button: ${customId}`,
 				components: [],
-			}),
-		);
-	}
-
-	if (isModalSubmitInteraction(interaction)) {
-		if (interaction.data.custom_id === PING_ECHO_MODAL_ID) {
-			const text = extractModalTextValue(interaction, PING_ECHO_MODAL_TEXT_ID);
-			return jsonResponse(
-				interactionMessageResponse({
-					content: text ?? "Nothing was entered.",
-				}),
-			);
-		}
-
-		return jsonResponse(
-			interactionMessageResponse({
-				content: `Unknown modal: ${interaction.data.custom_id}`,
 			}),
 		);
 	}

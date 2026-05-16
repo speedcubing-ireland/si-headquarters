@@ -16,9 +16,7 @@ type NewCompetitionInput = Pick<
 	| "organisers"
 	| "compSheet"
 	| "wcaCompetitionId"
-> & {
-	wcaCompetitionName?: Competition["wcaCompetitionName"];
-};
+>;
 
 export const useCompetitions = () => {
 	const result = useQuery(api.competitions.api.listForUI);
@@ -55,7 +53,6 @@ export function useCompetitionMutations() {
 				),
 				compSheet: payload.compSheet ?? undefined,
 				wcaCompetitionId: payload.wcaCompetitionId ?? undefined,
-				wcaCompetitionName: payload.wcaCompetitionName ?? undefined,
 			});
 			return { id };
 		},
@@ -74,7 +71,6 @@ export function useCompetitionMutations() {
 					| "organisers"
 					| "compSheet"
 					| "wcaCompetitionId"
-					| "wcaCompetitionName"
 				>
 			> & {
 				currentPhaseId?: Id<"phases"> | null;
@@ -116,10 +112,6 @@ export function useCompetitionMutations() {
 					wcaCompetitionId:
 						updates.wcaCompetitionId !== undefined
 							? (updates.wcaCompetitionId ?? null)
-							: undefined,
-					wcaCompetitionName:
-						updates.wcaCompetitionName !== undefined
-							? (updates.wcaCompetitionName ?? null)
 							: undefined,
 					manualSponsorPropertyStatus:
 						updates.sponsorPropertyStatusOverride !== undefined
