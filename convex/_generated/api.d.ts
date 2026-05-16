@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as comments_api from "../comments/api.js";
 import type * as competitions_access from "../competitions/access.js";
 import type * as competitions_api from "../competitions/api.js";
@@ -189,6 +190,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   "comments/api": typeof comments_api;
   "competitions/access": typeof competitions_access;
   "competitions/api": typeof competitions_api;
