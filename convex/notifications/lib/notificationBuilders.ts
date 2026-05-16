@@ -55,6 +55,7 @@ export type TaskNotificationBuildResult = {
 export type CompetitionNotificationBuildArgs = {
 	type: "competition_phase_changed" | "progress_update_added";
 	competitionId: Id<"competitions">;
+	updateId?: Id<"competitionUpdates">;
 	recipientId?: Id<"users">;
 	recipientIds?: Id<"users">[];
 	actorId: Id<"users">;

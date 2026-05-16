@@ -79,6 +79,17 @@ describe("tasks behavior characterization", () => {
 		try {
 			const t = convexTest(schema, modules);
 			const { userId, competitionId } = await seedUserAndCompetition(t);
+			await t.run((ctx) =>
+				ctx.db.insert("discordUserLinks", {
+					userId,
+					guildId: "guild-1",
+					discordUserId: `discord-${userId}`,
+					discordUsername: "linked-user",
+					linkedById: userId,
+					linkedAt: Date.now(),
+					updatedAt: Date.now(),
+				}),
+			);
 			const authed = t.withIdentity({ subject: userId });
 			const now = Date.UTC(2026, 0, 15, 9, 0, 0);
 			vi.setSystemTime(now);
@@ -91,21 +102,12 @@ describe("tasks behavior characterization", () => {
 				assigneeId: userId,
 				dueDate: new Date(now + 4 * 60 * 60 * 1000).toISOString(),
 			});
-			await t.finishAllScheduledFunctions(() => {
-				vi.runAllTimers();
-			});
-
 			const notifications = await t.run((ctx) =>
-				ctx.db
-					.query("notifications")
-					.withIndex("by_user_and_status", (q) =>
-						q.eq("userId", userId).eq("status", "unread"),
-					)
-					.collect(),
+				ctx.db.query("discordActionTokens").collect(),
 			);
 
 			expect(
-				notifications.some((n) => n.type === "due_date_approaching"),
+				notifications.some((token) => token.userId === userId),
 			).toBeTruthy();
 		} finally {
 			vi.useRealTimers();

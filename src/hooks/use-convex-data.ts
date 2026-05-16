@@ -31,12 +31,8 @@ export {
 } from "./convex/use-discord";
 
 export {
-	useNotifications,
-	useNotificationSettings,
 	useNotificationSubscriptions,
 	useTaskSubscriptionState,
-	useUnreadCount,
-	useNotificationDiagnostics,
 	useNotificationMutations,
 } from "./convex/use-notifications";
 

@@ -90,23 +90,28 @@ describe("updates CRUD behavior", () => {
 		});
 
 		const authed = t.withIdentity({ subject: seeded.actorId });
+		await t.run((ctx) =>
+			ctx.db.insert("discordUserLinks", {
+				userId: seeded.subscriberId,
+				guildId: "guild-1",
+				discordUserId: `discord-${seeded.subscriberId}`,
+				discordUsername: "linked-user",
+				linkedById: seeded.subscriberId,
+				linkedAt: Date.now(),
+				updatedAt: Date.now(),
+			}),
+		);
 		await authed.mutation(api.updates.api.create, {
 			competitionId: seeded.competitionId,
 			status: "at-risk",
 			message: "Heads up",
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
 
 		const notifications = await t.run((ctx) =>
-			ctx.db
-				.query("notifications")
-				.withIndex("by_user", (q) => q.eq("userId", seeded.subscriberId))
-				.collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		expect(
-			notifications.some((n) => n.type === "progress_update_added"),
+			notifications.some((token) => token.userId === seeded.subscriberId),
 		).toBeTruthy();
 	}, 15_000);
 

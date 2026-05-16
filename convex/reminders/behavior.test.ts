@@ -233,32 +233,32 @@ describe("reminders behavior characterization", () => {
 					updatedAt: now,
 				}),
 			);
+			await t.run((ctx) =>
+				ctx.db.insert("discordUserLinks", {
+					userId: seeded.allowedUserId,
+					guildId: "guild-1",
+					discordUserId: `discord-${seeded.allowedUserId}`,
+					discordUsername: "linked-user",
+					linkedById: seeded.allowedUserId,
+					linkedAt: Date.now(),
+					updatedAt: Date.now(),
+				}),
+			);
 
 			await t.mutation(internal.reminders.api._triggerReminder, {
 				reminderId,
-			});
-			await t.finishAllScheduledFunctions(() => {
-				vi.runAllTimers();
 			});
 
 			const [reminder, notifications] = await t.run((ctx) =>
 				Promise.all([
 					ctx.db.get("reminders", reminderId),
-					ctx.db
-						.query("notifications")
-						.withIndex("by_user", (q) => q.eq("userId", seeded.allowedUserId))
-						.collect(),
+					ctx.db.query("discordActionTokens").collect(),
 				]),
 			);
 
 			expect(reminder?.status).toBe("triggered");
 			expect(
-				notifications.some(
-					(notification) =>
-						notification.type === "reminder_triggered" &&
-						notification.entityType === "reminder" &&
-						notification.entityId === reminderId,
-				),
+				notifications.some((token) => token.userId === seeded.allowedUserId),
 			).toBe(true);
 		} finally {
 			vi.useRealTimers();

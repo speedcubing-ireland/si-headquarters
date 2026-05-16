@@ -47,6 +47,23 @@ async function seedTaskWithApprover(t: ReturnType<typeof convexTest>): Promise<{
 	});
 }
 
+async function linkDiscordUser(
+	t: ReturnType<typeof convexTest>,
+	userId: Id<"users">,
+) {
+	await t.run((ctx) =>
+		ctx.db.insert("discordUserLinks", {
+			userId,
+			guildId: "guild-1",
+			discordUserId: `discord-${userId}`,
+			discordUsername: "linked-user",
+			linkedById: userId,
+			linkedAt: Date.now(),
+			updatedAt: Date.now(),
+		}),
+	);
+}
+
 describe("task approval behavior", () => {
 	test("addRequiredApprover adds user to requiredApprovalIds", async () => {
 		const t = convexTest(schema, modules);
@@ -111,6 +128,7 @@ describe("task approval behavior", () => {
 	test("approveTask sends task_approved notification to subscribers", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithApprover(t);
+		await linkDiscordUser(t, seeded.ownerId);
 
 		await t.run(async (ctx) => {
 			await ctx.db.insert("notificationSubscriptions", {
@@ -125,19 +143,18 @@ describe("task approval behavior", () => {
 		await approver.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
-		expect(notifications.some((n) => n.type === "task_approved")).toBeTruthy();
+		expect(
+			notifications.some((token) => token.userId === seeded.ownerId),
+		).toBeTruthy();
 	}, 15_000);
 
 	test("unapproveTask removes user from approvedByIds", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithApprover(t);
+		await linkDiscordUser(t, seeded.ownerId);
 		const approver = t.withIdentity({ subject: seeded.approverId });
 
 		await approver.mutation(api.tasks.approvals.approveTask, {
@@ -161,6 +178,7 @@ describe("task approval behavior", () => {
 	test("unapproveTask sends task_unapproved notification", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTaskWithApprover(t);
+		await linkDiscordUser(t, seeded.ownerId);
 
 		await t.run(async (ctx) => {
 			await ctx.db.insert("notificationSubscriptions", {
@@ -175,22 +193,15 @@ describe("task approval behavior", () => {
 		await approver.mutation(api.tasks.approvals.approveTask, {
 			taskId: seeded.taskId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		await approver.mutation(api.tasks.approvals.unapproveTask, {
 			taskId: seeded.taskId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
 
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		expect(
-			notifications.some((n) => n.type === "task_unapproved"),
+			notifications.some((token) => token.userId === seeded.ownerId),
 		).toBeTruthy();
 	}, 15_000);
 });

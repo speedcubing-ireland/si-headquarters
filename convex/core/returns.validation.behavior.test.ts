@@ -6,26 +6,52 @@ import { modules } from "../test.setup";
 import { TEAM_NAMES } from "../lib/constants";
 
 describe("return validation smoke coverage", () => {
-	test("notifications settings queries return updatedAt fields", async () => {
+	test("notification subscriptions query returns updatedAt fields", async () => {
 		const t = convexTest(schema, modules);
-		const userId = await t.run((ctx) =>
-			ctx.db.insert("users", { email: "settings@example.com" }),
-		);
+		const { userId, taskId } = await t.run(async (ctx) => {
+			const nextUserId = await ctx.db.insert("users", {
+				email: "settings@example.com",
+			});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Returns comp",
+				description: "",
+				compStart: "2026-01-01",
+				compEnd: "2026-01-02",
+				organiserIds: [nextUserId],
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: nextUserId,
+			});
+			const nextTaskId = await ctx.db.insert("tasks", {
+				identifier: "HQ-RET",
+				title: "Return validation task",
+				description: "",
+				status: "to-do",
+				priority: "medium",
+				archived: false,
+				parentCompetitionId: competitionId,
+				labelIds: [],
+				updatedAt: Date.now(),
+			});
+			return { userId: nextUserId, taskId: nextTaskId };
+		});
 		const authed = t.withIdentity({ subject: userId });
 
-		const userSettings = await authed.query(
-			api.notifications.settings.getUserSettings,
-			{},
+		const subscriptionId = await authed.mutation(
+			api.notifications.api.subscribeToEntity,
+			{
+				entity: { entityType: "task", entityId: taskId },
+			},
 		);
-		const settings = await authed.query(
-			api.notifications.settings.getSettings,
+		const subscriptions = await authed.query(
+			api.notifications.api.listSubscriptions,
 			{},
 		);
 
-		expect(typeof userSettings.updatedAt).toBe("string");
-		expect(typeof settings.updatedAt).toBe("string");
-		expect(settings.preferences.length).toBeGreaterThan(0);
-		expect(typeof settings.preferences[0]?.updatedAt).toBe("string");
+		expect(subscriptionId).toBeTruthy();
+		expect(typeof subscriptions[0]?.updatedAt).toBe("string");
 	});
 
 	test("users.listUsers returns app user shape", async () => {

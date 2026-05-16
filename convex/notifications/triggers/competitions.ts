@@ -52,6 +52,7 @@ export async function sendProgressUpdateNotifications(
 	await emitNotificationEvent(ctx, {
 		type: "progress_update_added",
 		competitionId: args.competitionId,
+		updateId: args.updateId,
 		recipientIds,
 		actorId: args.actorId,
 		competitionName: args.competitionName,

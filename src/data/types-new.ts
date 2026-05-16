@@ -72,10 +72,6 @@ export type Comment = FunctionReturnType<
 	typeof api.comments.api.listForUI
 >[number];
 
-export type Notification = FunctionReturnType<
-	typeof api.notifications.inbox.listForUser
->[number];
-
 export type Reminder = FunctionReturnType<
 	typeof api.reminders.api.listForUser
 >[number];
@@ -210,20 +206,27 @@ export type Weekend = {
 	  }
 );
 
-export type NotificationType = Notification["type"];
-
-export type NotificationStatus = Notification["status"];
-
-export type NotificationPriority = Notification["priority"];
-
-export type NotificationAction = {
-	id: Id<"notifications">;
-	label: string;
-	type: "navigate" | "dismiss" | "snooze" | "mark_done" | "custom";
-	payload?: Record<string, unknown>;
-};
-
 export type ReminderType = "one_time" | "recurring";
+
+export type NotificationType =
+	| "task_assigned"
+	| "task_unassigned"
+	| "task_mentioned"
+	| "task_status_changed"
+	| "task_priority_changed"
+	| "task_awaiting_review"
+	| "due_date_approaching"
+	| "due_date_overdue"
+	| "comment_added"
+	| "comment_replied"
+	| "relation_blocked"
+	| "relation_unblocked"
+	| "task_approved"
+	| "task_unapproved"
+	| "due_date_changed"
+	| "competition_phase_changed"
+	| "progress_update_added"
+	| "reminder_triggered";
 
 export type ReminderStatus =
 	| "pending"
@@ -233,14 +236,6 @@ export type ReminderStatus =
 
 export type RecurringPattern = "daily" | "weekly" | "monthly" | "custom";
 
-export type NotificationPreference = FunctionReturnType<
-	typeof api.notifications.settings.listPreferences
->[number];
-
 export type NotificationSubscription = FunctionReturnType<
-	typeof api.notifications.subscriptions.listSubscriptions
+	typeof api.notifications.api.listSubscriptions
 >[number];
-
-export type NotificationSettings = FunctionReturnType<
-	typeof api.notifications.settings.getSettings
->;

@@ -59,10 +59,28 @@ async function seedTwoTasks(t: ReturnType<typeof convexTest>): Promise<{
 	});
 }
 
+async function linkDiscordUser(
+	t: ReturnType<typeof convexTest>,
+	userId: Id<"users">,
+) {
+	await t.run((ctx) =>
+		ctx.db.insert("discordUserLinks", {
+			userId,
+			guildId: "guild-1",
+			discordUserId: `discord-${userId}`,
+			discordUsername: "linked-user",
+			linkedById: userId,
+			linkedAt: Date.now(),
+			updatedAt: Date.now(),
+		}),
+	);
+}
+
 describe("task blocking relations behavior", () => {
 	test("addBlockingRelation creates a taskRelation record", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTwoTasks(t);
+		await linkDiscordUser(t, seeded.subscriberId);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		await authed.mutation(api.tasks.relations.addBlockingRelation, {
@@ -84,6 +102,7 @@ describe("task blocking relations behavior", () => {
 	test("addBlockingRelation sends relation_blocked notification", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTwoTasks(t);
+		await linkDiscordUser(t, seeded.subscriberId);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		// Subscribe a different user (not actor) to blocked task
@@ -100,21 +119,18 @@ describe("task blocking relations behavior", () => {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		expect(
-			notifications.some((n) => n.type === "relation_blocked"),
+			notifications.some((token) => token.userId === seeded.subscriberId),
 		).toBeTruthy();
 	}, 15_000);
 
 	test("removeBlockingRelation deletes the taskRelation record", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTwoTasks(t);
+		await linkDiscordUser(t, seeded.subscriberId);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		await authed.mutation(api.tasks.relations.addBlockingRelation, {
@@ -139,6 +155,7 @@ describe("task blocking relations behavior", () => {
 	test("removeBlockingRelation sends relation_unblocked notification", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await seedTwoTasks(t);
+		await linkDiscordUser(t, seeded.subscriberId);
 		const authed = t.withIdentity({ subject: seeded.userId });
 
 		// Subscribe a different user (not actor) to blocked task
@@ -155,23 +172,16 @@ describe("task blocking relations behavior", () => {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
-
 		await authed.mutation(api.tasks.relations.removeBlockingRelation, {
 			blockedTaskId: seeded.taskBId,
 			blockingTaskId: seeded.taskAId,
 		});
-		await t.finishAllScheduledFunctions(() => {
-			vi.runAllTimers();
-		});
 
 		const notifications = await t.run((ctx) =>
-			ctx.db.query("notifications").collect(),
+			ctx.db.query("discordActionTokens").collect(),
 		);
 		expect(
-			notifications.some((n) => n.type === "relation_unblocked"),
+			notifications.some((token) => token.userId === seeded.subscriberId),
 		).toBeTruthy();
 	}, 15_000);
 
