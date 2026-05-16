@@ -12,7 +12,6 @@ import {
 	Plus,
 	Shield,
 	Trash2,
-	X,
 	XCircle,
 } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
@@ -53,7 +52,6 @@ import { Calendar } from "@/components/ui/calendar";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -84,19 +82,7 @@ export const Route = createFileRoute("/tasks/$id")({
 	component: RouteComponent,
 });
 
-function TaskHeader({
-	task,
-	onRemindMeClick,
-	isSubscribed,
-	onToggleSubscription,
-	onDeleteClick,
-}: {
-	task: Task;
-	onRemindMeClick: () => void;
-	isSubscribed: boolean;
-	onToggleSubscription: () => void;
-	onDeleteClick?: () => void;
-}) {
+function TaskHeader({ task }: { task: Task }) {
 	const { tasks } = useTasks(false);
 	const { competitions } = useCompetitions();
 	const breadcrumbs = useMemo(
@@ -108,99 +94,57 @@ function TaskHeader({
 		<PageHeader.Root withBottomBorder={false}>
 			<SidebarTrigger className="shrink-0" />
 			<PageHeader.Divider />
-			<nav
-				className="flex min-w-0 flex-1 items-center gap-2"
-				aria-label="Breadcrumb"
-			>
-				<Breadcrumb>
-					<BreadcrumbList>
-						{breadcrumbs.map((entry, i) => (
-							<Fragment
-								key={entry.to ? `${entry.to}-${entry.label}` : "current"}
-							>
-								{i > 0 && <BreadcrumbSeparator />}
-								<BreadcrumbItem>
-									{entry.to ? (
-										<BreadcrumbLink asChild>
-											<Link
-												to={entry.to}
-												className="max-w-[120px] truncate sm:max-w-[200px]"
-											>
+			<div className="flex min-w-0 flex-1 items-center gap-2">
+				<nav aria-label="Breadcrumb">
+					<Breadcrumb>
+						<BreadcrumbList>
+							{breadcrumbs.map((entry, i) => (
+								<Fragment
+									key={entry.to ? `${entry.to}-${entry.label}` : "current"}
+								>
+									{i > 0 && <BreadcrumbSeparator />}
+									<BreadcrumbItem>
+										{entry.to ? (
+											<BreadcrumbLink asChild>
+												<Link
+													to={entry.to}
+													className="max-w-[120px] truncate sm:max-w-[200px]"
+												>
+													{entry.label}
+												</Link>
+											</BreadcrumbLink>
+										) : (
+											<BreadcrumbPage className="max-w-[120px] truncate sm:max-w-[200px]">
 												{entry.label}
-											</Link>
-										</BreadcrumbLink>
-									) : (
-										<BreadcrumbPage className="max-w-[120px] truncate sm:max-w-[200px]">
-											{entry.label}
-										</BreadcrumbPage>
-									)}
-								</BreadcrumbItem>
-							</Fragment>
-						))}
-					</BreadcrumbList>
-				</Breadcrumb>
-			</nav>
-			{task.owner && "members" in task.owner && (
-				<>
-					<PageHeader.Divider className="mx-2" />
-					<Link
-						to="/teams/$teamId"
-						params={{ teamId: task.owner.id }}
-						className="max-w-[170px] sm:max-w-[220px]"
-					>
-						<Badge variant="outline" asChild className="gap-1">
-							<span>
-								<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
-									T
+											</BreadcrumbPage>
+										)}
+									</BreadcrumbItem>
+								</Fragment>
+							))}
+						</BreadcrumbList>
+					</Breadcrumb>
+				</nav>
+				{task.owner && "members" in task.owner && (
+					<>
+						<PageHeader.Divider className="mx-2" />
+						<Link
+							to="/teams/$teamId"
+							params={{ teamId: task.owner.id }}
+							className="max-w-[170px] sm:max-w-[220px] shrink-0"
+						>
+							<Badge variant="outline" asChild className="gap-1">
+								<span>
+									<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
+										T
+									</span>
+									<span className="truncate max-w-[160px]">
+										{task.owner.name}
+									</span>
 								</span>
-								<span className="truncate max-w-[160px]">
-									{task.owner.name}
-								</span>
-							</span>
-						</Badge>
-					</Link>
-				</>
-			)}
-			<div className="ml-auto flex items-center gap-2">
-				<Button
-					variant={isSubscribed ? "secondary" : "outline"}
-					size="sm"
-					onClick={onToggleSubscription}
-					className="gap-1.5"
-				>
-					<Bell className="size-4" />
-					<span className="hidden sm:inline">
-						{isSubscribed ? "Watching" : "Watch"}
-					</span>
-				</Button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="sm" className="gap-1.5">
-							<span className="hidden sm:inline">Actions</span>
-							<span className="sm:hidden">...</span>
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuItem onClick={onRemindMeClick}>
-							<Bell className="size-4 mr-2" />
-							Remind me
-						</DropdownMenuItem>
-						{onDeleteClick && (
-							<DropdownMenuItem
-								onClick={onDeleteClick}
-								className="text-destructive focus:text-destructive"
-							>
-								<Trash2 className="size-4 mr-2" />
-								Delete task
-							</DropdownMenuItem>
-						)}
-					</DropdownMenuContent>
-				</DropdownMenu>
-				<Link to="/tasks">
-					<Button variant="ghost" size="icon">
-						<X className="size-4" />
-					</Button>
-				</Link>
+							</Badge>
+						</Link>
+					</>
+				)}
 			</div>
 		</PageHeader.Root>
 	);
@@ -592,13 +536,7 @@ function RouteComponent() {
 
 	return (
 		<div className="flex h-full flex-col overflow-x-hidden">
-			<TaskHeader
-				task={task}
-				onRemindMeClick={() => setRemindMeOpen(true)}
-				isSubscribed={isSubscribed}
-				onToggleSubscription={handleToggleSubscription}
-				onDeleteClick={() => setDeleteDialogOpen(true)}
-			/>
+			<TaskHeader task={task} />
 			<div className="flex-1 overflow-auto px-3 pb-4 pt-0 sm:px-4 sm:pb-5 sm:pt-0 lg:px-6 lg:pb-6 lg:pt-0">
 				<div className="mx-auto w-full max-w-3xl space-y-4 pb-10 sm:space-y-5">
 					<TaskReminderStrip task={task} />
@@ -701,6 +639,26 @@ function RouteComponent() {
 									Click to add description...
 								</button>
 							)}
+						</div>
+						<div className="flex items-center gap-2 border-t border-border/50 px-4 py-3 sm:px-5">
+							<Button
+								variant={isSubscribed ? "secondary" : "outline"}
+								size="sm"
+								onClick={handleToggleSubscription}
+								className="gap-1.5"
+							>
+								<Bell className="size-4" />
+								{isSubscribed ? "Watching" : "Watch"}
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setRemindMeOpen(true)}
+								className="gap-1.5"
+							>
+								<Bell className="size-4" />
+								Remind me
+							</Button>
 						</div>
 					</section>
 
@@ -911,7 +869,8 @@ function RouteComponent() {
 												: "text-warning-foreground",
 										)}
 									>
-										{approvalStatus.approvedCount}/{approvalStatus.requiredCount}
+										{approvalStatus.approvedCount}/
+										{approvalStatus.requiredCount}
 									</span>
 								)}
 							</div>
