@@ -7,7 +7,10 @@ import type { GenericActionCtx } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { SCHEDULE_CACHE_TTL_MS } from "../../lib/constants";
 import { requireVolunteerAction } from "../../lib/oauth";
-import { fetchGoogleSheetValues } from "./client/sheetsClient";
+import {
+	fetchGoogleSheetTitle,
+	fetchGoogleSheetValues,
+} from "./client/sheetsClient";
 import { getServiceAccessToken } from "../tokens/runtime";
 
 const RANGE = "Schedule!A6:B22";
@@ -117,6 +120,32 @@ export const fetchScheduleEvents = action({
 			return {
 				error: err instanceof Error ? err.message : "Sheet unavailable",
 			};
+		}
+	},
+});
+
+export const fetchSheetTitle = action({
+	args: {
+		sheetId: v.string(),
+	},
+	returns: v.union(v.string(), v.null()),
+	handler: async (ctx, args) => {
+		await requireVolunteerAction(ctx);
+		const accessToken = await getGoogleAccessToken(ctx);
+		if (!accessToken) return null;
+
+		try {
+			const title = await fetchGoogleSheetTitle({
+				accessToken,
+				spreadsheetId: args.sheetId,
+			});
+			return title || null;
+		} catch (err) {
+			console.warn("Failed to fetch Google Sheet title.", {
+				sheetId: args.sheetId,
+				error: err,
+			});
+			return null;
 		}
 	},
 });

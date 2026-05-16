@@ -182,9 +182,14 @@ export default defineSchema({
 		leadDelegateId: v.optional(v.id("users")),
 		organiserIds: v.array(v.id("users")),
 		compSheet: v.optional(
-			v.object({ type: v.literal("google-sheet"), sheetId: v.string() }),
+			v.object({
+				type: v.literal("google-sheet"),
+				sheetId: v.string(),
+				title: v.optional(v.string()),
+			}),
 		),
 		wcaCompetitionId: v.optional(v.string()),
+		wcaCompetitionName: v.optional(v.string()),
 		manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
 		manualSponsorId: v.optional(v.id("sponsors")),
 		currentPhaseId: v.optional(v.id("phases")),

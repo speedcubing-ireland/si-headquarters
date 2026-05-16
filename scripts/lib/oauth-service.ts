@@ -5,7 +5,7 @@ import {
 	getOAuthTerminalFlowUsageArgList,
 	parseOAuthTerminalFlowServiceArg,
 	type OAuthTerminalFlowService,
-} from "../../convex/services/oauth/providers.ts";
+} from "../../convex/integrations/oauth/providers.ts";
 import { runOAuthTerminalFlow } from "./oauth-cli.ts";
 
 export async function runServiceOAuthTerminalFlow(
@@ -21,8 +21,8 @@ export async function runServiceOAuthTerminalFlow(
 		port: serviceConfig.port,
 		redirectUri,
 		redirectHint: serviceConfig.redirectHint,
-		authPath: "services/oauth/flow:getOAuthUrl",
-		exchangePath: "services/oauth/flow:exchangeCodeAndStoreTokens",
+		authPath: "integrations/oauth/flow:getOAuthUrl",
+		exchangePath: "integrations/oauth/flow:exchangeCodeAndStoreTokens",
 		authArgs: { service },
 		exchangeArgs: { service },
 		missingAuthUrlMessage: serviceConfig.missingAuthUrlMessage,
