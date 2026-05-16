@@ -48,7 +48,6 @@ import {
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -176,15 +175,7 @@ function PropertyField({
 	);
 }
 
-function CompetitionHeader({
-	competition,
-	isSubscribed,
-	onToggleSubscription,
-}: {
-	competition: Competition;
-	isSubscribed: boolean;
-	onToggleSubscription: () => void;
-}) {
+function CompetitionHeader({ competition }: { competition: Competition }) {
 	return (
 		<PageHeader.Root withBottomBorder={false}>
 			<SidebarTrigger className="shrink-0" />
@@ -200,39 +191,6 @@ function CompetitionHeader({
 			<h1 className="max-w-[180px] truncate text-sm font-semibold sm:max-w-[300px]">
 				{competition.name}
 			</h1>
-			<div className="ml-auto flex items-center gap-2">
-				<Button
-					variant={isSubscribed ? "secondary" : "outline"}
-					size="sm"
-					onClick={onToggleSubscription}
-					className="gap-1.5"
-				>
-					<Bell className="size-4" />
-					<span className="hidden sm:inline">
-						{isSubscribed ? "Watching" : "Watch"}
-					</span>
-				</Button>
-				{competition.compSheet && (
-					<a
-						href={`https://docs.google.com/spreadsheets/d/${competition.compSheet.sheetId}`}
-						target="_blank"
-						rel="noreferrer"
-					>
-						<Button variant="ghost" size="sm" className="gap-1">
-							<ExternalLink className="size-4" />
-							<span className="hidden sm:inline">Sheet</span>
-						</Button>
-					</a>
-				)}
-				{competition.wcaUrl && (
-					<a href={competition.wcaUrl} target="_blank" rel="noreferrer">
-						<Button variant="ghost" size="sm" className="gap-1">
-							<Globe className="size-4" />
-							<span className="hidden sm:inline">WCA</span>
-						</Button>
-					</a>
-				)}
-			</div>
 		</PageHeader.Root>
 	);
 }
@@ -498,11 +456,7 @@ function RouteComponent() {
 
 	return (
 		<div className="flex h-full flex-col overflow-x-hidden">
-			<CompetitionHeader
-				competition={competitionWithTasks}
-				isSubscribed={isSubscribed}
-				onToggleSubscription={handleToggleSubscription}
-			/>
+			<CompetitionHeader competition={competitionWithTasks} />
 			<div className="flex-1 overflow-auto px-3 pb-4 pt-0 sm:px-4 sm:pb-5 sm:pt-0 lg:px-6 lg:pb-6 lg:pt-0">
 				<div className="mx-auto w-full max-w-3xl space-y-4 pb-10 sm:space-y-5">
 					<section className="rounded-xl border border-border/70 bg-card">
@@ -636,6 +590,17 @@ function RouteComponent() {
 								)}
 							</div>
 						</div>
+						<div className="flex items-center gap-2 border-t border-border/50 px-4 py-3 sm:px-5">
+							<Button
+								variant={isSubscribed ? "secondary" : "outline"}
+								size="sm"
+								onClick={handleToggleSubscription}
+								className="gap-1.5"
+							>
+								<Bell className="size-4" />
+								{isSubscribed ? "Watching" : "Watch"}
+							</Button>
+						</div>
 					</section>
 
 					<div className="grid gap-4 md:grid-cols-2">
@@ -717,7 +682,10 @@ function RouteComponent() {
 																			{sponsor.name} (override)
 																		</span>
 																		{sponsorOverrideValue === value ? (
-																			<CheckIcon size={14} className="ml-auto" />
+																			<CheckIcon
+																				size={14}
+																				className="ml-auto"
+																			/>
 																		) : null}
 																	</CommandItem>
 																);
@@ -981,7 +949,9 @@ function RouteComponent() {
 																!wcaSearchQuery.trim() ||
 																c.name
 																	.toLowerCase()
-																	.includes(wcaSearchQuery.trim().toLowerCase()),
+																	.includes(
+																		wcaSearchQuery.trim().toLowerCase(),
+																	),
 														);
 												if (items.length === 0 && !wcaSearching) return null;
 												return (
