@@ -10,6 +10,7 @@ import {
 	Globe,
 	Gavel,
 	Loader2,
+	MessageSquare,
 	MoreHorizontal,
 	Search,
 	Store,
@@ -71,6 +72,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+	useDiscordActions,
 	useCompetitionMutations,
 	useIsSponsorshipManager,
 	useSponsors,
@@ -177,12 +179,25 @@ export function CompetitionPropertiesSidebar({
 	const [wcaPopoverOpen, setWcaPopoverOpen] = useState(false);
 	const [wcaLinking, setWcaLinking] = useState<string | null>(null);
 	const [wcaSearchAll, setWcaSearchAll] = useState(false);
+	const [discordPopoverOpen, setDiscordPopoverOpen] = useState(false);
+	const [discordChannelsLoading, setDiscordChannelsLoading] = useState(false);
+	const [discordChannels, setDiscordChannels] = useState<
+		Array<{
+			guildId: string;
+			id: string;
+			name: string;
+			type: number;
+			position: number;
+			parentId?: string;
+		}>
+	>([]);
 	const searchWcaCompetitions = useAction(
 		api.integrations.wca.actions.searchCompetitions,
 	);
 	const fetchMyWcaCompetitions = useAction(
 		api.integrations.wca.actions.fetchMyCompetitions,
 	);
+	const { listGuildChannels } = useDiscordActions();
 	const sponsorOverrideValue = competition.manualSponsorId
 		? `sponsor:${competition.manualSponsorId}`
 		: competition.manualSponsorPropertyStatus === "none"
@@ -813,6 +828,119 @@ export function CompetitionPropertiesSidebar({
 											? "← Back to my competitions"
 											: "Search all competitions →"}
 									</button>
+								</PopoverContent>
+							</Popover>
+						)}
+					</div>
+
+					<div className="flex min-h-9 flex-col gap-2 px-3 -mx-3">
+						{competition.discordChannel ? (
+							<div className="flex items-center gap-1">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-7 min-w-0 flex-1 justify-start gap-1.5 px-2 font-normal"
+								>
+									<MessageSquare className="size-3.5 shrink-0 text-primary" />
+									<span className="truncate">
+										#{competition.discordChannel.channelName}
+									</span>
+								</Button>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7 shrink-0"
+										>
+											<MoreHorizontal className="size-4" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end" className="w-48">
+										<DropdownMenuItem
+											variant="destructive"
+											onClick={() => {
+												void updateCompetition(competition.id, {
+													discordChannel: null,
+												}).catch(onMutationError);
+											}}
+										>
+											Remove
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
+							</div>
+						) : (
+							<Popover
+								open={discordPopoverOpen}
+								onOpenChange={(open: boolean) => {
+									setDiscordPopoverOpen(open);
+									if (open && discordChannels.length === 0) {
+										setDiscordChannelsLoading(true);
+										void listGuildChannels()
+											.then((channels) => {
+												setDiscordChannels(
+													channels.filter(
+														(channel) => channel.name.trim().length > 0,
+													),
+												);
+											})
+											.catch((error) => {
+												console.warn("Failed to load Discord channels.", {
+													error,
+												});
+												toast.error("Failed to load Discord channels");
+											})
+											.finally(() => setDiscordChannelsLoading(false));
+									}
+								}}
+							>
+								<PopoverTrigger asChild>
+									<Button variant="outline" size="sm" className="h-7">
+										<MessageSquare className="size-3.5 text-primary" />
+										Link Discord channel
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent
+									align="end"
+									className="w-[min(20rem,calc(100vw-1rem))] p-3"
+									sideOffset={6}
+								>
+									<PopoverHeader className="p-0 pb-2">
+										<PopoverTitle className="text-xs font-medium">
+											Competition channel
+										</PopoverTitle>
+									</PopoverHeader>
+									{discordChannelsLoading ? (
+										<div className="flex items-center justify-center py-4">
+											<Loader2 className="size-4 animate-spin text-muted-foreground" />
+										</div>
+									) : (
+										<div className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+											{discordChannels.map(
+												(channel: (typeof discordChannels)[number]) => (
+													<button
+														key={channel.id}
+														type="button"
+														className="rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+														onClick={() => {
+															void updateCompetition(competition.id, {
+																discordChannel: {
+																	guildId: channel.guildId,
+																	channelId: channel.id,
+																	channelName: channel.name,
+																},
+															})
+																.then(() => setDiscordPopoverOpen(false))
+																.catch(onMutationError);
+														}}
+													>
+														#{channel.name}
+													</button>
+												),
+											)}
+										</div>
+									)}
 								</PopoverContent>
 							</Popover>
 						)}

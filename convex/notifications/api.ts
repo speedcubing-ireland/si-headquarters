@@ -10,6 +10,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { requireUserId } from "../core/auth";
 import { requireDirector } from "../core/admin";
+import { resolveHqSiteBaseUrl } from "../lib/siteUrls";
 import { getCommentParentId } from "../lib/commentParentId";
 import {
 	notificationChannel,
@@ -97,8 +98,323 @@ import {
 	queryEmailDeliveryDiagnostics,
 	queryRecentEmailDeadLetters,
 } from "../emailQueue/api";
+import { HQ_ACTION_TOKEN_PREFIX } from "../discord/interactions";
 
 export { notificationReturns } from "./lib/notificationTypes";
+
+const DISCORD_CHANNEL_NOTIFICATION_TYPES = new Set<NotificationType>([
+	"task_assigned",
+	"task_unassigned",
+	"task_status_changed",
+	"task_priority_changed",
+	"task_awaiting_review",
+	"task_approved",
+	"task_unapproved",
+	"due_date_changed",
+	"relation_blocked",
+	"relation_unblocked",
+	"competition_phase_changed",
+	"progress_update_added",
+]);
+
+type DiscordActionButtonSpec = {
+	customId: string;
+	label: string;
+	style: 1 | 2 | 3 | 4;
+};
+
+function buildDiscordNotificationUrl(
+	entity: NotificationEntityRef,
+): string | undefined {
+	const baseUrl = resolveHqSiteBaseUrl();
+	switch (entity.entityType) {
+		case "task":
+			return `${baseUrl}/tasks/${entity.entityId}`;
+		case "competition":
+			return `${baseUrl}/competitions/${entity.entityId}`;
+		case "comment":
+		case "reminder":
+			return entity.parentTaskId
+				? `${baseUrl}/tasks/${entity.parentTaskId}`
+				: undefined;
+		default:
+			return undefined;
+	}
+}
+
+async function isDiscordDmEnabledForType(
+	ctx: MutationCtx,
+	userId: Id<"users">,
+	type: NotificationType,
+): Promise<boolean> {
+	const [settings, preference] = await Promise.all([
+		ctx.db
+			.query("discordNotificationUserSettings")
+			.withIndex("by_user", (q) => q.eq("userId", userId))
+			.unique(),
+		ctx.db
+			.query("discordNotificationPreferences")
+			.withIndex("by_user_and_type", (q) =>
+				q.eq("userId", userId).eq("type", type),
+			)
+			.unique(),
+	]);
+	if (settings?.dmEnabled === false) {
+		return false;
+	}
+	return preference?.enabled ?? true;
+}
+
+async function queueDiscordDmDelivery(
+	ctx: MutationCtx,
+	args: {
+		notificationId: Id<"notifications">;
+		recipientId: Id<"users">;
+		input: NotificationEmitInput;
+	},
+): Promise<void> {
+	const link = await ctx.db
+		.query("discordUserLinks")
+		.withIndex("by_user", (q) => q.eq("userId", args.recipientId))
+		.unique();
+	const updatedAt = Date.now();
+
+	if (!link) {
+		await ctx.db.insert("discordMessageDeliveries", {
+			notificationId: args.notificationId,
+			eventId: undefined,
+			userId: args.recipientId,
+			type: args.input.type,
+			entityType: args.input.entity.entityType,
+			entityId: `${args.input.entity.entityId}`,
+			destinationKind: "dm",
+			discordUserId: undefined,
+			channelId: undefined,
+			messageId: undefined,
+			status: "skipped",
+			reason: "User is not linked to Discord.",
+			clearedAt: undefined,
+			createdAt: updatedAt,
+			updatedAt,
+		});
+		return;
+	}
+
+	if (
+		!(await isDiscordDmEnabledForType(ctx, args.recipientId, args.input.type))
+	) {
+		await ctx.db.insert("discordMessageDeliveries", {
+			notificationId: args.notificationId,
+			eventId: undefined,
+			userId: args.recipientId,
+			type: args.input.type,
+			entityType: args.input.entity.entityType,
+			entityId: `${args.input.entity.entityId}`,
+			destinationKind: "dm",
+			discordUserId: link.discordUserId,
+			channelId: undefined,
+			messageId: undefined,
+			status: "skipped",
+			reason: "Discord DM notifications are disabled for this type.",
+			clearedAt: undefined,
+			createdAt: updatedAt,
+			updatedAt,
+		});
+		return;
+	}
+
+	const deliveryId = await ctx.db.insert("discordMessageDeliveries", {
+		notificationId: args.notificationId,
+		eventId: undefined,
+		userId: args.recipientId,
+		type: args.input.type,
+		entityType: args.input.entity.entityType,
+		entityId: `${args.input.entity.entityId}`,
+		destinationKind: "dm",
+		discordUserId: link.discordUserId,
+		channelId: undefined,
+		messageId: undefined,
+		status: "pending",
+		reason: undefined,
+		clearedAt: undefined,
+		createdAt: updatedAt,
+		updatedAt,
+	});
+	const actions = await buildDiscordActionButtons(ctx, {
+		deliveryId,
+		entity: args.input.entity,
+		userId: args.recipientId,
+	});
+	await ctx.scheduler.runAfter(
+		0,
+		internal.discord.actions.sendNotificationMessageAction,
+		{
+			deliveryId,
+			destinationKind: "dm",
+			discordUserId: link.discordUserId,
+			title: args.input.title,
+			message: args.input.message,
+			url: buildDiscordNotificationUrl(args.input.entity),
+			actions,
+		},
+	);
+}
+
+async function resolveDiscordChannelForEntity(
+	ctx: MutationCtx,
+	entity: NotificationEntityRef,
+): Promise<Doc<"competitions">["discordChannel"] | null> {
+	if (entity.entityType === "competition") {
+		const competition = await ctx.db.get("competitions", entity.entityId);
+		return competition?.discordChannel ?? null;
+	}
+	if (entity.entityType === "task") {
+		const task = await ctx.db.get("tasks", entity.entityId);
+		if (!task?.parentCompetitionId) return null;
+		const competition = await ctx.db.get(
+			"competitions",
+			task.parentCompetitionId,
+		);
+		return competition?.discordChannel ?? null;
+	}
+	if (entity.parentTaskId) {
+		const task = await ctx.db.get("tasks", entity.parentTaskId);
+		if (!task?.parentCompetitionId) return null;
+		const competition = await ctx.db.get(
+			"competitions",
+			task.parentCompetitionId,
+		);
+		return competition?.discordChannel ?? null;
+	}
+	return null;
+}
+
+async function queueDiscordChannelDelivery(
+	ctx: MutationCtx,
+	input: NotificationEmitInput,
+): Promise<void> {
+	if (!DISCORD_CHANNEL_NOTIFICATION_TYPES.has(input.type)) {
+		return;
+	}
+	const channel = await resolveDiscordChannelForEntity(ctx, input.entity);
+	if (!channel) {
+		return;
+	}
+	const updatedAt = Date.now();
+	const deliveryId = await ctx.db.insert("discordMessageDeliveries", {
+		notificationId: undefined,
+		eventId: undefined,
+		userId: undefined,
+		type: input.type,
+		entityType: input.entity.entityType,
+		entityId: `${input.entity.entityId}`,
+		destinationKind: "channel",
+		discordUserId: undefined,
+		channelId: channel.channelId,
+		messageId: undefined,
+		status: "pending",
+		reason: undefined,
+		clearedAt: undefined,
+		createdAt: updatedAt,
+		updatedAt,
+	});
+	const actions = await buildDiscordActionButtons(ctx, {
+		deliveryId,
+		entity: input.entity,
+	});
+	await ctx.scheduler.runAfter(
+		0,
+		internal.discord.actions.sendNotificationMessageAction,
+		{
+			deliveryId,
+			destinationKind: "channel",
+			channelId: channel.channelId,
+			title: input.title,
+			message: input.message,
+			url: buildDiscordNotificationUrl(input.entity),
+			actions,
+		},
+	);
+}
+
+async function insertDiscordActionToken(
+	ctx: MutationCtx,
+	args: {
+		actionKind: Doc<"discordActionTokens">["actionKind"];
+		userId?: Id<"users">;
+		deliveryId?: Id<"discordMessageDeliveries">;
+		taskId?: Id<"tasks">;
+		status?: Doc<"discordActionTokens">["status"];
+	},
+): Promise<string> {
+	const token = crypto.randomUUID();
+	await ctx.db.insert("discordActionTokens", {
+		token,
+		actionKind: args.actionKind,
+		userId: args.userId,
+		deliveryId: args.deliveryId,
+		taskId: args.taskId,
+		status: args.status,
+		expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
+		consumedAt: undefined,
+		createdAt: Date.now(),
+	});
+	return `${HQ_ACTION_TOKEN_PREFIX}${token}`;
+}
+
+async function buildDiscordActionButtons(
+	ctx: MutationCtx,
+	args: {
+		deliveryId: Id<"discordMessageDeliveries">;
+		entity: NotificationEntityRef;
+		userId?: Id<"users">;
+	},
+): Promise<DiscordActionButtonSpec[]> {
+	const buttons: DiscordActionButtonSpec[] = [];
+
+	if (args.entity.entityType === "task") {
+		const task = await ctx.db.get("tasks", args.entity.entityId);
+		if (task) {
+			const statusButtons: Array<{
+				status: Doc<"tasks">["status"];
+				label: string;
+				style: 1 | 2 | 3 | 4;
+			}> = [
+				{ status: "in-progress", label: "Start", style: 1 },
+				{ status: "awaiting-review", label: "Review", style: 2 },
+				{ status: "done", label: "Done", style: 3 },
+			];
+			for (const button of statusButtons) {
+				if (button.status === task.status) {
+					continue;
+				}
+				buttons.push({
+					customId: await insertDiscordActionToken(ctx, {
+						actionKind: "set_task_status",
+						userId: args.userId,
+						deliveryId: args.deliveryId,
+						taskId: task._id,
+						status: button.status,
+					}),
+					label: button.label,
+					style: button.style,
+				});
+			}
+		}
+	}
+
+	buttons.push({
+		customId: await insertDiscordActionToken(ctx, {
+			actionKind: "clear_delivery",
+			userId: args.userId,
+			deliveryId: args.deliveryId,
+		}),
+		label: "Clear",
+		style: 2,
+	});
+
+	return buttons;
+}
 
 async function ensureNotificationEvent(
 	ctx: MutationCtx,
@@ -375,6 +691,8 @@ async function queueNotificationEmailStageItem(
 	});
 }
 
+void queueNotificationEmailStageItem;
+
 async function emitInAppNotifications(
 	ctx: MutationCtx,
 	input: NotificationEmitInput,
@@ -427,26 +745,11 @@ async function emitInAppNotifications(
 		});
 
 		if (decision.kind === "existing") {
-			await queueNotificationEmailStageItem(ctx, {
-				userId: recipientId,
-				eventId,
-				notificationId: decision.notification._id,
-				type: input.type,
-				metadataJson: emailDispatchMetadataJson,
-			});
 			inserted.push(decision.notification._id);
 			continue;
 		}
 
 		if (decision.kind === "skip") {
-			if (decision.skip.externalStatus === "pending") {
-				await queueNotificationEmailStageItem(ctx, {
-					userId: recipientId,
-					eventId,
-					type: input.type,
-					metadataJson: emailDispatchMetadataJson,
-				});
-			}
 			continue;
 		}
 
@@ -480,15 +783,15 @@ async function emitInAppNotifications(
 			batchKey: input.batchKey,
 		});
 		inserted.push(notificationId);
-
-		await queueNotificationEmailStageItem(ctx, {
-			userId: recipientId,
-			eventId,
+		await queueDiscordDmDelivery(ctx, {
 			notificationId,
-			type: input.type,
-			metadataJson: emailDispatchMetadataJson,
+			recipientId,
+			input,
 		});
 	}
+
+	void emailDispatchMetadataJson;
+	await queueDiscordChannelDelivery(ctx, input);
 
 	return inserted;
 }

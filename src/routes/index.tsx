@@ -10,7 +10,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { AttentionBar } from "@/components/dashboard/attention-bar";
 import { MyFocusWidget } from "@/components/dashboard/my-focus-widget";
 import { CompetitionHealthWidget } from "@/components/dashboard/competition-health-widget";
-import { RecentUpdatesWidget } from "@/components/dashboard/recent-updates-widget";
 
 export const Route = createFileRoute("/")({
 	component: Index,
@@ -47,7 +46,6 @@ function Index() {
 						<CompetitionHealthWidget />
 					</div>
 				</div>
-				<RecentUpdatesWidget />
 			</div>
 		</>
 	);

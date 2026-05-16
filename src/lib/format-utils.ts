@@ -10,27 +10,27 @@ export function getInitials(name: string): string {
 }
 
 function formatWithPattern(
-	date: string | null | undefined,
+	date: Date | string | null | undefined,
 	pattern: string,
 ): string {
 	if (!date) return "";
 	try {
-		return format(new Date(date), pattern);
+		return format(date instanceof Date ? date : new Date(date), pattern);
 	} catch (error) {
 		console.warn("Failed to format date with pattern.", {
 			date,
 			pattern,
 			error,
 		});
-		return date;
+		return date instanceof Date ? date.toISOString() : date;
 	}
 }
 
-export function formatDate(date?: string | null): string {
+export function formatDate(date?: Date | string | null): string {
 	return formatWithPattern(date, "MMM d, yyyy");
 }
 
-export function formatDateShort(date?: string | null): string {
+export function formatDateShort(date?: Date | string | null): string {
 	return formatWithPattern(date, "MMM d");
 }
 
