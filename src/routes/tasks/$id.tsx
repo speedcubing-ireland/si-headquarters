@@ -1,17 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "convex/react";
+import { format } from "date-fns";
 import {
 	AlertTriangle,
 	Bell,
-	CalendarClock,
-	CircleCheck,
-	Flag,
-	MoreHorizontal,
-	PanelRight,
-	Plus,
+	Check,
+	CheckCircle2,
+	Clock,
+	Link2,
 	Loader2,
+	Plus,
+	Shield,
 	Trash2,
-	UserRound,
 	X,
+	XCircle,
 } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -23,8 +25,18 @@ import { TasksDataTable } from "@/components/tasks/data-table";
 import { TaskListGroup } from "@/components/tasks/task-list-group";
 import { TaskModal } from "@/components/tasks/task-modal";
 import { TaskLinkedActionsSection } from "@/components/tasks/task-linked-actions";
-import { TaskPropertiesSidebar } from "@/components/tasks/task-properties-sidebar";
 import { TaskReminderStrip } from "@/components/tasks/task-reminder-strip";
+import {
+	AddApproverDialog,
+	AddBlockingTaskDialog,
+} from "@/components/tasks/task-dialogs";
+import {
+	EditableTaskAssignee,
+	EditableTaskOwner,
+	EditableTaskPriority,
+	EditableTaskStatus,
+} from "@/components/tasks/editable-cells";
+import { PropertyRow } from "@/components/shared/property-editors/property-row";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +49,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -44,12 +57,13 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { requireTaskId } from "@/lib/convex-ids";
-import { priorityLabels, statusLabels } from "@/lib/task-constants";
 import { getTaskBreadcrumbs } from "@/lib/task-breadcrumbs";
 import { sortTasksByStatusThenPriority } from "@/lib/task-utils";
+import { api } from "@/convex/_generated/api";
 import {
 	buildOneTimeReminderPayload,
 	useNotificationMutations,
@@ -60,61 +74,24 @@ import {
 	useCompetitions,
 	useReminderMutations,
 } from "@/hooks/use-convex-data";
+import { useIsDirector } from "@/hooks/convex/use-admin";
+import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 import { useDebouncedForm } from "@/hooks/use-debounced-form";
-import type { Task } from "@/data/types-new";
-import { onMutationError } from "@/lib/utils";
+import type { Task, Team, User } from "@/data/types-new";
+import { cn, onMutationError } from "@/lib/utils";
 
 export const Route = createFileRoute("/tasks/$id")({
 	component: RouteComponent,
 });
 
-function TaskQuickStat({
-	label,
-	value,
-	meta,
-	tone = "default",
-}: {
-	label: string;
-	value: string;
-	meta?: string;
-	tone?: "default" | "success" | "warning" | "danger";
-}) {
-	const toneClass =
-		tone === "success"
-			? "text-success"
-			: tone === "warning"
-				? "text-warning"
-				: tone === "danger"
-					? "text-destructive"
-					: "text-foreground";
-
-	return (
-		<div className="min-w-0 rounded-lg border border-border/70 bg-card p-3">
-			<div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-				{label}
-			</div>
-			<div className={`mt-1 truncate text-sm font-semibold ${toneClass}`}>
-				{value}
-			</div>
-			{meta ? (
-				<div className="mt-0.5 truncate text-xs text-muted-foreground">
-					{meta}
-				</div>
-			) : null}
-		</div>
-	);
-}
-
 function TaskHeader({
 	task,
-	onPropertiesClick,
 	onRemindMeClick,
 	isSubscribed,
 	onToggleSubscription,
 	onDeleteClick,
 }: {
 	task: Task;
-	onPropertiesClick: () => void;
 	onRemindMeClick: () => void;
 	isSubscribed: boolean;
 	onToggleSubscription: () => void;
@@ -196,20 +173,11 @@ function TaskHeader({
 						{isSubscribed ? "Watching" : "Watch"}
 					</span>
 				</Button>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={onPropertiesClick}
-					className="gap-1.5 lg:hidden"
-				>
-					<PanelRight className="size-4" />
-					<span className="hidden sm:inline">Properties</span>
-				</Button>
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button variant="ghost" size="sm" className="gap-1.5">
-							<MoreHorizontal className="size-4" />
 							<span className="hidden sm:inline">Actions</span>
+							<span className="sm:hidden">...</span>
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
@@ -235,6 +203,97 @@ function TaskHeader({
 				</Link>
 			</div>
 		</PageHeader.Root>
+	);
+}
+
+function ApprovalBadge({
+	approver,
+	isApproved,
+	canToggleApproval,
+	isCurrentUser,
+	onRemove,
+	onApprove,
+	onUnapprove,
+}: {
+	approver: Team | User;
+	isApproved: boolean;
+	canToggleApproval: boolean;
+	isCurrentUser: boolean;
+	onRemove: () => void;
+	onApprove: () => void;
+	onUnapprove: () => void;
+}) {
+	const isTeam = "members" in approver;
+
+	return (
+		<div
+			className={cn(
+				"flex items-center gap-2 px-2 py-1.5 rounded-md border text-sm group",
+				isApproved
+					? "border-success/30 bg-success/10"
+					: "border-muted bg-muted/50",
+			)}
+		>
+			<div
+				className={cn(
+					"flex items-center justify-center w-5 h-5 rounded-full",
+					isApproved ? "text-success" : "bg-muted-foreground/20",
+				)}
+			>
+				{isApproved ? (
+					<Check className="size-3" />
+				) : (
+					<Clock className="size-3 text-muted-foreground" />
+				)}
+			</div>
+
+			<div className="flex-1 min-w-0">
+				<div className="font-medium truncate">{approver.name}</div>
+				<div
+					className={cn(
+						"text-xs",
+						isApproved ? "text-success" : "text-muted-foreground",
+					)}
+				>
+					{isTeam ? "Team" : isCurrentUser ? "You" : "User"} •{" "}
+					{isApproved ? "Approved" : "Pending"}
+				</div>
+			</div>
+
+			<div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+				{canToggleApproval &&
+					(isApproved ? (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-6 w-6"
+							onClick={onUnapprove}
+							title="Unapprove"
+						>
+							<XCircle className="size-3.5 text-error-foreground" />
+						</Button>
+					) : (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-6 w-6"
+							onClick={onApprove}
+							title="Approve"
+						>
+							<CheckCircle2 className="size-3.5 text-success" />
+						</Button>
+					))}
+				<Button
+					variant="ghost"
+					size="icon"
+					className="h-6 w-6"
+					onClick={onRemove}
+					title="Remove approver"
+				>
+					<Trash2 className="size-3.5 text-muted-foreground" />
+				</Button>
+			</div>
+		</div>
 	);
 }
 
@@ -332,16 +391,30 @@ function RouteComponent() {
 	const navigate = useNavigate();
 	const taskId = requireTaskId(id);
 	const task = useTask(taskId);
-	const { updateTask, deleteTask } = useTaskMutations();
+	const {
+		updateTask,
+		deleteTask,
+		addRequiredApprover,
+		removeRequiredApprover,
+		addBlockingRelation,
+		removeBlockingRelation,
+		approveTask,
+		unapproveTask,
+	} = useTaskMutations();
 	const isSubscribed = useTaskSubscriptionState(taskId);
 	const { subscribeToTask, unsubscribeFromTask } = useNotificationMutations();
 	const { addReminder } = useReminderMutations();
+	const currentUserResult = useQuery(api.core.users.getCurrentUser);
+	const { data: currentUser } = useRetainedQueryResult(currentUserResult);
+	const { isDirector } = useIsDirector();
 
 	const [isEditingTitle, setIsEditingTitle] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
-	const [propertiesPopoverOpen, setPropertiesPopoverOpen] = useState(false);
 	const [remindMeOpen, setRemindMeOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+	const [isApproverDialogOpen, setIsApproverDialogOpen] = useState(false);
+	const [isBlockingDialogOpen, setIsBlockingDialogOpen] = useState(false);
 
 	const handleToggleSubscription = () => {
 		if (isSubscribed) {
@@ -374,6 +447,78 @@ function RouteComponent() {
 		},
 		debounceMs: 250,
 	});
+
+	// Approval status calculation
+	const approvalStatus = useMemo(() => {
+		if (!task) return null;
+		const required = task.requiredApprovalBy;
+		const approved = task.approvedBy;
+		const approvedUserIds = new Set(approved.map((a) => a.id));
+		const isApproved = (approver: Team | User): boolean => {
+			if ("members" in approver) {
+				return approver.members.some((m) => approvedUserIds.has(m.id));
+			}
+			return approvedUserIds.has(approver.id);
+		};
+
+		const approvedCount = required.filter(isApproved).length;
+
+		return {
+			required,
+			approved,
+			approvedCount,
+			requiredCount: required.length,
+			isFullyApproved: required.length > 0 && required.every(isApproved),
+			pending: required.filter((r) => !isApproved(r)),
+			isApproved,
+		};
+	}, [task]);
+
+	const isCurrentUserApprover = (approver: Team | User) => {
+		if ("members" in approver) {
+			return approver.members.some((m) => m.id === currentUser?._id);
+		}
+		return approver.id === currentUser?._id;
+	};
+
+	const handleAddApprover = (approver: Team | User) => {
+		if (!task) return;
+		void addRequiredApprover(task.id, approver).catch(onMutationError);
+	};
+
+	const handleRemoveApprover = (approverId: string) => {
+		if (!task) return;
+		const approver = task.requiredApprovalBy.find((a) => a.id === approverId);
+		if (!approver) return;
+		const approverKey =
+			"members" in approver ? `team:${approverId}` : `user:${approverId}`;
+		void removeRequiredApprover(task.id, approverKey).catch(onMutationError);
+	};
+
+	const handleApprove = () => {
+		if (!task) return;
+		void approveTask(task.id).catch(onMutationError);
+	};
+
+	const handleUnapprove = () => {
+		if (!task) return;
+		void unapproveTask(task.id).catch(onMutationError);
+	};
+
+	const handleAddBlockingTask = (blockingTaskId: Task["id"]) => {
+		if (!task) return;
+		void addBlockingRelation(task.id, blockingTaskId).catch(onMutationError);
+	};
+
+	const handleRemoveBlockingTask = (blockingTaskId: Task["id"]) => {
+		if (!task) return;
+		void removeBlockingRelation(task.id, blockingTaskId).catch(onMutationError);
+	};
+
+	const handleRemoveBlockedTask = (blockedTaskId: Task["id"]) => {
+		if (!task) return;
+		void removeBlockingRelation(blockedTaskId, task.id).catch(onMutationError);
+	};
 
 	if (task === undefined) {
 		return (
@@ -440,123 +585,53 @@ function RouteComponent() {
 				: { to: "/tasks" },
 		);
 	};
+
 	const unresolvedBlockers = task.blockedBy.filter(
 		(relation) => !relation.isResolved,
 	);
-	const dueDate = task.dueDate ? new Date(task.dueDate) : null;
-	const isOverdue = Boolean(
-		dueDate && task.status !== "done" && dueDate.getTime() < Date.now(),
-	);
-	const dueDateLabel = dueDate
-		? dueDate.toLocaleDateString(undefined, {
-				month: "short",
-				day: "numeric",
-			})
-		: "No due date";
-	const dueMeta = isOverdue ? "Overdue" : undefined;
-	const assigneeLabel = task.assignee?.name ?? "Unassigned";
-	const assigneeMeta = task.owner ? `Owner: ${task.owner.name}` : undefined;
-	const statusLabel = statusLabels[task.status];
-	const priorityLabel = priorityLabels[task.priority];
 
 	return (
 		<div className="flex h-full flex-col overflow-x-hidden">
 			<TaskHeader
 				task={task}
-				onPropertiesClick={() => setPropertiesPopoverOpen(true)}
 				onRemindMeClick={() => setRemindMeOpen(true)}
 				isSubscribed={isSubscribed}
 				onToggleSubscription={handleToggleSubscription}
 				onDeleteClick={() => setDeleteDialogOpen(true)}
 			/>
-			<div className="flex flex-1 overflow-hidden">
-				<div className="flex-1 overflow-auto px-3 pb-4 pt-0 sm:px-4 sm:pb-5 sm:pt-0 lg:px-6 lg:pb-6 lg:pt-0">
-					<div className="mx-auto w-full max-w-5xl space-y-4 pb-10 sm:space-y-5">
-						<TaskReminderStrip task={task} />
-						{task.isBlocked && unresolvedBlockers.length > 0 && (
-							<div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5">
-								<div className="flex items-center gap-2 text-sm font-medium text-warning">
-									<AlertTriangle className="size-4" />
-									Blocked by {unresolvedBlockers.length} task
-									{unresolvedBlockers.length === 1 ? "" : "s"}
-								</div>
-								<div className="mt-1 space-y-1 text-sm">
-									{unresolvedBlockers.map((relation) => (
-										<div key={relation.task.id} className="min-w-0">
-											<Link
-												to="/tasks/$id"
-												params={{ id: relation.task.id }}
-												className="underline underline-offset-2 wrap-break-word"
-											>
-												{relation.task.identifier} {relation.task.title}
-											</Link>
-										</div>
-									))}
-								</div>
-							</div>
-						)}
-						<section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-							<TaskQuickStat
-								label="Status"
-								value={statusLabel}
-								meta={task.identifier}
-								tone={task.status === "done" ? "success" : "default"}
-							/>
-							<TaskQuickStat
-								label="Priority"
-								value={priorityLabel}
-								tone={task.priority === "urgent" ? "danger" : "default"}
-							/>
-							<TaskQuickStat
-								label="Due"
-								value={dueDateLabel}
-								meta={dueMeta}
-								tone={isOverdue ? "danger" : "default"}
-							/>
-							<TaskQuickStat
-								label="People"
-								value={assigneeLabel}
-								meta={assigneeMeta}
-							/>
-						</section>
+			<div className="flex-1 overflow-auto px-3 pb-4 pt-0 sm:px-4 sm:pb-5 sm:pt-0 lg:px-6 lg:pb-6 lg:pt-0">
+				<div className="mx-auto w-full max-w-3xl space-y-4 pb-10 sm:space-y-5">
+					<TaskReminderStrip task={task} />
 
-						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
-							<div className="mb-4 flex flex-wrap items-center gap-2">
-								<Badge
-									variant="outline"
-									className="h-6 gap-1 border-border bg-background text-[11px] font-normal"
-								>
-									<CircleCheck className="size-3.5" />
-									{statusLabel}
-								</Badge>
-								<Badge
-									variant="outline"
-									className="h-6 gap-1 border-border bg-background text-[11px] font-normal"
-								>
-									<Flag className="size-3.5" />
-									{priorityLabel}
-								</Badge>
-								{dueDate && (
-									<Badge
-										variant="outline"
-										className="h-6 gap-1 border-border bg-background text-[11px] font-normal"
-									>
-										<CalendarClock className="size-3.5" />
-										{dueDate.toLocaleDateString(undefined, {
-											month: "short",
-											day: "numeric",
-										})}
-									</Badge>
-								)}
-								<Badge
-									variant="outline"
-									className="h-6 gap-1 border-border bg-background text-[11px] font-normal"
-								>
-									<UserRound className="size-3.5" />
-									{task.owner?.name ?? "No owner"}
-								</Badge>
+					{task.isBlocked && unresolvedBlockers.length > 0 && (
+						<div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5">
+							<div className="flex items-center gap-2 text-sm font-medium text-warning">
+								<AlertTriangle className="size-4" />
+								Blocked by {unresolvedBlockers.length} task
+								{unresolvedBlockers.length === 1 ? "" : "s"}
 							</div>
+							<div className="mt-1 space-y-1 text-sm">
+								{unresolvedBlockers.map((relation) => (
+									<div key={relation.task.id} className="min-w-0">
+										<Link
+											to="/tasks/$id"
+											params={{ id: relation.task.id }}
+											className="underline underline-offset-2 wrap-break-word"
+										>
+											{relation.task.identifier} {relation.task.title}
+										</Link>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
 
+					{/* Main task card with title, description */}
+					<section className="rounded-xl border border-border/70 bg-card">
+						<div className="px-4 py-4 sm:px-5 sm:py-5 border-b border-border/50">
+							<div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
+								<span className="font-mono">{task.identifier}</span>
+							</div>
 							{isEditingTitle ? (
 								<Input
 									value={titleForm.value}
@@ -572,7 +647,7 @@ function RouteComponent() {
 							) : (
 								<button
 									type="button"
-									className="cursor-pointer rounded px-1 -mx-1 text-left text-xl font-bold hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-2xl"
+									className="cursor-pointer rounded px-1 -mx-1 text-left text-xl font-bold hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-2xl text-balance"
 									onClick={handleTitleEditStart}
 									onKeyDown={(e) => {
 										if (e.key === "Enter" || e.key === " ") {
@@ -584,74 +659,358 @@ function RouteComponent() {
 									{task.title}
 								</button>
 							)}
+						</div>
 
-							<div className="mt-4 space-y-2">
-								<div className="flex items-center justify-between gap-2">
-									<h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-										Description
-									</h2>
-									{!isEditingDescription && (
-										<Button
-											size="xs"
-											variant="ghost"
-											className="px-2 text-xs"
-											onClick={handleDescriptionEditStart}
-										>
-											Edit
-										</Button>
-									)}
-								</div>
-								{isEditingDescription ? (
-									<Textarea
-										value={descriptionForm.value}
-										onChange={descriptionForm.handleChange}
-										onBlur={handleDescriptionEditEnd}
-										className="min-h-[150px] resize-none"
-										placeholder="Add description..."
-										autoFocus
-									/>
-								) : task.description ? (
-									<div className="prose prose-sm max-w-none dark:prose-invert sm:prose-base">
-										<ReactMarkdown rehypePlugins={[rehypeSanitize]}>
-											{task.description}
-										</ReactMarkdown>
-									</div>
-								) : (
-									<button
-										type="button"
-										className="min-h-[96px] w-full cursor-pointer rounded p-2 -m-2 text-left text-sm text-muted-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						<div className="px-4 py-3 sm:px-5">
+							<div className="flex items-center justify-between gap-2 mb-2">
+								<h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+									Description
+								</h2>
+								{!isEditingDescription && (
+									<Button
+										size="xs"
+										variant="ghost"
+										className="px-2 text-xs"
 										onClick={handleDescriptionEditStart}
 									>
-										Click to add description...
-									</button>
+										Edit
+									</Button>
 								)}
+							</div>
+							{isEditingDescription ? (
+								<Textarea
+									value={descriptionForm.value}
+									onChange={descriptionForm.handleChange}
+									onBlur={handleDescriptionEditEnd}
+									className="min-h-[150px] resize-none"
+									placeholder="Add description..."
+									autoFocus
+								/>
+							) : task.description ? (
+								<div className="prose prose-sm max-w-none dark:prose-invert sm:prose-base">
+									<ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+										{task.description}
+									</ReactMarkdown>
+								</div>
+							) : (
+								<button
+									type="button"
+									className="min-h-[60px] w-full cursor-pointer rounded p-2 -m-2 text-left text-sm text-muted-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									onClick={handleDescriptionEditStart}
+								>
+									Click to add description...
+								</button>
+							)}
+						</div>
+					</section>
+
+					{/* Properties and Dependencies side-by-side on larger screens */}
+					<div className="grid gap-4 md:grid-cols-2">
+						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
+							<h3 className="text-sm font-semibold mb-3">Properties</h3>
+							<div className="space-y-1">
+								<PropertyRow label="Status">
+									<EditableTaskStatus
+										status={task.status}
+										taskId={task.id}
+										task={task}
+									/>
+								</PropertyRow>
+								<PropertyRow label="Priority">
+									<EditableTaskPriority
+										priority={task.priority}
+										taskId={task.id}
+									/>
+								</PropertyRow>
+								<PropertyRow label="Assignee">
+									<EditableTaskAssignee
+										assignee={task.assignee}
+										taskId={task.id}
+									/>
+								</PropertyRow>
+								<PropertyRow label="Owner">
+									<EditableTaskOwner owner={task.owner} taskId={task.id} />
+								</PropertyRow>
+								<PropertyRow label="Due date">
+									<DropdownMenu
+										open={isDatePickerOpen}
+										onOpenChange={setIsDatePickerOpen}
+									>
+										<DropdownMenuTrigger asChild>
+											<Button
+												variant="ghost"
+												size="sm"
+												className="h-7 min-w-0 max-w-full px-2"
+											>
+												{task.dueDate ? (
+													<span className="max-w-full truncate text-sm">
+														{format(new Date(task.dueDate), "MMM d, yyyy")}
+													</span>
+												) : (
+													<span className="max-w-full truncate text-sm text-muted-foreground">
+														Set due date...
+													</span>
+												)}
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent className="w-auto p-0" align="end">
+											<Calendar
+												mode="single"
+												selected={
+													task.dueDate ? new Date(task.dueDate) : undefined
+												}
+												onSelect={(date) => {
+													void updateTask(task.id, {
+														dueDate: date
+															? date.toISOString().split("T")[0]
+															: null,
+													}).catch(onMutationError);
+													setIsDatePickerOpen(false);
+												}}
+											/>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</PropertyRow>
 							</div>
 						</section>
 
-						<TaskLinkedActionsSection task={task} readOnly={!task.canEdit} />
-
-						<SubTasksList task={task} />
-
 						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
-							<CommentsSection taskId={task.id} className="mt-0" />
+							<div className="flex items-center justify-between mb-3">
+								<h3 className="text-sm font-semibold flex items-center gap-2">
+									<Link2 className="size-4" />
+									Dependencies
+								</h3>
+								{task.isBlocked && (
+									<span className="text-xs font-medium text-warning-foreground">
+										{task.unresolvedBlockerCount} active
+									</span>
+								)}
+							</div>
+
+							<div className="space-y-3">
+								<div>
+									<div className="text-xs font-medium text-muted-foreground mb-1.5">
+										Blocked by
+									</div>
+									{task.blockedBy.length === 0 ? (
+										<div className="text-sm text-muted-foreground">
+											No blocking tasks
+										</div>
+									) : (
+										<div className="flex flex-col gap-1.5">
+											{task.blockedBy.map((relation) => (
+												<div
+													key={relation.task.id}
+													className={cn(
+														"flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5 text-sm",
+														relation.isResolved
+															? "border-success/30 bg-success/10"
+															: "border-warning/30 bg-warning/10",
+													)}
+												>
+													{relation.isResolved ? (
+														<CheckCircle2 className="size-4 shrink-0 text-success" />
+													) : (
+														<AlertTriangle className="size-4 shrink-0 text-warning" />
+													)}
+													<div className="min-w-0 flex-1">
+														<Link
+															to="/tasks/$id"
+															params={{ id: relation.task.id }}
+															className="block font-medium leading-snug wrap-break-words hover:underline underline-offset-2 text-xs"
+														>
+															{relation.task.identifier} {relation.task.title}
+														</Link>
+													</div>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-5 w-5 shrink-0"
+														onClick={() =>
+															handleRemoveBlockingTask(relation.task.id)
+														}
+														title="Remove blocker"
+													>
+														<Trash2 className="size-3 text-muted-foreground" />
+													</Button>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+
+								<div>
+									<div className="text-xs font-medium text-muted-foreground mb-1.5">
+										Blocks
+									</div>
+									{task.blocks.length === 0 ? (
+										<div className="text-sm text-muted-foreground">
+											Not blocking other tasks
+										</div>
+									) : (
+										<div className="flex flex-col gap-1.5">
+											{task.blocks.map((blockedTask) => (
+												<div
+													key={blockedTask.id}
+													className="flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5 text-sm"
+												>
+													<Link2 className="size-4 shrink-0 text-muted-foreground" />
+													<div className="min-w-0 flex-1">
+														<Link
+															to="/tasks/$id"
+															params={{ id: blockedTask.id }}
+															className="block font-medium leading-snug break-words [overflow-wrap:anywhere] hover:underline underline-offset-2 text-xs"
+														>
+															{blockedTask.identifier} {blockedTask.title}
+														</Link>
+													</div>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-5 w-5 shrink-0"
+														onClick={() =>
+															handleRemoveBlockedTask(blockedTask.id)
+														}
+														title="Remove dependency"
+													>
+														<Trash2 className="size-3 text-muted-foreground" />
+													</Button>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+
+								<Button
+									variant="ghost"
+									size="sm"
+									className="justify-start text-muted-foreground hover:text-foreground w-full"
+									onClick={() => setIsBlockingDialogOpen(true)}
+								>
+									<Plus className="size-3.5 mr-1.5" />
+									Add blocker
+								</Button>
+							</div>
 						</section>
 					</div>
-				</div>
 
-				<TaskPropertiesSidebar
-					task={task}
-					renderMode="sidebar"
-					showMobileTrigger={false}
-					onDeleteClick={() => setDeleteDialogOpen(true)}
-				/>
+					{/* Approvals section */}
+					{approvalStatus && (
+						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
+							<div className="flex items-center justify-between mb-3">
+								<h3 className="text-sm font-semibold flex items-center gap-2">
+									<Shield className="size-4" />
+									Approvals
+								</h3>
+								{approvalStatus.requiredCount > 0 && (
+									<span
+										className={cn(
+											"text-xs font-medium",
+											approvalStatus.isFullyApproved
+												? "text-success-foreground"
+												: "text-warning-foreground",
+										)}
+									>
+										{approvalStatus.approvedCount}/{approvalStatus.requiredCount}
+									</span>
+								)}
+							</div>
+
+							{approvalStatus.requiredCount === 0 ? (
+								<div className="text-sm text-muted-foreground">
+									No approvals required
+								</div>
+							) : (
+								<div className="flex flex-col gap-1.5">
+									{approvalStatus.required.map((approver) => {
+										const isApproved = approvalStatus.isApproved(approver);
+										return (
+											<ApprovalBadge
+												key={approver.id}
+												approver={approver}
+												isApproved={isApproved}
+												canToggleApproval={
+													isDirector || isCurrentUserApprover(approver)
+												}
+												isCurrentUser={isCurrentUserApprover(approver)}
+												onRemove={() => handleRemoveApprover(approver.id)}
+												onApprove={handleApprove}
+												onUnapprove={handleUnapprove}
+											/>
+										);
+									})}
+								</div>
+							)}
+
+							<Button
+								variant="ghost"
+								size="sm"
+								className="justify-start text-muted-foreground hover:text-foreground mt-2"
+								onClick={() => setIsApproverDialogOpen(true)}
+							>
+								<Plus className="size-3.5 mr-1.5" />
+								Add approver
+							</Button>
+
+							{task.status === "done" &&
+								approvalStatus.requiredCount > 0 &&
+								!approvalStatus.isFullyApproved && (
+									<div className="mt-3 p-2 rounded-md bg-warning/10 border border-warning/20 text-xs text-warning-foreground">
+										Task is marked done but missing required approvals (
+										{approvalStatus.pending.length} pending)
+									</div>
+								)}
+						</section>
+					)}
+
+					<TaskLinkedActionsSection task={task} readOnly={!task.canEdit} />
+
+					<SubTasksList task={task} />
+
+					<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
+						<CommentsSection taskId={task.id} className="mt-0" />
+					</section>
+
+					<Separator />
+
+					{/* Metadata and delete */}
+					<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
+						<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+							<div>
+								<span className="font-medium">Created:</span>{" "}
+								{format(new Date(task.createdAt), "MMM d, yyyy")}
+							</div>
+							<div>
+								<span className="font-medium">Updated:</span>{" "}
+								{format(new Date(task.updatedAt), "MMM d, yyyy")}
+							</div>
+						</div>
+						<div className="mt-4">
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() => setDeleteDialogOpen(true)}
+								className="gap-2"
+							>
+								<Trash2 className="size-4" />
+								Delete task
+							</Button>
+						</div>
+					</section>
+				</div>
 			</div>
 
-			<TaskPropertiesSidebar
+			<AddBlockingTaskDialog
+				open={isBlockingDialogOpen}
+				onOpenChange={setIsBlockingDialogOpen}
 				task={task}
-				renderMode="popover"
-				open={propertiesPopoverOpen}
-				onOpenChange={setPropertiesPopoverOpen}
-				onDeleteClick={() => setDeleteDialogOpen(true)}
+				onAddBlockingTask={handleAddBlockingTask}
+			/>
+			<AddApproverDialog
+				open={isApproverDialogOpen}
+				onOpenChange={setIsApproverDialogOpen}
+				task={task}
+				onAdd={handleAddApprover}
 			/>
 			<RemindMeDialog
 				open={remindMeOpen}

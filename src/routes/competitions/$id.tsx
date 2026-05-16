@@ -15,7 +15,6 @@ import {
 	Gavel,
 	Globe,
 	Loader2,
-	MoreHorizontal,
 	Search,
 	Store,
 	Trash2,
@@ -261,7 +260,9 @@ function RouteComponent() {
 	const [sheetInput, setSheetInput] = useState("");
 	const [sheetPopoverOpen, setSheetPopoverOpen] = useState(false);
 	const [wcaSearchQuery, setWcaSearchQuery] = useState("");
-	const [wcaSearchResults, setWcaSearchResults] = useState<WcaSearchResult[]>([]);
+	const [wcaSearchResults, setWcaSearchResults] = useState<WcaSearchResult[]>(
+		[],
+	);
 	const [wcaMyComps, setWcaMyComps] = useState<WcaSearchResult[]>([]);
 	const [wcaMyCompsLoaded, setWcaMyCompsLoaded] = useState(false);
 	const [wcaSearching, setWcaSearching] = useState(false);
@@ -269,8 +270,12 @@ function RouteComponent() {
 	const [wcaLinking, setWcaLinking] = useState<string | null>(null);
 	const [wcaSearchAll, setWcaSearchAll] = useState(false);
 
-	const searchWcaCompetitions = useAction(api.integrations.wca.actions.searchCompetitions);
-	const fetchMyWcaCompetitions = useAction(api.integrations.wca.actions.fetchMyCompetitions);
+	const searchWcaCompetitions = useAction(
+		api.integrations.wca.actions.searchCompetitions,
+	);
+	const fetchMyWcaCompetitions = useAction(
+		api.integrations.wca.actions.fetchMyCompetitions,
+	);
 
 	const isSubscribed = subscriptions.some(
 		(subscription) =>
@@ -315,7 +320,9 @@ function RouteComponent() {
 
 	const sponsorOptions = useMemo(() => {
 		if (!competition) return [];
-		const byId = new Map(activeSponsors.map((sponsor) => [sponsor.id, sponsor]));
+		const byId = new Map(
+			activeSponsors.map((sponsor) => [sponsor.id, sponsor]),
+		);
 		if (competition.manualSponsorId && !byId.has(competition.manualSponsorId)) {
 			const currentManualSponsor = sponsors.find(
 				(sponsor) => sponsor.id === competition.manualSponsorId,
@@ -344,7 +351,8 @@ function RouteComponent() {
 	const handleSponsorOverrideChange = useCallback(
 		(nextValue: string) => {
 			if (!isSponsorshipManager || !competition) return;
-			const mismatch = nextValue !== "auto" && nextValue !== derivedSponsorOverrideValue;
+			const mismatch =
+				nextValue !== "auto" && nextValue !== derivedSponsorOverrideValue;
 			if (mismatch) {
 				const shouldApplyOverride = window.confirm(
 					`Auction status currently suggests "${auctionDerivedSponsorLabel(competition)}". Apply manual sponsor override anyway?`,
@@ -371,14 +379,20 @@ function RouteComponent() {
 				sponsorOverrideSponsorId: sponsorId,
 			}).catch(onMutationError);
 		},
-		[competition, derivedSponsorOverrideValue, isSponsorshipManager, updateCompetition],
+		[
+			competition,
+			derivedSponsorOverrideValue,
+			isSponsorshipManager,
+			updateCompetition,
+		],
 	);
 
 	const handleSetDateRange = useCallback(
 		(range: { from?: Date; to?: Date }) => {
 			if (!competition) return;
 			void updateCompetition(competition.id, {
-				compStart: range.from?.toISOString().split("T")[0] || competition.compStart,
+				compStart:
+					range.from?.toISOString().split("T")[0] || competition.compStart,
 				compEnd: range.to?.toISOString().split("T")[0] || competition.compEnd,
 			}).catch(onMutationError);
 		},
@@ -388,7 +402,9 @@ function RouteComponent() {
 	const handleCommitDescription = () => {
 		if (!competition) return;
 		if (descriptionDraft !== (competition.description ?? "")) {
-			void updateCompetition(competition.id, { description: descriptionDraft }).catch(onMutationError);
+			void updateCompetition(competition.id, {
+				description: descriptionDraft,
+			}).catch(onMutationError);
 		}
 		setIsEditingDescription(false);
 	};
@@ -424,7 +440,9 @@ function RouteComponent() {
 
 	const total = scopedTasks.length;
 	const done = scopedTasks.filter((task) => task.status === "done").length;
-	const inProgress = scopedTasks.filter((task) => task.status === "in-progress").length;
+	const inProgress = scopedTasks.filter(
+		(task) => task.status === "in-progress",
+	).length;
 	const blocked = scopedTasks.filter(
 		(task) => task.isBlocked && task.unresolvedBlockerCount > 0,
 	).length;
@@ -458,15 +476,21 @@ function RouteComponent() {
 			? "Winning bid from auction"
 			: null;
 	const sponsorStatusBadge = (
-		<Badge variant={sponsorStatusBadgeVariant(competition.sponsorPropertyStatus)}>
-			{SponsorStatusIcon ? <SponsorStatusIcon className="size-3.5 mr-1" /> : null}
+		<Badge
+			variant={sponsorStatusBadgeVariant(competition.sponsorPropertyStatus)}
+		>
+			{SponsorStatusIcon ? (
+				<SponsorStatusIcon className="size-3.5 mr-1" />
+			) : null}
 			{sponsorStatusText}
 		</Badge>
 	);
 	const sponsorStatusBadgeWithTooltip = sponsorStatusTooltip ? (
 		<Tooltip>
 			<TooltipTrigger asChild>{sponsorStatusBadge}</TooltipTrigger>
-			<TooltipContent side="top" sideOffset={6}>{sponsorStatusTooltip}</TooltipContent>
+			<TooltipContent side="top" sideOffset={6}>
+				{sponsorStatusTooltip}
+			</TooltipContent>
 		</Tooltip>
 	) : (
 		sponsorStatusBadge
@@ -492,14 +516,19 @@ function RouteComponent() {
 								<div className="flex-1 min-w-0">
 									<EditableText
 										value={competition.name}
-										onSubmit={(next) => updateCompetition(competition.id, { name: next })}
+										onSubmit={(next) =>
+											updateCompetition(competition.id, { name: next })
+										}
 										className="border-0 px-0 text-xl font-semibold tracking-tight focus-visible:ring-0 sm:text-2xl"
 										displayClassName="text-left text-xl font-semibold tracking-tight text-balance hover:bg-muted/60 -mx-1 rounded px-1 sm:text-2xl"
 									/>
 									<div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm text-muted-foreground">
 										<DropdownMenu open={dateOpen} onOpenChange={setDateOpen}>
 											<DropdownMenuTrigger asChild>
-												<button type="button" className="inline-flex items-center gap-1 rounded px-1 hover:bg-muted/60">
+												<button
+													type="button"
+													className="inline-flex items-center gap-1 rounded px-1 hover:bg-muted/60"
+												>
 													<CalendarDays className="size-3" />
 													<span>{formatDateShort(competition.compStart)}</span>
 													<span>–</span>
@@ -509,9 +538,13 @@ function RouteComponent() {
 											<DropdownMenuContent className="w-auto p-0" align="start">
 												<Calendar
 													mode="range"
-													selected={{ from: new Date(competition.compStart), to: new Date(competition.compEnd) }}
+													selected={{
+														from: new Date(competition.compStart),
+														to: new Date(competition.compEnd),
+													}}
 													onSelect={(range) => {
-														if (range?.from || range?.to) handleSetDateRange(range);
+														if (range?.from || range?.to)
+															handleSetDateRange(range);
 														setDateOpen(false);
 													}}
 													numberOfMonths={1}
@@ -521,7 +554,10 @@ function RouteComponent() {
 										{currentPhase && (
 											<>
 												<span className="text-muted-foreground/50">·</span>
-												<Badge variant="outline" className="gap-1 border-border bg-background text-[11px] font-normal">
+												<Badge
+													variant="outline"
+													className="gap-1 border-border bg-background text-[11px] font-normal"
+												>
 													<span className="size-1.5 rounded-full bg-chart-1" />
 													{currentPhase.name}
 												</Badge>
@@ -533,7 +569,9 @@ function RouteComponent() {
 						</div>
 
 						<div className="px-4 py-3 sm:px-5 border-b border-border/50">
-							<div className="text-xs text-muted-foreground mb-1">Description</div>
+							<div className="text-xs text-muted-foreground mb-1">
+								Description
+							</div>
 							{isEditingDescription ? (
 								<Input
 									value={descriptionDraft}
@@ -563,218 +601,504 @@ function RouteComponent() {
 
 						<div className="px-4 py-3 sm:px-5">
 							<div className="flex items-center justify-between gap-2 text-xs mb-2">
-								<span className="text-muted-foreground">Phase: {phaseTaskCount} tasks</span>
-								<span className="font-medium">{completionPercent}% complete</span>
+								<span className="text-muted-foreground">
+									Phase: {phaseTaskCount} tasks
+								</span>
+								<span className="font-medium">
+									{completionPercent}% complete
+								</span>
 							</div>
 							<div className="h-2 rounded-full bg-muted">
-								<div className="h-full rounded-full bg-success transition-[width]" style={{ width: `${completionPercent}%` }} />
+								<div
+									className="h-full rounded-full bg-success transition-[width]"
+									style={{ width: `${completionPercent}%` }}
+								/>
 							</div>
 							<div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-								<span><span className="text-foreground font-medium">{done}</span> done</span>
-								<span><span className="text-foreground font-medium">{inProgress}</span> in progress</span>
-								<span><span className="text-foreground font-medium">{total}</span> total</span>
-								{blocked > 0 && <span className="text-destructive"><span className="font-medium">{blocked}</span> blocked</span>}
+								<span>
+									<span className="text-foreground font-medium">{done}</span>{" "}
+									done
+								</span>
+								<span>
+									<span className="text-foreground font-medium">
+										{inProgress}
+									</span>{" "}
+									in progress
+								</span>
+								<span>
+									<span className="text-foreground font-medium">{total}</span>{" "}
+									total
+								</span>
+								{blocked > 0 && (
+									<span className="text-destructive">
+										<span className="font-medium">{blocked}</span> blocked
+									</span>
+								)}
 							</div>
 						</div>
 					</section>
 
-					<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
-						<h3 className="text-sm font-semibold mb-3">Properties</h3>
-						<div className="space-y-1">
-							<PropertyField label="Phase" icon={<Circle className="size-3.5" />}>
-								<EditablePhaseCell competition={competition} />
-							</PropertyField>
-							<PropertyField label="Sponsor" icon={<Store className="size-3.5" />}>
-								{isSponsorshipAccessLoading ? (
-									<span className="text-xs text-muted-foreground">Checking permissions...</span>
-								) : isSponsorshipManager ? (
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="sm" className="h-7 min-w-0 max-w-full px-2 justify-start">
-												{sponsorStatusBadgeWithTooltip}
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent className="w-64 p-0" align="end">
-											<Command>
-												<CommandList>
-													<CommandEmpty>No sponsor options available.</CommandEmpty>
-													<CommandGroup>
-														<CommandItem value="auto" onSelect={() => handleSponsorOverrideChange("auto")} className="flex items-center justify-between">
-															<span className="text-xs">Follow auction outcome</span>
-															{sponsorOverrideValue === "auto" ? <CheckIcon size={14} className="ml-auto" /> : null}
-														</CommandItem>
-														<CommandItem value="none" onSelect={() => handleSponsorOverrideChange("none")} className="flex items-center justify-between">
-															<span className="text-xs">No sponsor (override)</span>
-															{sponsorOverrideValue === "none" ? <CheckIcon size={14} className="ml-auto" /> : null}
-														</CommandItem>
-														{sponsorOptions.map((sponsor) => {
-															const value = `sponsor:${sponsor.id}`;
-															return (
-																<CommandItem key={sponsor.id} value={sponsor.name} onSelect={() => handleSponsorOverrideChange(value)} className="flex items-center justify-between">
-																	<span className="text-xs">{sponsor.name} (override)</span>
-																	{sponsorOverrideValue === value ? <CheckIcon size={14} className="ml-auto" /> : null}
-																</CommandItem>
-															);
-														})}
-													</CommandGroup>
-												</CommandList>
-											</Command>
-										</DropdownMenuContent>
-									</DropdownMenu>
-								) : (
-									sponsorStatusBadgeWithTooltip
-								)}
-							</PropertyField>
-							{competition.sponsorPropertyStatus === "sponsor" && competition.sponsorWinningBidCents !== undefined && (
-								<PropertyField label="Winning bid" icon={<Gavel className="size-3.5" />}>
-									<span className="text-sm">{formatWinningBid(competition.sponsorWinningBidCents)}</span>
+					<div className="grid gap-4 md:grid-cols-2">
+						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
+							<h3 className="text-sm font-semibold mb-3">Properties</h3>
+							<div className="space-y-1">
+								<PropertyField
+									label="Phase"
+									icon={<Circle className="size-3.5" />}
+								>
+									<EditablePhaseCell competition={competition} />
 								</PropertyField>
-							)}
-						</div>
-
-						<div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/50">
-							{competition.compSheet ? (
-								<div className="flex items-center gap-1">
-									<Button variant="outline" size="sm" className="h-7 gap-1.5" asChild>
-										<a href={`https://docs.google.com/spreadsheets/d/${competition.compSheet.sheetId}`} target="_blank" rel="noreferrer">
-											<FileSpreadsheet className="size-3.5 text-success" />
-											Open sheet
-											<ExternalLink className="size-3 text-muted-foreground" />
-										</a>
-									</Button>
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="size-4" /></Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end" className="w-36">
-											<DropdownMenuItem variant="destructive" onClick={() => { void updateCompetition(competition.id, { compSheet: null }).catch(onMutationError); }}>Remove sheet</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
-								</div>
-							) : (
-								<Popover open={sheetPopoverOpen} onOpenChange={(open: boolean) => { setSheetPopoverOpen(open); if (!open) setSheetInput(""); }}>
-									<PopoverTrigger asChild>
-										<Button variant="outline" size="sm" className="h-7"><FileSpreadsheet className="size-3.5 text-success" />Add sheet</Button>
-									</PopoverTrigger>
-									<PopoverContent align="start" className="w-[min(18rem,calc(100vw-1rem))] p-3">
-										<PopoverHeader className="p-0 pb-2"><PopoverTitle className="text-xs font-medium">Link or sheet ID</PopoverTitle></PopoverHeader>
-										<div className="flex gap-2">
-											<Input placeholder="Paste link or ID..." value={sheetInput} onChange={(e) => setSheetInput(e.target.value)} className="h-8 flex-1 text-sm" />
-											<Button size="sm" className="h-8 shrink-0" disabled={!parseGoogleSheetId(sheetInput)} onClick={() => {
-												const sheetId = parseGoogleSheetId(sheetInput);
-												if (sheetId) {
-													void updateCompetition(competition.id, { compSheet: { type: "google-sheet", sheetId } }).catch(onMutationError);
-													setSheetInput("");
-													setSheetPopoverOpen(false);
-												}
-											}}>Add</Button>
-										</div>
-									</PopoverContent>
-								</Popover>
-							)}
-
-							{competition.wcaUrl ? (
-								<div className="flex items-center gap-1">
-									<Button variant="outline" size="sm" className="h-7 gap-1.5" asChild>
-										<a href={competition.wcaUrl} target="_blank" rel="noreferrer">
-											<Globe className="size-3.5 text-info" />
-											Open on WCA
-											<ExternalLink className="size-3 text-muted-foreground" />
-										</a>
-									</Button>
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="size-4" /></Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end" className="w-36">
-											<DropdownMenuItem variant="destructive" onClick={() => { void updateCompetition(competition.id, { wcaCompetitionId: null }).catch(onMutationError); }}>Remove WCA link</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
-								</div>
-							) : (
-								<Popover open={wcaPopoverOpen} onOpenChange={(open: boolean) => {
-									setWcaPopoverOpen(open);
-									if (open && !wcaMyCompsLoaded) {
-										setWcaSearching(true);
-										void fetchMyWcaCompetitions({}).then((results) => { setWcaMyComps(results as WcaSearchResult[]); setWcaMyCompsLoaded(true); }).catch(() => { toast.error("Failed to load your WCA competitions"); }).finally(() => setWcaSearching(false));
-									}
-									if (!open) { setWcaSearchQuery(""); setWcaSearchResults([]); setWcaSearchAll(false); }
-								}}>
-									<PopoverTrigger asChild>
-										<Button variant="outline" size="sm" className="h-7"><Globe className="size-3.5 text-info" />Link to WCA</Button>
-									</PopoverTrigger>
-									<PopoverContent align="start" className="w-[min(22rem,calc(100vw-1rem))] p-3">
-										<PopoverHeader className="p-0 pb-2"><PopoverTitle className="text-xs font-medium">{wcaSearchAll ? "Search all WCA competitions" : "My WCA competitions"}</PopoverTitle></PopoverHeader>
-										<div className="flex gap-2">
-											<Input placeholder={wcaSearchAll ? "Search all competitions..." : "Filter my competitions..."} value={wcaSearchQuery} onChange={(e) => { setWcaSearchQuery(e.target.value); if (!wcaSearchAll) setWcaSearchResults([]); }} onKeyDown={(e) => {
-												if (e.key === "Enter" && wcaSearchAll && wcaSearchQuery.trim()) {
-													setWcaSearching(true);
-													void searchWcaCompetitions({ query: wcaSearchQuery.trim() }).then((results) => setWcaSearchResults(results as WcaSearchResult[])).catch(() => toast.error("Failed to search WCA competitions")).finally(() => setWcaSearching(false));
-												}
-											}} className="h-8 flex-1 text-sm" />
-											{wcaSearchAll && (
-												<Button size="sm" className="h-8 shrink-0" disabled={!wcaSearchQuery.trim() || wcaSearching} onClick={() => {
-													setWcaSearching(true);
-													void searchWcaCompetitions({ query: wcaSearchQuery.trim() }).then((results) => setWcaSearchResults(results as WcaSearchResult[])).catch(() => toast.error("Failed to search WCA competitions")).finally(() => setWcaSearching(false));
-												}}>
-													{wcaSearching ? <Loader2 className="size-3.5 animate-spin" /> : <Search className="size-3.5" />}
+								<PropertyField
+									label="Sponsor"
+									icon={<Store className="size-3.5" />}
+								>
+									{isSponsorshipAccessLoading ? (
+										<span className="text-xs text-muted-foreground">
+											Checking permissions...
+										</span>
+									) : isSponsorshipManager ? (
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-7 min-w-0 max-w-full px-2 justify-start"
+												>
+													{sponsorStatusBadgeWithTooltip}
 												</Button>
-											)}
-										</div>
-										{wcaSearching && !wcaMyCompsLoaded && <div className="mt-3 flex items-center justify-center"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>}
-										{(() => {
-											const items = wcaSearchAll ? wcaSearchResults : wcaMyComps.filter((c) => !wcaSearchQuery.trim() || c.name.toLowerCase().includes(wcaSearchQuery.trim().toLowerCase()));
-											if (items.length === 0 && !wcaSearching) return null;
-											return (
-												<div className="mt-2 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
-													{items.map((result) => (
-														<button type="button" key={result.id} disabled={wcaLinking === result.id} className="flex flex-col gap-0.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50" onClick={() => {
-															setWcaLinking(result.id);
-															void updateCompetition(competition.id, { wcaCompetitionId: result.id }).then(() => { setWcaPopoverOpen(false); setWcaSearchQuery(""); setWcaSearchResults([]); setWcaSearchAll(false); toast.success(`Linked to ${result.name}`); }).catch(onMutationError).finally(() => setWcaLinking(null));
-														}}>
-															<span className="font-medium leading-tight">{result.name}</span>
-															<span className="text-xs text-muted-foreground">{result.city} · {result.start_date}</span>
-														</button>
-													))}
-												</div>
-											);
-										})()}
-										<button type="button" className="mt-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setWcaSearchAll(!wcaSearchAll); setWcaSearchQuery(""); setWcaSearchResults([]); }}>
-											{wcaSearchAll ? "← Back to my competitions" : "Search all competitions →"}
-										</button>
-									</PopoverContent>
-								</Popover>
-							)}
-						</div>
-					</section>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent className="w-64 p-0" align="end">
+												<Command>
+													<CommandList>
+														<CommandEmpty>
+															No sponsor options available.
+														</CommandEmpty>
+														<CommandGroup>
+															<CommandItem
+																value="auto"
+																onSelect={() =>
+																	handleSponsorOverrideChange("auto")
+																}
+																className="flex items-center justify-between"
+															>
+																<span className="text-xs">
+																	Follow auction outcome
+																</span>
+																{sponsorOverrideValue === "auto" ? (
+																	<CheckIcon size={14} className="ml-auto" />
+																) : null}
+															</CommandItem>
+															<CommandItem
+																value="none"
+																onSelect={() =>
+																	handleSponsorOverrideChange("none")
+																}
+																className="flex items-center justify-between"
+															>
+																<span className="text-xs">
+																	No sponsor (override)
+																</span>
+																{sponsorOverrideValue === "none" ? (
+																	<CheckIcon size={14} className="ml-auto" />
+																) : null}
+															</CommandItem>
+															{sponsorOptions.map((sponsor) => {
+																const value = `sponsor:${sponsor.id}`;
+																return (
+																	<CommandItem
+																		key={sponsor.id}
+																		value={sponsor.name}
+																		onSelect={() =>
+																			handleSponsorOverrideChange(value)
+																		}
+																		className="flex items-center justify-between"
+																	>
+																		<span className="text-xs">
+																			{sponsor.name} (override)
+																		</span>
+																		{sponsorOverrideValue === value ? (
+																			<CheckIcon size={14} className="ml-auto" />
+																		) : null}
+																	</CommandItem>
+																);
+															})}
+														</CommandGroup>
+													</CommandList>
+												</Command>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									) : (
+										sponsorStatusBadgeWithTooltip
+									)}
+								</PropertyField>
+								{competition.sponsorPropertyStatus === "sponsor" &&
+									competition.sponsorWinningBidCents !== undefined && (
+										<PropertyField
+											label="Winning bid"
+											icon={<Gavel className="size-3.5" />}
+										>
+											<span className="text-sm">
+												{formatWinningBid(competition.sponsorWinningBidCents)}
+											</span>
+										</PropertyField>
+									)}
+							</div>
 
-					<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
-						<h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Users className="size-4" />People</h3>
-						<div className="space-y-1">
-							<PropertyField label="Competition lead"><EditableCompLeadCell competition={competition} /></PropertyField>
-							<PropertyField label="Lead delegate"><EditableLeadDelegateCell competition={competition} /></PropertyField>
-							<PropertyField label="Organisers"><EditableOrganisersCell competition={competition} /></PropertyField>
-						</div>
-					</section>
+							<div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/50">
+								{competition.compSheet ? (
+									<div className="inline-flex rounded-md border border-border">
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 gap-1.5 rounded-r-none border-r border-border"
+											asChild
+										>
+											<a
+												href={`https://docs.google.com/spreadsheets/d/${competition.compSheet.sheetId}`}
+												target="_blank"
+												rel="noreferrer"
+											>
+												<FileSpreadsheet className="size-3.5 text-success" />
+												Open sheet
+												<ExternalLink className="size-3 text-muted-foreground" />
+											</a>
+										</Button>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 px-2 rounded-l-none text-destructive hover:text-destructive"
+											onClick={() => {
+												void updateCompetition(competition.id, {
+													compSheet: null,
+												}).catch(onMutationError);
+											}}
+										>
+											<Trash2 className="size-3.5" />
+										</Button>
+									</div>
+								) : (
+									<Popover
+										open={sheetPopoverOpen}
+										onOpenChange={(open: boolean) => {
+											setSheetPopoverOpen(open);
+											if (!open) setSheetInput("");
+										}}
+									>
+										<PopoverTrigger asChild>
+											<Button variant="outline" size="sm" className="h-7">
+												<FileSpreadsheet className="size-3.5 text-success" />
+												Add sheet
+											</Button>
+										</PopoverTrigger>
+										<PopoverContent
+											align="start"
+											className="w-[min(18rem,calc(100vw-1rem))] p-3"
+										>
+											<PopoverHeader className="p-0 pb-2">
+												<PopoverTitle className="text-xs font-medium">
+													Link or sheet ID
+												</PopoverTitle>
+											</PopoverHeader>
+											<div className="flex gap-2">
+												<Input
+													placeholder="Paste link or ID..."
+													value={sheetInput}
+													onChange={(e) => setSheetInput(e.target.value)}
+													className="h-8 flex-1 text-sm"
+												/>
+												<Button
+													size="sm"
+													className="h-8 shrink-0"
+													disabled={!parseGoogleSheetId(sheetInput)}
+													onClick={() => {
+														const sheetId = parseGoogleSheetId(sheetInput);
+														if (sheetId) {
+															void updateCompetition(competition.id, {
+																compSheet: { type: "google-sheet", sheetId },
+															}).catch(onMutationError);
+															setSheetInput("");
+															setSheetPopoverOpen(false);
+														}
+													}}
+												>
+													Add
+												</Button>
+											</div>
+										</PopoverContent>
+									</Popover>
+								)}
+
+								{competition.wcaUrl ? (
+									<div className="inline-flex rounded-md border border-border">
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 gap-1.5 rounded-r-none border-r border-border"
+											asChild
+										>
+											<a
+												href={competition.wcaUrl}
+												target="_blank"
+												rel="noreferrer"
+											>
+												<Globe className="size-3.5 text-info" />
+												Open on WCA
+												<ExternalLink className="size-3 text-muted-foreground" />
+											</a>
+										</Button>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-7 px-2 rounded-l-none text-destructive hover:text-destructive"
+											onClick={() => {
+												void updateCompetition(competition.id, {
+													wcaCompetitionId: null,
+												}).catch(onMutationError);
+											}}
+										>
+											<Trash2 className="size-3.5" />
+										</Button>
+									</div>
+								) : (
+									<Popover
+										open={wcaPopoverOpen}
+										onOpenChange={(open: boolean) => {
+											setWcaPopoverOpen(open);
+											if (open && !wcaMyCompsLoaded) {
+												setWcaSearching(true);
+												void fetchMyWcaCompetitions({})
+													.then((results) => {
+														setWcaMyComps(results as WcaSearchResult[]);
+														setWcaMyCompsLoaded(true);
+													})
+													.catch(() => {
+														toast.error("Failed to load your WCA competitions");
+													})
+													.finally(() => setWcaSearching(false));
+											}
+											if (!open) {
+												setWcaSearchQuery("");
+												setWcaSearchResults([]);
+												setWcaSearchAll(false);
+											}
+										}}
+									>
+										<PopoverTrigger asChild>
+											<Button variant="outline" size="sm" className="h-7">
+												<Globe className="size-3.5 text-info" />
+												Link to WCA
+											</Button>
+										</PopoverTrigger>
+										<PopoverContent
+											align="start"
+											className="w-[min(22rem,calc(100vw-1rem))] p-3"
+										>
+											<PopoverHeader className="p-0 pb-2">
+												<PopoverTitle className="text-xs font-medium">
+													{wcaSearchAll
+														? "Search all WCA competitions"
+														: "My WCA competitions"}
+												</PopoverTitle>
+											</PopoverHeader>
+											<div className="flex gap-2">
+												<Input
+													placeholder={
+														wcaSearchAll
+															? "Search all competitions..."
+															: "Filter my competitions..."
+													}
+													value={wcaSearchQuery}
+													onChange={(e) => {
+														setWcaSearchQuery(e.target.value);
+														if (!wcaSearchAll) setWcaSearchResults([]);
+													}}
+													onKeyDown={(e) => {
+														if (
+															e.key === "Enter" &&
+															wcaSearchAll &&
+															wcaSearchQuery.trim()
+														) {
+															setWcaSearching(true);
+															void searchWcaCompetitions({
+																query: wcaSearchQuery.trim(),
+															})
+																.then((results) =>
+																	setWcaSearchResults(
+																		results as WcaSearchResult[],
+																	),
+																)
+																.catch(() =>
+																	toast.error(
+																		"Failed to search WCA competitions",
+																	),
+																)
+																.finally(() => setWcaSearching(false));
+														}
+													}}
+													className="h-8 flex-1 text-sm"
+												/>
+												{wcaSearchAll && (
+													<Button
+														size="sm"
+														className="h-8 shrink-0"
+														disabled={!wcaSearchQuery.trim() || wcaSearching}
+														onClick={() => {
+															setWcaSearching(true);
+															void searchWcaCompetitions({
+																query: wcaSearchQuery.trim(),
+															})
+																.then((results) =>
+																	setWcaSearchResults(
+																		results as WcaSearchResult[],
+																	),
+																)
+																.catch(() =>
+																	toast.error(
+																		"Failed to search WCA competitions",
+																	),
+																)
+																.finally(() => setWcaSearching(false));
+														}}
+													>
+														{wcaSearching ? (
+															<Loader2 className="size-3.5 animate-spin" />
+														) : (
+															<Search className="size-3.5" />
+														)}
+													</Button>
+												)}
+											</div>
+											{wcaSearching && !wcaMyCompsLoaded && (
+												<div className="mt-3 flex items-center justify-center">
+													<Loader2 className="size-4 animate-spin text-muted-foreground" />
+												</div>
+											)}
+											{(() => {
+												const items = wcaSearchAll
+													? wcaSearchResults
+													: wcaMyComps.filter(
+															(c) =>
+																!wcaSearchQuery.trim() ||
+																c.name
+																	.toLowerCase()
+																	.includes(wcaSearchQuery.trim().toLowerCase()),
+														);
+												if (items.length === 0 && !wcaSearching) return null;
+												return (
+													<div className="mt-2 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
+														{items.map((result) => (
+															<button
+																type="button"
+																key={result.id}
+																disabled={wcaLinking === result.id}
+																className="flex flex-col gap-0.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+																onClick={() => {
+																	setWcaLinking(result.id);
+																	void updateCompetition(competition.id, {
+																		wcaCompetitionId: result.id,
+																	})
+																		.then(() => {
+																			setWcaPopoverOpen(false);
+																			setWcaSearchQuery("");
+																			setWcaSearchResults([]);
+																			setWcaSearchAll(false);
+																			toast.success(`Linked to ${result.name}`);
+																		})
+																		.catch(onMutationError)
+																		.finally(() => setWcaLinking(null));
+																}}
+															>
+																<span className="font-medium leading-tight">
+																	{result.name}
+																</span>
+																<span className="text-xs text-muted-foreground">
+																	{result.city} · {result.start_date}
+																</span>
+															</button>
+														))}
+													</div>
+												);
+											})()}
+											<button
+												type="button"
+												className="mt-2 text-xs text-muted-foreground hover:text-foreground"
+												onClick={() => {
+													setWcaSearchAll(!wcaSearchAll);
+													setWcaSearchQuery("");
+													setWcaSearchResults([]);
+												}}
+											>
+												{wcaSearchAll
+													? "← Back to my competitions"
+													: "Search all competitions →"}
+											</button>
+										</PopoverContent>
+									</Popover>
+								)}
+							</div>
+						</section>
+
+						<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
+							<h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+								<Users className="size-4" />
+								People
+							</h3>
+							<div className="space-y-1">
+								<PropertyField label="Competition lead">
+									<EditableCompLeadCell competition={competition} />
+								</PropertyField>
+								<PropertyField label="Lead delegate">
+									<EditableLeadDelegateCell competition={competition} />
+								</PropertyField>
+								<PropertyField label="Organisers">
+									<EditableOrganisersCell competition={competition} />
+								</PropertyField>
+							</div>
+						</section>
+					</div>
 
 					<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
 						<h3 className="text-sm font-semibold mb-3">Phases</h3>
-						<CompetitionPhaseStatusList competition={competition} onSelectPhase={(phaseId) => { void updateCompetition(competition.id, { currentPhaseId: phaseId }).catch(onMutationError); }} />
+						<CompetitionPhaseStatusList
+							competition={competition}
+							onSelectPhase={(phaseId) => {
+								void updateCompetition(competition.id, {
+									currentPhaseId: phaseId,
+								}).catch(onMutationError);
+							}}
+						/>
 					</section>
 
 					<CompetitionLatestUpdate competition={competitionWithTasks} />
 
 					<Separator />
 
-					<CompetitionTasksByPhase competition={competitionWithTasks} tasks={scopedTasks} />
+					<CompetitionTasksByPhase
+						competition={competitionWithTasks}
+						tasks={scopedTasks}
+					/>
 
 					<section className="rounded-xl border border-border/70 bg-card px-4 py-4 sm:px-5 sm:py-5">
 						<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-							<div><span className="font-medium">Created:</span> {formatDate(competition.createdAt)}</div>
-							<div><span className="font-medium">Updated:</span> {formatDate(competition.updatedAt)}</div>
+							<div>
+								<span className="font-medium">Created:</span>{" "}
+								{formatDate(competition.createdAt)}
+							</div>
+							<div>
+								<span className="font-medium">Updated:</span>{" "}
+								{formatDate(competition.updatedAt)}
+							</div>
 						</div>
 						<div className="mt-4">
-							<Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)} className="gap-2"><Trash2 className="size-4" />Delete competition</Button>
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() => setDeleteDialogOpen(true)}
+								className="gap-2"
+							>
+								<Trash2 className="size-4" />
+								Delete competition
+							</Button>
 						</div>
 					</section>
 				</div>
@@ -784,7 +1108,13 @@ function RouteComponent() {
 				open={deleteDialogOpen}
 				onOpenChange={setDeleteDialogOpen}
 				title="Delete Competition?"
-				description={<>Are you sure you want to permanently delete &quot;{competition.name}&quot;? This will delete all tasks, subtasks, comments, reactions, updates, and other associated data. This action cannot be undone.</>}
+				description={
+					<>
+						Are you sure you want to permanently delete &quot;{competition.name}
+						&quot;? This will delete all tasks, subtasks, comments, reactions,
+						updates, and other associated data. This action cannot be undone.
+					</>
+				}
 				onConfirm={handleDelete}
 			/>
 		</div>
