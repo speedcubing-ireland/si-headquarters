@@ -6,6 +6,7 @@ import type {
 } from "discord-api-types/v10";
 import {
 	buildCompetitionCountMessage,
+	HQ_ACTION_TOKEN_PREFIX,
 	HQ_COMPETITIONS_COUNT_BUTTON_ID,
 	interactionMessageResponse,
 	interactionPongResponse,
@@ -33,7 +34,7 @@ export async function handleDiscordInteraction(
 		}
 
 		if (interaction.data.name === "dmhq") {
-			const userId = getInteractionUserId(interaction);
+			const userId = getDiscordInteractionUserId(interaction);
 			if (!userId) {
 				return jsonResponse(
 					interactionMessageResponse(
@@ -83,6 +84,35 @@ export async function handleDiscordInteraction(
 			);
 		}
 
+		if (customId.startsWith(HQ_ACTION_TOKEN_PREFIX)) {
+			const discordUserId = getDiscordInteractionUserId(interaction);
+			if (!discordUserId) {
+				return jsonResponse(
+					interactionMessageResponse(
+						{
+							content:
+								"Could not determine which Discord user clicked this action.",
+						},
+						{ ephemeral: true },
+					),
+				);
+			}
+
+			const result = await ctx.runMutation(
+				internal.discord.api.executeActionToken,
+				{
+					token: customId.slice(HQ_ACTION_TOKEN_PREFIX.length),
+					discordUserId,
+				},
+			);
+			return jsonResponse(
+				interactionUpdateMessageResponse({
+					content: result.content,
+					components: result.clearMessage ? [] : interaction.message.components,
+				}),
+			);
+		}
+
 		return jsonResponse(
 			interactionUpdateMessageResponse({
 				content: `Unknown button: ${customId}`,
@@ -98,8 +128,8 @@ export async function handleDiscordInteraction(
 	);
 }
 
-function getInteractionUserId(
-	interaction: APIApplicationCommandInteraction,
+function getDiscordInteractionUserId(
+	interaction: APIApplicationCommandInteraction | APIInteraction,
 ): string | null {
 	if ("member" in interaction && interaction.member?.user?.id) {
 		return interaction.member.user.id;

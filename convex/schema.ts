@@ -185,6 +185,13 @@ export default defineSchema({
 			v.object({ type: v.literal("google-sheet"), sheetId: v.string() }),
 		),
 		wcaCompetitionId: v.optional(v.string()),
+		discordChannel: v.optional(
+			v.object({
+				guildId: v.string(),
+				channelId: v.string(),
+				channelName: v.string(),
+			}),
+		),
 		manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
 		manualSponsorId: v.optional(v.id("sponsors")),
 		currentPhaseId: v.optional(v.id("phases")),
@@ -522,6 +529,83 @@ export default defineSchema({
 		.index("by_status_scheduled_for", ["status", "scheduledFor"])
 		.index("by_notification", ["notificationId"])
 		.index("by_event", ["eventId"]),
+
+	discordUserLinks: defineTable({
+		userId: v.id("users"),
+		guildId: v.string(),
+		discordUserId: v.string(),
+		discordUsername: v.string(),
+		discordDisplayName: v.optional(v.string()),
+		discordAvatarUrl: v.optional(v.string()),
+		linkedById: v.id("users"),
+		linkedAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_user", ["userId"])
+		.index("by_discord_user", ["discordUserId"])
+		.index("by_guild_and_discord_user", ["guildId", "discordUserId"]),
+
+	discordNotificationUserSettings: defineTable({
+		userId: v.id("users"),
+		dmEnabled: v.boolean(),
+		updatedAt: v.number(),
+	}).index("by_user", ["userId"]),
+
+	discordNotificationPreferences: defineTable({
+		userId: v.id("users"),
+		type: notificationType,
+		enabled: v.boolean(),
+		updatedAt: v.number(),
+	}).index("by_user_and_type", ["userId", "type"]),
+
+	discordMessageDeliveries: defineTable({
+		notificationId: v.optional(v.id("notifications")),
+		eventId: v.optional(v.id("notificationEvents")),
+		userId: v.optional(v.id("users")),
+		type: notificationType,
+		entityType: v.union(
+			v.literal("task"),
+			v.literal("comment"),
+			v.literal("competition"),
+			v.literal("reminder"),
+		),
+		entityId: v.string(),
+		destinationKind: v.union(v.literal("dm"), v.literal("channel")),
+		discordUserId: v.optional(v.string()),
+		channelId: v.optional(v.string()),
+		messageId: v.optional(v.string()),
+		status: v.union(
+			v.literal("pending"),
+			v.literal("sent"),
+			v.literal("skipped"),
+			v.literal("failed"),
+		),
+		reason: v.optional(v.string()),
+		clearedAt: v.optional(v.number()),
+		createdAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_notification", ["notificationId"])
+		.index("by_event", ["eventId"])
+		.index("by_user_and_created_at", ["userId", "createdAt"])
+		.index("by_status_and_created_at", ["status", "createdAt"]),
+
+	discordActionTokens: defineTable({
+		token: v.string(),
+		actionKind: v.union(
+			v.literal("clear_delivery"),
+			v.literal("set_task_status"),
+			v.literal("approve_task"),
+			v.literal("unapprove_task"),
+		),
+		userId: v.optional(v.id("users")),
+		deliveryId: v.optional(v.id("discordMessageDeliveries")),
+		taskId: v.optional(v.id("tasks")),
+		status: v.optional(taskStatus),
+		expiresAt: v.number(),
+		consumedAt: v.optional(v.number()),
+		createdAt: v.number(),
+	}).index("by_token", ["token"]),
 
 	reminders: defineTable({
 		userId: v.id("users"),

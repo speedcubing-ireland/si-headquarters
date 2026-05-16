@@ -1,6 +1,5 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "../_generated/dataModel";
 import { api, internal } from "../_generated/api";
 import { emitNotificationEvent } from "./api";
 import schema from "../schema";
@@ -346,7 +345,7 @@ describe("notifications behavior", () => {
 		expect(emailDispatches[0]?.recipientEmail).toBe("stage-user@example.com");
 	}, 45_000);
 
-	test("immediate stage rows use unique group keys outside quiet hours", async () => {
+	test("linked recipients queue one Discord DM delivery per event", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -369,6 +368,15 @@ describe("notifications behavior", () => {
 				competitionId,
 				userId: recipientId,
 			});
+			await ctx.db.insert("discordUserLinks", {
+				userId: recipientId,
+				guildId: "guild-1",
+				discordUserId: "discord-user-1",
+				discordUsername: "recipient-user",
+				linkedById: actorId,
+				linkedAt: Date.now(),
+				updatedAt: Date.now(),
+			});
 			const taskId = await ctx.db.insert("tasks", {
 				identifier: "HQ-610",
 				title: "Immediate scheduling task",
@@ -383,16 +391,6 @@ describe("notifications behavior", () => {
 			});
 			return { actorId, recipientId, taskId };
 		});
-		const recipientAuthed = t.withIdentity({ subject: seeded.recipientId });
-		await recipientAuthed.mutation(
-			api.notifications.settings.upsertPreference,
-			{
-				type: "task_assigned",
-				channel: "email",
-				enabled: true,
-				digestMode: "immediate",
-			},
-		);
 
 		await t.run((ctx) =>
 			emitNotificationEvent(ctx, {
@@ -413,24 +411,34 @@ describe("notifications behavior", () => {
 			}),
 		);
 
-		const stageRows = await t.run((ctx) =>
-			ctx.db.query("notificationEmailStageItems").collect(),
-		);
-		const recipientRows = stageRows.filter(
-			(row) =>
-				row.userId === seeded.recipientId && row.digestMode === "immediate",
-		);
-		const digestWindowKeys = recipientRows.map((row) => row.digestWindowKey);
-		const uniqueDigestWindowKeys = new Set(digestWindowKeys);
+		const result = await t.run(async (ctx) => {
+			const deliveries = await ctx.db
+				.query("discordMessageDeliveries")
+				.collect();
+			const emailStageRows = await ctx.db
+				.query("notificationEmailStageItems")
+				.collect();
+			return {
+				recipientRows: deliveries.filter(
+					(row) =>
+						row.userId === seeded.recipientId &&
+						row.destinationKind === "dm" &&
+						row.type === "task_assigned",
+				),
+				emailStageRows,
+			};
+		});
 
-		expect(recipientRows).toHaveLength(2);
-		expect(digestWindowKeys.every((key) => typeof key === "string")).toBe(true);
-		expect(uniqueDigestWindowKeys.size).toBe(2);
+		expect(result.recipientRows).toHaveLength(2);
 		expect(
-			digestWindowKeys.every(
-				(key) => typeof key === "string" && !key.startsWith("quiet:"),
+			result.recipientRows.every(
+				(row) =>
+					row.status === "pending" &&
+					row.discordUserId === "discord-user-1" &&
+					row.notificationId !== undefined,
 			),
 		).toBe(true);
+		expect(result.emailStageRows).toHaveLength(0);
 	});
 
 	test("_composeNotificationEmailStageGroup reschedules remaining pending rows", async () => {
@@ -558,7 +566,7 @@ describe("notifications behavior", () => {
 		expect(result.queuedDispatches[0]?.templateKey).toBe("notification_digest");
 	});
 
-	test("daily digest stage rows in same group reuse one scheduled function", async () => {
+	test("linked competitions queue one Discord channel delivery per event", async () => {
 		const t = convexTest(schema, modules);
 		const seeded = await t.run(async (ctx) => {
 			const actorId = await ctx.db.insert("users", {});
@@ -571,6 +579,11 @@ describe("notifications behavior", () => {
 				compStart: "2026-12-01",
 				compEnd: "2026-12-02",
 				organiserIds: [actorId, recipientId],
+				discordChannel: {
+					guildId: "guild-1",
+					channelId: "channel-1",
+					channelName: "ops-updates",
+				},
 				updatedAt: Date.now(),
 			});
 			await ctx.db.insert("competitionAccess", {
@@ -596,17 +609,6 @@ describe("notifications behavior", () => {
 			return { actorId, recipientId, taskId };
 		});
 
-		const recipientAuthed = t.withIdentity({ subject: seeded.recipientId });
-		await recipientAuthed.mutation(
-			api.notifications.settings.upsertPreference,
-			{
-				type: "task_assigned",
-				channel: "email",
-				enabled: true,
-				digestMode: "daily",
-			},
-		);
-
 		await t.run((ctx) =>
 			emitNotificationEvent(ctx, {
 				type: "task_assigned",
@@ -627,38 +629,33 @@ describe("notifications behavior", () => {
 		);
 
 		const result = await t.run(async (ctx) => {
-			const stageRows = await ctx.db
-				.query("notificationEmailStageItems")
-				.withIndex("by_status_scheduled_for", (q) => q.eq("status", "pending"))
+			const deliveries = await ctx.db
+				.query("discordMessageDeliveries")
 				.collect();
-			const recipientRows = stageRows.filter(
-				(row) =>
-					row.userId === seeded.recipientId && row.digestMode === "daily",
-			);
-			const scheduledFunctionIds = [
-				...new Set(
-					recipientRows
-						.map((row) => row.scheduledFunctionId)
-						.filter((id): id is Id<"_scheduled_functions"> => id !== undefined),
-				),
-			];
-			const scheduledDoc =
-				scheduledFunctionIds.length > 0
-					? await ctx.db.system.get(
-							"_scheduled_functions",
-							scheduledFunctionIds[0],
-						)
-					: null;
+			const emailStageRows = await ctx.db
+				.query("notificationEmailStageItems")
+				.collect();
 			return {
-				rowCount: recipientRows.length,
-				scheduledFunctionIds,
-				hasScheduledDoc: scheduledDoc !== null,
+				channelRows: deliveries.filter(
+					(row) =>
+						row.destinationKind === "channel" &&
+						row.channelId === "channel-1" &&
+						row.type === "task_assigned",
+				),
+				emailStageRows,
 			};
 		});
 
-		expect(result.rowCount).toBe(2);
-		expect(result.scheduledFunctionIds).toHaveLength(1);
-		expect(result.hasScheduledDoc).toBe(true);
+		expect(result.channelRows).toHaveLength(2);
+		expect(
+			result.channelRows.every(
+				(row) =>
+					row.status === "pending" &&
+					row.userId === undefined &&
+					row.notificationId === undefined,
+			),
+		).toBe(true);
+		expect(result.emailStageRows).toHaveLength(0);
 	});
 
 	test("_recoverPendingNotificationEmailStages groups due rows and schedules compose jobs", async () => {

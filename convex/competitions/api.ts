@@ -43,6 +43,12 @@ const compSheetObject = v.object({
 	sheetId: v.string(),
 });
 
+const discordChannelObject = v.object({
+	guildId: v.string(),
+	channelId: v.string(),
+	channelName: v.string(),
+});
+
 const competitionDoc = v.object({
 	_id: v.id("competitions"),
 	_creationTime: v.number(),
@@ -56,6 +62,7 @@ const competitionDoc = v.object({
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(compSheetObject),
 	wcaCompetitionId: v.optional(v.string()),
+	discordChannel: v.optional(discordChannelObject),
 	manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
 	manualSponsorId: v.optional(v.id("sponsors")),
 	updatedAt: v.number(),
@@ -312,6 +319,7 @@ export const competitionForUIReturns = v.object({
 	progressUpdates: v.array(progressUpdateForUIReturns),
 	compSheet: v.union(compSheetObject, v.null()),
 	wcaCompetitionId: v.union(v.string(), v.null()),
+	discordChannel: v.union(discordChannelObject, v.null()),
 	wcaUrl: v.union(v.string(), v.null()),
 	sponsorPropertyStatus: competitionSponsorPropertyStatus,
 	sponsorPropertyDisplay: v.optional(v.string()),
@@ -489,6 +497,7 @@ function buildCompetitionUI(
 		progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 		compSheet: d.compSheet ?? null,
 		wcaCompetitionId: d.wcaCompetitionId ?? null,
+		discordChannel: d.discordChannel ?? null,
 		wcaUrl: d.wcaCompetitionId ? wcaCompetitionUrl(d.wcaCompetitionId) : null,
 		sponsorPropertyStatus: sponsorProperty.sponsorPropertyStatus,
 		sponsorPropertyDisplay: sponsorProperty.sponsorPropertyDisplay,
@@ -653,6 +662,7 @@ const createArgs = {
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(compSheetObject),
 	wcaCompetitionId: v.optional(v.string()),
+	discordChannel: v.optional(discordChannelObject),
 };
 
 export const create = mutation({
@@ -690,6 +700,7 @@ export const create = mutation({
 			currentPhaseId: args.currentPhaseId ?? defaultPhaseId,
 			compSheet: args.compSheet,
 			wcaCompetitionId: args.wcaCompetitionId,
+			discordChannel: args.discordChannel,
 			updatedAt: now,
 		});
 		await syncCompetitionAccessRows(
@@ -716,6 +727,7 @@ const competitionUpdateValidator = v.object({
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(v.union(compSheetObject, v.null())),
 	wcaCompetitionId: v.optional(v.union(v.string(), v.null())),
+	discordChannel: v.optional(v.union(discordChannelObject, v.null())),
 	manualSponsorPropertyStatus: v.optional(
 		v.union(competitionSponsorPropertyStatus, v.null()),
 	),
@@ -733,6 +745,7 @@ type CompetitionUpdates = {
 	currentPhaseId?: Id<"phases">;
 	compSheet?: Doc<"competitions">["compSheet"] | null;
 	wcaCompetitionId?: string | null;
+	discordChannel?: Doc<"competitions">["discordChannel"] | null;
 	manualSponsorPropertyStatus?:
 		| CompetitionSponsorProperty["sponsorPropertyStatus"]
 		| null;
@@ -766,6 +779,8 @@ function buildCompetitionPatch(updates: CompetitionUpdates): CompetitionPatch {
 		patch.compSheet = updates.compSheet ?? undefined;
 	if (updates.wcaCompetitionId !== undefined)
 		patch.wcaCompetitionId = updates.wcaCompetitionId ?? undefined;
+	if (updates.discordChannel !== undefined)
+		patch.discordChannel = updates.discordChannel ?? undefined;
 	if (updates.manualSponsorPropertyStatus !== undefined) {
 		patch.manualSponsorPropertyStatus =
 			updates.manualSponsorPropertyStatus ?? undefined;

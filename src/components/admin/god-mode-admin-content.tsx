@@ -12,6 +12,7 @@ import { LinkedActionsSection } from "@/components/admin/linked-actions-section"
 import { MembersAndTeamsSection } from "@/components/admin/members-and-teams-section";
 import { IncognitoLoginLinksSection } from "@/components/admin/incognito-login-links-section";
 import { PhasesSection } from "@/components/admin/phases-section";
+import { DiscordAdminSection } from "@/components/admin/discord-admin-section";
 import { AppPageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type GodModeTab = "users" | "services" | "data" | "linked-actions" | "email";
+type GodModeTab = "users" | "services" | "data" | "linked-actions" | "discord";
 type ServiceType = "google" | "wca" | "canva";
 type DispatchHealth = FunctionReturnType<
 	typeof api.notifications.admin.getDispatchHealth
@@ -51,14 +52,14 @@ export function GodModeAdminContent({
 			/>
 			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 pt-0 lg:p-6 lg:pt-0">
 				<Tabs defaultValue={defaultTab} className="flex flex-1 flex-col gap-4">
-					<TabsList className="grid h-auto grid-cols-2 sm:grid-cols-5">
+					<TabsList className="grid h-auto grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
 						<TabsTrigger value="users">Users</TabsTrigger>
 						<TabsTrigger value="services">Services</TabsTrigger>
 						<TabsTrigger value="data">Data</TabsTrigger>
 						<TabsTrigger value="linked-actions">
 							Linked Integrations
 						</TabsTrigger>
-						<TabsTrigger value="email">Email</TabsTrigger>
+						<TabsTrigger value="discord">Discord</TabsTrigger>
 					</TabsList>
 					<TabsContent value="users" className="mt-0 space-y-4">
 						<MembersAndTeamsSection />
@@ -98,8 +99,8 @@ export function GodModeAdminContent({
 					<TabsContent value="linked-actions" className="mt-0">
 						<LinkedActionsSection />
 					</TabsContent>
-					<TabsContent value="email" className="mt-0">
-						<EmailAdminPanel />
+					<TabsContent value="discord" className="mt-0">
+						<DiscordAdminSection />
 					</TabsContent>
 				</Tabs>
 			</div>
@@ -497,3 +498,5 @@ function EmailAdminPanel() {
 		</div>
 	);
 }
+
+void EmailAdminPanel;

@@ -1,9 +1,10 @@
 import { v, ConvexError, type Infer } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import { internalMutation, mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 import { requireUserId, isVolunteer } from "../core/auth";
 import { isDirectorForCtx } from "../core/admin";
+import { hasPermission, PERMISSION_KEYS } from "../lib/permissions/policies";
 import {
 	collectAllTaskIdsRecursively,
 	deleteTasksAndRelatedData,
@@ -911,6 +912,66 @@ export const update = mutation({
 	},
 });
 
+async function updateTaskAsUser(
+	ctx: MutationCtx,
+	args: {
+		taskId: Id<"tasks">;
+		updates: TaskUpdate;
+		userId: Id<"users">;
+	},
+): Promise<void> {
+	const doc = await ctx.db.get("tasks", args.taskId);
+	if (!doc) {
+		throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
+	}
+
+	const volunteer = await hasPermission(
+		ctx,
+		PERMISSION_KEYS.VOLUNTEER,
+		args.userId,
+	);
+	await requireTaskAccess(ctx, volunteer, args.userId, doc);
+	await ensureTaskMoveAccess(
+		ctx,
+		volunteer,
+		args.userId,
+		args.updates.parentCompetitionId,
+	);
+
+	const patch = await buildPreparedTaskPatch(
+		ctx,
+		doc,
+		args.updates,
+		Date.now(),
+	);
+
+	await ctx.db.patch("tasks", args.taskId, patch);
+	await runTaskUpdateSideEffects(ctx, {
+		taskId: args.taskId,
+		userId: args.userId,
+		doc,
+		updates: args.updates,
+		patch,
+	});
+}
+
+export const discordSetStatus = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+		status: taskStatus,
+		actorUserId: v.id("users"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await updateTaskAsUser(ctx, {
+			taskId: args.taskId,
+			updates: { status: args.status },
+			userId: args.actorUserId,
+		});
+		return null;
+	},
+});
+
 export const bulkUpdate = mutation({
 	args: {
 		taskIds: v.array(v.id("tasks")),
@@ -1310,6 +1371,92 @@ export const approveTask = mutation({
 	},
 });
 
+async function approveTaskAsUser(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	userId: Id<"users">,
+): Promise<void> {
+	const volunteer = await hasPermission(ctx, PERMISSION_KEYS.VOLUNTEER, userId);
+	const task = await ctx.db.get("tasks", taskId);
+	if (!task) {
+		throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
+	}
+
+	if (volunteer) {
+		await requireTaskApprovalPermission(ctx, volunteer, userId, task);
+	} else {
+		const isDirector = await hasPermission(
+			ctx,
+			PERMISSION_KEYS.DIRECTOR,
+			userId,
+		);
+		if (!isDirector) {
+			await requireTaskAccess(ctx, volunteer, userId, task);
+		}
+	}
+
+	const currentApprovedIds = task.approvedByIds ?? [];
+	if (currentApprovedIds.includes(userId)) {
+		return;
+	}
+
+	const newApprovedIds: Id<"users">[] = [...currentApprovedIds, userId];
+	const now = Date.now();
+
+	const { isFullyApproved } = await computeApprovalCompleteness(
+		ctx,
+		task.requiredApprovalIds ?? [],
+		newApprovedIds,
+	);
+
+	const patch: {
+		approvedByIds: Id<"users">[];
+		updatedAt: number;
+		status?: "done";
+	} = {
+		approvedByIds: newApprovedIds,
+		updatedAt: now,
+	};
+
+	if (isFullyApproved && task.status === "awaiting-review") {
+		patch.status = "done";
+	}
+
+	await ctx.db.patch("tasks", taskId, patch);
+
+	if (patch.status === "done") {
+		await sendTaskStatusChangeNotifications(
+			ctx,
+			taskId,
+			task,
+			task.status,
+			"done",
+			userId,
+		);
+		const relationEffects = await computeBlockingStatusTransitionEffects(
+			ctx,
+			taskId,
+			task.status,
+			"done",
+		);
+		await emitTaskRelationTransitionNotifications(ctx, relationEffects, userId);
+	}
+
+	await sendTaskApprovalNotifications(ctx, taskId, task, userId);
+}
+
+export const discordApproveTask = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+		actorUserId: v.id("users"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await approveTaskAsUser(ctx, args.taskId, args.actorUserId);
+		return null;
+	},
+});
+
 export const unapproveTask = mutation({
 	args: {
 		taskId: v.id("tasks"),
@@ -1333,6 +1480,52 @@ export const unapproveTask = mutation({
 			updatedAt: Date.now(),
 		});
 		await sendTaskUnapprovalNotifications(ctx, args.taskId, task, userId);
+		return null;
+	},
+});
+
+async function unapproveTaskAsUser(
+	ctx: MutationCtx,
+	taskId: Id<"tasks">,
+	userId: Id<"users">,
+): Promise<void> {
+	const volunteer = await hasPermission(ctx, PERMISSION_KEYS.VOLUNTEER, userId);
+	const task = await ctx.db.get("tasks", taskId);
+	if (!task) {
+		throw new ConvexError({ code: "NOT_FOUND", message: "Task not found" });
+	}
+
+	if (volunteer) {
+		await requireTaskApprovalPermission(ctx, volunteer, userId, task);
+	} else {
+		const isDirector = await hasPermission(
+			ctx,
+			PERMISSION_KEYS.DIRECTOR,
+			userId,
+		);
+		if (!isDirector) {
+			await requireTaskAccess(ctx, volunteer, userId, task);
+		}
+	}
+
+	const currentApprovedIds = task.approvedByIds ?? [];
+	const filteredIds = currentApprovedIds.filter((id) => id !== userId);
+
+	await ctx.db.patch("tasks", taskId, {
+		approvedByIds: filteredIds,
+		updatedAt: Date.now(),
+	});
+	await sendTaskUnapprovalNotifications(ctx, taskId, task, userId);
+}
+
+export const discordUnapproveTask = internalMutation({
+	args: {
+		taskId: v.id("tasks"),
+		actorUserId: v.id("users"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await unapproveTaskAsUser(ctx, args.taskId, args.actorUserId);
 		return null;
 	},
 });

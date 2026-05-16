@@ -24,6 +24,13 @@ export {
 } from "./convex/use-comments";
 
 export {
+	useDiscordActions,
+	useDiscordAdminLinks,
+	useDiscordMutations,
+	useDiscordSettings,
+} from "./convex/use-discord";
+
+export {
 	useNotifications,
 	useNotificationSettings,
 	useNotificationSubscriptions,

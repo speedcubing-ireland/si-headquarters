@@ -19,6 +19,7 @@ export type DiscordInteractionRequest = {
 };
 
 export const HQ_COMPETITIONS_COUNT_BUTTON_ID = "hq:competitions:count";
+export const HQ_ACTION_TOKEN_PREFIX = "hqa:";
 
 type DiscordMessageData = APIInteractionResponseCallbackData &
 	RESTPostAPIChannelMessageJSONBody;

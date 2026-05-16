@@ -1,5 +1,6 @@
 import type {
 	APIChannel,
+	APIGuildMember,
 	APIMessage,
 	RESTPostAPIChannelMessageJSONBody,
 } from "discord-api-types/v10";
@@ -17,6 +18,13 @@ export async function listGuildChannels(
 	guildId: string,
 ): Promise<APIChannel[]> {
 	return (await rest.get(Routes.guildChannels(guildId))) as APIChannel[];
+}
+
+export async function listGuildMembers(
+	rest: REST,
+	guildId: string,
+): Promise<APIGuildMember[]> {
+	return (await rest.get(Routes.guildMembers(guildId))) as APIGuildMember[];
 }
 
 export async function createDmChannel(

@@ -25,6 +25,7 @@ import type * as core_users from "../core/users.js";
 import type * as core_views from "../core/views.js";
 import type * as crons from "../crons.js";
 import type * as discord_actions from "../discord/actions.js";
+import type * as discord_api from "../discord/api.js";
 import type * as discord_client from "../discord/client.js";
 import type * as discord_commands from "../discord/commands.js";
 import type * as discord_config from "../discord/config.js";
@@ -207,6 +208,7 @@ declare const fullApi: ApiFromModules<{
   "core/views": typeof core_views;
   crons: typeof crons;
   "discord/actions": typeof discord_actions;
+  "discord/api": typeof discord_api;
   "discord/client": typeof discord_client;
   "discord/commands": typeof discord_commands;
   "discord/config": typeof discord_config;

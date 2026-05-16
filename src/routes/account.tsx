@@ -15,11 +15,17 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getInitials } from "@/lib/format-utils";
+import { getNotificationTypeLabel } from "@/lib/notification-utils";
+import {
+	useDiscordMutations,
+	useDiscordSettings,
+} from "@/hooks/use-convex-data";
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
 export const Route = createFileRoute("/account")({
@@ -52,6 +58,14 @@ function RouteComponent() {
 	const rerollCurrentUserAvatar = useMutation(
 		api.core.users.rerollCurrentUserAvatar,
 	);
+	const {
+		link,
+		dmEnabled,
+		preferences,
+		isLoading: isDiscordLoading,
+	} = useDiscordSettings();
+	const { setCurrentUserDmEnabled, setCurrentUserTypePreference } =
+		useDiscordMutations();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [nameInput, setNameInput] = useState("");
 	const [isSavingName, setIsSavingName] = useState(false);
@@ -253,6 +267,106 @@ function RouteComponent() {
 									)}
 								</Button>
 							</form>
+						</CardContent>
+					</Card>
+					<Card className="mt-6">
+						<CardHeader>
+							<CardTitle>Discord notifications</CardTitle>
+							<CardDescription>
+								Manage how Headquarters reaches you in Discord DMs.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-6">
+							<div className="rounded-lg border border-border/70 p-4">
+								<div className="flex flex-wrap items-start justify-between gap-3">
+									<div>
+										<p className="font-medium text-sm">Linked account</p>
+										<p className="mt-1 text-sm text-muted-foreground">
+											{isDiscordLoading
+												? "Loading Discord link..."
+												: link
+													? `Connected to ${link.discordDisplayName ?? link.discordUsername}`
+													: "A director needs to link your Headquarters account to a Discord guild member before DMs can be sent."}
+										</p>
+									</div>
+									{link ? (
+										<div className="text-right text-xs text-muted-foreground">
+											<p>{link.discordUsername}</p>
+											<p>{link.guildId}</p>
+										</div>
+									) : null}
+								</div>
+							</div>
+
+							<div className="rounded-lg border border-border/70 p-4">
+								<div className="flex items-start justify-between gap-3">
+									<div>
+										<Label
+											htmlFor="discord-dm-enabled"
+											className="text-sm font-medium"
+										>
+											Enable Discord DMs
+										</Label>
+										<p className="mt-1 text-sm text-muted-foreground">
+											Turn all direct message notifications on or off.
+										</p>
+									</div>
+									<Checkbox
+										id="discord-dm-enabled"
+										checked={dmEnabled}
+										onCheckedChange={(checked) =>
+											void setCurrentUserDmEnabled(checked === true).catch(
+												(error) =>
+													toast.error(
+														toErrorMessage(
+															error,
+															"Failed to update Discord DM setting.",
+														),
+													),
+											)
+										}
+									/>
+								</div>
+							</div>
+
+							<div className="space-y-3">
+								<div>
+									<p className="font-medium text-sm">Notification types</p>
+									<p className="text-sm text-muted-foreground">
+										Choose which Headquarters events can send you a DM.
+									</p>
+								</div>
+								<div className="grid gap-2 sm:grid-cols-2">
+									{preferences.map(
+										(preference: (typeof preferences)[number]) => (
+											<div
+												key={preference.type}
+												className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2"
+											>
+												<span className="text-sm">
+													{getNotificationTypeLabel(preference.type)}
+												</span>
+												<Checkbox
+													checked={preference.enabled}
+													onCheckedChange={(checked) =>
+														void setCurrentUserTypePreference(
+															preference.type,
+															checked === true,
+														).catch((error) =>
+															toast.error(
+																toErrorMessage(
+																	error,
+																	"Failed to update Discord notification preference.",
+																),
+															),
+														)
+													}
+												/>
+											</div>
+										),
+									)}
+								</div>
+							</div>
 						</CardContent>
 					</Card>
 				</div>

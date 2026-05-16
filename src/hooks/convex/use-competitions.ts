@@ -16,7 +16,9 @@ type NewCompetitionInput = Pick<
 	| "organisers"
 	| "compSheet"
 	| "wcaCompetitionId"
->;
+> & {
+	discordChannel?: Competition["discordChannel"] | null;
+};
 
 export const useCompetitions = () => {
 	const result = useQuery(api.competitions.api.listForUI);
@@ -53,6 +55,7 @@ export function useCompetitionMutations() {
 				),
 				compSheet: payload.compSheet ?? undefined,
 				wcaCompetitionId: payload.wcaCompetitionId ?? undefined,
+				discordChannel: payload.discordChannel ?? undefined,
 			});
 			return { id };
 		},
@@ -71,6 +74,7 @@ export function useCompetitionMutations() {
 					| "organisers"
 					| "compSheet"
 					| "wcaCompetitionId"
+					| "discordChannel"
 				>
 			> & {
 				currentPhaseId?: Id<"phases"> | null;
@@ -112,6 +116,10 @@ export function useCompetitionMutations() {
 					wcaCompetitionId:
 						updates.wcaCompetitionId !== undefined
 							? (updates.wcaCompetitionId ?? null)
+							: undefined,
+					discordChannel:
+						updates.discordChannel !== undefined
+							? (updates.discordChannel ?? null)
 							: undefined,
 					manualSponsorPropertyStatus:
 						updates.sponsorPropertyStatusOverride !== undefined
