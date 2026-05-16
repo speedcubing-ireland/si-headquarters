@@ -20,7 +20,8 @@ import {
 	Trash2,
 	Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { CompetitionLatestUpdate } from "@/components/competitions/competition-latest-update";
@@ -214,7 +215,16 @@ function RouteComponent() {
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [isEditingDescription, setIsEditingDescription] = useState(false);
 	const [descriptionDraft, setDescriptionDraft] = useState("");
-	const [dateOpen, setDateOpen] = useState(false);
+	const [dateRange, setDateRange] = useState<DateRange | undefined>(
+		competition
+			? {
+					from: new Date(competition.compStart),
+					to: new Date(competition.compEnd),
+				}
+			: undefined,
+	);
+	const dateRangeRef = useRef(dateRange);
+	dateRangeRef.current = dateRange;
 	const [sheetInput, setSheetInput] = useState("");
 	const [sheetPopoverOpen, setSheetPopoverOpen] = useState(false);
 	const [wcaSearchQuery, setWcaSearchQuery] = useState("");
@@ -348,10 +358,12 @@ function RouteComponent() {
 	const handleSetDateRange = useCallback(
 		(range: { from?: Date; to?: Date }) => {
 			if (!competition) return;
+			const from = range.from?.toISOString().split("T")[0];
+			const to = range.to?.toISOString().split("T")[0];
+			if (!from && !to) return;
 			void updateCompetition(competition.id, {
-				compStart:
-					range.from?.toISOString().split("T")[0] || competition.compStart,
-				compEnd: range.to?.toISOString().split("T")[0] || competition.compEnd,
+				compStart: from ?? competition.compStart,
+				compEnd: to ?? competition.compEnd,
 			}).catch(onMutationError);
 		},
 		[competition, updateCompetition],
@@ -477,34 +489,61 @@ function RouteComponent() {
 										displayClassName="text-left text-xl font-semibold tracking-tight text-balance hover:bg-muted/60 -mx-1 rounded px-1 sm:text-2xl"
 									/>
 									<div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm text-muted-foreground">
-										<DropdownMenu open={dateOpen} onOpenChange={setDateOpen}>
-											<DropdownMenuTrigger asChild>
-												<button
-													type="button"
-													className="inline-flex items-center gap-1 rounded px-1 hover:bg-muted/60"
-												>
-													<CalendarDays className="size-3" />
-													<span>{formatDateShort(competition.compStart)}</span>
-													<span>–</span>
-													<span>{formatDateShort(competition.compEnd)}</span>
-												</button>
-											</DropdownMenuTrigger>
-											<DropdownMenuContent className="w-auto p-0" align="start">
-												<Calendar
-													mode="range"
-													selected={{
+										<Popover
+											onOpenChange={(open) => {
+												if (open && competition) {
+													setDateRange({
 														from: new Date(competition.compStart),
 														to: new Date(competition.compEnd),
-													}}
+													});
+												} else if (!open) {
+													const range = dateRangeRef.current;
+													if (range?.from && range?.to) {
+														handleSetDateRange(range);
+													}
+												}
+											}}
+										>
+											<PopoverTrigger asChild>
+												<Button
+													variant="outline"
+													size="sm"
+													className="justify-start gap-1.5 px-2.5 font-normal"
+												>
+													<CalendarDays className="size-3" />
+													{dateRange?.from ? (
+														dateRange.to ? (
+															<>
+																{formatDateShort(dateRange.from)} –{" "}
+																{formatDateShort(dateRange.to)}
+															</>
+														) : (
+															formatDateShort(dateRange.from)
+														)
+													) : (
+														<span>Pick a date</span>
+													)}
+												</Button>
+											</PopoverTrigger>
+											<PopoverContent className="w-auto p-0" align="start">
+												<Calendar
+													mode="range"
+													defaultMonth={dateRange?.from}
+													selected={dateRange}
 													onSelect={(range) => {
-														if (range?.from || range?.to)
-															handleSetDateRange(range);
-														setDateOpen(false);
+														if (range?.to && !range.from) {
+															setDateRange({
+																from: range.to,
+																to: undefined,
+															});
+														} else {
+															setDateRange(range);
+														}
 													}}
-													numberOfMonths={1}
+													numberOfMonths={2}
 												/>
-											</DropdownMenuContent>
-										</DropdownMenu>
+											</PopoverContent>
+										</Popover>
 										{currentPhase && (
 											<>
 												<span className="text-muted-foreground/50">·</span>
