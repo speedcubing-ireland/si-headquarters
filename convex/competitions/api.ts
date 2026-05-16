@@ -41,7 +41,6 @@ import { wcaCompetitionUrl } from "../integrations/wca";
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
 	sheetId: v.string(),
-	title: v.optional(v.string()),
 });
 
 const competitionDoc = v.object({
@@ -57,7 +56,6 @@ const competitionDoc = v.object({
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(compSheetObject),
 	wcaCompetitionId: v.optional(v.string()),
-	wcaCompetitionName: v.optional(v.string()),
 	manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
 	manualSponsorId: v.optional(v.id("sponsors")),
 	updatedAt: v.number(),
@@ -314,7 +312,6 @@ export const competitionForUIReturns = v.object({
 	progressUpdates: v.array(progressUpdateForUIReturns),
 	compSheet: v.union(compSheetObject, v.null()),
 	wcaCompetitionId: v.union(v.string(), v.null()),
-	wcaCompetitionName: v.union(v.string(), v.null()),
 	wcaUrl: v.union(v.string(), v.null()),
 	sponsorPropertyStatus: competitionSponsorPropertyStatus,
 	sponsorPropertyDisplay: v.optional(v.string()),
@@ -492,7 +489,6 @@ function buildCompetitionUI(
 		progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 		compSheet: d.compSheet ?? null,
 		wcaCompetitionId: d.wcaCompetitionId ?? null,
-		wcaCompetitionName: d.wcaCompetitionName ?? null,
 		wcaUrl: d.wcaCompetitionId ? wcaCompetitionUrl(d.wcaCompetitionId) : null,
 		sponsorPropertyStatus: sponsorProperty.sponsorPropertyStatus,
 		sponsorPropertyDisplay: sponsorProperty.sponsorPropertyDisplay,
@@ -657,7 +653,6 @@ const createArgs = {
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(compSheetObject),
 	wcaCompetitionId: v.optional(v.string()),
-	wcaCompetitionName: v.optional(v.string()),
 };
 
 export const create = mutation({
@@ -695,7 +690,6 @@ export const create = mutation({
 			currentPhaseId: args.currentPhaseId ?? defaultPhaseId,
 			compSheet: args.compSheet,
 			wcaCompetitionId: args.wcaCompetitionId,
-			wcaCompetitionName: args.wcaCompetitionName,
 			updatedAt: now,
 		});
 		await syncCompetitionAccessRows(
@@ -722,7 +716,6 @@ const competitionUpdateValidator = v.object({
 	currentPhaseId: v.optional(v.id("phases")),
 	compSheet: v.optional(v.union(compSheetObject, v.null())),
 	wcaCompetitionId: v.optional(v.union(v.string(), v.null())),
-	wcaCompetitionName: v.optional(v.union(v.string(), v.null())),
 	manualSponsorPropertyStatus: v.optional(
 		v.union(competitionSponsorPropertyStatus, v.null()),
 	),
@@ -740,7 +733,6 @@ type CompetitionUpdates = {
 	currentPhaseId?: Id<"phases">;
 	compSheet?: Doc<"competitions">["compSheet"] | null;
 	wcaCompetitionId?: string | null;
-	wcaCompetitionName?: string | null;
 	manualSponsorPropertyStatus?:
 		| CompetitionSponsorProperty["sponsorPropertyStatus"]
 		| null;
@@ -774,8 +766,6 @@ function buildCompetitionPatch(updates: CompetitionUpdates): CompetitionPatch {
 		patch.compSheet = updates.compSheet ?? undefined;
 	if (updates.wcaCompetitionId !== undefined)
 		patch.wcaCompetitionId = updates.wcaCompetitionId ?? undefined;
-	if (updates.wcaCompetitionName !== undefined)
-		patch.wcaCompetitionName = updates.wcaCompetitionName ?? undefined;
 	if (updates.manualSponsorPropertyStatus !== undefined) {
 		patch.manualSponsorPropertyStatus =
 			updates.manualSponsorPropertyStatus ?? undefined;

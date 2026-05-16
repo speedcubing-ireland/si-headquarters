@@ -137,12 +137,8 @@ function EditableUserCell({
 
 export function EditablePhaseCell({
 	competition,
-	buttonClassName,
-	badgeClassName,
 }: {
 	competition: Competition;
-	buttonClassName?: string;
-	badgeClassName?: string;
 }) {
 	const { updateCompetition } = useCompetitionMutations();
 	const [open, setOpen] = React.useState(false);
@@ -173,14 +169,9 @@ export function EditablePhaseCell({
 				<Button
 					variant="ghost"
 					size="sm"
-					className={
-						buttonClassName ?? "h-7 min-w-0 max-w-full px-2 justify-start"
-					}
+					className="h-7 min-w-0 max-w-full px-2 justify-start"
 				>
-					<Badge
-						variant={getPhaseVariant(currentKey)}
-						className={badgeClassName}
-					>
+					<Badge variant={getPhaseVariant(currentKey)}>
 						{getPhaseLabel(currentKey)}
 					</Badge>
 				</Button>
