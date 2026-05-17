@@ -93,42 +93,47 @@ function DiscordMemberCombobox({
 					<CommandList>
 						<CommandEmpty>No member found.</CommandEmpty>
 						<CommandGroup>
-							{members.map((member) => (
-								<CommandItem
-									key={member.discordUserId}
-									value={member.discordUserId}
-									onSelect={(currentValue) => {
-										onSelect(currentValue);
-										setOpen(false);
-									}}
-								>
-									<Avatar className="size-6 shrink-0">
-										<AvatarImage src={member.discordAvatarUrl} />
-										<AvatarFallback className="text-xs">
-											{(member.discordDisplayName ??
-												member.discordUsername)[0]?.toUpperCase() ?? "?"}
-										</AvatarFallback>
-									</Avatar>
-									<div className="flex flex-col">
-										<span>
-											{member.discordDisplayName ?? member.discordUsername}
-										</span>
-										{member.discordDisplayName ? (
-											<span className="text-xs text-muted-foreground">
-												@{member.discordUsername}
-											</span>
-										) : null}
-									</div>
-									<Check
-										className={cn(
-											"ml-auto size-4",
-											selectedDiscordUserId === member.discordUserId
-												? "opacity-100"
-												: "opacity-0",
-										)}
-									/>
-								</CommandItem>
-							))}
+							{members.map((member) => {
+								const label =
+									member.discordDisplayName ?? member.discordUsername;
+								const searchValue = member.discordDisplayName
+									? `${member.discordDisplayName} ${member.discordUsername}`
+									: member.discordUsername;
+								return (
+									<CommandItem
+										key={member.discordUserId}
+										value={searchValue}
+										onSelect={() => {
+											onSelect(member.discordUserId);
+											setOpen(false);
+										}}
+									>
+										<Avatar className="size-6 shrink-0">
+											<AvatarImage src={member.discordAvatarUrl} />
+											<AvatarFallback className="text-xs">
+												{(member.discordDisplayName ??
+													member.discordUsername)[0]?.toUpperCase() ?? "?"}
+											</AvatarFallback>
+										</Avatar>
+										<div className="flex flex-col">
+											<span>{label}</span>
+											{member.discordDisplayName ? (
+												<span className="text-xs text-muted-foreground">
+													@{member.discordUsername}
+												</span>
+											) : null}
+										</div>
+										<Check
+											className={cn(
+												"ml-auto size-4",
+												selectedDiscordUserId === member.discordUserId
+													? "opacity-100"
+													: "opacity-0",
+											)}
+										/>
+									</CommandItem>
+								);
+							})}
 						</CommandGroup>
 					</CommandList>
 				</Command>

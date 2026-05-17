@@ -20,6 +20,35 @@ type NewCompetitionInput = Pick<
 	discordChannel?: Competition["discordChannel"] | null;
 };
 
+type CompetitionDiscordChannelUpdate = {
+	guildId: string;
+	channelId: string;
+	channelName: string;
+	notificationTypeOverrides?: NonNullable<
+		Competition["discordChannel"]
+	>["notificationTypeOverrides"];
+};
+
+type CompetitionUpdateInput = Partial<
+	Pick<
+		Competition,
+		| "name"
+		| "description"
+		| "compStart"
+		| "compEnd"
+		| "compLead"
+		| "leadDelegate"
+		| "organisers"
+		| "compSheet"
+		| "wcaCompetitionId"
+	>
+> & {
+	discordChannel?: CompetitionDiscordChannelUpdate | null;
+	currentPhaseId?: Id<"phases"> | null;
+	sponsorPropertyStatusOverride?: Competition["sponsorPropertyStatus"] | null;
+	sponsorOverrideSponsorId?: Id<"sponsors"> | null;
+};
+
 export const useCompetitions = () => {
 	const result = useQuery(api.competitions.api.listForUI);
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
@@ -62,27 +91,7 @@ export function useCompetitionMutations() {
 
 		updateCompetition: (
 			id: Id<"competitions">,
-			updates: Partial<
-				Pick<
-					Competition,
-					| "name"
-					| "description"
-					| "compStart"
-					| "compEnd"
-					| "compLead"
-					| "leadDelegate"
-					| "organisers"
-					| "compSheet"
-					| "wcaCompetitionId"
-					| "discordChannel"
-				>
-			> & {
-				currentPhaseId?: Id<"phases"> | null;
-				sponsorPropertyStatusOverride?:
-					| Competition["sponsorPropertyStatus"]
-					| null;
-				sponsorOverrideSponsorId?: Id<"sponsors"> | null;
-			},
+			updates: CompetitionUpdateInput,
 		) =>
 			updateCompetitionAction({
 				competitionId: id,
@@ -119,7 +128,7 @@ export function useCompetitionMutations() {
 							: undefined,
 					discordChannel:
 						updates.discordChannel !== undefined
-							? (updates.discordChannel ?? null)
+							? updates.discordChannel
 							: undefined,
 					manualSponsorPropertyStatus:
 						updates.sponsorPropertyStatusOverride !== undefined
