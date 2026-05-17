@@ -37,6 +37,7 @@ import {
 } from "@/components/tasks/editable-cells";
 import { PropertyRow } from "@/components/shared/property-editors/property-row";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
+import { TitleDescriptionEditModal } from "@/components/shared/title-description-edit-modal";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,10 +55,8 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Textarea } from "@/components/ui/textarea";
 import { requireTaskId } from "@/lib/convex-ids";
 import { getTaskBreadcrumbs } from "@/lib/task-breadcrumbs";
 import { sortTasksByStatusThenPriority } from "@/lib/task-utils";
@@ -74,7 +73,6 @@ import {
 } from "@/hooks/use-convex-data";
 import { useIsDirector } from "@/hooks/convex/use-admin";
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
-import { useDebouncedForm } from "@/hooks/use-debounced-form";
 import type { Task, Team, User } from "@/data/types-new";
 import { cn, onMutationError } from "@/lib/utils";
 
@@ -352,8 +350,10 @@ function RouteComponent() {
 	const { data: currentUser } = useRetainedQueryResult(currentUserResult);
 	const { isDirector } = useIsDirector();
 
-	const [isEditingTitle, setIsEditingTitle] = useState(false);
-	const [isEditingDescription, setIsEditingDescription] = useState(false);
+	const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+	const [detailsModalFocusField, setDetailsModalFocusField] = useState<
+		"title" | "description"
+	>("title");
 	const [remindMeOpen, setRemindMeOpen] = useState(false);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -367,30 +367,6 @@ function RouteComponent() {
 		}
 		void subscribeToTask(taskId).catch(onMutationError);
 	};
-
-	const titleForm = useDebouncedForm({
-		initialValue: task?.title ?? "",
-		onChange: (newTitle) => {
-			if (newTitle.trim() && newTitle !== task?.title) {
-				void updateTask(taskId, { title: newTitle.trim() }).catch(
-					onMutationError,
-				);
-			}
-		},
-		debounceMs: 250,
-	});
-
-	const descriptionForm = useDebouncedForm({
-		initialValue: task?.description ?? "",
-		onChange: (newDescription) => {
-			if (newDescription !== task?.description) {
-				void updateTask(taskId, { description: newDescription }).catch(
-					onMutationError,
-				);
-			}
-		},
-		debounceMs: 250,
-	});
 
 	// Approval status calculation
 	const approvalStatus = useMemo(() => {
@@ -488,24 +464,30 @@ function RouteComponent() {
 		);
 	}
 
-	const handleTitleEditStart = () => {
-		titleForm.reset();
-		setIsEditingTitle(true);
+	const openDetailsModal = (focusField: "title" | "description") => {
+		setDetailsModalFocusField(focusField);
+		setDetailsModalOpen(true);
 	};
 
-	const handleTitleEditEnd = () => {
-		titleForm.commit();
-		setIsEditingTitle(false);
-	};
-
-	const handleDescriptionEditStart = () => {
-		descriptionForm.reset();
-		setIsEditingDescription(true);
-	};
-
-	const handleDescriptionEditEnd = () => {
-		descriptionForm.commit();
-		setIsEditingDescription(false);
+	const handleSaveDetails = async (values: {
+		title: string;
+		description: string;
+	}) => {
+		const updates: Partial<{
+			title: string;
+			description: string;
+		}> = {};
+		if (values.title !== task.title) {
+			updates.title = values.title;
+		}
+		if (values.description !== task.description) {
+			updates.description = values.description;
+		}
+		if (Object.keys(updates).length === 0) return;
+		await updateTask(task.id, updates).catch((error) => {
+			onMutationError(error);
+			throw error;
+		});
 	};
 
 	const handleSetReminder = (remindAt: string, message?: string) => {
@@ -570,71 +552,47 @@ function RouteComponent() {
 							<div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
 								<span className="font-mono">{task.identifier}</span>
 							</div>
-							{isEditingTitle ? (
-								<Input
-									value={titleForm.value}
-									onChange={titleForm.handleChange}
-									onBlur={handleTitleEditEnd}
-									onKeyDown={(e) => {
-										if (e.key === "Enter") handleTitleEditEnd();
-										if (e.key === "Escape") setIsEditingTitle(false);
-									}}
-									className="border-0 px-0 text-xl font-bold focus-visible:ring-0 sm:text-2xl"
-									autoFocus
-								/>
-							) : (
-								<button
-									type="button"
-									className="cursor-pointer rounded px-1 -mx-1 text-left text-xl font-bold hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-2xl text-balance"
-									onClick={handleTitleEditStart}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" || e.key === " ") {
-											e.preventDefault();
-											handleTitleEditStart();
-										}
-									}}
-								>
-									{task.title}
-								</button>
-							)}
+							<button
+								type="button"
+								className="cursor-pointer rounded px-1 -mx-1 text-left text-xl font-bold hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-2xl text-balance"
+								onClick={() => openDetailsModal("title")}
+							>
+								{task.title}
+							</button>
 						</div>
 
 						<div className="px-4 py-3 sm:px-5">
-							<div className="flex items-center justify-between gap-2 mb-2">
+							<div className="mb-2">
 								<h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
 									Description
 								</h2>
-								{!isEditingDescription && (
-									<Button
-										size="xs"
-										variant="ghost"
-										className="px-2 text-xs"
-										onClick={handleDescriptionEditStart}
-									>
-										Edit
-									</Button>
-								)}
 							</div>
-							{isEditingDescription ? (
-								<Textarea
-									value={descriptionForm.value}
-									onChange={descriptionForm.handleChange}
-									onBlur={handleDescriptionEditEnd}
-									className="min-h-[150px] resize-none"
-									placeholder="Add description..."
-									autoFocus
-								/>
-							) : task.description ? (
-								<div className="prose prose-sm max-w-none dark:prose-invert sm:prose-base">
+							{task.description ? (
+								<button
+									type="button"
+									tabIndex={0}
+									className="prose prose-sm max-w-none rounded p-2 -m-2 dark:prose-invert sm:prose-base hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+									onClick={(e) => {
+										if (!(e.target instanceof Element)) return;
+										if (e.target.closest("a")) return;
+										openDetailsModal("description");
+									}}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === " ") {
+											e.preventDefault();
+											openDetailsModal("description");
+										}
+									}}
+								>
 									<ReactMarkdown rehypePlugins={[rehypeSanitize]}>
 										{task.description}
 									</ReactMarkdown>
-								</div>
+								</button>
 							) : (
 								<button
 									type="button"
 									className="min-h-[60px] w-full cursor-pointer rounded p-2 -m-2 text-left text-sm text-muted-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-									onClick={handleDescriptionEditStart}
+									onClick={() => openDetailsModal("description")}
 								>
 									Click to add description...
 								</button>
@@ -990,6 +948,16 @@ function RouteComponent() {
 					</>
 				}
 				onConfirm={handleDeleteConfirm}
+			/>
+
+			<TitleDescriptionEditModal
+				open={detailsModalOpen}
+				onOpenChange={setDetailsModalOpen}
+				entityLabel="Task"
+				initialTitle={task.title}
+				initialDescription={task.description}
+				initialFocusField={detailsModalFocusField}
+				onSave={handleSaveDetails}
 			/>
 		</div>
 	);
