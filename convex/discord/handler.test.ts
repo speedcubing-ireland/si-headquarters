@@ -138,8 +138,10 @@ describe("handleDiscordInteraction", () => {
 				_reference: unknown,
 				_args: { token: string; discordUserId: string },
 			) => ({
+				kind: "message",
 				content: "Task moved to done.",
 				clearMessage: true,
+				isDismiss: false,
 			}),
 		);
 		const interaction = {

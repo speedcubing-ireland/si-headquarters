@@ -2,6 +2,7 @@ import type { QueryCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 import { formatCompetitionName } from "./format";
 import { decodeApprovalId } from "./approvalLogic";
+import { resolveUserAvatarUrl } from "../lib/avatarResolver";
 
 export type UserRef = { id: Id<"users">; name: string; avatarUrl: string };
 export type TeamRef = {
@@ -81,8 +82,10 @@ export async function hydrateTaskEntities(
 	const usersMap = new Map<Id<"users">, UserRef>();
 	userArr.forEach((id, i) => {
 		const u = userDocs[i];
-		if (u)
-			usersMap.set(id, { id, name: u.name ?? "", avatarUrl: u.image ?? "" });
+		if (u) {
+			const avatarUrl = resolveUserAvatarUrl(u);
+			usersMap.set(id, { id, name: u.name ?? "", avatarUrl });
+		}
 	});
 
 	const memberIds = new Set<Id<"users">>();
@@ -99,8 +102,10 @@ export async function hydrateTaskEntities(
 	const memberMap = new Map<Id<"users">, UserRef>();
 	[...memberIds].forEach((id, i) => {
 		const u = memberDocs[i];
-		if (u)
-			memberMap.set(id, { id, name: u.name ?? "", avatarUrl: u.image ?? "" });
+		if (u) {
+			const avatarUrl = resolveUserAvatarUrl(u);
+			memberMap.set(id, { id, name: u.name ?? "", avatarUrl });
+		}
 	});
 
 	function buildTeamRefMap(

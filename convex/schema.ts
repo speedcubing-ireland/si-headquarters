@@ -26,6 +26,18 @@ import { emailDispatchStatus, emailSourceKind } from "./emailQueue/types";
 
 export default defineSchema({
 	...authTables,
+	users: defineTable({
+		name: v.optional(v.string()),
+		image: v.optional(v.string()),
+		email: v.optional(v.string()),
+		emailVerificationTime: v.optional(v.number()),
+		phone: v.optional(v.string()),
+		phoneVerificationTime: v.optional(v.number()),
+		isAnonymous: v.optional(v.boolean()),
+		discordAvatarUrl: v.optional(v.string()),
+	})
+		.index("email", ["email"])
+		.index("phone", ["phone"]),
 	numbers: defineTable({
 		value: v.number(),
 	}),
@@ -181,6 +193,7 @@ export default defineSchema({
 				guildId: v.string(),
 				channelId: v.string(),
 				channelName: v.string(),
+				notificationTypeOverrides: v.optional(v.array(notificationType)),
 			}),
 		),
 		manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
@@ -448,6 +461,11 @@ export default defineSchema({
 		updatedAt: v.number(),
 	}).index("by_user_and_type", ["userId", "type"]),
 
+	discordChannelDefaults: defineTable({
+		notificationTypes: v.array(notificationType),
+		updatedAt: v.number(),
+	}),
+
 	discordActionTokens: defineTable({
 		token: v.string(),
 		actionKind: v.union(
@@ -465,6 +483,8 @@ export default defineSchema({
 		updateId: v.optional(v.id("competitionUpdates")),
 		reminderId: v.optional(v.id("reminders")),
 		status: v.optional(taskStatus),
+		messageId: v.optional(v.string()),
+		channelId: v.optional(v.string()),
 		expiresAt: v.number(),
 		consumedAt: v.optional(v.number()),
 		createdAt: v.number(),

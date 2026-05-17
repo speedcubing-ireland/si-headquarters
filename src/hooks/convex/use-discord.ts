@@ -26,6 +26,26 @@ export const useDiscordAdminLinks = () => {
 	};
 };
 
+export const useCompetitionChannels = () => {
+	const result = useQuery(api.discord.api.listCompetitionChannels, {});
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
+	return {
+		channels: data ?? [],
+		isLoading,
+		isRefreshing,
+	};
+};
+
+export const useChannelDefaults = () => {
+	const result = useQuery(api.discord.api.getChannelDefaults, {});
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
+	return {
+		defaults: data ?? null,
+		isLoading,
+		isRefreshing,
+	};
+};
+
 export function useDiscordMutations() {
 	const setCurrentUserDmEnabled = useMutation(
 		api.discord.api.setCurrentUserDmEnabled,
@@ -35,6 +55,13 @@ export function useDiscordMutations() {
 	);
 	const setUserLink = useMutation(api.discord.api.setUserLink);
 	const clearUserLink = useMutation(api.discord.api.clearUserLink);
+	const setChannelDefaults = useMutation(api.discord.api.setChannelDefaults);
+	const setCompetitionChannelOverrides = useMutation(
+		api.discord.api.setCompetitionChannelOverrides,
+	);
+	const removeCompetitionChannel = useMutation(
+		api.discord.api.removeCompetitionChannel,
+	);
 
 	return {
 		setCurrentUserDmEnabled: (dmEnabled: boolean) =>
@@ -51,6 +78,13 @@ export function useDiscordMutations() {
 			discordAvatarUrl?: string;
 		}) => setUserLink(payload),
 		clearUserLink: (userId: Id<"users">) => clearUserLink({ userId }),
+		setChannelDefaults: (payload: Parameters<typeof setChannelDefaults>[0]) =>
+			setChannelDefaults(payload),
+		setCompetitionChannelOverrides: (
+			payload: Parameters<typeof setCompetitionChannelOverrides>[0],
+		) => setCompetitionChannelOverrides(payload),
+		removeCompetitionChannel: (competitionId: Id<"competitions">) =>
+			removeCompetitionChannel({ competitionId }),
 	};
 }
 

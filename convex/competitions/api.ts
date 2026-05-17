@@ -37,6 +37,10 @@ import {
 } from "../sponsorship/lib/validators";
 import { isSponsorshipManager } from "../sponsorship/lib/access";
 import { wcaCompetitionUrl } from "../integrations/wca";
+import {
+	CHANNEL_SCOPED_NOTIFICATION_TYPES,
+	notificationType,
+} from "../notifications/lib/validators";
 
 const compSheetObject = v.object({
 	type: v.literal("google-sheet"),
@@ -47,7 +51,66 @@ const discordChannelObject = v.object({
 	guildId: v.string(),
 	channelId: v.string(),
 	channelName: v.string(),
+	notificationTypeOverrides: v.optional(v.array(notificationType)),
 });
+
+const discordChannelForUIObject = v.object({
+	guildId: v.string(),
+	channelId: v.string(),
+	channelName: v.string(),
+	usesGlobalDefaults: v.boolean(),
+	notificationTypeOverrides: v.array(notificationType),
+});
+
+type ChannelScopedNotificationType =
+	(typeof CHANNEL_SCOPED_NOTIFICATION_TYPES)[number];
+
+const channelScopedNotificationTypeSet = new Set<ChannelScopedNotificationType>(
+	CHANNEL_SCOPED_NOTIFICATION_TYPES,
+);
+
+function resolveChannelNotificationTypes(
+	notificationTypes: readonly string[] | undefined,
+): ChannelScopedNotificationType[] {
+	if (!notificationTypes) {
+		return [...CHANNEL_SCOPED_NOTIFICATION_TYPES];
+	}
+	const unique = new Set<ChannelScopedNotificationType>();
+	for (const notificationType of notificationTypes) {
+		if (
+			channelScopedNotificationTypeSet.has(
+				notificationType as ChannelScopedNotificationType,
+			)
+		) {
+			unique.add(notificationType as ChannelScopedNotificationType);
+		}
+	}
+	return [...unique];
+}
+
+function normalizeDiscordChannel(
+	channel: Doc<"competitions">["discordChannel"] | null | undefined,
+): {
+	guildId: string;
+	channelId: string;
+	channelName: string;
+	usesGlobalDefaults: boolean;
+	notificationTypeOverrides: ChannelScopedNotificationType[];
+} | null {
+	if (!channel) {
+		return null;
+	}
+	const overrides = channel.notificationTypeOverrides
+		? resolveChannelNotificationTypes(channel.notificationTypeOverrides)
+		: [];
+	return {
+		guildId: channel.guildId,
+		channelId: channel.channelId,
+		channelName: channel.channelName,
+		usesGlobalDefaults: channel.notificationTypeOverrides === undefined,
+		notificationTypeOverrides: overrides,
+	};
+}
 
 const competitionDoc = v.object({
 	_id: v.id("competitions"),
@@ -319,7 +382,7 @@ export const competitionForUIReturns = v.object({
 	progressUpdates: v.array(progressUpdateForUIReturns),
 	compSheet: v.union(compSheetObject, v.null()),
 	wcaCompetitionId: v.union(v.string(), v.null()),
-	discordChannel: v.union(discordChannelObject, v.null()),
+	discordChannel: v.union(discordChannelForUIObject, v.null()),
 	wcaUrl: v.union(v.string(), v.null()),
 	sponsorPropertyStatus: competitionSponsorPropertyStatus,
 	sponsorPropertyDisplay: v.optional(v.string()),
@@ -497,7 +560,7 @@ function buildCompetitionUI(
 		progressUpdates: buildProgressUpdatesForUI(updateDocs, usersLens),
 		compSheet: d.compSheet ?? null,
 		wcaCompetitionId: d.wcaCompetitionId ?? null,
-		discordChannel: d.discordChannel ?? null,
+		discordChannel: normalizeDiscordChannel(d.discordChannel),
 		wcaUrl: d.wcaCompetitionId ? wcaCompetitionUrl(d.wcaCompetitionId) : null,
 		sponsorPropertyStatus: sponsorProperty.sponsorPropertyStatus,
 		sponsorPropertyDisplay: sponsorProperty.sponsorPropertyDisplay,
@@ -700,7 +763,17 @@ export const create = mutation({
 			currentPhaseId: args.currentPhaseId ?? defaultPhaseId,
 			compSheet: args.compSheet,
 			wcaCompetitionId: args.wcaCompetitionId,
-			discordChannel: args.discordChannel,
+			discordChannel: args.discordChannel
+				? {
+						...args.discordChannel,
+						notificationTypeOverrides: args.discordChannel
+							.notificationTypeOverrides
+							? resolveChannelNotificationTypes(
+									args.discordChannel.notificationTypeOverrides,
+								)
+							: undefined,
+					}
+				: undefined,
 			updatedAt: now,
 		});
 		await syncCompetitionAccessRows(
@@ -779,8 +852,19 @@ function buildCompetitionPatch(updates: CompetitionUpdates): CompetitionPatch {
 		patch.compSheet = updates.compSheet ?? undefined;
 	if (updates.wcaCompetitionId !== undefined)
 		patch.wcaCompetitionId = updates.wcaCompetitionId ?? undefined;
-	if (updates.discordChannel !== undefined)
-		patch.discordChannel = updates.discordChannel ?? undefined;
+	if (updates.discordChannel !== undefined) {
+		patch.discordChannel = updates.discordChannel
+			? {
+					...updates.discordChannel,
+					notificationTypeOverrides: updates.discordChannel
+						.notificationTypeOverrides
+						? resolveChannelNotificationTypes(
+								updates.discordChannel.notificationTypeOverrides,
+							)
+						: undefined,
+				}
+			: undefined;
+	}
 	if (updates.manualSponsorPropertyStatus !== undefined) {
 		patch.manualSponsorPropertyStatus =
 			updates.manualSponsorPropertyStatus ?? undefined;
