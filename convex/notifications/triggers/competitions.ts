@@ -17,9 +17,6 @@ export async function sendCompetitionPhaseChangeNotifications(
 		args.competition,
 		args.actorId,
 	);
-	if (recipientIds.length === 0) {
-		return;
-	}
 	await emitNotificationEvent(ctx, {
 		type: "competition_phase_changed",
 		competitionId: args.competitionId,
@@ -46,9 +43,6 @@ export async function sendProgressUpdateNotifications(
 		args.competition,
 		args.actorId,
 	);
-	if (recipientIds.length === 0) {
-		return;
-	}
 	await emitNotificationEvent(ctx, {
 		type: "progress_update_added",
 		competitionId: args.competitionId,
