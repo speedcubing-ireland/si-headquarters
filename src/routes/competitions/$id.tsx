@@ -193,7 +193,7 @@ function CompetitionHeader({ competition }: { competition: Competition }) {
 				<span className="text-sm hidden sm:inline">Back to Competitions</span>
 			</Link>
 			<PageHeader.Divider className="mx-2" />
-			<h1 className="max-w-[180px] truncate text-sm font-semibold sm:max-w-[300px]">
+			<h1 className="max-w-45 truncate text-sm font-semibold sm:max-w-75">
 				{competition.name}
 			</h1>
 		</PageHeader.Root>

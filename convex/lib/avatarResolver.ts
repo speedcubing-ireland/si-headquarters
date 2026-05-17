@@ -4,7 +4,7 @@
  */
 export function getDiceBearAvatarUrl(name: string): string {
 	const encodedName = encodeURIComponent(name.trim() || "user");
-	return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}`;
+	return `https://api.dicebear.com/7.x/initials/svg?seed=${encodedName}`;
 }
 
 export function resolveUserAvatarUrl(user: {
