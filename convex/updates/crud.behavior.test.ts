@@ -115,6 +115,45 @@ describe("updates CRUD behavior", () => {
 		).toBeTruthy();
 	}, 15_000);
 
+	test("create still schedules linked channel notification when actor is only recipient", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await t.run(async (ctx) => {
+			const actorId = await ctx.db.insert("users", {});
+			await ctx.db.insert("teams", {
+				name: TEAM_NAMES.VOLUNTEER,
+				memberIds: [actorId],
+			});
+			const competitionId = await ctx.db.insert("competitions", {
+				name: "Channel-only Comp",
+				description: "",
+				compStart: "2026-05-01",
+				compEnd: "2026-05-02",
+				organiserIds: [actorId],
+				discordChannel: {
+					guildId: "guild-1",
+					channelId: "channel-only-1",
+					channelName: "channel-only",
+				},
+				updatedAt: Date.now(),
+			});
+			await ctx.db.insert("competitionAccess", {
+				competitionId,
+				userId: actorId,
+			});
+			return { actorId, competitionId };
+		});
+
+		const authed = t.withIdentity({ subject: seeded.actorId });
+		const updateId = await authed.mutation(api.updates.api.create, {
+			competitionId: seeded.competitionId,
+			status: "at-risk",
+			message: "Channel should still receive this",
+		});
+
+		const tokens = await t.run((ctx) => ctx.db.query("discordActionTokens").collect());
+		expect(tokens.some((token) => token.updateId === updateId)).toBeTruthy();
+	}, 15_000);
+
 	test("create rejects users without competition access", async () => {
 		const t = convexTest(schema, modules);
 		const { otherUserId, competitionId } = await seedCompetitionWithAccess(t);

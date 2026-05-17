@@ -196,6 +196,9 @@ export const sendNotificationMessageAction = internalAction({
 	}),
 	handler: async (_ctx, args) => {
 		const rest = getDiscordRest();
+		const description =
+			args.description ??
+			(args.fields && args.fields.length > 0 ? undefined : args.message);
 		const color = (() => {
 			switch (args.priority) {
 				case "urgent":
@@ -210,7 +213,7 @@ export const sendNotificationMessageAction = internalAction({
 			embeds: [
 				{
 					title: args.title,
-					description: args.description ?? args.message,
+					description,
 					url: args.url,
 					color,
 					fields: args.fields,

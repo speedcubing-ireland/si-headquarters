@@ -1124,14 +1124,15 @@ async function buildDiscordActionButtons(
 	if (
 		args.type === "progress_update_added" &&
 		typeof payload.updateId === "string"
-	) {
+  ) {
+    // TODO: This should be a react button rather than comment and show a modal with the emojis from the frotnend UI
 		const updateId = ctx.db.normalizeId("competitionUpdates", payload.updateId);
-		if (updateId) {
+		if (false && updateId) {
 			buttons.push({
 				customId: await insertDiscordActionToken(ctx, {
 					actionKind: "open_update_comment_modal",
 					userId: args.userId,
-					updateId,
+					updateId: updateId ?? undefined,
 				}),
 				label: "Comment",
 				style: 2,
