@@ -22,7 +22,7 @@ import {
 	Trash2,
 	Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
@@ -35,8 +35,8 @@ import {
 	EditableOrganisersCell,
 	EditablePhaseCell,
 } from "@/components/competitions/editable-phase-and-roles";
-import { EditableText } from "@/components/shared/editable-text";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
+import { TitleDescriptionEditModal } from "@/components/shared/title-description-edit-modal";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -217,8 +217,10 @@ function RouteComponent() {
 	const { sponsors } = useSponsors(isSponsorshipManager);
 
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [isEditingDescription, setIsEditingDescription] = useState(false);
-	const [descriptionDraft, setDescriptionDraft] = useState("");
+	const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+	const [detailsModalFocusField, setDetailsModalFocusField] = useState<
+		"title" | "description"
+	>("title");
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(
 		competition
 			? {
@@ -285,12 +287,6 @@ function RouteComponent() {
 			onMutationError(error);
 		}
 	};
-
-	useEffect(() => {
-		if (!isEditingDescription && competition) {
-			setDescriptionDraft(competition.description ?? "");
-		}
-	}, [competition?.description, isEditingDescription, competition]);
 
 	const sponsorOverrideValue = competition?.manualSponsorId
 		? `sponsor:${competition.manualSponsorId}`
@@ -386,14 +382,31 @@ function RouteComponent() {
 		[competition, updateCompetition],
 	);
 
-	const handleCommitDescription = () => {
+	const openDetailsModal = (focusField: "title" | "description") => {
+		setDetailsModalFocusField(focusField);
+		setDetailsModalOpen(true);
+	};
+
+	const handleSaveDetails = async (values: {
+		title: string;
+		description: string;
+	}) => {
 		if (!competition) return;
-		if (descriptionDraft !== (competition.description ?? "")) {
-			void updateCompetition(competition.id, {
-				description: descriptionDraft,
-			}).catch(onMutationError);
+		const updates: Partial<{
+			name: string;
+			description: string;
+		}> = {};
+		if (values.title !== competition.name) {
+			updates.name = values.title;
 		}
-		setIsEditingDescription(false);
+		if (values.description !== competition.description) {
+			updates.description = values.description;
+		}
+		if (Object.keys(updates).length === 0) return;
+		await updateCompetition(competition.id, updates).catch((error) => {
+			onMutationError(error);
+			throw error;
+		});
 	};
 
 	if (competition === undefined) {
@@ -497,14 +510,13 @@ function RouteComponent() {
 									className="size-12 shrink-0 rounded-lg border border-border object-cover"
 								/>
 								<div className="flex-1 min-w-0">
-									<EditableText
-										value={competition.name}
-										onSubmit={(next) =>
-											updateCompetition(competition.id, { name: next })
-										}
-										className="border-0 px-0 text-xl font-semibold tracking-tight focus-visible:ring-0 sm:text-2xl"
-										displayClassName="text-left text-xl font-semibold tracking-tight text-balance hover:bg-muted/60 -mx-1 rounded px-1 sm:text-2xl"
-									/>
+									<button
+										type="button"
+										className="text-left text-xl font-semibold tracking-tight text-balance hover:bg-muted/60 -mx-1 rounded px-1 sm:text-2xl"
+										onClick={() => openDetailsModal("title")}
+									>
+										{competition.name}
+									</button>
 									<div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm text-muted-foreground">
 										<Popover
 											onOpenChange={(open) => {
@@ -582,31 +594,13 @@ function RouteComponent() {
 							<div className="text-xs text-muted-foreground mb-1">
 								Description
 							</div>
-							{isEditingDescription ? (
-								<Input
-									value={descriptionDraft}
-									onChange={(e) => setDescriptionDraft(e.target.value)}
-									onBlur={handleCommitDescription}
-									onKeyDown={(e) => {
-										if (e.key === "Enter") handleCommitDescription();
-										if (e.key === "Escape") {
-											setDescriptionDraft(competition.description ?? "");
-											setIsEditingDescription(false);
-										}
-									}}
-									className="border-0 px-0 text-sm focus-visible:ring-0"
-									placeholder="Add a short description..."
-									autoFocus
-								/>
-							) : (
-								<button
-									type="button"
-									className="w-full text-left text-sm text-muted-foreground hover:bg-muted/60 -mx-1 rounded px-1"
-									onClick={() => setIsEditingDescription(true)}
-								>
-									{competition.description || "Click to add a description..."}
-								</button>
-							)}
+							<button
+								type="button"
+								className="w-full text-left text-sm text-muted-foreground hover:bg-muted/60 -mx-1 rounded px-1"
+								onClick={() => openDetailsModal("description")}
+							>
+								{competition.description || "Click to add a description..."}
+							</button>
 						</div>
 
 						<div className="px-4 py-3 sm:px-5">
@@ -1248,6 +1242,16 @@ function RouteComponent() {
 					</>
 				}
 				onConfirm={handleDelete}
+			/>
+
+			<TitleDescriptionEditModal
+				open={detailsModalOpen}
+				onOpenChange={setDetailsModalOpen}
+				entityLabel="Competition"
+				initialTitle={competition.name}
+				initialDescription={competition.description ?? ""}
+				initialFocusField={detailsModalFocusField}
+				onSave={handleSaveDetails}
 			/>
 		</div>
 	);

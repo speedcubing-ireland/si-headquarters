@@ -518,14 +518,18 @@ export function EditableTaskLabels({
 export function EditableTaskOwner({
 	owner,
 	taskId,
+	variant = "default",
 }: {
 	owner: Team | User | null;
 	taskId: Id<"tasks">;
+	variant?: "default" | "icon";
 }) {
 	const { teams } = useTeams();
 	const { users } = useUsers();
 	const { updateTask } = useTaskMutations();
 	const [open, setOpen] = React.useState(false);
+
+	const isIconVariant = variant === "icon";
 
 	const currentValue = owner
 		? "members" in owner
@@ -558,7 +562,14 @@ export function EditableTaskOwner({
 
 	const renderTriggerContent = () => {
 		if (owner && "members" in owner) {
-			return (
+			return isIconVariant ? (
+				<>
+					<span className="sr-only">Owned by team {owner.name}</span>
+					<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px] font-medium">
+						T
+					</span>
+				</>
+			) : (
 				<Badge variant="outline" className="gap-1">
 					<span className="inline-flex size-4 items-center justify-center rounded-full bg-muted text-[8px]">
 						T
@@ -569,12 +580,19 @@ export function EditableTaskOwner({
 		}
 
 		if (owner && "avatarUrl" in owner) {
-			return (
+			return !isIconVariant ? (
+				<div className="flex min-w-0 items-center gap-1.5">
+					<UserAvatar name={owner.name} avatarUrl={owner.avatarUrl} size="sm" />
+					<span className="text-xs truncate max-w-[80px]">{owner.name}</span>
+				</div>
+			) : (
 				<UserAvatar name={owner.name} avatarUrl={owner.avatarUrl} size="sm" />
 			);
 		}
-		return (
+		return isIconVariant ? (
 			<span className="inline-flex size-5 items-center justify-center rounded-full border border-dashed border-muted-foreground/40" />
+		) : (
+			<span className="text-xs text-muted-foreground">Unassigned</span>
 		);
 	};
 
@@ -584,7 +602,11 @@ export function EditableTaskOwner({
 				<Button
 					variant="ghost"
 					size="sm"
-					className="h-6 min-w-0 max-w-full px-1 justify-center hover:bg-muted/50"
+					className={
+						isIconVariant
+							? "h-6 w-6 p-0 justify-center hover:bg-muted/50"
+							: "h-7 min-w-0 max-w-full px-2 justify-start hover:bg-muted/50"
+					}
 				>
 					{renderTriggerContent()}
 				</Button>
