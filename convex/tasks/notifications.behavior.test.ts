@@ -1,7 +1,7 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import type { Id } from "../_generated/dataModel";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import { modules } from "../test.setup";
 import { TEAM_NAMES } from "../lib/constants";
@@ -66,6 +66,21 @@ async function linkDiscordUsers(
 				updatedAt: Date.now(),
 			});
 		}
+	});
+}
+
+async function getScheduledDiscordMessages(t: ReturnType<typeof convexTest>) {
+	return t.run(async (ctx) => {
+		const all = await ctx.db.system.query("_scheduled_functions").collect();
+		return all
+			.filter((fn) => fn.name.includes("sendNotificationMessageAction"))
+			.map(
+				(fn) =>
+					(fn.args as unknown[])[0] as {
+						targetId: string;
+						actions: Array<{ label: string }>;
+					},
+			);
 	});
 }
 
@@ -160,7 +175,7 @@ describe("task notification behavior", () => {
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		const subId = await authed.mutation(
-			api.notifications.api.subscribeToEntity,
+			api.notifications.subscriptions.subscribeToEntity,
 			{
 				entity: { entityType: "task", entityId: seeded.taskId },
 			},
@@ -180,19 +195,105 @@ describe("task notification behavior", () => {
 		const authed = t.withIdentity({ subject: seeded.actorId });
 
 		const subId = await authed.mutation(
-			api.notifications.api.subscribeToEntity,
+			api.notifications.subscriptions.subscribeToEntity,
 			{
 				entity: { entityType: "task", entityId: seeded.taskId },
 			},
 		);
 
-		await authed.mutation(api.notifications.api.unsubscribeFromEntity, {
-			entity: { entityType: "task", entityId: seeded.taskId },
-		});
+		await authed.mutation(
+			api.notifications.subscriptions.unsubscribeFromEntity,
+			{
+				entity: { entityType: "task", entityId: seeded.taskId },
+			},
+		);
 
 		const doc = await t.run((ctx) =>
 			ctx.db.get("notificationSubscriptions", subId),
 		);
 		expect(doc).toBeNull();
 	});
+
+	test("task_assigned Discord DM includes view, start, comment, and dismiss actions", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.newAssigneeId]);
+		const authed = t.withIdentity({ subject: seeded.actorId });
+
+		await authed.mutation(api.tasks.mutations.update, {
+			taskId: seeded.taskId,
+			updates: { assigneeId: seeded.newAssigneeId },
+		});
+
+		const messages = await getScheduledDiscordMessages(t);
+		const message = messages.find((item) =>
+			item.targetId.includes(seeded.newAssigneeId),
+		);
+		expect(message?.actions.map((action) => action.label)).toEqual([
+			"View Task",
+			"Start Task",
+			"Comment",
+			"Dismiss",
+		]);
+	}, 15_000);
+
+	test("task_status_changed awaiting review Discord DM includes approve and comment", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.oldAssigneeId]);
+		const authed = t.withIdentity({ subject: seeded.actorId });
+
+		await authed.mutation(api.tasks.mutations.update, {
+			taskId: seeded.taskId,
+			updates: { status: "awaiting-review" },
+		});
+
+		const messages = await getScheduledDiscordMessages(t);
+		expect(messages[0]?.actions.map((action) => action.label)).toEqual([
+			"View Task",
+			"Approve",
+			"Comment",
+			"Dismiss",
+		]);
+	}, 15_000);
+
+	test("task_status_changed done Discord DM includes unapprove", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.oldAssigneeId]);
+		const authed = t.withIdentity({ subject: seeded.actorId });
+
+		await authed.mutation(api.tasks.mutations.update, {
+			taskId: seeded.taskId,
+			updates: { status: "done" },
+		});
+
+		const messages = await getScheduledDiscordMessages(t);
+		expect(messages[0]?.actions.map((action) => action.label)).toEqual([
+			"View Task",
+			"Unapprove",
+			"Dismiss",
+		]);
+	}, 15_000);
+
+	test("due_date_overdue Discord DM includes mark done and comment", async () => {
+		const t = convexTest(schema, modules);
+		const seeded = await seedTaskWithSubscribers(t);
+		await linkDiscordUsers(t, [seeded.oldAssigneeId]);
+		await t.run((ctx) =>
+			ctx.db.patch(seeded.taskId, {
+				dueDate: "2026-01-01T12:00:00.000Z",
+			}),
+		);
+
+		await t.mutation(internal.notifications.internal._checkDueDates, {});
+
+		const messages = await getScheduledDiscordMessages(t);
+		expect(messages[0]?.actions.map((action) => action.label)).toEqual([
+			"View Task",
+			"Mark Done",
+			"Comment",
+			"Dismiss",
+		]);
+	}, 15_000);
 });

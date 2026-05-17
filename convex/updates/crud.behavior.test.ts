@@ -144,14 +144,30 @@ describe("updates CRUD behavior", () => {
 		});
 
 		const authed = t.withIdentity({ subject: seeded.actorId });
-		const updateId = await authed.mutation(api.updates.api.create, {
+		await authed.mutation(api.updates.api.create, {
 			competitionId: seeded.competitionId,
 			status: "at-risk",
 			message: "Channel should still receive this",
 		});
 
-		const tokens = await t.run((ctx) => ctx.db.query("discordActionTokens").collect());
-		expect(tokens.some((token) => token.updateId === updateId)).toBeTruthy();
+		const scheduled = await t.run(async (ctx) => {
+			const all = await ctx.db.system.query("_scheduled_functions").collect();
+			return all
+				.filter((fn) => fn.name.includes("sendNotificationMessageAction"))
+				.map(
+					(fn) =>
+						(fn.args as unknown[])[0] as {
+							targetId: string;
+							actions: Array<{ label: string }>;
+						},
+				);
+		});
+		const message = scheduled.find(
+			(call) => call.targetId === "channel-only-1",
+		);
+		expect(message?.actions.map((action) => action.label)).toEqual([
+			"View Update",
+		]);
 	}, 15_000);
 
 	test("create rejects users without competition access", async () => {

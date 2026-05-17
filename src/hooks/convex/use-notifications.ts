@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const useNotificationSubscriptions = () => {
-	const result = useQuery(api.notifications.api.listSubscriptions, {
+	const result = useQuery(api.notifications.subscriptions.listSubscriptions, {
 		limit: 500,
 	});
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
@@ -13,7 +13,7 @@ export const useNotificationSubscriptions = () => {
 
 export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) => {
 	const result = useQuery(
-		api.notifications.api.isSubscribedToEntity,
+		api.notifications.subscriptions.isSubscribedToEntity,
 		taskId ? { entity: { entityType: "task", entityId: taskId } } : "skip",
 	);
 	const { data } = useRetainedQueryResult(result, taskId ?? "skip");
@@ -22,12 +22,12 @@ export const useTaskSubscriptionState = (taskId: Id<"tasks"> | null) => {
 
 export function useNotificationMutations() {
 	const subscribeToEntity = useMutation(
-		api.notifications.api.subscribeToEntity,
+		api.notifications.subscriptions.subscribeToEntity,
 	);
 	const unsubscribeFromEntity = useMutation(
-		api.notifications.api.unsubscribeFromEntity,
+		api.notifications.subscriptions.unsubscribeFromEntity,
 	);
-	const unsubscribe = useMutation(api.notifications.api.unsubscribe);
+	const unsubscribe = useMutation(api.notifications.subscriptions.unsubscribe);
 
 	return {
 		subscribeToTask: (taskId: Id<"tasks">) =>
