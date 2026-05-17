@@ -22,7 +22,7 @@ import {
 	Trash2,
 	Users,
 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
@@ -229,6 +229,13 @@ function RouteComponent() {
 				}
 			: undefined,
 	);
+	useEffect(() => {
+		if (!competition) return;
+		setDateRange({
+			from: new Date(competition.compStart),
+			to: new Date(competition.compEnd),
+		});
+	}, [competition?.compStart, competition?.compEnd]);
 	const dateRangeRef = useRef(dateRange);
 	dateRangeRef.current = dateRange;
 	const [sheetInput, setSheetInput] = useState("");
