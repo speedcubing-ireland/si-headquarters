@@ -237,5 +237,5 @@ export type ReminderStatus =
 export type RecurringPattern = "daily" | "weekly" | "monthly" | "custom";
 
 export type NotificationSubscription = FunctionReturnType<
-	typeof api.notifications.api.listSubscriptions
+	typeof api.notifications.subscriptions.listSubscriptions
 >[number];

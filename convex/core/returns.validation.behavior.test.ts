@@ -40,13 +40,13 @@ describe("return validation smoke coverage", () => {
 		const authed = t.withIdentity({ subject: userId });
 
 		const subscriptionId = await authed.mutation(
-			api.notifications.api.subscribeToEntity,
+			api.notifications.subscriptions.subscribeToEntity,
 			{
 				entity: { entityType: "task", entityId: taskId },
 			},
 		);
 		const subscriptions = await authed.query(
-			api.notifications.api.listSubscriptions,
+			api.notifications.subscriptions.listSubscriptions,
 			{},
 		);
 
