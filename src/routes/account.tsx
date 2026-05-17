@@ -118,8 +118,7 @@ function RouteComponent() {
 						<CardHeader>
 							<CardTitle>Profile</CardTitle>
 							<CardDescription>
-								Update your display name. Avatar is sourced from Discord when
-								linked, otherwise a deterministic DiceBear avatar is used.
+								Your avatar is connected through your discord account.
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-6">
@@ -128,9 +127,6 @@ function RouteComponent() {
 									<AvatarImage src={user.avatarUrl} alt={displayName} />
 									<AvatarFallback>{getInitials(displayName)}</AvatarFallback>
 								</Avatar>
-								<p className="text-sm text-muted-foreground">
-									Avatar changes are managed through Discord account linking.
-								</p>
 							</div>
 							<form
 								className="space-y-4"

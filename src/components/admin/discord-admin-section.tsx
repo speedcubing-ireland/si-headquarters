@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { Bot, Link2, Loader2, RefreshCw, Unlink2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -6,16 +7,24 @@ import {
 	useDiscordAdminLinks,
 	useDiscordMutations,
 } from "@/hooks/use-convex-data";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import type { Id } from "@/convex/_generated/dataModel";
 
 type GuildMember = Awaited<
@@ -26,6 +35,106 @@ function toErrorMessage(error: unknown, fallback: string): string {
 	return error instanceof Error && error.message.trim()
 		? error.message
 		: fallback;
+}
+
+function DiscordMemberCombobox({
+	selectedDiscordUserId,
+	onSelect,
+	members,
+	disabled,
+}: {
+	selectedDiscordUserId?: string;
+	onSelect: (discordUserId: string) => void;
+	members: GuildMember[];
+	disabled?: boolean;
+}) {
+	const [open, setOpen] = useState(false);
+
+	const selectedMember = members.find(
+		(m) => m.discordUserId === selectedDiscordUserId,
+	);
+
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<Button
+					variant="outline"
+					role="combobox"
+					aria-expanded={open}
+					disabled={disabled}
+					className="w-full justify-between"
+				>
+					{selectedMember ? (
+						<span className="flex min-w-0 items-center gap-2">
+							<Avatar className="size-5 shrink-0">
+								<AvatarImage src={selectedMember.discordAvatarUrl} />
+								<AvatarFallback className="text-[10px]">
+									{(selectedMember.discordDisplayName ??
+										selectedMember.discordUsername)[0]?.toUpperCase() ?? "?"}
+								</AvatarFallback>
+							</Avatar>
+							<span className="truncate">
+								{selectedMember.discordDisplayName ??
+									selectedMember.discordUsername}
+							</span>
+						</span>
+					) : (
+						<span className="text-muted-foreground">Choose Discord member</span>
+					)}
+					<ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent
+				className="w-[var(--radix-popover-trigger-width)] p-0"
+				align="start"
+			>
+				<Command>
+					<CommandInput placeholder="Search Discord members..." />
+					<CommandList>
+						<CommandEmpty>No member found.</CommandEmpty>
+						<CommandGroup>
+							{members.map((member) => (
+								<CommandItem
+									key={member.discordUserId}
+									value={member.discordUserId}
+									onSelect={(currentValue) => {
+										onSelect(currentValue);
+										setOpen(false);
+									}}
+								>
+									<Avatar className="size-6 shrink-0">
+										<AvatarImage src={member.discordAvatarUrl} />
+										<AvatarFallback className="text-xs">
+											{(member.discordDisplayName ??
+												member.discordUsername)[0]?.toUpperCase() ?? "?"}
+										</AvatarFallback>
+									</Avatar>
+									<div className="flex flex-col">
+										<span>
+											{member.discordDisplayName ?? member.discordUsername}
+										</span>
+										{member.discordDisplayName ? (
+											<span className="text-xs text-muted-foreground">
+												@{member.discordUsername}
+											</span>
+										) : null}
+									</div>
+									<Check
+										className={cn(
+											"ml-auto size-4",
+											selectedDiscordUserId === member.discordUserId
+												? "opacity-100"
+												: "opacity-0",
+										)}
+									/>
+								</CommandItem>
+							))}
+						</CommandGroup>
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
+	);
 }
 
 export function DiscordAdminSection() {
@@ -208,9 +317,9 @@ export function DiscordAdminSection() {
 							return (
 								<div
 									key={user.userId}
-									className="grid gap-3 rounded-lg border border-border/70 p-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]"
+									className="flex flex-col gap-3 rounded-lg border border-border/70 p-3 sm:flex-row sm:items-center sm:justify-between"
 								>
-									<div className="min-w-0">
+									<div className="min-w-0 flex-1">
 										<p className="truncate font-medium text-sm">
 											{user.name || "Unnamed user"}
 										</p>
@@ -218,49 +327,27 @@ export function DiscordAdminSection() {
 											{user.email}
 										</p>
 										<p className="mt-1 text-xs text-muted-foreground">
-											{user.link
-												? `Linked to ${user.link.discordDisplayName ?? user.link.discordUsername}`
-												: "Not linked"}
+											{user.link ? "Linked to Discord" : "Not linked"}
 										</p>
 									</div>
-									<Select
-										value={selectedMemberByUserId[user.userId] ?? ""}
-										onValueChange={(value) =>
-											setSelectedMemberByUserId((current) => ({
-												...current,
-												[user.userId]: value,
-											}))
-										}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Choose Discord member" />
-										</SelectTrigger>
-										<SelectContent>
-											{members.map((member) => (
-												<SelectItem
-													key={member.discordUserId}
-													value={member.discordUserId}
-												>
-													{member.discordDisplayName ?? member.discordUsername}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									<div className="flex flex-wrap items-center gap-2">
-										<Button
-											type="button"
-											size="sm"
-											onClick={() => void handleLinkUser(user.userId)}
-											disabled={busy || members.length === 0}
-										>
-											{busy ? (
-												<Loader2 className="size-4 animate-spin" />
-											) : (
-												<Link2 className="size-4" />
-											)}
-											Link
-										</Button>
-										{user.link ? (
+									{user.link ? (
+										<div className="flex items-center gap-3 rounded-md border border-border/50 bg-muted/30 p-2">
+											<Avatar className="size-8 shrink-0">
+												<AvatarImage src={user.link.discordAvatarUrl} />
+												<AvatarFallback className="text-xs">
+													{(user.link.discordDisplayName ??
+														user.link.discordUsername)[0]?.toUpperCase() ?? "?"}
+												</AvatarFallback>
+											</Avatar>
+											<div className="min-w-0">
+												<p className="truncate text-sm font-medium">
+													{user.link.discordDisplayName ??
+														user.link.discordUsername}
+												</p>
+												<p className="truncate text-xs text-muted-foreground">
+													@{user.link.discordUsername}
+												</p>
+											</div>
 											<Button
 												type="button"
 												size="sm"
@@ -268,11 +355,46 @@ export function DiscordAdminSection() {
 												onClick={() => void handleClearLink(user.userId)}
 												disabled={busy}
 											>
-												<Unlink2 className="size-4" />
+												{busy ? (
+													<Loader2 className="size-4 animate-spin" />
+												) : (
+													<Unlink2 className="size-4" />
+												)}
 												Unlink
 											</Button>
-										) : null}
-									</div>
+										</div>
+									) : (
+										<div className="flex items-center gap-2">
+											<div className="min-w-0 flex-1">
+												<DiscordMemberCombobox
+													selectedDiscordUserId={
+														selectedMemberByUserId[user.userId]
+													}
+													onSelect={(value) =>
+														setSelectedMemberByUserId((current) => ({
+															...current,
+															[user.userId]: value,
+														}))
+													}
+													members={members}
+												/>
+											</div>
+											<Button
+												type="button"
+												size="sm"
+												className="shrink-0"
+												onClick={() => void handleLinkUser(user.userId)}
+												disabled={busy || members.length === 0}
+											>
+												{busy ? (
+													<Loader2 className="size-4 animate-spin" />
+												) : (
+													<Link2 className="size-4" />
+												)}
+												Link
+											</Button>
+										</div>
+									)}
 								</div>
 							);
 						})}
