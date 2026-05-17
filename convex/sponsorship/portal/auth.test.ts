@@ -3,11 +3,11 @@ import { describe, expect, test } from "vitest";
 import { api, components } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import schema from "../../schema";
-import sponsorAuthSchema from "../../sponsorAuth/schema";
+import sponsorAuthSchema from "../auth/component/sponsorAuth/schema";
 import { modules } from "../../test.setup";
 
 const sponsorAuthModules = import.meta.glob<string[]>(
-	"../../sponsorAuth/**/!(*.*.*)*.*s",
+	"../auth/component/sponsorAuth/**/!(*.*.*)*.*s",
 );
 
 function createHarness() {
@@ -70,13 +70,13 @@ describe("sponsor portal profile auth", () => {
 		const { sessionToken, sponsorId, sponsorAuthUserId } =
 			await seedSponsorSession(t);
 
-		await t.mutation(api.sponsorPortal.updateDisplayName, {
+		await t.mutation(api.sponsorship.portal.auth.updateDisplayName, {
 			sessionToken,
 			displayName: "Updated Portal Name",
 		});
 
 		const [me, sponsorDoc, sponsorAuthUser] = await Promise.all([
-			t.query(api.sponsorPortal.me, { sessionToken }),
+			t.query(api.sponsorship.portal.auth.me, { sessionToken }),
 			t.run((ctx) => ctx.db.get("sponsors", sponsorId)),
 			t.query(components.sponsorAuth.adapter.findOne, {
 				model: "user",

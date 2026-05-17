@@ -16,17 +16,19 @@ type NewCompetitionInput = Pick<
 	| "organisers"
 	| "compSheet"
 	| "wcaCompetitionId"
->;
+> & {
+	discordChannel?: Competition["discordChannel"] | null;
+};
 
 export const useCompetitions = () => {
-	const result = useQuery(api.competitions.listForUI);
+	const result = useQuery(api.competitions.api.listForUI);
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return { competitions: data ?? [], isLoading, isRefreshing };
 };
 
 export const useCompetition = (competitionId: Id<"competitions"> | null) => {
 	const result = useQuery(
-		api.competitions.getForUI,
+		api.competitions.api.getForUI,
 		competitionId ? { competitionId } : "skip",
 	);
 	const { data } = useRetainedQueryResult(result, competitionId ?? "skip");
@@ -35,9 +37,9 @@ export const useCompetition = (competitionId: Id<"competitions"> | null) => {
 };
 
 export function useCompetitionMutations() {
-	const createCompetition = useMutation(api.competitions.create);
-	const updateCompetitionAction = useAction(api.competitions.update);
-	const removeCompetitionMutation = useMutation(api.competitions.remove);
+	const createCompetition = useMutation(api.competitions.api.create);
+	const updateCompetitionAction = useAction(api.competitions.api.update);
+	const removeCompetitionMutation = useMutation(api.competitions.api.remove);
 
 	return {
 		addCompetition: async (payload: NewCompetitionInput) => {
@@ -53,6 +55,7 @@ export function useCompetitionMutations() {
 				),
 				compSheet: payload.compSheet ?? undefined,
 				wcaCompetitionId: payload.wcaCompetitionId ?? undefined,
+				discordChannel: payload.discordChannel ?? undefined,
 			});
 			return { id };
 		},
@@ -71,6 +74,7 @@ export function useCompetitionMutations() {
 					| "organisers"
 					| "compSheet"
 					| "wcaCompetitionId"
+					| "discordChannel"
 				>
 			> & {
 				currentPhaseId?: Id<"phases"> | null;
@@ -113,6 +117,10 @@ export function useCompetitionMutations() {
 						updates.wcaCompetitionId !== undefined
 							? (updates.wcaCompetitionId ?? null)
 							: undefined,
+					discordChannel:
+						updates.discordChannel !== undefined
+							? (updates.discordChannel ?? null)
+							: undefined,
 					manualSponsorPropertyStatus:
 						updates.sponsorPropertyStatusOverride !== undefined
 							? updates.sponsorPropertyStatusOverride
@@ -132,8 +140,8 @@ export function useCompetitionMutations() {
 }
 
 export function useCompetitionUpdateMutations() {
-	const createUpdateMutation = useMutation(api.updates.create);
-	const addReactionMutation = useMutation(api.updates.addReaction);
+	const createUpdateMutation = useMutation(api.updates.api.create);
+	const addReactionMutation = useMutation(api.updates.api.addReaction);
 	return {
 		createUpdate: (
 			competitionId: Id<"competitions">,

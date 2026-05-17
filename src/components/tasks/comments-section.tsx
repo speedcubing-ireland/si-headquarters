@@ -281,7 +281,7 @@ interface CommentsSectionProps {
 
 export function CommentsSection({ taskId, className }: CommentsSectionProps) {
 	const { users } = useUsers();
-	const authUserResult = useQuery(api.users.getCurrentUser);
+	const authUserResult = useQuery(api.core.users.getCurrentUser);
 	const { data: authUser } = useRetainedQueryResult(authUserResult);
 	const { comments: allComments } = useCommentsForTask(taskId);
 	const comments = useMemo(

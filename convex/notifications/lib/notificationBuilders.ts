@@ -11,6 +11,7 @@ import type {
 	NotificationEntityRef,
 	NotificationPayload,
 } from "./notificationTypes";
+import { resolveUserAvatarUrl } from "../../lib/avatarResolver";
 
 export async function getActorInfo(
 	ctx: Pick<MutationCtx, "db">,
@@ -26,7 +27,7 @@ export async function getActorInfo(
 	return {
 		actorId,
 		actorName: user.name ?? undefined,
-		actorAvatarUrl: user.image ?? undefined,
+		actorAvatarUrl: resolveUserAvatarUrl(user),
 	};
 }
 
@@ -44,6 +45,7 @@ export type TaskNotificationBuildArgs = {
 	newDueDate?: string;
 	blockingTaskId?: Id<"tasks">;
 	eventKey?: string;
+	forceRecipientDelivery?: boolean;
 };
 
 export type TaskNotificationBuildResult = {
@@ -55,6 +57,7 @@ export type TaskNotificationBuildResult = {
 export type CompetitionNotificationBuildArgs = {
 	type: "competition_phase_changed" | "progress_update_added";
 	competitionId: Id<"competitions">;
+	updateId?: Id<"competitionUpdates">;
 	recipientId?: Id<"users">;
 	recipientIds?: Id<"users">[];
 	actorId: Id<"users">;
@@ -63,6 +66,7 @@ export type CompetitionNotificationBuildArgs = {
 	competitionName?: string;
 	status?: "on-track" | "at-risk" | "off-track";
 	eventKey?: string;
+	forceRecipientDelivery?: boolean;
 };
 
 export type CompetitionNotificationBuildResult = {

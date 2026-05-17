@@ -13,12 +13,12 @@ import {
 	buildCompetitionRecordSummary,
 	buildCompetitionSnapshot,
 	buildWcaCompetitionSummary,
-	sponsorshipCompetitionSnapshot,
+	competitionSnapshot,
 	sponsorshipCompetitionSummary,
 	sponsorshipCompetitionSummarySource,
 	type SponsorshipCompetitionSummary,
 	type SponsorshipCompetitionSnapshot,
-} from "../../lib/sponsorshipCompetitionSnapshot";
+} from "../lib/competitionSnapshot";
 
 const competitionSnapshotRefreshStatus = v.union(
 	v.literal("ready"),
@@ -41,7 +41,7 @@ const auctionSnapshotContext = v.object({
 	competitionCompStart: v.string(),
 	competitionCompEnd: v.string(),
 	wcaCompetitionId: v.optional(v.string()),
-	competitionSnapshot: v.optional(sponsorshipCompetitionSnapshot),
+	competitionSnapshot: v.optional(competitionSnapshot),
 });
 
 function extractConvexErrorCode(error: unknown): string | null {
@@ -104,7 +104,8 @@ export async function scheduleCompetitionSnapshotRefresh(
 ): Promise<void> {
 	await ctx.scheduler.runAfter(
 		0,
-		internal.sponsorshipAuctions.refreshCompetitionSnapshotInternal,
+		internal.sponsorship.auctions.competitionSnapshot
+			.refreshCompetitionSnapshotInternal,
 		{ auctionId },
 	);
 }
@@ -131,7 +132,7 @@ export const getSnapshotContextInternal = internalQuery({
 export const setSnapshotInternal = internalMutation({
 	args: {
 		auctionId: v.id("sponsorshipAuctions"),
-		snapshot: sponsorshipCompetitionSnapshot,
+		snapshot: competitionSnapshot,
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
@@ -153,7 +154,8 @@ async function runCompetitionSnapshotRefresh(
 	fetchedAt?: number;
 }> {
 	const context = await ctx.runQuery(
-		internal.sponsorshipAuctions.getSnapshotContextInternal,
+		internal.sponsorship.auctions.competitionSnapshot
+			.getSnapshotContextInternal,
 		{ auctionId },
 	);
 	if (!context) {
@@ -168,10 +170,13 @@ async function runCompetitionSnapshotRefresh(
 			? context.competitionSnapshot
 			: buildFallbackSnapshotFromContext(context);
 		if (!context.competitionSnapshot) {
-			await ctx.runMutation(internal.sponsorshipAuctions.setSnapshotInternal, {
-				auctionId: context.auctionId,
-				snapshot: fallbackSnapshot,
-			});
+			await ctx.runMutation(
+				internal.sponsorship.auctions.competitionSnapshot.setSnapshotInternal,
+				{
+					auctionId: context.auctionId,
+					snapshot: fallbackSnapshot,
+				},
+			);
 		}
 		return {
 			status: "missing_wca_link",
@@ -183,7 +188,7 @@ async function runCompetitionSnapshotRefresh(
 	}
 
 	const details = await ctx.runAction(
-		internal.wca.fetchCompetitionDetailsInternal,
+		internal.integrations.wca.actions.fetchCompetitionDetailsInternal,
 		{
 			wcaCompetitionId: context.wcaCompetitionId,
 		},
@@ -202,10 +207,13 @@ async function runCompetitionSnapshotRefresh(
 			? context.competitionSnapshot
 			: buildFallbackSnapshotFromContext(context);
 		if (!context.competitionSnapshot) {
-			await ctx.runMutation(internal.sponsorshipAuctions.setSnapshotInternal, {
-				auctionId: context.auctionId,
-				snapshot: fallbackSnapshot,
-			});
+			await ctx.runMutation(
+				internal.sponsorship.auctions.competitionSnapshot.setSnapshotInternal,
+				{
+					auctionId: context.auctionId,
+					snapshot: fallbackSnapshot,
+				},
+			);
 		}
 		return {
 			status: "fetch_failed",
@@ -221,10 +229,13 @@ async function runCompetitionSnapshotRefresh(
 		summary: buildWcaCompetitionSummary(details),
 		source: "wca",
 	});
-	await ctx.runMutation(internal.sponsorshipAuctions.setSnapshotInternal, {
-		auctionId: context.auctionId,
-		snapshot,
-	});
+	await ctx.runMutation(
+		internal.sponsorship.auctions.competitionSnapshot.setSnapshotInternal,
+		{
+			auctionId: context.auctionId,
+			snapshot,
+		},
+	);
 	return {
 		status: "ready",
 		message: "Competition details synced from WCA.",
@@ -242,7 +253,7 @@ async function authorizeSnapshotRefresh(
 	},
 ): Promise<void> {
 	const isManager = await ctx.runQuery(
-		api.sponsors.isSponsorshipManagerQuery,
+		api.sponsorship.sponsors.isSponsorshipManagerQuery,
 		{},
 	);
 	if (isManager) return;
@@ -255,10 +266,13 @@ async function authorizeSnapshotRefresh(
 	}
 
 	try {
-		const auction = await ctx.runQuery(api.sponsorPortal.getAuction, {
-			sessionToken: args.sessionToken,
-			auctionId: args.auctionId,
-		});
+		const auction = await ctx.runQuery(
+			api.sponsorship.portal.auctions.getAuction,
+			{
+				sessionToken: args.sessionToken,
+				auctionId: args.auctionId,
+			},
+		);
 		if (!auction) {
 			throw new ConvexError({
 				code: "FORBIDDEN",

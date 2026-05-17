@@ -11,6 +11,7 @@
 			"**",
 			"!convex/**/_generated",
 			"!convex/services/**/client",
+			"!convex/integrations/**/client",
 			"!src/components/ui",
 			"!**/routeTree.gen.ts",
 			"!external-docs",

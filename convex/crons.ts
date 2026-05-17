@@ -7,14 +7,14 @@ const crons = cronJobs();
 crons.cron(
 	"check due dates",
 	CRON_EXPRESSIONS.DUE_DATE_CHECK_DAILY_UTC,
-	internal.notifications._checkDueDates,
+	internal.notifications.internal._checkDueDates,
 	{},
 );
 
 crons.cron(
 	"sweep email queue",
 	CRON_EXPRESSIONS.EMAIL_QUEUE_SWEEP_EVERY_MINUTE,
-	internal.emailQueue._runSweep,
+	internal.emailQueue.api._runSweep,
 	{},
 );
 

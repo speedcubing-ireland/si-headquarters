@@ -77,7 +77,7 @@ async function scheduleSendDispatch(
 ): Promise<void> {
 	await emailSendPool.enqueueAction(
 		ctx,
-		internal.emailQueue._sendDispatch,
+		internal.emailQueue.api._sendDispatch,
 		{
 			dispatchId: args.dispatchId,
 			claimKey: args.claimKey,

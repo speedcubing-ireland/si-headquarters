@@ -88,7 +88,9 @@ function RootLayoutInner() {
 }
 
 function EnsureVolunteerAccess() {
-	const ensureVolunteerAccess = useMutation(api.users.ensureVolunteerAccess);
+	const ensureVolunteerAccess = useMutation(
+		api.core.users.ensureVolunteerAccess,
+	);
 
 	useEffect(() => {
 		void ensureVolunteerAccess();

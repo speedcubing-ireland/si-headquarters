@@ -5,7 +5,7 @@ import { describeAuctionFramework, sendAuctionScheduledEmails } from "./emails";
 import {
 	buildSponsorshipEmailHtml,
 	buildSponsorshipEmailPlainText,
-} from "../../lib/sponsorshipEmailTemplates";
+} from "../lib/emailTemplates";
 
 type AuctionDoc = Doc<"sponsorshipAuctions">;
 type CompetitionDoc = Doc<"competitions">;

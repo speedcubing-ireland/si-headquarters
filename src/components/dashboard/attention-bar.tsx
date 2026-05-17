@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
-import { AlertTriangle, Bell, CheckCircle2, Clock, Eye } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/convex/_generated/api";
-import { useTasks, useUnreadCount } from "@/hooks/use-convex-data";
+import { useTasks } from "@/hooks/use-convex-data";
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 import { isUserRequiredApprover } from "@/lib/task-utils";
 
@@ -11,15 +11,13 @@ interface AttentionCounts {
 	overdue: number;
 	needsReview: number;
 	dueSoon: number;
-	unread: number;
 }
 
 function useAttentionCounts(): AttentionCounts & { isLoading: boolean } {
 	const { tasks, isLoading: tasksLoading } = useTasks(false);
-	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.core.users.getCurrentUser);
 	const currentUserState = useRetainedQueryResult(currentUserResult);
 	const currentUser = currentUserState.data;
-	const unreadCount = useUnreadCount();
 	const userId = currentUser?._id;
 
 	const counts = useMemo(() => {
@@ -62,14 +60,12 @@ function useAttentionCounts(): AttentionCounts & { isLoading: boolean } {
 
 	return {
 		...counts,
-		unread: unreadCount ?? 0,
 		isLoading: tasksLoading || currentUserState.isLoading,
 	};
 }
 
 export function AttentionBar() {
-	const { overdue, needsReview, dueSoon, unread, isLoading } =
-		useAttentionCounts();
+	const { overdue, needsReview, dueSoon, isLoading } = useAttentionCounts();
 
 	if (isLoading) {
 		return (
@@ -80,7 +76,7 @@ export function AttentionBar() {
 		);
 	}
 
-	const hasAny = overdue > 0 || needsReview > 0 || dueSoon > 0 || unread > 0;
+	const hasAny = overdue > 0 || needsReview > 0 || dueSoon > 0;
 
 	if (!hasAny) {
 		return (
@@ -109,12 +105,6 @@ export function AttentionBar() {
 				<Badge variant="info" className="gap-1.5">
 					<Clock className="size-3" />
 					{dueSoon} Due Soon
-				</Badge>
-			)}
-			{unread > 0 && (
-				<Badge variant="secondary" className="gap-1.5">
-					<Bell className="size-3" />
-					{unread} Unread
 				</Badge>
 			)}
 			<span className="basis-full text-xs text-muted-foreground sm:basis-auto sm:ml-auto">

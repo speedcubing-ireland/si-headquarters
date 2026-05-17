@@ -36,10 +36,19 @@ export const FormModalFooter = React.memo(function FormModalFooter({
 }) {
 	return (
 		<div className="px-6 py-4 border-t flex justify-end gap-2">
-			<Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+			<Button
+				type="button"
+				variant="outline"
+				onClick={onCancel}
+				disabled={isSubmitting}
+			>
 				Cancel
 			</Button>
-			<Button onClick={onSubmit} disabled={submitDisabled || isSubmitting}>
+			<Button
+				type="submit"
+				onClick={onSubmit}
+				disabled={submitDisabled || isSubmitting}
+			>
 				{isSubmitting ? (
 					<>
 						<Loader2 className="size-4 animate-spin mr-2" />

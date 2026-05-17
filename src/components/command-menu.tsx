@@ -4,7 +4,6 @@ import {
 	Calendar,
 	CheckSquare,
 	Home,
-	Inbox,
 	Plus,
 	Search,
 	Trophy,
@@ -276,14 +275,6 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 				onOpenChange(false);
 			},
 		},
-		{
-			icon: Inbox,
-			label: "Go to Inbox",
-			action: () => {
-				void navigate({ to: "/inbox" });
-				onOpenChange(false);
-			},
-		},
 	];
 
 	useEffect(() => {
@@ -472,15 +463,6 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
 					>
 						<Home className="size-4" />
 						Dashboard
-					</CommandItem>
-					<CommandItem
-						onSelect={() => {
-							void navigate({ to: "/inbox" });
-							onOpenChange(false);
-						}}
-					>
-						<Inbox className="size-4" />
-						Inbox
 					</CommandItem>
 					<CommandItem
 						onSelect={() => {
