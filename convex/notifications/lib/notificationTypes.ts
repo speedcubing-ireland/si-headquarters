@@ -84,6 +84,7 @@ export type NotificationEmitInput = {
 	payloadJson?: string;
 	includeEntitySubscribers?: boolean;
 	suppressActorRecipient?: boolean;
+	forceRecipientDelivery?: boolean;
 };
 
 export type NotificationPayload = Record<
