@@ -15,6 +15,7 @@ import {
 	toISO,
 } from "./transforms";
 import type { Id } from "../_generated/dataModel";
+import { getDiceBearAvatarUrl } from "./avatarResolver";
 
 const userId = (id: string) => id as Id<"users">;
 const labelId = (id: string) => id as Id<"labels">;
@@ -76,7 +77,7 @@ describe("toUser", () => {
 			_id: userId("u1"),
 			_creationTime: 1000,
 			name: "Alice",
-			image: "https://example.com/alice.png",
+			discordAvatarUrl: "https://example.com/alice.png",
 		};
 		const result = toUser(doc as never);
 		expect(result).toEqual({
@@ -86,18 +87,18 @@ describe("toUser", () => {
 		});
 	});
 
-	test("handles null name and image", () => {
+	test("falls back to DiceBear when no Discord avatar is cached", () => {
 		const doc = {
 			_id: userId("u2"),
 			_creationTime: 1000,
 			name: null,
-			image: null,
+			discordAvatarUrl: null,
 		};
 		const result = toUser(doc as never);
 		expect(result).toEqual({
 			id: userId("u2"),
 			name: "",
-			avatarUrl: "",
+			avatarUrl: getDiceBearAvatarUrl("user"),
 		});
 	});
 });
@@ -143,14 +144,14 @@ describe("toUsers / toLabels / toPhases (batch with null filtering)", () => {
 				_id: userId("u1"),
 				_creationTime: 1000,
 				name: "Alice",
-				image: "img1",
+				discordAvatarUrl: "img1",
 			},
 			null,
 			{
 				_id: userId("u2"),
 				_creationTime: 1000,
 				name: "Bob",
-				image: "img2",
+				discordAvatarUrl: "img2",
 			},
 		];
 		const result = toUsers(docs as never);
@@ -198,13 +199,13 @@ describe("toUserMap / toLabelMap / toPhaseMap", () => {
 				_id: userId("u1"),
 				_creationTime: 1000,
 				name: "Alice",
-				image: "img1",
+				discordAvatarUrl: "img1",
 			},
 			{
 				_id: userId("u2"),
 				_creationTime: 1000,
 				name: "Bob",
-				image: "img2",
+				discordAvatarUrl: "img2",
 			},
 		];
 		const map = toUserMap(ids, docs as never);

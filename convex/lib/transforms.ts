@@ -1,5 +1,6 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { UserUI, TeamUI, LabelUI, PhaseUI } from "./validators";
+import { resolveUserAvatarUrl } from "./avatarResolver";
 
 export type { UserUI, TeamUI, LabelUI, PhaseUI };
 
@@ -31,7 +32,7 @@ export function createLens<T extends { id: string }>(items: T[]): Lens<T> {
 export const toUser = (doc: Doc<"users">): UserUI => ({
 	id: doc._id,
 	name: doc.name ?? "",
-	avatarUrl: doc.image ?? "",
+	avatarUrl: resolveUserAvatarUrl(doc),
 });
 
 export const toLabel = (doc: Doc<"labels">): LabelUI => ({

@@ -121,6 +121,26 @@ export async function handleDiscordInteraction(
 					}),
 				);
 			}
+
+			// Delete the message if dismiss action was executed
+			if (result.isDismiss) {
+				await ctx.runAction(
+					internal.discord.actions.deleteDiscordMessageAction,
+					{
+						channelId: interaction.channel_id,
+						messageId: interaction.message.id,
+					},
+				);
+				return jsonResponse(
+					interactionMessageResponse(
+						{
+							content: result.content,
+						},
+						{ ephemeral: true },
+					),
+				);
+			}
+
 			return jsonResponse(
 				interactionUpdateMessageResponse({
 					content: result.content,

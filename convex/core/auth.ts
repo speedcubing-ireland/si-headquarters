@@ -11,17 +11,12 @@ import {
 } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { TEAM_NAMES } from "../lib/constants";
-import { buildDefaultAvatarUrl } from "../lib/defaultAvatar";
 import { requireAuthenticatedUserId } from "../lib/permissions/authn";
 import { isVolunteerForCtx } from "../lib/permissions/policies";
 import { normalizeEmail } from "../lib/sanitize";
 import { z } from "zod";
 import { v } from "convex/values";
 import { WCA_BASE_URL } from "../integrations/wca";
-
-function hasAvatarImage(image: string | null | undefined): boolean {
-	return typeof image === "string" && image.trim().length > 0;
-}
 
 const wcaMeSchema = z.object({
 	id: z.number(),
@@ -116,22 +111,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 			clientSecret: process.env.AUTH_WCA_SECRET,
 		}),
 	],
-	callbacks: {
-		async afterUserCreatedOrUpdated(ctx, args) {
-			if (args.existingUserId !== null) {
-				return;
-			}
-
-			const user = await ctx.db.get("users", args.userId);
-			if (!user || hasAvatarImage(user.image)) {
-				return;
-			}
-
-			await ctx.db.patch("users", args.userId, {
-				image: buildDefaultAvatarUrl(String(args.userId)),
-			});
-		},
-	},
 });
 
 const VOLUNTEER_TEAM_NAME = TEAM_NAMES.VOLUNTEER;

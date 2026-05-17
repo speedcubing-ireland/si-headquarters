@@ -25,6 +25,21 @@ export const notificationType = v.union(
 	...NOTIFICATION_TYPES.map((type) => v.literal(type)),
 );
 
+export const CHANNEL_SCOPED_NOTIFICATION_TYPES = [
+	"task_assigned",
+	"task_unassigned",
+	"task_status_changed",
+	"task_priority_changed",
+	"task_awaiting_review",
+	"task_approved",
+	"task_unapproved",
+	"due_date_changed",
+	"relation_blocked",
+	"relation_unblocked",
+	"competition_phase_changed",
+	"progress_update_added",
+] as const;
+
 export const NOTIFICATION_PRIORITIES = [
 	"low",
 	"normal",

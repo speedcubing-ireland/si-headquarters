@@ -47,20 +47,4 @@ describe("user account behavior", () => {
 		const user = await t.run((ctx) => ctx.db.get("users", userId));
 		expect(user?.name).toBe("Padded Name");
 	});
-
-	test("rerollCurrentUserAvatar generates a new avatar URL", async () => {
-		const t = convexTest(schema, modules);
-		const userId = await seedUser(t);
-		const authed = t.withIdentity({ subject: userId });
-
-		// First reroll to set an avatar
-		await authed.mutation(api.core.users.rerollCurrentUserAvatar, {});
-		const first = await t.run((ctx) => ctx.db.get("users", userId));
-		expect(first?.image).toBeTruthy();
-
-		// Second reroll should generate a different avatar
-		await authed.mutation(api.core.users.rerollCurrentUserAvatar, {});
-		const second = await t.run((ctx) => ctx.db.get("users", userId));
-		expect(second?.image).toBeTruthy();
-	});
 });

@@ -6,7 +6,7 @@ import {
 	ensureUserInVolunteerTeam,
 	applyPendingTeamMemberships,
 } from "./auth";
-import { buildDefaultAvatarUrl } from "../lib/defaultAvatar";
+import { resolveUserAvatarUrl } from "../lib/avatarResolver";
 
 const userDocValidator = v.union(
 	v.null(),
@@ -14,19 +14,11 @@ const userDocValidator = v.union(
 		_id: v.id("users"),
 		_creationTime: v.number(),
 		name: v.optional(v.string()),
-		image: v.optional(v.string()),
 		email: v.optional(v.string()),
+		avatarUrl: v.string(),
 	}),
 );
 
-const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_AVATAR_CONTENT_TYPES = new Set([
-	"image/png",
-	"image/jpeg",
-	"image/webp",
-	"image/gif",
-	"image/avif",
-]);
 const MAX_NAME_LENGTH = 80;
 
 function sanitizeName(name: string): string {
@@ -58,8 +50,8 @@ export const getCurrentUser = query({
 			_id: user._id,
 			_creationTime: user._creationTime,
 			name: user.name,
-			image: user.image,
 			email: user.email,
+			avatarUrl: resolveUserAvatarUrl(user),
 		};
 	},
 });
@@ -73,7 +65,7 @@ export const listUsers = query({
 		return users.map((u) => ({
 			id: u._id,
 			name: u.name ?? "",
-			avatarUrl: u.image ?? "",
+			avatarUrl: resolveUserAvatarUrl(u),
 		}));
 	},
 });
@@ -99,54 +91,5 @@ export const updateCurrentUserName = mutation({
 		const nextName = sanitizeName(args.name);
 		await ctx.db.patch("users", userId, { name: nextName });
 		return nextName;
-	},
-});
-
-export const generateAvatarUploadUrl = mutation({
-	args: {},
-	returns: v.string(),
-	handler: async (ctx) => {
-		await requireUserId(ctx);
-		return await ctx.storage.generateUploadUrl();
-	},
-});
-
-export const setCurrentUserAvatarFromStorage = mutation({
-	args: {
-		storageId: v.id("_storage"),
-	},
-	returns: v.string(),
-	handler: async (ctx, args) => {
-		const userId = await requireUserId(ctx);
-		const file = await ctx.db.system.get("_storage", args.storageId);
-		if (!file) {
-			throw new ConvexError("Uploaded avatar not found.");
-		}
-		const contentType = file.contentType ?? "";
-		const isAllowedType = ALLOWED_AVATAR_CONTENT_TYPES.has(contentType);
-		const isAllowedSize = file.size <= MAX_AVATAR_SIZE_BYTES;
-		if (!isAllowedType || !isAllowedSize) {
-			await ctx.storage.delete(args.storageId);
-			throw new ConvexError(
-				"Avatar must be PNG, JPEG, WebP, GIF, or AVIF and up to 5MB.",
-			);
-		}
-		const avatarUrl = await ctx.storage.getUrl(args.storageId);
-		if (!avatarUrl) {
-			throw new ConvexError("Unable to read uploaded avatar.");
-		}
-		await ctx.db.patch("users", userId, { image: avatarUrl });
-		return avatarUrl;
-	},
-});
-
-export const rerollCurrentUserAvatar = mutation({
-	args: {},
-	returns: v.string(),
-	handler: async (ctx) => {
-		const userId = await requireUserId(ctx);
-		const avatarUrl = buildDefaultAvatarUrl(`${userId}-${Date.now()}`);
-		await ctx.db.patch("users", userId, { image: avatarUrl });
-		return avatarUrl;
 	},
 });

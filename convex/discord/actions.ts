@@ -3,7 +3,6 @@
 import { internalAction } from "../_generated/server";
 import { v } from "convex/values";
 import {
-	ButtonStyle,
 	ComponentType,
 	type RESTPostAPIChannelMessageJSONBody,
 } from "discord-api-types/v10";
@@ -13,6 +12,7 @@ import {
 	listGuildMembers,
 	sendDirectMessage,
 	sendChannelMessage,
+	deleteChannelMessage,
 } from "./client";
 import {
 	listGuildSlashCommands,
@@ -111,6 +111,19 @@ export const sendCompetitionSummaryDmAction = internalAction({
 	},
 });
 
+export const deleteDiscordMessageAction = internalAction({
+	args: {
+		channelId: v.string(),
+		messageId: v.string(),
+	},
+	returns: v.null(),
+	handler: async (_ctx, { channelId, messageId }) => {
+		const rest = getDiscordRest();
+		await deleteChannelMessage(rest, channelId, messageId);
+		return null;
+	},
+});
+
 export const listGuildMembersAction = internalAction({
 	args: {},
 	returns: v.array(guildMemberSummary),
@@ -143,11 +156,21 @@ export const sendNotificationMessageAction = internalAction({
 		title: v.string(),
 		message: v.string(),
 		url: v.optional(v.string()),
+		priority: v.optional(
+			v.union(v.literal("urgent"), v.literal("high"), v.literal("normal")),
+		),
 		actions: v.array(
 			v.object({
 				customId: v.string(),
 				label: v.string(),
-				style: v.union(v.literal(1), v.literal(2), v.literal(3), v.literal(4)),
+				style: v.union(
+					v.literal(1),
+					v.literal(2),
+					v.literal(3),
+					v.literal(4),
+					v.literal(5),
+				),
+				url: v.optional(v.string()),
 			}),
 		),
 	},
@@ -157,16 +180,26 @@ export const sendNotificationMessageAction = internalAction({
 	}),
 	handler: async (_ctx, args) => {
 		const rest = getDiscordRest();
+		const color = (() => {
+			switch (args.priority) {
+				case "urgent":
+					return 0xdc2626; // red-600
+				case "high":
+					return 0xea580c; // orange-600
+				default:
+					return 0x2563eb; // blue-600
+			}
+		})();
 		const body: RESTPostAPIChannelMessageJSONBody = {
-			content: args.url ? `${args.message}\n${args.url}` : args.message,
 			embeds: [
 				{
 					title: args.title,
 					description: args.message,
-					color: 0x2563eb,
+					url: args.url,
+					color,
 				},
 			],
-			components: buildNotificationComponents(args.actions, args.url),
+			components: buildNotificationComponents(args.actions),
 		};
 		const result =
 			args.destinationKind === "dm"
@@ -183,9 +216,9 @@ function buildNotificationComponents(
 	actions: Array<{
 		customId: string;
 		label: string;
-		style: 1 | 2 | 3 | 4;
+		style: 1 | 2 | 3 | 4 | 5;
+		url?: string;
 	}>,
-	url: string | undefined,
 ) {
 	const buttons: Array<{
 		type: ComponentType.Button;
@@ -197,16 +230,10 @@ function buildNotificationComponents(
 		type: ComponentType.Button,
 		style: action.style,
 		label: action.label,
-		custom_id: action.customId,
+		...(action.style === 5
+			? { url: action.url ?? action.customId }
+			: { custom_id: action.customId }),
 	}));
-	if (url) {
-		buttons.push({
-			type: ComponentType.Button,
-			style: ButtonStyle.Link,
-			label: "Open HQ",
-			url,
-		});
-	}
 
 	const rows = [];
 	for (let index = 0; index < buttons.length; index += 5) {

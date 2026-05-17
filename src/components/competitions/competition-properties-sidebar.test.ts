@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatWinningBid } from "./competition-properties-sidebar";
+import { formatWinningBid } from "@/lib/format-winning-bid";
 
 describe("formatWinningBid", () => {
 	it("formats whole euros", () =>

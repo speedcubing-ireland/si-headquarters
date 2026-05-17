@@ -11,6 +11,7 @@ import type {
 	NotificationEntityRef,
 	NotificationPayload,
 } from "./notificationTypes";
+import { resolveUserAvatarUrl } from "../../lib/avatarResolver";
 
 export async function getActorInfo(
 	ctx: Pick<MutationCtx, "db">,
@@ -26,7 +27,7 @@ export async function getActorInfo(
 	return {
 		actorId,
 		actorName: user.name ?? undefined,
-		actorAvatarUrl: user.image ?? undefined,
+		actorAvatarUrl: resolveUserAvatarUrl(user),
 	};
 }
 

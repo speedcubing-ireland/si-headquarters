@@ -75,6 +75,7 @@ import type * as integrations_wca_index from "../integrations/wca/index.js";
 import type * as integrations_wca_lib_registrations from "../integrations/wca/lib/registrations.js";
 import type * as integrations_wca_schedule from "../integrations/wca/schedule.js";
 import type * as integrations_wca_twoFactor from "../integrations/wca/twoFactor.js";
+import type * as lib_avatarResolver from "../lib/avatarResolver.js";
 import type * as lib_commentParentId from "../lib/commentParentId.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_defaultAvatar from "../lib/defaultAvatar.js";
@@ -95,6 +96,7 @@ import type * as lib_siteUrls from "../lib/siteUrls.js";
 import type * as lib_transforms from "../lib/transforms.js";
 import type * as lib_types from "../lib/types.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as migrations_renameNotificationTypes from "../migrations/renameNotificationTypes.js";
 import type * as notifications_api from "../notifications/api.js";
 import type * as notifications_catalog from "../notifications/catalog.js";
 import type * as notifications_emit from "../notifications/emit.js";
@@ -110,6 +112,7 @@ import type * as notifications_lib_recipientCollection from "../notifications/li
 import type * as notifications_lib_validators from "../notifications/lib/validators.js";
 import type * as notifications_recipients_expand from "../notifications/recipients/expand.js";
 import type * as notifications_subscriptions from "../notifications/subscriptions.js";
+import type * as notifications_testNotifications from "../notifications/testNotifications.js";
 import type * as notifications_triggers_comments from "../notifications/triggers/comments.js";
 import type * as notifications_triggers_competitions from "../notifications/triggers/competitions.js";
 import type * as notifications_triggers_tasks from "../notifications/triggers/tasks.js";
@@ -243,6 +246,7 @@ declare const fullApi: ApiFromModules<{
   "integrations/wca/lib/registrations": typeof integrations_wca_lib_registrations;
   "integrations/wca/schedule": typeof integrations_wca_schedule;
   "integrations/wca/twoFactor": typeof integrations_wca_twoFactor;
+  "lib/avatarResolver": typeof lib_avatarResolver;
   "lib/commentParentId": typeof lib_commentParentId;
   "lib/constants": typeof lib_constants;
   "lib/defaultAvatar": typeof lib_defaultAvatar;
@@ -263,6 +267,7 @@ declare const fullApi: ApiFromModules<{
   "lib/transforms": typeof lib_transforms;
   "lib/types": typeof lib_types;
   "lib/validators": typeof lib_validators;
+  "migrations/renameNotificationTypes": typeof migrations_renameNotificationTypes;
   "notifications/api": typeof notifications_api;
   "notifications/catalog": typeof notifications_catalog;
   "notifications/emit": typeof notifications_emit;
@@ -278,6 +283,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/lib/validators": typeof notifications_lib_validators;
   "notifications/recipients/expand": typeof notifications_recipients_expand;
   "notifications/subscriptions": typeof notifications_subscriptions;
+  "notifications/testNotifications": typeof notifications_testNotifications;
   "notifications/triggers/comments": typeof notifications_triggers_comments;
   "notifications/triggers/competitions": typeof notifications_triggers_competitions;
   "notifications/triggers/tasks": typeof notifications_triggers_tasks;

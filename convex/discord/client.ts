@@ -65,3 +65,11 @@ export async function sendWebhookMessage(
 		body,
 	})) as APIMessage;
 }
+
+export async function deleteChannelMessage(
+	rest: REST,
+	channelId: string,
+	messageId: string,
+): Promise<void> {
+	await rest.delete(Routes.channelMessage(channelId, messageId));
+}

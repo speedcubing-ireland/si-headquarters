@@ -20,6 +20,7 @@ import {
 import { requireAuthenticatedUserId } from "../lib/permissions/authn";
 import { normalizeEmail, validateEmail } from "../lib/sanitize";
 import { ensureSponsorAuthAccount } from "../sponsorship/authAccounts";
+import { resolveUserAvatarUrl } from "../lib/avatarResolver";
 
 type AuthCtx = QueryCtx | MutationCtx;
 type ImpersonationTargetType = "user" | "sponsor";
@@ -248,7 +249,7 @@ export const listMembersAndTeams = query({
 		const users = userDocs.map((u) => ({
 			id: u._id,
 			name: u.name ?? "",
-			avatarUrl: u.image ?? "",
+			avatarUrl: resolveUserAvatarUrl(u),
 			teamIds: [] as string[],
 		}));
 

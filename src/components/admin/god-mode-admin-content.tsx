@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { onMutationError } from "@/lib/utils";
 import { ConnectionStatusCardContainer } from "@/components/admin/connection-status-card";
+import { CompetitionChannelsSection } from "@/components/admin/competition-channels-section";
 import { DiscordAdminSection } from "@/components/admin/discord-admin-section";
 import { IncognitoLoginLinksSection } from "@/components/admin/incognito-login-links-section";
 import { LabelsSection } from "@/components/admin/labels-section";
 import { LinkedActionsSection } from "@/components/admin/linked-actions-section";
 import { MembersAndTeamsSection } from "@/components/admin/members-and-teams-section";
+import { NotificationTestSection } from "@/components/admin/notification-test-section";
 import { PhasesSection } from "@/components/admin/phases-section";
 import { AppPageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type GodModeTab = "users" | "services" | "data" | "linked-actions" | "discord";
+type GodModeTab =
+	| "users"
+	| "services"
+	| "data"
+	| "linked-actions"
+	| "discord"
+	| "channels";
 type ServiceType = "google" | "wca" | "canva";
 
 const SERVICE_LABELS: Record<ServiceType, string> = {
@@ -39,7 +47,7 @@ export function GodModeAdminContent({
 			/>
 			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 pt-0 lg:p-6 lg:pt-0">
 				<Tabs defaultValue={defaultTab} className="flex flex-1 flex-col gap-4">
-					<TabsList className="grid h-auto grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+					<TabsList className="grid h-auto grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
 						<TabsTrigger value="users">Users</TabsTrigger>
 						<TabsTrigger value="services">Services</TabsTrigger>
 						<TabsTrigger value="data">Data</TabsTrigger>
@@ -47,6 +55,7 @@ export function GodModeAdminContent({
 							Linked Integrations
 						</TabsTrigger>
 						<TabsTrigger value="discord">Discord</TabsTrigger>
+						<TabsTrigger value="channels">Channels</TabsTrigger>
 					</TabsList>
 					<TabsContent value="users" className="mt-0 space-y-4">
 						<MembersAndTeamsSection />
@@ -86,8 +95,12 @@ export function GodModeAdminContent({
 					<TabsContent value="linked-actions" className="mt-0">
 						<LinkedActionsSection />
 					</TabsContent>
-					<TabsContent value="discord" className="mt-0">
+					<TabsContent value="discord" className="mt-0 space-y-4">
 						<DiscordAdminSection />
+						<NotificationTestSection />
+					</TabsContent>
+					<TabsContent value="channels" className="mt-0">
+						<CompetitionChannelsSection />
 					</TabsContent>
 				</Tabs>
 			</div>

@@ -28,6 +28,8 @@ export {
 	useDiscordAdminLinks,
 	useDiscordMutations,
 	useDiscordSettings,
+	useCompetitionChannels,
+	useChannelDefaults,
 } from "./convex/use-discord";
 
 export {

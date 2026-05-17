@@ -225,7 +225,7 @@ export function useTaskMutations(): TaskMutations {
 			({
 				id: authUser._id,
 				name: authUser.name ?? "",
-				avatarUrl: authUser.image ?? "",
+				avatarUrl: authUser.avatarUrl,
 			} satisfies User);
 
 		const next = { ...current };

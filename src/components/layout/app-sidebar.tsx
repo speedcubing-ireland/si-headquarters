@@ -208,7 +208,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 							? {
 									name: user.name ?? user.email ?? "User",
 									email: user.email ?? "",
-									avatar: user.image ?? "",
+									avatar: user.avatarUrl,
 								}
 							: null
 					}

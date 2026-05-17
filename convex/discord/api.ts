@@ -12,6 +12,7 @@ import { requireDirector } from "../core/admin";
 import { requireDiscordGuildId } from "./config";
 import {
 	NOTIFICATION_TYPES,
+	CHANNEL_SCOPED_NOTIFICATION_TYPES,
 	notificationType,
 } from "../notifications/lib/validators";
 
@@ -247,6 +248,9 @@ export const setUserLink = mutation({
 			existingForDiscordUser &&
 			existingForDiscordUser.userId !== args.userId
 		) {
+			await ctx.db.patch("users", existingForDiscordUser.userId, {
+				discordAvatarUrl: "",
+			});
 			await ctx.db.delete("discordUserLinks", existingForDiscordUser._id);
 		}
 
@@ -261,6 +265,9 @@ export const setUserLink = mutation({
 				linkedAt: updatedAt,
 				updatedAt,
 			});
+			await ctx.db.patch("users", args.userId, {
+				discordAvatarUrl: args.discordAvatarUrl ?? "",
+			});
 			return null;
 		}
 
@@ -274,6 +281,9 @@ export const setUserLink = mutation({
 			linkedById,
 			linkedAt: updatedAt,
 			updatedAt,
+		});
+		await ctx.db.patch("users", args.userId, {
+			discordAvatarUrl: args.discordAvatarUrl ?? "",
 		});
 		return null;
 	},
@@ -291,6 +301,9 @@ export const clearUserLink = mutation({
 		if (existing) {
 			await ctx.db.delete("discordUserLinks", existing._id);
 		}
+		await ctx.db.patch("users", args.userId, {
+			discordAvatarUrl: "",
+		});
 		return null;
 	},
 });
@@ -413,6 +426,7 @@ export const executeActionToken = internalMutation({
 			kind: v.literal("message"),
 			content: v.string(),
 			clearMessage: v.boolean(),
+			isDismiss: v.boolean(),
 		}),
 		v.object({
 			kind: v.literal("modal"),
@@ -440,6 +454,7 @@ export const executeActionToken = internalMutation({
 				kind: "message" as const,
 				content: "Your Discord account is not linked to an HQ user.",
 				clearMessage: false,
+				isDismiss: false,
 			};
 		}
 		if (!tokenDoc) {
@@ -447,6 +462,7 @@ export const executeActionToken = internalMutation({
 				kind: "message" as const,
 				content: "This Discord action token is invalid.",
 				clearMessage: false,
+				isDismiss: false,
 			};
 		}
 		if (tokenDoc.expiresAt < Date.now()) {
@@ -454,6 +470,7 @@ export const executeActionToken = internalMutation({
 				kind: "message" as const,
 				content: "This Discord action has expired.",
 				clearMessage: true,
+				isDismiss: false,
 			};
 		}
 		if (tokenDoc.consumedAt) {
@@ -461,6 +478,7 @@ export const executeActionToken = internalMutation({
 				kind: "message" as const,
 				content: "This Discord action has already been used.",
 				clearMessage: true,
+				isDismiss: false,
 			};
 		}
 		if (tokenDoc.userId && tokenDoc.userId !== link.userId) {
@@ -468,6 +486,7 @@ export const executeActionToken = internalMutation({
 				kind: "message" as const,
 				content: "This Discord action belongs to a different HQ user.",
 				clearMessage: false,
+				isDismiss: false,
 			};
 		}
 
@@ -478,8 +497,9 @@ export const executeActionToken = internalMutation({
 				});
 				return {
 					kind: "message" as const,
-					content: "Notification cleared.",
+					content: "Notification dismissed.",
 					clearMessage: true,
+					isDismiss: true,
 				};
 			}
 			case "set_task_status": {
@@ -498,6 +518,7 @@ export const executeActionToken = internalMutation({
 					kind: "message" as const,
 					content: `Task moved to ${tokenDoc.status}.`,
 					clearMessage: true,
+					isDismiss: false,
 				};
 			}
 			case "approve_task": {
@@ -515,6 +536,7 @@ export const executeActionToken = internalMutation({
 					kind: "message" as const,
 					content: "Task approved.",
 					clearMessage: true,
+					isDismiss: false,
 				};
 			}
 			case "unapprove_task": {
@@ -532,6 +554,7 @@ export const executeActionToken = internalMutation({
 					kind: "message" as const,
 					content: "Task approval removed.",
 					clearMessage: true,
+					isDismiss: false,
 				};
 			}
 			case "open_task_comment_modal":
@@ -661,5 +684,147 @@ export const submitActionModal = internalMutation({
 			content: "Comment posted.",
 			clearMessage: false,
 		};
+	},
+});
+
+const channelDefaultsReturns = v.object({
+	notificationTypes: v.array(notificationType),
+	updatedAt: v.number(),
+});
+
+export const getChannelDefaults = query({
+	args: {},
+	returns: channelDefaultsReturns,
+	handler: async (ctx) => {
+		await requireDirector(ctx);
+		const defaults = await ctx.db.query("discordChannelDefaults").first();
+		if (!defaults) {
+			return {
+				notificationTypes: [...CHANNEL_SCOPED_NOTIFICATION_TYPES],
+				updatedAt: 0,
+			};
+		}
+		return {
+			notificationTypes: defaults.notificationTypes,
+			updatedAt: defaults.updatedAt,
+		};
+	},
+});
+
+export const setChannelDefaults = mutation({
+	args: {
+		notificationTypes: v.array(notificationType),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		const existing = await ctx.db.query("discordChannelDefaults").first();
+		const now = Date.now();
+		if (existing) {
+			await ctx.db.patch("discordChannelDefaults", existing._id, {
+				notificationTypes: args.notificationTypes,
+				updatedAt: now,
+			});
+		} else {
+			await ctx.db.insert("discordChannelDefaults", {
+				notificationTypes: args.notificationTypes,
+				updatedAt: now,
+			});
+		}
+		return null;
+	},
+});
+
+const competitionChannelSummary = v.object({
+	competitionId: v.id("competitions"),
+	competitionName: v.string(),
+	compStart: v.string(),
+	compEnd: v.string(),
+	guildId: v.string(),
+	channelId: v.string(),
+	channelName: v.string(),
+	usesGlobalDefaults: v.boolean(),
+	notificationTypeOverrides: v.array(notificationType),
+});
+
+export const listCompetitionChannels = query({
+	args: {},
+	returns: v.array(competitionChannelSummary),
+	handler: async (ctx) => {
+		await requireDirector(ctx);
+		const competitions = await ctx.db
+			.query("competitions")
+			.withIndex("by_comp_start")
+			.order("asc")
+			.collect();
+		return competitions
+			.filter(
+				(
+					comp,
+				): comp is Doc<"competitions"> & {
+					discordChannel: NonNullable<Doc<"competitions">["discordChannel"]>;
+				} => comp.discordChannel !== undefined,
+			)
+			.map((comp) => {
+				const dc = comp.discordChannel;
+				return {
+					competitionId: comp._id,
+					competitionName: comp.name,
+					compStart: comp.compStart,
+					compEnd: comp.compEnd,
+					guildId: dc.guildId,
+					channelId: dc.channelId,
+					channelName: dc.channelName,
+					usesGlobalDefaults: dc.notificationTypeOverrides === undefined,
+					notificationTypeOverrides: dc.notificationTypeOverrides ?? [],
+				};
+			});
+	},
+});
+
+export const setCompetitionChannelOverrides = mutation({
+	args: {
+		competitionId: v.id("competitions"),
+		notificationTypeOverrides: v.array(notificationType),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		const competition = await ctx.db.get("competitions", args.competitionId);
+		if (!competition?.discordChannel) {
+			throw new ConvexError(
+				"Competition does not have a linked Discord channel.",
+			);
+		}
+		await ctx.db.patch("competitions", args.competitionId, {
+			discordChannel: {
+				...competition.discordChannel,
+				notificationTypeOverrides:
+					args.notificationTypeOverrides.length > 0
+						? args.notificationTypeOverrides
+						: undefined,
+			},
+			updatedAt: Date.now(),
+		});
+		return null;
+	},
+});
+
+export const removeCompetitionChannel = mutation({
+	args: {
+		competitionId: v.id("competitions"),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		const competition = await ctx.db.get("competitions", args.competitionId);
+		if (!competition) {
+			throw new ConvexError("Competition not found.");
+		}
+		await ctx.db.patch("competitions", args.competitionId, {
+			discordChannel: undefined,
+			updatedAt: Date.now(),
+		});
+		return null;
 	},
 });
