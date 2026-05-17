@@ -14,6 +14,7 @@ import {
 import {
 	notificationType,
 	notificationSubscriberEntityType,
+	notificationWatcherLevel,
 } from "./notifications/lib/validators";
 import {
 	competitionSponsorPropertyStatus,
@@ -464,6 +465,12 @@ export default defineSchema({
 		notificationTypes: v.array(notificationType),
 		updatedAt: v.number(),
 	}),
+
+	notificationWatcherDefaults: defineTable({
+		level: notificationWatcherLevel,
+		notificationTypes: v.array(notificationType),
+		updatedAt: v.number(),
+	}).index("by_level", ["level"]),
 
 	discordActionTokens: defineTable({
 		token: v.string(),

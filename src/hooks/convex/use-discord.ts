@@ -46,6 +46,16 @@ export const useChannelDefaults = () => {
 	};
 };
 
+export const useWatcherDefaults = () => {
+	const result = useQuery(api.discord.api.listWatcherDefaults, {});
+	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
+	return {
+		defaults: data ?? [],
+		isLoading,
+		isRefreshing,
+	};
+};
+
 export function useDiscordMutations() {
 	const setCurrentUserDmEnabled = useMutation(
 		api.discord.api.setCurrentUserDmEnabled,
@@ -56,6 +66,7 @@ export function useDiscordMutations() {
 	const setUserLink = useMutation(api.discord.api.setUserLink);
 	const clearUserLink = useMutation(api.discord.api.clearUserLink);
 	const setChannelDefaults = useMutation(api.discord.api.setChannelDefaults);
+	const setWatcherDefaults = useMutation(api.discord.api.setWatcherDefaults);
 	const setCompetitionChannelOverrides = useMutation(
 		api.discord.api.setCompetitionChannelOverrides,
 	);
@@ -80,6 +91,8 @@ export function useDiscordMutations() {
 		clearUserLink: (userId: Id<"users">) => clearUserLink({ userId }),
 		setChannelDefaults: (payload: Parameters<typeof setChannelDefaults>[0]) =>
 			setChannelDefaults(payload),
+		setWatcherDefaults: (payload: Parameters<typeof setWatcherDefaults>[0]) =>
+			setWatcherDefaults(payload),
 		setCompetitionChannelOverrides: (
 			payload: Parameters<typeof setCompetitionChannelOverrides>[0],
 		) => setCompetitionChannelOverrides(payload),

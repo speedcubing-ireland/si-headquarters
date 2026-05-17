@@ -158,6 +158,85 @@ describe("competition channel admin API", () => {
 		);
 	}, 15_000);
 
+	test("setCompetitionChannelOverrides can explicitly disable all channel notifications", async () => {
+		const t = convexTest(schema, modules);
+		const { competitionId } = await seedCompetitionWithDiscordChannel(t);
+		const directorId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+		await t.run(async (ctx) => {
+			await ctx.db.insert("teams", {
+				name: TEAM_NAMES.DIRECTORS,
+				memberIds: [directorId],
+			});
+		});
+		const authed = t.withIdentity({ subject: directorId });
+
+		await authed.mutation(api.discord.api.setCompetitionChannelOverrides, {
+			competitionId,
+			notificationTypeOverrides: [],
+		});
+
+		const channels = await authed.query(
+			api.discord.api.listCompetitionChannels,
+			{},
+		);
+
+		expect(channels[0].usesGlobalDefaults).toBe(false);
+		expect(channels[0].notificationTypeOverrides).toEqual([]);
+	}, 15_000);
+
+	test("setCompetitionChannelOverrides can reset to watcher defaults", async () => {
+		const t = convexTest(schema, modules);
+		const { competitionId } = await seedCompetitionWithDiscordChannel(t);
+		const directorId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+		await t.run(async (ctx) => {
+			await ctx.db.insert("teams", {
+				name: TEAM_NAMES.DIRECTORS,
+				memberIds: [directorId],
+			});
+		});
+		const authed = t.withIdentity({ subject: directorId });
+
+		await authed.mutation(api.discord.api.setCompetitionChannelOverrides, {
+			competitionId,
+			notificationTypeOverrides: [],
+			useGlobalDefaults: true,
+		});
+
+		const channels = await authed.query(
+			api.discord.api.listCompetitionChannels,
+			{},
+		);
+
+		expect(channels[0].usesGlobalDefaults).toBe(true);
+	}, 15_000);
+
+	test("listWatcherDefaults returns quiet channel defaults and task watcher defaults", async () => {
+		const t = convexTest(schema, modules);
+		await seedCompetitionWithDiscordChannel(t);
+		const directorId = await t.run(async (ctx) => ctx.db.insert("users", {}));
+		await t.run(async (ctx) => {
+			await ctx.db.insert("teams", {
+				name: TEAM_NAMES.DIRECTORS,
+				memberIds: [directorId],
+			});
+		});
+		const authed = t.withIdentity({ subject: directorId });
+
+		const defaults = await authed.query(
+			api.discord.api.listWatcherDefaults,
+			{},
+		);
+		const channel = defaults.find((row) => row.level === "channel");
+		const task = defaults.find((row) => row.level === "task");
+
+		expect(channel?.notificationTypes).toContain("progress_update_added");
+		expect(channel?.notificationTypes).not.toContain("task_assigned");
+		expect(channel?.notificationTypes).not.toContain("relation_blocked");
+		expect(task?.notificationTypes).toContain("task_assigned");
+		expect(task?.notificationTypes).toContain("due_date_overdue");
+		expect(task?.notificationTypes).not.toContain("task_mentioned");
+	}, 15_000);
+
 	test("removeCompetitionChannel removes the discord channel link", async () => {
 		const t = convexTest(schema, modules);
 		const { competitionId } = await seedCompetitionWithDiscordChannel(t);

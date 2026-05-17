@@ -110,6 +110,7 @@ import type * as notifications_lib_notificationTemplates from "../notifications/
 import type * as notifications_lib_notificationTypes from "../notifications/lib/notificationTypes.js";
 import type * as notifications_lib_recipientCollection from "../notifications/lib/recipientCollection.js";
 import type * as notifications_lib_validators from "../notifications/lib/validators.js";
+import type * as notifications_lib_watcherPolicy from "../notifications/lib/watcherPolicy.js";
 import type * as notifications_recipients_expand from "../notifications/recipients/expand.js";
 import type * as notifications_subscriptions from "../notifications/subscriptions.js";
 import type * as notifications_testNotifications from "../notifications/testNotifications.js";
@@ -281,6 +282,7 @@ declare const fullApi: ApiFromModules<{
   "notifications/lib/notificationTypes": typeof notifications_lib_notificationTypes;
   "notifications/lib/recipientCollection": typeof notifications_lib_recipientCollection;
   "notifications/lib/validators": typeof notifications_lib_validators;
+  "notifications/lib/watcherPolicy": typeof notifications_lib_watcherPolicy;
   "notifications/recipients/expand": typeof notifications_recipients_expand;
   "notifications/subscriptions": typeof notifications_subscriptions;
   "notifications/testNotifications": typeof notifications_testNotifications;

@@ -7,6 +7,11 @@ import { requireUserId } from "../core/auth";
 import { resolveHqSiteBaseUrl } from "../lib/siteUrls";
 import { getCommentParentId } from "../lib/commentParentId";
 import { toISO } from "../lib/transforms";
+import {
+	PRIORITY_LABELS,
+	PROGRESS_STATUS_LABELS,
+	STATUS_LABELS,
+} from "../lib/constants";
 import { buildNotificationEmitInput } from "./emit";
 import {
 	buildCompetitionNotificationResult,
@@ -21,6 +26,7 @@ import {
 	canUserAccessCompetition,
 	canUserAccessNotificationEntity,
 	canUserAccessTask,
+	getEntitySubscriberIds,
 } from "./lib/notificationAccess";
 import {
 	buildDueDateNotificationSpec,
@@ -43,13 +49,14 @@ import {
 	type NotificationTemplateConfig,
 	type TaskNotificationType as TemplateTaskNotificationType,
 } from "./lib/notificationTemplates";
-import { CHANNEL_SCOPED_NOTIFICATION_TYPES } from "./lib/validators";
-import { expandRecipientIds } from "./recipients/expand";
+import {
+	filterChannelWatcherNotificationTypes,
+	getDefaultWatcherNotificationTypes,
+	isTargetedNotificationType,
+	type NotificationWatcherLevel,
+	type WatcherNotificationType,
+} from "./lib/watcherPolicy";
 import { HQ_ACTION_TOKEN_PREFIX } from "../discord/interactions";
-
-const DISCORD_CHANNEL_NOTIFICATION_TYPES = new Set<NotificationType>(
-	CHANNEL_SCOPED_NOTIFICATION_TYPES,
-);
 
 type DiscordActionButtonSpec = {
 	customId: string;
@@ -61,10 +68,15 @@ type DiscordActionButtonSpec = {
 type DiscordMessagePayload = {
 	title: string;
 	message: string;
+	description?: string;
 	url?: string;
+	fields?: Array<{ name: string; value: string; inline?: boolean }>;
+	author?: { name: string; iconUrl?: string };
 	actions: DiscordActionButtonSpec[];
 	priority?: "urgent" | "high" | "normal";
 };
+
+type DiscordDestinationKind = "dm" | "channel";
 
 type SubscriptionPresentation = {
 	label: string;
@@ -201,6 +213,156 @@ function buildDiscordNotificationUrl(
 	}
 }
 
+async function resolveWatcherNotificationTypes(
+	ctx: Pick<MutationCtx, "db">,
+	level: NotificationWatcherLevel,
+): Promise<Set<WatcherNotificationType>> {
+	const configured = await ctx.db
+		.query("notificationWatcherDefaults")
+		.withIndex("by_level", (q) => q.eq("level", level))
+		.unique();
+	const notificationTypes =
+		configured?.notificationTypes ?? getDefaultWatcherNotificationTypes(level);
+	return new Set(
+		level === "channel"
+			? filterChannelWatcherNotificationTypes(
+					notificationTypes as WatcherNotificationType[],
+				)
+			: (notificationTypes as WatcherNotificationType[]),
+	);
+}
+
+async function isWatcherLevelEnabledForType(
+	ctx: Pick<MutationCtx, "db">,
+	level: NotificationWatcherLevel,
+	type: NotificationType,
+): Promise<boolean> {
+	return (await resolveWatcherNotificationTypes(ctx, level)).has(type);
+}
+
+async function getTaskForNotificationEntity(
+	ctx: Pick<MutationCtx, "db">,
+	entity: NotificationEntityRef,
+): Promise<Doc<"tasks"> | null> {
+	if (entity.entityType === "task") {
+		return await ctx.db.get("tasks", entity.entityId);
+	}
+	if (
+		(entity.entityType === "comment" || entity.entityType === "reminder") &&
+		entity.parentTaskId
+	) {
+		return await ctx.db.get("tasks", entity.parentTaskId);
+	}
+	return null;
+}
+
+async function getCompetitionForNotificationEntity(
+	ctx: Pick<MutationCtx, "db">,
+	entity: NotificationEntityRef,
+): Promise<Doc<"competitions"> | null> {
+	if (entity.entityType === "competition") {
+		return await ctx.db.get("competitions", entity.entityId);
+	}
+	const task = await getTaskForNotificationEntity(ctx, entity);
+	if (!task?.parentCompetitionId) {
+		return null;
+	}
+	return await ctx.db.get("competitions", task.parentCompetitionId);
+}
+
+async function getCompetitionWatcherRecipientIds(
+	ctx: Pick<MutationCtx, "db">,
+	competition: Doc<"competitions">,
+): Promise<Id<"users">[]> {
+	const recipients = new Set<Id<"users">>();
+	if (competition.compLeadId) recipients.add(competition.compLeadId);
+	if (competition.leadDelegateId) recipients.add(competition.leadDelegateId);
+	for (const organiserId of competition.organiserIds) {
+		recipients.add(organiserId);
+	}
+	for (const subscriberId of await getEntitySubscriberIds(ctx, {
+		entityType: "competition",
+		entityId: competition._id,
+	})) {
+		recipients.add(subscriberId);
+	}
+	return [...recipients];
+}
+
+async function getTaskWatcherSubscriberIdsIncludingParents(
+	ctx: Pick<MutationCtx, "db">,
+	task: Doc<"tasks">,
+): Promise<Id<"users">[]> {
+	const subscribers = new Set<Id<"users">>();
+	let currentTask: Doc<"tasks"> | null = task;
+	let depth = 0;
+	while (currentTask && depth < 20) {
+		for (const subscriberId of await getEntitySubscriberIds(ctx, {
+			entityType: "task",
+			entityId: currentTask._id,
+		})) {
+			subscribers.add(subscriberId);
+		}
+		currentTask = currentTask.parentTaskId
+			? await ctx.db.get("tasks", currentTask.parentTaskId)
+			: null;
+		depth += 1;
+	}
+	return [...subscribers];
+}
+
+async function expandNotificationRecipientsByWatcherPolicy(
+	ctx: MutationCtx,
+	input: NotificationEmitInput,
+): Promise<Id<"users">[]> {
+	if (isTargetedNotificationType(input.type)) {
+		return [...new Set(input.recipients)];
+	}
+
+	const recipients = new Set<Id<"users">>();
+	const task = await getTaskForNotificationEntity(ctx, input.entity);
+	const competition = await getCompetitionForNotificationEntity(
+		ctx,
+		input.entity,
+	);
+
+	for (const recipientId of input.recipients) {
+		recipients.add(recipientId);
+	}
+
+	if (input.includeEntitySubscribers) {
+		for (const subscriberId of await getEntitySubscriberIds(
+			ctx,
+			input.entity,
+		)) {
+			recipients.add(subscriberId);
+		}
+	}
+
+	if (task && (await isWatcherLevelEnabledForType(ctx, "task", input.type))) {
+		for (const subscriberId of await getTaskWatcherSubscriberIdsIncludingParents(
+			ctx,
+			task,
+		)) {
+			recipients.add(subscriberId);
+		}
+	}
+
+	if (
+		competition &&
+		(await isWatcherLevelEnabledForType(ctx, "competition", input.type))
+	) {
+		for (const recipientId of await getCompetitionWatcherRecipientIds(
+			ctx,
+			competition,
+		)) {
+			recipients.add(recipientId);
+		}
+	}
+
+	return [...recipients];
+}
+
 async function isDiscordDmEnabledForType(
 	ctx: MutationCtx,
 	userId: Id<"users">,
@@ -257,6 +419,457 @@ async function insertDiscordActionToken(
 	return `${HQ_ACTION_TOKEN_PREFIX}${token}`;
 }
 
+function truncateDiscordPreview(
+	value: string | undefined,
+	maxLength = 220,
+): string {
+	const trimmed = value?.trim();
+	if (!trimmed) return "";
+	if (trimmed.length <= maxLength) return trimmed;
+	return `${trimmed.slice(0, maxLength - 1).trimEnd()}...`;
+}
+
+function labelForStatus(status: string | undefined): string {
+	return status ? (STATUS_LABELS[status] ?? status) : "Unknown";
+}
+
+function labelForPriority(priority: string | undefined): string {
+	return priority ? (PRIORITY_LABELS[priority] ?? priority) : "Unknown";
+}
+
+function progressStatusIcon(status: string | undefined): string {
+	if (status === "on-track") return ":green_circle:";
+	if (status === "at-risk") return ":yellow_circle:";
+	if (status === "off-track") return ":red_circle:";
+	return ":blue_circle:";
+}
+
+function actorAuthor(
+	input: NotificationEmitInput,
+): { name: string; iconUrl?: string } | undefined {
+	const actorName = input.metadata?.actorName;
+	if (!actorName) return undefined;
+	return {
+		name: actorName,
+		iconUrl: input.metadata?.actorAvatarUrl,
+	};
+}
+
+async function buildTaskDiscordEmbed(
+	ctx: MutationCtx,
+	args: {
+		input: NotificationEmitInput;
+		task: Doc<"tasks">;
+		destinationKind: DiscordDestinationKind;
+		userId?: Id<"users">;
+		payload: Record<string, string | number | boolean | null | undefined>;
+	},
+): Promise<
+	Pick<DiscordMessagePayload, "title" | "description" | "fields" | "author">
+> {
+	const { input, task, destinationKind, payload } = args;
+	const competition = task.parentCompetitionId
+		? await ctx.db.get("competitions", task.parentCompetitionId)
+		: null;
+	const title = competition?.name ?? input.title;
+	const description = `**${task.identifier}: ${task.title}**`;
+	const actorName = input.metadata?.actorName ?? "Someone";
+	const oldValue =
+		typeof payload.oldStatus === "string"
+			? payload.oldStatus
+			: typeof payload.oldPriority === "string"
+				? payload.oldPriority
+				: typeof payload.oldDueDate === "string"
+					? payload.oldDueDate
+					: input.metadata?.oldValue;
+	const newValue =
+		typeof payload.newStatus === "string"
+			? payload.newStatus
+			: typeof payload.newPriority === "string"
+				? payload.newPriority
+				: typeof payload.newDueDate === "string"
+					? payload.newDueDate
+					: input.metadata?.newValue;
+
+	switch (input.type) {
+		case "task_assigned":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: ":bust_in_silhouette: Task Assigned",
+						value:
+							destinationKind === "dm"
+								? "You were assigned to this task."
+								: `${actorName} assigned this task.`,
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "task_unassigned":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: ":busts_in_silhouette: Task Unassigned",
+						value:
+							destinationKind === "dm"
+								? "You were unassigned from this task."
+								: `${actorName} removed the assignee from this task.`,
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "task_status_changed":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: `:arrows_counterclockwise: Status Changed - ${labelForStatus(
+							typeof newValue === "string" ? newValue : undefined,
+						)}`,
+						value: `Moved from **${labelForStatus(
+							typeof oldValue === "string" ? oldValue : undefined,
+						)}** to **${labelForStatus(
+							typeof newValue === "string" ? newValue : undefined,
+						)}**.`,
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "task_priority_changed":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: `:warning: Priority Changed - ${labelForPriority(
+							typeof newValue === "string" ? newValue : undefined,
+						)}`,
+						value: `Changed from **${labelForPriority(
+							typeof oldValue === "string" ? oldValue : undefined,
+						)}** to **${labelForPriority(
+							typeof newValue === "string" ? newValue : undefined,
+						)}**.`,
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "task_awaiting_review":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: ":mag: Task Awaiting Review",
+						value: "This task is ready for review.",
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "task_approved":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: ":thumbsup: Task Approved",
+						value:
+							task.status === "awaiting-review"
+								? "This task received an approval."
+								: "This task received an approval. If all approvals are complete, it may now be done.",
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "task_unapproved":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: ":x: Approval Withdrawn",
+						value: "This task is no longer fully approved.",
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "due_date_changed": {
+			const oldDate = typeof oldValue === "string" ? oldValue : undefined;
+			const newDate = typeof newValue === "string" ? newValue : undefined;
+			const value =
+				!oldDate && newDate
+					? `Set to **${newDate}**.`
+					: oldDate && !newDate
+						? `Removed due date, previously **${oldDate}**.`
+						: `Changed from **${oldDate ?? "none"}** to **${newDate ?? "none"}**.`;
+			return {
+				title,
+				description,
+				fields: [{ name: ":calendar: Due Date Changed", value, inline: false }],
+				author: actorAuthor(input),
+			};
+		}
+		case "due_date_approaching": {
+			const days =
+				typeof payload.daysUntil === "number"
+					? payload.daysUntil
+					: typeof payload.daysDiff === "number"
+						? payload.daysDiff
+						: undefined;
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name:
+							days === 0 ? ":alarm_clock: Due Today" : ":alarm_clock: Due Soon",
+						value:
+							days === 0
+								? "This task is due **today**."
+								: `This task is due in **${days ?? "a few"} days**.`,
+						inline: false,
+					},
+				],
+			};
+		}
+		case "due_date_overdue": {
+			const days =
+				typeof payload.daysOverdue === "number"
+					? payload.daysOverdue
+					: undefined;
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: `:rotating_light: Task Overdue${
+							days ? ` - ${days} ${days === 1 ? "Day" : "Days"}` : ""
+						}`,
+						value: task.dueDate
+							? `This task was due on **${task.dueDate.slice(0, 10)}**.`
+							: "This task is overdue.",
+						inline: false,
+					},
+				],
+			};
+		}
+		case "relation_unblocked": {
+			const blockerId =
+				typeof payload.blockingTaskId === "string"
+					? ctx.db.normalizeId("tasks", payload.blockingTaskId)
+					: null;
+			const blocker = blockerId ? await ctx.db.get("tasks", blockerId) : null;
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: ":white_check_mark: Task Unblocked",
+						value: blocker
+							? `The blocker **${blocker.identifier}: ${blocker.title}** was resolved. This task can move again.`
+							: "A blocker was resolved. This task can move again.",
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		}
+		case "relation_blocked":
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name: ":construction: Task Blocked",
+						value:
+							"This task is blocked. This notification type is disabled by default.",
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		case "comment_added":
+		case "task_mentioned":
+		case "comment_replied": {
+			const comment =
+				input.entity.entityType === "comment"
+					? await ctx.db.get("comments", input.entity.entityId)
+					: null;
+			const preview = truncateDiscordPreview(comment?.content);
+			const name =
+				input.type === "task_mentioned"
+					? ":speech_balloon: Mentioned in a Comment"
+					: input.type === "comment_replied"
+						? ":left_speech_bubble: Reply to Your Comment"
+						: ":speech_balloon: New Comment";
+			return {
+				title,
+				description,
+				fields: [
+					{
+						name,
+						value: preview
+							? `**${actorName}:** ${preview}`
+							: `${actorName} added a comment.`,
+						inline: false,
+					},
+				],
+				author: actorAuthor(input),
+			};
+		}
+		default:
+			return { title: input.title, description: input.message };
+	}
+}
+
+async function buildCompetitionDiscordEmbed(
+	ctx: MutationCtx,
+	args: {
+		input: NotificationEmitInput;
+		competition: Doc<"competitions">;
+		payload: Record<string, string | number | boolean | null | undefined>;
+	},
+): Promise<
+	Pick<DiscordMessagePayload, "title" | "description" | "fields" | "author">
+> {
+	const { input, competition, payload } = args;
+	if (input.type === "competition_phase_changed") {
+		const oldPhase =
+			typeof payload.oldPhaseName === "string"
+				? payload.oldPhaseName
+				: input.metadata?.oldValue;
+		const newPhase =
+			typeof payload.newPhaseName === "string"
+				? payload.newPhaseName
+				: input.metadata?.newValue;
+		return {
+			title: competition.name,
+			fields: [
+				{
+					name: `:twisted_rightwards_arrows: Phase Changed - ${
+						newPhase ?? "Updated"
+					}`,
+					value: `Moved from **${oldPhase ?? "Unknown"}** to **${
+						newPhase ?? "Unknown"
+					}**.`,
+					inline: false,
+				},
+			],
+			author: actorAuthor(input),
+		};
+	}
+
+	if (input.type === "progress_update_added") {
+		const status =
+			typeof payload.status === "string"
+				? payload.status
+				: input.metadata?.newValue;
+		const updateId =
+			typeof payload.updateId === "string"
+				? ctx.db.normalizeId("competitionUpdates", payload.updateId)
+				: null;
+		const update = updateId
+			? await ctx.db.get("competitionUpdates", updateId)
+			: null;
+		const statusLabel = status
+			? (PROGRESS_STATUS_LABELS[status] ?? status)
+			: "Update";
+		return {
+			title: competition.name,
+			fields: [
+				{
+					name: `${progressStatusIcon(status)} Update Posted - ${statusLabel}`,
+					value:
+						truncateDiscordPreview(update?.message) ||
+						"A progress update was posted.",
+					inline: false,
+				},
+			],
+			author: actorAuthor(input),
+		};
+	}
+
+	return { title: input.title, description: input.message };
+}
+
+async function buildReminderDiscordEmbed(
+	ctx: MutationCtx,
+	args: {
+		input: NotificationEmitInput;
+		taskId?: Id<"tasks">;
+		payload: Record<string, string | number | boolean | null | undefined>;
+	},
+): Promise<
+	Pick<DiscordMessagePayload, "title" | "description" | "fields" | "author">
+> {
+	const task = args.taskId ? await ctx.db.get("tasks", args.taskId) : null;
+	const competition = task?.parentCompetitionId
+		? await ctx.db.get("competitions", task.parentCompetitionId)
+		: null;
+	return {
+		title: competition?.name ?? args.input.title,
+		description: task ? `**${task.identifier}: ${task.title}**` : undefined,
+		fields: [
+			{
+				name: ":alarm_clock: Reminder",
+				value:
+					truncateDiscordPreview(args.input.message) ||
+					(task
+						? `Reminder for **${task.identifier}: ${task.title}**.`
+						: "Reminder triggered."),
+				inline: false,
+			},
+		],
+	};
+}
+
+async function buildDiscordEmbedPayload(
+	ctx: MutationCtx,
+	args: {
+		input: NotificationEmitInput;
+		destinationKind: DiscordDestinationKind;
+		userId?: Id<"users">;
+		payload: Record<string, string | number | boolean | null | undefined>;
+	},
+): Promise<
+	Pick<DiscordMessagePayload, "title" | "description" | "fields" | "author">
+> {
+	if (args.input.entity.entityType === "reminder") {
+		return buildReminderDiscordEmbed(ctx, {
+			input: args.input,
+			taskId: args.input.entity.parentTaskId,
+			payload: args.payload,
+		});
+	}
+	const task = await getTaskForNotificationEntity(ctx, args.input.entity);
+	if (task) {
+		return buildTaskDiscordEmbed(ctx, { ...args, task });
+	}
+	const competition = await getCompetitionForNotificationEntity(
+		ctx,
+		args.input.entity,
+	);
+	if (competition) {
+		return buildCompetitionDiscordEmbed(ctx, {
+			input: args.input,
+			competition,
+			payload: args.payload,
+		});
+	}
+	return { title: args.input.title, description: args.input.message };
+}
+
 async function buildTaskStatusButtons(
 	ctx: MutationCtx,
 	args: {
@@ -271,9 +884,9 @@ async function buildTaskStatusButtons(
 		label: string;
 		style: 1 | 2 | 3 | 4;
 	}> = [
-		{ status: "in-progress", label: "Start", style: 1 },
-		{ status: "awaiting-review", label: "Review", style: 2 },
-		{ status: "done", label: "Done", style: 3 },
+		{ status: "in-progress", label: "Start Task", style: 1 },
+		{ status: "awaiting-review", label: "Request Review", style: 2 },
+		{ status: "done", label: "Mark Done", style: 3 },
 	];
 	for (const button of statusButtons) {
 		if (button.status === args.task.status) {
@@ -337,12 +950,31 @@ async function buildDiscordActionButtons(
 	args: {
 		type: NotificationType;
 		entity: NotificationEntityRef;
+		destinationKind: DiscordDestinationKind;
 		userId?: Id<"users">;
 		payloadJson?: string;
 	},
 ): Promise<DiscordActionButtonSpec[]> {
 	const buttons: DiscordActionButtonSpec[] = [];
 	const payload = parsePayloadJson(args.payloadJson);
+	const entityUrl = buildDiscordNotificationUrl(args.entity);
+	if (entityUrl) {
+		buttons.push({
+			customId: entityUrl,
+			label:
+				args.type === "progress_update_added"
+					? "View Update"
+					: args.entity.entityType === "competition"
+						? "View Competition"
+						: args.entity.entityType === "comment"
+							? "View Comment"
+							: args.entity.entityType === "reminder"
+								? "View Task"
+								: "View Task",
+			style: 5,
+			url: entityUrl,
+		});
+	}
 
 	// Task-based notifications get status buttons
 	if (args.entity.entityType === "task") {
@@ -418,17 +1050,18 @@ async function buildDiscordActionButtons(
 		}
 	}
 
-	// All notifications get a dismiss button
-	buttons.push({
-		customId: await insertDiscordActionToken(ctx, {
-			actionKind: "dismiss_message",
-			userId: args.userId,
-		}),
-		label: "Dismiss",
-		style: 2,
-	});
+	if (args.destinationKind === "dm") {
+		buttons.push({
+			customId: await insertDiscordActionToken(ctx, {
+				actionKind: "dismiss_message",
+				userId: args.userId,
+			}),
+			label: "Dismiss",
+			style: 2,
+		});
+	}
 
-	return buttons;
+	return buttons.slice(0, 5);
 }
 
 async function buildDiscordMessagePayload(
@@ -436,20 +1069,44 @@ async function buildDiscordMessagePayload(
 	args: {
 		type: NotificationType;
 		entity: NotificationEntityRef;
+		destinationKind: DiscordDestinationKind;
 		userId?: Id<"users">;
 		title: string;
 		message: string;
 		priority?: "urgent" | "high" | "normal";
 		payloadJson?: string;
+		metadata?: NotificationEmitInput["metadata"];
 	},
 ): Promise<DiscordMessagePayload> {
-	return {
+	const input = {
+		type: args.type,
+		entity: args.entity,
+		recipients: [],
 		title: args.title,
 		message: args.message,
+		priority: args.priority ?? "normal",
+		metadata: args.metadata,
+		idempotencyBase: "",
+		payloadJson: args.payloadJson,
+	} satisfies NotificationEmitInput;
+	const payload = parsePayloadJson(args.payloadJson);
+	const embed = await buildDiscordEmbedPayload(ctx, {
+		input,
+		destinationKind: args.destinationKind,
+		userId: args.userId,
+		payload,
+	});
+	return {
+		title: embed.title,
+		message: args.message,
+		description: embed.description,
 		url: buildDiscordNotificationUrl(args.entity),
+		fields: embed.fields,
+		author: embed.author,
 		actions: await buildDiscordActionButtons(ctx, {
 			type: args.type,
 			entity: args.entity,
+			destinationKind: args.destinationKind,
 			userId: args.userId,
 			payloadJson: args.payloadJson,
 		}),
@@ -480,11 +1137,13 @@ async function scheduleDiscordDm(
 	const message = await buildDiscordMessagePayload(ctx, {
 		type: args.input.type,
 		entity: args.input.entity,
+		destinationKind: "dm",
 		userId: args.recipientId,
 		title: args.input.title,
 		message: args.input.message,
 		priority: args.input.priority as "urgent" | "high" | "normal" | undefined,
 		payloadJson: args.input.payloadJson,
+		metadata: args.input.metadata,
 	});
 
 	await ctx.scheduler.runAfter(
@@ -495,7 +1154,10 @@ async function scheduleDiscordDm(
 			targetId: link.discordUserId,
 			title: message.title,
 			message: message.message,
+			description: message.description,
 			url: message.url,
+			fields: message.fields,
+			author: message.author,
 			actions: message.actions,
 			priority: message.priority,
 		},
@@ -539,15 +1201,10 @@ async function resolveDiscordChannelForEntity(
 async function resolveGlobalChannelNotificationTypes(
 	ctx: MutationCtx,
 ): Promise<Set<NotificationType>> {
-	const defaults = await ctx.db.query("discordChannelDefaults").first();
-	if (!defaults) {
-		return new Set(DISCORD_CHANNEL_NOTIFICATION_TYPES);
-	}
-	return new Set(
-		defaults.notificationTypes.filter((t) =>
-			DISCORD_CHANNEL_NOTIFICATION_TYPES.has(t as NotificationType),
-		) as NotificationType[],
-	);
+	return (await resolveWatcherNotificationTypes(
+		ctx,
+		"channel",
+	)) as Set<NotificationType>;
 }
 
 async function resolveDiscordChannelNotificationTypes(
@@ -559,8 +1216,8 @@ async function resolveDiscordChannelNotificationTypes(
 		return globalTypes;
 	}
 	return new Set(
-		channel.notificationTypeOverrides.filter((t) =>
-			DISCORD_CHANNEL_NOTIFICATION_TYPES.has(t as NotificationType),
+		filterChannelWatcherNotificationTypes(
+			channel.notificationTypeOverrides as WatcherNotificationType[],
 		) as NotificationType[],
 	);
 }
@@ -581,15 +1238,16 @@ async function scheduleDiscordChannel(
 		return false;
 	}
 
-	const entityUrl = buildDiscordNotificationUrl(input.entity);
-	const actions: DiscordActionButtonSpec[] = [];
-	if (entityUrl) {
-		actions.push({
-			customId: `hq_link:${entityUrl}`,
-			label: "View in HQ",
-			style: 5,
-		});
-	}
+	const message = await buildDiscordMessagePayload(ctx, {
+		type: input.type,
+		entity: input.entity,
+		destinationKind: "channel",
+		title: input.title,
+		message: input.message,
+		priority: input.priority as "urgent" | "high" | "normal" | undefined,
+		payloadJson: input.payloadJson,
+		metadata: input.metadata,
+	});
 
 	await ctx.scheduler.runAfter(
 		0,
@@ -597,11 +1255,14 @@ async function scheduleDiscordChannel(
 		{
 			destinationKind: "channel",
 			targetId: channel.channelId,
-			title: input.title,
-			message: input.message,
-			url: entityUrl,
-			actions,
-			priority: input.priority as "urgent" | "high" | "normal" | undefined,
+			title: message.title,
+			message: message.message,
+			description: message.description,
+			url: message.url,
+			fields: message.fields,
+			author: message.author,
+			actions: message.actions,
+			priority: message.priority,
 		},
 	);
 	return true;
@@ -611,7 +1272,10 @@ async function dispatchNotification(
 	ctx: MutationCtx,
 	input: NotificationEmitInput,
 ): Promise<boolean> {
-	const recipients = await expandRecipientIds(ctx, input);
+	const recipients = await expandNotificationRecipientsByWatcherPolicy(
+		ctx,
+		input,
+	);
 	let sent = false;
 
 	for (const recipientId of recipients) {
