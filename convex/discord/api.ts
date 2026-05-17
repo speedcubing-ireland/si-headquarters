@@ -12,9 +12,16 @@ import { requireDirector } from "../core/admin";
 import { requireDiscordGuildId } from "./config";
 import {
 	NOTIFICATION_TYPES,
-	CHANNEL_SCOPED_NOTIFICATION_TYPES,
 	notificationType,
+	notificationWatcherLevel,
 } from "../notifications/lib/validators";
+import {
+	filterChannelWatcherNotificationTypes,
+	getDefaultWatcherNotificationTypes,
+	TARGETED_NOTIFICATION_TYPES,
+	type NotificationWatcherLevel,
+	type WatcherNotificationType,
+} from "../notifications/lib/watcherPolicy";
 
 const discordLinkReturns = v.union(
 	v.object({
@@ -692,20 +699,46 @@ const channelDefaultsReturns = v.object({
 	updatedAt: v.number(),
 });
 
+const watcherDefaultsReturns = v.object({
+	level: notificationWatcherLevel,
+	notificationTypes: v.array(notificationType),
+	updatedAt: v.number(),
+});
+
+function normalizeWatcherTypes(
+	level: NotificationWatcherLevel,
+	notificationTypes: readonly WatcherNotificationType[],
+): WatcherNotificationType[] {
+	const watcherTypes = notificationTypes.filter(
+		(type) =>
+			!TARGETED_NOTIFICATION_TYPES.includes(
+				type as (typeof TARGETED_NOTIFICATION_TYPES)[number],
+			),
+	);
+	return level === "channel"
+		? filterChannelWatcherNotificationTypes(watcherTypes)
+		: [...new Set(watcherTypes)];
+}
+
 export const getChannelDefaults = query({
 	args: {},
 	returns: channelDefaultsReturns,
 	handler: async (ctx) => {
 		await requireDirector(ctx);
-		const defaults = await ctx.db.query("discordChannelDefaults").first();
+		const defaults = await ctx.db
+			.query("notificationWatcherDefaults")
+			.withIndex("by_level", (q) => q.eq("level", "channel"))
+			.unique();
 		if (!defaults) {
 			return {
-				notificationTypes: [...CHANNEL_SCOPED_NOTIFICATION_TYPES],
+				notificationTypes: getDefaultWatcherNotificationTypes("channel"),
 				updatedAt: 0,
 			};
 		}
 		return {
-			notificationTypes: defaults.notificationTypes,
+			notificationTypes: filterChannelWatcherNotificationTypes(
+				defaults.notificationTypes as WatcherNotificationType[],
+			),
 			updatedAt: defaults.updatedAt,
 		};
 	},
@@ -718,16 +751,79 @@ export const setChannelDefaults = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		await requireDirector(ctx);
-		const existing = await ctx.db.query("discordChannelDefaults").first();
+		const notificationTypes = filterChannelWatcherNotificationTypes(
+			args.notificationTypes as WatcherNotificationType[],
+		);
+		const existing = await ctx.db
+			.query("notificationWatcherDefaults")
+			.withIndex("by_level", (q) => q.eq("level", "channel"))
+			.unique();
 		const now = Date.now();
 		if (existing) {
-			await ctx.db.patch("discordChannelDefaults", existing._id, {
-				notificationTypes: args.notificationTypes,
+			await ctx.db.patch("notificationWatcherDefaults", existing._id, {
+				notificationTypes,
 				updatedAt: now,
 			});
 		} else {
-			await ctx.db.insert("discordChannelDefaults", {
-				notificationTypes: args.notificationTypes,
+			await ctx.db.insert("notificationWatcherDefaults", {
+				level: "channel",
+				notificationTypes,
+				updatedAt: now,
+			});
+		}
+		return null;
+	},
+});
+
+export const listWatcherDefaults = query({
+	args: {},
+	returns: v.array(watcherDefaultsReturns),
+	handler: async (ctx) => {
+		await requireDirector(ctx);
+		const docs = await ctx.db.query("notificationWatcherDefaults").collect();
+		const byLevel = new Map(docs.map((doc) => [doc.level, doc]));
+		return (["channel", "competition", "task"] as const).map((level) => {
+			const doc = byLevel.get(level);
+			return {
+				level,
+				notificationTypes: doc
+					? normalizeWatcherTypes(
+							level,
+							doc.notificationTypes as WatcherNotificationType[],
+						)
+					: getDefaultWatcherNotificationTypes(level),
+				updatedAt: doc?.updatedAt ?? 0,
+			};
+		});
+	},
+});
+
+export const setWatcherDefaults = mutation({
+	args: {
+		level: notificationWatcherLevel,
+		notificationTypes: v.array(notificationType),
+	},
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		await requireDirector(ctx);
+		const notificationTypes = normalizeWatcherTypes(
+			args.level,
+			args.notificationTypes as WatcherNotificationType[],
+		);
+		const existing = await ctx.db
+			.query("notificationWatcherDefaults")
+			.withIndex("by_level", (q) => q.eq("level", args.level))
+			.unique();
+		const now = Date.now();
+		if (existing) {
+			await ctx.db.patch("notificationWatcherDefaults", existing._id, {
+				notificationTypes,
+				updatedAt: now,
+			});
+		} else {
+			await ctx.db.insert("notificationWatcherDefaults", {
+				level: args.level,
+				notificationTypes,
 				updatedAt: now,
 			});
 		}
@@ -786,6 +882,7 @@ export const setCompetitionChannelOverrides = mutation({
 	args: {
 		competitionId: v.id("competitions"),
 		notificationTypeOverrides: v.array(notificationType),
+		useGlobalDefaults: v.optional(v.boolean()),
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
@@ -796,13 +893,15 @@ export const setCompetitionChannelOverrides = mutation({
 				"Competition does not have a linked Discord channel.",
 			);
 		}
+		const notificationTypeOverrides = filterChannelWatcherNotificationTypes(
+			args.notificationTypeOverrides as WatcherNotificationType[],
+		);
 		await ctx.db.patch("competitions", args.competitionId, {
 			discordChannel: {
 				...competition.discordChannel,
-				notificationTypeOverrides:
-					args.notificationTypeOverrides.length > 0
-						? args.notificationTypeOverrides
-						: undefined,
+				notificationTypeOverrides: args.useGlobalDefaults
+					? undefined
+					: notificationTypeOverrides,
 			},
 			updatedAt: Date.now(),
 		});

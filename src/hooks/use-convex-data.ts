@@ -30,6 +30,7 @@ export {
 	useDiscordSettings,
 	useCompetitionChannels,
 	useChannelDefaults,
+	useWatcherDefaults,
 } from "./convex/use-discord";
 
 export {

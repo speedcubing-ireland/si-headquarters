@@ -1146,7 +1146,6 @@ function RouteComponent() {
 																		channelId: channel.id,
 																		channelName: channel.name,
 																		usesGlobalDefaults: true,
-																		notificationTypeOverrides: [],
 																	} as Competition["discordChannel"],
 																})
 																	.then(() => setDiscordPopoverOpen(false))

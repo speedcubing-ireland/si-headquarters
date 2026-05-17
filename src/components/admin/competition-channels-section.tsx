@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, MessageSquare, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
 	useChannelDefaults,
 	useCompetitionChannels,
 	useDiscordMutations,
+	useWatcherDefaults,
 } from "@/hooks/use-convex-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { Id } from "@/convex/_generated/dataModel";
-import { CHANNEL_SCOPED_NOTIFICATION_TYPES } from "@/convex/notifications/lib/validators";
+import {
+	CHANNEL_SCOPED_NOTIFICATION_TYPES,
+	NOTIFICATION_TYPES,
+} from "@/convex/notifications/lib/validators";
 import { getNotificationTypeLabel } from "@/lib/notification-utils";
 import { onMutationError } from "@/lib/utils";
 
@@ -20,6 +24,29 @@ type ChannelNotificationType =
 	(typeof CHANNEL_SCOPED_NOTIFICATION_TYPES)[number];
 
 const ALL_CHANNEL_TYPES = [...CHANNEL_SCOPED_NOTIFICATION_TYPES];
+const ALL_NOTIFICATION_TYPES = [...NOTIFICATION_TYPES];
+const TARGETED_ONLY_TYPES = new Set([
+	"task_mentioned",
+	"comment_replied",
+	"reminder_triggered",
+]);
+const ALL_WATCHER_TYPES = ALL_NOTIFICATION_TYPES.filter(
+	(type) => !TARGETED_ONLY_TYPES.has(type),
+);
+type WatcherLevel = "channel" | "competition" | "task";
+
+const WATCHER_LEVEL_LABELS: Record<WatcherLevel, string> = {
+	channel: "Channel watcher",
+	competition: "Competition watcher",
+	task: "Task watcher",
+};
+
+const WATCHER_LEVEL_DESCRIPTIONS: Record<WatcherLevel, string> = {
+	channel: "Discord competition channels. Defaults are deliberately quiet.",
+	competition:
+		"Competition leads, delegates, organisers, and people watching the competition.",
+	task: "Task assignees, individual task owners, task watchers, and parent-task watchers.",
+};
 
 function formatDateShort(dateStr: string): string {
 	const date = new Date(dateStr);
@@ -30,32 +57,10 @@ function formatDateShort(dateStr: string): string {
 	});
 }
 
-function GlobalDefaultsSection() {
-	const { defaults, isLoading } = useChannelDefaults();
-	const { setChannelDefaults } = useDiscordMutations();
-	const [isSaving, setIsSaving] = useState(false);
-
-	const enabledTypes = useMemo(
-		() => new Set(defaults?.notificationTypes ?? []),
-		[defaults?.notificationTypes],
-	);
-
-	const handleToggle = useCallback(
-		(type: ChannelNotificationType, enabled: boolean) => {
-			if (!defaults) return;
-			const next = enabled
-				? ([...defaults.notificationTypes, type] as ChannelNotificationType[])
-				: (defaults.notificationTypes.filter(
-						(t) => t !== type,
-					) as ChannelNotificationType[]);
-			setIsSaving(true);
-			setChannelDefaults({ notificationTypes: next })
-				.then(() => toast.success("Global defaults updated."))
-				.catch(onMutationError)
-				.finally(() => setIsSaving(false));
-		},
-		[defaults, setChannelDefaults],
-	);
+function WatcherDefaultsSection() {
+	const { defaults, isLoading } = useWatcherDefaults();
+	const { setWatcherDefaults } = useDiscordMutations();
+	const [savingLevel, setSavingLevel] = useState<WatcherLevel | null>(null);
 
 	if (isLoading) {
 		return (
@@ -66,38 +71,73 @@ function GlobalDefaultsSection() {
 	}
 
 	return (
-		<div className="space-y-3">
+		<div className="space-y-4">
 			<div className="flex items-center gap-2">
 				<Settings className="size-4 text-muted-foreground" />
-				<p className="text-sm font-medium">Global defaults</p>
-				<Badge variant="outline" className="text-xs">
-					{enabledTypes.size}/{ALL_CHANNEL_TYPES.length} enabled
-				</Badge>
+				<p className="text-sm font-medium">Watcher defaults</p>
 			</div>
 			<p className="text-xs text-muted-foreground">
-				These notification types are sent to all linked competition channels by
-				default. Competitions can override these settings individually.
+				These defaults decide whether a watcher level can cause delivery.
+				Personal settings can suppress delivery, but cannot opt into a disabled
+				watcher-level notification.
 			</p>
-			<div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-				{ALL_CHANNEL_TYPES.map((type) => {
-					const isEnabled = enabledTypes.has(type);
-					const checkboxId = `global-${type}`;
+			<div className="grid gap-3 lg:grid-cols-3">
+				{(["channel", "competition", "task"] as WatcherLevel[]).map((level) => {
+					const row = defaults.find((item) => item.level === level);
+					const allowedTypes =
+						level === "channel" ? ALL_CHANNEL_TYPES : ALL_WATCHER_TYPES;
+					const enabledTypes = new Set(row?.notificationTypes ?? []);
 					return (
-						<div
-							key={type}
-							className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-accent/50"
-						>
-							<Checkbox
-								id={checkboxId}
-								checked={isEnabled}
-								disabled={isSaving}
-								onCheckedChange={(checked) =>
-									handleToggle(type, checked === true)
-								}
-							/>
-							<label htmlFor={checkboxId} className="cursor-pointer">
-								{getNotificationTypeLabel(type)}
-							</label>
+						<div key={level} className="rounded-md border border-border/70 p-3">
+							<div className="flex items-center justify-between gap-2">
+								<div className="min-w-0">
+									<p className="font-medium text-sm">
+										{WATCHER_LEVEL_LABELS[level]}
+									</p>
+									<p className="mt-0.5 text-xs text-muted-foreground">
+										{WATCHER_LEVEL_DESCRIPTIONS[level]}
+									</p>
+								</div>
+								<Badge variant="outline" className="shrink-0 text-xs">
+									{enabledTypes.size}/{allowedTypes.length}
+								</Badge>
+							</div>
+							<div className="mt-3 grid gap-1">
+								{allowedTypes.map((type) => {
+									const checkboxId = `${level}-${type}`;
+									const isEnabled = enabledTypes.has(type);
+									return (
+										<div
+											key={type}
+											className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-accent/50"
+										>
+											<Checkbox
+												id={checkboxId}
+												checked={isEnabled}
+												disabled={savingLevel === level}
+												onCheckedChange={(checked) => {
+													const next = checked
+														? [...enabledTypes, type]
+														: [...enabledTypes].filter((item) => item !== type);
+													setSavingLevel(level);
+													setWatcherDefaults({
+														level,
+														notificationTypes: next,
+													})
+														.then(() =>
+															toast.success("Watcher defaults updated."),
+														)
+														.catch(onMutationError)
+														.finally(() => setSavingLevel(null));
+												}}
+											/>
+											<label htmlFor={checkboxId} className="cursor-pointer">
+												{getNotificationTypeLabel(type)}
+											</label>
+										</div>
+									);
+								})}
+							</div>
 						</div>
 					);
 				})}
@@ -153,6 +193,7 @@ function CompetitionChannelRow({
 		setCompetitionChannelOverrides({
 			competitionId: ch.competitionId,
 			notificationTypeOverrides: [],
+			useGlobalDefaults: true,
 		})
 			.then(() => {
 				toast.success("Reset to global defaults.");
@@ -316,7 +357,7 @@ export function CompetitionChannelsSection() {
 				</p>
 			</CardHeader>
 			<CardContent className="space-y-6">
-				<GlobalDefaultsSection />
+				<WatcherDefaultsSection />
 
 				<div className="space-y-3">
 					<div className="flex items-center gap-2">

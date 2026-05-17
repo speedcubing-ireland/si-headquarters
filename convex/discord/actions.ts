@@ -155,9 +155,25 @@ export const sendNotificationMessageAction = internalAction({
 		targetId: v.string(),
 		title: v.string(),
 		message: v.string(),
+		description: v.optional(v.string()),
 		url: v.optional(v.string()),
 		priority: v.optional(
 			v.union(v.literal("urgent"), v.literal("high"), v.literal("normal")),
+		),
+		fields: v.optional(
+			v.array(
+				v.object({
+					name: v.string(),
+					value: v.string(),
+					inline: v.optional(v.boolean()),
+				}),
+			),
+		),
+		author: v.optional(
+			v.object({
+				name: v.string(),
+				iconUrl: v.optional(v.string()),
+			}),
 		),
 		actions: v.array(
 			v.object({
@@ -194,9 +210,16 @@ export const sendNotificationMessageAction = internalAction({
 			embeds: [
 				{
 					title: args.title,
-					description: args.message,
+					description: args.description ?? args.message,
 					url: args.url,
 					color,
+					fields: args.fields,
+					author: args.author
+						? {
+								name: args.author.name,
+								icon_url: args.author.iconUrl,
+							}
+						: undefined,
 				},
 			],
 			components: buildNotificationComponents(args.actions),
