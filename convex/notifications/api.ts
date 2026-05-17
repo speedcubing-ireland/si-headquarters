@@ -92,6 +92,7 @@ type BaseTaskEventArgs = {
 	recipientId?: Id<"users">;
 	recipientIds?: Id<"users">[];
 	eventKey?: string;
+	forceRecipientDelivery?: boolean;
 };
 
 type EmitNotificationEventArgs =
@@ -128,6 +129,7 @@ type EmitNotificationEventArgs =
 			assigneeId: Id<"users">;
 			daysUntil: number;
 			eventKey?: string;
+			forceRecipientDelivery?: boolean;
 	  }
 	| {
 			type: "due_date_overdue";
@@ -135,6 +137,7 @@ type EmitNotificationEventArgs =
 			assigneeId: Id<"users">;
 			daysOverdue: number;
 			eventKey?: string;
+			forceRecipientDelivery?: boolean;
 	  }
 	| {
 			type: "competition_phase_changed";
@@ -145,6 +148,7 @@ type EmitNotificationEventArgs =
 			oldPhaseName: string;
 			newPhaseName: string;
 			eventKey?: string;
+			forceRecipientDelivery?: boolean;
 	  }
 	| {
 			type: "progress_update_added";
@@ -156,6 +160,7 @@ type EmitNotificationEventArgs =
 			competitionName: string;
 			status: "on-track" | "at-risk" | "off-track";
 			eventKey?: string;
+			forceRecipientDelivery?: boolean;
 	  }
 	| {
 			type: "reminder_triggered";
@@ -164,6 +169,7 @@ type EmitNotificationEventArgs =
 			taskId: Id<"tasks">;
 			message?: string;
 			eventKey?: string;
+			forceRecipientDelivery?: boolean;
 	  };
 
 function normalizeSubscriptionListLimit(limit: number | undefined): number {
@@ -315,7 +321,7 @@ async function expandNotificationRecipientsByWatcherPolicy(
 	ctx: MutationCtx,
 	input: NotificationEmitInput,
 ): Promise<Id<"users">[]> {
-	if (isTargetedNotificationType(input.type)) {
+	if (input.forceRecipientDelivery || isTargetedNotificationType(input.type)) {
 		return [...new Set(input.recipients)];
 	}
 
@@ -870,79 +876,52 @@ async function buildDiscordEmbedPayload(
 	return { title: args.input.title, description: args.input.message };
 }
 
-async function buildTaskStatusButtons(
+async function buildTaskStatusButton(
 	ctx: MutationCtx,
 	args: {
 		task: Doc<"tasks">;
 		userId?: Id<"users">;
 		reminderId?: Id<"reminders">;
-	},
-): Promise<DiscordActionButtonSpec[]> {
-	const buttons: DiscordActionButtonSpec[] = [];
-	const statusButtons: Array<{
 		status: Doc<"tasks">["status"];
 		label: string;
 		style: 1 | 2 | 3 | 4;
-	}> = [
-		{ status: "in-progress", label: "Start Task", style: 1 },
-		{ status: "awaiting-review", label: "Request Review", style: 2 },
-		{ status: "done", label: "Mark Done", style: 3 },
-	];
-	for (const button of statusButtons) {
-		if (button.status === args.task.status) {
-			continue;
-		}
-		buttons.push({
-			customId: await insertDiscordActionToken(ctx, {
-				actionKind: "set_task_status",
-				userId: args.userId,
-				taskId: args.task._id,
-				reminderId: args.reminderId,
-				status: button.status,
-			}),
-			label: button.label,
-			style: button.style,
-		});
+	},
+): Promise<DiscordActionButtonSpec | null> {
+	if (args.status === args.task.status) {
+		return null;
 	}
-	return buttons;
+	return {
+		customId: await insertDiscordActionToken(ctx, {
+			actionKind: "set_task_status",
+			userId: args.userId,
+			taskId: args.task._id,
+			reminderId: args.reminderId,
+			status: args.status,
+		}),
+		label: args.label,
+		style: args.style,
+	};
 }
 
-async function buildTaskApprovalButtons(
+async function buildTaskApprovalButton(
 	ctx: MutationCtx,
 	args: {
 		task: Doc<"tasks">;
 		userId?: Id<"users">;
-		isTaskAwaitingReview: boolean;
-		isTaskUnapproved: boolean;
+		action: "approve_task" | "unapprove_task";
+		label: string;
+		style: 1 | 2 | 3 | 4;
 	},
-): Promise<DiscordActionButtonSpec[]> {
-	const buttons: DiscordActionButtonSpec[] = [];
-
-	if (args.isTaskAwaitingReview || args.isTaskUnapproved) {
-		buttons.push({
-			customId: await insertDiscordActionToken(ctx, {
-				actionKind: "approve_task",
-				userId: args.userId,
-				taskId: args.task._id,
-			}),
-			label: "Approve",
-			style: 3,
-		});
-	}
-
-	if (args.isTaskUnapproved || args.task.approvedByIds?.length) {
-		buttons.push({
-			customId: await insertDiscordActionToken(ctx, {
-				actionKind: "unapprove_task",
-				userId: args.userId,
-				taskId: args.task._id,
-			}),
-			label: "Unapprove",
-			style: 2,
-		});
-	}
-
-	return buttons;
+): Promise<DiscordActionButtonSpec> {
+	return {
+		customId: await insertDiscordActionToken(ctx, {
+			actionKind: args.action,
+			userId: args.userId,
+			taskId: args.task._id,
+		}),
+		label: args.label,
+		style: args.style,
+	};
 }
 
 async function buildDiscordActionButtons(
@@ -957,6 +936,7 @@ async function buildDiscordActionButtons(
 ): Promise<DiscordActionButtonSpec[]> {
 	const buttons: DiscordActionButtonSpec[] = [];
 	const payload = parsePayloadJson(args.payloadJson);
+	const baseUrl = resolveHqSiteBaseUrl();
 	const entityUrl = buildDiscordNotificationUrl(args.entity);
 	if (entityUrl) {
 		buttons.push({
@@ -976,50 +956,159 @@ async function buildDiscordActionButtons(
 		});
 	}
 
-	// Task-based notifications get status buttons
-	if (args.entity.entityType === "task") {
-		const task = await ctx.db.get("tasks", args.entity.entityId);
-		if (task) {
-			const statusButtons = await buildTaskStatusButtons(ctx, {
-				task,
+	const task = await getTaskForNotificationEntity(ctx, args.entity);
+	const reminderId =
+		args.type === "reminder_triggered" && typeof payload.reminderId === "string"
+			? (ctx.db.normalizeId("reminders", payload.reminderId) ?? undefined)
+			: undefined;
+	const addTaskCommentButton = async () => {
+		if (!task) return;
+		buttons.push({
+			customId: await insertDiscordActionToken(ctx, {
+				actionKind: "open_task_comment_modal",
 				userId: args.userId,
-				reminderId: (() => {
-					if (
-						args.type !== "reminder_triggered" ||
-						typeof payload.reminderId !== "string"
-					) {
-						return undefined;
-					}
-					return (
-						ctx.db.normalizeId("reminders", payload.reminderId) ?? undefined
+				taskId: task._id,
+			}),
+			label: "Comment",
+			style: 2,
+		});
+	};
+	const addStartTaskButton = async () => {
+		if (!task) return;
+		const button = await buildTaskStatusButton(ctx, {
+			task,
+			userId: args.userId,
+			reminderId,
+			status: "in-progress",
+			label: "Start Task",
+			style: 1,
+		});
+		if (button) buttons.push(button);
+	};
+	const addMarkDoneButton = async () => {
+		if (!task) return;
+		const button = await buildTaskStatusButton(ctx, {
+			task,
+			userId: args.userId,
+			reminderId,
+			status: "done",
+			label: "Mark Done",
+			style: 3,
+		});
+		if (button) buttons.push(button);
+	};
+
+	if (task) {
+		switch (args.type) {
+			case "task_assigned":
+				await addStartTaskButton();
+				await addTaskCommentButton();
+				break;
+			case "task_unassigned":
+				await addTaskCommentButton();
+				break;
+			case "task_status_changed":
+				if (payload.newStatus === "awaiting-review") {
+					buttons.push(
+						await buildTaskApprovalButton(ctx, {
+							task,
+							userId: args.userId,
+							action: "approve_task",
+							label: "Approve",
+							style: 3,
+						}),
 					);
-				})(),
-			});
-			buttons.push(...statusButtons);
-
-			const approvalButtons = await buildTaskApprovalButtons(ctx, {
-				task,
-				userId: args.userId,
-				isTaskAwaitingReview:
-					task.status === "awaiting-review" ||
-					args.type === "task_awaiting_review",
-				isTaskUnapproved: args.type === "task_unapproved",
-			});
-			buttons.push(...approvalButtons);
-
-			buttons.push({
-				customId: await insertDiscordActionToken(ctx, {
-					actionKind: "open_task_comment_modal",
-					userId: args.userId,
-					taskId: task._id,
-				}),
-				label: "Comment",
-				style: 2,
-			});
+					await addTaskCommentButton();
+				} else if (payload.newStatus === "done") {
+					buttons.push(
+						await buildTaskApprovalButton(ctx, {
+							task,
+							userId: args.userId,
+							action: "unapprove_task",
+							label: "Unapprove",
+							style: 2,
+						}),
+					);
+				} else {
+					await addTaskCommentButton();
+				}
+				break;
+			case "task_priority_changed":
+				await addStartTaskButton();
+				await addTaskCommentButton();
+				break;
+			case "task_awaiting_review":
+				buttons.push(
+					await buildTaskApprovalButton(ctx, {
+						task,
+						userId: args.userId,
+						action: "approve_task",
+						label: "Approve",
+						style: 3,
+					}),
+				);
+				await addTaskCommentButton();
+				break;
+			case "due_date_approaching":
+			case "due_date_overdue":
+				await addMarkDoneButton();
+				await addTaskCommentButton();
+				break;
+			case "relation_blocked":
+				if (typeof payload.blockingTaskId === "string") {
+					buttons.push({
+						customId: `${baseUrl}/tasks/${payload.blockingTaskId}`,
+						label: "View Blocker",
+						style: 5,
+						url: `${baseUrl}/tasks/${payload.blockingTaskId}`,
+					});
+				}
+				await addTaskCommentButton();
+				break;
+			case "relation_unblocked":
+				await addStartTaskButton();
+				if (typeof payload.blockingTaskId === "string") {
+					buttons.push({
+						customId: `${baseUrl}/tasks/${payload.blockingTaskId}`,
+						label: "View Former Blocker",
+						style: 5,
+						url: `${baseUrl}/tasks/${payload.blockingTaskId}`,
+					});
+				}
+				break;
+			case "task_approved":
+				buttons.push(
+					await buildTaskApprovalButton(ctx, {
+						task,
+						userId: args.userId,
+						action: "unapprove_task",
+						label: "Unapprove",
+						style: 2,
+					}),
+				);
+				break;
+			case "task_unapproved":
+				buttons.push(
+					await buildTaskApprovalButton(ctx, {
+						task,
+						userId: args.userId,
+						action: "approve_task",
+						label: "Approve",
+						style: 3,
+					}),
+				);
+				await addTaskCommentButton();
+				break;
+			case "due_date_changed":
+				await addTaskCommentButton();
+				break;
+			case "reminder_triggered":
+				await addMarkDoneButton();
+				break;
 		}
 	}
-	// Comment-based notifications only get reply button
-	else if (args.entity.entityType === "comment") {
+
+	if (args.entity.entityType === "comment") {
 		buttons.push({
 			customId: await insertDiscordActionToken(ctx, {
 				actionKind: "open_task_reply_modal",
@@ -1031,8 +1120,8 @@ async function buildDiscordActionButtons(
 			style: 1,
 		});
 	}
-	// Competition update notifications only get comment button
-	else if (
+
+	if (
 		args.type === "progress_update_added" &&
 		typeof payload.updateId === "string"
 	) {
@@ -1050,18 +1139,19 @@ async function buildDiscordActionButtons(
 		}
 	}
 
-	if (args.destinationKind === "dm") {
-		buttons.push({
-			customId: await insertDiscordActionToken(ctx, {
-				actionKind: "dismiss_message",
-				userId: args.userId,
-			}),
-			label: "Dismiss",
-			style: 2,
-		});
+	if (args.destinationKind !== "dm") {
+		return buttons.slice(0, 5);
 	}
 
-	return buttons.slice(0, 5);
+	const dismissButton: DiscordActionButtonSpec = {
+		customId: await insertDiscordActionToken(ctx, {
+			actionKind: "dismiss_message",
+			userId: args.userId,
+		}),
+		label: "Dismiss",
+		style: 2,
+	};
+	return [...buttons.slice(0, 4), dismissButton];
 }
 
 async function buildDiscordMessagePayload(
@@ -1326,6 +1416,7 @@ async function emitFromConfig(
 			suppressActorRecipient: opts.suppressActorRecipient,
 		},
 	});
+	emitInput.forceRecipientDelivery = opts.forceRecipientDelivery;
 	return dispatchNotification(ctx, emitInput);
 }
 
@@ -1361,6 +1452,7 @@ async function createTaskNotification(
 		actorId: args.actorId,
 		idempotencyBase: `${type}:${task._id}:${eventKey}`,
 		payloadJson: serializePayload(result.payload),
+		forceRecipientDelivery: args.forceRecipientDelivery,
 		...(isTargeted ? { includeEntitySubscribers: false } : {}),
 	});
 	return null;
@@ -1396,6 +1488,7 @@ async function createCompetitionNotification(
 		actorId: args.actorId,
 		idempotencyBase: `${args.type}:${competition._id}:${eventKey}`,
 		payloadJson: serializePayload(result.payload),
+		forceRecipientDelivery: args.forceRecipientDelivery,
 	});
 	return null;
 }
@@ -1408,6 +1501,7 @@ async function createReminderNotification(
 		taskId: Id<"tasks">;
 		message?: string;
 		eventKey?: string;
+		forceRecipientDelivery?: boolean;
 	},
 ): Promise<null> {
 	const reminder = await ctx.db.get("reminders", args.reminderId);
@@ -1436,6 +1530,7 @@ async function createReminderNotification(
 			}),
 			includeEntitySubscribers: false,
 			suppressActorRecipient: false,
+			forceRecipientDelivery: args.forceRecipientDelivery,
 		},
 	);
 	return null;
@@ -1456,6 +1551,7 @@ function mapTaskEventArgs(args: {
 	newDueDate?: string;
 	blockingTaskId?: Id<"tasks">;
 	eventKey?: string;
+	forceRecipientDelivery?: boolean;
 }): TaskNotificationBuildArgs {
 	return {
 		taskId: args.taskId,
@@ -1471,6 +1567,7 @@ function mapTaskEventArgs(args: {
 		newDueDate: args.newDueDate,
 		blockingTaskId: args.blockingTaskId,
 		eventKey: args.eventKey,
+		forceRecipientDelivery: args.forceRecipientDelivery,
 	};
 }
 
@@ -1499,6 +1596,7 @@ export async function emitNotificationEvent(
 				assigneeId: args.assigneeId,
 				days: args.daysUntil,
 				eventKey: args.eventKey,
+				forceRecipientDelivery: args.forceRecipientDelivery,
 			});
 		case "due_date_overdue":
 			return emitDueDateUrgencyNotification(ctx, "due_date_overdue", {
@@ -1506,6 +1604,7 @@ export async function emitNotificationEvent(
 				assigneeId: args.assigneeId,
 				days: args.daysOverdue,
 				eventKey: args.eventKey,
+				forceRecipientDelivery: args.forceRecipientDelivery,
 			});
 		case "competition_phase_changed":
 		case "progress_update_added":
@@ -1564,6 +1663,7 @@ async function emitDueDateUrgencyNotification(
 		assigneeId: Id<"users">;
 		days: number;
 		eventKey?: string;
+		forceRecipientDelivery?: boolean;
 	},
 ): Promise<null> {
 	const task = await ctx.db.get("tasks", args.taskId);
@@ -1589,6 +1689,7 @@ async function emitDueDateUrgencyNotification(
 			eventKey,
 		}),
 		includeEntitySubscribers: true,
+		forceRecipientDelivery: args.forceRecipientDelivery,
 	});
 	return null;
 }

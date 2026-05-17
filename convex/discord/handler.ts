@@ -131,14 +131,7 @@ export async function handleDiscordInteraction(
 						messageId: interaction.message.id,
 					},
 				);
-				return jsonResponse(
-					interactionMessageResponse(
-						{
-							content: result.content,
-						},
-						{ ephemeral: true },
-					),
-				);
+				return new Response(null, { status: 204 });
 			}
 
 			return jsonResponse(

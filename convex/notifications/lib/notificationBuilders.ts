@@ -45,6 +45,7 @@ export type TaskNotificationBuildArgs = {
 	newDueDate?: string;
 	blockingTaskId?: Id<"tasks">;
 	eventKey?: string;
+	forceRecipientDelivery?: boolean;
 };
 
 export type TaskNotificationBuildResult = {
@@ -65,6 +66,7 @@ export type CompetitionNotificationBuildArgs = {
 	competitionName?: string;
 	status?: "on-track" | "at-risk" | "off-track";
 	eventKey?: string;
+	forceRecipientDelivery?: boolean;
 };
 
 export type CompetitionNotificationBuildResult = {
