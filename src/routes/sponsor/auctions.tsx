@@ -104,11 +104,11 @@ function SponsorAuctionsEnabled() {
 		sponsorAuthClient.useSession();
 	const sessionToken = authSession?.session.token ?? null;
 	const meResult = useQuery(
-		api.sponsorPortal.me,
+		api.sponsorship.portal.auth.me,
 		sessionToken ? { sessionToken } : "skip",
 	);
 	const auctionsResult = useQuery(
-		api.sponsorPortal.listAuctions,
+		api.sponsorship.portal.auctions.listAuctions,
 		sessionToken ? { sessionToken } : "skip",
 	);
 	const meState = useRetainedQueryResult(meResult, sessionToken ?? "skip");

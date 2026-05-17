@@ -113,6 +113,37 @@ bun run auth:prod wca
 
 The only difference between `auth` and `auth:prod` is that `auth:prod` sets `CONVEX_PROD=1`, which adds `--prod` to the underlying `convex run` commands, targeting the production deployment instead of dev.
 
+### 8. Configure Discord integration (optional)
+
+The Discord integration provides slash commands and interactive messages via an HTTP webhook (no gateway bot required).
+
+**1. Create a Discord Application** in the [Developer Portal](https://discord.com/developers/applications).
+
+**2. Set environment variables** (see [Discord](#discord) in Environment Variables below). Run the [setup script](#4-set-remaining-environment-variables) or set them individually:
+
+```sh
+bunx convex env set DISCORD_TOKEN           "<your-bot-token>"
+bunx convex env set DISCORD_APPLICATION_ID  "<your-application-id>"
+bunx convex env set DISCORD_PUBLIC_KEY      "<your-public-key>"
+bunx convex env set DISCORD_GUILD_ID        "<your-guild-id>"
+```
+
+**3. Set the Interactions Endpoint URL** in the Discord Developer Portal → Your App → General → Interactions Endpoint URL:
+
+```
+{CONVEX_SITE_URL}/webhooks/discord/interactions
+```
+
+Find your `CONVEX_SITE_URL` in the Convex dashboard or `.env.local`.
+
+**4. Register slash commands** by running the internal action from the Convex dashboard or CLI:
+
+```sh
+bunx convex run discord/actions:registerSlashCommandsAction
+```
+
+**5. Verify the connection** by typing `/ping` in a channel in your guild. The bot should respond with "Pong from Headquarters."
+
 ## Background info: Dev vs Production Deployments
 
 A single Convex project includes both a dev and a prod deployment — you don't need a separate project for production. Each deployment has its own database, environment variables, and stored tokens.
@@ -186,6 +217,7 @@ bun run build:deploy    # convex deploy + frontend build in one step (preferred 
 │   ├── emails/          # React Email templates
 │   ├── sponsorship/     # Sponsorship auction system
 │   ├── canva/           # Canva integration
+│   ├── discord/         # Discord integration (slash commands, webhooks)
 │   ├── tasks/           # Task subroutines (access, approvals, patch logic)
 │   ├── services/        # External service integrations (WCA, Google, Canva)
 │   └── *.test.ts        # Backend tests
@@ -279,6 +311,17 @@ These are a **separate set of OAuth applications** from the user authentication 
 | Variable | Notes |
 |---|---|
 | `SPONSOR_PASSWORD_AUTH_ENABLED` | Enables password sign-in, passkey sign-in, and password reset on `/sponsor/login`. Set to `1`/`true`/`yes` to enable. Default (unset/false): only one-time email code is accepted; password and passkey BetterAuth endpoints reject requests. **Must be kept in sync with the client-side `VITE_SPONSOR_PASSWORD_AUTH_ENABLED`.** |
+
+#### Discord
+
+Integration with Discord via HTTP webhook (no gateway bot required). Provides slash commands (`/ping`, `/dmhq`) and interactive messages with buttons.
+
+| Variable | Source | Notes |
+|---|---|---|
+| `DISCORD_TOKEN` | [Discord Developer Portal](https://discord.com/developers/applications) → Bot → Reset Token | Bot token for REST API calls. |
+| `DISCORD_APPLICATION_ID` | Discord Developer Portal → Your App → General | Application ID (snowflake). Used for registering slash commands. |
+| `DISCORD_PUBLIC_KEY` | Discord Developer Portal → Your App → General | Public key for verifying interaction webhook signatures. |
+| `DISCORD_GUILD_ID` | Discord Developer Portal or server settings | Guild (server) ID where slash commands are registered. |
 
 ### Client-Side variables
 

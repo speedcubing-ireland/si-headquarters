@@ -25,6 +25,33 @@ export const notificationType = v.union(
 	...NOTIFICATION_TYPES.map((type) => v.literal(type)),
 );
 
+export const CHANNEL_SCOPED_NOTIFICATION_TYPES = [
+	"task_assigned",
+	"task_unassigned",
+	"task_status_changed",
+	"task_priority_changed",
+	"task_awaiting_review",
+	"due_date_approaching",
+	"due_date_overdue",
+	"comment_added",
+	"task_approved",
+	"task_unapproved",
+	"due_date_changed",
+	"relation_unblocked",
+	"competition_phase_changed",
+	"progress_update_added",
+] as const;
+
+export const NOTIFICATION_WATCHER_LEVELS = [
+	"channel",
+	"competition",
+	"task",
+] as const;
+
+export const notificationWatcherLevel = v.union(
+	...NOTIFICATION_WATCHER_LEVELS.map((level) => v.literal(level)),
+);
+
 export const NOTIFICATION_PRIORITIES = [
 	"low",
 	"normal",

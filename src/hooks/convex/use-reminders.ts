@@ -5,14 +5,14 @@ import type { Reminder } from "@/data/types-new";
 import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const usePendingReminders = () => {
-	const result = useQuery(api.reminders.listPendingForUser, {});
+	const result = useQuery(api.reminders.api.listPendingForUser, {});
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(result);
 	return { reminders: data ?? [], isLoading, isRefreshing };
 };
 
 export const usePendingRemindersForTask = (taskId: Id<"tasks"> | null) => {
 	const result = useQuery(
-		api.reminders.listPendingForTask,
+		api.reminders.api.listPendingForTask,
 		taskId ? { taskId } : "skip",
 	);
 	const { data, isLoading, isRefreshing } = useRetainedQueryResult(
@@ -27,11 +27,11 @@ export const usePendingRemindersForTask = (taskId: Id<"tasks"> | null) => {
 };
 
 export function useReminderMutations() {
-	const createMut = useMutation(api.reminders.create);
-	const cancelMut = useMutation(api.reminders.cancel);
-	const dismissMut = useMutation(api.reminders.dismiss);
-	const snoozeMut = useMutation(api.reminders.snooze);
-	const rescheduleMut = useMutation(api.reminders.reschedule);
+	const createMut = useMutation(api.reminders.api.create);
+	const cancelMut = useMutation(api.reminders.api.cancel);
+	const dismissMut = useMutation(api.reminders.api.dismiss);
+	const snoozeMut = useMutation(api.reminders.api.snooze);
+	const rescheduleMut = useMutation(api.reminders.api.reschedule);
 
 	return {
 		addReminder: (

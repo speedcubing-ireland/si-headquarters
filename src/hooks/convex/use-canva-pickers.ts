@@ -25,7 +25,9 @@ function mergeUniqueById<T extends { id: string }>(items: T[]): T[] {
 }
 
 export function useCanvaTemplatePicker(query: string) {
-	const listBrandTemplates = useAction(api.canva.listBrandTemplates);
+	const listBrandTemplates = useAction(
+		api.integrations.canva.actions.listBrandTemplates,
+	);
 	const [items, setItems] = useState<CanvaTemplatePickerItem[]>([]);
 	const [continuation, setContinuation] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -98,7 +100,9 @@ export function useCanvaTemplatePicker(query: string) {
 }
 
 export function useCanvaFolderPicker(folderId: string, query: string) {
-	const listFolderItems = useAction(api.canva.listFolderItems);
+	const listFolderItems = useAction(
+		api.integrations.canva.actions.listFolderItems,
+	);
 	const [items, setItems] = useState<CanvaFolderPickerItem[]>([]);
 	const [continuation, setContinuation] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);

@@ -69,7 +69,7 @@ function Wca2faRoute() {
 }
 
 function Wca2faPage() {
-	const generateCode = useAction(api.wca2fa.generateCode);
+	const generateCode = useAction(api.integrations.wca.twoFactor.generateCode);
 	const [codeState, setCodeState] = useState<Wca2faCodeState | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [isFetching, setIsFetching] = useState(false);

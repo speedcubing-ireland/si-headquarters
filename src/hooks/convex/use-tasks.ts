@@ -7,7 +7,7 @@ import { pickDefined } from "@/lib/utils";
 import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export const useTasks = (archived = false) => {
-	const result = useQuery(api.tasks.listForUI, { archived });
+	const result = useQuery(api.tasks.queries.listForUI, { archived });
 	const {
 		data: tasks,
 		isLoading,
@@ -21,7 +21,10 @@ export const useTasks = (archived = false) => {
 };
 
 export const useTask = (taskId: Id<"tasks"> | null) => {
-	const result = useQuery(api.tasks.getForUI, taskId ? { taskId } : "skip");
+	const result = useQuery(
+		api.tasks.queries.getForUI,
+		taskId ? { taskId } : "skip",
+	);
 	const { data } = useRetainedQueryResult(result, taskId ?? "skip");
 	if (taskId == null) return null;
 	return data;
@@ -31,7 +34,7 @@ export const useTasksForCompetition = (
 	competitionId: Id<"competitions"> | null,
 ) => {
 	const result = useQuery(
-		api.tasks.listForUI,
+		api.tasks.queries.listForUI,
 		competitionId ? { archived: false, competitionId } : "skip",
 	);
 	const {
@@ -125,11 +128,11 @@ const patchTaskInQueries = (
 	taskId: Id<"tasks">,
 	updatedTask: Task,
 ) => {
-	store.setQuery(api.tasks.getForUI, { taskId }, updatedTask);
+	store.setQuery(api.tasks.queries.getForUI, { taskId }, updatedTask);
 
 	const archivedOptions = [false, true] as const;
 	for (const archived of archivedOptions) {
-		const list = store.getQuery(api.tasks.listForUI, { archived }) as
+		const list = store.getQuery(api.tasks.queries.listForUI, { archived }) as
 			| Task[]
 			| undefined;
 		if (!list) continue;
@@ -137,11 +140,11 @@ const patchTaskInQueries = (
 		if (idx < 0) continue;
 		const nextList = [...list];
 		nextList[idx] = updatedTask;
-		store.setQuery(api.tasks.listForUI, { archived }, nextList);
+		store.setQuery(api.tasks.queries.listForUI, { archived }, nextList);
 
 		const compId = competitionIdFromParent(updatedTask.parent);
 		if (compId != null) {
-			const compList = store.getQuery(api.tasks.listForUI, {
+			const compList = store.getQuery(api.tasks.queries.listForUI, {
 				archived: false,
 				competitionId: compId,
 			});
@@ -151,7 +154,7 @@ const patchTaskInQueries = (
 					const nextCompList = [...compList];
 					nextCompList[compIdx] = updatedTask;
 					store.setQuery(
-						api.tasks.listForUI,
+						api.tasks.queries.listForUI,
 						{ archived: false, competitionId: compId },
 						nextCompList,
 					);
@@ -162,30 +165,30 @@ const patchTaskInQueries = (
 };
 
 export function useTaskMutations(): TaskMutations {
-	const createTask = useMutation(api.tasks.create);
-	const archiveTasksMutation = useMutation(api.tasks.archive);
-	const unarchiveTasksMutation = useMutation(api.tasks.unarchive);
-	const removeTasksMutation = useMutation(api.tasks.remove);
+	const createTask = useMutation(api.tasks.mutations.create);
+	const archiveTasksMutation = useMutation(api.tasks.mutations.archive);
+	const unarchiveTasksMutation = useMutation(api.tasks.mutations.unarchive);
+	const removeTasksMutation = useMutation(api.tasks.mutations.remove);
 
-	const updateTaskMutation = useMutation(api.tasks.update).withOptimisticUpdate(
-		(store, { taskId, updates }) => {
-			const current = store.getQuery(api.tasks.getForUI, { taskId });
-			if (!current) return;
-			const next = {
-				...current,
-				...updates,
-				updatedAt: new Date().toISOString(),
-			} satisfies Task;
-			patchTaskInQueries(store, taskId, next);
-		},
-	);
+	const updateTaskMutation = useMutation(
+		api.tasks.mutations.update,
+	).withOptimisticUpdate((store, { taskId, updates }) => {
+		const current = store.getQuery(api.tasks.queries.getForUI, { taskId });
+		if (!current) return;
+		const next = {
+			...current,
+			...updates,
+			updatedAt: new Date().toISOString(),
+		} satisfies Task;
+		patchTaskInQueries(store, taskId, next);
+	});
 
-	const bulkUpdateTasksMutation = useMutation(api.tasks.bulkUpdate);
+	const bulkUpdateTasksMutation = useMutation(api.tasks.mutations.bulkUpdate);
 
 	const addRequiredApproverMutation = useMutation(
-		api.tasks.addRequiredApprover,
+		api.tasks.approvals.addRequiredApprover,
 	).withOptimisticUpdate((store, { taskId }) => {
-		const current = store.getQuery(api.tasks.getForUI, { taskId });
+		const current = store.getQuery(api.tasks.queries.getForUI, { taskId });
 		if (!current) return;
 		patchTaskInQueries(store, taskId, {
 			...current,
@@ -194,9 +197,9 @@ export function useTaskMutations(): TaskMutations {
 	});
 
 	const removeRequiredApproverMutation = useMutation(
-		api.tasks.removeRequiredApprover,
+		api.tasks.approvals.removeRequiredApprover,
 	).withOptimisticUpdate((store, { taskId, approverKey }) => {
-		const current = store.getQuery(api.tasks.getForUI, { taskId });
+		const current = store.getQuery(api.tasks.queries.getForUI, { taskId });
 		if (!current) return;
 		const approverId = approverKey.includes(":")
 			? approverKey.split(":")[1]
@@ -211,18 +214,18 @@ export function useTaskMutations(): TaskMutations {
 	});
 
 	const approveTaskMutation = useMutation(
-		api.tasks.approveTask,
+		api.tasks.approvals.approveTask,
 	).withOptimisticUpdate((store, { taskId }) => {
-		const current = store.getQuery(api.tasks.getForUI, { taskId });
-		const authUser = store.getQuery(api.users.getCurrentUser, {});
+		const current = store.getQuery(api.tasks.queries.getForUI, { taskId });
+		const authUser = store.getQuery(api.core.users.getCurrentUser, {});
 		if (!current || !authUser) return;
-		const users = store.getQuery(api.users.listUsers) ?? [];
+		const users = store.getQuery(api.core.users.listUsers) ?? [];
 		const currentUser =
 			users.find((user) => user.id === authUser._id) ??
 			({
 				id: authUser._id,
 				name: authUser.name ?? "",
-				avatarUrl: authUser.image ?? "",
+				avatarUrl: authUser.avatarUrl,
 			} satisfies User);
 
 		const next = { ...current };
@@ -247,10 +250,10 @@ export function useTaskMutations(): TaskMutations {
 	});
 
 	const unapproveTaskMutation = useMutation(
-		api.tasks.unapproveTask,
+		api.tasks.approvals.unapproveTask,
 	).withOptimisticUpdate((store, { taskId }) => {
-		const current = store.getQuery(api.tasks.getForUI, { taskId });
-		const authUser = store.getQuery(api.users.getCurrentUser, {});
+		const current = store.getQuery(api.tasks.queries.getForUI, { taskId });
+		const authUser = store.getQuery(api.core.users.getCurrentUser, {});
 		const currentUserId = authUser?._id;
 		if (!current || !currentUserId) return;
 
@@ -262,10 +265,10 @@ export function useTaskMutations(): TaskMutations {
 	});
 
 	const addBlockingRelationMutation = useMutation(
-		api.tasks.addBlockingRelation,
+		api.tasks.relations.addBlockingRelation,
 	);
 	const removeBlockingRelationMutation = useMutation(
-		api.tasks.removeBlockingRelation,
+		api.tasks.relations.removeBlockingRelation,
 	);
 
 	return {

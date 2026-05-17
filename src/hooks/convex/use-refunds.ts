@@ -5,7 +5,10 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function useRefundVolunteers(enabled = true) {
-	const result = useQuery(api.refunds.listVolunteers, enabled ? {} : "skip");
+	const result = useQuery(
+		api.refunds.api.listVolunteers,
+		enabled ? {} : "skip",
+	);
 	const {
 		data: volunteers,
 		isLoading,
@@ -22,10 +25,10 @@ export function useRefundVolunteers(enabled = true) {
 }
 
 export function useRefundMutations() {
-	const createVolunteerMut = useMutation(api.refunds.createVolunteer);
-	const updateVolunteerMut = useMutation(api.refunds.updateVolunteer);
-	const deleteVolunteerMut = useMutation(api.refunds.deleteVolunteer);
-	const computeRefundsAction = useAction(api.refunds.computeRefunds);
+	const createVolunteerMut = useMutation(api.refunds.api.createVolunteer);
+	const updateVolunteerMut = useMutation(api.refunds.api.updateVolunteer);
+	const deleteVolunteerMut = useMutation(api.refunds.api.deleteVolunteer);
+	const computeRefundsAction = useAction(api.refunds.api.computeRefunds);
 
 	const createVolunteer = useCallback(
 		(payload: { name: string; wcaId?: string; transferToWcaIds?: string[] }) =>

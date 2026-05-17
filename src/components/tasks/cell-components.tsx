@@ -75,7 +75,7 @@ export const OwnerCell = memo(function OwnerCell({
 	owner,
 	taskId,
 }: OwnerCellProps) {
-	return <EditableTaskOwner owner={owner} taskId={taskId} />;
+	return <EditableTaskOwner owner={owner} taskId={taskId} variant="icon" />;
 });
 
 interface LabelsCellProps {

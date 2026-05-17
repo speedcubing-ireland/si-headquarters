@@ -346,7 +346,7 @@ export async function runSweep(ctx: MutationCtx): Promise<{
 			if (status === "queued" || status === "sending") {
 				await emailSendPool.enqueueAction(
 					ctx,
-					internal.emailQueue._sendDispatch,
+					internal.emailQueue.api._sendDispatch,
 					{
 						dispatchId: dispatch._id,
 						claimKey,
@@ -359,7 +359,7 @@ export async function runSweep(ctx: MutationCtx): Promise<{
 				);
 				rescheduledSend += 1;
 			} else {
-				await ctx.scheduler.runAfter(0, internal.emailQueue._pollDispatch, {
+				await ctx.scheduler.runAfter(0, internal.emailQueue.api._pollDispatch, {
 					dispatchId: dispatch._id,
 					claimKey,
 				});
@@ -391,7 +391,7 @@ async function scheduleNextPoll(
 	const delayMs = Math.max(1, Math.min(MAX_SCHEDULER_DELAY_MS, retryAfterMs));
 	await ctx.scheduler.runAfter(
 		delayMs,
-		internal.emailQueue._pollDispatch,
+		internal.emailQueue.api._pollDispatch,
 		args,
 	);
 }
@@ -401,7 +401,7 @@ async function loadActionDispatch(
 	dispatchId: Id<"emailDispatches">,
 	claimKey: string,
 ) {
-	return ctx.runQuery(internal.emailQueue._getDispatchForClaim, {
+	return ctx.runQuery(internal.emailQueue.api._getDispatchForClaim, {
 		dispatchId,
 		claimKey,
 	});
@@ -415,7 +415,7 @@ export async function sendDispatch(
 	},
 ): Promise<void> {
 	const claimed: boolean = await ctx.runMutation(
-		internal.emailQueue._claimDispatchForSend,
+		internal.emailQueue.api._claimDispatchForSend,
 		args,
 	);
 	if (!claimed) {
@@ -432,7 +432,7 @@ export async function sendDispatch(
 	}
 
 	const operationId: string | null = await ctx.runMutation(
-		internal.emailQueue._prepareDispatchSendAttempt,
+		internal.emailQueue.api._prepareDispatchSendAttempt,
 		args,
 	);
 	if (!operationId) return;
@@ -453,7 +453,7 @@ export async function sendDispatch(
 		});
 
 		if (progress.status === KnownEmailSendStatus.Succeeded) {
-			await ctx.runMutation(internal.emailQueue._markSent, {
+			await ctx.runMutation(internal.emailQueue.api._markSent, {
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,
 				providerStatus: progress.status,
@@ -462,7 +462,7 @@ export async function sendDispatch(
 		}
 
 		if (isFailedProviderStatus(progress.status)) {
-			await ctx.runMutation(internal.emailQueue._deadLetter, {
+			await ctx.runMutation(internal.emailQueue.api._deadLetter, {
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,
 				error: progress.error ?? "email_send_terminal_failure",
@@ -471,7 +471,7 @@ export async function sendDispatch(
 			return;
 		}
 
-		await ctx.runMutation(internal.emailQueue._markSubmitted, {
+		await ctx.runMutation(internal.emailQueue.api._markSubmitted, {
 			dispatchId: dispatch._id,
 			claimKey: args.claimKey,
 			providerStatus: progress.status,
@@ -517,7 +517,7 @@ export async function sendDispatch(
 			normalized.includes("operation id already exists") ||
 			normalized.includes("operationid already exists.")
 		) {
-			await ctx.runMutation(internal.emailQueue._markSubmitted, {
+			await ctx.runMutation(internal.emailQueue.api._markSubmitted, {
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,
 				providerStatus: KnownEmailSendStatus.Running,
@@ -544,7 +544,7 @@ export async function sendDispatch(
 			throw new Error(message);
 		}
 
-		await ctx.runMutation(internal.emailQueue._deadLetter, {
+		await ctx.runMutation(internal.emailQueue.api._deadLetter, {
 			dispatchId: dispatch._id,
 			claimKey: args.claimKey,
 			error: message,
@@ -568,7 +568,7 @@ export async function pollDispatch(
 	if (!dispatch) return;
 
 	if (isProviderStatusTimedOut(dispatch)) {
-		await ctx.runMutation(internal.emailQueue._deadLetter, {
+		await ctx.runMutation(internal.emailQueue.api._deadLetter, {
 			dispatchId: dispatch._id,
 			claimKey: args.claimKey,
 			error: "provider_status_timeout",
@@ -580,7 +580,7 @@ export async function pollDispatch(
 	try {
 		const progress = await pollEmailSendOperation(dispatch.providerOperationId);
 		if (progress.status === KnownEmailSendStatus.Succeeded) {
-			await ctx.runMutation(internal.emailQueue._markSent, {
+			await ctx.runMutation(internal.emailQueue.api._markSent, {
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,
 				providerStatus: progress.status,
@@ -588,7 +588,7 @@ export async function pollDispatch(
 			return;
 		}
 		if (isFailedProviderStatus(progress.status)) {
-			await ctx.runMutation(internal.emailQueue._deadLetter, {
+			await ctx.runMutation(internal.emailQueue.api._deadLetter, {
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,
 				error: progress.error ?? "email_send_terminal_failure",
@@ -597,7 +597,7 @@ export async function pollDispatch(
 			return;
 		}
 		const marked = await ctx.runMutation(
-			internal.emailQueue._markProviderPoll,
+			internal.emailQueue.api._markProviderPoll,
 			{
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,
@@ -610,7 +610,7 @@ export async function pollDispatch(
 	} catch (error) {
 		const message = emailErrorMessage(error);
 		if (isProviderStatusTimedOut(dispatch)) {
-			await ctx.runMutation(internal.emailQueue._deadLetter, {
+			await ctx.runMutation(internal.emailQueue.api._deadLetter, {
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,
 				error: "provider_status_timeout",
@@ -619,7 +619,7 @@ export async function pollDispatch(
 			return;
 		}
 		const marked = await ctx.runMutation(
-			internal.emailQueue._markProviderPoll,
+			internal.emailQueue.api._markProviderPoll,
 			{
 				dispatchId: dispatch._id,
 				claimKey: args.claimKey,

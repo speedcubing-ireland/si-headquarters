@@ -14,7 +14,7 @@ const getErrorMessage = (error: unknown) =>
 	error instanceof Error ? error.message : "Something went wrong.";
 
 function useAdminLabels() {
-	const dataResult = useQuery(api.admin.listLabelsWithUsage, {});
+	const dataResult = useQuery(api.core.admin.listLabelsWithUsage, {});
 	const dataState = useRetainedQueryResult(dataResult);
 	const data = dataState.data;
 	const labels =

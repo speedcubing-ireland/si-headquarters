@@ -12,7 +12,7 @@ function AdminEmailPage() {
 
 	return (
 		<PermissionGuard isLoading={isDirectorLoading} canAccess={isDirector}>
-			<GodModeAdminContent defaultTab="email" />
+			<GodModeAdminContent defaultTab="discord" />
 		</PermissionGuard>
 	);
 }

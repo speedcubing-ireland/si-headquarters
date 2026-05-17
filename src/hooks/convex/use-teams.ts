@@ -5,8 +5,8 @@ import type { Team } from "@/data/types-new";
 import { useRetainedQueryResult } from "./use-retained-query-result";
 
 export function useTeams(): { teams: Team[]; isLoading: boolean } {
-	const teamsRawResult = useQuery(api.teams.list);
-	const usersDataResult = useQuery(api.users.listUsers);
+	const teamsRawResult = useQuery(api.core.teams.list);
+	const usersDataResult = useQuery(api.core.users.listUsers);
 	const teamsRawState = useRetainedQueryResult(teamsRawResult);
 	const usersDataState = useRetainedQueryResult(usersDataResult);
 	const teamsRaw = teamsRawState.data;

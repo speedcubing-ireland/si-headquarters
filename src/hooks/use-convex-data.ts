@@ -24,12 +24,18 @@ export {
 } from "./convex/use-comments";
 
 export {
-	useNotifications,
-	useNotificationSettings,
+	useDiscordActions,
+	useDiscordAdminLinks,
+	useDiscordMutations,
+	useDiscordSettings,
+	useCompetitionChannels,
+	useChannelDefaults,
+	useWatcherDefaults,
+} from "./convex/use-discord";
+
+export {
 	useNotificationSubscriptions,
 	useTaskSubscriptionState,
-	useUnreadCount,
-	useNotificationDiagnostics,
 	useNotificationMutations,
 } from "./convex/use-notifications";
 

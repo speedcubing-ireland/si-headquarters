@@ -4,9 +4,9 @@ import type { MutationCtx } from "../../_generated/server";
 import {
 	competitionSponsorPropertyStatus,
 	sponsorshipAuctionFramework,
-	sponsorshipAuctionState,
-} from "../../lib/sponsorshipValidators";
-import { sponsorshipCompetitionSnapshot } from "../../lib/sponsorshipCompetitionSnapshot";
+	auctionState,
+} from "../lib/validators";
+import { competitionSnapshot } from "../lib/competitionSnapshot";
 
 export const DEFAULT_SCHEDULE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -19,7 +19,7 @@ export const auctionForManager = v.object({
 	id: v.id("sponsorshipAuctions"),
 	competitionId: v.id("competitions"),
 	framework: sponsorshipAuctionFramework,
-	state: sponsorshipAuctionState,
+	state: auctionState,
 	currency: v.string(),
 	startsAt: v.number(),
 	endsAt: v.number(),
@@ -30,7 +30,7 @@ export const auctionForManager = v.object({
 	currentLeaderSponsorId: v.optional(v.id("sponsors")),
 	winnerSponsorId: v.optional(v.id("sponsors")),
 	settlementAmountCents: v.optional(v.number()),
-	competitionSnapshot: v.optional(sponsorshipCompetitionSnapshot),
+	competitionSnapshot: v.optional(competitionSnapshot),
 	updatedAt: v.number(),
 });
 
@@ -54,7 +54,7 @@ export const auctionTableRowForManager = v.object({
 	competitionPhaseName: v.string(),
 	competitionSponsorStatus: competitionSponsorPropertyStatus,
 	framework: sponsorshipAuctionFramework,
-	state: sponsorshipAuctionState,
+	state: auctionState,
 	currency: v.string(),
 	startsAt: v.number(),
 	endsAt: v.number(),

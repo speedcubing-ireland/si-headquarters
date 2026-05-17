@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { RefundComputationResult } from "@/convex/refunds";
+import type { RefundComputationResult } from "@/convex/refunds/api";
 import { getErrorMessage } from "@/lib/utils";
 
 export function useRefundAnalysis(computeRefunds: () => Promise<unknown>) {

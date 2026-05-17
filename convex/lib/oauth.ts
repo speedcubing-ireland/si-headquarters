@@ -22,7 +22,7 @@ export async function requireVolunteerAction(
 ): Promise<void> {
 	if (hasValidCliToken(cliToken)) return;
 	if (cliToken) throwInvalidCliToken();
-	const isVol = await ctx.runQuery(internal.auth.getIsVolunteer, {});
+	const isVol = await ctx.runQuery(internal.core.auth.getIsVolunteer, {});
 	if (!isVol) {
 		throw new ConvexError({
 			code: "FORBIDDEN",
@@ -38,7 +38,7 @@ export async function requireDirectorAction(
 	if (hasValidCliToken(cliToken)) return;
 	if (cliToken) throwInvalidCliToken();
 	const isDirector = await ctx.runQuery(
-		internal.admin.getIsDirectorInternal,
+		internal.core.admin.getIsDirectorInternal,
 		{},
 	);
 	if (!isDirector) {
@@ -57,8 +57,8 @@ export async function requireDirectorOrVolunteerAction(
 	if (cliToken) throwInvalidCliToken();
 
 	const [isDirector, isVolunteer] = await Promise.all([
-		ctx.runQuery(internal.admin.getIsDirectorInternal, {}),
-		ctx.runQuery(internal.auth.getIsVolunteer, {}),
+		ctx.runQuery(internal.core.admin.getIsDirectorInternal, {}),
+		ctx.runQuery(internal.core.auth.getIsVolunteer, {}),
 	]);
 
 	if (!isDirector && !isVolunteer) {
@@ -77,8 +77,8 @@ export async function requireDirectorOrDelegateAction(
 	if (cliToken) throwInvalidCliToken();
 
 	const [isDirector, isDelegate] = await Promise.all([
-		ctx.runQuery(internal.admin.getIsDirectorInternal, {}),
-		ctx.runQuery(internal.admin.getIsDelegateInternal, {}),
+		ctx.runQuery(internal.core.admin.getIsDirectorInternal, {}),
+		ctx.runQuery(internal.core.admin.getIsDelegateInternal, {}),
 	]);
 
 	if (!isDirector && !isDelegate) {

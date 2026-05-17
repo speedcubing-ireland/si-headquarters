@@ -12,29 +12,32 @@ import {
 	linkedTaskActionStatus,
 } from "./lib/validators";
 import {
-	notificationMetadata,
 	notificationType,
-	notificationPriority,
-	notificationChannel,
-	notificationDigestMode,
 	notificationSubscriberEntityType,
+	notificationWatcherLevel,
 } from "./notifications/lib/validators";
 import {
 	competitionSponsorPropertyStatus,
 	sponsorshipAuctionFramework,
-	sponsorshipAuctionState,
+	auctionState,
 	sponsorshipBidIntentMode,
-} from "./lib/sponsorshipValidators";
-import { sponsorshipCompetitionSnapshot } from "./lib/sponsorshipCompetitionSnapshot";
-import {
-	emailDispatchStatus,
-	emailSourceKind,
-	stageDigestMode,
-	stageStatus,
-} from "./emailQueue/types";
+} from "./sponsorship/lib/validators";
+import { competitionSnapshot } from "./sponsorship/lib/competitionSnapshot";
+import { emailDispatchStatus, emailSourceKind } from "./emailQueue/types";
 
 export default defineSchema({
 	...authTables,
+	users: defineTable({
+		name: v.optional(v.string()),
+		email: v.optional(v.string()),
+		emailVerificationTime: v.optional(v.number()),
+		phone: v.optional(v.string()),
+		phoneVerificationTime: v.optional(v.number()),
+		isAnonymous: v.optional(v.boolean()),
+		discordAvatarUrl: v.optional(v.string()),
+	})
+		.index("email", ["email"])
+		.index("phone", ["phone"]),
 	numbers: defineTable({
 		value: v.number(),
 	}),
@@ -185,6 +188,14 @@ export default defineSchema({
 			v.object({ type: v.literal("google-sheet"), sheetId: v.string() }),
 		),
 		wcaCompetitionId: v.optional(v.string()),
+		discordChannel: v.optional(
+			v.object({
+				guildId: v.string(),
+				channelId: v.string(),
+				channelName: v.string(),
+				notificationTypeOverrides: v.optional(v.array(notificationType)),
+			}),
+		),
 		manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
 		manualSponsorId: v.optional(v.id("sponsors")),
 		currentPhaseId: v.optional(v.id("phases")),
@@ -215,7 +226,7 @@ export default defineSchema({
 	sponsorshipAuctions: defineTable({
 		competitionId: v.id("competitions"),
 		framework: sponsorshipAuctionFramework,
-		state: sponsorshipAuctionState,
+		state: auctionState,
 		currency: v.string(),
 		startsAt: v.number(),
 		endsAt: v.number(),
@@ -230,7 +241,7 @@ export default defineSchema({
 		winnerSponsorId: v.optional(v.id("sponsors")),
 		winningBidId: v.optional(v.id("sponsorshipBidIntents")),
 		settlementAmountCents: v.optional(v.number()),
-		competitionSnapshot: v.optional(sponsorshipCompetitionSnapshot),
+		competitionSnapshot: v.optional(competitionSnapshot),
 		readinessSnapshotJson: v.optional(v.string()),
 		createdById: v.id("users"),
 		updatedById: v.id("users"),
@@ -412,81 +423,6 @@ export default defineSchema({
 		.index("by_parent", ["parentType", "parentId"])
 		.index("by_parent_comment", ["parentCommentId"]),
 
-	notifications: defineTable({
-		userId: v.id("users"),
-		type: notificationType,
-		priority: notificationPriority,
-		status: v.union(
-			v.literal("unread"),
-			v.literal("read"),
-			v.literal("archived"),
-		),
-		title: v.string(),
-		message: v.string(),
-		body: v.optional(v.string()),
-		entityType: v.union(
-			v.literal("task"),
-			v.literal("comment"),
-			v.literal("competition"),
-			v.literal("reminder"),
-		),
-		entityId: v.string(),
-		parentEntityId: v.optional(v.string()),
-		metadata: notificationMetadata,
-		sourceEventId: v.optional(v.id("notificationEvents")),
-		threadKey: v.optional(v.string()),
-		dedupeKey: v.optional(v.string()),
-		readAt: v.optional(v.number()),
-		archivedAt: v.optional(v.number()),
-		snoozedUntil: v.optional(v.number()),
-		scheduledFor: v.optional(v.number()),
-		isBatchable: v.boolean(),
-		batchKey: v.optional(v.string()),
-	})
-		.index("by_user", ["userId"])
-		.index("by_user_and_status", ["userId", "status"])
-		.index("by_user_source_event", ["userId", "sourceEventId"])
-		.index("by_entity", ["entityType", "entityId"])
-		.index("by_parent_entity", ["parentEntityId"]),
-
-	notificationEvents: defineTable({
-		type: notificationType,
-		entityType: v.union(
-			v.literal("task"),
-			v.literal("comment"),
-			v.literal("competition"),
-			v.literal("reminder"),
-		),
-		entityId: v.string(),
-		actorId: v.optional(v.id("users")),
-		idempotencyKey: v.string(),
-		threadKey: v.optional(v.string()),
-		dedupeKey: v.optional(v.string()),
-		payloadJson: v.optional(v.string()),
-		createdAt: v.number(),
-	})
-		.index("by_idempotency_key", ["idempotencyKey"])
-		.index("by_entity", ["entityType", "entityId"]),
-
-	notificationPreferences: defineTable({
-		userId: v.id("users"),
-		type: notificationType,
-		channel: notificationChannel,
-		enabled: v.boolean(),
-		digestMode: notificationDigestMode,
-		respectQuietHours: v.optional(v.boolean()),
-		updatedAt: v.number(),
-	}).index("by_user_type_channel", ["userId", "type", "channel"]),
-
-	notificationUserSettings: defineTable({
-		userId: v.id("users"),
-		timezone: v.string(),
-		defaultDigestMode: v.optional(notificationDigestMode),
-		quietHoursStartMin: v.optional(v.number()),
-		quietHoursEndMin: v.optional(v.number()),
-		updatedAt: v.number(),
-	}).index("by_user", ["userId"]),
-
 	notificationSubscriptions: defineTable({
 		userId: v.id("users"),
 		entityType: notificationSubscriberEntityType,
@@ -497,31 +433,68 @@ export default defineSchema({
 		.index("by_user_updated_at", ["userId", "updatedAt"])
 		.index("by_entity", ["entityType", "entityId"]),
 
-	notificationEmailStageItems: defineTable({
-		stageKey: v.string(),
+	discordUserLinks: defineTable({
 		userId: v.id("users"),
-		notificationId: v.optional(v.id("notifications")),
-		eventId: v.id("notificationEvents"),
-		digestMode: stageDigestMode,
-		digestWindowKey: v.optional(v.string()),
-		scheduledFor: v.number(),
-		status: stageStatus,
-		emailDispatchId: v.optional(v.id("emailDispatches")),
-		scheduledFunctionId: v.optional(v.id("_scheduled_functions")),
-		metadataJson: v.optional(v.string()),
-		createdAt: v.number(),
+		guildId: v.string(),
+		discordUserId: v.string(),
+		discordUsername: v.string(),
+		discordDisplayName: v.optional(v.string()),
+		discordAvatarUrl: v.optional(v.string()),
+		linkedById: v.id("users"),
+		linkedAt: v.number(),
 		updatedAt: v.number(),
 	})
-		.index("by_stage_key", ["stageKey"])
-		.index("by_user_mode_window_status", [
-			"userId",
-			"digestMode",
-			"digestWindowKey",
-			"status",
-		])
-		.index("by_status_scheduled_for", ["status", "scheduledFor"])
-		.index("by_notification", ["notificationId"])
-		.index("by_event", ["eventId"]),
+		.index("by_user", ["userId"])
+		.index("by_discord_user", ["discordUserId"])
+		.index("by_guild_and_discord_user", ["guildId", "discordUserId"]),
+
+	discordNotificationUserSettings: defineTable({
+		userId: v.id("users"),
+		dmEnabled: v.boolean(),
+		updatedAt: v.number(),
+	}).index("by_user", ["userId"]),
+
+	discordNotificationPreferences: defineTable({
+		userId: v.id("users"),
+		type: notificationType,
+		enabled: v.boolean(),
+		updatedAt: v.number(),
+	}).index("by_user_and_type", ["userId", "type"]),
+
+	discordChannelDefaults: defineTable({
+		notificationTypes: v.array(notificationType),
+		updatedAt: v.number(),
+	}),
+
+	notificationWatcherDefaults: defineTable({
+		level: notificationWatcherLevel,
+		notificationTypes: v.array(notificationType),
+		updatedAt: v.number(),
+	}).index("by_level", ["level"]),
+
+	discordActionTokens: defineTable({
+		token: v.string(),
+		actionKind: v.union(
+			v.literal("dismiss_message"),
+			v.literal("set_task_status"),
+			v.literal("approve_task"),
+			v.literal("unapprove_task"),
+			v.literal("open_task_comment_modal"),
+			v.literal("open_task_reply_modal"),
+			v.literal("open_update_comment_modal"),
+		),
+		userId: v.optional(v.id("users")),
+		taskId: v.optional(v.id("tasks")),
+		commentId: v.optional(v.id("comments")),
+		updateId: v.optional(v.id("competitionUpdates")),
+		reminderId: v.optional(v.id("reminders")),
+		status: v.optional(taskStatus),
+		messageId: v.optional(v.string()),
+		channelId: v.optional(v.string()),
+		expiresAt: v.number(),
+		consumedAt: v.optional(v.number()),
+		createdAt: v.number(),
+	}).index("by_token", ["token"]),
 
 	reminders: defineTable({
 		userId: v.id("users"),

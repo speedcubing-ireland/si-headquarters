@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
-import { Blocks, Box, CircleCheck, Inbox, ListTodo, Users } from "lucide-react";
+import { Blocks, Box, CircleCheck, ListTodo, Users } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { NavSecondary } from "@/components/layout/nav-secondary";
 import { SIDEBAR_DASHBOARD_ITEMS } from "@/lib/route-permissions";
@@ -19,11 +19,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import {
-	usePermissionSnapshot,
-	useTeams,
-	useUnreadCount,
-} from "@/hooks/use-convex-data";
+import { usePermissionSnapshot, useTeams } from "@/hooks/use-convex-data";
 import { isSponsorshipEnabled } from "@/lib/feature-flags";
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result";
 
@@ -36,12 +32,6 @@ const navSections = [
 				name: "My Tasks",
 				url: { to: "/tasks/my" },
 				icon: CircleCheck,
-			},
-			{
-				type: "item",
-				name: "Inbox",
-				url: { to: "/inbox" },
-				icon: Inbox,
 			},
 		],
 	},
@@ -85,46 +75,33 @@ const navSections = [
 ] satisfies NavSectionData[];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-	const userResult = useQuery(api.users.getCurrentUser);
+	const userResult = useQuery(api.core.users.getCurrentUser);
 	const { data: user } = useRetainedQueryResult(userResult);
 	const { permissions } = usePermissionSnapshot();
 	const isVolunteer = permissions.isVolunteer;
 	const { teams } = useTeams();
-	const unreadCount = useUnreadCount();
 
-	const navSectionsWithBadge: NavSectionData[] = navSections.map(
-		(section, i) => {
-			if (i === 0) {
-				return {
-					...section,
-					items: section.items.map((item) =>
-						item.type === "item" && item.name === "Inbox"
-							? { ...item, badge: unreadCount ?? 0 }
-							: item,
-					),
-				};
-			}
-			if (section.title === "Organisation") {
-				return {
-					...section,
-					items: section.items.map((item) => {
-						if (
-							item.type === "dropdown" &&
-							item.title === "Competitions" &&
-							item.items
-						) {
-							const items = isVolunteer
-								? item.items
-								: item.items.filter((sub) => sub.title !== "Events");
-							return { ...item, items };
-						}
-						return item;
-					}),
-				};
-			}
-			return section;
-		},
-	);
+	const navSectionsWithBadge: NavSectionData[] = navSections.map((section) => {
+		if (section.title === "Organisation") {
+			return {
+				...section,
+				items: section.items.map((item) => {
+					if (
+						item.type === "dropdown" &&
+						item.title === "Competitions" &&
+						item.items
+					) {
+						const items = isVolunteer
+							? item.items
+							: item.items.filter((sub) => sub.title !== "Events");
+						return { ...item, items };
+					}
+					return item;
+				}),
+			};
+		}
+		return section;
+	});
 
 	const myTeams =
 		user == null
@@ -231,7 +208,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 							? {
 									name: user.name ?? user.email ?? "User",
 									email: user.email ?? "",
-									avatar: user.image ?? "",
+									avatar: user.avatarUrl,
 								}
 							: null
 					}

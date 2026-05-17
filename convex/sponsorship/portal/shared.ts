@@ -2,17 +2,17 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { requireSponsorByAuthSessionToken } from "../authAccounts";
-import { minNextBidCents } from "../../lib/sponsorshipBidding";
+import { minNextBidCents } from "../lib/bidding";
 import {
 	isProxyAuctionFramework,
 	isSealedAuctionFramework,
 	sponsorshipAuctionFramework,
-	sponsorshipAuctionState,
-} from "../../lib/sponsorshipValidators";
+	auctionState,
+} from "../lib/validators";
 import {
 	sponsorshipCompetitionSummary,
 	sponsorshipCompetitionSummarySource,
-} from "../../lib/sponsorshipCompetitionSnapshot";
+} from "../lib/competitionSnapshot";
 
 type SponsorCtx = QueryCtx | MutationCtx;
 type SponsorBidStatus =
@@ -28,7 +28,7 @@ export const sponsorAuctionListItem = v.object({
 	competitionId: v.id("competitions"),
 	competitionName: v.string(),
 	framework: sponsorshipAuctionFramework,
-	state: sponsorshipAuctionState,
+	state: auctionState,
 	currency: v.string(),
 	competitionSummary: sponsorshipCompetitionSummary,
 	competitionSummarySource: sponsorshipCompetitionSummarySource,

@@ -8,4 +8,4 @@ export type {
 	RefundCompetitionStatus,
 	CompetitionRefundSummary as RefundCompetitionSummary,
 	RefundComputationResult,
-} from "@/convex/refunds";
+} from "@/convex/refunds/api";

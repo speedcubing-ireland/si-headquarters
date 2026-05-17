@@ -33,7 +33,7 @@ export function useTasksSavedViews({
 	entity,
 	pageId,
 }: UseTasksSavedViewsOptions): TasksSavedViewsHook {
-	const listResult = useQuery(api.views.listViews, {
+	const listResult = useQuery(api.core.views.listViews, {
 		entity,
 		pageId,
 	});
@@ -42,8 +42,8 @@ export function useTasksSavedViews({
 		`${entity}:${pageId}`,
 	);
 
-	const createViewMutation = useMutation(api.views.createView);
-	const deleteViewMutation = useMutation(api.views.deleteView);
+	const createViewMutation = useMutation(api.core.views.createView);
+	const deleteViewMutation = useMutation(api.core.views.deleteView);
 
 	const {
 		filters,

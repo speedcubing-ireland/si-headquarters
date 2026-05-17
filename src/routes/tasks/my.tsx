@@ -11,7 +11,7 @@ export const Route = createFileRoute("/tasks/my")({
 });
 
 function RouteComponent() {
-	const currentUserResult = useQuery(api.users.getCurrentUser);
+	const currentUserResult = useQuery(api.core.users.getCurrentUser);
 	const currentUserState = useRetainedQueryResult(currentUserResult);
 
 	if (currentUserState.isLoading) {
