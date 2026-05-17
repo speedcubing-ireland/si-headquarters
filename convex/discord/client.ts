@@ -24,7 +24,9 @@ export async function listGuildMembers(
 	rest: REST,
 	guildId: string,
 ): Promise<APIGuildMember[]> {
-	return (await rest.get(Routes.guildMembers(guildId))) as APIGuildMember[];
+	return (await rest.get(Routes.guildMembers(guildId), {
+		query: new URLSearchParams({ limit: "1000" }),
+	})) as APIGuildMember[];
 }
 
 export async function createDmChannel(

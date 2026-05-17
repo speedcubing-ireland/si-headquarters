@@ -255,6 +255,7 @@ function RouteComponent() {
 			parentId?: string;
 		}>
 	>([]);
+	const [discordChannelSearch, setDiscordChannelSearch] = useState("");
 
 	const searchWcaCompetitions = useAction(
 		api.integrations.wca.actions.searchCompetitions,
@@ -1111,6 +1112,9 @@ function RouteComponent() {
 													})
 													.finally(() => setDiscordChannelsLoading(false));
 											}
+											if (!open) {
+												setDiscordChannelSearch("");
+											}
 										}}
 									>
 										<PopoverTrigger asChild>
@@ -1128,33 +1132,49 @@ function RouteComponent() {
 													Competition channel
 												</PopoverTitle>
 											</PopoverHeader>
+											<Input
+												placeholder="Search channels..."
+												value={discordChannelSearch}
+												onChange={(e) =>
+													setDiscordChannelSearch(e.target.value)
+												}
+												className="mb-2 h-8 text-sm"
+											/>
 											{discordChannelsLoading ? (
 												<div className="flex items-center justify-center py-4">
 													<Loader2 className="size-4 animate-spin text-muted-foreground" />
 												</div>
 											) : (
 												<div className="flex max-h-56 flex-col gap-1 overflow-y-auto">
-													{discordChannels.map((channel) => (
-														<button
-															key={channel.id}
-															type="button"
-															className="rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
-															onClick={() => {
-																void updateCompetition(competition.id, {
-																	discordChannel: {
-																		guildId: channel.guildId,
-																		channelId: channel.id,
-																		channelName: channel.name,
-																		usesGlobalDefaults: true,
-																	} as Competition["discordChannel"],
-																})
-																	.then(() => setDiscordPopoverOpen(false))
-																	.catch(onMutationError);
-															}}
-														>
-															#{channel.name}
-														</button>
-													))}
+													{discordChannels
+														.filter((channel) =>
+															channel.name
+																.toLowerCase()
+																.includes(discordChannelSearch.toLowerCase()),
+														)
+														.map((channel) => (
+															<button
+																key={channel.id}
+																type="button"
+																className="rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+																onClick={() => {
+																	void updateCompetition(competition.id, {
+																		discordChannel: {
+																			guildId: channel.guildId,
+																			channelId: channel.id,
+																			channelName: channel.name,
+																		},
+																	})
+																		.then(() => {
+																			setDiscordPopoverOpen(false);
+																			setDiscordChannelSearch("");
+																		})
+																		.catch(onMutationError);
+																}}
+															>
+																#{channel.name}
+															</button>
+														))}
 												</div>
 											)}
 										</PopoverContent>
