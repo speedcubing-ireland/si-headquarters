@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TaskRouteImport } from './routes/task'
 import { Route as CompetitionRouteImport } from './routes/competition'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TaskRoute = TaskRouteImport.update({
+  id: '/task',
+  path: '/task',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompetitionRoute = CompetitionRouteImport.update({
   id: '/competition',
   path: '/competition',
@@ -26,31 +32,42 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/competition': typeof CompetitionRoute
+  '/task': typeof TaskRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/competition': typeof CompetitionRoute
+  '/task': typeof TaskRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/competition': typeof CompetitionRoute
+  '/task': typeof TaskRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/competition'
+  fullPaths: '/' | '/competition' | '/task'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/competition'
-  id: '__root__' | '/' | '/competition'
+  to: '/' | '/competition' | '/task'
+  id: '__root__' | '/' | '/competition' | '/task'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CompetitionRoute: typeof CompetitionRoute
+  TaskRoute: typeof TaskRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/task': {
+      id: '/task'
+      path: '/task'
+      fullPath: '/task'
+      preLoaderRoute: typeof TaskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/competition': {
       id: '/competition'
       path: '/competition'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CompetitionRoute: CompetitionRoute,
+  TaskRoute: TaskRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -117,8 +117,6 @@ function PropertiesCard() {
           Properties
           <InfoIcon className="size-4"/>
         </CardTitle>
-        <CardAction>
-        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex justify-between">
@@ -126,8 +124,8 @@ function PropertiesCard() {
             <MilestoneIcon className="size-4" />
             Phase
           </Label>
-          <Button size="sm" variant="outline">
-            <span className='bg-red-500 size-2 rounded-full' aria-hidden='true' />
+          <Button variant="outline">
+            <span className='bg-red-500 size-3 rounded-full' aria-hidden='true' />
             Pre-Announcement
           </Button>
         </div>
@@ -136,8 +134,8 @@ function PropertiesCard() {
             <HandshakeIcon className="size-4" />
             Sponsor
           </Label>
-          <Button size="sm" variant="outline">
-            <GavelIcon className="size-3" />
+          <Button variant="outline">
+            <GavelIcon />
             Lots O'Cubes
           </Button>
         </div>
@@ -283,7 +281,7 @@ function UpdateCard() {
         <Button size="sm" variant="outline">😢 2</Button>
         <Button size="sm" variant="outline">😮 1</Button>
         <Button size="sm" variant="outline">😡 1</Button>
-        <Button size="sm" variant="outline">➕</Button>
+        <Button size="sm" variant="outline">+</Button>
       </CardFooter>
     </Card>
   );
@@ -322,6 +320,7 @@ function Competition() {
       <PeopleCard />
       <UpdateCard />
       <InlineDataView />
+      <div className="h-96" />
     </div>
   );
 }
