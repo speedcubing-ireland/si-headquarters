@@ -1,4 +1,4 @@
-import type { RegistrationDataV2 } from "../client/client/types.gen";
+import type { RegistrationDataV2 } from "../client/types.gen";
 
 function readString(value: unknown): string | undefined {
 	return typeof value === "string" ? value : undefined;

@@ -4,12 +4,12 @@ import type { GenericActionCtx } from "convex/server"
 import { ConvexError, v } from "convex/values"
 import { requireVolunteerAction } from "../../lib/oauth"
 import { wcaCompetitionUrl, SEARCH_RESULTS_LIMIT } from "./index"
-import { createWcaClient } from "./client/client"
+import { createWcaClient } from "./apiClient"
 import {
   competitionById,
   competitionList2,
   getMyCompetitions,
-} from "./client/client/sdk.gen"
+} from "./client/sdk.gen"
 import { getServiceAccessToken } from "../tokens/runtime"
 
 const SPONSOR_PATTERNS = [

@@ -1,5 +1,4 @@
 import {
-  ArrowDownRightIcon,
   ArrowRightIcon,
   CalendarIcon,
   CassetteTapeIcon,
@@ -10,7 +9,6 @@ import {
   CornerRightDownIcon,
   EyeIcon,
   PencilIcon,
-  SquareDashedKanbanIcon,
   Undo2Icon,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"

@@ -17,14 +17,14 @@ import type {
 	WcifVenue as Venue,
 	WcifRoom as Room,
 	WcifTimeLimit,
-} from "./client/client/types.gen";
-import { createWcaClient } from "./client/client";
+} from "./client/types.gen";
+import { createWcaClient } from "./apiClient";
 import {
 	competitionById,
 	getCompetitionWcif,
 	getRegistrationsAdmin,
 	updateCompetitionWcif,
-} from "./client/client/sdk.gen";
+} from "./client/sdk.gen";
 import {
 	clearGoogleSheetValues,
 	fetchGoogleSheetTitle,

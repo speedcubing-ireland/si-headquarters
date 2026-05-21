@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values"
 import { action, type ActionCtx } from "../../_generated/server"
 import { requireVolunteerAction } from "../../lib/oauth"
-import { createCanvaClient } from "./client/client"
+import { createCanvaClient } from "./apiClient"
 import {
   createDesignAutofillJob,
   getBrandTemplateDataset,
@@ -11,7 +11,7 @@ import {
   listBrandTemplates as listBrandTemplatesApi,
   listFolderItems as listFolderItemsApi,
   moveFolderItem,
-} from "./client/client/sdk.gen"
+} from "./client/sdk.gen"
 import {
   buildCanvaAutofillData,
   buildCanvaDesignEditUrl,
@@ -45,8 +45,20 @@ async function requireCanvaAccess(ctx: ActionCtx) {
   await requireVolunteerAction(ctx)
 }
 
-async function getCanvaAccessToken(ctx: ActionCtx): Promise<string | null> {
-  return await getServiceAccessToken(ctx, "canva")
+async function getCanvaClient(ctx: ActionCtx) {
+  const accessToken = await getServiceAccessToken(ctx, "canva")
+  if (!accessToken) {
+    throw new ConvexError({
+      code: "PRECONDITION_FAILED",
+      message: "No Canva token. Run bun run auth canva from repo root.",
+    })
+  }
+  return createCanvaClient(accessToken)
+}
+
+async function requireCanvaClient(ctx: ActionCtx) {
+  await requireCanvaAccess(ctx)
+  return await getCanvaClient(ctx)
 }
 
 export const listBrandTemplates = action({
@@ -66,16 +78,7 @@ export const listBrandTemplates = action({
     continuation: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, args) => {
-    await requireCanvaAccess(ctx)
-    const accessToken = await getCanvaAccessToken(ctx)
-    if (!accessToken) {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message: "No Canva token. Run bun run auth canva from repo root.",
-      })
-    }
-
-    const client = createCanvaClient(accessToken)
+    const client = await requireCanvaClient(ctx)
     const r = await listBrandTemplatesApi({
       client,
       query: {
@@ -131,16 +134,7 @@ export const listFolderItems = action({
     continuation: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, args) => {
-    await requireCanvaAccess(ctx)
-    const accessToken = await getCanvaAccessToken(ctx)
-    if (!accessToken) {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message: "No Canva token. Run bun run auth canva from repo root.",
-      })
-    }
-
-    const client = createCanvaClient(accessToken)
+    const client = await requireCanvaClient(ctx)
     const r = await listFolderItemsApi({
       client,
       path: { folderId: args.folderId ?? "root" },
@@ -216,14 +210,7 @@ export const validateFolderInput = action({
       }
     }
 
-    const accessToken = await getCanvaAccessToken(ctx)
-    if (!accessToken) {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message: "No Canva token. Run bun run auth canva from repo root.",
-      })
-    }
-    const client = createCanvaClient(accessToken)
+    const client = await getCanvaClient(ctx)
     try {
       const r = await getFolder({ client, path: { folderId } })
       if (r.error) throw new Error(`Canva get folder: ${canvaError(r.error)}`)
@@ -258,15 +245,7 @@ export const validateDesignInput = action({
   handler: async (ctx, args) => {
     await requireCanvaAccess(ctx)
     const designId = parseCanvaDesignInput(args.value)
-    const accessToken = await getCanvaAccessToken(ctx)
-    if (!accessToken) {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message: "No Canva token. Run bun run auth canva from repo root.",
-      })
-    }
-
-    const client = createCanvaClient(accessToken)
+    const client = await getCanvaClient(ctx)
     const r = await getDesign({ client, path: { designId } })
     if (r.error) throw new Error(`Canva get design: ${canvaError(r.error)}`)
     const design = r.data.design
@@ -305,16 +284,7 @@ export const runTemplateAction = action({
     previewImageUrl: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, args) => {
-    await requireCanvaAccess(ctx)
-    const accessToken = await getCanvaAccessToken(ctx)
-    if (!accessToken) {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message: "No Canva token. Run bun run auth canva from repo root.",
-      })
-    }
-
-    const client = createCanvaClient(accessToken)
+    const client = await requireCanvaClient(ctx)
     const dr = await getBrandTemplateDataset({
       client,
       path: { brandTemplateId: args.sourceBrandTemplateId },
@@ -426,15 +396,7 @@ export const getDesignMetadata = action({
     previewImageUrl: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, args) => {
-    await requireCanvaAccess(ctx)
-    const accessToken = await getCanvaAccessToken(ctx)
-    if (!accessToken) {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message: "No Canva token. Run bun run auth canva from repo root.",
-      })
-    }
-    const client = createCanvaClient(accessToken)
+    const client = await requireCanvaClient(ctx)
     const r = await getDesign({ client, path: { designId: args.designId } })
     if (r.error) throw new Error(`Canva get design: ${canvaError(r.error)}`)
     const designMeta = r.data.design

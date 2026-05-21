@@ -19,6 +19,12 @@ import {
   toManagerAuction,
 } from "./shared"
 import {
+  groupAuctionsByCompetition,
+  listAuctionBidEvents,
+  listAuctionIntents,
+  listAuctionInvites,
+} from "../lib/auctionQueries"
+import {
   buildFallbackSnapshotForCompetition,
   scheduleCompetitionSnapshotRefresh,
 } from "./competitionSnapshot"
@@ -127,18 +133,9 @@ export const removeBeforeOpen = mutation({
     }
 
     const [invites, intents, events] = await Promise.all([
-      ctx.db
-        .query("sponsorshipAuctionInvites")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
-      ctx.db
-        .query("sponsorshipBidIntents")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
-      ctx.db
-        .query("sponsorshipBidEvents")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
+      listAuctionInvites(ctx, auction._id),
+      listAuctionIntents(ctx, auction._id),
+      listAuctionBidEvents(ctx, auction._id),
     ])
 
     await Promise.all([
@@ -278,15 +275,7 @@ export const listCompetitionsForManager = query({
     if (competitions.length === 0) return []
 
     const auctions = await ctx.db.query("sponsorshipAuctions").collect()
-    const auctionsByCompetition = new Map<
-      Id<"competitions">,
-      Doc<"sponsorshipAuctions">[]
-    >()
-    for (const auction of auctions) {
-      const current = auctionsByCompetition.get(auction.competitionId) ?? []
-      current.push(auction)
-      auctionsByCompetition.set(auction.competitionId, current)
-    }
+    const auctionsByCompetition = groupAuctionsByCompetition(auctions)
 
     return competitions.map((competition) => {
       const scopedAuctions = auctionsByCompetition.get(competition._id) ?? []
@@ -356,15 +345,7 @@ export const listForManager = query({
       if (!competition) continue
       competitionById.set(competition._id, competition)
     }
-    const auctionsByCompetition = new Map<
-      Id<"competitions">,
-      Doc<"sponsorshipAuctions">[]
-    >()
-    for (const auction of auctions) {
-      const current = auctionsByCompetition.get(auction.competitionId) ?? []
-      current.push(auction)
-      auctionsByCompetition.set(auction.competitionId, current)
-    }
+    const auctionsByCompetition = groupAuctionsByCompetition(auctions)
 
     const statusByCompetition = new Map<
       Id<"competitions">,
@@ -457,18 +438,9 @@ export const getManagerView = query({
     if (!auction) return null
     const [competition, invites, intents, events] = await Promise.all([
       ctx.db.get("competitions", auction.competitionId),
-      ctx.db
-        .query("sponsorshipAuctionInvites")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
-      ctx.db
-        .query("sponsorshipBidIntents")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
-      ctx.db
-        .query("sponsorshipBidEvents")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
+      listAuctionInvites(ctx, auction._id),
+      listAuctionIntents(ctx, auction._id),
+      listAuctionBidEvents(ctx, auction._id),
     ])
     if (!competition) return null
     const competitionSummary =

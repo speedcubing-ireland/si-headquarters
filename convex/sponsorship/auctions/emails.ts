@@ -10,6 +10,7 @@ import {
   sponsorshipAdminPageUrl,
 } from "../../lib/siteUrls"
 import { enqueueSponsorshipEmailBatch } from "../emailBatch"
+import { listAuctionInvites } from "../lib/auctionQueries"
 
 type AuctionEmailType =
   | "auction_scheduled"
@@ -46,10 +47,7 @@ async function resolveAuctionEmailRecipients(
 } | null> {
   const [competition, invites] = await Promise.all([
     ctx.db.get("competitions", auction.competitionId),
-    ctx.db
-      .query("sponsorshipAuctionInvites")
-      .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-      .collect(),
+    listAuctionInvites(ctx, auction._id),
   ])
   if (!competition) return null
   const allSponsors = await Promise.all(
@@ -69,6 +67,37 @@ function toRecipientList(
     email: sponsor.email,
     name: sponsor.name,
   }))
+}
+
+async function queueResolvedAuctionSponsorEmails(
+  ctx: MutationCtx,
+  input: {
+    auction: Doc<"sponsorshipAuctions">
+    type: AuctionEmailType
+    subject: (competition: Doc<"competitions">) => string
+    message: string
+    context?: (
+      competition: Doc<"competitions">
+    ) => Partial<SponsorshipEmailContext>
+  }
+): Promise<void> {
+  const resolved = await resolveAuctionEmailRecipients(ctx, input.auction)
+  if (!resolved) return
+  const { competition, sponsors } = resolved
+  await queueAuctionEmails(ctx, {
+    auction: input.auction,
+    type: input.type,
+    recipients: toRecipientList(sponsors),
+    subject: input.subject(competition),
+    message: input.message,
+    context: {
+      competitionName: competition.name,
+      portalUrl: sponsorAuctionUrl(input.auction._id),
+      startsAt: input.auction.startsAt,
+      endsAt: input.auction.endsAt,
+      ...input.context?.(competition),
+    },
+  })
 }
 
 async function queueAuctionEmails(
@@ -111,25 +140,17 @@ export async function sendAuctionScheduledEmails(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">
 ): Promise<void> {
-  const resolved = await resolveAuctionEmailRecipients(ctx, auction)
-  if (!resolved) return
-  const { competition, sponsors } = resolved
-  await queueAuctionEmails(ctx, {
+  await queueResolvedAuctionSponsorEmails(ctx, {
     auction,
     type: "auction_scheduled",
-    recipients: toRecipientList(sponsors),
-    subject: `${competition.name}: bidding opening soon`,
+    subject: (competition) => `${competition.name}: bidding opening soon`,
     message:
       "A sponsorship auction has been scheduled. You will be notified when bidding opens.",
-    context: {
-      competitionName: competition.name,
-      portalUrl: sponsorAuctionUrl(auction._id),
-      startsAt: auction.startsAt,
-      endsAt: auction.endsAt,
+    context: () => ({
       frameworkDescription: describeAuctionFramework(auction.framework),
       startPriceCents: auction.startPriceCents,
       currency: auction.currency,
-    },
+    }),
   })
 }
 
@@ -137,22 +158,13 @@ export async function sendAuctionStartedEmails(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">
 ): Promise<void> {
-  const resolved = await resolveAuctionEmailRecipients(ctx, auction)
-  if (!resolved) return
-  const { competition, sponsors } = resolved
-  await queueAuctionEmails(ctx, {
+  await queueResolvedAuctionSponsorEmails(ctx, {
     auction,
     type: "auction_started",
-    recipients: toRecipientList(sponsors),
-    subject: `${competition.name}: sponsorship bidding is live`,
+    subject: (competition) =>
+      `${competition.name}: sponsorship bidding is live`,
     message:
       "Sponsorship bidding is now live in the HQ sponsor portal. Please submit your bid before closing time.",
-    context: {
-      competitionName: competition.name,
-      portalUrl: sponsorAuctionUrl(auction._id),
-      startsAt: auction.startsAt,
-      endsAt: auction.endsAt,
-    },
   })
 }
 
