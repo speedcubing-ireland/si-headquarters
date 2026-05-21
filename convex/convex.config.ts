@@ -1,11 +1,9 @@
-import { defineApp } from "convex/server";
-import crons from "@convex-dev/crons/convex.config";
-import workpool from "@convex-dev/workpool/convex.config";
-import sponsorAuth from "./sponsorship/auth/component/sponsorAuth/convex.config";
+import { defineApp } from "convex/server"
+import resend from "@convex-dev/resend/convex.config.js"
+import sponsorAuth from "./sponsorship/auth/component/sponsorAuth/convex.config"
 
-const app = defineApp();
-app.use(crons);
-app.use(workpool, { name: "emailWorkpool" });
-app.use(sponsorAuth);
+const app = defineApp()
+app.use(resend)
+app.use(sponsorAuth)
 
-export default app;
+export default app
