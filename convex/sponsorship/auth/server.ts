@@ -58,18 +58,22 @@ export function resolveSponsorAuthSecret(
 export async function buildSponsorOtpEmail(args: {
   email: string
   otp: string
-  type: "sign-in" | "forget-password" | "email-verification"
+  type: "sign-in" | "forget-password" | "email-verification" | "change-email"
 }) {
   const purposeLabel =
     args.type === "sign-in"
       ? ("sign in" as const)
       : args.type === "forget-password"
         ? ("reset your password" as const)
-        : ("verify your email" as const)
+        : args.type === "change-email"
+          ? ("change your email" as const)
+          : ("verify your email" as const)
   const subject =
     args.type === "forget-password"
       ? "Speedcubing Ireland Sponsor Portal password reset code"
-      : "Speedcubing Ireland Sponsor Portal sign-in code"
+      : args.type === "change-email"
+        ? "Speedcubing Ireland Sponsor Portal email change code"
+        : "Speedcubing Ireland Sponsor Portal sign-in code"
   const portalUrl = sponsorPortalUrl()
   const expiresInMinutes = Math.floor(SPONSOR_OTP_EXPIRES_SECONDS / 60)
   const { html: htmlBody, plainText: plainTextBody } =

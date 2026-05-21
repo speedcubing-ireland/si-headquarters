@@ -1,7 +1,1 @@
-export {
-	auth,
-	isAuthenticated,
-	signIn,
-	signOut,
-	store,
-} from "./core/auth";
+export { auth, isAuthenticated, signIn, signOut, store } from "./core/auth"

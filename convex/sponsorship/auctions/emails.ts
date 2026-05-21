@@ -1,7 +1,5 @@
 import type { Doc, Id } from "../../_generated/dataModel"
 import type { MutationCtx } from "../../_generated/server"
-import { TEAM_NAMES } from "../../lib/constants"
-import { listMembersForTeams } from "../../lib/permissions/teams"
 import type { SponsorshipEmailContext } from "../lib/emailTemplates"
 import {
   isProxyAuctionFramework,
@@ -29,6 +27,14 @@ function sponsorAuctionUrl(auctionId: Id<"sponsorshipAuctions">): string {
 
 function sponsorshipAdminUrl(): string {
   return sponsorshipAdminPageUrl()
+}
+
+function internalSponsorshipRecipients(): { email: string }[] {
+  return (process.env.SPONSORSHIP_INTERNAL_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean)
+    .map((email) => ({ email }))
 }
 
 async function resolveAuctionEmailRecipients(
@@ -295,23 +301,13 @@ export async function sendAuctionClosureEmails(
     })
   }
 
-  const managerIds = await listMembersForTeams(ctx, [
-    TEAM_NAMES.DIRECTORS,
-    TEAM_NAMES.FINANCE,
-  ])
-  const managerUsers = await Promise.all(
-    [...managerIds].map((userId) => ctx.db.get("users", userId))
-  )
-  const internalRecipients = managerUsers.flatMap((user) =>
-    user?.email ? [{ email: user.email, name: user.name ?? undefined }] : []
-  )
   const winnerSponsor = auction.winnerSponsorId
     ? recipients.find((sponsor) => sponsor._id === auction.winnerSponsorId)
     : null
   await queueAuctionEmails(ctx, {
     auction,
     type: "internal_invoice",
-    recipients: internalRecipients,
+    recipients: internalSponsorshipRecipients(),
     subject: `${competition.name}: sponsorship invoice follow-up required`,
     message: winnerSponsor
       ? `Winner confirmed: ${winnerSponsor.name} at EUR ${((auction.settlementAmountCents ?? 0) / 100).toFixed(2)}. Send invoice follow-up.`

@@ -4,7 +4,6 @@ import {
   createSponsorAuth,
   sponsorAuthComponent,
 } from "./sponsorship/auth/server"
-import { handleDiscordInteractions } from "./webhooks/discordInteractions"
 
 const http = httpRouter()
 
@@ -43,12 +42,6 @@ sponsorAuthComponent.registerRoutes(http, createSponsorAuth, {
   cors: {
     allowedOrigins,
   },
-})
-
-http.route({
-  path: "/webhooks/discord/interactions",
-  method: "POST",
-  handler: handleDiscordInteractions,
 })
 
 export default http

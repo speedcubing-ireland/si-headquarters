@@ -1,19 +1,20 @@
-import type { Id } from "../../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import {
-	isSponsorshipManagerForCtx,
-	requirePermission,
-	PERMISSION_KEYS,
-} from "../../lib/permissions/policies";
+import type { Id } from "../../_generated/dataModel"
+import type { MutationCtx, QueryCtx } from "../../_generated/server"
+import { requireUserId } from "../../core/auth"
 
-type Ctx = QueryCtx | MutationCtx;
+type Ctx = QueryCtx | MutationCtx
 
 export async function isSponsorshipManager(ctx: Ctx): Promise<boolean> {
-	return isSponsorshipManagerForCtx(ctx);
+  try {
+    await requireUserId(ctx)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function requireSponsorshipManager(
-	ctx: Ctx,
+  ctx: Ctx
 ): Promise<Id<"users">> {
-	return requirePermission(ctx, PERMISSION_KEYS.SPONSORSHIP_MANAGER);
+  return await requireUserId(ctx)
 }
