@@ -11,7 +11,9 @@ import { Label } from '@/components/ui/label';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from '@/components/ui/avatar';
 import InlineDataView from '@/components/data-views/inline-data-view';
-
+import { useQuery } from 'convex/react';
+import { api } from "@/convex/_generated/api";
+import { Doc } from "@/convex/_generated/dataModel";
 
 export const Route = createFileRoute('/competition')({
   component: Competition,
@@ -287,35 +289,50 @@ function UpdateCard() {
   );
 }
 
+function DetailsCard({ comp }: {
+  comp: Doc<"competitions">
+}) {
+  const iconUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${comp.name}`;
+  
+  return (
+    <Card className="col-span-full">
+      <CardHeader>
+        <div className="flex items-center gap-4">
+          <img
+            src={iconUrl}
+            className="size-12 shrink-0 rounded-lg border border-border object-cover"
+          />
+          <div className="flex flex-col gap-2 items-start">
+            <CardTitle className="text-2xl">{comp?.name}</CardTitle>
+            <DatePickerWithRange />
+          </div>
+        </div>
+        <CardAction>
+          <Button variant="outline" size="icon">
+            <PencilIcon />
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent divided className="border-t">
+        <Streamdown>{comp.description}</Streamdown>
+        <ProgressTracker />
+      </CardContent>
+      <CardFooter>
+        <Button size="lg" variant="secondary">
+          <BellIcon />
+          Watching
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
 function Competition() {
+  const comp = useQuery(api.competitions.queries.getFakeComp);
+  
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 mx-auto w-full max-w-3xl gap-6">
-      <Card className="col-span-full">
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <img src="https://api.dicebear.com/9.x/glass/svg?seed=MyCoolComp2026" className="size-12 shrink-0 rounded-lg border border-border object-cover" />
-            <div className="flex flex-col gap-2 items-start">
-              <CardTitle className="text-2xl">My Epic Cool Comp 2026</CardTitle>
-              <DatePickerWithRange />
-            </div>
-          </div>
-          <CardAction>
-            <Button variant="outline" size="icon">
-              <PencilIcon />
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent divided className="border-t">
-          <Streamdown>{DemoContent}</Streamdown>
-          <ProgressTracker />
-        </CardContent>
-        <CardFooter>
-          <Button size="lg" variant="secondary">
-            <BellIcon />
-            Watching
-          </Button>
-        </CardFooter>
-      </Card>
+      <DetailsCard />
       <PropertiesCard />
       <PeopleCard />
       <UpdateCard />

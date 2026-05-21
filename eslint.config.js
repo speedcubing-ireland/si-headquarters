@@ -23,7 +23,7 @@ export default defineConfig([
     rules: {
       "react-refresh/only-export-components": [
         "error",
-        { extraHOCs: ["createFileRoute"] },
+        { extraHOCs: ["createFileRoute", "createRootRoute"] },
       ],
     },
   },

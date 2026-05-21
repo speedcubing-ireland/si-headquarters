@@ -1,1 +1,14 @@
-export { auth, isAuthenticated, signIn, signOut, store } from "./core/auth"
+import { convexAuth } from "@convex-dev/auth/server";
+import Google from "@auth/core/providers/google";
+
+export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
+  providers: [
+    Google({
+			authorization: {
+				params: {
+					hd: "speedcubingireland.com",
+				},
+			},
+		})
+  ],
+});
