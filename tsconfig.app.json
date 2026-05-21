@@ -25,6 +25,7 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
+      "@/convex/*": ["./convex/*"],
       "@/*": ["./src/*"]
     }
   },
