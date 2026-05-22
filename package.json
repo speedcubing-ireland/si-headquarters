@@ -95,7 +95,7 @@
 		"@types/react-dom": "^19.2.3",
 		"@typescript-eslint/parser": "^8.59.3",
 		"@typescript/native-preview": "^7.0.0-dev.20260511.1",
-		"@vitejs/plugin-react": "^5.2.0",
+		"@vitejs/plugin-react": "^6.0.2",
 		"@vitest/coverage-v8": "^4.1.6",
 		"convex-test": "^0.0.41",
 		"eslint": "^9.39.4",
