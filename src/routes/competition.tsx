@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } fr
 import InlineDataView from '@/components/data-views/inline-data-view';
 import { useQuery } from 'convex/react';
 import { api } from "@/convex/_generated/api";
-import { Doc } from "@/convex/_generated/dataModel";
+import { type Doc } from "@/convex/_generated/dataModel";
 
 export const Route = createFileRoute('/competition')({
   component: Competition,
@@ -330,9 +330,11 @@ function DetailsCard({ comp }: {
 function Competition() {
   const comp = useQuery(api.competitions.queries.getFakeComp);
   
+  if (!comp) return <></>
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 mx-auto w-full max-w-3xl gap-6">
-      <DetailsCard />
+      <DetailsCard comp={comp} />
       <PropertiesCard />
       <PeopleCard />
       <UpdateCard />

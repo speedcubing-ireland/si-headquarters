@@ -1,5 +1,5 @@
 import { query } from "@/convex/_generated/server"
-import { Doc } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 const demoContent = `
@@ -14,8 +14,7 @@ export const getFakeComp = query({
   handler: async (ctx) => {
     const authUser = await getAuthUserId(ctx);
     return {
-      // @ts-expect-error temp workaround
-      _id: "123",
+      _id: "123" as Id<"competitions">,
       _creationTime: 123,
       name: "My Epic Cool Comp 2026",
       description: demoContent,

@@ -8,9 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && cd convex && tsc --noEmit",
     "preview": "vite preview",
-    "=============": "",
     "openapi-ts": "openapi-ts"
   },
   "dependencies": {
