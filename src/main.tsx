@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client"
 import { RouterProvider, createRouter } from "@tanstack/react-router"
 import { routeTree } from "./routeTree.gen"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
+import { Toaster } from "@/components/ui/sonner"
 import { ConvexReactClient } from "convex/react"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
 import "./index.css"
@@ -26,6 +27,7 @@ createRoot(document.getElementById("root")!).render(
     <ConvexAuthProvider client={convex}>
       <ThemeProvider>
         <RouterProvider router={router} />
+        <Toaster />
       </ThemeProvider>
     </ConvexAuthProvider>
   </StrictMode>

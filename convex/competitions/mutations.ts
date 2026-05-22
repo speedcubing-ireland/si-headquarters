@@ -1,5 +1,55 @@
 import { mutation } from "@/convex/_generated/server"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { MutationCtx } from "@/convex/_generated/server"
 import { v } from "convex/values"
+
+type People = Doc<"competitions">["people"]
+type PersonField = "compLead" | "leadDelegate"
+
+async function getCompetition(ctx: MutationCtx, id: Id<"competitions">) {
+  const competition = await ctx.db.get(id)
+  if (!competition) throw new Error("Competition not found")
+  return competition
+}
+
+async function assertUserExists(ctx: MutationCtx, userId: Id<"users"> | null) {
+  if (!userId) return
+
+  const user = await ctx.db.get(userId)
+  if (!user) throw new Error("User not found")
+}
+
+async function assertUsersExist(ctx: MutationCtx, userIds: Id<"users">[]) {
+  for (const userId of userIds) {
+    await assertUserExists(ctx, userId)
+  }
+}
+
+async function patchPeople(
+  ctx: MutationCtx,
+  id: Id<"competitions">,
+  update: (people: People) => People
+) {
+  const competition = await getCompetition(ctx, id)
+  await ctx.db.patch(id, { people: update(competition.people) })
+}
+
+function setPersonMutation(field: PersonField) {
+  return mutation({
+    args: {
+      id: v.id("competitions"),
+      userId: v.nullable(v.id("users")),
+    },
+    handler: async (ctx, args) => {
+      await assertUserExists(ctx, args.userId)
+      await patchPeople(ctx, args.id, (people) => ({
+        ...people,
+        [field]: args.userId,
+      }))
+      return
+    },
+  })
+}
 
 export const setCompDates = mutation({
   args: {
@@ -35,6 +85,27 @@ export const setCompDetails = mutation({
       name,
       description: args.description,
     })
+    return
+  },
+})
+
+export const setCompLead = setPersonMutation("compLead")
+
+export const setLeadDelegate = setPersonMutation("leadDelegate")
+
+export const setOrganisers = mutation({
+  args: {
+    id: v.id("competitions"),
+    organiserIds: v.array(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const organiserIds = [...new Set(args.organiserIds)]
+    await assertUsersExist(ctx, organiserIds)
+
+    await patchPeople(ctx, args.id, (people) => ({
+      ...people,
+      organisers: organiserIds,
+    }))
     return
   },
 })

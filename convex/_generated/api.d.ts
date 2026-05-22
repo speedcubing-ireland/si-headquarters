@@ -15,6 +15,7 @@ import type * as competitions_validators from "../competitions/validators.js";
 import type * as http from "../http.js";
 import type * as subscriptions_index from "../subscriptions/index.js";
 import type * as subscriptions_validators from "../subscriptions/validators.js";
+import type * as users_queries from "../users/queries.js";
 import type * as users_validators from "../users/validators.js";
 
 import type {
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "subscriptions/index": typeof subscriptions_index;
   "subscriptions/validators": typeof subscriptions_validators;
+  "users/queries": typeof users_queries;
   "users/validators": typeof users_validators;
 }>;
 

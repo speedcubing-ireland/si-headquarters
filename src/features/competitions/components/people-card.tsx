@@ -1,20 +1,8 @@
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarGroup,
-  AvatarGroupCount,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { UserButton } from "@/components/data-selectors/user-button"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
+import { api } from "@/convex/_generated/api"
+import type { Doc } from "@/convex/_generated/dataModel"
+import { useMutation } from "convex/react"
 import {
   ClipboardPenIcon,
   FlagIcon,
@@ -22,81 +10,71 @@ import {
   UserIcon,
   UsersIcon,
 } from "lucide-react"
+import {
+  CompetitionCard,
+  CompetitionCardContent,
+  CompetitionCardFooter,
+  CompetitionCardRow,
+} from "./competition-card"
+import { toast } from "sonner"
 
-export function PeopleCard() {
+export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
+  const setCompLead = useMutation(api.competitions.mutations.setCompLead)
+  const setLeadDelegate = useMutation(
+    api.competitions.mutations.setLeadDelegate
+  )
+  const setOrganisers = useMutation(api.competitions.mutations.setOrganisers)
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          People
-          <UserIcon className="size-4" />
-        </CardTitle>
-        <CardAction></CardAction>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4">
-        <div className="flex justify-between">
-          <Label>
-            <ClipboardPenIcon className="size-4" />
-            Competition Lead
-          </Label>
-          <Button variant="outline">
-            <Avatar size="sm">
-              <AvatarImage src="https://github.com/shadcn.png" />
-            </Avatar>
-            Kevin
-          </Button>
-        </div>
-        <div className="flex justify-between">
-          <Label>
-            <FlagIcon className="size-4" />
-            Lead Delegate
-          </Label>
-          <Button variant="outline">
-            <Avatar size="sm">
-              <AvatarImage src="https://github.com/simonkellly.png" />
-            </Avatar>
-            Simon
-          </Button>
-        </div>
-        <div className="flex justify-between">
-          <Label>
-            <UsersIcon className="size-4" />
-            Organisers
-          </Label>
-          <Button variant="outline">
-            <AvatarGroup>
-              <Avatar size="sm">
-                <AvatarImage
-                  src="https://github.com/shadcn.png"
-                  alt="@shadcn"
-                />
-                <AvatarFallback>CN</AvatarFallback>
-              </Avatar>
-              <Avatar size="sm">
-                <AvatarImage
-                  src="https://github.com/maxleiter.png"
-                  alt="@maxleiter"
-                />
-                <AvatarFallback>LR</AvatarFallback>
-              </Avatar>
-              <Avatar size="sm">
-                <AvatarImage
-                  src="https://github.com/evilrabbit.png"
-                  alt="@evilrabbit"
-                />
-                <AvatarFallback>ER</AvatarFallback>
-              </Avatar>
-              <AvatarGroupCount>+3</AvatarGroupCount>
-            </AvatarGroup>
-          </Button>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Button className="w-full">
+    <CompetitionCard title="People" icon={<UserIcon className="size-4" />}>
+      <CompetitionCardContent className="flex-1">
+        <CompetitionCardRow
+          icon={<ClipboardPenIcon className="size-4" />}
+          label="Competition Lead"
+        >
+          <UserButton
+            value={comp.people.compLead}
+            onChange={(userId) => {
+              void setCompLead({ id: comp._id, userId })
+            }}
+          />
+        </CompetitionCardRow>
+        <CompetitionCardRow
+          icon={<FlagIcon className="size-4" />}
+          label="Lead Delegate"
+        >
+          <UserButton
+            value={comp.people.leadDelegate}
+            onChange={(userId) => {
+              void setLeadDelegate({ id: comp._id, userId })
+            }}
+          />
+        </CompetitionCardRow>
+        <CompetitionCardRow
+          icon={<UsersIcon className="size-4" />}
+          label="Organisers"
+        >
+          <UserButton
+            selectionMode="multiple"
+            value={comp.people.organisers}
+            onChange={(organiserIds) => {
+              void setOrganisers({ id: comp._id, organiserIds })
+            }}
+          />
+        </CompetitionCardRow>
+      </CompetitionCardContent>
+      <CompetitionCardFooter>
+        <Button
+          className="w-full"
+          onClick={() => {
+            // TODO: implement invites
+            toast.error("Invites not implemented  ask the software team")
+          }}
+        >
           <MessageCirclePlusIcon />
           Invite Organiser To HQ
         </Button>
-      </CardFooter>
-    </Card>
+      </CompetitionCardFooter>
+    </CompetitionCard>
   )
 }
