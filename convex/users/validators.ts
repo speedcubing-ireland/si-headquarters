@@ -1,7 +1,6 @@
-import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
-export const USERS_TABLE = defineTable({
+export const usersFields = {
   name: v.optional(v.string()),
   image: v.optional(v.string()),
   email: v.optional(v.string()),
@@ -10,6 +9,4 @@ export const USERS_TABLE = defineTable({
   phoneVerificationTime: v.optional(v.number()),
   isAnonymous: v.optional(v.boolean()),
   // other "users" fields...
-})
-  .index("email", ["email"])
-  .index("phone", ["phone"])
+}

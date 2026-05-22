@@ -1,15 +1,20 @@
-import { defineSchema } from "convex/server"
+import { defineSchema, defineTable } from "convex/server"
 import { authTables } from "@convex-dev/auth/server"
-import { USERS_TABLE } from "@/convex/users"
-import { COMPETITIONS_TABLE } from "@/convex/competitions"
-import { SUBSCRIPTION_TABLE } from "@/convex/subscriptions"
+import { competitionsFields } from "@/convex/competitions/validators"
+import { subscriptionsFields } from "@/convex/subscriptions/validators"
+import { usersFields } from "@/convex/users/validators"
 
 const schema = defineSchema(
   {
     ...authTables,
-    users: USERS_TABLE,
-    competitions: COMPETITIONS_TABLE,
-    subscriptions: SUBSCRIPTION_TABLE,
+    users: defineTable(usersFields)
+      .index("email", ["email"])
+      .index("phone", ["phone"]),
+    competitions: defineTable(competitionsFields),
+    subscriptions: defineTable(subscriptionsFields).index(
+      "by_userId_and_objectType_and_objectId",
+      ["userId", "objectType", "objectId"]
+    ),
   },
   {
     schemaValidation: true,
