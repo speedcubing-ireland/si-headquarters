@@ -98,7 +98,7 @@ export const setCompPhase = mutation({
     const phase = await ctx.db.get(args.phaseId)
 
     if (!phase) throw new Error("Phase not found");
-    if (phase.ownerType !== "competitions" || phase.ownerId !== args.id) {
+    if (phase.owner.type !== "competitions" || phase.owner.id !== args.id) {
       throw new Error("Phase not found for competition");
     }
 

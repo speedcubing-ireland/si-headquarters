@@ -65,7 +65,7 @@ export const listReactionCounts = query({
 
     const reactionsQuery = ctx.db
       .query("competitionUpdateReactions")
-      .withIndex("by_updateId_and_userId", (q) =>
+      .withIndex("by_updateId_and_userId_and_emoji", (q) =>
         q.eq("updateId", args.updateId).eq("userId", viewerId)
       )
 
@@ -75,7 +75,9 @@ export const listReactionCounts = query({
 
     const countsQuery = ctx.db
       .query("competitionUpdateReactionCounts")
-      .withIndex("by_updateId", (q) => q.eq("updateId", args.updateId))
+      .withIndex("by_updateId_and_emoji", (q) =>
+        q.eq("updateId", args.updateId)
+      )
 
     for await (const { emoji, count } of countsQuery) {
       reactionCounts.push({

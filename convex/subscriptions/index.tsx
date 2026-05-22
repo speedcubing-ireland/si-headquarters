@@ -3,26 +3,22 @@ import { mutation, query, internalQuery } from "../_generated/server"
 import { getAuthUserId } from "@convex-dev/auth/server"
 import type { Id } from "../_generated/dataModel"
 import { v } from "convex/values"
-import {
-  subscribableObjectId,
-  subscribableObjectType,
-} from "@/convex/subscriptions/validators"
+import { subscribableObjectRef } from "@/convex/subscriptions/validators"
 
 export const getSubscriptionRecord = internalQuery({
   args: {
     userId: v.id("users"),
-    objectType: subscribableObjectType,
-    objectId: subscribableObjectId,
+    object: subscribableObjectRef,
   },
   returns: v.nullable(v.id("subscriptions")),
   handler: async (ctx, args) => {
     const sub = await ctx.db
       .query("subscriptions")
-      .withIndex("by_userId_and_objectType_and_objectId", (q) =>
+      .withIndex("by_userId_and_object_type_and_object_id", (q) =>
         q
           .eq("userId", args.userId)
-          .eq("objectType", args.objectType)
-          .eq("objectId", args.objectId)
+          .eq("object.type", args.object.type)
+          .eq("object.id", args.object.id)
       )
       .unique()
     return sub?._id || null
@@ -31,8 +27,7 @@ export const getSubscriptionRecord = internalQuery({
 
 export const getSubscription = query({
   args: {
-    objectType: subscribableObjectType,
-    objectId: subscribableObjectId,
+    object: subscribableObjectRef,
   },
   handler: async (ctx, args): Promise<boolean> => {
     const userId = await getAuthUserId(ctx)
@@ -44,8 +39,7 @@ export const getSubscription = query({
       internal.subscriptions.index.getSubscriptionRecord,
       {
         userId,
-        objectType: args.objectType,
-        objectId: args.objectId,
+        object: args.object,
       }
     )
 
@@ -55,8 +49,7 @@ export const getSubscription = query({
 
 export const setSubscription = mutation({
   args: {
-    objectType: subscribableObjectType,
-    objectId: subscribableObjectId,
+    object: subscribableObjectRef,
     subscribe: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -69,8 +62,7 @@ export const setSubscription = mutation({
       internal.subscriptions.index.getSubscriptionRecord,
       {
         userId,
-        objectType: args.objectType,
-        objectId: args.objectId,
+        object: args.object,
       }
     )
 
@@ -82,8 +74,7 @@ export const setSubscription = mutation({
     if (subId) return
     await ctx.db.insert("subscriptions", {
       userId,
-      objectType: args.objectType,
-      objectId: args.objectId,
+      object: args.object,
     })
   },
 })

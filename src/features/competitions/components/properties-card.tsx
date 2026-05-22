@@ -35,8 +35,10 @@ export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
           label="Phase"
         >
           <PhaseButton
-            ownerType="competitions"
-            ownerId={comp._id}
+            owner={{
+              type: "competitions",
+              id: comp._id,
+            }}
             value={comp.phaseId}
             onChange={(phaseId: Id<"phases">) =>
               setCompPhase({

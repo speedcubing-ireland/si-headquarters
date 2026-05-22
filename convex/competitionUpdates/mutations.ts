@@ -34,13 +34,15 @@ export const cleanupUpdate = internalMutation({
   handler: async (ctx, args) => {
     const reactions = await ctx.db
       .query("competitionUpdateReactions")
-      .withIndex("by_updateId_and_userId", (q) =>
+      .withIndex("by_updateId_and_userId_and_emoji", (q) =>
         q.eq("updateId", args.updateId)
       )
       .take(CLEANUP_BATCH_SIZE)
     const reactionCounts = await ctx.db
       .query("competitionUpdateReactionCounts")
-      .withIndex("by_updateId", (q) => q.eq("updateId", args.updateId))
+      .withIndex("by_updateId_and_emoji", (q) =>
+        q.eq("updateId", args.updateId)
+      )
       .take(CLEANUP_BATCH_SIZE)
 
     await Promise.all([

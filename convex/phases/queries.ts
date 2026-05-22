@@ -2,27 +2,25 @@ import { query } from "@/convex/_generated/server"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 
-import { phaseOwnerId, phaseOwnerType } from "./validators"
+import { phaseOwnerRef } from "./validators"
 
 function listPhasesForOwner(
   ctx: QueryCtx,
-  ownerType: Doc<"phases">["ownerType"],
-  ownerId: Doc<"phases">["ownerId"]
+  owner: Doc<"phases">["owner"]
 ) {
   return ctx.db
     .query("phases")
-    .withIndex("by_ownerType_and_ownerId_and_sortKey", (q) =>
-      q.eq("ownerType", ownerType).eq("ownerId", ownerId)
+    .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+      q.eq("owner.type", owner.type).eq("owner.id", owner.id)
     )
     .collect()
 }
 
 export const listForOwner = query({
   args: {
-    ownerType: phaseOwnerType,
-    ownerId: phaseOwnerId,
+    owner: phaseOwnerRef,
   },
   handler: async (ctx, args) => {
-    return await listPhasesForOwner(ctx, args.ownerType, args.ownerId)
+    return await listPhasesForOwner(ctx, args.owner)
   },
 });

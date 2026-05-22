@@ -20,8 +20,10 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
   const iconUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${comp.name}`
 
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
-    objectType: "competitions",
-    objectId: comp._id,
+    object: {
+      type: "competitions",
+      id: comp._id,
+    },
   })
   const watchingText = isWatching ? "Subscribed" : "Subscribe "
   const watchingVariant = isWatching ? "ghost" : "outline"
@@ -62,8 +64,10 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
           variant={watchingVariant}
           onClick={() =>
             onClickWatch({
-              objectType: "competitions",
-              objectId: comp._id,
+              object: {
+                type: "competitions",
+                id: comp._id,
+              },
               subscribe: !isWatching,
             })
           }

@@ -1,15 +1,14 @@
 import { v } from "convex/values"
 
-export const PHASE_OWNER_TABLE_NAMES = ["competitions"] as const
-
 export const PHASE_COLORS = ["gray", "red", "sky", "amber", "green"] as const
 
-export const phaseOwnerType = v.union(
-  ...PHASE_OWNER_TABLE_NAMES.map((tableName) => v.literal(tableName))
-)
-
-export const phaseOwnerId = v.union(
-  ...PHASE_OWNER_TABLE_NAMES.map((tableName) => v.id(tableName))
+export const phaseOwnerRef = v.union(
+  ...(["competitions"] as const).map((tableName) =>
+    v.object({
+      type: v.literal(tableName),
+      id: v.id(tableName),
+    })
+  )
 )
 
 export const phaseColor = v.union(
@@ -18,8 +17,7 @@ export const phaseColor = v.union(
 
 export const phasesFields = {
   name: v.string(),
-  ownerType: phaseOwnerType,
-  ownerId: phaseOwnerId,
+  owner: phaseOwnerRef,
   sortKey: v.string(),
   color: phaseColor,
 }

@@ -23,8 +23,7 @@ const PHASE_COLOR_CLASSES = {
 type Phase = Doc<"phases">
 
 type PhaseButtonProps = {
-  ownerType: Phase["ownerType"]
-  ownerId: Phase["ownerId"]
+  owner: Phase["owner"]
   value: Id<"phases"> | null | undefined
   onChange: (value: Id<"phases">) => void
 }
@@ -48,14 +47,12 @@ const getPhaseName = (phase: Phase) => phase.name
 const isSamePhase = (item: Phase, value: Phase) => item._id === value._id
 
 export function PhaseButton({
-  ownerId,
-  ownerType,
+  owner,
   onChange,
   value,
 }: PhaseButtonProps) {
   const phases = useQuery(api.phases.queries.listForOwner, {
-    ownerType,
-    ownerId,
+    owner,
   })
   const selectedPhase = phases?.find((phase) => phase._id === value)
 
