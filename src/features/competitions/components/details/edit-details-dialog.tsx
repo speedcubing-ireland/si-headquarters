@@ -1,5 +1,3 @@
-import { api } from "@/convex/_generated/api"
-import type { Doc } from "@/convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,17 +13,15 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { api } from "@/convex/_generated/api"
+import type { Doc } from "@/convex/_generated/dataModel"
 import { cn } from "@/lib/utils"
 import { useMutation } from "convex/react"
 import { PencilIcon } from "lucide-react"
 import { useState } from "react"
 import { Streamdown } from "streamdown"
 
-export function EditDetailsDialog({
-  comp,
-}: {
-  comp: Doc<"competitions">
-}) {
+export function EditDetailsDialog({ comp }: { comp: Doc<"competitions"> }) {
   const updateDetails = useMutation(api.competitions.mutations.setCompDetails)
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(comp.name)

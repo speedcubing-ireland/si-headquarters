@@ -165,9 +165,7 @@ function PropertiesCard() {
             Labels
           </Label>
           <Button variant="outline">
-            <Badge
-              className="bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-            >
+            <Badge className="bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
               Certificates
             </Badge>
           </Button>
@@ -389,10 +387,10 @@ function IntegrationCard() {
 }
 
 function Competition() {
-  const [flow, setFlow] = useState(true);
-  const toggleFlow = () => setFlow((f) => !f);
-  const TaskList = flow ? FlowDataView : TaskDataView;
-  
+  const [flow, setFlow] = useState(true)
+  const toggleFlow = () => setFlow((f) => !f)
+  const TaskList = flow ? FlowDataView : TaskDataView
+
   return (
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
       <Card className="col-span-full">

@@ -11,13 +11,11 @@ import {
 } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
+import { cn } from "@/lib/utils"
 import { useMutation, useQuery } from "convex/react"
-import {
-  BellIcon,
-} from "lucide-react"
+import { BellIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { EditDetailsDialog } from "./edit-details-dialog"
-import { cn } from "@/lib/utils";
 
 const DEMO_DETAILS = {
   name: "My Cool Task",
@@ -113,7 +111,6 @@ function ProgressTracker() {
     </div>
   )
 }
-
 
 export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
   const iconUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${comp.name}`
