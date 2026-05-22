@@ -78,7 +78,10 @@ function PhaseSection({ phase }: { phase: string }) {
   const current = phase === "Pre-Announcement"
   const overdue = phase === "Concept"
   return (
-    <Collapsible defaultOpen className="group rounded-xl border bg-card text-sm data-[state=open]:pb-4">
+    <Collapsible
+      defaultOpen
+      className="group rounded-xl border bg-card text-sm data-[state=open]:pb-4"
+    >
       <div className="relative flex items-center gap-4 px-4 group-data-[state=closed]:py-2 group-data-[state=open]:pt-2">
         <CollapsibleTrigger
           aria-label={`Toggle ${phase}`}
@@ -108,7 +111,7 @@ function PhaseSection({ phase }: { phase: string }) {
 }
 
 export default function TaskDataView({
-  toggleFlow
+  toggleFlow,
 }: {
   toggleFlow: () => void
 }) {

@@ -1,5 +1,5 @@
 import { mutation } from "@/convex/_generated/server"
-import { v } from "convex/values";
+import { v } from "convex/values"
 
 export const setCompDates = mutation({
   args: {
@@ -12,11 +12,11 @@ export const setCompDates = mutation({
       compDates: {
         from: args.from,
         to: args.to,
-      }
-    });
-    return;
+      },
+    })
+    return
   },
-});
+})
 
 export const setCompDetails = mutation({
   args: {
@@ -25,16 +25,16 @@ export const setCompDetails = mutation({
     description: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    const name = args.name.trim();
+    const name = args.name.trim()
 
     if (!name) {
-      throw new Error("Competition name is required");
+      throw new Error("Competition name is required")
     }
 
     await ctx.db.patch("competitions", args.id, {
       name,
       description: args.description,
-    });
-    return;
+    })
+    return
   },
-});
+})

@@ -69,19 +69,22 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardContent({ className, divided = false, ...props }: React.ComponentProps<"div"> & {
+function CardContent({
+  className,
+  divided = false,
+  ...props
+}: React.ComponentProps<"div"> & {
   divided?: boolean
 }) {
   return (
     <div
       data-slot="card-content"
-      className={
-        cn(
-          !divided
-            ? "px-4 group-data-[size=sm]/card:px-3"
-            : "divide-y p-0 *:p-4 [&>*:last-child]:pb-0 group-data-[size=sm]/card:*:p-3",
-          className
-        )}
+      className={cn(
+        !divided
+          ? "px-4 group-data-[size=sm]/card:px-3"
+          : "divide-y p-0 *:p-4 group-data-[size=sm]/card:*:p-3 [&>*:last-child]:pb-0",
+        className
+      )}
       {...props}
     />
   )

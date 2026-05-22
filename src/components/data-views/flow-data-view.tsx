@@ -266,12 +266,14 @@ export function Pattern() {
                       <h3>
                         <span className="font-mono text-muted-foreground">
                           {step.taskId}
-                        </span>
-                        {" "}
+                        </span>{" "}
                         {step.title}
                       </h3>
                       {subtaskText && (
-                        <Badge variant="outline" className="text-sm hidden sm:flex">
+                        <Badge
+                          variant="outline"
+                          className="hidden text-sm sm:flex"
+                        >
                           <CassetteTapeIcon data-icon="inline-start" />
                           {subtaskText}
                         </Badge>
@@ -342,7 +344,7 @@ export function Pattern() {
 }
 
 export default function FlowDataView({
-  toggleFlow
+  toggleFlow,
 }: {
   toggleFlow: () => void
 }) {

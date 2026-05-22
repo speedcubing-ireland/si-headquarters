@@ -1,5 +1,5 @@
-import { defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineTable } from "convex/server"
+import { v } from "convex/values"
 
 export const COMPETITIONS_TABLE = defineTable({
   name: v.string(),
@@ -13,4 +13,4 @@ export const COMPETITIONS_TABLE = defineTable({
     from: v.nullable(v.string()),
     to: v.nullable(v.string()),
   }),
-});
+})

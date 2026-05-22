@@ -1,5 +1,5 @@
-import { defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineTable } from "convex/server"
+import { v } from "convex/values"
 
 export const USERS_TABLE = defineTable({
   name: v.optional(v.string()),
@@ -12,4 +12,4 @@ export const USERS_TABLE = defineTable({
   // other "users" fields...
 })
   .index("email", ["email"])
-  .index("phone", ["phone"]);
+  .index("phone", ["phone"])

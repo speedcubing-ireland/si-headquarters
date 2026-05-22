@@ -13,7 +13,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-function toDateRange(from: string | null, to: string | null): DateRange | undefined {
+function toDateRange(
+  from: string | null,
+  to: string | null
+): DateRange | undefined {
   const range = {
     from: from ? parseISO(from) : undefined,
     to: to ? parseISO(to) : undefined,
@@ -25,18 +28,18 @@ function toDateRange(from: string | null, to: string | null): DateRange | undefi
 function formatDateText(from?: Date, to?: Date) {
   if (!from) return "Pick a date"
   if (!to) return `${format(from, "LLL dd, y")} - Pick end`
-  
+
   const sameDate = from.getTime() === to.getTime()
   if (sameDate) return format(from, "LLL dd, y")
-  
+
   const sameYear = from.getFullYear() === to.getFullYear()
   return `${format(from, sameYear ? "LLL dd" : "LLL dd, y")} - ${format(to, "LLL dd, y")}`
 }
 
 type DatePickerWithRangeProps = React.ComponentProps<typeof Button> & {
-  from: string | null;
-  to: string | null;
-  mutateDate: (from: string | null, to: string | null) => void | Promise<void>;
+  from: string | null
+  to: string | null
+  mutateDate: (from: string | null, to: string | null) => void | Promise<void>
 }
 
 export function DatePickerWithRange({
