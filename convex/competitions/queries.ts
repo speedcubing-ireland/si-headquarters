@@ -7,8 +7,11 @@ export const getFakeComp = query({
     const realComp = await ctx.db.query("competitions").first()
     if (!realComp) throw new Error("No competitions found in the database")
 
-    return {
+    const competition = {
       ...realComp,
+      updateId: realComp.updateId ?? null,
     } satisfies Doc<"competitions">
+
+    return competition
   },
 })

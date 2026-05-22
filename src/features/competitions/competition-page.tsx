@@ -4,10 +4,14 @@ import { useQuery } from "convex/react"
 import { DetailsCard } from "./components/details/details-card"
 import { PeopleCard } from "./components/people-card"
 import { PropertiesCard } from "./components/properties-card"
-import { UpdateCard } from "./components/update-card"
+import { UpdateCard } from "./components/updates/update-card"
 
 export function CompetitionPage() {
   const comp = useQuery(api.competitions.queries.getFakeComp)
+  const update = useQuery(
+    api.competitionUpdates.queries.getForCompetition,
+    comp ? { competitionId: comp._id } : "skip"
+  )
 
   if (!comp) return <></>
 
@@ -16,7 +20,7 @@ export function CompetitionPage() {
       <DetailsCard comp={comp} />
       <PropertiesCard comp={comp} />
       <PeopleCard comp={comp} />
-      <UpdateCard />
+      <UpdateCard comp={comp} update={update} />
       <InlineDataView />
       <div className="h-96" />
     </div>

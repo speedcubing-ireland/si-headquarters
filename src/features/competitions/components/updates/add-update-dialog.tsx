@@ -8,47 +8,40 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import { useMutation } from "convex/react"
-import { PencilIcon } from "lucide-react"
+import { PlusIcon } from "lucide-react"
 import { useState } from "react"
 import { MarkdownEditorField } from "../markdown-editor-field"
 
-export function EditDetailsDialog({ comp }: { comp: Doc<"competitions"> }) {
-  const updateDetails = useMutation(api.competitions.mutations.setCompDetails)
+export function AddUpdateDialog({ comp }: { comp: Doc<"competitions"> }) {
+  const setUpdate = useMutation(
+    api.competitionUpdates.mutations.setForCompetition
+  )
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState(comp.name)
-  const [description, setDescription] = useState(comp.description ?? "")
+  const [body, setBody] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const resetForm = () => {
-    setName(comp.name)
-    setDescription(comp.description ?? "")
-  }
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen)
 
     if (nextOpen) {
-      resetForm()
+      setBody("")
     }
   }
 
   const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const trimmedName = name.trim()
-    if (!trimmedName) return
+    const trimmedBody = body.trim()
+    if (!trimmedBody) return
 
     setIsSubmitting(true)
     try {
-      await updateDetails({
-        id: comp._id,
-        name: trimmedName,
-        description: description.trim().length > 0 ? description.trim() : null,
+      await setUpdate({
+        competitionId: comp._id,
+        body: trimmedBody,
       })
       setOpen(false)
     } finally {
@@ -62,43 +55,32 @@ export function EditDetailsDialog({ comp }: { comp: Doc<"competitions"> }) {
         <Button
           variant="outline"
           size="icon"
-          aria-label="Edit competition details"
+          aria-label="Add competition update"
         >
-          <PencilIcon />
+          <PlusIcon />
         </Button>
       </DialogTrigger>
       <DialogContent className="grid max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
         <form onSubmit={handleSubmit} className="grid min-h-0 gap-4">
           <DialogHeader className="pr-8">
-            <DialogTitle>Edit competition details</DialogTitle>
+            <DialogTitle>Add competition update</DialogTitle>
             <DialogDescription>
               Write in Markdown and preview before saving.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-2">
-            <Label htmlFor="competition-name">Name</Label>
-            <Input
-              id="competition-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              disabled={isSubmitting}
-              required
-            />
-          </div>
-
           <MarkdownEditorField
-            id="competition-description"
-            label="Description"
-            placeholder="Add the competition description..."
-            value={description}
-            onChange={setDescription}
+            id="competition-update"
+            label="Update"
+            placeholder="Add the competition update..."
+            value={body}
+            onChange={setBody}
             disabled={isSubmitting}
           />
 
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting || !name.trim()}>
-              {isSubmitting ? "Saving..." : "Save changes"}
+            <Button type="submit" disabled={isSubmitting || !body.trim()}>
+              {isSubmitting ? "Saving..." : "Save update"}
             </Button>
           </DialogFooter>
         </form>

@@ -9,6 +9,9 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as competitionUpdates_mutations from "../competitionUpdates/mutations.js";
+import type * as competitionUpdates_queries from "../competitionUpdates/queries.js";
+import type * as competitionUpdates_validators from "../competitionUpdates/validators.js";
 import type * as competitions_mutations from "../competitions/mutations.js";
 import type * as competitions_queries from "../competitions/queries.js";
 import type * as competitions_validators from "../competitions/validators.js";
@@ -29,6 +32,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  "competitionUpdates/mutations": typeof competitionUpdates_mutations;
+  "competitionUpdates/queries": typeof competitionUpdates_queries;
+  "competitionUpdates/validators": typeof competitionUpdates_validators;
   "competitions/mutations": typeof competitions_mutations;
   "competitions/queries": typeof competitions_queries;
   "competitions/validators": typeof competitions_validators;
