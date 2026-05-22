@@ -26,6 +26,7 @@ import {
 export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
   const setCompPhase = useMutation(api.competitions.mutations.setCompPhase)
 
+  // To-do: Most of this is still placeholder
   return (
     <CompetitionCard title="Properties" icon={<InfoIcon className="size-4" />}>
       <CompetitionCardContent>
