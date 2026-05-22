@@ -89,6 +89,26 @@ export const setCompDetails = mutation({
   },
 })
 
+export const setCompPhase = mutation({
+  args: {
+    id: v.id("competitions"),
+    phaseId: v.id("phases"),
+  },
+  handler: async (ctx, args) => {
+    const phase = await ctx.db.get(args.phaseId)
+
+    if (!phase) throw new Error("Phase not found");
+    if (phase.ownerType !== "competitions" || phase.ownerId !== args.id) {
+      throw new Error("Phase not found for competition");
+    }
+
+    await ctx.db.patch("competitions", args.id, {
+      phaseId: args.phaseId,
+    })
+    return
+  },
+})
+
 export const setCompLead = setPersonMutation("compLead")
 
 export const setLeadDelegate = setPersonMutation("leadDelegate")

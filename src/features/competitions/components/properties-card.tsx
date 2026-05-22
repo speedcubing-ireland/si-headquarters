@@ -1,5 +1,9 @@
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
+import { PhaseButton } from "@/components/data-selectors/phase-button"
+import { api } from "@/convex/_generated/api"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
+import { useMutation } from "convex/react"
 import {
   ExternalLinkIcon,
   FileSpreadsheetIcon,
@@ -19,14 +23,9 @@ import {
   CompetitionCardRow,
 } from "./competition-card"
 
-// Concept
-// Pre-Announcement bg-red-500
-// Announced bg-sky-500
-// Pre-Competition bg-amber-400
-// Post-Competition bg-green-600
-// Completed bg-gray-400 dark:bg-gray-600
+export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
+  const setCompPhase = useMutation(api.competitions.mutations.setCompPhase)
 
-export function PropertiesCard() {
   return (
     <CompetitionCard title="Properties" icon={<InfoIcon className="size-4" />}>
       <CompetitionCardContent>
@@ -34,13 +33,17 @@ export function PropertiesCard() {
           icon={<MilestoneIcon className="size-4" />}
           label="Phase"
         >
-          <Button variant="outline">
-            <span
-              className="size-3 rounded-full bg-gray-400 dark:bg-gray-600"
-              aria-hidden="true"
-            />
-            Pre-Announcement
-          </Button>
+          <PhaseButton
+            ownerType="competitions"
+            ownerId={comp._id}
+            value={comp.phaseId}
+            onChange={(phaseId: Id<"phases">) =>
+              setCompPhase({
+                id: comp._id,
+                phaseId,
+              })
+            }
+          />
         </CompetitionCardRow>
         <CompetitionCardRow
           icon={<HandshakeIcon className="size-4" />}

@@ -14,7 +14,7 @@ export function CompetitionPage() {
   return (
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
       <DetailsCard comp={comp} />
-      <PropertiesCard />
+      <PropertiesCard comp={comp} />
       <PeopleCard comp={comp} />
       <UpdateCard />
       <InlineDataView />

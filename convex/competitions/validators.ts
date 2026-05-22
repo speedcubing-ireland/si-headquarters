@@ -12,4 +12,5 @@ export const competitionsFields = {
     from: v.nullable(v.string()),
     to: v.nullable(v.string()),
   }),
+  phaseId: v.nullable(v.id("phases")),
 }
