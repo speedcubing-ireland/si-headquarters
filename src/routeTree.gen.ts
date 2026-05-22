@@ -10,7 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TaskRouteImport } from './routes/task'
-import { Route as CompetitionRouteImport } from './routes/competition'
+import { Route as CompetitionRouteRouteImport } from './routes/competition/route'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TaskRoute = TaskRouteImport.update({
@@ -18,7 +18,7 @@ const TaskRoute = TaskRouteImport.update({
   path: '/task',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CompetitionRoute = CompetitionRouteImport.update({
+const CompetitionRouteRoute = CompetitionRouteRouteImport.update({
   id: '/competition',
   path: '/competition',
   getParentRoute: () => rootRouteImport,
@@ -31,18 +31,18 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
+  '/competition': typeof CompetitionRouteRoute
   '/task': typeof TaskRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
+  '/competition': typeof CompetitionRouteRoute
   '/task': typeof TaskRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
+  '/competition': typeof CompetitionRouteRoute
   '/task': typeof TaskRoute
 }
 export interface FileRouteTypes {
@@ -55,7 +55,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CompetitionRoute: typeof CompetitionRoute
+  CompetitionRouteRoute: typeof CompetitionRouteRoute
   TaskRoute: typeof TaskRoute
 }
 
@@ -72,7 +72,7 @@ declare module '@tanstack/react-router' {
       id: '/competition'
       path: '/competition'
       fullPath: '/competition'
-      preLoaderRoute: typeof CompetitionRouteImport
+      preLoaderRoute: typeof CompetitionRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -87,7 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CompetitionRoute: CompetitionRoute,
+  CompetitionRouteRoute: CompetitionRouteRoute,
   TaskRoute: TaskRoute,
 }
 export const routeTree = rootRouteImport

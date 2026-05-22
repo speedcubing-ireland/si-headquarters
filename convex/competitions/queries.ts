@@ -1,27 +1,20 @@
 import { query } from "@/convex/_generated/server"
-import { Doc, Id } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
-
-const demoContent = `
-### Garlic bread with cheese: What the science tells us</h3>
-For years parents have espoused the health benefits of eating garlic bread with cheese to their children, with the food earning such an iconic status in our culture that kids will often dressup as warm, cheesy loaf for Halloween.
-
-But a recent study shows that the celebrated appetizer may be linked to a series of rabies cases springing up around the country.
-`
 
 export const getFakeComp = query({
   args: {  },
   handler: async (ctx) => {
     const authUser = await getAuthUserId(ctx);
+    const realComp = await ctx.db.query("competitions").first();
+    if (!realComp) throw new Error("No competitions found in the database");
+
     return {
-      _id: "123" as Id<"competitions">,
-      _creationTime: 123,
-      name: "My Epic Cool Comp 2026",
-      description: demoContent,
+      ...realComp,
       people: {
-        compLead: authUser,
-        leadDelegate: authUser,
-        organisers: []
+        compLead: realComp.people.compLead ?? authUser,
+        leadDelegate: realComp.people.leadDelegate ?? authUser,
+        organisers: realComp.people.organisers
       }
     } satisfies Doc<"competitions">;
   },

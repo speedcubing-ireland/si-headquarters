@@ -9,9 +9,26 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuthActions } from "@convex-dev/auth/react"
+import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 function SignInForm() {
   const { signIn } = useAuthActions()
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn("google")
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "Connection lost while action was in flight"
+      ) {
+        return
+      }
+      throw error
+    }
+  }
+
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-muted/40 px-4 py-8">
       <div className="mb-8 text-center">
@@ -37,7 +54,7 @@ function SignInForm() {
             type="button"
             className="w-full"
             variant="outline"
-            onClick={() => void signIn("google")}
+            onClick={() => void handleGoogleSignIn()}
           >
             Speedcubing Ireland Volunteer (GSuite)
           </Button>
@@ -60,7 +77,10 @@ function RootLayout() {
         </div>
       </AuthLoading>
       <Authenticated>
-        <Outlet />
+        <TooltipProvider>
+          <Outlet />
+          <Toaster />
+        </TooltipProvider>
       </Authenticated>
       <Unauthenticated>
         <SignInForm />

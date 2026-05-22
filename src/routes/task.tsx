@@ -74,7 +74,7 @@ const blockedByTasks = [
     avatarUrl: "https://api.dicebear.com/9.x/initials/svg?seed=C M",
     status: "done",
   },
-]
+] as const
 
 const blockingTasks = [
   {
@@ -91,7 +91,7 @@ const blockingTasks = [
     avatarUrl: "https://api.dicebear.com/9.x/initials/svg?seed=M D",
     status: "progress",
   },
-]
+] as const
 
 const dependencyStatus = {
   todo: {
@@ -110,6 +110,10 @@ const dependencyStatus = {
     className: "text-emerald-600",
   },
 }
+
+type DependencyTask =
+  | (typeof blockedByTasks)[number]
+  | (typeof blockingTasks)[number]
 
 function PropertiesCard() {
   return (
@@ -236,7 +240,7 @@ function DependencySection({
 }: {
   title: string
   icon: React.ReactNode
-  items: typeof blockedByTasks
+  items: readonly DependencyTask[]
 }) {
   return (
     <section className="flex min-w-0 flex-col gap-2">
@@ -253,7 +257,7 @@ function DependencySection({
   )
 }
 
-function DependencyItem({ item }: { item: (typeof blockedByTasks)[number] }) {
+function DependencyItem({ item }: { item: DependencyTask }) {
   const status = dependencyStatus[item.status]
   const StatusIcon = status.icon
 

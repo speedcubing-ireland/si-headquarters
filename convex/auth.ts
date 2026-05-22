@@ -4,11 +4,11 @@ import Google from "@auth/core/providers/google";
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Google({
-			authorization: {
-				params: {
-					hd: "speedcubingireland.com",
-				},
-			},
-		})
+      authorization: {
+        params: {
+          hd: "speedcubingireland.com",
+        },
+      },
+    }),
   ],
 });
