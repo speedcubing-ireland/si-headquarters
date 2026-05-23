@@ -7,34 +7,33 @@ import { v } from "convex/values"
  - > in progress but with reviewers
  - > in progress but with blockers
 */
-const UNFINISHED_TASK_STATUS = [
+export const UNFINISHED_TASK_STATUS = [
   "backlog",
   "to-do",
   "in-progress",
 ] as const
 
-const FINISHED_TASK_STATUS = [
+export const FINISHED_TASK_STATUS = [
   "awaiting-review",
   "done",
   "cancelled"
 ] as const
 
-const TASK_STATUS = [
+export const TASK_STATUS = [
   "computed",
   ...UNFINISHED_TASK_STATUS,
   ...FINISHED_TASK_STATUS,
 ] as const
 
-const taskStatusType = v.union(
+export const taskStatusType = v.union(
   ...TASK_STATUS.map((status) => v.literal(status))
 )
 
-const assigneesType = v.union(
+export const assigneesType = v.union(
   v.null(),
   v.literal("assignable"),
   v.array(v.id("users"))
 );
-
 
 /*
 It is intentional that all tasks need to have a parent.
@@ -53,6 +52,7 @@ export const taskParentRef = v.union(
 )
 
 export const taskOwnerRef = v.union(
+  v.null(),
   ...(["users", "teams"] as const).map((tableName) =>
     v.object({
       type: v.literal(tableName),

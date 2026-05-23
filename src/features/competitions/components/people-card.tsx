@@ -11,11 +11,11 @@ import {
   UsersIcon,
 } from "lucide-react"
 import {
-  CompetitionCard,
-  CompetitionCardContent,
-  CompetitionCardFooter,
-  CompetitionCardRow,
-} from "./competition-card"
+  PageCard,
+  PageCardContent,
+  PageCardFooter,
+  PageCardRow,
+} from "../../../components/page-card"
 import { toast } from "sonner"
 
 export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
@@ -26,9 +26,9 @@ export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
   const setOrganisers = useMutation(api.competitions.mutations.setOrganisers)
 
   return (
-    <CompetitionCard title="People" icon={<UserIcon className="size-4" />}>
-      <CompetitionCardContent className="flex-1">
-        <CompetitionCardRow
+    <PageCard title="People" icon={<UserIcon className="size-4" />}>
+      <PageCardContent className="flex-1">
+        <PageCardRow
           icon={<ClipboardPenIcon className="size-4" />}
           label="Competition Lead"
         >
@@ -38,8 +38,8 @@ export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
               void setCompLead({ id: comp._id, userId })
             }}
           />
-        </CompetitionCardRow>
-        <CompetitionCardRow
+        </PageCardRow>
+        <PageCardRow
           icon={<FlagIcon className="size-4" />}
           label="Lead Delegate"
         >
@@ -49,8 +49,8 @@ export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
               void setLeadDelegate({ id: comp._id, userId })
             }}
           />
-        </CompetitionCardRow>
-        <CompetitionCardRow
+        </PageCardRow>
+        <PageCardRow
           icon={<UsersIcon className="size-4" />}
           label="Organisers"
         >
@@ -61,9 +61,9 @@ export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
               void setOrganisers({ id: comp._id, organiserIds })
             }}
           />
-        </CompetitionCardRow>
-      </CompetitionCardContent>
-      <CompetitionCardFooter>
+        </PageCardRow>
+      </PageCardContent>
+      <PageCardFooter>
         <Button
           className="w-full"
           onClick={() => {
@@ -74,7 +74,7 @@ export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
           <MessageCirclePlusIcon />
           Invite Organiser To HQ
         </Button>
-      </CompetitionCardFooter>
-    </CompetitionCard>
+      </PageCardFooter>
+    </PageCard>
   )
 }

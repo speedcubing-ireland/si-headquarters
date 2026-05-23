@@ -10,7 +10,7 @@ export const list = query({
     const authUserId = await getAuthUserId(ctx)
     if (!authUserId) throw new Error("Authentication required")
 
-    const users = await ctx.db.query("users").take(50)
+    const users = await ctx.db.query("users").collect()
 
     return users.map(toPublicUser)
   },

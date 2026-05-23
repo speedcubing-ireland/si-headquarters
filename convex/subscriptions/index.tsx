@@ -1,27 +1,35 @@
-import { internal } from "../_generated/api"
 import { mutation, query, internalQuery } from "../_generated/server"
 import { getAuthUserId } from "@convex-dev/auth/server"
-import type { Id } from "../_generated/dataModel"
+import type { Id, Doc } from "../_generated/dataModel"
+import type { MutationCtx, QueryCtx } from "../_generated/server"
 import { v } from "convex/values"
 import { subscribableObjectRef } from "@/convex/subscriptions/validators"
+
+async function getSubscriptionRecordId(
+  ctx: QueryCtx | MutationCtx,
+  userId: Id<"users">,
+  object: Doc<"subscriptions">["object"]
+) {
+  const sub = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_userId_and_object_type_and_object_id", (q) =>
+      q
+        .eq("userId", userId)
+        .eq("object.type", object.type)
+        .eq("object.id", object.id)
+    )
+    .unique()
+
+  return sub?._id ?? null
+}
 
 export const getSubscriptionRecord = internalQuery({
   args: {
     userId: v.id("users"),
     object: subscribableObjectRef,
   },
-  returns: v.nullable(v.id("subscriptions")),
   handler: async (ctx, args) => {
-    const sub = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_userId_and_object_type_and_object_id", (q) =>
-        q
-          .eq("userId", args.userId)
-          .eq("object.type", args.object.type)
-          .eq("object.id", args.object.id)
-      )
-      .unique()
-    return sub?._id || null
+    return await getSubscriptionRecordId(ctx, args.userId, args.object)
   },
 })
 
@@ -35,13 +43,7 @@ export const getSubscription = query({
       return false
     }
 
-    const subId: Id<"subscriptions"> | null = await ctx.runQuery(
-      internal.subscriptions.index.getSubscriptionRecord,
-      {
-        userId,
-        object: args.object,
-      }
-    )
+    const subId = await getSubscriptionRecordId(ctx, userId, args.object)
 
     return subId !== null
   },
@@ -58,13 +60,7 @@ export const setSubscription = mutation({
       return
     }
 
-    const subId: Id<"subscriptions"> | null = await ctx.runQuery(
-      internal.subscriptions.index.getSubscriptionRecord,
-      {
-        userId,
-        object: args.object,
-      }
-    )
+    const subId = await getSubscriptionRecordId(ctx, userId, args.object)
 
     if (!args.subscribe) {
       if (subId) await ctx.db.delete(subId)

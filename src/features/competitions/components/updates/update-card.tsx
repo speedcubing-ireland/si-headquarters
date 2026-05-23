@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ObjectAvatar } from "@/components/object-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,16 +21,6 @@ import { format } from "date-fns"
 
 type CompetitionUpdate = Doc<"competitionUpdates"> & {
   author: PublicUser | null
-}
-
-// To-do this should be done automatically be the avatar fallback
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
 }
 
 function EmptyUpdateCard({ comp }: { comp: Doc<"competitions"> }) {
@@ -74,10 +64,9 @@ export function UpdateCard({
     <Card className="col-span-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 pt-2">
-          <Avatar size="sm">
-            <AvatarImage src={update.author?.image ?? undefined} />
-            <AvatarFallback>{getInitials(authorName)}</AvatarFallback>
-          </Avatar>
+          {update.author && (
+            <ObjectAvatar obj={update.author} size="sm" />
+          )}
           {authorName}
           <Badge variant="secondary">
             {format(new Date(update.editedAt), "P")}

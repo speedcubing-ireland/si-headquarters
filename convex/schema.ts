@@ -47,7 +47,13 @@ const schema = defineSchema(
       "by_owner_type_and_owner_id_and_sortKey",
       ["owner.type", "owner.id", "sortKey"]
     ),
-    tasks: defineTable(tasksFields), // To-do add indexes based on the queries
+    tasks: defineTable(tasksFields)
+      .index("by_parent_type_and_parent_id_and_order", [
+        "parent.type",
+        "parent.id",
+        "order",
+      ])
+      .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"]),
     taskLabels: defineTable(taskLabelsFields),
     taskLabelAssignments: defineTable(taskLabelAssignments)
       .index("by_taskId_and_labelId", ["taskId", "labelId"])

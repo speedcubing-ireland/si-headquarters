@@ -80,7 +80,7 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
         "group/avatar-group flex -space-x-2",
         "[--avatar-group-overlap:0.5rem] [--avatar-group-separator:2px]",
         "[&>_:where([data-slot=avatar],[data-slot=avatar-group-count]):has(+_:where([data-slot=avatar],[data-slot=avatar-group-count]))]:[--avatar-mask-radius:calc((var(--avatar-size)/2)+var(--avatar-group-separator))]",
-        "[&>_:where([data-slot=avatar],[data-slot=avatar-group-count]):has(+_:where([data-slot=avatar],[data-slot=avatar-group-count]))]:[mask-image:radial-gradient(circle_at_calc(100%-var(--avatar-group-overlap)+(var(--avatar-size)/2))_50%,transparent_calc(var(--avatar-mask-radius)-0.5px),black_var(--avatar-mask-radius))]",
+        "[&>_:where([data-slot=avatar],[data-slot=avatar-group-count]):has(+_:where([data-slot=avatar],[data-slot=avatar-group-count]))]:mask-[radial-gradient(circle_at_calc(100%-var(--avatar-group-overlap)+(var(--avatar-size)/2))_50%,transparent_calc(var(--avatar-mask-radius)-0.5px),black_var(--avatar-mask-radius))]",
         "[&>_:where([data-slot=avatar],[data-slot=avatar-group-count]):has(+_:where([data-slot=avatar],[data-slot=avatar-group-count]))]:[-webkit-mask-image:radial-gradient(circle_at_calc(100%-var(--avatar-group-overlap)+(var(--avatar-size)/2))_50%,transparent_calc(var(--avatar-mask-radius)-0.5px),black_var(--avatar-mask-radius))]",
         className
       )}

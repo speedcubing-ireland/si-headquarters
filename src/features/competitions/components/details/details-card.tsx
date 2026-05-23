@@ -29,7 +29,7 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
   const watchingVariant = isWatching ? "ghost" : "outline"
   const onClickWatch = useMutation(api.subscriptions.index.setSubscription)
 
-  const mutateDate = useMutation(api.competitions.mutations.setCompDates)
+  const setCompDates = useMutation(api.competitions.mutations.setCompDates)
 
   return (
     <Card className="col-span-full">
@@ -42,10 +42,12 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
           <div className="flex flex-col items-start gap-2">
             <CardTitle className="text-2xl">{comp?.name}</CardTitle>
             <DatePickerWithRange
-              from={comp.compDates?.from}
-              to={comp.compDates?.to}
-              mutateDate={async (from, to) => {
-                await mutateDate({ id: comp._id, from, to })
+              value={{
+                from: comp.compDates?.from ?? null,
+                to: comp.compDates?.to ?? null,
+              }}
+              onChange={async ({ from, to }) => {
+                await setCompDates({ id: comp._id, from, to })
               }}
             />
           </div>

@@ -36,36 +36,43 @@ function formatDateText(from?: Date, to?: Date) {
   return `${format(from, sameYear ? "LLL dd" : "LLL dd, y")} - ${format(to, "LLL dd, y")}`
 }
 
-type DatePickerWithRangeProps = React.ComponentProps<typeof Button> & {
-  from: string | null
-  to: string | null
-  mutateDate: (from: string | null, to: string | null) => void | Promise<void>
+type DatePickerWithRangeProps = Omit<
+  React.ComponentProps<typeof Button>,
+  "onChange" | "value"
+> & {
+  value: {
+    from: string | null
+    to: string | null
+  }
+  onChange: (value: {
+    from: string | null
+    to: string | null
+  }) => void | Promise<void>
 }
 
 export function DatePickerWithRange({
-  from,
-  mutateDate,
-  to,
+  onChange,
+  value,
   ...props
 }: DatePickerWithRangeProps) {
-  const value = toDateRange(from, to)
+  const selectedRange = toDateRange(value.from, value.to)
   const [isOpen, setIsOpen] = React.useState(false)
-  const [pickerDate, setPickerDate] = React.useState(value)
-  const displayedDate = isOpen ? pickerDate : value
+  const [pickerDate, setPickerDate] = React.useState(selectedRange)
+  const displayedDate = isOpen ? pickerDate : selectedRange
 
   const setOpen = (open: boolean) => {
     setIsOpen(open)
     if (open) {
-      setPickerDate(value)
+      setPickerDate(selectedRange)
     }
   }
 
   const setDate = (date: DateRange | undefined) => {
     setPickerDate(date)
-    void mutateDate(
-      date?.from ? format(date?.from, "yyyy-MM-dd") : null,
-      date?.to ? format(date?.to, "yyyy-MM-dd") : null
-    )
+    void onChange({
+      from: date?.from ? format(date.from, "yyyy-MM-dd") : null,
+      to: date?.to ? format(date.to, "yyyy-MM-dd") : null,
+    })
   }
 
   return (

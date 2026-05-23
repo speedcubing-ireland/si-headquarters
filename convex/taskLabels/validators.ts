@@ -1,5 +1,6 @@
 import { v } from "convex/values"
 
+// TODO need to add colors!
 export const taskLabelsFields = {
   name: v.string(),
 }

@@ -1,13 +1,4 @@
-import { Button } from "@/components/ui/button"
-import {
-  Combobox,
-  ComboboxCollection,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxTrigger,
-} from "@/components/ui/combobox"
+import { SingleSelectorCombobox } from "@/components/data-selectors/selector-combobox"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
@@ -20,20 +11,13 @@ const PHASE_COLOR_CLASSES = {
   green: "bg-green-600",
 } satisfies Record<Doc<"phases">["color"], string>
 
-type Phase = Doc<"phases">
-
-type PhaseButtonProps = {
-  owner: Phase["owner"]
-  value: Id<"phases"> | null | undefined
-  onChange: (value: Id<"phases">) => void
-}
 
 function PhaseDot({
   className = "",
   color,
 }: {
   className?: string
-  color: Phase["color"]
+  color: Doc<"phases">["color"]
 }) {
   return (
     <span
@@ -43,51 +27,43 @@ function PhaseDot({
   )
 }
 
-const getPhaseName = (phase: Phase) => phase.name
-const isSamePhase = (item: Phase, value: Phase) => item._id === value._id
-
 export function PhaseButton({
   owner,
   onChange,
   value,
-}: PhaseButtonProps) {
+}: {
+  owner: Doc<"phases">["owner"]
+  value: Id<"phases"> | null | undefined
+  onChange: (value: Id<"phases">) => void
+}) {
   const phases = useQuery(api.phases.queries.listForOwner, {
     owner,
   })
-  const selectedPhase = phases?.find((phase) => phase._id === value)
 
   return (
-    <Combobox<Phase>
-      items={phases ?? []}
-      itemToStringLabel={getPhaseName}
-      isItemEqualToValue={isSamePhase}
-      value={selectedPhase ?? null}
-      onValueChange={(phase) => {
-        if (phase) onChange(phase._id)
+    <SingleSelectorCombobox
+      align="start"
+      items={phases}
+      getLabel={(phase) => phase.name}
+      getValue={(phase) => phase._id}
+      getValueKey={(id) => id}
+      objectNoun="phases"
+      renderItem={(phase) => (
+        <>
+          <PhaseDot className="size-2" color={phase.color} />
+          <span className="truncate">{phase.name}</span>
+        </>
+      )}
+      renderValue={(phase) => (
+        <>
+          <PhaseDot className="size-3" color={phase?.color ?? "gray"} />
+          <span className="truncate">{phase?.name ?? "No phase"}</span>
+        </>
+      )}
+      value={value ?? null}
+      onValueChange={(phaseId) => {
+        if (phaseId) onChange(phaseId)
       }}
-    >
-      <ComboboxTrigger
-        showChevron={false}
-        render={<Button variant="outline" className="justify-start" />}
-      >
-        <PhaseDot className="size-3" color={selectedPhase?.color ?? "gray"} />
-        <span className="truncate">{selectedPhase?.name ?? "No phase"}</span>
-      </ComboboxTrigger>
-      <ComboboxContent className="w-64 p-0" align="start">
-        <ComboboxEmpty>
-          {phases ? "No phases found." : "Loading phases..."}
-        </ComboboxEmpty>
-        <ComboboxList>
-          <ComboboxCollection>
-            {(phase: Phase) => (
-              <ComboboxItem key={phase._id} value={phase}>
-                <PhaseDot className="size-2" color={phase.color} />
-                <span className="truncate">{phase.name}</span>
-              </ComboboxItem>
-            )}
-          </ComboboxCollection>
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
+    />
   )
 }

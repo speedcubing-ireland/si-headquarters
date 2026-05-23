@@ -15,7 +15,7 @@ type CompetitionCardProps = {
   children: ReactNode
 }
 
-export function CompetitionCard({
+export function PageCard({
   title,
   icon,
   children,
@@ -33,7 +33,7 @@ export function CompetitionCard({
   )
 }
 
-export function CompetitionCardContent({
+export function PageCardContent({
   className,
   ...props
 }: React.ComponentProps<typeof CardContent>) {
@@ -42,14 +42,14 @@ export function CompetitionCardContent({
   )
 }
 
-export function CompetitionCardFooter({
+export function PageCardFooter({
   className,
   ...props
 }: React.ComponentProps<typeof CardFooter>) {
   return <CardFooter className={className} {...props} />
 }
 
-export function CompetitionCardRow({
+export function PageCardRow({
   icon,
   label,
   children,

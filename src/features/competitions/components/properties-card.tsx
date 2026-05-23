@@ -17,20 +17,20 @@ import {
   TrashIcon,
 } from "lucide-react"
 import {
-  CompetitionCard,
-  CompetitionCardContent,
-  CompetitionCardFooter,
-  CompetitionCardRow,
-} from "./competition-card"
+  PageCard,
+  PageCardContent,
+  PageCardFooter,
+  PageCardRow,
+} from "../../../components/page-card"
 
 export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
   const setCompPhase = useMutation(api.competitions.mutations.setCompPhase)
 
   // To-do: Most of this is still placeholder
   return (
-    <CompetitionCard title="Properties" icon={<InfoIcon className="size-4" />}>
-      <CompetitionCardContent>
-        <CompetitionCardRow
+    <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
+      <PageCardContent>
+        <PageCardRow
           icon={<MilestoneIcon className="size-4" />}
           label="Phase"
         >
@@ -47,8 +47,8 @@ export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
               })
             }
           />
-        </CompetitionCardRow>
-        <CompetitionCardRow
+        </PageCardRow>
+        <PageCardRow
           icon={<HandshakeIcon className="size-4" />}
           label="Sponsor"
         >
@@ -56,15 +56,15 @@ export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
             <GavelIcon />
             Lots O'Cubes
           </Button>
-        </CompetitionCardRow>
-        <CompetitionCardRow
+        </PageCardRow>
+        <PageCardRow
           icon={<HandCoinsIcon className="size-4" />}
           label="Winning Bid"
         >
           <p>$6543.21</p>
-        </CompetitionCardRow>
-      </CompetitionCardContent>
-      <CompetitionCardFooter className="flex flex-col items-start gap-2">
+        </PageCardRow>
+      </PageCardContent>
+      <PageCardFooter className="flex flex-col items-start gap-2">
         <ButtonGroup>
           <Button variant="outline">
             <GlobeIcon className="text-blue-600" />
@@ -94,7 +94,7 @@ export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
             <TrashIcon className="text-destructive" />
           </Button>
         </ButtonGroup>
-      </CompetitionCardFooter>
-    </CompetitionCard>
+      </PageCardFooter>
+    </PageCard>
   )
 }

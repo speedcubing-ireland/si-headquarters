@@ -2,45 +2,33 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { api } from "@/convex/_generated/api"
+import { TaskDetailsCard } from "@/features/tasks/components/task-details-card"
+import { TaskPropertiesCard } from "@/features/tasks/components/task-properties-card"
 import { cn } from "@/lib/utils"
 import { createFileRoute } from "@tanstack/react-router"
+import { useQuery } from "convex/react"
 import {
-  AlarmClockPlusIcon,
   AlertCircleIcon,
   ArrowLeftToLineIcon,
   ArrowRightToLineIcon,
   BadgeCheckIcon,
   BadgeIcon,
-  BellIcon,
-  CableIcon,
-  CalendarIcon,
-  CastleIcon,
   CircleCheckIcon,
   CircleIcon,
   CircleXIcon,
   ConstructionIcon,
-  CornerDownRightIcon,
   ExternalLinkIcon,
-  HandIcon,
-  InfoIcon,
   LoaderCircleIcon,
   PaletteIcon,
-  PencilIcon,
   StampIcon,
-  TagIcon,
-  TargetIcon,
-  TrafficConeIcon,
   TrashIcon,
-  UserIcon,
 } from "lucide-react"
-import { Streamdown } from "streamdown"
-import DemoContent from "../../DEMO_CONTENT.md?raw"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -114,86 +102,6 @@ const dependencyStatus = {
 type DependencyTask =
   | (typeof blockedByTasks)[number]
   | (typeof blockingTasks)[number]
-
-function PropertiesCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          Properties
-          <InfoIcon className="size-4" />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4">
-        <div className="flex justify-between">
-          <Label>
-            <TrafficConeIcon className="size-4" />
-            Status
-          </Label>
-          <Button variant="outline">
-            <CircleIcon />
-            To-do
-          </Button>
-        </div>
-        <div className="flex justify-between">
-          <Label>
-            <UserIcon className="size-4" />
-            Assignee
-          </Label>
-          <Button variant="outline">
-            <Avatar size="sm">
-              <AvatarImage src="https://github.com/simonkellly.png" />
-            </Avatar>
-            Simon
-          </Button>
-        </div>
-        <div className="flex justify-between">
-          <Label>
-            <CastleIcon className="size-4" />
-            Owner
-          </Label>
-          <Button variant="outline">
-            <Avatar size="sm">
-              <AvatarImage src="https://api.dicebear.com/9.x/initials/svg?seed=C T" />
-            </Avatar>
-            Competitions
-          </Button>
-        </div>
-        <div className="flex justify-between">
-          <Label>
-            <TagIcon className="size-4" />
-            Labels
-          </Label>
-          <Button variant="outline">
-            <Badge className="bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-              Certificates
-            </Badge>
-          </Button>
-        </div>
-        <div className="flex justify-between">
-          <Label>
-            <TargetIcon className="size-4" />
-            Due Date
-          </Label>
-          <Button variant="outline">
-            <CalendarIcon />
-            Jun 19
-          </Button>
-        </div>
-      </CardContent>
-      <CardFooter className="grid grid-cols-2 gap-2">
-        <Button variant="outline">
-          <StampIcon />
-          Add Reviewer
-        </Button>
-        <Button variant="outline">
-          <CableIcon />
-          Add Integration
-        </Button>
-      </CardFooter>
-    </Card>
-  )
-}
 
 function DependenciesCard() {
   return (
@@ -387,56 +295,28 @@ function IntegrationCard() {
 }
 
 function Competition() {
+  const taskDetails = useQuery(api.tasks.queries.getFirst)
   const [flow, setFlow] = useState(true)
   const toggleFlow = () => setFlow((f) => !f)
   const TaskList = flow ? FlowDataView : TaskDataView
 
+  if (taskDetails === undefined) {
+    return (
+      <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
+        <Card className="col-span-full">
+          <CardHeader>
+            <CardTitle className="text-2xl">Loading task...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle className="text-2xl">Design Certificates</CardTitle>
-          <div className="flex items-center gap-1 pt-1">
-            <CornerDownRightIcon className="size-4" />
-            <Button variant="outline" size="sm">
-              Certificates
-              <Badge variant="outline" className={cn("shrink-0 text-sm")}>
-                <LoaderCircleIcon data-icon="inline-start" />
-                1/3
-              </Badge>
-            </Button>
-            <Button variant="outline" size="sm">
-              <CalendarIcon />
-              Jun 19
-            </Button>
-          </div>
-          <CardAction>
-            <Button variant="outline" size="icon">
-              <PencilIcon />
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent divided className="border-t">
-          <Streamdown>{DemoContent}</Streamdown>
-        </CardContent>
-        <CardFooter className="flex gap-2">
-          <Button size="lg">
-            <HandIcon />
-            Claim
-            {/* Claim -> Start -> Finish and Nudge for others*/}
-          </Button>
-          <Button size="lg" variant="outline">
-            <BellIcon />
-            Watch
-          </Button>
-          <Button size="lg" variant="outline">
-            <AlarmClockPlusIcon />
-            Reminders
-          </Button>
-        </CardFooter>
-      </Card>
+      <TaskDetailsCard task={taskDetails.task} />
       <IntegrationCard />
-      <PropertiesCard />
+      <TaskPropertiesCard labels={taskDetails.labels} task={taskDetails.task} />
       <DependenciesCard />
       <ApprovalCard />
       <TaskList toggleFlow={toggleFlow} />
