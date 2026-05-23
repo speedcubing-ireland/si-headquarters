@@ -85,7 +85,7 @@ function EmojiPicker({
             ),
             Emoji: ({ emoji, ...props }) => (
               <button
-                className="flex size-8 items-center justify-center rounded-md text-lg outline-none hover:bg-accent focus-visible:bg-accent data-[active]:bg-accent"
+                className="flex size-8 items-center justify-center rounded-md text-lg outline-none hover:bg-accent focus-visible:bg-accent data-active:bg-accent"
                 title={emoji.label}
                 {...props}
               >
