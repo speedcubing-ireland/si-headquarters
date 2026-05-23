@@ -11,7 +11,6 @@ const PHASE_COLOR_CLASSES = {
   green: "bg-green-600",
 } satisfies Record<Doc<"phases">["color"], string>
 
-
 function PhaseDot({
   className = "",
   color,

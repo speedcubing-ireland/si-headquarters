@@ -50,10 +50,7 @@ export function PeopleCard({ comp }: { comp: Doc<"competitions"> }) {
             }}
           />
         </PageCardRow>
-        <PageCardRow
-          icon={<UsersIcon className="size-4" />}
-          label="Organisers"
-        >
+        <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
           <UserButton
             selectionMode="multiple"
             value={comp.people.organisers}

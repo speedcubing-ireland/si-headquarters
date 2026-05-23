@@ -4,7 +4,6 @@ import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
 import { TagIcon } from "lucide-react"
-  
 
 function LabelBadge({ label }: { label: Doc<"taskLabels"> }) {
   return (
@@ -46,7 +45,9 @@ export function TaskLabelButton({
       getValueKey={(id: Id<"taskLabels">) => id}
       objectNoun="labels"
       renderItem={(label: Doc<"taskLabels">) => <LabelBadge label={label} />}
-      renderValue={(selectedLabels) => <TaskLabelFace labels={selectedLabels} />}
+      renderValue={(selectedLabels) => (
+        <TaskLabelFace labels={selectedLabels} />
+      )}
       searchable
       values={value}
       onValueChange={(nextLabels) => void onChange(nextLabels)}

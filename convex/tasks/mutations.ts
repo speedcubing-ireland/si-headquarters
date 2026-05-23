@@ -99,15 +99,14 @@ export const setTaskLabels = mutation({
     )
 
     const deletePromises = existingAssignments
-      .filter(
-        (assignment) => !nextLabelIds.has(assignment.labelId)
-      ).map((assignment) => ctx.db.delete(assignment._id))
+      .filter((assignment) => !nextLabelIds.has(assignment.labelId))
+      .map((assignment) => ctx.db.delete(assignment._id))
 
     await Promise.all(deletePromises)
 
     const insertPromises = []
     for (const labelId of nextLabelIds) {
-      if (existingLabelIds.has(labelId)) continue;
+      if (existingLabelIds.has(labelId)) continue
       insertPromises.push(
         ctx.db.insert("taskLabelAssignments", {
           taskId: args.id,

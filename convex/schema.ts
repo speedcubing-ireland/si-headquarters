@@ -11,7 +11,10 @@ import { usersFields } from "@/convex/users/validators"
 import { phasesFields } from "@/convex/phases/validators"
 import { teamsFields } from "@/convex/teams/validators"
 import { tasksFields } from "@/convex/tasks/validators"
-import { taskLabelAssignments, taskLabelsFields } from "@/convex/taskLabels/validators"
+import {
+  taskLabelAssignments,
+  taskLabelsFields,
+} from "@/convex/taskLabels/validators"
 
 const schema = defineSchema(
   {
@@ -25,10 +28,10 @@ const schema = defineSchema(
     competitionUpdateReactions: defineTable(
       competitionUpdateReactionsFields
     ).index("by_updateId_and_userId_and_emoji", [
-        "updateId",
-        "userId",
-        "emoji",
-      ]),
+      "updateId",
+      "userId",
+      "emoji",
+    ]),
     competitionUpdateReactionCounts: defineTable(
       competitionUpdateReactionCountsFields
     ).index("by_updateId_and_emoji", ["updateId", "emoji"]),

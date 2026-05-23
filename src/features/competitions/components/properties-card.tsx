@@ -30,10 +30,7 @@ export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
   return (
     <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
       <PageCardContent>
-        <PageCardRow
-          icon={<MilestoneIcon className="size-4" />}
-          label="Phase"
-        >
+        <PageCardRow icon={<MilestoneIcon className="size-4" />} label="Phase">
           <PhaseButton
             owner={{
               type: "competitions",

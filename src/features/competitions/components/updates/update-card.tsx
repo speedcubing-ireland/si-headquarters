@@ -64,9 +64,7 @@ export function UpdateCard({
     <Card className="col-span-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 pt-2">
-          {update.author && (
-            <ObjectAvatar obj={update.author} size="sm" />
-          )}
+          {update.author && <ObjectAvatar obj={update.author} size="sm" />}
           {authorName}
           <Badge variant="secondary">
             {format(new Date(update.editedAt), "P")}

@@ -25,11 +25,7 @@ import {
 import { Streamdown } from "streamdown"
 import { EditTaskDetailsDialog } from "./edit-task-details-dialog"
 
-export function TaskDetailsCard({
-  task,
-}: {
-  task: Doc<"tasks">
-}) {
+export function TaskDetailsCard({ task }: { task: Doc<"tasks"> }) {
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
   const claimTask = useMutation(api.tasks.mutations.claimTask)
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
@@ -42,7 +38,7 @@ export function TaskDetailsCard({
   const watchingText = isWatching ? "Subscribed" : "Watch"
   const watchingVariant = isWatching ? "ghost" : "outline"
 
-  const dueDate = task.dueDate;
+  const dueDate = task.dueDate
 
   return (
     <Card className="col-span-full">

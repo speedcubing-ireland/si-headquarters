@@ -97,9 +97,9 @@ export const setCompPhase = mutation({
   handler: async (ctx, args) => {
     const phase = await ctx.db.get(args.phaseId)
 
-    if (!phase) throw new Error("Phase not found");
+    if (!phase) throw new Error("Phase not found")
     if (phase.owner.type !== "competitions" || phase.owner.id !== args.id) {
-      throw new Error("Phase not found for competition");
+      throw new Error("Phase not found for competition")
     }
 
     await ctx.db.patch("competitions", args.id, {

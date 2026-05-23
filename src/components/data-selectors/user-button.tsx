@@ -1,7 +1,4 @@
-import {
-  AvatarGroup,
-  AvatarGroupCount,
-} from "@/components/ui/avatar"
+import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { ObjectAvatar } from "@/components/object-avatar"
 import {
   MultipleSelectorCombobox,
@@ -98,7 +95,9 @@ export function UserButton(props: UserButtonProps) {
         {...comboboxProps}
         className={props.className}
         items={users}
-        renderValue={(selectedUsers) => <UserButtonFace users={selectedUsers} />}
+        renderValue={(selectedUsers) => (
+          <UserButtonFace users={selectedUsers} />
+        )}
         values={props.value}
         onValueChange={props.onChange}
       />

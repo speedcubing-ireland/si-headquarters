@@ -4,10 +4,7 @@ import type { QueryCtx } from "@/convex/_generated/server"
 
 import { phaseOwnerRef } from "./validators"
 
-function listPhasesForOwner(
-  ctx: QueryCtx,
-  owner: Doc<"phases">["owner"]
-) {
+function listPhasesForOwner(ctx: QueryCtx, owner: Doc<"phases">["owner"]) {
   return ctx.db
     .query("phases")
     .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
@@ -23,4 +20,4 @@ export const listForOwner = query({
   handler: async (ctx, args) => {
     return await listPhasesForOwner(ctx, args.owner)
   },
-});
+})

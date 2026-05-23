@@ -15,11 +15,7 @@ type CompetitionCardProps = {
   children: ReactNode
 }
 
-export function PageCard({
-  title,
-  icon,
-  children,
-}: CompetitionCardProps) {
+export function PageCard({ title, icon, children }: CompetitionCardProps) {
   return (
     <Card>
       <CardHeader>

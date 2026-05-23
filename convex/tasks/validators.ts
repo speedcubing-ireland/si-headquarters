@@ -16,7 +16,7 @@ export const UNFINISHED_TASK_STATUS = [
 export const FINISHED_TASK_STATUS = [
   "awaiting-review",
   "done",
-  "cancelled"
+  "cancelled",
 ] as const
 
 export const TASK_STATUS = [
@@ -33,7 +33,7 @@ export const assigneesType = v.union(
   v.null(),
   v.literal("assignable"),
   v.array(v.id("users"))
-);
+)
 
 /*
 It is intentional that all tasks need to have a parent.

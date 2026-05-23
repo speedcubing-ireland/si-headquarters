@@ -43,20 +43,24 @@ type SelectorComboboxBaseProps<TItem, TValue> = {
   searchable?: boolean
 }
 
-type SingleSelectorComboboxProps<TItem, TValue> =
-  SelectorComboboxBaseProps<TItem, TValue> & {
-    clearLabel?: ReactNode
-    onValueChange: (value: TValue | null) => void
-    renderValue: (item: TItem | null) => ReactNode
-    value: TValue | null | undefined
-  }
+type SingleSelectorComboboxProps<TItem, TValue> = SelectorComboboxBaseProps<
+  TItem,
+  TValue
+> & {
+  clearLabel?: ReactNode
+  onValueChange: (value: TValue | null) => void
+  renderValue: (item: TItem | null) => ReactNode
+  value: TValue | null | undefined
+}
 
-type MultipleSelectorComboboxProps<TItem, TValue> =
-  SelectorComboboxBaseProps<TItem, TValue> & {
-    onValueChange: (value: TValue[]) => void
-    renderValue: (items: TItem[]) => ReactNode
-    values: TValue[]
-  }
+type MultipleSelectorComboboxProps<TItem, TValue> = SelectorComboboxBaseProps<
+  TItem,
+  TValue
+> & {
+  onValueChange: (value: TValue[]) => void
+  renderValue: (items: TItem[]) => ReactNode
+  values: TValue[]
+}
 
 function SelectorTrigger({
   children,
@@ -182,7 +186,9 @@ function SelectorContent<TValue>({
         />
       )}
       <ComboboxEmpty>
-        {hasLoadedItems ? `No ${objectNoun} found.` : `Loading ${objectNoun}...`}
+        {hasLoadedItems
+          ? `No ${objectNoun} found.`
+          : `Loading ${objectNoun}...`}
       </ComboboxEmpty>
       <ComboboxList>
         {clearLabel && (
@@ -239,7 +245,7 @@ export function SingleSelectorCombobox<TItem, TValue>({
   const selectedOption =
     value === null || value === undefined
       ? null
-      : items.find((item) => item.key === getValueKey(value)) ?? null
+      : (items.find((item) => item.key === getValueKey(value)) ?? null)
 
   return (
     <Combobox<SelectorOption<TValue>>

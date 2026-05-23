@@ -54,7 +54,7 @@ export const listReactionCounts = query({
   returns: v.array(reactionCountValidator),
   handler: async (ctx, args) => {
     const viewerId = await getAuthUserId(ctx)
-    if (!viewerId) throw new Error("Authentication required to view reactions");
+    if (!viewerId) throw new Error("Authentication required to view reactions")
 
     const selectedEmojis = new Set<string>()
     const reactionCounts: Array<{

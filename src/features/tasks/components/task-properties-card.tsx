@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 
 function firstAssigneeId(assigneeIds: Doc<"tasks">["assigneeIds"]) {
-  return Array.isArray(assigneeIds) ? assigneeIds[0] ?? null : null
+  return Array.isArray(assigneeIds) ? (assigneeIds[0] ?? null) : null
 }
 
 export function TaskPropertiesCard({
@@ -53,10 +53,7 @@ export function TaskPropertiesCard({
             onChange={(status) => setStatus({ id: task._id, status })}
           />
         </PageCardRow>
-        <PageCardRow
-          icon={<UserIcon className="size-4" />}
-          label="Assignee"
-        >
+        <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
           <UserButton
             value={firstAssigneeId(task.assigneeIds)}
             onChange={(assigneeId) =>
@@ -67,10 +64,7 @@ export function TaskPropertiesCard({
             }
           />
         </PageCardRow>
-        <PageCardRow
-          icon={<CastleIcon className="size-4" />}
-          label="Owner"
-        >
+        <PageCardRow icon={<CastleIcon className="size-4" />} label="Owner">
           <TaskOwnerButton
             value={task.owner}
             onChange={(owner) => setOwner({ id: task._id, owner })}
@@ -79,15 +73,10 @@ export function TaskPropertiesCard({
         <PageCardRow icon={<TagIcon className="size-4" />} label="Labels">
           <TaskLabelButton
             value={labels.map((label) => label._id)}
-            onChange={(labelIds) =>
-              setLabels({ id: task._id, labelIds })
-            }
+            onChange={(labelIds) => setLabels({ id: task._id, labelIds })}
           />
         </PageCardRow>
-        <PageCardRow
-          icon={<TargetIcon className="size-4" />}
-          label="Due Date"
-        >
+        <PageCardRow icon={<TargetIcon className="size-4" />} label="Due Date">
           <TaskDateButton
             value={task.dueDate}
             onChange={(dueDate) => {

@@ -24,7 +24,7 @@ export const getFirst = query({
     const task = await ctx.db.query("tasks").first()
     if (!task) throw new Error("No tasks found in the database")
 
-      return {
+    return {
       task,
       labels: await getTaskLabels(ctx, task._id),
     }
