@@ -110,7 +110,7 @@ export function TaskOwnerButton({
         getLabel: (owner: OwnerOption) => owner.label,
         getValue: (owner: OwnerOption) => owner.value,
         renderItem: renderOwnerItem,
-      })
+      }),
     ],
     [teams, users]
   )

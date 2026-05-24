@@ -1,45 +1,36 @@
-/*
-To-do - High Priority
-This needs to be reworked
-The available status should be send via the server based on the task state
-The icons and names etc. should be in a static data file with type safety against the backend
-*/
-
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
-import type { Doc } from "@/convex/_generated/dataModel"
+import type {
+  TaskStatusAction,
+  TaskStatusCommand,
+  TaskStatusView as BackendTaskStatusView,
+} from "@/convex/tasks/status/resolver"
 import {
-  BotIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   CircleDotIcon,
   CircleIcon,
   CircleXIcon,
+  SparklesIcon,
+  RotateCcwIcon,
   StampIcon,
 } from "lucide-react"
 import type { ElementType } from "react"
 
-type TaskStatus = Doc<"tasks">["status"]
-
-const TASK_STATUS_OPTIONS = [
-  "backlog",
-  "to-do",
-  "in-progress",
-  "awaiting-review",
-  "done",
-  "cancelled",
-] as const satisfies TaskStatus[]
+type TaskStatusView = Pick<
+  BackendTaskStatusView,
+  | "effectiveStatus"
+  | "isManuallyEditable"
+  | "statusOptions"
+  | "availableActions"
+>
 
 const TASK_STATUS_META = {
-  computed: {
-    label: "Computed",
-    icon: BotIcon,
-  },
   backlog: {
     label: "Backlog",
     icon: CircleDashedIcon,
@@ -64,40 +55,69 @@ const TASK_STATUS_META = {
     label: "Cancelled",
     icon: CircleXIcon,
   },
-} satisfies Record<TaskStatus, { label: string; icon: ElementType }>
+  auto: {
+    label: "Auto set",
+    icon: SparklesIcon,
+  },
+} satisfies Record<TaskStatusCommand, { label: string; icon: ElementType }>
 
 export function TaskStatusButton({
   onChange,
-  value,
+  onAction,
+  statusView,
 }: {
-  value: TaskStatus
-  onChange: (value: TaskStatus) => void | Promise<void> | Promise<null>
+  statusView: TaskStatusView
+  onChange: (value: TaskStatusCommand) => void | Promise<void> | Promise<null>
+  onAction?: (action: TaskStatusAction) => void | Promise<void> | Promise<null>
 }) {
+  const value = statusView.effectiveStatus
   const selected = TASK_STATUS_META[value]
   const SelectedIcon = selected.icon
+  const isDisabled =
+    !statusView.isManuallyEditable || statusView.statusOptions.length === 0
+  const canReopen = statusView.availableActions.includes("reopen")
+  const selectValue = statusView.statusOptions.includes(value)
+    ? value
+    : undefined
 
   return (
-    <Select
-      value={value}
-      onValueChange={(next) => void onChange(next as TaskStatus)}
-    >
-      <SelectTrigger className="justify-start">
-        <SelectedIcon />
-        <SelectValue>{selected.label}</SelectValue>
-      </SelectTrigger>
-      <SelectContent align="end">
-        {TASK_STATUS_OPTIONS.map((status) => {
-          const option = TASK_STATUS_META[status]
-          const Icon = option.icon
+    <div className="flex min-w-0 items-center gap-1">
+      <Select
+        disabled={isDisabled}
+        value={selectValue}
+        onValueChange={(next) => void onChange(next as TaskStatusCommand)}
+      >
+        <SelectTrigger className="min-w-0 flex-1 justify-start">
+          <SelectedIcon />
+          <span className="truncate">{selected.label}</span>
+        </SelectTrigger>
+        <SelectContent align="end">
+          {statusView.statusOptions.map((status) => {
+            const option = TASK_STATUS_META[status]
+            const Icon = option.icon
 
-          return (
-            <SelectItem key={status} value={status}>
-              <Icon />
-              {option.label}
-            </SelectItem>
-          )
-        })}
-      </SelectContent>
-    </Select>
+            return (
+              <SelectItem key={status} value={status}>
+                <Icon />
+                {option.label}
+              </SelectItem>
+            )
+          })}
+        </SelectContent>
+      </Select>
+      {/* To-do this should likely hide the selector!
+      or in this case show a popover for the complete status with the button */}
+      {canReopen ? (
+        <Button
+          aria-label="Reopen task"
+          size="icon"
+          type="button"
+          variant="outline"
+          onClick={() => void onAction?.("reopen")}
+        >
+          <RotateCcwIcon />
+        </Button>
+      ) : null}
+    </div>
   )
 }

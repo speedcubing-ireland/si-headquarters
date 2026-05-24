@@ -85,6 +85,7 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
+    "@vitest/coverage-v8": "^4.1.7",
     "convex-test": "^0.0.53",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.1.1",

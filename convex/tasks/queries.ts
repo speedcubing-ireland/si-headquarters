@@ -1,6 +1,17 @@
+// To-do some of these if not used eventually should be removed
+
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import {
+  getDirectSubtasks,
+  getSubtasksWithStatusViews,
+  getTaskStatusView,
+  getTaskStatusViewWithFlowPosition,
+  previewFlowReopenForStatusChange as previewStatusChangeFlowReopen,
+} from "@/convex/tasks/status/resolver"
+import { taskStatusCommandType } from "@/convex/tasks/status/validators"
+import { v } from "convex/values"
 
 async function getTaskLabels(
   ctx: QueryCtx,
@@ -27,6 +38,47 @@ export const getFirst = query({
     return {
       task,
       labels: await getTaskLabels(ctx, task._id),
+      statusView: await getTaskStatusViewWithFlowPosition(ctx, task),
+    }
+  },
+})
+
+export const getStatusView = query({
+  args: {
+    id: v.id("tasks"),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.id)
+    if (!task) throw new Error("Task not found")
+
+    return await getTaskStatusViewWithFlowPosition(ctx, task)
+  },
+})
+
+export const previewFlowReopenForStatusChange = query({
+  args: {
+    id: v.id("tasks"),
+    status: taskStatusCommandType,
+  },
+  handler: async (ctx, args) => {
+    return await previewStatusChangeFlowReopen(ctx, args.id, args.status)
+  },
+})
+
+export const listSubtasks = query({
+  args: {
+    id: v.id("tasks"),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.id)
+    if (!task) throw new Error("Task not found")
+
+    const subtasks = await getDirectSubtasks(ctx, task._id)
+
+    return {
+      parent: task,
+      parentStatusView: await getTaskStatusView(ctx, task, subtasks),
+      subtasks: await getSubtasksWithStatusViews(ctx, task, subtasks),
     }
   },
 })

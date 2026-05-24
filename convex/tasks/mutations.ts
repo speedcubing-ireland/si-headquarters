@@ -1,5 +1,14 @@
 import { mutation } from "@/convex/_generated/server"
-import { taskOwnerRef, taskStatusType } from "@/convex/tasks/validators"
+import { taskKindType } from "@/convex/tasks/kind"
+import { taskStatusCommandType } from "@/convex/tasks/status/validators"
+import { taskOwnerRef } from "@/convex/tasks/validators"
+import {
+  activatePhaseBacklogTasks,
+  reopenTaskStatus,
+  requestTaskStatusChange,
+  setTaskKindAndRecompute,
+  setTaskOrderAndRecompute,
+} from "@/convex/tasks/status/recompute"
 import { getAuthUserId } from "@convex-dev/auth/server"
 import { v } from "convex/values"
 
@@ -13,11 +22,12 @@ export const setTaskDetails = mutation({
     const name = args.name.trim()
     if (!name || name.length === 0) throw new Error("Task name is required")
 
-    const description = args.description?.trim()
+    const descTrim = args.description?.trim()
+    const description = descTrim && descTrim.length > 0 ? descTrim : null
 
     await ctx.db.patch(args.id, {
       name,
-      description: description && description.length > 0 ? description : null,
+      description,
     })
   },
 })
@@ -25,10 +35,48 @@ export const setTaskDetails = mutation({
 export const setTaskStatus = mutation({
   args: {
     id: v.id("tasks"),
-    status: taskStatusType,
+    status: taskStatusCommandType,
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { status: args.status })
+    await requestTaskStatusChange(ctx, args.id, args.status)
+  },
+})
+
+export const reopenTask = mutation({
+  args: {
+    id: v.id("tasks"),
+  },
+  handler: async (ctx, args) => {
+    await reopenTaskStatus(ctx, args.id)
+  },
+})
+
+export const setTaskKind = mutation({
+  args: {
+    id: v.id("tasks"),
+    kind: taskKindType,
+  },
+  handler: async (ctx, args) => {
+    await setTaskKindAndRecompute(ctx, args.id, args.kind)
+  },
+})
+
+export const setTaskOrder = mutation({
+  args: {
+    id: v.id("tasks"),
+    order: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await setTaskOrderAndRecompute(ctx, args.id, args.order)
+  },
+})
+
+export const activatePhaseTasks = mutation({
+  args: {
+    phaseId: v.id("phases"),
+  },
+  handler: async (ctx, args) => {
+    await activatePhaseBacklogTasks(ctx, args.phaseId)
   },
 })
 
@@ -38,10 +86,9 @@ export const setTaskDueDate = mutation({
     dueDate: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch("tasks", args.id, {
+    await ctx.db.patch(args.id, {
       dueDate: args.dueDate,
     })
-    return
   },
 })
 
@@ -51,9 +98,9 @@ export const setTaskAssignees = mutation({
     assigneeIds: v.array(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const assigneeIds = [...new Set(args.assigneeIds)]
+    const assigneeIds = new Set(args.assigneeIds)
     await ctx.db.patch(args.id, {
-      assigneeIds: assigneeIds.length > 0 ? assigneeIds : null,
+      assigneeIds: assigneeIds.size > 0 ? Array.from(assigneeIds) : null,
     })
   },
 })
@@ -86,26 +133,22 @@ export const setTaskLabels = mutation({
     labelIds: v.array(v.id("taskLabels")),
   },
   handler: async (ctx, args) => {
-    const labelIds = [...new Set(args.labelIds)]
-
+    const labelIds = new Set(args.labelIds)
     const existingAssignments = await ctx.db
       .query("taskLabelAssignments")
       .withIndex("by_taskId_and_labelId", (q) => q.eq("taskId", args.id))
       .collect()
 
-    const nextLabelIds = new Set(labelIds)
     const existingLabelIds = new Set(
       existingAssignments.map((assignment) => assignment.labelId)
     )
 
     const deletePromises = existingAssignments
-      .filter((assignment) => !nextLabelIds.has(assignment.labelId))
+      .filter((assignment) => !labelIds.has(assignment.labelId))
       .map((assignment) => ctx.db.delete(assignment._id))
 
-    await Promise.all(deletePromises)
-
     const insertPromises = []
-    for (const labelId of nextLabelIds) {
+    for (const labelId of labelIds) {
       if (existingLabelIds.has(labelId)) continue
       insertPromises.push(
         ctx.db.insert("taskLabelAssignments", {
@@ -114,6 +157,7 @@ export const setTaskLabels = mutation({
         })
       )
     }
-    await Promise.all(insertPromises)
+
+    await Promise.all([...insertPromises, ...deletePromises])
   },
 })

@@ -316,7 +316,11 @@ function Competition() {
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
       <TaskDetailsCard task={taskDetails.task} />
       <IntegrationCard />
-      <TaskPropertiesCard labels={taskDetails.labels} task={taskDetails.task} />
+      <TaskPropertiesCard
+        labels={taskDetails.labels}
+        statusView={taskDetails.statusView}
+        task={taskDetails.task}
+      />
       <DependenciesCard />
       <ApprovalCard />
       <TaskList toggleFlow={toggleFlow} />

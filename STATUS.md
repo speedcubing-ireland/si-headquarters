@@ -11,8 +11,9 @@ We look through the tasks, and the earliest uncomplete one is the current tasks,
 4. Incomplete Subtasks
 5. Manual changes
 
-Available options:
+Available options: backlog, to-do, in-progress, 
 
+// note- when marking a flow subtask as non-backlog this will appear to the user as marking it as whatever the result of the computation would be if this were to happen...
 // note- what if an approval is withdrawn in a flow task in the past? it causes a reopen!
 // note- if a task is cancelled and an earlier task is reopened, the task gets uncancelled -> backlog - this is acceptable
 // note- will need to consider what the implications of notifications are in this... for the future
@@ -113,3 +114,38 @@ Available options:
   - Allowed manual changes should be displayed in the data-selector 
   - Manual changes should be checked for validity and ensure any side effects are managed
   - Reopening a subtask of a flow cannot be done via the data-selector, unless its a side effect of changing the status of a subtask of a subtask of a flow etc.
+
+Additional QnA for clarity
+When a task is marked as `flow` but has no direct subtasks, what should the backend persist?
+- Auto mark as standard
+
+If a completed past flow step loses approval or gets a new pending review, what should happen?
+- Auto reopen
+
+For performance, how far should this reimplementation go in this pass?
+- Read convex performance guideline and consider the best algorithm with this in mind. we dont need to migrate any old code as there is no data in the db we can just rip things out as needed
+
+When a completed past flow step is reopened because review approval/override is withdrawn, what exact status should the reopened current step get?
+- Awaiting review
+
+While a flow has an active current step, what manual statuses should be allowed on the flow parent itself?
+- It should show backlog, and "Auto Set" in the select options. the value displayed should be the computed one/backlog etc.
+
+Can a flow parent with subtasks be manually marked `cancelled`?
+- Yes, this effectively masks the actual state, and does not affect the children
+
+When a task is complete and review requirements are removed, what should happen to its status?
+- Recompute normally (as it may make it now awaiting-review -> done)
+
+If every subtask in a standard task or flow is cancelled, what completion status should the parent compute to when it is not manually cancelled?
+- Standard tasks won’t change based on this. Flows will all cancelled children are marked as done (or awaiting review if needs reviewers etc.)
+
+For the rewrite, how should we treat persisted task status fields?
+- Pick the best option, dont consider what it used to be as a reason, as we are looking for masterful and perfect implementation following best practice of convex and typescript
+
+Should this rewrite include a backend preview API for review/status mutations that would reopen a flow step?
+- Yes
+
+Cancelled tasks are terminal for flow progression but cancellation bypasses review approval. Review changes do not reopen cancelled flow steps. Manually reopening a cancelled task restarts it as normal incomplete work.
+
+// Note editing the status of a normal task to the same category (backlog-> awaiting review, done -> cancelled etc. shouldn't cause traversal i think? not sure of the edge cases though just a thought)

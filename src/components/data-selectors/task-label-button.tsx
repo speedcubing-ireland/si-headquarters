@@ -35,7 +35,7 @@ export function TaskLabelButton({
   value: Id<"taskLabels">[]
   onChange: (value: Id<"taskLabels">[]) => void | Promise<void> | Promise<null>
 }) {
-  const labels = useQuery(api.taskLabels.queries.list)
+  const labels = useQuery(api.tasks.labels.queries.list)
 
   return (
     <MultipleSelectorCombobox

@@ -8,49 +8,49 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as TaskRouteImport } from './routes/task'
-import { Route as CompetitionRouteImport } from './routes/competition'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as TaskRouteImport } from "./routes/task"
+import { Route as CompetitionRouteImport } from "./routes/competition"
+import { Route as IndexRouteImport } from "./routes/index"
 
 const TaskRoute = TaskRouteImport.update({
-  id: '/task',
-  path: '/task',
+  id: "/task",
+  path: "/task",
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionRoute = CompetitionRouteImport.update({
-  id: '/competition',
-  path: '/competition',
+  id: "/competition",
+  path: "/competition",
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
-  '/task': typeof TaskRoute
+  "/": typeof IndexRoute
+  "/competition": typeof CompetitionRoute
+  "/task": typeof TaskRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
-  '/task': typeof TaskRoute
+  "/": typeof IndexRoute
+  "/competition": typeof CompetitionRoute
+  "/task": typeof TaskRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
-  '/task': typeof TaskRoute
+  "/": typeof IndexRoute
+  "/competition": typeof CompetitionRoute
+  "/task": typeof TaskRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/competition' | '/task'
+  fullPaths: "/" | "/competition" | "/task"
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/competition' | '/task'
-  id: '__root__' | '/' | '/competition' | '/task'
+  to: "/" | "/competition" | "/task"
+  id: "__root__" | "/" | "/competition" | "/task"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -59,26 +59,26 @@ export interface RootRouteChildren {
   TaskRoute: typeof TaskRoute
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/task': {
-      id: '/task'
-      path: '/task'
-      fullPath: '/task'
+    "/task": {
+      id: "/task"
+      path: "/task"
+      fullPath: "/task"
       preLoaderRoute: typeof TaskRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/competition': {
-      id: '/competition'
-      path: '/competition'
-      fullPath: '/competition'
+    "/competition": {
+      id: "/competition"
+      path: "/competition"
+      fullPath: "/competition"
       preLoaderRoute: typeof CompetitionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
+    "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }

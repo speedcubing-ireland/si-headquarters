@@ -12,6 +12,7 @@ import {
 } from "@/components/page-card"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
+import type { TaskStatusView } from "@/convex/tasks/status/resolver"
 import { useMutation } from "convex/react"
 import {
   CableIcon,
@@ -30,12 +31,15 @@ function firstAssigneeId(assigneeIds: Doc<"tasks">["assigneeIds"]) {
 
 export function TaskPropertiesCard({
   labels,
+  statusView,
   task,
 }: {
   labels: Doc<"taskLabels">[]
+  statusView: TaskStatusView
   task: Doc<"tasks">
 }) {
   const setStatus = useMutation(api.tasks.mutations.setTaskStatus)
+  const reopenTask = useMutation(api.tasks.mutations.reopenTask)
   const setAssignees = useMutation(api.tasks.mutations.setTaskAssignees)
   const setOwner = useMutation(api.tasks.mutations.setTaskOwner)
   const setLabels = useMutation(api.tasks.mutations.setTaskLabels)
@@ -49,8 +53,13 @@ export function TaskPropertiesCard({
           label="Status"
         >
           <TaskStatusButton
-            value={task.status}
+            statusView={statusView}
             onChange={(status) => setStatus({ id: task._id, status })}
+            onAction={(action) => {
+              if (action === "reopen") {
+                return reopenTask({ id: task._id })
+              }
+            }}
           />
         </PageCardRow>
         <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
