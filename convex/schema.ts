@@ -73,7 +73,7 @@ const schema = defineSchema({
   ),
 },
 {
-    schemaValidation: false,
+    schemaValidation: true,
 })
 
 export default schema

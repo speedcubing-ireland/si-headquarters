@@ -3,6 +3,7 @@ import { TaskLabelButton } from "@/components/data-selectors/task-label-button"
 import { TaskOwnerButton } from "@/components/data-selectors/task-owner-button"
 import { TaskStatusButton } from "@/components/data-selectors/task-status-button"
 import { UserButton } from "@/components/data-selectors/user-button"
+import { AddTaskReviewerButton } from "@/features/tasks/components/add-task-reviewer-button"
 import { Button } from "@/components/ui/button"
 import {
   PageCard,
@@ -18,7 +19,6 @@ import {
   CableIcon,
   CastleIcon,
   InfoIcon,
-  StampIcon,
   TagIcon,
   TargetIcon,
   TrafficConeIcon,
@@ -95,10 +95,7 @@ export function TaskPropertiesCard({
         </PageCardRow>
       </PageCardContent>
       <PageCardFooter className="grid grid-cols-2 gap-2">
-        <Button variant="outline">
-          <StampIcon />
-          Add Reviewer
-        </Button>
+        <AddTaskReviewerButton taskId={task._id} />
         <Button variant="outline">
           <CableIcon />
           Add Integration

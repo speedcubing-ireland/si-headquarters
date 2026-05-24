@@ -14,19 +14,14 @@ import { cn } from "@/lib/utils"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import {
-  AlertCircleIcon,
   ArrowLeftToLineIcon,
   ArrowRightToLineIcon,
-  BadgeCheckIcon,
-  BadgeIcon,
   CircleCheckIcon,
   CircleIcon,
-  CircleXIcon,
   ConstructionIcon,
   ExternalLinkIcon,
   LoaderCircleIcon,
   PaletteIcon,
-  StampIcon,
   TrashIcon,
 } from "lucide-react"
 import { Label } from "@/components/ui/label"
@@ -38,10 +33,10 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import { Alert, AlertAction, AlertTitle } from "@/components/ui/alert"
 import FlowDataView from "@/components/data-views/flow-data-view"
 import { useState } from "react"
 import TaskDataView from "@/components/data-views/task-data-view"
+import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
 
 export const Route = createFileRoute("/task")({
   component: Competition,
@@ -199,69 +194,6 @@ function DependencyItem({ item }: { item: DependencyTask }) {
   )
 }
 
-function ApprovalCard() {
-  return (
-    <Card className="col-span-full">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          Approvals
-          <StampIcon className="size-4" />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-2">
-        <Alert variant="destructive" className="">
-          <AlertCircleIcon />
-          <AlertTitle>Approval Overridden</AlertTitle>
-          <AlertAction className="flex items-center gap-2">
-            <Avatar className="size-5">
-              <AvatarImage src="https://github.com/simonkellly.png" />
-            </Avatar>
-            <Button size="xs" variant="destructive">
-              <TrashIcon /> Remove
-            </Button>
-          </AlertAction>
-        </Alert>
-        <Item variant="outline" className="">
-          <ItemMedia variant="icon">
-            <BadgeIcon className="size-5" />
-          </ItemMedia>
-          <ItemTitle>Competitions Team</ItemTitle>
-          <ItemContent />
-          <ItemActions>
-            <Button size="icon" variant="outline">
-              <CircleCheckIcon />
-            </Button>
-            <Button size="icon" variant="outline">
-              <TrashIcon />
-            </Button>
-          </ItemActions>
-        </Item>
-        <Item variant="outline" className="">
-          <ItemMedia variant="icon">
-            <BadgeCheckIcon className="size-5" />
-          </ItemMedia>
-          <ItemTitle>Graphics Team</ItemTitle>
-          <ItemContent>
-            <Badge>Approved</Badge>
-          </ItemContent>
-          <ItemActions>
-            <Button size="icon" variant="outline">
-              <CircleXIcon />
-            </Button>
-            <Button size="icon" variant="outline">
-              <TrashIcon />
-            </Button>
-          </ItemActions>
-        </Item>
-      </CardContent>
-      <CardFooter className="flex justify-between gap-2">
-        <Button variant="outline">Add Reviewer</Button>
-        <Button variant="destructive">Override Approval</Button>
-      </CardFooter>
-    </Card>
-  )
-}
-
 function IntegrationCard() {
   return (
     <Card className="col-span-full">
@@ -322,7 +254,7 @@ function Competition() {
         task={taskDetails.task}
       />
       <DependenciesCard />
-      <ApprovalCard />
+      <TaskReviewCard task={taskDetails.task} />
       <TaskList toggleFlow={toggleFlow} />
       <div className="h-96" />
     </div>

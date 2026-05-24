@@ -5,7 +5,7 @@ import type { Doc } from "@/convex/_generated/dataModel"
 type ObjectType = "users" | "teams"
 type ObjectByType = {
   users: PublicUser
-  teams: Doc<"teams">
+  teams: Pick<Doc<"teams">, "_id" | "name">
 }
 
 const DICEBEAR_INITIALS = "https://api.dicebear.com/9.x/initials/svg?seed="

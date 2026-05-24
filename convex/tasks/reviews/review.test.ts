@@ -197,9 +197,12 @@ describe("task reviews", () => {
       taskId,
       reviewer: { type: "teams", id: teamId },
     })
-    let details = await actor.query(api.tasks.reviews.queries.getDetailsForTask, {
-      taskId,
-    })
+    let details = await actor.query(
+      api.tasks.reviews.queries.getDetailsForTask,
+      {
+        taskId,
+      }
+    )
     expect(details.state).toMatchObject({
       status: "approved",
       hasPendingReviews: false,
@@ -284,10 +287,15 @@ describe("task reviews", () => {
       taskId,
       reviewer: { type: "users", id: reviewerId },
     })
-    await actor.mutation(api.tasks.reviews.mutations.overrideApproval, { taskId })
-    let details = await actor.query(api.tasks.reviews.queries.getDetailsForTask, {
+    await actor.mutation(api.tasks.reviews.mutations.overrideApproval, {
       taskId,
     })
+    let details = await actor.query(
+      api.tasks.reviews.queries.getDetailsForTask,
+      {
+        taskId,
+      }
+    )
 
     expect(details.state).toMatchObject({
       status: "approved",
@@ -314,6 +322,106 @@ describe("task reviews", () => {
       isOverridden: false,
     })
     expect(details.override).toBe(null)
+  })
+
+  test("returns UI reviewer details with reviewer names and override public user", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, taskId, reviewerId, teamId } = await t.run(async (ctx) => {
+      const actorId = await insertUser(ctx, "Actor")
+      const reviewerId = await insertUser(ctx, "Reviewer")
+      const teamId = await insertTeam(ctx, "Competitions Team")
+      const taskId = await seedPhaseTask(ctx, {
+        order: "a",
+        status: "to-do",
+      })
+      return { actorId, taskId, reviewerId, teamId }
+    })
+    const actor = t.withIdentity({ subject: actorId })
+
+    await actor.mutation(api.tasks.reviews.mutations.addReviewer, {
+      taskId,
+      reviewer: { type: "users", id: reviewerId },
+    })
+    await actor.mutation(api.tasks.reviews.mutations.addReviewer, {
+      taskId,
+      reviewer: { type: "teams", id: teamId },
+    })
+    await actor.mutation(api.tasks.reviews.mutations.approveReviewer, {
+      taskId,
+      reviewer: { type: "users", id: reviewerId },
+    })
+    await actor.mutation(api.tasks.reviews.mutations.overrideApproval, {
+      taskId,
+    })
+
+    const details = await actor.query(
+      api.tasks.reviews.queries.getReviewerDetailsForTask,
+      { taskId }
+    )
+
+    expect(details.state).toMatchObject({
+      status: "approved",
+      hasReviews: true,
+      hasPendingReviews: false,
+      isApproved: true,
+      isOverridden: true,
+    })
+    expect(details.reviewers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reviewer: { type: "users", id: reviewerId },
+          name: "Reviewer",
+          approved: true,
+        }),
+        expect.objectContaining({
+          reviewer: { type: "teams", id: teamId },
+          name: "Competitions Team",
+          approved: false,
+        }),
+      ])
+    )
+    expect(details.override).toMatchObject({
+      overriddenBy: {
+        _id: actorId,
+        name: "Actor",
+      },
+    })
+  })
+
+  test("lists potential reviewers grouped as teams and users", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, teamId, userId } = await t.run(async (ctx) => {
+      const actorId = await insertUser(ctx, "Actor")
+      const userId = await insertUser(ctx, "Reviewer")
+      const teamId = await insertTeam(ctx, "Competitions Team")
+
+      return { actorId, teamId, userId }
+    })
+    const actor = t.withIdentity({ subject: actorId })
+
+    const reviewers = await actor.query(
+      api.tasks.reviews.queries.listPotentialReviewers,
+      {}
+    )
+
+    expect(reviewers.teams).toEqual([
+      {
+        _id: teamId,
+        name: "Competitions Team",
+      },
+    ])
+    expect(reviewers.users).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: actorId,
+          name: "Actor",
+        }),
+        expect.objectContaining({
+          _id: userId,
+          name: "Reviewer",
+        }),
+      ])
+    )
   })
 
   test("review state reads are bounded by a per-task reviewer limit", async () => {

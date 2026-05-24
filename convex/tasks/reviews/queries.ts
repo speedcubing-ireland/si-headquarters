@@ -5,8 +5,17 @@ import {
   getTaskReviewState,
 } from "@/convex/tasks/reviews/reviewState"
 import { previewReviewChangeImpact } from "@/convex/tasks/reviews/preview"
-import { reviewPreviewOperation } from "@/convex/tasks/reviews/validators"
+import {
+  potentialTaskReviewers,
+  reviewPreviewOperation,
+  taskReviewerDetailsForTask,
+  type TaskReviewerDetails,
+} from "@/convex/tasks/reviews/validators"
+import { toPublicUser } from "@/convex/users/validators"
+import { getAuthUserId } from "@convex-dev/auth/server"
 import { v } from "convex/values"
+
+const MAX_POTENTIAL_REVIEWER_OPTIONS = 100
 
 export const getForTask = query({
   args: {
@@ -23,6 +32,76 @@ export const getDetailsForTask = query({
   },
   handler: async (ctx, args) => {
     return await getTaskReviewDetails(ctx, args.taskId)
+  },
+})
+
+export const getReviewerDetailsForTask = query({
+  args: {
+    taskId: v.id("tasks"),
+  },
+  returns: taskReviewerDetailsForTask,
+  handler: async (ctx, args) => {
+    const { state, reviewers, override } = await getTaskReviewDetails(
+      ctx,
+      args.taskId
+    )
+
+    const [reviewerDetails, overriddenBy] = await Promise.all([
+      Promise.all(
+        reviewers.map(async (reviewer): Promise<TaskReviewerDetails> => {
+          const reviewerObject = await ctx.db.get(reviewer.reviewer.id)
+
+          return {
+            _id: reviewer._id,
+            reviewer: reviewer.reviewer,
+            name: reviewerObject?.name ?? null,
+            approved: reviewer.approvedAt !== null,
+            approvedAt: reviewer.approvedAt,
+          }
+        })
+      ),
+      override ? ctx.db.get(override.overriddenBy) : null,
+    ])
+
+    return {
+      state: {
+        status: state.status,
+        hasReviews: state.hasReviews,
+        hasPendingReviews: state.hasPendingReviews,
+        isApproved: state.isApproved,
+        isOverridden: state.isOverridden,
+      },
+      reviewers: reviewerDetails,
+      override: override
+        ? {
+            _id: override._id,
+            overriddenAt: override.overriddenAt,
+            overriddenBy: overriddenBy ? toPublicUser(overriddenBy) : null,
+          }
+        : null,
+    }
+  },
+})
+
+export const listPotentialReviewers = query({
+  args: {},
+  returns: potentialTaskReviewers,
+  handler: async (ctx) => {
+    const authUserId = await getAuthUserId(ctx)
+    if (!authUserId) throw new Error("Authentication required")
+
+    const [teams, users] = await Promise.all([
+      ctx.db.query("teams").take(MAX_POTENTIAL_REVIEWER_OPTIONS),
+      ctx.db.query("users").take(MAX_POTENTIAL_REVIEWER_OPTIONS),
+    ])
+
+    return {
+      teams: teams.map((team) => ({
+        _id: team._id,
+        name: team.name,
+      })),
+      users: users.map(toPublicUser),
+    }
   },
 })
 

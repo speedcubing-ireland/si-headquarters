@@ -27,6 +27,7 @@ import type * as tasks_labels_validators from "../tasks/labels/validators.js";
 import type * as tasks_mutations from "../tasks/mutations.js";
 import type * as tasks_queries from "../tasks/queries.js";
 import type * as tasks_reviews_mutations from "../tasks/reviews/mutations.js";
+import type * as tasks_reviews_preview from "../tasks/reviews/preview.js";
 import type * as tasks_reviews_queries from "../tasks/reviews/queries.js";
 import type * as tasks_reviews_reviewState from "../tasks/reviews/reviewState.js";
 import type * as tasks_reviews_validators from "../tasks/reviews/validators.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/mutations": typeof tasks_mutations;
   "tasks/queries": typeof tasks_queries;
   "tasks/reviews/mutations": typeof tasks_reviews_mutations;
+  "tasks/reviews/preview": typeof tasks_reviews_preview;
   "tasks/reviews/queries": typeof tasks_reviews_queries;
   "tasks/reviews/reviewState": typeof tasks_reviews_reviewState;
   "tasks/reviews/validators": typeof tasks_reviews_validators;
