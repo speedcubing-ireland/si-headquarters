@@ -23,11 +23,13 @@ type TaskDateButtonProps = Omit<
 > & {
   value: string | null
   onChange: (value: string | null) => Promise<null> | undefined
+  showIcon?: boolean
 }
 
 export function TaskDateButton({
   onChange,
   value,
+  showIcon = true,
   ...props
 }: TaskDateButtonProps) {
   const [open, setOpen] = useState(false)
@@ -36,7 +38,7 @@ export function TaskDateButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant={props.variant ?? "outline"} {...props}>
-          <CalendarIcon />
+          {showIcon && <CalendarIcon />}
           {formatDateText(value)}
         </Button>
       </PopoverTrigger>

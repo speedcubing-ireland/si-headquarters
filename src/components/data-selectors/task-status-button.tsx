@@ -12,7 +12,7 @@ import type {
   TaskStatusCommand,
   TaskStatusView as BackendTaskStatusView,
 } from "@/convex/tasks/status/resolver"
-import { cn } from "@/lib/utils"
+import { Button } from "../ui/button"
 
 function isTaskStatusCommand(value: string): value is TaskStatusCommand {
   return Object.hasOwn(TASK_STATUS_META, value)
@@ -25,15 +25,16 @@ type TaskStatusView = Pick<
 
 export function TaskStatusButton({
   onChange,
-  size,
+  showLabel = true,
+  iconProps,
   statusView,
-  className,
+  ...props
 }: {
   statusView: TaskStatusView
-  size?: "sm" | "default"
+  showLabel?: boolean
+  iconProps?: React.ComponentProps<"svg">
   onChange: (value: TaskStatusCommand) => Promise<null> | undefined
-  className?: string
-}) {
+} & Omit<React.ComponentProps<typeof Button>, "onChange">) {
   const value = statusView.effectiveStatus
   const selected = TASK_STATUS_META[value]
   const SelectedIcon = selected.icon
@@ -51,12 +52,16 @@ export function TaskStatusButton({
       }}
     >
       <SelectTrigger
-        size={size}
-        className={cn("min-w-0 justify-start", className)}
-        hideChevron
+        asChild
       >
-        <SelectedIcon />
-        <span className="truncate">{selected.label}</span>
+        <Button
+          variant={props.variant ?? "outline"}
+          disabled={isDisabled || props.disabled}
+          {...props}
+        >
+          <SelectedIcon {...iconProps} />
+          {showLabel && <span className="truncate">{selected.label}</span>}
+        </Button>
       </SelectTrigger>
       <SelectContent align="end">
         {reorderStatusOptions(statusView.statusOptions).map((status) => {

@@ -12,6 +12,7 @@ type OwnerRef = Doc<"tasks">["owner"]
 type OwnerValue = NonNullable<OwnerRef>
 type OwnerType = OwnerValue["type"]
 type Team = Pick<Doc<"teams">, "_id" | "name">
+type ObjectAvatarProps = Omit<React.ComponentProps<typeof ObjectAvatar>, "obj">
 type SelectedOwner =
   | (PublicUser & { type: "users" })
   | (Team & { type: "teams" })
@@ -19,6 +20,8 @@ type SelectedOwner =
 interface TaskOwnerButtonProps {
   selectedOwner?: SelectedOwner | null
   showAvatar?: boolean
+  showName?: boolean
+  avatarProps?: ObjectAvatarProps
   size?: React.ComponentProps<typeof Button>["size"]
   value?: OwnerRef
   variant?: React.ComponentProps<typeof Button>["variant"]
@@ -54,26 +57,6 @@ function shortenOwnerName(name: string, type: OwnerType) {
   return name.replace(" Team", "")
 }
 
-function OwnerButtonFace({
-  owner,
-  showAvatar,
-}: {
-  owner: OwnerOption | null
-  showAvatar: boolean
-}) {
-  if (!owner) return "No Owner"
-
-  const label = shortenOwnerName(owner.label, owner.value.type)
-  if (!showAvatar) return label
-
-  return (
-    <>
-      <ObjectAvatar obj={owner.owner} size="sm" />
-      {label}
-    </>
-  )
-}
-
 const renderOwnerItem = (owner: OwnerOption) => (
   <>
     <ObjectAvatar obj={owner.owner} size="sm" />
@@ -84,6 +67,8 @@ const renderOwnerItem = (owner: OwnerOption) => (
 export function TaskOwnerButton({
   selectedOwner,
   showAvatar = true,
+  showName = true,
+  avatarProps,
   size,
   value,
   variant,
@@ -122,9 +107,20 @@ export function TaskOwnerButton({
       objectNoun="owners"
       groups={ownerGroups}
       open={open}
-      renderValue={(owner) => (
-        <OwnerButtonFace owner={owner} showAvatar={showAvatar} />
-      )}
+      renderValue={(owner) => {
+        if (!owner) return "No Owner"
+
+        const label = shortenOwnerName(owner.label, owner.value.type)
+
+        return (
+          <>
+            {showAvatar && (
+              <ObjectAvatar obj={owner.owner} size="sm" {...avatarProps} />
+            )}
+            {showName && label}
+          </>
+        )
+      }}
       searchable
       selectedItem={selectedItem}
       size={size}

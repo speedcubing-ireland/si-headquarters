@@ -13,7 +13,7 @@ import {
   PageCardRow,
 } from "@/components/page-card"
 import { api } from "@/convex/_generated/api"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { Id } from "@/convex/_generated/dataModel"
 import { useMutation, useQuery } from "convex/react"
 import {
   CableIcon,
@@ -24,10 +24,6 @@ import {
   TrafficConeIcon,
   UserIcon,
 } from "lucide-react"
-
-function firstAssigneeId(assigneeIds: Doc<"tasks">["assigneeIds"]) {
-  return Array.isArray(assigneeIds) ? (assigneeIds[0] ?? null) : null
-}
 
 function LoadingValue() {
   return <Skeleton className="h-8 w-24" />
@@ -96,12 +92,13 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
         </PageCardRow>
         <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
           <UserButton
-            selectedUser={assignees[0] ?? null}
-            value={firstAssigneeId(task.assigneeIds)}
-            onChange={(assigneeId) => {
+            selectionMode="multiple"
+            selectedUsers={assignees}
+            value={assignees.map((user) => user._id)}
+            onChange={(assigneeIds) => {
               void setAssignees({
                 id: taskId,
-                assigneeIds: assigneeId ? [assigneeId] : [],
+                assigneeIds,
               })
             }}
           />

@@ -14,9 +14,13 @@ import { useState } from "react"
 
 type User = PublicUser
 type UserId = Id<"users">
+type ObjectAvatarProps = Omit<React.ComponentProps<typeof ObjectAvatar>, "obj">
 
 interface BaseUserButtonProps {
+  avatarProps?: ObjectAvatarProps
   className?: string
+  maxAvatars?: number
+  showName?: boolean
   size?: React.ComponentProps<typeof Button>["size"]
   variant?: React.ComponentProps<typeof Button>["variant"]
 }
@@ -41,16 +45,33 @@ const getUserName = (user: User) => user.name ?? "Unknown user"
 const getUserId = (user: User) => user._id
 const getUserValueKey = (id: UserId) => id
 
-function UserAvatar({ user }: { user: User }) {
-  return <ObjectAvatar obj={user} size="sm" />
+function getVisibleAvatarCount(userCount: number, maxAvatars?: number) {
+  if (maxAvatars === undefined) {
+    return Math.min(userCount, 3)
+  }
+
+  const slotCount = Math.max(1, Math.floor(maxAvatars))
+  if (userCount <= slotCount) return userCount
+
+  return slotCount - 1
 }
 
-function UserButtonFace({ users }: { users: User[] }) {
+function UserButtonFace({
+  avatarProps,
+  maxAvatars,
+  showName,
+  users,
+}: {
+  avatarProps?: ObjectAvatarProps
+  maxAvatars?: number
+  showName: boolean
+  users: User[]
+}) {
   if (users.length === 0) {
     return (
       <>
         <UserRoundIcon />
-        None
+        {showName && "None"}
       </>
     )
   }
@@ -58,44 +79,57 @@ function UserButtonFace({ users }: { users: User[] }) {
   if (users.length === 1) {
     return (
       <>
-        <UserAvatar user={users[0]} />
-        {getUserName(users[0]).split(" ")[0]}
+        <ObjectAvatar obj={users[0]} size="sm" {...avatarProps} />
+        {showName && getUserName(users[0]).split(" ")[0]}
       </>
     )
   }
 
+  const visibleAvatarCount = getVisibleAvatarCount(users.length, maxAvatars)
+  const hiddenAvatarCount = users.length - visibleAvatarCount
+
   return (
-    <>
-      <AvatarGroup>
-        {users.slice(0, 3).map((user) => (
-          <UserAvatar key={user._id} user={user} />
-        ))}
-        {users.length > 3 && (
-          <AvatarGroupCount>+{users.length - 3}</AvatarGroupCount>
-        )}
-      </AvatarGroup>
-    </>
+    <AvatarGroup>
+      {users.slice(0, visibleAvatarCount).map((user) => (
+        <ObjectAvatar key={user._id} obj={user} size="sm" {...avatarProps} />
+      ))}
+      {hiddenAvatarCount > 0 && (
+        <AvatarGroupCount>+{hiddenAvatarCount}</AvatarGroupCount>
+      )}
+    </AvatarGroup>
   )
 }
 
-function UserItem({ user }: { user: User }) {
-  return (
-    <>
-      <UserAvatar user={user} />
-      <span className="truncate">{getUserName(user)}</span>
-    </>
-  )
-}
-
-export function UserButton(props: UserButtonProps) {
+export function UserButton({
+  avatarProps,
+  className,
+  maxAvatars,
+  showName = true,
+  size,
+  variant,
+  ...props
+}: UserButtonProps) {
   const [open, setOpen] = useState(false)
   const users = useQuery(api.users.queries.list, open ? {} : "skip")
+  const renderFace = (selectedUsers: User[]) => (
+    <UserButtonFace
+      users={selectedUsers}
+      avatarProps={avatarProps}
+      maxAvatars={maxAvatars}
+      showName={showName}
+    />
+  )
   const comboboxProps = {
     getLabel: getUserName,
     getValue: getUserId,
     getValueKey: getUserValueKey,
     objectNoun: "users",
-    renderItem: (user: User) => <UserItem user={user} />,
+    renderItem: (user: User) => (
+      <>
+        <ObjectAvatar obj={user} size="sm" />
+        <span className="truncate">{getUserName(user)}</span>
+      </>
+    ),
     searchable: true,
   }
 
@@ -103,15 +137,13 @@ export function UserButton(props: UserButtonProps) {
     return (
       <MultipleSelectorCombobox
         {...comboboxProps}
-        className={props.className}
+        className={className}
         items={users}
         open={open}
-        renderValue={(selectedUsers) => (
-          <UserButtonFace users={selectedUsers} />
-        )}
+        renderValue={renderFace}
         selectedItems={props.selectedUsers}
-        size={props.size}
-        variant={props.variant}
+        size={size}
+        variant={variant}
         values={props.value}
         onOpenChange={setOpen}
         onValueChange={props.onChange}
@@ -122,17 +154,17 @@ export function UserButton(props: UserButtonProps) {
   return (
     <SingleSelectorCombobox
       {...comboboxProps}
-      className={props.className}
+      className={className}
       clearLabel="None"
       items={users}
       open={open}
-      renderValue={(selectedUser) => (
-        <UserButtonFace users={selectedUser ? [selectedUser] : []} />
-      )}
+      renderValue={(selectedUser) =>
+        renderFace(selectedUser ? [selectedUser] : [])
+      }
       selectedItem={props.selectedUser}
-      size={props.size}
+      size={size}
       value={props.value}
-      variant={props.variant}
+      variant={variant}
       onOpenChange={setOpen}
       onValueChange={props.onChange}
     />
