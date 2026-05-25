@@ -37,6 +37,12 @@
       "skillPath": "skills/convex-setup-auth/SKILL.md",
       "computedHash": "b1a940758751c5b2fdc6ced105b19927a1655f0c1d4bd2fd5536dc3264202c00"
     },
+    "react-performance-optimization": {
+      "source": "nickcrew/claude-ctx-plugin",
+      "sourceType": "github",
+      "skillPath": "skills/react-performance-optimization/SKILL.md",
+      "computedHash": "8338b086e8e166e0b32ec3493a6b0f80c2e388cb5d3da10bcecaa1f2ce34d43d"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
