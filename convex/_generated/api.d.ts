@@ -19,6 +19,7 @@ import type * as http from "../http.js";
 import type * as phases_defaults from "../phases/defaults.js";
 import type * as phases_queries from "../phases/queries.js";
 import type * as phases_validators from "../phases/validators.js";
+import type * as reactions from "../reactions.js";
 import type * as subscriptions_index from "../subscriptions/index.js";
 import type * as subscriptions_validators from "../subscriptions/validators.js";
 import type * as tasks_flowView from "../tasks/flowView.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "phases/defaults": typeof phases_defaults;
   "phases/queries": typeof phases_queries;
   "phases/validators": typeof phases_validators;
+  reactions: typeof reactions;
   "subscriptions/index": typeof subscriptions_index;
   "subscriptions/validators": typeof subscriptions_validators;
   "tasks/flowView": typeof tasks_flowView;
@@ -112,4 +114,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  reactions: import("@convex/reactions/_generated/component.js").ComponentApi<"reactions">;
+};

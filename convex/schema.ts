@@ -1,11 +1,7 @@
 import { defineSchema, defineTable } from "convex/server"
 import { authTables } from "@convex-dev/auth/server"
 import { competitionsFields } from "@/convex/competitions/validators"
-import {
-  competitionUpdateReactionCountsFields,
-  competitionUpdateReactionsFields,
-  competitionUpdatesFields,
-} from "@/convex/competitionUpdates/validators"
+import { competitionUpdatesFields } from "@/convex/competitionUpdates/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
 import { phasesFields } from "@/convex/phases/validators"
@@ -28,12 +24,6 @@ const schema = defineSchema({
   teams: defineTable(teamsFields),
   competitions: defineTable(competitionsFields),
   competitionUpdates: defineTable(competitionUpdatesFields),
-  competitionUpdateReactions: defineTable(
-    competitionUpdateReactionsFields
-  ).index("by_updateId_and_userId_and_emoji", ["updateId", "userId", "emoji"]),
-  competitionUpdateReactionCounts: defineTable(
-    competitionUpdateReactionCountsFields
-  ).index("by_updateId_and_emoji", ["updateId", "emoji"]),
   subscriptions: defineTable(subscriptionsFields)
     .index("by_userId_and_object_type_and_object_id", [
       "userId",

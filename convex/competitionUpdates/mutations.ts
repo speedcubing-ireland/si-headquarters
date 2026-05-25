@@ -1,10 +1,10 @@
 import { internal } from "@/convex/_generated/api"
 import { internalMutation, mutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
+import { reactions } from "@/convex/reactions"
 import { getAuthUserId } from "@convex-dev/auth/server"
 import { v } from "convex/values"
 
-const CLEANUP_BATCH_SIZE = 100
 const EMOJI_REGEX =
   /^[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}\uFE0F\u200D]+$/u
 
@@ -32,38 +32,7 @@ export const cleanupUpdate = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const reactions = await ctx.db
-      .query("competitionUpdateReactions")
-      .withIndex("by_updateId_and_userId_and_emoji", (q) =>
-        q.eq("updateId", args.updateId)
-      )
-      .take(CLEANUP_BATCH_SIZE)
-    const reactionCounts = await ctx.db
-      .query("competitionUpdateReactionCounts")
-      .withIndex("by_updateId_and_emoji", (q) =>
-        q.eq("updateId", args.updateId)
-      )
-      .take(CLEANUP_BATCH_SIZE)
-
-    await Promise.all([
-      ...reactions.map((reaction) => ctx.db.delete("competitionUpdateReactions", reaction._id)),
-      ...reactionCounts.map((reactionCount) =>
-        ctx.db.delete("competitionUpdateReactionCounts", reactionCount._id)
-      ),
-    ])
-
-    if (
-      reactions.length === CLEANUP_BATCH_SIZE ||
-      reactionCounts.length === CLEANUP_BATCH_SIZE
-    ) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.competitionUpdates.mutations.cleanupUpdate,
-        args
-      )
-      return null
-    }
-
+    await reactions.deleteAllForTarget(ctx, args.updateId)
     await ctx.db.delete("competitionUpdates", args.updateId)
     return null
   },
@@ -167,52 +136,19 @@ export const toggleReaction = mutation({
     }
 
     const emoji = normalizeEmoji(args.emoji)
-    const existingReaction = await ctx.db
-      .query("competitionUpdateReactions")
-      .withIndex("by_updateId_and_userId_and_emoji", (q) =>
-        q.eq("updateId", args.updateId).eq("userId", userId).eq("emoji", emoji)
-      )
-      .unique()
-    const reactionCount = await ctx.db
-      .query("competitionUpdateReactionCounts")
-      .withIndex("by_updateId_and_emoji", (q) =>
-        q.eq("updateId", args.updateId).eq("emoji", emoji)
-      )
-      .unique()
+    const existingReaction = await reactions.hasUserReacted(
+      ctx,
+      args.updateId,
+      emoji,
+      userId
+    )
 
     if (existingReaction) {
-      await ctx.db.delete("competitionUpdateReactions", existingReaction._id)
-
-      if (!reactionCount) return null
-
-      const nextCount = reactionCount.count - 1
-      if (nextCount > 0) {
-        await ctx.db.patch("competitionUpdateReactionCounts", reactionCount._id, { count: nextCount })
-      } else {
-        await ctx.db.delete("competitionUpdateReactionCounts", reactionCount._id)
-      }
-
+      await reactions.remove(ctx, args.updateId, emoji, userId)
       return null
     }
 
-    await ctx.db.insert("competitionUpdateReactions", {
-      updateId: args.updateId,
-      userId,
-      emoji,
-    })
-
-    if (reactionCount) {
-      await ctx.db.patch("competitionUpdateReactionCounts", reactionCount._id, {
-        count: reactionCount.count + 1,
-      })
-      return null
-    }
-
-    await ctx.db.insert("competitionUpdateReactionCounts", {
-      updateId: args.updateId,
-      emoji,
-      count: 1,
-    })
+    await reactions.add(ctx, args.updateId, emoji, userId, undefined, true)
 
     return null
   },
