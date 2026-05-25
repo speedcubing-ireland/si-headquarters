@@ -14,19 +14,19 @@ import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
 import { PencilIcon } from "lucide-react"
 import { useState } from "react"
 
-type DetailsFormValue = {
+interface DetailsFormValue {
   description: string | null
   name: string
 }
 
-type EditDetailsFormDialogProps = {
+interface EditDetailsFormDialogProps {
   descriptionId: string
   descriptionPlaceholder: string
   initialValue: DetailsFormValue
   nameId: string
   title: string
   triggerLabel: string
-  onSubmit: (value: DetailsFormValue) => void | Promise<void | null>
+  onSubmit: (value: DetailsFormValue) => Promise<null> | undefined
 }
 
 export function EditDetailsFormDialog({
@@ -40,9 +40,7 @@ export function EditDetailsFormDialog({
 }: EditDetailsFormDialogProps) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(initialValue.name)
-  const [description, setDescription] = useState(
-    initialValue.description ?? ""
-  )
+  const [description, setDescription] = useState(initialValue.description ?? "")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const resetForm = () => {
@@ -99,7 +97,9 @@ export function EditDetailsFormDialog({
             <Input
               id={nameId}
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value)
+              }}
               disabled={isSubmitting}
               required
             />

@@ -31,7 +31,7 @@ export function TaskStatusButton({
 }: {
   statusView: TaskStatusView
   size?: "sm" | "default"
-  onChange: (value: TaskStatusCommand) => void | Promise<void> | Promise<null>
+  onChange: (value: TaskStatusCommand) => Promise<null> | undefined
   className?: string
 }) {
   const value = statusView.effectiveStatus
@@ -43,7 +43,7 @@ export function TaskStatusButton({
   return (
     <Select
       disabled={isDisabled}
-      value={value.toString()}
+      value={value}
       onValueChange={(next) => {
         if (isTaskStatusCommand(next)) {
           void onChange(next)
@@ -64,7 +64,7 @@ export function TaskStatusButton({
           const Icon = option.icon
 
           return (
-            <SelectItem key={status} value={status.toString()}>
+            <SelectItem key={status} value={status}>
               <Icon />
               {option.label}
             </SelectItem>

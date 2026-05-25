@@ -13,9 +13,14 @@ type CompetitionCardProps = {
   title: string
   icon: ReactNode
   children: ReactNode
- } & React.ComponentProps<typeof Card>
+} & React.ComponentProps<typeof Card>
 
-export function PageCard({ title, icon, children, ...props }: CompetitionCardProps) {
+export function PageCard({
+  title,
+  icon,
+  children,
+  ...props
+}: CompetitionCardProps) {
   return (
     <Card {...props}>
       <CardHeader>

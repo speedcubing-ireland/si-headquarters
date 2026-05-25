@@ -23,12 +23,12 @@ import {
 } from "@/convex/tasks/status/rules"
 import type { TaskStatus } from "@/convex/tasks/status/validators"
 
-type PreviewReviewer = {
+interface PreviewReviewer {
   approvedAt: number | null
   reviewer: TaskReviewerRef
 }
 
-type PreviewReviewParts = {
+interface PreviewReviewParts {
   isOverridden: boolean
   reviewers: PreviewReviewer[]
 }
@@ -204,17 +204,11 @@ function resolveStatusWithReview(
   })
 }
 
-function sameReviewer(
-  left: TaskReviewerRef,
-  right: TaskReviewerRef
-) {
+function sameReviewer(left: TaskReviewerRef, right: TaskReviewerRef) {
   return left.type === right.type && left.id === right.id
 }
 
-function hasReviewer(
-  reviewers: PreviewReviewer[],
-  reviewer: TaskReviewerRef
-) {
+function hasReviewer(reviewers: PreviewReviewer[], reviewer: TaskReviewerRef) {
   return reviewers.some((candidate) =>
     sameReviewer(candidate.reviewer, reviewer)
   )

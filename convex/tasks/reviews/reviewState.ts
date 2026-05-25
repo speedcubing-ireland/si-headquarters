@@ -8,7 +8,7 @@ const MAX_TASK_REVIEWERS = 100
 
 type TaskReviewStatus = "not-required" | "pending" | "approved"
 
-export type TaskReviewState = {
+export interface TaskReviewState {
   status: TaskReviewStatus
   hasReviews: boolean
   hasPendingReviews: boolean
@@ -17,13 +17,13 @@ export type TaskReviewState = {
   override: Doc<"taskReviewOverrides"> | null
 }
 
-export type TaskReviewDetails = {
+export interface TaskReviewDetails {
   state: TaskReviewState
   reviewers: Doc<"taskReviewers">[]
   override: Doc<"taskReviewOverrides"> | null
 }
 
-export type TaskReviewParts = {
+export interface TaskReviewParts {
   reviewers: Doc<"taskReviewers">[]
   override: Doc<"taskReviewOverrides"> | null
 }
@@ -79,7 +79,9 @@ export async function getTaskReviewers(
     .take(MAX_TASK_REVIEWERS + 1)
 
   if (reviewers.length > MAX_TASK_REVIEWERS) {
-    throw new Error(`Task has more than ${MAX_TASK_REVIEWERS} reviewers`)
+    throw new Error(
+      `Task has more than ${String(MAX_TASK_REVIEWERS)} reviewers`
+    )
   }
 
   return reviewers

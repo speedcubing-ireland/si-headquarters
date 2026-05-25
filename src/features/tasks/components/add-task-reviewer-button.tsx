@@ -24,13 +24,13 @@ type ReviewerType = TaskReviewerRef["type"]
 type PotentialReviewer = PotentialTaskReviewers[ReviewerType][number]
 type SelectReviewer = (reviewer: TaskReviewerRef) => void | Promise<void>
 
-type ReviewerOption = {
+interface ReviewerOption {
   reviewer: TaskReviewerRef
   object: PotentialReviewer
   name: string
 }
 
-type ReviewerOptionItemProps = {
+interface ReviewerOptionItemProps {
   onSelect: SelectReviewer
   option: ReviewerOption
 }
@@ -62,7 +62,13 @@ export function AddTaskReviewerButton({
 
   return (
     <>
-      <Button {...buttonProps} variant={variant} onClick={() => setOpen(true)}>
+      <Button
+        {...buttonProps}
+        variant={variant}
+        onClick={() => {
+          setOpen(true)
+        }}
+      >
         {children ?? (
           <>
             <StampIcon />
@@ -118,10 +124,7 @@ export function AddTaskReviewerButton({
   )
 }
 
-function ReviewerOptionItem({
-  onSelect,
-  option,
-}: ReviewerOptionItemProps) {
+function ReviewerOptionItem({ onSelect, option }: ReviewerOptionItemProps) {
   return (
     <CommandItem
       value={`${option.name} ${option.reviewer.id}`}

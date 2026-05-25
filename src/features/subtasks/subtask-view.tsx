@@ -1,8 +1,12 @@
-import { Button } from "@/components/ui/button";
-import { PlusIcon, CassetteTapeIcon, SquareDashedKanbanIcon } from "lucide-react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
-import { useMutation } from "convex/react";
+import { Button } from "@/components/ui/button"
+import {
+  PlusIcon,
+  CassetteTapeIcon,
+  SquareDashedKanbanIcon,
+} from "lucide-react"
+import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
+import { useMutation } from "convex/react"
 
 export function SubtaskView({ taskId }: { taskId: Id<"tasks"> }) {
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
@@ -31,5 +35,5 @@ export function SubtaskView({ taskId }: { taskId: Id<"tasks"> }) {
         </Button>
       </div>
     </div>
-  );
+  )
 }

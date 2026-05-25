@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import type { Button } from "@/components/ui/button"
 import { MultipleSelectorCombobox } from "@/components/data-selectors/selector-combobox"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
@@ -43,7 +43,7 @@ export function TaskLabelButton({
   selectedLabels?: TaskLabelOption[]
   variant?: React.ComponentProps<typeof Button>["variant"]
   value: Id<"taskLabels">[]
-  onChange: (value: Id<"taskLabels">[]) => void | Promise<void> | Promise<null>
+  onChange: (value: Id<"taskLabels">[]) => Promise<null> | undefined
 }) {
   const [open, setOpen] = useState(false)
   const labels = useQuery(api.tasks.labels.queries.list, open ? {} : "skip")

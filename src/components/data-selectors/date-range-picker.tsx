@@ -3,7 +3,7 @@
 import * as React from "react"
 import { format, parseISO } from "date-fns"
 import { CalendarIcon } from "lucide-react"
-import { type DateRange } from "react-day-picker"
+import type { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -18,11 +18,11 @@ function toDateRange(
   to: string | null
 ): DateRange | undefined {
   const range = {
-    from: from ? parseISO(from) : undefined,
-    to: to ? parseISO(to) : undefined,
+    from: from !== null ? parseISO(from) : undefined,
+    to: to !== null ? parseISO(to) : undefined,
   }
 
-  return range.from || range.to ? range : undefined
+  return range.from !== undefined || range.to !== undefined ? range : undefined
 }
 
 function formatDateText(from?: Date, to?: Date) {
@@ -79,8 +79,8 @@ export function DatePickerWithRange({
     <Popover open={isOpen} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          size={props.size || "default"}
-          variant={props.variant || "outline"}
+          size={props.size ?? "default"}
+          variant={props.variant ?? "outline"}
           id="date-picker-range"
           {...props}
         >

@@ -20,10 +20,11 @@ export const setTaskDetails = mutation({
   },
   handler: async (ctx, args) => {
     const name = args.name.trim()
-    if (!name || name.length === 0) throw new Error("Task name is required")
+    if (name.length === 0) throw new Error("Task name is required")
 
     const descTrim = args.description?.trim()
-    const description = descTrim && descTrim.length > 0 ? descTrim : null
+    const description =
+      descTrim !== undefined && descTrim.length > 0 ? descTrim : null
 
     await ctx.db.patch("tasks", args.id, { name, description })
   },
@@ -142,7 +143,9 @@ export const setTaskLabels = mutation({
 
     const deletePromises = existingAssignments
       .filter((assignment) => !labelIds.has(assignment.labelId))
-      .map((assignment) => ctx.db.delete("taskLabelAssignments", assignment._id))
+      .map((assignment) =>
+        ctx.db.delete("taskLabelAssignments", assignment._id)
+      )
 
     const insertPromises = []
     for (const labelId of labelIds) {

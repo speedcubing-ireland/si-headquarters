@@ -64,31 +64,31 @@ describe("task status rules", () => {
         review,
       })
     ).toBe("in-progress")
-    expect(() => assertStandardStatusCommand("done", review, progress)).toThrow(
-      "incomplete subtasks"
-    )
+    expect(() => {
+      assertStandardStatusCommand("done", review, progress)
+    }).toThrow("incomplete subtasks")
   })
 
   test("standard done command is rejected while reviews are pending", () => {
     const progress = getProgress([])
     const review = reviewState("pending")
 
-    expect(() => assertStandardStatusCommand("done", review, progress)).toThrow(
-      "pending reviews"
-    )
-    expect(() =>
+    expect(() => {
+      assertStandardStatusCommand("done", review, progress)
+    }).toThrow("pending reviews")
+    expect(() => {
       assertStandardStatusCommand("awaiting-review", review, progress)
-    ).not.toThrow()
+    }).not.toThrow()
   })
 
   test("standard awaiting-review command is rejected without pending reviews", () => {
-    expect(() =>
+    expect(() => {
       assertStandardStatusCommand(
         "awaiting-review",
         reviewState("not-required"),
         getProgress([])
       )
-    ).toThrow("without pending reviews")
+    }).toThrow("without pending reviews")
   })
 
   test("standard completion resolves through the current review state", () => {

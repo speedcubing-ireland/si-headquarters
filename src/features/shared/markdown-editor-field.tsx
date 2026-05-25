@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { Streamdown } from "streamdown"
 
-type MarkdownEditorFieldProps = {
+interface MarkdownEditorFieldProps {
   id: string
   label: string
   placeholder: string
@@ -48,7 +48,9 @@ export function MarkdownEditorField({
         <Textarea
           id={id}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
           placeholder={placeholder}
           disabled={disabled}
           className={cn(

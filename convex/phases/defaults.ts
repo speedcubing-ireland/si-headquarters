@@ -13,7 +13,7 @@ const DEFAULT_COMPETITION_PHASES = [
   { name: "Pre-Competition", color: "amber" },
   { name: "Post-Competition", color: "green" },
   { name: "Completed", color: "gray" },
-] satisfies Array<{ name: string; color: PhaseColor }>
+] satisfies { name: string; color: PhaseColor }[]
 
 const DEFAULT_COMPETITION_PHASE_SORT_KEYS = generateNKeysBetween(
   null,

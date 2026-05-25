@@ -28,7 +28,7 @@ function ProgressSegment({
   return (
     <div
       className={cn("h-full shrink-0", className)}
-      style={{ width: `${(count / total) * 100}%` }}
+      style={{ width: `${String((count / total) * 100)}%` }}
     />
   )
 }
@@ -46,7 +46,7 @@ export function ProgressTracker() {
         </span>
       </div>
       <div
-        aria-label={`${progress.done} done, ${progress.inProgress} in progress, ${progress.blocked} blocked out of ${progress.phaseTaskCount} total`}
+        aria-label={`${String(progress.done)} done, ${String(progress.inProgress)} in progress, ${String(progress.blocked)} blocked out of ${String(progress.phaseTaskCount)} total`}
         aria-valuemax={progress.phaseTaskCount}
         aria-valuemin={0}
         aria-valuenow={progress.done + progress.inProgress + progress.blocked}

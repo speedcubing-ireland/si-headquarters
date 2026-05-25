@@ -1,9 +1,9 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { TaskReviewState } from "@/convex/tasks/reviews/reviewState"
-import {
-  type TaskStatus,
-  type TaskStatusCommand,
-  type TaskStatusIntent,
+import type {
+  TaskStatus,
+  TaskStatusCommand,
+  TaskStatusIntent,
 } from "@/convex/tasks/status/validators"
 
 export type {
@@ -12,7 +12,7 @@ export type {
   TaskStatusIntent,
 } from "@/convex/tasks/status/validators"
 
-export type TaskProgress = {
+export interface TaskProgress {
   total: number
   terminalComplete: number
   done: number

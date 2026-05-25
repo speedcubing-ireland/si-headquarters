@@ -23,7 +23,7 @@ import {
   type TaskStatusIntent,
 } from "@/convex/tasks/status/rules"
 
-type ParentFlowContext = {
+interface ParentFlowContext {
   parent: Doc<"tasks">
   state: FlowStepState
 }
@@ -315,7 +315,7 @@ class TaskStatusMutationPlanner {
       steps += 1
       if (steps > MAX_RECOMPUTE_STEPS) {
         throw new Error(
-          `Task status recompute processed more than ${MAX_RECOMPUTE_STEPS} steps`
+          `Task status recompute processed more than ${String(MAX_RECOMPUTE_STEPS)} steps`
         )
       }
 
@@ -611,7 +611,7 @@ class TaskStatusMutationPlanner {
       visited.add(currentTask._id)
 
       const parentFlow = await this.getParentFlowContext(currentTask)
-      if (!parentFlow || parentFlow.state !== "current") return
+      if (parentFlow?.state !== "current") return
 
       if (isBacklogIntent(parentFlow.parent.statusIntent)) {
         this.patchStatus(parentFlow.parent, autoStatusIntent(), "to-do")
@@ -628,7 +628,7 @@ class TaskStatusMutationPlanner {
     if (!parentTaskId) return null
 
     const parent = await this.loader.getTask(parentTaskId)
-    if (!parent || parent.kind !== "flow") return null
+    if (parent?.kind !== "flow") return null
 
     const siblings = await this.loader.getDirectSubtasks(parent._id)
     const siblingIndex = siblings.findIndex(

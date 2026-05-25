@@ -141,7 +141,7 @@ export type TaskFlowView = Infer<typeof taskFlowView>
 export type TaskFlowStructure = Infer<typeof taskFlowStructure>
 export type TaskFlowDisplay = Infer<typeof taskFlowDisplay>
 
-type HydratedStep = {
+interface HydratedStep {
   task: Doc<"tasks">
   statusView: TaskStatusView
 }
@@ -222,7 +222,7 @@ export function createTaskDisplayReader(ctx: QueryCtx) {
 
     if (assignments.length > MAX_TASK_LABELS_FOR_FLOW_VIEW) {
       throw new Error(
-        `Task has more than ${MAX_TASK_LABELS_FOR_FLOW_VIEW} labels`
+        `Task has more than ${String(MAX_TASK_LABELS_FOR_FLOW_VIEW)} labels`
       )
     }
 

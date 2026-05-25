@@ -1,8 +1,8 @@
 import { query, type QueryCtx } from "@/convex/_generated/server"
 import { getAuthUserId } from "@convex-dev/auth/server"
 import { v } from "convex/values"
-import type { Doc, Id } from "../_generated/dataModel";
-import { publicUserValidator, type PublicUser } from "./validators";
+import type { Doc, Id } from "../_generated/dataModel"
+import { publicUserValidator, type PublicUser } from "./validators"
 
 export function toPublicUser(
   user: Pick<Doc<"users">, "_id" | "name" | "image">
@@ -28,7 +28,9 @@ export async function getPublicUsers(
   ctx: QueryCtx,
   userIds: Id<"users">[]
 ): Promise<PublicUser[]> {
-  const users = await Promise.all(userIds.map((userId) => ctx.db.get("users", userId)))
+  const users = await Promise.all(
+    userIds.map((userId) => ctx.db.get("users", userId))
+  )
   return users
     .filter((user): user is Doc<"users"> => user !== null)
     .map(toPublicUser)

@@ -3,7 +3,7 @@ import type { PublicUser } from "@/convex/users/validators"
 import type { Doc } from "@/convex/_generated/dataModel"
 
 type ObjectType = "users" | "teams"
-type ObjectByType = {
+interface ObjectByType {
   users: PublicUser
   teams: Pick<Doc<"teams">, "_id" | "name">
 }
@@ -11,7 +11,7 @@ type ObjectByType = {
 const DICEBEAR_INITIALS = "https://api.dicebear.com/9.x/initials/svg?seed="
 
 function getStrInitials(name?: string) {
-  if (!name) return "?"
+  if (name === undefined || name.length === 0) return "?"
   return name
     .split(" ")
     .map((part) => part[0])
@@ -20,17 +20,17 @@ function getStrInitials(name?: string) {
     .toUpperCase()
 }
 
-export function ObjectAvatar<TType extends ObjectType>({
+export function ObjectAvatar({
   obj,
   ...avatarProps
 }: React.ComponentProps<typeof Avatar> & {
-  obj: ObjectByType[TType]
+  obj: ObjectByType[ObjectType]
 }) {
   const name = obj.name
   const initials = getStrInitials(name)
   let avatarSrc = DICEBEAR_INITIALS + initials
 
-  if ("image" in obj && obj.image) {
+  if ("image" in obj && obj.image !== undefined) {
     avatarSrc = obj.image
   }
 

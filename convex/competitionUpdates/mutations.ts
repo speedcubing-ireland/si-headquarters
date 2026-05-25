@@ -56,8 +56,7 @@ export const setForCompetition = mutation({
     if (oldUpdateId) {
       const oldUpdate = await ctx.db.get("competitionUpdates", oldUpdateId)
       if (
-        oldUpdate &&
-        oldUpdate.competitionId === competition._id &&
+        oldUpdate?.competitionId === competition._id &&
         oldUpdate.body === body &&
         oldUpdate.authorId === userId
       ) {
@@ -131,7 +130,7 @@ export const toggleReaction = mutation({
     if (!update) throw new Error("Competition update not found")
 
     const competition = await ctx.db.get("competitions", update.competitionId)
-    if (!competition || competition.updateId !== update._id) {
+    if (competition?.updateId !== update._id) {
       throw new Error("Cannot react to an archived update")
     }
 

@@ -42,13 +42,13 @@ export const TASK_STATUS_META = {
 } satisfies Record<TaskStatusCommand, { label: string; icon: ElementType }>
 
 const orderedStatusOptions = [
-  'auto',
-  'backlog',
-  'to-do',
-  'in-progress',
-  'awaiting-review',
-  'done',
-  'cancelled',
+  "auto",
+  "backlog",
+  "to-do",
+  "in-progress",
+  "awaiting-review",
+  "done",
+  "cancelled",
 ] satisfies TaskStatusCommand[]
 
 export function reorderStatusOptions(

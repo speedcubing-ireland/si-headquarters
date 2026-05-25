@@ -8,14 +8,14 @@ type Theme = (typeof THEME_VALUES)[number]
 
 type ResolvableTheme = Exclude<Theme, "system">
 
-type ThemeProviderProps = {
+interface ThemeProviderProps {
   children: React.ReactNode
   defaultTheme?: Theme
   storageKey?: string
   disableTransitionOnChange?: boolean
 }
 
-type ThemeProviderState = {
+interface ThemeProviderState {
   theme: Theme
   setTheme: (theme: Theme) => void
 }

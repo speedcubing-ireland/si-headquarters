@@ -1,6 +1,6 @@
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { ObjectAvatar } from "@/components/object-avatar"
-import { Button } from "@/components/ui/button"
+import type { Button } from "@/components/ui/button"
 import {
   MultipleSelectorCombobox,
   SingleSelectorCombobox,
@@ -15,7 +15,7 @@ import { useState } from "react"
 type User = PublicUser
 type UserId = Id<"users">
 
-type BaseUserButtonProps = {
+interface BaseUserButtonProps {
   className?: string
   size?: React.ComponentProps<typeof Button>["size"]
   variant?: React.ComponentProps<typeof Button>["variant"]

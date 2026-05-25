@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-export type SelectorGroup<TItem, TValue> = {
+export interface SelectorGroup<TItem, TValue> {
   getLabel: (item: TItem) => string
   getValue: (item: TItem) => TValue
   items: TItem[] | undefined

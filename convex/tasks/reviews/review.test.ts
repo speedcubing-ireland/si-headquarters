@@ -8,7 +8,7 @@ import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 
-type TaskSeed = {
+interface TaskSeed {
   parent: Doc<"tasks">["parent"]
   order: string
   status?: Doc<"tasks">["status"]
@@ -434,7 +434,7 @@ describe("task reviews", () => {
       })
 
       for (let index = 0; index < 101; index += 1) {
-        const reviewerId = await insertUser(ctx, `Reviewer ${index}`)
+        const reviewerId = await insertUser(ctx, `Reviewer ${String(index)}`)
         await ctx.db.insert("taskReviewers", {
           taskId,
           reviewer: { type: "users", id: reviewerId },

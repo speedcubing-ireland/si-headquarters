@@ -16,11 +16,7 @@ import { BellIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { ProgressTracker } from "./progress-tracker"
 
-export function DetailsCard({
-  comp,
-}: {
-  comp: Doc<"competitions">
-}) {
+export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
   const competitionId = comp._id
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
     object: {
@@ -28,8 +24,9 @@ export function DetailsCard({
       id: competitionId,
     },
   })
-  const watchingText = isWatching ? "Subscribed" : "Subscribe "
-  const watchingVariant = isWatching ? "ghost" : "outline"
+  const isSubscribed = isWatching === true
+  const watchingText = isSubscribed ? "Subscribed" : "Subscribe "
+  const watchingVariant = isSubscribed ? "ghost" : "outline"
   const onClickWatch = useMutation(api.subscriptions.index.setSubscription)
 
   const setCompDates = useMutation(api.competitions.mutations.setCompDates)
@@ -84,7 +81,7 @@ export function DetailsCard({
                 type: "competitions",
                 id: competitionId,
               },
-              subscribe: !isWatching,
+              subscribe: !isSubscribed,
             })
           }}
         >

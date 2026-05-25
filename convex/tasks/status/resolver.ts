@@ -1,6 +1,6 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
-import { type TASK_KINDS } from "@/convex/tasks/kind"
+import type { TASK_KINDS } from "@/convex/tasks/kind"
 import {
   getTaskReviewState,
   type TaskReviewState,
@@ -36,7 +36,7 @@ export type {
 export type TaskKind = (typeof TASK_KINDS)[number]
 export type TaskStatusAction = "reopen"
 
-export type TaskStatusView = {
+export interface TaskStatusView {
   taskId: Id<"tasks">
   kind: TaskKind
   statusIntent: TaskStatusIntent
@@ -53,14 +53,14 @@ export type TaskStatusView = {
   review: TaskReviewState
 }
 
-export type TaskReopenPreview = {
+export interface TaskReopenPreview {
   willReopenFlowStep: boolean
   taskId: Id<"tasks">
   flowId: Id<"tasks"> | null
   reopenedStepId: Id<"tasks"> | null
 }
 
-export type TaskWithStatusView = {
+export interface TaskWithStatusView {
   task: Doc<"tasks">
   statusView: TaskStatusView
 }
@@ -69,7 +69,7 @@ export type TaskStatusPatch = Partial<
   Pick<Doc<"tasks">, "kind" | "order" | "status" | "statusIntent">
 >
 
-type ChildViewBuildOptions = {
+interface ChildViewBuildOptions {
   knownTaskId?: Id<"tasks">
   knownDirectSubtasks?: Doc<"tasks">[]
 }
@@ -145,7 +145,7 @@ export class TaskStatusLoader {
 
     const subtasks = await subtasksPromise
     if (subtasks.length > limit) {
-      throw new Error(`Task has more than ${limit} direct subtasks`)
+      throw new Error(`Task has more than ${String(limit)} direct subtasks`)
     }
 
     return this.applyPendingAndSort(subtasks)
@@ -167,7 +167,9 @@ export class TaskStatusLoader {
 
     const tasks = await tasksPromise
     if (tasks.length > MAX_PHASE_TASKS) {
-      throw new Error(`Phase has more than ${MAX_PHASE_TASKS} direct tasks`)
+      throw new Error(
+        `Phase has more than ${String(MAX_PHASE_TASKS)} direct tasks`
+      )
     }
 
     return this.applyPendingAndSort(tasks)
@@ -324,7 +326,7 @@ export async function buildTaskStatusViewWithFlowPosition(
   if (!parentTaskId) return view
 
   const parentTask = await loader.getTask(parentTaskId)
-  if (!parentTask || parentTask.kind !== "flow") return view
+  if (parentTask?.kind !== "flow") return view
 
   const siblings = await loader.getDirectSubtasks(parentTask._id)
   if (siblings.length === 0) return view
@@ -523,9 +525,7 @@ function applyFlowChildPosition(
 }
 
 function asStandardTask(task: Doc<"tasks">): Doc<"tasks"> {
-  return task.kind === "flow"
-    ? ({ ...task, kind: "standard" })
-    : task
+  return task.kind === "flow" ? { ...task, kind: "standard" } : task
 }
 
 function getTaskAtIndex(

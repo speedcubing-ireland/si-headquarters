@@ -32,7 +32,7 @@ function ProgressIcon({
         r="6"
         stroke="currentColor"
         strokeWidth="2"
-        strokeDasharray={`${(done / total) * CIRCLE_CIRCUMFERENCE} ${CIRCLE_CIRCUMFERENCE}`}
+        strokeDasharray={`${String((done / total) * CIRCLE_CIRCUMFERENCE)} ${String(CIRCLE_CIRCUMFERENCE)}`}
         strokeLinecap="round"
         transform="rotate(-90 8 8)"
       />
@@ -65,7 +65,7 @@ export function SubtaskBadge({
         />
       )}
       {kind === "flow" && <CassetteTapeIcon data-icon="inline-start" />}
-      {`${progress.done}/${progress.total}`}
+      {`${String(progress.done)}/${String(progress.total)}`}
     </Badge>
   )
 }

@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 import { useMemo, type ReactNode } from "react"
 import type { SelectorGroup } from "./selector-groups"
 
-type SelectorOption<TItem, TValue> = {
+interface SelectorOption<TItem, TValue> {
   item: TItem
   key: string
   label: string
@@ -24,13 +24,13 @@ type SelectorOption<TItem, TValue> = {
   value: TValue
 }
 
-type SelectorOptionGroup<TItem, TValue> = {
+interface SelectorOptionGroup<TItem, TValue> {
   items: SelectorOption<TItem, TValue>[]
   key: string
   label: string
 }
 
-type SelectorAccessors<TItem, TValue> = {
+interface SelectorAccessors<TItem, TValue> {
   getLabel: (item: TItem) => string
   getValue: (item: TItem) => TValue
   renderItem: (item: TItem) => ReactNode
@@ -41,7 +41,7 @@ type FlatSelectorOptions<TItem, TValue> = SelectorAccessors<TItem, TValue> & {
   items?: TItem[]
 }
 
-type GroupedSelectorOptions<TItem, TValue> = {
+interface GroupedSelectorOptions<TItem, TValue> {
   getLabel?: never
   getValue?: never
   groups: SelectorGroup<TItem, TValue>[]
@@ -278,7 +278,10 @@ function useSelectedOptions<TItem, TValue>({
   return useMemo(() => {
     const resolvedValues =
       values ?? (value === null || value === undefined ? [] : [value])
-    const fallbackItems = selectedItem ? [selectedItem] : selectedItems
+    const fallbackItems =
+      selectedItem !== null && selectedItem !== undefined
+        ? [selectedItem]
+        : selectedItems
     const valueKeys = new Set(resolvedValues.map(getValueKey))
     const selectedOptionsByKey = new Map(
       availableOptions
@@ -297,7 +300,7 @@ function useSelectedOptions<TItem, TValue>({
       })
 
       if (
-        option &&
+        option !== null &&
         valueKeys.has(option.key) &&
         !selectedOptionsByKey.has(option.key)
       ) {
@@ -344,7 +347,7 @@ function SelectorContent<TItem, TValue>({
 
   return (
     <ComboboxContent className="w-64 p-0" align={align}>
-      {searchable && (
+      {searchable === true && (
         <ComboboxInput
           placeholder={`Search ${objectNoun}...`}
           showClear={false}
@@ -353,13 +356,13 @@ function SelectorContent<TItem, TValue>({
       )}
       <ComboboxEmpty>{`No ${objectNoun} found.`}</ComboboxEmpty>
       <ComboboxList>
-        {clearLabel && (
+        {clearLabel !== null && clearLabel !== undefined && (
           <>
             <ComboboxItem value={null}>{clearLabel}</ComboboxItem>
             <ComboboxSeparator />
           </>
         )}
-        {itemGroups ? (
+        {itemGroups !== undefined ? (
           <ComboboxCollection>
             {(group: SelectorOptionGroup<TItem, TValue>) => (
               <ComboboxGroup key={group.key} items={group.items}>
@@ -376,16 +379,18 @@ function SelectorContent<TItem, TValue>({
   )
 }
 
-function SelectorCollection<TItem, TValue>() {
+function renderSelectorOption<TItem, TValue>(
+  option: SelectorOption<TItem, TValue>
+) {
   return (
-    <ComboboxCollection>
-      {(option: SelectorOption<TItem, TValue>) => (
-        <ComboboxItem key={option.key} value={option}>
-          {option.renderedItem}
-        </ComboboxItem>
-      )}
-    </ComboboxCollection>
+    <ComboboxItem key={option.key} value={option}>
+      {option.renderedItem}
+    </ComboboxItem>
   )
+}
+
+function SelectorCollection() {
+  return <ComboboxCollection>{renderSelectorOption}</ComboboxCollection>
 }
 
 export function SingleSelectorCombobox<TItem, TValue>({
@@ -426,7 +431,9 @@ export function SingleSelectorCombobox<TItem, TValue>({
       open={open}
       value={selectedOptions[0] ?? null}
       onOpenChange={onOpenChange}
-      onValueChange={(option) => onValueChange(option?.value ?? null)}
+      onValueChange={(option) => {
+        onValueChange(option?.value ?? null)
+      }}
     >
       <SelectorTrigger className={className} size={size} variant={variant}>
         {renderValue(selectedItemValue)}
@@ -480,9 +487,9 @@ export function MultipleSelectorCombobox<TItem, TValue>({
       open={open}
       value={selectedOptions}
       onOpenChange={onOpenChange}
-      onValueChange={(options) =>
+      onValueChange={(options) => {
         onValueChange(options.map((option) => option.value))
-      }
+      }}
     >
       <SelectorTrigger className={className} size={size} variant={variant}>
         {renderValue(selectedOptions.map((option) => option.item))}

@@ -15,7 +15,7 @@ import {
   type TaskStatusIntent,
 } from "./resolver"
 
-type TaskSeed = {
+interface TaskSeed {
   name?: string
   parent: Doc<"tasks">["parent"]
   order: string
@@ -1334,7 +1334,10 @@ describe("Regression coverage", () => {
       })
       const persisted = await t.run(async (ctx) => {
         const secondStep = await ctx.db.get("tasks", secondStepId)
-        const cancelledFutureStep = await ctx.db.get("tasks", cancelledFutureStepId)
+        const cancelledFutureStep = await ctx.db.get(
+          "tasks",
+          cancelledFutureStepId
+        )
         if (!secondStep || !cancelledFutureStep) throw new Error("Missing step")
         return {
           secondStep: secondStep.status,

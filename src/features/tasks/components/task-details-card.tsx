@@ -71,8 +71,9 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
     },
   })
   const setSubscription = useMutation(api.subscriptions.index.setSubscription)
-  const watchingText = isWatching ? "Subscribed" : "Watch"
-  const watchingVariant = isWatching ? "ghost" : "outline"
+  const isSubscribed = isWatching === true
+  const watchingText = isSubscribed ? "Subscribed" : "Watch"
+  const watchingVariant = isSubscribed ? "ghost" : "outline"
 
   if (taskDetails === undefined) {
     return (
@@ -110,7 +111,7 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
             size="sm"
             value={task.dueDate}
             onChange={(dueDate) => {
-              void setDueDate({ id: task._id, dueDate })
+              return setDueDate({ id: task._id, dueDate })
             }}
           />
         </div>
@@ -148,7 +149,7 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
                 type: "tasks",
                 id: taskId,
               },
-              subscribe: !isWatching,
+              subscribe: !isSubscribed,
             })
           }}
         >

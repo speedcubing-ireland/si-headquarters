@@ -70,9 +70,12 @@ export const setCompDetails = mutation({
     }
     const description = args.description?.trim()
     const nextDescription =
-      description && description.length > 0 ? description : null
+      description !== undefined && description.length > 0 ? description : null
 
-    await ctx.db.patch("competitions", args.id, { name, description: nextDescription })
+    await ctx.db.patch("competitions", args.id, {
+      name,
+      description: nextDescription,
+    })
     return
   },
 })

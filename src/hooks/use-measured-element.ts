@@ -1,17 +1,17 @@
 import { useCallback, useLayoutEffect, useState } from "react"
 
-export type ElementMeasurement = {
+export interface ElementMeasurement {
   width: number
   font: string
 }
 
-export function useMeasuredElement<T extends HTMLElement>(defaultFont: string) {
-  const [node, setNode] = useState<T | null>(null)
+export function useMeasuredElement(defaultFont: string) {
+  const [node, setNode] = useState<HTMLElement | null>(null)
   const [measurement, setMeasurement] = useState<ElementMeasurement>({
     width: 0,
     font: defaultFont,
   })
-  const ref = useCallback((nextNode: T | null) => {
+  const ref = useCallback((nextNode: HTMLElement | null) => {
     setNode(nextNode)
   }, [])
 
@@ -52,7 +52,7 @@ export function useMeasuredElement<T extends HTMLElement>(defaultFont: string) {
   }, [node])
 
   return [ref, measurement] as const satisfies readonly [
-    (node: T | null) => void,
+    (node: HTMLElement | null) => void,
     ElementMeasurement,
   ]
 }

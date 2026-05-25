@@ -320,7 +320,11 @@ export const listSubtasks = query({
     return {
       parent: task,
       parentStatusView: await buildTaskStatusView(statusLoader, task, subtasks),
-      subtasks: await buildSubtasksWithStatusViews(statusLoader, task, subtasks),
+      subtasks: await buildSubtasksWithStatusViews(
+        statusLoader,
+        task,
+        subtasks
+      ),
     }
   },
 })

@@ -83,7 +83,7 @@ const flowStatus = {
 
 type FlowStatus = keyof typeof flowStatus
 
-type FlowStep = {
+interface FlowStep {
   id: number
   taskId: string
   title: string
@@ -156,7 +156,7 @@ function getSubtaskText(step: FlowStep) {
 
   const { completed, total } = step.subtaskProgress
 
-  return `${completed}/${total}`
+  return `${String(completed)}/${String(total)}`
 }
 
 function FlowStepStatusButton({
@@ -269,7 +269,7 @@ export function Pattern() {
                         </span>{" "}
                         {step.title}
                       </h3>
-                      {subtaskText && (
+                      {subtaskText !== null && (
                         <Badge
                           variant="outline"
                           className="hidden text-sm sm:flex"
@@ -299,7 +299,7 @@ export function Pattern() {
                         {step.label}
                       </Badge>
                     </Button>
-                    {step.dueDate && (
+                    {step.dueDate !== undefined && (
                       <Button
                         variant="outline"
                         size="sm"

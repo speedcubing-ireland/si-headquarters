@@ -6,13 +6,42 @@ import reactRefresh from "eslint-plugin-react-refresh"
 import tseslint from "typescript-eslint"
 import { defineConfig, globalIgnores } from "eslint/config"
 
+const strictTypeRules = {
+  "@typescript-eslint/consistent-type-assertions": [
+    "error",
+    { assertionStyle: "never" },
+  ],
+  "@typescript-eslint/consistent-type-exports": "error",
+  "@typescript-eslint/consistent-type-imports": "error",
+  "@typescript-eslint/no-import-type-side-effects": "error",
+  "@typescript-eslint/no-restricted-types": [
+    "error",
+    {
+      types: {
+        unknown: {
+          message:
+            "Use a specific type or validate/narrow at the boundary before passing data through.",
+        },
+      },
+    },
+  ],
+  "@typescript-eslint/strict-boolean-expressions": "error",
+  "@typescript-eslint/switch-exhaustiveness-check": "error",
+}
+
 export default defineConfig([
-  globalIgnores(["dist", "src/components/ui", "convex/**/_generated", "convex/integrations/**/client"]),
+  globalIgnores([
+    "dist",
+    "src/components/ui",
+    "convex/**/_generated",
+    "convex/integrations/**/client",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
       js.configs.recommended,
-      tseslint.configs.recommendedTypeChecked,
+      tseslint.configs.strictTypeChecked,
+      tseslint.configs.stylisticTypeChecked,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
@@ -29,28 +58,7 @@ export default defineConfig([
         "error",
         { extraHOCs: ["createFileRoute", "createRootRoute"] },
       ],
-      "@typescript-eslint/no-unnecessary-condition": "error",
-      "@typescript-eslint/consistent-type-assertions": [
-        "error",
-        { assertionStyle: "never" },
-      ],
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-restricted-types": [
-        "error",
-        {
-          types: {
-            unknown: {
-              message:
-                "Use a specific type or validate/narrow at the boundary before passing data through.",
-            },
-          },
-        },
-      ],
-      "@typescript-eslint/no-unsafe-argument": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
+      ...strictTypeRules,
     },
   },
   {
@@ -64,28 +72,7 @@ export default defineConfig([
       "@convex-dev/require-args-validator": "error",
       "@convex-dev/explicit-table-ids": "error",
       "@convex-dev/no-filter-in-query": "warn",
-      "@typescript-eslint/no-unnecessary-condition": "error",
-      "@typescript-eslint/consistent-type-assertions": [
-        "error",
-        { assertionStyle: "never" },
-      ],
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-restricted-types": [
-        "error",
-        {
-          types: {
-            unknown: {
-              message:
-                "Use a specific type or validate/narrow at the boundary before passing data through.",
-            },
-          },
-        },
-      ],
-      "@typescript-eslint/no-unsafe-argument": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
+      ...strictTypeRules,
     },
   },
   {

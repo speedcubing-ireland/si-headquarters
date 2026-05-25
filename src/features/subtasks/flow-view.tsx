@@ -47,7 +47,7 @@ const itemAppearance = {
 type FlowStepDisplay = TaskFlowDisplay["steps"][number]
 type FlowParent = TaskFlowStructure["parent"]
 type FlowStepStructure = TaskFlowStructure["steps"][number]
-type FlowItemProps = {
+interface FlowItemProps {
   display: FlowStepDisplay | undefined
   index: number
   parent: FlowParent
@@ -141,7 +141,7 @@ const FlowItem = memo(function FlowItem({
                 size="sm"
                 statusView={step.statusView}
                 onChange={(status) => {
-                  void setStatus({ id: taskId, status })
+                  return setStatus({ id: taskId, status })
                 }}
               />
               {step.statusView.availableActions.includes("reopen") && (
@@ -167,15 +167,15 @@ const FlowItem = memo(function FlowItem({
                 selectedLabels={labels}
                 value={getLabelIds(labels)}
                 onChange={(labelIds) => {
-                  void setLabels({ id: taskId, labelIds })
+                  return setLabels({ id: taskId, labelIds })
                 }}
               />
-              {display?.dueDate && (
+              {display?.dueDate !== undefined && display.dueDate !== null && (
                 <TaskDateButton
                   size="sm"
                   value={display.dueDate}
                   onChange={(dueDate) => {
-                    void setDueDate({ id: taskId, dueDate })
+                    return setDueDate({ id: taskId, dueDate })
                   }}
                 />
               )}
@@ -186,7 +186,7 @@ const FlowItem = memo(function FlowItem({
                 showAvatar={false}
                 selectedOwner={owner}
                 onChange={(owner) => {
-                  void setOwner({ id: taskId, owner })
+                  return setOwner({ id: taskId, owner })
                 }}
               />
               <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground/70 sm:block" />
@@ -210,7 +210,7 @@ const FlowItem = memo(function FlowItem({
                 size="sm"
                 statusView={step.statusView}
                 onChange={(status) => {
-                  void setStatus({ id: taskId, status })
+                  return setStatus({ id: taskId, status })
                 }}
               />
             </ItemActions>

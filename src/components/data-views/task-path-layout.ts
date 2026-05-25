@@ -15,14 +15,14 @@ export const DEFAULT_TASK_PATH_FONT =
 
 const BADGE_FONT = '500 12px "Noto Sans Variable", sans-serif'
 
-export type TaskPathLayout = {
+export interface TaskPathLayout {
   taskText: string
   subtaskText: string
   labelText: string
   totalWidth: number
 }
 
-export type TaskPathLayoutInput = {
+export interface TaskPathLayoutInput {
   taskTitle: string
   subtaskTitle: string
   subtaskIndicator: string
@@ -31,7 +31,7 @@ export type TaskPathLayoutInput = {
   textFont: string
 }
 
-type LayoutCandidateInput = {
+interface LayoutCandidateInput {
   task: string
   subtask: string
   subtaskIndicator: string
@@ -40,7 +40,7 @@ type LayoutCandidateInput = {
 }
 
 export function getCompactLabelText(labelCount: number) {
-  return `${Math.max(labelCount, 1)}+`
+  return `${String(Math.max(labelCount, 1))}+`
 }
 
 export function selectTaskPathLayout(
@@ -151,8 +151,7 @@ function pushCandidate(
   const previous = candidates.at(-1)
 
   if (
-    previous &&
-    previous.taskText === candidate.taskText &&
+    previous?.taskText === candidate.taskText &&
     previous.subtaskText === candidate.subtaskText &&
     previous.labelText === candidate.labelText
   ) {

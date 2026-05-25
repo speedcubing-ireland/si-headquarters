@@ -25,7 +25,7 @@ import {
   CollapsibleTrigger,
 } from "../ui/collapsible"
 
-type InlineDataRow = {
+interface InlineDataRow {
   id: string
   assigneeAvatarUrl: string
   taskTitle: string
@@ -165,9 +165,7 @@ function ResponsiveTaskPath({
   subtaskIndicator,
   labels,
 }: ResponsiveTaskPathProps) {
-  const [rootRef, rootMeasurement] = useMeasuredElement<HTMLDivElement>(
-    DEFAULT_TASK_PATH_FONT
-  )
+  const [rootRef, rootMeasurement] = useMeasuredElement(DEFAULT_TASK_PATH_FONT)
   const labelText = labels[0] ?? ""
   const compactLabelText = getCompactLabelText(labels.length)
   const candidates = useMemo(

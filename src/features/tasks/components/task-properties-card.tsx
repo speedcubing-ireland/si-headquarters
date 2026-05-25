@@ -90,7 +90,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
           <TaskStatusButton
             statusView={statusView}
             onChange={(status) => {
-              void setStatus({ id: taskId, status })
+              return setStatus({ id: taskId, status })
             }}
           />
         </PageCardRow>
@@ -111,7 +111,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
             selectedOwner={owner}
             value={task.owner}
             onChange={(owner) => {
-              void setOwner({ id: taskId, owner })
+              return setOwner({ id: taskId, owner })
             }}
           />
         </PageCardRow>
@@ -120,7 +120,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
             selectedLabels={labels}
             value={labels.map((label) => label._id)}
             onChange={(labelIds) => {
-              void setLabels({ id: taskId, labelIds })
+              return setLabels({ id: taskId, labelIds })
             }}
           />
         </PageCardRow>
@@ -128,7 +128,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
           <TaskDateButton
             value={task.dueDate}
             onChange={(dueDate) => {
-              void setDueDate({ id: taskId, dueDate })
+              return setDueDate({ id: taskId, dueDate })
             }}
           />
         </PageCardRow>

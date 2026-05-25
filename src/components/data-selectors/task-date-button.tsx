@@ -10,11 +10,11 @@ import { CalendarIcon } from "lucide-react"
 import { useState } from "react"
 
 function toDate(value: string | null) {
-  return value ? parseISO(value) : undefined
+  return value !== null ? parseISO(value) : undefined
 }
 
 function formatDateText(value: string | null) {
-  return value ? format(parseISO(value), "MMM dd") : "Pick a date"
+  return value !== null ? format(parseISO(value), "MMM dd") : "Pick a date"
 }
 
 type TaskDateButtonProps = Omit<
@@ -22,7 +22,7 @@ type TaskDateButtonProps = Omit<
   "onChange" | "value"
 > & {
   value: string | null
-  onChange: (value: string | null) => void | Promise<void> | Promise<null>
+  onChange: (value: string | null) => Promise<null> | undefined
 }
 
 export function TaskDateButton({
@@ -45,7 +45,9 @@ export function TaskDateButton({
           mode="single"
           selected={toDate(value)}
           onSelect={(date) => {
-            void onChange(date ? format(date, "yyyy-MM-dd") : null)
+            void onChange(
+              date !== undefined ? format(date, "yyyy-MM-dd") : null
+            )
             setOpen(false)
           }}
         />

@@ -1,5 +1,5 @@
 import { ObjectAvatar } from "@/components/object-avatar"
-import { Button } from "@/components/ui/button"
+import type { Button } from "@/components/ui/button"
 import { selectorGroup } from "@/components/data-selectors/selector-groups"
 import { SingleSelectorCombobox } from "@/components/data-selectors/selector-combobox"
 import { api } from "@/convex/_generated/api"
@@ -16,13 +16,13 @@ type SelectedOwner =
   | (PublicUser & { type: "users" })
   | (Team & { type: "teams" })
 
-type TaskOwnerButtonProps = {
+interface TaskOwnerButtonProps {
   selectedOwner?: SelectedOwner | null
   showAvatar?: boolean
   size?: React.ComponentProps<typeof Button>["size"]
   value?: OwnerRef
   variant?: React.ComponentProps<typeof Button>["variant"]
-  onChange: (value: OwnerRef) => void | Promise<void> | Promise<null>
+  onChange: (value: OwnerRef) => Promise<null> | undefined
 }
 
 const getOwnerValueKey = (ownerRef: OwnerValue) =>
@@ -106,9 +106,7 @@ export function TaskOwnerButton({
       selectorGroup({
         key: "users",
         label: "Users",
-        items: users?.map((user) =>
-          toOwnerOption({ ...user, type: "users" })
-        ),
+        items: users?.map((user) => toOwnerOption({ ...user, type: "users" })),
         getLabel: (owner) => owner.label,
         getValue: (owner) => owner.value,
         renderItem: renderOwnerItem,

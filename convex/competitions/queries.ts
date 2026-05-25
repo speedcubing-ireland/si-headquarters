@@ -19,7 +19,7 @@ async function getCompetitionUpdate(
     ? await ctx.db.get("competitionUpdates", competition.updateId)
     : null
 
-  if (!update || update.competitionId !== competition._id) {
+  if (update?.competitionId !== competition._id) {
     return null
   }
 
