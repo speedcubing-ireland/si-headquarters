@@ -22,7 +22,7 @@ type TaskDateButtonProps = Omit<
   "onChange" | "value"
 > & {
   value: string | null
-  onChange: (value: string | null) => void | Promise<void>
+  onChange: (value: string | null) => void | Promise<void> | Promise<null>
 }
 
 export function TaskDateButton({

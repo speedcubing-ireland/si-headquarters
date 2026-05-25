@@ -21,6 +21,7 @@ import type * as phases_queries from "../phases/queries.js";
 import type * as phases_validators from "../phases/validators.js";
 import type * as subscriptions_index from "../subscriptions/index.js";
 import type * as subscriptions_validators from "../subscriptions/validators.js";
+import type * as tasks_flowView from "../tasks/flowView.js";
 import type * as tasks_kind from "../tasks/kind.js";
 import type * as tasks_labels_queries from "../tasks/labels/queries.js";
 import type * as tasks_labels_validators from "../tasks/labels/validators.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "phases/validators": typeof phases_validators;
   "subscriptions/index": typeof subscriptions_index;
   "subscriptions/validators": typeof subscriptions_validators;
+  "tasks/flowView": typeof tasks_flowView;
   "tasks/kind": typeof tasks_kind;
   "tasks/labels/queries": typeof tasks_labels_queries;
   "tasks/labels/validators": typeof tasks_labels_validators;

@@ -2,6 +2,7 @@ import { SingleSelectorCombobox } from "@/components/data-selectors/selector-com
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
+import { useState } from "react"
 
 const PHASE_COLOR_CLASSES = {
   gray: "bg-gray-400 dark:bg-gray-600",
@@ -29,20 +30,25 @@ function PhaseDot({
 export function PhaseButton({
   owner,
   onChange,
+  selectedPhase,
   value,
 }: {
   owner: Doc<"phases">["owner"]
+  selectedPhase?: Doc<"phases"> | null
   value: Id<"phases"> | null | undefined
   onChange: (value: Id<"phases">) => void
 }) {
-  const phases = useQuery(api.phases.queries.listForOwner, {
-    owner,
-  })
+  const [open, setOpen] = useState(false)
+  const phases = useQuery(
+    api.phases.queries.listForOwner,
+    open ? { owner } : "skip"
+  )
 
   return (
     <SingleSelectorCombobox
       align="start"
       items={phases}
+      open={open}
       getLabel={(phase) => phase.name}
       getValue={(phase) => phase._id}
       getValueKey={(id) => id}
@@ -59,7 +65,9 @@ export function PhaseButton({
           <span className="truncate">{phase?.name ?? "No phase"}</span>
         </>
       )}
+      selectedItem={selectedPhase}
       value={value ?? null}
+      onOpenChange={setOpen}
       onValueChange={(phaseId) => {
         if (phaseId) onChange(phaseId)
       }}

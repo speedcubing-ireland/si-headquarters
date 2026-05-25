@@ -1,5 +1,6 @@
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { ObjectAvatar } from "@/components/object-avatar"
+import { Button } from "@/components/ui/button"
 import {
   MultipleSelectorCombobox,
   SingleSelectorCombobox,
@@ -9,21 +10,26 @@ import type { Id } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
 import { useQuery } from "convex/react"
 import { UserRoundIcon } from "lucide-react"
+import { useState } from "react"
 
 type User = PublicUser
 
 type BaseUserButtonProps = {
   className?: string
+  size?: React.ComponentProps<typeof Button>["size"]
+  variant?: React.ComponentProps<typeof Button>["variant"]
 }
 
 type SingleUserButtonProps = BaseUserButtonProps & {
   selectionMode?: "single"
+  selectedUser?: User | null
   value: Id<"users"> | null
   onChange: (value: Id<"users"> | null) => void
 }
 
 type MultipleUserButtonProps = BaseUserButtonProps & {
   selectionMode: "multiple"
+  selectedUsers?: User[]
   value: Id<"users">[]
   onChange: (value: Id<"users">[]) => void
 }
@@ -79,7 +85,8 @@ function UserItem({ user }: { user: User }) {
 }
 
 export function UserButton(props: UserButtonProps) {
-  const users = useQuery(api.users.queries.list)
+  const [open, setOpen] = useState(false)
+  const users = useQuery(api.users.queries.list, open ? {} : "skip")
   const comboboxProps = {
     getLabel: getUserName,
     getValue: (user: User) => user._id,
@@ -95,10 +102,15 @@ export function UserButton(props: UserButtonProps) {
         {...comboboxProps}
         className={props.className}
         items={users}
+        open={open}
         renderValue={(selectedUsers) => (
           <UserButtonFace users={selectedUsers} />
         )}
+        selectedItems={props.selectedUsers}
+        size={props.size}
+        variant={props.variant}
         values={props.value}
+        onOpenChange={setOpen}
         onValueChange={props.onChange}
       />
     )
@@ -110,10 +122,15 @@ export function UserButton(props: UserButtonProps) {
       className={props.className}
       clearLabel="None"
       items={users}
+      open={open}
       renderValue={(selectedUser) => (
         <UserButtonFace users={selectedUser ? [selectedUser] : []} />
       )}
+      selectedItem={props.selectedUser}
+      size={props.size}
       value={props.value}
+      variant={props.variant}
+      onOpenChange={setOpen}
       onValueChange={props.onChange}
     />
   )

@@ -16,13 +16,17 @@ import { Streamdown } from "streamdown"
 import { EditDetailsDialog } from "./edit-details-dialog"
 import { ProgressTracker } from "./progress-tracker"
 
-export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
-  const iconUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${comp.name}`
+export function DetailsCard({
+  comp
+}: {
+  comp: Doc<"competitions">
+}) {
 
+  const competitionId = comp._id;
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
     object: {
       type: "competitions",
-      id: comp._id,
+      id: competitionId,
     },
   })
   const watchingText = isWatching ? "Subscribed" : "Subscribe "
@@ -30,6 +34,28 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
   const onClickWatch = useMutation(api.subscriptions.index.setSubscription)
 
   const setCompDates = useMutation(api.competitions.mutations.setCompDates)
+
+  if (comp === undefined) {
+    return (
+      <Card className="col-span-full min-h-80">
+        <CardHeader>
+          <CardTitle className="text-2xl">Loading competition...</CardTitle>
+        </CardHeader>
+        <CardContent divided className="border-t">
+          <p className="text-sm text-muted-foreground">Loading details...</p>
+          <ProgressTracker />
+        </CardContent>
+        <CardFooter>
+          <Button size="lg" variant="outline" disabled>
+            <BellIcon />
+            Subscribe
+          </Button>
+        </CardFooter>
+      </Card>
+    )
+  }
+
+  const iconUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${comp.name}`
 
   return (
     <Card className="col-span-full">
@@ -47,7 +73,7 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
                 to: comp.compDates?.to ?? null,
               }}
               onChange={async ({ from, to }) => {
-                await setCompDates({ id: comp._id, from, to })
+                await setCompDates({ id: competitionId, from, to })
               }}
             />
           </div>
@@ -68,7 +94,7 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
             onClickWatch({
               object: {
                 type: "competitions",
-                id: comp._id,
+                id: competitionId,
               },
               subscribe: !isWatching,
             })

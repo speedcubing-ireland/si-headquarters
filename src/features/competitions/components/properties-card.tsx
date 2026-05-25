@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { PhaseButton } from "@/components/data-selectors/phase-button"
 import { api } from "@/convex/_generated/api"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { useMutation } from "convex/react"
+import type { Id } from "@/convex/_generated/dataModel"
+import { useMutation, useQuery } from "convex/react"
 import {
   ExternalLinkIcon,
   FileSpreadsheetIcon,
@@ -22,9 +22,48 @@ import {
   PageCardFooter,
   PageCardRow,
 } from "../../../components/page-card"
+import { Skeleton } from "@/components/ui/skeleton"
 
-export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
+export function PropertiesCard({
+  competitionId,
+}: {
+  competitionId: Id<"competitions">
+}) {
+  const properties = useQuery(api.competitions.queries.getProperties, {
+    id: competitionId,
+  })
   const setCompPhase = useMutation(api.competitions.mutations.setCompPhase)
+
+  if (properties === undefined) {
+    return (
+      <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
+        <PageCardContent className="min-h-28">
+          <PageCardRow
+            icon={<MilestoneIcon className="size-4" />}
+            label="Phase"
+          >
+            <Skeleton className="h-4 w-24" />
+          </PageCardRow>
+          <PageCardRow
+            icon={<HandshakeIcon className="size-4" />}
+            label="Sponsor"
+          >
+            <Skeleton className="h-4 w-32" />
+          </PageCardRow>
+        </PageCardContent>
+        <PageCardFooter className="flex min-h-36 flex-col items-start gap-2">
+          <ButtonGroup>
+            <Button variant="outline" disabled>
+              <GlobeIcon className="text-blue-600" />
+              Loading...
+            </Button>
+          </ButtonGroup>
+        </PageCardFooter>
+      </PageCard>
+    )
+  }
+
+  const { competition: comp, phase } = properties
 
   // To-do: Most of this is still placeholder
   return (
@@ -36,6 +75,7 @@ export function PropertiesCard({ comp }: { comp: Doc<"competitions"> }) {
               type: "competitions",
               id: comp._id,
             }}
+            selectedPhase={phase}
             value={comp.phaseId}
             onChange={(phaseId: Id<"phases">) =>
               setCompPhase({

@@ -84,6 +84,18 @@ export const setForCompetition = mutation({
     if (!body) throw new Error("Update body is required")
 
     const oldUpdateId = competition.updateId
+    if (oldUpdateId) {
+      const oldUpdate = await ctx.db.get(oldUpdateId)
+      if (
+        oldUpdate &&
+        oldUpdate.competitionId === competition._id &&
+        oldUpdate.body === body &&
+        oldUpdate.authorId === userId
+      ) {
+        return oldUpdate._id
+      }
+    }
+
     const updateId = await ctx.db.insert("competitionUpdates", {
       competitionId: competition._id,
       authorId: userId,

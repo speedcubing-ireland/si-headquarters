@@ -13,7 +13,7 @@ import {
   ComboboxTrigger,
 } from "@/components/ui/combobox"
 import { cn } from "@/lib/utils"
-import type { ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import type { SelectorGroup } from "./selector-groups"
 
 type SelectorOption<TValue> = {
@@ -30,17 +30,48 @@ type SelectorOptionGroup<TValue> = {
   label: string
 }
 
-type SelectorComboboxBaseProps<TItem, TValue> = {
+type SelectorAccessors<TItem, TValue> = {
+  getLabel: (item: TItem) => string
+  getValue: (item: TItem) => TValue
+  renderItem: (item: TItem) => ReactNode
+}
+
+type FlatSelectorOptions<TItem, TValue> = SelectorAccessors<TItem, TValue> & {
+  groups?: never
+  items?: TItem[]
+}
+
+type GroupedSelectorOptions<TValue> = {
+  getLabel?: never
+  getValue?: never
+  groups: SelectorGroup<TValue>[]
+  items?: never
+  renderItem?: never
+}
+
+type SelectorOptions<TItem, TValue> =
+  | FlatSelectorOptions<TItem, TValue>
+  | GroupedSelectorOptions<TValue>
+
+type SelectedItemOptions<TItem, TValue> = Partial<
+  SelectorAccessors<TItem, TValue>
+> & {
+  groups?: SelectorGroup<TValue>[]
+}
+
+type SelectorComboboxBaseProps<TItem, TValue> = SelectorOptions<
+  TItem,
+  TValue
+> & {
   align?: React.ComponentProps<typeof ComboboxContent>["align"]
   className?: string
   getValueKey: (value: TValue) => string
-  groups?: SelectorGroup<TValue>[]
-  items?: TItem[]
-  getLabel?: (item: TItem) => string
-  getValue?: (item: TItem) => TValue
   objectNoun: string
-  renderItem?: (item: TItem) => ReactNode
+  onOpenChange?: (open: boolean) => void
+  open?: boolean
   searchable?: boolean
+  size?: React.ComponentProps<typeof Button>["size"]
+  variant?: React.ComponentProps<typeof Button>["variant"]
 }
 
 type SingleSelectorComboboxProps<TItem, TValue> = SelectorComboboxBaseProps<
@@ -50,6 +81,7 @@ type SingleSelectorComboboxProps<TItem, TValue> = SelectorComboboxBaseProps<
   clearLabel?: ReactNode
   onValueChange: (value: TValue | null) => void
   renderValue: (item: TItem | null) => ReactNode
+  selectedItem?: TItem | null
   value: TValue | null | undefined
 }
 
@@ -59,21 +91,30 @@ type MultipleSelectorComboboxProps<TItem, TValue> = SelectorComboboxBaseProps<
 > & {
   onValueChange: (value: TValue[]) => void
   renderValue: (items: TItem[]) => ReactNode
+  selectedItems?: TItem[]
   values: TValue[]
 }
 
 function SelectorTrigger({
   children,
   className,
+  size,
+  variant,
 }: {
   children: ReactNode
   className?: string
+  size?: React.ComponentProps<typeof Button>["size"]
+  variant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   return (
     <ComboboxTrigger
       showChevron={false}
       render={
-        <Button variant="outline" className={cn("justify-start", className)} />
+        <Button
+          variant={variant ?? "outline"}
+          size={size}
+          className={cn("justify-start", className)}
+        />
       }
     >
       {children}
@@ -81,18 +122,15 @@ function SelectorTrigger({
   )
 }
 
-function normalizeItem<TValue>({
+function normalizeItem<TItem, TValue>({
   getLabel,
   getValue,
   getValueKey,
   item,
   renderItem,
-}: {
-  getLabel: (item: unknown) => string
-  getValue: (item: unknown) => TValue
+}: SelectorAccessors<TItem, TValue> & {
   getValueKey: (value: TValue) => string
-  item: unknown
-  renderItem: (item: unknown) => ReactNode
+  item: TItem
 }): SelectorOption<TValue> {
   const value = getValue(item)
 
@@ -105,6 +143,23 @@ function normalizeItem<TValue>({
   }
 }
 
+function getOptionLabel<TValue>(option: SelectorOption<TValue>) {
+  return option.label
+}
+
+function isSelectorOptionEqual<TValue>(
+  item: SelectorOption<TValue>,
+  selected: SelectorOption<TValue>
+) {
+  return item.key === selected.key
+}
+
+function hasGroups<TValue>(
+  groups: SelectorGroup<TValue>[] | undefined
+): groups is SelectorGroup<TValue>[] {
+  return groups !== undefined
+}
+
 function useSelectorOptions<TItem, TValue>({
   getLabel,
   getValue,
@@ -112,53 +167,160 @@ function useSelectorOptions<TItem, TValue>({
   groups,
   items,
   renderItem,
-}: Pick<
-  SelectorComboboxBaseProps<TItem, TValue>,
-  "getLabel" | "getValue" | "getValueKey" | "groups" | "items" | "renderItem"
->) {
-  if (groups) {
-    const optionGroups: SelectorOptionGroup<TValue>[] = groups.map((group) => ({
-      key: group.key,
-      label: group.label,
-      items: (group.items ?? []).map((item) =>
-        normalizeItem({
+}: SelectorOptions<TItem, TValue> & {
+  getValueKey: (value: TValue) => string
+}) {
+  return useMemo(() => {
+    if (hasGroups(groups)) {
+      const itemGroups = groups.map((group) => ({
+        key: group.key,
+        label: group.label,
+        items: (group.items ?? []).map((item) =>
+          normalizeItem({
+            getLabel: group.getLabel,
+            getValue: group.getValue,
+            getValueKey,
+            item,
+            renderItem: group.renderItem,
+          })
+        ),
+      }))
+
+      return {
+        hasLoadedItems: groups.every((group) => group.items !== undefined),
+        itemGroups,
+        items: itemGroups.flatMap((group) => group.items),
+        rootItems: itemGroups,
+      }
+    }
+
+    if (!getLabel || !getValue || !renderItem) {
+      throw new Error(
+        "Flat selectors require getLabel, getValue, and renderItem"
+      )
+    }
+
+    const normalizedItems = (items ?? []).map((item) =>
+      normalizeItem({
+        getLabel,
+        getValue,
+        getValueKey,
+        item,
+        renderItem,
+      })
+    )
+
+    return {
+      hasLoadedItems: items !== undefined,
+      itemGroups: undefined,
+      items: normalizedItems,
+      rootItems: normalizedItems,
+    }
+  }, [getLabel, getValue, getValueKey, groups, items, renderItem])
+}
+
+function optionFromSelectedItem<TItem, TValue>({
+  getLabel,
+  getValue,
+  getValueKey,
+  groups,
+  item,
+  renderItem,
+}: SelectedItemOptions<TItem, TValue> & {
+  getValueKey: (value: TValue) => string
+  item: TItem
+}) {
+  if (hasGroups(groups)) {
+    const group = groups[0]
+
+    return group
+      ? normalizeItem({
           getLabel: group.getLabel,
           getValue: group.getValue,
           getValueKey,
           item,
           renderItem: group.renderItem,
         })
-      ),
-    }))
+      : null
+  }
 
-    return {
-      hasLoadedItems: groups.every((group) => group.items !== undefined),
-      itemGroups: optionGroups,
-      items: optionGroups.flatMap((group) => group.items),
-      rootItems: optionGroups,
+  if (!getLabel || !getValue || !renderItem) return null
+
+  return normalizeItem({
+    getLabel,
+    getValue,
+    getValueKey,
+    item,
+    renderItem,
+  })
+}
+
+function useSelectedOptions<TItem, TValue>({
+  getLabel,
+  getValue,
+  getValueKey,
+  groups,
+  options: availableOptions,
+  renderItem,
+  selectedItem,
+  selectedItems = [],
+  value,
+  values,
+}: SelectedItemOptions<TItem, TValue> & {
+  getValueKey: (value: TValue) => string
+  options: SelectorOption<TValue>[]
+  selectedItem?: TItem | null
+  selectedItems?: TItem[]
+  value?: TValue | null
+  values?: TValue[]
+}) {
+  return useMemo(() => {
+    const resolvedValues =
+      values ?? (value === null || value === undefined ? [] : [value])
+    const fallbackItems = selectedItem ? [selectedItem] : selectedItems
+    const valueKeys = new Set(resolvedValues.map(getValueKey))
+    const selectedOptionsByKey = new Map(
+      availableOptions
+        .filter((option) => valueKeys.has(option.key))
+        .map((option) => [option.key, option])
+    )
+
+    for (const item of fallbackItems) {
+      const option = optionFromSelectedItem({
+        getLabel,
+        getValue,
+        getValueKey,
+        groups,
+        item,
+        renderItem,
+      })
+
+      if (
+        option &&
+        valueKeys.has(option.key) &&
+        !selectedOptionsByKey.has(option.key)
+      ) {
+        selectedOptionsByKey.set(option.key, option)
+      }
     }
-  }
 
-  if (!getLabel || !getValue || !renderItem) {
-    throw new Error("Flat selectors require getLabel, getValue, and renderItem")
-  }
-
-  const options = (items ?? []).map((item) =>
-    normalizeItem({
-      getLabel: getLabel as (item: unknown) => string,
-      getValue: getValue as (item: unknown) => TValue,
-      getValueKey,
-      item,
-      renderItem: renderItem as (item: unknown) => ReactNode,
-    })
-  )
-
-  return {
-    hasLoadedItems: items !== undefined,
-    itemGroups: undefined,
-    items: options,
-    rootItems: options,
-  }
+    return resolvedValues
+      .map((value) => selectedOptionsByKey.get(getValueKey(value)))
+      .filter(
+        (option): option is SelectorOption<TValue> => option !== undefined
+      )
+  }, [
+    availableOptions,
+    getLabel,
+    getValue,
+    getValueKey,
+    groups,
+    renderItem,
+    selectedItem,
+    selectedItems,
+    value,
+    values,
+  ])
 }
 
 function SelectorContent<TValue>({
@@ -176,6 +338,8 @@ function SelectorContent<TValue>({
   objectNoun: string
   searchable?: boolean
 }) {
+  if (!hasLoadedItems) return <></>
+
   return (
     <ComboboxContent className="w-64 p-0" align={align}>
       {searchable && (
@@ -185,11 +349,7 @@ function SelectorContent<TValue>({
           showTrigger={false}
         />
       )}
-      <ComboboxEmpty>
-        {hasLoadedItems
-          ? `No ${objectNoun} found.`
-          : `Loading ${objectNoun}...`}
-      </ComboboxEmpty>
+      <ComboboxEmpty>{`No ${objectNoun} found.`}</ComboboxEmpty>
       <ComboboxList>
         {clearLabel && (
           <>
@@ -233,30 +393,42 @@ export function SingleSelectorCombobox<TItem, TValue>({
   getValueKey,
   objectNoun,
   onValueChange,
+  onOpenChange,
+  open,
   renderValue,
   searchable,
+  selectedItem,
+  size,
   value,
+  variant,
   ...optionProps
 }: SingleSelectorComboboxProps<TItem, TValue>) {
   const { hasLoadedItems, itemGroups, items, rootItems } = useSelectorOptions({
-    getValueKey,
     ...optionProps,
+    getValueKey,
   })
-  const selectedOption =
-    value === null || value === undefined
-      ? null
-      : (items.find((item) => item.key === getValueKey(value)) ?? null)
+  const selectedOptions = useSelectedOptions({
+    ...optionProps,
+    getValueKey,
+    options: items,
+    selectedItem,
+    value,
+  })
+  const selectedItemValue =
+    (selectedOptions[0]?.item as TItem | undefined) ?? null
 
   return (
     <Combobox<SelectorOption<TValue>>
       items={rootItems}
-      itemToStringLabel={(option) => option.label}
-      isItemEqualToValue={(item, selected) => item.key === selected.key}
-      value={selectedOption}
+      itemToStringLabel={getOptionLabel}
+      isItemEqualToValue={isSelectorOptionEqual}
+      open={open}
+      value={selectedOptions[0] ?? null}
+      onOpenChange={onOpenChange}
       onValueChange={(option) => onValueChange(option?.value ?? null)}
     >
-      <SelectorTrigger className={className}>
-        {renderValue((selectedOption?.item as TItem | undefined) ?? null)}
+      <SelectorTrigger className={className} size={size} variant={variant}>
+        {renderValue(selectedItemValue)}
       </SelectorTrigger>
       <SelectorContent
         align={align}
@@ -276,30 +448,42 @@ export function MultipleSelectorCombobox<TItem, TValue>({
   getValueKey,
   objectNoun,
   onValueChange,
+  onOpenChange,
+  open,
   renderValue,
   searchable,
+  selectedItems,
+  size,
   values,
+  variant,
   ...optionProps
 }: MultipleSelectorComboboxProps<TItem, TValue>) {
   const { hasLoadedItems, itemGroups, items, rootItems } = useSelectorOptions({
-    getValueKey,
     ...optionProps,
+    getValueKey,
   })
-  const valueKeys = new Set(values.map(getValueKey))
-  const selectedOptions = items.filter((item) => valueKeys.has(item.key))
+  const selectedOptions = useSelectedOptions({
+    ...optionProps,
+    getValueKey,
+    options: items,
+    selectedItems,
+    values,
+  })
 
   return (
     <Combobox<SelectorOption<TValue>, true>
       multiple
       items={rootItems}
-      itemToStringLabel={(option) => option.label}
-      isItemEqualToValue={(item, selected) => item.key === selected.key}
+      itemToStringLabel={getOptionLabel}
+      isItemEqualToValue={isSelectorOptionEqual}
+      open={open}
       value={selectedOptions}
+      onOpenChange={onOpenChange}
       onValueChange={(options) =>
         onValueChange(options.map((option) => option.value))
       }
     >
-      <SelectorTrigger className={className}>
+      <SelectorTrigger className={className} size={size} variant={variant}>
         {renderValue(selectedOptions.map((option) => option.item as TItem))}
       </SelectorTrigger>
       <SelectorContent

@@ -5,6 +5,7 @@ import { TaskStatusButton } from "@/components/data-selectors/task-status-button
 import { UserButton } from "@/components/data-selectors/user-button"
 import { AddTaskReviewerButton } from "@/features/tasks/components/add-task-reviewer-button"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   PageCard,
   PageCardContent,
@@ -12,9 +13,8 @@ import {
   PageCardRow,
 } from "@/components/page-card"
 import { api } from "@/convex/_generated/api"
-import type { Doc } from "@/convex/_generated/dataModel"
-import type { TaskStatusView } from "@/convex/tasks/status/resolver"
-import { useMutation } from "convex/react"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
+import { useMutation, useQuery } from "convex/react"
 import {
   CableIcon,
   CastleIcon,
@@ -29,21 +29,85 @@ function firstAssigneeId(assigneeIds: Doc<"tasks">["assigneeIds"]) {
   return Array.isArray(assigneeIds) ? (assigneeIds[0] ?? null) : null
 }
 
-export function TaskPropertiesCard({
-  labels,
-  statusView,
-  task,
-}: {
-  labels: Doc<"taskLabels">[]
-  statusView: TaskStatusView
-  task: Doc<"tasks">
-}) {
+type HydratedTaskOwner =
+  | {
+      type: "users"
+      _id: Id<"users">
+      name?: string
+      image?: string
+    }
+  | {
+      type: "teams"
+      _id: Id<"teams">
+      name: string
+    }
+  | null
+
+function getTaskOwnerOption(
+  owner: HydratedTaskOwner
+): React.ComponentProps<typeof TaskOwnerButton>["selectedOwner"] {
+  if (!owner) return null
+
+  return {
+    label: owner.name ?? "Unknown",
+    owner,
+    value: {
+      type: owner.type,
+      id: owner._id,
+    },
+  }
+}
+
+function LoadingValue() {
+  return <Skeleton className="h-8 w-24" />
+}
+
+export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
+  const properties = useQuery(api.tasks.queries.getProperties, { id: taskId })
   const setStatus = useMutation(api.tasks.mutations.setTaskStatus)
-  const reopenTask = useMutation(api.tasks.mutations.reopenTask)
   const setAssignees = useMutation(api.tasks.mutations.setTaskAssignees)
   const setOwner = useMutation(api.tasks.mutations.setTaskOwner)
   const setLabels = useMutation(api.tasks.mutations.setTaskLabels)
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
+
+  if (properties === undefined) {
+    return (
+      <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
+        <PageCardContent className="flex-1">
+          <PageCardRow
+            icon={<TrafficConeIcon className="size-4" />}
+            label="Status"
+          >
+            <LoadingValue />
+          </PageCardRow>
+          <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
+            <LoadingValue />
+          </PageCardRow>
+          <PageCardRow icon={<CastleIcon className="size-4" />} label="Owner">
+            <LoadingValue />
+          </PageCardRow>
+          <PageCardRow icon={<TagIcon className="size-4" />} label="Labels">
+            <LoadingValue />
+          </PageCardRow>
+          <PageCardRow
+            icon={<TargetIcon className="size-4" />}
+            label="Due Date"
+          >
+            <LoadingValue />
+          </PageCardRow>
+        </PageCardContent>
+        <PageCardFooter className="grid grid-cols-2 gap-2">
+          <Button disabled>Add Reviewer</Button>
+          <Button variant="outline" disabled>
+            <CableIcon />
+            Add Integration
+          </Button>
+        </PageCardFooter>
+      </PageCard>
+    )
+  }
+
+  const { assignees, labels, owner, statusView, task } = properties
 
   return (
     <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
@@ -54,20 +118,16 @@ export function TaskPropertiesCard({
         >
           <TaskStatusButton
             statusView={statusView}
-            onChange={(status) => setStatus({ id: task._id, status })}
-            onAction={(action) => {
-              if (action === "reopen") {
-                return reopenTask({ id: task._id })
-              }
-            }}
+            onChange={(status) => setStatus({ id: taskId, status })}
           />
         </PageCardRow>
         <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
           <UserButton
+            selectedUser={assignees[0] ?? null}
             value={firstAssigneeId(task.assigneeIds)}
             onChange={(assigneeId) =>
               setAssignees({
-                id: task._id,
+                id: taskId,
                 assigneeIds: assigneeId ? [assigneeId] : [],
               })
             }
@@ -75,27 +135,29 @@ export function TaskPropertiesCard({
         </PageCardRow>
         <PageCardRow icon={<CastleIcon className="size-4" />} label="Owner">
           <TaskOwnerButton
+            selectedOwner={getTaskOwnerOption(owner)}
             value={task.owner}
-            onChange={(owner) => setOwner({ id: task._id, owner })}
+            onChange={(owner) => setOwner({ id: taskId, owner })}
           />
         </PageCardRow>
         <PageCardRow icon={<TagIcon className="size-4" />} label="Labels">
           <TaskLabelButton
+            selectedLabels={labels}
             value={labels.map((label) => label._id)}
-            onChange={(labelIds) => setLabels({ id: task._id, labelIds })}
+            onChange={(labelIds) => setLabels({ id: taskId, labelIds })}
           />
         </PageCardRow>
         <PageCardRow icon={<TargetIcon className="size-4" />} label="Due Date">
           <TaskDateButton
             value={task.dueDate}
             onChange={(dueDate) => {
-              setDueDate({ id: task._id, dueDate })
+              setDueDate({ id: taskId, dueDate })
             }}
           />
         </PageCardRow>
       </PageCardContent>
       <PageCardFooter className="grid grid-cols-2 gap-2">
-        <AddTaskReviewerButton taskId={task._id} />
+        <AddTaskReviewerButton taskId={taskId} />
         <Button variant="outline">
           <CableIcon />
           Add Integration

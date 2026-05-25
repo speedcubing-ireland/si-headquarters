@@ -1,11 +1,15 @@
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { MultipleSelectorCombobox } from "@/components/data-selectors/selector-combobox"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
 import { TagIcon } from "lucide-react"
+import { useState } from "react"
 
-function LabelBadge({ label }: { label: Doc<"taskLabels"> }) {
+type TaskLabelOption = Pick<Doc<"taskLabels">, "_id" | "name">
+
+function LabelBadge({ label }: { label: TaskLabelOption }) {
   return (
     <Badge className="bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
       {label.name}
@@ -13,7 +17,7 @@ function LabelBadge({ label }: { label: Doc<"taskLabels"> }) {
   )
 }
 
-function TaskLabelFace({ labels }: { labels: Doc<"taskLabels">[] }) {
+function TaskLabelFace({ labels }: { labels: TaskLabelOption[] }) {
   if (labels.length === 0) {
     return (
       <>
@@ -29,27 +33,39 @@ function TaskLabelFace({ labels }: { labels: Doc<"taskLabels">[] }) {
 }
 
 export function TaskLabelButton({
+  size,
+  selectedLabels,
+  variant,
   value,
   onChange,
 }: {
+  size?: React.ComponentProps<typeof Button>["size"]
+  selectedLabels?: TaskLabelOption[]
+  variant?: React.ComponentProps<typeof Button>["variant"]
   value: Id<"taskLabels">[]
   onChange: (value: Id<"taskLabels">[]) => void | Promise<void> | Promise<null>
 }) {
-  const labels = useQuery(api.tasks.labels.queries.list)
+  const [open, setOpen] = useState(false)
+  const labels = useQuery(api.tasks.labels.queries.list, open ? {} : "skip")
 
   return (
     <MultipleSelectorCombobox
       items={labels}
-      getLabel={(label: Doc<"taskLabels">) => label.name}
-      getValue={(label: Doc<"taskLabels">) => label._id}
+      getLabel={(label: TaskLabelOption) => label.name}
+      getValue={(label: TaskLabelOption) => label._id}
       getValueKey={(id: Id<"taskLabels">) => id}
       objectNoun="labels"
-      renderItem={(label: Doc<"taskLabels">) => <LabelBadge label={label} />}
+      renderItem={(label: TaskLabelOption) => <LabelBadge label={label} />}
       renderValue={(selectedLabels) => (
         <TaskLabelFace labels={selectedLabels} />
       )}
+      open={open}
       searchable
+      selectedItems={selectedLabels}
+      size={size}
+      variant={variant}
       values={value}
+      onOpenChange={setOpen}
       onValueChange={(nextLabels) => void onChange(nextLabels)}
     />
   )

@@ -1,5 +1,4 @@
 import { v, type Infer } from "convex/values"
-import type { Doc } from "../_generated/dataModel"
 
 export const usersFields = {
   name: v.optional(v.string()),
@@ -21,13 +20,3 @@ export const publicUserFields = {
 export const publicUserValidator = v.object(publicUserFields)
 
 export type PublicUser = Infer<typeof publicUserValidator>
-
-export function toPublicUser(
-  user: Pick<Doc<"users">, "_id" | "name" | "image">
-): PublicUser {
-  return {
-    _id: user._id,
-    name: user.name,
-    image: user.image,
-  }
-}

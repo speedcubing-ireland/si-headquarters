@@ -11,17 +11,12 @@ import {
 } from "@/components/ui/card"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker"
 import { api } from "@/convex/_generated/api"
-import type { Doc } from "@/convex/_generated/dataModel"
-import type { PublicUser } from "@/convex/users/validators"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { useMutation, useQuery } from "convex/react"
 import { Streamdown } from "streamdown"
 import { AddUpdateDialog } from "./add-update-dialog"
 import { DeleteUpdateDialog } from "./delete-update-dialog"
 import { format } from "date-fns"
-
-type CompetitionUpdate = Doc<"competitionUpdates"> & {
-  author: PublicUser | null
-}
 
 function EmptyUpdateCard({ comp }: { comp: Doc<"competitions"> }) {
   return (
@@ -42,20 +37,39 @@ function EmptyUpdateCard({ comp }: { comp: Doc<"competitions"> }) {
 }
 
 export function UpdateCard({
-  comp,
-  update,
+  competitionId,
 }: {
-  comp: Doc<"competitions">
-  update: CompetitionUpdate | null | undefined
+  competitionId: Id<"competitions">
 }) {
+  const updateDetails = useQuery(api.competitions.queries.getCurrentUpdate, {
+    id: competitionId,
+  })
   const toggleReaction = useMutation(
     api.competitionUpdates.mutations.toggleReaction
   )
+  const update = updateDetails?.update
   const reactionCounts = useQuery(
     api.competitionUpdates.queries.listReactionCounts,
     update ? { updateId: update._id } : "skip"
   )
 
+  if (updateDetails === undefined) {
+    return (
+      <Card className="col-span-full min-h-48">
+        <CardHeader>
+          <CardTitle className="pt-2">Competition update</CardTitle>
+        </CardHeader>
+        <CardContent divided className="border-t">
+          <p className="pt-2 text-sm text-muted-foreground">
+            Loading update...
+          </p>
+        </CardContent>
+        <CardFooter className="min-h-12" />
+      </Card>
+    )
+  }
+
+  const comp = updateDetails.competition
   if (!update) return <EmptyUpdateCard comp={comp} />
 
   const authorName = update.author?.name ?? "Unknown user"

@@ -12,26 +12,15 @@ async function getCompetition(ctx: MutationCtx, id: Id<"competitions">) {
   return competition
 }
 
-async function assertUserExists(ctx: MutationCtx, userId: Id<"users"> | null) {
-  if (!userId) return
-
-  const user = await ctx.db.get(userId)
-  if (!user) throw new Error("User not found")
-}
-
-async function assertUsersExist(ctx: MutationCtx, userIds: Id<"users">[]) {
-  for (const userId of userIds) {
-    await assertUserExists(ctx, userId)
-  }
-}
-
 async function patchPeople(
   ctx: MutationCtx,
   id: Id<"competitions">,
   update: (people: People) => People
 ) {
   const competition = await getCompetition(ctx, id)
-  await ctx.db.patch(id, { people: update(competition.people) })
+  const people = update(competition.people)
+
+  await ctx.db.patch(id, { people })
 }
 
 function setPersonMutation(field: PersonField) {
@@ -41,7 +30,6 @@ function setPersonMutation(field: PersonField) {
       userId: v.nullable(v.id("users")),
     },
     handler: async (ctx, args) => {
-      await assertUserExists(ctx, args.userId)
       await patchPeople(ctx, args.id, (people) => ({
         ...people,
         [field]: args.userId,
@@ -58,7 +46,7 @@ export const setCompDates = mutation({
     to: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch("competitions", args.id, {
+    await ctx.db.patch(args.id, {
       compDates: {
         from: args.from,
         to: args.to,
@@ -80,11 +68,11 @@ export const setCompDetails = mutation({
     if (!name) {
       throw new Error("Competition name is required")
     }
+    const description = args.description?.trim()
+    const nextDescription =
+      description && description.length > 0 ? description : null
 
-    await ctx.db.patch("competitions", args.id, {
-      name,
-      description: args.description,
-    })
+    await ctx.db.patch(args.id, { name, description: nextDescription })
     return
   },
 })
@@ -102,7 +90,7 @@ export const setCompPhase = mutation({
       throw new Error("Phase not found for competition")
     }
 
-    await ctx.db.patch("competitions", args.id, {
+    await ctx.db.patch(args.id, {
       phaseId: args.phaseId,
     })
     return
@@ -120,8 +108,6 @@ export const setOrganisers = mutation({
   },
   handler: async (ctx, args) => {
     const organiserIds = [...new Set(args.organiserIds)]
-    await assertUsersExist(ctx, organiserIds)
-
     await patchPeople(ctx, args.id, (people) => ({
       ...people,
       organisers: organiserIds,

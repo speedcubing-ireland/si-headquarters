@@ -30,7 +30,7 @@ import {
   BadgeIcon,
 } from "lucide-react"
 import { ObjectAvatar } from "@/components/object-avatar"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { Id } from "@/convex/_generated/dataModel"
 
 function ShowOverrideAlert({
   taskId,
@@ -70,33 +70,38 @@ function ReviewerRow({
   taskId: Id<"tasks">
   reviewer: TaskReviewerDetailsForTask["reviewers"][number]
 }) {
-  const approveTaskReview = useMutation(api.tasks.reviews.mutations.approveReviewer);
-  const revokeApproval = useMutation(api.tasks.reviews.mutations.revokeReviewerApproval);
-  const removeReviewer = useMutation(api.tasks.reviews.mutations.removeReviewer);
+  const approveTaskReview = useMutation(
+    api.tasks.reviews.mutations.approveReviewer
+  )
+  const revokeApproval = useMutation(
+    api.tasks.reviews.mutations.revokeReviewerApproval
+  )
+  const removeReviewer = useMutation(api.tasks.reviews.mutations.removeReviewer)
 
   return (
     <Item key={reviewer._id} variant="outline" className="">
       <ItemMedia variant="icon">
-        {reviewer.approved
-          ? <BadgeCheckIcon className="size-5" />
-          : <BadgeIcon className="size-5" />
-        }
+        {reviewer.approved ? (
+          <BadgeCheckIcon className="size-5" />
+        ) : (
+          <BadgeIcon className="size-5" />
+        )}
       </ItemMedia>
       <ItemTitle>{reviewer.name ?? "Unknown reviewer"}</ItemTitle>
-      <ItemContent>
-        {reviewer.approved && <Badge>Approved</Badge>}
-      </ItemContent>
+      <ItemContent>{reviewer.approved && <Badge>Approved</Badge>}</ItemContent>
       <ItemActions>
-
         {!reviewer.approved && (
           <Button
             size="icon"
             variant="outline"
-            onClick={() =>
-              approveTaskReview({ taskId, reviewer: reviewer.reviewer })
-            }
-            >
-              <CircleCheckIcon />
+            onClick={() => {
+              void approveTaskReview({
+                taskId,
+                reviewer: reviewer.reviewer,
+              })
+            }}
+          >
+            <CircleCheckIcon />
           </Button>
         )}
         {reviewer.approved && (
@@ -110,7 +115,7 @@ function ReviewerRow({
             <CircleXIcon />
           </Button>
         )}
-        <Button 
+        <Button
           size="icon"
           variant="outline"
           onClick={() =>
@@ -124,11 +129,11 @@ function ReviewerRow({
   )
 }
 
-export function TaskReviewCard({ task }: { task: Doc<"tasks"> }) {
+export function TaskReviewCard({ taskId }: { taskId: Id<"tasks"> }) {
   const taskReviewDetails = useQuery(
     api.tasks.reviews.queries.getReviewerDetailsForTask,
     {
-      taskId: task._id,
+      taskId,
     }
   )
 
@@ -139,7 +144,38 @@ export function TaskReviewCard({ task }: { task: Doc<"tasks"> }) {
     api.tasks.reviews.mutations.overrideApproval
   )
 
-  if (reviewers.length === 0 && !override) return <></>
+  if (taskReviewDetails === undefined) {
+    return (
+      <PageCard
+        title="Approvals"
+        icon={<StampIcon className="size-4" />}
+        className="col-span-full"
+      >
+        <PageCardContent className="gap-2">
+          <p className="text-sm text-muted-foreground">Loading approvals...</p>
+        </PageCardContent>
+      </PageCard>
+    )
+  }
+
+  if (reviewers.length === 0 && !override) {
+    return (
+      <PageCard
+        title="Approvals"
+        icon={<StampIcon className="size-4" />}
+        className="col-span-full"
+      >
+        <PageCardContent className="gap-2">
+          <p className="text-sm text-muted-foreground">
+            No approvals required.
+          </p>
+        </PageCardContent>
+        <PageCardFooter className="flex justify-between gap-2">
+          <AddTaskReviewerButton taskId={taskId} />
+        </PageCardFooter>
+      </PageCard>
+    )
+  }
 
   return (
     <PageCard
@@ -148,18 +184,16 @@ export function TaskReviewCard({ task }: { task: Doc<"tasks"> }) {
       className="col-span-full"
     >
       <PageCardContent className="gap-2">
-        {override && (
-          <ShowOverrideAlert override={override} taskId={task._id} />
-        )}
+        {override && <ShowOverrideAlert override={override} taskId={taskId} />}
         {reviewers.map((reviewer) => (
-          <ReviewerRow key={reviewer._id} reviewer={reviewer} taskId={task._id} />
+          <ReviewerRow key={reviewer._id} reviewer={reviewer} taskId={taskId} />
         ))}
       </PageCardContent>
       <PageCardFooter className="flex justify-between gap-2">
-        <AddTaskReviewerButton taskId={task._id} />
+        <AddTaskReviewerButton taskId={taskId} />
         <Button
           variant="destructive"
-          onClick={() => createOverride({ taskId: task._id })}
+          onClick={() => createOverride({ taskId })}
         >
           Override Approval
         </Button>

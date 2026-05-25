@@ -156,6 +156,123 @@ describe("Task logic flow", () => {
       })
     })
 
+    test("flow view returns the current step and positioned step rows", async () => {
+      const t = convexTest(schema, modules)
+      const user = t.withIdentity({ subject: "test-user" })
+      const { flowId, completedStepId, currentStepId, futureStepId } =
+        await t.run(async (ctx) => {
+          const flowId = await seedPhaseTask(ctx, {
+            order: "a",
+            kind: "flow",
+            status: "to-do",
+          })
+          const completedStepId = await insertTask(ctx, {
+            parent: { type: "tasks", id: flowId },
+            order: "a",
+            status: "done",
+          })
+          const currentStepId = await insertTask(ctx, {
+            parent: { type: "tasks", id: flowId },
+            order: "b",
+            status: "in-progress",
+          })
+          const futureStepId = await insertTask(ctx, {
+            parent: { type: "tasks", id: flowId },
+            order: "c",
+            status: "to-do",
+          })
+
+          return { flowId, completedStepId, currentStepId, futureStepId }
+        })
+
+      const flowView = await user.query(api.tasks.queries.getFlowView, {
+        id: flowId,
+      })
+
+      expect(flowView.parent).toEqual({
+        taskId: flowId,
+        currentStepId,
+        currentStepIndex: 1,
+        totalSteps: 3,
+      })
+      expect(
+        flowView.steps.map(({ task, statusView }) => ({
+          id: task._id,
+          status: statusView.effectiveStatus,
+          editable: statusView.isManuallyEditable,
+        }))
+      ).toEqual([
+        { id: completedStepId, status: "done", editable: false },
+        { id: currentStepId, status: "in-progress", editable: true },
+        { id: futureStepId, status: "backlog", editable: false },
+      ])
+    })
+
+    test("split task property and flow queries keep display data separate from structure", async () => {
+      const t = convexTest(schema, modules)
+      const user = t.withIdentity({ subject: "test-user" })
+      const { flowId, stepId, labelId, ownerId, assigneeId } = await t.run(
+        async (ctx) => {
+          const flowId = await seedPhaseTask(ctx, {
+            order: "a",
+            kind: "flow",
+            status: "to-do",
+          })
+          const stepId = await insertTask(ctx, {
+            name: "Venue booked",
+            parent: { type: "tasks", id: flowId },
+            order: "a",
+            status: "in-progress",
+          })
+          const labelId = await ctx.db.insert("taskLabels", {
+            name: "Venue",
+          })
+          const ownerId = await insertUser(ctx, "Owner User")
+          const assigneeId = await insertUser(ctx, "Assignee User")
+          await Promise.all([
+            ctx.db.insert("taskLabelAssignments", {
+              taskId: stepId,
+              labelId,
+            }),
+            ctx.db.patch(stepId, {
+              owner: { type: "users", id: ownerId },
+              assigneeIds: [assigneeId],
+              dueDate: "2026-05-25",
+            }),
+          ])
+
+          return { flowId, stepId, labelId, ownerId, assigneeId }
+        }
+      )
+
+      const properties = await user.query(api.tasks.queries.getProperties, {
+        id: stepId,
+      })
+      const structure = await user.query(api.tasks.queries.getFlowStructure, {
+        id: flowId,
+      })
+      const display = await user.query(api.tasks.queries.getFlowDisplay, {
+        id: flowId,
+      })
+
+      expect(properties.labels.map((label) => label._id)).toEqual([labelId])
+      expect(properties.owner?._id).toBe(ownerId)
+      expect(properties.assignees.map((assignee) => assignee._id)).toEqual([
+        assigneeId,
+      ])
+      expect(structure.steps[0].task._id).toBe(stepId)
+      expect("labels" in structure.steps[0]).toBe(false)
+      expect("owner" in structure.steps[0]).toBe(false)
+      expect("dueDate" in structure.steps[0].task).toBe(false)
+      expect(display.steps).toEqual([
+        expect.objectContaining({
+          taskId: stepId,
+          dueDate: "2026-05-25",
+          labels: [{ _id: labelId, name: "Venue" }],
+        }),
+      ])
+    })
+
     test("backlog flows stay paused until the parent is set to auto", async () => {
       const t = convexTest(schema, modules)
       const user = t.withIdentity({ subject: "test-user" })

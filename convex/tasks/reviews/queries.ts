@@ -11,7 +11,7 @@ import {
   taskReviewerDetailsForTask,
   type TaskReviewerDetails,
 } from "@/convex/tasks/reviews/validators"
-import { toPublicUser } from "@/convex/users/validators"
+import { toPublicUser } from "@/convex/users/queries"
 import { getAuthUserId } from "@convex-dev/auth/server"
 import { v } from "convex/values"
 

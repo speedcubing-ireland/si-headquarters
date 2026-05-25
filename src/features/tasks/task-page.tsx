@@ -32,10 +32,9 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import FlowDataView from "@/components/data-views/flow-data-view"
-import { useState } from "react"
-import TaskDataView from "@/components/data-views/task-data-view"
 import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
+import { FlowView } from "../subtasks/flow-view"
+import { SubtaskView } from "../subtasks/subtask-view"
 
 const blockedByTasks = [
   {
@@ -221,36 +220,44 @@ function IntegrationCard() {
   )
 }
 
-export function Task() {
-  const taskDetails = useQuery(api.tasks.queries.getFirst)
-  const [flow, setFlow] = useState(true)
-  const toggleFlow = () => setFlow((f) => !f)
-  const TaskList = flow ? FlowDataView : TaskDataView
-
-  if (taskDetails === undefined) {
-    return (
-      <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-        <Card className="col-span-full">
+function TaskPageLoading() {
+  return (
+    <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
+      {["Task", "Properties", "Dependencies", "Approvals"].map((title) => (
+        <Card key={title}>
           <CardHeader>
-            <CardTitle className="text-2xl">Loading task...</CardTitle>
+            <CardTitle>{title}</CardTitle>
           </CardHeader>
+          <CardContent className="min-h-32 text-sm text-muted-foreground">
+            Loading...
+          </CardContent>
         </Card>
-      </div>
-    )
+      ))}
+    </div>
+  )
+}
+
+export function Task() {
+  const root = useQuery(api.tasks.queries.getPageRoot)
+
+  if (root === undefined) {
+    return <TaskPageLoading />
   }
+
+  const taskId = root.taskId
 
   return (
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-      <TaskDetailsCard task={taskDetails.task} />
+      <TaskDetailsCard taskId={taskId} />
       <IntegrationCard />
-      <TaskPropertiesCard
-        labels={taskDetails.labels}
-        statusView={taskDetails.statusView}
-        task={taskDetails.task}
-      />
+      <TaskPropertiesCard taskId={taskId} />
       <DependenciesCard />
-      <TaskReviewCard task={taskDetails.task} />
-      <TaskList toggleFlow={toggleFlow} />
+      <TaskReviewCard taskId={taskId} />
+      {root.kind === "flow" ? (
+        <FlowView taskId={taskId} />
+      ) : (
+        <SubtaskView taskId={taskId} />
+      )}
       <div className="h-96" />
     </div>
   )

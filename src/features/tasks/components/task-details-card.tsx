@@ -1,7 +1,6 @@
 // To-do unfinished
 
 import { TaskDateButton } from "@/components/data-selectors/task-date-button"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,50 +11,103 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
-import type { Doc } from "@/convex/_generated/dataModel"
-import { cn } from "@/lib/utils"
+import { SubtaskBadge } from "@/features/subtasks/subtask-badge"
+import type { FunctionReturnType } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
 import {
   AlarmClockPlusIcon,
   BellIcon,
   CornerDownRightIcon,
   HandIcon,
-  LoaderCircleIcon,
 } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { EditTaskDetailsDialog } from "./edit-task-details-dialog"
+import { Badge } from "@/components/ui/badge"
+import type { Id } from "@/convex/_generated/dataModel"
 
-export function TaskDetailsCard({ task }: { task: Doc<"tasks"> }) {
+type TaskDetails = FunctionReturnType<typeof api.tasks.queries.getDetails>
+
+function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
+  if (!parent) return null
+
+  if (parent.type === "phases") {
+    return (
+      <>
+        <CornerDownRightIcon className="size-4" />
+        <Button variant="outline" size="sm">
+          <span className="truncate">{parent.competition.name}</span>
+          <Badge variant="outline" className="ml-2">
+            {parent.name}
+          </Badge>
+        </Button>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <CornerDownRightIcon className="size-4" />
+      <Button variant="outline" size="sm">
+        {parent.name}
+        <SubtaskBadge
+          className="flex"
+          kind={parent.kind}
+          progress={parent.progress}
+        />
+      </Button>
+    </>
+  )
+}
+
+export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
+  const taskDetails = useQuery(api.tasks.queries.getDetails, { id: taskId })
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
   const claimTask = useMutation(api.tasks.mutations.claimTask)
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
     object: {
       type: "tasks",
-      id: task._id,
+      id: taskId,
     },
   })
   const setSubscription = useMutation(api.subscriptions.index.setSubscription)
   const watchingText = isWatching ? "Subscribed" : "Watch"
   const watchingVariant = isWatching ? "ghost" : "outline"
 
-  const dueDate = task.dueDate
+  if (taskDetails === undefined) {
+    return (
+      <Card className="col-span-full min-h-72">
+        <CardHeader>
+          <CardTitle className="text-2xl">Loading task...</CardTitle>
+        </CardHeader>
+        <CardContent divided className="border-t">
+          <p className="text-sm text-muted-foreground">Loading details...</p>
+        </CardContent>
+        <CardFooter className="flex gap-2">
+          <Button size="lg" disabled>
+            <HandIcon />
+            Claim
+          </Button>
+          <Button size="lg" variant="outline" disabled>
+            <BellIcon />
+            Watch
+          </Button>
+        </CardFooter>
+      </Card>
+    )
+  }
+
+  const task = taskDetails.task
+  const parent = taskDetails.parent
 
   return (
     <Card className="col-span-full">
       <CardHeader>
         <CardTitle className="text-2xl">{task.name}</CardTitle>
-        <div className="flex items-center gap-1 pt-1">
-          <CornerDownRightIcon className="size-4" />
-          <Button variant="outline" size="sm">
-            Fix Me This Should Be Parent
-            <Badge variant="outline" className={cn("shrink-0 text-sm")}>
-              <LoaderCircleIcon data-icon="inline-start" />
-              1/3
-            </Badge>
-          </Button>
+        <div className="flex flex-wrap items-center gap-1 pt-1">
+          <ParentLink parent={parent} />
           <TaskDateButton
             size="sm"
-            value={dueDate}
+            value={task.dueDate}
             onChange={async (dueDate) => {
               await setDueDate({ id: task._id, dueDate })
             }}
@@ -69,7 +121,7 @@ export function TaskDetailsCard({ task }: { task: Doc<"tasks"> }) {
         <Streamdown>{task.description ?? "Enter a description..."}</Streamdown>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button size="lg" onClick={() => claimTask({ id: task._id })}>
+        <Button size="lg" onClick={() => claimTask({ id: taskId })}>
           <HandIcon />
           Claim
         </Button>
@@ -80,7 +132,7 @@ export function TaskDetailsCard({ task }: { task: Doc<"tasks"> }) {
             setSubscription({
               object: {
                 type: "tasks",
-                id: task._id,
+                id: taskId,
               },
               subscribe: !isWatching,
             })

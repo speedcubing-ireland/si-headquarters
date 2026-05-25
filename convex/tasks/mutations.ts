@@ -25,10 +25,7 @@ export const setTaskDetails = mutation({
     const descTrim = args.description?.trim()
     const description = descTrim && descTrim.length > 0 ? descTrim : null
 
-    await ctx.db.patch(args.id, {
-      name,
-      description,
-    })
+    await ctx.db.patch(args.id, { name, description })
   },
 })
 
@@ -86,9 +83,7 @@ export const setTaskDueDate = mutation({
     dueDate: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, {
-      dueDate: args.dueDate,
-    })
+    await ctx.db.patch(args.id, { dueDate: args.dueDate })
   },
 })
 
@@ -98,9 +93,11 @@ export const setTaskAssignees = mutation({
     assigneeIds: v.array(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const assigneeIds = new Set(args.assigneeIds)
+    const assigneeIds = Array.from(new Set(args.assigneeIds))
+    const nextAssigneeIds = assigneeIds.length > 0 ? assigneeIds : null
+
     await ctx.db.patch(args.id, {
-      assigneeIds: assigneeIds.size > 0 ? Array.from(assigneeIds) : null,
+      assigneeIds: nextAssigneeIds,
     })
   },
 })

@@ -7,20 +7,20 @@ import { PropertiesCard } from "./components/properties-card"
 import { UpdateCard } from "./components/updates/update-card"
 
 export function CompetitionPage() {
-  const comp = useQuery(api.competitions.queries.getFakeComp)
-  const update = useQuery(
-    api.competitionUpdates.queries.getForCompetition,
-    comp ? { competitionId: comp._id } : "skip"
-  )
+  const comp = useQuery(api.competitions.queries.getPageRoot)
 
-  if (!comp) return <></>
+  if (!comp) {
+    return <></>
+  }
+
+  const competitionId = comp._id
 
   return (
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
       <DetailsCard comp={comp} />
-      <PropertiesCard comp={comp} />
-      <PeopleCard comp={comp} />
-      <UpdateCard comp={comp} update={update} />
+      <PropertiesCard competitionId={competitionId} />
+      <PeopleCard competitionId={competitionId} />
+      <UpdateCard competitionId={competitionId} />
       <InlineDataView />
       <div className="h-96" />
     </div>

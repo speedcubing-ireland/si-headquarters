@@ -1,15 +1,16 @@
 import { ObjectAvatar } from "@/components/object-avatar"
+import { Button } from "@/components/ui/button"
 import { selectorGroup } from "@/components/data-selectors/selector-groups"
 import { SingleSelectorCombobox } from "@/components/data-selectors/selector-combobox"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
 import { useQuery } from "convex/react"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 type OwnerRef = Doc<"tasks">["owner"]
 type OwnerType = NonNullable<OwnerRef>["type"]
-type Team = Doc<"teams">
+type Team = Pick<Doc<"teams">, "_id" | "name">
 
 type OwnerByType = {
   users: PublicUser
@@ -20,6 +21,15 @@ type OwnerOption = {
   label: string
   owner: OwnerByType[OwnerType]
   value: NonNullable<OwnerRef>
+}
+
+type TaskOwnerButtonProps = {
+  selectedOwner?: OwnerOption | null
+  showAvatar?: boolean
+  size?: React.ComponentProps<typeof Button>["size"]
+  value: OwnerRef
+  variant?: React.ComponentProps<typeof Button>["variant"]
+  onChange: (value: OwnerRef) => void | Promise<void> | Promise<null>
 }
 
 const getOwnerName = (owner: { name?: string }) => owner.name ?? "Unknown"
@@ -38,39 +48,31 @@ function shortenOwnerName(name: string, type: OwnerType) {
   return name
 }
 
-function OwnerDisplay({
+function OwnerValue({
   owner,
-  valueLabel,
+  showAvatar,
 }: {
-  owner: OwnerOption
-  valueLabel: string
+  owner: OwnerOption | null
+  showAvatar: boolean
 }) {
+  if (!owner) return "No Owner"
+
+  const label = shortenOwnerName(owner.label, owner.value.type)
+  if (!showAvatar) return label
+
   return (
     <>
       <ObjectAvatar obj={owner.owner} size="sm" />
-      {valueLabel}
+      {label}
     </>
   )
 }
 
-function TaskOwnerItem({ owner }: { owner: OwnerOption }) {
-  return <OwnerDisplay owner={owner} valueLabel={owner.label} />
-}
-
-function TaskOwnerValue({ owner }: { owner: OwnerOption | null }) {
-  if (!owner) return "No Owner"
-
-  return (
-    <OwnerDisplay
-      owner={owner}
-      valueLabel={shortenOwnerName(owner.label, owner.value.type)}
-    />
-  )
-}
-
-const renderOwnerItem = (owner: OwnerOption) => <TaskOwnerItem owner={owner} />
-const renderOwnerValue = (owner: OwnerOption | null) => (
-  <TaskOwnerValue owner={owner} />
+const renderOwnerItem = (owner: OwnerOption) => (
+  <>
+    <ObjectAvatar obj={owner.owner} size="sm" />
+    {owner.label}
+  </>
 )
 
 function createOwnerOption<TType extends OwnerType>(
@@ -85,14 +87,16 @@ function createOwnerOption<TType extends OwnerType>(
 }
 
 export function TaskOwnerButton({
+  selectedOwner,
+  showAvatar = true,
+  size,
   value,
+  variant,
   onChange,
-}: {
-  value: OwnerRef
-  onChange: (value: OwnerRef) => void | Promise<void> | Promise<null>
-}) {
-  const users = useQuery(api.users.queries.list)
-  const teams = useQuery(api.teams.queries.list)
+}: TaskOwnerButtonProps) {
+  const [open, setOpen] = useState(false)
+  const users = useQuery(api.users.queries.list, open ? {} : "skip")
+  const teams = useQuery(api.teams.queries.list, open ? {} : "skip")
   const ownerGroups = useMemo(
     () => [
       selectorGroup({
@@ -121,9 +125,16 @@ export function TaskOwnerButton({
       getValueKey={getOwnerValueKey}
       objectNoun="owners"
       groups={ownerGroups}
-      renderValue={renderOwnerValue}
+      open={open}
+      renderValue={(owner) => (
+        <OwnerValue owner={owner} showAvatar={showAvatar} />
+      )}
       searchable
+      selectedItem={selectedOwner}
+      size={size}
       value={value}
+      variant={variant}
+      onOpenChange={setOpen}
       onValueChange={(ownerRef) => void onChange(ownerRef)}
     />
   )
