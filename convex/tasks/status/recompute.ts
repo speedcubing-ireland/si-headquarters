@@ -23,16 +23,9 @@ import {
   type TaskStatusIntent,
 } from "@/convex/tasks/status/rules"
 
-type TaskPatchKey = keyof TaskStatusPatch
-
 type ParentFlowContext = {
   parent: Doc<"tasks">
   state: FlowStepState
-}
-
-type QueueItem = {
-  taskId: Id<"tasks">
-  path: Id<"tasks">[]
 }
 
 const MAX_RECOMPUTE_STEPS = 1000
@@ -116,8 +109,8 @@ async function planTaskStatusMutation(
 
 class TaskStatusMutationPlanner {
   private readonly patches = new Map<Id<"tasks">, TaskStatusPatch>()
-  private readonly queue: QueueItem[] = []
-  private readonly pending = new Map<Id<"tasks">, QueueItem>()
+  private readonly queue: Id<"tasks">[] = []
+  private readonly pending = new Set<Id<"tasks">>()
   private readonly passes = new Map<Id<"tasks">, number>()
   private readonly ctx: MutationCtx
   private readonly loader: TaskStatusLoader
@@ -139,14 +132,13 @@ class TaskStatusMutationPlanner {
     const task = await this.getRequiredTask(taskId)
     await this.assertEditableFromParentFlow(task, requestedStatus)
 
-    if (requestedStatus === "auto") {
-      await this.setFlowParentToAuto(task)
+    if (task.kind === "flow") {
+      await this.setFlowStatus(task, requestedStatus)
       return
     }
 
-    if (task.kind === "flow") {
-      await this.setFlowParentStatus(task, requestedStatus)
-      return
+    if (requestedStatus === "auto") {
+      throw new Error("Only flow tasks can be set to auto")
     }
 
     await this.setStandardTaskStatus(task, requestedStatus)
@@ -221,29 +213,15 @@ class TaskStatusMutationPlanner {
 
     for (const [taskId, patch] of this.patches) {
       if (Object.keys(patch).length === 0) continue
-      await this.ctx.db.patch(taskId, patch)
+      await this.ctx.db.patch("tasks", taskId, patch)
     }
   }
 
-  enqueue(taskId: Id<"tasks">, path: Id<"tasks">[] = []) {
-    if (path.includes(taskId)) {
-      throw new Error("Task status recompute parent cycle detected")
-    }
+  enqueue(taskId: Id<"tasks">) {
+    if (this.pending.has(taskId)) return
 
-    const pendingItem = this.pending.get(taskId)
-    if (pendingItem) {
-      if (path.length + 1 > pendingItem.path.length) {
-        pendingItem.path = [...path, taskId]
-      }
-      return
-    }
-
-    const item: QueueItem = {
-      taskId,
-      path: [...path, taskId],
-    }
-    this.pending.set(taskId, item)
-    this.queue.push(item)
+    this.pending.add(taskId)
+    this.queue.push(taskId)
   }
 
   patchTask(task: Doc<"tasks">, patch: TaskStatusPatch) {
@@ -252,25 +230,45 @@ class TaskStatusMutationPlanner {
     const nextPatch = { ...existingPatch }
     let changed = false
 
-    for (const key of Object.keys(patch) as TaskPatchKey[]) {
-      const nextValue = patch[key]
-      if (
-        nextValue === undefined ||
-        taskPatchValueEquals(currentTask[key], nextValue)
-      ) {
-        continue
-      }
-      if (taskPatchValueEquals(task[key], nextValue)) {
-        delete nextPatch[key]
-      } else {
-        ;(nextPatch as Record<string, unknown>)[key] = nextValue
-      }
-      changed = true
-    }
+    // TaskStatusLoader can return docs with pending patches applied, so only
+    // diff fields explicitly requested by this patch.
+    changed =
+      applyPatchValue({
+        currentValue: currentTask.kind,
+        originalValue: task.kind,
+        nextValue: patch.kind,
+        clearValue: () => delete nextPatch.kind,
+        setValue: (value) => (nextPatch.kind = value),
+      }) || changed
+    changed =
+      applyPatchValue({
+        currentValue: currentTask.order,
+        originalValue: task.order,
+        nextValue: patch.order,
+        clearValue: () => delete nextPatch.order,
+        setValue: (value) => (nextPatch.order = value),
+      }) || changed
+    changed =
+      applyPatchValue({
+        currentValue: currentTask.status,
+        originalValue: task.status,
+        nextValue: patch.status,
+        clearValue: () => delete nextPatch.status,
+        setValue: (value) => (nextPatch.status = value),
+      }) || changed
+    changed =
+      applyPatchValue({
+        currentValue: currentTask.statusIntent,
+        originalValue: task.statusIntent,
+        nextValue: patch.statusIntent,
+        clearValue: () => delete nextPatch.statusIntent,
+        setValue: (value) => (nextPatch.statusIntent = value),
+        equals: statusIntentEquals,
+      }) || changed
 
     if (!changed) return false
 
-    if (Object.keys(nextPatch).length === 0) {
+    if (isEmptyPatch(nextPatch)) {
       this.patches.delete(task._id)
     } else {
       this.patches.set(task._id, nextPatch)
@@ -321,23 +319,23 @@ class TaskStatusMutationPlanner {
         )
       }
 
-      const item = this.queue.shift()
-      if (!item) continue
-      this.pending.delete(item.taskId)
-      await this.assertNoParentCycle(item.taskId)
+      const taskId = this.queue.shift()
+      if (!taskId) continue
+      this.pending.delete(taskId)
+      await this.assertNoParentCycle(taskId)
 
-      const passCount = (this.passes.get(item.taskId) ?? 0) + 1
+      const passCount = (this.passes.get(taskId) ?? 0) + 1
       if (passCount > MAX_RECOMPUTE_PASSES_PER_TASK) {
         throw new Error("Task status recompute cycle detected")
       }
-      this.passes.set(item.taskId, passCount)
+      this.passes.set(taskId, passCount)
 
-      await this.normalizeTask(item.taskId)
+      await this.normalizeTask(taskId)
 
-      const latestTask = await this.loader.getTask(item.taskId)
+      const latestTask = await this.loader.getTask(taskId)
       const parentTaskId = latestTask ? getParentTaskId(latestTask) : null
       if (parentTaskId) {
-        this.enqueue(parentTaskId, item.path)
+        this.enqueue(parentTaskId)
       }
     }
   }
@@ -387,17 +385,22 @@ class TaskStatusMutationPlanner {
     }
   }
 
-  private async setFlowParentToAuto(task: Doc<"tasks">) {
-    if (task.kind !== "flow") {
-      throw new Error("Only flow tasks can be set to auto")
+  private async setFlowStatus(
+    task: Doc<"tasks">,
+    requestedStatus: TaskStatusCommand
+  ) {
+    if (requestedStatus === "auto") {
+      await this.setFlowStatusToAuto(task)
+      return
     }
 
+    await this.setFlowStatusManually(task, requestedStatus)
+  }
+
+  private async setFlowStatusToAuto(task: Doc<"tasks">) {
     const subtasks = await this.loader.getDirectSubtasks(task._id)
     if (subtasks.length === 0) {
-      this.patchTask(task, {
-        kind: "standard",
-        statusIntent: manualIntent(task.status),
-      })
+      this.convertEmptyFlowToStandard(task)
       return
     }
 
@@ -408,29 +411,27 @@ class TaskStatusMutationPlanner {
     )
   }
 
-  private async setFlowParentStatus(
+  private async setFlowStatusManually(
     task: Doc<"tasks">,
     requestedStatus: TaskStatus
   ) {
     const subtasks = await this.loader.getDirectSubtasks(task._id)
     if (subtasks.length === 0) {
-      const standardTask = { ...task, kind: "standard" } as Doc<"tasks">
-      this.patchTask(task, {
-        kind: "standard",
-        statusIntent: manualIntent(task.status),
-      })
+      const standardTask = this.convertEmptyFlowToStandard(task)
       await this.setStandardTaskStatus(standardTask, requestedStatus)
       return
     }
 
-    const currentStepIndex = getCurrentFlowStepIndexFromTasks(subtasks)
     if (requestedStatus === "cancelled") {
       this.patchStatus(task, manualIntent("cancelled"), "cancelled")
       return
     }
+
+    const currentStepIndex = getCurrentFlowStepIndexFromTasks(subtasks)
     if (currentStepIndex === null) {
       throw new Error("Completed flows can only be auto-set or cancelled")
     }
+
     if (requestedStatus === "backlog") {
       this.patchStatus(task, manualIntent("backlog"), "backlog")
       return
@@ -462,17 +463,13 @@ class TaskStatusMutationPlanner {
 
     const intent = task.statusIntent
     if (intent.type === "manual" && intent.status === "cancelled") {
-      this.patchTask(task, { status: "cancelled" })
+      this.patchCancelledFlow(task)
       return
     }
 
     const currentStepIndex = getCurrentFlowStepIndexFromTasks(subtasks)
     if (currentStepIndex === null) {
-      this.patchStatus(
-        task,
-        autoStatusIntent(),
-        await this.resolveAutoFlowStatus(task, subtasks)
-      )
+      await this.completeFlow(task, subtasks)
       return
     }
 
@@ -486,14 +483,34 @@ class TaskStatusMutationPlanner {
 
   private async normalizeEmptyFlow(task: Doc<"tasks">) {
     const statusIntent = standardIntentFor(task)
-    const standardTask = {
+    const standardTask = this.convertEmptyFlowToStandard(task, statusIntent)
+    await this.normalizeStandardTask(standardTask)
+  }
+
+  private convertEmptyFlowToStandard(
+    task: Doc<"tasks">,
+    statusIntent: TaskStatusIntent = manualIntent(task.status)
+  ): Doc<"tasks"> {
+    const standardTask: Doc<"tasks"> = {
       ...task,
       kind: "standard",
       statusIntent,
-    } as Doc<"tasks">
+    }
 
     this.patchTask(task, { kind: "standard", statusIntent })
-    await this.normalizeStandardTask(standardTask)
+    return standardTask
+  }
+
+  private patchCancelledFlow(task: Doc<"tasks">) {
+    this.patchTask(task, { status: "cancelled" })
+  }
+
+  private async completeFlow(task: Doc<"tasks">, subtasks: Doc<"tasks">[]) {
+    this.patchStatus(
+      task,
+      autoStatusIntent(),
+      await this.resolveAutoFlowStatus(task, subtasks)
+    )
   }
 
   private async pauseFlow(
@@ -542,7 +559,7 @@ class TaskStatusMutationPlanner {
       {
         ...task,
         statusIntent: autoStatusIntent(),
-      } as Doc<"tasks">,
+      },
       review,
       progress,
       subtasks
@@ -585,10 +602,9 @@ class TaskStatusMutationPlanner {
   }
 
   private async resumePausedFlowAncestors(task: Doc<"tasks">) {
-    let currentTask: Doc<"tasks"> | null = task
     const visited = new Set<Id<"tasks">>()
 
-    while (currentTask) {
+    for (let currentTask: Doc<"tasks"> = task; ; ) {
       if (visited.has(currentTask._id)) {
         throw new Error("Task status recompute parent cycle detected")
       }
@@ -644,25 +660,6 @@ function standardIntentFor(task: Doc<"tasks">): TaskStatusIntent {
     : task.statusIntent
 }
 
-function taskPatchValueEquals(
-  currentValue: Doc<"tasks">[TaskPatchKey],
-  nextValue: TaskStatusPatch[TaskPatchKey]
-): boolean {
-  if (isStatusIntentValue(currentValue) && isStatusIntentValue(nextValue)) {
-    return statusIntentEquals(currentValue, nextValue)
-  }
-  return currentValue === nextValue
-}
-
-function isStatusIntentValue(value: unknown): value is TaskStatusIntent {
-  if (typeof value !== "object" || value === null) return false
-  const candidate = value as { type?: unknown; status?: unknown }
-  return (
-    candidate.type === "auto" ||
-    (candidate.type === "manual" && typeof candidate.status === "string")
-  )
-}
-
 function getFlowSiblingState(
   task: Doc<"tasks">,
   siblingIndex: number,
@@ -673,4 +670,33 @@ function getFlowSiblingState(
   }
   if (siblingIndex > currentStepIndex) return "future"
   return isTerminalComplete(task.status) ? "complete" : "current"
+}
+
+function isEmptyPatch(patch: TaskStatusPatch) {
+  return Object.keys(patch).length === 0
+}
+
+function applyPatchValue<T>({
+  currentValue,
+  originalValue,
+  nextValue,
+  clearValue,
+  setValue,
+  equals = Object.is,
+}: {
+  currentValue: T
+  originalValue: T
+  nextValue: T | undefined
+  clearValue: () => void
+  setValue: (value: T) => void
+  equals?: (left: T, right: T) => boolean
+}) {
+  if (nextValue === undefined || equals(currentValue, nextValue)) return false
+
+  if (equals(originalValue, nextValue)) {
+    clearValue()
+  } else {
+    setValue(nextValue)
+  }
+  return true
 }

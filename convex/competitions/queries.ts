@@ -5,7 +5,7 @@ import { getPublicUser, getPublicUsers } from "@/convex/users/queries"
 import { v } from "convex/values"
 
 async function getCompetition(ctx: QueryCtx, id: Id<"competitions">) {
-  const competition = await ctx.db.get(id)
+  const competition = await ctx.db.get("competitions", id)
   if (!competition) throw new Error("Competition not found")
 
   return competition
@@ -16,7 +16,7 @@ async function getCompetitionUpdate(
   competition: Doc<"competitions">
 ) {
   const update = competition.updateId
-    ? await ctx.db.get(competition.updateId)
+    ? await ctx.db.get("competitionUpdates", competition.updateId)
     : null
 
   if (!update || update.competitionId !== competition._id) {
@@ -45,7 +45,7 @@ export const getProperties = query({
   handler: async (ctx, args) => {
     const competition = await getCompetition(ctx, args.id)
     const phase = competition.phaseId
-      ? await ctx.db.get(competition.phaseId)
+      ? await ctx.db.get("phases", competition.phaseId)
       : null
 
     return {

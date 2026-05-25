@@ -17,7 +17,9 @@ export function SubtaskView({ taskId }: { taskId: Id<"tasks"> }) {
         <Button
           variant="outline"
           size="lg"
-          onClick={() => setTaskKind({ id: taskId, kind: "flow" })}
+          onClick={() => {
+            void setTaskKind({ id: taskId, kind: "flow" })
+          }}
         >
           <CassetteTapeIcon />
           Create Flow

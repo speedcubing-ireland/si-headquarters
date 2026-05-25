@@ -12,19 +12,45 @@ export default defineConfig([
     files: ["**/*.{ts,tsx}"],
     extends: [
       js.configs.recommended,
-      tseslint.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       "react-refresh/only-export-components": [
         "error",
         { extraHOCs: ["createFileRoute", "createRootRoute"] },
       ],
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "never" },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-restricted-types": [
+        "error",
+        {
+          types: {
+            unknown: {
+              message:
+                "Use a specific type or validate/narrow at the boundary before passing data through.",
+            },
+          },
+        },
+      ],
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
     },
   },
   {
@@ -38,6 +64,28 @@ export default defineConfig([
       "@convex-dev/require-args-validator": "error",
       "@convex-dev/explicit-table-ids": "error",
       "@convex-dev/no-filter-in-query": "warn",
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "never" },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-restricted-types": [
+        "error",
+        {
+          types: {
+            unknown: {
+              message:
+                "Use a specific type or validate/narrow at the boundary before passing data through.",
+            },
+          },
+        },
+      ],
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
     },
   },
   {

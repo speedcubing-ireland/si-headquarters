@@ -14,6 +14,10 @@ import type {
 } from "@/convex/tasks/status/resolver"
 import { cn } from "@/lib/utils"
 
+function isTaskStatusCommand(value: string): value is TaskStatusCommand {
+  return Object.hasOwn(TASK_STATUS_META, value)
+}
+
 type TaskStatusView = Pick<
   BackendTaskStatusView,
   "effectiveStatus" | "isManuallyEditable" | "statusOptions"
@@ -41,7 +45,9 @@ export function TaskStatusButton({
       disabled={isDisabled}
       value={value.toString()}
       onValueChange={(next) => {
-        void onChange(next as TaskStatusCommand)
+        if (isTaskStatusCommand(next)) {
+          void onChange(next)
+        }
       }}
     >
       <SelectTrigger

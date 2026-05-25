@@ -13,6 +13,7 @@ import { UserRoundIcon } from "lucide-react"
 import { useState } from "react"
 
 type User = PublicUser
+type UserId = Id<"users">
 
 type BaseUserButtonProps = {
   className?: string
@@ -23,20 +24,22 @@ type BaseUserButtonProps = {
 type SingleUserButtonProps = BaseUserButtonProps & {
   selectionMode?: "single"
   selectedUser?: User | null
-  value: Id<"users"> | null
-  onChange: (value: Id<"users"> | null) => void
+  value: UserId | null
+  onChange: (value: UserId | null) => void
 }
 
 type MultipleUserButtonProps = BaseUserButtonProps & {
   selectionMode: "multiple"
   selectedUsers?: User[]
-  value: Id<"users">[]
-  onChange: (value: Id<"users">[]) => void
+  value: UserId[]
+  onChange: (value: UserId[]) => void
 }
 
 type UserButtonProps = SingleUserButtonProps | MultipleUserButtonProps
 
 const getUserName = (user: User) => user.name ?? "Unknown user"
+const getUserId = (user: User) => user._id
+const getUserValueKey = (id: UserId) => id
 
 function UserAvatar({ user }: { user: User }) {
   return <ObjectAvatar obj={user} size="sm" />
@@ -89,8 +92,8 @@ export function UserButton(props: UserButtonProps) {
   const users = useQuery(api.users.queries.list, open ? {} : "skip")
   const comboboxProps = {
     getLabel: getUserName,
-    getValue: (user: User) => user._id,
-    getValueKey: (id: Id<"users">) => id,
+    getValue: getUserId,
+    getValueKey: getUserValueKey,
     objectNoun: "users",
     renderItem: (user: User) => <UserItem user={user} />,
     searchable: true,

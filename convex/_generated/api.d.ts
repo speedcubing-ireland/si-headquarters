@@ -41,6 +41,7 @@ import type * as teams_queries from "../teams/queries.js";
 import type * as teams_validators from "../teams/validators.js";
 import type * as users_queries from "../users/queries.js";
 import type * as users_validators from "../users/validators.js";
+import type * as utils from "../utils.js";
 
 import type {
   ApiFromModules,
@@ -82,6 +83,7 @@ declare const fullApi: ApiFromModules<{
   "teams/validators": typeof teams_validators;
   "users/queries": typeof users_queries;
   "users/validators": typeof users_validators;
+  utils: typeof utils;
 }>;
 
 /**

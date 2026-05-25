@@ -54,7 +54,9 @@ function ShowOverrideAlert({
         <Button
           size="xs"
           variant="destructive"
-          onClick={() => removeOverride({ taskId })}
+          onClick={() => {
+            void removeOverride({ taskId })
+          }}
         >
           <TrashIcon /> Remove
         </Button>
@@ -108,9 +110,9 @@ function ReviewerRow({
           <Button
             size="icon"
             variant="outline"
-            onClick={() =>
-              revokeApproval({ taskId, reviewer: reviewer.reviewer })
-            }
+            onClick={() => {
+              void revokeApproval({ taskId, reviewer: reviewer.reviewer })
+            }}
           >
             <CircleXIcon />
           </Button>
@@ -118,9 +120,9 @@ function ReviewerRow({
         <Button
           size="icon"
           variant="outline"
-          onClick={() =>
-            removeReviewer({ taskId, reviewer: reviewer.reviewer })
-          }
+          onClick={() => {
+            void removeReviewer({ taskId, reviewer: reviewer.reviewer })
+          }}
         >
           <TrashIcon />
         </Button>
@@ -193,7 +195,9 @@ export function TaskReviewCard({ taskId }: { taskId: Id<"tasks"> }) {
         <AddTaskReviewerButton taskId={taskId} />
         <Button
           variant="destructive"
-          onClick={() => createOverride({ taskId })}
+          onClick={() => {
+            void createOverride({ taskId })
+          }}
         >
           Override Approval
         </Button>

@@ -1,12 +1,9 @@
 import { v } from "convex/values"
+import { objectRef } from "@/convex/utils"
 
 export const subscribableObjectRef = v.union(
-  ...(["competitions", "tasks", "users"] as const).map((tableName) =>
-    v.object({
-      type: v.literal(tableName),
-      id: v.id(tableName),
-    })
-  )
+  objectRef("competitions"),
+  objectRef("tasks")
 )
 
 export const subscriptionsFields = {

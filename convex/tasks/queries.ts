@@ -146,10 +146,10 @@ async function getTaskParentDetails(
   const parentTaskId = getParentTaskId(task)
   if (!parentTaskId) {
     if (task.parent.type === "phases") {
-      const phase = await ctx.db.get(task.parent.id as Id<"phases">)
+      const phase = await ctx.db.get("phases", task.parent.id)
       if (!phase) return null
 
-      const competition = await ctx.db.get(phase.owner.id as Id<"competitions">)
+      const competition = await ctx.db.get("competitions", phase.owner.id)
       return competition
         ? {
             type: "phases",
@@ -198,7 +198,7 @@ export const getDetails = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id)
+    const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
     const statusLoader = new TaskStatusLoader(ctx)
 
@@ -214,7 +214,7 @@ export const getProperties = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id)
+    const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
     const displayReader = createTaskDisplayReader(ctx)
     const statusLoader = new TaskStatusLoader(ctx)
@@ -241,7 +241,7 @@ export const getStatusView = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id)
+    const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
 
     const statusLoader = new TaskStatusLoader(ctx)
@@ -255,7 +255,7 @@ export const getFlowView = query({
   },
   returns: taskFlowView,
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id)
+    const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
@@ -271,7 +271,7 @@ export const getFlowStructure = query({
   },
   returns: taskFlowStructure,
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id)
+    const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
@@ -286,7 +286,7 @@ export const getFlowDisplay = query({
   },
   returns: taskFlowDisplay,
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id)
+    const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
@@ -311,7 +311,7 @@ export const listSubtasks = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id)
+    const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
 
     const statusLoader = new TaskStatusLoader(ctx)

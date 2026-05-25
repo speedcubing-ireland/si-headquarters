@@ -29,35 +29,6 @@ function firstAssigneeId(assigneeIds: Doc<"tasks">["assigneeIds"]) {
   return Array.isArray(assigneeIds) ? (assigneeIds[0] ?? null) : null
 }
 
-type HydratedTaskOwner =
-  | {
-      type: "users"
-      _id: Id<"users">
-      name?: string
-      image?: string
-    }
-  | {
-      type: "teams"
-      _id: Id<"teams">
-      name: string
-    }
-  | null
-
-function getTaskOwnerOption(
-  owner: HydratedTaskOwner
-): React.ComponentProps<typeof TaskOwnerButton>["selectedOwner"] {
-  if (!owner) return null
-
-  return {
-    label: owner.name ?? "Unknown",
-    owner,
-    value: {
-      type: owner.type,
-      id: owner._id,
-    },
-  }
-}
-
 function LoadingValue() {
   return <Skeleton className="h-8 w-24" />
 }
@@ -118,40 +89,46 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
         >
           <TaskStatusButton
             statusView={statusView}
-            onChange={(status) => setStatus({ id: taskId, status })}
+            onChange={(status) => {
+              void setStatus({ id: taskId, status })
+            }}
           />
         </PageCardRow>
         <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
           <UserButton
             selectedUser={assignees[0] ?? null}
             value={firstAssigneeId(task.assigneeIds)}
-            onChange={(assigneeId) =>
-              setAssignees({
+            onChange={(assigneeId) => {
+              void setAssignees({
                 id: taskId,
                 assigneeIds: assigneeId ? [assigneeId] : [],
               })
-            }
+            }}
           />
         </PageCardRow>
         <PageCardRow icon={<CastleIcon className="size-4" />} label="Owner">
           <TaskOwnerButton
-            selectedOwner={getTaskOwnerOption(owner)}
+            selectedOwner={owner}
             value={task.owner}
-            onChange={(owner) => setOwner({ id: taskId, owner })}
+            onChange={(owner) => {
+              void setOwner({ id: taskId, owner })
+            }}
           />
         </PageCardRow>
         <PageCardRow icon={<TagIcon className="size-4" />} label="Labels">
           <TaskLabelButton
             selectedLabels={labels}
             value={labels.map((label) => label._id)}
-            onChange={(labelIds) => setLabels({ id: taskId, labelIds })}
+            onChange={(labelIds) => {
+              void setLabels({ id: taskId, labelIds })
+            }}
           />
         </PageCardRow>
         <PageCardRow icon={<TargetIcon className="size-4" />} label="Due Date">
           <TaskDateButton
             value={task.dueDate}
             onChange={(dueDate) => {
-              setDueDate({ id: taskId, dueDate })
+              void setDueDate({ id: taskId, dueDate })
             }}
           />
         </PageCardRow>

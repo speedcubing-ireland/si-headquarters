@@ -20,9 +20,19 @@ declare module "@tanstack/react-router" {
   }
 }
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string)
+const convexUrl = import.meta.env.VITE_CONVEX_URL
+if (!convexUrl) {
+  throw new Error("VITE_CONVEX_URL is required")
+}
 
-createRoot(document.getElementById("root")!).render(
+const convex = new ConvexReactClient(convexUrl)
+
+const root = document.getElementById("root")
+if (!root) {
+  throw new Error("Root element not found")
+}
+
+createRoot(root).render(
   <StrictMode>
     <ConvexAuthProvider client={convex}>
       <ThemeProvider>

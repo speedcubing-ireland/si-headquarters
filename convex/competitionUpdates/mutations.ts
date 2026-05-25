@@ -46,9 +46,9 @@ export const cleanupUpdate = internalMutation({
       .take(CLEANUP_BATCH_SIZE)
 
     await Promise.all([
-      ...reactions.map((reaction) => ctx.db.delete(reaction._id)),
+      ...reactions.map((reaction) => ctx.db.delete("competitionUpdateReactions", reaction._id)),
       ...reactionCounts.map((reactionCount) =>
-        ctx.db.delete(reactionCount._id)
+        ctx.db.delete("competitionUpdateReactionCounts", reactionCount._id)
       ),
     ])
 
@@ -64,7 +64,7 @@ export const cleanupUpdate = internalMutation({
       return null
     }
 
-    await ctx.db.delete(args.updateId)
+    await ctx.db.delete("competitionUpdates", args.updateId)
     return null
   },
 })
@@ -77,7 +77,7 @@ export const setForCompetition = mutation({
   returns: v.id("competitionUpdates"),
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx)
-    const competition = await ctx.db.get(args.competitionId)
+    const competition = await ctx.db.get("competitions", args.competitionId)
     if (!competition) throw new Error("Competition not found")
 
     const body = args.body.trim()
@@ -85,7 +85,7 @@ export const setForCompetition = mutation({
 
     const oldUpdateId = competition.updateId
     if (oldUpdateId) {
-      const oldUpdate = await ctx.db.get(oldUpdateId)
+      const oldUpdate = await ctx.db.get("competitionUpdates", oldUpdateId)
       if (
         oldUpdate &&
         oldUpdate.competitionId === competition._id &&
@@ -103,7 +103,7 @@ export const setForCompetition = mutation({
       editedAt: Date.now(),
     })
 
-    await ctx.db.patch(competition._id, { updateId })
+    await ctx.db.patch("competitions", competition._id, { updateId })
 
     if (oldUpdateId) {
       await ctx.scheduler.runAfter(
@@ -124,7 +124,7 @@ export const deleteForCompetition = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx)
-    const competition = await ctx.db.get(args.competitionId)
+    const competition = await ctx.db.get("competitions", args.competitionId)
     if (!competition) throw new Error("Competition not found")
 
     const canDelete =
@@ -139,7 +139,7 @@ export const deleteForCompetition = mutation({
 
     if (!competition.updateId) return null
 
-    await ctx.db.patch(competition._id, { updateId: null })
+    await ctx.db.patch("competitions", competition._id, { updateId: null })
     await ctx.scheduler.runAfter(
       0,
       internal.competitionUpdates.mutations.cleanupUpdate,
@@ -158,10 +158,10 @@ export const toggleReaction = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getUserId(ctx)
-    const update = await ctx.db.get(args.updateId)
+    const update = await ctx.db.get("competitionUpdates", args.updateId)
     if (!update) throw new Error("Competition update not found")
 
-    const competition = await ctx.db.get(update.competitionId)
+    const competition = await ctx.db.get("competitions", update.competitionId)
     if (!competition || competition.updateId !== update._id) {
       throw new Error("Cannot react to an archived update")
     }
@@ -181,15 +181,15 @@ export const toggleReaction = mutation({
       .unique()
 
     if (existingReaction) {
-      await ctx.db.delete(existingReaction._id)
+      await ctx.db.delete("competitionUpdateReactions", existingReaction._id)
 
       if (!reactionCount) return null
 
       const nextCount = reactionCount.count - 1
       if (nextCount > 0) {
-        await ctx.db.patch(reactionCount._id, { count: nextCount })
+        await ctx.db.patch("competitionUpdateReactionCounts", reactionCount._id, { count: nextCount })
       } else {
-        await ctx.db.delete(reactionCount._id)
+        await ctx.db.delete("competitionUpdateReactionCounts", reactionCount._id)
       }
 
       return null
@@ -202,7 +202,7 @@ export const toggleReaction = mutation({
     })
 
     if (reactionCount) {
-      await ctx.db.patch(reactionCount._id, {
+      await ctx.db.patch("competitionUpdateReactionCounts", reactionCount._id, {
         count: reactionCount.count + 1,
       })
       return null

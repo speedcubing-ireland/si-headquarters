@@ -68,7 +68,7 @@ describe("competition queries", () => {
           body: "Hello world",
           editedAt: 1,
         })
-        await ctx.db.patch(competitionWithUpdateId, { updateId })
+        await ctx.db.patch("competitions", competitionWithUpdateId, { updateId })
 
         return { competitionWithUpdateId, competitionWithoutUpdateId, authorId }
       })

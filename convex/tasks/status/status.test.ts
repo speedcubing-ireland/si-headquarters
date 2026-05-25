@@ -9,6 +9,7 @@ import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 import {
   buildTaskStatusView,
+  previewFlowReopenForTask,
   TaskStatusLoader,
   type TaskStatus,
   type TaskStatusIntent,
@@ -131,7 +132,7 @@ describe("Task logic flow", () => {
         id: flowId,
       })
       const futureStep = await t.run(async (ctx) => {
-        const task = await ctx.db.get(futureStepId)
+        const task = await ctx.db.get("tasks", futureStepId)
         if (!task) throw new Error("Missing future step")
         return {
           status: task.status,
@@ -234,7 +235,7 @@ describe("Task logic flow", () => {
               taskId: stepId,
               labelId,
             }),
-            ctx.db.patch(stepId, {
+            ctx.db.patch("tasks", stepId, {
               owner: { type: "users", id: ownerId },
               assigneeIds: [assigneeId],
               dueDate: "2026-05-25",
@@ -399,9 +400,9 @@ describe("Task logic flow", () => {
 
       await user.mutation(api.tasks.mutations.activatePhaseTasks, { phaseId })
       const statuses = await t.run(async (ctx) => {
-        const standard = await ctx.db.get(standardId)
-        const standardChild = await ctx.db.get(standardChildId)
-        const flowStep = await ctx.db.get(flowStepId)
+        const standard = await ctx.db.get("tasks", standardId)
+        const standardChild = await ctx.db.get("tasks", standardChildId)
+        const flowStep = await ctx.db.get("tasks", flowStepId)
         if (!standard || !standardChild || !flowStep) {
           throw new Error("Missing task")
         }
@@ -768,7 +769,7 @@ describe("Regression coverage", () => {
         status: "auto",
       })
       const task = await t.run(async (ctx) => {
-        const task = await ctx.db.get(flowId)
+        const task = await ctx.db.get("tasks", flowId)
         if (!task) throw new Error("Missing task")
         return task
       })
@@ -1135,8 +1136,8 @@ describe("Regression coverage", () => {
         id: flowId,
       })
       const cancelledChildren = await t.run(async (ctx) => {
-        const currentStep = await ctx.db.get(currentStepId)
-        const futureStep = await ctx.db.get(futureStepId)
+        const currentStep = await ctx.db.get("tasks", currentStepId)
+        const futureStep = await ctx.db.get("tasks", futureStepId)
         if (!currentStep || !futureStep) throw new Error("Missing step")
         return [currentStep.status, futureStep.status]
       })
@@ -1191,9 +1192,9 @@ describe("Regression coverage", () => {
         status: "auto",
       })
       const statuses = await t.run(async (ctx) => {
-        const currentStep = await ctx.db.get(currentStepId)
-        const child = await ctx.db.get(childId)
-        const grandchild = await ctx.db.get(grandchildId)
+        const currentStep = await ctx.db.get("tasks", currentStepId)
+        const child = await ctx.db.get("tasks", childId)
+        const grandchild = await ctx.db.get("tasks", grandchildId)
         if (!currentStep || !child || !grandchild) {
           throw new Error("Missing task")
         }
@@ -1332,8 +1333,8 @@ describe("Regression coverage", () => {
         id: flowId,
       })
       const persisted = await t.run(async (ctx) => {
-        const secondStep = await ctx.db.get(secondStepId)
-        const cancelledFutureStep = await ctx.db.get(cancelledFutureStepId)
+        const secondStep = await ctx.db.get("tasks", secondStepId)
+        const cancelledFutureStep = await ctx.db.get("tasks", cancelledFutureStepId)
         if (!secondStep || !cancelledFutureStep) throw new Error("Missing step")
         return {
           secondStep: secondStep.status,
@@ -1578,7 +1579,7 @@ describe("Regression coverage", () => {
         id: flowId,
       })
       const staleFutureStep = await t.run(async (ctx) => {
-        const task = await ctx.db.get(staleFutureStepId)
+        const task = await ctx.db.get("tasks", staleFutureStepId)
         if (!task) throw new Error("Missing stale future step")
         return {
           status: task.status,
@@ -1876,8 +1877,8 @@ describe("Regression coverage", () => {
         id: nestedCurrentId,
       })
       const persisted = await t.run(async (ctx) => {
-        const nestedFuture = await ctx.db.get(nestedFutureId)
-        const outerFuture = await ctx.db.get(outerFutureId)
+        const nestedFuture = await ctx.db.get("tasks", nestedFutureId)
+        const outerFuture = await ctx.db.get("tasks", outerFutureId)
         if (!nestedFuture || !outerFuture)
           throw new Error("Missing future step")
         return {
@@ -2146,9 +2147,9 @@ describe("Regression coverage", () => {
 
       await user.mutation(api.tasks.mutations.activatePhaseTasks, { phaseId })
       const statuses = await t.run(async (ctx) => {
-        const task = await ctx.db.get(taskId)
-        const child = await ctx.db.get(childId)
-        const grandchild = await ctx.db.get(grandchildId)
+        const task = await ctx.db.get("tasks", taskId)
+        const child = await ctx.db.get("tasks", childId)
+        const grandchild = await ctx.db.get("tasks", grandchildId)
         if (!task || !child || !grandchild) throw new Error("Missing task")
         return {
           task: task.status,
@@ -2236,9 +2237,9 @@ describe("Regression coverage", () => {
 
       await user.mutation(api.tasks.mutations.activatePhaseTasks, { phaseId })
       const statuses = await t.run(async (ctx) => {
-        const currentStep = await ctx.db.get(currentStepId)
-        const child = await ctx.db.get(childId)
-        const futureStep = await ctx.db.get(futureStepId)
+        const currentStep = await ctx.db.get("tasks", currentStepId)
+        const child = await ctx.db.get("tasks", childId)
+        const futureStep = await ctx.db.get("tasks", futureStepId)
         if (!currentStep || !child || !futureStep) {
           throw new Error("Missing task")
         }
@@ -2591,7 +2592,7 @@ describe("Regression coverage", () => {
         id: flowId,
       })
       const secondStep = await t.run(async (ctx) => {
-        const task = await ctx.db.get(secondStepId)
+        const task = await ctx.db.get("tasks", secondStepId)
         if (!task) throw new Error("Missing second step")
         return task
       })
@@ -3327,9 +3328,9 @@ describe("Regression coverage", () => {
         status: "to-do",
       })
       const statuses = await t.run(async (ctx) => {
-        const parent = await ctx.db.get(parentId)
-        const child = await ctx.db.get(childId)
-        const grandchild = await ctx.db.get(grandchildId)
+        const parent = await ctx.db.get("tasks", parentId)
+        const child = await ctx.db.get("tasks", childId)
+        const grandchild = await ctx.db.get("tasks", grandchildId)
         if (!parent || !child || !grandchild) throw new Error("Missing task")
         return {
           parent: parent.status,
@@ -3555,7 +3556,7 @@ describe("Regression coverage", () => {
           order: "a",
           status: "to-do",
         })
-        const parent = await ctx.db.get(parentId)
+        const parent = await ctx.db.get("tasks", parentId)
         if (!parent) throw new Error("Missing parent")
 
         const loader = new TaskStatusLoader(ctx)
@@ -3582,7 +3583,7 @@ describe("Regression coverage", () => {
           order: "a",
           status: "done",
         })
-        await ctx.db.patch(firstId, {
+        await ctx.db.patch("tasks", firstId, {
           parent: { type: "tasks", id: secondId },
         })
         return secondId
@@ -3594,6 +3595,29 @@ describe("Regression coverage", () => {
           order: "b",
         })
       ).rejects.toThrow("Task status recompute parent cycle detected")
+    })
+
+    test("preview fails loudly instead of looping through a parent cycle", async () => {
+      const t = convexTest(schema, modules)
+
+      await expect(
+        t.run(async (ctx) => {
+          const firstId = await seedPhaseTask(ctx, {
+            order: "a",
+            status: "to-do",
+          })
+          const secondId = await insertTask(ctx, {
+            parent: { type: "tasks", id: firstId },
+            order: "a",
+            status: "done",
+          })
+          await ctx.db.patch("tasks", firstId, {
+            parent: { type: "tasks", id: secondId },
+          })
+
+          return await previewFlowReopenForTask(ctx, secondId)
+        })
+      ).rejects.toThrow("Task status preview parent cycle detected")
     })
   })
 })

@@ -98,24 +98,24 @@ export function UpdateCard({
             key={reaction.emoji}
             size="sm"
             variant={reaction.selected ? "default" : "outline"}
-            onClick={() =>
-              toggleReaction({
+            onClick={() => {
+              void toggleReaction({
                 updateId: update._id,
                 emoji: reaction.emoji,
               })
-            }
+            }}
           >
             <span className="text-center text-lg">{reaction.emoji}</span>
             <span>{reaction.count}</span>
           </Button>
         ))}
         <EmojiPickerPopover
-          onEmojiSelect={(emoji) =>
-            toggleReaction({
+          onEmojiSelect={(emoji) => {
+            void toggleReaction({
               updateId: update._id,
               emoji: emoji.emoji,
             })
-          }
+          }}
         />
       </CardFooter>
     </Card>

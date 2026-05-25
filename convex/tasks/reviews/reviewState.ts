@@ -32,7 +32,7 @@ export async function getTaskOrThrow(
   ctx: ReviewReadCtx,
   taskId: Id<"tasks">
 ): Promise<Doc<"tasks">> {
-  const task = await ctx.db.get(taskId)
+  const task = await ctx.db.get("tasks", taskId)
   if (!task) throw new Error("Task not found")
 
   return task

@@ -25,7 +25,7 @@ export const setTaskDetails = mutation({
     const descTrim = args.description?.trim()
     const description = descTrim && descTrim.length > 0 ? descTrim : null
 
-    await ctx.db.patch(args.id, { name, description })
+    await ctx.db.patch("tasks", args.id, { name, description })
   },
 })
 
@@ -83,7 +83,7 @@ export const setTaskDueDate = mutation({
     dueDate: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { dueDate: args.dueDate })
+    await ctx.db.patch("tasks", args.id, { dueDate: args.dueDate })
   },
 })
 
@@ -96,7 +96,7 @@ export const setTaskAssignees = mutation({
     const assigneeIds = Array.from(new Set(args.assigneeIds))
     const nextAssigneeIds = assigneeIds.length > 0 ? assigneeIds : null
 
-    await ctx.db.patch(args.id, {
+    await ctx.db.patch("tasks", args.id, {
       assigneeIds: nextAssigneeIds,
     })
   },
@@ -110,7 +110,7 @@ export const claimTask = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error("Authentication required")
 
-    await ctx.db.patch(args.id, { assigneeIds: [userId] })
+    await ctx.db.patch("tasks", args.id, { assigneeIds: [userId] })
   },
 })
 
@@ -120,7 +120,7 @@ export const setTaskOwner = mutation({
     owner: taskOwnerRef,
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { owner: args.owner })
+    await ctx.db.patch("tasks", args.id, { owner: args.owner })
   },
 })
 
@@ -142,7 +142,7 @@ export const setTaskLabels = mutation({
 
     const deletePromises = existingAssignments
       .filter((assignment) => !labelIds.has(assignment.labelId))
-      .map((assignment) => ctx.db.delete(assignment._id))
+      .map((assignment) => ctx.db.delete("taskLabelAssignments", assignment._id))
 
     const insertPromises = []
     for (const labelId of labelIds) {

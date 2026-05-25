@@ -13,7 +13,7 @@ import type { Doc } from "@/convex/_generated/dataModel"
 import { useMutation } from "convex/react"
 import { PlusIcon } from "lucide-react"
 import { useState } from "react"
-import { MarkdownEditorField } from "../markdown-editor-field"
+import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
 
 export function AddUpdateDialog({ comp }: { comp: Doc<"competitions"> }) {
   const setUpdate = useMutation(
@@ -61,7 +61,12 @@ export function AddUpdateDialog({ comp }: { comp: Doc<"competitions"> }) {
         </Button>
       </DialogTrigger>
       <DialogContent className="grid max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <form onSubmit={handleSubmit} className="grid min-h-0 gap-4">
+        <form
+          onSubmit={(event) => {
+            void handleSubmit(event)
+          }}
+          className="grid min-h-0 gap-4"
+        >
           <DialogHeader className="pr-8">
             <DialogTitle>Add competition update</DialogTitle>
             <DialogDescription>

@@ -1,8 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
 
-type Theme = "dark" | "light" | "system"
-type ResolvedTheme = "dark" | "light"
+const THEME_VALUES = ["dark", "light", "system"] as const
+const THEME_VALUE_SET = new Set<string>(THEME_VALUES)
+
+type Theme = (typeof THEME_VALUES)[number]
+
+type ResolvableTheme = Exclude<Theme, "system">
 
 type ThemeProviderProps = {
   children: React.ReactNode
@@ -17,21 +21,16 @@ type ThemeProviderState = {
 }
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
-const THEME_VALUES: Theme[] = ["dark", "light", "system"]
 
 const ThemeProviderContext = React.createContext<
   ThemeProviderState | undefined
 >(undefined)
 
 function isTheme(value: string | null): value is Theme {
-  if (value === null) {
-    return false
-  }
-
-  return THEME_VALUES.includes(value as Theme)
+  return value !== null && THEME_VALUE_SET.has(value)
 }
 
-function getSystemTheme(): ResolvedTheme {
+function getSystemTheme(): ResolvableTheme {
   if (window.matchMedia(COLOR_SCHEME_QUERY).matches) {
     return "dark"
   }

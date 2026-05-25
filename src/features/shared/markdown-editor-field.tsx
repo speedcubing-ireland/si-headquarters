@@ -6,6 +6,15 @@ import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { Streamdown } from "streamdown"
 
+type MarkdownEditorFieldProps = {
+  id: string
+  label: string
+  placeholder: string
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+}
+
 export function MarkdownEditorField({
   id,
   label,
@@ -13,14 +22,7 @@ export function MarkdownEditorField({
   value,
   onChange,
   disabled,
-}: {
-  id: string
-  label: string
-  placeholder: string
-  value: string
-  onChange: (value: string) => void
-  disabled?: boolean
-}) {
+}: MarkdownEditorFieldProps) {
   const [preview, setPreview] = useState(false)
   const previewId = `${id}-preview`
 

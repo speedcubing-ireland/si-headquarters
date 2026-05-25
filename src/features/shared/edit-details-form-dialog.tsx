@@ -10,31 +10,49 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { api } from "@/convex/_generated/api"
-import type { Doc } from "@/convex/_generated/dataModel"
-import { MarkdownEditorField } from "@/features/competitions/components/markdown-editor-field"
-import { useMutation } from "convex/react"
+import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
 import { PencilIcon } from "lucide-react"
 import { useState } from "react"
 
-export function EditTaskDetailsDialog({ task }: { task: Doc<"tasks"> }) {
-  const updateDetails = useMutation(api.tasks.mutations.setTaskDetails)
+type DetailsFormValue = {
+  description: string | null
+  name: string
+}
+
+type EditDetailsFormDialogProps = {
+  descriptionId: string
+  descriptionPlaceholder: string
+  initialValue: DetailsFormValue
+  nameId: string
+  title: string
+  triggerLabel: string
+  onSubmit: (value: DetailsFormValue) => void | Promise<void | null>
+}
+
+export function EditDetailsFormDialog({
+  descriptionId,
+  descriptionPlaceholder,
+  initialValue,
+  nameId,
+  title,
+  triggerLabel,
+  onSubmit,
+}: EditDetailsFormDialogProps) {
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState(task.name)
-  const [description, setDescription] = useState(task.description ?? "")
+  const [name, setName] = useState(initialValue.name)
+  const [description, setDescription] = useState(
+    initialValue.description ?? ""
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const resetForm = () => {
-    setName(task.name)
-    setDescription(task.description ?? "")
+    setName(initialValue.name)
+    setDescription(initialValue.description ?? "")
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen)
-
-    if (nextOpen) {
-      resetForm()
-    }
+    if (nextOpen) resetForm()
   }
 
   const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>) => {
@@ -45,10 +63,9 @@ export function EditTaskDetailsDialog({ task }: { task: Doc<"tasks"> }) {
 
     setIsSubmitting(true)
     try {
-      await updateDetails({
-        id: task._id,
+      await onSubmit({
         name: trimmedName,
-        description: description.trim().length > 0 ? description.trim() : null,
+        description: description.trim() || null,
       })
       setOpen(false)
     } finally {
@@ -59,23 +76,28 @@ export function EditTaskDetailsDialog({ task }: { task: Doc<"tasks"> }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" aria-label="Edit task details">
+        <Button variant="outline" size="icon" aria-label={triggerLabel}>
           <PencilIcon />
         </Button>
       </DialogTrigger>
       <DialogContent className="grid max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <form onSubmit={handleSubmit} className="grid min-h-0 gap-4">
+        <form
+          onSubmit={(event) => {
+            void handleSubmit(event)
+          }}
+          className="grid min-h-0 gap-4"
+        >
           <DialogHeader className="pr-8">
-            <DialogTitle>Edit task details</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
               Write in Markdown and preview before saving.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-2">
-            <Label htmlFor="task-name">Name</Label>
+            <Label htmlFor={nameId}>Name</Label>
             <Input
-              id="task-name"
+              id={nameId}
               value={name}
               onChange={(event) => setName(event.target.value)}
               disabled={isSubmitting}
@@ -84,9 +106,9 @@ export function EditTaskDetailsDialog({ task }: { task: Doc<"tasks"> }) {
           </div>
 
           <MarkdownEditorField
-            id="task-description"
+            id={descriptionId}
             label="Description"
-            placeholder="Add the task description..."
+            placeholder={descriptionPlaceholder}
             value={description}
             onChange={setDescription}
             disabled={isSubmitting}

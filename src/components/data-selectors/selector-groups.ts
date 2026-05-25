@@ -1,15 +1,6 @@
 import type { ReactNode } from "react"
 
-export type SelectorGroup<TValue> = {
-  getLabel: (item: unknown) => string
-  getValue: (item: unknown) => TValue
-  items: unknown[] | undefined
-  key: string
-  label: string
-  renderItem: (item: unknown) => ReactNode
-}
-
-type SelectorGroupInput<TItem, TValue> = {
+export type SelectorGroup<TItem, TValue> = {
   getLabel: (item: TItem) => string
   getValue: (item: TItem) => TValue
   items: TItem[] | undefined
@@ -25,13 +16,13 @@ export function selectorGroup<TItem, TValue>({
   key,
   label,
   renderItem,
-}: SelectorGroupInput<TItem, TValue>): SelectorGroup<TValue> {
+}: SelectorGroup<TItem, TValue>): SelectorGroup<TItem, TValue> {
   return {
     key,
     label,
     items,
-    getLabel: (item) => getLabel(item as TItem),
-    getValue: (item) => getValue(item as TItem),
-    renderItem: (item) => renderItem(item as TItem),
+    getLabel,
+    getValue,
+    renderItem,
   }
 }

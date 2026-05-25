@@ -20,7 +20,7 @@ export async function getPublicUser(
 ): Promise<PublicUser | null> {
   if (!userId) return null
 
-  const user = await ctx.db.get(userId)
+  const user = await ctx.db.get("users", userId)
   return user ? toPublicUser(user) : null
 }
 
@@ -28,7 +28,7 @@ export async function getPublicUsers(
   ctx: QueryCtx,
   userIds: Id<"users">[]
 ): Promise<PublicUser[]> {
-  const users = await Promise.all(userIds.map((userId) => ctx.db.get(userId)))
+  const users = await Promise.all(userIds.map((userId) => ctx.db.get("users", userId)))
   return users
     .filter((user): user is Doc<"users"> => user !== null)
     .map(toPublicUser)

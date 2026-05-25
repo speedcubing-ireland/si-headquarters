@@ -16,16 +16,16 @@ import { cn } from "@/lib/utils"
 import { useMemo, type ReactNode } from "react"
 import type { SelectorGroup } from "./selector-groups"
 
-type SelectorOption<TValue> = {
-  item: unknown
+type SelectorOption<TItem, TValue> = {
+  item: TItem
   key: string
   label: string
   renderedItem: ReactNode
   value: TValue
 }
 
-type SelectorOptionGroup<TValue> = {
-  items: SelectorOption<TValue>[]
+type SelectorOptionGroup<TItem, TValue> = {
+  items: SelectorOption<TItem, TValue>[]
   key: string
   label: string
 }
@@ -41,22 +41,26 @@ type FlatSelectorOptions<TItem, TValue> = SelectorAccessors<TItem, TValue> & {
   items?: TItem[]
 }
 
-type GroupedSelectorOptions<TValue> = {
+type GroupedSelectorOptions<TItem, TValue> = {
   getLabel?: never
   getValue?: never
-  groups: SelectorGroup<TValue>[]
+  groups: SelectorGroup<TItem, TValue>[]
   items?: never
   renderItem?: never
 }
 
 type SelectorOptions<TItem, TValue> =
   | FlatSelectorOptions<TItem, TValue>
-  | GroupedSelectorOptions<TValue>
+  | GroupedSelectorOptions<TItem, TValue>
+
+type SelectorOptionsWithKey<TItem, TValue> = SelectorOptions<TItem, TValue> & {
+  getValueKey: (value: TValue) => string
+}
 
 type SelectedItemOptions<TItem, TValue> = Partial<
   SelectorAccessors<TItem, TValue>
 > & {
-  groups?: SelectorGroup<TValue>[]
+  groups?: SelectorGroup<TItem, TValue>[]
 }
 
 type SelectorComboboxBaseProps<TItem, TValue> = SelectorOptions<
@@ -131,7 +135,7 @@ function normalizeItem<TItem, TValue>({
 }: SelectorAccessors<TItem, TValue> & {
   getValueKey: (value: TValue) => string
   item: TItem
-}): SelectorOption<TValue> {
+}): SelectorOption<TItem, TValue> {
   const value = getValue(item)
 
   return {
@@ -143,35 +147,37 @@ function normalizeItem<TItem, TValue>({
   }
 }
 
-function getOptionLabel<TValue>(option: SelectorOption<TValue>) {
+function getOptionLabel<TItem, TValue>(option: SelectorOption<TItem, TValue>) {
   return option.label
 }
 
-function isSelectorOptionEqual<TValue>(
-  item: SelectorOption<TValue>,
-  selected: SelectorOption<TValue>
+function isSelectorOptionEqual<TItem, TValue>(
+  item: SelectorOption<TItem, TValue>,
+  selected: SelectorOption<TItem, TValue>
 ) {
   return item.key === selected.key
 }
 
-function hasGroups<TValue>(
-  groups: SelectorGroup<TValue>[] | undefined
-): groups is SelectorGroup<TValue>[] {
+function hasGroups<TItem, TValue>(
+  groups: SelectorGroup<TItem, TValue>[] | undefined
+): groups is SelectorGroup<TItem, TValue>[] {
   return groups !== undefined
 }
 
-function useSelectorOptions<TItem, TValue>({
-  getLabel,
-  getValue,
-  getValueKey,
-  groups,
-  items,
-  renderItem,
-}: SelectorOptions<TItem, TValue> & {
+function hasSelectorGroups<TItem, TValue>(
+  options: SelectorOptionsWithKey<TItem, TValue>
+): options is GroupedSelectorOptions<TItem, TValue> & {
   getValueKey: (value: TValue) => string
-}) {
+} {
+  return options.groups !== undefined
+}
+
+function useSelectorOptions<TItem, TValue>(
+  options: SelectorOptionsWithKey<TItem, TValue>
+) {
   return useMemo(() => {
-    if (hasGroups(groups)) {
+    if (hasSelectorGroups(options)) {
+      const { getValueKey, groups } = options
       const itemGroups = groups.map((group) => ({
         key: group.key,
         label: group.label,
@@ -194,12 +200,7 @@ function useSelectorOptions<TItem, TValue>({
       }
     }
 
-    if (!getLabel || !getValue || !renderItem) {
-      throw new Error(
-        "Flat selectors require getLabel, getValue, and renderItem"
-      )
-    }
-
+    const { getLabel, getValue, getValueKey, items, renderItem } = options
     const normalizedItems = (items ?? []).map((item) =>
       normalizeItem({
         getLabel,
@@ -216,7 +217,7 @@ function useSelectorOptions<TItem, TValue>({
       items: normalizedItems,
       rootItems: normalizedItems,
     }
-  }, [getLabel, getValue, getValueKey, groups, items, renderItem])
+  }, [options])
 }
 
 function optionFromSelectedItem<TItem, TValue>({
@@ -231,7 +232,7 @@ function optionFromSelectedItem<TItem, TValue>({
   item: TItem
 }) {
   if (hasGroups(groups)) {
-    const group = groups[0]
+    const group = groups.at(0)
 
     return group
       ? normalizeItem({
@@ -268,7 +269,7 @@ function useSelectedOptions<TItem, TValue>({
   values,
 }: SelectedItemOptions<TItem, TValue> & {
   getValueKey: (value: TValue) => string
-  options: SelectorOption<TValue>[]
+  options: SelectorOption<TItem, TValue>[]
   selectedItem?: TItem | null
   selectedItems?: TItem[]
   value?: TValue | null
@@ -307,7 +308,8 @@ function useSelectedOptions<TItem, TValue>({
     return resolvedValues
       .map((value) => selectedOptionsByKey.get(getValueKey(value)))
       .filter(
-        (option): option is SelectorOption<TValue> => option !== undefined
+        (option): option is SelectorOption<TItem, TValue> =>
+          option !== undefined
       )
   }, [
     availableOptions,
@@ -323,7 +325,7 @@ function useSelectedOptions<TItem, TValue>({
   ])
 }
 
-function SelectorContent<TValue>({
+function SelectorContent<TItem, TValue>({
   align = "end",
   clearLabel,
   hasLoadedItems,
@@ -334,7 +336,7 @@ function SelectorContent<TValue>({
   align?: React.ComponentProps<typeof ComboboxContent>["align"]
   clearLabel?: ReactNode
   hasLoadedItems: boolean
-  itemGroups?: SelectorOptionGroup<TValue>[]
+  itemGroups?: SelectorOptionGroup<TItem, TValue>[]
   objectNoun: string
   searchable?: boolean
 }) {
@@ -359,7 +361,7 @@ function SelectorContent<TValue>({
         )}
         {itemGroups ? (
           <ComboboxCollection>
-            {(group: SelectorOptionGroup<TValue>) => (
+            {(group: SelectorOptionGroup<TItem, TValue>) => (
               <ComboboxGroup key={group.key} items={group.items}>
                 <ComboboxLabel>{group.label}</ComboboxLabel>
                 <SelectorCollection />
@@ -374,10 +376,10 @@ function SelectorContent<TValue>({
   )
 }
 
-function SelectorCollection<TValue>() {
+function SelectorCollection<TItem, TValue>() {
   return (
     <ComboboxCollection>
-      {(option: SelectorOption<TValue>) => (
+      {(option: SelectorOption<TItem, TValue>) => (
         <ComboboxItem key={option.key} value={option}>
           {option.renderedItem}
         </ComboboxItem>
@@ -414,11 +416,10 @@ export function SingleSelectorCombobox<TItem, TValue>({
     selectedItem,
     value,
   })
-  const selectedItemValue =
-    (selectedOptions[0]?.item as TItem | undefined) ?? null
+  const selectedItemValue = selectedOptions[0]?.item ?? null
 
   return (
-    <Combobox<SelectorOption<TValue>>
+    <Combobox<SelectorOption<TItem, TValue>>
       items={rootItems}
       itemToStringLabel={getOptionLabel}
       isItemEqualToValue={isSelectorOptionEqual}
@@ -471,7 +472,7 @@ export function MultipleSelectorCombobox<TItem, TValue>({
   })
 
   return (
-    <Combobox<SelectorOption<TValue>, true>
+    <Combobox<SelectorOption<TItem, TValue>, true>
       multiple
       items={rootItems}
       itemToStringLabel={getOptionLabel}
@@ -484,7 +485,7 @@ export function MultipleSelectorCombobox<TItem, TValue>({
       }
     >
       <SelectorTrigger className={className} size={size} variant={variant}>
-        {renderValue(selectedOptions.map((option) => option.item as TItem))}
+        {renderValue(selectedOptions.map((option) => option.item))}
       </SelectorTrigger>
       <SelectorContent
         align={align}

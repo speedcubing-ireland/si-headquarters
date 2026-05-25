@@ -49,7 +49,10 @@ export const getReviewerDetailsForTask = query({
     const [reviewerDetails, overriddenBy] = await Promise.all([
       Promise.all(
         reviewers.map(async (reviewer): Promise<TaskReviewerDetails> => {
-          const reviewerObject = await ctx.db.get(reviewer.reviewer.id)
+          const reviewerObject = await ctx.db.get(
+            reviewer.reviewer.type,
+            reviewer.reviewer.id
+          )
 
           return {
             _id: reviewer._id,
@@ -60,7 +63,7 @@ export const getReviewerDetailsForTask = query({
           }
         })
       ),
-      override ? ctx.db.get(override.overriddenBy) : null,
+      override ? ctx.db.get("users", override.overriddenBy) : null,
     ])
 
     return {

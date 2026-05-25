@@ -48,12 +48,12 @@ export function selectTaskPathLayout(
   availableWidth: number
 ) {
   if (availableWidth <= 0) {
-    return candidates[0]!
+    return candidates[0]
   }
 
   return (
     candidates.find((candidate) => candidate.totalWidth <= availableWidth) ??
-    candidates[candidates.length - 1]!
+    candidates[candidates.length - 1]
   )
 }
 
@@ -148,10 +148,11 @@ function pushCandidate(
   candidateInput: LayoutCandidateInput
 ) {
   const candidate = buildLayoutCandidate(candidateInput)
-  const previous = candidates[candidates.length - 1]
+  const previous = candidates.at(-1)
 
   if (
-    previous?.taskText === candidate.taskText &&
+    previous &&
+    previous.taskText === candidate.taskText &&
     previous.subtaskText === candidate.subtaskText &&
     previous.labelText === candidate.labelText
   ) {

@@ -42,7 +42,9 @@ export function DeleteUpdateDialog({ comp }: { comp: Doc<"competitions"> }) {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            onClick={() => deleteUpdate({ competitionId: comp._id })}
+            onClick={() => {
+              void deleteUpdate({ competitionId: comp._id })
+            }}
           >
             Delete update
           </AlertDialogAction>

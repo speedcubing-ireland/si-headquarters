@@ -119,7 +119,7 @@ export class TaskStatusLoader {
     if (existing)
       return applyTaskPatch(await existing, this.getPendingPatch(taskId))
 
-    const taskPromise = this.ctx.db.get(taskId)
+    const taskPromise = this.ctx.db.get("tasks", taskId)
     this.taskCache.set(taskId, taskPromise)
     this.stats.taskReads += 1
 
@@ -212,7 +212,7 @@ function compareTasksByOrder(a: Doc<"tasks">, b: Doc<"tasks">) {
 }
 
 export function getParentTaskId(task: Doc<"tasks">): Id<"tasks"> | null {
-  return task.parent.type === "tasks" ? (task.parent.id as Id<"tasks">) : null
+  return task.parent.type === "tasks" ? task.parent.id : null
 }
 
 export async function getDirectSubtasks(
@@ -524,7 +524,7 @@ function applyFlowChildPosition(
 
 function asStandardTask(task: Doc<"tasks">): Doc<"tasks"> {
   return task.kind === "flow"
-    ? ({ ...task, kind: "standard" } as Doc<"tasks">)
+    ? ({ ...task, kind: "standard" })
     : task
 }
 
@@ -539,10 +539,9 @@ export async function buildFlowReopenPreview(
   loader: TaskStatusLoader,
   task: Doc<"tasks">
 ): Promise<TaskReopenPreview> {
-  let currentTask: Doc<"tasks"> | null = task
   const visited = new Set<Id<"tasks">>()
 
-  while (currentTask) {
+  for (let currentTask: Doc<"tasks"> = task; ; ) {
     if (visited.has(currentTask._id)) {
       throw new Error("Task status preview parent cycle detected")
     }
@@ -557,7 +556,7 @@ export async function buildFlowReopenPreview(
     if (parent.kind === "flow" && isTerminalComplete(currentTask.status)) {
       const siblings = await loader.getDirectSubtasks(parent._id)
       const siblingIndex = siblings.findIndex(
-        (sibling) => sibling._id === currentTask?._id
+        (sibling) => sibling._id === currentTask._id
       )
       const currentStepIndex = getCurrentFlowStepIndexFromTasks(siblings)
       if (

@@ -51,11 +51,11 @@ export function TaskLabelButton({
   return (
     <MultipleSelectorCombobox
       items={labels}
-      getLabel={(label: TaskLabelOption) => label.name}
-      getValue={(label: TaskLabelOption) => label._id}
-      getValueKey={(id: Id<"taskLabels">) => id}
+      getLabel={(label) => label.name}
+      getValue={(label) => label._id}
+      getValueKey={(id) => id}
       objectNoun="labels"
-      renderItem={(label: TaskLabelOption) => <LabelBadge label={label} />}
+      renderItem={(label) => <LabelBadge label={label} />}
       renderValue={(selectedLabels) => (
         <TaskLabelFace labels={selectedLabels} />
       )}

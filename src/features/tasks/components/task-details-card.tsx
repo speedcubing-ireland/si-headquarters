@@ -21,9 +21,9 @@ import {
   HandIcon,
 } from "lucide-react"
 import { Streamdown } from "streamdown"
-import { EditTaskDetailsDialog } from "./edit-task-details-dialog"
 import { Badge } from "@/components/ui/badge"
 import type { Id } from "@/convex/_generated/dataModel"
+import { EditDetailsFormDialog } from "@/features/shared/edit-details-form-dialog"
 
 type TaskDetails = FunctionReturnType<typeof api.tasks.queries.getDetails>
 
@@ -62,6 +62,7 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
 export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
   const taskDetails = useQuery(api.tasks.queries.getDetails, { id: taskId })
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
+  const updateDetails = useMutation(api.tasks.mutations.setTaskDetails)
   const claimTask = useMutation(api.tasks.mutations.claimTask)
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
     object: {
@@ -108,35 +109,48 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
           <TaskDateButton
             size="sm"
             value={task.dueDate}
-            onChange={async (dueDate) => {
-              await setDueDate({ id: task._id, dueDate })
+            onChange={(dueDate) => {
+              void setDueDate({ id: task._id, dueDate })
             }}
           />
         </div>
         <CardAction>
-          <EditTaskDetailsDialog task={task} />
+          <EditDetailsFormDialog
+            descriptionId="task-description"
+            descriptionPlaceholder="Add the task description..."
+            initialValue={task}
+            nameId="task-name"
+            title="Edit task details"
+            triggerLabel="Edit task details"
+            onSubmit={(value) => updateDetails({ id: task._id, ...value })}
+          />
         </CardAction>
       </CardHeader>
       <CardContent divided className="border-t">
         <Streamdown>{task.description ?? "Enter a description..."}</Streamdown>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button size="lg" onClick={() => claimTask({ id: taskId })}>
+        <Button
+          size="lg"
+          onClick={() => {
+            void claimTask({ id: taskId })
+          }}
+        >
           <HandIcon />
           Claim
         </Button>
         <Button
           size="lg"
           variant={watchingVariant}
-          onClick={() =>
-            setSubscription({
+          onClick={() => {
+            void setSubscription({
               object: {
                 type: "tasks",
                 id: taskId,
               },
               subscribe: !isWatching,
             })
-          }
+          }}
         >
           <BellIcon />
           {watchingText}

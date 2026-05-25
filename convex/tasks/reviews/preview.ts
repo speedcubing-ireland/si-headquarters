@@ -1,13 +1,14 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import {
-  buildTaskReviewState,
   getTaskReviewOverride,
   getTaskReviewers,
-  type TaskReviewParts,
   type TaskReviewState,
 } from "@/convex/tasks/reviews/reviewState"
-import type { ReviewPreviewOperation } from "@/convex/tasks/reviews/validators"
+import type {
+  ReviewPreviewOperation,
+  TaskReviewerRef,
+} from "@/convex/tasks/reviews/validators"
 import {
   buildFlowReopenPreview,
   TaskStatusLoader,
@@ -22,9 +23,15 @@ import {
 } from "@/convex/tasks/status/rules"
 import type { TaskStatus } from "@/convex/tasks/status/validators"
 
-const PREVIEW_REVIEWER_ID = "preview" as Id<"taskReviewers">
-const PREVIEW_OVERRIDE_ID = "preview" as Id<"taskReviewOverrides">
-const PREVIEW_USER_ID = "preview" as Id<"users">
+type PreviewReviewer = {
+  approvedAt: number | null
+  reviewer: TaskReviewerRef
+}
+
+type PreviewReviewParts = {
+  isOverridden: boolean
+  reviewers: PreviewReviewer[]
+}
 
 export async function previewReviewChangeImpact(
   ctx: QueryCtx,
@@ -54,23 +61,28 @@ async function getPreviewReviewState(
     getTaskReviewers(ctx, taskId),
     getTaskReviewOverride(ctx, taskId),
   ])
-  const preview = applyReviewPreview({ reviewers, override }, taskId, operation)
+  const preview = applyReviewPreview(
+    {
+      isOverridden: override !== null,
+      reviewers,
+    },
+    operation
+  )
 
-  return buildTaskReviewState(preview)
+  return buildPreviewReviewState(preview)
 }
 
 function applyReviewPreview(
-  parts: TaskReviewParts,
-  taskId: Id<"tasks">,
+  parts: PreviewReviewParts,
   operation: ReviewPreviewOperation
-): TaskReviewParts {
+): PreviewReviewParts {
   switch (operation.type) {
     case "add-reviewer":
       return {
         ...parts,
         reviewers: hasReviewer(parts.reviewers, operation.reviewer)
           ? parts.reviewers
-          : [...parts.reviewers, previewReviewer(taskId, operation.reviewer)],
+          : [...parts.reviewers, previewReviewer(operation.reviewer)],
       }
     case "remove-reviewer":
       return {
@@ -100,59 +112,73 @@ function applyReviewPreview(
     case "override-approval":
       return {
         ...parts,
-        override: parts.override ?? previewOverride(taskId),
+        isOverridden: true,
       }
     case "remove-approval-override":
       return {
         ...parts,
-        override: null,
+        isOverridden: false,
       }
   }
 }
 
-function previewReviewer(
-  taskId: Id<"tasks">,
-  reviewer: Doc<"taskReviewers">["reviewer"]
-): Doc<"taskReviewers"> {
+function previewReviewer(reviewer: TaskReviewerRef): PreviewReviewer {
   return {
-    _id: PREVIEW_REVIEWER_ID,
-    _creationTime: Date.now(),
-    taskId,
     reviewer,
     approvedAt: null,
-    approvedBy: null,
   }
 }
 
 function setPreviewApproval(
-  reviewers: Doc<"taskReviewers">[],
-  reviewer: Doc<"taskReviewers">["reviewer"],
+  reviewers: PreviewReviewer[],
+  reviewer: TaskReviewerRef,
   isApproved: boolean
-): Doc<"taskReviewers">[] {
-  let matched = false
+): PreviewReviewer[] {
+  const reviewerIndex = reviewers.findIndex((candidate) =>
+    sameReviewer(candidate.reviewer, reviewer)
+  )
 
-  const nextReviewers = reviewers.map((candidate) => {
-    if (!sameReviewer(candidate.reviewer, reviewer)) return candidate
-    matched = true
+  if (reviewerIndex === -1) throw new Error("Task reviewer not found")
 
-    return {
-      ...candidate,
-      approvedAt: isApproved ? Date.now() : null,
-      approvedBy: isApproved ? PREVIEW_USER_ID : null,
-    }
-  })
-
-  if (!matched) throw new Error("Task reviewer not found")
-  return nextReviewers
+  return reviewers.map((candidate, index) =>
+    index === reviewerIndex
+      ? {
+          ...candidate,
+          approvedAt: isApproved ? Date.now() : null,
+        }
+      : candidate
+  )
 }
 
-function previewOverride(taskId: Id<"tasks">): Doc<"taskReviewOverrides"> {
+function buildPreviewReviewState({
+  isOverridden,
+  reviewers,
+}: PreviewReviewParts): TaskReviewState {
+  const hasReviews = reviewers.length > 0
+
+  if (isOverridden) {
+    return {
+      status: "approved",
+      hasReviews,
+      hasPendingReviews: false,
+      isApproved: true,
+      isOverridden: true,
+      override: null,
+    }
+  }
+
+  const hasPendingReviews = reviewers.some(
+    (reviewer) => reviewer.approvedAt === null
+  )
+  const isApproved = hasReviews && !hasPendingReviews
+
   return {
-    _id: PREVIEW_OVERRIDE_ID,
-    _creationTime: Date.now(),
-    taskId,
-    overriddenAt: Date.now(),
-    overriddenBy: PREVIEW_USER_ID,
+    status: !hasReviews ? "not-required" : isApproved ? "approved" : "pending",
+    hasReviews,
+    hasPendingReviews,
+    isApproved,
+    isOverridden: false,
+    override: null,
   }
 }
 
@@ -179,15 +205,15 @@ function resolveStatusWithReview(
 }
 
 function sameReviewer(
-  left: Doc<"taskReviewers">["reviewer"],
-  right: Doc<"taskReviewers">["reviewer"]
+  left: TaskReviewerRef,
+  right: TaskReviewerRef
 ) {
   return left.type === right.type && left.id === right.id
 }
 
 function hasReviewer(
-  reviewers: Doc<"taskReviewers">[],
-  reviewer: Doc<"taskReviewers">["reviewer"]
+  reviewers: PreviewReviewer[],
+  reviewer: TaskReviewerRef
 ) {
   return reviewers.some((candidate) =>
     sameReviewer(candidate.reviewer, reviewer)

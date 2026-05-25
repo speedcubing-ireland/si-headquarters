@@ -203,16 +203,16 @@ export function createTaskDisplayReader(ctx: QueryCtx) {
   const teamCache = new Map<Id<"teams">, Promise<Doc<"teams"> | null>>()
 
   const getLabel = (labelId: Id<"taskLabels">) =>
-    cached(labelCache, labelId, () => ctx.db.get(labelId))
+    cached(labelCache, labelId, () => ctx.db.get("taskLabels", labelId))
 
   const getPublicUser = (userId: Id<"users">) =>
     cached(userCache, userId, async () => {
-      const user = await ctx.db.get(userId)
+      const user = await ctx.db.get("users", userId)
       return user ? toPublicUser(user) : null
     })
 
   const getTeam = (teamId: Id<"teams">) =>
-    cached(teamCache, teamId, () => ctx.db.get(teamId))
+    cached(teamCache, teamId, () => ctx.db.get("teams", teamId))
 
   async function getLabels(taskId: Id<"tasks">): Promise<Doc<"taskLabels">[]> {
     const assignments = await ctx.db
@@ -241,11 +241,11 @@ export function createTaskDisplayReader(ctx: QueryCtx) {
     if (!owner) return null
 
     if (owner.type === "users") {
-      const user = await getPublicUser(owner.id as Id<"users">)
+      const user = await getPublicUser(owner.id)
       return user ? { type: "users", ...user } : null
     }
 
-    const team = await getTeam(owner.id as Id<"teams">)
+    const team = await getTeam(owner.id)
     return team
       ? {
           type: "teams",

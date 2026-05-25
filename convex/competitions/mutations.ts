@@ -7,7 +7,7 @@ type People = Doc<"competitions">["people"]
 type PersonField = "compLead" | "leadDelegate"
 
 async function getCompetition(ctx: MutationCtx, id: Id<"competitions">) {
-  const competition = await ctx.db.get(id)
+  const competition = await ctx.db.get("competitions", id)
   if (!competition) throw new Error("Competition not found")
   return competition
 }
@@ -20,7 +20,7 @@ async function patchPeople(
   const competition = await getCompetition(ctx, id)
   const people = update(competition.people)
 
-  await ctx.db.patch(id, { people })
+  await ctx.db.patch("competitions", id, { people })
 }
 
 function setPersonMutation(field: PersonField) {
@@ -46,7 +46,7 @@ export const setCompDates = mutation({
     to: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, {
+    await ctx.db.patch("competitions", args.id, {
       compDates: {
         from: args.from,
         to: args.to,
@@ -72,7 +72,7 @@ export const setCompDetails = mutation({
     const nextDescription =
       description && description.length > 0 ? description : null
 
-    await ctx.db.patch(args.id, { name, description: nextDescription })
+    await ctx.db.patch("competitions", args.id, { name, description: nextDescription })
     return
   },
 })
@@ -83,14 +83,14 @@ export const setCompPhase = mutation({
     phaseId: v.id("phases"),
   },
   handler: async (ctx, args) => {
-    const phase = await ctx.db.get(args.phaseId)
+    const phase = await ctx.db.get("phases", args.phaseId)
 
     if (!phase) throw new Error("Phase not found")
-    if (phase.owner.type !== "competitions" || phase.owner.id !== args.id) {
+    if (phase.owner.id !== args.id) {
       throw new Error("Phase not found for competition")
     }
 
-    await ctx.db.patch(args.id, {
+    await ctx.db.patch("competitions", args.id, {
       phaseId: args.phaseId,
     })
     return

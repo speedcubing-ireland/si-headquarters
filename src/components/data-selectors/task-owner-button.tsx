@@ -9,46 +9,52 @@ import { useQuery } from "convex/react"
 import { useMemo, useState } from "react"
 
 type OwnerRef = Doc<"tasks">["owner"]
-type OwnerType = NonNullable<OwnerRef>["type"]
+type OwnerValue = NonNullable<OwnerRef>
+type OwnerType = OwnerValue["type"]
 type Team = Pick<Doc<"teams">, "_id" | "name">
-
-type OwnerByType = {
-  users: PublicUser
-  teams: Team
-}
-
-type OwnerOption = {
-  label: string
-  owner: OwnerByType[OwnerType]
-  value: NonNullable<OwnerRef>
-}
+type SelectedOwner =
+  | (PublicUser & { type: "users" })
+  | (Team & { type: "teams" })
 
 type TaskOwnerButtonProps = {
-  selectedOwner?: OwnerOption | null
+  selectedOwner?: SelectedOwner | null
   showAvatar?: boolean
   size?: React.ComponentProps<typeof Button>["size"]
-  value: OwnerRef
+  value?: OwnerRef
   variant?: React.ComponentProps<typeof Button>["variant"]
   onChange: (value: OwnerRef) => void | Promise<void> | Promise<null>
 }
 
-const getOwnerName = (owner: { name?: string }) => owner.name ?? "Unknown"
-const getOwnerValueKey = (ownerRef: NonNullable<OwnerRef>) =>
+const getOwnerValueKey = (ownerRef: OwnerValue) =>
   `${ownerRef.type}:${ownerRef.id}`
+
+function toOwnerOption(owner: SelectedOwner) {
+  if (owner.type === "users") {
+    return {
+      label: owner.name ?? "Unknown",
+      owner,
+      value: { type: owner.type, id: owner._id },
+    }
+  }
+
+  return {
+    label: owner.name,
+    owner,
+    value: { type: owner.type, id: owner._id },
+  }
+}
+
+type OwnerOption = ReturnType<typeof toOwnerOption>
 
 function shortenOwnerName(name: string, type: OwnerType) {
   if (type === "users") {
     return name.split(" ")[0]
   }
 
-  if (type === "teams") {
-    return name.replace(" Team", "")
-  }
-
-  return name
+  return name.replace(" Team", "")
 }
 
-function OwnerValue({
+function OwnerButtonFace({
   owner,
   showAvatar,
 }: {
@@ -75,17 +81,6 @@ const renderOwnerItem = (owner: OwnerOption) => (
   </>
 )
 
-function createOwnerOption<TType extends OwnerType>(
-  objectType: TType,
-  owner: OwnerByType[TType]
-): OwnerOption {
-  return {
-    label: getOwnerName(owner),
-    owner,
-    value: { type: objectType, id: owner._id },
-  }
-}
-
 export function TaskOwnerButton({
   selectedOwner,
   showAvatar = true,
@@ -97,22 +92,25 @@ export function TaskOwnerButton({
   const [open, setOpen] = useState(false)
   const users = useQuery(api.users.queries.list, open ? {} : "skip")
   const teams = useQuery(api.teams.queries.list, open ? {} : "skip")
+  const selectedItem = selectedOwner ? toOwnerOption(selectedOwner) : null
   const ownerGroups = useMemo(
     () => [
       selectorGroup({
         key: "teams",
         label: "Teams",
-        items: teams?.map((team) => createOwnerOption("teams", team)),
-        getLabel: (owner: OwnerOption) => owner.label,
-        getValue: (owner: OwnerOption) => owner.value,
+        items: teams?.map((team) => toOwnerOption({ ...team, type: "teams" })),
+        getLabel: (owner) => owner.label,
+        getValue: (owner) => owner.value,
         renderItem: renderOwnerItem,
       }),
       selectorGroup({
         key: "users",
         label: "Users",
-        items: users?.map((user) => createOwnerOption("users", user)),
-        getLabel: (owner: OwnerOption) => owner.label,
-        getValue: (owner: OwnerOption) => owner.value,
+        items: users?.map((user) =>
+          toOwnerOption({ ...user, type: "users" })
+        ),
+        getLabel: (owner) => owner.label,
+        getValue: (owner) => owner.value,
         renderItem: renderOwnerItem,
       }),
     ],
@@ -120,19 +118,19 @@ export function TaskOwnerButton({
   )
 
   return (
-    <SingleSelectorCombobox<OwnerOption, NonNullable<OwnerRef>>
+    <SingleSelectorCombobox<OwnerOption, OwnerValue>
       clearLabel="None"
       getValueKey={getOwnerValueKey}
       objectNoun="owners"
       groups={ownerGroups}
       open={open}
       renderValue={(owner) => (
-        <OwnerValue owner={owner} showAvatar={showAvatar} />
+        <OwnerButtonFace owner={owner} showAvatar={showAvatar} />
       )}
       searchable
-      selectedItem={selectedOwner}
+      selectedItem={selectedItem}
       size={size}
-      value={value}
+      value={value ?? selectedItem?.value ?? null}
       variant={variant}
       onOpenChange={setOpen}
       onValueChange={(ownerRef) => void onChange(ownerRef)}

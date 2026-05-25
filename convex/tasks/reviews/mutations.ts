@@ -14,7 +14,7 @@ async function getRequiredAuthUserId(ctx: MutationCtx): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx)
   if (!userId) throw new Error("Authentication required")
 
-  return userId as Id<"users">
+  return userId
 }
 
 export const addReviewer = mutation({
@@ -49,7 +49,7 @@ export const removeReviewer = mutation({
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) return
 
-    await ctx.db.delete(reviewer._id)
+    await ctx.db.delete("taskReviewers", reviewer._id)
     await recomputeRelatedTaskStatuses(ctx, args.taskId)
   },
 })
@@ -65,7 +65,7 @@ export const approveReviewer = mutation({
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) throw new Error("Task reviewer not found")
 
-    await ctx.db.patch(reviewer._id, {
+    await ctx.db.patch("taskReviewers", reviewer._id, {
       approvedAt: Date.now(),
       approvedBy: userId,
     })
@@ -82,7 +82,7 @@ export const revokeReviewerApproval = mutation({
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) throw new Error("Task reviewer not found")
 
-    await ctx.db.patch(reviewer._id, {
+    await ctx.db.patch("taskReviewers", reviewer._id, {
       approvedAt: null,
       approvedBy: null,
     })
@@ -105,7 +105,7 @@ export const overrideApproval = mutation({
     }
 
     if (existingOverride) {
-      await ctx.db.patch(existingOverride._id, override)
+      await ctx.db.patch("taskReviewOverrides", existingOverride._id, override)
     } else {
       await ctx.db.insert("taskReviewOverrides", override)
     }
@@ -121,7 +121,7 @@ export const removeApprovalOverride = mutation({
     const override = await getTaskReviewOverride(ctx, args.taskId)
     if (!override) return
 
-    await ctx.db.delete(override._id)
+    await ctx.db.delete("taskReviewOverrides", override._id)
     await recomputeRelatedTaskStatuses(ctx, args.taskId)
   },
 })

@@ -1,14 +1,8 @@
 import { v, type Infer } from "convex/values"
 import { publicUserValidator } from "@/convex/users/validators"
+import { objectRef } from "@/convex/utils"
 
-export const taskReviewerRef = v.union(
-  ...(["users", "teams"] as const).map((tableName) =>
-    v.object({
-      type: v.literal(tableName),
-      id: v.id(tableName),
-    })
-  )
-)
+export const taskReviewerRef = v.union(objectRef("users"), objectRef("teams"))
 
 export const taskReviewerFields = {
   taskId: v.id("tasks"),

@@ -4,6 +4,7 @@ import {
   taskStatusIntentType,
   taskStatusType,
 } from "@/convex/tasks/status/validators"
+import { objectRef } from "@/convex/utils"
 
 export const assigneesType = v.union(
   v.null(),
@@ -12,23 +13,12 @@ export const assigneesType = v.union(
 )
 
 // Ultimately we will allow personal tasks, but through a special type of parent
-export const taskParentRef = v.union(
-  ...(["phases", "tasks"] as const).map((tableName) =>
-    v.object({
-      type: v.literal(tableName),
-      id: v.id(tableName),
-    })
-  )
-)
+export const taskParentRef = v.union(objectRef("phases"), objectRef("tasks"))
 
 export const taskOwnerRef = v.union(
   v.null(),
-  ...(["users", "teams"] as const).map((tableName) =>
-    v.object({
-      type: v.literal(tableName),
-      id: v.id(tableName),
-    })
-  )
+  objectRef("users"),
+  objectRef("teams")
 )
 
 export const tasksFields = {

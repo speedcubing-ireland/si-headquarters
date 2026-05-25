@@ -77,12 +77,12 @@ export function PropertiesCard({
             }}
             selectedPhase={phase}
             value={comp.phaseId}
-            onChange={(phaseId: Id<"phases">) =>
-              setCompPhase({
+            onChange={(phaseId) => {
+              void setCompPhase({
                 id: comp._id,
                 phaseId,
               })
-            }
+            }}
           />
         </PageCardRow>
         <PageCardRow

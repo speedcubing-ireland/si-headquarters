@@ -43,7 +43,7 @@ export function useMeasuredElement<T extends HTMLElement>(defaultFont: string) {
 
     const resizeObserver = new ResizeObserver(update)
     resizeObserver.observe(node)
-    document.fonts?.ready.then(update)
+    void document.fonts.ready.then(update)
 
     return () => {
       cancelled = true

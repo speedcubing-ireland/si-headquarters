@@ -14,7 +14,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 import { api } from "@/convex/_generated/api"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { Id } from "@/convex/_generated/dataModel"
 import type { TaskFlowDisplay, TaskFlowStructure } from "@/convex/tasks/queries"
 import { cn } from "@/lib/utils"
 import { useMutation, useQuery } from "convex/react"
@@ -25,7 +25,7 @@ import {
   PencilIcon,
   Undo2Icon,
 } from "lucide-react"
-import { memo, type ComponentProps, useMemo } from "react"
+import { memo, useMemo } from "react"
 import "./flow-view.css"
 import { SubtaskBadge } from "./subtask-badge"
 
@@ -44,38 +44,25 @@ const itemAppearance = {
   },
 }
 
-const emptyAssignees: TaskFlowDisplay["steps"][number]["assignees"] = {
+type FlowStepDisplay = TaskFlowDisplay["steps"][number]
+type FlowParent = TaskFlowStructure["parent"]
+type FlowStepStructure = TaskFlowStructure["steps"][number]
+type FlowItemProps = {
+  display: FlowStepDisplay | undefined
+  index: number
+  parent: FlowParent
+  step: FlowStepStructure
+}
+
+const emptyAssignees = {
   mode: "none",
   count: 0,
   userIds: [],
   primaryUser: null,
   users: [],
-}
+} satisfies FlowStepDisplay["assignees"]
 
-function getOwnerRef(
-  owner: TaskFlowDisplay["steps"][number]["owner"]
-): Doc<"tasks">["owner"] {
-  if (!owner) return null
-  if (owner.type === "users") return { type: "users", id: owner._id }
-  return { type: "teams", id: owner._id }
-}
-
-function getOwnerOption(
-  owner: TaskFlowDisplay["steps"][number]["owner"]
-): ComponentProps<typeof TaskOwnerButton>["selectedOwner"] {
-  if (!owner) return null
-
-  return {
-    label: owner.name ?? "Unknown",
-    owner,
-    value: {
-      type: owner.type,
-      id: owner._id,
-    },
-  }
-}
-
-function getLabelIds(labels: TaskFlowDisplay["steps"][number]["labels"]) {
+function getLabelIds(labels: FlowStepDisplay["labels"]) {
   return labels.map((label) => label._id)
 }
 
@@ -84,12 +71,7 @@ const FlowItem = memo(function FlowItem({
   index,
   parent,
   step,
-}: {
-  display: TaskFlowDisplay["steps"][number] | undefined
-  index: number
-  parent: TaskFlowStructure["parent"]
-  step: TaskFlowStructure["steps"][number]
-}) {
+}: FlowItemProps) {
   const setAssignees = useMutation(api.tasks.mutations.setTaskAssignees)
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
   const setLabels = useMutation(api.tasks.mutations.setTaskLabels)
@@ -158,14 +140,18 @@ const FlowItem = memo(function FlowItem({
                 className="hidden sm:flex"
                 size="sm"
                 statusView={step.statusView}
-                onChange={(status) => setStatus({ id: taskId, status })}
+                onChange={(status) => {
+                  void setStatus({ id: taskId, status })
+                }}
               />
               {step.statusView.availableActions.includes("reopen") && (
                 <Button
                   variant="outline"
                   size="sm"
                   type="button"
-                  onClick={() => reopenTask({ id: taskId })}
+                  onClick={() => {
+                    void reopenTask({ id: taskId })
+                  }}
                 >
                   <Undo2Icon />
                   Reopen
@@ -180,13 +166,17 @@ const FlowItem = memo(function FlowItem({
                 size="sm"
                 selectedLabels={labels}
                 value={getLabelIds(labels)}
-                onChange={(labelIds) => setLabels({ id: taskId, labelIds })}
+                onChange={(labelIds) => {
+                  void setLabels({ id: taskId, labelIds })
+                }}
               />
               {display?.dueDate && (
                 <TaskDateButton
                   size="sm"
                   value={display.dueDate}
-                  onChange={(dueDate) => setDueDate({ id: taskId, dueDate })}
+                  onChange={(dueDate) => {
+                    void setDueDate({ id: taskId, dueDate })
+                  }}
                 />
               )}
             </ItemActions>
@@ -194,9 +184,10 @@ const FlowItem = memo(function FlowItem({
               <TaskOwnerButton
                 size="sm"
                 showAvatar={false}
-                selectedOwner={getOwnerOption(owner)}
-                value={getOwnerRef(owner)}
-                onChange={(owner) => setOwner({ id: taskId, owner })}
+                selectedOwner={owner}
+                onChange={(owner) => {
+                  void setOwner({ id: taskId, owner })
+                }}
               />
               <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground/70 sm:block" />
               <CornerRightDownIcon className="size-3.5 shrink-0 text-muted-foreground/70 sm:hidden" />
@@ -206,9 +197,9 @@ const FlowItem = memo(function FlowItem({
                   size="sm"
                   selectedUsers={assignees.users}
                   value={assignees.userIds}
-                  onChange={(assigneeIds) =>
-                    setAssignees({ id: taskId, assigneeIds })
-                  }
+                  onChange={(assigneeIds) => {
+                    void setAssignees({ id: taskId, assigneeIds })
+                  }}
                 />
               </span>
             </ItemActions>
@@ -218,7 +209,9 @@ const FlowItem = memo(function FlowItem({
               <TaskStatusButton
                 size="sm"
                 statusView={step.statusView}
-                onChange={(status) => setStatus({ id: taskId, status })}
+                onChange={(status) => {
+                  void setStatus({ id: taskId, status })
+                }}
               />
             </ItemActions>
             <ItemActions>
@@ -227,9 +220,9 @@ const FlowItem = memo(function FlowItem({
                 size="sm"
                 selectedUsers={assignees.users}
                 value={assignees.userIds}
-                onChange={(assigneeIds) =>
-                  setAssignees({ id: taskId, assigneeIds })
-                }
+                onChange={(assigneeIds) => {
+                  void setAssignees({ id: taskId, assigneeIds })
+                }}
               />
             </ItemActions>
           </ItemFooter>
@@ -286,7 +279,9 @@ export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
         <Button
           variant="outline"
           size="lg"
-          onClick={() => setTaskKind({ id: taskId, kind: "standard" })}
+          onClick={() => {
+            void setTaskKind({ id: taskId, kind: "standard" })
+          }}
         >
           <Undo2Icon />
           To Subtasks

@@ -10,19 +10,18 @@ import {
 } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
+import { EditDetailsFormDialog } from "@/features/shared/edit-details-form-dialog"
 import { useMutation, useQuery } from "convex/react"
 import { BellIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
-import { EditDetailsDialog } from "./edit-details-dialog"
 import { ProgressTracker } from "./progress-tracker"
 
 export function DetailsCard({
-  comp
+  comp,
 }: {
   comp: Doc<"competitions">
 }) {
-
-  const competitionId = comp._id;
+  const competitionId = comp._id
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
     object: {
       type: "competitions",
@@ -34,26 +33,7 @@ export function DetailsCard({
   const onClickWatch = useMutation(api.subscriptions.index.setSubscription)
 
   const setCompDates = useMutation(api.competitions.mutations.setCompDates)
-
-  if (comp === undefined) {
-    return (
-      <Card className="col-span-full min-h-80">
-        <CardHeader>
-          <CardTitle className="text-2xl">Loading competition...</CardTitle>
-        </CardHeader>
-        <CardContent divided className="border-t">
-          <p className="text-sm text-muted-foreground">Loading details...</p>
-          <ProgressTracker />
-        </CardContent>
-        <CardFooter>
-          <Button size="lg" variant="outline" disabled>
-            <BellIcon />
-            Subscribe
-          </Button>
-        </CardFooter>
-      </Card>
-    )
-  }
+  const updateDetails = useMutation(api.competitions.mutations.setCompDetails)
 
   const iconUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${comp.name}`
 
@@ -66,20 +46,28 @@ export function DetailsCard({
             className="size-12 shrink-0 rounded-lg border border-border object-cover"
           />
           <div className="flex flex-col items-start gap-2">
-            <CardTitle className="text-2xl">{comp?.name}</CardTitle>
+            <CardTitle className="text-2xl">{comp.name}</CardTitle>
             <DatePickerWithRange
               value={{
-                from: comp.compDates?.from ?? null,
-                to: comp.compDates?.to ?? null,
+                from: comp.compDates.from ?? null,
+                to: comp.compDates.to ?? null,
               }}
-              onChange={async ({ from, to }) => {
-                await setCompDates({ id: competitionId, from, to })
+              onChange={({ from, to }) => {
+                void setCompDates({ id: competitionId, from, to })
               }}
             />
           </div>
         </div>
         <CardAction>
-          <EditDetailsDialog comp={comp} />
+          <EditDetailsFormDialog
+            descriptionId="competition-description"
+            descriptionPlaceholder="Add the competition description..."
+            initialValue={comp}
+            nameId="competition-name"
+            title="Edit competition details"
+            triggerLabel="Edit competition details"
+            onSubmit={(value) => updateDetails({ id: competitionId, ...value })}
+          />
         </CardAction>
       </CardHeader>
       <CardContent divided className="border-t">
@@ -90,15 +78,15 @@ export function DetailsCard({
         <Button
           size="lg"
           variant={watchingVariant}
-          onClick={() =>
-            onClickWatch({
+          onClick={() => {
+            void onClickWatch({
               object: {
                 type: "competitions",
                 id: competitionId,
               },
               subscribe: !isWatching,
             })
-          }
+          }}
         >
           <BellIcon />
           {watchingText}
