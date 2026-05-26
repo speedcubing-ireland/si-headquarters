@@ -10,6 +10,9 @@ export default defineConfig({
   },
   test: {
     environment: "edge-runtime",
-    include: ["convex/**/*.test.{ts,tsx,js,jsx}"],
+    include: [
+      "convex/**/*.test.{ts,tsx,js,jsx}",
+      "src/**/*.test.{ts,tsx,js,jsx}",
+    ],
   },
 })

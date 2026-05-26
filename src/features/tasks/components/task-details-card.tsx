@@ -1,4 +1,4 @@
-import { TaskDateButton } from "@/components/data-selectors/task-date-button"
+import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -111,11 +111,10 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
         <CardTitle className="text-2xl">{task.name}</CardTitle>
         <div className="flex flex-wrap items-center gap-1 pt-1">
           <ParentLink parent={parent} />
-          <TaskDateButton
-            size="sm"
+          <TaskDateSelector.CompactButton
             value={task.dueDate}
             onChange={(dueDate) => {
-              return setDueDate({ id: task._id, dueDate })
+              void setDueDate({ id: task._id, dueDate })
             }}
           />
         </div>

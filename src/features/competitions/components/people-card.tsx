@@ -1,4 +1,4 @@
-import { UserButton } from "@/components/data-selectors/user-button"
+import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Button } from "@/components/ui/button"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -17,7 +17,6 @@ import {
   PageCardRow,
 } from "../../../components/page-card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "sonner"
 
 function LoadingValue() {
   return <Skeleton className="h-8 w-24" />
@@ -79,7 +78,7 @@ export function PeopleCard({
           icon={<ClipboardPenIcon className="size-4" />}
           label="Competition Lead"
         >
-          <UserButton
+          <UserSelector.SinglePropertyButton
             selectedUser={people.compLead}
             value={comp.people.compLead}
             onChange={(userId) => {
@@ -91,7 +90,7 @@ export function PeopleCard({
           icon={<FlagIcon className="size-4" />}
           label="Lead Delegate"
         >
-          <UserButton
+          <UserSelector.SinglePropertyButton
             selectedUser={people.leadDelegate}
             value={comp.people.leadDelegate}
             onChange={(userId) => {
@@ -100,8 +99,7 @@ export function PeopleCard({
           />
         </PageCardRow>
         <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
-          <UserButton
-            selectionMode="multiple"
+          <UserSelector.MultiPropertyButton
             selectedUsers={people.organisers}
             value={comp.people.organisers}
             onChange={(organiserIds) => {

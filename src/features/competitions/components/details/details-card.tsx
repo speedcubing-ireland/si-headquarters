@@ -1,4 +1,4 @@
-import { DatePickerWithRange } from "@/components/data-selectors/date-range-picker"
+import * as DateRangeSelector from "@/components/data-selectors/date-range-selector"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -44,7 +44,7 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
           />
           <div className="flex flex-col items-start gap-2">
             <CardTitle className="text-2xl">{comp.name}</CardTitle>
-            <DatePickerWithRange
+            <DateRangeSelector.Button
               value={{
                 from: comp.compDates.from ?? null,
                 to: comp.compDates.to ?? null,

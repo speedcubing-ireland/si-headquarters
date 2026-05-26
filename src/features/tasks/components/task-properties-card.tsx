@@ -1,8 +1,8 @@
-import { TaskDateButton } from "@/components/data-selectors/task-date-button"
-import { TaskLabelButton } from "@/components/data-selectors/task-label-button"
-import { TaskOwnerButton } from "@/components/data-selectors/task-owner-button"
-import { TaskStatusButton } from "@/components/data-selectors/task-status-button"
-import { UserButton } from "@/components/data-selectors/user-button"
+import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
+import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
+import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
+import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
+import * as UserSelector from "@/components/data-selectors/user-selector"
 import { AddTaskReviewerButton } from "@/features/tasks/components/add-task-reviewer-button"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -83,16 +83,15 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
           icon={<TrafficConeIcon className="size-4" />}
           label="Status"
         >
-          <TaskStatusButton
+          <TaskStatusSelector.PropertyButton
             statusView={statusView}
             onChange={(status) => {
-              return setStatus({ id: taskId, status })
+              void setStatus({ id: taskId, status })
             }}
           />
         </PageCardRow>
         <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
-          <UserButton
-            selectionMode="multiple"
+          <UserSelector.MultiPropertyButton
             selectedUsers={assignees}
             value={assignees.map((user) => user._id)}
             onChange={(assigneeIds) => {
@@ -104,28 +103,28 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
           />
         </PageCardRow>
         <PageCardRow icon={<CastleIcon className="size-4" />} label="Owner">
-          <TaskOwnerButton
+          <TaskOwnerSelector.PropertyButton
             selectedOwner={owner}
             value={task.owner}
             onChange={(owner) => {
-              return setOwner({ id: taskId, owner })
+              void setOwner({ id: taskId, owner })
             }}
           />
         </PageCardRow>
         <PageCardRow icon={<TagIcon className="size-4" />} label="Labels">
-          <TaskLabelButton
+          <TaskLabelSelector.PropertyButton
             selectedLabels={labels}
             value={labels.map((label) => label._id)}
             onChange={(labelIds) => {
-              return setLabels({ id: taskId, labelIds })
+              void setLabels({ id: taskId, labelIds })
             }}
           />
         </PageCardRow>
         <PageCardRow icon={<TargetIcon className="size-4" />} label="Due Date">
-          <TaskDateButton
+          <TaskDateSelector.PropertyButton
             value={task.dueDate}
             onChange={(dueDate) => {
-              return setDueDate({ id: taskId, dueDate })
+              void setDueDate({ id: taskId, dueDate })
             }}
           />
         </PageCardRow>

@@ -15,10 +15,10 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
-import { TaskDateButton } from "@/components/data-selectors/task-date-button"
-import { TaskOwnerButton } from "@/components/data-selectors/task-owner-button"
-import { TaskStatusButton } from "@/components/data-selectors/task-status-button"
-import { UserButton } from "@/components/data-selectors/user-button"
+import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
+import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
+import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
+import * as UserSelector from "@/components/data-selectors/user-selector"
 import { useMeasuredElement } from "@/hooks/use-measured-element"
 import {
   buildTaskPathCandidates,
@@ -131,8 +131,7 @@ function InlineDataViewRow({ row }: { row: InlineDataRow }) {
 
   return (
     <div className="flex min-w-0 items-center gap-3 border-b px-4 py-3 last:border-b-0">
-      <UserButton
-        selectionMode="multiple"
+      <UserSelector.MultiIconButton
         selectedUsers={row.assignees.users}
         value={row.assignees.userIds}
         onChange={(assigneeIds) => {
@@ -141,37 +140,28 @@ function InlineDataViewRow({ row }: { row: InlineDataRow }) {
             assigneeIds,
           })
         }}
-        variant="icon"
-        showName={false}
         avatarProps={{ className: "size-5", size: "default" }}
-        maxAvatars={1}
       />
-      <TaskStatusButton
+      <TaskStatusSelector.IconButton
         statusView={row.statusView}
         onChange={(newStatus) => {
-          return setTaskStatus({ id: row.task._id, status: newStatus })
+          void setTaskStatus({ id: row.task._id, status: newStatus })
         }}
-        showLabel={false}
         iconProps={{ className: "size-5" }}
-        variant="icon"
       />
       <ResponsiveTaskPath row={row} />
-      <TaskDateButton
-        variant="icon"
+      <TaskDateSelector.InlineTextButton
         value={row.task.dueDate}
         onChange={(newDate) => {
-          return setDueDate({ id: row.task._id, dueDate: newDate })
+          void setDueDate({ id: row.task._id, dueDate: newDate })
         }}
         className="font-mono text-muted-foreground"
-        showIcon={false}
       />
-      <TaskOwnerButton
+      <TaskOwnerSelector.IconButton
         selectedOwner={row.owner}
         onChange={(newOwner) => {
-          return setTaskOwner({ id: row.task._id, owner: newOwner })
+          void setTaskOwner({ id: row.task._id, owner: newOwner })
         }}
-        variant="icon"
-        showName={false}
         avatarProps={{ className: "size-5", size: "default" }}
       />
     </div>

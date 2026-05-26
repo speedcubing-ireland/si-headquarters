@@ -1,17 +1,29 @@
 "use client"
 
-import * as React from "react"
-import { format, parseISO } from "date-fns"
-import { CalendarIcon } from "lucide-react"
-import type { DateRange } from "react-day-picker"
-
-import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { format, parseISO } from "date-fns"
+import { CalendarIcon } from "lucide-react"
+import * as React from "react"
+import type { DateRange } from "react-day-picker"
+import { SelectorButton } from "./selector-face"
+import * as SelectorFace from "./selector-face"
+import type { SelectorChangeHandler } from "./selector-options"
+
+interface DateRangeSelectorValue {
+  from: string | null
+  to: string | null
+}
+
+interface DateRangeSelectorProps
+  extends Omit<React.ComponentProps<typeof SelectorButton>, "children" | "onChange" | "value"> {
+  value: DateRangeSelectorValue
+  onChange: SelectorChangeHandler<DateRangeSelectorValue>
+}
 
 function toDateRange(
   from: string | null,
@@ -33,28 +45,29 @@ function formatDateText(from?: Date, to?: Date) {
   if (sameDate) return format(from, "LLL dd, y")
 
   const sameYear = from.getFullYear() === to.getFullYear()
-  return `${format(from, sameYear ? "LLL dd" : "LLL dd, y")} - ${format(to, "LLL dd, y")}`
+  return `${format(from, sameYear ? "LLL dd" : "LLL dd, y")} - ${format(
+    to,
+    "LLL dd, y"
+  )}`
 }
 
-type DatePickerWithRangeProps = Omit<
-  React.ComponentProps<typeof Button>,
-  "onChange" | "value"
-> & {
-  value: {
-    from: string | null
-    to: string | null
-  }
-  onChange: (value: {
-    from: string | null
-    to: string | null
-  }) => void | Promise<void>
+export function Face({ range }: { range: DateRange | undefined }) {
+  return (
+    <SelectorFace.Root>
+      <CalendarIcon />
+      <SelectorFace.Text>
+        {formatDateText(range?.from, range?.to)}
+      </SelectorFace.Text>
+    </SelectorFace.Root>
+  )
 }
 
-export function DatePickerWithRange({
+export function Button({
   onChange,
   value,
+  variant,
   ...props
-}: DatePickerWithRangeProps) {
+}: DateRangeSelectorProps) {
   const selectedRange = toDateRange(value.from, value.to)
   const [isOpen, setIsOpen] = React.useState(false)
   const [pickerDate, setPickerDate] = React.useState(selectedRange)
@@ -69,7 +82,7 @@ export function DatePickerWithRange({
 
   const setDate = (date: DateRange | undefined) => {
     setPickerDate(date)
-    void onChange({
+    onChange({
       from: date?.from ? format(date.from, "yyyy-MM-dd") : null,
       to: date?.to ? format(date.to, "yyyy-MM-dd") : null,
     })
@@ -78,15 +91,14 @@ export function DatePickerWithRange({
   return (
     <Popover open={isOpen} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          size={props.size ?? "default"}
-          variant={props.variant ?? "outline"}
+        <SelectorButton
           id="date-picker-range"
+          size={props.size ?? "default"}
+          variant={variant}
           {...props}
         >
-          <CalendarIcon />
-          {formatDateText(displayedDate?.from, displayedDate?.to)}
-        </Button>
+          <Face range={displayedDate} />
+        </SelectorButton>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar

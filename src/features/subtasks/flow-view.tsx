@@ -1,8 +1,8 @@
-import { TaskDateButton } from "@/components/data-selectors/task-date-button"
-import { TaskLabelButton } from "@/components/data-selectors/task-label-button"
-import { TaskOwnerButton } from "@/components/data-selectors/task-owner-button"
-import { TaskStatusButton } from "@/components/data-selectors/task-status-button"
-import { UserButton } from "@/components/data-selectors/user-button"
+import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
+import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
+import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
+import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
+import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -137,12 +137,11 @@ const FlowItem = memo(function FlowItem({
               </ItemTitle>
             </ItemContent>
             <ItemActions>
-              <TaskStatusButton
+              <TaskStatusSelector.CompactButton
                 className="hidden sm:flex"
-                size="sm"
                 statusView={step.statusView}
                 onChange={(status) => {
-                  return setStatus({ id: taskId, status })
+                  void setStatus({ id: taskId, status })
                 }}
               />
               {step.statusView.availableActions.includes("reopen") && (
@@ -163,37 +162,31 @@ const FlowItem = memo(function FlowItem({
 
           <ItemFooter>
             <ItemActions>
-              <TaskLabelButton
-                size="sm"
+              <TaskLabelSelector.CompactButton
                 selectedLabels={labels}
                 value={getLabelIds(labels)}
                 onChange={(labelIds) => {
-                  return setLabels({ id: taskId, labelIds })
+                  void setLabels({ id: taskId, labelIds })
                 }}
               />
-              <TaskDateButton
-                size="sm"
+              <TaskDateSelector.CompactButton
                 value={dueDate}
                 onChange={(dueDate) => {
-                  return setDueDate({ id: taskId, dueDate })
+                  void setDueDate({ id: taskId, dueDate })
                 }}
               />
             </ItemActions>
             <ItemActions>
-              <TaskOwnerButton
-                size="sm"
-                showAvatar={false}
+              <TaskOwnerSelector.NameButton
                 selectedOwner={owner}
                 onChange={(owner) => {
-                  return setOwner({ id: taskId, owner })
+                  void setOwner({ id: taskId, owner })
                 }}
               />
               <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground/70 sm:block" />
               <CornerRightDownIcon className="size-3.5 shrink-0 text-muted-foreground/70 sm:hidden" />
               <span className="hidden sm:inline-flex">
-                <UserButton
-                  selectionMode="multiple"
-                  size="sm"
+                <UserSelector.MultiCompactButton
                   selectedUsers={assignees.users}
                   value={assignees.userIds}
                   onChange={(assigneeIds) => {
@@ -205,18 +198,15 @@ const FlowItem = memo(function FlowItem({
           </ItemFooter>
           <ItemFooter className="border-t pt-2 sm:hidden">
             <ItemActions>
-              <TaskStatusButton
-                size="sm"
+              <TaskStatusSelector.CompactButton
                 statusView={step.statusView}
                 onChange={(status) => {
-                  return setStatus({ id: taskId, status })
+                  void setStatus({ id: taskId, status })
                 }}
               />
             </ItemActions>
             <ItemActions>
-              <UserButton
-                selectionMode="multiple"
-                size="sm"
+              <UserSelector.MultiCompactButton
                 selectedUsers={assignees.users}
                 value={assignees.userIds}
                 onChange={(assigneeIds) => {

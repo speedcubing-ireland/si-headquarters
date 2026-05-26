@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
-import { PhaseButton } from "@/components/data-selectors/phase-button"
+import * as PhaseSelector from "@/components/data-selectors/phase-selector"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useMutation, useQuery } from "convex/react"
@@ -70,7 +70,7 @@ export function PropertiesCard({
     <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
       <PageCardContent>
         <PageCardRow icon={<MilestoneIcon className="size-4" />} label="Phase">
-          <PhaseButton
+          <PhaseSelector.PropertyButton
             owner={{
               type: "competitions",
               id: comp._id,
