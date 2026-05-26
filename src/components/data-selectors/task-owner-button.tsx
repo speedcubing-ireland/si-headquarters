@@ -7,6 +7,8 @@ import type { Doc } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
 import { useQuery } from "convex/react"
 import { useMemo, useState } from "react"
+import { CastleIcon } from "lucide-react"
+import { Avatar } from "../ui/avatar"
 
 type OwnerRef = Doc<"tasks">["owner"]
 type OwnerValue = NonNullable<OwnerRef>
@@ -108,14 +110,30 @@ export function TaskOwnerButton({
       groups={ownerGroups}
       open={open}
       renderValue={(owner) => {
-        if (!owner) return "No Owner"
+        if (!owner) {
+          return (
+            showName ? (
+              <>
+                {showAvatar && <CastleIcon />}
+                None
+              </>
+            ) : (
+              <Avatar
+                size="sm"
+                {...avatarProps}
+              >
+                <CastleIcon data-slot="avatar-image" className="p-0.75 aspect-square size-full object-fit" />
+              </Avatar>
+            )
+          )
+        }
 
         const label = shortenOwnerName(owner.label, owner.value.type)
 
         return (
           <>
             {showAvatar && (
-              <ObjectAvatar obj={owner.owner} size="sm" {...avatarProps} />
+              <ObjectAvatar obj={owner.owner} size={avatarProps?.size ?? "sm"} {...avatarProps} />
             )}
             {showName && label}
           </>

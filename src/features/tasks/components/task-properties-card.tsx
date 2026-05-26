@@ -132,7 +132,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
       </PageCardContent>
       <PageCardFooter className="grid grid-cols-2 gap-2">
         <AddTaskReviewerButton taskId={taskId} />
-        <Button variant="outline">
+        <Button variant="outline" noop>
           <CableIcon />
           Add Integration
         </Button>

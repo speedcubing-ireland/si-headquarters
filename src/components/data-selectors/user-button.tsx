@@ -1,4 +1,5 @@
-import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
+// To-do this needs to have support for 'assignable'
+import { Avatar, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { ObjectAvatar } from "@/components/object-avatar"
 import type { Button } from "@/components/ui/button"
 import {
@@ -69,11 +70,19 @@ function UserButtonFace({
 }) {
   if (users.length === 0) {
     return (
+      showName ? (
       <>
         <UserRoundIcon />
-        {showName && "None"}
+        None
       </>
-    )
+    ) : (
+      <Avatar
+        size="sm"
+        {...avatarProps}
+      >
+        <UserRoundIcon data-slot="avatar-image" className="p-0.75 aspect-square size-full object-fit" />
+      </Avatar>
+    ))
   }
 
   if (users.length === 1) {
@@ -94,7 +103,7 @@ function UserButtonFace({
         <ObjectAvatar key={user._id} obj={user} size="sm" {...avatarProps} />
       ))}
       {hiddenAvatarCount > 0 && (
-        <AvatarGroupCount>+{hiddenAvatarCount}</AvatarGroupCount>
+        <AvatarGroupCount className={avatarProps?.className}>+{hiddenAvatarCount}</AvatarGroupCount>
       )}
     </AvatarGroup>
   )

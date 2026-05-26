@@ -35,6 +35,7 @@ import {
 import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
 import { FlowView } from "../subtasks/flow-view"
 import { SubtaskView } from "../subtasks/subtask-view"
+import type { Id } from "@/convex/_generated/dataModel"
 
 const blockedByTasks = [
   {
@@ -220,31 +221,21 @@ function IntegrationCard() {
   )
 }
 
-function TaskPageLoading() {
-  return (
-    <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-      {["Task", "Properties", "Dependencies", "Approvals"].map((title) => (
-        <Card key={title}>
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-          </CardHeader>
-          <CardContent className="min-h-32 text-sm text-muted-foreground">
-            Loading...
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
-}
+export function Task({ taskId }: {
+  taskId: Id<"tasks">
+}) {
+  const root = useQuery(api.tasks.queries.getPageRoot, {
+    id: taskId
+  })
 
-export function Task() {
-  const root = useQuery(api.tasks.queries.getPageRoot)
-
-  if (root === undefined) {
-    return <TaskPageLoading />
+  if (root === null) {
+    return "Task not found."
   }
 
-  const taskId = root.taskId
+  if (root === undefined) {
+    return <></>
+  }
+
 
   return (
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
@@ -256,7 +247,7 @@ export function Task() {
       {root.kind === "flow" ? (
         <FlowView taskId={taskId} />
       ) : (
-        <SubtaskView taskId={taskId} />
+        <SubtaskView owner={{ type: "tasks", id: taskId }} />
       )}
       <div className="h-96" />
     </div>

@@ -429,6 +429,8 @@ export function SingleSelectorCombobox<TItem, TValue>({
       itemToStringLabel={getOptionLabel}
       isItemEqualToValue={isSelectorOptionEqual}
       open={open}
+      inputValue={searchable ? undefined : ""}
+      onInputValueChange={searchable ? undefined : () => {}}
       value={selectedOptions[0] ?? null}
       onOpenChange={onOpenChange}
       onValueChange={(option) => {
@@ -485,6 +487,8 @@ export function MultipleSelectorCombobox<TItem, TValue>({
       itemToStringLabel={getOptionLabel}
       isItemEqualToValue={isSelectorOptionEqual}
       open={open}
+      inputValue={searchable ? undefined : ""}
+      onInputValueChange={searchable ? undefined : () => {}}
       value={selectedOptions}
       onOpenChange={onOpenChange}
       onValueChange={(options) => {

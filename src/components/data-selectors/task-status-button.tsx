@@ -51,9 +51,7 @@ export function TaskStatusButton({
         }
       }}
     >
-      <SelectTrigger
-        asChild
-      >
+      <SelectTrigger asChild>
         <Button
           variant={props.variant ?? "outline"}
           disabled={isDisabled || props.disabled}

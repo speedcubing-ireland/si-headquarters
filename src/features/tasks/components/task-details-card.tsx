@@ -1,5 +1,3 @@
-// To-do unfinished
-
 import { TaskDateButton } from "@/components/data-selectors/task-date-button"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,6 +22,9 @@ import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
 import type { Id } from "@/convex/_generated/dataModel"
 import { EditDetailsFormDialog } from "@/features/shared/edit-details-form-dialog"
+import DynamicActionButton from "./dynamic-action-button"
+import { RouterButton } from "@/components/ui/router-button"
+import { PHASE_COLOR_CLASSES } from "@/components/data-selectors/phase-meta"
 
 type TaskDetails = FunctionReturnType<typeof api.tasks.queries.getDetails>
 
@@ -34,12 +35,16 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
     return (
       <>
         <CornerDownRightIcon className="size-4" />
-        <Button variant="outline" size="sm">
+        <RouterButton to={`/competitions/$id`}  params={{ id: parent.competition._id }} variant="outline" size="sm">
           <span className="truncate">{parent.competition.name}</span>
-          <Badge variant="outline" className="ml-2">
+          <Badge variant="outline" className="ml-2 gap-1.25">
+            <span
+              className={`size-2 rounded-full ${PHASE_COLOR_CLASSES[parent.color]}`}
+              aria-hidden="true"
+            />
             {parent.name}
           </Badge>
-        </Button>
+        </RouterButton>
       </>
     )
   }
@@ -47,14 +52,14 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
   return (
     <>
       <CornerDownRightIcon className="size-4" />
-      <Button variant="outline" size="sm">
+      <RouterButton to={`/tasks/$id`}  params={{ id: parent._id }} variant="outline" size="sm">
         {parent.name}
         <SubtaskBadge
           className="flex"
           kind={parent.kind}
           progress={parent.progress}
         />
-      </Button>
+      </RouterButton>
     </>
   )
 }
@@ -63,7 +68,6 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
   const taskDetails = useQuery(api.tasks.queries.getDetails, { id: taskId })
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
   const updateDetails = useMutation(api.tasks.mutations.setTaskDetails)
-  const claimTask = useMutation(api.tasks.mutations.claimTask)
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
     object: {
       type: "tasks",
@@ -131,15 +135,7 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
         <Streamdown>{task.description ?? "Enter a description..."}</Streamdown>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button
-          size="lg"
-          onClick={() => {
-            void claimTask({ id: taskId })
-          }}
-        >
-          <HandIcon />
-          Claim
-        </Button>
+        <DynamicActionButton task={task} />
         <Button
           size="lg"
           variant={watchingVariant}
@@ -156,7 +152,7 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
           <BellIcon />
           {watchingText}
         </Button>
-        <Button size="lg" variant="outline">
+        <Button size="lg" variant="outline" noop>
           <AlarmClockPlusIcon />
           Reminders
         </Button>

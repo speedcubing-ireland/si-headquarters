@@ -113,10 +113,7 @@ export function PeopleCard({
       <PageCardFooter>
         <Button
           className="w-full"
-          onClick={() => {
-            // TODO: implement invites
-            toast.error("Invites not implemented  ask the software team")
-          }}
+          noop
         >
           <MessageCirclePlusIcon />
           Invite Organiser To HQ

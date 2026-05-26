@@ -25,7 +25,7 @@ export interface TaskPathLayout {
 export interface TaskPathLayoutInput {
   taskTitle: string
   subtaskTitle: string
-  subtaskIndicator: string
+  subtaskIndicator: string | null
   labelText: string
   compactLabelText: string
   textFont: string
@@ -34,7 +34,7 @@ export interface TaskPathLayoutInput {
 interface LayoutCandidateInput {
   task: string
   subtask: string
-  subtaskIndicator: string
+  subtaskIndicator: string | null
   label: string
   textFont: string
 }
@@ -170,27 +170,35 @@ function buildLayoutCandidate({
 }: LayoutCandidateInput): TaskPathLayout {
   const taskWidth = measureTextForDom(task, textFont)
   const subtaskWidth = measureTextForDom(subtask, textFont)
-  const progressWidth = measureBadgeWidth(
-    subtaskIndicator,
-    PROGRESS_BADGE_CHROME_WIDTH_PX
-  )
-  const labelWidth = measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
+  const progressWidth =
+    subtaskIndicator === null
+      ? 0
+      : measureBadgeWidth(subtaskIndicator, PROGRESS_BADGE_CHROME_WIDTH_PX)
+  const labelWidth =
+    label.length === 0
+      ? 0
+      : measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
+  const pathGapCount = subtaskIndicator === null ? 2 : PATH_GAP_COUNT
   const pathWidth =
     taskWidth +
     CHEVRON_WIDTH_PX +
     subtaskWidth +
     progressWidth +
-    PATH_GAP_WIDTH_PX * PATH_GAP_COUNT
+    PATH_GAP_WIDTH_PX * pathGapCount
 
   return {
     taskText: task,
     subtaskText: subtask,
     labelText: label,
-    totalWidth: pathWidth + PROGRESS_TO_LABEL_GAP_PX + labelWidth,
+    totalWidth:
+      pathWidth +
+      (labelWidth === 0 ? 0 : PROGRESS_TO_LABEL_GAP_PX + labelWidth),
   }
 }
 
 function getLabelCandidateTexts(labelText: string, compactLabelText: string) {
+  if (labelText.length === 0) return [""]
+
   const graphemes = splitGraphemes(labelText)
   const candidates = [labelText]
 

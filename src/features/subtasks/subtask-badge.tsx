@@ -1,7 +1,7 @@
 import { CassetteTapeIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import type { FlowViewProgress } from "@/convex/tasks/queries"
+import type { TaskViewProgress } from "@/convex/tasks/queries"
 import type { TaskKind } from "@/convex/tasks/status/resolver"
 
 const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 6
@@ -46,7 +46,7 @@ export function SubtaskBadge({
   className,
 }: {
   kind: TaskKind
-  progress: FlowViewProgress
+  progress: TaskViewProgress
   className?: string
 }) {
   const subtaskCount = progress.total

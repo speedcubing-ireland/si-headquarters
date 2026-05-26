@@ -4,12 +4,9 @@ import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import {
-  createTaskDisplayReader,
-  getCurrentEditableStepIndex,
   taskFlowDisplay,
   taskFlowStructure,
   taskFlowView,
-  toFlowViewStatusView,
   type TaskFlowDisplay,
   type TaskFlowStructure,
   type TaskFlowView,
@@ -25,6 +22,17 @@ import {
 } from "@/convex/tasks/status/resolver"
 import { taskStatusCommandType } from "@/convex/tasks/status/validators"
 import { getProgress } from "@/convex/tasks/status/rules"
+import {
+  getCompetitionSubtaskView,
+  getTaskSubtaskView,
+  subtaskViewOwner,
+  taskSubtaskView,
+} from "@/convex/tasks/subtaskView"
+import {
+  createTaskViewDisplayReader,
+  getCurrentEditableStepIndex,
+  toTaskViewStatusView,
+} from "@/convex/tasks/view"
 import { v } from "convex/values"
 
 type TaskParentDetails =
@@ -39,6 +47,7 @@ type TaskParentDetails =
       type: "phases"
       _id: Id<"phases">
       name: string
+      color: Doc<"phases">["color"]
       competition: {
         _id: Id<"competitions">
         name: string
@@ -57,6 +66,15 @@ export {
   type TaskFlowView,
   type TaskFlowViewTaskDetails,
 } from "@/convex/tasks/flowView"
+
+export { type TaskViewProgress } from "@/convex/tasks/view"
+
+export {
+  subtaskViewOwner,
+  taskSubtaskView,
+  type SubtaskViewOwner,
+  type TaskSubtaskView,
+} from "@/convex/tasks/subtaskView"
 
 async function getTaskFlowStructure(
   task: Doc<"tasks">,
@@ -89,7 +107,7 @@ async function getTaskFlowStructure(
         status: task.status,
         statusIntent: task.statusIntent,
       },
-      statusView: toFlowViewStatusView(statusView),
+      statusView: toTaskViewStatusView(statusView),
     })),
   }
 }
@@ -97,11 +115,11 @@ async function getTaskFlowStructure(
 async function getTaskFlowDisplay(
   task: Doc<"tasks">,
   statusLoader: TaskStatusLoader,
-  displayReader: ReturnType<typeof createTaskDisplayReader>
+  displayReader: ReturnType<typeof createTaskViewDisplayReader>
 ): Promise<TaskFlowDisplay> {
   const subtasks = await statusLoader.getDirectSubtasks(task._id)
   const steps = await Promise.all(
-    subtasks.map((subtask) => displayReader.hydrateFlowDisplayStep(subtask))
+    subtasks.map((subtask) => displayReader.hydrateTaskDisplay(subtask))
   )
 
   return { steps }
@@ -110,7 +128,7 @@ async function getTaskFlowDisplay(
 async function getTaskFlowView(
   task: Doc<"tasks">,
   statusLoader: TaskStatusLoader,
-  displayReader: ReturnType<typeof createTaskDisplayReader>
+  displayReader: ReturnType<typeof createTaskViewDisplayReader>
 ): Promise<TaskFlowView> {
   const subtasks = await statusLoader.getDirectSubtasks(task._id)
   const stepsWithStatusViews = await buildSubtasksWithStatusViews(
@@ -121,7 +139,7 @@ async function getTaskFlowView(
   const currentStepIndex = getCurrentEditableStepIndex(stepsWithStatusViews)
 
   const steps = await Promise.all(
-    stepsWithStatusViews.map((step) => displayReader.hydrateFlowStep(step))
+    stepsWithStatusViews.map((step) => displayReader.hydrateTaskDetails(step))
   )
 
   return {
@@ -155,6 +173,7 @@ async function getTaskParentDetails(
             type: "phases",
             _id: phase._id,
             name: phase.name,
+            color: phase.color,
             competition: {
               _id: competition._id,
               name: competition.name,
@@ -181,10 +200,12 @@ async function getTaskParentDetails(
 }
 
 export const getPageRoot = query({
-  args: {},
-  handler: async (ctx) => {
-    const task = await ctx.db.query("tasks").first()
-    if (!task) throw new Error("No tasks found in the database")
+  args: {
+    id: v.id("tasks")
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get("tasks", args.id);
+    if (!task) return null;
 
     return {
       taskId: task._id,
@@ -216,7 +237,7 @@ export const getProperties = query({
   handler: async (ctx, args) => {
     const task = await ctx.db.get("tasks", args.id)
     if (!task) throw new Error("Task not found")
-    const displayReader = createTaskDisplayReader(ctx)
+    const displayReader = createTaskViewDisplayReader(ctx)
     const statusLoader = new TaskStatusLoader(ctx)
 
     const [labels, owner, assignees, statusView] = await Promise.all([
@@ -260,7 +281,7 @@ export const getFlowView = query({
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
     const statusLoader = new TaskStatusLoader(ctx)
-    const displayReader = createTaskDisplayReader(ctx)
+    const displayReader = createTaskViewDisplayReader(ctx)
     return await getTaskFlowView(task, statusLoader, displayReader)
   },
 })
@@ -291,8 +312,22 @@ export const getFlowDisplay = query({
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
     const statusLoader = new TaskStatusLoader(ctx)
-    const displayReader = createTaskDisplayReader(ctx)
+    const displayReader = createTaskViewDisplayReader(ctx)
     return await getTaskFlowDisplay(task, statusLoader, displayReader)
+  },
+})
+
+export const getSubtaskView = query({
+  args: {
+    owner: subtaskViewOwner,
+  },
+  returns: taskSubtaskView,
+  handler: async (ctx, args) => {
+    if (args.owner.type === "tasks") {
+      return await getTaskSubtaskView(ctx, args.owner.id)
+    }
+
+    return await getCompetitionSubtaskView(ctx, args.owner.id)
   },
 })
 

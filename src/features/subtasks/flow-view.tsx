@@ -91,6 +91,7 @@ const FlowItem = memo(function FlowItem({
   const labels = display?.labels ?? []
   const owner = display?.owner ?? null
   const assignees = display?.assignees ?? emptyAssignees
+  const dueDate = display?.dueDate ?? null
 
   return (
     <div className="group/flow-step grid grid-cols-[1.75rem_minmax(0,1fr)] gap-2">
@@ -170,15 +171,13 @@ const FlowItem = memo(function FlowItem({
                   return setLabels({ id: taskId, labelIds })
                 }}
               />
-              {display?.dueDate !== undefined && display.dueDate !== null && (
-                <TaskDateButton
-                  size="sm"
-                  value={display.dueDate}
-                  onChange={(dueDate) => {
-                    return setDueDate({ id: taskId, dueDate })
-                  }}
-                />
-              )}
+              <TaskDateButton
+                size="sm"
+                value={dueDate}
+                onChange={(dueDate) => {
+                  return setDueDate({ id: taskId, dueDate })
+                }}
+              />
             </ItemActions>
             <ItemActions>
               <TaskOwnerButton

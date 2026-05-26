@@ -3,14 +3,7 @@ import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
 import { useState } from "react"
-
-const PHASE_COLOR_CLASSES = {
-  gray: "bg-gray-400 dark:bg-gray-600",
-  red: "bg-red-500",
-  sky: "bg-sky-500",
-  amber: "bg-amber-400",
-  green: "bg-green-600",
-} satisfies Record<Doc<"phases">["color"], string>
+import { PHASE_COLOR_CLASSES } from "./phase-meta"
 
 function PhaseDot({
   className = "",
@@ -43,7 +36,7 @@ export function PhaseButton({
     api.phases.queries.listForOwner,
     open ? { owner } : "skip"
   )
-
+  
   return (
     <SingleSelectorCombobox
       align="start"

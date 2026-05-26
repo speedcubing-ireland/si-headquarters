@@ -9,72 +9,58 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TaskRouteImport } from './routes/task'
-import { Route as CompetitionRouteImport } from './routes/competition'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TasksIdRouteImport } from './routes/tasks/$id'
+import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 
-const TaskRoute = TaskRouteImport.update({
-  id: '/task',
-  path: '/task',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompetitionRoute = CompetitionRouteImport.update({
-  id: '/competition',
-  path: '/competition',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TasksIdRoute = TasksIdRouteImport.update({
+  id: '/tasks/$id',
+  path: '/tasks/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
+  id: '/competitions/$id',
+  path: '/competitions/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
-  '/task': typeof TaskRoute
+  '/competitions/$id': typeof CompetitionsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
-  '/task': typeof TaskRoute
+  '/competitions/$id': typeof CompetitionsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/competition': typeof CompetitionRoute
-  '/task': typeof TaskRoute
+  '/competitions/$id': typeof CompetitionsIdRoute
+  '/tasks/$id': typeof TasksIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/competition' | '/task'
+  fullPaths: '/' | '/competitions/$id' | '/tasks/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/competition' | '/task'
-  id: '__root__' | '/' | '/competition' | '/task'
+  to: '/' | '/competitions/$id' | '/tasks/$id'
+  id: '__root__' | '/' | '/competitions/$id' | '/tasks/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CompetitionRoute: typeof CompetitionRoute
-  TaskRoute: typeof TaskRoute
+  CompetitionsIdRoute: typeof CompetitionsIdRoute
+  TasksIdRoute: typeof TasksIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/task': {
-      id: '/task'
-      path: '/task'
-      fullPath: '/task'
-      preLoaderRoute: typeof TaskRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/competition': {
-      id: '/competition'
-      path: '/competition'
-      fullPath: '/competition'
-      preLoaderRoute: typeof CompetitionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -82,13 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tasks/$id': {
+      id: '/tasks/$id'
+      path: '/tasks/$id'
+      fullPath: '/tasks/$id'
+      preLoaderRoute: typeof TasksIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/competitions/$id': {
+      id: '/competitions/$id'
+      path: '/competitions/$id'
+      fullPath: '/competitions/$id'
+      preLoaderRoute: typeof CompetitionsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CompetitionRoute: CompetitionRoute,
-  TaskRoute: TaskRoute,
+  CompetitionsIdRoute: CompetitionsIdRoute,
+  TasksIdRoute: TasksIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

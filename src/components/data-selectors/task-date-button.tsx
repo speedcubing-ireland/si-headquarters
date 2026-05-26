@@ -14,7 +14,7 @@ function toDate(value: string | null) {
 }
 
 function formatDateText(value: string | null) {
-  return value !== null ? format(parseISO(value), "MMM dd") : "Pick a date"
+  return value !== null ? format(parseISO(value), "MMM dd") : "Set Due"
 }
 
 type TaskDateButtonProps = Omit<
