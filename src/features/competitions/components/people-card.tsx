@@ -109,10 +109,7 @@ export function PeopleCard({
         </PageCardRow>
       </PageCardContent>
       <PageCardFooter>
-        <Button
-          className="w-full"
-          noop
-        >
+        <Button className="w-full" noop>
           <MessageCirclePlusIcon />
           Invite Organiser To HQ
         </Button>

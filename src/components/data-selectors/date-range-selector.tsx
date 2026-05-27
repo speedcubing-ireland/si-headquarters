@@ -19,8 +19,10 @@ interface DateRangeSelectorValue {
   to: string | null
 }
 
-interface DateRangeSelectorProps
-  extends Omit<React.ComponentProps<typeof SelectorButton>, "children" | "onChange" | "value"> {
+interface DateRangeSelectorProps extends Omit<
+  React.ComponentProps<typeof SelectorButton>,
+  "children" | "onChange" | "value"
+> {
   value: DateRangeSelectorValue
   onChange: SelectorChangeHandler<DateRangeSelectorValue>
 }

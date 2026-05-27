@@ -10,8 +10,10 @@ import type { SelectorChangeHandler } from "./selector-options"
 
 type SelectorButtonProps = ComponentProps<typeof DataSelector.ButtonTrigger>
 
-interface PhaseSelectorProps
-  extends Pick<SelectorButtonProps, "className" | "disabled" | "size" | "variant"> {
+interface PhaseSelectorProps extends Pick<
+  SelectorButtonProps,
+  "className" | "disabled" | "size" | "variant"
+> {
   owner: Doc<"phases">["owner"]
   selectedPhase?: Doc<"phases"> | null
   value: Id<"phases"> | null | undefined
@@ -95,11 +97,7 @@ export function PropertyButton({
       >
         <Face phase={model.selectedItem} />
       </DataSelector.ButtonTrigger>
-      <DataSelector.Content
-        align="start"
-        model={model}
-        objectNoun="phases"
-      />
+      <DataSelector.Content align="start" model={model} objectNoun="phases" />
     </DataSelector.SingleRoot>
   )
 }

@@ -11,8 +11,10 @@ import { SelectorButton } from "./selector-face"
 import * as SelectorFace from "./selector-face"
 import type { SelectorChangeHandler } from "./selector-options"
 
-interface TaskDateSelectorProps
-  extends Omit<ComponentProps<typeof SelectorButton>, "children" | "onChange" | "value"> {
+interface TaskDateSelectorProps extends Omit<
+  ComponentProps<typeof SelectorButton>,
+  "children" | "onChange" | "value"
+> {
   value: string | null
   onChange: SelectorChangeHandler<string | null>
 }
@@ -76,7 +78,10 @@ export function PropertyButton(props: TaskDateSelectorProps) {
   return <TaskDateSelectorControl showIcon {...props} />
 }
 
-export function CompactButton({ size = "sm", ...props }: TaskDateSelectorProps) {
+export function CompactButton({
+  size = "sm",
+  ...props
+}: TaskDateSelectorProps) {
   return <TaskDateSelectorControl showIcon size={size} {...props} />
 }
 

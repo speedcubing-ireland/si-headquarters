@@ -22,8 +22,10 @@ type SelectedOwner =
   | (PublicUser & { type: "users" })
   | (Team & { type: "teams" })
 
-interface TaskOwnerSelectorProps
-  extends Pick<SelectorButtonProps, "className" | "disabled" | "size" | "variant"> {
+interface TaskOwnerSelectorProps extends Pick<
+  SelectorButtonProps,
+  "className" | "disabled" | "size" | "variant"
+> {
   avatarProps?: ObjectAvatarProps
   selectedOwner?: SelectedOwner | null
   value?: OwnerRef
@@ -82,7 +84,7 @@ function EmptyOwnerFace({
       <Avatar size="sm" {...avatarProps}>
         <CastleIcon
           data-slot="avatar-image"
-          className="aspect-square size-full object-fit p-0.75"
+          className="object-fit aspect-square size-full p-0.75"
         />
       </Avatar>
     )
@@ -217,7 +219,10 @@ export function NameButton({ size = "sm", ...props }: TaskOwnerSelectorProps) {
   return <OwnerSelectorControl appearance="name" size={size} {...props} />
 }
 
-export function IconButton({ variant = "icon", ...props }: TaskOwnerSelectorProps) {
+export function IconButton({
+  variant = "icon",
+  ...props
+}: TaskOwnerSelectorProps) {
   return <OwnerSelectorControl appearance="icon" variant={variant} {...props} />
 }
 

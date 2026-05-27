@@ -27,14 +27,18 @@ type MultipleSelectorModelProps<TItem, TValue> = BaseSelectorModelProps<
   values: TValue[]
 }
 
-export interface SingleSelectorModel<TItem, TValue>
-  extends BuiltSelectorOptions<TItem, TValue> {
+export interface SingleSelectorModel<
+  TItem,
+  TValue,
+> extends BuiltSelectorOptions<TItem, TValue> {
   selectedItem: TItem | null
   selectedOptions: SelectorOption<TItem, TValue>[]
 }
 
-export interface MultipleSelectorModel<TItem, TValue>
-  extends BuiltSelectorOptions<TItem, TValue> {
+export interface MultipleSelectorModel<
+  TItem,
+  TValue,
+> extends BuiltSelectorOptions<TItem, TValue> {
   selectedItems: TItem[]
   selectedOptions: SelectorOption<TItem, TValue>[]
 }

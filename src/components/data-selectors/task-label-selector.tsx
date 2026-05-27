@@ -12,8 +12,10 @@ import type { SelectorChangeHandler } from "./selector-options"
 type TaskLabelOption = Pick<Doc<"taskLabels">, "_id" | "name">
 type SelectorButtonProps = ComponentProps<typeof DataSelector.ButtonTrigger>
 
-interface TaskLabelSelectorProps
-  extends Pick<SelectorButtonProps, "className" | "disabled" | "size" | "variant"> {
+interface TaskLabelSelectorProps extends Pick<
+  SelectorButtonProps,
+  "className" | "disabled" | "size" | "variant"
+> {
   selectedLabels?: TaskLabelOption[]
   value: Id<"taskLabels">[]
   onChange: SelectorChangeHandler<Id<"taskLabels">[]>
@@ -89,6 +91,9 @@ export function PropertyButton(props: TaskLabelSelectorProps) {
   return <TaskLabelSelectorControl {...props} />
 }
 
-export function CompactButton({ size = "sm", ...props }: TaskLabelSelectorProps) {
+export function CompactButton({
+  size = "sm",
+  ...props
+}: TaskLabelSelectorProps) {
   return <TaskLabelSelectorControl size={size} {...props} />
 }

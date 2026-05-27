@@ -33,7 +33,7 @@ async function getCompetitionUpdate(
 
 export const getPageRoot = query({
   args: {
-    id: v.id("competitions")
+    id: v.id("competitions"),
   },
   handler: async (ctx, args) => {
     return await ctx.db.get("competitions", args.id)

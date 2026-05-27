@@ -1,4 +1,4 @@
-import type { Doc } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel"
 
 export const PHASE_COLOR_CLASSES = {
   gray: "bg-gray-400 dark:bg-gray-600",

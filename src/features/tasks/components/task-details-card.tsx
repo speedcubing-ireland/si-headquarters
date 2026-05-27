@@ -35,7 +35,12 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
     return (
       <>
         <CornerDownRightIcon className="size-4" />
-        <RouterButton to={`/competitions/$id`}  params={{ id: parent.competition._id }} variant="outline" size="sm">
+        <RouterButton
+          to={`/competitions/$id`}
+          params={{ id: parent.competition._id }}
+          variant="outline"
+          size="sm"
+        >
           <span className="truncate">{parent.competition.name}</span>
           <Badge variant="outline" className="ml-2 gap-1.25">
             <span
@@ -52,7 +57,12 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
   return (
     <>
       <CornerDownRightIcon className="size-4" />
-      <RouterButton to={`/tasks/$id`}  params={{ id: parent._id }} variant="outline" size="sm">
+      <RouterButton
+        to={`/tasks/$id`}
+        params={{ id: parent._id }}
+        variant="outline"
+        size="sm"
+      >
         {parent.name}
         <SubtaskBadge
           className="flex"

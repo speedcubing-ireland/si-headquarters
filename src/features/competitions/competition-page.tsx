@@ -7,12 +7,13 @@ import { PropertiesCard } from "./components/properties-card"
 import { UpdateCard } from "./components/updates/update-card"
 import type { Id } from "@/convex/_generated/dataModel"
 
-export function CompetitionPage({ competitionId } : {
+export function CompetitionPage({
+  competitionId,
+}: {
   competitionId: Id<"competitions">
 }) {
-  
   const comp = useQuery(api.competitions.queries.getPageRoot, {
-    id: competitionId
+    id: competitionId,
   })
 
   if (comp === null) return "Competition not found"

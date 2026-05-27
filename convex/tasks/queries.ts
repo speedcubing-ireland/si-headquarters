@@ -201,11 +201,11 @@ async function getTaskParentDetails(
 
 export const getPageRoot = query({
   args: {
-    id: v.id("tasks")
+    id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id);
-    if (!task) return null;
+    const task = await ctx.db.get("tasks", args.id)
+    if (!task) return null
 
     return {
       taskId: task._id,

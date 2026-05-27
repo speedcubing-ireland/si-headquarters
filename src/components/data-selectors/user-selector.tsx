@@ -7,7 +7,10 @@ import { useQuery } from "convex/react"
 import { UserRoundIcon } from "lucide-react"
 import { useState, type ComponentProps } from "react"
 import * as DataSelector from "./data-selector"
-import { useMultipleDataSelector, useSingleDataSelector } from "./data-selector-model"
+import {
+  useMultipleDataSelector,
+  useSingleDataSelector,
+} from "./data-selector-model"
 import * as SelectorFace from "./selector-face"
 import type { SelectorChangeHandler } from "./selector-options"
 
@@ -16,8 +19,10 @@ type UserId = Id<"users">
 type ObjectAvatarProps = Omit<ComponentProps<typeof ObjectAvatar>, "obj">
 type SelectorButtonProps = ComponentProps<typeof DataSelector.ButtonTrigger>
 
-interface UserSelectorBaseProps
-  extends Pick<SelectorButtonProps, "className" | "disabled" | "size" | "variant"> {
+interface UserSelectorBaseProps extends Pick<
+  SelectorButtonProps,
+  "className" | "disabled" | "size" | "variant"
+> {
   avatarProps?: ObjectAvatarProps
   maxAvatars?: number
 }
@@ -72,7 +77,7 @@ function EmptyUserFace({
       <Avatar size="sm" {...avatarProps}>
         <UserRoundIcon
           data-slot="avatar-image"
-          className="aspect-square size-full object-fit p-0.75"
+          className="object-fit aspect-square size-full p-0.75"
         />
       </Avatar>
     )
@@ -101,7 +106,9 @@ export function Face({
       <SelectorFace.Root>
         <ObjectAvatar obj={users[0]} size="sm" {...avatarProps} />
         {appearance !== "icon" && (
-          <SelectorFace.Text>{getUserName(users[0]).split(" ")[0]}</SelectorFace.Text>
+          <SelectorFace.Text>
+            {getUserName(users[0]).split(" ")[0]}
+          </SelectorFace.Text>
         )}
       </SelectorFace.Root>
     )

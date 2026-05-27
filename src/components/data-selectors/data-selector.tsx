@@ -27,7 +27,10 @@ import type {
 } from "./data-selector-model"
 
 type SelectorContentAlign = ComponentProps<typeof ComboboxContent>["align"]
-type SelectorButtonProps = Omit<ComponentProps<typeof SelectorButton>, "children">
+type SelectorButtonProps = Omit<
+  ComponentProps<typeof SelectorButton>,
+  "children"
+>
 
 function ignoreInputValueChange() {
   return undefined

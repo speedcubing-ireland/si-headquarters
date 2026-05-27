@@ -132,10 +132,15 @@ async function buildSubtaskRows({
       },
     })
 
-    const rowStatus = taskView.statusView.effectiveStatus;
+    const rowStatus = taskView.statusView.effectiveStatus
     statuses.push(rowStatus)
 
-    if (taskView.task.kind === "flow" || rowStatus === "done" || rowStatus === "cancelled") continue
+    if (
+      taskView.task.kind === "flow" ||
+      rowStatus === "done" ||
+      rowStatus === "cancelled"
+    )
+      continue
 
     const childTaskViews = await getTaskSubtaskViews(loader, taskView.task)
     if (childTaskViews.length === 0) continue

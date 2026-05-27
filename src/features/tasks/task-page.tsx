@@ -221,11 +221,9 @@ function IntegrationCard() {
   )
 }
 
-export function Task({ taskId }: {
-  taskId: Id<"tasks">
-}) {
+export function Task({ taskId }: { taskId: Id<"tasks"> }) {
   const root = useQuery(api.tasks.queries.getPageRoot, {
-    id: taskId
+    id: taskId,
   })
 
   if (root === null) {
@@ -235,7 +233,6 @@ export function Task({ taskId }: {
   if (root === undefined) {
     return <></>
   }
-
 
   return (
     <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">

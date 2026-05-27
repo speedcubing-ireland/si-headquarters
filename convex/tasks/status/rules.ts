@@ -76,7 +76,8 @@ export function getProgress(statuses: TaskStatus[]): TaskProgress {
 
   const terminalComplete = done + cancelled
   const incomplete = total - terminalComplete
-  const percent = total === 0 ? 100 : Math.round((terminalComplete / total) * 100)
+  const percent =
+    total === 0 ? 100 : Math.round((terminalComplete / total) * 100)
 
   return {
     total,

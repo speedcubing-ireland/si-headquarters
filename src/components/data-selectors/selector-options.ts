@@ -20,8 +20,10 @@ export interface SelectorAccessors<TItem, TValue> {
   renderItem: (item: TItem) => ReactNode
 }
 
-export interface SelectorGroup<TItem, TValue>
-  extends SelectorAccessors<TItem, TValue> {
+export interface SelectorGroup<TItem, TValue> extends SelectorAccessors<
+  TItem,
+  TValue
+> {
   items: TItem[] | undefined
   key: string
   label: string
@@ -47,9 +49,7 @@ export type SelectorOptions<TItem, TValue> =
   | FlatSelectorOptions<TItem, TValue>
   | GroupedSelectorOptions<TItem, TValue>
 
-export type SelectorChangeHandler<TValue> = (
-  value: TValue
-) => void
+export type SelectorChangeHandler<TValue> = (value: TValue) => void
 
 export type SelectorOptionsWithKey<TItem, TValue> = SelectorOptions<
   TItem,
@@ -62,7 +62,9 @@ export interface BuiltSelectorOptions<TItem, TValue> {
   hasLoadedItems: boolean
   itemGroups?: SelectorOptionGroup<TItem, TValue>[]
   items: SelectorOption<TItem, TValue>[]
-  rootItems: SelectorOption<TItem, TValue>[] | SelectorOptionGroup<TItem, TValue>[]
+  rootItems:
+    | SelectorOption<TItem, TValue>[]
+    | SelectorOptionGroup<TItem, TValue>[]
 }
 
 type SelectedItemOptions<TItem, TValue> = Partial<
@@ -258,7 +260,9 @@ export function resolveSelectedOptions<TItem, TValue>({
   }
 
   return resolvedValues
-    .map((selectedValue) => selectedOptionsByKey.get(getValueKey(selectedValue)))
+    .map((selectedValue) =>
+      selectedOptionsByKey.get(getValueKey(selectedValue))
+    )
     .filter(
       (option): option is SelectorOption<TItem, TValue> => option !== undefined
     )

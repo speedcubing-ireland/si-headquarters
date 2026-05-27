@@ -22,8 +22,10 @@ type TaskStatusView = Pick<
   "effectiveStatus" | "isManuallyEditable" | "statusOptions"
 >
 
-interface TaskStatusSelectorProps
-  extends Omit<ComponentProps<typeof SelectorButton>, "children" | "onChange"> {
+interface TaskStatusSelectorProps extends Omit<
+  ComponentProps<typeof SelectorButton>,
+  "children" | "onChange"
+> {
   statusView: TaskStatusView
   iconProps?: ComponentProps<"svg">
   onChange: SelectorChangeHandler<TaskStatusCommand>
@@ -84,11 +86,7 @@ function TaskStatusSelectorControl({
           variant={variant}
           {...props}
         >
-          <Face
-            iconProps={iconProps}
-            showLabel={showLabel}
-            status={value}
-          />
+          <Face iconProps={iconProps} showLabel={showLabel} status={value} />
         </SelectorButton>
       </SelectTrigger>
       <SelectContent align="end">
