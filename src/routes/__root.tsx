@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Layout } from "@/components/layout/layout"
 
 function SignInForm() {
   const { signIn } = useAuthActions()
@@ -78,7 +79,9 @@ function RootLayout() {
       </AuthLoading>
       <Authenticated>
         <TooltipProvider>
-          <Outlet />
+          <Layout>
+            <Outlet />
+          </Layout>
           <Toaster />
         </TooltipProvider>
       </Authenticated>

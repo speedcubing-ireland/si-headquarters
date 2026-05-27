@@ -36,6 +36,8 @@ import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
 import { FlowView } from "../subtasks/flow-view"
 import { SubtaskView } from "../subtasks/subtask-view"
 import type { Id } from "@/convex/_generated/dataModel"
+import { NavBreadcrumbs, NavRoot } from "@/components/layout/layout-navbar"
+import type { FunctionReturnType } from "convex/server"
 
 const blockedByTasks = [
   {
@@ -221,6 +223,25 @@ function IntegrationCard() {
   )
 }
 
+function TaskNavbar({ chain }: { 
+  chain: NonNullable<FunctionReturnType<typeof api.tasks.queries.getPageRoot>>["breadcrumbs"]
+}) {
+  return (
+    <NavRoot>
+      {chain && (
+        <NavBreadcrumbs
+          items={chain.map((i) => ({
+            key: i.id,
+            label: i.name,
+            to: i.type === "tasks" ? "/tasks/$id" : "/competitions/$id",
+            params: { id: i.id },
+          }))}
+        />
+      )}
+    </NavRoot>
+  )
+}
+
 export function Task({ taskId }: { taskId: Id<"tasks"> }) {
   const root = useQuery(api.tasks.queries.getPageRoot, {
     id: taskId,
@@ -235,18 +256,21 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-      <TaskDetailsCard taskId={taskId} />
-      <IntegrationCard />
-      <TaskPropertiesCard taskId={taskId} />
-      <DependenciesCard />
-      <TaskReviewCard taskId={taskId} />
-      {root.kind === "flow" ? (
-        <FlowView taskId={taskId} />
-      ) : (
-        <SubtaskView owner={{ type: "tasks", id: taskId }} />
-      )}
-      <div className="h-96" />
-    </div>
+    <>
+      <TaskNavbar chain={root.breadcrumbs} />
+      <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
+        <TaskDetailsCard taskId={taskId} />
+        <IntegrationCard />
+        <TaskPropertiesCard taskId={taskId} />
+        <DependenciesCard />
+        <TaskReviewCard taskId={taskId} />
+        {root.kind === "flow" ? (
+          <FlowView taskId={taskId} />
+        ) : (
+          <SubtaskView owner={{ type: "tasks", id: taskId }} />
+        )}
+        <div className="h-96" />
+      </div>
+    </>
   )
 }
