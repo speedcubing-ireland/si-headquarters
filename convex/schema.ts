@@ -15,6 +15,7 @@ import {
   taskReviewerFields,
   taskReviewOverrideFields,
 } from "@/convex/tasks/reviews/validators"
+import { pluginTables } from "@/convex/plugins/validators"
 
 const schema = defineSchema(
   {
@@ -62,6 +63,7 @@ const schema = defineSchema(
       "by_taskId",
       ["taskId"]
     ),
+    ...pluginTables,
   },
   {
     schemaValidation: true,
