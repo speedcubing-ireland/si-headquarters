@@ -1,4 +1,5 @@
 import type { TaskStatusCommand } from "@/convex/tasks/status/resolver"
+import type { TaskStatus } from "@/convex/tasks/status/validators"
 import {
   CircleCheckIcon,
   CircleDashedIcon,
@@ -50,6 +51,19 @@ const orderedStatusOptions = [
   "done",
   "cancelled",
 ] satisfies TaskStatusCommand[]
+
+const TASK_STATUS_ICON_CLASS: Record<TaskStatus, string> = {
+  backlog: "text-muted-foreground",
+  "to-do": "text-muted-foreground",
+  "in-progress": "text-yellow-600",
+  "awaiting-review": "text-muted-foreground",
+  done: "text-emerald-600",
+  cancelled: "text-emerald-600",
+}
+
+export function getTaskStatusIconClassName(status: TaskStatus) {
+  return TASK_STATUS_ICON_CLASS[status]
+}
 
 export function reorderStatusOptions(
   options: TaskStatusCommand[]

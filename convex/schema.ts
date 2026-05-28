@@ -15,6 +15,7 @@ import {
   taskReviewerFields,
   taskReviewOverrideFields,
 } from "@/convex/tasks/reviews/validators"
+import { taskBlockersFields } from "@/convex/tasks/blockers/validators"
 import { pluginTables } from "@/convex/plugins/validators"
 
 const schema = defineSchema(
@@ -63,6 +64,15 @@ const schema = defineSchema(
       "by_taskId",
       ["taskId"]
     ),
+    taskBlockers: defineTable(taskBlockersFields)
+      .index("by_blockedTaskId_and_blockingTaskId", [
+        "blockedTaskId",
+        "blockingTaskId",
+      ])
+      .index("by_blockingTaskId_and_blockedTaskId", [
+        "blockingTaskId",
+        "blockedTaskId",
+      ]),
     ...pluginTables,
   },
   {

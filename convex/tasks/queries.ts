@@ -3,6 +3,7 @@
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
   taskFlowDisplay,
   taskFlowStructure,
@@ -110,6 +111,16 @@ async function getTaskFlowStructure(
       statusView: toTaskViewStatusView(statusView),
     })),
   }
+}
+
+function createFlowDisplayReader(
+  ctx: QueryCtx,
+  statusLoader: TaskStatusLoader
+) {
+  return createTaskViewDisplayReader(ctx, {
+    blockersLoader: new TaskBlockersLoader(ctx),
+    statusLoader,
+  })
 }
 
 async function getTaskFlowDisplay(
@@ -323,7 +334,7 @@ export const getFlowView = query({
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
     const statusLoader = new TaskStatusLoader(ctx)
-    const displayReader = createTaskViewDisplayReader(ctx)
+    const displayReader = createFlowDisplayReader(ctx, statusLoader)
     return await getTaskFlowView(task, statusLoader, displayReader)
   },
 })
@@ -354,7 +365,7 @@ export const getFlowDisplay = query({
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
     const statusLoader = new TaskStatusLoader(ctx)
-    const displayReader = createTaskViewDisplayReader(ctx)
+    const displayReader = createFlowDisplayReader(ctx, statusLoader)
     return await getTaskFlowDisplay(task, statusLoader, displayReader)
   },
 })

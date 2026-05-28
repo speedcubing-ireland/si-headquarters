@@ -9,6 +9,8 @@ const PATH_GAP_WIDTH_PX = 4
 const PROGRESS_TO_LABEL_GAP_PX = 8
 const LABEL_BADGE_CHROME_WIDTH_PX = 18
 const PROGRESS_BADGE_CHROME_WIDTH_PX = 32
+/** Icon-only block badge: px-1.5 (12) + size-3 icon (12) + 1px border (2). */
+const BLOCK_BADGE_CHROME_WIDTH_PX = 26
 
 export const DEFAULT_TASK_PATH_FONT =
   '400 14px "Noto Sans Variable", sans-serif'
@@ -26,6 +28,7 @@ export interface TaskPathLayoutInput {
   taskTitle: string
   subtaskTitle: string
   subtaskIndicator: string | null
+  hasBlockIndicator: boolean
   labelText: string
   compactLabelText: string
   textFont: string
@@ -35,6 +38,7 @@ interface LayoutCandidateInput {
   task: string
   subtask: string
   subtaskIndicator: string | null
+  hasBlockIndicator: boolean
   label: string
   textFont: string
 }
@@ -61,6 +65,7 @@ export function buildTaskPathCandidates({
   taskTitle,
   subtaskTitle,
   subtaskIndicator,
+  hasBlockIndicator,
   labelText,
   compactLabelText,
   textFont,
@@ -77,6 +82,7 @@ export function buildTaskPathCandidates({
       task: fullTask,
       subtask: fullSubtask,
       subtaskIndicator,
+      hasBlockIndicator,
       label,
       textFont,
     })
@@ -97,6 +103,7 @@ export function buildTaskPathCandidates({
       task: fullTask,
       subtask: getTextVariant(subtaskGraphemes, subtaskCount),
       subtaskIndicator,
+      hasBlockIndicator,
       label: compactLabel,
       textFont,
     })
@@ -120,6 +127,7 @@ export function buildTaskPathCandidates({
       task: getTextVariant(taskGraphemes, taskCount),
       subtask: getTextVariant(subtaskGraphemes, subtaskCount),
       subtaskIndicator,
+      hasBlockIndicator,
       label: compactLabel,
       textFont,
     })
@@ -136,6 +144,7 @@ export function buildTaskPathCandidates({
     task: getTextVariant(taskGraphemes, MIN_TRUNCATED_GRAPHEMES),
     subtask: getTextVariant(subtaskGraphemes, MIN_TRUNCATED_GRAPHEMES),
     subtaskIndicator,
+    hasBlockIndicator,
     label: compactLabel,
     textFont,
   })
@@ -165,6 +174,7 @@ function buildLayoutCandidate({
   task,
   subtask,
   subtaskIndicator,
+  hasBlockIndicator,
   label,
   textFont,
 }: LayoutCandidateInput): TaskPathLayout {
@@ -174,16 +184,22 @@ function buildLayoutCandidate({
     subtaskIndicator === null
       ? 0
       : measureBadgeWidth(subtaskIndicator, PROGRESS_BADGE_CHROME_WIDTH_PX)
+  const blockWidth = hasBlockIndicator
+    ? measureBadgeWidth("", BLOCK_BADGE_CHROME_WIDTH_PX)
+    : 0
   const labelWidth =
     label.length === 0
       ? 0
       : measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
-  const pathGapCount = subtaskIndicator === null ? 2 : PATH_GAP_COUNT
+  const badgeCount =
+    (subtaskIndicator === null ? 0 : 1) + (hasBlockIndicator ? 1 : 0)
+  const pathGapCount = badgeCount === 0 ? 2 : PATH_GAP_COUNT
   const pathWidth =
     taskWidth +
     CHEVRON_WIDTH_PX +
     subtaskWidth +
     progressWidth +
+    blockWidth +
     PATH_GAP_WIDTH_PX * pathGapCount
 
   return {

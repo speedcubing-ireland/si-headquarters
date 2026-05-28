@@ -8,188 +8,17 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
+import { TaskBlockersCard } from "@/features/tasks/components/task-blockers-card"
 import { TaskDetailsCard } from "@/features/tasks/components/task-details-card"
 import { TaskPropertiesCard } from "@/features/tasks/components/task-properties-card"
-import { cn } from "@/lib/utils"
 import { useQuery } from "convex/react"
-import {
-  ArrowLeftToLineIcon,
-  ArrowRightToLineIcon,
-  CircleCheckIcon,
-  CircleIcon,
-  ConstructionIcon,
-  ExternalLinkIcon,
-  LoaderCircleIcon,
-  PaletteIcon,
-  TrashIcon,
-} from "lucide-react"
-import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item"
+import { ExternalLinkIcon, PaletteIcon, TrashIcon } from "lucide-react"
 import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
 import { FlowView } from "../subtasks/flow-view"
 import { SubtaskView } from "../subtasks/subtask-view"
 import type { Id } from "@/convex/_generated/dataModel"
 import { NavBreadcrumbs, NavRoot } from "@/components/layout/layout-navbar"
 import type { FunctionReturnType } from "convex/server"
-
-const blockedByTasks = [
-  {
-    id: "#128",
-    title: "Approve certificate template",
-    assignee: "BR",
-    avatarUrl: "https://api.dicebear.com/9.x/initials/svg?seed=B R",
-    status: "todo",
-  },
-  {
-    id: "#132",
-    title: "Send sponsor logos",
-    assignee: "CM",
-    avatarUrl: "https://api.dicebear.com/9.x/initials/svg?seed=C M",
-    status: "done",
-  },
-] as const
-
-const blockingTasks = [
-  {
-    id: "#141",
-    title: "Print awards pack",
-    assignee: "OP",
-    avatarUrl: "https://api.dicebear.com/9.x/initials/svg?seed=O P",
-    status: "todo",
-  },
-  {
-    id: "#146",
-    title: "Publish winner assets",
-    assignee: "MD",
-    avatarUrl: "https://api.dicebear.com/9.x/initials/svg?seed=M D",
-    status: "progress",
-  },
-] as const
-
-const dependencyStatus = {
-  todo: {
-    label: "To-do",
-    icon: CircleIcon,
-    className: "text-muted-foreground",
-  },
-  progress: {
-    label: "In progress",
-    icon: LoaderCircleIcon,
-    className: "text-yellow-600",
-  },
-  done: {
-    label: "Done",
-    icon: CircleCheckIcon,
-    className: "text-emerald-600",
-  },
-}
-
-type DependencyTask =
-  | (typeof blockedByTasks)[number]
-  | (typeof blockingTasks)[number]
-
-function DependenciesCard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2">
-          Dependencies
-          <ConstructionIcon className="size-4" />
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-4">
-        {/* To-do needs empty state to fill space */}
-        <DependencySection
-          title="Blocked by"
-          icon={<ArrowRightToLineIcon className="size-4" />}
-          items={blockedByTasks}
-        />
-        <DependencySection
-          title="Blocking"
-          icon={<ArrowLeftToLineIcon className="size-4" />}
-          items={blockingTasks}
-        />
-      </CardContent>
-      <CardFooter className="grid grid-cols-2 gap-2">
-        <Button>
-          <ArrowRightToLineIcon />
-          Add Blocker
-        </Button>
-        <Button variant="outline">
-          <ArrowLeftToLineIcon />
-          Mark Blocking
-        </Button>
-      </CardFooter>
-    </Card>
-  )
-}
-
-function DependencySection({
-  title,
-  icon,
-  items,
-}: {
-  title: string
-  icon: React.ReactNode
-  items: readonly DependencyTask[]
-}) {
-  return (
-    <section className="flex min-w-0 flex-col gap-2">
-      <Label>
-        {icon}
-        {title}
-      </Label>
-      <div className="flex flex-col gap-2">
-        {items.map((item) => (
-          <DependencyItem key={item.id} item={item} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function DependencyItem({ item }: { item: DependencyTask }) {
-  const status = dependencyStatus[item.status]
-  const StatusIcon = status.icon
-
-  return (
-    <Item
-      asChild
-      variant="outline"
-      size="xs"
-      className="flex-nowrap items-center gap-2 px-2 py-2"
-    >
-      <a href="">
-        <ItemMedia variant="icon">
-          <StatusIcon
-            aria-label={status.label}
-            className={cn("size-4", status.className)}
-          />
-        </ItemMedia>
-        <ItemContent className="min-w-0">
-          <ItemTitle className="w-full min-w-0 gap-1.5">
-            <span className="truncate">
-              {item.id} {item.title}
-            </span>
-          </ItemTitle>
-        </ItemContent>
-        <ItemActions className="shrink-0 gap-1">
-          <Avatar className="size-5">
-            <AvatarImage src={item.avatarUrl} />
-            <AvatarFallback>{item.assignee}</AvatarFallback>
-          </Avatar>
-        </ItemActions>
-      </a>
-    </Item>
-  )
-}
 
 function IntegrationCard() {
   return (
@@ -262,7 +91,7 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
         <TaskDetailsCard taskId={taskId} />
         <IntegrationCard />
         <TaskPropertiesCard taskId={taskId} />
-        <DependenciesCard />
+        <TaskBlockersCard taskId={taskId} />
         <TaskReviewCard taskId={taskId} />
         {root.kind === "flow" ? (
           <FlowView taskId={taskId} />

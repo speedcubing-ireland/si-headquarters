@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { memo, useMemo } from "react"
 import "./flow-view.css"
+import { BlockIndicator } from "./block-indicator"
 import { SubtaskBadge } from "./subtask-badge"
 
 const itemAppearance = {
@@ -134,6 +135,9 @@ const FlowItem = memo(function FlowItem({
                   kind={step.task.kind}
                   progress={step.statusView.progress}
                 />
+                {display !== undefined && (
+                  <BlockIndicator {...display.blockers} />
+                )}
               </ItemTitle>
             </ItemContent>
             <ItemActions>

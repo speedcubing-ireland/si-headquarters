@@ -1,5 +1,6 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
   createTaskViewDisplayReader,
   taskViewProgress,
@@ -48,7 +49,12 @@ export const taskSubtaskView = v.object({
 export type SubtaskViewOwner = Infer<typeof subtaskViewOwner>
 export type TaskSubtaskView = Infer<typeof taskSubtaskView>
 
-type TaskDisplayReader = ReturnType<typeof createTaskViewDisplayReader>
+interface TaskDisplayReaderContext {
+  displayReader: ReturnType<typeof createTaskViewDisplayReader>
+  loader: TaskStatusLoader
+}
+
+type TaskDisplayReader = TaskDisplayReaderContext["displayReader"]
 type TaskStatus = TaskWithStatusView["statusView"]["effectiveStatus"]
 
 function getSubtaskIndicator(progress: Infer<typeof taskViewProgress>) {
@@ -109,7 +115,7 @@ async function buildSubtaskRows({
   taskViews,
 }: {
   displayReader: TaskDisplayReader
-  loader: TaskStatusLoader
+  loader: TaskDisplayReaderContext["loader"]
   hideParentTitleForDirect: boolean
   parentTitle: string
   taskViews: TaskWithStatusView[]
@@ -198,6 +204,21 @@ async function buildSubtaskSection({
   }
 }
 
+function createSubtaskDisplayReaderContext(
+  ctx: QueryCtx
+): TaskDisplayReaderContext {
+  const loader = new TaskStatusLoader(ctx)
+  const blockersLoader = new TaskBlockersLoader(ctx)
+
+  return {
+    loader,
+    displayReader: createTaskViewDisplayReader(ctx, {
+      blockersLoader,
+      statusLoader: loader,
+    }),
+  }
+}
+
 export async function getTaskSubtaskView(
   ctx: QueryCtx,
   taskId: Id<"tasks">
@@ -205,8 +226,7 @@ export async function getTaskSubtaskView(
   const task = await ctx.db.get("tasks", taskId)
   if (!task) throw new Error("Task not found")
 
-  const loader = new TaskStatusLoader(ctx)
-  const displayReader = createTaskViewDisplayReader(ctx)
+  const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const taskViews = await getTaskSubtaskViews(loader, task)
 
   return {
@@ -235,8 +255,7 @@ export async function getCompetitionSubtaskView(
   if (!competition) throw new Error("Competition not found")
 
   const phases = await listCompetitionPhases(ctx, competition._id)
-  const loader = new TaskStatusLoader(ctx)
-  const displayReader = createTaskViewDisplayReader(ctx)
+  const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const sections = await Promise.all(
     phases.map(async (phase) =>
       buildSubtaskSection({

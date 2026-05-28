@@ -27,6 +27,7 @@ import {
   selectTaskPathLayout,
 } from "@/components/data-views/task-path-layout"
 import { useMemo } from "react"
+import { BlockIndicator } from "./block-indicator"
 import { SubtaskBadge } from "./subtask-badge"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
@@ -61,6 +62,7 @@ function ResponsiveTaskPath({ row }: { row: InlineDataRow }) {
         taskTitle: row.path.taskTitle,
         subtaskTitle: row.path.subtaskTitle,
         subtaskIndicator: row.path.subtaskIndicator,
+        hasBlockIndicator: row.blockers.count > 0,
         labelText,
         compactLabelText,
         textFont: rootMeasurement.font,
@@ -71,6 +73,7 @@ function ResponsiveTaskPath({ row }: { row: InlineDataRow }) {
       rootMeasurement.font,
       row.path.subtaskIndicator,
       row.path.subtaskTitle,
+      row.blockers.count,
       row.path.taskTitle,
     ]
   )
@@ -104,6 +107,7 @@ function ResponsiveTaskPath({ row }: { row: InlineDataRow }) {
           progress={row.statusView.progress}
           className="shrink-0 text-sm"
         />
+        <BlockIndicator {...row.blockers} className="shrink-0 text-sm" />
       </div>
       {labelText.length > 0 && (
         <Button

@@ -1,6 +1,9 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import type { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
+import { blockerCounts, EMPTY_BLOCKER_COUNTS } from "@/convex/tasks/blockers/counts"
 import { taskKindType } from "@/convex/tasks/kind"
+import type { TaskStatusLoader } from "@/convex/tasks/status/resolver"
 import { taskReviewStateSummary } from "@/convex/tasks/reviews/validators"
 import type { TaskStatusView } from "@/convex/tasks/status/resolver"
 import {
@@ -96,6 +99,7 @@ export const taskViewTaskDetails = v.object({
   owner: taskViewOwner,
   assignees: taskViewAssignees,
   statusView: taskViewStatusView,
+  blockers: blockerCounts,
 })
 
 export const taskViewDisplayFields = v.object({
@@ -104,6 +108,7 @@ export const taskViewDisplayFields = v.object({
   labels: v.array(taskViewLabel),
   owner: taskViewOwner,
   assignees: taskViewAssignees,
+  blockers: blockerCounts,
 })
 
 export type TaskViewProgress = Infer<typeof taskViewProgress>
@@ -166,7 +171,16 @@ export function getCurrentEditableStepIndex(steps: HydratedTaskView[]) {
   return index === -1 ? null : index
 }
 
-export function createTaskViewDisplayReader(ctx: QueryCtx) {
+export interface TaskViewDisplayReaderOptions {
+  blockersLoader?: TaskBlockersLoader
+  statusLoader?: TaskStatusLoader
+}
+
+export function createTaskViewDisplayReader(
+  ctx: QueryCtx,
+  options: TaskViewDisplayReaderOptions = {}
+) {
+  const { blockersLoader, statusLoader } = options
   const labelCache = new Map<
     Id<"taskLabels">,
     Promise<Doc<"taskLabels"> | null>
@@ -257,14 +271,20 @@ export function createTaskViewDisplayReader(ctx: QueryCtx) {
     }
   }
 
+  async function getBlockerCounts(taskId: Id<"tasks">) {
+    if (!blockersLoader || !statusLoader) return EMPTY_BLOCKER_COUNTS
+    return await blockersLoader.getCounts(taskId, statusLoader)
+  }
+
   async function hydrateTaskDetails({
     task,
     statusView,
   }: HydratedTaskView): Promise<TaskViewTaskDetails> {
-    const [labels, owner, assignees] = await Promise.all([
+    const [labels, owner, assignees, blockers] = await Promise.all([
       getLabels(task._id),
       getOwner(task.owner),
       getAssignees(task.assigneeIds),
+      getBlockerCounts(task._id),
     ])
 
     return {
@@ -281,16 +301,18 @@ export function createTaskViewDisplayReader(ctx: QueryCtx) {
       owner,
       assignees,
       statusView: toTaskViewStatusView(statusView),
+      blockers,
     }
   }
 
   async function hydrateTaskDisplay(
     task: Doc<"tasks">
   ): Promise<TaskViewDisplayFields> {
-    const [labels, owner, assignees] = await Promise.all([
+    const [labels, owner, assignees, blockers] = await Promise.all([
       getLabels(task._id),
       getOwner(task.owner),
       getAssignees(task.assigneeIds),
+      getBlockerCounts(task._id),
     ])
 
     return {
@@ -299,11 +321,13 @@ export function createTaskViewDisplayReader(ctx: QueryCtx) {
       labels: labels.map(({ _id, name }) => ({ _id, name })),
       owner,
       assignees,
+      blockers,
     }
   }
 
   return {
     getAssigneeUsers,
+    getAssignees,
     getLabels,
     getOwner,
     hydrateTaskDetails,

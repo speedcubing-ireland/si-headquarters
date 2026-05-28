@@ -1,0 +1,408 @@
+/// <reference types="vite/client" />
+
+import { convexTest } from "convex-test"
+import { describe, expect, test } from "vitest"
+import { api } from "@/convex/_generated/api"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { MutationCtx } from "@/convex/_generated/server"
+import { getCompetitionIdForTask } from "@/convex/tasks/blockers/competition"
+import schema from "@/convex/schema"
+import { modules } from "@/convex/test.setup"
+
+interface TaskSeed {
+  name: string
+  parent: Doc<"tasks">["parent"]
+  order: string
+  status?: Doc<"tasks">["status"]
+}
+
+async function insertCompetition(ctx: MutationCtx) {
+  return await ctx.db.insert("competitions", {
+    name: "Spring Open",
+    description: null,
+    people: {
+      compLead: null,
+      leadDelegate: null,
+      organisers: [],
+    },
+    compDates: {
+      from: null,
+      to: null,
+    },
+    phaseId: null,
+    updateId: null,
+  })
+}
+
+async function insertPhase(
+  ctx: MutationCtx,
+  competitionId: Id<"competitions">,
+  name: string,
+  sortKey: string
+) {
+  return await ctx.db.insert("phases", {
+    name,
+    owner: {
+      type: "competitions",
+      id: competitionId,
+    },
+    sortKey,
+    color: "gray",
+  })
+}
+
+async function insertTask(ctx: MutationCtx, seed: TaskSeed) {
+  const status = seed.status ?? "backlog"
+
+  return await ctx.db.insert("tasks", {
+    name: seed.name,
+    description: null,
+    parent: seed.parent,
+    order: seed.order,
+    assigneeIds: null,
+    owner: null,
+    dueDate: null,
+    kind: "standard",
+    status,
+    statusIntent: { type: "manual", status },
+  })
+}
+
+describe("task blockers", () => {
+  test("addBlocker creates an edge and rejects self-block", async () => {
+    const t = convexTest(schema, modules)
+    const { blockedId, blockingId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const blockedId = await insertTask(ctx, {
+        name: "Blocked task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const blockingId = await insertTask(ctx, {
+        name: "Blocking task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+      })
+
+      return { blockedId, blockingId }
+    })
+
+    const edgeId = await t.mutation(api.tasks.blockers.mutations.addBlocker, {
+      blockedTaskId: blockedId,
+      blockingTaskId: blockingId,
+    })
+
+    await expect(
+      t.mutation(api.tasks.blockers.mutations.addBlocker, {
+        blockedTaskId: blockedId,
+        blockingTaskId: blockingId,
+      })
+    ).resolves.toBe(edgeId)
+
+    await expect(
+      t.mutation(api.tasks.blockers.mutations.addBlocker, {
+        blockedTaskId: blockedId,
+        blockingTaskId: blockedId,
+      })
+    ).rejects.toThrow("A task cannot block itself")
+  })
+
+  test("removeBlocker deletes the edge", async () => {
+    const t = convexTest(schema, modules)
+    const { blockedId, blockingId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const blockedId = await insertTask(ctx, {
+        name: "Blocked task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const blockingId = await insertTask(ctx, {
+        name: "Blocking task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+      })
+
+      return { blockedId, blockingId }
+    })
+
+    const edgeId = await t.mutation(api.tasks.blockers.mutations.addBlocker, {
+      blockedTaskId: blockedId,
+      blockingTaskId: blockingId,
+    })
+
+    await t.mutation(api.tasks.blockers.mutations.removeBlocker, { id: edgeId })
+
+    const blockers = await t.query(api.tasks.blockers.queries.getForTask, {
+      id: blockedId,
+    })
+
+    expect(blockers).toEqual({
+      blockingMe: [],
+      blockedByMe: [],
+    })
+  })
+
+  test("getForTask returns both directions hydrated", async () => {
+    const t = convexTest(schema, modules)
+    const { blockedId, blockingId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const blockedId = await insertTask(ctx, {
+        name: "Blocked task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "to-do",
+      })
+      const blockingId = await insertTask(ctx, {
+        name: "Blocking task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+        status: "in-progress",
+      })
+
+      return { blockedId, blockingId }
+    })
+
+    await t.mutation(api.tasks.blockers.mutations.addBlocker, {
+      blockedTaskId: blockedId,
+      blockingTaskId: blockingId,
+    })
+
+    const blockers = await t.query(api.tasks.blockers.queries.getForTask, {
+      id: blockedId,
+    })
+
+    expect(blockers.blockingMe).toHaveLength(1)
+    expect(blockers.blockingMe[0]?.task).toMatchObject({
+      _id: blockingId,
+      name: "Blocking task",
+      effectiveStatus: "in-progress",
+    })
+
+    const reverse = await t.query(api.tasks.blockers.queries.getForTask, {
+      id: blockingId,
+    })
+
+    expect(reverse.blockedByMe).toHaveLength(1)
+    expect(reverse.blockedByMe[0]?.task._id).toBe(blockedId)
+  })
+
+  test("listPotentialBlockers excludes self and linked tasks", async () => {
+    const t = convexTest(schema, modules)
+    const { blockedId, blockingId, otherId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const blockedId = await insertTask(ctx, {
+        name: "Blocked task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const blockingId = await insertTask(ctx, {
+        name: "Blocking task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+      })
+      const otherId = await insertTask(ctx, {
+        name: "Other task",
+        parent: { type: "phases", id: phaseId },
+        order: "c",
+      })
+
+      return { blockedId, blockingId, otherId }
+    })
+
+    await t.mutation(api.tasks.blockers.mutations.addBlocker, {
+      blockedTaskId: blockedId,
+      blockingTaskId: blockingId,
+    })
+
+    const potential = await t.query(
+      api.tasks.blockers.queries.listPotentialBlockers,
+      { taskId: blockedId }
+    )
+
+    expect(potential.map((task) => task._id)).toEqual([otherId])
+  })
+
+  test("subtask view rows include blocker counts that track blocker status", async () => {
+    const t = convexTest(schema, modules)
+    const { parentId, childId, blockingId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const parentId = await insertTask(ctx, {
+        name: "Parent task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const childId = await insertTask(ctx, {
+        name: "Child task",
+        parent: { type: "tasks", id: parentId },
+        order: "a",
+      })
+      const blockingId = await insertTask(ctx, {
+        name: "Blocking task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+        status: "in-progress",
+      })
+
+      await ctx.db.insert("taskBlockers", {
+        blockedTaskId: childId,
+        blockingTaskId: blockingId,
+      })
+
+      return { parentId, childId, blockingId }
+    })
+
+    const initial = await t.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "tasks", id: parentId },
+    })
+
+    const childRow = initial.sections[0]?.rows.find(
+      (row) => row.task._id === childId
+    )
+    expect(childRow?.blockers).toEqual({
+      count: 1,
+      openCount: 1,
+      blockedBy: [{ name: "Blocking task", isOpen: true }],
+    })
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("tasks", blockingId, {
+        status: "done",
+        statusIntent: { type: "manual", status: "done" },
+      })
+    })
+
+    const afterDone = await t.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "tasks", id: parentId },
+    })
+
+    const updatedRow = afterDone.sections[0]?.rows.find(
+      (row) => row.task._id === childId
+    )
+    expect(updatedRow?.blockers).toEqual({
+      count: 1,
+      openCount: 0,
+      blockedBy: [{ name: "Blocking task", isOpen: false }],
+    })
+  })
+
+  test("listPotentialBlockers excludes terminal-complete tasks", async () => {
+    const t = convexTest(schema, modules)
+    const { blockedId, openId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const blockedId = await insertTask(ctx, {
+        name: "Blocked task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      await insertTask(ctx, {
+        name: "Done task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+        status: "done",
+      })
+      const openId = await insertTask(ctx, {
+        name: "Open task",
+        parent: { type: "phases", id: phaseId },
+        order: "c",
+        status: "to-do",
+      })
+
+      return { blockedId, openId }
+    })
+
+    const potential = await t.query(
+      api.tasks.blockers.queries.listPotentialBlockers,
+      { taskId: blockedId }
+    )
+
+    expect(potential.map((task) => task._id)).toEqual([openId])
+  })
+
+  test("blocker counts reflect multiple blockers with mixed status", async () => {
+    const t = convexTest(schema, modules)
+    const { parentId, childId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const parentId = await insertTask(ctx, {
+        name: "Parent task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const childId = await insertTask(ctx, {
+        name: "Child task",
+        parent: { type: "tasks", id: parentId },
+        order: "a",
+      })
+      const doneBlockerId = await insertTask(ctx, {
+        name: "Done blocker",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+        status: "done",
+      })
+      const openBlockerId = await insertTask(ctx, {
+        name: "Open blocker",
+        parent: { type: "phases", id: phaseId },
+        order: "c",
+        status: "in-progress",
+      })
+
+      await Promise.all([
+        ctx.db.insert("taskBlockers", {
+          blockedTaskId: childId,
+          blockingTaskId: doneBlockerId,
+        }),
+        ctx.db.insert("taskBlockers", {
+          blockedTaskId: childId,
+          blockingTaskId: openBlockerId,
+        }),
+      ])
+
+      return { parentId, childId }
+    })
+
+    const view = await t.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "tasks", id: parentId },
+    })
+
+    const childRow = view.sections[0]?.rows.find(
+      (row) => row.task._id === childId
+    )
+    expect(childRow?.blockers).toMatchObject({ count: 2, openCount: 1 })
+    expect(childRow?.blockers.blockedBy).toHaveLength(2)
+  })
+
+  test("getCompetitionIdForTask rejects parent cycles", async () => {
+    const t = convexTest(schema, modules)
+
+    await expect(
+      t.run(async (ctx) => {
+        const competitionId = await insertCompetition(ctx)
+        const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+        const taskA = await insertTask(ctx, {
+          name: "Task A",
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+        })
+        const taskB = await insertTask(ctx, {
+          name: "Task B",
+          parent: { type: "tasks", id: taskA },
+          order: "a",
+        })
+        await ctx.db.patch("tasks", taskA, {
+          parent: { type: "tasks", id: taskB },
+        })
+
+        const task = await ctx.db.get("tasks", taskA)
+        if (!task) throw new Error("Task missing")
+
+        return await getCompetitionIdForTask(ctx, task)
+      })
+    ).rejects.toThrow("Task parent cycle detected")
+  })
+})

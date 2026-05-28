@@ -182,6 +182,7 @@ export function ResponsiveTaskPath({
         taskTitle,
         subtaskTitle,
         subtaskIndicator,
+        hasBlockIndicator: false,
         labelText,
         compactLabelText,
         textFont: rootMeasurement.font,
