@@ -12,10 +12,18 @@ import type * as auth from "../auth.js";
 import type * as competitionUpdates_mutations from "../competitionUpdates/mutations.js";
 import type * as competitionUpdates_queries from "../competitionUpdates/queries.js";
 import type * as competitionUpdates_validators from "../competitionUpdates/validators.js";
+import type * as competitionWeekendSlots_mutations from "../competitionWeekendSlots/mutations.js";
+import type * as competitionWeekendSlots_validators from "../competitionWeekendSlots/validators.js";
+import type * as competitions_board from "../competitions/board.js";
+import type * as competitions_calendar from "../competitions/calendar.js";
 import type * as competitions_mutations from "../competitions/mutations.js";
+import type * as competitions_phaseSnapshot from "../competitions/phaseSnapshot.js";
 import type * as competitions_queries from "../competitions/queries.js";
 import type * as competitions_validators from "../competitions/validators.js";
 import type * as http from "../http.js";
+import type * as lib_competitionWeekends from "../lib/competitionWeekends.js";
+import type * as lib_localDates from "../lib/localDates.js";
+import type * as lib_requireUser from "../lib/requireUser.js";
 import type * as phases_defaults from "../phases/defaults.js";
 import type * as phases_queries from "../phases/queries.js";
 import type * as phases_validators from "../phases/validators.js";
@@ -34,7 +42,9 @@ import type * as tasks_blockers_loader from "../tasks/blockers/loader.js";
 import type * as tasks_blockers_mutations from "../tasks/blockers/mutations.js";
 import type * as tasks_blockers_queries from "../tasks/blockers/queries.js";
 import type * as tasks_blockers_validators from "../tasks/blockers/validators.js";
+import type * as tasks_board from "../tasks/board.js";
 import type * as tasks_flowView from "../tasks/flowView.js";
+import type * as tasks_inlineRow from "../tasks/inlineRow.js";
 import type * as tasks_kind from "../tasks/kind.js";
 import type * as tasks_labels_queries from "../tasks/labels/queries.js";
 import type * as tasks_labels_validators from "../tasks/labels/validators.js";
@@ -57,6 +67,9 @@ import type * as teams_validators from "../teams/validators.js";
 import type * as users_queries from "../users/queries.js";
 import type * as users_validators from "../users/validators.js";
 import type * as utils from "../utils.js";
+import type * as views_mutations from "../views/mutations.js";
+import type * as views_queries from "../views/queries.js";
+import type * as views_validators from "../views/validators.js";
 
 import type {
   ApiFromModules,
@@ -69,10 +82,18 @@ declare const fullApi: ApiFromModules<{
   "competitionUpdates/mutations": typeof competitionUpdates_mutations;
   "competitionUpdates/queries": typeof competitionUpdates_queries;
   "competitionUpdates/validators": typeof competitionUpdates_validators;
+  "competitionWeekendSlots/mutations": typeof competitionWeekendSlots_mutations;
+  "competitionWeekendSlots/validators": typeof competitionWeekendSlots_validators;
+  "competitions/board": typeof competitions_board;
+  "competitions/calendar": typeof competitions_calendar;
   "competitions/mutations": typeof competitions_mutations;
+  "competitions/phaseSnapshot": typeof competitions_phaseSnapshot;
   "competitions/queries": typeof competitions_queries;
   "competitions/validators": typeof competitions_validators;
   http: typeof http;
+  "lib/competitionWeekends": typeof lib_competitionWeekends;
+  "lib/localDates": typeof lib_localDates;
+  "lib/requireUser": typeof lib_requireUser;
   "phases/defaults": typeof phases_defaults;
   "phases/queries": typeof phases_queries;
   "phases/validators": typeof phases_validators;
@@ -91,7 +112,9 @@ declare const fullApi: ApiFromModules<{
   "tasks/blockers/mutations": typeof tasks_blockers_mutations;
   "tasks/blockers/queries": typeof tasks_blockers_queries;
   "tasks/blockers/validators": typeof tasks_blockers_validators;
+  "tasks/board": typeof tasks_board;
   "tasks/flowView": typeof tasks_flowView;
+  "tasks/inlineRow": typeof tasks_inlineRow;
   "tasks/kind": typeof tasks_kind;
   "tasks/labels/queries": typeof tasks_labels_queries;
   "tasks/labels/validators": typeof tasks_labels_validators;
@@ -114,6 +137,9 @@ declare const fullApi: ApiFromModules<{
   "users/queries": typeof users_queries;
   "users/validators": typeof users_validators;
   utils: typeof utils;
+  "views/mutations": typeof views_mutations;
+  "views/queries": typeof views_queries;
+  "views/validators": typeof views_validators;
 }>;
 
 /**

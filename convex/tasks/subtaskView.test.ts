@@ -146,6 +146,8 @@ describe("subtask view", () => {
       taskTitle: "Draft content",
       subtaskTitle: "",
       subtaskIndicator: "1/1",
+      taskTitleId: childId,
+      subtaskTitleId: null,
     })
     expect(childRow.assignees.userIds).toEqual([assigneeId])
   })

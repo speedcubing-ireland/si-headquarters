@@ -1,9 +1,6 @@
+import { CompetitionsPage } from "@/features/competitions/list/competitions-page"
 import { createFileRoute } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/competitions/")({
-  component: RouteComponent,
+  component: CompetitionsPage,
 })
-
-function RouteComponent() {
-  return <div>Hello "/competitions/"!</div>
-}

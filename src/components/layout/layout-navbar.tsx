@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useState, type ReactNode } from "react"
@@ -74,10 +75,25 @@ function CrumbEllipsis({ items }: { items: BreadcrumbItem[] }) {
   )
 }
 
-export function NavRoot({ children }: { children: ReactNode }) {
+export function NavRoot({
+  children,
+  flush = false,
+  className,
+}: {
+  children: ReactNode
+  /** When true, omits bottom margin so a filter bar can sit flush below. */
+  flush?: boolean
+  className?: string
+}) {
   return (
-    <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center border-b bg-background mb-4">
-      <div className="flex w-full min-w-0 items-center gap-2 px-3 py-2 sm:px-4 lg:px-6">
+    <header
+      className={cn(
+        "sticky top-0 z-10 flex h-12 shrink-0 items-center border-b bg-background",
+        !flush && "mb-4",
+        className
+      )}
+    >
+      <div className="flex h-12 w-full min-w-0 items-center gap-2 px-3 sm:px-4 lg:px-6">
         <SidebarTrigger className="-ml-1 shrink-0" />
         <Separator
           orientation="vertical"

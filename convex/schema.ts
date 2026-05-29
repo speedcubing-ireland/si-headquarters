@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server"
 import { authTables } from "@convex-dev/auth/server"
+import { competitionWeekendSlotFields } from "@/convex/competitionWeekendSlots/validators"
 import { competitionsFields } from "@/convex/competitions/validators"
 import { competitionUpdatesFields } from "@/convex/competitionUpdates/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
@@ -16,6 +17,7 @@ import {
   taskReviewOverrideFields,
 } from "@/convex/tasks/reviews/validators"
 import { taskBlockersFields } from "@/convex/tasks/blockers/validators"
+import { savedViewFields } from "@/convex/views/validators"
 import { pluginTables } from "@/convex/plugins/validators"
 
 const schema = defineSchema(
@@ -26,6 +28,9 @@ const schema = defineSchema(
       .index("phone", ["phone"]),
     teams: defineTable(teamsFields),
     competitions: defineTable(competitionsFields),
+    competitionWeekendSlots: defineTable(competitionWeekendSlotFields)
+      .index("by_year", ["year"])
+      .index("by_year_and_weekendStart", ["year", "weekendStart"]),
     competitionUpdates: defineTable(competitionUpdatesFields),
     subscriptions: defineTable(subscriptionsFields)
       .index("by_userId_and_object_type_and_object_id", [
@@ -72,6 +77,13 @@ const schema = defineSchema(
       .index("by_blockingTaskId_and_blockedTaskId", [
         "blockingTaskId",
         "blockedTaskId",
+      ]),
+    savedViews: defineTable(savedViewFields)
+      .index("by_owner_entity_page", ["ownerId", "entity", "pageId"])
+      .index("by_visibility_entity_page", [
+        "visibility",
+        "entity",
+        "pageId",
       ]),
     ...pluginTables,
   },

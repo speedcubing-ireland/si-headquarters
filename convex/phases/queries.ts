@@ -1,8 +1,9 @@
 import { query } from "@/convex/_generated/server"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-
-import { phaseOwnerRef } from "./validators"
+import { requireUserId } from "@/convex/lib/requireUser"
+import { phaseColor, phaseOwnerRef } from "./validators"
+import { v } from "convex/values"
 
 function listPhasesForOwner(ctx: QueryCtx, owner: Doc<"phases">["owner"]) {
   return ctx.db
@@ -13,11 +14,45 @@ function listPhasesForOwner(ctx: QueryCtx, owner: Doc<"phases">["owner"]) {
     .collect()
 }
 
+export const list = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("phases"),
+      name: v.string(),
+      color: phaseColor,
+      owner: phaseOwnerRef,
+    })
+  ),
+  handler: async (ctx) => {
+    await requireUserId(ctx)
+    // Full-table scan; acceptable at current HQ scale.
+    const phases = await ctx.db.query("phases").collect()
+    return phases.map((phase) => ({
+      _id: phase._id,
+      name: phase.name,
+      color: phase.color,
+      owner: phase.owner,
+    }))
+  },
+})
+
 export const listForOwner = query({
   args: {
     owner: phaseOwnerRef,
   },
+  returns: v.array(
+    v.object({
+      _id: v.id("phases"),
+      _creationTime: v.number(),
+      name: v.string(),
+      color: phaseColor,
+      owner: phaseOwnerRef,
+      sortKey: v.string(),
+    })
+  ),
   handler: async (ctx, args) => {
+    await requireUserId(ctx)
     return await listPhasesForOwner(ctx, args.owner)
   },
 })

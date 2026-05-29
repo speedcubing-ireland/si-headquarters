@@ -32,6 +32,10 @@ export interface TaskPathLayoutInput {
   labelText: string
   compactLabelText: string
   textFont: string
+  /** Row task id — used to drop the breadcrumb segment that is not this task first. */
+  focalTaskId: string
+  taskTitleId: string
+  subtaskTitleId: string | null
 }
 
 interface LayoutCandidateInput {
@@ -69,6 +73,9 @@ export function buildTaskPathCandidates({
   labelText,
   compactLabelText,
   textFont,
+  focalTaskId,
+  taskTitleId,
+  subtaskTitleId,
 }: TaskPathLayoutInput): TaskPathLayout[] {
   const candidates: TaskPathLayout[] = []
   const taskGraphemes = splitGraphemes(taskTitle)
@@ -76,6 +83,9 @@ export function buildTaskPathCandidates({
   const labelCandidates = getLabelCandidateTexts(labelText, compactLabelText)
   const fullTask = getTextVariant(taskGraphemes, taskGraphemes.length)
   const fullSubtask = getTextVariant(subtaskGraphemes, subtaskGraphemes.length)
+  const hasBreadcrumb =
+    subtaskGraphemes.length > 0 && subtaskTitleId !== null
+  const focalIsSubtaskSegment = hasBreadcrumb && focalTaskId === subtaskTitleId
 
   for (const label of labelCandidates) {
     pushCandidate(candidates, {
@@ -89,6 +99,46 @@ export function buildTaskPathCandidates({
   }
 
   const compactLabel = labelCandidates[labelCandidates.length - 1]
+
+  if (hasBreadcrumb) {
+    const preserveTask = focalTaskId === taskTitleId
+    const preserveSubtask = focalIsSubtaskSegment
+
+    if (preserveSubtask) {
+      for (
+        let taskCount = taskGraphemes.length - 1;
+        taskCount >= 0;
+        taskCount -= 1
+      ) {
+        pushCandidate(candidates, {
+          task: getTextVariant(taskGraphemes, taskCount),
+          subtask: fullSubtask,
+          subtaskIndicator,
+          hasBlockIndicator,
+          label: compactLabel,
+          textFont,
+        })
+      }
+    }
+
+    if (preserveTask) {
+      for (
+        let subtaskCount = subtaskGraphemes.length - 1;
+        subtaskCount >= 0;
+        subtaskCount -= 1
+      ) {
+        pushCandidate(candidates, {
+          task: fullTask,
+          subtask: getTextVariant(subtaskGraphemes, subtaskCount),
+          subtaskIndicator,
+          hasBlockIndicator,
+          label: compactLabel,
+          textFont,
+        })
+      }
+    }
+  }
+
   const longestSubtaskOnlyCount = Math.max(
     taskGraphemes.length,
     MIN_TRUNCATED_GRAPHEMES
@@ -180,6 +230,7 @@ function buildLayoutCandidate({
 }: LayoutCandidateInput): TaskPathLayout {
   const taskWidth = measureTextForDom(task, textFont)
   const subtaskWidth = measureTextForDom(subtask, textFont)
+  const showsChevron = taskWidth > 0 && subtaskWidth > 0
   const progressWidth =
     subtaskIndicator === null
       ? 0
@@ -193,10 +244,13 @@ function buildLayoutCandidate({
       : measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
   const badgeCount =
     (subtaskIndicator === null ? 0 : 1) + (hasBlockIndicator ? 1 : 0)
-  const pathGapCount = badgeCount === 0 ? 2 : PATH_GAP_COUNT
+  const textSegmentCount =
+    (taskWidth > 0 ? 1 : 0) + (showsChevron ? 1 : 0) + (subtaskWidth > 0 ? 1 : 0)
+  const pathGapCount =
+    badgeCount === 0 ? Math.max(0, textSegmentCount - 1) : PATH_GAP_COUNT
   const pathWidth =
     taskWidth +
-    CHEVRON_WIDTH_PX +
+    (showsChevron ? CHEVRON_WIDTH_PX : 0) +
     subtaskWidth +
     progressWidth +
     blockWidth +
@@ -231,6 +285,10 @@ function getLabelCandidateTexts(labelText: string, compactLabelText: string) {
 }
 
 function getTextVariant(graphemes: string[], graphemeCount: number) {
+  if (graphemeCount <= 0) {
+    return ""
+  }
+
   if (graphemeCount >= graphemes.length) {
     return graphemes.join("")
   }

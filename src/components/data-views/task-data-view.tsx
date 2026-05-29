@@ -39,7 +39,9 @@ interface InlineDataRow {
 type ResponsiveTaskPathProps = Pick<
   InlineDataRow,
   "taskTitle" | "subtaskTitle" | "subtaskIndicator" | "labels"
->
+> & {
+  hasBlockIndicator?: boolean
+}
 
 const demoRows: InlineDataRow[] = [
   {
@@ -172,6 +174,7 @@ export function ResponsiveTaskPath({
   subtaskTitle,
   subtaskIndicator,
   labels,
+  hasBlockIndicator = false,
 }: ResponsiveTaskPathProps) {
   const [rootRef, rootMeasurement] = useMeasuredElement(DEFAULT_TASK_PATH_FONT)
   const labelText = labels[0] ?? ""
@@ -182,10 +185,13 @@ export function ResponsiveTaskPath({
         taskTitle,
         subtaskTitle,
         subtaskIndicator,
-        hasBlockIndicator: false,
+        hasBlockIndicator,
         labelText,
         compactLabelText,
         textFont: rootMeasurement.font,
+        focalTaskId: "demo-subtask",
+        taskTitleId: "demo-task",
+        subtaskTitleId: subtaskTitle.length > 0 ? "demo-subtask" : null,
       }),
     [
       compactLabelText,

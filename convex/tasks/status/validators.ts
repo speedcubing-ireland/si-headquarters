@@ -36,3 +36,7 @@ export const taskStatusIntentType = v.union(
 export type TaskStatus = Infer<typeof taskStatusType>
 export type TaskStatusCommand = Infer<typeof taskStatusCommandType>
 export type TaskStatusIntent = Infer<typeof taskStatusIntentType>
+
+export function isTaskStatus(value: string): value is TaskStatus {
+  return (TASK_STATUSES as readonly string[]).includes(value)
+}

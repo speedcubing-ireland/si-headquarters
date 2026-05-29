@@ -2,9 +2,12 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
+  getSubtaskIndicatorFromProgress,
+  taskInlineRow,
+} from "@/convex/tasks/inlineRow"
+import {
   createTaskViewDisplayReader,
   taskViewProgress,
-  taskViewTaskDetails,
 } from "@/convex/tasks/view"
 import {
   buildSubtasksWithStatusViews,
@@ -23,14 +26,7 @@ export const subtaskViewOwner = v.union(
   objectRef("tasks")
 )
 
-const subtaskViewRow = v.object({
-  ...taskViewTaskDetails.fields,
-  path: v.object({
-    taskTitle: v.string(),
-    subtaskTitle: v.string(),
-    subtaskIndicator: v.union(v.string(), v.null()),
-  }),
-})
+const subtaskViewRow = taskInlineRow
 
 const subtaskViewSection = v.object({
   id: v.string(),
@@ -56,11 +52,6 @@ interface TaskDisplayReaderContext {
 
 type TaskDisplayReader = TaskDisplayReaderContext["displayReader"]
 type TaskStatus = TaskWithStatusView["statusView"]["effectiveStatus"]
-
-function getSubtaskIndicator(progress: Infer<typeof taskViewProgress>) {
-  if (progress.total === 0) return null
-  return `${String(progress.done)}/${String(progress.total)}`
-}
 
 async function listCompetitionPhases(
   ctx: QueryCtx,
@@ -112,12 +103,14 @@ async function buildSubtaskRows({
   loader,
   hideParentTitleForDirect,
   parentTitle,
+  parentTaskId,
   taskViews,
 }: {
   displayReader: TaskDisplayReader
-  loader: TaskDisplayReaderContext["loader"]
+  loader: TaskStatusLoader
   hideParentTitleForDirect: boolean
   parentTitle: string
+  parentTaskId: Id<"tasks"> | null
   taskViews: TaskWithStatusView[]
 }): Promise<{
   rows: TaskSubtaskView["sections"][number]["rows"]
@@ -134,7 +127,9 @@ async function buildSubtaskRows({
       path: {
         taskTitle: row.task.name,
         subtaskTitle,
-        subtaskIndicator: getSubtaskIndicator(row.statusView.progress),
+        subtaskIndicator: getSubtaskIndicatorFromProgress(row.statusView.progress),
+        taskTitleId: row.task._id,
+        subtaskTitleId: hideParentTitleForDirect ? null : parentTaskId,
       },
     })
 
@@ -156,6 +151,7 @@ async function buildSubtaskRows({
       loader,
       hideParentTitleForDirect: false,
       parentTitle: row.task.name,
+      parentTaskId: row.task._id,
       taskViews: childTaskViews,
     })
     rows.push(...childResult.rows)
@@ -191,6 +187,7 @@ async function buildSubtaskSection({
     loader,
     hideParentTitleForDirect,
     parentTitle,
+    parentTaskId: null,
     taskViews,
   })
 
