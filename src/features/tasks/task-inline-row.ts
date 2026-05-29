@@ -12,7 +12,7 @@ export type TaskBoardRow = FunctionReturnType<
 >[number]
 
 export function taskOwnerSelectorValue(
-  owner: TaskBoardRow["owner"] | TaskInlineRow["owner"]
+  owner: TaskBoardRow["owner"]  
 ) {
   if (owner?.type === "users") {
     return { type: "users" as const, id: owner._id }

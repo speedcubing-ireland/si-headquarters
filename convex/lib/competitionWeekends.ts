@@ -17,7 +17,7 @@ export function getSaturdayOfWeek(date: Date): Date {
 
 export function saturdaysInYear(year: number): string[] {
   const weekends: string[] = []
-  let cursor = new Date(year, 0, 1)
+  const cursor = new Date(year, 0, 1)
   cursor.setHours(0, 0, 0, 0)
 
   while (cursor.getDay() !== 6) {
@@ -47,7 +47,8 @@ export function parseCompDateRange(
       : { start: end, end: start }
   }
   if (start !== null) return { start, end: start }
-  return { start: end!, end: end! }
+  if (end === null) return null
+  return { start: end, end }
 }
 
 export function weekendLabel(weekendStart: string): string {

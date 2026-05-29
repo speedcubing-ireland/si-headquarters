@@ -18,8 +18,8 @@ export function createRowSorter<TRow>(
     const field = display.ordering.field
     if (field === null) return rows
 
+    if (!(field in comparators)) return rows
     const compare = comparators[field]
-    if (!compare) return rows
 
     const direction = display.ordering.direction
     return [...rows].sort((left, right) => {

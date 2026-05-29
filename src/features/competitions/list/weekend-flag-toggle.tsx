@@ -22,7 +22,7 @@ export function WeekendFlagPill({
     <button
       type="button"
       aria-pressed={pressed}
-      onClick={() => onPressedChange(!pressed)}
+      onClick={() => { onPressedChange(!pressed); }}
       className={cn(
         "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors",
         pressed

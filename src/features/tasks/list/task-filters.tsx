@@ -28,11 +28,22 @@ import { useMemo, type ReactNode } from "react"
 
 type UserListEntry = Pick<Doc<"users">, "_id" | "name" | "image"> | PublicUser
 
-type TaskFilterFieldConfig = {
+export type TaskRowFilterInput = Pick<
+  TaskBoardRow,
+  | "statusView"
+  | "task"
+  | "assignees"
+  | "owner"
+  | "labels"
+  | "competitionId"
+  | "phaseId"
+>
+
+interface TaskFilterFieldConfig {
   id: TaskFilterKey
   label: string
   icon: LucideIcon
-  getRowValues: (row: TaskBoardRow) => string[]
+  getRowValues: (row: TaskRowFilterInput) => string[]
 }
 
 export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
@@ -60,7 +71,7 @@ export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
     label: "Owner",
     icon: TargetIcon,
     getRowValues: (row) => {
-      if (!row.owner) return ["unassigned"]
+      if (row.owner === null) return ["unassigned"]
       return [`${row.owner.type}:${row.owner._id}`]
     },
   },
@@ -74,13 +85,14 @@ export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
     id: "competition",
     label: "Competition",
     icon: TrophyIcon,
-    getRowValues: (row) => (row.competitionId ? [row.competitionId] : []),
+    getRowValues: (row) =>
+      row.competitionId !== null ? [row.competitionId] : [],
   },
   {
     id: "phase",
     label: "Phase",
     icon: CircleDotIcon,
-    getRowValues: (row) => (row.phaseId ? [row.phaseId] : []),
+    getRowValues: (row) => (row.phaseId !== null ? [row.phaseId] : []),
   },
 ]
 
@@ -95,19 +107,19 @@ const KIND_OPTIONS: FilterOption[] = [
   { value: "flow", label: "Flow", icon: CassetteTapeIcon },
 ]
 
-function usersToFilterOptions(users: UserListEntry[]): FilterOption[] {
-  return users.map((user) => ({
+function userToFilterOption(user: UserListEntry): FilterOption {
+  return {
     value: user._id,
     label: user.name ?? "Unknown",
     avatar: { name: user.name ?? "?", image: user.image ?? null },
-  }))
+  }
 }
 
-export function filterTaskRows(
-  rows: TaskBoardRow[],
+export function filterTaskRows<TRow extends TaskRowFilterInput>(
+  rows: TRow[],
   filters: TasksFilters,
   matchMode: MatchMode
-): TaskBoardRow[] {
+): TRow[] {
   const activeFields = TASK_FILTER_FIELDS.filter(
     (field) => filters[field.id].length > 0
   )
@@ -136,7 +148,7 @@ export function filterTaskRows(
   })
 }
 
-export type TaskFilterLookup = {
+export interface TaskFilterLookup {
   users: UserListEntry[]
   teams: { _id: string; name: string }[]
   labels: { _id: string; name: string }[]
@@ -213,12 +225,12 @@ export function useTaskFilters() {
   )
 
   const assigneeOptions = useMemo(
-    () => usersToFilterOptions(lookup.users),
+    () => lookup.users.map(userToFilterOption),
     [lookup.users]
   )
 
   const ownerOptions = useMemo<FilterOption[]>(() => {
-    const userOptions = usersToFilterOptions(lookup.users).map((option) => ({
+    const userOptions = lookup.users.map(userToFilterOption).map((option) => ({
       ...option,
       value: `users:${option.value}`,
     }))

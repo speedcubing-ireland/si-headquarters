@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label"
 import { DisplayMenu } from "@/features/list-views/components/display-menu"
 import type { DisplayColumnOption } from "@/features/list-views/components/display-menu"
 import { TaskMatchModeToggle } from "@/features/tasks/list/task-match-mode-toggle"
-import { useTaskListPage } from "@/features/tasks/list/task-list-context"
+import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
 import type { ReactNode } from "react"
 
 export function TaskListFilterBar({

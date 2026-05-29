@@ -1,11 +1,11 @@
 export type MatchMode = "any" | "all"
 
-export type FilterItem = {
+export interface FilterItem {
   values: string[]
   isNot: boolean
 }
 
-export type DateRangeFilter = {
+export interface DateRangeFilter {
   start?: string
   end?: string
   isNot?: boolean
@@ -20,7 +20,7 @@ export function hasDateRangeValue(dateRange?: DateRangeFilter): boolean {
 
 export type DisplayMode = "list" | "kanban"
 
-export type DisplaySettings = {
+export interface DisplaySettings {
   mode: DisplayMode
   grouping: string | null
   ordering: { field: string | null; direction: "asc" | "desc" }

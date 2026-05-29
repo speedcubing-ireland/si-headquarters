@@ -33,21 +33,21 @@ function formatMonthShort(date: Date): string {
 }
 
 export function getCompetitionDateChip(
-  row: CompetitionCalendarCompetitionRow
+  row: Pick<CompetitionCalendarCompetitionRow, "compDates">
 ): CompetitionDateChip {
   const fromIso = row.compDates.from
   const toIso = row.compDates.to
 
-  if (!fromIso) {
+  if (fromIso === null) {
     return { kind: "tbd" }
   }
 
   const start = parseLocalDate(fromIso)
-  if (!start) {
+  if (start === null) {
     return { kind: "tbd" }
   }
 
-  if (!toIso || toIso === fromIso) {
+  if (toIso === null || toIso === fromIso) {
     return {
       kind: "single",
       month: formatMonthShort(start),
@@ -56,7 +56,7 @@ export function getCompetitionDateChip(
   }
 
   const end = parseLocalDate(toIso)
-  if (!end) {
+  if (end === null) {
     return {
       kind: "single",
       month: formatMonthShort(start),
@@ -108,7 +108,8 @@ export function groupCalendarRowsByMonth(
 
   for (const row of rows) {
     const iso = row.kind === "weekend" ? row.weekendStart : row.compDates.from
-    const date = iso ? parseLocalDate(iso) : null
+    const date =
+      iso !== null && iso !== "" ? parseLocalDate(iso) : null
     const key =
       date !== null
         ? `${String(date.getFullYear())}-${String(date.getMonth() + 1).padStart(2, "0")}`
@@ -118,7 +119,10 @@ export function groupCalendarRowsByMonth(
         ? date.toLocaleString("en-IE", { month: "long" })
         : "No date set"
 
-    if (!current || current.key !== key) {
+    if (current === null) {
+      current = { key, label, rows: [] }
+      groups.push(current)
+    } else if (current.key !== key) {
       current = { key, label, rows: [] }
       groups.push(current)
     }

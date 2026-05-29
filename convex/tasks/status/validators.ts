@@ -38,5 +38,8 @@ export type TaskStatusCommand = Infer<typeof taskStatusCommandType>
 export type TaskStatusIntent = Infer<typeof taskStatusIntentType>
 
 export function isTaskStatus(value: string): value is TaskStatus {
-  return (TASK_STATUSES as readonly string[]).includes(value)
+  for (const status of TASK_STATUSES) {
+    if (status === value) return true
+  }
+  return false
 }

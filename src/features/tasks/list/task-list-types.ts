@@ -6,7 +6,7 @@ import type {
   MatchMode,
 } from "@/features/list-views/types"
 
-export type TasksFilters = {
+export interface TasksFilters {
   status: FilterItem[]
   kind: FilterItem[]
   assignee: FilterItem[]
@@ -39,11 +39,10 @@ export const TASK_FILTER_ARRAY_KEYS = [
 
 export type TaskFilterKey = (typeof TASK_FILTER_ARRAY_KEYS)[number]
 
-export type TaskListPageSnapshot = {
+export interface TaskListPageSnapshot {
   filters: TasksFilters
   matchMode: MatchMode
   display: DisplaySettings
-  activeViewId: string | null
 }
 
 function countActiveFilterTypes(filters: TasksFilters): number {

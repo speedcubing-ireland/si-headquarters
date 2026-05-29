@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useTaskListPage } from "@/features/tasks/list/task-list-context"
+import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
 import type { ReactNode } from "react"
 
 export function TaskListPageLayout({
@@ -33,14 +33,14 @@ export function TaskListPageLayout({
               <Input
                 placeholder="View name"
                 value={createViewName}
-                onChange={(event) => setCreateViewName(event.target.value)}
+                onChange={(event) => { setCreateViewName(event.target.value); }}
                 className="h-8 text-sm font-medium"
               />
               <Textarea
                 placeholder="Description (optional)"
                 value={createViewDescription}
                 onChange={(event) =>
-                  setCreateViewDescription(event.target.value)
+                  { setCreateViewDescription(event.target.value); }
                 }
                 className="min-h-[60px] resize-none text-sm"
               />
@@ -50,7 +50,7 @@ export function TaskListPageLayout({
                 variant="outline"
                 size="sm"
                 type="button"
-                onClick={() => setCreateViewOpen(false)}
+                onClick={() => { setCreateViewOpen(false); }}
               >
                 Cancel
               </Button>

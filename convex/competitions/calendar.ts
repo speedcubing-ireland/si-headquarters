@@ -45,7 +45,7 @@ export const calendarRowValidator = v.union(
   calendarWeekendRow
 )
 
-type CalendarCompetitionRow = {
+interface CalendarCompetitionRow {
   kind: "competition"
   _id: Id<"competitions">
   name: string
@@ -171,8 +171,7 @@ export const listForYear = query({
         })
     )
 
-    const rows: Array<
-      | CalendarCompetitionRow
+    const rows: (| CalendarCompetitionRow
       | {
           kind: "weekend"
           weekendStart: string
@@ -180,8 +179,7 @@ export const listForYear = query({
           note: string
           announced: boolean
           reserved: boolean
-        }
-    > = []
+        })[] = []
 
     for (const weekendStart of saturdaysInYear(args.year)) {
       const competitionIds = assignments.get(weekendStart) ?? []

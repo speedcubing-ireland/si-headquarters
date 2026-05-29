@@ -27,7 +27,7 @@ import {
   SquareDashedKanban,
 } from "lucide-react"
 
-export type DisplayColumnOption = {
+export interface DisplayColumnOption {
   value: string
   label: string
 }
@@ -44,7 +44,7 @@ function ColumnSelect({
   return (
     <Select
       value={value ?? "none"}
-      onValueChange={(next) => onChange(next === "none" ? null : next)}
+      onValueChange={(next) => { onChange(next === "none" ? null : next); }}
     >
       <SelectTrigger className="w-28">
         <SelectValue placeholder="None" />
@@ -98,7 +98,7 @@ export function DisplayMenu({
                   size="sm"
                   type="button"
                   className="capitalize"
-                  onClick={() => onChange({ ...display, mode })}
+                  onClick={() => { onChange({ ...display, mode }); }}
                 >
                   {mode}
                 </Button>
@@ -112,7 +112,7 @@ export function DisplayMenu({
             <ColumnSelect
               value={display.grouping}
               options={columnOptions}
-              onChange={(grouping) => onChange({ ...display, grouping })}
+              onChange={(grouping) => { onChange({ ...display, grouping }); }}
             />
           </div>
 
@@ -124,13 +124,13 @@ export function DisplayMenu({
                 value={field}
                 options={columnOptions}
                 onChange={(nextField) =>
-                  onChange({
+                  { onChange({
                     ...display,
                     ordering: { field: nextField, direction },
-                  })
+                  }); }
                 }
               />
-              {field ? (
+              {field !== null ? (
                 <>
                   <ButtonGroupSeparator orientation="vertical" />
                   <Button
@@ -138,13 +138,13 @@ export function DisplayMenu({
                     size="icon"
                     type="button"
                     onClick={() =>
-                      onChange({
+                      { onChange({
                         ...display,
                         ordering: {
                           field,
                           direction: direction === "asc" ? "desc" : "asc",
                         },
-                      })
+                      }); }
                     }
                   >
                     {direction === "asc" ? (

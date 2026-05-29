@@ -1,4 +1,4 @@
-export type ItemGroup<TItem> = {
+export interface ItemGroup<TItem> {
   key: string
   title: string
   items: TItem[]
@@ -9,7 +9,7 @@ export function groupItems<TItem>(
   grouping: string | null,
   resolve: (item: TItem, grouping: string) => { key: string; title: string }
 ): ItemGroup<TItem>[] {
-  if (!grouping) {
+  if (grouping === null) {
     return [{ key: "all", title: "All", items }]
   }
 

@@ -24,7 +24,7 @@ function YearSelector({
         variant="outline"
         size="icon-sm"
         aria-label="Previous year"
-        onClick={() => onChange(year - 1)}
+        onClick={() => { onChange(year - 1); }}
       >
         <ChevronLeftIcon />
       </Button>
@@ -36,7 +36,7 @@ function YearSelector({
         variant="outline"
         size="icon-sm"
         aria-label="Next year"
-        onClick={() => onChange(year + 1)}
+        onClick={() => { onChange(year + 1); }}
       >
         <ChevronRightIcon />
       </Button>

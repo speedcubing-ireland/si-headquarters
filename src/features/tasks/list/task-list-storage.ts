@@ -1,3 +1,5 @@
+import { parseTaskListPageSnapshot } from "@/features/tasks/list/task-list-serialize"
+import { parseJson } from "@/features/tasks/list/task-list-parse"
 import type { TaskListPageSnapshot } from "@/features/tasks/list/task-list-types"
 
 const STORAGE_VERSION = "v1"
@@ -11,8 +13,10 @@ export function readTaskListPageSnapshot(
 ): TaskListPageSnapshot | null {
   try {
     const raw = localStorage.getItem(storageKey(pageId))
-    if (!raw) return null
-    return JSON.parse(raw) as TaskListPageSnapshot
+    if (raw === null || raw === "") return null
+    const data = parseJson(raw)
+    if (data === null) return null
+    return parseTaskListPageSnapshot(data)
   } catch {
     return null
   }

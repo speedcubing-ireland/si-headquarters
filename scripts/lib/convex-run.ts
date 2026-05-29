@@ -32,7 +32,9 @@ export async function convexRun<T>(
     new Response(proc.stderr).text(),
   ])
   if ((await proc.exited) !== 0) {
-    throw new Error(stderr.trim() || stdout.trim())
+    const stderrMessage = stderr.trim()
+    const stdoutMessage = stdout.trim()
+    throw new Error(stderrMessage !== "" ? stderrMessage : stdoutMessage)
   }
   // CLI boundary: Convex prints JSON; callers specify the expected shape.
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- convex run stdout

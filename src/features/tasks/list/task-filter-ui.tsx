@@ -2,7 +2,7 @@ import { ArrayFilterChips } from "@/features/list-views/components/array-filter-
 import { DateRangeFilterChip } from "@/features/list-views/components/date-range-filter-chip"
 import { FilterPopover } from "@/features/list-views/components/filter-popover"
 import { hasDateRangeValue } from "@/features/list-views/types"
-import { useTaskListPage } from "@/features/tasks/list/task-list-context"
+import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
 import {
   countActiveTaskFilterChips,
   hasActiveTaskFilters,

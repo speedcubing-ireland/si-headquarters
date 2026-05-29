@@ -16,7 +16,7 @@ import type { FilterItem } from "@/features/list-views/types"
 import { ChevronDown, ListFilter, type LucideIcon } from "lucide-react"
 import { useState } from "react"
 
-export type FilterTypeConfig<K extends string> = {
+export interface FilterTypeConfig<K extends string> {
   id: K
   label: string
   icon: LucideIcon

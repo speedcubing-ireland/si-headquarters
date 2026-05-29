@@ -11,7 +11,7 @@ export const competitionPhaseValidator = v.union(
   v.null()
 )
 
-export type CompetitionPhaseSnapshot = {
+export interface CompetitionPhaseSnapshot {
   _id: Doc<"phases">["_id"]
   name: string
   color: Doc<"phases">["color"]

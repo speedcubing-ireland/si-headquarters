@@ -138,6 +138,7 @@ function useUserItems(open: boolean) {
 }
 
 function SingleUserSelectorControl({
+  appearance = "property",
   avatarProps,
   className,
   disabled,
@@ -147,7 +148,9 @@ function SingleUserSelectorControl({
   size,
   value,
   variant,
-}: SingleUserSelectorProps) {
+}: SingleUserSelectorProps & {
+  appearance?: UserFaceAppearance
+}) {
   const [open, setOpen] = useState(false)
   const users = useUserItems(open)
   const model = useSingleDataSelector<User, UserId>({
@@ -177,7 +180,7 @@ function SingleUserSelectorControl({
         variant={variant}
       >
         <Face
-          appearance="property"
+          appearance={appearance}
           avatarProps={avatarProps}
           maxAvatars={maxAvatars}
           users={model.selectedItem ? [model.selectedItem] : []}
@@ -249,6 +252,21 @@ function MultipleUserSelectorControl({
 
 export function SinglePropertyButton(props: SingleUserSelectorProps) {
   return <SingleUserSelectorControl {...props} />
+}
+
+export function SingleIconButton({
+  variant = "icon",
+  size = "icon-sm",
+  ...props
+}: SingleUserSelectorProps) {
+  return (
+    <SingleUserSelectorControl
+      appearance="icon"
+      size={size}
+      variant={variant}
+      {...props}
+    />
+  )
 }
 
 export function MultiPropertyButton(props: MultipleUserSelectorProps) {

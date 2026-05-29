@@ -1,6 +1,8 @@
 import type { Id } from "@/convex/_generated/dataModel"
 import type { DateRangeFilter, DisplaySettings, MatchMode } from "@/features/list-views/types"
 import { defaultDisplaySettings } from "@/features/list-views/types"
+import { TaskListContext } from "@/features/tasks/list/task-list-context-types"
+import type { TaskListContextValue } from "@/features/tasks/list/task-list-context-types"
 import {
   cloneTasksFilters,
   serializeDisplaySettings,
@@ -13,13 +15,8 @@ import {
   shouldShowTaskMatchModeToggle,
   type TasksFilters,
 } from "@/features/tasks/list/task-list-types"
+import { useTaskSavedViews } from "@/features/tasks/list/use-task-saved-views"
 import {
-  useTaskSavedViews,
-  type SavedViewRecord,
-} from "@/features/tasks/list/use-task-saved-views"
-import {
-  createContext,
-  use,
   useCallback,
   useEffect,
   useMemo,
@@ -27,39 +24,7 @@ import {
   type ReactNode,
 } from "react"
 
-type TaskListContextValue = {
-  pageId: string
-  filters: TasksFilters
-  matchMode: MatchMode
-  display: DisplaySettings
-  activeViewId: Id<"savedViews"> | null
-  isDirty: boolean
-  hasActiveFilters: boolean
-  showMatchModeToggle: boolean
-  setMatchMode: (matchMode: MatchMode) => void
-  setArrayFilter: <K extends keyof TasksFilters & string>(
-    key: K,
-    value: TasksFilters[K]
-  ) => void
-  setDueDate: (range: DateRangeFilter | undefined) => void
-  setDisplay: (display: DisplaySettings) => void
-  clearFilters: () => void
-  resetAll: () => void
-  savedViews: ReturnType<typeof useTaskSavedViews>
-  createViewOpen: boolean
-  setCreateViewOpen: (open: boolean) => void
-  createViewName: string
-  setCreateViewName: (name: string) => void
-  createViewDescription: string
-  setCreateViewDescription: (description: string) => void
-  createViewPublic: boolean
-  setCreateViewPublic: (isPublic: boolean) => void
-  handleSaveNewView: () => Promise<void>
-}
-
-const TaskListContext = createContext<TaskListContextValue | null>(null)
-
-function useTaskListState(pageId: string) {
+function useTaskListState(pageId: string): TaskListContextValue {
   const storedSnapshot = readTaskListPageSnapshot(pageId)
 
   const [filters, setFilters] = useState<TasksFilters>(
@@ -71,12 +36,7 @@ function useTaskListState(pageId: string) {
   const [display, setDisplay] = useState<DisplaySettings>(
     () => storedSnapshot?.display ?? defaultDisplaySettings
   )
-  const [activeViewId, setActiveViewId] = useState<Id<"savedViews"> | null>(
-    () => {
-      const storedId = storedSnapshot?.activeViewId
-      return storedId ? (storedId as Id<"savedViews">) : null
-    }
-  )
+  const [activeViewId, setActiveViewId] = useState<Id<"savedViews"> | null>(null)
   const [createViewOpen, setCreateViewOpen] = useState(false)
   const [createViewName, setCreateViewName] = useState("")
   const [createViewDescription, setCreateViewDescription] = useState("")
@@ -111,9 +71,8 @@ function useTaskListState(pageId: string) {
       filters,
       matchMode,
       display,
-      activeViewId,
     })
-  }, [activeViewId, display, filters, matchMode, pageId])
+  }, [display, filters, matchMode, pageId])
 
   const activeView = useMemo(
     () => savedViews.views.find((view) => view._id === activeViewId) ?? null,
@@ -121,7 +80,7 @@ function useTaskListState(pageId: string) {
   )
 
   const isDirty = useMemo(() => {
-    if (!activeView) {
+    if (activeView === null) {
       return (
         serializeTaskFilters(filters, matchMode) !==
           serializeTaskFilters(emptyTasksFilters, "all") ||
@@ -136,7 +95,7 @@ function useTaskListState(pageId: string) {
   }, [activeView, display, filters, matchMode])
 
   const setArrayFilter = useCallback(
-    <K extends keyof TasksFilters & string>(key: K, value: TasksFilters[K]) => {
+    <K extends keyof TasksFilters>(key: K, value: TasksFilters[K]) => {
       setFilters((current) => ({ ...current, [key]: value }))
     },
     []
@@ -223,13 +182,3 @@ export function TaskListProvider({
     <TaskListContext value={useTaskListState(pageId)}>{children}</TaskListContext>
   )
 }
-
-export function useTaskListPage() {
-  const value = use(TaskListContext)
-  if (!value) {
-    throw new Error("useTaskListPage must be used within TaskListProvider")
-  }
-  return value
-}
-
-export type { SavedViewRecord }

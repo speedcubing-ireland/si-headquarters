@@ -16,7 +16,7 @@ import {
 import { useMutation, useQuery } from "convex/react"
 import { useCallback } from "react"
 
-export type SavedViewRecord = {
+export interface SavedViewRecord {
   _id: Id<"savedViews">
   ownerId: Id<"users">
   visibility: "private" | "public"

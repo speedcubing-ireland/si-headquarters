@@ -16,10 +16,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { NavRoot } from "@/components/layout/layout-navbar"
-import {
-  useTaskListPage,
-  type SavedViewRecord,
-} from "@/features/tasks/list/task-list-context"
+import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
+import type { SavedViewRecord } from "@/features/tasks/list/use-task-saved-views"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 import { GlobeIcon, LayersPlus, RotateCcwIcon } from "lucide-react"

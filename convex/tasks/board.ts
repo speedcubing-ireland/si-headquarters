@@ -22,7 +22,7 @@ export const taskBoardRow = v.object({
   phaseName: v.union(v.string(), v.null()),
 })
 
-type TaskCompetitionContext = {
+interface TaskCompetitionContext {
   competitionId: Id<"competitions"> | null
   phaseId: Id<"phases"> | null
   competitionName: string | null
@@ -43,7 +43,7 @@ function getCompetitionYear(
     }
   }
 
-  const yearInName = competition.name.match(/\b(\d{4})\b/)
+  const yearInName = /\b(\d{4})\b/.exec(competition.name)
   return yearInName ? Number(yearInName[1]) : null
 }
 

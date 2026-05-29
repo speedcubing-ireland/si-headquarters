@@ -12,8 +12,8 @@ function updateFilterItemAt<K extends string>(
   index: number,
   updater: (item: FilterItem) => FilterItem | null
 ) {
-  const item = items[index]
-  if (!item) return
+  const item = items.at(index)
+  if (item === undefined) return
 
   const updated = updater(item)
   setArrayFilter(

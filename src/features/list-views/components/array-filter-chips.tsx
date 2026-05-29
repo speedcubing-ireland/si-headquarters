@@ -11,7 +11,7 @@ import type { FilterItem } from "@/features/list-views/types"
 import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 
-export type ArrayFilterChipDef<K extends string> = {
+export interface ArrayFilterChipDef<K extends string> {
   key: K
   label: string
   icon: LucideIcon

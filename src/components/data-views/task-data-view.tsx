@@ -195,6 +195,7 @@ export function ResponsiveTaskPath({
       }),
     [
       compactLabelText,
+      hasBlockIndicator,
       labelText,
       rootMeasurement.font,
       subtaskIndicator,

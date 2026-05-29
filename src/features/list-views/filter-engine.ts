@@ -29,7 +29,7 @@ export function matchesPointInDateRange(
   isoDate: string | null | undefined,
   dateRange: DateRangeFilter
 ): boolean {
-  if (!isoDate) return false
+  if (isoDate === null || isoDate === undefined || isoDate === "") return false
 
   const point = new Date(isoDate)
   const start =

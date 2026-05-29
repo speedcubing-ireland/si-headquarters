@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils"
-import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useState, type ReactNode } from "react"
 import { Link, type LinkProps } from "@tanstack/react-router"
@@ -95,10 +94,6 @@ export function NavRoot({
     >
       <div className="flex h-12 w-full min-w-0 items-center gap-2 px-3 sm:px-4 lg:px-6">
         <SidebarTrigger className="-ml-1 shrink-0" />
-        <Separator
-          orientation="vertical"
-          className="hidden data-[orientation=vertical]:h-4 sm:block"
-        />
         {children}
       </div>
     </header>

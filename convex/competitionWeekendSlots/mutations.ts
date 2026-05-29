@@ -19,7 +19,7 @@ async function getOrCreateSlot(
   if (existing) return existing
 
   const saturday = parseLocalDate(weekendStart)
-  if (!saturday || saturday.getFullYear() !== year) {
+  if (saturday?.getFullYear() !== year) {
     throw new Error("Invalid weekend for year")
   }
 

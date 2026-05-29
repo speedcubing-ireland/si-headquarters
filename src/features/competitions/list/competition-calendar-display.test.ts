@@ -1,12 +1,8 @@
 import { describe, expect, test } from "vitest"
 import { getCompetitionDateChip } from "@/features/competitions/list/competition-calendar-display"
-import type { CompetitionCalendarCompetitionRow } from "@/features/competitions/list/competition-calendar-display"
 
 function rowWithDates(from: string | null, to: string | null) {
-  return {
-    kind: "competition",
-    compDates: { from, to },
-  } as CompetitionCalendarCompetitionRow
+  return { compDates: { from, to } }
 }
 
 describe("getCompetitionDateChip", () => {

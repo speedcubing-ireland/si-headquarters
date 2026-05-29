@@ -44,7 +44,7 @@ function FilterOptionsList({
               key={option.value}
               option={option}
               isSelected={selectedValues.includes(option.value)}
-              onSelect={() => onToggleValue(option.value)}
+              onSelect={() => { onToggleValue(option.value); }}
             />
           ))}
         </CommandGroup>

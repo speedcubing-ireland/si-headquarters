@@ -1,8 +1,8 @@
-import * as UserSelector from "@/components/data-selectors/user-selector"
+import { CompetitionPeopleCardFields } from "@/features/competitions/competition-people-selectors"
 import { Button } from "@/components/ui/button"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { useMutation, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
 import {
   ClipboardPenIcon,
   FlagIcon,
@@ -18,10 +18,6 @@ import {
 } from "../../../components/page-card"
 import { Skeleton } from "@/components/ui/skeleton"
 
-function LoadingValue() {
-  return <Skeleton className="h-8 w-24" />
-}
-
 export function PeopleCard({
   competitionId,
 }: {
@@ -30,11 +26,6 @@ export function PeopleCard({
   const peopleDetails = useQuery(api.competitions.queries.getPeople, {
     id: competitionId,
   })
-  const setCompLead = useMutation(api.competitions.mutations.setCompLead)
-  const setLeadDelegate = useMutation(
-    api.competitions.mutations.setLeadDelegate
-  )
-  const setOrganisers = useMutation(api.competitions.mutations.setOrganisers)
 
   if (peopleDetails === undefined) {
     return (
@@ -44,19 +35,19 @@ export function PeopleCard({
             icon={<ClipboardPenIcon className="size-4" />}
             label="Competition Lead"
           >
-            <LoadingValue />
+            <Skeleton className="h-8 w-24" />
           </PageCardRow>
           <PageCardRow
             icon={<FlagIcon className="size-4" />}
             label="Lead Delegate"
           >
-            <LoadingValue />
+            <Skeleton className="h-8 w-24" />
           </PageCardRow>
           <PageCardRow
             icon={<UsersIcon className="size-4" />}
             label="Organisers"
           >
-            <LoadingValue />
+            <Skeleton className="h-8 w-24" />
           </PageCardRow>
         </PageCardContent>
         <PageCardFooter>
@@ -74,39 +65,15 @@ export function PeopleCard({
   return (
     <PageCard title="People" icon={<UserIcon className="size-4" />}>
       <PageCardContent className="flex-1">
-        <PageCardRow
-          icon={<ClipboardPenIcon className="size-4" />}
-          label="Competition Lead"
-        >
-          <UserSelector.SinglePropertyButton
-            selectedUser={people.compLead}
-            value={comp.people.compLead}
-            onChange={(userId) => {
-              void setCompLead({ id: competitionId, userId })
-            }}
-          />
-        </PageCardRow>
-        <PageCardRow
-          icon={<FlagIcon className="size-4" />}
-          label="Lead Delegate"
-        >
-          <UserSelector.SinglePropertyButton
-            selectedUser={people.leadDelegate}
-            value={comp.people.leadDelegate}
-            onChange={(userId) => {
-              void setLeadDelegate({ id: competitionId, userId })
-            }}
-          />
-        </PageCardRow>
-        <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
-          <UserSelector.MultiPropertyButton
-            selectedUsers={people.organisers}
-            value={comp.people.organisers}
-            onChange={(organiserIds) => {
-              void setOrganisers({ id: competitionId, organiserIds })
-            }}
-          />
-        </PageCardRow>
+        <CompetitionPeopleCardFields
+          competitionId={competitionId}
+          compLeadId={comp.people.compLead}
+          leadDelegateId={comp.people.leadDelegate}
+          organiserIds={comp.people.organisers}
+          compLead={people.compLead}
+          leadDelegate={people.leadDelegate}
+          organisers={people.organisers}
+        />
       </PageCardContent>
       <PageCardFooter>
         <Button className="w-full" noop>

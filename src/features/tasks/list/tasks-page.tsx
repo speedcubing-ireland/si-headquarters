@@ -11,10 +11,8 @@ import { groupTaskRows } from "@/features/tasks/list/task-grouping"
 import { TaskListFilterBar } from "@/features/tasks/list/task-list-filter-bar"
 import { TaskListPageLayout } from "@/features/tasks/list/task-list-page-layout"
 import { TaskListNavbar } from "@/features/tasks/list/task-list-navbar"
-import {
-  TaskListProvider,
-  useTaskListPage,
-} from "@/features/tasks/list/task-list-context"
+import { TaskListProvider } from "@/features/tasks/list/task-list-context"
+import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
 import { sortTaskRows } from "@/features/tasks/list/task-sort"
 import { TaskCard } from "@/features/tasks/list/task-card"
 import { TaskRow } from "@/features/tasks/list/task-row"

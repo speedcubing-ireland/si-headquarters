@@ -101,8 +101,12 @@ export async function runCliOAuth(pluginId: string): Promise<void> {
 
   const redirectUrl = new URL(cfg.redirectUri)
   const allowedHosts = new Set(["localhost", "127.0.0.1", "::1"])
-  if (!allowedHosts.has(redirectUrl.hostname)) {
-    throw new Error(`Unsafe redirect host '${redirectUrl.hostname}'.`)
+  const { hostname: redirectHost } = redirectUrl
+  if (typeof redirectHost !== "string") {
+    throw new Error("Invalid redirect URI hostname.")
+  }
+  if (!allowedHosts.has(redirectHost)) {
+    throw new Error(`Unsafe redirect host '${redirectHost}'.`)
   }
 
   const pkce = cfg.usePkce === true ? await generatePkce() : null

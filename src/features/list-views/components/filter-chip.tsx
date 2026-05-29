@@ -27,10 +27,13 @@ export function FilterChip<TValue extends string>({
   wrapValueButton?: (button: React.ReactElement) => ReactNode
 }) {
   const hasMultiple = values.length > 1
-  const isNotLabels = hasMultiple
-    ? ({ true: "is none", false: "is any" } as const)
-    : ({ true: "is not", false: "is" } as const)
-  const isNotText = isNotLabels[String(isNot) as "true" | "false"]
+  const isNotText = isNot
+    ? hasMultiple
+      ? "is none"
+      : "is not"
+    : hasMultiple
+      ? "is any"
+      : "is"
 
   const valueButton = (
     <Button variant="outline" size="xs" className="min-w-0" type="button">

@@ -1,14 +1,14 @@
 import { compareStrings, createRowSorter } from "@/features/list-views/row-sorter"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
-import { TASK_STATUSES, type TaskStatus } from "@/convex/tasks/status/validators"
+import { isTaskStatus, TASK_STATUSES } from "@/convex/tasks/status/validators"
 
 const STATUS_RANK = new Map(
   TASK_STATUSES.map((status, index) => [status, index] as const)
 )
 
 export function taskStatusRank(status: string) {
-  if ((TASK_STATUSES as readonly string[]).includes(status)) {
-    return STATUS_RANK.get(status as TaskStatus) ?? TASK_STATUSES.length
+  if (isTaskStatus(status)) {
+    return STATUS_RANK.get(status) ?? TASK_STATUSES.length
   }
   return TASK_STATUSES.length
 }
@@ -22,7 +22,7 @@ function assigneeSortKey(row: TaskBoardRow): string {
 }
 
 function ownerSortKey(row: TaskBoardRow): string {
-  if (!row.owner) return ""
+  if (row.owner === null) return ""
   return row.owner.type === "users"
     ? (row.owner.name ?? row.owner._id)
     : row.owner.name
