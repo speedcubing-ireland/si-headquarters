@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button"
 
 export function DeleteUpdateDialog({ comp }: { comp: Doc<"competitions"> }) {
   const deleteUpdate = useMutation(
-    api.competitionUpdates.mutations.deleteForCompetition
+    api.competitions.updates.mutations.deleteForCompetition
   )
 
   return (

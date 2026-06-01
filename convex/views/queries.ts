@@ -1,5 +1,5 @@
 import { query } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/permissions/authn"
+import { requireActiveUserId } from "@/convex/permissions/principal"
 import {
   savedViewListItem,
   viewEntity,
@@ -13,7 +13,7 @@ export const listViews = query({
   },
   returns: v.array(savedViewListItem),
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx)
+    const userId = await requireActiveUserId(ctx)
 
     const [privateViews, publicViews] = await Promise.all([
       ctx.db

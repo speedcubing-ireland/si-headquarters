@@ -1,22 +1,10 @@
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
-import type { Id } from "@/convex/_generated/dataModel"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
-import { TEAM_NAMES } from "@/convex/permissions/constants"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
-
-async function seedManager(t: ReturnType<typeof convexTest>): Promise<Id<"users">> {
-  return t.run(async (ctx) => {
-    const userId = await ctx.db.insert("users", {})
-    await ctx.db.insert("teams", {
-      name: TEAM_NAMES.DIRECTORS,
-      memberIds: [userId],
-    })
-    return userId
-  })
-}
+import { seedDirectorUser } from "@/convex/testHelpers"
 
 describe("propertyStatus", () => {
   test("not_offered when no auctions exist", async () => {
@@ -38,7 +26,7 @@ describe("propertyStatus", () => {
 
   test("bidding when scheduled auction exists", async () => {
     const t = convexTest(schema, modules)
-    const managerId = await seedManager(t)
+    const managerId = await t.run((ctx) => seedDirectorUser(ctx))
     const manager = t.withIdentity({ subject: managerId })
 
     const competitionId = await t.run(async (ctx) =>
@@ -83,7 +71,7 @@ describe("propertyStatus", () => {
 
   test("manual override takes precedence", async () => {
     const t = convexTest(schema, modules)
-    const managerId = await seedManager(t)
+    const managerId = await t.run((ctx) => seedDirectorUser(ctx))
     const manager = t.withIdentity({ subject: managerId })
 
     const competitionId = await t.run(async (ctx) =>

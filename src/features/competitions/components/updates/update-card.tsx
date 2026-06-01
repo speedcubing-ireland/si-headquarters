@@ -45,11 +45,11 @@ export function UpdateCard({
     id: competitionId,
   })
   const toggleReaction = useMutation(
-    api.competitionUpdates.mutations.toggleReaction
+    api.competitions.updates.mutations.toggleReaction
   )
   const update = updateDetails?.update
   const reactionCounts = useQuery(
-    api.competitionUpdates.queries.listReactionCounts,
+    api.competitions.updates.queries.listReactionCounts,
     update ? { updateId: update._id } : "skip"
   )
 

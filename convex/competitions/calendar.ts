@@ -1,7 +1,8 @@
+import { collectAll } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/permissions/authn"
+import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
 import {
   formatLocalDate,
   getSaturdayOfWeek,
@@ -110,23 +111,28 @@ export const listForYear = query({
     unscheduledCount: v.number(),
   }),
   handler: async (ctx, args) => {
-    await requireUserId(ctx)
-
-    const [competitions, phases, slots] = await Promise.all([
-      ctx.db.query("competitions").collect(),
-      ctx.db.query("phases").collect(),
+    const principal = await requirePrincipal(ctx)
+    const [allCompetitions, phases, slots] = await Promise.all([
+      collectAll(ctx, "competitions"),
+      collectAll(ctx, "phases"),
       ctx.db
         .query("competitionWeekendSlots")
         .withIndex("by_year", (q) => q.eq("year", args.year))
         .collect(),
     ])
+    const competitions = allCompetitions.filter((competition) =>
+      canPerform(principal, "read", "Competition", competition)
+    )
 
     const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
     const slotByWeekend = new Map(
       slots.map((slot) => [slot.weekendStart, slot])
     )
 
-    const competitionRows = new Map<Id<"competitions">, CalendarCompetitionRow>()
+    const competitionRows = new Map<
+      Id<"competitions">,
+      CalendarCompetitionRow
+    >()
     const assignments = new Map<string, Id<"competitions">[]>()
     const unscheduled: Id<"competitions">[] = []
     const yearWeekends = saturdaysInYear(args.year)
@@ -144,11 +150,7 @@ export const listForYear = query({
 
       const weekendStart = formatLocalDate(getSaturdayOfWeek(range.start))
       if (yearWeekends.includes(weekendStart)) {
-        assignCompetitionToWeekend(
-          assignments,
-          weekendStart,
-          competition._id
-        )
+        assignCompetitionToWeekend(assignments, weekendStart, competition._id)
       } else {
         unscheduled.push(competition._id)
       }
@@ -158,7 +160,10 @@ export const listForYear = query({
     for (const ids of assignments.values()) {
       assignedIds.push(...ids)
     }
-    const neededIds = new Set<Id<"competitions">>([...assignedIds, ...unscheduled])
+    const neededIds = new Set<Id<"competitions">>([
+      ...assignedIds,
+      ...unscheduled,
+    ])
 
     await Promise.all(
       competitions
@@ -171,7 +176,8 @@ export const listForYear = query({
         })
     )
 
-    const rows: (| CalendarCompetitionRow
+    const rows: (
+      | CalendarCompetitionRow
       | {
           kind: "weekend"
           weekendStart: string
@@ -179,7 +185,8 @@ export const listForYear = query({
           note: string
           announced: boolean
           reserved: boolean
-        })[] = []
+        }
+    )[] = []
 
     for (const weekendStart of saturdaysInYear(args.year)) {
       const competitionIds = assignments.get(weekendStart) ?? []

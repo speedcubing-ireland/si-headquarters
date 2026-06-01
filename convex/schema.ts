@@ -1,13 +1,13 @@
 import { defineSchema, defineTable } from "convex/server"
 import { authTables } from "@convex-dev/auth/server"
-import { competitionWeekendSlotFields } from "@/convex/competitionWeekendSlots/validators"
 import { competitionsCoreFields } from "@/convex/competitions/validators"
+import { competitionUpdatesFields } from "@/convex/competitions/updates/validators"
+import { competitionWeekendSlotFields } from "@/convex/competitions/weekendSlots/validators"
 import { sponsorCompetitionFields } from "@/convex/plugins/sponsor/lib/validators"
-import { competitionUpdatesFields } from "@/convex/competitionUpdates/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
 import { phasesFields } from "@/convex/phases/validators"
-import { teamsFields } from "@/convex/teams/validators"
+import { teamMembershipFields, teamsFields } from "@/convex/teams/validators"
 import { tasksFields } from "@/convex/tasks/validators"
 import {
   taskLabelAssignments,
@@ -28,6 +28,10 @@ const schema = defineSchema(
       .index("email", ["email"])
       .index("phone", ["phone"]),
     teams: defineTable(teamsFields).index("by_name", ["name"]),
+    teamMemberships: defineTable(teamMembershipFields)
+      .index("by_userId", ["userId"])
+      .index("by_teamId", ["teamId"])
+      .index("by_teamId_and_userId", ["teamId", "userId"]),
     competitions: defineTable({
       ...competitionsCoreFields,
       ...sponsorCompetitionFields,
@@ -84,11 +88,7 @@ const schema = defineSchema(
       ]),
     savedViews: defineTable(savedViewFields)
       .index("by_owner_entity_page", ["ownerId", "entity", "pageId"])
-      .index("by_visibility_entity_page", [
-        "visibility",
-        "entity",
-        "pageId",
-      ]),
+      .index("by_visibility_entity_page", ["visibility", "entity", "pageId"]),
     ...pluginTables,
   },
   {

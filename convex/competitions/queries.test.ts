@@ -4,6 +4,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
+import { ensureVolunteerMembership } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
@@ -11,8 +12,12 @@ import { describe, expect, test } from "vitest"
 describe("competition queries", () => {
   test("people query hydrates competition people independently", async () => {
     const t = convexTest(schema, modules)
-    const { competitionId, compLeadId, leadDelegateId, organiserId } =
+    const { viewerId, competitionId, compLeadId, leadDelegateId, organiserId } =
       await t.run(async (ctx) => {
+        const viewerId = await ctx.db.insert("users", {
+          name: "Viewer",
+        })
+        await ensureVolunteerMembership(ctx, viewerId)
         const compLeadId = await ctx.db.insert("users", {
           name: "Comp Lead",
         })
@@ -38,10 +43,17 @@ describe("competition queries", () => {
           updateId: null,
         })
 
-        return { competitionId, compLeadId, leadDelegateId, organiserId }
+        return {
+          viewerId,
+          competitionId,
+          compLeadId,
+          leadDelegateId,
+          organiserId,
+        }
       })
+    const viewer = t.withIdentity({ subject: viewerId })
 
-    const people = await t.query(api.competitions.queries.getPeople, {
+    const people = await viewer.query(api.competitions.queries.getPeople, {
       id: competitionId,
     })
 
@@ -55,33 +67,47 @@ describe("competition queries", () => {
 
   test("current update query returns update author and handles empty updates", async () => {
     const t = convexTest(schema, modules)
-    const { competitionWithUpdateId, competitionWithoutUpdateId, authorId } =
-      await t.run(async (ctx) => {
-        const authorId = await ctx.db.insert("users", {
-          name: "Update Author",
-        })
-        const competitionWithUpdateId = await insertCompetition(ctx, "With")
-        const competitionWithoutUpdateId = await insertCompetition(ctx, "Empty")
-        const updateId = await ctx.db.insert("competitionUpdates", {
-          competitionId: competitionWithUpdateId,
-          authorId,
-          body: "Hello world",
-          editedAt: 1,
-        })
-        await ctx.db.patch("competitions", competitionWithUpdateId, {
-          updateId,
-        })
-
-        return { competitionWithUpdateId, competitionWithoutUpdateId, authorId }
+    const {
+      viewerId,
+      competitionWithUpdateId,
+      competitionWithoutUpdateId,
+      authorId,
+    } = await t.run(async (ctx) => {
+      const viewerId = await ctx.db.insert("users", {
+        name: "Viewer",
+      })
+      await ensureVolunteerMembership(ctx, viewerId)
+      const authorId = await ctx.db.insert("users", {
+        name: "Update Author",
+      })
+      const competitionWithUpdateId = await insertCompetition(ctx, "With")
+      const competitionWithoutUpdateId = await insertCompetition(ctx, "Empty")
+      const updateId = await ctx.db.insert("competitionUpdates", {
+        competitionId: competitionWithUpdateId,
+        authorId,
+        body: "Hello world",
+        editedAt: 1,
+      })
+      await ctx.db.patch("competitions", competitionWithUpdateId, {
+        updateId,
       })
 
-    const withUpdate = await t.query(
+      return {
+        viewerId,
+        competitionWithUpdateId,
+        competitionWithoutUpdateId,
+        authorId,
+      }
+    })
+    const viewer = t.withIdentity({ subject: viewerId })
+
+    const withUpdate = await viewer.query(
       api.competitions.queries.getCurrentUpdate,
       {
         id: competitionWithUpdateId,
       }
     )
-    const withoutUpdate = await t.query(
+    const withoutUpdate = await viewer.query(
       api.competitions.queries.getCurrentUpdate,
       {
         id: competitionWithoutUpdateId,

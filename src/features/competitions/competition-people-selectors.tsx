@@ -2,15 +2,13 @@ import * as UserSelector from "@/components/data-selectors/user-selector"
 import { PageCardRow } from "@/components/page-card"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import { TEAM_NAMES } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
+import { Can } from "@/features/auth"
 import type { CompetitionCalendarCompetitionRow } from "@/features/competitions/list/competition-calendar-display"
 import { useMutation } from "convex/react"
 import type { LucideIcon } from "lucide-react"
-import {
-  ClipboardPenIcon,
-  FlagIcon,
-  UsersIcon,
-} from "lucide-react"
+import { ClipboardPenIcon, FlagIcon, UsersIcon } from "lucide-react"
 import type { ReactNode } from "react"
 
 const listIconProps = {
@@ -37,6 +35,78 @@ function ListPeopleSlot({
   )
 }
 
+function CompetitionPeopleSelectors({
+  competitionId,
+  compLead,
+  leadDelegate,
+  organisers,
+  compLeadId,
+  leadDelegateId,
+  organiserIds,
+  onCompLeadChange,
+  onLeadDelegateChange,
+  onOrganisersChange,
+  singleAppearance,
+}: {
+  competitionId: Id<"competitions">
+  compLead: PublicUser | null
+  leadDelegate: PublicUser | null
+  organisers: PublicUser[]
+  compLeadId: Id<"users"> | null
+  leadDelegateId: Id<"users"> | null
+  organiserIds: Id<"users">[]
+  onCompLeadChange: (userId: Id<"users"> | null) => void
+  onLeadDelegateChange: (userId: Id<"users"> | null) => void
+  onOrganisersChange: (organiserIds: Id<"users">[]) => void
+  singleAppearance: "property" | "icon"
+}) {
+  const SingleButton =
+    singleAppearance === "icon"
+      ? UserSelector.SingleIconButton
+      : UserSelector.SinglePropertyButton
+  const MultiButton =
+    singleAppearance === "icon"
+      ? UserSelector.MultiIconButton
+      : UserSelector.MultiPropertyButton
+  const buttonProps =
+    singleAppearance === "icon" ? listIconProps : {}
+
+  return (
+    <>
+      <ListPeopleSlot icon={ClipboardPenIcon} label="Lead">
+        <SingleButton
+          {...buttonProps}
+          selectedUser={compLead}
+          teamName={TEAM_NAMES.COMPETITIONS}
+          competitionId={competitionId}
+          value={compLeadId}
+          onChange={onCompLeadChange}
+        />
+      </ListPeopleSlot>
+      <ListPeopleSlot icon={FlagIcon} label="Delegate">
+        <SingleButton
+          {...buttonProps}
+          selectedUser={leadDelegate}
+          teamName={TEAM_NAMES.DELEGATES}
+          competitionId={competitionId}
+          value={leadDelegateId}
+          onChange={onLeadDelegateChange}
+        />
+      </ListPeopleSlot>
+      <ListPeopleSlot icon={UsersIcon} label="Organisers">
+        <MultiButton
+          {...buttonProps}
+          maxAvatars={singleAppearance === "icon" ? 3 : undefined}
+          selectedUsers={organisers}
+          competitionId={competitionId}
+          value={organiserIds}
+          onChange={onOrganisersChange}
+        />
+      </ListPeopleSlot>
+    </>
+  )
+}
+
 export function CompetitionCalendarPeopleFields({
   row,
 }: {
@@ -49,39 +119,29 @@ export function CompetitionCalendarPeopleFields({
   const setOrganisers = useMutation(api.competitions.mutations.setOrganisers)
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
-      <ListPeopleSlot icon={ClipboardPenIcon} label="Lead">
-        <UserSelector.SingleIconButton
-          {...listIconProps}
-          selectedUser={row.compLead}
-          value={row.compLead?._id ?? null}
-          onChange={(userId) => {
+    <Can I="manage" a="Competition">
+      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+        <CompetitionPeopleSelectors
+          competitionId={row._id}
+          compLead={row.compLead}
+          leadDelegate={row.leadDelegate}
+          organisers={row.organisers}
+          compLeadId={row.compLead?._id ?? null}
+          leadDelegateId={row.leadDelegate?._id ?? null}
+          organiserIds={row.organisers.map((person) => person._id)}
+          singleAppearance="icon"
+          onCompLeadChange={(userId) => {
             void setCompLead({ id: row._id, userId })
           }}
-        />
-      </ListPeopleSlot>
-      <ListPeopleSlot icon={FlagIcon} label="Delegate">
-        <UserSelector.SingleIconButton
-          {...listIconProps}
-          selectedUser={row.leadDelegate}
-          value={row.leadDelegate?._id ?? null}
-          onChange={(userId) => {
+          onLeadDelegateChange={(userId) => {
             void setLeadDelegate({ id: row._id, userId })
           }}
-        />
-      </ListPeopleSlot>
-      <ListPeopleSlot icon={UsersIcon} label="Organisers">
-        <UserSelector.MultiIconButton
-          {...listIconProps}
-          maxAvatars={3}
-          selectedUsers={row.organisers}
-          value={row.organisers.map((person) => person._id)}
-          onChange={(organiserIds) => {
+          onOrganisersChange={(organiserIds) => {
             void setOrganisers({ id: row._id, organiserIds })
           }}
         />
-      </ListPeopleSlot>
-    </div>
+      </div>
+    </Can>
   )
 }
 
@@ -109,25 +169,26 @@ export function CompetitionPeopleCardFields({
   const setOrganisers = useMutation(api.competitions.mutations.setOrganisers)
 
   return (
-    <>
+    <Can I="manage" a="Competition">
       <PageCardRow
         icon={<ClipboardPenIcon className="size-4" />}
         label="Competition Lead"
       >
         <UserSelector.SinglePropertyButton
           selectedUser={compLead}
+          teamName={TEAM_NAMES.COMPETITIONS}
+          competitionId={competitionId}
           value={compLeadId}
           onChange={(userId) => {
             void setCompLead({ id: competitionId, userId })
           }}
         />
       </PageCardRow>
-      <PageCardRow
-        icon={<FlagIcon className="size-4" />}
-        label="Lead Delegate"
-      >
+      <PageCardRow icon={<FlagIcon className="size-4" />} label="Lead Delegate">
         <UserSelector.SinglePropertyButton
           selectedUser={leadDelegate}
+          teamName={TEAM_NAMES.DELEGATES}
+          competitionId={competitionId}
           value={leadDelegateId}
           onChange={(userId) => {
             void setLeadDelegate({ id: competitionId, userId })
@@ -137,12 +198,13 @@ export function CompetitionPeopleCardFields({
       <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
         <UserSelector.MultiPropertyButton
           selectedUsers={organisers}
+          competitionId={competitionId}
           value={organiserIds}
           onChange={(organiserIds) => {
             void setOrganisers({ id: competitionId, organiserIds })
           }}
         />
       </PageCardRow>
-    </>
+    </Can>
   )
 }

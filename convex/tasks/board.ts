@@ -1,6 +1,7 @@
+import { collectAll } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/permissions/authn"
+import { requireActiveUserId } from "@/convex/permissions/principal"
 import {
   buildFlatTaskInlinePath,
   taskInlineRow,
@@ -108,13 +109,12 @@ export const listForBoard = query({
   args: {},
   returns: v.array(taskBoardRow),
   handler: async (ctx) => {
-    await requireUserId(ctx)
+    await requireActiveUserId(ctx)
 
-    // Full-table scans; acceptable at current HQ scale.
     const [tasks, phases, competitions] = await Promise.all([
-      ctx.db.query("tasks").collect(),
-      ctx.db.query("phases").collect(),
-      ctx.db.query("competitions").collect(),
+      collectAll(ctx, "tasks"),
+      collectAll(ctx, "phases"),
+      collectAll(ctx, "competitions"),
     ])
     const taskById = new Map(tasks.map((task) => [task._id, task]))
     const phaseById = new Map(phases.map((phase) => [phase._id, phase]))

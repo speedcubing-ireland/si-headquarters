@@ -226,40 +226,38 @@ class TaskStatusMutationPlanner {
 
   patchTask(task: Doc<"tasks">, patch: TaskStatusPatch) {
     const existingPatch = this.patches.get(task._id) ?? {}
-    const currentTask = { ...task, ...existingPatch }
+    const effectiveTask = { ...task, ...existingPatch }
     const nextPatch = { ...existingPatch }
     let changed = false
 
-    // TaskStatusLoader can return docs with pending patches applied, so only
-    // diff fields explicitly requested by this patch.
     changed =
       applyPatchValue({
-        currentValue: currentTask.kind,
-        originalValue: task.kind,
+        effectiveValue: effectiveTask.kind,
+        persistedValue: task.kind,
         nextValue: patch.kind,
         clearValue: () => delete nextPatch.kind,
         setValue: (value) => (nextPatch.kind = value),
       }) || changed
     changed =
       applyPatchValue({
-        currentValue: currentTask.order,
-        originalValue: task.order,
+        effectiveValue: effectiveTask.order,
+        persistedValue: task.order,
         nextValue: patch.order,
         clearValue: () => delete nextPatch.order,
         setValue: (value) => (nextPatch.order = value),
       }) || changed
     changed =
       applyPatchValue({
-        currentValue: currentTask.status,
-        originalValue: task.status,
+        effectiveValue: effectiveTask.status,
+        persistedValue: task.status,
         nextValue: patch.status,
         clearValue: () => delete nextPatch.status,
         setValue: (value) => (nextPatch.status = value),
       }) || changed
     changed =
       applyPatchValue({
-        currentValue: currentTask.statusIntent,
-        originalValue: task.statusIntent,
+        effectiveValue: effectiveTask.statusIntent,
+        persistedValue: task.statusIntent,
         nextValue: patch.statusIntent,
         clearValue: () => delete nextPatch.statusIntent,
         setValue: (value) => (nextPatch.statusIntent = value),
@@ -677,23 +675,23 @@ function isEmptyPatch(patch: TaskStatusPatch) {
 }
 
 function applyPatchValue<T>({
-  currentValue,
-  originalValue,
+  effectiveValue,
+  persistedValue,
   nextValue,
   clearValue,
   setValue,
   equals = Object.is,
 }: {
-  currentValue: T
-  originalValue: T
+  effectiveValue: T
+  persistedValue: T
   nextValue: T | undefined
   clearValue: () => void
   setValue: (value: T) => void
   equals?: (left: T, right: T) => boolean
 }) {
-  if (nextValue === undefined || equals(currentValue, nextValue)) return false
+  if (nextValue === undefined || equals(effectiveValue, nextValue)) return false
 
-  if (equals(originalValue, nextValue)) {
+  if (equals(persistedValue, nextValue)) {
     clearValue()
   } else {
     setValue(nextValue)

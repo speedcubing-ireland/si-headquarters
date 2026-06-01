@@ -1,8 +1,9 @@
+import { collectAll } from "@/convex/utils";
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "@/convex/_generated/server";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
+import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import { compareBidIntentChronologyWithIdTieBreak } from "../../lib/auctionState"
-import { requireSponsorshipManager } from "@/convex/plugins/sponsor/permissions"
 import { competitionStartEnd } from "@/convex/competitions/dates"
 import { sponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/validators"
 import {
@@ -54,7 +55,7 @@ export const create = mutation({
 	},
 	returns: v.id("sponsorshipAuctions"),
 	handler: async (ctx, args) => {
-		const actorId = await requireSponsorshipManager(ctx);
+		const actorId = await requireSponsorPortalAdmin(ctx);
 		const competition = await ctx.db.get("competitions", args.competitionId);
 		if (!competition) {
 			throw new ConvexError({
@@ -116,7 +117,7 @@ export const removeBeforeOpen = mutation({
 	args: { auctionId: v.id("sponsorshipAuctions") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireSponsorshipManager(ctx);
+		await requireSponsorPortalAdmin(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
 		if (auction.state === "active" || auction.state === "closed") {
@@ -169,7 +170,7 @@ export const update = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const actorId = await requireSponsorshipManager(ctx);
+		const actorId = await requireSponsorPortalAdmin(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
 		const competition = await ctx.db.get("competitions", auction.competitionId);
@@ -253,7 +254,7 @@ export const listByCompetition = query({
 	args: { competitionId: v.id("competitions") },
 	returns: v.array(auctionForManager),
 	handler: async (ctx, args) => {
-		await requireSponsorshipManager(ctx);
+		await requireSponsorPortalAdmin(ctx);
 		const auctions = await ctx.db
 			.query("sponsorshipAuctions")
 			.withIndex("by_competition", (q) =>
@@ -270,8 +271,8 @@ export const listCompetitionsForManager = query({
 	args: {},
 	returns: v.array(competitionForSponsorshipManager),
 	handler: async (ctx) => {
-		await requireSponsorshipManager(ctx);
-		const competitions = [...(await ctx.db.query("competitions").collect())].sort(
+		await requireSponsorPortalAdmin(ctx);
+		const competitions = [...(await collectAll(ctx, "competitions"))].sort(
 			(left, right) =>
 				(left.compDates.from ?? "").localeCompare(right.compDates.from ?? ""),
 		)
@@ -286,7 +287,7 @@ export const listCompetitionsForManager = query({
 		];
 		const [phases, auctions] = await Promise.all([
 			Promise.all(phaseIds.map((phaseId) => ctx.db.get("phases", phaseId))),
-			ctx.db.query("sponsorshipAuctions").collect(),
+			collectAll(ctx, "sponsorshipAuctions"),
 		]);
 		const phaseNameById = new Map<Id<"phases">, string>();
 		for (const phase of phases) {
@@ -357,8 +358,8 @@ export const listForManager = query({
 	args: {},
 	returns: v.array(auctionTableRowForManager),
 	handler: async (ctx) => {
-		await requireSponsorshipManager(ctx);
-		const auctions = await ctx.db.query("sponsorshipAuctions").collect();
+		await requireSponsorPortalAdmin(ctx);
+		const auctions = await collectAll(ctx, "sponsorshipAuctions");
 		if (auctions.length === 0) return [];
 
 		const competitionIds = [
@@ -487,7 +488,7 @@ export const getManagerView = query({
 		v.null(),
 	),
 	handler: async (ctx, args) => {
-		await requireSponsorshipManager(ctx);
+		await requireSponsorPortalAdmin(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
 		const [competition, invites, intents, events] = await Promise.all([

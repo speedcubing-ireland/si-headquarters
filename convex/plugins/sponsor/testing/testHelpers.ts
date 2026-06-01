@@ -9,7 +9,7 @@ export async function insertTestCompetition(
     to: string
     organisers?: Id<"users">[]
     wcaCompetitionId?: string
-  },
+  }
 ): Promise<Id<"competitions">> {
   return await ctx.db.insert("competitions", {
     name: args.name,

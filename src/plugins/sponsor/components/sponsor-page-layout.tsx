@@ -8,7 +8,7 @@ export function SponsorPageShell({
 	maxWidthClassName?: string;
 }) {
 	return (
-		<div className="min-h-svh bg-gradient-to-b from-muted/40 to-background px-4 py-4 sm:px-6">
+		<div className="min-h-svh bg-linear-to-b from-muted/40 to-background px-4 py-4 sm:px-6">
 			<div className={cn("mx-auto w-full space-y-4", maxWidthClassName)}>
 				{children}
 			</div>

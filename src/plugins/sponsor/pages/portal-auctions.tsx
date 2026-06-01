@@ -124,7 +124,7 @@ function SponsorAuctionsEnabled() {
 				actions={
 					<>
 						<PortalThemeToggle />
-						<Button asChild variant="outline" size="sm">
+						<Button asChild variant="outline">
 							<Link to="/sponsor/guide">
 								<BookOpen className="size-4" />
 								Guide
@@ -292,7 +292,7 @@ function SponsorAuctionsEnabled() {
 					<CardTitle>{SPONSOR_GUIDE_PAGE_TITLE}</CardTitle>
 					<CardDescription>
 						Learn how sealed bid, Vickrey, and proxy bidding work, including
-						minimum bids, closing rules, and sponsorship policy.
+						closing rules and sponsorship policy.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>

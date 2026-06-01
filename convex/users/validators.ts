@@ -8,6 +8,7 @@ export const usersFields = {
   phone: v.optional(v.string()),
   phoneVerificationTime: v.optional(v.number()),
   isAnonymous: v.optional(v.boolean()),
+  disabled: v.optional(v.boolean()),
   // other "users" fields...
 }
 

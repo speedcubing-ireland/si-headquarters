@@ -2,6 +2,7 @@ import { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import type { TeamName } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
 import { useQuery } from "convex/react"
 import { UserRoundIcon } from "lucide-react"
@@ -25,6 +26,9 @@ interface UserSelectorBaseProps extends Pick<
 > {
   avatarProps?: ObjectAvatarProps
   maxAvatars?: number
+  teamName?: TeamName
+  /** When set, loads users via competition-scoped query (requires manage on that competition). */
+  competitionId?: Id<"competitions">
 }
 
 interface SingleUserSelectorProps extends UserSelectorBaseProps {
@@ -133,8 +137,28 @@ export function Face({
   )
 }
 
-function useUserItems(open: boolean) {
-  return useQuery(api.users.queries.list, open ? {} : "skip")
+function useUserItems(
+  open: boolean,
+  teamName?: TeamName,
+  competitionId?: Id<"competitions">
+) {
+  const globalList = useQuery(
+    api.users.queries.list,
+    open && competitionId === undefined
+      ? teamName === undefined
+        ? {}
+        : { teamName }
+      : "skip"
+  )
+  const competitionList = useQuery(
+    api.users.queries.listForCompetition,
+    open && competitionId !== undefined
+      ? teamName === undefined
+        ? { competitionId }
+        : { competitionId, teamName }
+      : "skip"
+  )
+  return competitionId === undefined ? globalList : competitionList
 }
 
 function SingleUserSelectorControl({
@@ -146,13 +170,15 @@ function SingleUserSelectorControl({
   onChange,
   selectedUser,
   size,
+  teamName,
+  competitionId,
   value,
   variant,
 }: SingleUserSelectorProps & {
   appearance?: UserFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const users = useUserItems(open)
+  const users = useUserItems(open, teamName, competitionId)
   const model = useSingleDataSelector<User, UserId>({
     getLabel: getUserName,
     getValue: getUserId,
@@ -205,13 +231,15 @@ function MultipleUserSelectorControl({
   onChange,
   selectedUsers,
   size,
+  teamName,
+  competitionId,
   value,
   variant,
 }: MultipleUserSelectorProps & {
   appearance: UserFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const users = useUserItems(open)
+  const users = useUserItems(open, teamName, competitionId)
   const model = useMultipleDataSelector<User, UserId>({
     getLabel: getUserName,
     getValue: getUserId,

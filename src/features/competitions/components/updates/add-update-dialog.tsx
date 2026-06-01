@@ -17,7 +17,7 @@ import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
 
 export function AddUpdateDialog({ comp }: { comp: Doc<"competitions"> }) {
   const setUpdate = useMutation(
-    api.competitionUpdates.mutations.setForCompetition
+    api.competitions.updates.mutations.setForCompetition
   )
   const [open, setOpen] = useState(false)
   const [body, setBody] = useState("")

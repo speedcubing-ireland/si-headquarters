@@ -1,3 +1,4 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { api, internal } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -45,26 +46,18 @@ const auctionSnapshotContext = v.object({
 	competitionSnapshot: v.optional(competitionSnapshot),
 });
 
-function extractConvexErrorCode(error: Error): string | null {
-	if (!(error instanceof ConvexError)) {
-		return null
-	}
-	// ConvexError.data is untyped at the boundary.
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ConvexError boundary
-	const data: object | null =
-		typeof error.data === "object" && error.data !== null ? error.data : null
-	if (data === null) {
-		return null
-	}
-	if (!("code" in data)) {
-		return null
-	}
-	const code = Reflect.get(data, "code")
-	return typeof code === "string" ? code : null
+function isConvexErrorWithCode(
+	error: Error,
+): error is ConvexError<{ code: string; message: string }> {
+	return error instanceof ConvexError
 }
 
-function isExpectedSponsorAccessError(error: Error): boolean {
-	const code = extractConvexErrorCode(error)
+function convexErrorCode(error: Error): string | null {
+	return isConvexErrorWithCode(error) ? error.data.code : null
+}
+
+export function isExpectedSponsorAccessError(error: Error): boolean {
+	const code = convexErrorCode(error)
 	return code === "UNAUTHENTICATED" || code === "FORBIDDEN"
 }
 
@@ -266,11 +259,14 @@ async function authorizeSnapshotRefresh(
 		sessionToken?: string;
 	},
 ): Promise<void> {
-	const isManager = await ctx.runQuery(
-		api.plugins.sponsor.admin.sponsors.isSponsorshipManagerQuery,
-		{},
-	);
-	if (isManager) return;
+	const userId = await getAuthUserId(ctx);
+	if (userId !== null) {
+		const isManager = await ctx.runQuery(
+			internal.permissions.queries.canAccessSponsorPortalAdminForUserId,
+			{ userId },
+		);
+		if (isManager) return;
+	}
 
 	if (args.sessionToken === undefined || args.sessionToken.length === 0) {
 		throw new ConvexError({

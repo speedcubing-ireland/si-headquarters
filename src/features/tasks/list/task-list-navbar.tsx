@@ -15,11 +15,10 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { NavRoot } from "@/components/layout/layout-navbar"
+import { Page } from "@/components/layout/page"
 import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
 import type { SavedViewRecord } from "@/features/tasks/list/use-task-saved-views"
 import { cn } from "@/lib/utils"
-import type { LucideIcon } from "lucide-react"
 import { GlobeIcon, LayersPlus, RotateCcwIcon } from "lucide-react"
 import { useState, type ReactNode } from "react"
 
@@ -93,11 +92,9 @@ function SavedViewChip({
 }
 
 export function TaskListNavbar({
-  icon: Icon,
   title,
   actions,
 }: {
-  icon: LucideIcon
   title: string
   actions?: ReactNode
 }) {
@@ -113,13 +110,8 @@ export function TaskListNavbar({
   const showReset = isDirty || hasActiveFilters
 
   return (
-    <NavRoot flush>
-      <div className="flex min-w-0 shrink-0 items-center gap-2">
-        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <h1 className="truncate font-heading text-base font-semibold leading-none">
-          {title}
-        </h1>
-      </div>
+    <Page.Header>
+      <Page.Title>{title}</Page.Title>
       {showReset ? (
         <Button
           variant="ghost"
@@ -133,7 +125,7 @@ export function TaskListNavbar({
         </Button>
       ) : null}
       {savedViews.views.length > 0 ? (
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
           {savedViews.views.map((view) => (
             <SavedViewChip
               key={view._id}
@@ -171,9 +163,7 @@ export function TaskListNavbar({
           New view
         </span>
       </Button>
-      {actions !== undefined && actions !== null ? (
-        <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
-      ) : null}
-    </NavRoot>
+      {actions != null ? <Page.Actions>{actions}</Page.Actions> : null}
+    </Page.Header>
   )
 }

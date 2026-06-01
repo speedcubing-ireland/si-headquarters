@@ -1,10 +1,10 @@
 import { ConvexError, v } from "convex/values";
 import type { Id } from "@/convex/_generated/dataModel";
 import { mutation, query, type MutationCtx } from "@/convex/_generated/server";
+import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import { resolveAuctionBidState } from "../lib/auctionState"
 import { normalizeEmail, validateEmail } from "@/convex/plugins/sponsor/sanitize"
 import { sponsorPortalLoginUrl } from "@/convex/plugins/sponsor/siteUrls"
-import { requireSponsorshipManager } from "@/convex/plugins/sponsor/permissions"
 import { sponsorForUI } from "@/convex/plugins/sponsor/lib/validators"
 import { getSponsorshipEmailPayload } from "../emails/copy"
 import { scheduleSponsorshipEmailBatch } from "../emails/send"
@@ -84,7 +84,7 @@ export const list = query({
 	args: {},
 	returns: v.array(sponsorForUI),
 	handler: async (ctx) => {
-		await requireSponsorshipManager(ctx);
+		await requireSponsorPortalAdmin(ctx);
 		const sponsors = await ctx.db
 			.query("sponsors")
 			.withIndex("by_name")
@@ -102,19 +102,6 @@ export const list = query({
 	},
 });
 
-export const isSponsorshipManagerQuery = query({
-	args: {},
-	returns: v.boolean(),
-	handler: async (ctx) => {
-		try {
-			await requireSponsorshipManager(ctx);
-			return true;
-		} catch {
-			return false;
-		}
-	},
-});
-
 export const create = mutation({
 	args: {
 		name: v.string(),
@@ -123,7 +110,7 @@ export const create = mutation({
 	},
 	returns: v.id("sponsors"),
 	handler: async (ctx, args) => {
-		const actorId = await requireSponsorshipManager(ctx);
+		const actorId = await requireSponsorPortalAdmin(ctx);
 		const emailNormalized = normalizeEmail(args.email);
 		if (!emailNormalized || !validateEmail(emailNormalized)) {
 			throw new ConvexError({
@@ -176,7 +163,7 @@ export const update = mutation({
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const actorId = await requireSponsorshipManager(ctx);
+		const actorId = await requireSponsorPortalAdmin(ctx);
 		const sponsor = await ctx.db.get("sponsors", args.sponsorId);
 		if (!sponsor) {
 			throw new ConvexError({
@@ -276,7 +263,7 @@ export const sendAccessEmail = mutation({
 		hasAuthAccount: v.boolean(),
 	}),
 	handler: async (ctx, args) => {
-		const actorId = await requireSponsorshipManager(ctx);
+		const actorId = await requireSponsorPortalAdmin(ctx);
 		const sponsor = await ctx.db.get("sponsors", args.sponsorId);
 		if (sponsor?.active !== true) {
 			throw new ConvexError({
@@ -329,7 +316,7 @@ export const revokeSessions = mutation({
 	args: { sponsorId: v.id("sponsors") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireSponsorshipManager(ctx);
+		await requireSponsorPortalAdmin(ctx);
 		const sponsor = await ctx.db.get("sponsors", args.sponsorId);
 		if (sponsor?.authUserId === undefined) return null;
 		await revokeSponsorAuthSessions(ctx, sponsor.authUserId);

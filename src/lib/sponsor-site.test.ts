@@ -9,6 +9,7 @@ describe("sponsor-site path mapping", () => {
   it.each([
     ["/", "/sponsor/"],
     ["/login", "/sponsor/login"],
+    ["/guide", "/sponsor/guide"],
     ["/settings", "/sponsor/settings"],
     ["/auctions", "/sponsor/auctions"],
     ["/auctions/abc123", "/sponsor/auctions/abc123"],
@@ -23,6 +24,7 @@ describe("sponsor-site path mapping", () => {
   it.each([
     ["/sponsor/", "/"],
     ["/sponsor/login", "/login"],
+    ["/sponsor/guide", "/guide"],
     ["/sponsor/settings", "/settings"],
     ["/sponsor/auctions", "/auctions"],
     ["/sponsor/auctions/abc123", "/auctions/abc123"],

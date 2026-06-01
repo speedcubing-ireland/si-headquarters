@@ -1,7 +1,8 @@
+import { collectAll } from "@/convex/utils"
 import { query } from "@/convex/_generated/server"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/permissions/authn"
+import { requireActiveUserId } from "@/convex/permissions/principal"
 import { phaseColor, phaseOwnerRef } from "./validators"
 import { v } from "convex/values"
 
@@ -25,9 +26,8 @@ export const list = query({
     })
   ),
   handler: async (ctx) => {
-    await requireUserId(ctx)
-    // Full-table scan; acceptable at current HQ scale.
-    const phases = await ctx.db.query("phases").collect()
+    await requireActiveUserId(ctx)
+    const phases = await collectAll(ctx, "phases")
     return phases.map((phase) => ({
       _id: phase._id,
       name: phase.name,
@@ -52,7 +52,7 @@ export const listForOwner = query({
     })
   ),
   handler: async (ctx, args) => {
-    await requireUserId(ctx)
+    await requireActiveUserId(ctx)
     return await listPhasesForOwner(ctx, args.owner)
   },
 })

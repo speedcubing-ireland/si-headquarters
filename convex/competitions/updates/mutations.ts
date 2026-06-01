@@ -1,9 +1,15 @@
 import { internal } from "@/convex/_generated/api"
 import { internalMutation, mutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
+import type { Doc } from "@/convex/_generated/dataModel"
+import {
+  canPerform,
+  requireCan,
+  requirePrincipal,
+  type Principal,
+} from "@/convex/permissions/principal"
 import { reactions } from "@/convex/reactions"
-import { getAuthUserId } from "@convex-dev/auth/server"
-import { v } from "convex/values"
+import { ConvexError, v } from "convex/values"
 
 const EMOJI_REGEX =
   /^[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}\uFE0F\u200D]+$/u
@@ -20,10 +26,35 @@ function normalizeEmoji(value: string) {
   return emoji
 }
 
-async function getUserId(ctx: MutationCtx) {
-  const userId = await getAuthUserId(ctx)
-  if (!userId) throw new Error("Authentication required")
-  return userId
+function canDeleteCompetitionUpdate(
+  principal: Principal,
+  competition: Doc<"competitions">
+): boolean {
+  if (canPerform(principal, "manage", "Competition", competition)) {
+    return true
+  }
+  return (
+    competition.people.compLead === principal.userId ||
+    competition.people.leadDelegate === principal.userId ||
+    competition.people.organisers.includes(principal.userId)
+  )
+}
+
+async function authorizeCompetitionUpdate(
+  ctx: MutationCtx,
+  competitionId: Doc<"competitions">["_id"],
+  action: "read" | "update"
+) {
+  const principal = await requirePrincipal(ctx)
+  const competition = await ctx.db.get("competitions", competitionId)
+  if (competition === null) {
+    throw new ConvexError({
+      code: "NOT_FOUND",
+      message: "Competition not found",
+    })
+  }
+  requireCan(principal, action, "Competition", competition)
+  return { principal, competition }
 }
 
 export const cleanupUpdate = internalMutation({
@@ -45,9 +76,11 @@ export const setForCompetition = mutation({
   },
   returns: v.id("competitionUpdates"),
   handler: async (ctx, args) => {
-    const userId = await getUserId(ctx)
-    const competition = await ctx.db.get("competitions", args.competitionId)
-    if (!competition) throw new Error("Competition not found")
+    const { principal, competition } = await authorizeCompetitionUpdate(
+      ctx,
+      args.competitionId,
+      "update"
+    )
 
     const body = args.body.trim()
     if (!body) throw new Error("Update body is required")
@@ -58,7 +91,7 @@ export const setForCompetition = mutation({
       if (
         oldUpdate?.competitionId === competition._id &&
         oldUpdate.body === body &&
-        oldUpdate.authorId === userId
+        oldUpdate.authorId === principal.userId
       ) {
         return oldUpdate._id
       }
@@ -66,7 +99,7 @@ export const setForCompetition = mutation({
 
     const updateId = await ctx.db.insert("competitionUpdates", {
       competitionId: competition._id,
-      authorId: userId,
+      authorId: principal.userId,
       body,
       editedAt: Date.now(),
     })
@@ -76,7 +109,7 @@ export const setForCompetition = mutation({
     if (oldUpdateId) {
       await ctx.scheduler.runAfter(
         0,
-        internal.competitionUpdates.mutations.cleanupUpdate,
+        internal.competitions.updates.mutations.cleanupUpdate,
         { updateId: oldUpdateId }
       )
     }
@@ -91,18 +124,19 @@ export const deleteForCompetition = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getUserId(ctx)
+    const principal = await requirePrincipal(ctx)
     const competition = await ctx.db.get("competitions", args.competitionId)
-    if (!competition) throw new Error("Competition not found")
-
-    const canDelete =
-      competition.people.compLead === userId ||
-      competition.people.leadDelegate === userId ||
-      competition.people.organisers.some(
-        (organiserId) => organiserId === userId
-      )
-    if (!canDelete) {
-      throw new Error("Not authorized to delete this competition update")
+    if (competition === null) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Competition not found",
+      })
+    }
+    if (!canDeleteCompetitionUpdate(principal, competition)) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Not authorized to delete this competition update",
+      })
     }
 
     if (!competition.updateId) return null
@@ -110,7 +144,7 @@ export const deleteForCompetition = mutation({
     await ctx.db.patch("competitions", competition._id, { updateId: null })
     await ctx.scheduler.runAfter(
       0,
-      internal.competitionUpdates.mutations.cleanupUpdate,
+      internal.competitions.updates.mutations.cleanupUpdate,
       { updateId: competition.updateId }
     )
 
@@ -125,9 +159,14 @@ export const toggleReaction = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await getUserId(ctx)
     const update = await ctx.db.get("competitionUpdates", args.updateId)
     if (!update) throw new Error("Competition update not found")
+
+    const { principal } = await authorizeCompetitionUpdate(
+      ctx,
+      update.competitionId,
+      "read"
+    )
 
     const competition = await ctx.db.get("competitions", update.competitionId)
     if (competition?.updateId !== update._id) {
@@ -139,15 +178,22 @@ export const toggleReaction = mutation({
       ctx,
       args.updateId,
       emoji,
-      userId
+      principal.userId
     )
 
     if (existingReaction) {
-      await reactions.remove(ctx, args.updateId, emoji, userId)
+      await reactions.remove(ctx, args.updateId, emoji, principal.userId)
       return null
     }
 
-    await reactions.add(ctx, args.updateId, emoji, userId, undefined, true)
+    await reactions.add(
+      ctx,
+      args.updateId,
+      emoji,
+      principal.userId,
+      undefined,
+      true
+    )
 
     return null
   },

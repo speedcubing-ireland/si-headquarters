@@ -345,7 +345,6 @@ async function placeProxyBid(
 		updatedAt: now,
 	});
 
-	/** Who should receive the eBay-style “you were outbid” notice for this mutation. */
 	let outbidSponsorId: Id<"sponsors"> | undefined;
 	if (
 		previousLeaderSponsorId !== undefined &&
@@ -353,7 +352,6 @@ async function placeProxyBid(
 	) {
 		outbidSponsorId = previousLeaderSponsorId;
 	} else if (state.leaderSponsorId !== input.sponsorId) {
-		// Incumbent stayed leader via automatic proxy counter — notify the challenger.
 		outbidSponsorId = input.sponsorId;
 	}
 

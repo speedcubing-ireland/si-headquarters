@@ -6,6 +6,10 @@ import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
+import {
+  seedVolunteerTestUser,
+  withVolunteerTestClient,
+} from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 import {
   buildTaskStatusView,
@@ -97,7 +101,7 @@ describe("Task logic flow", () => {
   describe("1. Flows + backlog", () => {
     test("flows use order to choose the earliest incomplete current step and backlog future steps", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, currentStepId, futureStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -159,7 +163,7 @@ describe("Task logic flow", () => {
 
     test("flow view returns the current step and positioned step rows", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, completedStepId, currentStepId, futureStepId } =
         await t.run(async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -211,7 +215,7 @@ describe("Task logic flow", () => {
 
     test("split task property and flow queries keep display data separate from structure", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, stepId, labelId, ownerId, assigneeId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -276,7 +280,7 @@ describe("Task logic flow", () => {
 
     test("backlog flows stay paused until the parent is set to auto", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, currentStepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -326,7 +330,7 @@ describe("Task logic flow", () => {
     test("completed flows resolve through parent review and do not expose backlog", async () => {
       const t = convexTest(schema, modules)
       const { actorId, flowId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -365,7 +369,7 @@ describe("Task logic flow", () => {
   describe("2. Phase Making Active", () => {
     test("setting the current phase activates standard task trees and lets flows manage their current step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { phaseId, standardId, standardChildId, flowId, flowStepId } =
         await t.run(async (ctx) => {
           const phaseId = await insertPhase(ctx)
@@ -431,7 +435,7 @@ describe("Task logic flow", () => {
     test("pending reviews allow awaiting-review and reject user-driven done", async () => {
       const t = convexTest(schema, modules)
       const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const taskId = await seedPhaseTask(ctx, {
           order: "a",
@@ -483,7 +487,7 @@ describe("Task logic flow", () => {
         cancelledCurrentStepId,
         reviewerId,
       } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const reopenedFlowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -565,7 +569,7 @@ describe("Task logic flow", () => {
   describe("4. Incomplete Subtasks", () => {
     test("standard tasks with incomplete subtasks cannot be done or awaiting-review but can be cancelled", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const parentId = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           order: "a",
@@ -608,7 +612,7 @@ describe("Task logic flow", () => {
 
     test("uncompleting a subtask of a completed standard flow step reopens that step and backlogs later work", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, aggregateStepId, childId, laterStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -659,7 +663,7 @@ describe("Task logic flow", () => {
   describe("5. Manual changes", () => {
     test("manual options reflect flow and subtask limits before mutations run", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, currentStepId, futureStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -708,7 +712,7 @@ describe("Task logic flow", () => {
 
     test("status-change preview reports side-effect flow step reopens before manual changes", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, aggregateStepId, childId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -755,7 +759,7 @@ describe("Regression coverage", () => {
   describe("1. Flows + backlog regressions", () => {
     test("empty flows are converted back to standard tasks during recompute", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const flowId = await t.run(async (ctx) =>
         seedPhaseTask(ctx, {
           order: "a",
@@ -784,7 +788,7 @@ describe("Regression coverage", () => {
 
     test("converting an empty standard task to a flow reverts it to a standard task", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const taskId = await t.run(async (ctx) =>
         seedPhaseTask(ctx, {
           order: "a",
@@ -806,7 +810,7 @@ describe("Regression coverage", () => {
 
     test("converting an active standard task to a flow applies flow computation", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { taskId, currentStepId, futureStepId } = await t.run(
         async (ctx) => {
           const taskId = await seedPhaseTask(ctx, {
@@ -863,7 +867,7 @@ describe("Regression coverage", () => {
 
     test("converting a backlog standard task to a flow keeps the flow paused", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { taskId, currentStepId, futureStepId } = await t.run(
         async (ctx) => {
           const taskId = await seedPhaseTask(ctx, {
@@ -927,7 +931,7 @@ describe("Regression coverage", () => {
 
     test("active flow parents expose auto controls while displaying computed status", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const flowId = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -957,7 +961,7 @@ describe("Regression coverage", () => {
 
     test("derives the parent status from the earliest incomplete step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const flowId = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           name: "Flow",
@@ -1005,7 +1009,7 @@ describe("Regression coverage", () => {
 
     test("completing the current flow step activates the next step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, firstStepId, secondStepId, thirdStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -1056,7 +1060,7 @@ describe("Regression coverage", () => {
 
     test("setting a flow parent to backlog pauses the current step until the parent is set to auto", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, currentStepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1106,7 +1110,7 @@ describe("Regression coverage", () => {
 
     test("cancelling a flow parent masks the parent without changing children", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, currentStepId, futureStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -1160,7 +1164,7 @@ describe("Regression coverage", () => {
 
     test("resuming a flow parent recursively activates standard subtasks of the current step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, currentStepId, childId, grandchildId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -1216,7 +1220,7 @@ describe("Regression coverage", () => {
 
     test("completed flow steps are locked until reopened", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, completedStepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1257,7 +1261,7 @@ describe("Regression coverage", () => {
 
     test("reopening a cancelled past flow step restarts it as to-do", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, cancelledStepId, laterStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -1300,7 +1304,7 @@ describe("Regression coverage", () => {
 
     test("reopening an earlier step backlogs later cancelled steps", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, firstStepId, secondStepId, cancelledFutureStepId } =
         await t.run(async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -1368,7 +1372,7 @@ describe("Regression coverage", () => {
 
     test("completed flow parents are not reopenable directly", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const flowId = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1396,7 +1400,7 @@ describe("Regression coverage", () => {
 
     test("completed flow parents cannot be moved back to backlog", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const flowId = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1421,7 +1425,7 @@ describe("Regression coverage", () => {
 
     test("cancelled flow steps count complete and advance the flow", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const flowId = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1459,7 +1463,7 @@ describe("Regression coverage", () => {
     test("a flow with only cancelled steps completes through the parent review gate", async () => {
       const t = convexTest(schema, modules)
       const { actorId, flowId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1500,7 +1504,7 @@ describe("Regression coverage", () => {
 
     test("reordering flow steps recomputes current and future step status", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, futureStepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1554,7 +1558,7 @@ describe("Regression coverage", () => {
 
     test("future flow steps are forced to backlog even if they were already terminal", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, staleFutureStepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1616,7 +1620,7 @@ describe("Regression coverage", () => {
 
     test("a nested flow can be the current step of an outer flow and advance it when completed", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { outerFlowId, nestedFlowId, nestedFinalStepId, outerNextStepId } =
         await t.run(async (ctx) => {
           const outerFlowId = await seedPhaseTask(ctx, {
@@ -1682,7 +1686,7 @@ describe("Regression coverage", () => {
 
     test("pausing and resuming an outer flow through the parent controls a nested flow current step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { outerFlowId, nestedFlowId, nestedCurrentStepId } = await t.run(
         async (ctx) => {
           const outerFlowId = await seedPhaseTask(ctx, {
@@ -1744,7 +1748,7 @@ describe("Regression coverage", () => {
 
     test("a paused outer flow prevents directly resuming its nested flow step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { outerFlowId, nestedFlowId } = await t.run(async (ctx) => {
         const outerFlowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -1794,7 +1798,7 @@ describe("Regression coverage", () => {
 
     test("normalizes a mixed nested flow with stale active future steps", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const {
         outerFlowId,
         nestedFlowId,
@@ -1947,7 +1951,7 @@ describe("Regression coverage", () => {
 
     test("completing the last deep child advances a flow through a standard aggregate step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, aggregateStepId, finalChildId, nextStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -2011,7 +2015,7 @@ describe("Regression coverage", () => {
 
     test("reopening an early completed nested flow step backlogs later branches across levels", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { outerFlowId, nestedFlowId, nestedFirstStepId, outerNextStepId } =
         await t.run(async (ctx) => {
           const outerFlowId = await seedPhaseTask(ctx, {
@@ -2092,7 +2096,7 @@ describe("Regression coverage", () => {
   describe("2. Phase Making Active regressions", () => {
     test("activating a phase moves direct backlog tasks to to-do", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const phaseId = await t.run(async (ctx) => {
         const phaseId = await insertPhase(ctx)
         await insertTask(ctx, {
@@ -2125,7 +2129,7 @@ describe("Regression coverage", () => {
 
     test("activating a phase recursively activates standard backlog subtasks", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { phaseId, taskId, childId, grandchildId } = await t.run(
         async (ctx) => {
           const phaseId = await insertPhase(ctx)
@@ -2172,7 +2176,7 @@ describe("Regression coverage", () => {
 
     test("activating a phase activates the current step of direct backlog flows", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { phaseId, flowId } = await t.run(async (ctx) => {
         const phaseId = await insertPhase(ctx)
         const flowId = await insertTask(ctx, {
@@ -2209,7 +2213,7 @@ describe("Regression coverage", () => {
 
     test("activating a phase activates direct subtasks of a flow current step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { phaseId, currentStepId, childId, futureStepId } = await t.run(
         async (ctx) => {
           const phaseId = await insertPhase(ctx)
@@ -2264,7 +2268,7 @@ describe("Regression coverage", () => {
 
     test("activating a phase lets nested flow subtasks manage their own current step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const {
         phaseId,
         parentTaskId,
@@ -2329,7 +2333,7 @@ describe("Regression coverage", () => {
   describe("3. Awaiting Review regressions", () => {
     test("reports no reviews and therefore exposes done, not awaiting-review", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const taskId = await t.run(async (ctx) =>
         seedPhaseTask(ctx, {
           order: "a",
@@ -2356,7 +2360,7 @@ describe("Regression coverage", () => {
     test("pending reviews expose awaiting-review instead of done", async () => {
       const t = convexTest(schema, modules)
       const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const taskId = await seedPhaseTask(ctx, {
           order: "a",
@@ -2382,7 +2386,7 @@ describe("Regression coverage", () => {
     test("pending reviews reject done and allow awaiting-review", async () => {
       const t = convexTest(schema, modules)
       const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const taskId = await seedPhaseTask(ctx, {
           order: "a",
@@ -2417,7 +2421,7 @@ describe("Regression coverage", () => {
     test("approving the final reviewer recomputes awaiting-review to done", async () => {
       const t = convexTest(schema, modules)
       const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const taskId = await seedPhaseTask(ctx, {
           order: "a",
@@ -2450,7 +2454,7 @@ describe("Regression coverage", () => {
     test("adding a pending reviewer to a done task recomputes it to awaiting-review", async () => {
       const t = convexTest(schema, modules)
       const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const taskId = await seedPhaseTask(ctx, {
           order: "a",
@@ -2476,7 +2480,7 @@ describe("Regression coverage", () => {
       const t = convexTest(schema, modules)
       const { actorId, flowId, firstStepId, secondStepId, reviewerId } =
         await t.run(async (ctx) => {
-          const actorId = await insertUser(ctx, "Actor")
+          const actorId = await seedVolunteerTestUser(ctx, "Actor")
           const reviewerId = await insertUser(ctx, "Reviewer")
           const flowId = await seedPhaseTask(ctx, {
             order: "a",
@@ -2527,7 +2531,7 @@ describe("Regression coverage", () => {
     test("approval override recomputes pending review status to done", async () => {
       const t = convexTest(schema, modules)
       const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const taskId = await seedPhaseTask(ctx, {
           order: "a",
@@ -2560,7 +2564,7 @@ describe("Regression coverage", () => {
       const t = convexTest(schema, modules)
       const { actorId, flowId, firstStepId, secondStepId, reviewerId } =
         await t.run(async (ctx) => {
-          const actorId = await insertUser(ctx, "Actor")
+          const actorId = await seedVolunteerTestUser(ctx, "Actor")
           const reviewerId = await insertUser(ctx, "Reviewer")
           const flowId = await seedPhaseTask(ctx, {
             order: "a",
@@ -2622,7 +2626,7 @@ describe("Regression coverage", () => {
       const t = convexTest(schema, modules)
       const { actorId, flowId, firstStepId, secondStepId, reviewerId } =
         await t.run(async (ctx) => {
-          const actorId = await insertUser(ctx, "Actor")
+          const actorId = await seedVolunteerTestUser(ctx, "Actor")
           const reviewerId = await insertUser(ctx, "Reviewer")
           const flowId = await seedPhaseTask(ctx, {
             order: "a",
@@ -2690,7 +2694,7 @@ describe("Regression coverage", () => {
         reviewerId,
         newReviewerId,
       } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const newReviewerId = await insertUser(ctx, "New Reviewer")
         const flowId = await seedPhaseTask(ctx, {
@@ -2796,7 +2800,7 @@ describe("Regression coverage", () => {
       const t = convexTest(schema, modules)
       const { actorId, flowId, firstStepId, secondStepId } = await t.run(
         async (ctx) => {
-          const actorId = await insertUser(ctx, "Actor")
+          const actorId = await seedVolunteerTestUser(ctx, "Actor")
           const reviewerId = await insertUser(ctx, "Reviewer")
           const flowId = await seedPhaseTask(ctx, {
             order: "a",
@@ -2875,7 +2879,7 @@ describe("Regression coverage", () => {
         outerNextStepId,
         reviewerId,
       } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const outerFlowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -2935,7 +2939,7 @@ describe("Regression coverage", () => {
     test("completed flow waits on reviews and then completes after approval", async () => {
       const t = convexTest(schema, modules)
       const { actorId, flowId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -2974,7 +2978,7 @@ describe("Regression coverage", () => {
   describe("4. Incomplete Subtasks regressions", () => {
     test("returns effective status, edit options, and subtask progress", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const parentId = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           name: "Parent",
@@ -3020,7 +3024,7 @@ describe("Regression coverage", () => {
 
     test("rejects done or awaiting-review commands while subtasks are incomplete", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const parentId = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3073,7 +3077,7 @@ describe("Regression coverage", () => {
 
     test("allows done once all subtasks are terminal-complete and counts cancelled as complete", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const parentId = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3118,7 +3122,7 @@ describe("Regression coverage", () => {
 
     test("standard tasks with only cancelled subtasks do not auto-complete", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const parentId = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3154,7 +3158,7 @@ describe("Regression coverage", () => {
 
     test("uncompleting a child of a completed standard flow step reopens that step", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, aggregateStepId, childId, laterStepId } = await t.run(
         async (ctx) => {
           const flowId = await seedPhaseTask(ctx, {
@@ -3214,7 +3218,7 @@ describe("Regression coverage", () => {
     test("incomplete subtasks still force in-progress even with pending reviews", async () => {
       const t = convexTest(schema, modules)
       const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-        const actorId = await insertUser(ctx, "Actor")
+        const actorId = await seedVolunteerTestUser(ctx, "Actor")
         const reviewerId = await insertUser(ctx, "Reviewer")
         const taskId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3251,7 +3255,7 @@ describe("Regression coverage", () => {
   describe("5. Manual changes regressions", () => {
     test("status mutations return null for client-side command handling", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const taskId = await t.run(async (ctx) =>
         seedPhaseTask(ctx, {
           order: "a",
@@ -3272,7 +3276,7 @@ describe("Regression coverage", () => {
 
     test("moving a standard task to to-do moves direct backlog subtasks to to-do", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const parentId = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3307,7 +3311,7 @@ describe("Regression coverage", () => {
 
     test("moving a standard task to to-do recursively activates standard backlog subtasks", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { parentId, childId, grandchildId } = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3355,7 +3359,7 @@ describe("Regression coverage", () => {
 
     test("current flow step cannot be set to backlog", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, stepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3385,7 +3389,7 @@ describe("Regression coverage", () => {
 
     test("reopen action is rejected for active and future flow steps", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { currentStepId, staleFutureStepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3415,7 +3419,7 @@ describe("Regression coverage", () => {
 
     test("direct changes to future flow steps are rejected", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, staleFutureStepId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3455,7 +3459,7 @@ describe("Regression coverage", () => {
 
     test("status-change preview reports side-effect flow step reopens", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const { flowId, aggregateStepId, childId } = await t.run(async (ctx) => {
         const flowId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3513,7 +3517,7 @@ describe("Regression coverage", () => {
   describe("Operational limits and invariants", () => {
     test("moving a task with 200 direct backlog subtasks to to-do stays within recompute limits", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const parentId = await t.run(async (ctx) => {
         const parentId = await seedPhaseTask(ctx, {
           order: "a",
@@ -3575,7 +3579,7 @@ describe("Regression coverage", () => {
 
     test("recompute fails loudly instead of looping through a parent cycle", async () => {
       const t = convexTest(schema, modules)
-      const user = t.withIdentity({ subject: "test-user" })
+      const { client: user } = await withVolunteerTestClient(t)
       const secondId = await t.run(async (ctx) => {
         const firstId = await seedPhaseTask(ctx, {
           order: "a",

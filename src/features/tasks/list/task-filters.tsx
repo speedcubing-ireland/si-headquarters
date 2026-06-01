@@ -207,10 +207,10 @@ function renderTaskFilterValue(
 }
 
 export function useTaskFilters() {
-  const users = useQuery(api.users.queries.list)
+  const users = useQuery(api.users.queries.list, {})
   const teams = useQuery(api.teams.queries.list)
   const labels = useQuery(api.tasks.labels.queries.list)
-  const competitions = useQuery(api.competitions.board.listForBoard)
+  const competitions = useQuery(api.competitions.queries.list)
   const phases = useQuery(api.phases.queries.list)
 
   const lookup = useMemo<TaskFilterLookup>(

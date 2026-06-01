@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { Layout } from "@/components/layout/layout"
+import { AbilityProvider } from "@/features/auth"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { getPageTitle } from "@/lib/page-title"
 import { isSponsorSite } from "@/lib/sponsor-site"
@@ -89,9 +90,11 @@ function RootLayoutInner() {
         </div>
       </AuthLoading>
       <Authenticated>
-        <Layout>
-          <Outlet />
-        </Layout>
+        <AbilityProvider>
+          <Layout>
+            <Outlet />
+          </Layout>
+        </AbilityProvider>
       </Authenticated>
       <Unauthenticated>
         <div className="flex min-h-svh flex-col items-center justify-center bg-muted/40 px-4 py-8">

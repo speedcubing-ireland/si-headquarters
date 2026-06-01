@@ -12,7 +12,7 @@ import {
   type TaskReviewerDetails,
 } from "@/convex/tasks/reviews/validators"
 import { toPublicUser } from "@/convex/users/queries"
-import { getAuthUserId } from "@convex-dev/auth/server"
+import { requireCan, requirePrincipal } from "@/convex/permissions/principal"
 import { v } from "convex/values"
 
 const MAX_POTENTIAL_REVIEWER_OPTIONS = 100
@@ -90,8 +90,8 @@ export const listPotentialReviewers = query({
   args: {},
   returns: potentialTaskReviewers,
   handler: async (ctx) => {
-    const authUserId = await getAuthUserId(ctx)
-    if (!authUserId) throw new Error("Authentication required")
+    const principal = await requirePrincipal(ctx)
+    requireCan(principal, "manage", "Task")
 
     const [teams, users] = await Promise.all([
       ctx.db.query("teams").take(MAX_POTENTIAL_REVIEWER_OPTIONS),

@@ -1,13 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
-import { NavRoot } from "@/components/layout/layout-navbar"
+import { Page } from "@/components/layout/page"
 import {
   CompetitionCalendarBoard,
   CompetitionCalendarLoading,
 } from "@/features/competitions/list/competition-calendar-board"
 import { api } from "@/convex/_generated/api"
 import { useQuery } from "convex/react"
-import { ChevronLeftIcon, ChevronRightIcon, TrophyIcon } from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { useState } from "react"
 
 function YearSelector({
@@ -18,7 +18,7 @@ function YearSelector({
   onChange: (year: number) => void
 }) {
   return (
-    <ButtonGroup className="ml-auto">
+    <ButtonGroup>
       <Button
         type="button"
         variant="outline"
@@ -49,19 +49,20 @@ export function CompetitionsPage() {
   const calendar = useQuery(api.competitions.calendar.listForYear, { year })
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
-      <NavRoot>
-        <TrophyIcon className="size-4 shrink-0 text-muted-foreground" />
-        <h1 className="font-heading text-base font-semibold">Competitions</h1>
-        <YearSelector year={year} onChange={setYear} />
-      </NavRoot>
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+    <Page.Root>
+      <Page.Header>
+        <Page.Title>Competitions</Page.Title>
+        <Page.Actions>
+          <YearSelector year={year} onChange={setYear} />
+        </Page.Actions>
+      </Page.Header>
+      <Page.Content>
         {calendar === undefined ? (
           <CompetitionCalendarLoading />
         ) : (
           <CompetitionCalendarBoard rows={calendar.rows} year={year} />
         )}
-      </div>
-    </div>
+      </Page.Content>
+    </Page.Root>
   )
 }

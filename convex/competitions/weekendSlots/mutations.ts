@@ -1,8 +1,8 @@
 import { mutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/permissions/authn"
 import { parseLocalDate } from "@/convex/competitions/dates"
-import { v } from "convex/values"
+import { requireCompetitionManagement } from "@/convex/permissions/principal"
+import { ConvexError, v } from "convex/values"
 
 async function getOrCreateSlot(
   ctx: MutationCtx,
@@ -20,7 +20,10 @@ async function getOrCreateSlot(
 
   const saturday = parseLocalDate(weekendStart)
   if (saturday?.getFullYear() !== year) {
-    throw new Error("Invalid weekend for year")
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: "Invalid weekend for year",
+    })
   }
 
   const id = await ctx.db.insert("competitionWeekendSlots", {
@@ -32,7 +35,12 @@ async function getOrCreateSlot(
   })
 
   const doc = await ctx.db.get("competitionWeekendSlots", id)
-  if (!doc) throw new Error("Failed to create weekend slot")
+  if (doc === null) {
+    throw new ConvexError({
+      code: "INTERNAL_ERROR",
+      message: "Failed to create weekend slot",
+    })
+  }
   return doc
 }
 
@@ -43,7 +51,7 @@ export const setNote = mutation({
     note: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireUserId(ctx)
+    await requireCompetitionManagement(ctx)
     const slot = await getOrCreateSlot(ctx, args.year, args.weekendStart)
     await ctx.db.patch("competitionWeekendSlots", slot._id, {
       note: args.note.trim(),
@@ -59,7 +67,7 @@ export const setAnnounced = mutation({
     announced: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireUserId(ctx)
+    await requireCompetitionManagement(ctx)
     const slot = await getOrCreateSlot(ctx, args.year, args.weekendStart)
     await ctx.db.patch("competitionWeekendSlots", slot._id, {
       announced: args.announced,
@@ -75,7 +83,7 @@ export const setReserved = mutation({
     reserved: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireUserId(ctx)
+    await requireCompetitionManagement(ctx)
     const slot = await getOrCreateSlot(ctx, args.year, args.weekendStart)
     await ctx.db.patch("competitionWeekendSlots", slot._id, {
       reserved: args.reserved,

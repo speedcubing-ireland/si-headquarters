@@ -1,5 +1,5 @@
 import { mutation, query, internalQuery } from "../_generated/server"
-import { getAuthUserId } from "@convex-dev/auth/server"
+import { getPrincipalOrNull } from "@/convex/permissions/principal"
 import type { Id, Doc } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
 import { v } from "convex/values"
@@ -38,10 +38,11 @@ export const getSubscription = query({
     object: subscribableObjectRef,
   },
   handler: async (ctx, args): Promise<boolean> => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) {
+    const principal = await getPrincipalOrNull(ctx)
+    if (principal === null) {
       return false
     }
+    const userId = principal.userId
 
     const subId = await getSubscriptionRecordId(ctx, userId, args.object)
 
@@ -55,10 +56,11 @@ export const setSubscription = mutation({
     subscribe: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) {
+    const principal = await getPrincipalOrNull(ctx)
+    if (principal === null) {
       return
     }
+    const userId = principal.userId
 
     const subId = await getSubscriptionRecordId(ctx, userId, args.object)
 

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
 import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as TasksIdRouteImport } from './routes/tasks/$id'
 import { Route as SponsorSettingsRouteImport } from './routes/sponsor/settings'
 import { Route as SponsorLoginRouteImport } from './routes/sponsor/login'
@@ -41,6 +42,11 @@ const SponsorIndexRoute = SponsorIndexRouteImport.update({
 const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
   id: '/competitions/',
   path: '/competitions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksIdRoute = TasksIdRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/sponsor/login': typeof SponsorLoginRoute
   '/sponsor/settings': typeof SponsorSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/competitions/': typeof CompetitionsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/sponsor/login': typeof SponsorLoginRoute
   '/sponsor/settings': typeof SponsorSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
+  '/admin': typeof AdminIndexRoute
   '/competitions': typeof CompetitionsIndexRoute
   '/sponsor': typeof SponsorIndexRoute
   '/tasks': typeof TasksIndexRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/sponsor/login': typeof SponsorLoginRoute
   '/sponsor/settings': typeof SponsorSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/competitions/': typeof CompetitionsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/sponsor/login'
     | '/sponsor/settings'
     | '/tasks/$id'
+    | '/admin/'
     | '/competitions/'
     | '/sponsor/'
     | '/tasks/'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/sponsor/login'
     | '/sponsor/settings'
     | '/tasks/$id'
+    | '/admin'
     | '/competitions'
     | '/sponsor'
     | '/tasks'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/sponsor/login'
     | '/sponsor/settings'
     | '/tasks/$id'
+    | '/admin/'
     | '/competitions/'
     | '/sponsor/'
     | '/tasks/'
@@ -194,6 +206,7 @@ export interface RootRouteChildren {
   SponsorLoginRoute: typeof SponsorLoginRoute
   SponsorSettingsRoute: typeof SponsorSettingsRoute
   TasksIdRoute: typeof TasksIdRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   CompetitionsIndexRoute: typeof CompetitionsIndexRoute
   SponsorIndexRoute: typeof SponsorIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/competitions'
       fullPath: '/competitions/'
       preLoaderRoute: typeof CompetitionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tasks/$id': {
@@ -317,6 +337,7 @@ const rootRouteChildren: RootRouteChildren = {
   SponsorLoginRoute: SponsorLoginRoute,
   SponsorSettingsRoute: SponsorSettingsRoute,
   TasksIdRoute: TasksIdRoute,
+  AdminIndexRoute: AdminIndexRoute,
   CompetitionsIndexRoute: CompetitionsIndexRoute,
   SponsorIndexRoute: SponsorIndexRoute,
   TasksIndexRoute: TasksIndexRoute,

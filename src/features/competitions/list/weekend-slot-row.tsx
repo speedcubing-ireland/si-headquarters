@@ -12,12 +12,12 @@ export function WeekendSlotRow({
   row: Extract<CompetitionCalendarRow, { kind: "weekend" }>
   year: number
 }) {
-  const setNote = useMutation(api.competitionWeekendSlots.mutations.setNote)
+  const setNote = useMutation(api.competitions.weekendSlots.mutations.setNote)
   const setAnnounced = useMutation(
-    api.competitionWeekendSlots.mutations.setAnnounced
+    api.competitions.weekendSlots.mutations.setAnnounced
   )
   const setReserved = useMutation(
-    api.competitionWeekendSlots.mutations.setReserved
+    api.competitions.weekendSlots.mutations.setReserved
   )
 
   const hasNote = row.note.trim().length > 0

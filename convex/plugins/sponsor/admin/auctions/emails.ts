@@ -1,7 +1,7 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import type { MutationCtx } from "@/convex/_generated/server";
-import { TEAM_NAMES } from "@/convex/permissions/constants";
-import { listMembersForTeams } from "@/convex/permissions/teams"
+import { TEAM_NAMES } from "@/convex/permissions/shared";
+import { listMembersForTeams } from "@/convex/teams/model"
 import {
 	describeAuctionFramework,
 	getSponsorshipEmailPayload,

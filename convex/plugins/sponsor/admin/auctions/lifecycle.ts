@@ -3,7 +3,7 @@ import { internalMutation, mutation } from "@/convex/_generated/server";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import type { MutationCtx } from "@/convex/_generated/server";
 import { internal } from "@/convex/_generated/api";
-import { requireSponsorshipManager } from "@/convex/plugins/sponsor/permissions"
+import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import { resolveAuctionOutcome } from "../../lib/auctionState"
 import { resolveAuctionStartTargetState } from "../../lib/lifecycle"
 import {
@@ -78,7 +78,7 @@ export async function closeAuctionInternal(
 	}
 }
 
-async function cancelScheduledOptional(
+async function cancelScheduledIfPending(
 	ctx: MutationCtx,
 	id: Id<"_scheduled_functions"> | undefined,
 ): Promise<void> {
@@ -86,7 +86,7 @@ async function cancelScheduledOptional(
 	try {
 		await ctx.scheduler.cancel(id);
 	} catch {
-		// Already completed or invalid
+		/* already completed or invalid */
 	}
 }
 
@@ -95,7 +95,7 @@ export async function scheduleAuctionActivation(
 	ctx: MutationCtx,
 	auction: Doc<"sponsorshipAuctions">,
 ): Promise<void> {
-	await cancelScheduledOptional(ctx, auction.activationScheduledFunctionId);
+	await cancelScheduledIfPending(ctx, auction.activationScheduledFunctionId);
 	const scheduledFunctionId = await ctx.scheduler.runAt(
 		Math.max(auction.startsAt, Date.now()),
 		internal.plugins.sponsor.admin.auctions.lifecycle._activateAuction,
@@ -112,7 +112,7 @@ export async function scheduleAuctionClosure(
 	ctx: MutationCtx,
 	auction: Doc<"sponsorshipAuctions">,
 ): Promise<void> {
-	await cancelScheduledOptional(ctx, auction.closureScheduledFunctionId);
+	await cancelScheduledIfPending(ctx, auction.closureScheduledFunctionId);
 	const scheduledFunctionId = await ctx.scheduler.runAt(
 		Math.max(auction.endsAt, Date.now()),
 		internal.plugins.sponsor.admin.auctions.lifecycle._closeAuction,
@@ -197,7 +197,7 @@ export const start = mutation({
 	args: { auctionId: v.id("sponsorshipAuctions") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		const actorId = await requireSponsorshipManager(ctx);
+		const actorId = await requireSponsorPortalAdmin(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
 		if (auction.state === "closed") {
@@ -277,15 +277,15 @@ export const close = mutation({
 	args: { auctionId: v.id("sponsorshipAuctions") },
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		await requireSponsorshipManager(ctx);
+		await requireSponsorPortalAdmin(ctx);
 		const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId);
 		if (!auction) return null;
 		const competition = await ctx.db.get("competitions", auction.competitionId);
 		if (competition) {
 			await cacheCompetitionFallbackSnapshot(ctx, { auction, competition });
 		}
-		await cancelScheduledOptional(ctx, auction.activationScheduledFunctionId);
-		await cancelScheduledOptional(ctx, auction.closureScheduledFunctionId);
+		await cancelScheduledIfPending(ctx, auction.activationScheduledFunctionId);
+		await cancelScheduledIfPending(ctx, auction.closureScheduledFunctionId);
 		await closeAuctionInternal(ctx, auction);
 		await scheduleCompetitionSnapshotRefresh(ctx, auction._id);
 		return null;

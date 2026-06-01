@@ -1,29 +1,15 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import schema from "@/convex/schema";
 import { modules } from "@/convex/test.setup";
-import { TEAM_NAMES } from "@/convex/permissions/constants"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
-
-async function seedSponsorshipManager(
-	t: ReturnType<typeof convexTest>,
-): Promise<Id<"users">> {
-	return t.run(async (ctx) => {
-		const userId = await ctx.db.insert("users", {});
-		await ctx.db.insert("teams", {
-			name: TEAM_NAMES.DIRECTORS,
-			memberIds: [userId],
-		});
-		return userId;
-	});
-}
+import { seedDirectorUser } from "@/convex/testHelpers"
 
 describe("sponsors behavior", () => {
 	test("create sponsor stores record with normalized email", async () => {
 		const t = convexTest(schema, modules);
-		const managerId = await seedSponsorshipManager(t);
+		const managerId = await t.run((ctx) => seedDirectorUser(ctx));
 		const manager = t.withIdentity({ subject: managerId });
 
 		const sponsorId = await manager.mutation(api.plugins.sponsor.admin.sponsors.create, {
@@ -40,7 +26,7 @@ describe("sponsors behavior", () => {
 
 	test("create rejects duplicate normalized email", async () => {
 		const t = convexTest(schema, modules);
-		const managerId = await seedSponsorshipManager(t);
+		const managerId = await t.run((ctx) => seedDirectorUser(ctx));
 		const manager = t.withIdentity({ subject: managerId });
 
 		await manager.mutation(api.plugins.sponsor.admin.sponsors.create, {
@@ -58,7 +44,7 @@ describe("sponsors behavior", () => {
 
 	test("update changes sponsor name and email", async () => {
 		const t = convexTest(schema, modules);
-		const managerId = await seedSponsorshipManager(t);
+		const managerId = await t.run((ctx) => seedDirectorUser(ctx));
 		const manager = t.withIdentity({ subject: managerId });
 
 		const sponsorId = await manager.mutation(api.plugins.sponsor.admin.sponsors.create, {
@@ -79,7 +65,7 @@ describe("sponsors behavior", () => {
 
 	test("archiving a sponsor invalidates open bids and recomputes the auction leader", async () => {
 		const t = convexTest(schema, modules);
-		const managerId = await seedSponsorshipManager(t);
+		const managerId = await t.run((ctx) => seedDirectorUser(ctx));
 		const manager = t.withIdentity({ subject: managerId });
 		const now = Date.now();
 		const sponsorA = await t.run((ctx) =>

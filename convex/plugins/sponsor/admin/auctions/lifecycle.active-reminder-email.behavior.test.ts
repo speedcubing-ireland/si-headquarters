@@ -5,8 +5,8 @@ import { api, internal } from "@/convex/_generated/api";
 import schema from "@/convex/schema";
 import cronsSchema from "../../../../../node_modules/@convex-dev/crons/dist/component/schema.js"
 import { modules } from "@/convex/test.setup";
-import { TEAM_NAMES } from "@/convex/permissions/constants"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
+import { seedDirectorUser } from "@/convex/testHelpers"
 
 const cronsModules = import.meta.glob<string[]>(
 	"../../../../../node_modules/@convex-dev/crons/dist/component/**/*.js",
@@ -42,11 +42,7 @@ async function seedScheduledAuction(t: ReturnType<typeof convexTest>): Promise<{
 	auctionId: Id<"sponsorshipAuctions">;
 }> {
 	return t.run(async (ctx) => {
-		const managerId = await ctx.db.insert("users", {});
-		await ctx.db.insert("teams", {
-			name: TEAM_NAMES.DIRECTORS,
-			memberIds: [managerId],
-		});
+		const managerId = await seedDirectorUser(ctx);
 		const competitionId = await insertTestCompetition(ctx, {
 			name: "Test Comp",
 			from: "2026-09-01",

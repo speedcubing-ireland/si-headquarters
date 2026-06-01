@@ -1,13 +1,12 @@
 import { useAction, useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-
 import type { CompetitionSponsorPropertyStatus } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function useSponsors(enabled = true) {
   const sponsors = useQuery(
     api.plugins.sponsor.admin.sponsors.list,
-    enabled ? {} : "skip",
+    enabled ? {} : "skip"
   )
   return {
     sponsors: sponsors ?? [],
@@ -15,21 +14,15 @@ export function useSponsors(enabled = true) {
   }
 }
 
-export function useIsSponsorshipManager() {
-  const isManager = useQuery(api.plugins.sponsor.admin.sponsors.isSponsorshipManagerQuery, {})
-  return {
-    isManager: isManager ?? false,
-    isLoading: isManager === undefined,
-  }
-}
-
 export function useSponsorMutations() {
   const createSponsor = useMutation(api.plugins.sponsor.admin.sponsors.create)
   const updateSponsor = useMutation(api.plugins.sponsor.admin.sponsors.update)
   const sendAccessEmailMut = useMutation(
-    api.plugins.sponsor.admin.sponsors.sendAccessEmail,
+    api.plugins.sponsor.admin.sponsors.sendAccessEmail
   )
-  const revokeSessions = useMutation(api.plugins.sponsor.admin.sponsors.revokeSessions)
+  const revokeSessions = useMutation(
+    api.plugins.sponsor.admin.sponsors.revokeSessions
+  )
   const setSponsorActive = (sponsorId: Id<"sponsors">, active: boolean) =>
     updateSponsor({ sponsorId, active })
 
@@ -51,7 +44,7 @@ export function useSponsorMutations() {
 export function useSponsorshipCompetitionsForManager(enabled = true) {
   const competitions = useQuery(
     api.plugins.sponsor.admin.auctions.management.listCompetitionsForManager,
-    enabled ? {} : "skip",
+    enabled ? {} : "skip"
   )
   return {
     competitions: competitions ?? [],
@@ -62,7 +55,7 @@ export function useSponsorshipCompetitionsForManager(enabled = true) {
 export function useSponsorshipAuctionsForManager(enabled = true) {
   const auctions = useQuery(
     api.plugins.sponsor.admin.auctions.management.listForManager,
-    enabled ? {} : "skip",
+    enabled ? {} : "skip"
   )
   return {
     auctions: auctions ?? [],
@@ -72,11 +65,11 @@ export function useSponsorshipAuctionsForManager(enabled = true) {
 
 export function useSponsorshipAuctionManagerView(
   auctionId: Id<"sponsorshipAuctions"> | null,
-  enabled = true,
+  enabled = true
 ) {
   const managerView = useQuery(
     api.plugins.sponsor.admin.auctions.management.getManagerView,
-    auctionId !== null && enabled ? { auctionId } : "skip",
+    auctionId !== null && enabled ? { auctionId } : "skip"
   )
   return {
     managerView: managerView ?? null,
@@ -86,18 +79,23 @@ export function useSponsorshipAuctionManagerView(
 
 export function useSponsorshipAuctionMutations() {
   const createAuction = useMutation(
-    api.plugins.sponsor.admin.auctions.management.create,
+    api.plugins.sponsor.admin.auctions.management.create
   )
   const updateAuction = useMutation(
-    api.plugins.sponsor.admin.auctions.management.update,
+    api.plugins.sponsor.admin.auctions.management.update
   )
-  const startAuction = useMutation(api.plugins.sponsor.admin.auctions.lifecycle.start)
-  const closeAuction = useMutation(api.plugins.sponsor.admin.auctions.lifecycle.close)
+  const startAuction = useMutation(
+    api.plugins.sponsor.admin.auctions.lifecycle.start
+  )
+  const closeAuction = useMutation(
+    api.plugins.sponsor.admin.auctions.lifecycle.close
+  )
   const refreshCompetitionSnapshot = useAction(
-    api.plugins.sponsor.admin.auctions.competitionSnapshot.refreshCompetitionSnapshot,
+    api.plugins.sponsor.admin.auctions.competitionSnapshot
+      .refreshCompetitionSnapshot
   )
   const deleteBeforeOpen = useMutation(
-    api.plugins.sponsor.admin.auctions.management.removeBeforeOpen,
+    api.plugins.sponsor.admin.auctions.management.removeBeforeOpen
   )
 
   return {
@@ -116,7 +114,7 @@ export function useSponsorshipAuctionMutations() {
 
 export function useCompetitionMutations() {
   const setManualOverride = useMutation(
-    api.plugins.sponsor.admin.propertyStatus.setManualOverride,
+    api.plugins.sponsor.admin.propertyStatus.setManualOverride
   )
 
   return {
@@ -125,7 +123,7 @@ export function useCompetitionMutations() {
       input: {
         sponsorPropertyStatusOverride: CompetitionSponsorPropertyStatus | null
         sponsorOverrideSponsorId: Id<"sponsors"> | null
-      },
+      }
     ) => {
       await setManualOverride({
         competitionId,

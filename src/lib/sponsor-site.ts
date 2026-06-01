@@ -34,6 +34,7 @@ export function isSponsorPublicPath(pathname: string): boolean {
   const normalized = normalizePathname(pathname)
   if (normalized === "/") return true
   if (normalized === "/login") return true
+  if (normalized === "/guide") return true
   if (normalized === "/settings") return true
   if (normalized === "/auctions") return true
   if (normalized === "/404") return true
@@ -52,6 +53,8 @@ export function publicPathToInternal(pathname: string): string {
       return "/sponsor/"
     case "/login":
       return "/sponsor/login"
+    case "/guide":
+      return "/sponsor/guide"
     case "/settings":
       return "/sponsor/settings"
     case "/auctions":

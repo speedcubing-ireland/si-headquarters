@@ -1,21 +1,13 @@
 import * as React from "react"
 import {
   BlocksIcon,
-  BookOpen,
   ListChecksIcon,
-  Settings2,
-  SquareTerminal,
+  UsersIcon,
   TrophyIcon,
-  ChevronRight,
   type LucideIcon,
 } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import type { ToOptions } from "@tanstack/react-router"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import {
   Sidebar,
   SidebarContent,
@@ -27,37 +19,18 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { SidebarUser } from "./layout-sidebar-user"
 import { PLUGINS } from "@/plugins/registry"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
-
-const dropdownItems = [
-  {
-    title: "Playground",
-    icon: SquareTerminal,
-    isActive: true,
-    items: ["History", "Starred", "Settings"],
-  },
-  {
-    title: "Documentation",
-    icon: BookOpen,
-    items: ["Introduction", "Get Started", "Tutorials", "Changelog"],
-  },
-  {
-    title: "Settings",
-    icon: Settings2,
-    items: ["General", "Team", "Billing", "Limits"],
-  },
-]
+import { Can } from "@/features/auth"
 
 const linkItems: { label: string; to: ToOptions["to"]; icon: LucideIcon }[] = [
   { label: "Tasks", to: "/tasks", icon: ListChecksIcon },
   { label: "Competitions", to: "/competitions", icon: TrophyIcon },
 ]
+
+const sidebarLinkActiveOptions = { exact: true } as const
 
 function SidebarTitle() {
   return (
@@ -70,45 +43,6 @@ function SidebarTitle() {
         <span className="truncate text-xs">Headquarters</span>
       </div>
     </div>
-  )
-}
-
-function SidebarDropdowns() {
-  return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
-      <SidebarMenu>
-        {dropdownItems.map(({ title, icon: Icon, isActive, items }) => (
-          <Collapsible
-            key={title}
-            asChild
-            defaultOpen={isActive}
-            className="group/collapsible"
-          >
-            <SidebarMenuItem>
-              <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={title}>
-                  <Icon />
-                  <span>{title}</span>
-                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                </SidebarMenuButton>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarMenuSub>
-                  {items.map((label) => (
-                    <SidebarMenuSubItem key={label}>
-                      <SidebarMenuSubButton asChild>
-                        <a href="#">{label}</a>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ))}
-                </SidebarMenuSub>
-              </CollapsibleContent>
-            </SidebarMenuItem>
-          </Collapsible>
-        ))}
-      </SidebarMenu>
-    </SidebarGroup>
   )
 }
 
@@ -126,22 +60,60 @@ function SidebarPluginLinks() {
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Plugins</SidebarGroupLabel>
       <SidebarMenu>
-        {pluginNav.map(({ label, to, icon: Icon }) => (
-          <SidebarMenuItem key={label}>
-            <SidebarMenuButton asChild tooltip={label}>
+        {pluginNav.map(({ label, to, icon: Icon, ability }) => {
+          const item = (
+            <SidebarMenuItem key={label}>
+              <SidebarMenuButton asChild tooltip={label}>
+                <Link
+                  to={to}
+                  activeOptions={sidebarLinkActiveOptions}
+                  activeProps={{ "data-active": true }}
+                  inactiveProps={{ "data-active": false }}
+                >
+                  <Icon />
+                  <span>{label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )
+
+          if (!ability) {
+            return item
+          }
+
+          return (
+            <Can key={label} I={ability.action} a={ability.subject}>
+              {item}
+            </Can>
+          )
+        })}
+      </SidebarMenu>
+    </SidebarGroup>
+  )
+}
+
+function SidebarAdminLinks() {
+  return (
+    <Can I="manage" a="UserManagement">
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel>Admin</SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Users">
               <Link
-                to={to}
+                to="/admin"
+                activeOptions={sidebarLinkActiveOptions}
                 activeProps={{ "data-active": true }}
                 inactiveProps={{ "data-active": false }}
               >
-                <Icon />
-                <span>{label}</span>
+                <UsersIcon />
+                <span>Users</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-    </SidebarGroup>
+        </SidebarMenu>
+      </SidebarGroup>
+    </Can>
   )
 }
 
@@ -155,6 +127,7 @@ function SidebarLinks() {
             <SidebarMenuButton asChild tooltip={label}>
               <Link
                 to={to}
+                activeOptions={sidebarLinkActiveOptions}
                 activeProps={{ "data-active": true }}
                 inactiveProps={{ "data-active": false }}
               >
@@ -176,9 +149,9 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarTitle />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarDropdowns />
         <SidebarLinks />
         <SidebarPluginLinks />
+        <SidebarAdminLinks />
       </SidebarContent>
       <SidebarFooter>
         <SidebarUser />

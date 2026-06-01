@@ -17,9 +17,7 @@ import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
 import { FlowView } from "../subtasks/flow-view"
 import { SubtaskView } from "../subtasks/subtask-view"
 import type { Id } from "@/convex/_generated/dataModel"
-import { NavBreadcrumbs, NavRoot } from "@/components/layout/layout-navbar"
-import type { FunctionReturnType } from "convex/server"
-
+import { Page, PAGE_CONTENT_PADDING_SCROLL } from "@/components/layout/page"
 function IntegrationCard() {
   return (
     <Card className="col-span-full">
@@ -52,54 +50,46 @@ function IntegrationCard() {
   )
 }
 
-function TaskNavbar({ chain }: { 
-  chain: NonNullable<FunctionReturnType<typeof api.tasks.queries.getPageRoot>>["breadcrumbs"]
-}) {
-  return (
-    <NavRoot>
-      {chain && (
-        <NavBreadcrumbs
-          items={chain.map((i) => ({
-            key: i.id,
-            label: i.name,
-            to: i.type === "tasks" ? "/tasks/$id" : "/competitions/$id",
-            params: { id: i.id },
-          }))}
-        />
-      )}
-    </NavRoot>
-  )
-}
-
 export function Task({ taskId }: { taskId: Id<"tasks"> }) {
   const root = useQuery(api.tasks.queries.getPageRoot, {
     id: taskId,
   })
 
-  if (root === null) {
-    return "Task not found."
-  }
-
-  if (root === undefined) {
-    return <></>
-  }
+  const breadcrumbs = root?.breadcrumbs
+  const header =
+    breadcrumbs && breadcrumbs.length > 0 ? (
+      <Page.Breadcrumbs
+        items={breadcrumbs.map((i) => ({
+          key: i.id,
+          label: i.name,
+          to: i.type === "tasks" ? "/tasks/$id" : "/competitions/$id",
+          params: { id: i.id },
+        }))}
+      />
+    ) : (
+      <Page.Title>Task</Page.Title>
+    )
 
   return (
-    <>
-      <TaskNavbar chain={root.breadcrumbs} />
-      <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-        <TaskDetailsCard taskId={taskId} />
-        <IntegrationCard />
-        <TaskPropertiesCard taskId={taskId} />
-        <TaskBlockersCard taskId={taskId} />
-        <TaskReviewCard taskId={taskId} />
-        {root.kind === "flow" ? (
-          <FlowView taskId={taskId} />
-        ) : (
-          <SubtaskView owner={{ type: "tasks", id: taskId }} />
-        )}
-        <div className="h-96" />
-      </div>
-    </>
+    <Page.Shell header={header} contentClassName={PAGE_CONTENT_PADDING_SCROLL}>
+      {root === undefined ? (
+        <Page.Status variant="loading" message="Loading task…" />
+      ) : root === null ? (
+        <Page.Status variant="empty" message="Task not found." />
+      ) : (
+        <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
+          <TaskDetailsCard taskId={taskId} />
+          <IntegrationCard />
+          <TaskPropertiesCard taskId={taskId} />
+          <TaskBlockersCard taskId={taskId} />
+          <TaskReviewCard taskId={taskId} />
+          {root.kind === "flow" ? (
+            <FlowView taskId={taskId} />
+          ) : (
+            <SubtaskView owner={{ type: "tasks", id: taskId }} />
+          )}
+        </div>
+      )}
+    </Page.Shell>
   )
 }

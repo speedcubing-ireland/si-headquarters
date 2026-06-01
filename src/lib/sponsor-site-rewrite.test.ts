@@ -11,6 +11,18 @@ describe("createSponsorSiteRewrite", () => {
     expect(result.search).toBe("?next=1")
   })
 
+  it("maps the guide page on input and output", () => {
+    const input = rewrite.input?.({
+      url: new URL("http://localhost:5174/guide"),
+    }) as URL
+    expect(input.pathname).toBe("/sponsor/guide")
+
+    const output = rewrite.output?.({
+      url: new URL("http://localhost:5174/sponsor/guide"),
+    }) as URL
+    expect(output.pathname).toBe("/guide")
+  })
+
   it("maps internal sponsor routes to public browser URLs on output", () => {
     const url = new URL("http://localhost:5174/sponsor/auctions/abc123")
     const result = rewrite.output?.({ url }) as URL

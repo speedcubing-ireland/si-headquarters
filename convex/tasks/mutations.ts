@@ -9,7 +9,7 @@ import {
   setTaskKindAndRecompute,
   setTaskOrderAndRecompute,
 } from "@/convex/tasks/status/recompute"
-import { getAuthUserId } from "@convex-dev/auth/server"
+import { requireTaskManagement } from "@/convex/permissions/principal"
 import { v } from "convex/values"
 
 export const setTaskDetails = mutation({
@@ -19,6 +19,7 @@ export const setTaskDetails = mutation({
     description: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     const name = args.name.trim()
     if (name.length === 0) throw new Error("Task name is required")
 
@@ -36,6 +37,7 @@ export const setTaskStatus = mutation({
     status: taskStatusCommandType,
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     await requestTaskStatusChange(ctx, args.id, args.status)
   },
 })
@@ -45,6 +47,7 @@ export const reopenTask = mutation({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     await reopenTaskStatus(ctx, args.id)
   },
 })
@@ -55,6 +58,7 @@ export const setTaskKind = mutation({
     kind: taskKindType,
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     await setTaskKindAndRecompute(ctx, args.id, args.kind)
   },
 })
@@ -65,6 +69,7 @@ export const setTaskOrder = mutation({
     order: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     await setTaskOrderAndRecompute(ctx, args.id, args.order)
   },
 })
@@ -74,6 +79,7 @@ export const activatePhaseTasks = mutation({
     phaseId: v.id("phases"),
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     await activatePhaseBacklogTasks(ctx, args.phaseId)
   },
 })
@@ -84,6 +90,7 @@ export const setTaskDueDate = mutation({
     dueDate: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     await ctx.db.patch("tasks", args.id, { dueDate: args.dueDate })
   },
 })
@@ -94,6 +101,7 @@ export const setTaskAssignees = mutation({
     assigneeIds: v.array(v.id("users")),
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     const assigneeIds = Array.from(new Set(args.assigneeIds))
     const nextAssigneeIds = assigneeIds.length > 0 ? assigneeIds : null
 
@@ -108,10 +116,8 @@ export const claimTask = mutation({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error("Authentication required")
-
-    await ctx.db.patch("tasks", args.id, { assigneeIds: [userId] })
+    const principal = await requireTaskManagement(ctx)
+    await ctx.db.patch("tasks", args.id, { assigneeIds: [principal.userId] })
   },
 })
 
@@ -121,6 +127,7 @@ export const setTaskOwner = mutation({
     owner: taskOwnerRef,
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     await ctx.db.patch("tasks", args.id, { owner: args.owner })
   },
 })
@@ -131,6 +138,7 @@ export const setTaskLabels = mutation({
     labelIds: v.array(v.id("taskLabels")),
   },
   handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
     const labelIds = new Set(args.labelIds)
     const existingAssignments = await ctx.db
       .query("taskLabelAssignments")

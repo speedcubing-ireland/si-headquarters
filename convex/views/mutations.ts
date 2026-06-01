@@ -1,20 +1,26 @@
 import type { Id } from "@/convex/_generated/dataModel"
 import { mutation, type MutationCtx } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/permissions/authn"
+import { requireActiveUserId } from "@/convex/permissions/principal"
 import {
   viewEntity,
   viewVisibility,
 } from "@/convex/views/validators"
-import { v } from "convex/values"
+import { ConvexError, v } from "convex/values"
 
 async function requireViewOwner(ctx: MutationCtx, viewId: Id<"savedViews">) {
-  const userId = await requireUserId(ctx)
+  const userId = await requireActiveUserId(ctx)
   const doc = await ctx.db.get("savedViews", viewId)
-  if (!doc) {
-    throw new Error("View not found")
+  if (doc === null) {
+    throw new ConvexError({
+      code: "NOT_FOUND",
+      message: "View not found",
+    })
   }
   if (doc.ownerId !== userId) {
-    throw new Error("Not authorized to modify this view")
+    throw new ConvexError({
+      code: "FORBIDDEN",
+      message: "Not authorized to modify this view",
+    })
   }
   return { userId, doc }
 }
@@ -31,11 +37,14 @@ export const createView = mutation({
   },
   returns: v.id("savedViews"),
   handler: async (ctx, args) => {
-    const ownerId = await requireUserId(ctx)
+    const ownerId = await requireActiveUserId(ctx)
     const now = Date.now()
     const name = args.name.trim()
     if (name.length === 0) {
-      throw new Error("View name is required")
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "View name is required",
+      })
     }
 
     const description = args.description?.trim()
@@ -86,7 +95,10 @@ export const updateView = mutation({
     if (name !== undefined) {
       const trimmed = name.trim()
       if (trimmed.length === 0) {
-        throw new Error("View name is required")
+        throw new ConvexError({
+          code: "BAD_REQUEST",
+          message: "View name is required",
+        })
       }
       patch.name = trimmed
     }
@@ -128,16 +140,19 @@ export const touchView = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx)
+    const userId = await requireActiveUserId(ctx)
     const doc = await ctx.db.get("savedViews", args.id)
-    if (!doc) {
+    if (doc === null) {
       return null
     }
 
     const canTouch =
       doc.ownerId === userId || doc.visibility === "public"
     if (!canTouch) {
-      throw new Error("Not authorized to use this view")
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Not authorized to use this view",
+      })
     }
 
     await ctx.db.patch("savedViews", args.id, {

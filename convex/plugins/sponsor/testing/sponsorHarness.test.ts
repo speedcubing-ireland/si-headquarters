@@ -9,9 +9,9 @@ import { components } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import schema from "@/convex/schema"
 import sponsorAuthSchema from "@/convex/plugins/sponsor/auth/component/sponsorAuth/schema"
-import { TEAM_NAMES } from "@/convex/permissions/constants"
 import { modules } from "@/convex/test.setup"
 import { insertTestCompetition } from "./testHelpers"
+import { seedDirectorUser } from "@/convex/testHelpers"
 
 const sponsorAuthModules = import.meta.glob<string[]>(
   "../auth/component/sponsorAuth/**/!(*.*.*)*.*s",
@@ -81,14 +81,7 @@ export async function seedSponsorSession(
 export async function seedSponsorshipManager(
   t: SponsorTestHarness,
 ): Promise<Id<"users">> {
-  return t.run(async (ctx) => {
-    const userId = await ctx.db.insert("users", {})
-    await ctx.db.insert("teams", {
-      name: TEAM_NAMES.DIRECTORS,
-      memberIds: [userId],
-    })
-    return userId
-  })
+  return t.run((ctx) => seedDirectorUser(ctx))
 }
 
 export type AuctionState = "draft" | "scheduled" | "active" | "closed"

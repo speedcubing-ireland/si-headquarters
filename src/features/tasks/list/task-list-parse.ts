@@ -18,7 +18,6 @@ export function isParsedRecord(value: ParsedJson): value is ParsedJsonRecord {
 
 export function parseJson(text: string): ParsedJson | null {
   try {
-    // JSON.parse is an untyped boundary; ParsedJson is the internal shape we validate.
     return JSON.parse(text) as ParsedJson
   } catch {
     return null

@@ -3,7 +3,7 @@ export const SPONSOR_TEAM_EMAIL = "sponsorship@speedcubingireland.com";
 export const SPONSOR_PORTAL_INTRO = {
 	title: "Sponsor portal",
 	lead: "Thank you for your continued support of Speedcubing Ireland CLG (Speedcubing Ireland).",
-	body: "We are improving how sponsorship bidding works. Use this portal to view auctions, place bids, and review results. Each competition may use a different auction format, chosen by Speedcubing Ireland for that event.",
+	body: "Use this portal to view auctions, place bids, and review results. Each competition may use a different auction format, chosen by Speedcubing Ireland for that event.",
 } as const;
 
 export const SPONSOR_LOGIN_STEPS = [
@@ -17,9 +17,9 @@ export const SPONSOR_LOGIN_STEPS = [
 
 export const SPONSOR_AUCTIONS_OVERVIEW = {
 	title: "Auctions",
-	body: "From the portal you can see scheduled, active, and past auctions. Each auction shows its start and end time, auction format, and competition details where the competition is not yet publicly announced.",
+	body: "The portal lists scheduled, active, and closed sponsorship auctions. Each auction shows when bidding opens and closes, which format is used, and competition details where available.",
 	formatsIntro:
-		"Each auction uses one of three formats. The auction page shows which format applies. We use standard auction terminology in case you want to read more about the format elsewhere.",
+		"Speedcubing Ireland sets one format per competition. The auction page shows which applies before you bid.",
 } as const;
 
 export interface SponsorshipFrameworkGuide {
@@ -34,53 +34,53 @@ export interface SponsorshipFrameworkGuide {
 export const SPONSORSHIP_FRAMEWORK_GUIDES = {
 	first_sealed: {
 		title: "Sealed Bid",
-		tagline: "Most similar to our previous sponsorship system.",
+		tagline: "Hidden bids until close — similar to our previous system.",
 		summary:
-			"Each sponsor submits one hidden bid. You may update your bid, but only your latest submission counts. All bids stay hidden until the auction closes.",
+			"Submit a sealed bid amount for the competition. You can change it before the auction closes; only your latest valid bid counts. Other sponsors' bids stay hidden until close.",
 		bidding: [
-			"Submit a single hidden bid amount.",
-			"Update your bid any time before close; only the latest bid counts.",
+			"Enter a bid amount only (maximum/auto-bid is not available).",
+			"You may update your bid before close; only your latest valid bid counts.",
 			"If two bids tie, the earliest valid bid wins.",
-			"Bids must be at least the stated minimum bid.",
+			"Each bid must be at least the competition minimum shown on the auction page. That minimum stays the same for the whole auction.",
 		],
 		closing: [
-			"The highest valid bid wins and pays the amount they bid.",
-			"The winning bid is revealed to all parties after close.",
+			"The highest valid bid wins and pays their bid amount.",
+			"After close, the winning bid amount is revealed.",
 		],
 	},
 	vickrey: {
 		title: "Vickrey Auction",
-		tagline: "A sealed bid auction where the winner pays the second-highest bid.",
+		tagline: "Hidden bids; the winner pays the second-highest bid.",
 		summary:
-			"Bidding works like a sealed bid auction, but the winner pays the second-highest valid bid (or the minimum bid if they are the only bidder). You can bid the full amount you are willing to pay without paying that full amount if others bid lower.",
+			"Bidding works like a sealed bid auction. The highest bidder wins but usually pays the second-highest valid bid (or the competition minimum if they are the only bidder).",
 		bidding: [
-			"Submit a single hidden bid amount.",
-			"Update your bid any time before close; only the latest bid counts.",
+			"Enter a bid amount only (maximum/auto-bid is not available).",
+			"You may update your bid before close; only your latest valid bid counts.",
 			"If two bids tie, the earliest valid bid wins.",
-			"Bids must be at least the stated minimum bid.",
+			"Each bid must be at least the competition minimum shown on the auction page. That minimum stays the same for the whole auction.",
 		],
 		closing: [
 			"The highest valid bid wins.",
-			"The winner pays the second-highest valid bid, or the minimum bid if they are the only bidder.",
-			"Other parties see the settlement amount (second-highest bid or minimum), not the winner's full bid.",
+			"The winner pays the second-highest valid bid, or the competition minimum if they are the only bidder.",
+			"After close, others see the settlement amount paid — not the winner's full bid.",
 		],
 	},
 	ebay_proxy: {
 		title: "Proxy Bidding",
-		tagline: "Open bidding similar to eBay-style auctions.",
+		tagline: "Open bidding with optional automatic counter-bids.",
 		summary:
-			"Bids are visible to everyone while the auction is active. You can place a direct bid and optionally set a hidden maximum bid for automatic counter-bidding.",
+			"Current bids are visible while the auction is active. Place a direct bid and optionally set a maximum; if you are outbid, the system can raise your bid automatically up to that maximum.",
 		bidding: [
 			"All bids are visible during the auction.",
-			"Place a direct bid and optionally set a hidden maximum bid.",
-			"If you are outbid and a maximum bid is set, the system bids on your behalf up to that maximum.",
-			"Bids placed close to the closing time may extend the closing time to allow counter bids.",
+			"Place a direct bid and/or set a maximum bid for automatic counter-bidding.",
+			"Each new bid must be at least the current minimum next bid shown on the auction page (the start price when there are no bids, otherwise the current price plus the increment for that price level).",
+			"Bids placed near the closing time may extend the auction (anti-sniping).",
 		],
 		closing: [
-			"The highest valid bid when the auction ends wins and pays the final winning amount.",
+			"The leader when the auction ends wins and pays the final visible price.",
 		],
 		notes: [
-			"You may receive emails when you are outbid. Delivery can take several minutes and emails are not guaranteed, so refresh the auction page rather than relying on email alone.",
+			"You may receive emails when you are outbid. Delivery can take several minutes and emails are not guaranteed — keep checking the auction page.",
 		],
 	},
 } as const satisfies Record<
@@ -88,12 +88,11 @@ export const SPONSORSHIP_FRAMEWORK_GUIDES = {
 	SponsorshipFrameworkGuide
 >;
 
-export const SPONSOR_MINIMUM_BIDS = {
-	title: "Minimum bids",
-	sealed:
-		"For sealed bid and Vickrey auctions, each bid must be at least the stated minimum bid for that auction.",
-	proxy:
-		"Proxy bidding uses a dynamic minimum bid based on the current winning bid. The minimum next bid is the current winning bid plus the increment from the table below (starting from the auction minimum when there are no bids yet).",
+/** Bid increment ladder — proxy bidding only. */
+export const SPONSOR_PROXY_BID_INCREMENTS = {
+	title: "Bid increments (proxy auctions only)",
+	description:
+		"Sealed bid and Vickrey auctions use a fixed competition minimum only — no increment ladder. In proxy auctions, the minimum for your next bid is the current leading price plus the increment below (or the competition start price when there are no bids yet).",
 } as const;
 
 export interface ProxyBidIncrementRow {
@@ -116,15 +115,15 @@ export const PROXY_BID_INCREMENT_ROWS: readonly ProxyBidIncrementRow[] = [
 
 export const SPONSOR_CLOSING_AND_RESULTS = {
 	title: "Closing and results",
-	body: "When an auction ends, the system determines the winning sponsor according to the auction format. The winner is notified and the final price is shown alongside the winning bidder.",
+	body: "When an auction ends, the system applies the rules for that format to pick a winner and final price. The winner is notified; the portal shows the outcome on the auction page.",
 } as const;
 
 export const SPONSOR_BIDDING_NOTICE = {
 	title: "Bidding notice",
 	paragraphs: [
-		"Bids placed through the system are non-revokable except where the software explicitly allows changes before close.",
+		"Bids placed through the portal are binding and cannot be withdrawn, except where the auction page still allows you to change your bid before close.",
 		"Failure to pay a winning bid may result in action such as exclusion from future sponsorship opportunities.",
-		"If you encounter a technical error or need help, contact the Speedcubing Ireland sponsorship team immediately.",
+		"If you hit a technical problem or need help, contact the sponsorship team straight away.",
 	],
 } as const;
 
@@ -134,9 +133,9 @@ export function sponsorshipFrameworkGuide(
 	return SPONSORSHIP_FRAMEWORK_GUIDES[framework];
 }
 
-export function sponsorshipFrameworkGuideBullets<
-	TFramework extends keyof typeof SPONSORSHIP_FRAMEWORK_GUIDES,
->(framework: TFramework): readonly string[] {
+export function sponsorshipFrameworkGuideBullets(
+	framework: keyof typeof SPONSORSHIP_FRAMEWORK_GUIDES,
+): readonly string[] {
 	const guide = sponsorshipFrameworkGuide(framework);
 	return [...guide.bidding, ...guide.closing, ...(guide.notes ?? [])];
 }

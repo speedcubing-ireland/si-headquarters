@@ -1,8 +1,8 @@
-import { v, type Infer } from "convex/values"
-import { query, mutation } from "@/convex/_generated/server"
+import { ConvexError, v, type Infer } from "convex/values"
+import { mutation, query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireSponsorshipManager } from "@/convex/plugins/sponsor/permissions"
+import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import {
   competitionSponsorPropertyStatus,
   sponsorshipAuctionFramework,
@@ -56,7 +56,10 @@ export const getForCompetition = query({
   handler: async (ctx, args) => {
     const competition = await ctx.db.get("competitions", args.competitionId)
     if (competition === null) {
-      throw new Error("Competition not found")
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Competition not found",
+      })
     }
 
     if (competition.manualSponsorPropertyStatus !== undefined) {
@@ -103,10 +106,13 @@ export const setManualOverride = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireSponsorshipManager(ctx)
+    await requireSponsorPortalAdmin(ctx)
     const competition = await ctx.db.get("competitions", args.competitionId)
     if (competition === null) {
-      throw new Error("Competition not found")
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Competition not found",
+      })
     }
 
     const patch: Partial<Doc<"competitions">> = {}

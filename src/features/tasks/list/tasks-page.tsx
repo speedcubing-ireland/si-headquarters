@@ -19,7 +19,6 @@ import { TaskRow } from "@/features/tasks/list/task-row"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { api } from "@/convex/_generated/api"
 import { useQuery } from "convex/react"
-import { ListTodoIcon } from "lucide-react"
 import { useMemo, type ReactNode } from "react"
 
 const TASK_DISPLAY_OPTIONS = [
@@ -94,7 +93,7 @@ export function TasksPage() {
   return (
     <TaskListProvider pageId="all">
       <TaskListPageLayout
-        header={<TaskListNavbar icon={ListTodoIcon} title="All tasks" />}
+        header={<TaskListNavbar title="All tasks" />}
         filtersRow={
           <TaskListFilterBar
             filterPopover={<TasksFilterPopover />}

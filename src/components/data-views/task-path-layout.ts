@@ -32,7 +32,6 @@ export interface TaskPathLayoutInput {
   labelText: string
   compactLabelText: string
   textFont: string
-  /** Row task id — used to drop the breadcrumb segment that is not this task first. */
   focalTaskId: string
   taskTitleId: string
   subtaskTitleId: string | null

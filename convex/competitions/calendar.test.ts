@@ -2,6 +2,7 @@
 
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
+import { ensureVolunteerMembership } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
@@ -9,7 +10,14 @@ import { describe, expect, test } from "vitest"
 describe("competition calendar", () => {
   test("shows competition instead of weekend placeholder", async () => {
     const t = convexTest(schema, modules)
-    const user = t.withIdentity({ subject: "test-user" })
+    const viewerId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        name: "Viewer",
+      })
+      await ensureVolunteerMembership(ctx, userId)
+      return userId
+    })
+    const user = t.withIdentity({ subject: viewerId })
 
     await t.run(async (ctx) => {
       await ctx.db.insert("competitions", {
@@ -46,7 +54,14 @@ describe("competition calendar", () => {
 
   test("weekend placeholder includes slot flags", async () => {
     const t = convexTest(schema, modules)
-    const user = t.withIdentity({ subject: "test-user" })
+    const viewerId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", {
+        name: "Viewer",
+      })
+      await ensureVolunteerMembership(ctx, userId)
+      return userId
+    })
+    const user = t.withIdentity({ subject: viewerId })
 
     await t.run(async (ctx) => {
       await ctx.db.insert("competitionWeekendSlots", {

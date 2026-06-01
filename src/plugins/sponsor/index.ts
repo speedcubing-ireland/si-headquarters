@@ -10,6 +10,10 @@ export const sponsorPlugin: Plugin = {
       label: "Sponsorship",
       to: "/admin/sponsorship",
       icon: GavelIcon,
+      ability: {
+        action: "access",
+        subject: "SponsorPortalAdmin",
+      },
     },
   ],
   competitionProperties: [SponsorPropertyRow, WinningBidPropertyRow],

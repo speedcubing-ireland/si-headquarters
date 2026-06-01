@@ -149,7 +149,7 @@ function SponsorLoginEnabled() {
 	};
 
 	return (
-		<div className="min-h-svh bg-gradient-to-b from-muted/40 to-background px-4 py-10">
+		<div className="min-h-svh bg-linear-to-b from-muted/40 to-background px-4 py-10">
 			<div className="mx-auto w-full max-w-md space-y-4">
 				{isPending ? (
 					<Card className="border-muted-foreground/10 shadow-sm">
@@ -217,7 +217,7 @@ function SponsorLoginEnabled() {
 											setOtp(event.target.value);
 										}}
 										placeholder="One-time code"
-										className="min-w-[11rem] font-mono tracking-[0.2em]"
+										className="min-w-44 font-mono tracking-[0.2em]"
 										required
 										disabled={isBusy}
 									/>

@@ -6,6 +6,10 @@ import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
+import {
+  seedVolunteerTestUser,
+  withVolunteerTestClient,
+} from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 
 interface TaskSeed {
@@ -25,7 +29,7 @@ async function insertTeam(
   ctx: MutationCtx,
   name = "Test Team"
 ): Promise<Id<"teams">> {
-  return await ctx.db.insert("teams", { name, memberIds: [] })
+  return await ctx.db.insert("teams", { name })
 }
 
 async function insertPhase(ctx: MutationCtx): Promise<Id<"phases">> {
@@ -90,7 +94,7 @@ async function seedPhaseTask(
 describe("task reviews", () => {
   test("reports no reviews", async () => {
     const t = convexTest(schema, modules)
-    const user = t.withIdentity({ subject: "test-user" })
+    const { client: user } = await withVolunteerTestClient(t)
     const taskId = await t.run(async (ctx) =>
       seedPhaseTask(ctx, {
         order: "a",
@@ -115,7 +119,7 @@ describe("task reviews", () => {
   test("adds user and team reviewers idempotently and reports pending reviews", async () => {
     const t = convexTest(schema, modules)
     const { actorId, taskId, reviewerId, teamId } = await t.run(async (ctx) => {
-      const actorId = await insertUser(ctx, "Actor")
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
       const reviewerId = await insertUser(ctx, "Reviewer")
       const teamId = await insertTeam(ctx, "Competitions Team")
       const taskId = await seedPhaseTask(ctx, {
@@ -160,7 +164,7 @@ describe("task reviews", () => {
   test("requires every reviewer to approve and supports revoking approvals", async () => {
     const t = convexTest(schema, modules)
     const { actorId, taskId, reviewerId, teamId } = await t.run(async (ctx) => {
-      const actorId = await insertUser(ctx, "Actor")
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
       const reviewerId = await insertUser(ctx, "Reviewer")
       const teamId = await insertTeam(ctx, "Graphics Team")
       const taskId = await seedPhaseTask(ctx, {
@@ -238,7 +242,7 @@ describe("task reviews", () => {
   test("removing the last reviewer returns the task to not-required", async () => {
     const t = convexTest(schema, modules)
     const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-      const actorId = await insertUser(ctx, "Actor")
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
       const reviewerId = await insertUser(ctx, "Reviewer")
       const taskId = await seedPhaseTask(ctx, {
         order: "a",
@@ -273,7 +277,7 @@ describe("task reviews", () => {
   test("approval override marks reviews approved until the override is removed", async () => {
     const t = convexTest(schema, modules)
     const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
-      const actorId = await insertUser(ctx, "Actor")
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
       const reviewerId = await insertUser(ctx, "Reviewer")
       const taskId = await seedPhaseTask(ctx, {
         order: "a",
@@ -327,7 +331,7 @@ describe("task reviews", () => {
   test("returns UI reviewer details with reviewer names and override public user", async () => {
     const t = convexTest(schema, modules)
     const { actorId, taskId, reviewerId, teamId } = await t.run(async (ctx) => {
-      const actorId = await insertUser(ctx, "Actor")
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
       const reviewerId = await insertUser(ctx, "Reviewer")
       const teamId = await insertTeam(ctx, "Competitions Team")
       const taskId = await seedPhaseTask(ctx, {
@@ -391,7 +395,7 @@ describe("task reviews", () => {
   test("lists potential reviewers grouped as teams and users", async () => {
     const t = convexTest(schema, modules)
     const { actorId, teamId, userId } = await t.run(async (ctx) => {
-      const actorId = await insertUser(ctx, "Actor")
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
       const userId = await insertUser(ctx, "Reviewer")
       const teamId = await insertTeam(ctx, "Competitions Team")
 
@@ -404,12 +408,14 @@ describe("task reviews", () => {
       {}
     )
 
-    expect(reviewers.teams).toEqual([
-      {
-        _id: teamId,
-        name: "Competitions Team",
-      },
-    ])
+    expect(reviewers.teams).toEqual(
+      expect.arrayContaining([
+        {
+          _id: teamId,
+          name: "Competitions Team",
+        },
+      ])
+    )
     expect(reviewers.users).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -427,7 +433,7 @@ describe("task reviews", () => {
   test("review state reads are bounded by a per-task reviewer limit", async () => {
     const t = convexTest(schema, modules)
     const { actorId, taskId } = await t.run(async (ctx) => {
-      const actorId = await insertUser(ctx, "Actor")
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
       const taskId = await seedPhaseTask(ctx, {
         order: "a",
         status: "to-do",

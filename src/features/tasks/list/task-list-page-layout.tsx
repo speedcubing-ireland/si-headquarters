@@ -1,3 +1,4 @@
+import { Page } from "@/components/layout/page"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,10 +25,10 @@ export function TaskListPageLayout({
   } = useTaskListPage()
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">
+    <Page.Root>
       {header}
       {createViewOpen ? (
-        <div className="flex min-h-12 shrink-0 flex-col gap-3 border-b bg-background px-3 py-2 sm:px-4 lg:px-6">
+        <Page.Toolbar className="flex flex-col gap-3 py-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
             <div className="flex flex-1 flex-col gap-2">
               <Input
@@ -67,17 +68,15 @@ export function TaskListPageLayout({
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
             {filtersRow}
           </div>
-        </div>
+        </Page.Toolbar>
       ) : (
-        <div className="flex min-h-12 shrink-0 items-center border-b">
-          <div className="flex h-12 w-full flex-wrap items-center gap-2 px-3 sm:px-4 lg:px-6">
+        <Page.Toolbar className="flex min-h-12 items-center">
+          <div className="flex h-12 w-full flex-wrap items-center gap-2">
             {filtersRow}
           </div>
-        </div>
+        </Page.Toolbar>
       )}
-      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-        {children}
-      </div>
-    </div>
+      <Page.Content>{children}</Page.Content>
+    </Page.Root>
   )
 }

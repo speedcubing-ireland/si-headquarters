@@ -134,19 +134,19 @@ function createEmailCtx(input: {
 describe("describeAuctionFramework", () => {
 	test("first_sealed returns sealed-bid first-price description", () => {
 		const result = describeAuctionFramework("first_sealed");
-		expect(result).toContain("sealed-bid");
+		expect(result).toContain("Sealed bid");
 		expect(result).toContain("pays their bid amount");
 	});
 
 	test("vickrey returns sealed-bid second-price description", () => {
 		const result = describeAuctionFramework("vickrey");
-		expect(result).toContain("sealed-bid");
+		expect(result).toContain("sealed bid");
 		expect(result).toContain("second-highest bid");
 	});
 
 	test("ebay_proxy returns proxy-bid description", () => {
 		const result = describeAuctionFramework("ebay_proxy");
-		expect(result).toContain("proxy-bid");
+		expect(result).toContain("Proxy bidding");
 		expect(result).toContain("maximum bid");
 	});
 });

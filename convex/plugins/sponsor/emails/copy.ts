@@ -39,7 +39,7 @@ export function describeAuctionFramework(
     case "first_sealed":
       return "Sealed bid auction (similar to our previous system): one hidden bid per sponsor, latest bid counts, earliest bid wins ties. The highest bidder wins and pays their bid amount. Bids stay hidden until close."
     case "vickrey":
-      return "Vickrey (second-price sealed bid) auction: one hidden bid per sponsor, latest bid counts, earliest bid wins ties. The highest bidder wins and pays the second-highest bid, or the minimum bid if they are the only bidder. Other parties see the settlement amount, not the winner's full bid."
+      return "Vickrey (second-price sealed bid) auction: one hidden bid per sponsor, latest bid counts, earliest bid wins ties. The highest bidder wins and pays the second-highest bid, or the competition minimum if they are the only bidder. Other parties see the settlement amount, not the winner's full bid."
     case "ebay_proxy":
       return "Proxy bidding auction (eBay-style): bids are visible while active. Place a direct bid and optional maximum bid; the system auto-bids up to your maximum if you are outbid. Closing may extend for late counter bids. Outbid emails are not a substitute for checking the portal."
   }

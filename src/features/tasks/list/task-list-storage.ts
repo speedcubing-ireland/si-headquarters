@@ -8,6 +8,14 @@ function storageKey(pageId: string) {
   return `tasks-list:${STORAGE_VERSION}:${pageId}`
 }
 
+function writeLocalStorageOrIgnore(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* quota exceeded or private browsing */
+  }
+}
+
 export function readTaskListPageSnapshot(
   pageId: string
 ): TaskListPageSnapshot | null {
@@ -26,9 +34,5 @@ export function writeTaskListPageSnapshot(
   pageId: string,
   snapshot: TaskListPageSnapshot
 ): void {
-  try {
-    localStorage.setItem(storageKey(pageId), JSON.stringify(snapshot))
-  } catch {
-    // Quota or private browsing — ignore.
-  }
+  writeLocalStorageOrIgnore(storageKey(pageId), JSON.stringify(snapshot))
 }
