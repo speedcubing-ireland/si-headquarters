@@ -14,8 +14,10 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
+import { SUBTASK_LIST_GRID_CLASS } from "@/features/list-views/components/list-board-columns"
 import { TaskInlineDataRow } from "@/features/tasks/components/task-inline-data-row"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
+import { cn } from "@/lib/utils"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
@@ -70,7 +72,10 @@ function PhaseSection({ section }: { section: SubtaskViewSection }) {
             section.rows.map((row) => (
               <div
                 key={row.task._id}
-                className="flex min-h-12 min-w-0 items-center gap-3 overflow-hidden border-b px-4 py-2 last:border-b-0"
+                className={cn(
+                  "grid min-h-12 min-w-0 items-center gap-x-3 overflow-hidden border-b px-4 py-2 last:border-b-0",
+                  SUBTASK_LIST_GRID_CLASS
+                )}
               >
                 <TaskInlineDataRow row={row} />
               </div>

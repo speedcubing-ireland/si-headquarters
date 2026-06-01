@@ -42,7 +42,7 @@ export function TaskInlineDataRow({ row }: { row: TaskInlineRow }) {
         iconProps={{ className: "size-5" }}
         />
       </div>
-      <div className="flex min-w-0 items-center justify-self-stretch">
+      <div className="flex min-w-0 flex-1 items-center justify-self-stretch">
         <TaskPathCell row={row} />
       </div>
       <div className="flex shrink-0 items-center justify-end justify-self-end">

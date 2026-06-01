@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { saturdaysInYear, weekendLabel } from "@/convex/lib/competitionWeekends"
+import { saturdaysInYear, weekendLabel } from "@/convex/competitions/weekends"
 
 describe("competitionWeekends", () => {
   test("lists each Saturday in a year", () => {

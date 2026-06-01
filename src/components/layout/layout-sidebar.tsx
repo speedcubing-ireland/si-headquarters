@@ -32,6 +32,8 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { SidebarUser } from "./layout-sidebar-user"
+import { PLUGINS } from "@/plugins/registry"
+import { isSponsorshipEnabled } from "@/lib/feature-flags"
 
 const dropdownItems = [
   {
@@ -110,6 +112,39 @@ function SidebarDropdowns() {
   )
 }
 
+function SidebarPluginLinks() {
+  if (!isSponsorshipEnabled) {
+    return null
+  }
+
+  const pluginNav = PLUGINS.flatMap((plugin) => plugin.nav)
+  if (pluginNav.length === 0) {
+    return null
+  }
+
+  return (
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel>Plugins</SidebarGroupLabel>
+      <SidebarMenu>
+        {pluginNav.map(({ label, to, icon: Icon }) => (
+          <SidebarMenuItem key={label}>
+            <SidebarMenuButton asChild tooltip={label}>
+              <Link
+                to={to}
+                activeProps={{ "data-active": true }}
+                inactiveProps={{ "data-active": false }}
+              >
+                <Icon />
+                <span>{label}</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    </SidebarGroup>
+  )
+}
+
 function SidebarLinks() {
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -143,6 +178,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <SidebarDropdowns />
         <SidebarLinks />
+        <SidebarPluginLinks />
       </SidebarContent>
       <SidebarFooter>
         <SidebarUser />

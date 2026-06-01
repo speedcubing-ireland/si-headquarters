@@ -76,7 +76,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["convex/sponsorship/emails/**/*.{ts,tsx}"],
+    files: ["convex/plugins/sponsor/emails/**/*.{ts,tsx}"],
     rules: {
       "react-refresh/only-export-components": "off",
     },
@@ -86,6 +86,7 @@ export default defineConfig([
     rules: {
       "@typescript-eslint/consistent-type-assertions": "off",
       "@typescript-eslint/no-restricted-types": "off",
+      "@typescript-eslint/require-await": "off",
     },
   },
   {

@@ -1,6 +1,6 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/lib/requireUser"
+import { requireUserId } from "@/convex/permissions/authn"
 import {
   buildFlatTaskInlinePath,
   taskInlineRow,

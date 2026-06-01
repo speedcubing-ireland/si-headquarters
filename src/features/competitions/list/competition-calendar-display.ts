@@ -1,4 +1,4 @@
-import { parseLocalDate } from "@/convex/lib/localDates"
+import { parseLocalDate } from "@/convex/competitions/dates"
 import type { FunctionReturnType } from "convex/server"
 import type { api } from "@/convex/_generated/api"
 export type CompetitionCalendarRow = FunctionReturnType<

@@ -1,5 +1,5 @@
 import { query } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/lib/requireUser"
+import { requireUserId } from "@/convex/permissions/authn"
 import {
   savedViewListItem,
   viewEntity,

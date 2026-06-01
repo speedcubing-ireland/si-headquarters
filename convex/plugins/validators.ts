@@ -1,7 +1,7 @@
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
 
-export const pluginTables = {
+export const oauthPluginTables = {
   serviceTokens: defineTable({
     service: v.string(),
     accessToken: v.string(),

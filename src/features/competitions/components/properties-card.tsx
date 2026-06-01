@@ -7,10 +7,7 @@ import { useMutation, useQuery } from "convex/react"
 import {
   ExternalLinkIcon,
   FileSpreadsheetIcon,
-  GavelIcon,
   GlobeIcon,
-  HandCoinsIcon,
-  HandshakeIcon,
   InfoIcon,
   MessageSquareIcon,
   MilestoneIcon,
@@ -23,6 +20,8 @@ import {
   PageCardRow,
 } from "../../../components/page-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PLUGINS } from "@/plugins/registry"
+import { isSponsorshipEnabled } from "@/lib/feature-flags"
 
 export function PropertiesCard({
   competitionId,
@@ -44,12 +43,13 @@ export function PropertiesCard({
           >
             <Skeleton className="h-4 w-24" />
           </PageCardRow>
-          <PageCardRow
-            icon={<HandshakeIcon className="size-4" />}
-            label="Sponsor"
-          >
-            <Skeleton className="h-4 w-32" />
-          </PageCardRow>
+        {isSponsorshipEnabled
+          ? PLUGINS.flatMap((plugin) => plugin.competitionProperties).map(
+              (PropertyRow) => (
+                <PropertyRow key={PropertyRow.name} competitionId={competitionId} />
+              ),
+            )
+          : null}
         </PageCardContent>
         <PageCardFooter className="flex min-h-36 flex-col items-start gap-2">
           <ButtonGroup>
@@ -85,21 +85,13 @@ export function PropertiesCard({
             }}
           />
         </PageCardRow>
-        <PageCardRow
-          icon={<HandshakeIcon className="size-4" />}
-          label="Sponsor"
-        >
-          <Button variant="outline">
-            <GavelIcon />
-            Lots O'Cubes
-          </Button>
-        </PageCardRow>
-        <PageCardRow
-          icon={<HandCoinsIcon className="size-4" />}
-          label="Winning Bid"
-        >
-          <p>$6543.21</p>
-        </PageCardRow>
+        {isSponsorshipEnabled
+          ? PLUGINS.flatMap((plugin) => plugin.competitionProperties).map(
+              (PropertyRow) => (
+                <PropertyRow key={PropertyRow.name} competitionId={competitionId} />
+              ),
+            )
+          : null}
       </PageCardContent>
       <PageCardFooter className="flex flex-col items-start gap-2">
         <ButtonGroup>

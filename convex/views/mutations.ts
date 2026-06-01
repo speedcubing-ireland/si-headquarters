@@ -1,6 +1,6 @@
 import type { Id } from "@/convex/_generated/dataModel"
 import { mutation, type MutationCtx } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/lib/requireUser"
+import { requireUserId } from "@/convex/permissions/authn"
 import {
   viewEntity,
   viewVisibility,

@@ -1,7 +1,7 @@
 import { mutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/lib/requireUser"
-import { parseLocalDate } from "@/convex/lib/competitionWeekends"
+import { requireUserId } from "@/convex/permissions/authn"
+import { parseLocalDate } from "@/convex/competitions/dates"
 import { v } from "convex/values"
 
 async function getOrCreateSlot(

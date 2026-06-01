@@ -11,9 +11,17 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
+import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
 import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
 import { Route as TasksIdRouteImport } from './routes/tasks/$id'
+import { Route as SponsorSettingsRouteImport } from './routes/sponsor/settings'
+import { Route as SponsorLoginRouteImport } from './routes/sponsor/login'
+import { Route as SponsorGuideRouteImport } from './routes/sponsor/guide'
+import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
+import { Route as Sponsor404RouteImport } from './routes/sponsor/404'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
+import { Route as AdminSponsorshipRouteImport } from './routes/admin/sponsorship'
+import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const TasksIndexRoute = TasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorIndexRoute = SponsorIndexRouteImport.update({
+  id: '/sponsor/',
+  path: '/sponsor/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
@@ -35,58 +48,154 @@ const TasksIdRoute = TasksIdRouteImport.update({
   path: '/tasks/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SponsorSettingsRoute = SponsorSettingsRouteImport.update({
+  id: '/sponsor/settings',
+  path: '/sponsor/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorLoginRoute = SponsorLoginRouteImport.update({
+  id: '/sponsor/login',
+  path: '/sponsor/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorGuideRoute = SponsorGuideRouteImport.update({
+  id: '/sponsor/guide',
+  path: '/sponsor/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorAuctionsRoute = SponsorAuctionsRouteImport.update({
+  id: '/sponsor/auctions',
+  path: '/sponsor/auctions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Sponsor404Route = Sponsor404RouteImport.update({
+  id: '/sponsor/404',
+  path: '/sponsor/404',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   id: '/competitions/$id',
   path: '/competitions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSponsorshipRoute = AdminSponsorshipRouteImport.update({
+  id: '/admin/sponsorship',
+  path: '/admin/sponsorship',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorAuctionsAuctionIdRoute =
+  SponsorAuctionsAuctionIdRouteImport.update({
+    id: '/$auctionId',
+    path: '/$auctionId',
+    getParentRoute: () => SponsorAuctionsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/sponsor/404': typeof Sponsor404Route
+  '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
+  '/sponsor/guide': typeof SponsorGuideRoute
+  '/sponsor/login': typeof SponsorLoginRoute
+  '/sponsor/settings': typeof SponsorSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
+  '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/sponsor/404': typeof Sponsor404Route
+  '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
+  '/sponsor/guide': typeof SponsorGuideRoute
+  '/sponsor/login': typeof SponsorLoginRoute
+  '/sponsor/settings': typeof SponsorSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/competitions': typeof CompetitionsIndexRoute
+  '/sponsor': typeof SponsorIndexRoute
   '/tasks': typeof TasksIndexRoute
+  '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin/sponsorship': typeof AdminSponsorshipRoute
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/sponsor/404': typeof Sponsor404Route
+  '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
+  '/sponsor/guide': typeof SponsorGuideRoute
+  '/sponsor/login': typeof SponsorLoginRoute
+  '/sponsor/settings': typeof SponsorSettingsRoute
   '/tasks/$id': typeof TasksIdRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
+  '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin/sponsorship'
     | '/competitions/$id'
+    | '/sponsor/404'
+    | '/sponsor/auctions'
+    | '/sponsor/guide'
+    | '/sponsor/login'
+    | '/sponsor/settings'
     | '/tasks/$id'
     | '/competitions/'
+    | '/sponsor/'
     | '/tasks/'
+    | '/sponsor/auctions/$auctionId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/competitions/$id' | '/tasks/$id' | '/competitions' | '/tasks'
+  to:
+    | '/'
+    | '/admin/sponsorship'
+    | '/competitions/$id'
+    | '/sponsor/404'
+    | '/sponsor/auctions'
+    | '/sponsor/guide'
+    | '/sponsor/login'
+    | '/sponsor/settings'
+    | '/tasks/$id'
+    | '/competitions'
+    | '/sponsor'
+    | '/tasks'
+    | '/sponsor/auctions/$auctionId'
   id:
     | '__root__'
     | '/'
+    | '/admin/sponsorship'
     | '/competitions/$id'
+    | '/sponsor/404'
+    | '/sponsor/auctions'
+    | '/sponsor/guide'
+    | '/sponsor/login'
+    | '/sponsor/settings'
     | '/tasks/$id'
     | '/competitions/'
+    | '/sponsor/'
     | '/tasks/'
+    | '/sponsor/auctions/$auctionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminSponsorshipRoute: typeof AdminSponsorshipRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
+  Sponsor404Route: typeof Sponsor404Route
+  SponsorAuctionsRoute: typeof SponsorAuctionsRouteWithChildren
+  SponsorGuideRoute: typeof SponsorGuideRoute
+  SponsorLoginRoute: typeof SponsorLoginRoute
+  SponsorSettingsRoute: typeof SponsorSettingsRoute
   TasksIdRoute: typeof TasksIdRoute
   CompetitionsIndexRoute: typeof CompetitionsIndexRoute
+  SponsorIndexRoute: typeof SponsorIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
 }
 
@@ -106,6 +215,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sponsor/': {
+      id: '/sponsor/'
+      path: '/sponsor'
+      fullPath: '/sponsor/'
+      preLoaderRoute: typeof SponsorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/competitions/': {
       id: '/competitions/'
       path: '/competitions'
@@ -120,6 +236,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sponsor/settings': {
+      id: '/sponsor/settings'
+      path: '/sponsor/settings'
+      fullPath: '/sponsor/settings'
+      preLoaderRoute: typeof SponsorSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/login': {
+      id: '/sponsor/login'
+      path: '/sponsor/login'
+      fullPath: '/sponsor/login'
+      preLoaderRoute: typeof SponsorLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/guide': {
+      id: '/sponsor/guide'
+      path: '/sponsor/guide'
+      fullPath: '/sponsor/guide'
+      preLoaderRoute: typeof SponsorGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/auctions': {
+      id: '/sponsor/auctions'
+      path: '/sponsor/auctions'
+      fullPath: '/sponsor/auctions'
+      preLoaderRoute: typeof SponsorAuctionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/404': {
+      id: '/sponsor/404'
+      path: '/sponsor/404'
+      fullPath: '/sponsor/404'
+      preLoaderRoute: typeof Sponsor404RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/competitions/$id': {
       id: '/competitions/$id'
       path: '/competitions/$id'
@@ -127,14 +278,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/sponsorship': {
+      id: '/admin/sponsorship'
+      path: '/admin/sponsorship'
+      fullPath: '/admin/sponsorship'
+      preLoaderRoute: typeof AdminSponsorshipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/auctions/$auctionId': {
+      id: '/sponsor/auctions/$auctionId'
+      path: '/$auctionId'
+      fullPath: '/sponsor/auctions/$auctionId'
+      preLoaderRoute: typeof SponsorAuctionsAuctionIdRouteImport
+      parentRoute: typeof SponsorAuctionsRoute
+    }
   }
 }
 
+interface SponsorAuctionsRouteChildren {
+  SponsorAuctionsAuctionIdRoute: typeof SponsorAuctionsAuctionIdRoute
+}
+
+const SponsorAuctionsRouteChildren: SponsorAuctionsRouteChildren = {
+  SponsorAuctionsAuctionIdRoute: SponsorAuctionsAuctionIdRoute,
+}
+
+const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
+  SponsorAuctionsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminSponsorshipRoute: AdminSponsorshipRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
+  Sponsor404Route: Sponsor404Route,
+  SponsorAuctionsRoute: SponsorAuctionsRouteWithChildren,
+  SponsorGuideRoute: SponsorGuideRoute,
+  SponsorLoginRoute: SponsorLoginRoute,
+  SponsorSettingsRoute: SponsorSettingsRoute,
   TasksIdRoute: TasksIdRoute,
   CompetitionsIndexRoute: CompetitionsIndexRoute,
+  SponsorIndexRoute: SponsorIndexRoute,
   TasksIndexRoute: TasksIndexRoute,
 }
 export const routeTree = rootRouteImport

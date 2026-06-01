@@ -1,6 +1,6 @@
-import { formatLocalDate, parseLocalDate } from "@/convex/lib/localDates"
+import { formatLocalDate, parseLocalDate } from "@/convex/competitions/dates"
 
-export { formatLocalDate, parseLocalDate } from "@/convex/lib/localDates"
+export { formatLocalDate, parseLocalDate } from "@/convex/competitions/dates"
 
 export function getSaturdayOfWeek(date: Date): Date {
   const normalized = new Date(date)
@@ -34,10 +34,9 @@ export function saturdaysInYear(year: number): string[] {
 
 export function parseCompDateRange(
   from: string | null,
-  to: string | null
+  to: string | null,
 ): { start: Date; end: Date } | null {
-  const start =
-    from !== null && from !== "" ? parseLocalDate(from) : null
+  const start = from !== null && from !== "" ? parseLocalDate(from) : null
   const end = to !== null && to !== "" ? parseLocalDate(to) : null
 
   if (start === null && end === null) return null

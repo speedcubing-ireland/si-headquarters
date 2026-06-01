@@ -25,7 +25,7 @@ async function insertTeam(
   ctx: MutationCtx,
   name = "Test Team"
 ): Promise<Id<"teams">> {
-  return await ctx.db.insert("teams", { name })
+  return await ctx.db.insert("teams", { name, memberIds: [] })
 }
 
 async function insertPhase(ctx: MutationCtx): Promise<Id<"phases">> {

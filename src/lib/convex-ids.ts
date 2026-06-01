@@ -20,3 +20,6 @@ export const requireTaskId = requirer("tasks")
 
 export const parseCompetitionId = parser<"competitions">()
 export const requireCompetitionId = requirer("competitions")
+
+export const parseSponsorshipAuctionId = parser<"sponsorshipAuctions">()
+export const requireSponsorshipAuctionId = requirer("sponsorshipAuctions")

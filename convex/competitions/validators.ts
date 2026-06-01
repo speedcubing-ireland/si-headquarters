@@ -1,6 +1,6 @@
 import { v } from "convex/values"
 
-export const competitionsFields = {
+export const competitionsCoreFields = {
   name: v.string(),
   description: v.nullable(v.string()),
   people: v.object({
@@ -14,4 +14,5 @@ export const competitionsFields = {
   }),
   phaseId: v.nullable(v.id("phases")),
   updateId: v.nullable(v.id("competitionUpdates")),
+  wcaCompetitionId: v.optional(v.string()),
 }

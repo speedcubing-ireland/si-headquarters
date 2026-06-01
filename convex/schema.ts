@@ -1,7 +1,8 @@
 import { defineSchema, defineTable } from "convex/server"
 import { authTables } from "@convex-dev/auth/server"
 import { competitionWeekendSlotFields } from "@/convex/competitionWeekendSlots/validators"
-import { competitionsFields } from "@/convex/competitions/validators"
+import { competitionsCoreFields } from "@/convex/competitions/validators"
+import { sponsorCompetitionFields } from "@/convex/plugins/sponsor/lib/validators"
 import { competitionUpdatesFields } from "@/convex/competitionUpdates/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
@@ -18,7 +19,7 @@ import {
 } from "@/convex/tasks/reviews/validators"
 import { taskBlockersFields } from "@/convex/tasks/blockers/validators"
 import { savedViewFields } from "@/convex/views/validators"
-import { pluginTables } from "@/convex/plugins/validators"
+import { pluginTables } from "@/convex/plugins/registry"
 
 const schema = defineSchema(
   {
@@ -26,8 +27,11 @@ const schema = defineSchema(
     users: defineTable(usersFields)
       .index("email", ["email"])
       .index("phone", ["phone"]),
-    teams: defineTable(teamsFields),
-    competitions: defineTable(competitionsFields),
+    teams: defineTable(teamsFields).index("by_name", ["name"]),
+    competitions: defineTable({
+      ...competitionsCoreFields,
+      ...sponsorCompetitionFields,
+    }),
     competitionWeekendSlots: defineTable(competitionWeekendSlotFields)
       .index("by_year", ["year"])
       .index("by_year_and_weekendStart", ["year", "weekendStart"]),

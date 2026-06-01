@@ -4,7 +4,11 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "bun run --parallel dev:frontend dev:sponsor dev:backend",
+    "dev:frontend": "vite --port 5173",
+    "dev:sponsor": "VITE_SPONSOR_SITE=1 vite --port 5174 --open /login",
+    "dev:backend": "convex dev",
+    "dev:vite": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
@@ -15,12 +19,12 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p convex/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit",
     "auth": "bun scripts/auth.ts",
     "preview": "vite preview",
-    "openapi-ts": "openapi-ts"
+    "openapi-ts": "openapi-ts",
+    "email:dev": "email dev --dir convex/plugins/sponsor/emails --port 3000"
   },
   "dependencies": {
     "@auth/core": "0.37.0",
     "@base-ui/react": "^1.5.0",
-    "@better-auth/passkey": "^1.6.11",
     "@chenglou/pretext": "^0.0.7",
     "@convex-dev/auth": "^0.0.92",
     "@convex-dev/better-auth": "^0.12.2",
@@ -78,6 +82,7 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@convex-dev/crons": "^0.2.0",
     "@convex-dev/eslint-plugin": "^2.0.0",
     "@edge-runtime/vm": "^5.0.0",
     "@eslint/js": "^9.39.4",
@@ -97,6 +102,7 @@
     "globals": "^16.5.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.7.4",
+    "react-email": "^6.5.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.59.4",
     "vite": "^7.3.3",

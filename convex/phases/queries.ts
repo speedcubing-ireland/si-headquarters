@@ -1,7 +1,7 @@
 import { query } from "@/convex/_generated/server"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireUserId } from "@/convex/lib/requireUser"
+import { requireUserId } from "@/convex/permissions/authn"
 import { phaseColor, phaseOwnerRef } from "./validators"
 import { v } from "convex/values"
 

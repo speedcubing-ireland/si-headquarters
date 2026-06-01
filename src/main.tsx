@@ -4,14 +4,18 @@ import { RouterProvider, createRouter } from "@tanstack/react-router"
 import { routeTree } from "./routeTree.gen"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { ConvexReactClient } from "convex/react"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
+import { isSponsorSite } from "@/lib/sponsor-site"
+import { createSponsorSiteRewrite } from "@/lib/sponsor-site-rewrite"
 import "./index.css"
 
 const router = createRouter({
   routeTree,
   defaultPreload: "intent",
   scrollRestoration: true,
+  ...(isSponsorSite() ? { rewrite: createSponsorSiteRewrite() } : {}),
 })
 
 declare module "@tanstack/react-router" {
@@ -36,7 +40,9 @@ createRoot(root).render(
   <StrictMode>
     <ConvexAuthProvider client={convex}>
       <ThemeProvider>
-        <RouterProvider router={router} />
+        <TooltipProvider>
+          <RouterProvider router={router} />
+        </TooltipProvider>
         <Toaster />
       </ThemeProvider>
     </ConvexAuthProvider>

@@ -1,0 +1,103 @@
+import { describe, expect, test } from "vitest"
+import {
+  describeAuctionFramework,
+  getSponsorshipEmailPayload,
+  sponsorshipEmailMessageFallback,
+  sponsorshipEmailSubject,
+  sponsorshipEmailTemplateCopy,
+  sponsorOtpAuthEmailSubject,
+  sponsorOtpPurposeFromAuthType,
+} from "./copy"
+import { formatMoney } from "./_design"
+
+describe("describeAuctionFramework", () => {
+  test("describes sealed first-price auctions", () => {
+    expect(describeAuctionFramework("first_sealed")).toContain("Sealed bid")
+    expect(describeAuctionFramework("first_sealed")).toContain(
+      "pays their bid amount",
+    )
+  })
+
+  test("describes vickrey auctions", () => {
+    expect(describeAuctionFramework("vickrey")).toContain("second-highest")
+  })
+
+  test("describes proxy auctions", () => {
+    expect(describeAuctionFramework("ebay_proxy")).toContain("Proxy bidding")
+  })
+})
+
+describe("formatMoney", () => {
+  test("formats cents as currency", () => {
+    expect(formatMoney(125_000)).toBe("EUR 1250.00")
+    expect(formatMoney(10_000, "USD")).toBe("USD 100.00")
+  })
+})
+
+describe("sponsorshipEmailSubject", () => {
+  const ctx = { competitionName: "Irish Open 2026" }
+
+  test("uses competition name in auction subjects", () => {
+    expect(sponsorshipEmailSubject("auction_scheduled", ctx)).toBe(
+      "Irish Open 2026: bidding opening soon",
+    )
+    expect(sponsorshipEmailSubject("auction_ebay_outbid", ctx)).toBe(
+      "Irish Open 2026: you have been outbid",
+    )
+  })
+})
+
+describe("getSponsorshipEmailPayload", () => {
+  test("matches subject and fallback for outbid", () => {
+    const payload = getSponsorshipEmailPayload("auction_ebay_outbid", {
+      competitionName: "Irish Open 2026",
+    })
+    expect(payload.subject).toBe("Irish Open 2026: you have been outbid")
+    expect(payload.message).toContain("Place a new bid")
+  })
+
+  test("formats winner fallback with settlement amount", () => {
+    const payload = getSponsorshipEmailPayload("auction_closed_winner", {
+      competitionName: "Irish Open 2026",
+      settlementAmountCents: 125_000,
+    })
+    expect(payload.message).toContain("EUR 1250.00")
+  })
+})
+
+describe("sponsorshipEmailTemplateCopy", () => {
+  test("scheduled email title has no double colon", () => {
+    const copy = sponsorshipEmailTemplateCopy("auction_scheduled", {
+      competitionName: "Irish Open 2026",
+    })
+    expect(copy.title).toBe("Irish Open 2026: bidding opening soon")
+    expect(copy.title).not.toContain(": :")
+  })
+
+  test("active reminder includes anti-sniping flag", () => {
+    const copy = sponsorshipEmailTemplateCopy("auction_active_reminder", {
+      competitionName: "Irish Open 2026",
+      endsAt: Date.UTC(2026, 8, 1, 12, 0),
+      sponsorHasBid: true,
+    })
+    expect(copy.showAntiSnipingNote).toBe(true)
+    expect(copy.bodyParagraphs[0]).toContain("bid in place")
+  })
+})
+
+describe("sponsorOtpAuthEmailSubject", () => {
+  test("maps auth types to subjects", () => {
+    expect(sponsorOtpAuthEmailSubject("sign-in")).toContain("sign-in code")
+    expect(sponsorOtpPurposeFromAuthType("email-verification")).toBe(
+      "verify your email",
+    )
+  })
+})
+
+describe("sponsorshipEmailMessageFallback", () => {
+  test("invite fallback mentions portal sign-in", () => {
+    expect(sponsorshipEmailMessageFallback("invite", {})).toContain(
+      "one-time email code",
+    )
+  })
+})
