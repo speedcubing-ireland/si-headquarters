@@ -127,16 +127,20 @@ export function formatDateTime(value: number): string {
 
 export function competitionPropertyStatusLabel(
 	status: CompetitionSponsorPropertyStatus,
+	winnerSponsorName?: string,
 ): string {
+	if (status === "sponsor" && winnerSponsorName !== undefined) {
+		return winnerSponsorName;
+	}
 	switch (status) {
 		case "bidding":
 			return "Bidding in progress";
 		case "sponsor":
 			return "Sponsored";
 		case "not_offered":
-			return "Not offered";
+			return "Not Offered";
 		case "none":
-			return "No sponsor yet";
+			return "No Sponsor";
 	}
 }
 

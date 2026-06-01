@@ -25,6 +25,7 @@ import {
 	scheduleCompetitionSnapshotRefresh,
 } from "./competitionSnapshot";
 import { scheduleAuctionActivation } from "./lifecycle";
+import { resolveCompetitionSponsorStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus";
 
 function normalizePositiveDurationMs(
 	fieldName: string,
@@ -332,27 +333,6 @@ export const listCompetitionsForManager = query({
 		});
 	},
 });
-
-function resolveCompetitionSponsorStatus(input: {
-	auctionStates: Doc<"sponsorshipAuctions">["state"][];
-	hasClosedWinner: boolean;
-	manualSponsorId?: Id<"sponsors">;
-	manualStatus?: "not_offered" | "bidding" | "none" | "sponsor";
-}): "not_offered" | "bidding" | "none" | "sponsor" {
-	if (input.manualSponsorId) {
-		return "sponsor";
-	}
-	if (input.manualStatus) {
-		return input.manualStatus;
-	}
-	if (input.auctionStates.some((state) => state !== "closed")) {
-		return "bidding";
-	}
-	if (input.hasClosedWinner) {
-		return "sponsor";
-	}
-	return input.auctionStates.length > 0 ? "none" : "not_offered";
-}
 
 export const listForManager = query({
 	args: {},

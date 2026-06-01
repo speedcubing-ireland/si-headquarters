@@ -1,8 +1,6 @@
 import { useAction, useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import type { CompetitionSponsorPropertyStatus } from "@/plugins/sponsor/lib/sponsorship-ui"
-
 export function useSponsors(enabled = true) {
   const sponsors = useQuery(
     api.plugins.sponsor.admin.sponsors.list,
@@ -112,24 +110,3 @@ export function useSponsorshipAuctionMutations() {
   }
 }
 
-export function useCompetitionMutations() {
-  const setManualOverride = useMutation(
-    api.plugins.sponsor.admin.propertyStatus.setManualOverride
-  )
-
-  return {
-    updateCompetition: async (
-      competitionId: Id<"competitions">,
-      input: {
-        sponsorPropertyStatusOverride: CompetitionSponsorPropertyStatus | null
-        sponsorOverrideSponsorId: Id<"sponsors"> | null
-      }
-    ) => {
-      await setManualOverride({
-        competitionId,
-        status: input.sponsorPropertyStatusOverride ?? undefined,
-        manualSponsorId: input.sponsorOverrideSponsorId ?? undefined,
-      })
-    },
-  }
-}

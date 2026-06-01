@@ -1,57 +1,31 @@
-import { ConvexError, v, type Infer } from "convex/values"
+import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import {
-  competitionSponsorPropertyStatus,
-  sponsorshipAuctionFramework,
-} from "@/convex/plugins/sponsor/lib/validators"
-import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
+  findWinningClosedAuction,
+  isCompetitionSponsorManualOverride,
+  resolveCompetitionSponsorPropertyStatus,
+} from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
+import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/validators"
 
-type CompetitionSponsorPropertyStatus = Infer<
-  typeof competitionSponsorPropertyStatus
->
-
-async function deriveStatus(
+async function sponsorName(
   ctx: QueryCtx,
-  competitionId: Id<"competitions">,
-): Promise<CompetitionSponsorPropertyStatus> {
-  const auctions = await ctx.db
-    .query("sponsorshipAuctions")
-    .withIndex("by_competition", (q) => q.eq("competitionId", competitionId))
-    .collect()
-
-  const openAuction = auctions.find(
-    (auction) => auction.state === "active" || auction.state === "scheduled",
-  )
-  if (openAuction !== undefined) {
-    return "bidding"
-  }
-
-  const closedWithWinner = auctions.find(
-    (auction) =>
-      auction.state === "closed" && auction.winnerSponsorId !== undefined,
-  )
-  if (closedWithWinner !== undefined) {
-    return "sponsor"
-  }
-
-  if (auctions.length > 0) {
-    return "none"
-  }
-
-  return "not_offered"
+  sponsorId: Id<"sponsors">,
+): Promise<string | undefined> {
+  const sponsor = await ctx.db.get("sponsors", sponsorId)
+  return sponsor?.name
 }
 
 export const getForCompetition = query({
   args: { competitionId: v.id("competitions") },
   returns: v.object({
     status: competitionSponsorPropertyStatus,
-    manualSponsorId: v.optional(v.id("sponsors")),
+    isManualOverride: v.boolean(),
     winnerSponsorId: v.optional(v.id("sponsors")),
+    winnerSponsorName: v.optional(v.string()),
     settlementAmountCents: v.optional(v.number()),
-    framework: v.optional(sponsorshipAuctionFramework),
   }),
   handler: async (ctx, args) => {
     const competition = await ctx.db.get("competitions", args.competitionId)
@@ -62,38 +36,34 @@ export const getForCompetition = query({
       })
     }
 
-    if (competition.manualSponsorPropertyStatus !== undefined) {
-      return {
-        status: competition.manualSponsorPropertyStatus,
-        manualSponsorId: competition.manualSponsorId,
-        winnerSponsorId: competition.manualSponsorId,
-        settlementAmountCents: undefined,
-        framework: undefined,
-      }
-    }
-
-    const status = await deriveStatus(ctx, args.competitionId)
-    const closedAuctions = await ctx.db
+    const isManualOverride = isCompetitionSponsorManualOverride(competition)
+    const auctions = await ctx.db
       .query("sponsorshipAuctions")
-      .withIndex("by_competition_and_state", (q) =>
-        q.eq("competitionId", args.competitionId).eq("state", "closed"),
-      )
+      .withIndex("by_competition", (q) => q.eq("competitionId", args.competitionId))
       .collect()
-    const closedAuction = closedAuctions.find(
-      (auction) => auction.winnerSponsorId !== undefined,
-    )
 
-    let framework: SponsorshipAuctionFramework | undefined
-    if (closedAuction !== undefined) {
-      framework = closedAuction.framework
-    }
+    const status = resolveCompetitionSponsorPropertyStatus({
+      competition,
+      auctions,
+    })
+
+    const winnerSponsorId = isManualOverride
+      ? competition.manualSponsorId
+      : findWinningClosedAuction(auctions)?.winnerSponsorId
+
+    const winningAuction = isManualOverride
+      ? undefined
+      : findWinningClosedAuction(auctions)
 
     return {
       status,
-      manualSponsorId: competition.manualSponsorId,
-      winnerSponsorId: closedAuction?.winnerSponsorId,
-      settlementAmountCents: closedAuction?.settlementAmountCents,
-      framework,
+      isManualOverride,
+      winnerSponsorId,
+      winnerSponsorName:
+        winnerSponsorId !== undefined
+          ? await sponsorName(ctx, winnerSponsorId)
+          : undefined,
+      settlementAmountCents: winningAuction?.settlementAmountCents,
     }
   },
 })

@@ -1,7 +1,9 @@
 import { GavelIcon } from "lucide-react"
 import type { Plugin } from "@/plugins/registry"
-import { SponsorPropertyRow } from "@/plugins/sponsor/property/sponsor-property-row"
-import { WinningBidPropertyRow } from "@/plugins/sponsor/property/winning-bid-row"
+import {
+  SponsorPropertyRow,
+  WinningBidPropertyRow,
+} from "@/plugins/sponsor/property/competition-sponsor-properties"
 
 export const sponsorPlugin: Plugin = {
   id: "sponsor",

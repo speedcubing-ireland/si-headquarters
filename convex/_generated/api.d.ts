@@ -75,6 +75,7 @@ import type * as plugins_sponsor_lib_auctionState from "../plugins/sponsor/lib/a
 import type * as plugins_sponsor_lib_bidPlacement from "../plugins/sponsor/lib/bidPlacement.js";
 import type * as plugins_sponsor_lib_bidding from "../plugins/sponsor/lib/bidding.js";
 import type * as plugins_sponsor_lib_competitionSnapshot from "../plugins/sponsor/lib/competitionSnapshot.js";
+import type * as plugins_sponsor_lib_competitionSponsorStatus from "../plugins/sponsor/lib/competitionSponsorStatus.js";
 import type * as plugins_sponsor_lib_lifecycle from "../plugins/sponsor/lib/lifecycle.js";
 import type * as plugins_sponsor_lib_sponsorBidStatus from "../plugins/sponsor/lib/sponsorBidStatus.js";
 import type * as plugins_sponsor_lib_sponsorTypes from "../plugins/sponsor/lib/sponsorTypes.js";
@@ -208,6 +209,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/lib/bidPlacement": typeof plugins_sponsor_lib_bidPlacement;
   "plugins/sponsor/lib/bidding": typeof plugins_sponsor_lib_bidding;
   "plugins/sponsor/lib/competitionSnapshot": typeof plugins_sponsor_lib_competitionSnapshot;
+  "plugins/sponsor/lib/competitionSponsorStatus": typeof plugins_sponsor_lib_competitionSponsorStatus;
   "plugins/sponsor/lib/lifecycle": typeof plugins_sponsor_lib_lifecycle;
   "plugins/sponsor/lib/sponsorBidStatus": typeof plugins_sponsor_lib_sponsorBidStatus;
   "plugins/sponsor/lib/sponsorTypes": typeof plugins_sponsor_lib_sponsorTypes;

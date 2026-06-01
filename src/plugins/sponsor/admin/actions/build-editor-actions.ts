@@ -6,12 +6,9 @@ import { toDatetimeLocalInput } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export interface EditorActionsDeps {
   activeSponsors: { id: Id<"sponsors"> }[]
-  updateCompetition: (
+  setCompetitionSponsorOverride: (
     competitionId: Id<"competitions">,
-    patch: {
-      sponsorPropertyStatusOverride: null
-      sponsorOverrideSponsorId: null
-    },
+    override: null,
   ) => Promise<void>
   setEditorMode: Dispatch<SetStateAction<"create" | "edit">>
   setSelectedAuctionId: Dispatch<
@@ -36,7 +33,7 @@ export interface EditorActionsDeps {
 export function buildEditorActions(deps: EditorActionsDeps) {
   const {
     activeSponsors,
-    updateCompetition,
+    setCompetitionSponsorOverride,
     setEditorMode,
     setSelectedAuctionId,
     setCreateFramework,
@@ -98,10 +95,7 @@ export function buildEditorActions(deps: EditorActionsDeps) {
     if (!shouldRevert) return
     setBusyCompetitionId(competitionId)
     try {
-      await updateCompetition(competitionId, {
-        sponsorPropertyStatusOverride: null,
-        sponsorOverrideSponsorId: null,
-      })
+      await setCompetitionSponsorOverride(competitionId, null)
       toast.success("Sponsor override reverted.")
     } catch (error) {
       const message =

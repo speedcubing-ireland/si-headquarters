@@ -4,8 +4,8 @@ import { buildAuctionActions } from "@/plugins/sponsor/admin/actions/build-aucti
 import { buildEditorActions } from "@/plugins/sponsor/admin/actions/build-editor-actions"
 import { buildSponsorActions } from "@/plugins/sponsor/admin/actions/build-sponsor-actions"
 import { useSponsorshipAdminDerived } from "@/plugins/sponsor/admin/use-sponsorship-admin-derived"
+import { useCompetitionSponsorOverride } from "@/plugins/sponsor/hooks/competition-sponsor-property"
 import {
-  useCompetitionMutations,
   useSponsorshipAuctionMutations,
   useSponsorshipAuctionsForManager,
   useSponsorshipCompetitionsForManager,
@@ -23,7 +23,7 @@ export function useSponsorshipAdmin() {
   const { auctions, isLoading: isLoadingAuctions } =
     useSponsorshipAuctionsForManager()
   const { sponsors, isLoading: isLoadingSponsors } = useSponsors()
-  const { updateCompetition } = useCompetitionMutations()
+  const { setCompetitionSponsorOverride } = useCompetitionSponsorOverride()
   const {
     createSponsor,
     archiveSponsor,
@@ -123,7 +123,7 @@ export function useSponsorshipAdmin() {
     () =>
       buildEditorActions({
         activeSponsors: derived.activeSponsors,
-        updateCompetition,
+        setCompetitionSponsorOverride,
         setEditorMode,
         setSelectedAuctionId,
         setCreateFramework,
@@ -140,7 +140,7 @@ export function useSponsorshipAdmin() {
     [
       derived.activeSponsors,
       derived.setCreateInvitedSponsorIds,
-      updateCompetition,
+      setCompetitionSponsorOverride,
     ],
   )
 

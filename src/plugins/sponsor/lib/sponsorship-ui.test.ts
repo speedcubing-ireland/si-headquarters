@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  competitionPropertyStatusLabel,
   formatAuctionPriceLine,
   formatAuctionTablePrice,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
@@ -46,6 +47,20 @@ describe("formatAuctionPriceLine", () => {
         settlementAmountCents: 14_000,
       }),
     ).toBe("Current: EUR 150.00 · Winning bid: EUR 140.00")
+  })
+})
+
+describe("competitionPropertyStatusLabel", () => {
+  it("uses sponsor name when provided", () => {
+    expect(competitionPropertyStatusLabel("sponsor", "Acme Cubes")).toBe(
+      "Acme Cubes",
+    )
+  })
+
+  it("maps resolved statuses for competition properties", () => {
+    expect(competitionPropertyStatusLabel("not_offered")).toBe("Not Offered")
+    expect(competitionPropertyStatusLabel("none")).toBe("No Sponsor")
+    expect(competitionPropertyStatusLabel("bidding")).toBe("Bidding in progress")
   })
 })
 
