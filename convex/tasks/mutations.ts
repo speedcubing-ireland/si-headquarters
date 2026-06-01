@@ -78,9 +78,11 @@ export const activatePhaseTasks = mutation({
   args: {
     phaseId: v.id("phases"),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireTaskManagement(ctx)
     await activatePhaseBacklogTasks(ctx, args.phaseId)
+    return null
   },
 })
 

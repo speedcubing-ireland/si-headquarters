@@ -6,6 +6,8 @@ import schema from "@/convex/schema"
 import {
   addUserToTeam,
   insertBlankCompetition,
+  insertCompetitionPhase,
+  insertSeedTask,
   insertTestUser,
 } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
@@ -129,5 +131,178 @@ describe("competition mutations", () => {
     )
     expect(stored?.people.compLead).toBeNull()
     expect(stored?.people.leadDelegate).toBeNull()
+  })
+
+  test("setCompPhase activates backlog phase tasks and recursive standard subtasks", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, competitionId, phaseId, taskId, childId } = await t.run(
+      async (ctx) => {
+        const actorId = await insertTestUser(ctx, "Manager")
+        await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
+        const competitionId = await insertBlankCompetition(ctx)
+        const phaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Launch",
+          "a"
+        )
+        const taskId = await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+          status: "backlog",
+        })
+        const childId = await insertSeedTask(ctx, {
+          parent: { type: "tasks", id: taskId },
+          order: "a",
+          status: "backlog",
+        })
+        return { actorId, competitionId, phaseId, taskId, childId }
+      }
+    )
+    const actor = t.withIdentity({ subject: actorId })
+
+    await actor.mutation(api.competitions.mutations.setCompPhase, {
+      id: competitionId,
+      phaseId,
+    })
+
+    const stored = await t.run(async (ctx) => {
+      const competition = await ctx.db.get("competitions", competitionId)
+      const task = await ctx.db.get("tasks", taskId)
+      const child = await ctx.db.get("tasks", childId)
+      if (!competition || !task || !child) throw new Error("Missing row")
+      return {
+        phaseId: competition.phaseId,
+        task: task.status,
+        child: child.status,
+      }
+    })
+
+    expect(stored).toEqual({
+      phaseId,
+      task: "to-do",
+      child: "to-do",
+    })
+  })
+
+  test("setCompPhase activates nested flow subtasks under a standard phase task", async () => {
+    const t = convexTest(schema, modules)
+    const {
+      actorId,
+      competitionId,
+      phaseId,
+      flowSubtaskId,
+      firstStepId,
+      secondStepId,
+    } = await t.run(async (ctx) => {
+        const actorId = await insertTestUser(ctx, "Manager")
+        await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
+        const competitionId = await insertBlankCompetition(ctx)
+        const phaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Launch",
+          "a"
+        )
+        const parentTaskId = await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+          status: "backlog",
+        })
+        const flowSubtaskId = await insertSeedTask(ctx, {
+          parent: { type: "tasks", id: parentTaskId },
+          order: "a",
+          kind: "flow",
+          status: "backlog",
+        })
+        const firstStepId = await insertSeedTask(ctx, {
+          parent: { type: "tasks", id: flowSubtaskId },
+          order: "a",
+          status: "backlog",
+        })
+        const secondStepId = await insertSeedTask(ctx, {
+          parent: { type: "tasks", id: flowSubtaskId },
+          order: "b",
+          status: "backlog",
+        })
+        return {
+          actorId,
+          competitionId,
+          phaseId,
+          flowSubtaskId,
+          firstStepId,
+          secondStepId,
+        }
+      })
+    const actor = t.withIdentity({ subject: actorId })
+
+    await actor.mutation(api.competitions.mutations.setCompPhase, {
+      id: competitionId,
+      phaseId,
+    })
+
+    const flow = await actor.query(api.tasks.queries.listSubtasks, {
+      id: flowSubtaskId,
+    })
+
+    expect(flow.parentStatusView.flow?.currentStepId).toBe(firstStepId)
+    expect(
+      flow.subtasks.map(({ task, statusView }) => ({
+        id: task._id,
+        status: statusView.effectiveStatus,
+      }))
+    ).toEqual([
+      { id: firstStepId, status: "to-do" },
+      { id: secondStepId, status: "backlog" },
+    ])
+  })
+
+  test("setCompPhase activates the current step of backlog flows in the phase", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, competitionId, phaseId, flowId } = await t.run(
+      async (ctx) => {
+        const actorId = await insertTestUser(ctx, "Manager")
+        await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
+        const competitionId = await insertBlankCompetition(ctx)
+        const phaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Launch",
+          "a"
+        )
+        const flowId = await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+          kind: "flow",
+          status: "backlog",
+        })
+        await insertSeedTask(ctx, {
+          parent: { type: "tasks", id: flowId },
+          order: "a",
+          status: "backlog",
+        })
+        await insertSeedTask(ctx, {
+          parent: { type: "tasks", id: flowId },
+          order: "b",
+          status: "backlog",
+        })
+        return { actorId, competitionId, phaseId, flowId }
+      }
+    )
+    const actor = t.withIdentity({ subject: actorId })
+
+    await actor.mutation(api.competitions.mutations.setCompPhase, {
+      id: competitionId,
+      phaseId,
+    })
+
+    const flow = await actor.query(api.tasks.queries.listSubtasks, {
+      id: flowId,
+    })
+
+    expect(flow.parentStatusView.effectiveStatus).toBe("to-do")
+    expect(
+      flow.subtasks.map(({ statusView }) => statusView.effectiveStatus)
+    ).toEqual(["to-do", "backlog"])
   })
 })

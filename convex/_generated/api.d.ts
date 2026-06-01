@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as competitions_calendar from "../competitions/calendar.js";
 import type * as competitions_dates from "../competitions/dates.js";
 import type * as competitions_mutations from "../competitions/mutations.js";
+import type * as competitions_phaseProgress from "../competitions/phaseProgress.js";
 import type * as competitions_phaseSnapshot from "../competitions/phaseSnapshot.js";
 import type * as competitions_queries from "../competitions/queries.js";
 import type * as competitions_updates_mutations from "../competitions/updates/mutations.js";
@@ -146,6 +147,7 @@ declare const fullApi: ApiFromModules<{
   "competitions/calendar": typeof competitions_calendar;
   "competitions/dates": typeof competitions_dates;
   "competitions/mutations": typeof competitions_mutations;
+  "competitions/phaseProgress": typeof competitions_phaseProgress;
   "competitions/phaseSnapshot": typeof competitions_phaseSnapshot;
   "competitions/queries": typeof competitions_queries;
   "competitions/updates/mutations": typeof competitions_updates_mutations;

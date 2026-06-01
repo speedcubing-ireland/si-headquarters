@@ -69,7 +69,7 @@ export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
       </CardHeader>
       <CardContent divided className="border-t">
         <Streamdown>{comp.description ?? "Enter a description..."}</Streamdown>
-        <ProgressTracker />
+        <ProgressTracker competitionId={competitionId} />
       </CardContent>
       <CardFooter>
         <Button

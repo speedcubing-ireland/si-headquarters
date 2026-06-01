@@ -27,3 +27,31 @@ export function competitionPhaseSnapshot(
     color: phaseDoc.color,
   }
 }
+
+export const competitionPhaseProgressValidator = v.object({
+  total: v.number(),
+  done: v.number(),
+  cancelled: v.number(),
+  incomplete: v.number(),
+  inProgress: v.number(),
+  blocked: v.number(),
+  completionPercent: v.number(),
+})
+
+export const currentPhaseProgressValidator = v.object({
+  phase: competitionPhaseValidator,
+  progress: competitionPhaseProgressValidator,
+})
+
+export const NO_CURRENT_PHASE_PROGRESS = {
+  phase: null,
+  progress: {
+    total: 0,
+    done: 0,
+    cancelled: 0,
+    incomplete: 0,
+    inProgress: 0,
+    blocked: 0,
+    completionPercent: 0,
+  },
+} as const

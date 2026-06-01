@@ -10,6 +10,12 @@ import {
 } from "@/convex/permissions/principal"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { getPublicUser, getPublicUsers } from "@/convex/users/queries"
+import {
+  competitionPhaseSnapshot,
+  currentPhaseProgressValidator,
+  NO_CURRENT_PHASE_PROGRESS,
+} from "@/convex/competitions/phaseSnapshot"
+import { getPhaseProgressWithBlockers } from "@/convex/competitions/phaseProgress"
 import { v } from "convex/values"
 
 async function getCompetitionForRead(
@@ -138,6 +144,28 @@ export const getCurrentUpdate = query({
     return {
       competition,
       update: await getCompetitionUpdate(ctx, competition),
+    }
+  },
+})
+
+export const getCurrentPhaseProgress = query({
+  args: {
+    id: v.id("competitions"),
+  },
+  returns: currentPhaseProgressValidator,
+  handler: async (ctx, args) => {
+    const principal = await requirePrincipal(ctx)
+    const competition = await getCompetitionForRead(ctx, principal, args.id)
+    if (!competition.phaseId) {
+      return NO_CURRENT_PHASE_PROGRESS
+    }
+
+    const phaseId = competition.phaseId
+    const phaseDoc = await ctx.db.get("phases", phaseId)
+
+    return {
+      phase: competitionPhaseSnapshot(phaseDoc),
+      progress: await getPhaseProgressWithBlockers(ctx, phaseId),
     }
   },
 })

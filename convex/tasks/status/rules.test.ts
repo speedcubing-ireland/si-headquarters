@@ -9,6 +9,7 @@ import {
   getFlowParentStatusOptions,
   getProgress,
   isTerminalComplete,
+  toPhaseProgressBuckets,
   manualIntent,
   resolveStandardEffectiveStatus,
   statusIntentEquals,
@@ -44,6 +45,30 @@ describe("task status rules", () => {
       cancelled: 1,
       incomplete: 1,
       percent: 67,
+    })
+  })
+
+  test("phase progress buckets split incomplete tasks into blocked and in progress", () => {
+    expect(
+      toPhaseProgressBuckets(
+        {
+          total: 4,
+          terminalComplete: 2,
+          done: 2,
+          cancelled: 0,
+          incomplete: 2,
+          percent: 50,
+        },
+        1
+      )
+    ).toEqual({
+      total: 4,
+      done: 2,
+      cancelled: 0,
+      incomplete: 2,
+      inProgress: 1,
+      blocked: 1,
+      completionPercent: 50,
     })
   })
 

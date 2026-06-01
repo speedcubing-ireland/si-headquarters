@@ -1,9 +1,22 @@
-import type { Id } from "@/convex/_generated/dataModel"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { TEAM_NAMES, type TeamName } from "@/convex/permissions/shared"
 import { addTeamMember, ensureTeamByName } from "@/convex/teams/model"
+import type { TaskKind } from "@/convex/tasks/kind"
+import type {
+  TaskStatus,
+  TaskStatusIntent,
+} from "@/convex/tasks/status/resolver"
 import type { TestConvex } from "convex-test"
 import type schema from "@/convex/schema"
+
+export interface SeedTaskInput {
+  name?: string
+  parent: Doc<"tasks">["parent"]
+  order: string
+  kind?: TaskKind
+  status?: TaskStatus
+}
 
 export async function ensureVolunteerMembership(
   ctx: MutationCtx,
@@ -70,4 +83,40 @@ export async function seedDirectorUser(
   const teamId = await ensureTeamByName(ctx, TEAM_NAMES.DIRECTORS)
   await addTeamMember(ctx, teamId, userId)
   return userId
+}
+
+export async function insertCompetitionPhase(
+  ctx: MutationCtx,
+  competitionId: Id<"competitions">,
+  name: string,
+  sortKey: string,
+  color: Doc<"phases">["color"] = "gray"
+): Promise<Id<"phases">> {
+  return await ctx.db.insert("phases", {
+    name,
+    owner: { type: "competitions", id: competitionId },
+    sortKey,
+    color,
+  })
+}
+
+export async function insertSeedTask(
+  ctx: MutationCtx,
+  seed: SeedTaskInput
+): Promise<Id<"tasks">> {
+  const status = seed.status ?? "backlog"
+  const statusIntent: TaskStatusIntent = { type: "manual", status }
+
+  return await ctx.db.insert("tasks", {
+    name: seed.name ?? `Task ${seed.order}`,
+    description: null,
+    parent: seed.parent,
+    order: seed.order,
+    assigneeIds: null,
+    owner: null,
+    dueDate: null,
+    kind: seed.kind ?? "standard",
+    status,
+    statusIntent,
+  })
 }

@@ -13,6 +13,7 @@ import {
   type TeamName,
 } from "@/convex/permissions/shared"
 import { isMemberOfTeam } from "@/convex/teams/model"
+import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
 import { v } from "convex/values"
 
 type People = Doc<"competitions">["people"]
@@ -189,6 +190,7 @@ export const setCompPhase = mutation({
     await ctx.db.patch("competitions", args.id, {
       phaseId: args.phaseId,
     })
+    await activatePhaseBacklogTasks(ctx, args.phaseId)
     return null
   },
 })

@@ -89,6 +89,18 @@ export function getProgress(statuses: TaskStatus[]): TaskProgress {
   }
 }
 
+export function toPhaseProgressBuckets(progress: TaskProgress, blocked: number) {
+  return {
+    total: progress.total,
+    done: progress.done,
+    cancelled: progress.cancelled,
+    incomplete: progress.incomplete,
+    inProgress: progress.incomplete - blocked,
+    blocked,
+    completionPercent: progress.percent,
+  }
+}
+
 export function getCompletionStatus(review: TaskReviewState): TaskStatus {
   return review.hasPendingReviews ? "awaiting-review" : "done"
 }
