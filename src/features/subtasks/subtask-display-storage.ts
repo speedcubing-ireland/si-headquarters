@@ -37,6 +37,8 @@ export function readSubtaskDisplayOptions(): SubtaskDisplayOptions {
   }
 }
 
-export function writeSubtaskDisplayOptions(options: SubtaskDisplayOptions): void {
+export function writeSubtaskDisplayOptions(
+  options: SubtaskDisplayOptions
+): void {
   writeLocalStorageOrIgnore(STORAGE_KEY, JSON.stringify(options))
 }

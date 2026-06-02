@@ -11,7 +11,9 @@ import {
 export type { Action, Subject }
 
 export function AbilityProvider({ children }: { children: ReactNode }) {
-  const currentPermissions = useQuery(api.permissions.queries.currentPermissions)
+  const currentPermissions = useQuery(
+    api.permissions.queries.currentPermissions
+  )
   const value = useMemo(
     () => ({
       isLoading: currentPermissions === undefined,

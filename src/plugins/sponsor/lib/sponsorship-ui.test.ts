@@ -20,7 +20,7 @@ describe("formatAuctionPriceLine", () => {
         framework: "first_sealed",
         state: "active",
         currentPriceCents: undefined,
-      }),
+      })
     ).toBe("Minimum bid: EUR 100.00 · Price sealed until close")
   })
 
@@ -31,7 +31,7 @@ describe("formatAuctionPriceLine", () => {
         framework: "vickrey",
         state: "closed",
         settlementAmountCents: 12_500,
-      }),
+      })
     ).toBe("Winning bid: EUR 125.00")
   })
 
@@ -45,7 +45,7 @@ describe("formatAuctionPriceLine", () => {
         ...baseAuction,
         state: "closed",
         settlementAmountCents: 14_000,
-      }),
+      })
     ).toBe("Current: EUR 150.00 · Winning bid: EUR 140.00")
   })
 })
@@ -53,14 +53,16 @@ describe("formatAuctionPriceLine", () => {
 describe("competitionPropertyStatusLabel", () => {
   it("uses sponsor name when provided", () => {
     expect(competitionPropertyStatusLabel("sponsor", "Acme Cubes")).toBe(
-      "Acme Cubes",
+      "Acme Cubes"
     )
   })
 
   it("maps resolved statuses for competition properties", () => {
     expect(competitionPropertyStatusLabel("not_offered")).toBe("Not Offered")
     expect(competitionPropertyStatusLabel("none")).toBe("No Sponsor")
-    expect(competitionPropertyStatusLabel("bidding")).toBe("Bidding in progress")
+    expect(competitionPropertyStatusLabel("bidding")).toBe(
+      "Bidding in progress"
+    )
   })
 })
 
@@ -71,7 +73,7 @@ describe("formatAuctionTablePrice", () => {
         ...baseAuction,
         state: "closed",
         settlementAmountCents: 14_000,
-      }),
+      })
     ).toEqual({ amountCents: 14_000, showWinningBidLabel: true })
   })
 

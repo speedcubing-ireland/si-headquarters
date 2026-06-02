@@ -1,7 +1,4 @@
-import {
-  defineOAuthPlugin,
-  type OAuthPluginMeta,
-} from "../oauthProvider"
+import { defineOAuthPlugin, type OAuthPluginMeta } from "../oauthProvider"
 
 const SCOPE = [
   "design:content:write",

@@ -18,10 +18,7 @@ export class TaskBlockersLoader {
     Id<"tasks">,
     Promise<Doc<"taskBlockers">[]>
   >()
-  private readonly countsCache = new Map<
-    Id<"tasks">,
-    Promise<BlockerCounts>
-  >()
+  private readonly countsCache = new Map<Id<"tasks">, Promise<BlockerCounts>>()
 
   constructor(ctx: BlockerReadCtx) {
     this.ctx = ctx
@@ -127,9 +124,7 @@ export async function getTaskBlockerEdge(
   return await ctx.db
     .query("taskBlockers")
     .withIndex("by_blockedTaskId_and_blockingTaskId", (q) =>
-      q
-        .eq("blockedTaskId", blockedTaskId)
-        .eq("blockingTaskId", blockingTaskId)
+      q.eq("blockedTaskId", blockedTaskId).eq("blockingTaskId", blockingTaskId)
     )
     .unique()
 }

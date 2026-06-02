@@ -12,11 +12,7 @@ import { api } from "@/convex/_generated/api"
 import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import type { FunctionReturnType } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
-import {
-  AlarmClockPlusIcon,
-  BellIcon,
-  CornerDownRightIcon,
-} from "lucide-react"
+import { AlarmClockPlusIcon, BellIcon, CornerDownRightIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
 import type { Id } from "@/convex/_generated/dataModel"

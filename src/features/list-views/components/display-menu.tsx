@@ -1,8 +1,5 @@
 import { Button } from "@/components/ui/button"
-import {
-  ButtonGroup,
-  ButtonGroupSeparator,
-} from "@/components/ui/button-group"
+import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +41,9 @@ function ColumnSelect({
   return (
     <Select
       value={value ?? "none"}
-      onValueChange={(next) => { onChange(next === "none" ? null : next); }}
+      onValueChange={(next) => {
+        onChange(next === "none" ? null : next)
+      }}
     >
       <SelectTrigger className="w-28">
         <SelectValue placeholder="None" />
@@ -98,7 +97,9 @@ export function DisplayMenu({
                   size="sm"
                   type="button"
                   className="capitalize"
-                  onClick={() => { onChange({ ...display, mode }); }}
+                  onClick={() => {
+                    onChange({ ...display, mode })
+                  }}
                 >
                   {mode}
                 </Button>
@@ -112,7 +113,9 @@ export function DisplayMenu({
             <ColumnSelect
               value={display.grouping}
               options={columnOptions}
-              onChange={(grouping) => { onChange({ ...display, grouping }); }}
+              onChange={(grouping) => {
+                onChange({ ...display, grouping })
+              }}
             />
           </div>
 
@@ -123,12 +126,12 @@ export function DisplayMenu({
               <ColumnSelect
                 value={field}
                 options={columnOptions}
-                onChange={(nextField) =>
-                  { onChange({
+                onChange={(nextField) => {
+                  onChange({
                     ...display,
                     ordering: { field: nextField, direction },
-                  }); }
-                }
+                  })
+                }}
               />
               {field !== null ? (
                 <>
@@ -137,15 +140,15 @@ export function DisplayMenu({
                     variant="outline"
                     size="icon"
                     type="button"
-                    onClick={() =>
-                      { onChange({
+                    onClick={() => {
+                      onChange({
                         ...display,
                         ordering: {
                           field,
                           direction: direction === "asc" ? "desc" : "asc",
                         },
-                      }); }
-                    }
+                      })
+                    }}
                   >
                     {direction === "asc" ? (
                       <ArrowUp className="size-4" />

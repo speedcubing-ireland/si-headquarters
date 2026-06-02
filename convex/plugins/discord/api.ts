@@ -56,7 +56,9 @@ export async function listGuildChannels(): Promise<DiscordChannelSummary[]> {
     headers: { Authorization: `Bot ${token}` },
   })
   if (!response.ok) {
-    throw new Error(`Discord channel list failed (HTTP ${String(response.status)}).`)
+    throw new Error(
+      `Discord channel list failed (HTTP ${String(response.status)}).`
+    )
   }
   const entries = await readJsonObjectArray(response)
   const channels: DiscordChannelSummary[] = []
@@ -84,7 +86,9 @@ export async function lookupDiscordChannel(
     headers: { Authorization: `Bot ${token}` },
   })
   if (!response.ok) {
-    throw new Error(`Discord channel lookup failed (HTTP ${String(response.status)}).`)
+    throw new Error(
+      `Discord channel lookup failed (HTTP ${String(response.status)}).`
+    )
   }
   const body = await readJsonObject(response)
   if (body === null) {

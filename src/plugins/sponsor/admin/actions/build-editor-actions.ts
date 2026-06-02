@@ -8,7 +8,7 @@ export interface EditorActionsDeps {
   activeSponsors: { id: Id<"sponsors"> }[]
   setCompetitionSponsorOverride: (
     competitionId: Id<"competitions">,
-    override: null,
+    override: null
   ) => Promise<void>
   setEditorMode: Dispatch<SetStateAction<"create" | "edit">>
   setSelectedAuctionId: Dispatch<
@@ -20,7 +20,7 @@ export interface EditorActionsDeps {
   setCreateEndsAtInput: Dispatch<SetStateAction<string>>
   setCreateStartPriceEuros: Dispatch<SetStateAction<string>>
   setCreateInvitedSponsorIds: (
-    updater: SetStateAction<Id<"sponsors">[]>,
+    updater: SetStateAction<Id<"sponsors">[]>
   ) => void
   setCreateCompetitionIdSelection: Dispatch<
     SetStateAction<Id<"competitions"> | null>
@@ -54,10 +54,10 @@ export function buildEditorActions(deps: EditorActionsDeps) {
     setCreateFramework("first_sealed")
     setIsCreateFrameworkUnlocked(false)
     setCreateStartsAtInput(
-      toDatetimeLocalInput(new Date(Date.now() + 60 * 60 * 1000)),
+      toDatetimeLocalInput(new Date(Date.now() + 60 * 60 * 1000))
     )
     setCreateEndsAtInput(
-      toDatetimeLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000)),
+      toDatetimeLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000))
     )
     setCreateStartPriceEuros("100")
     setCreateInvitedSponsorIds(activeSponsors.map((sponsor) => sponsor.id))
@@ -74,7 +74,7 @@ export function buildEditorActions(deps: EditorActionsDeps) {
     setCreateInvitedSponsorIds((current) =>
       current.includes(sponsorId)
         ? current.filter((id) => id !== sponsorId)
-        : [...current, sponsorId],
+        : [...current, sponsorId]
     )
   }
 
@@ -82,15 +82,15 @@ export function buildEditorActions(deps: EditorActionsDeps) {
     setEditInvitedSponsorIds((current) =>
       current.includes(sponsorId)
         ? current.filter((id) => id !== sponsorId)
-        : [...current, sponsorId],
+        : [...current, sponsorId]
     )
   }
 
   const onRevertCompetitionSponsorOverride = async (
-    competitionId: Id<"competitions">,
+    competitionId: Id<"competitions">
   ) => {
     const shouldRevert = window.confirm(
-      "Revert manual sponsor override and return to auction-derived sponsor status?",
+      "Revert manual sponsor override and return to auction-derived sponsor status?"
     )
     if (!shouldRevert) return
     setBusyCompetitionId(competitionId)

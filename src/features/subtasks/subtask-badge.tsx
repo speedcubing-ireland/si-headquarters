@@ -6,7 +6,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { TaskViewProgress, TaskViewSubtaskSummary } from "@/convex/tasks/view"
+import type {
+  TaskViewProgress,
+  TaskViewSubtaskSummary,
+} from "@/convex/tasks/view"
 import type { TaskKind } from "@/convex/tasks/status/resolver"
 import type { ComponentProps } from "react"
 import { SubtaskSummaryTooltipContent } from "./subtask-summary-tooltip"

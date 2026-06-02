@@ -45,22 +45,34 @@ async function readJson(response: Response): Promise<JsonRoot | null> {
   return parseJsonText(text)
 }
 
-export function readString(record: JsonRecord, key: string): string | undefined {
+export function readString(
+  record: JsonRecord,
+  key: string
+): string | undefined {
   const value = record[key]
   return typeof value === "string" ? value : undefined
 }
 
-export function readNumber(record: JsonRecord, key: string): number | undefined {
+export function readNumber(
+  record: JsonRecord,
+  key: string
+): number | undefined {
   const value = record[key]
   return typeof value === "number" ? value : undefined
 }
 
-export function readBoolean(record: JsonRecord, key: string): boolean | undefined {
+export function readBoolean(
+  record: JsonRecord,
+  key: string
+): boolean | undefined {
   const value = record[key]
   return typeof value === "boolean" ? value : undefined
 }
 
-export function readRecord(record: JsonRecord, key: string): JsonRecord | undefined {
+export function readRecord(
+  record: JsonRecord,
+  key: string
+): JsonRecord | undefined {
   const value = record[key]
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     return isPlainObject(value) ? value : undefined

@@ -14,12 +14,12 @@ describe("propertyStatus", () => {
         name: "Test Comp",
         from: "2026-06-01",
         to: "2026-06-02",
-      }),
+      })
     )
 
     const result = await t.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-      { competitionId },
+      { competitionId }
     )
     expect(result.status).toBe("not_offered")
     expect(result.isManualOverride).toBe(false)
@@ -36,13 +36,16 @@ describe("propertyStatus", () => {
         from: "2026-07-01",
         to: "2026-07-02",
         organisers: [managerId],
-      }),
+      })
     )
 
-    const sponsorId = await manager.mutation(api.plugins.sponsor.admin.sponsors.create, {
-      name: "Sponsor",
-      email: "sponsor@test.com",
-    })
+    const sponsorId = await manager.mutation(
+      api.plugins.sponsor.admin.sponsors.create,
+      {
+        name: "Sponsor",
+        email: "sponsor@test.com",
+      }
+    )
 
     const now = Date.now()
     const auctionId = await manager.mutation(
@@ -54,7 +57,7 @@ describe("propertyStatus", () => {
         endsAt: now + 120_000,
         startPriceCents: 1000,
         invitedSponsorIds: [sponsorId],
-      },
+      }
     )
 
     await t.run(async (ctx) => {
@@ -65,7 +68,7 @@ describe("propertyStatus", () => {
 
     const result = await t.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-      { competitionId },
+      { competitionId }
     )
     expect(result.status).toBe("bidding")
   })
@@ -81,13 +84,16 @@ describe("propertyStatus", () => {
         from: "2026-07-15",
         to: "2026-07-16",
         organisers: [managerId],
-      }),
+      })
     )
 
-    const sponsorId = await manager.mutation(api.plugins.sponsor.admin.sponsors.create, {
-      name: "Sponsor",
-      email: "draft-sponsor@test.com",
-    })
+    const sponsorId = await manager.mutation(
+      api.plugins.sponsor.admin.sponsors.create,
+      {
+        name: "Sponsor",
+        email: "draft-sponsor@test.com",
+      }
+    )
 
     const now = Date.now()
     const auctionId = await manager.mutation(
@@ -99,7 +105,7 @@ describe("propertyStatus", () => {
         endsAt: now + 120_000,
         startPriceCents: 1000,
         invitedSponsorIds: [sponsorId],
-      },
+      }
     )
 
     await t.run(async (ctx) => {
@@ -109,7 +115,7 @@ describe("propertyStatus", () => {
 
     const result = await t.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-      { competitionId },
+      { competitionId }
     )
     expect(result.status).toBe("bidding")
   })
@@ -125,13 +131,16 @@ describe("propertyStatus", () => {
         from: "2026-10-01",
         to: "2026-10-02",
         organisers: [managerId],
-      }),
+      })
     )
 
-    const sponsorId = await manager.mutation(api.plugins.sponsor.admin.sponsors.create, {
-      name: "Sponsor",
-      email: "no-winner@test.com",
-    })
+    const sponsorId = await manager.mutation(
+      api.plugins.sponsor.admin.sponsors.create,
+      {
+        name: "Sponsor",
+        email: "no-winner@test.com",
+      }
+    )
 
     const now = Date.now()
     const auctionId = await manager.mutation(
@@ -143,7 +152,7 @@ describe("propertyStatus", () => {
         endsAt: now - 60_000,
         startPriceCents: 5000,
         invitedSponsorIds: [sponsorId],
-      },
+      }
     )
 
     await t.run(async (ctx) => {
@@ -156,7 +165,7 @@ describe("propertyStatus", () => {
 
     const result = await t.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-      { competitionId },
+      { competitionId }
     )
     expect(result.status).toBe("none")
   })
@@ -171,24 +180,30 @@ describe("propertyStatus", () => {
         name: "Clear Override Comp",
         from: "2026-08-15",
         to: "2026-08-16",
-      }),
+      })
     )
 
-    await manager.mutation(api.plugins.sponsor.admin.propertyStatus.setManualOverride, {
-      competitionId,
-      status: "none",
-      manualSponsorId: null,
-    })
+    await manager.mutation(
+      api.plugins.sponsor.admin.propertyStatus.setManualOverride,
+      {
+        competitionId,
+        status: "none",
+        manualSponsorId: null,
+      }
+    )
 
-    await manager.mutation(api.plugins.sponsor.admin.propertyStatus.setManualOverride, {
-      competitionId,
-      status: null,
-      manualSponsorId: null,
-    })
+    await manager.mutation(
+      api.plugins.sponsor.admin.propertyStatus.setManualOverride,
+      {
+        competitionId,
+        status: null,
+        manualSponsorId: null,
+      }
+    )
 
     const result = await t.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-      { competitionId },
+      { competitionId }
     )
     expect(result.status).toBe("not_offered")
     expect(result.isManualOverride).toBe(false)
@@ -204,17 +219,20 @@ describe("propertyStatus", () => {
         name: "Override Comp",
         from: "2026-08-01",
         to: "2026-08-02",
-      }),
+      })
     )
 
-    await manager.mutation(api.plugins.sponsor.admin.propertyStatus.setManualOverride, {
-      competitionId,
-      status: "sponsor",
-    })
+    await manager.mutation(
+      api.plugins.sponsor.admin.propertyStatus.setManualOverride,
+      {
+        competitionId,
+        status: "sponsor",
+      }
+    )
 
     const result = await t.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-      { competitionId },
+      { competitionId }
     )
     expect(result.status).toBe("sponsor")
     expect(result.isManualOverride).toBe(true)
@@ -231,13 +249,16 @@ describe("propertyStatus", () => {
         from: "2026-09-01",
         to: "2026-09-02",
         organisers: [managerId],
-      }),
+      })
     )
 
-    const sponsorId = await manager.mutation(api.plugins.sponsor.admin.sponsors.create, {
-      name: "Acme Cubes",
-      email: "acme@test.com",
-    })
+    const sponsorId = await manager.mutation(
+      api.plugins.sponsor.admin.sponsors.create,
+      {
+        name: "Acme Cubes",
+        email: "acme@test.com",
+      }
+    )
 
     const now = Date.now()
     const auctionId = await manager.mutation(
@@ -249,7 +270,7 @@ describe("propertyStatus", () => {
         endsAt: now - 60_000,
         startPriceCents: 5000,
         invitedSponsorIds: [sponsorId],
-      },
+      }
     )
 
     await t.run(async (ctx) => {
@@ -262,7 +283,7 @@ describe("propertyStatus", () => {
 
     const result = await t.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-      { competitionId },
+      { competitionId }
     )
     expect(result.status).toBe("sponsor")
     expect(result.winnerSponsorName).toBe("Acme Cubes")

@@ -14,7 +14,7 @@ export type RetainedQueryResult<T> =
 
 export function useRetainedQueryResult<T>(
   result: T | undefined,
-  key = "__default__",
+  key = "__default__"
 ): RetainedQueryResult<T> {
   const [retained, setRetained] = useState<{
     key: string

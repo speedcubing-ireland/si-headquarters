@@ -34,7 +34,7 @@ export function saturdaysInYear(year: number): string[] {
 
 export function parseCompDateRange(
   from: string | null,
-  to: string | null,
+  to: string | null
 ): { start: Date; end: Date } | null {
   const start = from !== null && from !== "" ? parseLocalDate(from) : null
   const end = to !== null && to !== "" ? parseLocalDate(to) : null

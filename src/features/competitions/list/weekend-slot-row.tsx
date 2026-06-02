@@ -41,7 +41,7 @@ export function WeekendSlotRow({
         className={cn(
           "flex shrink-0 items-center gap-2 transition-opacity",
           !showFlagsAlways &&
-            "opacity-0 group-hover/weekend:opacity-100 group-focus-within/weekend:opacity-100"
+            "opacity-0 group-focus-within/weekend:opacity-100 group-hover/weekend:opacity-100"
         )}
       >
         <WeekendFlagPill

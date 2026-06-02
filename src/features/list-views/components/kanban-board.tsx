@@ -28,7 +28,9 @@ function KanbanColumn<TItem>({
   return (
     <div className="flex h-full flex-col rounded-xl border bg-muted/30">
       <div className="flex items-center gap-2 px-3 py-2.5">
-        <h3 className="truncate text-sm font-semibold capitalize">{group.title}</h3>
+        <h3 className="truncate text-sm font-semibold capitalize">
+          {group.title}
+        </h3>
         <Badge variant="secondary" className="ml-auto shrink-0 tabular-nums">
           {group.items.length}
         </Badge>
@@ -153,10 +155,7 @@ function DesktopKanbanScroll<TItem>({
   return (
     <div className="flex gap-3 overflow-x-auto p-3 @sm/main:p-4">
       {groups.map((group) => (
-        <div
-          key={group.key}
-          className="flex w-72 shrink-0 flex-col"
-        >
+        <div key={group.key} className="flex w-72 shrink-0 flex-col">
           <KanbanColumn
             group={group}
             renderCard={renderCard}
@@ -183,8 +182,7 @@ export function KanbanBoard<TItem>({
   const isMobileViewport = useIsMobile()
   const { width } = useMainContainer()
   const useCarousel =
-    isMobileViewport ||
-    (width > 0 && width < MAIN_CONTAINER_MD_WIDTH)
+    isMobileViewport || (width > 0 && width < MAIN_CONTAINER_MD_WIDTH)
 
   if (useCarousel) {
     return (

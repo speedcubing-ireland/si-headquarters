@@ -28,11 +28,7 @@ export function CompetitionCalendarBoard({
             row.kind === "competition" ? (
               <CompetitionCalendarRowView key={row._id} row={row} />
             ) : (
-              <WeekendSlotRow
-                key={row.weekendStart}
-                row={row}
-                year={year}
-              />
+              <WeekendSlotRow key={row.weekendStart} row={row} year={year} />
             )
           )}
         </section>
@@ -40,4 +36,3 @@ export function CompetitionCalendarBoard({
     </div>
   )
 }
-

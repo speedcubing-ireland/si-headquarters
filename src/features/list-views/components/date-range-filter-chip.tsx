@@ -1,8 +1,5 @@
 import { Button } from "@/components/ui/button"
-import {
-  ButtonGroup,
-  ButtonGroupSeparator,
-} from "@/components/ui/button-group"
+import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group"
 import type { DateRangeFilter } from "@/features/list-views/types"
 import { CalendarIcon, X } from "lucide-react"
 

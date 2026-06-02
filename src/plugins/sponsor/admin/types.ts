@@ -23,7 +23,9 @@ export type AdminSponsorshipTab =
   | "sponsors"
   | "auctionTypes"
 
-export function isAdminSponsorshipTab(value: string): value is AdminSponsorshipTab {
+export function isAdminSponsorshipTab(
+  value: string
+): value is AdminSponsorshipTab {
   return (
     value === "open" ||
     value === "closed" ||

@@ -67,8 +67,7 @@ function parseOAuthToken(
 export function matchesProvider(input: string, meta: OAuthPluginMeta): boolean {
   const normalized = input.trim().toLowerCase()
   return (
-    normalized === meta.id ||
-    normalized === meta.cli.providerArg.toLowerCase()
+    normalized === meta.id || normalized === meta.cli.providerArg.toLowerCase()
   )
 }
 
@@ -170,10 +169,7 @@ async function exchangeAuthorizationCode(
     code: args.code,
     redirect_uri: args.redirectUri,
   })
-  if (
-    args.codeVerifier !== undefined &&
-    args.codeVerifier !== ""
-  ) {
+  if (args.codeVerifier !== undefined && args.codeVerifier !== "") {
     body.set("code_verifier", args.codeVerifier)
   }
 

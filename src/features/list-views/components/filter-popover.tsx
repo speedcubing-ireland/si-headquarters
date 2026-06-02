@@ -41,7 +41,12 @@ export function FilterPopover<K extends string>({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" type="button" className="h-9 gap-1 @sm/main:h-8">
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          className="h-9 gap-1 @sm/main:h-8"
+        >
           <ListFilter className="size-4" />
           <span>Filter</span>
           {activeCount > 0 ? (
@@ -64,7 +69,9 @@ export function FilterPopover<K extends string>({
               label={filterType.label}
               filterCount={filters[filterType.id].length}
               options={filterType.options}
-              selectedValues={filters[filterType.id].flatMap((item) => item.values)}
+              selectedValues={filters[filterType.id].flatMap(
+                (item) => item.values
+              )}
               onToggleValue={(value) => {
                 toggleFilter(filters, setArrayFilter, filterType.id, value)
               }}

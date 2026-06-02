@@ -133,7 +133,9 @@ async function buildSubtaskRows({
       path: {
         taskTitle: row.task.name,
         subtaskTitle,
-        subtaskIndicator: getSubtaskIndicatorFromProgress(row.statusView.progress),
+        subtaskIndicator: getSubtaskIndicatorFromProgress(
+          row.statusView.progress
+        ),
         taskTitleId: row.task._id,
         subtaskTitleId: hideParentTitleForDirect ? null : parentTaskId,
         depth,

@@ -24,9 +24,12 @@ async function validateDesignCandidate(
     designUrl: string
   }
 ) {
-  await ctx.runQuery(internal.plugins.core.authorize.assertTaskIntegrationAccess, {
-    integrationRowId: args.id,
-  })
+  await ctx.runQuery(
+    internal.plugins.core.authorize.assertTaskIntegrationAccess,
+    {
+      integrationRowId: args.id,
+    }
+  )
 
   const parsed = parseCanvaDesignUrl(args.designUrl)
   const accessToken = await ctx.runAction(
@@ -62,13 +65,16 @@ export const linkDesign = action({
   handler: async (ctx, args) => {
     const design = await validateDesignCandidate(ctx, args)
 
-    await ctx.runMutation(internal.plugins.canva.mutations.applyLinkedCanvaDesign, {
-      integrationRowId: args.id,
-      designId: design.designId,
-      designUrl: design.designUrl,
-      thumbnailUrl: design.thumbnailUrl,
-      title: design.title,
-    })
+    await ctx.runMutation(
+      internal.plugins.canva.mutations.applyLinkedCanvaDesign,
+      {
+        integrationRowId: args.id,
+        designId: design.designId,
+        designUrl: design.designUrl,
+        thumbnailUrl: design.thumbnailUrl,
+        title: design.title,
+      }
+    )
     return null
   },
 })

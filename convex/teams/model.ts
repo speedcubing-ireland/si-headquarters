@@ -11,7 +11,10 @@ export async function getTeamByName(ctx: TeamCtx, name: string) {
     .unique()
 }
 
-export async function ensureTeamByName(ctx: MutationCtx, name: string): Promise<Id<"teams">> {
+export async function ensureTeamByName(
+  ctx: MutationCtx,
+  name: string
+): Promise<Id<"teams">> {
   const existing = await getTeamByName(ctx, name)
   if (existing !== null) {
     return existing._id

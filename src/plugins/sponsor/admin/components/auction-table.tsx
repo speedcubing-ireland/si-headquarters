@@ -56,7 +56,7 @@ export function AuctionTable({
   return (
     <div className="overflow-x-auto rounded-md border">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className="bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
           <tr>
             <th className="px-3 py-2 text-left font-medium">Competition</th>
             <th className="px-3 py-2 text-left font-medium">Phase</th>
@@ -74,10 +74,7 @@ export function AuctionTable({
               formatAuctionTablePrice(auction)
 
             return (
-              <tr
-                key={auction.id}
-                className={isSelected ? "bg-primary/5" : ""}
-              >
+              <tr key={auction.id} className={isSelected ? "bg-primary/5" : ""}>
                 <td className="px-3 py-2 align-top">
                   <div className="space-y-0.5">
                     <p className="font-medium">{auction.competitionName}</p>

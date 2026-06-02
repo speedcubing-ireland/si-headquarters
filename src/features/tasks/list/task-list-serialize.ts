@@ -1,5 +1,12 @@
-import type { DisplaySettings, FilterItem, MatchMode } from "@/features/list-views/types"
-import { defaultDisplaySettings, hasDateRangeValue } from "@/features/list-views/types"
+import type {
+  DisplaySettings,
+  FilterItem,
+  MatchMode,
+} from "@/features/list-views/types"
+import {
+  defaultDisplaySettings,
+  hasDateRangeValue,
+} from "@/features/list-views/types"
 import type { DateRangeFilter } from "@/features/list-views/types"
 import {
   isParsedRecord,
@@ -16,7 +23,9 @@ import {
 function parseFilterItem(value: ParsedJson): FilterItem | null {
   if (!isParsedRecord(value)) return null
   if (!Array.isArray(value.values)) return null
-  const values = value.values.filter((entry): entry is string => typeof entry === "string")
+  const values = value.values.filter(
+    (entry): entry is string => typeof entry === "string"
+  )
   if (values.length === 0) return null
   return {
     values,
@@ -34,7 +43,9 @@ function parseFilterItems(value: ParsedJson | undefined): FilterItem[] {
   return items
 }
 
-function parseDateRange(value: ParsedJson | undefined): DateRangeFilter | undefined {
+function parseDateRange(
+  value: ParsedJson | undefined
+): DateRangeFilter | undefined {
   if (value === undefined || !isParsedRecord(value)) return undefined
   const start = typeof value.start === "string" ? value.start : undefined
   const end = typeof value.end === "string" ? value.end : undefined

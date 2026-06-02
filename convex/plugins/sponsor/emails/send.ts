@@ -12,7 +12,7 @@ export type {
 
 export async function scheduleSponsorshipEmailBatch(
   ctx: MutationCtx,
-  args: ScheduleSponsorshipEmailBatchArgs,
+  args: ScheduleSponsorshipEmailBatchArgs
 ): Promise<void> {
   if (args.recipients.length === 0) {
     throw new ConvexError({
@@ -24,7 +24,7 @@ export async function scheduleSponsorshipEmailBatch(
   await ctx.scheduler.runAfter(
     0,
     internal.plugins.sponsor.emails.sendBatch.sendSponsorshipEmailBatch,
-    args,
+    args
   )
 }
 

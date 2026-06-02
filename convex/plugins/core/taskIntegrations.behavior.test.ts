@@ -193,10 +193,11 @@ describe("task integrations", () => {
     })
 
     await expect(
-      t.withIdentity({ subject: userId }).mutation(
-        api.plugins.core.taskIntegrations.run,
-        { id: integrationRowId }
-      )
+      t
+        .withIdentity({ subject: userId })
+        .mutation(api.plugins.core.taskIntegrations.run, {
+          id: integrationRowId,
+        })
     ).rejects.toThrow(/already running/)
   })
 
@@ -237,6 +238,8 @@ describe("task integrations", () => {
     const listed = await t
       .withIdentity({ subject: userId })
       .query(api.plugins.core.taskIntegrations.listForTask, { taskId })
-    expect(listed.map((row) => row.integrationId)).toEqual(["canva.certificates"])
+    expect(listed.map((row) => row.integrationId)).toEqual([
+      "canva.certificates",
+    ])
   })
 })

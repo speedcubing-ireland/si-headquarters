@@ -26,9 +26,7 @@ const wcaCompetitionOption = v.object({
   url: v.string(),
 })
 
-function mapCompetitionOption(
-  competition: MyCompetition | CompetitionIndex
-): {
+function mapCompetitionOption(competition: MyCompetition | CompetitionIndex): {
   id: string
   name: string
   city: string

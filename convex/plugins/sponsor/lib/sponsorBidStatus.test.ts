@@ -5,7 +5,7 @@ import { resolveSponsorBidStatus } from "./sponsorBidStatus"
 const sponsorId = "sponsor1" as Id<"sponsors">
 
 function auction(
-  overrides: Partial<Doc<"sponsorshipAuctions">> = {},
+  overrides: Partial<Doc<"sponsorshipAuctions">> = {}
 ): Doc<"sponsorshipAuctions"> {
   return {
     _id: "auction1" as Id<"sponsorshipAuctions">,
@@ -35,7 +35,7 @@ describe("resolveSponsorBidStatus", () => {
         }),
         sponsorId,
         hasSponsorValidBid: true,
-      }),
+      })
     ).toBe("winning")
   })
 
@@ -47,7 +47,7 @@ describe("resolveSponsorBidStatus", () => {
         }),
         sponsorId,
         hasSponsorValidBid: true,
-      }),
+      })
     ).toBe("not_winning")
   })
 
@@ -60,7 +60,7 @@ describe("resolveSponsorBidStatus", () => {
         }),
         sponsorId,
         hasSponsorValidBid: true,
-      }),
+      })
     ).toBe("winner")
 
     expect(
@@ -71,7 +71,7 @@ describe("resolveSponsorBidStatus", () => {
         }),
         sponsorId,
         hasSponsorValidBid: true,
-      }),
+      })
     ).toBe("not_winner")
   })
 
@@ -82,14 +82,14 @@ describe("resolveSponsorBidStatus", () => {
         auction: sealed,
         sponsorId,
         hasSponsorValidBid: true,
-      }),
+      })
     ).toBe("bid_submitted")
     expect(
       resolveSponsorBidStatus({
         auction: sealed,
         sponsorId,
         hasSponsorValidBid: false,
-      }),
+      })
     ).toBe("no_bid_submitted")
   })
 
@@ -99,7 +99,7 @@ describe("resolveSponsorBidStatus", () => {
         auction: auction({ state: "draft" }),
         sponsorId,
         hasSponsorValidBid: false,
-      }),
+      })
     ).toBeUndefined()
   })
 })

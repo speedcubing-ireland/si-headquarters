@@ -18,7 +18,8 @@ type DiscordChannel = FunctionReturnType<
 export function LinkDiscordChannelButton({
   competitionId,
 }: LinkResourceActionProps) {
-  const { open, setOpen, close, error, setError, pending, run } = useLinkAction()
+  const { open, setOpen, close, error, setError, pending, run } =
+    useLinkAction()
   const [query, setQuery] = useState("")
   const listChannels = useAction(api.plugins.discord.channels.listChannels)
   const linkChannel = useAction(api.plugins.discord.resources.linkChannel)

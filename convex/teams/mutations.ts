@@ -1,9 +1,6 @@
 import { mutation } from "@/convex/_generated/server"
 import { requireUserManagement } from "@/convex/permissions/principal"
-import {
-  addTeamMember,
-  removeTeamMember,
-} from "@/convex/teams/model"
+import { addTeamMember, removeTeamMember } from "@/convex/teams/model"
 import { ConvexError, v } from "convex/values"
 
 export const addMember = mutation({

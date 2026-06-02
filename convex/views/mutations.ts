@@ -1,10 +1,7 @@
 import type { Id } from "@/convex/_generated/dataModel"
 import { mutation, type MutationCtx } from "@/convex/_generated/server"
 import { requireActiveUserId } from "@/convex/permissions/principal"
-import {
-  viewEntity,
-  viewVisibility,
-} from "@/convex/views/validators"
+import { viewEntity, viewVisibility } from "@/convex/views/validators"
 import { ConvexError, v } from "convex/values"
 
 async function requireViewOwner(ctx: MutationCtx, viewId: Id<"savedViews">) {
@@ -49,9 +46,7 @@ export const createView = mutation({
 
     const description = args.description?.trim()
     const normalizedDescription =
-      description !== undefined && description.length > 0
-        ? description
-        : null
+      description !== undefined && description.length > 0 ? description : null
 
     return await ctx.db.insert("savedViews", {
       ownerId,
@@ -146,8 +141,7 @@ export const touchView = mutation({
       return null
     }
 
-    const canTouch =
-      doc.ownerId === userId || doc.visibility === "public"
+    const canTouch = doc.ownerId === userId || doc.visibility === "public"
     if (!canTouch) {
       throw new ConvexError({
         code: "FORBIDDEN",

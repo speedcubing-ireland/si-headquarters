@@ -3,8 +3,7 @@ import { z } from "zod"
 
 const booleanFlag = z
   .preprocess(
-    (value) =>
-      typeof value === "string" ? value.trim().toLowerCase() : value,
+    (value) => (typeof value === "string" ? value.trim().toLowerCase() : value),
     z
       .union([
         z.literal("1"),

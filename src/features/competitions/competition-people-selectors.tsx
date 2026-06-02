@@ -67,8 +67,7 @@ function CompetitionPeopleSelectors({
     singleAppearance === "icon"
       ? UserSelector.MultiIconButton
       : UserSelector.MultiPropertyButton
-  const buttonProps =
-    singleAppearance === "icon" ? listIconProps : {}
+  const buttonProps = singleAppearance === "icon" ? listIconProps : {}
 
   return (
     <>

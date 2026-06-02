@@ -3,13 +3,11 @@ import {
   MainContainerContext,
   type MainContainerProviderProps,
 } from "@/components/layout/main-container"
-import {
-  useCallback,
-  useLayoutEffect,
-  useState,
-} from "react"
+import { useCallback, useLayoutEffect, useState } from "react"
 
-export function MainContainerProvider({ children }: MainContainerProviderProps) {
+export function MainContainerProvider({
+  children,
+}: MainContainerProviderProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
 

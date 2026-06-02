@@ -104,9 +104,7 @@ describe("measurePathWidth", () => {
         measureIndicatorsWidth(null, true) +
         4
     )
-    expect(taskOnly - progressOnly).toBe(
-      measureIndicatorsWidth(null, true) + 4
-    )
+    expect(taskOnly - progressOnly).toBe(measureIndicatorsWidth(null, true) + 4)
     expect(taskOnly - blockOnly).toBe(measureIndicatorsWidth("1/1", false) + 4)
     expect(progressOnly).toBeLessThan(taskOnly)
     expect(blockOnly).toBeLessThan(taskOnly)
@@ -199,7 +197,9 @@ describe("buildTaskPathCandidates", () => {
     )
 
     expect(layout.taskText).toBe(fullTask)
-    expect(layout.subtaskText).toMatch(/^Design Certificates Long Ah Name Hello/)
+    expect(layout.subtaskText).toMatch(
+      /^Design Certificates Long Ah Name Hello/
+    )
     expect(layout.subtaskText.endsWith("...")).toBe(true)
     expect(measureTestText(layout.subtaskText)).toBeGreaterThan(
       measureTestText(layout.taskText)

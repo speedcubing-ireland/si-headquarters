@@ -1,4 +1,7 @@
-import { OutcomeEmail, type OutcomeEmailProps } from "./_components/outcome_email"
+import {
+  OutcomeEmail,
+  type OutcomeEmailProps,
+} from "./_components/outcome_email"
 import { fixtures } from "./fixtures"
 import { buildOutcomeProps, type BuildEmailInput } from "./_build"
 

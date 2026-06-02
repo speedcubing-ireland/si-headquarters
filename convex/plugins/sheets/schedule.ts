@@ -21,4 +21,3 @@ export function parseSheetValues(values: string[][] | undefined): string[][] {
   }
   return values.map((row) => row.map((cell) => cell))
 }
-

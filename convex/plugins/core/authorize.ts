@@ -94,7 +94,10 @@ export async function authorizeTaskRun(
   task: Doc<"tasks">
   competitionId: Id<"competitions">
 }> {
-  const { task, competitionId } = await requireTaskIntegrationAccess(ctx, taskId)
+  const { task, competitionId } = await requireTaskIntegrationAccess(
+    ctx,
+    taskId
+  )
   if (competitionId === null) {
     throw new ConvexError({
       code: "BAD_REQUEST",

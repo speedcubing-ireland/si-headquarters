@@ -97,9 +97,7 @@ export function CompetitionLinkedResourcesFooter({
         if (LinkAction === undefined) {
           return null
         }
-        return (
-          <LinkAction key={plugin.id} competitionId={competitionId} />
-        )
+        return <LinkAction key={plugin.id} competitionId={competitionId} />
       })}
     </div>
   )

@@ -1,4 +1,7 @@
-import { compareStrings, createRowSorter } from "@/features/list-views/row-sorter"
+import {
+  compareStrings,
+  createRowSorter,
+} from "@/features/list-views/row-sorter"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { isTaskStatus, TASK_STATUSES } from "@/convex/tasks/status/validators"
 
@@ -33,11 +36,13 @@ export const sortTaskRows = createRowSorter<TaskBoardRow>({
   status: (left, right) =>
     taskStatusRank(left.statusView.effectiveStatus) -
     taskStatusRank(right.statusView.effectiveStatus),
-  dueDate: (left, right) => compareStrings(left.task.dueDate, right.task.dueDate),
+  dueDate: (left, right) =>
+    compareStrings(left.task.dueDate, right.task.dueDate),
   kind: (left, right) => compareStrings(left.task.kind, right.task.kind),
   assignee: (left, right) =>
     compareStrings(assigneeSortKey(left), assigneeSortKey(right)),
-  owner: (left, right) => compareStrings(ownerSortKey(left), ownerSortKey(right)),
+  owner: (left, right) =>
+    compareStrings(ownerSortKey(left), ownerSortKey(right)),
   competition: (left, right) =>
     compareStrings(left.competitionName, right.competitionName),
   phase: (left, right) => compareStrings(left.phaseName, right.phaseName),

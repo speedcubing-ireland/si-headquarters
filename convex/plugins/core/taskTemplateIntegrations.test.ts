@@ -23,4 +23,3 @@ describe("resolveTaskSpecIntegrationIds", () => {
     ).toThrow(/Unknown task integration id/)
   })
 })
-

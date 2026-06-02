@@ -94,7 +94,7 @@ export function buildSponsorActions(deps: SponsorActionsDeps) {
 
   const onArchiveSponsor = async (sponsorId: Id<"sponsors">) => {
     const shouldArchive = window.confirm(
-      "Archive this sponsor? They will lose portal access until unarchived.",
+      "Archive this sponsor? They will lose portal access until unarchived."
     )
     if (!shouldArchive) return
     setBusySponsorId(sponsorId)

@@ -52,8 +52,11 @@ export function PropertiesCard({
         {isSponsorshipEnabled
           ? PLUGINS.flatMap((plugin) => plugin.competitionProperties).map(
               (PropertyRow) => (
-                <PropertyRow key={PropertyRow.name} competitionId={competitionId} />
-              ),
+                <PropertyRow
+                  key={PropertyRow.name}
+                  competitionId={competitionId}
+                />
+              )
             )
           : null}
       </PageCardContent>

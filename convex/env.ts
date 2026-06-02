@@ -19,9 +19,7 @@ export const convexEnv = {
   VITE_SITE_URL: v.optional(v.string()),
   CORS_ALLOWED_ORIGINS: v.optional(v.string()),
   SPONSORSHIP_EMAIL_SENDER_ADDRESS: v.optional(v.string()),
-  RESEND_TEST_MODE: v.optional(
-    v.union(v.literal("true"), v.literal("false"))
-  ),
+  RESEND_TEST_MODE: v.optional(v.union(v.literal("true"), v.literal("false"))),
   ...requiredStrings(OAUTH_ENV_KEYS),
   ...requiredStrings(PLUGIN_ENV_KEYS),
 }

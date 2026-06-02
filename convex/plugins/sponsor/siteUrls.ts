@@ -12,7 +12,7 @@ export function resolveSponsorPortalBaseUrl(): string {
   return trimTrailingSlash(
     env.SPONSOR_SITE_URL ??
       env.SITE_URL ??
-      "https://sponsors.speedcubingireland.com",
+      "https://sponsors.speedcubingireland.com"
   )
 }
 
@@ -23,7 +23,7 @@ export function resolveSponsorPortalBaseUrlForAuth(): string {
       env.VITE_SITE_URL ??
       (process.env.NODE_ENV === "production"
         ? "https://sponsors.speedcubingireland.com"
-        : "http://localhost:5174"),
+        : "http://localhost:5174")
   )
 }
 

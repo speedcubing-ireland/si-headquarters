@@ -13,7 +13,9 @@ import { TEAM_NAMES } from "@/convex/permissions/shared"
 describe("competition linked resources", () => {
   test("stores linked resource rows in the database", async () => {
     const t = convexTest(schema, modules)
-    const competitionId = await t.run(async (ctx) => insertBlankCompetition(ctx))
+    const competitionId = await t.run(async (ctx) =>
+      insertBlankCompetition(ctx)
+    )
     const resourceId = await t.run(async (ctx) =>
       ctx.db.insert("competitionLinkedResources", {
         competitionId,
@@ -58,7 +60,9 @@ describe("competition linked resources", () => {
 
   test("requires authentication to list linked resources", async () => {
     const t = convexTest(schema, modules)
-    const competitionId = await t.run(async (ctx) => insertBlankCompetition(ctx))
+    const competitionId = await t.run(async (ctx) =>
+      insertBlankCompetition(ctx)
+    )
 
     await expect(
       t.query(api.plugins.core.competitionResources.listForCompetition, {
@@ -119,23 +123,31 @@ describe("competition linked resources", () => {
 
   test("linking WCA resource syncs competitions.wcaCompetitionId", async () => {
     const t = convexTest(schema, modules)
-    const competitionId = await t.run(async (ctx) => insertBlankCompetition(ctx))
+    const competitionId = await t.run(async (ctx) =>
+      insertBlankCompetition(ctx)
+    )
 
-    await t.mutation(internal.plugins.core.competitionResourcesInternal.upsertResource, {
-      competitionId,
-      resourceType: "wcaCompetition",
-      resourceKey: "default",
-      data: {
+    await t.mutation(
+      internal.plugins.core.competitionResourcesInternal.upsertResource,
+      {
+        competitionId,
         resourceType: "wcaCompetition",
+        resourceKey: "default",
+        data: {
+          resourceType: "wcaCompetition",
+          wcaCompetitionId: "DublinOpen2026",
+          name: "Dublin Open 2026",
+          url: "https://www.worldcubeassociation.org/competitions/DublinOpen2026",
+        },
+      }
+    )
+    await t.mutation(
+      internal.plugins.wca.competitionLink.patchCompetitionWcaId,
+      {
+        competitionId,
         wcaCompetitionId: "DublinOpen2026",
-        name: "Dublin Open 2026",
-        url: "https://www.worldcubeassociation.org/competitions/DublinOpen2026",
-      },
-    })
-    await t.mutation(internal.plugins.wca.competitionLink.patchCompetitionWcaId, {
-      competitionId,
-      wcaCompetitionId: "DublinOpen2026",
-    })
+      }
+    )
 
     const competition = await t.run(async (ctx) =>
       ctx.db.get("competitions", competitionId)
@@ -153,10 +165,9 @@ describe("competition linked resources", () => {
     })
 
     await expect(
-      t.withIdentity({ subject: userId }).action(
-        api.plugins.discord.channels.listChannels,
-        { competitionId }
-      )
+      t
+        .withIdentity({ subject: userId })
+        .action(api.plugins.discord.channels.listChannels, { competitionId })
     ).rejects.toThrow()
   })
 })

@@ -14,7 +14,7 @@ describe("describeAuctionFramework", () => {
   test("describes sealed first-price auctions", () => {
     expect(describeAuctionFramework("first_sealed")).toContain("Sealed bid")
     expect(describeAuctionFramework("first_sealed")).toContain(
-      "pays their bid amount",
+      "pays their bid amount"
     )
   })
 
@@ -39,10 +39,10 @@ describe("sponsorshipEmailSubject", () => {
 
   test("uses competition name in auction subjects", () => {
     expect(sponsorshipEmailSubject("auction_scheduled", ctx)).toBe(
-      "Irish Open 2026: bidding opening soon",
+      "Irish Open 2026: bidding opening soon"
     )
     expect(sponsorshipEmailSubject("auction_ebay_outbid", ctx)).toBe(
-      "Irish Open 2026: you have been outbid",
+      "Irish Open 2026: you have been outbid"
     )
   })
 })
@@ -89,7 +89,7 @@ describe("sponsorOtpAuthEmailSubject", () => {
   test("maps auth types to subjects", () => {
     expect(sponsorOtpAuthEmailSubject("sign-in")).toContain("sign-in code")
     expect(sponsorOtpPurposeFromAuthType("email-verification")).toBe(
-      "verify your email",
+      "verify your email"
     )
   })
 })
@@ -97,7 +97,7 @@ describe("sponsorOtpAuthEmailSubject", () => {
 describe("sponsorshipEmailMessageFallback", () => {
   test("invite fallback mentions portal sign-in", () => {
     expect(sponsorshipEmailMessageFallback("invite", {})).toContain(
-      "one-time email code",
+      "one-time email code"
     )
   })
 })

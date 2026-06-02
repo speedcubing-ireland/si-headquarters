@@ -12,7 +12,7 @@ import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/v
 
 async function sponsorName(
   ctx: QueryCtx,
-  sponsorId: Id<"sponsors">,
+  sponsorId: Id<"sponsors">
 ): Promise<string | undefined> {
   const sponsor = await ctx.db.get("sponsors", sponsorId)
   return sponsor?.name
@@ -39,7 +39,9 @@ export const getForCompetition = query({
     const isManualOverride = isCompetitionSponsorManualOverride(competition)
     const auctions = await ctx.db
       .query("sponsorshipAuctions")
-      .withIndex("by_competition", (q) => q.eq("competitionId", args.competitionId))
+      .withIndex("by_competition", (q) =>
+        q.eq("competitionId", args.competitionId)
+      )
       .collect()
 
     const status = resolveCompetitionSponsorPropertyStatus({

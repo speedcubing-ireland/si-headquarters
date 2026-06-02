@@ -1,18 +1,16 @@
 import { ConvexError, v } from "convex/values"
 import { action, env, query } from "../_generated/server"
 import { internal } from "../_generated/api"
-import {
-  OAUTH_PLUGINS,
-  oauthPluginById,
-} from "@/convex/plugins/oauthRegistry"
+import { OAUTH_PLUGINS, oauthPluginById } from "@/convex/plugins/oauthRegistry"
 import { cliConfigFromPlugin } from "./oauthProvider"
 
 function requireCliToken(cliToken: string) {
   const expected = env.CLI_AUTH_TOKEN
-  if (expected === "") throw new ConvexError({
-    code: "INTERNAL_ERROR",
-    message: "CLI_AUTH_TOKEN is not set in Convex env.",
-  })
+  if (expected === "")
+    throw new ConvexError({
+      code: "INTERNAL_ERROR",
+      message: "CLI_AUTH_TOKEN is not set in Convex env.",
+    })
   if (cliToken !== expected) {
     throw new ConvexError({
       code: "UNAUTHENTICATED",

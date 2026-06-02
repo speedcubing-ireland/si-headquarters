@@ -11,7 +11,7 @@ export function LinkActionShell({
     <div className="flex flex-col items-start gap-1">
       {children}
       {error !== null ? (
-        <p className="text-destructive text-xs">{error}</p>
+        <p className="text-xs text-destructive">{error}</p>
       ) : null}
     </div>
   )

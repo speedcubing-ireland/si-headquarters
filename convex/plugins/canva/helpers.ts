@@ -242,8 +242,10 @@ export async function runCanvaAutofillJob(
     )
   }
   const startBody = await readJsonObject(startResponse)
-  const jobRecord = startBody !== null ? readRecord(startBody, "job") : undefined
-  const jobId = jobRecord !== undefined ? readString(jobRecord, "id") : undefined
+  const jobRecord =
+    startBody !== null ? readRecord(startBody, "job") : undefined
+  const jobId =
+    jobRecord !== undefined ? readString(jobRecord, "id") : undefined
   if (jobId === undefined) {
     throw new Error("Canva autofill did not return a job id.")
   }
@@ -261,8 +263,7 @@ export async function runCanvaAutofillJob(
       )
     }
     const pollBody = await readJsonObject(pollResponse)
-    const pollJob =
-      pollBody !== null ? readRecord(pollBody, "job") : undefined
+    const pollJob = pollBody !== null ? readRecord(pollBody, "job") : undefined
     const status =
       pollJob !== undefined ? readString(pollJob, "status") : undefined
 

@@ -115,7 +115,10 @@ function blockedActiveTasksByBlockingTask(
   return blockedTasks
 }
 
-function hasStatusOption(row: TaskBoardRow, status: TaskStatusCommand): boolean {
+function hasStatusOption(
+  row: TaskBoardRow,
+  status: TaskStatusCommand
+): boolean {
   return row.statusView.statusOptions.includes(status)
 }
 

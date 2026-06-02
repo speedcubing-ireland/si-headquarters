@@ -12,11 +12,11 @@ export interface CompetitionSponsorOverride {
 
 export function useCompetitionSponsorProperty(
   competitionId: Id<"competitions"> | null,
-  enabled = isSponsorshipEnabled,
+  enabled = isSponsorshipEnabled
 ) {
   const property = useQuery(
     api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-    competitionId !== null && enabled ? { competitionId } : "skip",
+    competitionId !== null && enabled ? { competitionId } : "skip"
   )
   return {
     property: property ?? null,
@@ -26,9 +26,8 @@ export function useCompetitionSponsorProperty(
 
 export function useCompetitionSponsorPropertyRow(competitionId: string) {
   const competitionConvexId = parseCompetitionId(competitionId)
-  const { property, isLoading } = useCompetitionSponsorProperty(
-    competitionConvexId,
-  )
+  const { property, isLoading } =
+    useCompetitionSponsorProperty(competitionConvexId)
 
   return {
     competitionConvexId,
@@ -39,13 +38,13 @@ export function useCompetitionSponsorPropertyRow(competitionId: string) {
 
 export function useCompetitionSponsorOverride() {
   const setManualOverride = useMutation(
-    api.plugins.sponsor.admin.propertyStatus.setManualOverride,
+    api.plugins.sponsor.admin.propertyStatus.setManualOverride
   )
 
   return {
     setCompetitionSponsorOverride: async (
       competitionId: Id<"competitions">,
-      override: CompetitionSponsorOverride | null,
+      override: CompetitionSponsorOverride | null
     ) => {
       if (override === null) {
         await setManualOverride({

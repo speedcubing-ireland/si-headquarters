@@ -35,7 +35,7 @@ function emailElement(input: BuildEmailInput): ReactElement | null {
 
 function fallbackBody(
   input: BuildEmailInput,
-  plainText: boolean | undefined,
+  plainText: boolean | undefined
 ): string {
   return plainText === true
     ? input.messageFallback
@@ -44,7 +44,7 @@ function fallbackBody(
 
 async function renderBuiltEmail(
   input: BuildEmailInput,
-  options?: { plainText?: boolean },
+  options?: { plainText?: boolean }
 ): Promise<string> {
   const element = emailElement(input)
   if (element === null) {
@@ -65,19 +65,19 @@ async function renderBothFormats(element: ReactElement): Promise<{
 }
 
 export function buildSponsorshipEmailHtml(
-  input: BuildEmailInput,
+  input: BuildEmailInput
 ): Promise<string> {
   return renderBuiltEmail(input)
 }
 
 export function buildSponsorshipEmailPlainText(
-  input: BuildEmailInput,
+  input: BuildEmailInput
 ): Promise<string> {
   return renderBuiltEmail(input, { plainText: true })
 }
 
 export function buildSponsorPortalOtpEmail(
-  props: SponsorPortalOtpEmailProps,
+  props: SponsorPortalOtpEmailProps
 ): Promise<{ html: string; plainText: string }> {
   return renderBothFormats(<OtpSignInEmail {...props} />)
 }

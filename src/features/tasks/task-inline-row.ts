@@ -11,9 +11,7 @@ export type TaskBoardRow = FunctionReturnType<
   typeof api.tasks.board.listForBoard
 >[number]
 
-export function taskOwnerSelectorValue(
-  owner: TaskBoardRow["owner"]  
-) {
+export function taskOwnerSelectorValue(owner: TaskBoardRow["owner"]) {
   if (owner?.type === "users") {
     return { type: "users" as const, id: owner._id }
   }

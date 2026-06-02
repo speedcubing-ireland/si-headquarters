@@ -39,7 +39,9 @@ export function IntegrationCardHeader({
       <CardTitle className="flex items-center gap-2">
         {icon}
         <span className="min-w-0 flex-1 truncate">{title}</span>
-        {status !== undefined ? <IntegrationCardStatus status={status} /> : null}
+        {status !== undefined ? (
+          <IntegrationCardStatus status={status} />
+        ) : null}
         {children}
       </CardTitle>
     </CardHeader>

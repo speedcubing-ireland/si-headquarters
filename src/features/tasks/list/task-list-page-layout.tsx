@@ -34,15 +34,17 @@ export function TaskListPageLayout({
               <Input
                 placeholder="View name"
                 value={createViewName}
-                onChange={(event) => { setCreateViewName(event.target.value); }}
+                onChange={(event) => {
+                  setCreateViewName(event.target.value)
+                }}
                 className="h-8 text-sm font-medium"
               />
               <Textarea
                 placeholder="Description (optional)"
                 value={createViewDescription}
-                onChange={(event) =>
-                  { setCreateViewDescription(event.target.value); }
-                }
+                onChange={(event) => {
+                  setCreateViewDescription(event.target.value)
+                }}
                 className="min-h-[60px] resize-none text-sm"
               />
             </div>
@@ -51,7 +53,9 @@ export function TaskListPageLayout({
                 variant="outline"
                 size="sm"
                 type="button"
-                onClick={() => { setCreateViewOpen(false); }}
+                onClick={() => {
+                  setCreateViewOpen(false)
+                }}
               >
                 Cancel
               </Button>

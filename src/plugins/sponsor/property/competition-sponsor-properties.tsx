@@ -41,7 +41,7 @@ export function SponsorPropertyRow({
 
   const displayLabel = competitionPropertyStatusLabel(
     property.status,
-    property.winnerSponsorName,
+    property.winnerSponsorName
   )
 
   return (
@@ -88,7 +88,8 @@ export function WinningBidPropertyRow({
 }: {
   competitionId: string
 }) {
-  const { property, isLoading } = useCompetitionSponsorPropertyRow(competitionId)
+  const { property, isLoading } =
+    useCompetitionSponsorPropertyRow(competitionId)
   const settlementAmountCents = property?.settlementAmountCents
 
   if (isLoading || settlementAmountCents === undefined) {
@@ -96,7 +97,10 @@ export function WinningBidPropertyRow({
   }
 
   return (
-    <PageCardRow icon={<HandCoinsIcon className="size-4" />} label="Winning Bid">
+    <PageCardRow
+      icon={<HandCoinsIcon className="size-4" />}
+      label="Winning Bid"
+    >
       <p className="text-sm">{formatEuroFromCents(settlementAmountCents)}</p>
     </PageCardRow>
   )

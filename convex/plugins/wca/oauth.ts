@@ -1,7 +1,4 @@
-import {
-  defineOAuthPlugin,
-  type OAuthPluginMeta,
-} from "../oauthProvider"
+import { defineOAuthPlugin, type OAuthPluginMeta } from "../oauthProvider"
 
 export const WCA_BASE_URL = "https://www.worldcubeassociation.org"
 

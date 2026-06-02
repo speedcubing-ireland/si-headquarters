@@ -8,13 +8,13 @@ export type SponsorshipAuctionFramework =
   (typeof SPONSORSHIP_AUCTION_FRAMEWORKS)[number]
 
 export function isProxyAuctionFramework(
-  framework: SponsorshipAuctionFramework,
+  framework: SponsorshipAuctionFramework
 ): boolean {
   return framework === "ebay_proxy"
 }
 
 export function isSealedAuctionFramework(
-  framework: SponsorshipAuctionFramework,
+  framework: SponsorshipAuctionFramework
 ): boolean {
   return !isProxyAuctionFramework(framework)
 }
@@ -22,7 +22,7 @@ export function isSealedAuctionFramework(
 export type SealedAuctionPricingRule = "first_price" | "second_price"
 
 export function sealedAuctionPricingRule(
-  framework: SponsorshipAuctionFramework,
+  framework: SponsorshipAuctionFramework
 ): SealedAuctionPricingRule {
   return framework === "first_sealed" ? "first_price" : "second_price"
 }

@@ -2,10 +2,7 @@ import { v } from "convex/values"
 
 export const viewEntity = v.literal("tasks")
 
-export const viewVisibility = v.union(
-  v.literal("private"),
-  v.literal("public")
-)
+export const viewVisibility = v.union(v.literal("private"), v.literal("public"))
 
 export const savedViewFields = {
   ownerId: v.id("users"),

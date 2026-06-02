@@ -36,7 +36,11 @@ export type PageBreadcrumbItem = {
 
 export type PageStatusVariant = "loading" | "denied" | "empty"
 
-function CrumbLink({ item: { label, ...props } }: { item: PageBreadcrumbItem }) {
+function CrumbLink({
+  item: { label, ...props },
+}: {
+  item: PageBreadcrumbItem
+}) {
   return (
     <BreadcrumbItemPrimitive className="min-w-0">
       <BreadcrumbLink asChild className="max-w-36 truncate @sm/main:max-w-56">
@@ -86,9 +90,7 @@ function CrumbEllipsis({ items }: { items: PageBreadcrumbItem[] }) {
 }
 
 function PageRoot({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-full min-h-0 flex-1 flex-col">{children}</div>
-  )
+  return <div className="flex h-full min-h-0 flex-1 flex-col">{children}</div>
 }
 
 function PageShell({
@@ -139,7 +141,7 @@ function PageHeader({
 
 function PageTitle({ children }: { children: ReactNode }) {
   return (
-    <h1 className="truncate font-heading text-base font-semibold leading-none">
+    <h1 className="truncate font-heading text-base leading-none font-semibold">
       {children}
     </h1>
   )

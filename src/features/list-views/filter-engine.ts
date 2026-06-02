@@ -1,4 +1,8 @@
-import type { DateRangeFilter, FilterItem, MatchMode } from "@/features/list-views/types"
+import type {
+  DateRangeFilter,
+  FilterItem,
+  MatchMode,
+} from "@/features/list-views/types"
 
 export function matchesFilterItems(
   filterItems: FilterItem[],
@@ -32,8 +36,7 @@ export function matchesPointInDateRange(
   if (isoDate === null || isoDate === undefined || isoDate === "") return false
 
   const point = new Date(isoDate)
-  const start =
-    dateRange.start !== undefined ? new Date(dateRange.start) : null
+  const start = dateRange.start !== undefined ? new Date(dateRange.start) : null
   const end = dateRange.end !== undefined ? new Date(dateRange.end) : null
 
   const inRange =

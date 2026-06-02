@@ -17,4 +17,3 @@ export function createWcaClient(accessToken: string): WcaClient {
     })
   )
 }
-

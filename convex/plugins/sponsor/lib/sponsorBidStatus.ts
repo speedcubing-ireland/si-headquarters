@@ -34,7 +34,7 @@ export function resolveSponsorBidStatus(input: {
 
 function resolveProxyBidStatus(
   auction: AuctionSlice,
-  sponsorId: Id<"sponsors">,
+  sponsorId: Id<"sponsors">
 ): SponsorBidStatus {
   if (auction.state === "active") {
     return auction.currentLeaderSponsorId === sponsorId
@@ -48,7 +48,7 @@ function resolveProxyBidStatus(
 function resolveSealedBidStatus(
   auction: AuctionSlice,
   sponsorId: Id<"sponsors">,
-  hasSponsorValidBid: boolean,
+  hasSponsorValidBid: boolean
 ): SponsorBidStatus {
   if (auction.state === "active") {
     return hasSponsorValidBid ? "bid_submitted" : "no_bid_submitted"

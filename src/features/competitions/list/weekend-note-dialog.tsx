@@ -56,7 +56,9 @@ export function WeekendNoteDialog({
             <Input
               id="weekend-note"
               value={draft}
-              onChange={(event) => { setDraft(event.target.value); }}
+              onChange={(event) => {
+                setDraft(event.target.value)
+              }}
               placeholder="Single-line note"
               className="mt-2"
               maxLength={200}
@@ -66,7 +68,9 @@ export function WeekendNoteDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => { onOpenChange(false); }}
+              onClick={() => {
+                onOpenChange(false)
+              }}
             >
               Cancel
             </Button>
@@ -100,7 +104,9 @@ export function WeekendNoteTrigger({
       <Button
         type="button"
         variant="ghost"
-        onClick={() => { setOpen(true); }}
+        onClick={() => {
+          setOpen(true)
+        }}
         aria-label={hasNote ? `Edit note: ${trimmed}` : "Add note"}
         className="group/note h-7 w-full min-w-0 justify-start gap-2 px-2 text-left text-sm font-normal group-hover/weekend:border group-hover/weekend:border-dashed group-hover/weekend:border-border/50"
       >

@@ -19,7 +19,9 @@ export function listBackendPlugins(): readonly BackendIntegrationPlugin[] {
   return INTEGRATION_PLUGINS
 }
 
-export function toIntegrationDefinitionMeta(definition: TaskIntegrationDefinition) {
+export function toIntegrationDefinitionMeta(
+  definition: TaskIntegrationDefinition
+) {
   return {
     id: definition.id,
     label: definition.label,

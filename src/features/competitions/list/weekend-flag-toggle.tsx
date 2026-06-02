@@ -1,10 +1,8 @@
 import { cn } from "@/lib/utils"
 
 const FLAG_TONE = {
-  green:
-    "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400",
-  amber:
-    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+  green: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400",
+  amber: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
 } as const
 
 export function WeekendFlagPill({
@@ -22,7 +20,9 @@ export function WeekendFlagPill({
     <button
       type="button"
       aria-pressed={pressed}
-      onClick={() => { onPressedChange(!pressed); }}
+      onClick={() => {
+        onPressedChange(!pressed)
+      }}
       className={cn(
         "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors",
         pressed

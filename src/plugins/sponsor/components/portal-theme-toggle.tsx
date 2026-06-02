@@ -23,7 +23,12 @@ export function PortalThemeToggle() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {builtInThemes.map(({ value, label, icon: Icon }) => (
-          <DropdownMenuItem key={value} onClick={() => { setTheme(value) }}>
+          <DropdownMenuItem
+            key={value}
+            onClick={() => {
+              setTheme(value)
+            }}
+          >
             <Icon className="mr-2 size-4" />
             <span>{label}</span>
             {theme === value ? (

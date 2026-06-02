@@ -116,7 +116,8 @@ export function selectTaskPathLayout(
       const labelScore = getLabelContentScore(label)
       const isBetterPath =
         pathScore[0] > bestPathScore[0] ||
-        (pathScore[0] === bestPathScore[0] && pathScore[1] > bestPathScore[1]) ||
+        (pathScore[0] === bestPathScore[0] &&
+          pathScore[1] > bestPathScore[1]) ||
         (pathScore[0] === bestPathScore[0] &&
           pathScore[1] === bestPathScore[1] &&
           pathScore[2] > bestPathScore[2])
@@ -426,7 +427,9 @@ function findLargestVariantCountAtMost({
 }
 
 function isSamePathLayout(left: TaskPathLayout, right: TaskPathLayout) {
-  return left.taskText === right.taskText && left.subtaskText === right.subtaskText
+  return (
+    left.taskText === right.taskText && left.subtaskText === right.subtaskText
+  )
 }
 
 function pushCandidate(
@@ -477,7 +480,10 @@ export function measurePathWidth({
   const taskWidth = measureTextForDom(task, textFont)
   const subtaskWidth = measureTextForDom(subtask, textFont)
   const showsChevron = taskWidth > 0 && subtaskWidth > 0
-  const indicatorsWidth = measureIndicatorsWidth(subtaskIndicator, hasBlockIndicator)
+  const indicatorsWidth = measureIndicatorsWidth(
+    subtaskIndicator,
+    hasBlockIndicator
+  )
   const segmentCount =
     (taskWidth > 0 ? 1 : 0) +
     (showsChevron ? 1 : 0) +
@@ -522,7 +528,10 @@ function measureLabelSlotWidth(label: string) {
     return 0
   }
 
-  return PROGRESS_TO_LABEL_GAP_PX + measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
+  return (
+    PROGRESS_TO_LABEL_GAP_PX +
+    measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
+  )
 }
 
 function attachLabel(path: TaskPathLayout, label: string): TaskPathLayout {
@@ -603,7 +612,11 @@ function getCountLabelCandidateTexts(count: number) {
   const suffix = "Labels"
   const candidates = [`${prefix} ${suffix}`]
 
-  for (let suffixLength = suffix.length - 1; suffixLength >= 1; suffixLength -= 1) {
+  for (
+    let suffixLength = suffix.length - 1;
+    suffixLength >= 1;
+    suffixLength -= 1
+  ) {
     candidates.push(`${prefix} ${suffix.slice(0, suffixLength)}`)
   }
 

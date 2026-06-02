@@ -14,7 +14,7 @@ import { insertTestCompetition } from "./testHelpers"
 import { seedDirectorUser } from "@/convex/testHelpers"
 
 const sponsorAuthModules = import.meta.glob<string[]>(
-  "../auth/component/sponsorAuth/**/!(*.*.*)*.*s",
+  "../auth/component/sponsorAuth/**/!(*.*.*)*.*s"
 )
 
 export type SponsorTestHarness = TestConvex<typeof schema>
@@ -27,13 +27,13 @@ export function createSponsorTestHarness(): SponsorTestHarness {
 
 export async function seedSponsorSession(
   t: SponsorTestHarness,
-  input?: { email?: string; name?: string; sessionToken?: string },
+  input?: { email?: string; name?: string; sessionToken?: string }
 ) {
   const email = input?.email ?? "sponsor@example.com"
   const name = input?.name ?? "Portal Sponsor"
   const sessionToken = input?.sessionToken ?? "sponsor-session-token"
   const ownerId = await t.run((ctx) =>
-    ctx.db.insert("users", { email: "owner@example.com" }),
+    ctx.db.insert("users", { email: "owner@example.com" })
   )
   const now = Date.now()
   const sponsorAuthUser = (await t.mutation(
@@ -49,7 +49,7 @@ export async function seedSponsorSession(
           updatedAt: now,
         },
       },
-    },
+    }
   )) as { _id: string }
   const sponsorId = await t.run((ctx) =>
     ctx.db.insert("sponsors", {
@@ -61,7 +61,7 @@ export async function seedSponsorSession(
       createdById: ownerId,
       updatedById: ownerId,
       updatedAt: now,
-    }),
+    })
   )
   await t.mutation(components.sponsorAuth.adapter.create, {
     input: {
@@ -75,11 +75,16 @@ export async function seedSponsorSession(
       },
     },
   })
-  return { sessionToken, sponsorId, sponsorAuthUserId: sponsorAuthUser._id, ownerId }
+  return {
+    sessionToken,
+    sponsorId,
+    sponsorAuthUserId: sponsorAuthUser._id,
+    ownerId,
+  }
 }
 
 export async function seedSponsorshipManager(
-  t: SponsorTestHarness,
+  t: SponsorTestHarness
 ): Promise<Id<"users">> {
   return t.run((ctx) => seedDirectorUser(ctx))
 }
@@ -88,7 +93,7 @@ export type AuctionState = "draft" | "scheduled" | "active" | "closed"
 
 export async function seedSponsorAuctionAccess(
   t: SponsorTestHarness,
-  input: { auctionState: AuctionState; sessionToken?: string },
+  input: { auctionState: AuctionState; sessionToken?: string }
 ) {
   const { sessionToken, sponsorId, ownerId } = await seedSponsorSession(t, {
     sessionToken: input.sessionToken,
@@ -100,7 +105,7 @@ export async function seedSponsorAuctionAccess(
       from: "2026-09-01",
       to: "2026-09-02",
       organisers: [ownerId],
-    }),
+    })
   )
   const auctionId = await t.run((ctx) =>
     ctx.db.insert("sponsorshipAuctions", {
@@ -127,7 +132,7 @@ export async function seedSponsorAuctionAccess(
       createdById: ownerId,
       updatedById: ownerId,
       updatedAt: now,
-    }),
+    })
   )
   await t.run((ctx) =>
     ctx.db.insert("sponsorshipAuctionInvites", {
@@ -135,7 +140,7 @@ export async function seedSponsorAuctionAccess(
       sponsorId,
       invitedById: ownerId,
       invitedAt: now,
-    }),
+    })
   )
   return { auctionId, sessionToken, sponsorId, competitionId }
 }

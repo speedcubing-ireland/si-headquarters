@@ -20,7 +20,10 @@ describe("competition mutations", () => {
     const { actorId, competitionId, competitionMemberId, delegateMemberId } =
       await t.run(async (ctx) => {
         const actorId = await insertTestUser(ctx, "Manager")
-        const competitionMemberId = await insertTestUser(ctx, "Competition Member")
+        const competitionMemberId = await insertTestUser(
+          ctx,
+          "Competition Member"
+        )
         const delegateMemberId = await insertTestUser(ctx, "Delegate Member")
         await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
         await addUserToTeam(ctx, competitionMemberId, TEAM_NAMES.COMPETITIONS)
@@ -58,7 +61,10 @@ describe("competition mutations", () => {
     const { actorId, competitionId, competitionMemberId, delegateMemberId } =
       await t.run(async (ctx) => {
         const actorId = await insertTestUser(ctx, "Manager")
-        const competitionMemberId = await insertTestUser(ctx, "Competition Member")
+        const competitionMemberId = await insertTestUser(
+          ctx,
+          "Competition Member"
+        )
         const delegateMemberId = await insertTestUser(ctx, "Delegate Member")
         await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
         await addUserToTeam(ctx, competitionMemberId, TEAM_NAMES.COMPETITIONS)
@@ -95,7 +101,10 @@ describe("competition mutations", () => {
     const t = convexTest(schema, modules)
     const { actorId, competitionId } = await t.run(async (ctx) => {
       const actorId = await insertTestUser(ctx, "Manager")
-      const competitionMemberId = await insertTestUser(ctx, "Competition Member")
+      const competitionMemberId = await insertTestUser(
+        ctx,
+        "Competition Member"
+      )
       const delegateMemberId = await insertTestUser(ctx, "Delegate Member")
       await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
       await addUserToTeam(ctx, competitionMemberId, TEAM_NAMES.COMPETITIONS)
@@ -195,45 +204,45 @@ describe("competition mutations", () => {
       firstStepId,
       secondStepId,
     } = await t.run(async (ctx) => {
-        const actorId = await insertTestUser(ctx, "Manager")
-        await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
-        const competitionId = await insertBlankCompetition(ctx)
-        const phaseId = await insertCompetitionPhase(
-          ctx,
-          competitionId,
-          "Launch",
-          "a"
-        )
-        const parentTaskId = await insertSeedTask(ctx, {
-          parent: { type: "phases", id: phaseId },
-          order: "a",
-          status: "backlog",
-        })
-        const flowSubtaskId = await insertSeedTask(ctx, {
-          parent: { type: "tasks", id: parentTaskId },
-          order: "a",
-          kind: "flow",
-          status: "backlog",
-        })
-        const firstStepId = await insertSeedTask(ctx, {
-          parent: { type: "tasks", id: flowSubtaskId },
-          order: "a",
-          status: "backlog",
-        })
-        const secondStepId = await insertSeedTask(ctx, {
-          parent: { type: "tasks", id: flowSubtaskId },
-          order: "b",
-          status: "backlog",
-        })
-        return {
-          actorId,
-          competitionId,
-          phaseId,
-          flowSubtaskId,
-          firstStepId,
-          secondStepId,
-        }
+      const actorId = await insertTestUser(ctx, "Manager")
+      await addUserToTeam(ctx, actorId, TEAM_NAMES.COMPETITIONS)
+      const competitionId = await insertBlankCompetition(ctx)
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Launch",
+        "a"
+      )
+      const parentTaskId = await insertSeedTask(ctx, {
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "backlog",
       })
+      const flowSubtaskId = await insertSeedTask(ctx, {
+        parent: { type: "tasks", id: parentTaskId },
+        order: "a",
+        kind: "flow",
+        status: "backlog",
+      })
+      const firstStepId = await insertSeedTask(ctx, {
+        parent: { type: "tasks", id: flowSubtaskId },
+        order: "a",
+        status: "backlog",
+      })
+      const secondStepId = await insertSeedTask(ctx, {
+        parent: { type: "tasks", id: flowSubtaskId },
+        order: "b",
+        status: "backlog",
+      })
+      return {
+        actorId,
+        competitionId,
+        phaseId,
+        flowSubtaskId,
+        firstStepId,
+        secondStepId,
+      }
+    })
     const actor = t.withIdentity({ subject: actorId })
 
     await actor.mutation(api.competitions.mutations.setCompPhase, {

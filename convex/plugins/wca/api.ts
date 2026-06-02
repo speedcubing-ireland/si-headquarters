@@ -17,7 +17,9 @@ export async function lookupWcaCompetition(
     }
   )
   if (!response.ok) {
-    throw new Error(`WCA competition lookup failed (HTTP ${String(response.status)}).`)
+    throw new Error(
+      `WCA competition lookup failed (HTTP ${String(response.status)}).`
+    )
   }
   const body = await readJsonObject(response)
   if (body === null) {

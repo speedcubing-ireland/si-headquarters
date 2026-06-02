@@ -17,9 +17,9 @@ function OtpSignInEmail(props: SponsorPortalOtpEmailProps) {
       ctaLabel={copy.ctaLabel}
       ctaUrl={props.portalUrl}
     >
-      <Section className="rounded-lg border border-brand-border px-4 py-4 text-center">
+      <Section className="border-brand-border rounded-lg border px-4 py-4 text-center">
         <Text
-          className="m-0 text-brand-foreground"
+          className="text-brand-foreground m-0"
           style={{
             fontFamily: "monospace",
             fontSize: "32px",
@@ -29,7 +29,7 @@ function OtpSignInEmail(props: SponsorPortalOtpEmailProps) {
         >
           {props.otp}
         </Text>
-        <Text className="m-0 mt-2 text-xs text-brand-muted">
+        <Text className="text-brand-muted m-0 mt-2 text-xs">
           Expires in {props.expiresInMinutes} minutes
         </Text>
       </Section>

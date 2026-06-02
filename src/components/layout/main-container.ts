@@ -14,7 +14,9 @@ export const MainContainerContext =
 export function useMainContainer() {
   const context = use(MainContainerContext)
   if (!context) {
-    throw new Error("useMainContainer must be used within MainContainerProvider")
+    throw new Error(
+      "useMainContainer must be used within MainContainerProvider"
+    )
   }
   return context
 }

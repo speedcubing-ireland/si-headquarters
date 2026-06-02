@@ -61,7 +61,8 @@ export const loadRunContext = internalQuery({
         required.resourceType,
         required.resourceKey
       )
-      resources[`${required.resourceType}:${required.resourceKey}`] = linked.data
+      resources[`${required.resourceType}:${required.resourceKey}`] =
+        linked.data
     }
 
     return {

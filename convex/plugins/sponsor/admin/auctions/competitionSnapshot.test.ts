@@ -49,8 +49,8 @@ describe("refreshCompetitionSnapshot authorization", () => {
         {
           auctionId,
           sessionToken,
-        },
-      ),
+        }
+      )
     ).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
     })
@@ -68,7 +68,7 @@ describe("refreshCompetitionSnapshot authorization", () => {
       {
         auctionId,
         sessionToken,
-      },
+      }
     )
 
     expect(result.status).toBe("missing_wca_link")
@@ -86,7 +86,7 @@ describe("refreshCompetitionSnapshot authorization", () => {
       .action(
         api.plugins.sponsor.admin.auctions.competitionSnapshot
           .refreshCompetitionSnapshot,
-        { auctionId },
+        { auctionId }
       )
 
     expect(result.status).toBe("missing_wca_link")

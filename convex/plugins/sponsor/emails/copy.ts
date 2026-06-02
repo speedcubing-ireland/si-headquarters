@@ -10,11 +10,7 @@ import {
   formatMoney,
   formatRecipientSubtitle,
 } from "./_design"
-import type {
-  EmailCopyContext,
-  EmailInfoRow,
-  EmailTemplateCopy,
-} from "./types"
+import type { EmailCopyContext, EmailInfoRow, EmailTemplateCopy } from "./types"
 
 export type { EmailCopyContext, EmailInfoRow, EmailTemplateCopy }
 export type { SponsorOtpAuthType, SponsorPortalOtpPurpose }
@@ -33,7 +29,7 @@ function competitionName(ctx: EmailCopyContext): string {
 }
 
 export function describeAuctionFramework(
-  framework: SponsorshipAuctionFramework,
+  framework: SponsorshipAuctionFramework
 ): string {
   switch (framework) {
     case "first_sealed":
@@ -56,7 +52,7 @@ function lifecycleScheduledCopy(ctx: EmailCopyContext): EmailTemplateCopy {
         : `Hi ${recipient}, bidding for ${name} sponsorship will open soon.`,
     ctx.startsAt !== undefined
       ? `Bidding for ${name} sponsorship will open on ${formatEmailDateTime(ctx.startsAt)}.`
-      : `Bidding for ${name} sponsorship will open soon.`,
+      : `Bidding for ${name} sponsorship will open soon.`
   )
 
   const infoRows: EmailInfoRow[] = [{ label: "Competition", value: name }]
@@ -115,7 +111,7 @@ function lifecycleActiveReminderCopy(ctx: EmailCopyContext): EmailTemplateCopy {
       ctx.recipientName,
       (recipient) =>
         `Hi ${recipient}, bidding for ${name} sponsorship closes in approximately 1 hour.`,
-      `Bidding for ${name} sponsorship closes in approximately 1 hour.`,
+      `Bidding for ${name} sponsorship closes in approximately 1 hour.`
     ),
     ctaLabel: "View in portal",
     infoRows: [
@@ -146,7 +142,7 @@ function lifecycleOutbidCopy(ctx: EmailCopyContext): EmailTemplateCopy {
       ctx.recipientName,
       (recipient) =>
         `Hi ${recipient}, you have been outbid in the sponsorship auction for ${name}.`,
-      `You have been outbid in the sponsorship auction for ${name}.`,
+      `You have been outbid in the sponsorship auction for ${name}.`
     ),
     ctaLabel: "Place a new bid",
     infoRows: [
@@ -179,7 +175,7 @@ function scheduleInfoRows(ctx: EmailCopyContext): EmailInfoRow[] {
 
 function outcomeCopy(
   type: SponsorshipOutcomeEmailType,
-  ctx: EmailCopyContext,
+  ctx: EmailCopyContext
 ): EmailTemplateCopy {
   const name = competitionName(ctx)
 
@@ -195,7 +191,7 @@ function outcomeCopy(
         subtitle: formatRecipientSubtitle(
           ctx.recipientName,
           (recipient) => `Hi ${recipient}, ${body}`,
-          body,
+          body
         ),
         ctaLabel: "Open auction",
         infoRows: [
@@ -230,7 +226,7 @@ function outcomeCopy(
         subtitle: formatRecipientSubtitle(
           ctx.recipientName,
           (recipient) => `Hi ${recipient}, ${body}`,
-          body,
+          body
         ),
         ctaLabel: "View result",
         infoRows,
@@ -248,7 +244,7 @@ function outcomeCopy(
         subtitle: formatRecipientSubtitle(
           ctx.recipientName,
           (recipient) => `Hi ${recipient}, ${body}`,
-          body,
+          body
         ),
         ctaLabel: "View outcome",
         infoRows: [
@@ -269,7 +265,7 @@ function outcomeCopy(
         subtitle: formatRecipientSubtitle(
           ctx.recipientName,
           (recipient) => `Hi ${recipient}, ${body}`,
-          body,
+          body
         ),
         ctaLabel: "View auction",
         infoRows: [
@@ -336,8 +332,7 @@ export const INVITE_GETTING_STARTED_STEPS = [
   "2) Sign in using the one-time email code we send you.",
 ] as const
 
-export const INVITE_PORTAL_URL_HINT =
-  "You can reuse this link for future bids."
+export const INVITE_PORTAL_URL_HINT = "You can reuse this link for future bids."
 
 export const INTERNAL_INVOICE_NEXT_STEPS = [
   "1) Confirm sponsorship status on the competition record.",
@@ -347,7 +342,7 @@ export const INTERNAL_INVOICE_NEXT_STEPS = [
 
 export function sponsorshipEmailSubject(
   type: SponsorshipEmailType,
-  ctx: EmailCopyContext,
+  ctx: EmailCopyContext
 ): string {
   const name = competitionName(ctx)
   switch (type) {
@@ -373,7 +368,7 @@ export function sponsorshipEmailSubject(
 
 export function sponsorshipEmailMessageFallback(
   type: SponsorshipEmailType,
-  ctx: EmailCopyContext,
+  ctx: EmailCopyContext
 ): string {
   switch (type) {
     case "invite":
@@ -403,7 +398,7 @@ export function sponsorshipEmailMessageFallback(
 
 export function sponsorshipEmailTemplateCopy(
   type: SponsorshipEmailType,
-  ctx: EmailCopyContext,
+  ctx: EmailCopyContext
 ): EmailTemplateCopy {
   switch (type) {
     case "invite":
@@ -426,7 +421,7 @@ export function sponsorshipEmailTemplateCopy(
 
 export function getSponsorshipEmailPayload(
   type: SponsorshipEmailType,
-  ctx: EmailCopyContext,
+  ctx: EmailCopyContext
 ): { subject: string; message: string } {
   return {
     subject: sponsorshipEmailSubject(type, ctx),
@@ -453,7 +448,7 @@ export function sponsorOtpAuthEmailSubject(type: SponsorOtpAuthType): string {
 }
 
 export function sponsorOtpPurposeFromAuthType(
-  type: SponsorOtpAuthType,
+  type: SponsorOtpAuthType
 ): SponsorPortalOtpPurpose {
   switch (type) {
     case "sign-in":

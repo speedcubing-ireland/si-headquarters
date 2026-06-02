@@ -37,9 +37,7 @@ const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
     { action: "manage", subject: "Competition" },
     { action: "read", subject: "User" },
   ],
-  [TEAM_NAMES.FINANCE]: [
-    { action: "access", subject: "SponsorPortalAdmin" },
-  ],
+  [TEAM_NAMES.FINANCE]: [{ action: "access", subject: "SponsorPortalAdmin" }],
 }
 
 const ALL_TEAM_NAMES: readonly string[] = Object.values(TEAM_NAMES)

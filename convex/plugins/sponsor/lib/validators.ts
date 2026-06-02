@@ -3,14 +3,14 @@ import { v, type Infer } from "convex/values"
 export const sponsorshipAuctionFramework = v.union(
   v.literal("first_sealed"),
   v.literal("vickrey"),
-  v.literal("ebay_proxy"),
+  v.literal("ebay_proxy")
 )
 
 export const auctionState = v.union(
   v.literal("draft"),
   v.literal("scheduled"),
   v.literal("active"),
-  v.literal("closed"),
+  v.literal("closed")
 )
 
 export const SPONSORSHIP_EMAIL_TYPES = [
@@ -26,7 +26,7 @@ export const SPONSORSHIP_EMAIL_TYPES = [
 ] as const
 
 export const sponsorshipEmailType = v.union(
-  ...SPONSORSHIP_EMAIL_TYPES.map((type) => v.literal(type)),
+  ...SPONSORSHIP_EMAIL_TYPES.map((type) => v.literal(type))
 )
 
 export type SponsorshipEmailType = Infer<typeof sponsorshipEmailType>
@@ -109,7 +109,7 @@ export const SPONSOR_PORTAL_OTP_PURPOSES = [
 ] as const
 
 export const sponsorPortalOtpPurpose = v.union(
-  ...SPONSOR_PORTAL_OTP_PURPOSES.map((purpose) => v.literal(purpose)),
+  ...SPONSOR_PORTAL_OTP_PURPOSES.map((purpose) => v.literal(purpose))
 )
 
 export type SponsorPortalOtpPurpose = Infer<typeof sponsorPortalOtpPurpose>
@@ -130,18 +130,20 @@ export const sponsorPortalOtpEmailProps = v.object({
   portalUrl: v.string(),
 })
 
-export type SponsorPortalOtpEmailProps = Infer<typeof sponsorPortalOtpEmailProps>
+export type SponsorPortalOtpEmailProps = Infer<
+  typeof sponsorPortalOtpEmailProps
+>
 
 export const sponsorshipBidIntentMode = v.union(
   v.literal("manual"),
-  v.literal("proxy"),
+  v.literal("proxy")
 )
 
 export const competitionSponsorPropertyStatus = v.union(
   v.literal("not_offered"),
   v.literal("bidding"),
   v.literal("none"),
-  v.literal("sponsor"),
+  v.literal("sponsor")
 )
 
 export const sponsorForUI = v.object({

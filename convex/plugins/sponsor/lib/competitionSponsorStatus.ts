@@ -48,7 +48,7 @@ export function resolveCompetitionSponsorPropertyStatus(input: {
     auctionStates: input.auctions.map((auction) => auction.state),
     hasClosedWinner: input.auctions.some(
       (auction) =>
-        auction.state === "closed" && auction.winnerSponsorId !== undefined,
+        auction.state === "closed" && auction.winnerSponsorId !== undefined
     ),
     manualSponsorId: input.competition.manualSponsorId,
     manualStatus: input.competition.manualSponsorPropertyStatus,
@@ -56,7 +56,7 @@ export function resolveCompetitionSponsorPropertyStatus(input: {
 }
 
 export function deriveCompetitionSponsorStatusFromAuctions(
-  auctions: AuctionSponsorFields[],
+  auctions: AuctionSponsorFields[]
 ): CompetitionSponsorPropertyStatus {
   return resolveCompetitionSponsorPropertyStatus({
     competition: {},
@@ -65,16 +65,16 @@ export function deriveCompetitionSponsorStatusFromAuctions(
 }
 
 export function findWinningClosedAuction(
-  auctions: Doc<"sponsorshipAuctions">[],
+  auctions: Doc<"sponsorshipAuctions">[]
 ): Doc<"sponsorshipAuctions"> | undefined {
   return auctions.find(
     (auction) =>
-      auction.state === "closed" && auction.winnerSponsorId !== undefined,
+      auction.state === "closed" && auction.winnerSponsorId !== undefined
   )
 }
 
 export function isCompetitionSponsorManualOverride(
-  competition: CompetitionSponsorFields,
+  competition: CompetitionSponsorFields
 ): boolean {
   return (
     competition.manualSponsorPropertyStatus !== undefined ||

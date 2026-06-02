@@ -41,7 +41,7 @@ function nonEmptyString(value: string | undefined): value is string {
 }
 
 function portalContext(
-  context: SponsorshipEmailContext | undefined,
+  context: SponsorshipEmailContext | undefined
 ): PortalContext | null {
   if (
     !context ||
@@ -58,7 +58,7 @@ function portalContext(
 }
 
 function portalContextWithEnd(
-  context: SponsorshipEmailContext | undefined,
+  context: SponsorshipEmailContext | undefined
 ): PortalContextWithEnd | null {
   const portal = portalContext(context)
   if (!portal || context?.endsAt === undefined) {
@@ -68,7 +68,7 @@ function portalContextWithEnd(
 }
 
 function invoiceContext(
-  context: SponsorshipEmailContext | undefined,
+  context: SponsorshipEmailContext | undefined
 ): InvoiceContext | null {
   if (
     !context ||
@@ -86,7 +86,7 @@ function invoiceContext(
 
 function lifecyclePortalContext(
   emailType: SponsorshipLifecycleEmailType,
-  context: SponsorshipEmailContext | undefined,
+  context: SponsorshipEmailContext | undefined
 ): PortalContext | PortalContextWithEnd | null {
   return emailType === "auction_scheduled"
     ? portalContext(context)
@@ -102,7 +102,7 @@ export function buildInviteProps(input: BuildEmailInput): InviteEmailProps {
 
 export function buildLifecycleProps(
   variant: SponsorshipLifecycleEmailType,
-  input: BuildEmailInput,
+  input: BuildEmailInput
 ): LifecycleEmailProps | null {
   const lifecyclePortal = lifecyclePortalContext(variant, input.context)
   if (!lifecyclePortal) return null
@@ -123,7 +123,7 @@ export function buildLifecycleProps(
 
 export function buildOutcomeProps(
   variant: SponsorshipOutcomeEmailType,
-  input: BuildEmailInput,
+  input: BuildEmailInput
 ): OutcomeEmailProps | null {
   const portal = portalContext(input.context)
   if (!portal) return null
@@ -140,7 +140,7 @@ export function buildOutcomeProps(
 }
 
 export function buildInternalInvoiceProps(
-  input: BuildEmailInput,
+  input: BuildEmailInput
 ): InternalInvoiceEmailProps | null {
   const invoice = invoiceContext(input.context)
   if (!invoice) return null

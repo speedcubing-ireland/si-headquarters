@@ -30,18 +30,18 @@ export function InternalInvoiceEmail(props: InternalInvoiceEmailProps) {
         {props.message !== undefined && props.message.length > 0 ? (
           <Section className="mt-3">
             <Hr className="border-brand-border" />
-            <Text className="m-0 mt-3 text-sm font-medium text-brand-foreground">
+            <Text className="text-brand-foreground m-0 mt-3 text-sm font-medium">
               {props.message}
             </Text>
           </Section>
         ) : null}
         {showNextSteps ? (
-          <Section className="mt-3 rounded-lg border border-brand-border px-4 py-3">
-            <Text className="m-0 text-xs text-brand-muted">Next steps</Text>
+          <Section className="border-brand-border mt-3 rounded-lg border px-4 py-3">
+            <Text className="text-brand-muted m-0 text-xs">Next steps</Text>
             {INTERNAL_INVOICE_NEXT_STEPS.map((step) => (
               <Text
                 key={step}
-                className="m-0 mt-1 text-sm leading-6 text-brand-foreground"
+                className="text-brand-foreground m-0 mt-1 text-sm leading-6"
               >
                 {step}
               </Text>

@@ -1,9 +1,6 @@
 import { query } from "@/convex/_generated/server"
 import { requireActiveUserId } from "@/convex/permissions/principal"
-import {
-  savedViewListItem,
-  viewEntity,
-} from "@/convex/views/validators"
+import { savedViewListItem, viewEntity } from "@/convex/views/validators"
 import { v } from "convex/values"
 
 export const listViews = query({

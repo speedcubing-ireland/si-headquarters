@@ -13,7 +13,9 @@ import { describe, expect, test } from "vitest"
 describe("competition update mutations", () => {
   test("rejects unauthenticated users from posting updates", async () => {
     const t = convexTest(schema, modules)
-    const competitionId = await t.run(async (ctx) => insertBlankCompetition(ctx))
+    const competitionId = await t.run(async (ctx) =>
+      insertBlankCompetition(ctx)
+    )
 
     await expect(
       t.mutation(api.competitions.updates.mutations.setForCompetition, {

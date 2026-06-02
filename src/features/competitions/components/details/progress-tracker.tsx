@@ -59,7 +59,10 @@ export function ProgressTracker({
             {phase.name}
           </Badge>
         ) : (
-          <Badge className="font-normal text-muted-foreground" variant="outline">
+          <Badge
+            className="font-normal text-muted-foreground"
+            variant="outline"
+          >
             No current phase
           </Badge>
         )}
@@ -75,9 +78,7 @@ export function ProgressTracker({
         }
         aria-valuemax={progress.total}
         aria-valuemin={0}
-        aria-valuenow={
-          progress.done + progress.inProgress + progress.blocked
-        }
+        aria-valuenow={progress.done + progress.inProgress + progress.blocked}
         className="h-2 w-full shrink-0 overflow-hidden rounded-full bg-muted"
         role="progressbar"
       >

@@ -26,7 +26,7 @@ export function formatLocalDate(date: Date): string {
 }
 
 export function competitionStartEnd(
-  competition: Pick<Doc<"competitions">, "compDates">,
+  competition: Pick<Doc<"competitions">, "compDates">
 ): { compStart: string; compEnd: string } {
   const compStart = competition.compDates.from ?? ""
   const compEnd = competition.compDates.to ?? competition.compDates.from ?? ""

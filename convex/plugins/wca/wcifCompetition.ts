@@ -89,15 +89,15 @@ export function parseCompetitionWcif(data: object): CompetitionWcif | null {
   const persons =
     personObjects === undefined
       ? undefined
-      : personObjects.filter(
-          (person): person is WcifPerson => isPlainObject(person),
+      : personObjects.filter((person): person is WcifPerson =>
+          isPlainObject(person)
         )
   return { id, events, schedule, persons }
 }
 
 export async function loadCompetitionWcif(
   client: WcaClient,
-  competitionId: string,
+  competitionId: string
 ): Promise<CompetitionWcif | null> {
   const response = await getCompetitionWcif({
     client,
@@ -112,7 +112,7 @@ export async function loadCompetitionWcif(
 export async function patchCompetitionWcif(
   accessToken: string,
   competitionId: string,
-  payload: Pick<CompetitionWcif, "id" | "events" | "schedule">,
+  payload: Pick<CompetitionWcif, "id" | "events" | "schedule">
 ): Promise<{ success: true } | { success: false; error: string }> {
   const response = await fetch(
     `${WCA_BASE_URL}/api/v0/competitions/${encodeURIComponent(competitionId)}/wcif`,
@@ -123,7 +123,7 @@ export async function patchCompetitionWcif(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
-    },
+    }
   )
   if (!response.ok) {
     const errorBody = await readJsonObject(response)

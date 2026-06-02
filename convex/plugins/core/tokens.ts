@@ -14,9 +14,12 @@ export const getValidServiceToken = internalAction({
   handler: async (ctx, args): Promise<string> => {
     const oauth = oauthPluginForService(args.service)
 
-    const stored = await ctx.runQuery(internal.plugins.core.tokensStore.loadToken, {
-      service: args.service,
-    })
+    const stored = await ctx.runQuery(
+      internal.plugins.core.tokensStore.loadToken,
+      {
+        service: args.service,
+      }
+    )
     if (stored === null) {
       throw new ConvexError({
         code: "PRECONDITION_FAILED",

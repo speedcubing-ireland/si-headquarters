@@ -43,7 +43,9 @@ export function AdminStats({ stats }: { stats: SponsorshipAdmin["stats"] }) {
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardDescription className="text-xs">Competition Load</CardDescription>
+          <CardDescription className="text-xs">
+            Competition Load
+          </CardDescription>
           <CardTitle className="text-2xl">{competitions.length}</CardTitle>
         </CardHeader>
       </Card>

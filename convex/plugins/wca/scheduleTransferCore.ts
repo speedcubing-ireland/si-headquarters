@@ -40,11 +40,9 @@ async function fetchGoogleSheetValues(args: {
   spreadsheetId: string
   range: string
 }): Promise<string[][]> {
-  const data = await readSheetRanges(
-    args.accessToken,
-    args.spreadsheetId,
-    [args.range]
-  )
+  const data = await readSheetRanges(args.accessToken, args.spreadsheetId, [
+    args.range,
+  ])
   return data[args.range] ?? []
 }
 
@@ -62,9 +60,7 @@ async function updateGoogleSheetValues(args: {
   range: string
   values: GoogleSheetCellValue[][]
 }): Promise<void> {
-  const normalized = args.values.map((row) =>
-    row.map((cell) => cell ?? "")
-  )
+  const normalized = args.values.map((row) => row.map((cell) => cell ?? ""))
   await writeSheetRange(
     args.accessToken,
     args.spreadsheetId,
@@ -73,681 +69,673 @@ async function updateGoogleSheetValues(args: {
   )
 }
 
-const SATURDAY_RANGE = "Schedule!AH6:AK";
-const SUNDAY_RANGE = "Schedule!AM6:AP";
-const PROGRESSION_RANGE = "Schedule!A2:F";
-const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U";
-const WCA_DATA_WRITE_RANGE = "WCA Data!A3";
-const DUBLIN_TIMEZONE = "Europe/Dublin";
-const IRELAND_TEMPLATE_COMPETITION_ID = "IrelandTemplate2100";
-const PERCENT_75_THRESHOLD_MIN = 72;
-const PERCENT_75_THRESHOLD_MAX = 78;
+const SATURDAY_RANGE = "Schedule!AH6:AK"
+const SUNDAY_RANGE = "Schedule!AM6:AP"
+const PROGRESSION_RANGE = "Schedule!A2:F"
+const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U"
+const WCA_DATA_WRITE_RANGE = "WCA Data!A3"
+const DUBLIN_TIMEZONE = "Europe/Dublin"
+const IRELAND_TEMPLATE_COMPETITION_ID = "IrelandTemplate2100"
+const PERCENT_75_THRESHOLD_MIN = 72
+const PERCENT_75_THRESHOLD_MAX = 78
 const CHECKIN_EVENT_COLUMNS = [
-	"333",
-	"222",
-	"444",
-	"555",
-	"666",
-	"777",
-	"333bf",
-	"333fm",
-	"clock",
-	"pyram",
-	"skewb",
-	"333mbf",
-] as const;
+  "333",
+  "222",
+  "444",
+  "555",
+  "666",
+  "777",
+  "333bf",
+  "333fm",
+  "clock",
+  "pyram",
+  "skewb",
+  "333mbf",
+] as const
 const REGION_DISPLAY_NAMES =
-	typeof Intl.DisplayNames === "function"
-		? new Intl.DisplayNames(["en"], { type: "region" })
-		: null;
+  typeof Intl.DisplayNames === "function"
+    ? new Intl.DisplayNames(["en"], { type: "region" })
+    : null
 
-export const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"]);
+export const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"])
 
 export const EVENT_NAME_TO_ID: Record<string, string> = {
-	"3x3": "333",
-	"2x2": "222",
-	"4x4": "444",
-	"5x5": "555",
-	"6x6": "666",
-	"7x7": "777",
-	"3x3 blindfolded": "333bf",
-	"3x3 fewest moves": "333fm",
-	"3x3 one-handed": "333oh",
-	clock: "clock",
-	megaminx: "minx",
-	pyraminx: "pyram",
-	skewb: "skewb",
-	"square-1": "sq1",
-	"4x4 blindfolded": "444bf",
-	"5x5 blindfolded": "555bf",
-	"3x3 multi-blind": "333mbf",
-};
+  "3x3": "333",
+  "2x2": "222",
+  "4x4": "444",
+  "5x5": "555",
+  "6x6": "666",
+  "7x7": "777",
+  "3x3 blindfolded": "333bf",
+  "3x3 fewest moves": "333fm",
+  "3x3 one-handed": "333oh",
+  clock: "clock",
+  megaminx: "minx",
+  pyraminx: "pyram",
+  skewb: "skewb",
+  "square-1": "sq1",
+  "4x4 blindfolded": "444bf",
+  "5x5 blindfolded": "555bf",
+  "3x3 multi-blind": "333mbf",
+}
 
 interface OtherActivityDef {
-	activityCode: string;
-	displayName: string;
+  activityCode: string
+  displayName: string
 }
 
 const OTHER_ACTIVITIES: Record<string, OtherActivityDef> = {
-	"intro to competing": {
-		activityCode: "other-tutorial",
-		displayName: "Tutorial for new competitors",
-	},
-	awards: {
-		activityCode: "other-awards",
-		displayName: "Awards",
-	},
-	"registration opens": {
-		activityCode: "other-checkin",
-		displayName: "Check-in",
-	},
-	lunch: {
-		activityCode: "other-lunch",
-		displayName: "Lunch",
-	},
-	"lunch (sat)": {
-		activityCode: "other-lunch",
-		displayName: "Lunch",
-	},
-	"lunch (sun)": {
-		activityCode: "other-lunch",
-		displayName: "Lunch",
-	},
-};
+  "intro to competing": {
+    activityCode: "other-tutorial",
+    displayName: "Tutorial for new competitors",
+  },
+  awards: {
+    activityCode: "other-awards",
+    displayName: "Awards",
+  },
+  "registration opens": {
+    activityCode: "other-checkin",
+    displayName: "Check-in",
+  },
+  lunch: {
+    activityCode: "other-lunch",
+    displayName: "Lunch",
+  },
+  "lunch (sat)": {
+    activityCode: "other-lunch",
+    displayName: "Lunch",
+  },
+  "lunch (sun)": {
+    activityCode: "other-lunch",
+    displayName: "Lunch",
+  },
+}
 
 const ROUND_FORMATS: Record<string, "1" | "2" | "3" | "5" | "a" | "m"> = {
-	"333fm-1": "3",
-	"333fm-2": "2",
-	"333fm-3": "m",
-	"333mbf-1": "3",
-	"333mbf-2": "2",
-	"333mbf-3": "3",
-	"333bf": "5",
-	"666": "m",
-	"777": "m",
-	"444bf": "3",
-	"555bf": "3",
-};
+  "333fm-1": "3",
+  "333fm-2": "2",
+  "333fm-3": "m",
+  "333mbf-1": "3",
+  "333mbf-2": "2",
+  "333mbf-3": "3",
+  "333bf": "5",
+  "666": "m",
+  "777": "m",
+  "444bf": "3",
+  "555bf": "3",
+}
 
 export function getRoundFormat(
-	eventId: string,
-	attemptCount: number,
+  eventId: string,
+  attemptCount: number
 ): "1" | "2" | "3" | "5" | "a" | "m" {
-	const key = `${eventId}-${String(attemptCount)}`;
-	if (key in ROUND_FORMATS) {
-		return ROUND_FORMATS[key];
-	}
-	if (eventId in ROUND_FORMATS) {
-		return ROUND_FORMATS[eventId];
-	}
-	return "a";
+  const key = `${eventId}-${String(attemptCount)}`
+  if (key in ROUND_FORMATS) {
+    return ROUND_FORMATS[key]
+  }
+  if (eventId in ROUND_FORMATS) {
+    return ROUND_FORMATS[eventId]
+  }
+  return "a"
 }
 
 function defaultTimeLimit(eventId: string) {
-	if (eventId === "333fm" || eventId === "333mbf") return undefined;
-	return { centiseconds: 60000, cumulativeRoundIds: [] };
+  if (eventId === "333fm" || eventId === "333mbf") return undefined
+  return { centiseconds: 60000, cumulativeRoundIds: [] }
 }
 
 function normalize(name: string) {
-	return name.trim().toLowerCase();
+  return name.trim().toLowerCase()
 }
 
 function getActivityCode(name: string, round: number): string {
-	const normalized = normalize(name);
+  const normalized = normalize(name)
 
-	if (normalized in EVENT_NAME_TO_ID) {
-		return `${EVENT_NAME_TO_ID[normalized]}-r${String(round)}`;
-	}
+  if (normalized in EVENT_NAME_TO_ID) {
+    return `${EVENT_NAME_TO_ID[normalized]}-r${String(round)}`
+  }
 
-	if (normalized in OTHER_ACTIVITIES) {
-		return OTHER_ACTIVITIES[normalized].activityCode;
-	}
+  if (normalized in OTHER_ACTIVITIES) {
+    return OTHER_ACTIVITIES[normalized].activityCode
+  }
 
-	throw new Error(
-		`Unknown activity: "${name}". Must be a valid event or one of: Intro to competing, Awards, Registration Opens, Lunch`,
-	);
+  throw new Error(
+    `Unknown activity: "${name}". Must be a valid event or one of: Intro to competing, Awards, Registration Opens, Lunch`
+  )
 }
 
 function getActivityDisplayName(name: string): string {
-	const normalized = normalize(name);
+  const normalized = normalize(name)
 
-	if (normalized in OTHER_ACTIVITIES) {
-		return OTHER_ACTIVITIES[normalized].displayName;
-	}
+  if (normalized in OTHER_ACTIVITIES) {
+    return OTHER_ACTIVITIES[normalized].displayName
+  }
 
-	return name;
+  return name
 }
 
 function isEvent(name: string): boolean {
-	return normalize(name) in EVENT_NAME_TO_ID;
+  return normalize(name) in EVENT_NAME_TO_ID
 }
 
 interface SheetRow {
-	time: string;
-	length: string;
-	event: string;
-	round: string;
+  time: string
+  length: string
+  event: string
+  round: string
 }
 
 interface ProgressionRow {
-	eventId: string;
-	roundCount: number;
-	progressions: (number | null)[];
+  eventId: string
+  roundCount: number
+  progressions: (number | null)[]
 }
 
 function parseDuration(length: string): number {
-	const [hours = 0, minutes = 0] = length.split(":").map(Number);
-	return (
-		(Number.isFinite(hours) ? hours : 0) * 60 +
-		(Number.isFinite(minutes) ? minutes : 0)
-	);
+  const [hours = 0, minutes = 0] = length.split(":").map(Number)
+  return (
+    (Number.isFinite(hours) ? hours : 0) * 60 +
+    (Number.isFinite(minutes) ? minutes : 0)
+  )
 }
 
 function parseSheetRows(rows: string[][]): SheetRow[] {
-	return rows
-		.map((row) => ({
-			time: (row[0] ?? "").trim(),
-			length: (row[1] ?? "").trim(),
-			event: (row[2] ?? "").trim(),
-			round: (row[3] ?? "").trim(),
-		}))
-		.filter((r) => r.time && r.event);
+  return rows
+    .map((row) => ({
+      time: (row[0] ?? "").trim(),
+      length: (row[1] ?? "").trim(),
+      event: (row[2] ?? "").trim(),
+      round: (row[3] ?? "").trim(),
+    }))
+    .filter((r) => r.time && r.event)
 }
 
 function parseProgressionRows(rows: string[][]): ProgressionRow[] {
-	return rows
-		.map((row) => {
-			const eventName = (row[0] ?? "").trim();
-			const eventId = EVENT_NAME_TO_ID[normalize(eventName)];
-			if (!eventId) return null;
+  return rows
+    .map((row) => {
+      const eventName = (row[0] ?? "").trim()
+      const eventId = EVENT_NAME_TO_ID[normalize(eventName)]
+      if (!eventId) return null
 
-			const roundCount = Number.parseInt((row[1] ?? "").trim(), 10) || 0;
-			const progressions: (number | null)[] = [];
+      const roundCount = Number.parseInt((row[1] ?? "").trim(), 10) || 0
+      const progressions: (number | null)[] = []
 
-			for (let i = 2; i < 6; i++) {
-				const val = (row[i] ?? "").trim();
-				if (val === "") {
-					progressions.push(null);
-				} else {
-					const num = Number.parseFloat(val);
-					progressions.push(Number.isFinite(num) ? num : null);
-				}
-			}
+      for (let i = 2; i < 6; i++) {
+        const val = (row[i] ?? "").trim()
+        if (val === "") {
+          progressions.push(null)
+        } else {
+          const num = Number.parseFloat(val)
+          progressions.push(Number.isFinite(num) ? num : null)
+        }
+      }
 
-			return { eventId, roundCount, progressions };
-		})
-		.filter((r): r is ProgressionRow => r !== null);
+      return { eventId, roundCount, progressions }
+    })
+    .filter((r): r is ProgressionRow => r !== null)
 }
 
 function buildAdvancementCondition(
-	previousRoundSize: number,
-	progressionValue: number | null,
+  previousRoundSize: number,
+  progressionValue: number | null
 ): WcifAdvancementCondition | undefined {
-	if (progressionValue === null || previousRoundSize <= 0) return undefined;
+  if (progressionValue === null || previousRoundSize <= 0) return undefined
 
-	const percentValue = (progressionValue / previousRoundSize) * 100;
-	const isApprox75 =
-		percentValue >= PERCENT_75_THRESHOLD_MIN &&
-		percentValue <= PERCENT_75_THRESHOLD_MAX;
+  const percentValue = (progressionValue / previousRoundSize) * 100
+  const isApprox75 =
+    percentValue >= PERCENT_75_THRESHOLD_MIN &&
+    percentValue <= PERCENT_75_THRESHOLD_MAX
 
-	if (isApprox75) {
-		return { type: "percent", level: 75 };
-	}
-	return { type: "ranking", level: Math.round(progressionValue) };
+  if (isApprox75) {
+    return { type: "percent", level: 75 }
+  }
+  return { type: "ranking", level: Math.round(progressionValue) }
 }
 
 async function fetchScheduleFromSheets(
-	spreadsheetId: string,
-	accessToken: string,
+  spreadsheetId: string,
+  accessToken: string
 ): Promise<{ saturday: SheetRow[]; sunday: SheetRow[] }> {
-	const [saturdayRows, sundayRows] = await Promise.all([
-		fetchGoogleSheetValues({
-			accessToken,
-			spreadsheetId,
-			range: SATURDAY_RANGE,
-		}),
-		fetchGoogleSheetValues({
-			accessToken,
-			spreadsheetId,
-			range: SUNDAY_RANGE,
-		}),
-	]);
+  const [saturdayRows, sundayRows] = await Promise.all([
+    fetchGoogleSheetValues({
+      accessToken,
+      spreadsheetId,
+      range: SATURDAY_RANGE,
+    }),
+    fetchGoogleSheetValues({
+      accessToken,
+      spreadsheetId,
+      range: SUNDAY_RANGE,
+    }),
+  ])
 
-	return {
-		saturday: parseSheetRows(saturdayRows),
-		sunday: parseSheetRows(sundayRows),
-	};
+  return {
+    saturday: parseSheetRows(saturdayRows),
+    sunday: parseSheetRows(sundayRows),
+  }
 }
 
 async function fetchProgressionFromSheets(
-	spreadsheetId: string,
-	accessToken: string,
+  spreadsheetId: string,
+  accessToken: string
 ): Promise<ProgressionRow[]> {
-	const rows = await fetchGoogleSheetValues({
-		accessToken,
-		spreadsheetId,
-		range: PROGRESSION_RANGE,
-	});
-	return parseProgressionRows(rows);
+  const rows = await fetchGoogleSheetValues({
+    accessToken,
+    spreadsheetId,
+    range: PROGRESSION_RANGE,
+  })
+  return parseProgressionRows(rows)
 }
 
 function firstNameFromFullName(name: string): string {
-	const [firstName = ""] = name.trim().split(/\s+/);
-	return firstName;
+  const [firstName = ""] = name.trim().split(/\s+/)
+  return firstName
 }
 
 function buildWcifPersonLookup(persons: WcifPerson[] | undefined) {
-	const byUserId = new Map<number, WcifPerson>();
-	const byRegistrantId = new Map<number, WcifPerson>();
+  const byUserId = new Map<number, WcifPerson>()
+  const byRegistrantId = new Map<number, WcifPerson>()
 
-	for (const person of persons ?? []) {
-		if (person.wcaUserId) {
-			byUserId.set(person.wcaUserId, person);
-		}
-		if (person.registrantId) {
-			byRegistrantId.set(person.registrantId, person);
-		}
-	}
+  for (const person of persons ?? []) {
+    if (person.wcaUserId) {
+      byUserId.set(person.wcaUserId, person)
+    }
+    if (person.registrantId) {
+      byRegistrantId.set(person.registrantId, person)
+    }
+  }
 
-	return { byUserId, byRegistrantId };
+  return { byUserId, byRegistrantId }
 }
 
 function resolvePersonForRegistration(
-	registration: RegistrationDataV2,
-	lookup: ReturnType<typeof buildWcifPersonLookup>,
+  registration: RegistrationDataV2,
+  lookup: ReturnType<typeof buildWcifPersonLookup>
 ): WcifPerson | undefined {
-	return (
-		lookup.byUserId.get(registration.user_id) ??
-		lookup.byRegistrantId.get(registration.registrant_id)
-	);
+  return (
+    lookup.byUserId.get(registration.user_id) ??
+    lookup.byRegistrantId.get(registration.registrant_id)
+  )
 }
 
 function countryIso2ToName(countryIso2: string): string {
-	const normalized = countryIso2.trim().toUpperCase();
-	if (!normalized) return "";
-	if (!REGION_DISPLAY_NAMES) return normalized;
-	return REGION_DISPLAY_NAMES.of(normalized) ?? normalized;
+  const normalized = countryIso2.trim().toUpperCase()
+  if (!normalized) return ""
+  if (!REGION_DISPLAY_NAMES) return normalized
+  return REGION_DISPLAY_NAMES.of(normalized) ?? normalized
 }
 function blankToNull(value: string | null | undefined): string | null {
-	const normalized = (value ?? "").trim();
-	return normalized ? normalized : null;
+  const normalized = (value ?? "").trim()
+  return normalized ? normalized : null
 }
 
 export function buildCheckinSheetRows(
-	registrations: RegistrationDataV2[],
-	wcifPersons: WcifPerson[] | undefined,
+  registrations: RegistrationDataV2[],
+  wcifPersons: WcifPerson[] | undefined
 ): GoogleSheetCellValue[][] {
-	const collator = new Intl.Collator(undefined, { sensitivity: "base" });
-	const personLookup = buildWcifPersonLookup(wcifPersons);
+  const collator = new Intl.Collator(undefined, { sensitivity: "base" })
+  const personLookup = buildWcifPersonLookup(wcifPersons)
 
-	const rows = registrations
-		.filter(isAcceptedRegistration)
-		.map((registration) => {
-			const registrationStatus = getRegistrationStatus(registration);
-			const name = registration.user.name.trim();
-			const firstName = firstNameFromFullName(name);
-			const eventIds = new Set(registration.competing.event_ids);
-			const person = resolvePersonForRegistration(registration, personLookup);
+  const rows = registrations
+    .filter(isAcceptedRegistration)
+    .map((registration) => {
+      const registrationStatus = getRegistrationStatus(registration)
+      const name = registration.user.name.trim()
+      const firstName = firstNameFromFullName(name)
+      const eventIds = new Set(registration.competing.event_ids)
+      const person = resolvePersonForRegistration(registration, personLookup)
 
-			return {
-				firstName,
-				name,
-				sortKey: `${firstName} ${name}`.trim(),
-				registrantId: registration.registrant_id,
-				row: [
-					blankToNull(registrationStatus),
-					blankToNull(name),
-					blankToNull(
-						countryIso2ToName(registration.user.country_iso2.trim()),
-					),
-					blankToNull(registration.user.wca_id),
-					blankToNull(person?.birthdate),
-					blankToNull(registration.user.gender),
-					...CHECKIN_EVENT_COLUMNS.map((eventId) =>
-						eventIds.has(eventId) ? ("1" as const) : null,
-					),
-					blankToNull(person?.email),
-					typeof registration.guests === "number"
-						? String(registration.guests)
-						: null,
-					null,
-				],
-			};
-		});
+      return {
+        firstName,
+        name,
+        sortKey: `${firstName} ${name}`.trim(),
+        registrantId: registration.registrant_id,
+        row: [
+          blankToNull(registrationStatus),
+          blankToNull(name),
+          blankToNull(countryIso2ToName(registration.user.country_iso2.trim())),
+          blankToNull(registration.user.wca_id),
+          blankToNull(person?.birthdate),
+          blankToNull(registration.user.gender),
+          ...CHECKIN_EVENT_COLUMNS.map((eventId) =>
+            eventIds.has(eventId) ? ("1" as const) : null
+          ),
+          blankToNull(person?.email),
+          typeof registration.guests === "number"
+            ? String(registration.guests)
+            : null,
+          null,
+        ],
+      }
+    })
 
-	rows.sort((a, b) => {
-		const firstNameCmp = collator.compare(a.firstName, b.firstName);
-		if (firstNameCmp !== 0) return firstNameCmp;
-		const nameCmp = collator.compare(a.name, b.name);
-		if (nameCmp !== 0) return nameCmp;
-		const sortKeyCmp = collator.compare(a.sortKey, b.sortKey);
-		if (sortKeyCmp !== 0) return sortKeyCmp;
-		return a.registrantId - b.registrantId;
-	});
+  rows.sort((a, b) => {
+    const firstNameCmp = collator.compare(a.firstName, b.firstName)
+    if (firstNameCmp !== 0) return firstNameCmp
+    const nameCmp = collator.compare(a.name, b.name)
+    if (nameCmp !== 0) return nameCmp
+    const sortKeyCmp = collator.compare(a.sortKey, b.sortKey)
+    if (sortKeyCmp !== 0) return sortKeyCmp
+    return a.registrantId - b.registrantId
+  })
 
-	return rows.map((entry) => entry.row);
+  return rows.map((entry) => entry.row)
 }
 
 function formatDublinTime(
-	dateStr: string,
-	hours: number,
-	minutes: number,
+  dateStr: string,
+  hours: number,
+  minutes: number
 ): string {
-	const dublinTimeStr = `${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
-	return fromZonedTime(dublinTimeStr, DUBLIN_TIMEZONE).toISOString();
+  const dublinTimeStr = `${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`
+  return fromZonedTime(dublinTimeStr, DUBLIN_TIMEZONE).toISOString()
 }
 
 function getNextDay(dateStr: string): string {
-	const date = new Date(dateStr);
-	date.setDate(date.getDate() + 1);
-	return date.toISOString().split("T")[0];
+  const date = new Date(dateStr)
+  date.setDate(date.getDate() + 1)
+  return date.toISOString().split("T")[0]
 }
 
 function buildActivity(row: SheetRow, dateStr: string, id: number): Activity {
-	const [hours, minutes] = row.time.split(":").map(Number);
-	const durationMin = parseDuration(row.length);
+  const [hours, minutes] = row.time.split(":").map(Number)
+  const durationMin = parseDuration(row.length)
 
-	const startDate = new Date(`${dateStr}T00:00:00`);
-	startDate.setHours(hours, minutes, 0, 0);
-	const endDate = new Date(startDate.getTime() + durationMin * 60_000);
+  const startDate = new Date(`${dateStr}T00:00:00`)
+  startDate.setHours(hours, minutes, 0, 0)
+  const endDate = new Date(startDate.getTime() + durationMin * 60_000)
 
-	const roundNum = Number.parseInt(row.round, 10) || 1;
-	const activityCode = getActivityCode(row.event, roundNum);
-	const isEventActivity = isEvent(row.event);
-	const name = isEventActivity
-		? `${row.event}, Round ${String(roundNum)}`
-		: getActivityDisplayName(row.event);
+  const roundNum = Number.parseInt(row.round, 10) || 1
+  const activityCode = getActivityCode(row.event, roundNum)
+  const isEventActivity = isEvent(row.event)
+  const name = isEventActivity
+    ? `${row.event}, Round ${String(roundNum)}`
+    : getActivityDisplayName(row.event)
 
-	return {
-		id,
-		name,
-		activityCode,
-		startTime: formatDublinTime(dateStr, hours, minutes),
-		endTime: formatDublinTime(
-			dateStr,
-			endDate.getHours(),
-			endDate.getMinutes(),
-		),
-		childActivities: [],
-		scrambleSetId: undefined,
-		extensions: [],
-	};
+  return {
+    id,
+    name,
+    activityCode,
+    startTime: formatDublinTime(dateStr, hours, minutes),
+    endTime: formatDublinTime(
+      dateStr,
+      endDate.getHours(),
+      endDate.getMinutes()
+    ),
+    childActivities: [],
+    scrambleSetId: undefined,
+    extensions: [],
+  }
 }
 
 function buildDayActivities(
-	rows: SheetRow[],
-	dateStr: string,
-	startId: number,
+  rows: SheetRow[],
+  dateStr: string,
+  startId: number
 ): { activities: Activity[]; nextId: number } {
-	const activities: Activity[] = [];
-	let id = startId;
+  const activities: Activity[] = []
+  let id = startId
 
-	for (const row of rows) {
-		const durationMin = parseDuration(row.length);
-		if (durationMin <= 0) continue;
+  for (const row of rows) {
+    const durationMin = parseDuration(row.length)
+    if (durationMin <= 0) continue
 
-		activities.push(buildActivity(row, dateStr, id++));
-	}
+    activities.push(buildActivity(row, dateStr, id++))
+  }
 
-	return { activities, nextId: id };
+  return { activities, nextId: id }
 }
 
 async function fetchIrelandTemplate(
-	client: WcaApiClient,
+  client: WcaApiClient
 ): Promise<Map<string, Round>> {
-	const wcif = await loadCompetitionWcif(
-		client,
-		IRELAND_TEMPLATE_COMPETITION_ID,
-	);
-	if (!wcif) return new Map();
-	return new Map(
-		wcif.events.flatMap((event) =>
-			event.rounds.map((round) => [round.id, round] as const),
-		),
-	);
+  const wcif = await loadCompetitionWcif(
+    client,
+    IRELAND_TEMPLATE_COMPETITION_ID
+  )
+  if (!wcif) return new Map()
+  return new Map(
+    wcif.events.flatMap((event) =>
+      event.rounds.map((round) => [round.id, round] as const)
+    )
+  )
 }
 
 async function fetchCompetitionVenueInfo(
-	client: WcaApiClient,
-	competitionId: string,
+  client: WcaApiClient,
+  competitionId: string
 ): Promise<{
-	name: string;
-	detail: string;
-	lat: number;
-	lng: number;
-	country: string;
+  name: string
+  detail: string
+  lat: number
+  lng: number
+  country: string
 } | null> {
-	const r = await competitionById({
-		client,
-		path: { competitionId },
-	});
-	if (r.data === undefined) {
-		return null;
-	}
-	const info = r.data;
-	return {
-		name: info.venue,
-		detail: info.venue_details ?? "Main Stage",
-		lat: info.latitude_degrees,
-		lng: info.longitude_degrees,
-		country: info.country_iso2,
-	};
+  const r = await competitionById({
+    client,
+    path: { competitionId },
+  })
+  if (r.data === undefined) {
+    return null
+  }
+  const info = r.data
+  return {
+    name: info.venue,
+    detail: info.venue_details ?? "Main Stage",
+    lat: info.latitude_degrees,
+    lng: info.longitude_degrees,
+    country: info.country_iso2,
+  }
 }
 
 function buildCompetitionActivities(
-	scheduleData: { saturday: SheetRow[]; sunday: SheetRow[] },
-	startDate: string,
-	numberOfDays: number,
+  scheduleData: { saturday: SheetRow[]; sunday: SheetRow[] },
+  startDate: string,
+  numberOfDays: number
 ): Activity[] {
-	const daySchedules: { rows: SheetRow[]; date: string }[] = [
-		{ rows: scheduleData.saturday, date: startDate },
-	];
-	if (numberOfDays > 1) {
-		daySchedules.push({
-			rows: scheduleData.sunday,
-			date: getNextDay(startDate),
-		});
-	}
+  const daySchedules: { rows: SheetRow[]; date: string }[] = [
+    { rows: scheduleData.saturday, date: startDate },
+  ]
+  if (numberOfDays > 1) {
+    daySchedules.push({
+      rows: scheduleData.sunday,
+      date: getNextDay(startDate),
+    })
+  }
 
-	let nextId = 1;
-	const allActivities: Activity[] = [];
-	for (const daySchedule of daySchedules) {
-		const built = buildDayActivities(
-			daySchedule.rows,
-			daySchedule.date,
-			nextId,
-		);
-		allActivities.push(...built.activities);
-		nextId = built.nextId;
-	}
-	return allActivities;
+  let nextId = 1
+  const allActivities: Activity[] = []
+  for (const daySchedule of daySchedules) {
+    const built = buildDayActivities(daySchedule.rows, daySchedule.date, nextId)
+    allActivities.push(...built.activities)
+    nextId = built.nextId
+  }
+  return allActivities
 }
 
 function extractEventRounds(activities: Activity[]): Map<string, Set<number>> {
-	const rounds = new Map<string, Set<number>>();
+  const rounds = new Map<string, Set<number>>()
 
-	const eventRoundPattern = /^([a-z0-9]+)-r(\d+)$/;
-	for (const activity of activities) {
-		const match = eventRoundPattern.exec(activity.activityCode);
-		if (match === null) continue;
+  const eventRoundPattern = /^([a-z0-9]+)-r(\d+)$/
+  for (const activity of activities) {
+    const match = eventRoundPattern.exec(activity.activityCode)
+    if (match === null) continue
 
-		const eventId = match[1];
-		const roundStr = match[2];
+    const eventId = match[1]
+    const roundStr = match[2]
 
-		if (!rounds.has(eventId)) rounds.set(eventId, new Set());
-		rounds.get(eventId)?.add(Number(roundStr));
-	}
+    if (!rounds.has(eventId)) rounds.set(eventId, new Set())
+    rounds.get(eventId)?.add(Number(roundStr))
+  }
 
-	return rounds;
+  return rounds
 }
 
 function countMultiAttempts(activities: Activity[]): Map<string, number> {
-	const counts = new Map<string, number>();
+  const counts = new Map<string, number>()
 
-	const multiAttemptPattern = /^([a-z0-9]+)-r/;
-	for (const activity of activities) {
-		const match = multiAttemptPattern.exec(activity.activityCode);
-		if (match === null) continue;
+  const multiAttemptPattern = /^([a-z0-9]+)-r/
+  for (const activity of activities) {
+    const match = multiAttemptPattern.exec(activity.activityCode)
+    if (match === null) continue
 
-		const eventId = match[1];
-		if (!MULTI_ATTEMPT_EVENTS.has(eventId)) {
-			continue;
-		}
+    const eventId = match[1]
+    if (!MULTI_ATTEMPT_EVENTS.has(eventId)) {
+      continue
+    }
 
-		const previous = counts.get(eventId) ?? 0;
-		counts.set(eventId, previous + 1);
-	}
+    const previous = counts.get(eventId) ?? 0
+    counts.set(eventId, previous + 1)
+  }
 
-	return counts;
+  return counts
 }
 
 function createRound(
-	roundId: string,
-	eventId: string,
-	isMultiAttempt: boolean,
-	attemptCount: number,
-	existingRound: Round | undefined,
-	templateRound: Round | undefined,
-	progressionCondition: WcifAdvancementCondition | undefined,
-	overwriteEvents: boolean,
+  roundId: string,
+  eventId: string,
+  isMultiAttempt: boolean,
+  attemptCount: number,
+  existingRound: Round | undefined,
+  templateRound: Round | undefined,
+  progressionCondition: WcifAdvancementCondition | undefined,
+  overwriteEvents: boolean
 ): Round {
-	if (existingRound && !overwriteEvents) return existingRound;
+  if (existingRound && !overwriteEvents) return existingRound
 
-	if (templateRound) {
-		return {
-			id: roundId,
-			format: templateRound.format,
-			timeLimit: templateRound.timeLimit,
-			cutoff: templateRound.cutoff,
-			advancementCondition:
-				progressionCondition ?? templateRound.advancementCondition,
-			results: [],
-			scrambleSetCount: templateRound.scrambleSetCount,
-			scrambleSets: templateRound.scrambleSets,
-			extensions: [],
-		};
-	}
+  if (templateRound) {
+    return {
+      id: roundId,
+      format: templateRound.format,
+      timeLimit: templateRound.timeLimit,
+      cutoff: templateRound.cutoff,
+      advancementCondition:
+        progressionCondition ?? templateRound.advancementCondition,
+      results: [],
+      scrambleSetCount: templateRound.scrambleSetCount,
+      scrambleSets: templateRound.scrambleSets,
+      extensions: [],
+    }
+  }
 
-	const format = getRoundFormat(eventId, isMultiAttempt ? attemptCount : 1);
-	const timeLimit: WcifTimeLimit | undefined = defaultTimeLimit(eventId);
+  const format = getRoundFormat(eventId, isMultiAttempt ? attemptCount : 1)
+  const timeLimit: WcifTimeLimit | undefined = defaultTimeLimit(eventId)
 
-	return {
-		id: roundId,
-		format,
-		timeLimit,
-		cutoff: undefined,
-		advancementCondition: progressionCondition,
-		results: [],
-		scrambleSetCount: 1,
-		scrambleSets: [],
-		extensions: [],
-	};
+  return {
+    id: roundId,
+    format,
+    timeLimit,
+    cutoff: undefined,
+    advancementCondition: progressionCondition,
+    results: [],
+    scrambleSetCount: 1,
+    scrambleSets: [],
+    extensions: [],
+  }
 }
 
 function buildEvents(
-	activities: Activity[],
-	existingEvents: Event[],
-	templateRounds: Map<string, Round>,
-	progressionRows: ProgressionRow[],
-	overwriteEvents: boolean,
+  activities: Activity[],
+  existingEvents: Event[],
+  templateRounds: Map<string, Round>,
+  progressionRows: ProgressionRow[],
+  overwriteEvents: boolean
 ): Event[] {
-	const roundsMap = extractEventRounds(activities);
-	const attemptCounts = countMultiAttempts(activities);
-	const existingEventsMap = new Map<string, Event>(
-		existingEvents.map((e) => [e.id, e]),
-	);
-	const progressionMap = new Map<string, ProgressionRow>(
-		progressionRows.map((r) => [r.eventId, r]),
-	);
+  const roundsMap = extractEventRounds(activities)
+  const attemptCounts = countMultiAttempts(activities)
+  const existingEventsMap = new Map<string, Event>(
+    existingEvents.map((e) => [e.id, e])
+  )
+  const progressionMap = new Map<string, ProgressionRow>(
+    progressionRows.map((r) => [r.eventId, r])
+  )
 
-	const events: Event[] = [];
+  const events: Event[] = []
 
-	for (const [eventId, roundNums] of roundsMap) {
-		const existingEvent = existingEventsMap.get(eventId);
-		const sortedRounds = [...roundNums].sort((a, b) => a - b);
-		const isMultiAttempt = MULTI_ATTEMPT_EVENTS.has(eventId);
-		const attemptCount =
-			attemptCounts.get(eventId) ?? sortedRounds.length;
-		const progressionRow = progressionMap.get(eventId);
+  for (const [eventId, roundNums] of roundsMap) {
+    const existingEvent = existingEventsMap.get(eventId)
+    const sortedRounds = [...roundNums].sort((a, b) => a - b)
+    const isMultiAttempt = MULTI_ATTEMPT_EVENTS.has(eventId)
+    const attemptCount = attemptCounts.get(eventId) ?? sortedRounds.length
+    const progressionRow = progressionMap.get(eventId)
 
-		const rounds: Round[] = sortedRounds.map((roundNum, idx) => {
-			const roundId = `${eventId}-r${String(roundNum)}`;
-			const existingRound = existingEvent?.rounds.find((r) => r.id === roundId);
-			const templateRound = templateRounds.get(roundId);
+    const rounds: Round[] = sortedRounds.map((roundNum, idx) => {
+      const roundId = `${eventId}-r${String(roundNum)}`
+      const existingRound = existingEvent?.rounds.find((r) => r.id === roundId)
+      const templateRound = templateRounds.get(roundId)
 
-			let progressionCondition: WcifAdvancementCondition | undefined;
-			if (progressionRow && idx + 1 < progressionRow.progressions.length) {
-				const previousSize = progressionRow.progressions[idx];
-				const progressionValue = progressionRow.progressions[idx + 1];
-				if (previousSize !== null && previousSize > 0) {
-					progressionCondition = buildAdvancementCondition(
-						previousSize,
-						progressionValue,
-					);
-				}
-			}
+      let progressionCondition: WcifAdvancementCondition | undefined
+      if (progressionRow && idx + 1 < progressionRow.progressions.length) {
+        const previousSize = progressionRow.progressions[idx]
+        const progressionValue = progressionRow.progressions[idx + 1]
+        if (previousSize !== null && previousSize > 0) {
+          progressionCondition = buildAdvancementCondition(
+            previousSize,
+            progressionValue
+          )
+        }
+      }
 
-			return createRound(
-				roundId,
-				eventId,
-				isMultiAttempt,
-				attemptCount,
-				existingRound,
-				templateRound,
-				progressionCondition,
-				overwriteEvents,
-			);
-		});
+      return createRound(
+        roundId,
+        eventId,
+        isMultiAttempt,
+        attemptCount,
+        existingRound,
+        templateRound,
+        progressionCondition,
+        overwriteEvents
+      )
+    })
 
-		events.push({
-			id: eventId,
-			rounds,
-			extensions: existingEvent?.extensions ?? [],
-			competitorLimit: existingEvent?.competitorLimit,
-			qualification: existingEvent?.qualification,
-		});
-	}
+    events.push({
+      id: eventId,
+      rounds,
+      extensions: existingEvent?.extensions ?? [],
+      competitorLimit: existingEvent?.competitorLimit,
+      qualification: existingEvent?.qualification,
+    })
+  }
 
-	return events;
+  return events
 }
 
 function buildRoom(
-	existingVenue: Venue | undefined,
-	venueInfo: { detail: string } | null,
-	activities: Activity[],
+  existingVenue: Venue | undefined,
+  venueInfo: { detail: string } | null,
+  activities: Activity[]
 ): Room {
-	const primaryRoom =
-		existingVenue !== undefined ? existingVenue.rooms[0] : undefined;
-	return {
-		id: primaryRoom?.id ?? 1,
-		name: primaryRoom?.name ?? venueInfo?.detail ?? "Main Stage",
-		color: primaryRoom?.color ?? "#304a96",
-		activities,
-		extensions: [],
-	};
+  const primaryRoom =
+    existingVenue !== undefined ? existingVenue.rooms[0] : undefined
+  return {
+    id: primaryRoom?.id ?? 1,
+    name: primaryRoom?.name ?? venueInfo?.detail ?? "Main Stage",
+    color: primaryRoom?.color ?? "#304a96",
+    activities,
+    extensions: [],
+  }
 }
 
 function buildVenue(
-	existingVenue: Venue | undefined,
-	venueInfo: { name: string; lat: number; lng: number; country: string } | null,
-	room: Room,
+  existingVenue: Venue | undefined,
+  venueInfo: { name: string; lat: number; lng: number; country: string } | null,
+  room: Room
 ): Venue {
-	if (existingVenue) {
-		return { ...existingVenue, rooms: [room] };
-	}
+  if (existingVenue) {
+    return { ...existingVenue, rooms: [room] }
+  }
 
-	return {
-		id: 1,
-		name: venueInfo?.name ?? "Main Venue",
-		latitudeMicrodegrees: Math.round((venueInfo?.lat ?? 0) * 1e6),
-		longitudeMicrodegrees: Math.round((venueInfo?.lng ?? 0) * 1e6),
-		countryIso2: venueInfo?.country ?? "IE",
-		timezone: DUBLIN_TIMEZONE,
-		rooms: [room],
-		extensions: [],
-	};
+  return {
+    id: 1,
+    name: venueInfo?.name ?? "Main Venue",
+    latitudeMicrodegrees: Math.round((venueInfo?.lat ?? 0) * 1e6),
+    longitudeMicrodegrees: Math.round((venueInfo?.lng ?? 0) * 1e6),
+    countryIso2: venueInfo?.country ?? "IE",
+    timezone: DUBLIN_TIMEZONE,
+    rooms: [room],
+    extensions: [],
+  }
 }
-
 
 export async function executePushScheduleToWca(input: {
   googleAccessToken: string
@@ -766,7 +754,7 @@ export async function executePushScheduleToWca(input: {
   try {
     scheduleData = await fetchScheduleFromSheets(
       input.sheetId,
-      input.googleAccessToken,
+      input.googleAccessToken
     )
   } catch (err) {
     return {
@@ -798,12 +786,10 @@ export async function executePushScheduleToWca(input: {
   const allActivities = buildCompetitionActivities(
     scheduleData,
     startDate,
-    wcif.schedule.numberOfDays,
+    wcif.schedule.numberOfDays
   )
 
-  const existingVenue = hasExistingVenue
-    ? wcif.schedule.venues[0]
-    : undefined
+  const existingVenue = hasExistingVenue ? wcif.schedule.venues[0] : undefined
   const room = buildRoom(existingVenue, venueInfo, allActivities)
   const venue = buildVenue(existingVenue, venueInfo, room)
 
@@ -818,7 +804,7 @@ export async function executePushScheduleToWca(input: {
     wcif.events,
     templateRounds,
     progressionRows,
-    overwriteEvents,
+    overwriteEvents
   )
 
   if (events.length === 0) {
@@ -844,7 +830,7 @@ export async function executePushScheduleToWca(input: {
       id: wcif.id,
       events,
       schedule,
-    },
+    }
   )
 
   if (!result.success) {
@@ -860,8 +846,7 @@ export async function executePopulateCheckin(input: {
   sheetId: string
   wcaCompetitionId: string
 }): Promise<
-  | { success: true; rowsWritten: number }
-  | { success: false; error: string }
+  { success: true; rowsWritten: number } | { success: false; error: string }
 > {
   const wcaClient = createWcaClient(input.wcaAccessToken)
 
@@ -880,7 +865,7 @@ export async function executePopulateCheckin(input: {
     ? registrationsResponse.data
     : []
   const hasStatusFields = registrations.some(
-    (registration) => getRegistrationStatus(registration) !== "",
+    (registration) => getRegistrationStatus(registration) !== ""
   )
   if (registrations.length > 0 && !hasStatusFields) {
     return {

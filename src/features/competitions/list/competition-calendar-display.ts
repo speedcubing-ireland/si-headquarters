@@ -108,8 +108,7 @@ export function groupCalendarRowsByMonth(
 
   for (const row of rows) {
     const iso = row.kind === "weekend" ? row.weekendStart : row.compDates.from
-    const date =
-      iso !== null && iso !== "" ? parseLocalDate(iso) : null
+    const date = iso !== null && iso !== "" ? parseLocalDate(iso) : null
     const key =
       date !== null
         ? `${String(date.getFullYear())}-${String(date.getMonth() + 1).padStart(2, "0")}`

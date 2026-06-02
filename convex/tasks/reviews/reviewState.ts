@@ -1,8 +1,6 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
-import type {
-  TaskReviewerRef,
-} from "@/convex/tasks/reviews/validators"
+import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
 
 type ReviewReadCtx = QueryCtx | MutationCtx
 

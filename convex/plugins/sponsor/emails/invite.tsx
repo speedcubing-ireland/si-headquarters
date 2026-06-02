@@ -25,23 +25,23 @@ function InviteEmail(props: InviteEmailProps) {
       ctaLabel={copy.ctaLabel}
       ctaUrl={props.portalUrl}
     >
-      <Section className="rounded-lg bg-brand-subtle px-4 py-3">
-        <Text className="m-0 text-xs text-brand-muted">Getting started</Text>
+      <Section className="bg-brand-subtle rounded-lg px-4 py-3">
+        <Text className="text-brand-muted m-0 text-xs">Getting started</Text>
         {INVITE_GETTING_STARTED_STEPS.map((step) => (
           <Text
             key={step}
-            className="m-0 mt-1 text-sm leading-6 text-brand-foreground"
+            className="text-brand-foreground m-0 mt-1 text-sm leading-6"
           >
             {step}
           </Text>
         ))}
       </Section>
-      <Section className="mt-3 rounded-lg border border-brand-border px-4 py-3">
-        <Text className="m-0 text-xs text-brand-muted">Portal URL</Text>
-        <Text className="m-0 mt-1 text-xs leading-5 text-brand-foreground wrap-anywhere">
+      <Section className="border-brand-border mt-3 rounded-lg border px-4 py-3">
+        <Text className="text-brand-muted m-0 text-xs">Portal URL</Text>
+        <Text className="text-brand-foreground m-0 mt-1 text-xs leading-5 wrap-anywhere">
           <Link href={props.portalUrl}>{props.portalUrl}</Link>
         </Text>
-        <Text className="m-0 mt-2 text-xs leading-5 text-brand-muted">
+        <Text className="text-brand-muted m-0 mt-2 text-xs leading-5">
           {INVITE_PORTAL_URL_HINT}
         </Text>
       </Section>

@@ -89,7 +89,10 @@ export function getProgress(statuses: TaskStatus[]): TaskProgress {
   }
 }
 
-export function toPhaseProgressBuckets(progress: TaskProgress, blocked: number) {
+export function toPhaseProgressBuckets(
+  progress: TaskProgress,
+  blocked: number
+) {
   return {
     total: progress.total,
     done: progress.done,

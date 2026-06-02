@@ -98,28 +98,28 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
         <Head>
           <EmailFont />
         </Head>
-        <Body className="bg-brand-bg font-sans py-10">
+        <Body className="bg-brand-bg py-10 font-sans">
           <Preview>{props.preview}</Preview>
-          <Container className="mx-auto max-w-xl overflow-hidden rounded-xl border border-solid border-brand-border bg-brand-surface">
+          <Container className="border-brand-border bg-brand-surface mx-auto max-w-xl overflow-hidden rounded-xl border border-solid">
             <Section className="bg-brand-primary px-6 py-4">
-              <Text className="m-0 text-xs font-semibold uppercase tracking-wide text-brand-primary-fg">
+              <Text className="text-brand-primary-fg m-0 text-xs font-semibold tracking-wide uppercase">
                 Speedcubing Ireland · Sponsorship
               </Text>
             </Section>
             <Section className="px-6 py-6">
               <Heading
                 as="h1"
-                className="m-0 text-xl font-bold text-brand-foreground"
+                className="text-brand-foreground m-0 text-xl font-bold"
               >
                 {props.title}
               </Heading>
               {props.subtitle !== undefined && props.subtitle.length > 0 ? (
-                <Text className="m-0 mt-2 text-sm leading-6 text-brand-foreground">
+                <Text className="text-brand-foreground m-0 mt-2 text-sm leading-6">
                   {props.subtitle}
                 </Text>
               ) : null}
               <Section className="mt-4">{props.children}</Section>
-              <Text className="m-0 mt-4 text-xs leading-5 text-brand-muted">
+              <Text className="text-brand-muted m-0 mt-4 text-xs leading-5">
                 Need help with {props.title}? Reply to this email and the
                 Sponsorship Team will assist.
               </Text>
@@ -148,9 +148,9 @@ export function formatEmailDateTime(timestamp: number): string {
 
 export function SponsorshipInfoBlock(props: { label: string; value: string }) {
   return (
-    <Section className="rounded-lg border border-brand-border px-4 py-3">
-      <Text className="m-0 text-xs text-brand-muted">{props.label}</Text>
-      <Text className="m-0 mt-1 text-sm font-semibold text-brand-foreground">
+    <Section className="border-brand-border rounded-lg border px-4 py-3">
+      <Text className="text-brand-muted m-0 text-xs">{props.label}</Text>
+      <Text className="text-brand-foreground m-0 mt-1 text-sm font-semibold">
         {props.value}
       </Text>
     </Section>
@@ -164,7 +164,7 @@ export function formatMoney(cents: number, currency = "EUR"): string {
 export function formatRecipientSubtitle(
   recipientName: string | undefined,
   messageForNamed: (name: string) => string,
-  messageAnonymous: string,
+  messageAnonymous: string
 ): string {
   if (recipientName !== undefined && recipientName.length > 0) {
     return messageForNamed(recipientName)

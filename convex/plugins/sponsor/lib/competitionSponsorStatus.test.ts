@@ -12,17 +12,17 @@ describe("competitionSponsorStatus", () => {
     expect(
       deriveCompetitionSponsorStatusFromAuctions([
         { state: "draft", winnerSponsorId: undefined },
-      ]),
+      ])
     ).toBe("bidding")
     expect(
       deriveCompetitionSponsorStatusFromAuctions([
         { state: "closed", winnerSponsorId: "s1" as never },
-      ]),
+      ])
     ).toBe("sponsor")
     expect(
       deriveCompetitionSponsorStatusFromAuctions([
         { state: "closed", winnerSponsorId: undefined },
-      ]),
+      ])
     ).toBe("none")
   })
 
@@ -31,12 +31,12 @@ describe("competitionSponsorStatus", () => {
       resolveCompetitionSponsorPropertyStatus({
         competition: { manualSponsorPropertyStatus: "none" },
         auctions: [{ state: "active", winnerSponsorId: undefined }],
-      }),
+      })
     ).toBe("none")
     expect(
       isCompetitionSponsorManualOverride({
         manualSponsorPropertyStatus: "none",
-      }),
+      })
     ).toBe(true)
   })
 
@@ -46,14 +46,14 @@ describe("competitionSponsorStatus", () => {
         auctionStates: ["closed"],
         hasClosedWinner: false,
         manualStatus: "none",
-      }),
+      })
     ).toBe("none")
     expect(
       resolveCompetitionSponsorStatus({
         auctionStates: ["active"],
         hasClosedWinner: false,
         manualSponsorId: "s1" as never,
-      }),
+      })
     ).toBe("sponsor")
   })
 })

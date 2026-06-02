@@ -28,13 +28,15 @@ interface WcaCompetitionDetails {
   venue: string
 }
 
-function isPlainObject(value: object): value is Record<string, object | string | number | boolean | null> {
+function isPlainObject(
+  value: object
+): value is Record<string, object | string | number | boolean | null> {
   return !Array.isArray(value)
 }
 
 function readStringField(
   record: Record<string, object | string | number | boolean | null>,
-  key: string,
+  key: string
 ): string | undefined {
   const value = record[key]
   return typeof value === "string" ? value : undefined
@@ -42,7 +44,7 @@ function readStringField(
 
 function readNumberOrNullField(
   record: Record<string, object | string | number | boolean | null>,
-  key: string,
+  key: string
 ): number | null {
   const value = record[key]
   return typeof value === "number" ? value : null
@@ -50,7 +52,7 @@ function readNumberOrNullField(
 
 function readStringArrayField(
   record: Record<string, object | string | number | boolean | null>,
-  key: string,
+  key: string
 ): string[] | null {
   const value = record[key]
   if (!Array.isArray(value)) {
@@ -62,7 +64,9 @@ function readStringArrayField(
   return value
 }
 
-function parseWcaCompetitionDetails(value: object): WcaCompetitionDetails | null {
+function parseWcaCompetitionDetails(
+  value: object
+): WcaCompetitionDetails | null {
   if (!isPlainObject(value)) {
     return null
   }
@@ -113,7 +117,7 @@ export const fetchCompetitionDetailsInternal = internalAction({
       `${WCA_BASE_URL}/api/v0/competitions/${encodeURIComponent(args.wcaCompetitionId)}`,
       {
         headers: { Accept: "application/json" },
-      },
+      }
     )
     if (!response.ok) {
       return null

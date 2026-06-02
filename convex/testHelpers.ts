@@ -79,9 +79,7 @@ export async function insertBlankCompetition(
   })
 }
 
-export async function seedDirectorUser(
-  ctx: MutationCtx
-): Promise<Id<"users">> {
+export async function seedDirectorUser(ctx: MutationCtx): Promise<Id<"users">> {
   const userId = await ctx.db.insert("users", {})
   const teamId = await ensureTeamByName(ctx, TEAM_NAMES.DIRECTORS)
   await addTeamMember(ctx, teamId, userId)

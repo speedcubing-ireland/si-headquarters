@@ -1,5 +1,8 @@
 import type { BlockerCounts } from "@/convex/tasks/blockers/counts"
-import type { TaskViewProgress, TaskViewSubtaskSummary } from "@/convex/tasks/view"
+import type {
+  TaskViewProgress,
+  TaskViewSubtaskSummary,
+} from "@/convex/tasks/view"
 import type { TaskKind } from "@/convex/tasks/status/resolver"
 
 export interface TaskInlineIndicatorProps {

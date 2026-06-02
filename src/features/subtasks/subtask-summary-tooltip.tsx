@@ -21,11 +21,7 @@ export function SubtaskSummaryTooltipContent({
               isCompleted && "text-muted-foreground"
             )}
           >
-            <TaskStatusIcon
-              status={subtask.status}
-              size="sm"
-              tone="current"
-            />
+            <TaskStatusIcon status={subtask.status} size="sm" tone="current" />
             <span className="min-w-0">
               <span className="sr-only">
                 {getTaskStatusLabel(subtask.status)}:{" "}

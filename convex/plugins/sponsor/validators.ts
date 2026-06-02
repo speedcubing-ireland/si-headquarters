@@ -105,5 +105,4 @@ export const sponsorTables = {
   })
     .index("by_auction", ["auctionId"])
     .index("by_auction_and_created_at", ["auctionId", "createdAt"]),
-
 }

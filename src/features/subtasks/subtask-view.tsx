@@ -1,9 +1,5 @@
 import { Button } from "@/components/ui/button"
-import {
-  PlusIcon,
-  CassetteTapeIcon,
-  CircleCheck,
-} from "lucide-react"
+import { PlusIcon, CassetteTapeIcon, CircleCheck } from "lucide-react"
 import { api } from "@/convex/_generated/api"
 import type { TaskSubtaskView } from "@/convex/tasks/queries"
 import { getProgress } from "@/convex/tasks/status/rules"
@@ -40,9 +36,15 @@ function isOverdue(row: TaskInlineRow) {
   )
 }
 
-function filterRows(rows: TaskInlineRow[], displayOptions: SubtaskDisplayOptions) {
+function filterRows(
+  rows: TaskInlineRow[],
+  displayOptions: SubtaskDisplayOptions
+) {
   return rows.filter((row) => {
-    if (displayOptions.hideCompleted && isTerminalRowStatus(row.statusView.effectiveStatus)) {
+    if (
+      displayOptions.hideCompleted &&
+      isTerminalRowStatus(row.statusView.effectiveStatus)
+    ) {
       return false
     }
     if (displayOptions.hideSubtasks && row.path.depth > 0) return false
@@ -93,9 +95,7 @@ function PhaseSection({
           </h3>
           {section.isCurrent && <Badge>Current</Badge>}
           {visible.overdueCount > 0 && (
-            <Badge variant="destructive">
-              {visible.overdueCount} Overdue
-            </Badge>
+            <Badge variant="destructive">{visible.overdueCount} Overdue</Badge>
           )}
         </div>
         <Button variant="ghost" className="z-10" type="button">
@@ -131,7 +131,9 @@ function PhaseSection({
 export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
   const view = useQuery(api.tasks.queries.getSubtaskView, { owner })
-  const [displayOptions, setDisplayOptions] = useState(readSubtaskDisplayOptions)
+  const [displayOptions, setDisplayOptions] = useState(
+    readSubtaskDisplayOptions
+  )
   const taskId = owner.type === "tasks" ? owner.id : null
 
   useEffect(() => {

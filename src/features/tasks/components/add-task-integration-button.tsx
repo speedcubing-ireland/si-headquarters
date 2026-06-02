@@ -7,7 +7,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { INTEGRATION_PLUGINS } from "@/plugins/integrations/registry"
@@ -29,9 +33,12 @@ export function AddTaskIntegrationButton({
   disabled,
   ...buttonProps
 }: AddTaskIntegrationButtonProps) {
-  const available = useQuery(api.plugins.core.taskIntegrations.listAvailableForTask, {
-    taskId,
-  })
+  const available = useQuery(
+    api.plugins.core.taskIntegrations.listAvailableForTask,
+    {
+      taskId,
+    }
+  )
   const attach = useMutation(api.plugins.core.taskIntegrations.attach)
   const [open, setOpen] = useState(false)
   const [pendingId, setPendingId] = useState<string | null>(null)

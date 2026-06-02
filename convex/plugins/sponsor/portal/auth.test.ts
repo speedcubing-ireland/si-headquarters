@@ -28,7 +28,7 @@ describe("sponsor portal profile auth", () => {
       {
         model: "user",
         where: [{ field: "_id", value: sponsorAuthUserId }],
-      },
+      }
     )
     const sponsorAuthUserName = (() => {
       if (

@@ -6,7 +6,7 @@ const CHIP_BOX_CLASS =
 
 function ChipMonthLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[10px] leading-none font-medium uppercase text-muted-foreground">
+    <span className="text-[10px] leading-none font-medium text-muted-foreground uppercase">
       {children}
     </span>
   )
@@ -22,7 +22,7 @@ function ChipDayValue({
   return (
     <span
       className={cn(
-        "font-semibold leading-none tabular-nums text-foreground",
+        "leading-none font-semibold text-foreground tabular-nums",
         className
       )}
     >
@@ -31,22 +31,25 @@ function ChipDayValue({
   )
 }
 
-export function CompetitionDateChipBox({ chip }: { chip: CompetitionDateChip }) {
+export function CompetitionDateChipBox({
+  chip,
+}: {
+  chip: CompetitionDateChip
+}) {
   if (chip.kind === "tbd") {
     return (
       <div className={CHIP_BOX_CLASS} aria-label="Dates to be determined">
         <ChipMonthLabel>TBD</ChipMonthLabel>
-        <ChipDayValue className="mt-1 text-lg text-muted-foreground">—</ChipDayValue>
+        <ChipDayValue className="mt-1 text-lg text-muted-foreground">
+          —
+        </ChipDayValue>
       </div>
     )
   }
 
   if (chip.kind === "single") {
     return (
-      <div
-        className={CHIP_BOX_CLASS}
-        aria-label={`${chip.month} ${chip.day}`}
-      >
+      <div className={CHIP_BOX_CLASS} aria-label={`${chip.month} ${chip.day}`}>
         <ChipMonthLabel>{chip.month}</ChipMonthLabel>
         <ChipDayValue className="mt-1 text-xl">{chip.day}</ChipDayValue>
       </div>

@@ -78,20 +78,20 @@ export function useSponsorshipAdminDerived({
 
   const activeSponsors = useMemo(
     () => sponsors.filter((sponsor) => sponsor.active),
-    [sponsors],
+    [sponsors]
   )
   const sponsorById = useMemo(
     () => new Map(sponsors.map((sponsor) => [sponsor.id, sponsor])),
-    [sponsors],
+    [sponsors]
   )
   const auctionById = useMemo(
     () => new Map(auctions.map((auction) => [auction.id, auction])),
-    [auctions],
+    [auctions]
   )
   const competitionById = useMemo(
     () =>
       new Map(competitions.map((competition) => [competition.id, competition])),
-    [competitions],
+    [competitions]
   )
   const competitionIdByString = useMemo(
     () =>
@@ -99,18 +99,18 @@ export function useSponsorshipAdminDerived({
         competitions.map((competition) => [
           String(competition.id),
           competition.id,
-        ]),
+        ])
       ),
-    [competitions],
+    [competitions]
   )
 
   const openAuctions = useMemo(
     () => auctions.filter((auction) => auction.state !== "closed"),
-    [auctions],
+    [auctions]
   )
   const closedAuctions = useMemo(
     () => auctions.filter((auction) => auction.state === "closed"),
-    [auctions],
+    [auctions]
   )
   const openSearchText = normalizeSearchText(openSearchQuery)
   const closedSearchText = normalizeSearchText(closedSearchQuery)
@@ -123,7 +123,7 @@ export function useSponsorshipAdminDerived({
           auction.competitionPhaseName.toLowerCase().includes(openSearchText)
         )
       }),
-    [openAuctions, openSearchText],
+    [openAuctions, openSearchText]
   )
   const filteredClosedAuctions = useMemo(
     () =>
@@ -134,7 +134,7 @@ export function useSponsorshipAdminDerived({
           auction.competitionPhaseName.toLowerCase().includes(closedSearchText)
         )
       }),
-    [closedAuctions, closedSearchText],
+    [closedAuctions, closedSearchText]
   )
 
   const unsponsoredCompetitionsByPhase = useMemo(() => {
@@ -158,10 +158,10 @@ export function useSponsorshipAdminDerived({
     () =>
       competitions
         .filter(
-          (competition) => competition.sponsorPropertyStatus === "sponsor",
+          (competition) => competition.sponsorPropertyStatus === "sponsor"
         )
         .sort((a, b) => a.compStart.localeCompare(b.compStart)),
-    [competitions],
+    [competitions]
   )
 
   const defaultCreateCompetitionId = useMemo((): Id<"competitions"> | null => {
@@ -178,14 +178,14 @@ export function useSponsorshipAdminDerived({
 
   const defaultCreateInvitedSponsorIds = useMemo(
     () => activeSponsors.map((sponsor) => sponsor.id),
-    [activeSponsors],
+    [activeSponsors]
   )
 
   const createInvitedSponsorIds =
     createInvitedSponsorIdsOverride ?? defaultCreateInvitedSponsorIds
 
   const setCreateInvitedSponsorIds = (
-    updater: SetStateAction<Id<"sponsors">[]>,
+    updater: SetStateAction<Id<"sponsors">[]>
   ) => {
     setCreateInvitedSponsorIdsOverride((current) => {
       const base = current ?? defaultCreateInvitedSponsorIds
@@ -204,7 +204,7 @@ export function useSponsorshipAdminDerived({
 
   const { managerView, isLoading: isLoadingManagerView } =
     useSponsorshipAuctionManagerView(
-      effectiveEditorMode === "edit" ? effectiveSelectedAuctionId : null,
+      effectiveEditorMode === "edit" ? effectiveSelectedAuctionId : null
     )
   const {
     managerView: closedAuctionManagerView,
@@ -220,13 +220,13 @@ export function useSponsorshipAdminDerived({
     setEditFramework(managerView.auction.framework)
     setIsEditFrameworkUnlocked(false)
     setEditStartsAtInput(
-      toDatetimeLocalInput(new Date(managerView.auction.startsAt)),
+      toDatetimeLocalInput(new Date(managerView.auction.startsAt))
     )
     setEditEndsAtInput(
-      toDatetimeLocalInput(new Date(managerView.auction.endsAt)),
+      toDatetimeLocalInput(new Date(managerView.auction.endsAt))
     )
     setEditStartPriceEuros(
-      centsToEuroInput(managerView.auction.startPriceCents),
+      centsToEuroInput(managerView.auction.startPriceCents)
     )
     setEditInvitedSponsorIds(managerView.inviteSponsorIds)
   }, [
@@ -328,7 +328,7 @@ export function useSponsorshipAdminDerived({
         (auction) =>
           auction.state === "closed" &&
           auction.competitionId === panelCompetitionId &&
-          auction.id !== selectedAuction?.id,
+          auction.id !== selectedAuction?.id
       )
       .sort((a, b) => b.endsAt - a.endsAt)
       .slice(0, 5)

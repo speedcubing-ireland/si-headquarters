@@ -1,7 +1,10 @@
 import { ConvexError, v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { internalMutation, mutation, query } from "@/convex/_generated/server"
-import { authorizeTaskRun, requireTaskIntegrationAccess } from "@/convex/plugins/core/authorize"
+import {
+  authorizeTaskRun,
+  requireTaskIntegrationAccess,
+} from "@/convex/plugins/core/authorize"
 import {
   taskIntegrationId,
   taskIntegrationDefinitionMeta,
@@ -119,11 +122,15 @@ export const run = mutation({
       runId,
     })
 
-    await ctx.scheduler.runAfter(0, internal.plugins.core.runner.runIntegration, {
-      integrationRowId: args.id,
-      runId,
-      input: args.input ?? {},
-    })
+    await ctx.scheduler.runAfter(
+      0,
+      internal.plugins.core.runner.runIntegration,
+      {
+        integrationRowId: args.id,
+        runId,
+        input: args.input ?? {},
+      }
+    )
     return null
   },
 })

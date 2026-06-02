@@ -45,7 +45,10 @@ function SavedViewChip({
             size="sm"
             type="button"
             onClick={onSelect}
-            className={cn("h-8 shrink-0 gap-1", isActive && "bg-muted font-medium")}
+            className={cn(
+              "h-8 shrink-0 gap-1",
+              isActive && "bg-muted font-medium"
+            )}
           >
             {isPublic ? (
               <GlobeIcon className="size-3.5 text-muted-foreground" />
@@ -125,7 +128,7 @@ export function TaskListNavbar({
         </Button>
       ) : null}
       {savedViews.views.length > 0 ? (
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none @sm/main:flex-wrap @sm/main:overflow-visible [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 flex-1 scrollbar-none items-center gap-1 overflow-x-auto @sm/main:flex-wrap @sm/main:overflow-visible [&::-webkit-scrollbar]:hidden">
           {savedViews.views.map((view) => (
             <SavedViewChip
               key={view._id}

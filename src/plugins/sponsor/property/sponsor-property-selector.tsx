@@ -74,7 +74,9 @@ export function SponsorPropertySelector({
   disabled?: boolean
   displayLabel: string
   isManualOverride: boolean
-  onChange: (override: CompetitionSponsorOverride | null) => void | Promise<void>
+  onChange: (
+    override: CompetitionSponsorOverride | null
+  ) => void | Promise<void>
   sponsors: SponsorListItem[]
   status: CompetitionSponsorPropertyStatus
   winnerSponsorId: Id<"sponsors"> | undefined
@@ -99,7 +101,10 @@ export function SponsorPropertySelector({
         ? (sponsors.find((sponsor) => sponsor.id === selectorValue) ?? null)
         : null
 
-  const model = useSingleDataSelector<SponsorSelectorOption, SponsorSelectorValue>({
+  const model = useSingleDataSelector<
+    SponsorSelectorOption,
+    SponsorSelectorValue
+  >({
     getLabel: (item) => item.name,
     getValue: (item) =>
       item.id === MANUAL_NO_SPONSOR ? MANUAL_NO_SPONSOR : item.id,

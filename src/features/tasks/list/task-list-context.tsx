@@ -1,5 +1,9 @@
 import type { Id } from "@/convex/_generated/dataModel"
-import type { DateRangeFilter, DisplaySettings, MatchMode } from "@/features/list-views/types"
+import type {
+  DateRangeFilter,
+  DisplaySettings,
+  MatchMode,
+} from "@/features/list-views/types"
 import { defaultDisplaySettings } from "@/features/list-views/types"
 import { TaskListContext } from "@/features/tasks/list/task-list-context-types"
 import type { TaskListContextValue } from "@/features/tasks/list/task-list-context-types"
@@ -8,7 +12,10 @@ import {
   serializeDisplaySettings,
   serializeTaskFilters,
 } from "@/features/tasks/list/task-list-serialize"
-import { readTaskListPageSnapshot, writeTaskListPageSnapshot } from "@/features/tasks/list/task-list-storage"
+import {
+  readTaskListPageSnapshot,
+  writeTaskListPageSnapshot,
+} from "@/features/tasks/list/task-list-storage"
 import {
   emptyTasksFilters,
   hasActiveTaskFilters,
@@ -36,7 +43,9 @@ function useTaskListState(pageId: string): TaskListContextValue {
   const [display, setDisplay] = useState<DisplaySettings>(
     () => storedSnapshot?.display ?? defaultDisplaySettings
   )
-  const [activeViewId, setActiveViewId] = useState<Id<"savedViews"> | null>(null)
+  const [activeViewId, setActiveViewId] = useState<Id<"savedViews"> | null>(
+    null
+  )
   const [createViewOpen, setCreateViewOpen] = useState(false)
   const [createViewName, setCreateViewName] = useState("")
   const [createViewDescription, setCreateViewDescription] = useState("")
@@ -136,12 +145,7 @@ function useTaskListState(pageId: string): TaskListContextValue {
     setCreateViewName("")
     setCreateViewDescription("")
     setCreateViewPublic(false)
-  }, [
-    createViewDescription,
-    createViewName,
-    createViewPublic,
-    savedViews,
-  ])
+  }, [createViewDescription, createViewName, createViewPublic, savedViews])
 
   return {
     pageId,
@@ -179,6 +183,8 @@ export function TaskListProvider({
   children: ReactNode
 }) {
   return (
-    <TaskListContext value={useTaskListState(pageId)}>{children}</TaskListContext>
+    <TaskListContext value={useTaskListState(pageId)}>
+      {children}
+    </TaskListContext>
   )
 }

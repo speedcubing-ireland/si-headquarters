@@ -32,14 +32,15 @@ const wcaGroupAccessors = {
 export function LinkWcaCompetitionButton({
   competitionId,
 }: LinkResourceActionProps) {
-  const { open, setOpen, close, error, setError, pending, run } = useLinkAction()
+  const { open, setOpen, close, error, setError, pending, run } =
+    useLinkAction()
   const [query, setQuery] = useState("")
   const [searchResults, setSearchResults] = useState<WcaCompetition[]>([])
-  const [lastFetchedSearch, setLastFetchedSearch] = useState<string | null>(null)
-  const activeSearch =
-    !open || query.trim().length < 2 ? null : query.trim()
-  const searching =
-    activeSearch !== null && lastFetchedSearch !== activeSearch
+  const [lastFetchedSearch, setLastFetchedSearch] = useState<string | null>(
+    null
+  )
+  const activeSearch = !open || query.trim().length < 2 ? null : query.trim()
+  const searching = activeSearch !== null && lastFetchedSearch !== activeSearch
   const listMyCompetitions = useAction(
     api.plugins.wca.resources.listMyCompetitions
   )
@@ -53,10 +54,7 @@ export function LinkWcaCompetitionButton({
     [competitionId, listMyCompetitions]
   )
 
-  const {
-    data: myCompetitions,
-    reset: resetMyCompetitions,
-  } = useOpenLoad({
+  const { data: myCompetitions, reset: resetMyCompetitions } = useOpenLoad({
     open,
     load: loadMyCompetitions,
     onError: setError,

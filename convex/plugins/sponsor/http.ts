@@ -41,8 +41,8 @@ export function sponsorAuthAllowedOrigins(): string[] {
         ...parseOriginList(env.CORS_ALLOWED_ORIGINS),
         "http://localhost:5173",
         "http://localhost:5174",
-      ].filter((origin): origin is string => origin !== undefined),
-    ),
+      ].filter((origin): origin is string => origin !== undefined)
+    )
   )
 }
 
@@ -51,12 +51,12 @@ export function registerSponsorHttpRoutes(http: HttpRouter): void {
     http,
     (ctx) =>
       betterAuth(
-        createSponsorAuthOptions(ctx, { requireConfiguredSecret: false }),
+        createSponsorAuthOptions(ctx, { requireConfiguredSecret: false })
       ),
     {
       cors: {
         allowedOrigins: sponsorAuthAllowedOrigins(),
       },
-    },
+    }
   )
 }

@@ -201,7 +201,12 @@ describe("competition queries", () => {
     const { viewerId, competitionId } = await t.run(async (ctx) => {
       const viewerId = await insertViewer(ctx)
       const competitionId = await insertCompetition(ctx, "Spring Open")
-      const phaseId = await insertCompetitionPhase(ctx, competitionId, "Launch", "a")
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Launch",
+        "a"
+      )
       await ctx.db.patch("competitions", competitionId, { phaseId })
 
       await insertSeedTask(ctx, {
@@ -250,7 +255,12 @@ describe("competition queries", () => {
     const { viewerId, competitionId } = await t.run(async (ctx) => {
       const viewerId = await insertViewer(ctx)
       const competitionId = await insertCompetition(ctx, "Spring Open")
-      const phaseId = await insertCompetitionPhase(ctx, competitionId, "Launch", "a")
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Launch",
+        "a"
+      )
       await ctx.db.patch("competitions", competitionId, { phaseId })
 
       const flowId = await insertSeedTask(ctx, {
@@ -300,7 +310,12 @@ describe("competition queries", () => {
     const { viewerId, competitionId } = await t.run(async (ctx) => {
       const viewerId = await insertViewer(ctx)
       const competitionId = await insertCompetition(ctx, "Spring Open")
-      const phaseId = await insertCompetitionPhase(ctx, competitionId, "Launch", "a")
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Launch",
+        "a"
+      )
       await ctx.db.patch("competitions", competitionId, { phaseId })
 
       const doneWithBlockerId = await insertSeedTask(ctx, {
@@ -358,7 +373,12 @@ describe("competition queries", () => {
     const { viewerId, competitionId } = await t.run(async (ctx) => {
       const viewerId = await insertViewer(ctx)
       const competitionId = await insertCompetition(ctx, "Spring Open")
-      const phaseId = await insertCompetitionPhase(ctx, competitionId, "Launch", "a")
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Launch",
+        "a"
+      )
       await ctx.db.patch("competitions", competitionId, { phaseId })
 
       const blockedId = await insertSeedTask(ctx, {
@@ -407,10 +427,11 @@ async function getPhaseProgress(
   viewerId: Id<"users">,
   competitionId: Id<"competitions">
 ) {
-  return await t.withIdentity({ subject: viewerId }).query(
-    api.competitions.queries.getCurrentPhaseProgress,
-    { id: competitionId }
-  )
+  return await t
+    .withIdentity({ subject: viewerId })
+    .query(api.competitions.queries.getCurrentPhaseProgress, {
+      id: competitionId,
+    })
 }
 
 async function insertCompetition(
@@ -433,4 +454,3 @@ async function insertCompetition(
     updateId: null,
   })
 }
-

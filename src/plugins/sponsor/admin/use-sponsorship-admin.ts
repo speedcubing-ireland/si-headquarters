@@ -54,10 +54,10 @@ export function useSponsorshipAdmin() {
   const [createCompetitionIdSelection, setCreateCompetitionIdSelection] =
     useState<Id<"competitions"> | null>(null)
   const [createStartsAtInput, setCreateStartsAtInput] = useState(() =>
-    toDatetimeLocalInput(new Date(Date.now() + 60 * 60 * 1000)),
+    toDatetimeLocalInput(new Date(Date.now() + 60 * 60 * 1000))
   )
   const [createEndsAtInput, setCreateEndsAtInput] = useState(() =>
-    toDatetimeLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000)),
+    toDatetimeLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000))
   )
   const [createFramework, setCreateFramework] =
     useState<SponsorshipFramework>("first_sealed")
@@ -89,7 +89,7 @@ export function useSponsorshipAdmin() {
   const [avatarUrl, setAvatarUrl] = useState("")
   const [isSubmittingSponsor, setIsSubmittingSponsor] = useState(false)
   const [busySponsorId, setBusySponsorId] = useState<Id<"sponsors"> | null>(
-    null,
+    null
   )
   const [busyCompetitionId, setBusyCompetitionId] =
     useState<Id<"competitions"> | null>(null)
@@ -141,7 +141,7 @@ export function useSponsorshipAdmin() {
       derived.activeSponsors,
       derived.setCreateInvitedSponsorIds,
       setCompetitionSponsorOverride,
-    ],
+    ]
   )
 
   const auctionActions = useMemo(
@@ -197,7 +197,7 @@ export function useSponsorshipAdmin() {
       closeAuction,
       deleteBeforeOpen,
       editorActions.resetCreatePanel,
-    ],
+    ]
   )
 
   const sponsorActions = useMemo(
@@ -226,7 +226,7 @@ export function useSponsorshipAdmin() {
       revokeSessions,
       archiveSponsor,
       unarchiveSponsor,
-    ],
+    ]
   )
 
   return {
@@ -236,7 +236,7 @@ export function useSponsorshipAdmin() {
       activeSponsors: derived.activeSponsors,
       competitions,
       needsSponsorCount: competitions.filter(
-        (c) => c.sponsorPropertyStatus !== "sponsor",
+        (c) => c.sponsorPropertyStatus !== "sponsor"
       ).length,
     },
     loading: {
@@ -312,8 +312,7 @@ export function useSponsorshipAdmin() {
       selectedClosedAuctionId,
       setSelectedClosedAuctionId,
       selectedClosedAuction: derived.selectedClosedAuction,
-      selectedClosedAuctionWinnerName:
-        derived.selectedClosedAuctionWinnerName,
+      selectedClosedAuctionWinnerName: derived.selectedClosedAuctionWinnerName,
       selectedClosedAuctionWinningBidCents:
         derived.selectedClosedAuctionWinningBidCents,
       selectedClosedAuctionInvitedSponsors:

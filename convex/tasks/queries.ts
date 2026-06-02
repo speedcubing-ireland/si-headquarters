@@ -173,45 +173,42 @@ async function getTaskParentDetails(
   }
 }
 
-async function getTaskBreadcrumbs(
-   ctx: QueryCtx,
-   id: Id<"tasks">
-) {
-    const task = await ctx.db.get("tasks", id)
-    if (!task) return
+async function getTaskBreadcrumbs(ctx: QueryCtx, id: Id<"tasks">) {
+  const task = await ctx.db.get("tasks", id)
+  if (!task) return
 
-    const chain: BreadcrumbChain = [
-      {
-        id: task._id,
-        type: "tasks",
-        name: task.name,
-      },
-    ]
+  const chain: BreadcrumbChain = [
+    {
+      id: task._id,
+      type: "tasks",
+      name: task.name,
+    },
+  ]
 
-    let parent = task.parent
-    while (parentIsTask(parent)) {
-      const parentDoc = await ctx.db.get("tasks", parent.id)
-      if (!parentDoc) throw new Error("Parent not found")
-      chain.push({
-        id: parentDoc._id,
-        type: "tasks",
-        name: parentDoc.name,
-      })
-      parent = parentDoc.parent
-    }
-
-    const rootPhase = await ctx.db.get("phases", parent.id)
-    if (!rootPhase) throw new Error("Phase not found")
-    const rootPhaseComp = await ctx.db.get("competitions", rootPhase.owner.id)
-    if (!rootPhaseComp) throw new Error("Comp not found")
-
+  let parent = task.parent
+  while (parentIsTask(parent)) {
+    const parentDoc = await ctx.db.get("tasks", parent.id)
+    if (!parentDoc) throw new Error("Parent not found")
     chain.push({
-      id: rootPhaseComp._id,
-      type: "competitions",
-      name: rootPhaseComp.name,
+      id: parentDoc._id,
+      type: "tasks",
+      name: parentDoc.name,
     })
+    parent = parentDoc.parent
+  }
 
-    return chain.reverse()
+  const rootPhase = await ctx.db.get("phases", parent.id)
+  if (!rootPhase) throw new Error("Phase not found")
+  const rootPhaseComp = await ctx.db.get("competitions", rootPhase.owner.id)
+  if (!rootPhaseComp) throw new Error("Comp not found")
+
+  chain.push({
+    id: rootPhaseComp._id,
+    type: "competitions",
+    name: rootPhaseComp.name,
+  })
+
+  return chain.reverse()
 }
 
 export const getPageRoot = query({
@@ -225,7 +222,7 @@ export const getPageRoot = query({
     return {
       taskId: task._id,
       kind: task.kind,
-      breadcrumbs: await getTaskBreadcrumbs(ctx, args.id)
+      breadcrumbs: await getTaskBreadcrumbs(ctx, args.id),
     }
   },
 })

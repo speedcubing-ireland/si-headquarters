@@ -26,11 +26,16 @@ export async function fetchSpreadsheetTitle(
   accessToken: string,
   sheetId: string
 ): Promise<{ title: string; url: string }> {
-  const response = await fetch(`${SHEETS_API}/${sheetId}?fields=spreadsheetUrl,properties.title`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
+  const response = await fetch(
+    `${SHEETS_API}/${sheetId}?fields=spreadsheetUrl,properties.title`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  )
   if (!response.ok) {
-    throw new Error(`Google Sheets lookup failed (HTTP ${String(response.status)}).`)
+    throw new Error(
+      `Google Sheets lookup failed (HTTP ${String(response.status)}).`
+    )
   }
   const body = await readJsonObject(response)
   if (body === null) {
@@ -61,7 +66,9 @@ export async function readSheetRanges(
     { headers: { Authorization: `Bearer ${accessToken}` } }
   )
   if (!response.ok) {
-    throw new Error(`Google Sheets read failed (HTTP ${String(response.status)}).`)
+    throw new Error(
+      `Google Sheets read failed (HTTP ${String(response.status)}).`
+    )
   }
   const body = await readJsonObject(response)
   if (body === null) {
@@ -122,7 +129,9 @@ export async function clearSheetRange(
     }
   )
   if (!response.ok) {
-    throw new Error(`Google Sheets clear failed (HTTP ${String(response.status)}).`)
+    throw new Error(
+      `Google Sheets clear failed (HTTP ${String(response.status)}).`
+    )
   }
 }
 
@@ -144,7 +153,9 @@ export async function writeSheetRange(
     }
   )
   if (!response.ok) {
-    throw new Error(`Google Sheets write failed (HTTP ${String(response.status)}).`)
+    throw new Error(
+      `Google Sheets write failed (HTTP ${String(response.status)}).`
+    )
   }
 }
 
@@ -171,8 +182,7 @@ export async function shareSheetWithEmail(
   )
   if (!response.ok && response.status !== 409) {
     const detail = await response.text()
-    const suffix =
-      detail.length > 0 ? `: ${detail.slice(0, 200)}` : ""
+    const suffix = detail.length > 0 ? `: ${detail.slice(0, 200)}` : ""
     throw new Error(
       `Google Drive share failed (HTTP ${String(response.status)}${suffix}).`
     )

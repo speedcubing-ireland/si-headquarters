@@ -73,10 +73,14 @@ function GroupSection<TItem>({
   getRowKey: (item: TItem) => string
   itemLabel: (count: number) => string
 }) {
-  const body = <GroupBody group={group} renderRow={renderRow} getRowKey={getRowKey} />
+  const body = (
+    <GroupBody group={group} renderRow={renderRow} getRowKey={getRowKey} />
+  )
 
   if (group.key === "all") {
-    return <div className="group rounded-xl border bg-card py-5 text-sm">{body}</div>
+    return (
+      <div className="group rounded-xl border bg-card py-5 text-sm">{body}</div>
+    )
   }
 
   return (

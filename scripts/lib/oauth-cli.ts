@@ -110,8 +110,7 @@ export async function runCliOAuth(pluginId: string): Promise<void> {
   }
 
   const pkce = cfg.usePkce === true ? await generatePkce() : null
-  const requestedState =
-    cfg.useState === true ? crypto.randomUUID() : undefined
+  const requestedState = cfg.useState === true ? crypto.randomUUID() : undefined
 
   const auth = await convexRun<OAuthAuthResponse>("plugins/oauth:getOAuthUrl", {
     pluginId,

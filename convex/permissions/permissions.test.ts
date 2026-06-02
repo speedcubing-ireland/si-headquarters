@@ -126,13 +126,15 @@ describe("permissions", () => {
 
   test("competitions team can list users for competition people pickers", async () => {
     const t = convexTest(schema, modules)
-    const { managerId, competitionId, otherUserId } = await t.run(async (ctx) => {
-      const managerId = await insertTestUser(ctx, "Manager")
-      const otherUserId = await insertTestUser(ctx, "Other")
-      await addUserToTeam(ctx, managerId, TEAM_NAMES.COMPETITIONS)
-      const competitionId = await insertBlankCompetition(ctx)
-      return { managerId, competitionId, otherUserId }
-    })
+    const { managerId, competitionId, otherUserId } = await t.run(
+      async (ctx) => {
+        const managerId = await insertTestUser(ctx, "Manager")
+        const otherUserId = await insertTestUser(ctx, "Other")
+        await addUserToTeam(ctx, managerId, TEAM_NAMES.COMPETITIONS)
+        const competitionId = await insertBlankCompetition(ctx)
+        return { managerId, competitionId, otherUserId }
+      }
+    )
 
     const users = await t
       .withIdentity({ subject: managerId })

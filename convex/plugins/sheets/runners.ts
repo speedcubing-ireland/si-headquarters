@@ -20,7 +20,8 @@ export async function runTransferScheduleToWca(
 ): Promise<IntegrationRunResult> {
   const sheet = requireRunResource(run, "googleSheet")
   const wca = requireRunResource(run, "wcaCompetition")
-  const { googleAccessToken, wcaAccessToken } = await fetchGoogleAndWcaTokens(ctx)
+  const { googleAccessToken, wcaAccessToken } =
+    await fetchGoogleAndWcaTokens(ctx)
 
   const result = await executePushScheduleToWca({
     googleAccessToken,
@@ -55,7 +56,8 @@ export async function runPopulateCheckin(
 ): Promise<IntegrationRunResult> {
   const sheet = requireRunResource(run, "googleSheet")
   const wca = requireRunResource(run, "wcaCompetition")
-  const { googleAccessToken, wcaAccessToken } = await fetchGoogleAndWcaTokens(ctx)
+  const { googleAccessToken, wcaAccessToken } =
+    await fetchGoogleAndWcaTokens(ctx)
 
   const result = await executePopulateCheckin({
     googleAccessToken,

@@ -49,7 +49,9 @@ export interface AuctionActionsDeps {
     startPriceCents: number
     invitedSponsorIds: Id<"sponsors">[]
   }) => Promise<null>
-  refreshCompetitionSnapshot: (auctionId: Id<"sponsorshipAuctions">) => Promise<{
+  refreshCompetitionSnapshot: (
+    auctionId: Id<"sponsorshipAuctions">
+  ) => Promise<{
     status: string
     message: string
   }>
@@ -102,7 +104,7 @@ export function buildAuctionActions(deps: AuctionActionsDeps) {
 
   const onRefreshAuctionCompetitionData = async (
     auctionId: Id<"sponsorshipAuctions">,
-    notify = true,
+    notify = true
   ) => {
     setRefreshingAuctionId(auctionId)
     try {
@@ -213,7 +215,7 @@ export function buildAuctionActions(deps: AuctionActionsDeps) {
         invitedSponsorIds: editInvitedSponsorIds,
       })
       await refreshCompetitionSnapshot(effectiveSelectedAuctionId).catch(
-        () => undefined,
+        () => undefined
       )
       toast.success("Auction updated.")
     } catch (error) {
@@ -234,7 +236,7 @@ export function buildAuctionActions(deps: AuctionActionsDeps) {
     try {
       const refreshResult = await onRefreshAuctionCompetitionData(
         auctionId,
-        false,
+        false
       )
       if (refreshResult.status !== "ready") {
         toast.error(refreshResult.message)
@@ -271,7 +273,7 @@ export function buildAuctionActions(deps: AuctionActionsDeps) {
 
   const onDeleteBeforeOpen = async (auctionId: Id<"sponsorshipAuctions">) => {
     const shouldDelete = window.confirm(
-      "Delete this draft/scheduled auction? This cannot be undone.",
+      "Delete this draft/scheduled auction? This cannot be undone."
     )
     if (!shouldDelete) return
     setBusyAuctionId(auctionId)
