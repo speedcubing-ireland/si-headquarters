@@ -1,18 +1,29 @@
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { ComponentProps, ElementType, ReactNode } from "react"
+import { SELECTOR_ICON_BUTTON_CLASS } from "./selector-layout"
 
-export type SelectorButtonProps = ComponentProps<typeof Button>
+export type SelectorButtonProps = ComponentProps<typeof Button> & {
+  iconOnly?: boolean
+}
 
 export function SelectorButton({
   className,
+  iconOnly = false,
+  size,
   variant = "outline",
   ...props
 }: SelectorButtonProps) {
   return (
     <Button
       variant={variant}
-      className={cn("min-w-0 justify-start", className)}
+      size={iconOnly ? "default" : size}
+      data-icon-only={iconOnly ? "" : undefined}
+      className={cn(
+        "min-w-0",
+        iconOnly ? SELECTOR_ICON_BUTTON_CLASS : "justify-start",
+        className
+      )}
       {...props}
     />
   )

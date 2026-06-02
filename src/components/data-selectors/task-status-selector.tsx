@@ -59,6 +59,7 @@ export function Face({
 
 function TaskStatusSelectorControl({
   disabled,
+  iconOnly = false,
   iconProps,
   onChange,
   showLabel,
@@ -66,6 +67,7 @@ function TaskStatusSelectorControl({
   variant,
   ...props
 }: TaskStatusSelectorProps & {
+  iconOnly?: boolean
   showLabel: boolean
 }) {
   const value = statusView.effectiveStatus
@@ -85,6 +87,7 @@ function TaskStatusSelectorControl({
       <SelectTrigger asChild>
         <SelectorButton
           disabled={isDisabled || disabled}
+          iconOnly={iconOnly}
           variant={variant}
           {...props}
         >
@@ -123,6 +126,11 @@ export function IconButton({
   ...props
 }: TaskStatusSelectorProps) {
   return (
-    <TaskStatusSelectorControl showLabel={false} variant={variant} {...props} />
+    <TaskStatusSelectorControl
+      iconOnly
+      showLabel={false}
+      variant={variant}
+      {...props}
+    />
   )
 }

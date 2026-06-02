@@ -1,3 +1,4 @@
+import { SELECTOR_ICON_BUTTON_HOVER_CLASS } from "@/components/data-selectors/selector-layout"
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
@@ -56,10 +57,9 @@ function TaskCardControls({ row }: { row: TaskBoardRow }) {
 
   return (
     <div className="flex items-center gap-1.5 border-t px-2 py-1.5">
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-2">
         <TaskStatusSelector.IconButton
-          variant="ghost"
-          size="icon-sm"
+          className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           statusView={row.statusView}
           iconProps={{ className: "size-5" }}
           onChange={(status) => {
@@ -67,8 +67,7 @@ function TaskCardControls({ row }: { row: TaskBoardRow }) {
           }}
         />
         <UserSelector.MultiIconButton
-          variant="ghost"
-          size="icon-sm"
+          className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           value={row.assignees.userIds}
           selectedUsers={row.assignees.users}
           avatarProps={{ className: "size-5", size: "default" }}
@@ -98,17 +97,17 @@ function TaskCardControls({ row }: { row: TaskBoardRow }) {
             void setDueDate({ id: row.task._id, dueDate })
           }}
         />
-        <TaskOwnerSelector.IconButton
-          variant="ghost"
-          size="icon-xs"
-          className="ml-auto"
-          value={ownerValue}
-          selectedOwner={row.owner}
-          avatarProps={{ className: "size-4.5", size: "default" }}
-          onChange={(owner) => {
-            void setTaskOwner({ id: row.task._id, owner })
-          }}
-        />
+        <span className="ml-auto flex min-w-6 shrink-0 items-center justify-start">
+          <TaskOwnerSelector.IconButton
+            className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
+            value={ownerValue}
+            selectedOwner={row.owner}
+            avatarProps={{ className: "size-4.5", size: "default" }}
+            onChange={(owner) => {
+              void setTaskOwner({ id: row.task._id, owner })
+            }}
+          />
+        </span>
       </div>
     </div>
   )

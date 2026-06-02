@@ -12,8 +12,7 @@ import { ClipboardPenIcon, FlagIcon, UsersIcon } from "lucide-react"
 import type { ReactNode } from "react"
 
 const listIconProps = {
-  variant: "ghost" as const,
-  size: "icon-sm" as const,
+  variant: "icon" as const,
   avatarProps: { size: "sm" as const },
 }
 

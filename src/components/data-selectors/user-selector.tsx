@@ -202,6 +202,7 @@ function SingleUserSelectorControl({
       <DataSelector.ButtonTrigger
         className={className}
         disabled={disabled}
+        iconOnly={appearance === "icon"}
         size={size}
         variant={variant}
       >
@@ -263,6 +264,7 @@ function MultipleUserSelectorControl({
       <DataSelector.ButtonTrigger
         className={className}
         disabled={disabled}
+        iconOnly={appearance === "icon"}
         size={size}
         variant={variant}
       >
@@ -284,16 +286,10 @@ export function SinglePropertyButton(props: SingleUserSelectorProps) {
 
 export function SingleIconButton({
   variant = "icon",
-  size = "icon-sm",
   ...props
 }: SingleUserSelectorProps) {
   return (
-    <SingleUserSelectorControl
-      appearance="icon"
-      size={size}
-      variant={variant}
-      {...props}
-    />
+    <SingleUserSelectorControl appearance="icon" variant={variant} {...props} />
   )
 }
 

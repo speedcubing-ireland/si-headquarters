@@ -191,6 +191,7 @@ function OwnerSelectorControl({
       <DataSelector.ButtonTrigger
         className={className}
         disabled={disabled}
+        iconOnly={appearance === "icon"}
         size={size}
         variant={variant}
       >

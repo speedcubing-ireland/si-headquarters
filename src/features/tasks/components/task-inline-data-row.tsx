@@ -1,3 +1,7 @@
+import {
+  SELECTOR_ICON_BUTTON_HOVER_CLASS,
+  SELECTOR_ICON_SLOT_CLASS,
+} from "@/components/data-selectors/selector-layout"
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
 import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
@@ -20,10 +24,9 @@ export function TaskInlineDataRow({ row }: { row: TaskInlineRow }) {
 
   return (
     <>
-      <div className="flex shrink-0 items-center justify-center justify-self-center">
+      <div className={SELECTOR_ICON_SLOT_CLASS}>
         <UserSelector.MultiIconButton
-          variant="ghost"
-          size="icon-sm"
+          className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           selectedUsers={row.assignees.users}
           value={row.assignees.userIds}
           onChange={(assigneeIds) => {
@@ -35,10 +38,9 @@ export function TaskInlineDataRow({ row }: { row: TaskInlineRow }) {
           avatarProps={{ className: "size-5", size: "default" }}
         />
       </div>
-      <div className="flex shrink-0 items-center justify-center justify-self-center">
+      <div className={SELECTOR_ICON_SLOT_CLASS}>
         <TaskStatusSelector.IconButton
-          variant="ghost"
-          size="icon-sm"
+          className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           statusView={row.statusView}
           onChange={(newStatus) => {
             void setTaskStatus({ id: row.task._id, status: newStatus })
@@ -58,10 +60,9 @@ export function TaskInlineDataRow({ row }: { row: TaskInlineRow }) {
           className="font-mono text-muted-foreground"
         />
       </div>
-      <div className="flex shrink-0 items-center justify-center justify-self-center">
+      <div className={SELECTOR_ICON_SLOT_CLASS}>
         <TaskOwnerSelector.IconButton
-          variant="ghost"
-          size="icon-sm"
+          className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           value={ownerValue}
           selectedOwner={row.owner}
           onChange={(newOwner) => {
