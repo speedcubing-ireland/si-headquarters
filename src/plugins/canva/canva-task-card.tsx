@@ -7,9 +7,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/convex/_generated/api"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { TaskIntegrationCardShell } from "@/features/integrations/task-integration-card-shell"
+import { formatCatchError } from "@/features/integrations/error-message"
+import {
+  TaskIntegrationCardShell,
+  type TaskIntegrationCardRow,
+} from "@/features/integrations/task-integration-card-shell"
 import { useAction } from "convex/react"
 import { ExternalLinkIcon, PaletteIcon } from "lucide-react"
 import { useState } from "react"
@@ -21,16 +25,20 @@ interface CanvaDesignCandidate {
   thumbnailUrl?: string
 }
 
-export function CanvaTaskCard({
-  title,
-  row,
-}: {
-  title: string
-  row: Doc<"taskIntegrations">
-  taskId: Id<"tasks">
-}) {
+export function CanvaTaskCard({ row }: { row: TaskIntegrationCardRow }) {
   const validateDesign = useAction(api.plugins.canva.links.validateDesign)
   const linkDesign = useAction(api.plugins.canva.links.linkDesign)
+  const output = row.output?.kind === "canva_design" ? row.output : undefined
+  const openDesignButton =
+    output?.designUrl === undefined ? null : (
+      <Button asChild type="button" variant="outline">
+        <a href={output.designUrl} target="_blank" rel="noreferrer">
+          Open design
+          <ExternalLinkIcon />
+        </a>
+      </Button>
+    )
+
   const [manualOpen, setManualOpen] = useState(false)
   const [manualUrl, setManualUrl] = useState("")
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -38,8 +46,6 @@ export function CanvaTaskCard({
     null
   )
   const [candidate, setCandidate] = useState<CanvaDesignCandidate | null>(null)
-  const output =
-    row.output?.kind === "canva_design" ? row.output : undefined
 
   function resetManualDialog(open: boolean) {
     setManualOpen(open)
@@ -63,7 +69,7 @@ export function CanvaTaskCard({
         })
       )
     } catch (caught) {
-      setLinkError(caught instanceof Error ? caught.message : String(caught))
+      setLinkError(formatCatchError(caught))
     } finally {
       setLinkPending(null)
     }
@@ -79,7 +85,7 @@ export function CanvaTaskCard({
       await linkDesign({ id: row._id, designUrl: candidate.designUrl })
       resetManualDialog(false)
     } catch (caught) {
-      setLinkError(caught instanceof Error ? caught.message : String(caught))
+      setLinkError(formatCatchError(caught))
     } finally {
       setLinkPending(null)
     }
@@ -89,58 +95,69 @@ export function CanvaTaskCard({
     <>
       <TaskIntegrationCardShell
         icon={<PaletteIcon className="size-4 text-pink-500" />}
-        title={title}
         row={row}
-        renderAlert={({ status }) =>
+        showLastMessage={false}
+        alert={({ status }) =>
           status === "awaiting_manual_share"
-            ? "Share the design in Canva, then confirm here."
-            : null
+            ? "Open the design in Canva, share it with your team, then confirm below."
+            : undefined
         }
-        renderActions={({ actions, status }) => (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={status === "running" || actions.pending === "run"}
-              onClick={() => {
-                void actions.run()
-              }}
-            >
-              {status === "running" ? "Generating…" : "Generate"}
-            </Button>
-            {output?.designUrl !== undefined ? (
-              <Button asChild type="button" variant="outline">
-                <a href={output.designUrl} target="_blank" rel="noreferrer">
-                  Open design
-                  <ExternalLinkIcon />
-                </a>
-              </Button>
-            ) : null}
-            {status === "awaiting_manual_share" ? (
+        actions={({ actions, status }) => {
+          if (status === "running" || actions.pending === "run") {
+            return null
+          }
+          if (status === "completed") {
+            return openDesignButton
+          }
+          if (status === "awaiting_manual_share") {
+            return (
+              <>
+                {openDesignButton}
+                <Button
+                  type="button"
+                  disabled={actions.pending === "confirm"}
+                  onClick={() => {
+                    void actions.confirmManualStep({
+                      expectedStatus: status,
+                      completedMessage: "Manual step confirmed.",
+                    })
+                  }}
+                >
+                  Confirm shared
+                </Button>
+              </>
+            )
+          }
+          return (
+            <>
               <Button
                 type="button"
-                disabled={actions.pending === "confirm"}
+                variant="outline"
                 onClick={() => {
-                  void actions.confirmShare()
+                  void actions.run()
                 }}
               >
-                Confirm shared
+                Generate
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={status === "running"}
-              onClick={() => {
-                resetManualDialog(true)
-              }}
-            >
-              Link existing
-            </Button>
-          </>
-        )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetManualDialog(true)
+                }}
+              >
+                Link existing
+              </Button>
+            </>
+          )
+        }}
       >
-        {output?.thumbnailUrl !== undefined ? (
+        {row.status === "running" ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner />
+            Generating design...
+          </div>
+        ) : output?.thumbnailUrl !== undefined ? (
           <div className="flex justify-center rounded-lg border">
             <img
               className="h-48 w-auto object-contain"
@@ -194,7 +211,7 @@ export function CanvaTaskCard({
                   void validateManualDesign()
                 }}
               >
-                {linkPending === "validate" ? "Validating…" : "Validate"}
+                {linkPending === "validate" ? "Validating..." : "Validate"}
               </Button>
             ) : (
               <Button
@@ -204,7 +221,7 @@ export function CanvaTaskCard({
                   void linkManualDesign()
                 }}
               >
-                {linkPending === "link" ? "Linking…" : "Link design"}
+                {linkPending === "link" ? "Linking..." : "Link design"}
               </Button>
             )}
           </DialogFooter>

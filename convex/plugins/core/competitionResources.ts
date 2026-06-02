@@ -9,6 +9,12 @@ import {
 import { competitionLinkedResourceRow } from "@/convex/plugins/core/validators"
 import type { CompetitionResourceType } from "@/convex/plugins/core/types"
 
+const RESOURCE_LABELS = {
+  googleSheet: "Google Sheet",
+  wcaCompetition: "WCA competition",
+  discordChannel: "Discord channel",
+} as const satisfies Record<CompetitionResourceType, string>
+
 export const listForCompetition = query({
   args: { competitionId: v.id("competitions") },
   returns: v.array(competitionLinkedResourceRow),
@@ -57,9 +63,10 @@ export async function getRequiredResource(
     .unique()
 
   if (resource === null) {
+    const label = RESOURCE_LABELS[resourceType]
     throw new ConvexError({
       code: "PRECONDITION_FAILED",
-      message: `Missing ${resourceType} resource '${resourceKey}' for this competition.`,
+      message: `Link a ${label} to this competition before running this integration.`,
     })
   }
   return resource

@@ -1,10 +1,10 @@
 import { FileSpreadsheetIcon } from "lucide-react"
 import type { IntegrationPlugin } from "@/plugins/integrations/registry"
 import { LinkGoogleSheetButton } from "@/plugins/sheets/link-google-sheet-button"
-import { PopulateCheckinCard } from "@/plugins/sheets/populate-checkin-card"
+import { SheetRunCard } from "@/plugins/sheets/sheet-run-card"
 import { TransferScheduleCard } from "@/plugins/sheets/transfer-schedule-card"
 
-export const sheetsIntegrationPlugin: IntegrationPlugin = {
+export const sheetsIntegrationPlugin = {
   id: "sheets",
   competitionLink: "googleSheet",
   adminIcon: FileSpreadsheetIcon,
@@ -19,8 +19,8 @@ export const sheetsIntegrationPlugin: IntegrationPlugin = {
     "sheet.transfer-schedule-to-wca",
     "sheet.populate-checkin",
   ],
+  DefaultTaskIntegrationCard: SheetRunCard,
   taskIntegrationCards: {
     "sheet.transfer-schedule-to-wca": TransferScheduleCard,
-    "sheet.populate-checkin": PopulateCheckinCard,
   },
-}
+} satisfies IntegrationPlugin

@@ -1,35 +1,28 @@
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { SheetTaskIntegrationCard } from "@/plugins/sheets/task-integration-card"
+import {
+  TaskIntegrationCardShell,
+  type TaskIntegrationCardActions,
+  type TaskIntegrationCardRow,
+} from "@/features/integrations/task-integration-card-shell"
+import { isManualIntegrationStatus } from "@/features/integrations/integration-status"
+import type { TaskIntegrationStatus } from "@/convex/plugins/core/types"
+import { FileSpreadsheetIcon } from "lucide-react"
 import { useState } from "react"
 
-export function TransferScheduleCard({
-  row,
-}: {
-  row: Doc<"taskIntegrations">
-  taskId: Id<"tasks">
-}) {
+export function TransferScheduleCard({ row }: { row: TaskIntegrationCardRow }) {
   const [overwriteEvents, setOverwriteEvents] = useState(false)
   const output =
     row.output?.kind === "schedule_transfer" ? row.output : undefined
 
   return (
-    <SheetTaskIntegrationCard
-      title="Transfer schedule to WCA"
+    <TaskIntegrationCardShell
+      icon={<FileSpreadsheetIcon className="size-4 text-lime-500" />}
       row={row}
-      onRun={(actions) => {
-        void actions.run({ overwriteEvents })
-      }}
-      onConfirm={
-        row.status === "awaiting_manual_events_confirmation"
-          ? (actions) => {
-              void actions.confirmEvents()
-            }
-          : undefined
+      actions={({ actions, status }) =>
+        renderActions({ actions, status, overwriteEvents })
       }
-      confirmLabel="Confirm WCA upload"
     >
       {row.status === "error" ? (
         <div className="flex items-center gap-2">
@@ -57,6 +50,45 @@ export function TransferScheduleCard({
           </a>
         </Button>
       ) : null}
-    </SheetTaskIntegrationCard>
+    </TaskIntegrationCardShell>
+  )
+}
+
+function renderActions({
+  actions,
+  overwriteEvents,
+  status,
+}: {
+  actions: TaskIntegrationCardActions
+  overwriteEvents: boolean
+  status: TaskIntegrationStatus
+}) {
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={status === "running" || actions.pending === "run"}
+        onClick={() => {
+          void actions.run({ overwriteEvents })
+        }}
+      >
+        {status === "running" ? "Running..." : "Run"}
+      </Button>
+      {isManualIntegrationStatus(status) ? (
+        <Button
+          type="button"
+          disabled={actions.pending === "confirm"}
+          onClick={() => {
+            void actions.confirmManualStep({
+              expectedStatus: status,
+              completedMessage: "WCA schedule upload confirmed.",
+            })
+          }}
+        >
+          Confirm WCA upload
+        </Button>
+      ) : null}
+    </>
   )
 }

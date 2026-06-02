@@ -54,6 +54,11 @@ describe("task integrations", () => {
     )
     expect(listed).toHaveLength(1)
     expect(listed[0]?.integrationId).toBe("canva.certificates")
+    expect(listed[0]?.definition).toEqual({
+      id: "canva.certificates",
+      label: "Certificate designs",
+      pluginId: "canva",
+    })
 
     await asOrganiser.mutation(api.plugins.core.taskIntegrations.detach, {
       id: integrationRowId,
@@ -112,13 +117,37 @@ describe("task integrations", () => {
     ])
   })
 
-  test("exposes integration definitions for the task add menu", async () => {
+  test("exposes unattached integrations for the task add menu", async () => {
     const t = convexTest(schema, modules)
-    const definitions = await t.query(
-      api.plugins.core.taskIntegrations.listDefinitions,
-      {}
+    const { userId, taskId } = await t.run(async (ctx) => {
+      const userId = await insertTestUser(ctx, "Organiser")
+      const competitionId = await insertBlankCompetition(ctx)
+      await ctx.db.patch("competitions", competitionId, {
+        people: {
+          compLead: null,
+          leadDelegate: null,
+          organisers: [userId],
+        },
+      })
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Ops",
+        "a"
+      )
+      const taskId = await insertSeedTask(ctx, {
+        name: "Certs",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      return { userId, taskId }
+    })
+    const asOrganiser = t.withIdentity({ subject: userId })
+    const available = await asOrganiser.query(
+      api.plugins.core.taskIntegrations.listAvailableForTask,
+      { taskId }
     )
-    expect(definitions.map((d) => d.id).sort()).toEqual(
+    expect(available.map((d) => d.id).sort()).toEqual(
       [
         "canva.certificates",
         "canva.lanyards",

@@ -2,14 +2,15 @@ import { v, type Infer, type Validator } from "convex/values"
 import {
   COMPETITION_RESOURCE_TYPES,
   INTEGRATION_SERVICES,
+  MANUAL_TASK_INTEGRATION_STATUSES,
   OAUTH_SERVICES,
   TASK_INTEGRATION_IDS,
   TASK_INTEGRATION_STATUSES,
 } from "@/convex/plugins/core/constants"
 
-function literalUnion<const Values extends readonly [string, string, ...string[]]>(
-  values: Values
-): Validator<Values[number]> {
+function literalUnion<
+  const Values extends readonly [string, string, ...string[]],
+>(values: Values): Validator<Values[number]> {
   const [first, second, ...rest] = values
   return v.union(
     v.literal(first),
@@ -46,8 +47,6 @@ export const discordChannelResourceData = v.object({
   channelName: v.string(),
 })
 
-export const discordChannelSummary = discordChannelResourceData
-
 export const competitionResourceData = v.union(
   v.object({
     resourceType: v.literal("googleSheet"),
@@ -66,6 +65,10 @@ export const competitionResourceData = v.union(
 export const taskIntegrationId = literalUnion(TASK_INTEGRATION_IDS)
 
 export const taskIntegrationStatus = literalUnion(TASK_INTEGRATION_STATUSES)
+
+export const manualTaskIntegrationStatus = literalUnion(
+  MANUAL_TASK_INTEGRATION_STATUSES
+)
 
 export const taskIntegrationOutput = v.union(
   v.object({
@@ -113,6 +116,9 @@ export type CompetitionResourceType = Infer<typeof competitionResourceType>
 export type CompetitionResourceData = Infer<typeof competitionResourceData>
 export type TaskIntegrationId = Infer<typeof taskIntegrationId>
 export type TaskIntegrationStatus = Infer<typeof taskIntegrationStatus>
+export type ManualTaskIntegrationStatus = Infer<
+  typeof manualTaskIntegrationStatus
+>
 export type IntegrationService = Infer<typeof integrationService>
 export type OAuthService = Infer<typeof oauthService>
 export type TaskIntegrationRunInput = Infer<typeof taskIntegrationRunInput>
@@ -127,4 +133,9 @@ export const taskIntegrationRow = v.object({
   lastRunAt: v.union(v.number(), v.null()),
   runId: v.union(v.string(), v.null()),
   output: taskIntegrationOutput,
+})
+
+export const taskIntegrationListRow = v.object({
+  ...taskIntegrationRow.fields,
+  definition: taskIntegrationDefinitionMeta,
 })

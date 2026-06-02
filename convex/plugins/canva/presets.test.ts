@@ -59,21 +59,26 @@ describe("canva presets", () => {
       CANVA_LANYARD_OUTPUT_FOLDER_ID: "folder-lanyard",
     }
 
-    expect(resolveCanvaPresetEnv(getCanvaPreset("canva.certificates"), source))
-      .toEqual({
-        sourceBrandTemplateId: "tpl-cert",
-        destinationFolderId: "folder-cert",
-      })
-    expect(resolveCanvaPresetEnv(getCanvaPreset("canva.lanyards"), source))
-      .toEqual({
-        sourceBrandTemplateId: "tpl-lanyard",
-        destinationFolderId: "folder-lanyard",
-      })
+    expect(
+      resolveCanvaPresetEnv(getCanvaPreset("canva.certificates"), source)
+    ).toEqual({
+      sourceBrandTemplateId: "tpl-cert",
+      destinationFolderId: "folder-cert",
+    })
+    expect(
+      resolveCanvaPresetEnv(getCanvaPreset("canva.lanyards"), source)
+    ).toEqual({
+      sourceBrandTemplateId: "tpl-lanyard",
+      destinationFolderId: "folder-lanyard",
+    })
   })
 
   test("buildCanvaOutputTitle uses preset naming suffix", () => {
     expect(
-      buildCanvaOutputTitle("Dublin Open 2026", getCanvaPreset("canva.lanyards"))
+      buildCanvaOutputTitle(
+        "Dublin Open 2026",
+        getCanvaPreset("canva.lanyards")
+      )
     ).toBe("Dublin Open 2026 - Lanyards")
   })
 })

@@ -1,6 +1,6 @@
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
-import type { TaskIntegrationId } from "@/convex/plugins/core/validators"
+import type { TaskIntegrationId } from "@/convex/plugins/core/types"
 
 export async function insertTaskIntegrationIfMissing(
   ctx: MutationCtx,

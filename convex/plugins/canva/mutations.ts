@@ -1,6 +1,5 @@
-import { v } from "convex/values"
+import { ConvexError, v } from "convex/values"
 import { internalMutation } from "@/convex/_generated/server"
-
 export const applyLinkedCanvaDesign = internalMutation({
   args: {
     integrationRowId: v.id("taskIntegrations"),
@@ -11,9 +10,25 @@ export const applyLinkedCanvaDesign = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    void args.title
+    const row = await ctx.db.get("taskIntegrations", args.integrationRowId)
+    if (row === null) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Task integration not found",
+      })
+    }
+    if (row.status === "running") {
+      throw new ConvexError({
+        code: "CONFLICT",
+        message: "Cannot link a design while the integration is running.",
+      })
+    }
+
     await ctx.db.patch("taskIntegrations", args.integrationRowId, {
       status: "awaiting_manual_share",
-      lastMessage: `Linked "${args.title}". Share it in Canva, then confirm here.`,
+      lastMessage: null,
+      lastRunAt: Date.now(),
       runId: null,
       output: {
         kind: "canva_design",

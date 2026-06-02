@@ -1,6 +1,6 @@
-import type { BackendIntegrationPlugin } from "@/convex/plugins/integrationTypes"
+import type { BackendIntegrationPlugin } from "@/convex/plugins/core/integrationTypes"
 
-export const wcaPlugin: BackendIntegrationPlugin = {
+export const wcaPlugin = {
   id: "wca",
   service: "wca",
-}
+} satisfies BackendIntegrationPlugin

@@ -5,7 +5,7 @@ import type { ActionCtx } from "@/convex/_generated/server"
 import type {
   IntegrationRunResult,
   RunContext,
-} from "@/convex/plugins/integrationTypes"
+} from "@/convex/plugins/core/integrationTypes"
 import { autofillBrandTemplate } from "@/convex/plugins/canva/api"
 import {
   buildCanvaOutputTitle,
@@ -36,8 +36,7 @@ async function runCanvaAutofill(
 
   return {
     status: "awaiting_manual_share",
-    lastMessage:
-      "Design generated. Share it in Canva, then confirm here or link an existing design.",
+    lastMessage: null,
     output: {
       kind: "canva_design",
       designId: design.designId,

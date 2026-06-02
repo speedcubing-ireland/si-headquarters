@@ -1,40 +1,40 @@
-import type { TaskIntegrationId } from "@/convex/plugins/core/types"
 import { env } from "@/convex/_generated/server"
+import {
+  TASK_INTEGRATION_DEFINITIONS,
+  type TaskIntegrationIdFromDefinitions,
+} from "@/convex/plugins/core/constants"
 
-export interface CanvaPresetNaming {
-  outputSuffix: string
-}
+const CANVA_PRESET_IDS = [
+  "canva.certificates",
+  "canva.lanyards",
+] as const satisfies readonly TaskIntegrationIdFromDefinitions[]
 
-interface CanvaPresetDefinition {
-  id: TaskIntegrationId
-  label: string
-  sourceBrandTemplateEnv: string
-  destinationFolderEnv: string
-  naming: CanvaPresetNaming
-}
-
-export const CANVA_PRESETS = [
-  {
-    id: "canva.certificates",
-    label: "Certificate designs",
-    sourceBrandTemplateEnv: "CANVA_CERT_TEMPLATE_ID",
-    destinationFolderEnv: "CANVA_CERT_OUTPUT_FOLDER_ID",
-    naming: { outputSuffix: "Certificates" },
-  },
-  {
-    id: "canva.lanyards",
-    label: "Lanyard designs",
-    sourceBrandTemplateEnv: "CANVA_LANYARD_TEMPLATE_ID",
-    destinationFolderEnv: "CANVA_LANYARD_OUTPUT_FOLDER_ID",
-    naming: { outputSuffix: "Lanyards" },
-  },
-] as const satisfies readonly CanvaPresetDefinition[]
-
-export type CanvaPreset = (typeof CANVA_PRESETS)[number]
-export type CanvaPresetId = (typeof CANVA_PRESETS)[number]["id"]
 export type CanvaEnvKey =
-  | (typeof CANVA_PRESETS)[number]["sourceBrandTemplateEnv"]
-  | (typeof CANVA_PRESETS)[number]["destinationFolderEnv"]
+  | "CANVA_CERT_TEMPLATE_ID"
+  | "CANVA_CERT_OUTPUT_FOLDER_ID"
+  | "CANVA_LANYARD_TEMPLATE_ID"
+  | "CANVA_LANYARD_OUTPUT_FOLDER_ID"
+
+export interface CanvaPreset {
+  id: (typeof CANVA_PRESET_IDS)[number]
+  label: string
+  sourceBrandTemplateEnv: CanvaEnvKey
+  destinationFolderEnv: CanvaEnvKey
+  naming: { outputSuffix: string }
+}
+
+export const CANVA_PRESETS = CANVA_PRESET_IDS.map((id) => {
+  const definition = TASK_INTEGRATION_DEFINITIONS[id]
+  return {
+    id,
+    label: definition.label,
+    sourceBrandTemplateEnv: definition.canva.sourceBrandTemplateEnv,
+    destinationFolderEnv: definition.canva.destinationFolderEnv,
+    naming: definition.canva.naming,
+  }
+}) satisfies readonly CanvaPreset[]
+
+export type CanvaPresetId = (typeof CANVA_PRESETS)[number]["id"]
 
 export type CanvaEnvSource = Record<CanvaEnvKey, string | undefined>
 

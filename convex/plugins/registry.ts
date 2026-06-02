@@ -2,7 +2,7 @@ import {
   integrationPluginTables,
   oauthPluginTables,
 } from "@/convex/plugins/validators"
-import type { BackendIntegrationPlugin } from "@/convex/plugins/integrationTypes"
+import type { BackendIntegrationPlugin } from "@/convex/plugins/core/integrationTypes"
 import { sponsorTables } from "@/convex/plugins/sponsor/validators"
 import { canvaPlugin } from "@/convex/plugins/canva/definition"
 import { discordPlugin } from "@/convex/plugins/discord/definition"

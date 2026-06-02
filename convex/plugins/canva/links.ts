@@ -62,7 +62,7 @@ export const linkDesign = action({
   handler: async (ctx, args) => {
     const design = await validateDesignCandidate(ctx, args)
 
-    await ctx.runMutation(internal.plugins.canva.taskIntegrations.applyLinkedCanvaDesign, {
+    await ctx.runMutation(internal.plugins.canva.mutations.applyLinkedCanvaDesign, {
       integrationRowId: args.id,
       designId: design.designId,
       designUrl: design.designUrl,

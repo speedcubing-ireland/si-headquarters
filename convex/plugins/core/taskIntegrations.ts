@@ -5,28 +5,18 @@ import { authorizeTaskRun, requireTaskIntegrationAccess } from "@/convex/plugins
 import {
   taskIntegrationId,
   taskIntegrationDefinitionMeta,
+  taskIntegrationListRow,
+  manualTaskIntegrationStatus,
   taskIntegrationOutput,
-  taskIntegrationRow,
   taskIntegrationRunInput,
   taskIntegrationStatus,
 } from "@/convex/plugins/core/validators"
 import {
   getIntegrationDefinition,
   listIntegrationDefinitions,
+  toIntegrationDefinitionMeta,
 } from "@/convex/plugins/core/resolvePlugins"
 import { insertTaskIntegrationIfMissing } from "@/convex/plugins/core/taskIntegrationRows"
-
-export const listDefinitions = query({
-  args: {},
-  returns: v.array(taskIntegrationDefinitionMeta),
-  handler: () => {
-    return listIntegrationDefinitions().map((definition) => ({
-      id: definition.id,
-      label: definition.label,
-      pluginId: definition.pluginId,
-    }))
-  },
-})
 
 export const listAvailableForTask = query({
   args: { taskId: v.id("tasks") },
@@ -40,23 +30,26 @@ export const listAvailableForTask = query({
     const attached = new Set(rows.map((row) => row.integrationId))
     return listIntegrationDefinitions()
       .filter((definition) => !attached.has(definition.id))
-      .map((definition) => ({
-        id: definition.id,
-        label: definition.label,
-        pluginId: definition.pluginId,
-      }))
+      .map(toIntegrationDefinitionMeta)
   },
 })
 
 export const listForTask = query({
   args: { taskId: v.id("tasks") },
-  returns: v.array(taskIntegrationRow),
+  returns: v.array(taskIntegrationListRow),
   handler: async (ctx, args) => {
     await requireTaskIntegrationAccess(ctx, args.taskId)
-    return await ctx.db
+    const rows = await ctx.db
       .query("taskIntegrations")
       .withIndex("by_taskId", (q) => q.eq("taskId", args.taskId))
       .collect()
+    return rows.map((row) => {
+      const definition = getIntegrationDefinition(row.integrationId)
+      return {
+        ...row,
+        definition: toIntegrationDefinitionMeta(definition),
+      }
+    })
   },
 })
 
@@ -135,15 +128,10 @@ export const run = mutation({
   },
 })
 
-const manualConfirmStatus = v.union(
-  v.literal("awaiting_manual_share"),
-  v.literal("awaiting_manual_events_confirmation")
-)
-
 export const confirmManualStep = mutation({
   args: {
     id: v.id("taskIntegrations"),
-    expectedStatus: manualConfirmStatus,
+    expectedStatus: manualTaskIntegrationStatus,
     completedMessage: v.string(),
   },
   returns: v.null(),

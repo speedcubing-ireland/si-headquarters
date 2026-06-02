@@ -4,7 +4,7 @@ import {
   type IntegrationRunResult,
   requireRunResource,
   type RunContext,
-} from "@/convex/plugins/integrationTypes"
+} from "@/convex/plugins/core/integrationTypes"
 import { CHECKIN_SHARE_EMAIL } from "@/convex/plugins/sheets/constants"
 import { shareSheetWithEmail } from "@/convex/plugins/sheets/googleApi"
 import { fetchGoogleAndWcaTokens } from "@/convex/plugins/sheets/tokens"

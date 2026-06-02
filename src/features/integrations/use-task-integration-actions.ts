@@ -1,5 +1,9 @@
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
+import type {
+  ManualTaskIntegrationStatus,
+  TaskIntegrationRunInput,
+} from "@/convex/plugins/core/types"
 import { useTaggedAsyncAction } from "@/features/integrations/use-async-action"
 import { useMutation } from "convex/react"
 
@@ -16,7 +20,7 @@ export function useTaskIntegrationActions(row: Doc<"taskIntegrations">) {
   return {
     pending,
     error,
-    run: (input?: { overwriteEvents?: boolean }) =>
+    run: (input?: TaskIntegrationRunInput) =>
       run("run", async () => {
         await runMutation({ id: row._id, input: input ?? {} })
       }),
@@ -24,20 +28,18 @@ export function useTaskIntegrationActions(row: Doc<"taskIntegrations">) {
       run("delete", async () => {
         await detachMutation({ id: row._id })
       }),
-    confirmShare: () =>
+    confirmManualStep: ({
+      completedMessage,
+      expectedStatus,
+    }: {
+      completedMessage: string
+      expectedStatus: ManualTaskIntegrationStatus
+    }) =>
       run("confirm", async () => {
         await confirmMutation({
           id: row._id,
-          expectedStatus: "awaiting_manual_share",
-          completedMessage: "Manual step confirmed.",
-        })
-      }),
-    confirmEvents: () =>
-      run("confirm", async () => {
-        await confirmMutation({
-          id: row._id,
-          expectedStatus: "awaiting_manual_events_confirmation",
-          completedMessage: "WCA schedule upload confirmed.",
+          expectedStatus,
+          completedMessage,
         })
       }),
   }

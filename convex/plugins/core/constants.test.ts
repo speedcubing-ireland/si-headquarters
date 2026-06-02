@@ -1,5 +1,9 @@
-import { describe, expect, test } from "vitest"
 import type { Infer } from "convex/values"
+import { describe, expect, test } from "vitest"
+import {
+  DEFAULT_RESOURCE_KEYS,
+  MANUAL_TASK_INTEGRATION_STATUSES,
+} from "@/convex/plugins/core/constants"
 import type {
   COMPETITION_RESOURCE_TYPES,
   INTEGRATION_SERVICES,
@@ -10,13 +14,17 @@ import type {
 import type {
   competitionResourceType,
   integrationService,
+  manualTaskIntegrationStatus,
   oauthService,
   taskIntegrationId,
   taskIntegrationStatus,
 } from "@/convex/plugins/core/validators"
 
-type ExpectEqual<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
-
+type ExpectEqual<A, B> = [A] extends [B]
+  ? [B] extends [A]
+    ? true
+    : false
+  : false
 type AssertEqual<A, B> = ExpectEqual<A, B> extends true ? true : never
 
 describe("plugin constants and validators", () => {
@@ -41,11 +49,28 @@ describe("plugin constants and validators", () => {
       Infer<typeof oauthService>,
       (typeof OAUTH_SERVICES)[number]
     > = true
+    const manualStatusCheck: AssertEqual<
+      Infer<typeof manualTaskIntegrationStatus>,
+      (typeof MANUAL_TASK_INTEGRATION_STATUSES)[number]
+    > = true
 
     expect(resourceTypeCheck).toBe(true)
     expect(taskIntegrationIdCheck).toBe(true)
     expect(taskIntegrationStatusCheck).toBe(true)
     expect(integrationServiceCheck).toBe(true)
     expect(oauthServiceCheck).toBe(true)
+    expect(manualStatusCheck).toBe(true)
+  })
+
+  test("keeps explicit manual statuses and default resource keys", () => {
+    expect(MANUAL_TASK_INTEGRATION_STATUSES).toEqual([
+      "awaiting_manual_share",
+      "awaiting_manual_events_confirmation",
+    ])
+    expect(DEFAULT_RESOURCE_KEYS).toEqual({
+      googleSheet: "default",
+      wcaCompetition: "default",
+      discordChannel: "default",
+    })
   })
 })

@@ -1,6 +1,6 @@
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { INTEGRATION_PLUGINS } from "@/plugins/integrations/registry"
+import { TASK_INTEGRATION_CARDS } from "@/plugins/integrations/registry"
 import { useQuery } from "convex/react"
 
 export function TaskIntegrationsSection({ taskId }: { taskId: Id<"tasks"> }) {
@@ -15,14 +15,11 @@ export function TaskIntegrationsSection({ taskId }: { taskId: Id<"tasks"> }) {
   return (
     <>
       {integrations.map((row) => {
-        const plugin = INTEGRATION_PLUGINS.find((p) =>
-          p.taskIntegrationIds.includes(row.integrationId)
-        )
-        const Card = plugin?.taskIntegrationCards[row.integrationId]
+        const Card = TASK_INTEGRATION_CARDS.get(row.integrationId)
         if (Card === undefined) {
           return null
         }
-        return <Card key={row._id} row={row} taskId={taskId} />
+        return <Card key={row._id} row={row} />
       })}
     </>
   )
