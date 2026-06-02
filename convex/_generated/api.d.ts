@@ -22,6 +22,7 @@ import type * as competitions_validators from "../competitions/validators.js";
 import type * as competitions_weekendSlots_mutations from "../competitions/weekendSlots/mutations.js";
 import type * as competitions_weekendSlots_validators from "../competitions/weekendSlots/validators.js";
 import type * as competitions_weekends from "../competitions/weekends.js";
+import type * as env from "../env.js";
 import type * as http from "../http.js";
 import type * as permissions_principal from "../permissions/principal.js";
 import type * as permissions_queries from "../permissions/queries.js";
@@ -61,6 +62,7 @@ import type * as plugins_discord_resources from "../plugins/discord/resources.js
 import type * as plugins_google_oauth from "../plugins/google/oauth.js";
 import type * as plugins_integrationTypes from "../plugins/integrationTypes.js";
 import type * as plugins_oauth from "../plugins/oauth.js";
+import type * as plugins_oauthEnv from "../plugins/oauthEnv.js";
 import type * as plugins_oauthProvider from "../plugins/oauthProvider.js";
 import type * as plugins_oauthRegistry from "../plugins/oauthRegistry.js";
 import type * as plugins_registry from "../plugins/registry.js";
@@ -203,6 +205,7 @@ declare const fullApi: ApiFromModules<{
   "competitions/weekendSlots/mutations": typeof competitions_weekendSlots_mutations;
   "competitions/weekendSlots/validators": typeof competitions_weekendSlots_validators;
   "competitions/weekends": typeof competitions_weekends;
+  env: typeof env;
   http: typeof http;
   "permissions/principal": typeof permissions_principal;
   "permissions/queries": typeof permissions_queries;
@@ -242,6 +245,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/google/oauth": typeof plugins_google_oauth;
   "plugins/integrationTypes": typeof plugins_integrationTypes;
   "plugins/oauth": typeof plugins_oauth;
+  "plugins/oauthEnv": typeof plugins_oauthEnv;
   "plugins/oauthProvider": typeof plugins_oauthProvider;
   "plugins/oauthRegistry": typeof plugins_oauthRegistry;
   "plugins/registry": typeof plugins_registry;

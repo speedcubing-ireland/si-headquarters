@@ -9,6 +9,7 @@ import { ConvexReactClient } from "convex/react"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
 import { isSponsorSite } from "@/lib/sponsor-site"
 import { createSponsorSiteRewrite } from "@/lib/sponsor-site-rewrite"
+import { env } from "@/env"
 import "./index.css"
 
 const router = createRouter({
@@ -24,12 +25,7 @@ declare module "@tanstack/react-router" {
   }
 }
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL
-if (!convexUrl) {
-  throw new Error("VITE_CONVEX_URL is required")
-}
-
-const convex = new ConvexReactClient(convexUrl)
+const convex = new ConvexReactClient(env.VITE_CONVEX_URL)
 
 const root = document.getElementById("root")
 if (!root) {

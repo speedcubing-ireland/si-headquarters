@@ -7,6 +7,7 @@ import { emailOTP, type EmailOTPOptions } from "better-auth/plugins";
 import { components } from "@/convex/_generated/api";
 import { internal } from "@/convex/_generated/api";
 import type { DataModel } from "@/convex/_generated/dataModel";
+import { env } from "@/convex/_generated/server";
 import {
   sponsorOtpAuthEmailSubject,
   sponsorOtpPurposeFromAuthType,
@@ -27,6 +28,12 @@ const SPONSOR_AUTH_DEV_SECRET =
 type SponsorOtpType = Parameters<
 	EmailOTPOptions["sendVerificationOTP"]
 >[0]["type"];
+
+interface SponsorAuthSecretSource {
+	readonly SPONSOR_BETTER_AUTH_SECRET: string | undefined;
+	readonly BETTER_AUTH_SECRET: string | undefined;
+}
+
 export function trimTrailingSlash(value: string): string {
 	return value.endsWith("/") ? value.slice(0, -1) : value;
 }
@@ -49,9 +56,10 @@ function resolveSponsorSiteOrigin(): string {
 
 export function resolveSponsorAuthSecret(
 	requireConfiguredSecret: boolean,
+	source: SponsorAuthSecretSource = env,
 ): string {
 	const configured =
-		process.env.SPONSOR_BETTER_AUTH_SECRET ?? process.env.BETTER_AUTH_SECRET;
+		source.SPONSOR_BETTER_AUTH_SECRET ?? source.BETTER_AUTH_SECRET;
 	if (configured !== undefined && configured.length >= 32) {
 		return configured;
 	}
@@ -105,8 +113,8 @@ export function createSponsorAuthOptions(
 	);
 
 	const trustedOrigins = uniqueOrigins([
-		process.env.SPONSOR_SITE_URL,
-		process.env.SITE_URL,
+		env.SPONSOR_SITE_URL,
+		env.SITE_URL,
 		process.env.NEXT_PUBLIC_SITE_URL,
 		sponsorSiteOrigin,
 		"http://localhost:5173",

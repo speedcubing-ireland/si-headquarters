@@ -8,20 +8,21 @@ import {
   readString,
   type JsonRecord,
 } from "@/convex/plugins/core/jsonBoundary"
+import { env } from "@/convex/_generated/server"
 
 const DISCORD_API = "https://discord.com/api/v10"
 
 function requireBotToken(): string {
-  const token = process.env.DISCORD_BOT_TOKEN
-  if (token === undefined || token === "") {
+  const token = env.DISCORD_BOT_TOKEN
+  if (token === "") {
     throw new Error("DISCORD_BOT_TOKEN is not set in Convex env.")
   }
   return token
 }
 
 function requireGuildId(): string {
-  const guildId = process.env.DISCORD_GUILD_ID
-  if (guildId === undefined || guildId === "") {
+  const guildId = env.DISCORD_GUILD_ID
+  if (guildId === "") {
     throw new Error("DISCORD_GUILD_ID is not set in Convex env.")
   }
   return guildId

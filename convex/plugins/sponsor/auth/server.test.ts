@@ -60,53 +60,49 @@ describe("uniqueOrigins", () => {
 });
 
 describe("resolveSponsorAuthSecret", () => {
-	const savedSponsor = process.env.SPONSOR_BETTER_AUTH_SECRET;
-	const savedGeneric = process.env.BETTER_AUTH_SECRET;
-
-	function clearSecretEnv() {
-		delete process.env.SPONSOR_BETTER_AUTH_SECRET;
-		delete process.env.BETTER_AUTH_SECRET;
-	}
-
-	afterEach(() => {
-		if (savedSponsor !== undefined)
-			process.env.SPONSOR_BETTER_AUTH_SECRET = savedSponsor;
-		else delete process.env.SPONSOR_BETTER_AUTH_SECRET;
-		if (savedGeneric !== undefined)
-			process.env.BETTER_AUTH_SECRET = savedGeneric;
-		else delete process.env.BETTER_AUTH_SECRET;
-	});
-
 	test("returns SPONSOR_BETTER_AUTH_SECRET when set and long enough", () => {
-		process.env.SPONSOR_BETTER_AUTH_SECRET = "a".repeat(32);
-		process.env.BETTER_AUTH_SECRET = "b".repeat(32);
-		expect(resolveSponsorAuthSecret(false)).toBe("a".repeat(32));
+		expect(
+			resolveSponsorAuthSecret(false, {
+				SPONSOR_BETTER_AUTH_SECRET: "a".repeat(32),
+				BETTER_AUTH_SECRET: "b".repeat(32),
+			}),
+		).toBe("a".repeat(32));
 	});
 
 	test("falls back to BETTER_AUTH_SECRET", () => {
-		delete process.env.SPONSOR_BETTER_AUTH_SECRET;
-		process.env.BETTER_AUTH_SECRET = "b".repeat(32);
-		expect(resolveSponsorAuthSecret(false)).toBe("b".repeat(32));
+		expect(
+			resolveSponsorAuthSecret(false, {
+				SPONSOR_BETTER_AUTH_SECRET: undefined,
+				BETTER_AUTH_SECRET: "b".repeat(32),
+			}),
+		).toBe("b".repeat(32));
 	});
 
 	test("rejects secrets shorter than 32 characters", () => {
-		clearSecretEnv();
-		process.env.SPONSOR_BETTER_AUTH_SECRET = "short";
-		expect(resolveSponsorAuthSecret(false)).toBe(
-			"dev-only-sponsor-auth-secret-change-in-production",
-		);
+		expect(
+			resolveSponsorAuthSecret(false, {
+				SPONSOR_BETTER_AUTH_SECRET: "short",
+				BETTER_AUTH_SECRET: undefined,
+			}),
+		).toBe("dev-only-sponsor-auth-secret-change-in-production");
 	});
 
 	test("returns dev fallback when no secret configured", () => {
-		clearSecretEnv();
-		expect(resolveSponsorAuthSecret(false)).toBe(
-			"dev-only-sponsor-auth-secret-change-in-production",
-		);
+		expect(
+			resolveSponsorAuthSecret(false, {
+				SPONSOR_BETTER_AUTH_SECRET: undefined,
+				BETTER_AUTH_SECRET: undefined,
+			}),
+		).toBe("dev-only-sponsor-auth-secret-change-in-production");
 	});
 
 	test("throws when requireConfiguredSecret is true and no valid secret", () => {
-		clearSecretEnv();
-		expect(() => resolveSponsorAuthSecret(true)).toThrow(
+		expect(() =>
+			resolveSponsorAuthSecret(true, {
+				SPONSOR_BETTER_AUTH_SECRET: undefined,
+				BETTER_AUTH_SECRET: undefined,
+			}),
+		).toThrow(
 			"Missing BETTER_AUTH_SECRET",
 		);
 	});

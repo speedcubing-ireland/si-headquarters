@@ -83,6 +83,7 @@ export interface TaskIntegrationDefinition {
 export interface BackendIntegrationPlugin {
   id: string
   service?: string
+  env?: readonly string[]
   taskIntegrations?: readonly TaskIntegrationDefinition[]
 }
 

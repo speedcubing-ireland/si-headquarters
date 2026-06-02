@@ -1,24 +1,26 @@
+import { env } from "@/convex/_generated/server"
+
 function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value
 }
 
 export function resolveHqSiteBaseUrl(): string {
-  return trimTrailingSlash(process.env.SITE_URL ?? "https://hq.speedcubingireland.com")
+  return trimTrailingSlash(env.SITE_URL ?? "https://hq.speedcubingireland.com")
 }
 
 export function resolveSponsorPortalBaseUrl(): string {
   return trimTrailingSlash(
-    process.env.SPONSOR_SITE_URL ??
-      process.env.SITE_URL ??
+    env.SPONSOR_SITE_URL ??
+      env.SITE_URL ??
       "https://sponsors.speedcubingireland.com",
   )
 }
 
 export function resolveSponsorPortalBaseUrlForAuth(): string {
   return trimTrailingSlash(
-    process.env.SPONSOR_SITE_URL ??
-      process.env.SITE_URL ??
-      process.env.VITE_SITE_URL ??
+    env.SPONSOR_SITE_URL ??
+      env.SITE_URL ??
+      env.VITE_SITE_URL ??
       (process.env.NODE_ENV === "production"
         ? "https://sponsors.speedcubingireland.com"
         : "http://localhost:5174"),

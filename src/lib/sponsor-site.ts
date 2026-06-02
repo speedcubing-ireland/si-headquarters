@@ -1,4 +1,4 @@
-import { parseTruthyFlag } from "@/lib/env-flags"
+import { env } from "@/env"
 
 const SPONSOR_PRODUCTION_HOST = "sponsors.speedcubingireland.com"
 const SPONSOR_DEV_PORT = "5174"
@@ -11,7 +11,7 @@ function normalizePathname(pathname: string): string {
 }
 
 export function resolveIsSponsorSite(): boolean {
-  if (parseTruthyFlag(import.meta.env.VITE_SPONSOR_SITE)) {
+  if (env.VITE_SPONSOR_SITE) {
     return true
   }
 

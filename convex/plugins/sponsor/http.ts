@@ -4,6 +4,7 @@ import {
   createSponsorAuthOptions,
   sponsorAuthComponent,
 } from "@/convex/plugins/sponsor/auth/server"
+import { env } from "@/convex/_generated/server"
 
 function normalizeOrigin(value: string | undefined): string | undefined {
   if (value === undefined) {
@@ -34,10 +35,10 @@ export function sponsorAuthAllowedOrigins(): string[] {
   return Array.from(
     new Set(
       [
-        normalizeOrigin(process.env.SITE_URL),
-        normalizeOrigin(process.env.SPONSOR_SITE_URL),
-        normalizeOrigin(process.env.VITE_SITE_URL),
-        ...parseOriginList(process.env.CORS_ALLOWED_ORIGINS),
+        normalizeOrigin(env.SITE_URL),
+        normalizeOrigin(env.SPONSOR_SITE_URL),
+        normalizeOrigin(env.VITE_SITE_URL),
+        ...parseOriginList(env.CORS_ALLOWED_ORIGINS),
         "http://localhost:5173",
         "http://localhost:5174",
       ].filter((origin): origin is string => origin !== undefined),
