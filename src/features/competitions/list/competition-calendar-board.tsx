@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card"
 import { CompetitionCalendarRow as CompetitionCalendarRowView } from "@/features/competitions/list/competition-calendar-row"
 import {
   groupCalendarRowsByMonth,
@@ -42,10 +41,3 @@ export function CompetitionCalendarBoard({
   )
 }
 
-export function CompetitionCalendarLoading() {
-  return (
-    <Card className="mx-auto m-4 max-w-4xl px-4 py-10 text-center text-sm text-muted-foreground">
-      Loading calendar…
-    </Card>
-  )
-}

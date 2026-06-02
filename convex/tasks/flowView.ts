@@ -1,9 +1,6 @@
 // to-do this and subtask needs to have thier files properly cleaned up and moved
 
 import {
-  taskViewDisplayFields,
-  taskViewStatusView,
-  taskViewStructureTask,
   taskViewTaskDetails,
   type TaskViewProgress,
   type TaskViewTaskDetails,
@@ -24,22 +21,6 @@ export const taskFlowView = v.object({
   steps: v.array(flowViewTaskDetails),
 })
 
-export const taskFlowStructure = v.object({
-  parent: flowViewParentSummary,
-  steps: v.array(
-    v.object({
-      task: taskViewStructureTask,
-      statusView: taskViewStatusView,
-    })
-  ),
-})
-
-export const taskFlowDisplay = v.object({
-  steps: v.array(taskViewDisplayFields),
-})
-
 export type FlowViewProgress = TaskViewProgress
 export type TaskFlowViewTaskDetails = TaskViewTaskDetails
 export type TaskFlowView = Infer<typeof taskFlowView>
-export type TaskFlowStructure = Infer<typeof taskFlowStructure>
-export type TaskFlowDisplay = Infer<typeof taskFlowDisplay>

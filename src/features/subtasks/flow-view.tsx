@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/item"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import type { TaskFlowDisplay, TaskFlowStructure } from "@/convex/tasks/queries"
+import type { TaskFlowView } from "@/convex/tasks/flowView"
 import { cn } from "@/lib/utils"
 import { useMutation, useQuery } from "convex/react"
 import {
@@ -25,7 +25,7 @@ import {
   PencilIcon,
   Undo2Icon,
 } from "lucide-react"
-import { memo, useMemo } from "react"
+import { memo } from "react"
 import "./flow-view.css"
 import { TaskInlineIndicators } from "./task-inline-indicators"
 
@@ -44,34 +44,22 @@ const itemAppearance = {
   },
 }
 
-type FlowStepDisplay = TaskFlowDisplay["steps"][number]
-type FlowParent = TaskFlowStructure["parent"]
-type FlowStepStructure = TaskFlowStructure["steps"][number]
-interface FlowItemProps {
-  display: FlowStepDisplay | undefined
-  index: number
-  parent: FlowParent
-  step: FlowStepStructure
-}
+type FlowParent = TaskFlowView["parent"]
+type FlowStep = TaskFlowView["steps"][number]
 
-const emptyAssignees = {
-  mode: "none",
-  count: 0,
-  userIds: [],
-  primaryUser: null,
-  users: [],
-} satisfies FlowStepDisplay["assignees"]
-
-function getLabelIds(labels: FlowStepDisplay["labels"]) {
+function getLabelIds(labels: FlowStep["labels"]) {
   return labels.map((label) => label._id)
 }
 
 const FlowItem = memo(function FlowItem({
-  display,
   index,
   parent,
   step,
-}: FlowItemProps) {
+}: {
+  index: number
+  parent: FlowParent
+  step: FlowStep
+}) {
   const setAssignees = useMutation(api.tasks.mutations.setTaskAssignees)
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
   const setLabels = useMutation(api.tasks.mutations.setTaskLabels)
@@ -88,10 +76,6 @@ const FlowItem = memo(function FlowItem({
   const tone = itemAppearance[current ? "current" : past ? "past" : "future"]
   const itemVariant = completed ? "muted" : "outline"
   const taskId = step.task._id
-  const labels = display?.labels ?? []
-  const owner = display?.owner ?? null
-  const assignees = display?.assignees ?? emptyAssignees
-  const dueDate = display?.dueDate ?? null
 
   return (
     <div className="group/flow-step grid grid-cols-[1.75rem_minmax(0,1fr)] gap-2">
@@ -131,10 +115,10 @@ const FlowItem = memo(function FlowItem({
                   {step.task.name}
                 </h3>
                 <TaskInlineIndicators
-                  blockers={display?.blockers}
+                  blockers={step.blockers}
                   kind={step.task.kind}
                   progress={step.statusView.progress}
-                  subtaskSummary={display?.subtaskSummary ?? []}
+                  subtaskSummary={step.subtaskSummary}
                 />
               </ItemTitle>
             </ItemContent>
@@ -165,14 +149,14 @@ const FlowItem = memo(function FlowItem({
           <ItemFooter>
             <ItemActions>
               <TaskLabelSelector.CompactButton
-                selectedLabels={labels}
-                value={getLabelIds(labels)}
+                selectedLabels={step.labels}
+                value={getLabelIds(step.labels)}
                 onChange={(labelIds) => {
                   void setLabels({ id: taskId, labelIds })
                 }}
               />
               <TaskDateSelector.CompactButton
-                value={dueDate}
+                value={step.task.dueDate}
                 onChange={(dueDate) => {
                   void setDueDate({ id: taskId, dueDate })
                 }}
@@ -180,7 +164,7 @@ const FlowItem = memo(function FlowItem({
             </ItemActions>
             <ItemActions>
               <TaskOwnerSelector.NameButton
-                selectedOwner={owner}
+                selectedOwner={step.owner}
                 onChange={(owner) => {
                   void setOwner({ id: taskId, owner })
                 }}
@@ -189,8 +173,8 @@ const FlowItem = memo(function FlowItem({
               <CornerRightDownIcon className="size-3.5 shrink-0 text-muted-foreground/70 @sm/main:hidden" />
               <span className="hidden @sm/main:inline-flex">
                 <UserSelector.MultiCompactButton
-                  selectedUsers={assignees.users}
-                  value={assignees.userIds}
+                  selectedUsers={step.assignees.users}
+                  value={step.assignees.userIds}
                   onChange={(assigneeIds) => {
                     void setAssignees({ id: taskId, assigneeIds })
                   }}
@@ -209,8 +193,8 @@ const FlowItem = memo(function FlowItem({
             </ItemActions>
             <ItemActions>
               <UserSelector.MultiCompactButton
-                selectedUsers={assignees.users}
-                value={assignees.userIds}
+                selectedUsers={step.assignees.users}
+                value={step.assignees.userIds}
                 onChange={(assigneeIds) => {
                   void setAssignees({ id: taskId, assigneeIds })
                 }}
@@ -223,42 +207,13 @@ const FlowItem = memo(function FlowItem({
   )
 })
 
-function FlowDataView({ taskId }: { taskId: Id<"tasks"> }) {
-  const structure = useQuery(api.tasks.queries.getFlowStructure, { id: taskId })
-  const display = useQuery(api.tasks.queries.getFlowDisplay, { id: taskId })
-  const displayByTaskId = useMemo(
-    () =>
-      new Map(
-        (display?.steps ?? []).map((step) => [step.taskId, step] as const)
-      ),
-    [display]
-  )
-
-  if (structure === undefined) {
-    return (
-      <div className="flex min-h-36 w-full flex-col gap-3">
-        <p className="text-sm text-muted-foreground">Loading flow...</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex w-full flex-col">
-      {structure.steps.map((step, index) => (
-        <FlowItem
-          key={step.task._id}
-          display={displayByTaskId.get(step.task._id)}
-          index={index}
-          parent={structure.parent}
-          step={step}
-        />
-      ))}
-    </div>
-  )
-}
-
 export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
+  const flow = useQuery(api.tasks.queries.getFlowView, { id: taskId })
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
+
+  if (flow === undefined) {
+    return null
+  }
 
   return (
     <div className="col-span-full flex flex-col gap-3">
@@ -286,7 +241,16 @@ export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <FlowDataView taskId={taskId} />
+          <div className="flex w-full flex-col">
+            {flow.steps.map((step, index) => (
+              <FlowItem
+                key={step.task._id}
+                index={index}
+                parent={flow.parent}
+                step={step}
+              />
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

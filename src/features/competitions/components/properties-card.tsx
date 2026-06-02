@@ -9,8 +9,7 @@ import {
   PageCardContent,
   PageCardFooter,
   PageCardRow,
-} from "../../../components/page-card"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/page-card"
 import { PLUGINS } from "@/plugins/registry"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 
@@ -25,28 +24,7 @@ export function PropertiesCard({
   const setCompPhase = useMutation(api.competitions.mutations.setCompPhase)
 
   if (properties === undefined) {
-    return (
-      <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
-        <PageCardContent className="min-h-28">
-          <PageCardRow
-            icon={<MilestoneIcon className="size-4" />}
-            label="Phase"
-          >
-            <Skeleton className="h-4 w-24" />
-          </PageCardRow>
-        {isSponsorshipEnabled
-          ? PLUGINS.flatMap((plugin) => plugin.competitionProperties).map(
-              (PropertyRow) => (
-                <PropertyRow key={PropertyRow.name} competitionId={competitionId} />
-              ),
-            )
-          : null}
-        </PageCardContent>
-        <PageCardFooter className="flex min-h-36 flex-col items-start gap-2">
-          <CompetitionLinkedResourcesFooter competitionId={competitionId} />
-        </PageCardFooter>
-      </PageCard>
-    )
+    return null
   }
 
   const { competition: comp, phase } = properties

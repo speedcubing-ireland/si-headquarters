@@ -4,14 +4,7 @@ import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
-import {
-  taskFlowDisplay,
-  taskFlowStructure,
-  taskFlowView,
-  type TaskFlowDisplay,
-  type TaskFlowStructure,
-  type TaskFlowView,
-} from "@/convex/tasks/flowView"
+import { taskFlowView, type TaskFlowView } from "@/convex/tasks/flowView"
 import {
   buildTaskStatusView,
   buildTaskStatusViewWithFlowPosition,
@@ -32,7 +25,6 @@ import {
 import {
   createTaskViewDisplayReader,
   getCurrentEditableStepIndex,
-  toTaskViewStatusView,
   toTaskViewSubtaskSummary,
   type TaskViewSubtaskSummary,
 } from "@/convex/tasks/view"
@@ -61,12 +53,8 @@ type TaskParentDetails =
 
 export {
   flowViewTaskDetails,
-  taskFlowDisplay,
-  taskFlowStructure,
   taskFlowView,
   type FlowViewProgress,
-  type TaskFlowDisplay,
-  type TaskFlowStructure,
   type TaskFlowView,
   type TaskFlowViewTaskDetails,
 } from "@/convex/tasks/flowView"
@@ -83,42 +71,6 @@ export {
   type TaskSubtaskView,
 } from "@/convex/tasks/subtaskView"
 
-async function getTaskFlowStructure(
-  task: Doc<"tasks">,
-  statusLoader: TaskStatusLoader
-): Promise<TaskFlowStructure> {
-  const subtasks = await statusLoader.getDirectSubtasks(task._id)
-  const stepsWithStatusViews = await buildSubtasksWithStatusViews(
-    statusLoader,
-    task,
-    subtasks
-  )
-  const currentStepIndex = getCurrentEditableStepIndex(stepsWithStatusViews)
-
-  return {
-    parent: {
-      taskId: task._id,
-      currentStepId:
-        currentStepIndex === null
-          ? null
-          : stepsWithStatusViews[currentStepIndex].task._id,
-      currentStepIndex,
-      totalSteps: stepsWithStatusViews.length,
-    },
-    steps: stepsWithStatusViews.map(({ task, statusView }) => ({
-      task: {
-        _id: task._id,
-        name: task.name,
-        order: task.order,
-        kind: task.kind,
-        status: task.status,
-        statusIntent: task.statusIntent,
-      },
-      statusView: toTaskViewStatusView(statusView),
-    })),
-  }
-}
-
 function createFlowDisplayReader(
   ctx: QueryCtx,
   statusLoader: TaskStatusLoader
@@ -127,34 +79,6 @@ function createFlowDisplayReader(
     blockersLoader: new TaskBlockersLoader(ctx),
     statusLoader,
   })
-}
-
-async function getTaskFlowDisplay(
-  task: Doc<"tasks">,
-  statusLoader: TaskStatusLoader,
-  displayReader: ReturnType<typeof createTaskViewDisplayReader>
-): Promise<TaskFlowDisplay> {
-  const subtasks = await statusLoader.getDirectSubtasks(task._id)
-  const stepsWithStatusViews = await buildSubtasksWithStatusViews(
-    statusLoader,
-    task,
-    subtasks
-  )
-  const steps = await Promise.all(
-    stepsWithStatusViews.map(async (step) => {
-      const childTaskViews = await buildSubtasksWithStatusViews(
-        statusLoader,
-        step.task,
-        await statusLoader.getDirectSubtasks(step.task._id)
-      )
-      return displayReader.hydrateTaskDisplay({
-        task: step.task,
-        directSubtaskViews: childTaskViews,
-      })
-    })
-  )
-
-  return { steps }
 }
 
 async function getTaskFlowView(
@@ -375,37 +299,6 @@ export const getFlowView = query({
     const statusLoader = new TaskStatusLoader(ctx)
     const displayReader = createFlowDisplayReader(ctx, statusLoader)
     return await getTaskFlowView(task, statusLoader, displayReader)
-  },
-})
-
-export const getFlowStructure = query({
-  args: {
-    id: v.id("tasks"),
-  },
-  returns: taskFlowStructure,
-  handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
-    if (task.kind !== "flow") throw new Error("Task is not a flow")
-
-    const statusLoader = new TaskStatusLoader(ctx)
-    return await getTaskFlowStructure(task, statusLoader)
-  },
-})
-
-export const getFlowDisplay = query({
-  args: {
-    id: v.id("tasks"),
-  },
-  returns: taskFlowDisplay,
-  handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
-    if (task.kind !== "flow") throw new Error("Task is not a flow")
-
-    const statusLoader = new TaskStatusLoader(ctx)
-    const displayReader = createFlowDisplayReader(ctx, statusLoader)
-    return await getTaskFlowDisplay(task, statusLoader, displayReader)
   },
 })
 

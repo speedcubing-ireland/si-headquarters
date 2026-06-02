@@ -1,6 +1,5 @@
 import { Dot } from "@/components/data-selectors/phase-selector"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { cn } from "@/lib/utils"
@@ -36,23 +35,6 @@ function ProgressSegment({
   )
 }
 
-function ProgressTrackerLoading() {
-  return (
-    <ProgressTrackerFrame>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <Skeleton className="h-5 w-28" />
-        <Skeleton className="h-4 w-20" />
-      </div>
-      <Skeleton className="h-2 w-full shrink-0 rounded-full" />
-      <div className="mt-2 flex gap-4">
-        <Skeleton className="h-4 w-10" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-10" />
-      </div>
-    </ProgressTrackerFrame>
-  )
-}
-
 export function ProgressTracker({
   competitionId,
 }: {
@@ -63,7 +45,7 @@ export function ProgressTracker({
   })
 
   if (data === undefined) {
-    return <ProgressTrackerLoading />
+    return null
   }
 
   const { phase, progress } = data

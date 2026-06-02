@@ -1,10 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
 import { Page } from "@/components/layout/page"
-import {
-  CompetitionCalendarBoard,
-  CompetitionCalendarLoading,
-} from "@/features/competitions/list/competition-calendar-board"
+import { CompetitionCalendarBoard } from "@/features/competitions/list/competition-calendar-board"
 import { api } from "@/convex/_generated/api"
 import { useQuery } from "convex/react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
@@ -58,7 +55,7 @@ export function CompetitionsPage() {
       </Page.Header>
       <Page.Content>
         {calendar === undefined ? (
-          <CompetitionCalendarLoading />
+          <Page.Status variant="loading" message="Loading calendar…" />
         ) : (
           <CompetitionCalendarBoard rows={calendar.rows} year={year} />
         )}

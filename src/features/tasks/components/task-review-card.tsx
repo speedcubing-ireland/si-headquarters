@@ -147,17 +147,7 @@ export function TaskReviewCard({ taskId }: { taskId: Id<"tasks"> }) {
   )
 
   if (taskReviewDetails === undefined) {
-    return (
-      <PageCard
-        title="Approvals"
-        icon={<StampIcon className="size-4" />}
-        className="col-span-full"
-      >
-        <PageCardContent className="gap-2">
-          <p className="text-sm text-muted-foreground">Loading approvals...</p>
-        </PageCardContent>
-      </PageCard>
-    )
+    return null
   }
 
   if (reviewers.length === 0 && !override) {

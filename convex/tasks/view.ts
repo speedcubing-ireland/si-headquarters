@@ -62,15 +62,6 @@ export const taskViewTask = v.object({
   statusIntent: taskStatusIntentType,
 })
 
-export const taskViewStructureTask = v.object({
-  _id: v.id("tasks"),
-  name: v.string(),
-  order: v.string(),
-  kind: taskKindType,
-  status: taskStatusType,
-  statusIntent: taskStatusIntentType,
-})
-
 export const taskViewLabel = v.object({
   _id: v.id("taskLabels"),
   code: v.string(),

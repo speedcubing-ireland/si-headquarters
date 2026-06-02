@@ -213,7 +213,7 @@ describe("Task logic flow", () => {
       ])
     })
 
-    test("split task property and flow queries keep display data separate from structure", async () => {
+    test("getFlowView returns hydrated step details in one query", async () => {
       const t = convexTest(schema, modules)
       const { client: user } = await withVolunteerTestClient(t)
       const { flowId, stepId, labelId, ownerId, assigneeId } = await t.run(
@@ -255,10 +255,7 @@ describe("Task logic flow", () => {
       const properties = await user.query(api.tasks.queries.getProperties, {
         id: stepId,
       })
-      const structure = await user.query(api.tasks.queries.getFlowStructure, {
-        id: flowId,
-      })
-      const display = await user.query(api.tasks.queries.getFlowDisplay, {
+      const flowView = await user.query(api.tasks.queries.getFlowView, {
         id: flowId,
       })
 
@@ -267,25 +264,22 @@ describe("Task logic flow", () => {
       expect(properties.assignees.map((assignee) => assignee._id)).toEqual([
         assigneeId,
       ])
-      expect(structure.steps[0].task._id).toBe(stepId)
-      expect("labels" in structure.steps[0]).toBe(false)
-      expect("owner" in structure.steps[0]).toBe(false)
-      expect("dueDate" in structure.steps[0].task).toBe(false)
-      expect(display.steps).toEqual([
-        expect.objectContaining({
-          taskId: stepId,
-          dueDate: "2026-05-25",
-          subtaskSummary: [],
-          labels: [
-            {
-              _id: labelId,
-              code: "venue",
-              name: "Venue",
-              color: "indigo",
-            },
-          ],
-        }),
+
+      const step = flowView.steps[0]
+      expect(step.task._id).toBe(stepId)
+      expect(step.task.name).toBe("Venue booked")
+      expect(step.task.dueDate).toBe("2026-05-25")
+      expect(step.labels).toEqual([
+        {
+          _id: labelId,
+          code: "venue",
+          name: "Venue",
+          color: "indigo",
+        },
       ])
+      expect(step.owner?._id).toBe(ownerId)
+      expect(step.assignees.userIds).toEqual([assigneeId])
+      expect(step.subtaskSummary).toEqual([])
     })
 
     test("backlog flows stay paused until the parent is set to auto", async () => {

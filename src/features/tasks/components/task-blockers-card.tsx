@@ -111,16 +111,7 @@ export function TaskBlockersCard({ taskId }: { taskId: Id<"tasks"> }) {
   const removeBlocker = useMutation(api.tasks.blockers.mutations.removeBlocker)
 
   if (blockers === undefined) {
-    return (
-      <PageCard
-        title="Dependencies"
-        icon={<ConstructionIcon className="size-4" />}
-      >
-        <PageCardContent>
-          <p className="text-sm text-muted-foreground">Loading dependencies...</p>
-        </PageCardContent>
-      </PageCard>
-    )
+    return null
   }
 
   const hasDependencies =

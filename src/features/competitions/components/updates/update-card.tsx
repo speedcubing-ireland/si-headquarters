@@ -54,19 +54,7 @@ export function UpdateCard({
   )
 
   if (updateDetails === undefined) {
-    return (
-      <Card className="col-span-full min-h-48">
-        <CardHeader>
-          <CardTitle className="pt-2">Competition update</CardTitle>
-        </CardHeader>
-        <CardContent divided className="border-t">
-          <p className="pt-2 text-sm text-muted-foreground">
-            Loading update...
-          </p>
-        </CardContent>
-        <CardFooter className="min-h-12" />
-      </Card>
-    )
+    return null
   }
 
   const comp = updateDetails.competition

@@ -9,15 +9,20 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
-import type { Doc } from "@/convex/_generated/dataModel"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { EditDetailsFormDialog } from "@/features/shared/edit-details-form-dialog"
 import { useMutation, useQuery } from "convex/react"
 import { BellIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { ProgressTracker } from "./progress-tracker"
 
-export function DetailsCard({ comp }: { comp: Doc<"competitions"> }) {
-  const competitionId = comp._id
+export function DetailsCard({
+  comp,
+  competitionId,
+}: {
+  comp: Doc<"competitions">
+  competitionId: Id<"competitions">
+}) {
   const isWatching = useQuery(api.subscriptions.index.getSubscription, {
     object: {
       type: "competitions",

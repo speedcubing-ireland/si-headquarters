@@ -3,20 +3,12 @@ import { Button } from "@/components/ui/button"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
-import {
-  ClipboardPenIcon,
-  FlagIcon,
-  MessageCirclePlusIcon,
-  UserIcon,
-  UsersIcon,
-} from "lucide-react"
+import { MessageCirclePlusIcon, UserIcon } from "lucide-react"
 import {
   PageCard,
   PageCardContent,
   PageCardFooter,
-  PageCardRow,
-} from "../../../components/page-card"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/page-card"
 
 export function PeopleCard({
   competitionId,
@@ -28,36 +20,7 @@ export function PeopleCard({
   })
 
   if (peopleDetails === undefined) {
-    return (
-      <PageCard title="People" icon={<UserIcon className="size-4" />}>
-        <PageCardContent className="min-h-32 flex-1">
-          <PageCardRow
-            icon={<ClipboardPenIcon className="size-4" />}
-            label="Competition Lead"
-          >
-            <Skeleton className="h-8 w-24" />
-          </PageCardRow>
-          <PageCardRow
-            icon={<FlagIcon className="size-4" />}
-            label="Lead Delegate"
-          >
-            <Skeleton className="h-8 w-24" />
-          </PageCardRow>
-          <PageCardRow
-            icon={<UsersIcon className="size-4" />}
-            label="Organisers"
-          >
-            <Skeleton className="h-8 w-24" />
-          </PageCardRow>
-        </PageCardContent>
-        <PageCardFooter>
-          <Button className="w-full" disabled>
-            <MessageCirclePlusIcon />
-            Invite Organiser To HQ
-          </Button>
-        </PageCardFooter>
-      </PageCard>
-    )
+    return null
   }
 
   const { competition: comp, people } = peopleDetails

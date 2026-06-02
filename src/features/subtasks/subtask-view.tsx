@@ -138,6 +138,10 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
     writeSubtaskDisplayOptions(displayOptions)
   }, [displayOptions])
 
+  if (view === undefined) {
+    return null
+  }
+
   return (
     <div className="col-span-full flex flex-col gap-3">
       <div className="flex items-center gap-2">
@@ -164,19 +168,13 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
           onChange={setDisplayOptions}
         />
       </div>
-      {view === undefined ? (
-        <div className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground">
-          Loading tasks...
-        </div>
-      ) : (
-        view.sections.map((section) => (
-          <PhaseSection
-            key={section.id}
-            displayOptions={displayOptions}
-            section={section}
-          />
-        ))
-      )}
+      {view.sections.map((section) => (
+        <PhaseSection
+          key={section.id}
+          displayOptions={displayOptions}
+          section={section}
+        />
+      ))}
     </div>
   )
 }

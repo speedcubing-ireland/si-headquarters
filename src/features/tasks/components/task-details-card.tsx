@@ -16,7 +16,6 @@ import {
   AlarmClockPlusIcon,
   BellIcon,
   CornerDownRightIcon,
-  HandIcon,
 } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
@@ -90,26 +89,7 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
   const watchingVariant = isSubscribed ? "ghost" : "outline"
 
   if (taskDetails === undefined) {
-    return (
-      <Card className="col-span-full min-h-72">
-        <CardHeader>
-          <CardTitle className="text-2xl">Loading task...</CardTitle>
-        </CardHeader>
-        <CardContent divided className="border-t">
-          <p className="text-sm text-muted-foreground">Loading details...</p>
-        </CardContent>
-        <CardFooter className="flex gap-2">
-          <Button size="lg" disabled>
-            <HandIcon />
-            Claim
-          </Button>
-          <Button size="lg" variant="outline" disabled>
-            <BellIcon />
-            Watch
-          </Button>
-        </CardFooter>
-      </Card>
-    )
+    return null
   }
 
   const task = taskDetails.task

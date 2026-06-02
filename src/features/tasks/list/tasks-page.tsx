@@ -1,4 +1,5 @@
-import { Card } from "@/components/ui/card"
+import { Page } from "@/components/layout/page"
+import { PageListMessage } from "@/components/layout/page-list-message"
 import { GroupedListBoard } from "@/features/list-views/components/grouped-list-board"
 import { KanbanBoard } from "@/features/list-views/components/kanban-board"
 import type { DisplaySettings } from "@/features/list-views/types"
@@ -19,7 +20,7 @@ import { TaskRow } from "@/features/tasks/list/task-row"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { api } from "@/convex/_generated/api"
 import { useQuery } from "convex/react"
-import { useMemo, type ReactNode } from "react"
+import { useMemo } from "react"
 
 const TASK_DISPLAY_OPTIONS = [
   { value: "status", label: "Status" },
@@ -31,13 +32,6 @@ const TASK_DISPLAY_OPTIONS = [
   { value: "name", label: "Name" },
   { value: "dueDate", label: "Due date" },
 ]
-
-const LIST_MESSAGE_CLASS =
-  "m-3 px-4 py-10 text-center text-sm text-muted-foreground @sm/main:m-4"
-
-function ListMessage({ children }: { children: ReactNode }) {
-  return <Card className={LIST_MESSAGE_CLASS}>{children}</Card>
-}
 
 function effectiveKanbanGrouping(display: DisplaySettings, fallback: string) {
   if (display.mode === "kanban" && display.grouping === null) {
@@ -61,11 +55,11 @@ function TasksPageBody() {
   }, [display, filters, matchMode, rows])
 
   if (rows === undefined) {
-    return <ListMessage>Loading tasks…</ListMessage>
+    return <Page.Status variant="loading" message="Loading tasks…" />
   }
 
   if (groups.every((group) => group.items.length === 0)) {
-    return <ListMessage>No tasks match your filters.</ListMessage>
+    return <PageListMessage>No tasks match your filters.</PageListMessage>
   }
 
   if (display.mode === "kanban") {

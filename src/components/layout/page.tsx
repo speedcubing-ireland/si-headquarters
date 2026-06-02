@@ -210,6 +210,26 @@ function PageStatus({
   )
 }
 
+function PageEntityState<T>({
+  value,
+  loadingMessage,
+  emptyMessage,
+  children,
+}: {
+  value: T | null | undefined
+  loadingMessage: string
+  emptyMessage: string
+  children: (data: T) => ReactNode
+}) {
+  if (value === null) {
+    return <PageStatus variant="empty" message={emptyMessage} />
+  }
+  if (value === undefined) {
+    return <PageStatus variant="loading" message={loadingMessage} />
+  }
+  return children(value)
+}
+
 function PageBreadcrumbs({ items }: { items: PageBreadcrumbItem[] }) {
   if (items.length === 0) return null
 
@@ -256,5 +276,6 @@ export const Page = {
   Toolbar: PageToolbar,
   Content: PageContent,
   Status: PageStatus,
+  EntityState: PageEntityState,
   Breadcrumbs: PageBreadcrumbs,
 }
