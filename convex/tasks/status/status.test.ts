@@ -275,6 +275,7 @@ describe("Task logic flow", () => {
         expect.objectContaining({
           taskId: stepId,
           dueDate: "2026-05-25",
+          subtaskSummary: [],
           labels: [
             {
               _id: labelId,

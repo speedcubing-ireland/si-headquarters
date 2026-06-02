@@ -77,8 +77,8 @@ async function insertTask(ctx: MutationCtx, seed: TaskSeed) {
 describe("subtask view", () => {
   test("task owner returns a single pseudo-phase with hydrated task rows", async () => {
     const t = convexTest(schema, modules)
-    const { parentId, childId, labelId, ownerId, assigneeId } = await t.run(
-      async (ctx) => {
+    const { parentId, childId, grandchildId, labelId, ownerId, assigneeId } =
+      await t.run(async (ctx) => {
         const competitionId = await insertCompetition(ctx)
         const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
         const parentId = await insertTask(ctx, {
@@ -93,7 +93,7 @@ describe("subtask view", () => {
           order: "a",
           status: "done",
         })
-        await insertTask(ctx, {
+        const grandchildId = await insertTask(ctx, {
           name: "Review copy",
           parent: { type: "tasks", id: childId },
           order: "a",
@@ -120,9 +120,8 @@ describe("subtask view", () => {
           }),
         ])
 
-        return { parentId, childId, labelId, ownerId, assigneeId }
-      }
-    )
+        return { parentId, childId, grandchildId, labelId, ownerId, assigneeId }
+      })
 
     const view = await t.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
@@ -157,7 +156,15 @@ describe("subtask view", () => {
       subtaskIndicator: "1/1",
       taskTitleId: childId,
       subtaskTitleId: null,
+      depth: 0,
     })
+    expect(childRow.subtaskSummary).toEqual([
+      {
+        _id: grandchildId,
+        name: "Review copy",
+        status: "done",
+      },
+    ])
     expect(childRow.assignees.userIds).toEqual([assigneeId])
   })
 
@@ -308,13 +315,18 @@ describe("subtask view", () => {
       view.sections[0].rows.map((row) => ({
         name: row.task.name,
         subtaskTitle: row.path.subtaskTitle,
+        depth: row.path.depth,
       }))
     ).toEqual([
-      { name: "Flow child", subtaskTitle: "" },
-      { name: "Done child", subtaskTitle: "" },
-      { name: "Cancelled child", subtaskTitle: "" },
-      { name: "Open child", subtaskTitle: "" },
-      { name: "Visible open grandchild", subtaskTitle: "Open child" },
+      { name: "Flow child", subtaskTitle: "", depth: 0 },
+      { name: "Done child", subtaskTitle: "", depth: 0 },
+      { name: "Cancelled child", subtaskTitle: "", depth: 0 },
+      { name: "Open child", subtaskTitle: "", depth: 0 },
+      {
+        name: "Visible open grandchild",
+        subtaskTitle: "Open child",
+        depth: 1,
+      },
     ])
   })
 })

@@ -9,6 +9,7 @@ export const taskInlinePath = v.object({
   subtaskIndicator: v.union(v.string(), v.null()),
   taskTitleId: v.id("tasks"),
   subtaskTitleId: v.union(v.id("tasks"), v.null()),
+  depth: v.number(),
 })
 
 export const taskInlineRow = v.object({
@@ -42,6 +43,7 @@ export function buildFlatTaskInlinePath(
       subtaskIndicator,
       taskTitleId: task._id,
       subtaskTitleId: task.parent.id,
+      depth: 0,
     }
   }
 
@@ -51,5 +53,6 @@ export function buildFlatTaskInlinePath(
     subtaskIndicator,
     taskTitleId: task._id,
     subtaskTitleId: null,
+    depth: 0,
   }
 }

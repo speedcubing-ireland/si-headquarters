@@ -134,6 +134,7 @@ const FlowItem = memo(function FlowItem({
                   blockers={display?.blockers}
                   kind={step.task.kind}
                   progress={step.statusView.progress}
+                  subtaskSummary={display?.subtaskSummary ?? []}
                 />
               </ItemTitle>
             </ItemContent>

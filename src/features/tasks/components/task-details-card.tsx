@@ -67,6 +67,7 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
         <TaskInlineIndicators
           kind={parent.kind}
           progress={parent.progress}
+          subtaskSummary={parent.subtaskSummary}
         />
       </RouterButton>
     </>

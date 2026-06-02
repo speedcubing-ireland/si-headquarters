@@ -5,7 +5,10 @@ import * as TaskStatusSelector from "@/components/data-selectors/task-status-sel
 import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Card } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
-import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
+import {
+  TaskInlineIndicators,
+  taskInlineIndicatorPropsFromRow,
+} from "@/features/subtasks/task-inline-indicators"
 import { TaskCompLink } from "@/features/tasks/components/task-comp-link"
 import {
   taskOwnerSelectorValue,
@@ -39,11 +42,7 @@ function TaskContext({ row }: { row: TaskBoardRow }) {
           <span className="truncate">{row.path.subtaskTitle}</span>
         </Link>
       ) : null}
-      <TaskInlineIndicators
-        blockers={row.blockers}
-        kind={row.task.kind}
-        progress={row.statusView.progress}
-      />
+      <TaskInlineIndicators {...taskInlineIndicatorPropsFromRow(row)} />
     </div>
   )
 }

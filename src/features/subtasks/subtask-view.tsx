@@ -2,11 +2,11 @@ import { Button } from "@/components/ui/button"
 import {
   PlusIcon,
   CassetteTapeIcon,
-  SquareDashedKanbanIcon,
   CircleCheck,
 } from "lucide-react"
 import { api } from "@/convex/_generated/api"
 import type { TaskSubtaskView } from "@/convex/tasks/queries"
+import { getProgress } from "@/convex/tasks/status/rules"
 import { useMutation, useQuery } from "convex/react"
 import {
   Collapsible,
@@ -15,9 +15,17 @@ import {
 } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { SUBTASK_LIST_GRID_CLASS } from "@/features/list-views/components/list-board-columns"
+import { SubtaskDisplayOptionsPopover } from "@/features/subtasks/subtask-display-options"
+import {
+  readSubtaskDisplayOptions,
+  writeSubtaskDisplayOptions,
+  type SubtaskDisplayOptions,
+} from "@/features/subtasks/subtask-display-storage"
 import { TaskInlineDataRow } from "@/features/tasks/components/task-inline-data-row"
+import { isTerminalRowStatus } from "@/features/tasks/task-row-status"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
 import { cn } from "@/lib/utils"
+import { useEffect, useState } from "react"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
@@ -28,24 +36,51 @@ function isOverdue(row: TaskInlineRow) {
   return (
     row.task.dueDate !== null &&
     row.task.dueDate < todayIso &&
-    row.statusView.effectiveStatus !== "done" &&
-    row.statusView.effectiveStatus !== "cancelled"
+    !isTerminalRowStatus(row.statusView.effectiveStatus)
   )
 }
 
-function getSectionProgressText(section: SubtaskViewSection) {
-  return `${String(section.progress.terminalComplete)}/${String(
-    section.progress.total
-  )}`
+function filterRows(rows: TaskInlineRow[], displayOptions: SubtaskDisplayOptions) {
+  return rows.filter((row) => {
+    if (displayOptions.hideCompleted && isTerminalRowStatus(row.statusView.effectiveStatus)) {
+      return false
+    }
+    if (displayOptions.hideSubtasks && row.path.depth > 0) return false
+    return true
+  })
 }
 
-function PhaseSection({ section }: { section: SubtaskViewSection }) {
-  const overdueCount = section.rows.filter(isOverdue).length
+function getVisibleSection(
+  section: SubtaskViewSection,
+  displayOptions: SubtaskDisplayOptions
+) {
+  const rows = filterRows(section.rows, displayOptions)
+  const statuses = rows.map((row) => row.statusView.effectiveStatus)
+
+  return {
+    rows,
+    progress: getProgress(statuses),
+    overdueCount: rows.filter(isOverdue).length,
+  }
+}
+
+function getSectionProgressText(progress: SubtaskViewSection["progress"]) {
+  return `${String(progress.terminalComplete)}/${String(progress.total)}`
+}
+
+function PhaseSection({
+  displayOptions,
+  section,
+}: {
+  displayOptions: SubtaskDisplayOptions
+  section: SubtaskViewSection
+}) {
+  const visible = getVisibleSection(section, displayOptions)
 
   return (
     <Collapsible
       className="group rounded-xl border bg-card text-sm data-[state=open]:pb-4"
-      defaultOpen={section.progress.percent !== 100 || section.isCurrent}
+      defaultOpen={visible.progress.percent !== 100 || section.isCurrent}
     >
       <div className="relative flex items-center gap-4 px-4 group-data-[state=closed]:py-2 group-data-[state=open]:pt-2">
         <CollapsibleTrigger
@@ -57,19 +92,21 @@ function PhaseSection({ section }: { section: SubtaskViewSection }) {
             {section.title}
           </h3>
           {section.isCurrent && <Badge>Current</Badge>}
-          {overdueCount > 0 && (
-            <Badge variant="destructive">{overdueCount} Overdue</Badge>
+          {visible.overdueCount > 0 && (
+            <Badge variant="destructive">
+              {visible.overdueCount} Overdue
+            </Badge>
           )}
         </div>
         <Button variant="ghost" className="z-10" type="button">
-          {section.progress.percent === 100 && <CircleCheck />}
-          {getSectionProgressText(section)}
+          {visible.progress.percent === 100 && <CircleCheck />}
+          {getSectionProgressText(visible.progress)}
         </Button>
       </div>
       <CollapsibleContent>
         <div className="mt-2 border-y bg-background">
-          {section.rows.length > 0 ? (
-            section.rows.map((row) => (
+          {visible.rows.length > 0 ? (
+            visible.rows.map((row) => (
               <div
                 key={row.task._id}
                 className={cn(
@@ -81,7 +118,9 @@ function PhaseSection({ section }: { section: SubtaskViewSection }) {
               </div>
             ))
           ) : (
-            <p className="px-4 py-3 text-sm text-muted-foreground">No tasks</p>
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              {section.rows.length > 0 ? "No visible tasks" : "No tasks"}
+            </p>
           )}
         </div>
       </CollapsibleContent>
@@ -92,7 +131,12 @@ function PhaseSection({ section }: { section: SubtaskViewSection }) {
 export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
   const view = useQuery(api.tasks.queries.getSubtaskView, { owner })
+  const [displayOptions, setDisplayOptions] = useState(readSubtaskDisplayOptions)
   const taskId = owner.type === "tasks" ? owner.id : null
+
+  useEffect(() => {
+    writeSubtaskDisplayOptions(displayOptions)
+  }, [displayOptions])
 
   return (
     <div className="col-span-full flex flex-col gap-3">
@@ -115,10 +159,10 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
           </Button>
         )}
         <div className="flex-1" />
-        <Button variant="outline" size="lg" type="button">
-          <SquareDashedKanbanIcon />
-          Display
-        </Button>
+        <SubtaskDisplayOptionsPopover
+          options={displayOptions}
+          onChange={setDisplayOptions}
+        />
       </div>
       {view === undefined ? (
         <div className="rounded-xl border bg-card px-4 py-3 text-sm text-muted-foreground">
@@ -126,7 +170,11 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
         </div>
       ) : (
         view.sections.map((section) => (
-          <PhaseSection key={section.id} section={section} />
+          <PhaseSection
+            key={section.id}
+            displayOptions={displayOptions}
+            section={section}
+          />
         ))
       )}
     </div>

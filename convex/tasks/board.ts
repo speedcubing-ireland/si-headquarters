@@ -8,8 +8,10 @@ import {
 } from "@/convex/tasks/inlineRow"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
+  buildSubtasksWithStatusViews,
   buildTaskStatusViewWithFlowPosition,
   TaskStatusLoader,
+  type TaskWithStatusView,
 } from "@/convex/tasks/status/resolver"
 import { createTaskViewDisplayReader } from "@/convex/tasks/view"
 import { v } from "convex/values"
@@ -105,6 +107,49 @@ function getTaskCompetitionContext(
   return resolvePhaseContext(parent.id, phaseById, competitionById)
 }
 
+function groupDirectChildrenByParentId(tasks: Doc<"tasks">[]) {
+  const childrenByParentId = new Map<Id<"tasks">, Doc<"tasks">[]>()
+
+  for (const task of tasks) {
+    if (task.parent.type !== "tasks") continue
+
+    const siblings = childrenByParentId.get(task.parent.id) ?? []
+    siblings.push(task)
+    childrenByParentId.set(task.parent.id, siblings)
+  }
+
+  for (const children of childrenByParentId.values()) {
+    children.sort((a, b) => a.order.localeCompare(b.order))
+  }
+
+  return childrenByParentId
+}
+
+async function buildDirectSubtaskViewsByParentId(
+  statusLoader: TaskStatusLoader,
+  taskById: Map<Id<"tasks">, Doc<"tasks">>,
+  childrenByParentId: Map<Id<"tasks">, Doc<"tasks">[]>
+) {
+  const directSubtaskViewsByParentId = new Map<
+    Id<"tasks">,
+    TaskWithStatusView[]
+  >()
+
+  await Promise.all(
+    [...childrenByParentId.entries()].map(async ([parentId, children]) => {
+      const parent = taskById.get(parentId)
+      if (!parent) return
+
+      directSubtaskViewsByParentId.set(
+        parentId,
+        await buildSubtasksWithStatusViews(statusLoader, parent, children)
+      )
+    })
+  )
+
+  return directSubtaskViewsByParentId
+}
+
 export const listForBoard = query({
   args: {},
   returns: v.array(taskBoardRow),
@@ -127,6 +172,12 @@ export const listForBoard = query({
       blockersLoader,
       statusLoader,
     })
+    const childrenByParentId = groupDirectChildrenByParentId(tasks)
+    const directSubtaskViewsByParentId = await buildDirectSubtaskViewsByParentId(
+      statusLoader,
+      taskById,
+      childrenByParentId
+    )
 
     return await Promise.all(
       tasks.map(async (task) => {
@@ -135,7 +186,11 @@ export const listForBoard = query({
           task
         )
         const [details, competitionContext] = await Promise.all([
-          displayReader.hydrateTaskDetails({ task, statusView }),
+          displayReader.hydrateTaskDetails({
+            task,
+            statusView,
+            directSubtaskViews: directSubtaskViewsByParentId.get(task._id),
+          }),
           Promise.resolve(
             getTaskCompetitionContext(
               task,

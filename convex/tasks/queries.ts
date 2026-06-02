@@ -33,6 +33,8 @@ import {
   createTaskViewDisplayReader,
   getCurrentEditableStepIndex,
   toTaskViewStatusView,
+  toTaskViewSubtaskSummary,
+  type TaskViewSubtaskSummary,
 } from "@/convex/tasks/view"
 import { v } from "convex/values"
 
@@ -43,6 +45,7 @@ type TaskParentDetails =
       name: string
       kind: Doc<"tasks">["kind"]
       progress: TaskStatusView["progress"]
+      subtaskSummary: TaskViewSubtaskSummary
     }
   | {
       type: "phases"
@@ -68,7 +71,10 @@ export {
   type TaskFlowViewTaskDetails,
 } from "@/convex/tasks/flowView"
 
-export { type TaskViewProgress } from "@/convex/tasks/view"
+export {
+  type TaskViewProgress,
+  type TaskViewSubtaskSummary,
+} from "@/convex/tasks/view"
 
 export {
   subtaskViewOwner,
@@ -129,8 +135,23 @@ async function getTaskFlowDisplay(
   displayReader: ReturnType<typeof createTaskViewDisplayReader>
 ): Promise<TaskFlowDisplay> {
   const subtasks = await statusLoader.getDirectSubtasks(task._id)
+  const stepsWithStatusViews = await buildSubtasksWithStatusViews(
+    statusLoader,
+    task,
+    subtasks
+  )
   const steps = await Promise.all(
-    subtasks.map((subtask) => displayReader.hydrateTaskDisplay(subtask))
+    stepsWithStatusViews.map(async (step) => {
+      const childTaskViews = await buildSubtasksWithStatusViews(
+        statusLoader,
+        step.task,
+        await statusLoader.getDirectSubtasks(step.task._id)
+      )
+      return displayReader.hydrateTaskDisplay({
+        task: step.task,
+        directSubtaskViews: childTaskViews,
+      })
+    })
   )
 
   return { steps }
@@ -150,7 +171,17 @@ async function getTaskFlowView(
   const currentStepIndex = getCurrentEditableStepIndex(stepsWithStatusViews)
 
   const steps = await Promise.all(
-    stepsWithStatusViews.map((step) => displayReader.hydrateTaskDetails(step))
+    stepsWithStatusViews.map(async (step) => {
+      const childTaskViews = await buildSubtasksWithStatusViews(
+        statusLoader,
+        step.task,
+        await statusLoader.getDirectSubtasks(step.task._id)
+      )
+      return displayReader.hydrateTaskDetails({
+        ...step,
+        directSubtaskViews: childTaskViews,
+      })
+    })
   )
 
   return {
@@ -200,13 +231,21 @@ async function getTaskParentDetails(
   if (!parentTask) return null
 
   const parentSubtasks = await loader.getDirectSubtasks(parentTask._id)
+  const parentSubtaskViews = await buildSubtasksWithStatusViews(
+    loader,
+    parentTask,
+    parentSubtasks
+  )
 
   return {
     type: "tasks",
     _id: parentTask._id,
     name: parentTask.name,
     kind: parentTask.kind,
-    progress: getProgress(parentSubtasks.map((subtask) => subtask.status)),
+    progress: getProgress(
+      parentSubtaskViews.map((view) => view.statusView.effectiveStatus)
+    ),
+    subtaskSummary: toTaskViewSubtaskSummary(parentSubtaskViews),
   }
 }
 

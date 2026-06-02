@@ -1,5 +1,5 @@
 import type { BlockerCounts } from "@/convex/tasks/blockers/counts"
-import type { TaskViewProgress } from "@/convex/tasks/queries"
+import type { TaskViewProgress, TaskViewSubtaskSummary } from "@/convex/tasks/view"
 import type { TaskKind } from "@/convex/tasks/status/resolver"
 import { cn } from "@/lib/utils"
 import { BlockIndicator } from "./block-indicator"
@@ -14,17 +14,35 @@ const emptyBlockers = {
   blockedBy: [],
 } satisfies BlockerCounts
 
+export interface TaskInlineIndicatorProps {
+  blockers?: BlockerCounts
+  className?: string
+  kind: TaskKind
+  progress: TaskViewProgress
+  subtaskSummary: TaskViewSubtaskSummary
+}
+
+export function taskInlineIndicatorPropsFromRow(row: {
+  task: { kind: TaskKind }
+  statusView: { progress: TaskViewProgress }
+  blockers: BlockerCounts
+  subtaskSummary: TaskViewSubtaskSummary
+}): TaskInlineIndicatorProps {
+  return {
+    kind: row.task.kind,
+    progress: row.statusView.progress,
+    blockers: row.blockers,
+    subtaskSummary: row.subtaskSummary,
+  }
+}
+
 export function TaskInlineIndicators({
   blockers = emptyBlockers,
   className,
   kind,
   progress,
-}: {
-  blockers?: BlockerCounts
-  className?: string
-  kind: TaskKind
-  progress: TaskViewProgress
-}) {
+  subtaskSummary,
+}: TaskInlineIndicatorProps) {
   if (progress.total === 0 && blockers.count === 0) return null
 
   return (
@@ -32,9 +50,13 @@ export function TaskInlineIndicators({
       <SubtaskBadge
         kind={kind}
         progress={progress}
+        subtaskSummary={subtaskSummary}
         className={compactIndicatorBadgeClassName}
       />
-      <BlockIndicator {...blockers} className={compactIndicatorBadgeClassName} />
+      <BlockIndicator
+        {...blockers}
+        className={compactIndicatorBadgeClassName}
+      />
     </span>
   )
 }

@@ -99,6 +99,7 @@ async function getTaskSubtaskViews(
 }
 
 async function buildSubtaskRows({
+  depth,
   displayReader,
   loader,
   hideParentTitleForDirect,
@@ -106,6 +107,7 @@ async function buildSubtaskRows({
   parentTaskId,
   taskViews,
 }: {
+  depth: number
   displayReader: TaskDisplayReader
   loader: TaskStatusLoader
   hideParentTitleForDirect: boolean
@@ -120,7 +122,11 @@ async function buildSubtaskRows({
   const statuses: TaskStatus[] = []
 
   for (const taskView of taskViews) {
-    const row = await displayReader.hydrateTaskDetails(taskView)
+    const childTaskViews = await getTaskSubtaskViews(loader, taskView.task)
+    const row = await displayReader.hydrateTaskDetails({
+      ...taskView,
+      directSubtaskViews: childTaskViews,
+    })
     const subtaskTitle = hideParentTitleForDirect ? "" : parentTitle
     rows.push({
       ...row,
@@ -130,6 +136,7 @@ async function buildSubtaskRows({
         subtaskIndicator: getSubtaskIndicatorFromProgress(row.statusView.progress),
         taskTitleId: row.task._id,
         subtaskTitleId: hideParentTitleForDirect ? null : parentTaskId,
+        depth,
       },
     })
 
@@ -143,10 +150,10 @@ async function buildSubtaskRows({
     )
       continue
 
-    const childTaskViews = await getTaskSubtaskViews(loader, taskView.task)
     if (childTaskViews.length === 0) continue
 
     const childResult = await buildSubtaskRows({
+      depth: depth + 1,
       displayReader,
       loader,
       hideParentTitleForDirect: false,
@@ -183,6 +190,7 @@ async function buildSubtaskSection({
   taskViews: TaskWithStatusView[]
 }): Promise<TaskSubtaskView["sections"][number]> {
   const { rows, statuses } = await buildSubtaskRows({
+    depth: 0,
     displayReader,
     loader,
     hideParentTitleForDirect,

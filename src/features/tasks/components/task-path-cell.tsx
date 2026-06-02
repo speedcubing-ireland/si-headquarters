@@ -6,7 +6,10 @@ import {
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import { api } from "@/convex/_generated/api"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
-import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
+import {
+  TaskInlineIndicators,
+  taskInlineIndicatorPropsFromRow,
+} from "@/features/subtasks/task-inline-indicators"
 import { useMeasuredElement } from "@/hooks/use-measured-element"
 import { cn } from "@/lib/utils"
 import { Link } from "@tanstack/react-router"
@@ -119,11 +122,7 @@ export function TaskPathCell({ row }: { row: TaskInlineRow }) {
             {layout.subtaskText}
           </TaskPathLink>
         ) : null}
-        <TaskInlineIndicators
-          blockers={row.blockers}
-          kind={row.task.kind}
-          progress={row.statusView.progress}
-        />
+        <TaskInlineIndicators {...taskInlineIndicatorPropsFromRow(row)} />
       </div>
       {primaryLabel !== undefined ? (
         <TaskLabelSelector.CompactButton
