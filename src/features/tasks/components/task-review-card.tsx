@@ -161,22 +161,7 @@ export function TaskReviewCard({ taskId }: { taskId: Id<"tasks"> }) {
   }
 
   if (reviewers.length === 0 && !override) {
-    return (
-      <PageCard
-        title="Approvals"
-        icon={<StampIcon className="size-4" />}
-        className="col-span-full"
-      >
-        <PageCardContent className="gap-2">
-          <p className="text-sm text-muted-foreground">
-            No approvals required.
-          </p>
-        </PageCardContent>
-        <PageCardFooter className="flex justify-between gap-2">
-          <AddTaskReviewerButton taskId={taskId} />
-        </PageCardFooter>
-      </PageCard>
-    )
+    return null
   }
 
   return (
