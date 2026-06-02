@@ -6,10 +6,12 @@ const TEXT_WIDTH_BUFFER_PX = 2
 const CHEVRON_WIDTH_PX = 16
 const PATH_GAP_WIDTH_PX = 4
 const PROGRESS_TO_LABEL_GAP_PX = 8
+/** Badge px-2 (16) + 1px border each side. */
 const LABEL_BADGE_CHROME_WIDTH_PX = 18
-const PROGRESS_BADGE_CHROME_WIDTH_PX = 32
-/** Icon-only block badge: px-1.5 (12) + size-3 icon (12) + 1px border (2). */
-const BLOCK_BADGE_CHROME_WIDTH_PX = 26
+/** h-5 badge with icon + px-2 + gap-1; text measured separately. */
+const PROGRESS_BADGE_CHROME_WIDTH_PX = 28
+/** Icon-only block badge: px-1.5 (12) + size-3 icon (12) + border (2). */
+const BLOCK_BADGE_CHROME_WIDTH_PX = 24
 
 export const DEFAULT_TASK_PATH_FONT =
   '400 14px "Noto Sans Variable", sans-serif'
@@ -20,6 +22,7 @@ export interface TaskPathLayout {
   taskText: string
   subtaskText: string
   labelText: string
+  pathWidth: number
   totalWidth: number
 }
 
@@ -45,7 +48,6 @@ interface LayoutCandidateInput {
   subtask: string
   subtaskIndicator: string | null
   hasBlockIndicator: boolean
-  label: string
   textFont: string
 }
 
@@ -53,18 +55,136 @@ export function getCompactLabelText(labelCount: number) {
   return `+${String(Math.max(labelCount, 1))}`
 }
 
-export function selectTaskPathLayout(
-  candidates: TaskPathLayout[],
-  availableWidth: number
-) {
-  if (availableWidth <= 0) {
-    return candidates[0]
+export function getLabelCandidatesFromInput(
+  input: TaskPathLayoutInput
+): string[] {
+  if (input.labels !== undefined) {
+    return getLabelCandidateTexts(input.labels)
   }
 
-  return (
-    candidates.find((candidate) => candidate.totalWidth <= availableWidth) ??
-    candidates[candidates.length - 1]
+  return getLabelCandidateTexts(
+    input.labelText ?? "",
+    input.compactLabelText ?? ""
   )
+}
+
+export function selectTaskPathLayout(
+  pathCandidates: TaskPathLayout[],
+  labelCandidates: string[],
+  availableWidth: number
+): TaskPathLayout {
+  const compactLabel = labelCandidates.at(-1) ?? ""
+  const fallback = attachLabel(
+    pathCandidates.at(-1) ?? {
+      taskText: "",
+      subtaskText: "",
+      labelText: "",
+      pathWidth: 0,
+      totalWidth: 0,
+    },
+    compactLabel
+  )
+
+  if (pathCandidates.length === 0) {
+    return {
+      taskText: "",
+      subtaskText: "",
+      labelText: compactLabel,
+      pathWidth: 0,
+      totalWidth: measureLabelSlotWidth(compactLabel),
+    }
+  }
+
+  if (availableWidth <= 0) {
+    return attachLabel(pathCandidates[0], compactLabel)
+  }
+
+  let best = fallback
+  let bestPathScore: readonly [number, number, number] = [-1, -1, -1]
+  let bestLabelScore = -1
+  let bestLabelSlotWidth = -1
+
+  for (const path of pathCandidates) {
+    const pathScore = getPathContentScore(path)
+    for (const label of labelCandidates) {
+      const labelSlotWidth = measureLabelSlotWidth(label)
+      const totalWidth = path.pathWidth + labelSlotWidth
+      if (totalWidth > availableWidth) {
+        continue
+      }
+
+      const labelScore = getLabelContentScore(label)
+      const isBetterPath =
+        pathScore[0] > bestPathScore[0] ||
+        (pathScore[0] === bestPathScore[0] && pathScore[1] > bestPathScore[1]) ||
+        (pathScore[0] === bestPathScore[0] &&
+          pathScore[1] === bestPathScore[1] &&
+          pathScore[2] > bestPathScore[2])
+      const isSamePath =
+        pathScore[0] === bestPathScore[0] &&
+        pathScore[1] === bestPathScore[1] &&
+        pathScore[2] === bestPathScore[2]
+      const isBetterLabel =
+        labelScore > bestLabelScore ||
+        (labelScore === bestLabelScore && labelSlotWidth > bestLabelSlotWidth)
+
+      if (isBetterPath || (isSamePath && isBetterLabel)) {
+        best = attachLabel(path, label)
+        bestPathScore = pathScore
+        bestLabelScore = labelScore
+        bestLabelSlotWidth = labelSlotWidth
+      }
+    }
+  }
+
+  return best
+}
+
+function getPathContentScore(
+  path: Pick<TaskPathLayout, "pathWidth" | "subtaskText" | "taskText">
+) {
+  return [
+    getSegmentContentScore(path.taskText),
+    getSegmentContentScore(path.subtaskText),
+    path.pathWidth,
+  ] as const
+}
+
+function getSegmentContentScore(text: string) {
+  if (text.length === 0) {
+    return 0
+  }
+
+  if (text.endsWith(ELLIPSIS)) {
+    return splitGraphemes(text.slice(0, -ELLIPSIS.length)).length
+  }
+
+  return splitGraphemes(text).length + 10_000
+}
+
+function getLabelContentScore(label: string) {
+  if (label.length === 0) {
+    return 0
+  }
+
+  if (label.endsWith(ELLIPSIS)) {
+    return splitGraphemes(label.slice(0, -ELLIPSIS.length)).length
+  }
+
+  if (/^\+\d+($| )/.test(label)) {
+    return splitGraphemes(label).length
+  }
+
+  return splitGraphemes(label).length + 10_000
+}
+
+export function resolveTaskPathLayout(
+  input: TaskPathLayoutInput,
+  availableWidth: number
+): TaskPathLayout {
+  const pathCandidates = buildTaskPathCandidates(input)
+  const labelCandidates = getLabelCandidatesFromInput(input)
+  return selectTaskPathLayout(pathCandidates, labelCandidates, availableWidth)
 }
 
 export function buildTaskPathCandidates({
@@ -72,42 +192,29 @@ export function buildTaskPathCandidates({
   subtaskTitle,
   subtaskIndicator,
   hasBlockIndicator,
-  labels,
-  labelText,
-  compactLabelText,
   textFont,
   subtaskTitleId,
 }: TaskPathLayoutInput): TaskPathLayout[] {
   const candidates: TaskPathLayout[] = []
   const taskGraphemes = splitGraphemes(taskTitle)
   const subtaskGraphemes = splitGraphemes(subtaskTitle)
-  const labelCandidates =
-    labels !== undefined
-      ? getLabelCandidateTexts(labels)
-      : getLabelCandidateTexts(labelText ?? "", compactLabelText ?? "")
   const fullTask = getTextVariant(taskGraphemes, taskGraphemes.length)
   const fullSubtask = getTextVariant(subtaskGraphemes, subtaskGraphemes.length)
   const hasBreadcrumb = subtaskGraphemes.length > 0 && subtaskTitleId !== null
 
-  for (const label of labelCandidates) {
-    pushCandidate(candidates, {
-      task: fullTask,
-      subtask: fullSubtask,
-      subtaskIndicator,
-      hasBlockIndicator,
-      label,
-      textFont,
-    })
-  }
-
-  const compactLabel = labelCandidates[labelCandidates.length - 1]
+  pushCandidate(candidates, {
+    task: fullTask,
+    subtask: fullSubtask,
+    subtaskIndicator,
+    hasBlockIndicator,
+    textFont,
+  })
 
   if (!hasBreadcrumb) {
     pushTaskOnlyCandidates(candidates, {
       taskGraphemes,
       subtaskIndicator,
       hasBlockIndicator,
-      label: compactLabel,
       textFont,
     })
     return candidates
@@ -118,7 +225,6 @@ export function buildTaskPathCandidates({
     subtaskGraphemes,
     subtaskIndicator,
     hasBlockIndicator,
-    label: compactLabel,
     textFont,
   })
 
@@ -128,7 +234,6 @@ export function buildTaskPathCandidates({
     cappedSubtaskCount,
     subtaskIndicator,
     hasBlockIndicator,
-    label: compactLabel,
     textFont,
   })
 
@@ -137,7 +242,6 @@ export function buildTaskPathCandidates({
     subtask: "",
     subtaskIndicator,
     hasBlockIndicator,
-    label: compactLabel,
     textFont,
   })
   pushCandidate(candidates, {
@@ -145,7 +249,6 @@ export function buildTaskPathCandidates({
     subtask: "",
     subtaskIndicator,
     hasBlockIndicator,
-    label: compactLabel,
     textFont,
   })
 
@@ -158,13 +261,11 @@ function pushTaskOnlyCandidates(
     taskGraphemes,
     subtaskIndicator,
     hasBlockIndicator,
-    label,
     textFont,
   }: {
     taskGraphemes: string[]
     subtaskIndicator: string | null
     hasBlockIndicator: boolean
-    label: string
     textFont: string
   }
 ) {
@@ -178,7 +279,6 @@ function pushTaskOnlyCandidates(
       subtask: "",
       subtaskIndicator,
       hasBlockIndicator,
-      label,
       textFont,
     })
   }
@@ -188,7 +288,6 @@ function pushTaskOnlyCandidates(
     subtask: "",
     subtaskIndicator,
     hasBlockIndicator,
-    label,
     textFont,
   })
 }
@@ -200,14 +299,12 @@ function pushParentCapCandidates(
     subtaskGraphemes,
     subtaskIndicator,
     hasBlockIndicator,
-    label,
     textFont,
   }: {
     taskGraphemes: string[]
     subtaskGraphemes: string[]
     subtaskIndicator: string | null
     hasBlockIndicator: boolean
-    label: string
     textFont: string
   }
 ) {
@@ -228,7 +325,6 @@ function pushParentCapCandidates(
       subtask: "",
       subtaskIndicator,
       hasBlockIndicator,
-      label,
       textFont,
     })
 
@@ -245,7 +341,6 @@ function pushParentCapCandidates(
       subtask: getTextVariant(subtaskGraphemes, subtaskCount),
       subtaskIndicator,
       hasBlockIndicator,
-      label,
       textFont,
     })
   }
@@ -261,7 +356,6 @@ function pushBalancedBreadcrumbCandidates(
     cappedSubtaskCount,
     subtaskIndicator,
     hasBlockIndicator,
-    label,
     textFont,
   }: {
     taskGraphemes: string[]
@@ -269,7 +363,6 @@ function pushBalancedBreadcrumbCandidates(
     cappedSubtaskCount: number
     subtaskIndicator: string | null
     hasBlockIndicator: boolean
-    label: string
     textFont: string
   }
 ) {
@@ -298,7 +391,6 @@ function pushBalancedBreadcrumbCandidates(
       subtask: getTextVariant(subtaskGraphemes, subtaskCount),
       subtaskIndicator,
       hasBlockIndicator,
-      label,
       textFont,
     })
 
@@ -342,8 +434,7 @@ function pushCandidate(
 
   if (
     previous?.taskText === candidate.taskText &&
-    previous.subtaskText === candidate.subtaskText &&
-    previous.labelText === candidate.labelText
+    previous?.subtaskText === candidate.subtaskText
   ) {
     return
   }
@@ -356,12 +447,56 @@ function buildLayoutCandidate({
   subtask,
   subtaskIndicator,
   hasBlockIndicator,
-  label,
   textFont,
 }: LayoutCandidateInput): TaskPathLayout {
+  const pathWidth = measurePathWidth({
+    task,
+    subtask,
+    subtaskIndicator,
+    hasBlockIndicator,
+    textFont,
+  })
+
+  return {
+    taskText: task,
+    subtaskText: subtask,
+    labelText: "",
+    pathWidth,
+    totalWidth: pathWidth,
+  }
+}
+
+export function measurePathWidth({
+  task,
+  subtask,
+  subtaskIndicator,
+  hasBlockIndicator,
+  textFont,
+}: LayoutCandidateInput): number {
   const taskWidth = measureTextForDom(task, textFont)
   const subtaskWidth = measureTextForDom(subtask, textFont)
   const showsChevron = taskWidth > 0 && subtaskWidth > 0
+  const indicatorsWidth = measureIndicatorsWidth(subtaskIndicator, hasBlockIndicator)
+  const segmentCount =
+    (taskWidth > 0 ? 1 : 0) +
+    (showsChevron ? 1 : 0) +
+    (subtaskWidth > 0 ? 1 : 0) +
+    (indicatorsWidth > 0 ? 1 : 0)
+  const pathGapCount = Math.max(0, segmentCount - 1)
+
+  return (
+    taskWidth +
+    (showsChevron ? CHEVRON_WIDTH_PX : 0) +
+    subtaskWidth +
+    indicatorsWidth +
+    PATH_GAP_WIDTH_PX * pathGapCount
+  )
+}
+
+export function measureIndicatorsWidth(
+  subtaskIndicator: string | null,
+  hasBlockIndicator: boolean
+) {
   const progressWidth =
     subtaskIndicator === null
       ? 0
@@ -369,32 +504,33 @@ function buildLayoutCandidate({
   const blockWidth = hasBlockIndicator
     ? measureBadgeWidth("", BLOCK_BADGE_CHROME_WIDTH_PX)
     : 0
-  const labelWidth =
-    label.length === 0
-      ? 0
-      : measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
-  const itemCount =
-    (taskWidth > 0 ? 1 : 0) +
-    (showsChevron ? 1 : 0) +
-    (subtaskWidth > 0 ? 1 : 0) +
-    (subtaskIndicator === null ? 0 : 1) +
-    (hasBlockIndicator ? 1 : 0)
-  const pathGapCount = Math.max(0, itemCount - 1)
-  const pathWidth =
-    taskWidth +
-    (showsChevron ? CHEVRON_WIDTH_PX : 0) +
-    subtaskWidth +
-    progressWidth +
-    blockWidth +
-    PATH_GAP_WIDTH_PX * pathGapCount
+
+  if (progressWidth === 0) {
+    return blockWidth
+  }
+
+  if (blockWidth === 0) {
+    return progressWidth
+  }
+
+  return progressWidth + blockWidth + PATH_GAP_WIDTH_PX
+}
+
+function measureLabelSlotWidth(label: string) {
+  if (label.length === 0) {
+    return 0
+  }
+
+  return PROGRESS_TO_LABEL_GAP_PX + measureBadgeWidth(label, LABEL_BADGE_CHROME_WIDTH_PX)
+}
+
+function attachLabel(path: TaskPathLayout, label: string): TaskPathLayout {
+  const labelSlotWidth = measureLabelSlotWidth(label)
 
   return {
-    taskText: task,
-    subtaskText: subtask,
+    ...path,
     labelText: label,
-    totalWidth:
-      pathWidth +
-      (labelWidth === 0 ? 0 : PROGRESS_TO_LABEL_GAP_PX + labelWidth),
+    totalWidth: path.pathWidth + labelSlotWidth,
   }
 }
 
@@ -494,6 +630,10 @@ function splitGraphemes(value: string) {
 }
 
 function measureTextForDom(text: string, font: string) {
+  if (text.length === 0) {
+    return 0
+  }
+
   return Math.ceil(measureText(text, font) + TEXT_WIDTH_BUFFER_PX)
 }
 

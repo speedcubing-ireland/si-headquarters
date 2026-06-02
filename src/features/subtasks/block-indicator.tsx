@@ -7,7 +7,7 @@ import {
 import type { BlockerCounts } from "@/convex/tasks/blockers/counts"
 import { formatBlockedByTooltip } from "@/features/subtasks/block-indicator-tooltip"
 import { cn } from "@/lib/utils"
-import { ArrowRightToLineIcon } from "lucide-react"
+import { ConstructionIcon } from "lucide-react"
 
 export function BlockIndicator({
   count,
@@ -35,7 +35,7 @@ export function BlockIndicator({
             event.stopPropagation()
           }}
         >
-          <ArrowRightToLineIcon data-icon="inline-start" />
+          <ConstructionIcon data-icon="inline-start" />
         </Badge>
       </TooltipTrigger>
       <TooltipContent side="top">{tooltip}</TooltipContent>

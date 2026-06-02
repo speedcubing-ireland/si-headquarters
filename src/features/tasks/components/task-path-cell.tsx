@@ -1,7 +1,9 @@
 import {
   buildTaskPathCandidates,
   DEFAULT_TASK_PATH_FONT,
+  getLabelCandidatesFromInput,
   selectTaskPathLayout,
+  type TaskPathLayoutInput,
 } from "@/components/data-views/task-path-layout"
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import { api } from "@/convex/_generated/api"
@@ -50,39 +52,52 @@ export function TaskPathCell({ row }: { row: TaskInlineRow }) {
   const setLabels = useMutation(api.tasks.mutations.setTaskLabels)
   const [rootRef, rootMeasurement] = useMeasuredElement(DEFAULT_TASK_PATH_FONT)
   const primaryLabel = row.labels.at(0)
-  const candidates = useMemo(
-    () =>
-      buildTaskPathCandidates({
-        taskTitle: row.path.taskTitle,
-        subtaskTitle: row.path.subtaskTitle,
-        subtaskIndicator: row.path.subtaskIndicator,
-        hasBlockIndicator: row.blockers.count > 0,
-        labels: {
-          count: row.labels.length,
-          primaryName: primaryLabel?.name,
-        },
-        textFont: rootMeasurement.font,
-        subtaskTitleId: row.path.subtaskTitleId,
-      }),
-    [
-      primaryLabel?.name,
-      rootMeasurement.font,
-      row.blockers.count,
-      row.labels.length,
-      row.path.subtaskIndicator,
-      row.path.subtaskTitle,
-      row.path.subtaskTitleId,
-      row.path.taskTitle,
-    ]
+
+  const pathInput = useMemo((): TaskPathLayoutInput => {
+    return {
+      taskTitle: row.path.taskTitle,
+      subtaskTitle: row.path.subtaskTitle,
+      subtaskIndicator: row.path.subtaskIndicator,
+      hasBlockIndicator: row.blockers.count > 0,
+      labels: {
+        count: row.labels.length,
+        primaryName: primaryLabel?.name,
+      },
+      textFont: rootMeasurement.font,
+      subtaskTitleId: row.path.subtaskTitleId,
+    }
+  }, [
+    primaryLabel?.name,
+    rootMeasurement.font,
+    row.blockers.count,
+    row.labels.length,
+    row.path.subtaskIndicator,
+    row.path.subtaskTitle,
+    row.path.subtaskTitleId,
+    row.path.taskTitle,
+  ])
+
+  const pathCandidates = useMemo(
+    () => buildTaskPathCandidates(pathInput),
+    [pathInput]
   )
+
+  const labelCandidates = useMemo(
+    () => getLabelCandidatesFromInput(pathInput),
+    [pathInput]
+  )
+
+  // width must be a dependency — ResizeObserver updates it on sidebar/resize
   const layout = useMemo(
     () =>
       selectTaskPathLayout(
-        candidates,
+        pathCandidates,
+        labelCandidates,
         Math.max(0, rootMeasurement.width - TASK_PATH_CELL_TRAILING_PADDING_PX)
       ),
-    [candidates, rootMeasurement.width]
+    [labelCandidates, pathCandidates, rootMeasurement.width]
   )
+
   const showLabelTooltip =
     primaryLabel !== undefined &&
     (row.labels.length > 1 || layout.labelText !== primaryLabel.name)
