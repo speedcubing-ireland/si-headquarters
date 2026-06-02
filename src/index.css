@@ -64,6 +64,13 @@
   --color-task-label-violet-bg: var(--task-label-violet-bg);
   --color-task-label-violet-border: var(--task-label-violet-border);
   --color-task-label-violet-fg: var(--task-label-violet-fg);
+  --color-task-status-backlog-fg: var(--task-status-backlog-fg);
+  --color-task-status-to-do-fg: var(--task-status-to-do-fg);
+  --color-task-status-in-progress-fg: var(--task-status-in-progress-fg);
+  --color-task-status-awaiting-review-fg: var(--task-status-awaiting-review-fg);
+  --color-task-status-done-fg: var(--task-status-done-fg);
+  --color-task-status-cancelled-fg: var(--task-status-cancelled-fg);
+  --color-task-status-auto-fg: var(--task-status-auto-fg);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -130,6 +137,13 @@
   --task-label-violet-bg: var(--color-violet-50);
   --task-label-violet-border: var(--color-violet-200);
   --task-label-violet-fg: var(--color-violet-700);
+  --task-status-backlog-fg: var(--muted-foreground);
+  --task-status-to-do-fg: oklch(0.38 0.018 286);
+  --task-status-in-progress-fg: oklch(0.62 0.14 68); 
+  --task-status-awaiting-review-fg: oklch(0.50 0.16 245);     
+  --task-status-done-fg: var(--primary);
+  --task-status-cancelled-fg: oklch(0.72 0.008 286);
+  --task-status-auto-fg: oklch(0.52 0.18 300);
 }
 
 .dark {
@@ -252,6 +266,13 @@
     transparent
   );
   --task-label-violet-fg: var(--color-violet-300);
+  --task-status-backlog-fg: var(--muted-foreground); 
+  --task-status-to-do-fg: oklch(0.72 0.012 286);  
+  --task-status-in-progress-fg: oklch(0.78 0.12 72);           
+  --task-status-awaiting-review-fg: oklch(0.72 0.13 248);      
+  --task-status-done-fg: var(--chart-2);                       
+  --task-status-cancelled-fg: oklch(0.42 0.008 286);           
+  --task-status-auto-fg: oklch(0.75 0.14 302); 
 }
 
 @layer base {

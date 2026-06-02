@@ -4,14 +4,16 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select"
-import {
-  reorderStatusOptions,
-  TASK_STATUS_META,
-} from "@/components/data-selectors/task-status-meta"
 import type {
   TaskStatusCommand,
   TaskStatusView as BackendTaskStatusView,
 } from "@/convex/tasks/status/resolver"
+import {
+  isTaskStatusCommand,
+  reorderStatusOptions,
+  TASK_STATUS_META,
+  TaskStatusIcon,
+} from "@/features/tasks/status"
 import { SelectorButton } from "./selector-face"
 import * as SelectorFace from "./selector-face"
 import type { ComponentProps } from "react"
@@ -22,17 +24,18 @@ type TaskStatusView = Pick<
   "effectiveStatus" | "isManuallyEditable" | "statusOptions"
 >
 
+type TaskStatusIconOptions = Omit<
+  ComponentProps<typeof TaskStatusIcon>,
+  "status"
+>
+
 interface TaskStatusSelectorProps extends Omit<
   ComponentProps<typeof SelectorButton>,
   "children" | "onChange"
 > {
   statusView: TaskStatusView
-  iconProps?: ComponentProps<"svg">
+  iconProps?: TaskStatusIconOptions
   onChange: SelectorChangeHandler<TaskStatusCommand>
-}
-
-function isTaskStatusCommand(value: string): value is TaskStatusCommand {
-  return Object.hasOwn(TASK_STATUS_META, value)
 }
 
 export function Face({
@@ -40,16 +43,15 @@ export function Face({
   showLabel,
   status,
 }: {
-  iconProps?: ComponentProps<"svg">
+  iconProps?: TaskStatusIconOptions
   showLabel: boolean
   status: TaskStatusCommand
 }) {
   const selected = TASK_STATUS_META[status]
-  const SelectedIcon = selected.icon
 
   return (
     <SelectorFace.Root>
-      <SelectedIcon {...iconProps} />
+      <TaskStatusIcon status={status} size="md" {...iconProps} />
       {showLabel && <SelectorFace.Text>{selected.label}</SelectorFace.Text>}
     </SelectorFace.Root>
   )
@@ -92,11 +94,10 @@ function TaskStatusSelectorControl({
       <SelectContent align="end">
         {reorderStatusOptions(statusView.statusOptions).map((status) => {
           const option = TASK_STATUS_META[status]
-          const Icon = option.icon
 
           return (
             <SelectItem key={status} value={status}>
-              <Icon />
+              <TaskStatusIcon status={status} size="sm" />
               {option.label}
             </SelectItem>
           )

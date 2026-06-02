@@ -1,4 +1,4 @@
-import { TASK_STATUS_META } from "@/components/data-selectors/task-status-meta"
+import { TASK_STATUS_META } from "@/features/tasks/status"
 import type { ItemGroup } from "@/features/list-views/group-items"
 import { groupItems } from "@/features/list-views/group-items"
 import type { DisplaySettings } from "@/features/list-views/types"

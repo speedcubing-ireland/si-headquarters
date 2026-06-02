@@ -13,10 +13,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import {
-  getTaskStatusIconClassName,
-  TASK_STATUS_META,
-} from "@/components/data-selectors/task-status-meta"
+import { TaskStatusIcon } from "@/features/tasks/status"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { TaskBlockerView } from "@/convex/tasks/blockers/validators"
@@ -65,8 +62,6 @@ function BlockerItem({
   item: TaskBlockerView
   onRemove: (edgeId: Id<"taskBlockers">) => void
 }) {
-  const status = TASK_STATUS_META[item.task.effectiveStatus]
-  const StatusIcon = status.icon
   const assignee = item.task.assignees.primaryUser
 
   return (
@@ -78,10 +73,7 @@ function BlockerItem({
     >
       <Link to="/tasks/$id" params={{ id: item.task._id }}>
         <ItemMedia variant="icon">
-          <StatusIcon
-            aria-label={status.label}
-            className={`size-4 ${getTaskStatusIconClassName(item.task.effectiveStatus)}`}
-          />
+          <TaskStatusIcon status={item.task.effectiveStatus} />
         </ItemMedia>
         <ItemContent className="min-w-0">
           <ItemTitle className="w-full min-w-0 gap-1.5">

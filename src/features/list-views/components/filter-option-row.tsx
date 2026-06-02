@@ -1,5 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CommandItem } from "@/components/ui/command"
+import type { TaskStatus } from "@/convex/tasks/status/validators"
+import { TaskStatusIcon } from "@/features/tasks/status"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 import { CheckIcon } from "lucide-react"
@@ -17,6 +19,7 @@ export interface FilterOption {
   value: string
   label: string
   icon?: LucideIcon | null
+  taskStatus?: TaskStatus
   avatar?: { name: string; image: string | null } | null
   color?: string
 }
@@ -48,6 +51,8 @@ export function FilterOptionRow({
               {avatarInitials(option.avatar.name)}
             </AvatarFallback>
           </Avatar>
+        ) : option.taskStatus !== undefined ? (
+          <TaskStatusIcon status={option.taskStatus} size="sm" />
         ) : Icon !== undefined && Icon !== null ? (
           <Icon className="size-4 text-muted-foreground" />
         ) : option.color !== undefined && option.color !== "" ? (

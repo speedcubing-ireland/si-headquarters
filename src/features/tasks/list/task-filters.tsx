@@ -1,4 +1,4 @@
-import { TASK_STATUS_META } from "@/components/data-selectors/task-status-meta"
+import { TASK_STATUS_META, TaskStatusIcon } from "@/features/tasks/status"
 import { LabelBadge } from "@/components/data-selectors/task-label-badge"
 import { ObjectAvatar } from "@/components/object-avatar"
 import type { FilterOption } from "@/features/list-views/components/filter-option-row"
@@ -103,7 +103,7 @@ export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
 const STATUS_OPTIONS: FilterOption[] = TASK_STATUSES.map((status) => ({
   value: status,
   label: TASK_STATUS_META[status].label,
-  icon: TASK_STATUS_META[status].icon,
+  taskStatus: status,
 }))
 
 const KIND_OPTIONS: FilterOption[] = [
@@ -164,12 +164,10 @@ function renderTaskFilterValue(
   switch (key) {
     case "status": {
       if (!isTaskStatus(value)) return value
-      const meta = TASK_STATUS_META[value]
-      const Icon = meta.icon
       return (
         <span className="flex items-center gap-1 text-xs">
-          <Icon className="size-3.5" />
-          {meta.label}
+          <TaskStatusIcon status={value} size="sm" />
+          {TASK_STATUS_META[value].label}
         </span>
       )
     }

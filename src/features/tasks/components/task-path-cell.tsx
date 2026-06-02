@@ -6,10 +6,8 @@ import {
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import { api } from "@/convex/_generated/api"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
-import {
-  TaskInlineIndicators,
-  taskInlineIndicatorPropsFromRow,
-} from "@/features/subtasks/task-inline-indicators"
+import { taskInlineIndicatorPropsFromRow } from "@/features/subtasks/task-inline-indicator-props"
+import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import { useMeasuredElement } from "@/hooks/use-measured-element"
 import { cn } from "@/lib/utils"
 import { Link } from "@tanstack/react-router"

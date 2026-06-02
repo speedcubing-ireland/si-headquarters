@@ -1,3 +1,5 @@
+import { z } from "zod"
+
 // One combined display preference shared by task and competition subtask views.
 const STORAGE_KEY = "subtask-view-display:v1"
 
@@ -11,6 +13,11 @@ export const defaultSubtaskDisplayOptions: SubtaskDisplayOptions = {
   hideSubtasks: false,
 }
 
+const subtaskDisplayOptionsSchema = z.object({
+  hideCompleted: z.boolean(),
+  hideSubtasks: z.boolean(),
+})
+
 function writeLocalStorageOrIgnore(key: string, value: string): void {
   try {
     localStorage.setItem(key, value)
@@ -19,27 +26,12 @@ function writeLocalStorageOrIgnore(key: string, value: string): void {
   }
 }
 
-function parseSubtaskDisplayOptions(data: unknown): SubtaskDisplayOptions | null {
-  if (typeof data !== "object" || data === null) return null
-  const record = data as Record<string, unknown>
-  if (
-    typeof record.hideCompleted !== "boolean" ||
-    typeof record.hideSubtasks !== "boolean"
-  ) {
-    return null
-  }
-  return {
-    hideCompleted: record.hideCompleted,
-    hideSubtasks: record.hideSubtasks,
-  }
-}
-
 export function readSubtaskDisplayOptions(): SubtaskDisplayOptions {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw === null || raw === "") return defaultSubtaskDisplayOptions
-    const data = JSON.parse(raw) as unknown
-    return parseSubtaskDisplayOptions(data) ?? defaultSubtaskDisplayOptions
+    const parsed = subtaskDisplayOptionsSchema.safeParse(JSON.parse(raw))
+    return parsed.success ? parsed.data : defaultSubtaskDisplayOptions
   } catch {
     return defaultSubtaskDisplayOptions
   }

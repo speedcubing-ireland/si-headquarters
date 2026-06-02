@@ -52,19 +52,6 @@ const orderedStatusOptions = [
   "cancelled",
 ] satisfies TaskStatusCommand[]
 
-const TASK_STATUS_ICON_CLASS: Record<TaskStatus, string> = {
-  backlog: "text-muted-foreground",
-  "to-do": "text-muted-foreground",
-  "in-progress": "text-yellow-600",
-  "awaiting-review": "text-muted-foreground",
-  done: "text-emerald-600",
-  cancelled: "text-emerald-600",
-}
-
-export function getTaskStatusIconClassName(status: TaskStatus) {
-  return TASK_STATUS_ICON_CLASS[status]
-}
-
 export function reorderStatusOptions(
   options: TaskStatusCommand[]
 ): TaskStatusCommand[] {
@@ -78,4 +65,12 @@ export function reorderStatusOptions(
   }
 
   return orderedOptions
+}
+
+export function isTaskStatusCommand(value: string): value is TaskStatusCommand {
+  return Object.hasOwn(TASK_STATUS_META, value)
+}
+
+export function getTaskStatusLabel(status: TaskStatus | TaskStatusCommand) {
+  return TASK_STATUS_META[status].label
 }
