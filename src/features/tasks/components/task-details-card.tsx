@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
-import { SubtaskBadge } from "@/features/subtasks/subtask-badge"
+import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import type { FunctionReturnType } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
 import {
@@ -64,8 +64,7 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
         size="sm"
       >
         {parent.name}
-        <SubtaskBadge
-          className="flex"
+        <TaskInlineIndicators
           kind={parent.kind}
           progress={parent.progress}
         />

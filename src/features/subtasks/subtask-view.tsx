@@ -73,7 +73,7 @@ function PhaseSection({ section }: { section: SubtaskViewSection }) {
               <div
                 key={row.task._id}
                 className={cn(
-                  "grid min-h-12 min-w-0 items-center gap-x-3 overflow-hidden border-b px-4 py-2 last:border-b-0",
+                  "grid min-h-12 min-w-0 items-center gap-x-1 overflow-hidden border-b px-4 py-2 last:border-b-0",
                   SUBTASK_LIST_GRID_CLASS
                 )}
               >

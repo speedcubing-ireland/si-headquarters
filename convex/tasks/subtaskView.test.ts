@@ -100,7 +100,9 @@ describe("subtask view", () => {
           status: "done",
         })
         const labelId = await ctx.db.insert("taskLabels", {
+          code: "content",
           name: "Content",
+          color: "emerald",
         })
         const ownerId = await ctx.db.insert("users", { name: "Owner User" })
         const assigneeId = await ctx.db.insert("users", {
@@ -139,7 +141,14 @@ describe("subtask view", () => {
     expect(childRow.task._id).toBe(childId)
     expect(childRow.task.name).toBe("Draft content")
     expect(childRow.task.dueDate).toBe("2026-05-25")
-    expect(childRow.labels).toEqual([{ _id: labelId, name: "Content" }])
+    expect(childRow.labels).toEqual([
+      {
+        _id: labelId,
+        code: "content",
+        name: "Content",
+        color: "emerald",
+      },
+    ])
     expect(childRow.owner?.type).toBe("users")
     expect(childRow.owner?._id).toBe(ownerId)
     expect(childRow.path).toEqual({

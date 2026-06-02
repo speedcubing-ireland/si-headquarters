@@ -1,7 +1,10 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import type { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
-import { blockerCounts, EMPTY_BLOCKER_COUNTS } from "@/convex/tasks/blockers/counts"
+import {
+  blockerCounts,
+  EMPTY_BLOCKER_COUNTS,
+} from "@/convex/tasks/blockers/counts"
 import { taskKindType } from "@/convex/tasks/kind"
 import type { TaskStatusLoader } from "@/convex/tasks/status/resolver"
 import { taskReviewStateSummary } from "@/convex/tasks/reviews/validators"
@@ -11,6 +14,7 @@ import {
   taskStatusIntentType,
   taskStatusType,
 } from "@/convex/tasks/status/validators"
+import { taskLabelColorType } from "@/convex/tasks/labels/validators"
 import { toPublicUser } from "@/convex/users/queries"
 import { publicUserValidator, type PublicUser } from "@/convex/users/validators"
 import { v, type Infer } from "convex/values"
@@ -65,7 +69,9 @@ export const taskViewStructureTask = v.object({
 
 export const taskViewLabel = v.object({
   _id: v.id("taskLabels"),
+  code: v.string(),
   name: v.string(),
+  color: taskLabelColorType,
 })
 
 export const taskViewOwner = v.union(
@@ -117,6 +123,7 @@ export type TaskViewDisplayFields = Infer<typeof taskViewDisplayFields>
 
 type TaskViewOwner = Infer<typeof taskViewOwner>
 type TaskViewAssignees = Infer<typeof taskViewAssignees>
+type TaskViewLabel = Infer<typeof taskViewLabel>
 
 export interface HydratedTaskView {
   task: Doc<"tasks">
@@ -162,6 +169,15 @@ export function toTaskViewStatusView(statusView: TaskStatusView) {
       isApproved: review.isApproved,
       isOverridden: review.isOverridden,
     },
+  }
+}
+
+function toTaskViewLabel(label: Doc<"taskLabels">): TaskViewLabel {
+  return {
+    _id: label._id,
+    code: label.code,
+    name: label.name,
+    color: label.color,
   }
 }
 
@@ -297,7 +313,7 @@ export function createTaskViewDisplayReader(
         status: task.status,
         statusIntent: task.statusIntent,
       },
-      labels: labels.map(({ _id, name }) => ({ _id, name })),
+      labels: labels.map(toTaskViewLabel),
       owner,
       assignees,
       statusView: toTaskViewStatusView(statusView),
@@ -318,7 +334,7 @@ export function createTaskViewDisplayReader(
     return {
       taskId: task._id,
       dueDate: task.dueDate,
-      labels: labels.map(({ _id, name }) => ({ _id, name })),
+      labels: labels.map(toTaskViewLabel),
       owner,
       assignees,
       blockers,

@@ -1,4 +1,5 @@
 import { TASK_STATUS_META } from "@/components/data-selectors/task-status-meta"
+import { LabelBadge } from "@/components/data-selectors/task-label-badge"
 import { ObjectAvatar } from "@/components/object-avatar"
 import type { FilterOption } from "@/features/list-views/components/filter-option-row"
 import type { ArrayFilterChipDef } from "@/features/list-views/components/array-filter-chips"
@@ -8,7 +9,10 @@ import {
 } from "@/features/list-views/filter-engine"
 import { hasDateRangeValue } from "@/features/list-views/types"
 import type { MatchMode } from "@/features/list-views/types"
-import type { TaskFilterKey, TasksFilters } from "@/features/tasks/list/task-list-types"
+import type {
+  TaskFilterKey,
+  TasksFilters,
+} from "@/features/tasks/list/task-list-types"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { TASK_STATUSES, isTaskStatus } from "@/convex/tasks/status/validators"
 import { api } from "@/convex/_generated/api"
@@ -131,11 +135,7 @@ export function filterTaskRows<TRow extends TaskRowFilterInput>(
 
   return rows.filter((row) => {
     const matchers: boolean[] = activeFields.map((field) =>
-      matchesFilterItems(
-        filters[field.id],
-        field.getRowValues(row),
-        matchMode
-      )
+      matchesFilterItems(filters[field.id], field.getRowValues(row), matchMode)
     )
 
     if (hasDueDate && filters.dueDate) {
@@ -151,7 +151,7 @@ export function filterTaskRows<TRow extends TaskRowFilterInput>(
 export interface TaskFilterLookup {
   users: UserListEntry[]
   teams: { _id: string; name: string }[]
-  labels: { _id: string; name: string }[]
+  labels: Pick<Doc<"taskLabels">, "_id" | "code" | "name" | "color">[]
   competitions: { _id: string; name: string }[]
   phases: { _id: string; name: string }[]
 }
@@ -193,8 +193,10 @@ function renderTaskFilterValue(
       }
       return lookup.teams.find((entry) => entry._id === id)?.name ?? value
     }
-    case "labels":
-      return lookup.labels.find((entry) => entry._id === value)?.name ?? value
+    case "labels": {
+      const label = lookup.labels.find((entry) => entry._id === value)
+      return label ? <LabelBadge label={label} /> : value
+    }
     case "competition":
       return (
         lookup.competitions.find((entry) => entry._id === value)?.name ?? value
@@ -266,7 +268,13 @@ export function useTaskFilters() {
         label: phase.name,
       })),
     }),
-    [assigneeOptions, lookup.competitions, lookup.labels, lookup.phases, ownerOptions]
+    [
+      assigneeOptions,
+      lookup.competitions,
+      lookup.labels,
+      lookup.phases,
+      ownerOptions,
+    ]
   )
 
   const filterTypes = useMemo(

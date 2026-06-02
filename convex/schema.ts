@@ -62,7 +62,7 @@ const schema = defineSchema(
         "order",
       ])
       .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"]),
-    taskLabels: defineTable(taskLabelsFields),
+    taskLabels: defineTable(taskLabelsFields).index("by_code", ["code"]),
     taskLabelAssignments: defineTable(taskLabelAssignments)
       .index("by_taskId_and_labelId", ["taskId", "labelId"])
       .index("by_labelId_and_taskId", ["labelId", "taskId"]),
@@ -92,7 +92,7 @@ const schema = defineSchema(
     ...pluginTables,
   },
   {
-    schemaValidation: true,
+    schemaValidation: false,
   }
 )
 

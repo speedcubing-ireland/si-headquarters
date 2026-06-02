@@ -40,6 +40,30 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-task-label-slate-bg: var(--task-label-slate-bg);
+  --color-task-label-slate-border: var(--task-label-slate-border);
+  --color-task-label-slate-fg: var(--task-label-slate-fg);
+  --color-task-label-rose-bg: var(--task-label-rose-bg);
+  --color-task-label-rose-border: var(--task-label-rose-border);
+  --color-task-label-rose-fg: var(--task-label-rose-fg);
+  --color-task-label-amber-bg: var(--task-label-amber-bg);
+  --color-task-label-amber-border: var(--task-label-amber-border);
+  --color-task-label-amber-fg: var(--task-label-amber-fg);
+  --color-task-label-emerald-bg: var(--task-label-emerald-bg);
+  --color-task-label-emerald-border: var(--task-label-emerald-border);
+  --color-task-label-emerald-fg: var(--task-label-emerald-fg);
+  --color-task-label-teal-bg: var(--task-label-teal-bg);
+  --color-task-label-teal-border: var(--task-label-teal-border);
+  --color-task-label-teal-fg: var(--task-label-teal-fg);
+  --color-task-label-sky-bg: var(--task-label-sky-bg);
+  --color-task-label-sky-border: var(--task-label-sky-border);
+  --color-task-label-sky-fg: var(--task-label-sky-fg);
+  --color-task-label-indigo-bg: var(--task-label-indigo-bg);
+  --color-task-label-indigo-border: var(--task-label-indigo-border);
+  --color-task-label-indigo-fg: var(--task-label-indigo-fg);
+  --color-task-label-violet-bg: var(--task-label-violet-bg);
+  --color-task-label-violet-border: var(--task-label-violet-border);
+  --color-task-label-violet-fg: var(--task-label-violet-fg);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -82,6 +106,30 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
+  --task-label-slate-bg: var(--color-slate-100);
+  --task-label-slate-border: var(--color-slate-200);
+  --task-label-slate-fg: var(--color-slate-700);
+  --task-label-rose-bg: var(--color-rose-50);
+  --task-label-rose-border: var(--color-rose-200);
+  --task-label-rose-fg: var(--color-rose-700);
+  --task-label-amber-bg: var(--color-amber-50);
+  --task-label-amber-border: var(--color-amber-200);
+  --task-label-amber-fg: var(--color-amber-800);
+  --task-label-emerald-bg: var(--color-emerald-50);
+  --task-label-emerald-border: var(--color-emerald-200);
+  --task-label-emerald-fg: var(--color-emerald-700);
+  --task-label-teal-bg: var(--color-teal-50);
+  --task-label-teal-border: var(--color-teal-200);
+  --task-label-teal-fg: var(--color-teal-700);
+  --task-label-sky-bg: var(--color-sky-50);
+  --task-label-sky-border: var(--color-sky-200);
+  --task-label-sky-fg: var(--color-sky-700);
+  --task-label-indigo-bg: var(--color-indigo-50);
+  --task-label-indigo-border: var(--color-indigo-200);
+  --task-label-indigo-fg: var(--color-indigo-700);
+  --task-label-violet-bg: var(--color-violet-50);
+  --task-label-violet-border: var(--color-violet-200);
+  --task-label-violet-fg: var(--color-violet-700);
 }
 
 .dark {
@@ -116,6 +164,94 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
+  --task-label-slate-bg: color-mix(
+    in oklab,
+    var(--color-slate-400) 14%,
+    transparent
+  );
+  --task-label-slate-border: color-mix(
+    in oklab,
+    var(--color-slate-300) 22%,
+    transparent
+  );
+  --task-label-slate-fg: var(--color-slate-300);
+  --task-label-rose-bg: color-mix(
+    in oklab,
+    var(--color-rose-400) 12%,
+    transparent
+  );
+  --task-label-rose-border: color-mix(
+    in oklab,
+    var(--color-rose-300) 22%,
+    transparent
+  );
+  --task-label-rose-fg: var(--color-rose-300);
+  --task-label-amber-bg: color-mix(
+    in oklab,
+    var(--color-amber-400) 13%,
+    transparent
+  );
+  --task-label-amber-border: color-mix(
+    in oklab,
+    var(--color-amber-300) 24%,
+    transparent
+  );
+  --task-label-amber-fg: var(--color-amber-300);
+  --task-label-emerald-bg: color-mix(
+    in oklab,
+    var(--color-emerald-400) 12%,
+    transparent
+  );
+  --task-label-emerald-border: color-mix(
+    in oklab,
+    var(--color-emerald-300) 22%,
+    transparent
+  );
+  --task-label-emerald-fg: var(--color-emerald-300);
+  --task-label-teal-bg: color-mix(
+    in oklab,
+    var(--color-teal-400) 12%,
+    transparent
+  );
+  --task-label-teal-border: color-mix(
+    in oklab,
+    var(--color-teal-300) 22%,
+    transparent
+  );
+  --task-label-teal-fg: var(--color-teal-300);
+  --task-label-sky-bg: color-mix(
+    in oklab,
+    var(--color-sky-400) 12%,
+    transparent
+  );
+  --task-label-sky-border: color-mix(
+    in oklab,
+    var(--color-sky-300) 22%,
+    transparent
+  );
+  --task-label-sky-fg: var(--color-sky-300);
+  --task-label-indigo-bg: color-mix(
+    in oklab,
+    var(--color-indigo-400) 13%,
+    transparent
+  );
+  --task-label-indigo-border: color-mix(
+    in oklab,
+    var(--color-indigo-300) 24%,
+    transparent
+  );
+  --task-label-indigo-fg: var(--color-indigo-300);
+  --task-label-violet-bg: color-mix(
+    in oklab,
+    var(--color-violet-400) 12%,
+    transparent
+  );
+  --task-label-violet-border: color-mix(
+    in oklab,
+    var(--color-violet-300) 22%,
+    transparent
+  );
+  --task-label-violet-fg: var(--color-violet-300);
 }
 
 @layer base {

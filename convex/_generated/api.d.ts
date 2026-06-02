@@ -157,6 +157,8 @@ import type * as tasks_board from "../tasks/board.js";
 import type * as tasks_flowView from "../tasks/flowView.js";
 import type * as tasks_inlineRow from "../tasks/inlineRow.js";
 import type * as tasks_kind from "../tasks/kind.js";
+import type * as tasks_labels_constants from "../tasks/labels/constants.js";
+import type * as tasks_labels_model from "../tasks/labels/model.js";
 import type * as tasks_labels_queries from "../tasks/labels/queries.js";
 import type * as tasks_labels_validators from "../tasks/labels/validators.js";
 import type * as tasks_mutations from "../tasks/mutations.js";
@@ -341,6 +343,8 @@ declare const fullApi: ApiFromModules<{
   "tasks/flowView": typeof tasks_flowView;
   "tasks/inlineRow": typeof tasks_inlineRow;
   "tasks/kind": typeof tasks_kind;
+  "tasks/labels/constants": typeof tasks_labels_constants;
+  "tasks/labels/model": typeof tasks_labels_model;
   "tasks/labels/queries": typeof tasks_labels_queries;
   "tasks/labels/validators": typeof tasks_labels_validators;
   "tasks/mutations": typeof tasks_mutations;

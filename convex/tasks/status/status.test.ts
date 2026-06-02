@@ -230,7 +230,9 @@ describe("Task logic flow", () => {
             status: "in-progress",
           })
           const labelId = await ctx.db.insert("taskLabels", {
+            code: "venue",
             name: "Venue",
+            color: "indigo",
           })
           const ownerId = await insertUser(ctx, "Owner User")
           const assigneeId = await insertUser(ctx, "Assignee User")
@@ -273,7 +275,14 @@ describe("Task logic flow", () => {
         expect.objectContaining({
           taskId: stepId,
           dueDate: "2026-05-25",
-          labels: [{ _id: labelId, name: "Venue" }],
+          labels: [
+            {
+              _id: labelId,
+              code: "venue",
+              name: "Venue",
+              color: "indigo",
+            },
+          ],
         }),
       ])
     })

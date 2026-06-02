@@ -1,22 +1,20 @@
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   buildTaskPathCandidates,
   DEFAULT_TASK_PATH_FONT,
-  getCompactLabelText,
   selectTaskPathLayout,
 } from "@/components/data-views/task-path-layout"
+import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
+import { api } from "@/convex/_generated/api"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
-import { BlockIndicator } from "@/features/subtasks/block-indicator"
-import { SubtaskBadge } from "@/features/subtasks/subtask-badge"
+import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import { useMeasuredElement } from "@/hooks/use-measured-element"
 import { cn } from "@/lib/utils"
 import { Link } from "@tanstack/react-router"
+import { useMutation } from "convex/react"
 import { ChevronRightIcon } from "lucide-react"
 import { useMemo, type ReactNode } from "react"
 
-const pathBadgeClassName =
-  "inline-flex h-5 shrink-0 items-center gap-0.5 self-center py-0 text-xs leading-none"
+const TASK_PATH_CELL_TRAILING_PADDING_PX = 4
 
 function TaskPathLink({
   taskId,
@@ -48,10 +46,9 @@ function TaskPathLink({
 }
 
 export function TaskPathCell({ row }: { row: TaskInlineRow }) {
+  const setLabels = useMutation(api.tasks.mutations.setTaskLabels)
   const [rootRef, rootMeasurement] = useMeasuredElement(DEFAULT_TASK_PATH_FONT)
-  const labelText = row.labels[0]?.name ?? ""
-  const compactLabelText =
-    row.labels.length > 0 ? getCompactLabelText(row.labels.length) : ""
+  const primaryLabel = row.labels.at(0)
   const candidates = useMemo(
     () =>
       buildTaskPathCandidates({
@@ -59,37 +56,42 @@ export function TaskPathCell({ row }: { row: TaskInlineRow }) {
         subtaskTitle: row.path.subtaskTitle,
         subtaskIndicator: row.path.subtaskIndicator,
         hasBlockIndicator: row.blockers.count > 0,
-        labelText,
-        compactLabelText,
+        labels: {
+          count: row.labels.length,
+          primaryName: primaryLabel?.name,
+        },
         textFont: rootMeasurement.font,
-        focalTaskId: row.task._id,
-        taskTitleId: row.path.taskTitleId,
         subtaskTitleId: row.path.subtaskTitleId,
       }),
     [
-      compactLabelText,
-      labelText,
+      primaryLabel?.name,
       rootMeasurement.font,
       row.blockers.count,
+      row.labels.length,
       row.path.subtaskIndicator,
       row.path.subtaskTitle,
       row.path.subtaskTitleId,
       row.path.taskTitle,
-      row.path.taskTitleId,
-      row.task._id,
     ]
   )
   const layout = useMemo(
-    () => selectTaskPathLayout(candidates, rootMeasurement.width),
+    () =>
+      selectTaskPathLayout(
+        candidates,
+        Math.max(0, rootMeasurement.width - TASK_PATH_CELL_TRAILING_PADDING_PX)
+      ),
     [candidates, rootMeasurement.width]
   )
+  const showLabelTooltip =
+    primaryLabel !== undefined &&
+    (row.labels.length > 1 || layout.labelText !== primaryLabel.name)
 
   return (
     <div
       ref={rootRef}
-      className="flex min-h-5 min-w-0 flex-1 items-center overflow-hidden"
+      className="flex min-h-5 min-w-0 flex-1 items-center gap-2 overflow-hidden pr-1"
     >
-      <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1">
+      <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-1">
         {layout.taskText.length > 0 ? (
           <TaskPathLink
             taskId={row.path.taskTitleId}
@@ -117,27 +119,25 @@ export function TaskPathCell({ row }: { row: TaskInlineRow }) {
             {layout.subtaskText}
           </TaskPathLink>
         ) : null}
-        <SubtaskBadge
+        <TaskInlineIndicators
+          blockers={row.blockers}
           kind={row.task.kind}
           progress={row.statusView.progress}
-          className={pathBadgeClassName}
         />
-        <BlockIndicator {...row.blockers} className={pathBadgeClassName} />
       </div>
-      {labelText.length > 0 ? (
-        <Button
+      {primaryLabel !== undefined ? (
+        <TaskLabelSelector.CompactButton
+          displayText={layout.labelText}
+          selectedLabels={row.labels}
+          showSelectedLabelsTooltip={showLabelTooltip}
+          value={row.labels.map((label) => label._id)}
           variant="icon"
+          size="default"
           className="ml-auto shrink-0 self-center"
-          aria-label={labelText}
-          type="button"
-        >
-          <Badge
-            className="inline-flex h-5 items-center bg-purple-50 py-0 text-xs leading-none text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-            title={labelText}
-          >
-            {layout.labelText}
-          </Badge>
-        </Button>
+          onChange={(labelIds) => {
+            void setLabels({ id: row.task._id, labelIds })
+          }}
+        />
       ) : null}
     </div>
   )

@@ -5,8 +5,7 @@ import * as TaskStatusSelector from "@/components/data-selectors/task-status-sel
 import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Card } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
-import { BlockIndicator } from "@/features/subtasks/block-indicator"
-import { SubtaskBadge } from "@/features/subtasks/subtask-badge"
+import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import { TaskCompLink } from "@/features/tasks/components/task-comp-link"
 import {
   taskOwnerSelectorValue,
@@ -15,9 +14,6 @@ import {
 import { Link } from "@tanstack/react-router"
 import { useMutation } from "convex/react"
 import { CornerDownRightIcon } from "lucide-react"
-
-const indicatorBadgeClassName =
-  "inline-flex h-5 shrink-0 items-center gap-0.5 self-center py-0 text-xs leading-none"
 
 function TaskContext({ row }: { row: TaskBoardRow }) {
   const parentId = row.path.subtaskTitleId
@@ -43,12 +39,11 @@ function TaskContext({ row }: { row: TaskBoardRow }) {
           <span className="truncate">{row.path.subtaskTitle}</span>
         </Link>
       ) : null}
-      <SubtaskBadge
+      <TaskInlineIndicators
+        blockers={row.blockers}
         kind={row.task.kind}
         progress={row.statusView.progress}
-        className={indicatorBadgeClassName}
       />
-      <BlockIndicator {...row.blockers} className={indicatorBadgeClassName} />
     </div>
   )
 }

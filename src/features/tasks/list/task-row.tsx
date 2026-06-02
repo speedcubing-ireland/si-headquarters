@@ -8,11 +8,11 @@ export function TaskRow({ row }: { row: TaskBoardRow }) {
   return (
     <div
       className={cn(
-        "grid min-h-9 min-w-0 items-center gap-x-1.5 px-4 py-1.5",
+        "grid min-h-9 min-w-0 items-center gap-x-1 px-4 py-1.5",
         TASK_LIST_GRID_CLASS
       )}
     >
-      <TaskCompLink row={row} className="justify-self-start" />
+      <TaskCompLink row={row} className="mr-1 justify-self-start" />
       <TaskInlineDataRow row={row} />
     </div>
   )

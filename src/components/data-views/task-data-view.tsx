@@ -189,8 +189,6 @@ export function ResponsiveTaskPath({
         labelText,
         compactLabelText,
         textFont: rootMeasurement.font,
-        focalTaskId: "demo-subtask",
-        taskTitleId: "demo-task",
         subtaskTitleId: subtaskTitle.length > 0 ? "demo-subtask" : null,
       }),
     [
