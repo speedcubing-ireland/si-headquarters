@@ -425,6 +425,10 @@ function findLargestVariantCountAtMost({
   return Math.min(maxCount, fallbackCount)
 }
 
+function isSamePathLayout(left: TaskPathLayout, right: TaskPathLayout) {
+  return left.taskText === right.taskText && left.subtaskText === right.subtaskText
+}
+
 function pushCandidate(
   candidates: TaskPathLayout[],
   candidateInput: LayoutCandidateInput
@@ -432,10 +436,7 @@ function pushCandidate(
   const candidate = buildLayoutCandidate(candidateInput)
   const previous = candidates.at(-1)
 
-  if (
-    previous?.taskText === candidate.taskText &&
-    previous?.subtaskText === candidate.subtaskText
-  ) {
+  if (previous && isSamePathLayout(previous, candidate)) {
     return
   }
 

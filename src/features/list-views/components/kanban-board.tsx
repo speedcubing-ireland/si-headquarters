@@ -9,7 +9,7 @@ import type { ItemGroup } from "@/features/list-views/group-items"
 import {
   MAIN_CONTAINER_MD_WIDTH,
   useMainContainer,
-} from "@/components/layout/main-container-context"
+} from "@/components/layout/main-container"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { useEffect, useState, type ReactNode } from "react"

@@ -184,7 +184,7 @@ describe("buildTaskPathCandidates", () => {
     const progressiveParent = candidates.find(
       (candidate) =>
         candidate.taskText === fullTask &&
-        /\.\.\.$/.test(candidate.subtaskText) &&
+        candidate.subtaskText.endsWith("...") &&
         measureTestText(candidate.subtaskText) > measureTestText(fullTask) &&
         candidate.pathWidth < (fullCompactParent?.pathWidth ?? 0)
     )
@@ -200,7 +200,7 @@ describe("buildTaskPathCandidates", () => {
 
     expect(layout.taskText).toBe(fullTask)
     expect(layout.subtaskText).toMatch(/^Design Certificates Long Ah Name Hello/)
-    expect(/\.\.\.$/.test(layout.subtaskText)).toBe(true)
+    expect(layout.subtaskText.endsWith("...")).toBe(true)
     expect(measureTestText(layout.subtaskText)).toBeGreaterThan(
       measureTestText(layout.taskText)
     )

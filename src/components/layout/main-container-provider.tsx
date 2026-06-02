@@ -1,25 +1,15 @@
 import {
-  createContext,
-  use,
+  MAIN_CONTAINER_MD_WIDTH,
+  MainContainerContext,
+  type MainContainerProviderProps,
+} from "@/components/layout/main-container"
+import {
   useCallback,
   useLayoutEffect,
   useState,
-  type ReactNode,
 } from "react"
 
-/** Matches Tailwind viewport md (768px) — main column below this uses compact layouts. */
-export const MAIN_CONTAINER_MD_WIDTH = 768
-
-interface MainContainerContextValue {
-  width: number
-  isCompact: boolean
-}
-
-const MainContainerContext = createContext<MainContainerContextValue | null>(
-  null
-)
-
-export function MainContainerProvider({ children }: { children: ReactNode }) {
+export function MainContainerProvider({ children }: MainContainerProviderProps) {
   const [node, setNode] = useState<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
 
@@ -53,7 +43,7 @@ export function MainContainerProvider({ children }: { children: ReactNode }) {
     }
   }, [node])
 
-  const value: MainContainerContextValue = {
+  const value = {
     width,
     isCompact: width > 0 && width < MAIN_CONTAINER_MD_WIDTH,
   }
@@ -65,12 +55,4 @@ export function MainContainerProvider({ children }: { children: ReactNode }) {
       </div>
     </MainContainerContext>
   )
-}
-
-export function useMainContainer() {
-  const context = use(MainContainerContext)
-  if (!context) {
-    throw new Error("useMainContainer must be used within MainContainerProvider")
-  }
-  return context
 }
