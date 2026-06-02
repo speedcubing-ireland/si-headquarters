@@ -7,6 +7,8 @@ import type {
   TaskStatus,
   TaskStatusIntent,
 } from "@/convex/tasks/status/resolver"
+import type { TaskIntegrationId } from "@/convex/plugins/core/validators"
+import { attachConfiguredIntegrationsForTask } from "@/convex/plugins/core/taskTemplateIntegrations"
 import type { TestConvex } from "convex-test"
 import type schema from "@/convex/schema"
 
@@ -16,6 +18,7 @@ export interface SeedTaskInput {
   order: string
   kind?: TaskKind
   status?: TaskStatus
+  integrationIds?: readonly TaskIntegrationId[]
 }
 
 export async function ensureVolunteerMembership(
@@ -107,7 +110,7 @@ export async function insertSeedTask(
   const status = seed.status ?? "backlog"
   const statusIntent: TaskStatusIntent = { type: "manual", status }
 
-  return await ctx.db.insert("tasks", {
+  const taskId = await ctx.db.insert("tasks", {
     name: seed.name ?? `Task ${seed.order}`,
     description: null,
     parent: seed.parent,
@@ -119,4 +122,8 @@ export async function insertSeedTask(
     status,
     statusIntent,
   })
+  await attachConfiguredIntegrationsForTask(ctx, taskId, {
+    integrationIds: seed.integrationIds,
+  })
+  return taskId
 }

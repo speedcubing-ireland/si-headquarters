@@ -73,12 +73,6 @@ type SelectedItemOptions<TItem, TValue> = Partial<
   groups?: SelectorGroup<TItem, TValue>[]
 }
 
-export function selectorGroup<TItem, TValue>(
-  group: SelectorGroup<TItem, TValue>
-): SelectorGroup<TItem, TValue> {
-  return group
-}
-
 export function normalizeSelectorItem<TItem, TValue>({
   getLabel,
   getValue,
@@ -179,22 +173,28 @@ function optionFromSelectedItem<TItem, TValue>({
   groups,
   item,
   renderItem,
+  valueKeys,
 }: SelectedItemOptions<TItem, TValue> & {
   getValueKey: (value: TValue) => string
   item: TItem
+  valueKeys: Set<string>
 }) {
   if (hasGroups(groups)) {
-    const group = groups.at(0)
+    for (const group of groups) {
+      const option = normalizeSelectorItem({
+        getLabel: group.getLabel,
+        getValue: group.getValue,
+        getValueKey,
+        item,
+        renderItem: group.renderItem,
+      })
 
-    return group
-      ? normalizeSelectorItem({
-          getLabel: group.getLabel,
-          getValue: group.getValue,
-          getValueKey,
-          item,
-          renderItem: group.renderItem,
-        })
-      : null
+      if (valueKeys.has(option.key)) {
+        return option
+      }
+    }
+
+    return null
   }
 
   if (!getLabel || !getValue || !renderItem) return null
@@ -248,6 +248,7 @@ export function resolveSelectedOptions<TItem, TValue>({
       groups,
       item,
       renderItem,
+      valueKeys,
     })
 
     if (

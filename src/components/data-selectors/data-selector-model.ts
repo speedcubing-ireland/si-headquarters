@@ -1,4 +1,3 @@
-import { useMemo } from "react"
 import {
   buildSelectorOptions,
   resolveSelectedOptions,
@@ -46,15 +45,11 @@ export interface MultipleSelectorModel<
 export function useSingleDataSelector<TItem, TValue>(
   props: SingleSelectorModelProps<TItem, TValue>
 ): SingleSelectorModel<TItem, TValue> {
-  const builtOptions = useMemo(() => buildSelectorOptions(props), [props])
-  const selectedOptions = useMemo(
-    () =>
-      resolveSelectedOptions({
-        ...props,
-        options: builtOptions.items,
-      }),
-    [builtOptions.items, props]
-  )
+  const builtOptions = buildSelectorOptions(props)
+  const selectedOptions = resolveSelectedOptions({
+    ...props,
+    options: builtOptions.items,
+  })
 
   return {
     ...builtOptions,
@@ -66,15 +61,11 @@ export function useSingleDataSelector<TItem, TValue>(
 export function useMultipleDataSelector<TItem, TValue>(
   props: MultipleSelectorModelProps<TItem, TValue>
 ): MultipleSelectorModel<TItem, TValue> {
-  const builtOptions = useMemo(() => buildSelectorOptions(props), [props])
-  const selectedOptions = useMemo(
-    () =>
-      resolveSelectedOptions({
-        ...props,
-        options: builtOptions.items,
-      }),
-    [builtOptions.items, props]
-  )
+  const builtOptions = buildSelectorOptions(props)
+  const selectedOptions = resolveSelectedOptions({
+    ...props,
+    options: builtOptions.items,
+  })
 
   return {
     ...builtOptions,

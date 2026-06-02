@@ -1,11 +1,11 @@
 import { ConvexError, v } from "convex/values"
 import { action, query } from "../_generated/server"
-import { api } from "../_generated/api"
-import { plugin as canvaPlugin } from "./canva/oauth"
-import { plugin as wcaPlugin } from "./wca/oauth"
-import { cliConfigFromPlugin, type OAuthPlugin } from "./oauthProvider"
-
-const OAUTH_PLUGINS: OAuthPlugin[] = [canvaPlugin, wcaPlugin]
+import { internal } from "../_generated/api"
+import {
+  OAUTH_PLUGINS,
+  oauthPluginById,
+} from "@/convex/plugins/oauthRegistry"
+import { cliConfigFromPlugin } from "./oauthProvider"
 
 function requireCliToken(cliToken: string) {
   const expected = process.env.CLI_AUTH_TOKEN
@@ -21,19 +21,9 @@ function requireCliToken(cliToken: string) {
   }
 }
 
-function requirePlugin(pluginId: string): OAuthPlugin {
-  const plugin = OAUTH_PLUGINS.find((entry) => entry.matches(pluginId))
-  if (plugin === undefined) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: `Unknown OAuth provider '${pluginId}'.`,
-    })
-  }
-  return plugin
-}
-
 export const listProviders = query({
   args: {},
+  returns: v.array(v.string()),
   handler: () => OAUTH_PLUGINS.map((plugin) => plugin.meta.cli.providerArg),
 })
 
@@ -42,9 +32,18 @@ export const getCliConfig = query({
     pluginId: v.string(),
     cliToken: v.string(),
   },
+  returns: v.object({
+    providerDisplayName: v.string(),
+    successHeading: v.string(),
+    port: v.number(),
+    redirectUri: v.string(),
+    missingAuthUrlMessage: v.string(),
+    usePkce: v.optional(v.boolean()),
+    useState: v.optional(v.boolean()),
+  }),
   handler: (_ctx, args) => {
     requireCliToken(args.cliToken)
-    return cliConfigFromPlugin(requirePlugin(args.pluginId))
+    return cliConfigFromPlugin(oauthPluginById(args.pluginId))
   },
 })
 
@@ -56,9 +55,13 @@ export const getOAuthUrl = action({
     codeChallenge: v.optional(v.string()),
     cliToken: v.string(),
   },
+  returns: v.object({
+    url: v.string(),
+    state: v.string(),
+  }),
   handler: (_ctx, args) => {
     requireCliToken(args.cliToken)
-    const plugin = requirePlugin(args.pluginId)
+    const plugin = oauthPluginById(args.pluginId)
     const state = args.state ?? crypto.randomUUID()
     return {
       url: plugin.buildAuthorizeUrl({
@@ -79,23 +82,27 @@ export const exchangeCodeAndStoreTokens = action({
     codeVerifier: v.optional(v.string()),
     cliToken: v.string(),
   },
+  returns: v.union(
+    v.object({ success: v.literal(true) }),
+    v.object({ success: v.literal(false), error: v.string() })
+  ),
   handler: async (ctx, args) => {
     requireCliToken(args.cliToken)
-    const plugin = requirePlugin(args.pluginId)
+    const plugin = oauthPluginById(args.pluginId)
     try {
       const token = await plugin.exchangeCode({
         code: args.code,
         redirectUri: args.redirectUri,
         codeVerifier: args.codeVerifier,
       })
-      await ctx.runMutation(api.plugins.tokens.setToken, {
+      await ctx.runMutation(internal.plugins.core.tokensStore.saveToken, {
         service: plugin.meta.service,
         token,
       })
-      return { success: true }
+      return { success: true as const }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      return { success: false, error: message }
+      return { success: false as const, error: message }
     }
   },
 })

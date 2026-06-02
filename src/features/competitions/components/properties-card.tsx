@@ -1,18 +1,9 @@
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import * as PhaseSelector from "@/components/data-selectors/phase-selector"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useMutation, useQuery } from "convex/react"
-import {
-  ExternalLinkIcon,
-  FileSpreadsheetIcon,
-  GlobeIcon,
-  InfoIcon,
-  MessageSquareIcon,
-  MilestoneIcon,
-  TrashIcon,
-} from "lucide-react"
+import { InfoIcon, MilestoneIcon } from "lucide-react"
+import { CompetitionLinkedResourcesFooter } from "@/features/competition-resources/footer"
 import {
   PageCard,
   PageCardContent,
@@ -52,12 +43,7 @@ export function PropertiesCard({
           : null}
         </PageCardContent>
         <PageCardFooter className="flex min-h-36 flex-col items-start gap-2">
-          <ButtonGroup>
-            <Button variant="outline" disabled>
-              <GlobeIcon className="text-blue-600" />
-              Loading...
-            </Button>
-          </ButtonGroup>
+          <CompetitionLinkedResourcesFooter competitionId={competitionId} />
         </PageCardFooter>
       </PageCard>
     )
@@ -94,35 +80,7 @@ export function PropertiesCard({
           : null}
       </PageCardContent>
       <PageCardFooter className="flex flex-col items-start gap-2">
-        <ButtonGroup>
-          <Button variant="outline">
-            <GlobeIcon className="text-blue-600" />
-            My Epic Cool Comp 2026
-            <ExternalLinkIcon />
-          </Button>
-          <Button variant="outline">
-            <TrashIcon className="text-destructive" />
-          </Button>
-        </ButtonGroup>
-        <ButtonGroup>
-          <Button variant="outline">
-            <FileSpreadsheetIcon className="text-lime-500" />
-            My Epic Cool Comp 2026
-            <ExternalLinkIcon />
-          </Button>
-          <Button variant="outline">
-            <TrashIcon className="text-destructive" />
-          </Button>
-        </ButtonGroup>
-        <ButtonGroup>
-          <Button variant="outline">
-            <MessageSquareIcon className="text-violet-700" />
-            #aug-22-cool-comp-2026
-          </Button>
-          <Button variant="outline">
-            <TrashIcon className="text-destructive" />
-          </Button>
-        </ButtonGroup>
+        <CompetitionLinkedResourcesFooter competitionId={competitionId} />
       </PageCardFooter>
     </PageCard>
   )

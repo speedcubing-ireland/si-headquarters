@@ -9,8 +9,7 @@ import { useMemo, useState, type ComponentProps } from "react"
 import * as DataSelector from "./data-selector"
 import { useSingleDataSelector } from "./data-selector-model"
 import * as SelectorFace from "./selector-face"
-import { selectorGroup } from "./selector-options"
-import type { SelectorChangeHandler } from "./selector-options"
+import type { SelectorChangeHandler, SelectorGroup } from "./selector-options"
 
 type OwnerRef = Doc<"tasks">["owner"]
 type OwnerValue = NonNullable<OwnerRef>
@@ -151,24 +150,24 @@ function OwnerSelectorControl({
   const users = useQuery(api.users.queries.list, open ? {} : "skip")
   const teams = useQuery(api.teams.queries.list, open ? {} : "skip")
   const selectedItem = selectedOwner ? toOwnerOption(selectedOwner) : null
-  const ownerGroups = useMemo(
+  const ownerGroups = useMemo<SelectorGroup<OwnerOption, OwnerValue>[]>(
     () => [
-      selectorGroup({
+      {
         key: "teams",
         label: "Teams",
         items: teams?.map((team) => toOwnerOption({ ...team, type: "teams" })),
         getLabel: (owner) => owner.label,
         getValue: (owner) => owner.value,
         renderItem: renderOwnerItem,
-      }),
-      selectorGroup({
+      },
+      {
         key: "users",
         label: "Users",
         items: users?.map((user) => toOwnerOption({ ...user, type: "users" })),
         getLabel: (owner) => owner.label,
         getValue: (owner) => owner.value,
         renderItem: renderOwnerItem,
-      }),
+      },
     ],
     [teams, users]
   )

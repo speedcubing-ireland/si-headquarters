@@ -1,3 +1,11 @@
+import type { OAuthService } from "@/convex/plugins/core/types"
+import {
+  readJsonObject,
+  readNumber,
+  readString,
+  type JsonRecord,
+} from "@/convex/plugins/core/jsonBoundary"
+
 export interface OAuthPluginCliMeta {
   readonly providerDisplayName: string
   readonly providerArg: string
@@ -11,7 +19,7 @@ export interface OAuthPluginCliMeta {
 
 export interface OAuthPluginMeta {
   readonly id: string
-  readonly service: string
+  readonly service: OAuthService
   readonly cli: OAuthPluginCliMeta
 }
 
@@ -40,48 +48,19 @@ interface OAuthTokenPayload {
   createdAtSec: number | undefined
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
-function extractJsonStringField(body: string, field: string): string | undefined {
-  const match = new RegExp(
-    `"${escapeRegExp(field)}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`
-  ).exec(body)
-  if (match?.[1] === undefined) {
-    return undefined
-  }
-  return match[1]
-    .replaceAll("\\\\", "\\")
-    .replaceAll('\\"', '"')
-    .replaceAll("\\n", "\n")
-    .replaceAll("\\r", "\r")
-    .replaceAll("\\t", "\t")
-}
-
-function extractJsonNumberField(body: string, field: string): number | undefined {
-  const match = new RegExp(
-    `"${escapeRegExp(field)}"\\s*:\\s*(\\d+(?:\\.\\d+)?)`
-  ).exec(body)
-  if (match?.[1] === undefined) {
-    return undefined
-  }
-  return Number(match[1])
-}
-
 function parseOAuthToken(
-  text: string,
+  body: JsonRecord,
   defaultExpiresIn: number
 ): OAuthTokenPayload {
-  const accessToken = extractJsonStringField(text, "access_token") ?? ""
+  const accessToken = readString(body, "access_token") ?? ""
   if (accessToken.length === 0) {
     throw new Error("Missing access_token in OAuth response")
   }
   return {
     accessToken,
-    expiresIn: extractJsonNumberField(text, "expires_in") ?? defaultExpiresIn,
-    refreshToken: extractJsonStringField(text, "refresh_token"),
-    createdAtSec: extractJsonNumberField(text, "created_at"),
+    expiresIn: readNumber(body, "expires_in") ?? defaultExpiresIn,
+    refreshToken: readString(body, "refresh_token"),
+    createdAtSec: readNumber(body, "created_at"),
   }
 }
 
@@ -139,26 +118,10 @@ function tokenExpiresAt(
   return Math.floor(Date.now() / 1000) + expiresIn
 }
 
-async function exchangeAuthorizationCode(
+async function requestOAuthToken(
   config: OAuthClientConfig,
-  args: {
-    code: string
-    redirectUri: string
-    codeVerifier?: string
-  }
+  body: URLSearchParams
 ): Promise<StoredServiceToken> {
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    code: args.code,
-    redirect_uri: args.redirectUri,
-  })
-  if (
-    args.codeVerifier !== undefined &&
-    args.codeVerifier !== ""
-  ) {
-    body.set("code_verifier", args.codeVerifier)
-  }
-
   const clientId = requireEnv(config.clientIdEnv)
   const clientSecret = requireEnv(config.clientSecretEnv)
   const headers: Record<string, string> = {
@@ -182,15 +145,54 @@ async function exchangeAuthorizationCode(
     )
   }
 
-  const parsed = parseOAuthToken(
-    await response.text(),
-    config.defaultExpiresInSec
-  )
+  const bodyJson = await readJsonObject(response)
+  if (bodyJson === null) {
+    throw new Error(`${config.displayName} token response was not an object.`)
+  }
+  const parsed = parseOAuthToken(bodyJson, config.defaultExpiresInSec)
   return {
     accessToken: parsed.accessToken,
     refreshToken: parsed.refreshToken ?? "",
     expiresAt: tokenExpiresAt(parsed, config),
   }
+}
+
+async function exchangeAuthorizationCode(
+  config: OAuthClientConfig,
+  args: {
+    code: string
+    redirectUri: string
+    codeVerifier?: string
+  }
+): Promise<StoredServiceToken> {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code: args.code,
+    redirect_uri: args.redirectUri,
+  })
+  if (
+    args.codeVerifier !== undefined &&
+    args.codeVerifier !== ""
+  ) {
+    body.set("code_verifier", args.codeVerifier)
+  }
+
+  return await requestOAuthToken(config, body)
+}
+
+async function refreshAccessToken(
+  config: OAuthClientConfig,
+  refreshToken: string
+): Promise<StoredServiceToken> {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  })
+  const refreshed = await requestOAuthToken(config, body)
+  if (refreshed.refreshToken === "") {
+    return { ...refreshed, refreshToken }
+  }
+  return refreshed
 }
 
 export function defineOAuthPlugin(def: {
@@ -228,6 +230,9 @@ export function defineOAuthPlugin(def: {
       redirectUri: string
       codeVerifier?: string
     }) => exchangeAuthorizationCode(client, args),
+    refreshToken: (refreshToken: string) =>
+      refreshAccessToken(client, refreshToken),
+    client,
   }
 }
 

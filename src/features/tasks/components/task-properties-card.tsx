@@ -3,6 +3,7 @@ import * as TaskLabelSelector from "@/components/data-selectors/task-label-selec
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
 import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
 import * as UserSelector from "@/components/data-selectors/user-selector"
+import { AddTaskIntegrationButton } from "@/features/tasks/components/add-task-integration-button"
 import { AddTaskReviewerButton } from "@/features/tasks/components/add-task-reviewer-button"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -131,10 +132,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
       </PageCardContent>
       <PageCardFooter className="grid grid-cols-2 gap-2">
         <AddTaskReviewerButton taskId={taskId} />
-        <Button variant="outline" noop>
-          <CableIcon />
-          Add Integration
-        </Button>
+        <AddTaskIntegrationButton taskId={taskId} />
       </PageCardFooter>
     </PageCard>
   )

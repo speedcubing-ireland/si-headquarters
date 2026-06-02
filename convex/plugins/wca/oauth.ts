@@ -3,8 +3,7 @@ import {
   type OAuthPluginMeta,
 } from "../oauthProvider"
 
-export const WCA_BASE_URL =
-  process.env.WCA_BASE_URL ?? "https://www.worldcubeassociation.org"
+export const WCA_BASE_URL = "https://www.worldcubeassociation.org"
 
 export const meta = {
   id: "wca",

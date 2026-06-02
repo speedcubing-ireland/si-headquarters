@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { ComponentProps, ElementType, ReactNode } from "react"
 
-type SelectorButtonProps = ComponentProps<typeof Button>
+export type SelectorButtonProps = ComponentProps<typeof Button>
 
 export function SelectorButton({
   className,

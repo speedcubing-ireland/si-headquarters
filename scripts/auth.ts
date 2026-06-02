@@ -3,7 +3,7 @@
  * OAuth terminal flow. Provider config lives in convex/plugins/<name>/oauth.ts.
  *
  * Usage:
- *   bun run auth <provider>   # canva | wca
+ *   bun run auth <provider>   # canva | google | wca
  *   CONVEX_PROD=1 bun run auth wca
  *
  * Required env:

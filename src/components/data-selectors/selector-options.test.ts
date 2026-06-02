@@ -3,7 +3,6 @@ import {
   buildSelectorOptions,
   getSingleSelectorValue,
   resolveSelectedOptions,
-  selectorGroup,
 } from "./selector-options"
 
 interface TestItem {
@@ -41,18 +40,18 @@ describe("selector options", () => {
     const result = buildSelectorOptions({
       getValueKey: (id: string) => id,
       groups: [
-        selectorGroup({
+        {
           key: "loaded",
           label: "Loaded",
           items: [alpha],
           ...accessors,
-        }),
-        selectorGroup({
+        },
+        {
           key: "pending",
           label: "Pending",
           items: undefined,
           ...accessors,
-        }),
+        },
       ],
     })
 
@@ -94,6 +93,37 @@ describe("selector options", () => {
     })
 
     expect(selected.map((option) => option.value)).toEqual(["gamma", "alpha"])
+  })
+
+  test("resolves grouped fallback items with the matching group accessors", () => {
+    const selected = resolveSelectedOptions({
+      getValueKey: (id: string) => id,
+      groups: [
+        {
+          key: "teams",
+          label: "Teams",
+          items: undefined,
+          getLabel: (item: TestItem) => `Team ${item.label}`,
+          getValue: (item: TestItem) => `team:${item.id}`,
+          renderItem: (item: TestItem) => `Team ${item.label}`,
+        },
+        {
+          key: "users",
+          label: "Users",
+          items: undefined,
+          getLabel: (item: TestItem) => `User ${item.label}`,
+          getValue: (item: TestItem) => `user:${item.id}`,
+          renderItem: (item: TestItem) => `User ${item.label}`,
+        },
+      ],
+      options: [],
+      selectedItem: beta,
+      value: "user:beta",
+    })
+
+    expect(selected).toMatchObject([
+      { key: "user:beta", label: "User Beta", value: "user:beta" },
+    ])
   })
 
   test("ignores selected values that cannot be resolved", () => {
