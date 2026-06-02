@@ -140,7 +140,7 @@ const FlowItem = memo(function FlowItem({
             </ItemContent>
             <ItemActions>
               <TaskStatusSelector.CompactButton
-                className="hidden sm:flex"
+                className="hidden @sm/main:flex"
                 statusView={step.statusView}
                 onChange={(status) => {
                   void setStatus({ id: taskId, status })
@@ -185,9 +185,9 @@ const FlowItem = memo(function FlowItem({
                   void setOwner({ id: taskId, owner })
                 }}
               />
-              <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground/70 sm:block" />
-              <CornerRightDownIcon className="size-3.5 shrink-0 text-muted-foreground/70 sm:hidden" />
-              <span className="hidden sm:inline-flex">
+              <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground/70 @sm/main:block" />
+              <CornerRightDownIcon className="size-3.5 shrink-0 text-muted-foreground/70 @sm/main:hidden" />
+              <span className="hidden @sm/main:inline-flex">
                 <UserSelector.MultiCompactButton
                   selectedUsers={assignees.users}
                   value={assignees.userIds}
@@ -198,7 +198,7 @@ const FlowItem = memo(function FlowItem({
               </span>
             </ItemActions>
           </ItemFooter>
-          <ItemFooter className="border-t pt-2 sm:hidden">
+          <ItemFooter className="border-t pt-2 @sm/main:hidden">
             <ItemActions>
               <TaskStatusSelector.CompactButton
                 statusView={step.statusView}

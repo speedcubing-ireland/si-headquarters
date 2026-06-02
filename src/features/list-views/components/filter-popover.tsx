@@ -41,7 +41,7 @@ export function FilterPopover<K extends string>({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" type="button" className="h-9 gap-1 sm:h-8">
+        <Button variant="outline" size="sm" type="button" className="h-9 gap-1 @sm/main:h-8">
           <ListFilter className="size-4" />
           <span>Filter</span>
           {activeCount > 0 ? (
@@ -53,7 +53,7 @@ export function FilterPopover<K extends string>({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[min(15rem,calc(100vw-1rem))]"
+        className="w-[min(15rem,var(--radix-dropdown-menu-content-available-width))]"
         align="start"
       >
         <DropdownMenuGroup>

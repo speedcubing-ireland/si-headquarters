@@ -32,7 +32,7 @@ export function TaskListFilterBar({
     <>
       <div className="flex shrink-0 items-center gap-2">{filterPopover}</div>
       {hasActiveFilters ? (
-        <div className="order-3 flex min-w-0 basis-full flex-wrap items-center gap-2 sm:order-none sm:basis-auto sm:flex-1">
+        <div className="order-3 flex min-w-0 basis-full flex-wrap items-center gap-2 @sm/main:order-none @sm/main:basis-auto @sm/main:flex-1">
           {filterChips}
           <TaskMatchModeToggle />
         </div>

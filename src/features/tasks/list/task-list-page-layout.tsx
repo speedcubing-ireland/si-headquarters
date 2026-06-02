@@ -29,7 +29,7 @@ export function TaskListPageLayout({
       {header}
       {createViewOpen ? (
         <Page.Toolbar className="flex flex-col gap-3 py-2">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
+          <div className="flex flex-col gap-3 @sm/main:flex-row @sm/main:items-start @sm/main:gap-4">
             <div className="flex flex-1 flex-col gap-2">
               <Input
                 placeholder="View name"
@@ -46,7 +46,7 @@ export function TaskListPageLayout({
                 className="min-h-[60px] resize-none text-sm"
               />
             </div>
-            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+            <div className="flex shrink-0 items-center gap-2 self-end @sm/main:self-auto">
               <Button
                 variant="outline"
                 size="sm"
@@ -65,7 +65,7 @@ export function TaskListPageLayout({
               </Button>
             </div>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-2 @sm/main:flex-row @sm/main:items-center">
             {filtersRow}
           </div>
         </Page.Toolbar>

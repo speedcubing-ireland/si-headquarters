@@ -6,6 +6,10 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel"
 import type { ItemGroup } from "@/features/list-views/group-items"
+import {
+  MAIN_CONTAINER_MD_WIDTH,
+  useMainContainer,
+} from "@/components/layout/main-container-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { useEffect, useState, type ReactNode } from "react"
@@ -112,7 +116,7 @@ function MobileKanbanCarousel<TItem>({
           {groups.map((group) => (
             <CarouselItem
               key={group.key}
-              className="basis-[82%] pl-3 sm:basis-[78%]"
+              className="basis-[82%] pl-3 @sm/main:basis-[78%]"
             >
               <KanbanColumn
                 group={group}
@@ -147,7 +151,7 @@ function DesktopKanbanScroll<TItem>({
   emptyLabel: string
 }) {
   return (
-    <div className="flex gap-3 overflow-x-auto p-3 sm:p-4">
+    <div className="flex gap-3 overflow-x-auto p-3 @sm/main:p-4">
       {groups.map((group) => (
         <div
           key={group.key}
@@ -176,9 +180,13 @@ export function KanbanBoard<TItem>({
   getItemKey: (item: TItem) => string
   emptyLabel?: string
 }) {
-  const isMobile = useIsMobile()
+  const isMobileViewport = useIsMobile()
+  const { width } = useMainContainer()
+  const useCarousel =
+    isMobileViewport ||
+    (width > 0 && width < MAIN_CONTAINER_MD_WIDTH)
 
-  if (isMobile) {
+  if (useCarousel) {
     return (
       <MobileKanbanCarousel
         groups={groups}

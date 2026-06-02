@@ -6,7 +6,7 @@ import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-a
 export function OpenAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
   return (
     <TabsContent value="open" className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid gap-4 @xl/main:grid-cols-[1.5fr_1fr]">
         <OpenAuctionsListCard admin={admin} />
         <AuctionEditorPanel admin={admin} />
       </div>

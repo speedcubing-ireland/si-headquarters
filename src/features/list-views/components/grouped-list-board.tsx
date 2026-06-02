@@ -113,7 +113,7 @@ export function GroupedListBoard<TItem>({
   itemLabel: (count: number) => string
 }) {
   return (
-    <div className="flex flex-col gap-3 p-3 sm:p-4">
+    <div className="flex flex-col gap-3 p-3 @sm/main:p-4">
       {groups.map((group) => (
         <GroupSection
           key={group.key}

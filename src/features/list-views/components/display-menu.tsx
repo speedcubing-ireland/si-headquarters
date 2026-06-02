@@ -81,7 +81,7 @@ export function DisplayMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-[min(16rem,calc(100vw-1rem))] sm:w-64"
+        className="w-[min(16rem,var(--radix-dropdown-menu-content-available-width))] @sm/main:w-64"
         align="end"
       >
         <DropdownMenuLabel>Display</DropdownMenuLabel>

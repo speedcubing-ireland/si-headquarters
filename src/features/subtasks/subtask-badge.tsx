@@ -69,7 +69,7 @@ export function SubtaskBadge({
   const badge = (
     <Badge
       variant="outline"
-      className={cn("text-sm", className ?? "hidden sm:flex")}
+      className={cn("text-sm", className ?? "hidden @sm/main:flex")}
       aria-label={`Subtask progress ${String(progress.done)} of ${String(
         progress.total
       )}`}

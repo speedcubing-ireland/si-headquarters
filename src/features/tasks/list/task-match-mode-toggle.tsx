@@ -28,8 +28,8 @@ export function TaskMatchModeToggle() {
         setMatchMode(nextMode)
       }}
     >
-      <span className="sm:hidden">{label.short}</span>
-      <span className="hidden sm:inline">{label.long}</span>
+      <span className="@sm/main:hidden">{label.short}</span>
+      <span className="hidden @sm/main:inline">{label.long}</span>
     </Button>
   )
 }

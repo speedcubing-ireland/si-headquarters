@@ -27,7 +27,7 @@ export function ClosedAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
 
   return (
     <TabsContent value="closed" className="space-y-4">
-				<div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+				<div className="grid gap-4 @xl/main:grid-cols-[1.4fr_1fr]">
 					<Card>
 						<CardHeader>
 							<CardTitle>Closed Auctions</CardTitle>

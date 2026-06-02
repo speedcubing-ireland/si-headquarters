@@ -16,7 +16,7 @@ export function AdminStats({ stats }: { stats: SponsorshipAdmin["stats"] }) {
   } = stats
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid gap-3 @sm/main:grid-cols-3 @lg/main:grid-cols-5">
       <Card>
         <CardHeader className="pb-2">
           <CardDescription className="text-xs">Open Auctions</CardDescription>

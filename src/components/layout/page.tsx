@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- compound Page API */
+// Inside HQ Layout, use @sm/main etc. container queries; keep viewport sm:/md: for portaled UI.
 import { cn } from "@/lib/utils"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Loader2, ShieldX } from "lucide-react"
@@ -22,9 +23,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-export const PAGE_HORIZONTAL_PADDING = "px-3 sm:px-4 lg:px-6"
+export const PAGE_HORIZONTAL_PADDING = "px-3 @sm/main:px-4 @lg/main:px-6"
 
-export const PAGE_CONTENT_PADDING = "p-4 lg:p-6"
+export const PAGE_CONTENT_PADDING = "p-4 @lg/main:p-6"
 
 export const PAGE_CONTENT_PADDING_SCROLL = cn(PAGE_CONTENT_PADDING, "pb-10")
 
@@ -38,7 +39,7 @@ export type PageStatusVariant = "loading" | "denied" | "empty"
 function CrumbLink({ item: { label, ...props } }: { item: PageBreadcrumbItem }) {
   return (
     <BreadcrumbItemPrimitive className="min-w-0">
-      <BreadcrumbLink asChild className="max-w-36 truncate sm:max-w-56">
+      <BreadcrumbLink asChild className="max-w-36 truncate @sm/main:max-w-56">
         <Link {...props}>{label}</Link>
       </BreadcrumbLink>
     </BreadcrumbItemPrimitive>
@@ -48,7 +49,7 @@ function CrumbLink({ item: { label, ...props } }: { item: PageBreadcrumbItem }) 
 function CrumbPage({ label }: { label: string }) {
   return (
     <BreadcrumbItemPrimitive className="min-w-0">
-      <BreadcrumbPage className="max-w-40 truncate sm:max-w-72">
+      <BreadcrumbPage className="max-w-40 truncate @sm/main:max-w-72">
         {label}
       </BreadcrumbPage>
     </BreadcrumbItemPrimitive>

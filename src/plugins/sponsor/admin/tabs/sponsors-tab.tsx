@@ -56,7 +56,7 @@ export function SponsorsTab({
   onUnarchiveSponsor: (sponsorId: Id<"sponsors">) => void
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
+    <div className="grid gap-4 @xl/main:grid-cols-[1fr_1.4fr]">
       <Card>
         <CardHeader>
           <CardTitle>Create Sponsor</CardTitle>

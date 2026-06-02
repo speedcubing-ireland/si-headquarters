@@ -27,7 +27,7 @@ export function CompetitionPage({
       ) : comp === null ? (
         <Page.Status variant="empty" message="Competition not found." />
       ) : (
-        <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 @sm/main:grid-cols-2">
           <DetailsCard comp={comp} />
           <PropertiesCard competitionId={competitionId} />
           <PeopleCard competitionId={competitionId} />

@@ -231,7 +231,7 @@ export function AuctionCreateForm({ admin }: { admin: SponsorshipAdmin }) {
 		</Select>
 	</div>
 
-	<div className="grid gap-3 md:grid-cols-2">
+	<div className="grid gap-3 @md/main:grid-cols-2">
 		<div className="space-y-2">
 			<p className="text-xs text-muted-foreground">
 				Start price (EUR)
@@ -279,7 +279,7 @@ export function AuctionCreateForm({ admin }: { admin: SponsorshipAdmin }) {
 		<p className="text-xs text-muted-foreground">
 			Invited sponsors
 		</p>
-		<div className="grid gap-2 md:grid-cols-2">
+		<div className="grid gap-2 @md/main:grid-cols-2">
 			{activeSponsors.map((sponsor) => (
 				<div
 					key={sponsor.id}

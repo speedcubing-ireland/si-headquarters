@@ -121,11 +121,11 @@ export function TaskListNavbar({
           onClick={resetAll}
         >
           <RotateCcwIcon className="size-3.5" />
-          <span className="hidden sm:inline">Reset</span>
+          <span className="hidden @sm/main:inline">Reset</span>
         </Button>
       ) : null}
       {savedViews.views.length > 0 ? (
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none @sm/main:flex-wrap @sm/main:overflow-visible [&::-webkit-scrollbar]:hidden">
           {savedViews.views.map((view) => (
             <SavedViewChip
               key={view._id}
@@ -157,7 +157,7 @@ export function TaskListNavbar({
         <LayersPlus className="size-4" />
         <span
           className={
-            savedViews.views.length === 0 ? "inline" : "hidden sm:inline"
+            savedViews.views.length === 0 ? "inline" : "hidden @sm/main:inline"
           }
         >
           New view

@@ -7,6 +7,11 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Align container query breakpoints with viewport sm/md/lg/xl for @container/main */
+  --container-sm: 40rem;
+  --container-md: 48rem;
+  --container-lg: 64rem;
+  --container-xl: 80rem;
   --font-heading: var(--font-sans);
   --font-sans: "Noto Sans Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);

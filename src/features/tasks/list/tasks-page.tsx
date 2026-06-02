@@ -33,7 +33,7 @@ const TASK_DISPLAY_OPTIONS = [
 ]
 
 const LIST_MESSAGE_CLASS =
-  "m-3 px-4 py-10 text-center text-sm text-muted-foreground sm:m-4"
+  "m-3 px-4 py-10 text-center text-sm text-muted-foreground @sm/main:m-4"
 
 function ListMessage({ children }: { children: ReactNode }) {
   return <Card className={LIST_MESSAGE_CLASS}>{children}</Card>
