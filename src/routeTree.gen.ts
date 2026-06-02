@@ -23,6 +23,7 @@ import { Route as Sponsor404RouteImport } from './routes/sponsor/404'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AdminSponsorshipRouteImport } from './routes/admin/sponsorship'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
+import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -95,6 +96,11 @@ const SponsorAuctionsAuctionIdRoute =
     path: '/$auctionId',
     getParentRoute: () => SponsorAuctionsRoute,
   } as any)
+const TeamsTeamIdTasksIndexRoute = TeamsTeamIdTasksIndexRouteImport.update({
+  id: '/teams/$teamId/tasks/',
+  path: '/teams/$teamId/tasks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/sponsor': typeof SponsorIndexRoute
   '/tasks': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/teams/$teamId/tasks': typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/sponsor/'
     | '/tasks/'
     | '/sponsor/auctions/$auctionId'
+    | '/teams/$teamId/tasks/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/sponsor'
     | '/tasks'
     | '/sponsor/auctions/$auctionId'
+    | '/teams/$teamId/tasks'
   id:
     | '__root__'
     | '/'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/sponsor/'
     | '/tasks/'
     | '/sponsor/auctions/$auctionId'
+    | '/teams/$teamId/tasks/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   CompetitionsIndexRoute: typeof CompetitionsIndexRoute
   SponsorIndexRoute: typeof SponsorIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
+  TeamsTeamIdTasksIndexRoute: typeof TeamsTeamIdTasksIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SponsorAuctionsAuctionIdRouteImport
       parentRoute: typeof SponsorAuctionsRoute
     }
+    '/teams/$teamId/tasks/': {
+      id: '/teams/$teamId/tasks/'
+      path: '/teams/$teamId/tasks'
+      fullPath: '/teams/$teamId/tasks/'
+      preLoaderRoute: typeof TeamsTeamIdTasksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -341,6 +361,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompetitionsIndexRoute: CompetitionsIndexRoute,
   SponsorIndexRoute: SponsorIndexRoute,
   TasksIndexRoute: TasksIndexRoute,
+  TeamsTeamIdTasksIndexRoute: TeamsTeamIdTasksIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest"
 import { getPageTitle } from "./page-title"
 
+import { headquartersPageTitle } from "./page-title"
+
 const HQ = "Headquarters | Speedcubing Ireland"
 const SP = "Sponsors | Speedcubing Ireland"
 
 describe("getPageTitle", () => {
   it.each([
     ["/", HQ],
+    ["/tasks", headquartersPageTitle("Tasks")],
+    ["/teams/abc123/tasks", headquartersPageTitle("Team Tasks")],
     ["/competitions", HQ],
     ["/admin/sponsorship", HQ],
     ["/sponsors", HQ],

@@ -90,12 +90,6 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/features/tasks/list/task-list-parse.ts"],
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": "off",
-    },
-  },
-  {
     files: ["convex/plugins/core/jsonBoundary.ts"],
     rules: {
       "@typescript-eslint/no-unsafe-argument": "off",

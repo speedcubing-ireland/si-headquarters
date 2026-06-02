@@ -1,6 +1,6 @@
-import type { Id } from "@/convex/_generated/dataModel"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
-import type { TeamName } from "@/convex/permissions/shared"
+import { TEAM_NAMES, type TeamName } from "@/convex/permissions/shared"
 
 type TeamCtx = QueryCtx | MutationCtx
 
@@ -59,23 +59,50 @@ export async function removeTeamMember(
   await ctx.db.delete("teamMemberships", membership._id)
 }
 
-export async function listTeamNamesForUser(
+export function toTeamSummary(team: Pick<Doc<"teams">, "_id" | "name">) {
+  return { _id: team._id, name: team.name }
+}
+
+export async function listTeamSummariesForUser(
   ctx: TeamCtx,
   userId: Id<"users">
-): Promise<string[]> {
+) {
+  const teams = await listTeamsForUser(ctx, userId)
+  return teams
+    .map(toTeamSummary)
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
+
+async function listTeamsForUser(ctx: TeamCtx, userId: Id<"users">) {
   const memberships = await ctx.db
     .query("teamMemberships")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .collect()
 
-  const names: string[] = []
-  for (const membership of memberships) {
-    const team = await ctx.db.get("teams", membership.teamId)
-    if (team !== null) {
-      names.push(team.name)
-    }
+  const teams = await Promise.all(
+    memberships.map((membership) => ctx.db.get("teams", membership.teamId))
+  )
+  return teams.filter((team) => team !== null)
+}
+
+export async function userCanAccessTeam(
+  ctx: TeamCtx,
+  userId: Id<"users">,
+  teamId: Id<"teams">,
+  teamNames: readonly TeamName[]
+): Promise<boolean> {
+  if (teamNames.includes(TEAM_NAMES.DIRECTORS)) {
+    return true
   }
-  return names
+  return (await getMembership(ctx, teamId, userId)) !== null
+}
+
+export async function listTeamNamesForUser(
+  ctx: TeamCtx,
+  userId: Id<"users">
+): Promise<string[]> {
+  const teams = await listTeamsForUser(ctx, userId)
+  return teams.map((team) => team.name)
 }
 
 export async function listMemberIdsForTeam(
@@ -84,7 +111,7 @@ export async function listMemberIdsForTeam(
 ): Promise<Id<"users">[]> {
   const memberships = await ctx.db
     .query("teamMemberships")
-    .withIndex("by_teamId", (q) => q.eq("teamId", teamId))
+    .withIndex("by_teamId_and_userId", (q) => q.eq("teamId", teamId))
     .collect()
   return memberships.map((membership) => membership.userId)
 }

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
+import { useTaskListPage } from "@/features/tasks/list/task-list-context"
 
 export function TaskMatchModeToggle() {
   const { matchMode, setMatchMode, showMatchModeToggle } = useTaskListPage()

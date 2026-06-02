@@ -1,8 +1,8 @@
 import { parseTaskListPageSnapshot } from "@/features/tasks/list/task-list-serialize"
-import { parseJson } from "@/features/tasks/list/task-list-parse"
 import type { TaskListPageSnapshot } from "@/features/tasks/list/task-list-types"
+import { parseJson } from "@/lib/parsed-json"
 
-const STORAGE_VERSION = "v1"
+const STORAGE_VERSION = "v2"
 
 function storageKey(pageId: string) {
   return `tasks-list:${STORAGE_VERSION}:${pageId}`

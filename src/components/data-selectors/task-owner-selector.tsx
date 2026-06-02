@@ -148,7 +148,10 @@ function OwnerSelectorControl({
 }) {
   const [open, setOpen] = useState(false)
   const users = useQuery(api.users.queries.list, open ? {} : "skip")
-  const teams = useQuery(api.teams.queries.list, open ? {} : "skip")
+  const teams = useQuery(
+    api.teams.queries.listForTaskFilters,
+    open ? {} : "skip"
+  )
   const selectedItem = selectedOwner ? toOwnerOption(selectedOwner) : null
   const ownerGroups = useMemo<SelectorGroup<OwnerOption, OwnerValue>[]>(
     () => [

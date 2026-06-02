@@ -2,7 +2,7 @@ import { Page } from "@/components/layout/page"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
+import { useTaskListPage } from "@/features/tasks/list/task-list-context"
 import type { ReactNode } from "react"
 
 export function TaskListPageLayout({

@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label"
 import { DisplayMenu } from "@/features/list-views/components/display-menu"
 import type { DisplayColumnOption } from "@/features/list-views/components/display-menu"
 import { TaskMatchModeToggle } from "@/features/tasks/list/task-match-mode-toggle"
-import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
+import { useTaskListPage } from "@/features/tasks/list/task-list-context"
 import type { ReactNode } from "react"
 
 export function TaskListFilterBar({
@@ -26,6 +26,7 @@ export function TaskListFilterBar({
     setCreateViewPublic,
     createViewOpen,
     hasActiveFilters,
+    clearOverlay,
   } = useTaskListPage()
 
   return (
@@ -51,6 +52,16 @@ export function TaskListFilterBar({
               Public view
             </Label>
           </div>
+        ) : null}
+        {hasActiveFilters ? (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={clearOverlay}
+          >
+            Clear
+          </Button>
         ) : null}
         <DisplayMenu
           display={display}

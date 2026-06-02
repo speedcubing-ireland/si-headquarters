@@ -30,7 +30,6 @@ const schema = defineSchema(
     teams: defineTable(teamsFields).index("by_name", ["name"]),
     teamMemberships: defineTable(teamMembershipFields)
       .index("by_userId", ["userId"])
-      .index("by_teamId", ["teamId"])
       .index("by_teamId_and_userId", ["teamId", "userId"]),
     competitions: defineTable({
       ...competitionsCoreFields,

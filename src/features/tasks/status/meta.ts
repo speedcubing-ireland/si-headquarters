@@ -1,5 +1,8 @@
 import type { TaskStatusCommand } from "@/convex/tasks/status/resolver"
-import type { TaskStatus } from "@/convex/tasks/status/validators"
+import {
+  TASK_STATUSES,
+  type TaskStatus,
+} from "@/convex/tasks/status/validators"
 import {
   CircleCheckIcon,
   CircleDashedIcon,
@@ -10,6 +13,14 @@ import {
   StampIcon,
 } from "lucide-react"
 import type { ElementType } from "react"
+
+export const TASK_STATUS_ORDER = TASK_STATUSES
+
+export const TASK_LIST_ACTIVE_STATUSES = [
+  "to-do",
+  "in-progress",
+  "awaiting-review",
+] as const satisfies readonly TaskStatus[]
 
 export const TASK_STATUS_META = {
   backlog: {
@@ -44,12 +55,7 @@ export const TASK_STATUS_META = {
 
 const orderedStatusOptions = [
   "auto",
-  "backlog",
-  "to-do",
-  "in-progress",
-  "awaiting-review",
-  "done",
-  "cancelled",
+  ...TASK_STATUS_ORDER,
 ] satisfies TaskStatusCommand[]
 
 export function reorderStatusOptions(

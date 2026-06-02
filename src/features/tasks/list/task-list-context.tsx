@@ -1,136 +1,301 @@
+/* eslint-disable react-refresh/only-export-components -- context + provider colocated */
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import type { Id } from "@/convex/_generated/dataModel"
+import { api } from "@/convex/_generated/api"
 import type {
   DateRangeFilter,
   DisplaySettings,
   MatchMode,
 } from "@/features/list-views/types"
+import type { ArrayFilterSetter } from "@/features/list-views/filter-handlers"
 import { defaultDisplaySettings } from "@/features/list-views/types"
-import { TaskListContext } from "@/features/tasks/list/task-list-context-types"
-import type { TaskListContextValue } from "@/features/tasks/list/task-list-context-types"
+import type {
+  TaskFilterKey,
+  TaskListPresetId,
+  TaskListViewSnapshot,
+  TasksFilters,
+} from "@/features/tasks/list/task-list-types"
+import {
+  emptyOverlayFilters,
+  getPresetSnapshot,
+  hasOverlayFilters,
+  isTeamScoped,
+  mergeViewFilters,
+  serializeTaskFiltersForPage,
+  type TaskListPageConfig,
+} from "@/features/tasks/list/task-list-config"
 import {
   cloneTasksFilters,
+  parseTasksFiltersJson,
   serializeDisplaySettings,
-  serializeTaskFilters,
 } from "@/features/tasks/list/task-list-serialize"
 import {
   readTaskListPageSnapshot,
   writeTaskListPageSnapshot,
 } from "@/features/tasks/list/task-list-storage"
-import {
-  emptyTasksFilters,
-  hasActiveTaskFilters,
-  shouldShowTaskMatchModeToggle,
-  type TasksFilters,
-} from "@/features/tasks/list/task-list-types"
+import { shouldShowTaskMatchModeToggle } from "@/features/tasks/list/task-list-types"
 import { useTaskSavedViews } from "@/features/tasks/list/use-task-saved-views"
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react"
+import { useQuery } from "convex/react"
 
-function useTaskListState(pageId: string): TaskListContextValue {
-  const storedSnapshot = readTaskListPageSnapshot(pageId)
+const EMPTY_HIDDEN_FILTER_KEYS: readonly TaskFilterKey[] = []
+const TEAM_HIDDEN_FILTER_KEYS: readonly TaskFilterKey[] = ["owner"]
 
-  const [filters, setFilters] = useState<TasksFilters>(
-    () => storedSnapshot?.filters ?? cloneTasksFilters(emptyTasksFilters)
+export interface TaskListContextValue {
+  config: TaskListPageConfig
+  viewFilters: TasksFilters
+  viewMatchMode: MatchMode
+  overlayFilters: TasksFilters
+  overlayMatchMode: MatchMode
+  matchMode: MatchMode
+  display: DisplaySettings
+  activeViewId: Id<"savedViews"> | null
+  activePresetId: TaskListPresetId | null
+  isDirty: boolean
+  hasActiveFilters: boolean
+  showMatchModeToggle: boolean
+  hiddenFilterKeys: readonly TaskFilterKey[]
+  setMatchMode: (matchMode: MatchMode) => void
+  setArrayFilter: ArrayFilterSetter<TaskFilterKey>
+  setDueDate: (range: DateRangeFilter | undefined) => void
+  setDisplay: (display: DisplaySettings) => void
+  clearOverlay: () => void
+  applyPreset: (presetId: TaskListPresetId) => void
+  savedViews: ReturnType<typeof useTaskSavedViews>
+  createViewOpen: boolean
+  setCreateViewOpen: (open: boolean) => void
+  createViewName: string
+  setCreateViewName: (name: string) => void
+  createViewDescription: string
+  setCreateViewDescription: (description: string) => void
+  createViewPublic: boolean
+  setCreateViewPublic: (isPublic: boolean) => void
+  handleSaveNewView: () => Promise<void>
+}
+
+export const TaskListContext = createContext<TaskListContextValue | null>(null)
+
+function useTaskListState(config: TaskListPageConfig): TaskListContextValue {
+  const currentUser = useQuery(api.users.queries.currentUser)
+  const userId = currentUser?._id ?? null
+
+  const storedSnapshot = useMemo(
+    () => readTaskListPageSnapshot(config.pageId),
+    [config.pageId]
   )
-  const [matchMode, setMatchMode] = useState<MatchMode>(
-    () => storedSnapshot?.matchMode ?? "all"
+
+  const initialPresetId =
+    storedSnapshot?.activeViewId !== null &&
+    storedSnapshot?.activeViewId !== undefined
+      ? config.defaultPreset
+      : (storedSnapshot?.activePresetId ?? config.defaultPreset)
+
+  const initialPreset = useMemo(
+    () => getPresetSnapshot(initialPresetId, userId),
+    [initialPresetId, userId]
   )
-  const [display, setDisplay] = useState<DisplaySettings>(
-    () => storedSnapshot?.display ?? defaultDisplaySettings
+
+  const [viewBaseline, setViewBaseline] = useState(() => ({
+    filters: cloneTasksFilters(initialPreset.filters),
+    matchMode: initialPreset.matchMode,
+  }))
+  const [overlayFilters, setOverlayFilters] = useState<TasksFilters>(() =>
+    storedSnapshot !== null
+      ? cloneTasksFilters(storedSnapshot.overlayFilters)
+      : emptyOverlayFilters()
   )
+  const [overlayMatchMode, setOverlayMatchMode] = useState<
+    MatchMode | undefined
+  >(() => storedSnapshot?.overlayMatchMode)
+  const [display, setDisplay] = useState<DisplaySettings>(() => {
+    return storedSnapshot?.display ?? defaultDisplaySettings
+  })
+  const pendingStoredViewId = useRef(storedSnapshot?.activeViewId ?? null)
   const [activeViewId, setActiveViewId] = useState<Id<"savedViews"> | null>(
     null
+  )
+  const [activePresetId, setActivePresetId] = useState<TaskListPresetId | null>(
+    () =>
+      storedSnapshot?.activeViewId != null
+        ? null
+        : (storedSnapshot?.activePresetId ?? config.defaultPreset)
+  )
+
+  const presetBaseline = useMemo(
+    () =>
+      activePresetId !== null && activeViewId === null
+        ? getPresetSnapshot(activePresetId, userId)
+        : null,
+    [activePresetId, activeViewId, userId]
+  )
+  const baseline = presetBaseline ?? viewBaseline
+  const combinedFilters = useMemo(
+    () => mergeViewFilters(baseline.filters, overlayFilters),
+    [baseline.filters, overlayFilters]
+  )
+  const userMatchMode = overlayMatchMode ?? "all"
+  const combinedMatchMode = useMemo(
+    () =>
+      hasOverlayFilters(overlayFilters) ? userMatchMode : baseline.matchMode,
+    [baseline.matchMode, overlayFilters, userMatchMode]
   )
   const [createViewOpen, setCreateViewOpen] = useState(false)
   const [createViewName, setCreateViewName] = useState("")
   const [createViewDescription, setCreateViewDescription] = useState("")
   const [createViewPublic, setCreateViewPublic] = useState(false)
 
-  const applySnapshot = useCallback(
-    (snapshot: {
-      filters: TasksFilters
-      matchMode: MatchMode
-      display: DisplaySettings
-      activeViewId: Id<"savedViews"> | null
-    }) => {
-      setFilters(snapshot.filters)
-      setMatchMode(snapshot.matchMode)
-      setDisplay(snapshot.display)
-      setActiveViewId(snapshot.activeViewId)
-    },
-    []
-  )
+  const applySnapshot = useCallback((snapshot: TaskListViewSnapshot) => {
+    setViewBaseline({
+      filters: cloneTasksFilters(snapshot.baselineFilters),
+      matchMode: snapshot.baselineMatchMode,
+    })
+    setOverlayFilters(emptyOverlayFilters())
+    setOverlayMatchMode(undefined)
+    setDisplay(snapshot.display)
+    setActiveViewId(snapshot.activeViewId)
+    setActivePresetId(snapshot.activePresetId)
+    pendingStoredViewId.current = null
+  }, [])
 
   const savedViews = useTaskSavedViews({
-    pageId,
-    filters,
-    matchMode,
+    config,
+    userId,
+    filters: combinedFilters,
+    matchMode: combinedMatchMode,
     display,
     activeViewId,
     applySnapshot,
   })
 
   useEffect(() => {
-    writeTaskListPageSnapshot(pageId, {
-      filters,
-      matchMode,
+    const viewId = pendingStoredViewId.current
+    if (viewId === null) return
+    if (!savedViews.isLoaded) return
+
+    const view = savedViews.views.find((entry) => entry._id === viewId)
+    if (view === undefined) {
+      const preset = getPresetSnapshot(config.defaultPreset, userId)
+      setViewBaseline({
+        filters: cloneTasksFilters(preset.filters),
+        matchMode: preset.matchMode,
+      })
+      setActiveViewId(null)
+      setActivePresetId(config.defaultPreset)
+      pendingStoredViewId.current = null
+      return
+    }
+
+    const parsed = parseTasksFiltersJson(view.filtersJson)
+    setViewBaseline({
+      filters: cloneTasksFilters(parsed.filters),
+      matchMode: parsed.matchMode,
+    })
+    setActiveViewId(view._id)
+    setActivePresetId(null)
+    pendingStoredViewId.current = null
+  }, [config.defaultPreset, savedViews.isLoaded, savedViews.views, userId])
+
+  useEffect(() => {
+    if (pendingStoredViewId.current !== null) return
+    writeTaskListPageSnapshot(config.pageId, {
+      activePresetId: activeViewId !== null ? null : activePresetId,
+      activeViewId,
+      overlayFilters,
+      overlayMatchMode,
       display,
     })
-  }, [display, filters, matchMode, pageId])
+  }, [
+    activePresetId,
+    activeViewId,
+    config.pageId,
+    display,
+    overlayFilters,
+    overlayMatchMode,
+  ])
 
   const activeView = useMemo(
     () => savedViews.views.find((view) => view._id === activeViewId) ?? null,
     [activeViewId, savedViews.views]
   )
 
+  const hasActiveFilters = useMemo(
+    () => hasOverlayFilters(overlayFilters),
+    [overlayFilters]
+  )
+
   const isDirty = useMemo(() => {
-    if (activeView === null) {
+    const filtersJson = serializeTaskFiltersForPage(
+      config.scope,
+      combinedFilters,
+      combinedMatchMode
+    )
+    const displayJson = serializeDisplaySettings(display)
+
+    if (activeView !== null) {
       return (
-        serializeTaskFilters(filters, matchMode) !==
-          serializeTaskFilters(emptyTasksFilters, "all") ||
-        serializeDisplaySettings(display) !==
-          serializeDisplaySettings(defaultDisplaySettings)
+        filtersJson !== activeView.filtersJson ||
+        displayJson !== activeView.displaySettingsJson
       )
     }
-    return (
-      serializeTaskFilters(filters, matchMode) !== activeView.filtersJson ||
-      serializeDisplaySettings(display) !== activeView.displaySettingsJson
-    )
-  }, [activeView, display, filters, matchMode])
 
-  const setArrayFilter = useCallback(
-    <K extends keyof TasksFilters>(key: K, value: TasksFilters[K]) => {
-      setFilters((current) => ({ ...current, [key]: value }))
+    return (
+      hasOverlayFilters(overlayFilters) ||
+      displayJson !== serializeDisplaySettings(defaultDisplaySettings)
+    )
+  }, [
+    activeView,
+    config.scope,
+    combinedFilters,
+    combinedMatchMode,
+    display,
+    overlayFilters,
+  ])
+
+  const applyPreset = useCallback(
+    (presetId: TaskListPresetId) => {
+      const preset = getPresetSnapshot(presetId, userId)
+      applySnapshot({
+        baselineFilters: preset.filters,
+        baselineMatchMode: preset.matchMode,
+        display,
+        activeViewId: null,
+        activePresetId: presetId,
+      })
+    },
+    [applySnapshot, display, userId]
+  )
+
+  const setArrayFilter = useCallback<ArrayFilterSetter<TaskFilterKey>>(
+    (key, value) => {
+      setOverlayFilters((current) => ({ ...current, [key]: value }))
     },
     []
   )
 
   const setDueDate = useCallback((range: DateRangeFilter | undefined) => {
-    setFilters((current) => ({ ...current, dueDate: range }))
+    setOverlayFilters((current) => ({ ...current, dueDate: range }))
   }, [])
 
-  const clearFilters = useCallback(() => {
-    setFilters(cloneTasksFilters(emptyTasksFilters))
-    setMatchMode("all")
+  const setMatchMode = useCallback((nextMatchMode: MatchMode) => {
+    if (nextMatchMode === "all") {
+      setOverlayMatchMode(undefined)
+    } else {
+      setOverlayMatchMode(nextMatchMode)
+    }
   }, [])
 
-  const resetAll = useCallback(() => {
-    applySnapshot({
-      filters: cloneTasksFilters(emptyTasksFilters),
-      matchMode: "all",
-      display: defaultDisplaySettings,
-      activeViewId: null,
-    })
-    setCreateViewOpen(false)
-    setCreateViewName("")
-    setCreateViewDescription("")
-    setCreateViewPublic(false)
-  }, [applySnapshot])
+  const clearOverlay = useCallback(() => {
+    setOverlayFilters(emptyOverlayFilters())
+    setOverlayMatchMode(undefined)
+  }, [])
 
   const handleSaveNewView = useCallback(async () => {
     const name = createViewName.trim()
@@ -148,20 +313,27 @@ function useTaskListState(pageId: string): TaskListContextValue {
   }, [createViewDescription, createViewName, createViewPublic, savedViews])
 
   return {
-    pageId,
-    filters,
-    matchMode,
+    config,
+    viewFilters: baseline.filters,
+    viewMatchMode: baseline.matchMode,
+    overlayFilters,
+    overlayMatchMode: userMatchMode,
+    matchMode: userMatchMode,
     display,
     activeViewId,
+    activePresetId,
     isDirty,
-    hasActiveFilters: hasActiveTaskFilters(filters),
-    showMatchModeToggle: shouldShowTaskMatchModeToggle(filters),
+    hasActiveFilters,
+    showMatchModeToggle: shouldShowTaskMatchModeToggle(overlayFilters),
+    hiddenFilterKeys: isTeamScoped(config)
+      ? TEAM_HIDDEN_FILTER_KEYS
+      : EMPTY_HIDDEN_FILTER_KEYS,
     setMatchMode,
     setArrayFilter,
     setDueDate,
     setDisplay,
-    clearFilters,
-    resetAll,
+    clearOverlay,
+    applyPreset,
     savedViews,
     createViewOpen,
     setCreateViewOpen,
@@ -176,15 +348,23 @@ function useTaskListState(pageId: string): TaskListContextValue {
 }
 
 export function TaskListProvider({
-  pageId,
+  config,
   children,
 }: {
-  pageId: string
+  config: TaskListPageConfig
   children: ReactNode
 }) {
   return (
-    <TaskListContext value={useTaskListState(pageId)}>
+    <TaskListContext value={useTaskListState(config)}>
       {children}
     </TaskListContext>
   )
+}
+
+export function useTaskListPage() {
+  const value = use(TaskListContext)
+  if (!value) {
+    throw new Error("useTaskListPage must be used within TaskListProvider")
+  }
+  return value
 }

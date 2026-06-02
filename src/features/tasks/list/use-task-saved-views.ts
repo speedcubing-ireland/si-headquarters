@@ -3,53 +3,50 @@ import type { Id } from "@/convex/_generated/dataModel"
 import type { DisplaySettings, MatchMode } from "@/features/list-views/types"
 import { defaultDisplaySettings } from "@/features/list-views/types"
 import {
+  getPresetSnapshot,
+  serializeTaskFiltersForPage,
+  type TaskListPageConfig,
+} from "@/features/tasks/list/task-list-config"
+import {
   cloneTasksFilters,
   parseDisplaySettingsJson,
   parseTasksFiltersJson,
   serializeDisplaySettings,
-  serializeTaskFilters,
 } from "@/features/tasks/list/task-list-serialize"
-import {
-  emptyTasksFilters,
-  type TasksFilters,
+import type {
+  TaskListViewSnapshot,
+  TasksFilters,
 } from "@/features/tasks/list/task-list-types"
 import { useMutation, useQuery } from "convex/react"
+import type { FunctionReturnType } from "convex/server"
 import { useCallback } from "react"
 
-export interface SavedViewRecord {
-  _id: Id<"savedViews">
-  ownerId: Id<"users">
-  visibility: "private" | "public"
-  name: string
-  description: string | null
-  filtersJson: string
-  displaySettingsJson: string
-  lastUsedAt: number | null
-}
+export type SavedTaskView = FunctionReturnType<
+  typeof api.views.queries.listViews
+>[number]
+
+const EMPTY_SAVED_TASK_VIEWS: SavedTaskView[] = []
 
 export function useTaskSavedViews({
-  pageId,
+  config,
+  userId,
   filters,
   matchMode,
   display,
   activeViewId,
   applySnapshot,
 }: {
-  pageId: string
+  config: TaskListPageConfig
+  userId: Id<"users"> | null
   filters: TasksFilters
   matchMode: MatchMode
   display: DisplaySettings
   activeViewId: Id<"savedViews"> | null
-  applySnapshot: (snapshot: {
-    filters: TasksFilters
-    matchMode: MatchMode
-    display: DisplaySettings
-    activeViewId: Id<"savedViews"> | null
-  }) => void
+  applySnapshot: (snapshot: TaskListViewSnapshot) => void
 }) {
   const views = useQuery(api.views.queries.listViews, {
     entity: "tasks",
-    pageId,
+    pageId: config.pageId,
   })
   const createView = useMutation(api.views.mutations.createView)
   const updateView = useMutation(api.views.mutations.updateView)
@@ -57,13 +54,14 @@ export function useTaskSavedViews({
   const touchView = useMutation(api.views.mutations.touchView)
 
   const applyView = useCallback(
-    (view: SavedViewRecord) => {
+    (view: SavedTaskView) => {
       const parsedFilters = parseTasksFiltersJson(view.filtersJson)
       applySnapshot({
-        filters: parsedFilters.filters,
-        matchMode: parsedFilters.matchMode,
+        baselineFilters: cloneTasksFilters(parsedFilters.filters),
+        baselineMatchMode: parsedFilters.matchMode,
         display: parseDisplaySettingsJson(view.displaySettingsJson),
         activeViewId: view._id,
+        activePresetId: null,
       })
       void touchView({ id: view._id })
     },
@@ -78,51 +76,90 @@ export function useTaskSavedViews({
     ) => {
       const id = await createView({
         entity: "tasks",
-        pageId,
+        pageId: config.pageId,
         name,
         description: description ?? undefined,
         visibility,
-        filtersJson: serializeTaskFilters(filters, matchMode),
+        filtersJson: serializeTaskFiltersForPage(
+          config.scope,
+          filters,
+          matchMode
+        ),
         displaySettingsJson: serializeDisplaySettings(display),
       })
       applySnapshot({
-        filters,
-        matchMode,
+        baselineFilters: cloneTasksFilters(filters),
+        baselineMatchMode: matchMode,
         display,
         activeViewId: id,
+        activePresetId: null,
       })
       return id
     },
-    [applySnapshot, createView, display, filters, matchMode, pageId]
+    [
+      applySnapshot,
+      config.pageId,
+      config.scope,
+      createView,
+      display,
+      filters,
+      matchMode,
+    ]
   )
 
   const saveActiveView = useCallback(async () => {
     if (!activeViewId) return
     await updateView({
       id: activeViewId,
-      filtersJson: serializeTaskFilters(filters, matchMode),
+      filtersJson: serializeTaskFiltersForPage(
+        config.scope,
+        filters,
+        matchMode
+      ),
       displaySettingsJson: serializeDisplaySettings(display),
     })
-  }, [activeViewId, display, filters, matchMode, updateView])
+    applySnapshot({
+      baselineFilters: cloneTasksFilters(filters),
+      baselineMatchMode: matchMode,
+      display,
+      activeViewId,
+      activePresetId: null,
+    })
+  }, [
+    activeViewId,
+    applySnapshot,
+    config.scope,
+    display,
+    filters,
+    matchMode,
+    updateView,
+  ])
 
   const deleteView = useCallback(
     async (viewId: Id<"savedViews">) => {
       await deleteViewMutation({ id: viewId })
-      if (activeViewId === viewId) {
-        applySnapshot({
-          filters: cloneTasksFilters(emptyTasksFilters),
-          matchMode: "all",
-          display: defaultDisplaySettings,
-          activeViewId: null,
-        })
-      }
+      if (activeViewId !== viewId) return
+      const preset = getPresetSnapshot(config.defaultPreset, userId)
+      applySnapshot({
+        baselineFilters: cloneTasksFilters(preset.filters),
+        baselineMatchMode: preset.matchMode,
+        display: defaultDisplaySettings,
+        activeViewId: null,
+        activePresetId: config.defaultPreset,
+      })
     },
-    [activeViewId, applySnapshot, deleteViewMutation]
+    [
+      activeViewId,
+      applySnapshot,
+      config.defaultPreset,
+      deleteViewMutation,
+      userId,
+    ]
   )
 
   return {
-    views: views ?? [],
-    activeViewId,
+    views: views ?? EMPTY_SAVED_TASK_VIEWS,
+    isLoaded: views !== undefined,
     applyView,
     createCurrentView,
     saveActiveView,

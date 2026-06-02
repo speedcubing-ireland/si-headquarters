@@ -9,16 +9,14 @@ import {
 } from "@/features/list-views/types"
 import type { DateRangeFilter } from "@/features/list-views/types"
 import {
-  isParsedRecord,
-  parseJson,
-  type ParsedJson,
-} from "@/features/tasks/list/task-list-parse"
-import {
   emptyTasksFilters,
   TASK_FILTER_ARRAY_KEYS,
+  TASK_LIST_PRESET_IDS,
   type TaskListPageSnapshot,
+  type TaskListPresetId,
   type TasksFilters,
 } from "@/features/tasks/list/task-list-types"
+import { isParsedRecord, parseJson, type ParsedJson } from "@/lib/parsed-json"
 
 function parseFilterItem(value: ParsedJson): FilterItem | null {
   if (!isParsedRecord(value)) return null
@@ -85,27 +83,44 @@ export function parseTasksFiltersJson(json: string): {
   filters: TasksFilters
   matchMode: MatchMode
 } {
-  try {
-    const data = parseJson(json)
-    if (data === null || !isParsedRecord(data)) {
-      return { filters: cloneTasksFilters(emptyTasksFilters), matchMode: "all" }
-    }
-    return {
-      filters: parseTasksFiltersObject(data.filters),
-      matchMode: parseMatchMode(data.matchMode),
-    }
-  } catch {
+  const data = parseJson(json)
+  if (data === null || !isParsedRecord(data)) {
     return { filters: cloneTasksFilters(emptyTasksFilters), matchMode: "all" }
   }
+  return {
+    filters: parseTasksFiltersObject(data.filters),
+    matchMode: parseMatchMode(data.matchMode),
+  }
+}
+
+function isTaskListPresetId(value: string): value is TaskListPresetId {
+  return TASK_LIST_PRESET_IDS.some((presetId) => presetId === value)
+}
+
+function parsePresetId(value: ParsedJson | undefined): TaskListPresetId | null {
+  if (typeof value === "string" && isTaskListPresetId(value)) {
+    return value
+  }
+  return null
+}
+
+function parseSavedViewId(value: ParsedJson | undefined): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null
 }
 
 export function parseTaskListPageSnapshot(
   value: ParsedJson
 ): TaskListPageSnapshot | null {
   if (!isParsedRecord(value)) return null
+  if (!("overlayFilters" in value)) return null
   return {
-    filters: parseTasksFiltersObject(value.filters),
-    matchMode: parseMatchMode(value.matchMode),
+    activePresetId: parsePresetId(value.activePresetId),
+    activeViewId: parseSavedViewId(value.activeViewId),
+    overlayFilters: parseTasksFiltersObject(value.overlayFilters),
+    overlayMatchMode:
+      value.overlayMatchMode === "any" || value.overlayMatchMode === "all"
+        ? value.overlayMatchMode
+        : undefined,
     display: parseDisplaySettingsObject(value.display),
   }
 }
@@ -145,13 +160,9 @@ function parseDisplaySettingsObject(
 }
 
 export function parseDisplaySettingsJson(json: string): DisplaySettings {
-  try {
-    const data = parseJson(json)
-    if (data === null) return { ...defaultDisplaySettings }
-    return parseDisplaySettingsObject(data)
-  } catch {
-    return { ...defaultDisplaySettings }
-  }
+  const data = parseJson(json)
+  if (data === null) return { ...defaultDisplaySettings }
+  return parseDisplaySettingsObject(data)
 }
 
 export function cloneTasksFilters(filters: TasksFilters): TasksFilters {

@@ -7,20 +7,29 @@ import {
   TasksFilterChips,
   TasksFilterPopover,
 } from "@/features/tasks/list/task-filter-ui"
-import { filterTaskRows } from "@/features/tasks/list/task-filters"
+import { filterTaskRowsForListPage } from "@/features/tasks/list/task-filters"
 import { groupTaskRows } from "@/features/tasks/list/task-grouping"
 import { TaskListFilterBar } from "@/features/tasks/list/task-list-filter-bar"
+import {
+  TaskListProvider,
+  useTaskListPage,
+} from "@/features/tasks/list/task-list-context"
 import { TaskListPageLayout } from "@/features/tasks/list/task-list-page-layout"
+import {
+  GLOBAL_TASK_LIST_CONFIG,
+  teamTaskListConfig,
+  type TaskListPageConfig,
+} from "@/features/tasks/list/task-list-config"
 import { TaskListNavbar } from "@/features/tasks/list/task-list-navbar"
-import { TaskListProvider } from "@/features/tasks/list/task-list-context"
-import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
 import { sortTaskRows } from "@/features/tasks/list/task-sort"
 import { TaskCard } from "@/features/tasks/list/task-card"
 import { TaskRow } from "@/features/tasks/list/task-row"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
-import { useMemo } from "react"
+import { headquartersPageTitle } from "@/lib/page-title"
+import { useEffect, useMemo } from "react"
 
 const TASK_DISPLAY_OPTIONS = [
   { value: "status", label: "Status" },
@@ -31,7 +40,7 @@ const TASK_DISPLAY_OPTIONS = [
   { value: "phase", label: "Phase" },
   { value: "name", label: "Name" },
   { value: "dueDate", label: "Due date" },
-]
+] as const
 
 function effectiveKanbanGrouping(display: DisplaySettings, fallback: string) {
   if (display.mode === "kanban" && display.grouping === null) {
@@ -40,19 +49,41 @@ function effectiveKanbanGrouping(display: DisplaySettings, fallback: string) {
   return display.grouping
 }
 
-function TasksPageBody() {
-  const { filters, matchMode, display } = useTaskListPage()
+function TaskListPageBody({ emptyMessage }: { emptyMessage: string }) {
+  const {
+    config,
+    viewFilters,
+    viewMatchMode,
+    overlayFilters,
+    overlayMatchMode,
+    display,
+  } = useTaskListPage()
   const rows = useQuery(api.tasks.board.listForBoard)
 
   const groups = useMemo(() => {
     if (!rows) return []
-    const visible = filterTaskRows(rows, filters, matchMode)
+    const visible = filterTaskRowsForListPage({
+      rows,
+      scope: config.scope,
+      viewFilters,
+      viewMatchMode,
+      overlayFilters,
+      overlayMatchMode,
+    })
     const sorted = sortTaskRows(visible, display)
     return groupTaskRows(sorted, {
       ...display,
       grouping: effectiveKanbanGrouping(display, "status"),
     })
-  }, [display, filters, matchMode, rows])
+  }, [
+    config.scope,
+    display,
+    overlayFilters,
+    overlayMatchMode,
+    rows,
+    viewFilters,
+    viewMatchMode,
+  ])
 
   if (rows === undefined) {
     return <Page.Status variant="loading" message="Loading tasks…" />
@@ -62,7 +93,7 @@ function TasksPageBody() {
     return (
       <div className="p-3 @sm/main:p-4">
         <PageListMessage className="rounded-xl bg-card py-10">
-          No tasks match your filters.
+          {emptyMessage}
         </PageListMessage>
       </div>
     )
@@ -89,21 +120,89 @@ function TasksPageBody() {
   )
 }
 
-export function TasksPage() {
+function TaskListPageContent({
+  config,
+  emptyMessage = "No tasks match your filters.",
+}: {
+  config: TaskListPageConfig
+  emptyMessage?: string
+}) {
+  useEffect(() => {
+    document.title = headquartersPageTitle(config.title)
+  }, [config.title])
+
   return (
-    <TaskListProvider pageId="all">
+    <TaskListProvider key={config.pageId} config={config}>
       <TaskListPageLayout
-        header={<TaskListNavbar title="All tasks" />}
+        header={<TaskListNavbar />}
         filtersRow={
           <TaskListFilterBar
             filterPopover={<TasksFilterPopover />}
             filterChips={<TasksFilterChips />}
-            columnOptions={TASK_DISPLAY_OPTIONS}
+            columnOptions={[...TASK_DISPLAY_OPTIONS]}
           />
         }
       >
-        <TasksPageBody />
+        <TaskListPageBody emptyMessage={emptyMessage} />
       </TaskListPageLayout>
     </TaskListProvider>
+  )
+}
+
+export function TaskListPage({
+  teamId,
+  emptyMessage,
+}: {
+  teamId?: Id<"teams">
+  emptyMessage?: string
+}) {
+  const team = useQuery(
+    api.teams.queries.getForTaskPage,
+    teamId !== undefined ? { teamId } : "skip"
+  )
+  const teamConfig = useMemo(
+    () =>
+      team !== undefined && team !== null
+        ? teamTaskListConfig(team._id, team.name)
+        : null,
+    [team]
+  )
+
+  if (teamId === undefined) {
+    return (
+      <TaskListPageContent
+        config={GLOBAL_TASK_LIST_CONFIG}
+        emptyMessage={emptyMessage}
+      />
+    )
+  }
+
+  if (team === undefined) {
+    return <Page.Status variant="loading" message="Loading team tasks…" />
+  }
+
+  if (team === null) {
+    return (
+      <Page.Root>
+        <div className="p-4">
+          <PageListMessage>
+            You do not have access to this team&apos;s tasks.
+          </PageListMessage>
+        </div>
+      </Page.Root>
+    )
+  }
+
+  if (teamConfig === null) {
+    return <Page.Status variant="loading" message="Loading team tasks…" />
+  }
+
+  return (
+    <TaskListPageContent
+      config={teamConfig}
+      emptyMessage={
+        emptyMessage ?? "No tasks match your filters for this team."
+      }
+    />
   )
 }

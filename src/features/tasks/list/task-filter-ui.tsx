@@ -2,41 +2,46 @@ import { ArrayFilterChips } from "@/features/list-views/components/array-filter-
 import { DateRangeFilterChip } from "@/features/list-views/components/date-range-filter-chip"
 import { FilterPopover } from "@/features/list-views/components/filter-popover"
 import { hasDateRangeValue } from "@/features/list-views/types"
-import { useTaskListPage } from "@/features/tasks/list/use-task-list-page"
-import {
-  countActiveTaskFilterChips,
-  hasActiveTaskFilters,
-} from "@/features/tasks/list/task-list-types"
+import { useTaskListPage } from "@/features/tasks/list/task-list-context"
+import { countActiveTaskFilterChips } from "@/features/tasks/list/task-list-types"
 import { useTaskFilters } from "@/features/tasks/list/task-filters"
 
 export function TasksFilterPopover() {
-  const { filters, setArrayFilter, clearFilters } = useTaskListPage()
+  const { overlayFilters, setArrayFilter, clearOverlay, hiddenFilterKeys } =
+    useTaskListPage()
   const { filterTypes } = useTaskFilters()
+  const visibleFilterTypes = filterTypes.filter(
+    (type) => !hiddenFilterKeys.includes(type.id)
+  )
 
   return (
     <FilterPopover
-      filterTypes={filterTypes}
-      filters={filters}
+      filterTypes={visibleFilterTypes}
+      filters={overlayFilters}
       setArrayFilter={setArrayFilter}
-      clearFilters={clearFilters}
-      activeCount={countActiveTaskFilterChips(filters)}
+      clearFilters={clearOverlay}
+      activeCount={countActiveTaskFilterChips(overlayFilters)}
     />
   )
 }
 
 export function TasksFilterChips() {
-  const { filters, setArrayFilter, setDueDate } = useTaskListPage()
+  const { overlayFilters, setArrayFilter, setDueDate, hiddenFilterKeys } =
+    useTaskListPage()
   const { optionsByKey, chipDefs } = useTaskFilters()
+  const visibleChipDefs = chipDefs.filter(
+    (def) => !hiddenFilterKeys.includes(def.key)
+  )
 
-  if (!hasActiveTaskFilters(filters)) return null
+  if (countActiveTaskFilterChips(overlayFilters) === 0) return null
 
-  const dueDate = filters.dueDate
+  const dueDate = overlayFilters.dueDate
 
   return (
     <>
       <ArrayFilterChips
-        chipDefs={chipDefs}
-        filters={filters}
+        chipDefs={visibleChipDefs}
+        filters={overlayFilters}
         optionsByKey={optionsByKey}
         setArrayFilter={setArrayFilter}
       />

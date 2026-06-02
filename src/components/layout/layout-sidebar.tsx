@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { SidebarTeamsNav } from "./sidebar-teams-nav"
 import { SidebarUser } from "./layout-sidebar-user"
 import { PLUGINS } from "@/plugins/registry"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
@@ -188,6 +189,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         <SidebarHomeLink />
         <SidebarProjectLinks />
+        <SidebarTeamsNav />
         <SidebarPluginLinks />
         <SidebarAdminLinks />
       </SidebarContent>

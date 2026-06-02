@@ -1,4 +1,8 @@
-import { TASK_STATUS_META, TaskStatusIcon } from "@/features/tasks/status"
+import {
+  TASK_STATUS_META,
+  TASK_STATUS_ORDER,
+  TaskStatusIcon,
+} from "@/features/tasks/status"
 import { LabelBadge } from "@/components/data-selectors/task-label-badge"
 import { ObjectAvatar } from "@/components/object-avatar"
 import type { FilterOption } from "@/features/list-views/components/filter-option-row"
@@ -9,12 +13,18 @@ import {
 } from "@/features/list-views/filter-engine"
 import { hasDateRangeValue } from "@/features/list-views/types"
 import type { MatchMode } from "@/features/list-views/types"
+import {
+  emptyOverlayFilters,
+  hasOverlayFilters,
+  mergeScopeFilters,
+  type TaskListScope,
+} from "@/features/tasks/list/task-list-config"
 import type {
   TaskFilterKey,
   TasksFilters,
 } from "@/features/tasks/list/task-list-types"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
-import { TASK_STATUSES, isTaskStatus } from "@/convex/tasks/status/validators"
+import { isTaskStatus } from "@/convex/tasks/status/validators"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
@@ -68,7 +78,9 @@ export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
     label: "Assignee",
     icon: UserIcon,
     getRowValues: (row) =>
-      row.assignees.mode === "assigned" ? row.assignees.userIds : [],
+      row.assignees.mode === "assigned"
+        ? row.assignees.userIds
+        : ["unassigned"],
   },
   {
     id: "owner",
@@ -100,7 +112,7 @@ export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
   },
 ]
 
-const STATUS_OPTIONS: FilterOption[] = TASK_STATUSES.map((status) => ({
+const STATUS_OPTIONS: FilterOption[] = TASK_STATUS_ORDER.map((status) => ({
   value: status,
   label: TASK_STATUS_META[status].label,
   taskStatus: status,
@@ -148,6 +160,32 @@ export function filterTaskRows<TRow extends TaskRowFilterInput>(
   })
 }
 
+export function filterTaskRowsForListPage<TRow extends TaskRowFilterInput>({
+  rows,
+  scope,
+  viewFilters,
+  viewMatchMode,
+  overlayFilters,
+  overlayMatchMode,
+}: {
+  rows: TRow[]
+  scope: TaskListScope
+  viewFilters: TasksFilters
+  viewMatchMode: MatchMode
+  overlayFilters: TasksFilters
+  overlayMatchMode: MatchMode
+}): TRow[] {
+  const scoped = filterTaskRows(
+    rows,
+    mergeScopeFilters(scope, emptyOverlayFilters()),
+    "all"
+  )
+  const viewRows = filterTaskRows(scoped, viewFilters, viewMatchMode)
+  return hasOverlayFilters(overlayFilters)
+    ? filterTaskRows(viewRows, overlayFilters, overlayMatchMode)
+    : viewRows
+}
+
 export interface TaskFilterLookup {
   users: UserListEntry[]
   teams: { _id: string; name: string }[]
@@ -174,6 +212,7 @@ function renderTaskFilterValue(
     case "kind":
       return <span className="text-xs font-medium capitalize">{value}</span>
     case "assignee": {
+      if (value === "unassigned") return "Unassigned"
       const user = lookup.users.find((entry) => entry._id === value)
       if (!user) return value
       return (
@@ -208,7 +247,7 @@ function renderTaskFilterValue(
 
 export function useTaskFilters() {
   const users = useQuery(api.users.queries.list, {})
-  const teams = useQuery(api.teams.queries.list)
+  const teams = useQuery(api.teams.queries.listForTaskFilters)
   const labels = useQuery(api.tasks.labels.queries.list)
   const competitions = useQuery(api.competitions.queries.list)
   const phases = useQuery(api.phases.queries.list)
@@ -224,8 +263,11 @@ export function useTaskFilters() {
     [competitions, labels, phases, teams, users]
   )
 
-  const assigneeOptions = useMemo(
-    () => lookup.users.map(userToFilterOption),
+  const assigneeOptions = useMemo<FilterOption[]>(
+    () => [
+      { value: "unassigned", label: "Unassigned", icon: UserIcon },
+      ...lookup.users.map(userToFilterOption),
+    ],
     [lookup.users]
   )
 

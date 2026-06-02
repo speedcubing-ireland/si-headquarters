@@ -3,17 +3,14 @@ import {
   createRowSorter,
 } from "@/features/list-views/row-sorter"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
-import { isTaskStatus, TASK_STATUSES } from "@/convex/tasks/status/validators"
+import { TASK_STATUS_ORDER } from "@/features/tasks/status"
 
-const STATUS_RANK = new Map(
-  TASK_STATUSES.map((status, index) => [status, index] as const)
+const STATUS_RANK: ReadonlyMap<string, number> = new Map(
+  TASK_STATUS_ORDER.map((status, index) => [status, index] as const)
 )
 
 export function taskStatusRank(status: string) {
-  if (isTaskStatus(status)) {
-    return STATUS_RANK.get(status) ?? TASK_STATUSES.length
-  }
-  return TASK_STATUSES.length
+  return STATUS_RANK.get(status) ?? TASK_STATUS_ORDER.length
 }
 
 function assigneeSortKey(row: TaskBoardRow): string {

@@ -1,3 +1,4 @@
+import type { Id } from "@/convex/_generated/dataModel"
 import { hasDateRangeValue } from "@/features/list-views/types"
 import type {
   DateRangeFilter,
@@ -16,6 +17,15 @@ export interface TasksFilters {
   phase: FilterItem[]
   dueDate?: DateRangeFilter
 }
+
+export const TASK_LIST_PRESET_IDS = [
+  "active",
+  "all",
+  "my-tasks",
+  "unassigned",
+] as const
+
+export type TaskListPresetId = (typeof TASK_LIST_PRESET_IDS)[number]
 
 export const emptyTasksFilters: TasksFilters = {
   status: [],
@@ -40,9 +50,19 @@ export const TASK_FILTER_ARRAY_KEYS = [
 export type TaskFilterKey = (typeof TASK_FILTER_ARRAY_KEYS)[number]
 
 export interface TaskListPageSnapshot {
-  filters: TasksFilters
-  matchMode: MatchMode
+  activePresetId: TaskListPresetId | null
+  activeViewId: string | null
+  overlayFilters: TasksFilters
+  overlayMatchMode?: MatchMode
   display: DisplaySettings
+}
+
+export interface TaskListViewSnapshot {
+  baselineFilters: TasksFilters
+  baselineMatchMode: MatchMode
+  display: DisplaySettings
+  activeViewId: Id<"savedViews"> | null
+  activePresetId: TaskListPresetId | null
 }
 
 function countActiveFilterTypes(filters: TasksFilters): number {
@@ -52,10 +72,6 @@ function countActiveFilterTypes(filters: TasksFilters): number {
   }
   if (hasDateRangeValue(filters.dueDate)) count += 1
   return count
-}
-
-export function hasActiveTaskFilters(filters: TasksFilters): boolean {
-  return countActiveFilterTypes(filters) > 0
 }
 
 export function countActiveTaskFilterChips(filters: TasksFilters): number {
