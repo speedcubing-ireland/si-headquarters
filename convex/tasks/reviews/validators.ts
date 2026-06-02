@@ -1,4 +1,5 @@
 import { v, type Infer } from "convex/values"
+import { teamSummary } from "@/convex/teams/validators"
 import { publicUserValidator } from "@/convex/users/validators"
 import { objectRef } from "@/convex/utils"
 
@@ -50,12 +51,7 @@ export const taskReviewerDetailsForTask = v.object({
 })
 
 export const potentialTaskReviewers = v.object({
-  teams: v.array(
-    v.object({
-      _id: v.id("teams"),
-      name: v.string(),
-    })
-  ),
+  teams: v.array(teamSummary),
   users: v.array(publicUserValidator),
 })
 

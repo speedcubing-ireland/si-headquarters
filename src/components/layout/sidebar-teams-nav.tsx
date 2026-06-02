@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { Link } from "@tanstack/react-router"
 import { ChevronRightIcon, ListChecksIcon, UsersIcon } from "lucide-react"
-import { useCallback, useState } from "react"
+import { useState } from "react"
 
 const TEAMS_OPEN_STORAGE_KEY = "sidebar:teams-open:v1"
 type TeamsOpenState = Record<string, boolean>
@@ -63,15 +63,13 @@ function TeamCollapsibleSection({
   teamName: string
   onOpenChange: (teamId: Id<"teams">, open: boolean) => void
 }) {
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      onOpenChange(teamId, nextOpen)
-    },
-    [onOpenChange, teamId]
-  )
-
   return (
-    <Collapsible open={open} onOpenChange={handleOpenChange}>
+    <Collapsible
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(teamId, nextOpen)
+      }}
+    >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton tooltip={teamName}>
@@ -112,17 +110,6 @@ export function SidebarTeamsNav() {
   const teams = useQuery(api.teams.queries.listForNavigation)
   const [openByTeamId, setOpenByTeamId] = useState(readTeamsOpenState)
 
-  const handleTeamOpenChange = useCallback(
-    (teamId: Id<"teams">, open: boolean) => {
-      setOpenByTeamId((current) => {
-        const next = { ...current, [teamId]: open }
-        writeTeamsOpenState(next)
-        return next
-      })
-    },
-    []
-  )
-
   if (teams === undefined || teams.length === 0) {
     return null
   }
@@ -137,7 +124,13 @@ export function SidebarTeamsNav() {
             open={openByTeamId[team._id] ?? false}
             teamId={team._id}
             teamName={team.name}
-            onOpenChange={handleTeamOpenChange}
+            onOpenChange={(teamId, open) => {
+              setOpenByTeamId((current) => {
+                const next = { ...current, [teamId]: open }
+                writeTeamsOpenState(next)
+                return next
+              })
+            }}
           />
         ))}
       </SidebarMenu>

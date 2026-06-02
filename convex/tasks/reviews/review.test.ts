@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
+import { TEAM_NAMES } from "@/convex/permissions/shared"
 import {
   seedVolunteerTestUser,
   withVolunteerTestClient,
@@ -427,6 +428,9 @@ describe("task reviews", () => {
           name: "Reviewer",
         }),
       ])
+    )
+    expect(reviewers.teams.map((team) => team.name)).not.toContain(
+      TEAM_NAMES.VOLUNTEER
     )
   })
 

@@ -1,21 +1,21 @@
-import { collectAll } from "@/convex/utils"
 import { query } from "@/convex/_generated/server"
+import { collectAll } from "@/convex/utils"
 import {
   requireCan,
   requirePrincipal,
   requireUserManagement,
 } from "@/convex/permissions/principal"
-import { ADMIN_ASSIGNABLE_TEAM_NAMES } from "@/convex/permissions/shared"
+import { ADMIN_ASSIGNABLE_TEAM_NAME_SET } from "@/convex/permissions/shared"
 import {
+  isApplicationTeam,
   listMemberIdsForTeam,
-  listTeamSummariesForUser,
+  listAllApplicationTeamSummaries,
+  listApplicationTeamSummariesForUser,
   toTeamSummary,
   userCanAccessTeam,
 } from "@/convex/teams/model"
 import { teamSummary } from "@/convex/teams/validators"
 import { v } from "convex/values"
-
-const assignableTeamNames = new Set<string>(ADMIN_ASSIGNABLE_TEAM_NAMES)
 
 export const list = query({
   args: {},
@@ -47,7 +47,7 @@ export const listForNavigation = query({
   returns: v.array(teamSummary),
   handler: async (ctx) => {
     const principal = await requirePrincipal(ctx)
-    return await listTeamSummariesForUser(ctx, principal.userId)
+    return await listApplicationTeamSummariesForUser(ctx, principal.userId)
   },
 })
 
@@ -57,9 +57,7 @@ export const listForTaskFilters = query({
   handler: async (ctx) => {
     const principal = await requirePrincipal(ctx)
     requireCan(principal, "read", "Team")
-    return (await collectAll(ctx, "teams"))
-      .map(toTeamSummary)
-      .sort((left, right) => left.name.localeCompare(right.name))
+    return await listAllApplicationTeamSummaries(ctx)
   },
 })
 
@@ -71,7 +69,7 @@ export const getForTaskPage = query({
   handler: async (ctx, args) => {
     const principal = await requirePrincipal(ctx)
     const team = await ctx.db.get("teams", args.teamId)
-    if (team === null) {
+    if (team === null || !isApplicationTeam(team.name)) {
       return null
     }
 
@@ -96,7 +94,7 @@ export const listForUserManagement = query({
     await requireUserManagement(ctx)
     const teams = await collectAll(ctx, "teams")
     return teams
-      .filter((team) => assignableTeamNames.has(team.name))
+      .filter((team) => ADMIN_ASSIGNABLE_TEAM_NAME_SET.has(team.name))
       .map(toTeamSummary)
       .sort((left, right) => left.name.localeCompare(right.name))
   },

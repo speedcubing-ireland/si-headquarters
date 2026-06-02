@@ -14,8 +14,8 @@ import { TEAM_NAMES } from "@/convex/permissions/shared"
 import { getTeamByName } from "@/convex/teams/model"
 import { modules } from "@/convex/test.setup"
 
-describe("teams navigation queries", () => {
-  test("listForNavigation returns only member teams", async () => {
+describe("teams task UI queries", () => {
+  test("listForNavigation returns member work teams, not Volunteer", async () => {
     const t = convexTest(schema, modules)
     const { client, userId } = await withVolunteerTestClient(t)
     await t.run(async (ctx) => {
@@ -24,36 +24,49 @@ describe("teams navigation queries", () => {
 
     const teams = await client.query(api.teams.queries.listForNavigation, {})
     const names = teams.map((team) => team.name)
-    expect(names).toContain(TEAM_NAMES.VOLUNTEER)
+    expect(names).not.toContain(TEAM_NAMES.VOLUNTEER)
     expect(names).toContain(TEAM_NAMES.SOFTWARE)
     expect(names).not.toContain(TEAM_NAMES.DIRECTORS)
   })
 
-  test("listForTaskFilters returns team summaries without member ids", async () => {
+  test("listForTaskFilters excludes Volunteer", async () => {
     const t = convexTest(schema, modules)
-    const { client } = await withVolunteerTestClient(t)
+    const { client, userId } = await withVolunteerTestClient(t)
+    await t.run(async (ctx) => {
+      await addUserToTeam(ctx, userId, TEAM_NAMES.SOFTWARE)
+    })
 
     const teams = await client.query(api.teams.queries.listForTaskFilters, {})
-    expect(teams.length).toBeGreaterThan(0)
+    const names = teams.map((team) => team.name)
+    expect(names).not.toContain(TEAM_NAMES.VOLUNTEER)
+    expect(names).toContain(TEAM_NAMES.SOFTWARE)
     for (const team of teams) {
       expect(Object.keys(team)).toEqual(["_id", "name"])
     }
   })
 
-  test("getForTaskPage allows members and directors, denies outsiders", async () => {
+  test("getForTaskPage allows members and directors, denies outsiders and Volunteer", async () => {
     const t = convexTest(schema, modules)
     const { client, userId } = await withVolunteerTestClient(t)
-    const softwareTeamId = await t.run(async (ctx) => {
+    const { softwareTeamId, volunteerTeamId } = await t.run(async (ctx) => {
       await addUserToTeam(ctx, userId, TEAM_NAMES.SOFTWARE)
-      const team = await getTeamByName(ctx, TEAM_NAMES.SOFTWARE)
-      if (team === null) throw new Error("missing software team")
-      return team._id
+      const software = await getTeamByName(ctx, TEAM_NAMES.SOFTWARE)
+      const volunteer = await getTeamByName(ctx, TEAM_NAMES.VOLUNTEER)
+      if (software === null || volunteer === null) {
+        throw new Error("missing team")
+      }
+      return { softwareTeamId: software._id, volunteerTeamId: volunteer._id }
     })
 
     const memberTeam = await client.query(api.teams.queries.getForTaskPage, {
       teamId: softwareTeamId,
     })
     expect(memberTeam?.name).toBe(TEAM_NAMES.SOFTWARE)
+
+    const volunteerPage = await client.query(api.teams.queries.getForTaskPage, {
+      teamId: volunteerTeamId,
+    })
+    expect(volunteerPage).toBeNull()
 
     const directorId = await t.run(async (ctx) => seedDirectorUser(ctx))
     const directorTeam = await t

@@ -1,6 +1,12 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
-import { TEAM_NAMES, type TeamName } from "@/convex/permissions/shared"
+import {
+  NON_APPLICATION_TEAM_NAME_SET,
+  TEAM_NAMES,
+  type TeamName,
+} from "@/convex/permissions/shared"
+import type { TeamSummary } from "@/convex/teams/validators"
+import { collectAll } from "@/convex/utils"
 
 type TeamCtx = QueryCtx | MutationCtx
 
@@ -63,6 +69,26 @@ export function toTeamSummary(team: Pick<Doc<"teams">, "_id" | "name">) {
   return { _id: team._id, name: team.name }
 }
 
+function compareTeamSummariesByName(
+  left: TeamSummary,
+  right: TeamSummary
+): number {
+  return left.name.localeCompare(right.name)
+}
+
+export function isApplicationTeam(name: string): boolean {
+  return !NON_APPLICATION_TEAM_NAME_SET.has(name)
+}
+
+export function applicationTeamSummaries(
+  teams: readonly Pick<Doc<"teams">, "_id" | "name">[]
+): TeamSummary[] {
+  return teams
+    .filter((team) => isApplicationTeam(team.name))
+    .map(toTeamSummary)
+    .sort(compareTeamSummariesByName)
+}
+
 export async function listTeamSummariesForUser(
   ctx: TeamCtx,
   userId: Id<"users">
@@ -70,7 +96,25 @@ export async function listTeamSummariesForUser(
   const teams = await listTeamsForUser(ctx, userId)
   return teams
     .map(toTeamSummary)
-    .sort((left, right) => left.name.localeCompare(right.name))
+    .sort(compareTeamSummariesByName)
+}
+
+export async function listApplicationTeamSummariesForUser(
+  ctx: TeamCtx,
+  userId: Id<"users">
+) {
+  return applicationTeamSummaries(await listTeamsForUser(ctx, userId))
+}
+
+export async function listAllApplicationTeamSummaries(ctx: TeamCtx) {
+  return applicationTeamSummaries(await collectAll(ctx, "teams"))
+}
+
+export async function takeApplicationTeamSummaries(
+  ctx: TeamCtx,
+  limit: number
+) {
+  return applicationTeamSummaries(await ctx.db.query("teams").take(limit))
 }
 
 async function listTeamsForUser(ctx: TeamCtx, userId: Id<"users">) {

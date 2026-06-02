@@ -21,6 +21,22 @@ export const ADMIN_ASSIGNABLE_TEAM_NAMES = [
   TEAM_NAMES.DELEGATES,
 ] as const satisfies readonly TeamName[]
 
+/**
+ * Teams used for permission grants or baseline membership, but not as
+ * functional teams in application pickers, navigation, or task workflows.
+ */
+export const NON_APPLICATION_TEAM_NAMES = [
+  TEAM_NAMES.VOLUNTEER,
+] as const satisfies readonly TeamName[]
+
+export const ADMIN_ASSIGNABLE_TEAM_NAME_SET: ReadonlySet<string> = new Set(
+  ADMIN_ASSIGNABLE_TEAM_NAMES
+)
+
+export const NON_APPLICATION_TEAM_NAME_SET: ReadonlySet<string> = new Set(
+  NON_APPLICATION_TEAM_NAMES
+)
+
 export type Action =
   | "read"
   | "create"
