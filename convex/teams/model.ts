@@ -99,6 +99,19 @@ export async function isMemberOfTeam(
   return membership !== null
 }
 
+export function teamIdsForTeamNames(
+  teams: Iterable<{ _id: Id<"teams">; name: string }>,
+  teamNames: ReadonlySet<string>
+): Set<Id<"teams">> {
+  const teamIds = new Set<Id<"teams">>()
+  for (const team of teams) {
+    if (teamNames.has(team.name)) {
+      teamIds.add(team._id)
+    }
+  }
+  return teamIds
+}
+
 export async function listMembersForTeams(
   ctx: TeamCtx,
   teamNames: readonly TeamName[]

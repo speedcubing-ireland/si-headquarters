@@ -1,9 +1,5 @@
-import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
-
-const PAGE_LIST_MESSAGE_CLASS =
-  "m-3 px-4 py-10 text-center text-sm text-muted-foreground @sm/main:m-4"
 
 export function PageListMessage({
   children,
@@ -13,6 +9,13 @@ export function PageListMessage({
   className?: string
 }) {
   return (
-    <Card className={cn(PAGE_LIST_MESSAGE_CLASS, className)}>{children}</Card>
+    <div
+      className={cn(
+        "w-full rounded-md border border-dashed bg-card/75 px-3 py-6 text-center text-sm text-balance text-muted-foreground",
+        className
+      )}
+    >
+      {children}
+    </div>
   )
 }

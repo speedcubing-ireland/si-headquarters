@@ -32,3 +32,7 @@ export function competitionStartEnd(
   const compEnd = competition.compDates.to ?? competition.compDates.from ?? ""
   return { compStart, compEnd }
 }
+
+export function todayIsoDate(): string {
+  return formatLocalDate(new Date())
+}

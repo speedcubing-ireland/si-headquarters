@@ -1,6 +1,6 @@
 import { collectAll } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { query } from "@/convex/_generated/server"
+import { query, type QueryCtx } from "@/convex/_generated/server"
 import { requireActiveUserId } from "@/convex/permissions/principal"
 import {
   buildFlatTaskInlinePath,
@@ -155,62 +155,61 @@ export const listForBoard = query({
   returns: v.array(taskBoardRow),
   handler: async (ctx) => {
     await requireActiveUserId(ctx)
-
-    const [tasks, phases, competitions] = await Promise.all([
-      collectAll(ctx, "tasks"),
-      collectAll(ctx, "phases"),
-      collectAll(ctx, "competitions"),
-    ])
-    const taskById = new Map(tasks.map((task) => [task._id, task]))
-    const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
-    const competitionById = new Map(
-      competitions.map((competition) => [competition._id, competition])
-    )
-    const statusLoader = new TaskStatusLoader(ctx)
-    const blockersLoader = new TaskBlockersLoader(ctx)
-    const displayReader = createTaskViewDisplayReader(ctx, {
-      blockersLoader,
-      statusLoader,
-    })
-    const childrenByParentId = groupDirectChildrenByParentId(tasks)
-    const directSubtaskViewsByParentId = await buildDirectSubtaskViewsByParentId(
-      statusLoader,
-      taskById,
-      childrenByParentId
-    )
-
-    return await Promise.all(
-      tasks.map(async (task) => {
-        const statusView = await buildTaskStatusViewWithFlowPosition(
-          statusLoader,
-          task
-        )
-        const [details, competitionContext] = await Promise.all([
-          displayReader.hydrateTaskDetails({
-            task,
-            statusView,
-            directSubtaskViews: directSubtaskViewsByParentId.get(task._id),
-          }),
-          Promise.resolve(
-            getTaskCompetitionContext(
-              task,
-              taskById,
-              phaseById,
-              competitionById
-            )
-          ),
-        ])
-
-        return {
-          ...details,
-          path: buildFlatTaskInlinePath(task, taskById, statusView),
-          competitionId: competitionContext.competitionId,
-          phaseId: competitionContext.phaseId,
-          competitionName: competitionContext.competitionName,
-          competitionYear: competitionContext.competitionYear,
-          phaseName: competitionContext.phaseName,
-        }
-      })
-    )
+    return await buildTaskBoardRows(ctx)
   },
 })
+
+export async function buildTaskBoardRows(ctx: QueryCtx) {
+  const [tasks, phases, competitions] = await Promise.all([
+    collectAll(ctx, "tasks"),
+    collectAll(ctx, "phases"),
+    collectAll(ctx, "competitions"),
+  ])
+  const taskById = new Map(tasks.map((task) => [task._id, task]))
+  const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
+  const competitionById = new Map(
+    competitions.map((competition) => [competition._id, competition])
+  )
+  const statusLoader = new TaskStatusLoader(ctx)
+  const blockersLoader = new TaskBlockersLoader(ctx)
+  const displayReader = createTaskViewDisplayReader(ctx, {
+    blockersLoader,
+    statusLoader,
+  })
+  const childrenByParentId = groupDirectChildrenByParentId(tasks)
+  const directSubtaskViewsByParentId = await buildDirectSubtaskViewsByParentId(
+    statusLoader,
+    taskById,
+    childrenByParentId
+  )
+
+  return await Promise.all(
+    tasks.map(async (task) => {
+      const statusView = await buildTaskStatusViewWithFlowPosition(
+        statusLoader,
+        task
+      )
+      const details = await displayReader.hydrateTaskDetails({
+        task,
+        statusView,
+        directSubtaskViews: directSubtaskViewsByParentId.get(task._id),
+      })
+      const competitionContext = getTaskCompetitionContext(
+        task,
+        taskById,
+        phaseById,
+        competitionById
+      )
+
+      return {
+        ...details,
+        path: buildFlatTaskInlinePath(task, taskById, statusView),
+        competitionId: competitionContext.competitionId,
+        phaseId: competitionContext.phaseId,
+        competitionName: competitionContext.competitionName,
+        competitionYear: competitionContext.competitionYear,
+        phaseName: competitionContext.phaseName,
+      }
+    })
+  )
+}

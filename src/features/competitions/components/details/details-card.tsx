@@ -1,4 +1,4 @@
-import * as DateRangeSelector from "@/components/data-selectors/date-range-selector"
+import * as DateRangeSelector from "@/features/competitions/components/date-range-selector"
 import { Button } from "@/components/ui/button"
 import {
   Card,

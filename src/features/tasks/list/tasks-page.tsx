@@ -59,7 +59,13 @@ function TasksPageBody() {
   }
 
   if (groups.every((group) => group.items.length === 0)) {
-    return <PageListMessage>No tasks match your filters.</PageListMessage>
+    return (
+      <div className="p-3 @sm/main:p-4">
+        <PageListMessage className="rounded-xl bg-card py-10">
+          No tasks match your filters.
+        </PageListMessage>
+      </div>
+    )
   }
 
   if (display.mode === "kanban") {

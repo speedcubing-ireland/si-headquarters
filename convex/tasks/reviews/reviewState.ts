@@ -1,6 +1,8 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
-import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
+import type {
+  TaskReviewerRef,
+} from "@/convex/tasks/reviews/validators"
 
 type ReviewReadCtx = QueryCtx | MutationCtx
 
@@ -26,6 +28,29 @@ export interface TaskReviewDetails {
 export interface TaskReviewParts {
   reviewers: Doc<"taskReviewers">[]
   override: Doc<"taskReviewOverrides"> | null
+}
+
+export function reviewerMatchesPrincipal(
+  reviewer: TaskReviewerRef,
+  userId: Id<"users">,
+  teamIds: ReadonlySet<Id<"teams">>
+): boolean {
+  if (reviewer.type === "users") return reviewer.id === userId
+  return teamIds.has(reviewer.id)
+}
+
+export function pendingReviewTaskIdsForPrincipal(
+  reviewers: Doc<"taskReviewers">[],
+  userId: Id<"users">,
+  teamIds: ReadonlySet<Id<"teams">>
+): Set<Id<"tasks">> {
+  const taskIds = new Set<Id<"tasks">>()
+  for (const row of reviewers) {
+    if (row.approvedAt !== null) continue
+    if (!reviewerMatchesPrincipal(row.reviewer, userId, teamIds)) continue
+    taskIds.add(row.taskId)
+  }
+  return taskIds
 }
 
 export async function getTaskOrThrow(
