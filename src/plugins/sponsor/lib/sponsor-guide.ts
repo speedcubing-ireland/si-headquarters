@@ -121,7 +121,7 @@ export const PROXY_BID_INCREMENT_ROWS: readonly ProxyBidIncrementRow[] = [
 
 export const SPONSOR_CLOSING_AND_RESULTS = {
   title: "Closing and results",
-  body: "Once an auction has ended, the system will determine the winning sponsor depending on the format of the auction. The winner will be notified and the final price will be displayed alongside the winning bidder.",
+  body: "Once an auction has ended, the system will determine the winning sponsor depending on the format of the auction. The winner will be notified and the final price will be displayed",
 } as const
 
 export const SPONSOR_BIDDING_NOTICE = {
