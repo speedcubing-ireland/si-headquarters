@@ -46,6 +46,7 @@ type Env = {
   readonly SPONSOR_BETTER_AUTH_SECRET: string;
   readonly SPONSOR_SITE_URL: string | undefined;
   readonly VITE_SITE_URL: string | undefined;
+  readonly WCA_2FA_SECRET: string;
 };
 
 /**

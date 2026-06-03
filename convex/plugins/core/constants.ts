@@ -1,3 +1,5 @@
+import type { RequiredStringConvexEnvName } from "@/convex/envTypes"
+
 export const COMPETITION_RESOURCE_TYPES = [
   "googleSheet",
   "wcaCompetition",
@@ -57,8 +59,8 @@ interface TaskIntegrationCatalogEntry {
     resourceKey: string
   }[]
   canva?: {
-    sourceBrandTemplateEnv: string
-    destinationFolderEnv: string
+    sourceBrandTemplateEnv: RequiredStringConvexEnvName
+    destinationFolderEnv: RequiredStringConvexEnvName
     naming: { outputSuffix: string }
   }
 }

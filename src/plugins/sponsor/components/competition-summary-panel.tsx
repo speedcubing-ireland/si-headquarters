@@ -14,38 +14,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { formatDateRange } from "@/plugins/sponsor/components/competition-summary-format"
 import { buildGoogleMapsUrl } from "@/plugins/sponsor/components/competition-summary-maps"
 import { SponsorMetricDetail } from "@/plugins/sponsor/components/sponsor-metric-tile"
 import type {
   SponsorshipCompetitionSummary,
   SponsorshipCompetitionSummarySource,
 } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
-
-const WCA_EVENT_NAME_BY_ID: Record<string, string> = {
-  "222": "2x2x2 Cube",
-  "333": "3x3x3 Cube",
-  "444": "4x4x4 Cube",
-  "555": "5x5x5 Cube",
-  "666": "6x6x6 Cube",
-  "777": "7x7x7 Cube",
-  "333bf": "3x3x3 Blindfolded",
-  "333fm": "3x3x3 Fewest Moves",
-  "333oh": "3x3x3 One-Handed",
-  clock: "Clock",
-  minx: "Megaminx",
-  pyram: "Pyraminx",
-  skewb: "Skewb",
-  sq1: "Square-1",
-  "444bf": "4x4x4 Blindfolded",
-  "555bf": "5x5x5 Blindfolded",
-  "333mbf": "3x3x3 Multi-Blind",
-}
-
-function eventLabel(eventId: string): string {
-  const displayName = WCA_EVENT_NAME_BY_ID[eventId]
-  return displayName ? displayName : eventId.toUpperCase()
-}
+import { formatDateRange } from "@/lib/format/irish-dates"
+import { formatWcaEventLabel } from "@/lib/wca-events"
 
 function EventsSummary({ eventIds }: { eventIds: string[] }) {
   if (eventIds.length === 0) {
@@ -64,7 +40,7 @@ function EventsSummary({ eventIds }: { eventIds: string[] }) {
             variant="secondary"
             className="h-6 rounded-sm px-2 text-xs font-normal"
           >
-            {eventLabel(eventId)}
+            {formatWcaEventLabel(eventId)}
           </Badge>
         ))}
       </div>
@@ -77,10 +53,14 @@ export function AuctionCompetitionSummaryPanel(props: {
   source: SponsorshipCompetitionSummarySource
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const dateRange = formatDateRange(
+    props.summary.startDate,
+    props.summary.endDate
+  )
   const address = props.summary.address.trim()
   const mapsUrl = buildGoogleMapsUrl(props.summary)
   const summaryLine = [
-    formatDateRange(props.summary),
+    dateRange,
     props.summary.competitorLimit !== undefined
       ? `${String(props.summary.competitorLimit)} competitor limit`
       : "No competitor limit listed",
@@ -129,7 +109,7 @@ export function AuctionCompetitionSummaryPanel(props: {
               </SponsorMetricDetail>
 
               <SponsorMetricDetail label="Dates">
-                <p className="font-medium">{formatDateRange(props.summary)}</p>
+                <p className="font-medium">{dateRange}</p>
               </SponsorMetricDetail>
 
               <SponsorMetricDetail label="Competitor limit">
@@ -162,7 +142,10 @@ export function AuctionCompetitionSummaryPanel(props: {
 export function AuctionCompetitionSummaryCompact(props: {
   summary: SponsorshipCompetitionSummary
 }) {
-  const dateRange = formatDateRange(props.summary)
+  const dateRange = formatDateRange(
+    props.summary.startDate,
+    props.summary.endDate
+  )
   const limitLabel =
     props.summary.competitorLimit !== undefined
       ? `${String(props.summary.competitorLimit)} competitor limit`

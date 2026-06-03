@@ -3,6 +3,7 @@ import type { Infer } from "convex/values"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { ActionCtx } from "@/convex/_generated/server"
 import { DEFAULT_RESOURCE_KEYS } from "@/convex/plugins/core/constants"
+import type { RequiredStringConvexEnvName } from "@/convex/envTypes"
 import {
   TASK_INTEGRATION_DEFINITIONS,
   TASK_INTEGRATION_IDS,
@@ -92,7 +93,7 @@ export interface TaskIntegrationDefinition {
 export interface BackendIntegrationPlugin {
   id: PluginId
   service?: IntegrationServiceId
-  env?: readonly string[]
+  env?: readonly RequiredStringConvexEnvName[]
   taskIntegrationRunners?: Partial<
     Record<TaskIntegrationId, TaskIntegrationRunner>
   >

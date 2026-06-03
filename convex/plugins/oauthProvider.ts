@@ -1,10 +1,14 @@
-import type { OAuthService } from "@/convex/plugins/core/types"
 import {
   readJsonObject,
   readNumber,
   readString,
   type JsonRecord,
 } from "@/convex/plugins/core/jsonBoundary"
+import type { OAuthService } from "@/convex/plugins/core/types"
+import {
+  requireConvexEnv,
+  type RequiredStringConvexEnvName,
+} from "@/convex/envTypes"
 
 export interface OAuthPluginCliMeta {
   readonly providerDisplayName: string
@@ -28,8 +32,8 @@ export interface OAuthClientConfig {
   authorizationUrl: string
   tokenUrl: string
   scope: string
-  clientIdEnv: string
-  clientSecretEnv: string
+  clientIdEnv: RequiredStringConvexEnvName
+  clientSecretEnv: RequiredStringConvexEnvName
   defaultExpiresInSec: number
   authStyle: "basic" | "body"
   expiryFromCreatedAt?: boolean
@@ -75,14 +79,6 @@ export function redirectUri(meta: OAuthPluginMeta): string {
   return `http://${meta.cli.redirectHost}:${String(meta.cli.port)}`
 }
 
-function requireEnv(name: string): string {
-  const value = process.env[name]
-  if (value === undefined || value === "") {
-    throw new Error(`${name} is not set in Convex env.`)
-  }
-  return value
-}
-
 function buildAuthorizeUrl(
   config: OAuthClientConfig,
   args: {
@@ -92,7 +88,13 @@ function buildAuthorizeUrl(
   }
 ): string {
   const url = new URL(config.authorizationUrl)
-  url.searchParams.set("client_id", requireEnv(config.clientIdEnv))
+  url.searchParams.set(
+    "client_id",
+    requireConvexEnv(
+      config.clientIdEnv,
+      `${config.clientIdEnv} is not set in Convex env.`
+    )
+  )
   url.searchParams.set("redirect_uri", args.redirectUri)
   url.searchParams.set("response_type", "code")
   url.searchParams.set("scope", config.scope)
@@ -121,8 +123,14 @@ async function requestOAuthToken(
   config: OAuthClientConfig,
   body: URLSearchParams
 ): Promise<StoredServiceToken> {
-  const clientId = requireEnv(config.clientIdEnv)
-  const clientSecret = requireEnv(config.clientSecretEnv)
+  const clientId = requireConvexEnv(
+    config.clientIdEnv,
+    `${config.clientIdEnv} is not set in Convex env.`
+  )
+  const clientSecret = requireConvexEnv(
+    config.clientSecretEnv,
+    `${config.clientSecretEnv} is not set in Convex env.`
+  )
   const headers: Record<string, string> = {
     "Content-Type": "application/x-www-form-urlencoded",
   }

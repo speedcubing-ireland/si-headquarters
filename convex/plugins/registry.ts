@@ -9,12 +9,12 @@ import { discordPlugin } from "@/convex/plugins/discord/definition"
 import { sheetsPlugin } from "@/convex/plugins/sheets/definition"
 import { wcaPlugin } from "@/convex/plugins/wca/definition"
 
-export const INTEGRATION_PLUGINS: readonly BackendIntegrationPlugin[] = [
+export const INTEGRATION_PLUGINS = [
   sheetsPlugin,
   wcaPlugin,
   canvaPlugin,
   discordPlugin,
-]
+] as const satisfies readonly BackendIntegrationPlugin[]
 
 export const pluginTables = {
   ...oauthPluginTables,

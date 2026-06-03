@@ -5,6 +5,8 @@ import {
   getPrincipalOrNull,
   permissionsFor,
   requireUserManagement,
+  requireSocialMediaDashboardAccess,
+  requireWca2faAccess,
 } from "@/convex/permissions/principal"
 import { permissionValidator } from "@/convex/permissions/shared"
 import { v } from "convex/values"
@@ -40,5 +42,23 @@ export const canAccessSponsorPortalAdminForUserId = internalQuery({
       return false
     }
     return canAccessSponsorPortalAdminForUser(principal)
+  },
+})
+
+export const assertWca2faAccess = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requireWca2faAccess(ctx)
+    return null
+  },
+})
+
+export const assertSocialMediaDashboardAccess = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requireSocialMediaDashboardAccess(ctx)
+    return null
   },
 })

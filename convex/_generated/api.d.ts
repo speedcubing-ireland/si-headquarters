@@ -24,6 +24,7 @@ import type * as competitions_weekendSlots_validators from "../competitions/week
 import type * as competitions_weekends from "../competitions/weekends.js";
 import type * as dashboard_queries from "../dashboard/queries.js";
 import type * as env from "../env.js";
+import type * as envTypes from "../envTypes.js";
 import type * as http from "../http.js";
 import type * as impersonation_internal from "../impersonation/internal.js";
 import type * as impersonation_model from "../impersonation/model.js";
@@ -81,6 +82,10 @@ import type * as plugins_sheets_resources from "../plugins/sheets/resources.js";
 import type * as plugins_sheets_runners from "../plugins/sheets/runners.js";
 import type * as plugins_sheets_schedule from "../plugins/sheets/schedule.js";
 import type * as plugins_sheets_tokens from "../plugins/sheets/tokens.js";
+import type * as plugins_socialMedia_dashboard from "../plugins/socialMedia/dashboard.js";
+import type * as plugins_socialMedia_lib_fetchFromWca from "../plugins/socialMedia/lib/fetchFromWca.js";
+import type * as plugins_socialMedia_lib_sponsorDetection from "../plugins/socialMedia/lib/sponsorDetection.js";
+import type * as plugins_socialMedia_resolveHqLinks from "../plugins/socialMedia/resolveHqLinks.js";
 import type * as plugins_sponsor_admin_auctions_competitionSnapshot from "../plugins/sponsor/admin/auctions/competitionSnapshot.js";
 import type * as plugins_sponsor_admin_auctions_emails from "../plugins/sponsor/admin/auctions/emails.js";
 import type * as plugins_sponsor_admin_auctions_lifecycle from "../plugins/sponsor/admin/auctions/lifecycle.js";
@@ -154,6 +159,7 @@ import type * as plugins_wca_openapiClient_client_index from "../plugins/wca/ope
 import type * as plugins_wca_registrationsLib from "../plugins/wca/registrationsLib.js";
 import type * as plugins_wca_resources from "../plugins/wca/resources.js";
 import type * as plugins_wca_scheduleTransferCore from "../plugins/wca/scheduleTransferCore.js";
+import type * as plugins_wca_twoFactor from "../plugins/wca/twoFactor.js";
 import type * as plugins_wca_wcifCompetition from "../plugins/wca/wcifCompetition.js";
 import type * as reactions from "../reactions.js";
 import type * as sendEmails from "../sendEmails.js";
@@ -232,6 +238,7 @@ declare const fullApi: ApiFromModules<{
   "competitions/weekends": typeof competitions_weekends;
   "dashboard/queries": typeof dashboard_queries;
   env: typeof env;
+  envTypes: typeof envTypes;
   http: typeof http;
   "impersonation/internal": typeof impersonation_internal;
   "impersonation/model": typeof impersonation_model;
@@ -289,6 +296,10 @@ declare const fullApi: ApiFromModules<{
   "plugins/sheets/runners": typeof plugins_sheets_runners;
   "plugins/sheets/schedule": typeof plugins_sheets_schedule;
   "plugins/sheets/tokens": typeof plugins_sheets_tokens;
+  "plugins/socialMedia/dashboard": typeof plugins_socialMedia_dashboard;
+  "plugins/socialMedia/lib/fetchFromWca": typeof plugins_socialMedia_lib_fetchFromWca;
+  "plugins/socialMedia/lib/sponsorDetection": typeof plugins_socialMedia_lib_sponsorDetection;
+  "plugins/socialMedia/resolveHqLinks": typeof plugins_socialMedia_resolveHqLinks;
   "plugins/sponsor/admin/auctions/competitionSnapshot": typeof plugins_sponsor_admin_auctions_competitionSnapshot;
   "plugins/sponsor/admin/auctions/emails": typeof plugins_sponsor_admin_auctions_emails;
   "plugins/sponsor/admin/auctions/lifecycle": typeof plugins_sponsor_admin_auctions_lifecycle;
@@ -362,6 +373,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/wca/registrationsLib": typeof plugins_wca_registrationsLib;
   "plugins/wca/resources": typeof plugins_wca_resources;
   "plugins/wca/scheduleTransferCore": typeof plugins_wca_scheduleTransferCore;
+  "plugins/wca/twoFactor": typeof plugins_wca_twoFactor;
   "plugins/wca/wcifCompetition": typeof plugins_wca_wcifCompetition;
   reactions: typeof reactions;
   sendEmails: typeof sendEmails;

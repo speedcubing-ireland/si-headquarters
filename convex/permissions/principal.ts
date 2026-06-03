@@ -28,6 +28,7 @@ const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
     { action: "read", subject: "Team" },
     { action: "read", subject: "User" },
     { action: "manage", subject: "Task" },
+    { action: "access", subject: "SocialMediaDashboard" },
   ],
   [TEAM_NAMES.DIRECTORS]: [
     { action: "manage", subject: "all" },
@@ -37,8 +38,13 @@ const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
   [TEAM_NAMES.COMPETITIONS]: [
     { action: "manage", subject: "Competition" },
     { action: "read", subject: "User" },
+    { action: "access", subject: "Wca2fa" },
   ],
+  [TEAM_NAMES.DELEGATES]: [{ action: "access", subject: "Wca2fa" }],
   [TEAM_NAMES.FINANCE]: [{ action: "access", subject: "SponsorPortalAdmin" }],
+  [TEAM_NAMES.SOCIAL_MEDIA]: [
+    { action: "access", subject: "SocialMediaDashboard" },
+  ],
 }
 
 function teamGrants(teamName: TeamName): readonly Permission[] {
@@ -207,6 +213,32 @@ export function canAccessSponsorPortalAdminForUser(
   principal: Principal | null
 ): boolean {
   return canPerform(principal, "access", "SponsorPortalAdmin")
+}
+
+export async function requireWca2faAccess(ctx: AuthCtx): Promise<Id<"users">> {
+  const principal = await requirePrincipal(ctx)
+  requireCan(
+    principal,
+    "access",
+    "Wca2fa",
+    undefined,
+    "Directors, Delegates, or Competitions Team members only."
+  )
+  return principal.userId
+}
+
+export async function requireSocialMediaDashboardAccess(
+  ctx: AuthCtx
+): Promise<Id<"users">> {
+  const principal = await requirePrincipal(ctx)
+  requireCan(
+    principal,
+    "access",
+    "SocialMediaDashboard",
+    undefined,
+    "Volunteer access required."
+  )
+  return principal.userId
 }
 
 export function permissionsFor(principal: Principal | null): Permission[] {

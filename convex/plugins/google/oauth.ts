@@ -1,5 +1,10 @@
 import { defineOAuthPlugin, type OAuthPluginMeta } from "../oauthProvider"
 
+export const oauthCredentialEnv = {
+  clientId: "SERVICE_GOOGLE_ID",
+  clientSecret: "SERVICE_GOOGLE_SECRET",
+} as const
+
 const SCOPE = [
   "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive",
@@ -29,8 +34,8 @@ export const plugin = defineOAuthPlugin({
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     scope: SCOPE,
-    clientIdEnv: "SERVICE_GOOGLE_ID",
-    clientSecretEnv: "SERVICE_GOOGLE_SECRET",
+    clientIdEnv: oauthCredentialEnv.clientId,
+    clientSecretEnv: oauthCredentialEnv.clientSecret,
     defaultExpiresInSec: 3600,
     authStyle: "body",
   },

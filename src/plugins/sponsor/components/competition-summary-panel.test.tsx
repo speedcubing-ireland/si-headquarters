@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest"
 import { renderToStaticMarkup } from "react-dom/server"
 import { AuctionCompetitionSummaryPanel } from "./competition-summary-panel"
-import { formatDate, formatDateRange } from "./competition-summary-format"
+import { formatDate, formatDateRange } from "@/lib/format/irish-dates"
 
 const irishDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-IE", {
@@ -38,29 +38,14 @@ describe("formatDate", () => {
 })
 
 describe("formatDateRange", () => {
-  const base = {
-    name: "Test",
-    address: "Dublin",
-    competitorLimit: 100,
-    eventIds: [],
-  }
-
   test("returns a single date when start equals end", () => {
-    const result = formatDateRange({
-      ...base,
-      startDate: "2026-01-31",
-      endDate: "2026-01-31",
-    })
+    const result = formatDateRange("2026-01-31", "2026-01-31")
     expect(result).toBe(irishDate("2026-01-31"))
     expect(result).not.toContain(" to ")
   })
 
   test("returns range string when start differs from end", () => {
-    const result = formatDateRange({
-      ...base,
-      startDate: "2026-01-31",
-      endDate: "2026-02-01",
-    })
+    const result = formatDateRange("2026-01-31", "2026-02-01")
     expect(result).toContain(" to ")
     expect(result).not.toContain("/")
   })

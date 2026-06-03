@@ -3,8 +3,9 @@ import { ArrowRight, Calendar } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import type { SponsorshipCompetitionSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { formatDateRange } from "@/lib/format/irish-dates"
 import { cn } from "@/lib/utils"
-import { formatDateRange } from "@/plugins/sponsor/components/competition-summary-format"
 import {
   sponsorshipLifecycleBadgeVariant,
   sponsorshipLifecycleStatusText,
@@ -13,7 +14,10 @@ import {
 
 export interface SponsoredCompetitionCardProps {
   competitionName: string
-  competitionSummary: Parameters<typeof formatDateRange>[0]
+  competitionSummary: Pick<
+    SponsorshipCompetitionSummary,
+    "startDate" | "endDate"
+  >
   lifecycle: SponsorshipLifecycle
   managementAuctionId: string
 }
@@ -42,7 +46,10 @@ export function SponsoredCompetitionCard({
   lifecycle,
   managementAuctionId,
 }: SponsoredCompetitionCardProps) {
-  const eventDates = formatDateRange(competitionSummary)
+  const eventDates = formatDateRange(
+    competitionSummary.startDate,
+    competitionSummary.endDate
+  )
   const statusText = sponsorshipLifecycleStatusText(
     lifecycle,
     competitionSummary.startDate
@@ -52,7 +59,7 @@ export function SponsoredCompetitionCard({
     <Link
       to="/sponsor/auctions/$auctionId"
       params={{ auctionId: managementAuctionId }}
-      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="block rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
     >
       <Card
         className={cn(
@@ -74,10 +81,7 @@ export function SponsoredCompetitionCard({
                 </p>
                 <Badge
                   variant={sponsorshipLifecycleBadgeVariant(lifecycle)}
-                  className={cn(
-                    "shrink-0",
-                    lifecycleBadgeClassName(lifecycle)
-                  )}
+                  className={cn("shrink-0", lifecycleBadgeClassName(lifecycle))}
                 >
                   {statusText}
                 </Badge>

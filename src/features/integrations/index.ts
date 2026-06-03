@@ -11,6 +11,7 @@ export { LinkIdPopover } from "@/features/integrations/link-id-popover"
 export { LinkResourcePicker } from "@/features/integrations/link-resource-picker"
 export {
   useAsyncAction,
+  useAsyncLoad,
   useLinkAction,
   useTaggedAsyncAction,
 } from "@/features/integrations/use-async-action"

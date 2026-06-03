@@ -25,7 +25,6 @@ import { SidebarTeamsNav } from "./sidebar-teams-nav"
 import { SidebarUser } from "./layout-sidebar-user"
 import { UserImpersonationBanner } from "@/features/impersonation/impersonation-banner"
 import { PLUGINS } from "@/plugins/registry"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { Can } from "@/features/auth"
 import { useAdminAccess } from "@/features/admin/use-admin-access"
 
@@ -89,10 +88,6 @@ function SidebarTitle() {
 }
 
 function SidebarPluginLinks() {
-  if (!isSponsorshipEnabled) {
-    return null
-  }
-
   const pluginNav = PLUGINS.flatMap((plugin) => plugin.nav)
   if (pluginNav.length === 0) {
     return null

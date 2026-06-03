@@ -21,7 +21,9 @@ import { Route as SponsorImpersonateRouteImport } from './routes/sponsor/imperso
 import { Route as SponsorGuideRouteImport } from './routes/sponsor/guide'
 import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
 import { Route as Sponsor404RouteImport } from './routes/sponsor/404'
+import { Route as PluginsWca2faRouteImport } from './routes/plugins/wca-2fa'
 import { Route as PluginsSponsorshipRouteImport } from './routes/plugins/sponsorship'
+import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-media'
 import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AdminImpersonationRouteImport } from './routes/admin/impersonation'
@@ -88,9 +90,19 @@ const Sponsor404Route = Sponsor404RouteImport.update({
   path: '/sponsor/404',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PluginsWca2faRoute = PluginsWca2faRouteImport.update({
+  id: '/plugins/wca-2fa',
+  path: '/plugins/wca-2fa',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PluginsSponsorshipRoute = PluginsSponsorshipRouteImport.update({
   id: '/plugins/sponsorship',
   path: '/plugins/sponsorship',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsSocialMediaRoute = PluginsSocialMediaRouteImport.update({
+  id: '/plugins/social-media',
+  path: '/plugins/social-media',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
@@ -125,7 +137,9 @@ export interface FileRoutesByFullPath {
   '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
+  '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
+  '/plugins/wca-2fa': typeof PluginsWca2faRoute
   '/sponsor/404': typeof Sponsor404Route
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/guide': typeof SponsorGuideRoute
@@ -145,7 +159,9 @@ export interface FileRoutesByTo {
   '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
+  '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
+  '/plugins/wca-2fa': typeof PluginsWca2faRoute
   '/sponsor/404': typeof Sponsor404Route
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/guide': typeof SponsorGuideRoute
@@ -166,7 +182,9 @@ export interface FileRoutesById {
   '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
+  '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
+  '/plugins/wca-2fa': typeof PluginsWca2faRoute
   '/sponsor/404': typeof Sponsor404Route
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/guide': typeof SponsorGuideRoute
@@ -188,7 +206,9 @@ export interface FileRouteTypes {
     | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
+    | '/plugins/social-media'
     | '/plugins/sponsorship'
+    | '/plugins/wca-2fa'
     | '/sponsor/404'
     | '/sponsor/auctions'
     | '/sponsor/guide'
@@ -208,7 +228,9 @@ export interface FileRouteTypes {
     | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
+    | '/plugins/social-media'
     | '/plugins/sponsorship'
+    | '/plugins/wca-2fa'
     | '/sponsor/404'
     | '/sponsor/auctions'
     | '/sponsor/guide'
@@ -228,7 +250,9 @@ export interface FileRouteTypes {
     | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
+    | '/plugins/social-media'
     | '/plugins/sponsorship'
+    | '/plugins/wca-2fa'
     | '/sponsor/404'
     | '/sponsor/auctions'
     | '/sponsor/guide'
@@ -249,7 +273,9 @@ export interface RootRouteChildren {
   AdminImpersonationRoute: typeof AdminImpersonationRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   ImpersonateUserRoute: typeof ImpersonateUserRoute
+  PluginsSocialMediaRoute: typeof PluginsSocialMediaRoute
   PluginsSponsorshipRoute: typeof PluginsSponsorshipRoute
+  PluginsWca2faRoute: typeof PluginsWca2faRoute
   Sponsor404Route: typeof Sponsor404Route
   SponsorAuctionsRoute: typeof SponsorAuctionsRouteWithChildren
   SponsorGuideRoute: typeof SponsorGuideRoute
@@ -350,11 +376,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Sponsor404RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plugins/wca-2fa': {
+      id: '/plugins/wca-2fa'
+      path: '/plugins/wca-2fa'
+      fullPath: '/plugins/wca-2fa'
+      preLoaderRoute: typeof PluginsWca2faRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/plugins/sponsorship': {
       id: '/plugins/sponsorship'
       path: '/plugins/sponsorship'
       fullPath: '/plugins/sponsorship'
       preLoaderRoute: typeof PluginsSponsorshipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins/social-media': {
+      id: '/plugins/social-media'
+      path: '/plugins/social-media'
+      fullPath: '/plugins/social-media'
+      preLoaderRoute: typeof PluginsSocialMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/impersonate/user': {
@@ -412,7 +452,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminImpersonationRoute: AdminImpersonationRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   ImpersonateUserRoute: ImpersonateUserRoute,
+  PluginsSocialMediaRoute: PluginsSocialMediaRoute,
   PluginsSponsorshipRoute: PluginsSponsorshipRoute,
+  PluginsWca2faRoute: PluginsWca2faRoute,
   Sponsor404Route: Sponsor404Route,
   SponsorAuctionsRoute: SponsorAuctionsRouteWithChildren,
   SponsorGuideRoute: SponsorGuideRoute,

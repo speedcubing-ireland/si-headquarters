@@ -45,7 +45,7 @@ const schema = defineSchema(
     competitions: defineTable({
       ...competitionsCoreFields,
       ...sponsorCompetitionFields,
-    }),
+    }).index("by_wcaCompetitionId", ["wcaCompetitionId"]),
     competitionWeekendSlots: defineTable(competitionWeekendSlotFields)
       .index("by_year", ["year"])
       .index("by_year_and_weekendStart", ["year", "weekendStart"]),

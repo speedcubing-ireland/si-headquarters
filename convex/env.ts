@@ -7,10 +7,14 @@ function requiredStrings(keys: readonly string[]) {
 }
 
 const PLUGIN_ENV_KEYS = Array.from(
-  new Set(INTEGRATION_PLUGINS.flatMap((plugin) => plugin.env ?? []))
+  new Set(
+    INTEGRATION_PLUGINS.flatMap((plugin) => ("env" in plugin ? plugin.env : []))
+  )
 )
 
 export const convexEnv = {
+  ...requiredStrings(OAUTH_ENV_KEYS),
+  ...requiredStrings(PLUGIN_ENV_KEYS),
   CLI_AUTH_TOKEN: v.string(),
   SPONSOR_BETTER_AUTH_SECRET: v.string(),
   BETTER_AUTH_SECRET: v.optional(v.string()),
@@ -20,6 +24,4 @@ export const convexEnv = {
   CORS_ALLOWED_ORIGINS: v.optional(v.string()),
   SPONSORSHIP_EMAIL_SENDER_ADDRESS: v.optional(v.string()),
   RESEND_TEST_MODE: v.optional(v.union(v.literal("true"), v.literal("false"))),
-  ...requiredStrings(OAUTH_ENV_KEYS),
-  ...requiredStrings(PLUGIN_ENV_KEYS),
 }

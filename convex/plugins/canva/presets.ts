@@ -1,5 +1,9 @@
 import { env } from "@/convex/_generated/server"
 import {
+  requireConvexEnv,
+  type ConvexEnvSource,
+} from "@/convex/envTypes"
+import {
   TASK_INTEGRATION_DEFINITIONS,
   type TaskIntegrationIdFromDefinitions,
 } from "@/convex/plugins/core/constants"
@@ -9,11 +13,12 @@ const CANVA_PRESET_IDS = [
   "canva.lanyards",
 ] as const satisfies readonly TaskIntegrationIdFromDefinitions[]
 
+type CanvaPresetDefinition =
+  (typeof TASK_INTEGRATION_DEFINITIONS)[(typeof CANVA_PRESET_IDS)[number]]
+
 export type CanvaEnvKey =
-  | "CANVA_CERT_TEMPLATE_ID"
-  | "CANVA_CERT_OUTPUT_FOLDER_ID"
-  | "CANVA_LANYARD_TEMPLATE_ID"
-  | "CANVA_LANYARD_OUTPUT_FOLDER_ID"
+  | CanvaPresetDefinition["canva"]["sourceBrandTemplateEnv"]
+  | CanvaPresetDefinition["canva"]["destinationFolderEnv"]
 
 export interface CanvaPreset {
   id: (typeof CANVA_PRESET_IDS)[number]
@@ -36,7 +41,7 @@ export const CANVA_PRESETS = CANVA_PRESET_IDS.map((id) => {
 
 export type CanvaPresetId = (typeof CANVA_PRESETS)[number]["id"]
 
-export type CanvaEnvSource = Record<CanvaEnvKey, string | undefined>
+export type CanvaEnvSource = ConvexEnvSource<CanvaEnvKey>
 
 const presetById = new Map<string, CanvaPreset>(
   CANVA_PRESETS.map((preset) => [preset.id, preset])
@@ -55,13 +60,11 @@ export function requireCanvaEnv(
   preset: CanvaPreset,
   source: CanvaEnvSource = env
 ): string {
-  const value = source[envKey]
-  if (value === undefined || value === "") {
-    throw new Error(
-      `Canva preset "${preset.id}" requires Convex env ${envKey} to be set.`
-    )
-  }
-  return value
+  return requireConvexEnv(
+    envKey,
+    `Canva preset "${preset.id}" requires Convex env ${envKey} to be set.`,
+    source
+  )
 }
 
 export function resolveCanvaPresetEnv(

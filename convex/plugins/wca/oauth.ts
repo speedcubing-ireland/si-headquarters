@@ -1,5 +1,10 @@
 import { defineOAuthPlugin, type OAuthPluginMeta } from "../oauthProvider"
 
+export const oauthCredentialEnv = {
+  clientId: "SERVICE_WCA_ID",
+  clientSecret: "SERVICE_WCA_SECRET",
+} as const
+
 export const WCA_BASE_URL = "https://www.worldcubeassociation.org"
 
 export const meta = {
@@ -24,8 +29,8 @@ export const plugin = defineOAuthPlugin({
     authorizationUrl: `${WCA_BASE_URL}/oauth/authorize`,
     tokenUrl: `${WCA_BASE_URL}/oauth/token`,
     scope: "public email manage_competitions",
-    clientIdEnv: "SERVICE_WCA_ID",
-    clientSecretEnv: "SERVICE_WCA_SECRET",
+    clientIdEnv: oauthCredentialEnv.clientId,
+    clientSecretEnv: oauthCredentialEnv.clientSecret,
     defaultExpiresInSec: 7200,
     authStyle: "body",
     expiryFromCreatedAt: true,
