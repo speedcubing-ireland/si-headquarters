@@ -134,6 +134,7 @@ export async function sendAuctionStartedEmails(
   })
 }
 
+/** Eligibility (skip when bid already in good shape) is enforced in `_fireReminder`. */
 export async function sendAuctionActiveReminderEmail(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">,

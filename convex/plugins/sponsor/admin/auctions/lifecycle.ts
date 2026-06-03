@@ -6,6 +6,7 @@ import { internal } from "@/convex/_generated/api"
 import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import { resolveAuctionOutcome } from "../../lib/auctionState"
 import { resolveAuctionStartTargetState } from "../../lib/lifecycle"
+import { shouldSkipAuctionActiveReminder } from "../../lib/sponsorBidStatus"
 import {
   requireNoOpenAuctionForCompetition,
   type SponsorshipReadinessSnapshot,
@@ -184,6 +185,23 @@ export const _fireReminder = internalMutation({
       return null
     }
     if (now >= reminderAuction.endsAt) {
+      await markReminderSkipped(ctx, reminder._id)
+      return null
+    }
+    const intents = await ctx.db
+      .query("sponsorshipBidIntents")
+      .withIndex("by_auction_and_sponsor", (q) =>
+        q.eq("auctionId", reminder.auctionId).eq("sponsorId", reminder.sponsorId)
+      )
+      .collect()
+    const hasSponsorValidBid = intents.some((intent) => intent.isValid)
+    if (
+      shouldSkipAuctionActiveReminder({
+        auction: reminderAuction,
+        sponsorId: sponsor._id,
+        hasSponsorValidBid,
+      })
+    ) {
       await markReminderSkipped(ctx, reminder._id)
       return null
     }

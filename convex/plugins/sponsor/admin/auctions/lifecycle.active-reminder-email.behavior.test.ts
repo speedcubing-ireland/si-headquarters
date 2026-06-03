@@ -446,6 +446,143 @@ describe("auction active reminder email behavior", () => {
     expect(rows[0]?.sentAt).toBeUndefined()
   })
 
+  test("sealed auction with valid bid: reminder skipped without email", async () => {
+    const t = createHarness()
+    const { auctionId, sponsorIds } = await seedScheduledAuction(t)
+    const [sponsorId] = sponsorIds
+    const now = Date.now()
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("sponsorshipAuctions", auctionId, {
+        state: "active",
+        framework: "first_sealed",
+        endsAt: now + 30 * 60_000,
+      })
+      await ctx.db.insert("sponsorshipBidIntents", {
+        auctionId,
+        sponsorId,
+        mode: "manual",
+        amountCents: 50_000,
+        isValid: true,
+        createdAt: now,
+      })
+      await ctx.db.insert("sponsorshipAuctionReminders", {
+        auctionId,
+        sponsorId,
+        scheduledFor: now - 1_000,
+        sent: false,
+      })
+    })
+
+    await firePendingRemindersForAuction(t, auctionId)
+
+    const emails = await getScheduledEmailArgs(t)
+    expect(
+      emails.filter((e) => e.emailType === "auction_active_reminder")
+    ).toHaveLength(0)
+
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+        .collect()
+    )
+    expect(rows[0]?.sent).toBe(true)
+    expect(rows[0]?.sentAt).toBeUndefined()
+  })
+
+  test("proxy auction when winning: reminder skipped without email", async () => {
+    const t = createHarness()
+    const { auctionId, sponsorIds } = await seedScheduledAuction(t)
+    const [winningSponsorId] = sponsorIds
+    const now = Date.now()
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("sponsorshipAuctions", auctionId, {
+        state: "active",
+        framework: "ebay_proxy",
+        currentLeaderSponsorId: winningSponsorId,
+        endsAt: now + 30 * 60_000,
+      })
+      await ctx.db.insert("sponsorshipBidIntents", {
+        auctionId,
+        sponsorId: winningSponsorId,
+        mode: "manual",
+        amountCents: 50_000,
+        isValid: true,
+        createdAt: now,
+      })
+      await ctx.db.insert("sponsorshipAuctionReminders", {
+        auctionId,
+        sponsorId: winningSponsorId,
+        scheduledFor: now - 1_000,
+        sent: false,
+      })
+    })
+
+    await firePendingRemindersForAuction(t, auctionId)
+
+    const emails = await getScheduledEmailArgs(t)
+    expect(
+      emails.filter((e) => e.emailType === "auction_active_reminder")
+    ).toHaveLength(0)
+
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+        .collect()
+    )
+    expect(rows[0]?.sent).toBe(true)
+    expect(rows[0]?.sentAt).toBeUndefined()
+  })
+
+  test("proxy auction when outbid: reminder still sent", async () => {
+    const t = createHarness()
+    const { auctionId, sponsorIds } = await seedScheduledAuction(t)
+    const [outbidSponsorId, leaderSponsorId] = sponsorIds
+    const now = Date.now()
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("sponsorshipAuctions", auctionId, {
+        state: "active",
+        framework: "ebay_proxy",
+        currentLeaderSponsorId: leaderSponsorId,
+        endsAt: now + 30 * 60_000,
+      })
+      await ctx.db.insert("sponsorshipBidIntents", {
+        auctionId,
+        sponsorId: outbidSponsorId,
+        mode: "manual",
+        amountCents: 40_000,
+        isValid: true,
+        createdAt: now,
+      })
+      await ctx.db.insert("sponsorshipAuctionReminders", {
+        auctionId,
+        sponsorId: outbidSponsorId,
+        scheduledFor: now - 1_000,
+        sent: false,
+      })
+    })
+
+    await firePendingRemindersForAuction(t, auctionId)
+
+    const emails = await getScheduledEmailArgs(t)
+    expect(
+      emails.filter((e) => e.emailType === "auction_active_reminder")
+    ).toHaveLength(1)
+
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+        .collect()
+    )
+    expect(rows[0]?.sent).toBe(true)
+    expect(rows[0]?.sentAt).toBeDefined()
+  })
+
   test("personalisation: sponsorHasBid correct per sponsor", async () => {
     const t = createHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
@@ -455,6 +592,7 @@ describe("auction active reminder email behavior", () => {
     await t.run(async (ctx) => {
       await ctx.db.patch("sponsorshipAuctions", auctionId, {
         state: "active",
+        framework: "ebay_proxy",
         endsAt: now + 30 * 60_000,
       })
       await ctx.db.insert("sponsorshipBidIntents", {

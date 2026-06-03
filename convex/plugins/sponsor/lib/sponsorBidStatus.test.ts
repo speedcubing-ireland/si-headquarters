@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { resolveSponsorBidStatus } from "./sponsorBidStatus"
+import {
+  resolveSponsorBidStatus,
+  shouldSkipAuctionActiveReminder,
+} from "./sponsorBidStatus"
 
 const sponsorId = "sponsor1" as Id<"sponsors">
 
@@ -101,5 +104,55 @@ describe("resolveSponsorBidStatus", () => {
         hasSponsorValidBid: false,
       })
     ).toBeUndefined()
+  })
+})
+
+describe("shouldSkipAuctionActiveReminder", () => {
+  test("sealed and vickrey: skip when sponsor has valid bid", () => {
+    for (const framework of ["first_sealed", "vickrey"] as const) {
+      expect(
+        shouldSkipAuctionActiveReminder({
+          auction: auction({ framework }),
+          sponsorId,
+          hasSponsorValidBid: true,
+        })
+      ).toBe(true)
+    }
+  })
+
+  test("sealed and vickrey: do not skip without bid", () => {
+    for (const framework of ["first_sealed", "vickrey"] as const) {
+      expect(
+        shouldSkipAuctionActiveReminder({
+          auction: auction({ framework }),
+          sponsorId,
+          hasSponsorValidBid: false,
+        })
+      ).toBe(false)
+    }
+  })
+
+  test("proxy: skip when sponsor is current leader", () => {
+    expect(
+      shouldSkipAuctionActiveReminder({
+        auction: auction({
+          currentLeaderSponsorId: sponsorId,
+        }),
+        sponsorId,
+        hasSponsorValidBid: true,
+      })
+    ).toBe(true)
+  })
+
+  test("proxy: do not skip when outbid even with valid bid", () => {
+    expect(
+      shouldSkipAuctionActiveReminder({
+        auction: auction({
+          currentLeaderSponsorId: "other" as Id<"sponsors">,
+        }),
+        sponsorId,
+        hasSponsorValidBid: true,
+      })
+    ).toBe(false)
   })
 })
