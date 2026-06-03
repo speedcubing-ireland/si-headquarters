@@ -27,10 +27,7 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Page } from "@/components/layout/page"
 import { formatDateTime } from "@/plugins/sponsor/lib/sponsorship-ui"
-import {
-  type AdminUser,
-  userDisplayName,
-} from "@/features/admin/users/utils"
+import { type AdminUser, userDisplayName } from "@/features/admin/users/utils"
 
 type ImpersonationLink = FunctionReturnType<
   typeof api.impersonation.mutations.createUserLink
@@ -38,6 +35,10 @@ type ImpersonationLink = FunctionReturnType<
 
 type SponsorOption = FunctionReturnType<
   typeof api.plugins.sponsor.admin.sponsors.list
+>[number]
+
+type SponsorContactOption = FunctionReturnType<
+  typeof api.plugins.sponsor.admin.contacts.listBySponsor
 >[number]
 
 function GeneratedLinkPanel({ link }: { link: ImpersonationLink | null }) {
@@ -94,6 +95,7 @@ function ImpersonationLinkCard({
   busy,
   link,
   children,
+  canCreate: canCreateOverride,
 }: {
   title: string
   description: string
@@ -104,9 +106,10 @@ function ImpersonationLinkCard({
   onCreate: () => void
   busy: boolean
   link: ImpersonationLink | null
+  canCreate?: boolean
   children: ReactNode
 }) {
-  const canCreate = reason.trim().length >= 3 && !busy
+  const canCreate = (canCreateOverride ?? reason.trim().length >= 3) && !busy
 
   return (
     <Card>
@@ -152,6 +155,12 @@ export function AdminImpersonationPage() {
   const [selectedSponsor, setSelectedSponsor] = useState<SponsorOption | null>(
     null
   )
+  const [selectedContact, setSelectedContact] =
+    useState<SponsorContactOption | null>(null)
+  const sponsorContacts = useQuery(
+    api.plugins.sponsor.admin.contacts.listBySponsor,
+    selectedSponsor !== null ? { sponsorId: selectedSponsor.id } : "skip"
+  )
   const [userReason, setUserReason] = useState("")
   const [sponsorReason, setSponsorReason] = useState("")
   const [userLink, setUserLink] = useState<ImpersonationLink | null>(null)
@@ -171,14 +180,48 @@ export function AdminImpersonationPage() {
   const sponsorOptions = useMemo(
     () =>
       (sponsors ?? [])
-        .filter((sponsor) => sponsor.active && sponsor.hasAuthAccount)
+        .filter((sponsor) => sponsor.active)
         .sort((left, right) => left.name.localeCompare(right.name)),
     [sponsors]
   )
 
+  const impersonatableContacts = useMemo(
+    () =>
+      (sponsorContacts ?? [])
+        .filter(
+          (contact) =>
+            contact.active && contact.portalAccess && contact.hasAuthAccount
+        )
+        .sort((left, right) => {
+          if (left.isPrimary !== right.isPrimary) return left.isPrimary ? -1 : 1
+          return left.name.localeCompare(right.name)
+        }),
+    [sponsorContacts]
+  )
+
+  const selectedSponsorContact = useMemo<SponsorContactOption | null>(() => {
+    if (selectedSponsor === null || impersonatableContacts.length === 0) {
+      return null
+    }
+    const current =
+      selectedContact === null
+        ? undefined
+        : impersonatableContacts.find(
+            (contact) => contact.id === selectedContact.id
+          )
+    return (
+      current ??
+      impersonatableContacts.find((contact) => contact.isPrimary) ??
+      impersonatableContacts[0]
+    )
+  }, [impersonatableContacts, selectedContact, selectedSponsor])
+
   if (users === undefined || sponsors === undefined) {
     return <Page.Status variant="loading" message="Loading impersonation..." />
   }
+
+  const canCreateSponsorLink =
+    sponsorReason.trim().length >= 3 && selectedSponsorContact !== null
 
   const createLink = async (
     kind: "user" | "sponsor",
@@ -284,7 +327,7 @@ export function AdminImpersonationPage() {
 
       <ImpersonationLinkCard
         title="Sponsors"
-        description="Generate a one-time sponsor portal link for an active sponsor."
+        description="Generate a one-time sponsor portal link for a specific sponsor contact with portal access."
         targetFieldId="sponsor-id"
         reasonId="sponsor-reason"
         reason={sponsorReason}
@@ -293,50 +336,106 @@ export function AdminImpersonationPage() {
           setSponsorLink(null)
         }}
         onCreate={() => {
-          if (selectedSponsor === null) {
+          if (selectedSponsor === null || selectedSponsorContact === null) {
             return
           }
           void createLink("sponsor", () =>
             createSponsorLink({
               sponsorId: selectedSponsor.id,
+              contactId: selectedSponsorContact.id,
               reason: sponsorReason,
             })
           )
         }}
         busy={busy === "sponsor"}
         link={sponsorLink}
+        canCreate={canCreateSponsorLink}
       >
-        <Combobox
-          items={sponsorOptions}
-          itemToStringLabel={(sponsor) => `${sponsor.name} (${sponsor.email})`}
-          isItemEqualToValue={(left, right) => left.id === right.id}
-          value={selectedSponsor}
-          onValueChange={(sponsor) => {
-            setSelectedSponsor(sponsor)
-            setSponsorLink(null)
-          }}
-        >
-          <ComboboxInput
-            id="sponsor-id"
-            className="w-full"
-            placeholder="Search sponsors..."
-            showClear
-          />
-          <ComboboxContent>
-            <ComboboxEmpty>No sponsors found.</ComboboxEmpty>
-            <ComboboxList>
-              <ComboboxCollection>
-                {(sponsor: SponsorOption) => (
-                  <ComboboxItem key={sponsor.id} value={sponsor}>
-                    <span className="min-w-0 truncate">
-                      {sponsor.name} ({sponsor.email})
-                    </span>
-                  </ComboboxItem>
-                )}
-              </ComboboxCollection>
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+        <div className="space-y-3">
+          <Combobox
+            items={sponsorOptions}
+            itemToStringLabel={(sponsor) =>
+              `${sponsor.name} (${sponsor.email})`
+            }
+            isItemEqualToValue={(left, right) => left.id === right.id}
+            value={selectedSponsor}
+            onValueChange={(sponsor) => {
+              setSelectedSponsor(sponsor)
+              setSelectedContact(null)
+              setSponsorLink(null)
+            }}
+          >
+            <ComboboxInput
+              id="sponsor-id"
+              className="w-full"
+              placeholder="Search sponsors..."
+              showClear
+            />
+            <ComboboxContent>
+              <ComboboxEmpty>No sponsors found.</ComboboxEmpty>
+              <ComboboxList>
+                <ComboboxCollection>
+                  {(sponsor: SponsorOption) => (
+                    <ComboboxItem key={sponsor.id} value={sponsor}>
+                      <span className="min-w-0 truncate">
+                        {sponsor.name} ({sponsor.email})
+                      </span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+          {selectedSponsor !== null ? (
+            <Field>
+              <FieldLabel htmlFor="sponsor-contact-id">Contact</FieldLabel>
+              {sponsorContacts === undefined ? (
+                <p className="text-sm text-muted-foreground">
+                  Loading contacts...
+                </p>
+              ) : impersonatableContacts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No contacts with portal access for this sponsor.
+                </p>
+              ) : (
+                <Combobox
+                  items={impersonatableContacts}
+                  itemToStringLabel={(contact) =>
+                    `${contact.name} (${contact.email})${contact.isPrimary ? " — primary" : ""}`
+                  }
+                  isItemEqualToValue={(left, right) => left.id === right.id}
+                  value={selectedSponsorContact}
+                  onValueChange={(contact) => {
+                    setSelectedContact(contact)
+                    setSponsorLink(null)
+                  }}
+                >
+                  <ComboboxInput
+                    id="sponsor-contact-id"
+                    className="w-full"
+                    placeholder="Search contacts..."
+                    showClear
+                  />
+                  <ComboboxContent>
+                    <ComboboxEmpty>No portal contacts found.</ComboboxEmpty>
+                    <ComboboxList>
+                      <ComboboxCollection>
+                        {(contact: SponsorContactOption) => (
+                          <ComboboxItem key={contact.id} value={contact}>
+                            <span className="min-w-0 truncate">
+                              {contact.name} ({contact.email})
+                              {contact.isPrimary ? " — primary" : ""}
+                            </span>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              )}
+            </Field>
+          ) : null}
+        </div>
       </ImpersonationLinkCard>
     </div>
   )

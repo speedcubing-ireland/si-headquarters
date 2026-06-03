@@ -45,6 +45,23 @@ function makePortalCtx(input: { auction: AuctionDoc; intents?: IntentDoc[] }) {
   const now = Date.now()
   const sponsorId = "sponsor1"
   const authUserId = "auth-user-1"
+  const primaryContact = {
+    _id: "contact-1" as Id<"sponsorContacts">,
+    _creationTime: now,
+    sponsorId: sponsorId as Id<"sponsors">,
+    name: "Sponsor",
+    email: "sponsor@example.com",
+    emailNormalized: "sponsor@example.com",
+    authUserId,
+    active: true,
+    isPrimary: true,
+    receivesCc: false,
+    portalAccess: true,
+    canBid: true,
+    createdById: "u1" as Id<"users">,
+    updatedById: "u1" as Id<"users">,
+    updatedAt: now,
+  }
 
   const ctx = {
     runQuery: async (_ref: unknown, args: Record<string, unknown>) => {
@@ -72,6 +89,14 @@ function makePortalCtx(input: { auction: AuctionDoc; intents?: IntentDoc[] }) {
     },
     db: {
       query: (table: string) => {
+        if (table === "sponsorContacts") {
+          return {
+            withIndex: () => ({
+              unique: async () => primaryContact,
+              collect: async () => [primaryContact],
+            }),
+          }
+        }
         if (table === "sponsors") {
           return {
             withIndex: () => ({
@@ -118,6 +143,21 @@ function makePortalCtx(input: { auction: AuctionDoc; intents?: IntentDoc[] }) {
       get: async (table: string, id: string) => {
         if (table === "sponsorshipAuctions" && id === input.auction._id) {
           return input.auction
+        }
+        if (table === "sponsors" && id === sponsorId) {
+          return {
+            _id: sponsorId,
+            name: "Sponsor",
+            email: "sponsor@example.com",
+            emailNormalized: "sponsor@example.com",
+            avatarUrl: undefined,
+            authUserId,
+            lastAccessEmailSentAt: undefined,
+            active: true,
+            createdById: "u1",
+            updatedById: "u1",
+            updatedAt: now,
+          }
         }
         return null
       },
@@ -167,6 +207,23 @@ function makeProxyPortalCtx(input: {
   const now = Date.now()
   const sponsorId = "sponsor1"
   const authUserId = "auth-user-1"
+  const primaryContact = {
+    _id: "contact-1" as Id<"sponsorContacts">,
+    _creationTime: now,
+    sponsorId: sponsorId as Id<"sponsors">,
+    name: "Sponsor",
+    email: "sponsor@example.com",
+    emailNormalized: "sponsor@example.com",
+    authUserId,
+    active: true,
+    isPrimary: true,
+    receivesCc: false,
+    portalAccess: true,
+    canBid: true,
+    createdById: "u1" as Id<"users">,
+    updatedById: "u1" as Id<"users">,
+    updatedAt: now,
+  }
 
   const ctx = {
     runQuery: async (_ref: unknown, args: Record<string, unknown>) => {
@@ -194,6 +251,14 @@ function makeProxyPortalCtx(input: {
     },
     db: {
       query: (table: string) => {
+        if (table === "sponsorContacts") {
+          return {
+            withIndex: () => ({
+              unique: async () => primaryContact,
+              collect: async () => [primaryContact],
+            }),
+          }
+        }
         if (table === "sponsors") {
           return {
             withIndex: () => ({

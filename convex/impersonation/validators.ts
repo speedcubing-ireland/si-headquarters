@@ -16,6 +16,7 @@ export const impersonationTarget = v.union(
     type: v.literal("sponsor"),
     sponsorId: v.id("sponsors"),
     sponsorAuthUserId: v.string(),
+    contactId: v.optional(v.id("sponsorContacts")),
   })
 )
 

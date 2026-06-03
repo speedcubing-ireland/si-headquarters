@@ -51,9 +51,14 @@ export const sendSponsorshipEmailBatch = internalAction({
         buildSponsorshipEmailPlainText(buildInput),
       ])
 
+      const cc =
+        recipient.cc?.map((address) => normalizeEmail(address)).filter(
+          (address) => address.length > 0 && address !== recipientEmail
+        ) ?? []
       await resend.sendEmail(ctx, {
         from,
         to: recipientEmail,
+        ...(cc.length > 0 ? { cc } : {}),
         subject: args.subject,
         html: htmlBody,
         text: plainTextBody,

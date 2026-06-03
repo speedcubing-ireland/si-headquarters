@@ -41,7 +41,7 @@ describe("sponsor portal profile auth", () => {
       return typeof name === "string" ? name : undefined
     })()
 
-    expect(me?.name).toBe("Updated Portal Name")
+    expect(me?.sponsor.name).toBe("Updated Portal Name")
     expect(sponsorDoc?.name).toBe("Canonical Sponsor Ltd")
     expect(sponsorAuthUserName).toBe("Updated Portal Name")
   })

@@ -13,6 +13,7 @@ import {
 type AuctionDoc = Doc<"sponsorshipAuctions">
 type CompetitionDoc = Doc<"competitions">
 type SponsorDoc = Doc<"sponsors">
+type ContactDoc = Doc<"sponsorContacts">
 type InviteDoc = Doc<"sponsorshipAuctionInvites">
 
 function makeAuction(overrides: Partial<AuctionDoc> = {}): AuctionDoc {
@@ -95,10 +96,34 @@ function makeInvite(auctionId: string, sponsorId: string): InviteDoc {
   }
 }
 
+function makePrimaryContact(
+  sponsor: SponsorDoc,
+  overrides: Partial<ContactDoc> = {}
+): ContactDoc {
+  return {
+    _id: `contact-${sponsor._id}` as ContactDoc["_id"],
+    _creationTime: Date.now(),
+    sponsorId: sponsor._id,
+    name: sponsor.name,
+    email: sponsor.email,
+    emailNormalized: sponsor.emailNormalized,
+    active: true,
+    isPrimary: true,
+    receivesCc: false,
+    portalAccess: true,
+    canBid: true,
+    createdById: sponsor.createdById,
+    updatedById: sponsor.updatedById,
+    updatedAt: Date.now(),
+    ...overrides,
+  }
+}
+
 function createEmailCtx(input: {
   competition: CompetitionDoc | null
   invites: InviteDoc[]
   sponsors: Map<string, SponsorDoc>
+  extraContacts?: ContactDoc[]
 }) {
   const scheduledCalls: {
     delayMs: number
@@ -119,6 +144,36 @@ function createEmailCtx(input: {
             withIndex: () => ({
               collect: async () => input.invites,
             }),
+          }
+        }
+        if (table === "sponsorContacts") {
+          return {
+            withIndex: (
+              _index: string,
+              indexFn: (q: { eq: (field: string, value: string) => void }) => void
+            ) => {
+              const eqState = { field: "", value: "" }
+              indexFn({
+                eq: (field: string, value: string) => {
+                  eqState.field = field
+                  eqState.value = value
+                },
+              })
+              return {
+                collect: async () => {
+                  if (eqState.field !== "sponsorId") return []
+                  const sponsor = input.sponsors.get(eqState.value)
+                  if (!sponsor) return []
+                  const primary = makePrimaryContact(sponsor)
+                  const extras =
+                    input.extraContacts?.filter(
+                      (contact) => contact.sponsorId === sponsor._id
+                    ) ?? []
+                  return [primary, ...extras]
+                },
+                unique: async () => null,
+              }
+            },
           }
         }
         throw new Error(`Unexpected query table: ${table}`)
@@ -186,6 +241,47 @@ describe("sendAuctionScheduledEmails", () => {
     expect(args.context.startsAt).toBe(auction.startsAt)
     expect(args.context.endsAt).toBe(auction.endsAt)
     expect(args.context.portalUrl).toContain(String(auction._id))
+  })
+
+  test("includes active CC contacts on auction lifecycle emails", async () => {
+    const auction = makeAuction()
+    const competition = makeCompetition()
+    const sponsorA = makeSponsor("sA")
+    const ccContact = makePrimaryContact(sponsorA, {
+      _id: "contact-cc" as ContactDoc["_id"],
+      name: "CC Person",
+      email: "cc@example.com",
+      emailNormalized: "cc@example.com",
+      isPrimary: false,
+      receivesCc: true,
+      portalAccess: false,
+      canBid: false,
+    })
+    const inactiveCc = makePrimaryContact(sponsorA, {
+      _id: "contact-inactive" as ContactDoc["_id"],
+      name: "Inactive CC",
+      email: "inactive@example.com",
+      emailNormalized: "inactive@example.com",
+      isPrimary: false,
+      receivesCc: true,
+      active: false,
+    })
+
+    const { ctx, scheduledCalls } = createEmailCtx({
+      competition,
+      invites: [makeInvite("auction1", "sA")],
+      sponsors: new Map([["sA", sponsorA]]),
+      extraContacts: [ccContact, inactiveCc],
+    })
+
+    await sendAuctionScheduledEmails(ctx, auction)
+
+    const args = scheduledCalls[0]?.args as {
+      recipients: { email: string; cc?: string[] }[]
+    }
+    expect(args.recipients).toHaveLength(1)
+    expect(args.recipients[0]?.email).toBe("sA@example.com")
+    expect(args.recipients[0]?.cc).toEqual(["cc@example.com"])
   })
 
   test("returns early without scheduling when competition is missing", async () => {

@@ -301,8 +301,8 @@ function SponsorAuctionsEnabled() {
     <SponsorPageShell maxWidthClassName="max-w-6xl">
       <SponsorPageHeader
         title={
-          me?.name !== undefined && me.name.length > 0
-            ? `${me.name} Sponsorship`
+          me?.sponsor.name !== undefined && me.sponsor.name.length > 0
+            ? `${me.sponsor.name} Sponsorship`
             : "Your sponsorship"
         }
         actions={

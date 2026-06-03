@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
-import { sponsorForUI } from "@/convex/plugins/sponsor/lib/validators"
+import { sponsorPortalMe } from "@/convex/plugins/sponsor/lib/validators"
+import { toSponsorContactForUI } from "@/convex/plugins/sponsor/lib/contacts"
 import { syncSponsorAuthUserProfile } from "../auth/accounts"
 import { requireSponsorSession } from "./shared"
 
@@ -8,21 +9,26 @@ export const me = query({
   args: {
     sessionToken: v.string(),
   },
-  returns: v.union(sponsorForUI, v.null()),
+  returns: v.union(sponsorPortalMe, v.null()),
   handler: async (ctx, args) => {
     try {
-      const { sponsor, user } = await requireSponsorSession(
-        ctx,
-        args.sessionToken
-      )
+      const { sponsor, contact, permissions, user } =
+        await requireSponsorSession(ctx, args.sessionToken)
       return {
-        id: sponsor._id,
-        name: user.name.trim() || sponsor.name,
-        email: sponsor.email,
-        avatarUrl: sponsor.avatarUrl,
-        active: sponsor.active,
-        hasAuthAccount: sponsor.authUserId !== undefined,
-        lastAccessEmailSentAt: sponsor.lastAccessEmailSentAt,
+        sponsor: {
+          id: sponsor._id,
+          name: user.name.trim() || sponsor.name,
+          email: sponsor.email,
+          avatarUrl: sponsor.avatarUrl,
+          active: sponsor.active,
+          hasAuthAccount:
+            contact?.authUserId !== undefined ||
+            sponsor.authUserId !== undefined,
+          lastAccessEmailSentAt:
+            contact?.lastAccessEmailSentAt ?? sponsor.lastAccessEmailSentAt,
+        },
+        ...(contact ? { contact: toSponsorContactForUI(contact) } : {}),
+        permissions,
       }
     } catch {
       return null
@@ -39,7 +45,7 @@ export const updateDisplayName = mutation({
     name: v.string(),
   }),
   handler: async (ctx, args) => {
-    const { sponsor, user } = await requireSponsorSession(
+    const { sponsor, contact, user } = await requireSponsorSession(
       ctx,
       args.sessionToken
     )
@@ -54,7 +60,7 @@ export const updateDisplayName = mutation({
     await syncSponsorAuthUserProfile(ctx, {
       authUserId: user._id,
       name,
-      email: sponsor.email,
+      email: contact?.email ?? sponsor.email,
       avatarUrl: sponsor.avatarUrl,
     })
 

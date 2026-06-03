@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import type { Id } from "@/convex/_generated/dataModel"
+import { SponsorContactsPanel } from "@/plugins/sponsor/admin/components/sponsor-contacts-panel"
 import { formatDateTime } from "@/plugins/sponsor/lib/sponsorship-ui"
-import type { SubmitEvent } from "react"
+import { useState, type SubmitEvent } from "react"
 
 interface SponsorRow {
   id: Id<"sponsors">
@@ -57,6 +58,9 @@ export function SponsorsTab({
   onArchiveSponsor: (sponsorId: Id<"sponsors">) => void
   onUnarchiveSponsor: (sponsorId: Id<"sponsors">) => void
 }) {
+  const [busyContactId, setBusyContactId] =
+    useState<Id<"sponsorContacts"> | null>(null)
+
   return (
     <div className="grid gap-4 @xl/main:grid-cols-[1fr_1.4fr]">
       <Card>
@@ -96,11 +100,7 @@ export function SponsorsTab({
               disabled={isSubmittingSponsor}
             />
             <Button type="submit" disabled={isSubmittingSponsor}>
-              {isSubmittingSponsor ? (
-                <Spinner />
-              ) : (
-                "Create sponsor"
-              )}
+              {isSubmittingSponsor ? <Spinner /> : "Create sponsor"}
             </Button>
           </form>
         </CardContent>
@@ -108,9 +108,10 @@ export function SponsorsTab({
 
       <Card>
         <CardHeader>
-          <CardTitle>Sponsor Security and Access</CardTitle>
+          <CardTitle>Sponsors and contacts</CardTitle>
           <CardDescription>
-            Manage sign-in access, session revocation, and account status.
+            Manage sponsor accounts, contacts, portal access, bidding authority,
+            and auction email CC recipients.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -120,79 +121,84 @@ export function SponsorsTab({
             <p className="text-sm text-muted-foreground">No sponsors yet.</p>
           ) : (
             sponsors.map((sponsor) => (
-              <div
-                key={sponsor.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
-              >
-                <div className="min-w-0 space-y-1">
-                  <p className="truncate font-medium">{sponsor.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {sponsor.email}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge variant={sponsor.active ? "secondary" : "outline"}>
-                      {sponsor.active ? "Active" : "Inactive"}
-                    </Badge>
-                    <Badge variant="outline">
-                      {sponsor.hasAuthAccount
-                        ? "Portal access ready"
-                        : "Portal access not set up"}
-                    </Badge>
-                    {sponsor.lastAccessEmailSentAt !== undefined ? (
-                      <Badge variant="outline">
-                        Access email{" "}
-                        {formatDateTime(sponsor.lastAccessEmailSentAt)}
+              <div key={sponsor.id} className="space-y-3 rounded-md border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <p className="truncate font-medium">{sponsor.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {sponsor.email}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant={sponsor.active ? "secondary" : "outline"}>
+                        {sponsor.active ? "Active" : "Inactive"}
                       </Badge>
-                    ) : null}
+                      <Badge variant="outline">
+                        {sponsor.hasAuthAccount
+                          ? "Portal access ready"
+                          : "Portal access not set up"}
+                      </Badge>
+                      {sponsor.lastAccessEmailSentAt !== undefined ? (
+                        <Badge variant="outline">
+                          Access email{" "}
+                          {formatDateTime(sponsor.lastAccessEmailSentAt)}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busySponsorId === sponsor.id || !sponsor.active}
-                    onClick={() => {
-                      onSendAccessEmail(sponsor.id)
-                    }}
-                  >
-                    <Send className="size-3.5" />
-                    Send access email
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busySponsorId === sponsor.id}
-                    onClick={() => {
-                      onResetSessions(sponsor.id)
-                    }}
-                  >
-                    <ShieldX className="size-3.5" />
-                    Revoke sessions
-                  </Button>
-                  {sponsor.active ? (
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      variant="destructive"
-                      disabled={busySponsorId === sponsor.id}
+                      variant="outline"
+                      disabled={busySponsorId === sponsor.id || !sponsor.active}
                       onClick={() => {
-                        onArchiveSponsor(sponsor.id)
+                        onSendAccessEmail(sponsor.id)
                       }}
                     >
-                      Archive
+                      <Send className="size-3.5" />
+                      Email primary
                     </Button>
-                  ) : (
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={busySponsorId === sponsor.id}
                       onClick={() => {
-                        onUnarchiveSponsor(sponsor.id)
+                        onResetSessions(sponsor.id)
                       }}
                     >
-                      Unarchive
+                      <ShieldX className="size-3.5" />
+                      Revoke all
                     </Button>
-                  )}
+                    {sponsor.active ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={busySponsorId === sponsor.id}
+                        onClick={() => {
+                          onArchiveSponsor(sponsor.id)
+                        }}
+                      >
+                        Archive sponsor
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busySponsorId === sponsor.id}
+                        onClick={() => {
+                          onUnarchiveSponsor(sponsor.id)
+                        }}
+                      >
+                        Unarchive
+                      </Button>
+                    )}
+                  </div>
                 </div>
+                <SponsorContactsPanel
+                  sponsorId={sponsor.id}
+                  sponsorActive={sponsor.active}
+                  busyContactId={busyContactId}
+                  onBusyContactIdChange={setBusyContactId}
+                />
               </div>
             ))
           )}

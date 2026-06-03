@@ -14,6 +14,11 @@ import {
 } from "@/convex/impersonation/model"
 import { requireDirector } from "@/convex/permissions/principal"
 import {
+  findContactByAuthUserId,
+  requireImpersonatableSponsorContact,
+  resolvePortalAuthUserId,
+} from "@/convex/plugins/sponsor/lib/contacts"
+import {
   resolveHqSiteBaseUrl,
   resolveSponsorPortalBaseUrl,
 } from "@/convex/plugins/sponsor/siteUrls"
@@ -60,19 +65,27 @@ export const createUserLink = mutation({
 export const createSponsorLink = mutation({
   args: {
     sponsorId: v.id("sponsors"),
+    contactId: v.optional(v.id("sponsorContacts")),
     reason: v.string(),
   },
   returns: impersonationLinkResultValidator,
   handler: async (ctx, args) => {
     const actorId = await requireDirector(ctx)
-    const sponsor = await ctx.db.get("sponsors", args.sponsorId)
-    if (sponsor?.active !== true || sponsor.authUserId === undefined) {
+    const { sponsor, contact } = await requireImpersonatableSponsorContact(
+      ctx,
+      {
+        sponsorId: args.sponsorId,
+        contactId: args.contactId,
+      }
+    )
+    const sponsorAuthUserId = contact.authUserId
+    if (sponsorAuthUserId === undefined) {
       throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Active sponsor with portal access not found.",
+        code: "BAD_REQUEST",
+        message: "Sponsor contact does not have a portal auth account yet.",
       })
     }
-    const authUser = await findSponsorAuthUser(ctx, sponsor.authUserId)
+    const authUser = await findSponsorAuthUser(ctx, sponsorAuthUserId)
     if (authUser === null) {
       throw new ConvexError({
         code: "NOT_FOUND",
@@ -86,8 +99,9 @@ export const createSponsorLink = mutation({
         reason: args.reason,
         target: {
           type: "sponsor",
-          sponsorId: args.sponsorId,
-          sponsorAuthUserId: sponsor.authUserId,
+          sponsorId: sponsor._id,
+          sponsorAuthUserId,
+          contactId: contact._id,
         },
       })
 
@@ -121,15 +135,59 @@ export const redeemSponsorToken = mutation({
       })
     }
     const sponsor = await ctx.db.get("sponsors", ticket.target.sponsorId)
-    if (
-      sponsor?.active !== true ||
-      sponsor.authUserId !== ticket.target.sponsorAuthUserId
-    ) {
+    if (sponsor?.active !== true) {
       throw new ConvexError({
         code: "NOT_FOUND",
         message: "Active sponsor not found.",
       })
     }
+
+    let contactName = sponsor.name
+    if (ticket.target.contactId !== undefined) {
+      const contact = await ctx.db.get(
+        "sponsorContacts",
+        ticket.target.contactId
+      )
+      if (
+        contact?.sponsorId !== sponsor._id ||
+        contact.authUserId !== ticket.target.sponsorAuthUserId ||
+        !contact.active ||
+        !contact.portalAccess
+      ) {
+        throw new ConvexError({
+          code: "NOT_FOUND",
+          message: "Active sponsor contact not found.",
+        })
+      }
+      contactName = contact.name
+    } else {
+      const linkedContact = await findContactByAuthUserId(
+        ctx,
+        ticket.target.sponsorAuthUserId
+      )
+      if (linkedContact !== null) {
+        if (
+          linkedContact.sponsorId !== sponsor._id ||
+          !linkedContact.active ||
+          !linkedContact.portalAccess
+        ) {
+          throw new ConvexError({
+            code: "NOT_FOUND",
+            message: "Active sponsor contact not found.",
+          })
+        }
+        contactName = linkedContact.name
+      } else if (
+        (await resolvePortalAuthUserId(ctx, sponsor)) !==
+        ticket.target.sponsorAuthUserId
+      ) {
+        throw new ConvexError({
+          code: "NOT_FOUND",
+          message: "Active sponsor not found.",
+        })
+      }
+    }
+
     const authUser = await findSponsorAuthUser(
       ctx,
       ticket.target.sponsorAuthUserId
@@ -165,7 +223,7 @@ export const redeemSponsorToken = mutation({
     return {
       sessionToken,
       sessionExpiresAt: ticket.sessionExpiresAt,
-      sponsorName: sponsor.name,
+      sponsorName: contactName,
       actorName: await getUserName(ctx, ticket.createdByUserId),
     }
   },

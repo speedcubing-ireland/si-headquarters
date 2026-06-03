@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import { requireSponsorByAuthSessionToken } from "../auth/accounts"
+import type { SponsorContactPermissions } from "../lib/contacts"
 import { minNextBidCents } from "../lib/bidding"
 import { resolveSponsorBidStatus } from "../lib/sponsorBidStatus"
 import { isSealedAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
@@ -104,17 +105,39 @@ export function toSponsorBidEventForUI(input: {
   }
 }
 
+export type { SponsorContactPermissions }
+
 export async function requireSponsorSession(
   ctx: SponsorCtx,
   sessionToken: string
 ): Promise<{
   sponsor: Doc<"sponsors">
+  contact: Doc<"sponsorContacts"> | null
+  permissions: SponsorContactPermissions
   session: Awaited<
     ReturnType<typeof requireSponsorByAuthSessionToken>
   >["session"]
   user: Awaited<ReturnType<typeof requireSponsorByAuthSessionToken>>["user"]
 }> {
   return await requireSponsorByAuthSessionToken(ctx, sessionToken)
+}
+
+export async function requireSponsorCanBid(
+  ctx: SponsorCtx,
+  sessionToken: string
+): Promise<{
+  sponsor: Doc<"sponsors">
+  contact: Doc<"sponsorContacts"> | null
+  permissions: SponsorContactPermissions
+}> {
+  const session = await requireSponsorSession(ctx, sessionToken)
+  if (!session.permissions.canBid) {
+    throw new ConvexError({
+      code: "FORBIDDEN",
+      message: "Your sponsor contact does not have permission to place bids.",
+    })
+  }
+  return session
 }
 
 export async function requireAuctionInvite(

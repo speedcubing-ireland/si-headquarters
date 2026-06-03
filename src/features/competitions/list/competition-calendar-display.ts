@@ -29,7 +29,7 @@ export interface CalendarMonthGroup {
 }
 
 export function getCalendarMonthKey(year: number, monthIndex: number): string {
-  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`
+  return `${String(year)}-${String(monthIndex + 1).padStart(2, "0")}`
 }
 
 export function getInitialScrollMonthKey(

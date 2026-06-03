@@ -51,8 +51,8 @@ export async function seedSponsorSession(
       },
     }
   )) as { _id: string }
-  const sponsorId = await t.run((ctx) =>
-    ctx.db.insert("sponsors", {
+  const sponsorId = await t.run(async (ctx) => {
+    const sponsorId = await ctx.db.insert("sponsors", {
       name: `${name} Ltd`,
       email,
       emailNormalized: email,
@@ -62,7 +62,23 @@ export async function seedSponsorSession(
       updatedById: ownerId,
       updatedAt: now,
     })
-  )
+    await ctx.db.insert("sponsorContacts", {
+      sponsorId,
+      name: `${name} Ltd`,
+      email,
+      emailNormalized: email,
+      authUserId: sponsorAuthUser._id,
+      active: true,
+      isPrimary: true,
+      receivesCc: false,
+      portalAccess: true,
+      canBid: true,
+      createdById: ownerId,
+      updatedById: ownerId,
+      updatedAt: now,
+    })
+    return sponsorId
+  })
   await t.mutation(components.sponsorAuth.adapter.create, {
     input: {
       model: "session",

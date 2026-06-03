@@ -105,4 +105,24 @@ export const sponsorTables = {
   })
     .index("by_auction", ["auctionId"])
     .index("by_auction_and_created_at", ["auctionId", "createdAt"]),
+
+  sponsorContacts: defineTable({
+    sponsorId: v.id("sponsors"),
+    name: v.string(),
+    email: v.string(),
+    emailNormalized: v.string(),
+    authUserId: v.optional(v.string()),
+    active: v.boolean(),
+    isPrimary: v.boolean(),
+    receivesCc: v.boolean(),
+    portalAccess: v.boolean(),
+    canBid: v.boolean(),
+    lastAccessEmailSentAt: v.optional(v.number()),
+    createdById: v.id("users"),
+    updatedById: v.id("users"),
+    updatedAt: v.number(),
+  })
+    .index("by_sponsor", ["sponsorId"])
+    .index("by_email_normalized", ["emailNormalized"])
+    .index("by_auth_user_id", ["authUserId"]),
 }

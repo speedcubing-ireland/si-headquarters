@@ -39,6 +39,41 @@ export function useSponsorMutations() {
   }
 }
 
+export function useSponsorContacts(sponsorId: Id<"sponsors"> | null) {
+  const contacts = useQuery(
+    api.plugins.sponsor.admin.contacts.listBySponsor,
+    sponsorId !== null ? { sponsorId } : "skip"
+  )
+  return {
+    contacts: contacts ?? [],
+    isLoading: sponsorId !== null && contacts === undefined,
+  }
+}
+
+export function useSponsorContactMutations() {
+  const createContact = useMutation(api.plugins.sponsor.admin.contacts.create)
+  const updateContact = useMutation(api.plugins.sponsor.admin.contacts.update)
+  const sendContactAccessEmail = useMutation(
+    api.plugins.sponsor.admin.contacts.sendAccessEmail
+  )
+  const revokeContactSessions = useMutation(
+    api.plugins.sponsor.admin.contacts.revokeSessions
+  )
+  const setPrimaryContact = useMutation(
+    api.plugins.sponsor.admin.contacts.setPrimary
+  )
+
+  return {
+    createContact,
+    updateContact,
+    sendContactAccessEmail,
+    revokeContactSessions,
+    setPrimaryContact,
+    archiveContact: (contactId: Id<"sponsorContacts">) =>
+      updateContact({ contactId, active: false }),
+  }
+}
+
 export function useSponsorshipCompetitionsForManager(enabled = true) {
   const competitions = useQuery(
     api.plugins.sponsor.admin.auctions.management.listCompetitionsForManager,

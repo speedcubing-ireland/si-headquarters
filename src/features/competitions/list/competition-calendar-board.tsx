@@ -47,10 +47,12 @@ export function CompetitionCalendarBoard({
   const hasScrolledForYear = useRef(false)
   const prevYearRef = useRef(year)
 
-  if (prevYearRef.current !== year) {
-    prevYearRef.current = year
-    hasScrolledForYear.current = false
-  }
+  useLayoutEffect(() => {
+    if (prevYearRef.current !== year) {
+      prevYearRef.current = year
+      hasScrolledForYear.current = false
+    }
+  }, [year])
 
   useLayoutEffect(() => {
     if (scrollTargetKey === null || hasScrolledForYear.current) {

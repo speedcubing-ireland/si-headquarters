@@ -19,6 +19,7 @@ import {
 import {
   listInvitedVisibleAuctions,
   requireAuctionInvite,
+  requireSponsorCanBid,
   requireSponsorSession,
   sponsorAuctionListItem,
   sponsorBidEventForUI,
@@ -159,11 +160,15 @@ export const getAuction = query({
       sponsorPropertyStatus: competitionSponsorPropertyStatus,
       myLastBidCents: v.optional(v.number()),
       myMaxBidCents: v.optional(v.number()),
+      canBid: v.boolean(),
     }),
     v.null()
   ),
   handler: async (ctx, args) => {
-    const { sponsor } = await requireSponsorSession(ctx, args.sessionToken)
+    const { sponsor, permissions } = await requireSponsorSession(
+      ctx,
+      args.sessionToken
+    )
     await requireAuctionInvite(ctx, args.auctionId, sponsor._id)
 
     const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
@@ -248,6 +253,7 @@ export const getAuction = query({
       sponsorPropertyStatus,
       myLastBidCents,
       myMaxBidCents,
+      canBid: permissions.canBid,
     }
   },
 })
@@ -299,7 +305,7 @@ export async function placeBidHandler(
   ctx: MutationCtx,
   args: PlaceBidArgs
 ): Promise<SponsorBidMutationResult> {
-  const { sponsor } = await requireSponsorSession(ctx, args.sessionToken)
+  const { sponsor } = await requireSponsorCanBid(ctx, args.sessionToken)
   await requireAuctionInvite(ctx, args.auctionId, sponsor._id)
 
   const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
@@ -326,7 +332,7 @@ export async function setMaxBidHandler(
   ctx: MutationCtx,
   args: SetMaxBidArgs
 ): Promise<SponsorBidMutationResult> {
-  const { sponsor } = await requireSponsorSession(ctx, args.sessionToken)
+  const { sponsor } = await requireSponsorCanBid(ctx, args.sessionToken)
   await requireAuctionInvite(ctx, args.auctionId, sponsor._id)
 
   const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)

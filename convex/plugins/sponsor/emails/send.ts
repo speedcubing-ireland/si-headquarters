@@ -33,6 +33,7 @@ export const deliverSponsorshipEmail = internalMutation({
   args: {
     from: v.string(),
     to: v.string(),
+    cc: v.optional(v.array(v.string())),
     subject: v.string(),
     html: v.optional(v.string()),
     text: v.string(),
@@ -42,6 +43,7 @@ export const deliverSponsorshipEmail = internalMutation({
     await resend.sendEmail(ctx, {
       from: args.from,
       to: args.to,
+      ...(args.cc && args.cc.length > 0 ? { cc: args.cc } : {}),
       subject: args.subject,
       html: args.html,
       text: args.text,

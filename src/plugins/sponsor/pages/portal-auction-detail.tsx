@@ -21,6 +21,7 @@ import {
   SponsorPageShell,
 } from "@/plugins/sponsor/components/sponsor-page-layout"
 import { SponsorPageLoading } from "@/plugins/sponsor/components/sponsor-ui"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import {
@@ -60,6 +61,7 @@ function toSponsorBidErrorMessage(error: object): string {
     "Auction not found.",
     "Max bids are only available for Proxy Bidding auctions.",
     "Max bids are not available for sealed auctions.",
+    "Your sponsor contact does not have permission to place bids.",
   ])
   if (allowedMessages.has(error.message)) {
     return error.message
@@ -340,6 +342,7 @@ function SponsorAuctionDetailEnabled({
   const isClosingSoon =
     data.auction.state === "active" &&
     data.auction.endsAt - now < 10 * 60 * 1000
+  const canBid = data.canBid
   const myMaxBidSummaryText =
     data.myMaxBidCents !== undefined
       ? formatEuroFromCents(data.myMaxBidCents)
@@ -417,7 +420,7 @@ function SponsorAuctionDetailEnabled({
         onOpenChange={setIsBiddingHelpOpen}
       />
 
-      {data.auction.state === "active" ? (
+      {data.auction.state === "active" && canBid ? (
         isProxyAuction ? (
           <AuctionProxyBiddingPanels
             minimumNextBidText={formatEuroFromCents(minimumNextBidCents)}
@@ -540,6 +543,15 @@ function SponsorAuctionDetailEnabled({
             }
           />
         )
+      ) : data.auction.state === "active" ? (
+        <Alert>
+          <AlertTitle>View-only access</AlertTitle>
+          <AlertDescription>
+            You can review this auction, but your contact does not have
+            permission to place bids. Ask your sponsor administrator to enable
+            bidding for your account.
+          </AlertDescription>
+        </Alert>
       ) : (
         <AuctionUnavailableCard
           message={

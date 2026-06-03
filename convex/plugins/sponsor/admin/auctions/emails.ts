@@ -13,6 +13,7 @@ import {
   sponsorPortalGuideUrl,
   sponsorshipAdminPageUrl,
 } from "@/convex/plugins/sponsor/siteUrls"
+import { buildAuctionEmailRecipient } from "../../lib/contacts"
 import { scheduleSponsorshipEmailBatch } from "../../emails/send"
 
 function sponsorAuctionUrl(auctionId: Id<"sponsorshipAuctions">): string {
@@ -47,14 +48,20 @@ async function resolveAuctionEmailRecipients(
   return { competition, sponsors }
 }
 
-function toRecipientList(
+async function toRecipientList(
+  ctx: MutationCtx,
   sponsors: Doc<"sponsors">[]
-): { sponsorId: Id<"sponsors">; email: string; name: string }[] {
-  return sponsors.map((sponsor) => ({
-    sponsorId: sponsor._id,
-    email: sponsor.email,
-    name: sponsor.name,
-  }))
+): Promise<
+  {
+    sponsorId: Id<"sponsors">
+    email: string
+    name: string
+    cc?: string[]
+  }[]
+> {
+  return await Promise.all(
+    sponsors.map((sponsor) => buildAuctionEmailRecipient(ctx, sponsor))
+  )
 }
 
 async function queueAuctionEmails(
@@ -101,7 +108,7 @@ export async function sendAuctionScheduledEmails(
   await queueAuctionEmails(ctx, {
     auction,
     type: "auction_scheduled",
-    recipients: toRecipientList(sponsors),
+    recipients: await toRecipientList(ctx, sponsors),
     context,
   })
 }
@@ -122,7 +129,7 @@ export async function sendAuctionStartedEmails(
   await queueAuctionEmails(ctx, {
     auction,
     type: "auction_started",
-    recipients: toRecipientList(sponsors),
+    recipients: await toRecipientList(ctx, sponsors),
     context,
   })
 }
@@ -156,9 +163,7 @@ export async function sendAuctionActiveReminderEmail(
     emailType: "auction_active_reminder",
     subject,
     message,
-    recipients: [
-      { sponsorId: sponsor._id, email: sponsor.email, name: sponsor.name },
-    ],
+    recipients: [await buildAuctionEmailRecipient(ctx, sponsor)],
     context,
   })
 }
@@ -208,9 +213,7 @@ export async function sendEbayAuctionOutbidEmail(
     emailType: "auction_ebay_outbid",
     subject,
     message,
-    recipients: [
-      { sponsorId: outbidSponsorId, email: sponsor.email, name: sponsor.name },
-    ],
+    recipients: [await buildAuctionEmailRecipient(ctx, sponsor)],
     context,
   })
 }
@@ -237,17 +240,12 @@ export async function sendAuctionClosureEmails(
       await queueAuctionEmails(ctx, {
         auction,
         type: "auction_closed_winner",
-        recipients: [
-          {
-            sponsorId: winner._id,
-            email: winner.email,
-            name: winner.name,
-          },
-        ],
+        recipients: [await buildAuctionEmailRecipient(ctx, winner)],
         context: winnerContext,
       })
     }
-    const outbidRecipients = toRecipientList(
+    const outbidRecipients = await toRecipientList(
+      ctx,
       recipients.filter((sponsor) => sponsor._id !== auction.winnerSponsorId)
     )
     await queueAuctionEmails(ctx, {
@@ -263,7 +261,7 @@ export async function sendAuctionClosureEmails(
     await queueAuctionEmails(ctx, {
       auction,
       type: "auction_closed_none",
-      recipients: toRecipientList(recipients),
+      recipients: await toRecipientList(ctx, recipients),
       context: {
         competitionName: competition.name,
         portalUrl: sponsorAuctionUrl(auction._id),

@@ -12,10 +12,18 @@ import { sponsorForUI } from "@/convex/plugins/sponsor/lib/validators"
 import { getSponsorshipEmailPayload } from "../emails/copy"
 import { scheduleSponsorshipEmailBatch } from "../emails/send"
 import {
-  ensureSponsorAuthAccount,
+  ensureContactAuthAccount,
   revokeSponsorAuthSessions,
   syncSponsorAuthUserProfile,
 } from "../auth/accounts"
+import {
+  assertContactEmailAvailable,
+  ensurePrimaryContactForSponsor,
+  getPrimaryContact,
+  insertPrimaryContact,
+  listContactsForSponsor,
+  syncPrimaryContactFromSponsor,
+} from "../lib/contacts"
 
 function normalizeOptionalUrl(
   value: string | null | undefined
@@ -83,6 +91,23 @@ async function archiveSponsorFromOpenAuctions(
   }
 }
 
+async function revokeAllSponsorAuthSessions(
+  ctx: MutationCtx,
+  sponsor: { _id: Id<"sponsors">; authUserId?: string }
+): Promise<void> {
+  const contacts = await listContactsForSponsor(ctx, sponsor._id)
+  const authUserIds = new Set<string>()
+  for (const contact of contacts) {
+    if (contact.authUserId !== undefined) authUserIds.add(contact.authUserId)
+  }
+  if (sponsor.authUserId !== undefined) authUserIds.add(sponsor.authUserId)
+  await Promise.all(
+    [...authUserIds].map((authUserId) =>
+      revokeSponsorAuthSessions(ctx, authUserId)
+    )
+  )
+}
+
 export const list = query({
   args: {},
   returns: v.array(sponsorForUI),
@@ -93,15 +118,23 @@ export const list = query({
       .withIndex("by_name")
       .order("asc")
       .collect()
-    return sponsors.map((sponsor) => ({
-      id: sponsor._id,
-      name: sponsor.name,
-      email: sponsor.email,
-      avatarUrl: sponsor.avatarUrl,
-      active: sponsor.active,
-      hasAuthAccount: sponsor.authUserId !== undefined,
-      lastAccessEmailSentAt: sponsor.lastAccessEmailSentAt,
-    }))
+    return await Promise.all(
+      sponsors.map(async (sponsor) => {
+        const primary = await getPrimaryContact(ctx, sponsor._id)
+        return {
+          id: sponsor._id,
+          name: sponsor.name,
+          email: sponsor.email,
+          avatarUrl: sponsor.avatarUrl,
+          active: sponsor.active,
+          hasAuthAccount:
+            primary?.authUserId !== undefined ||
+            sponsor.authUserId !== undefined,
+          lastAccessEmailSentAt:
+            primary?.lastAccessEmailSentAt ?? sponsor.lastAccessEmailSentAt,
+        }
+      })
+    )
   },
 })
 
@@ -129,21 +162,10 @@ export const create = mutation({
       })
     }
 
-    const existing = await ctx.db
-      .query("sponsors")
-      .withIndex("by_email_normalized", (q) =>
-        q.eq("emailNormalized", emailNormalized)
-      )
-      .unique()
-    if (existing) {
-      throw new ConvexError({
-        code: "BAD_REQUEST",
-        message: "A sponsor already exists for this email.",
-      })
-    }
+    await assertContactEmailAvailable(ctx, emailNormalized)
 
     const now = Date.now()
-    return await ctx.db.insert("sponsors", {
+    const sponsorId = await ctx.db.insert("sponsors", {
       name,
       email: emailNormalized,
       emailNormalized,
@@ -153,6 +175,11 @@ export const create = mutation({
       updatedById: actorId,
       updatedAt: now,
     })
+    const sponsor = await ctx.db.get("sponsors", sponsorId)
+    if (sponsor) {
+      await insertPrimaryContact(ctx, { sponsor, actorId, now })
+    }
+    return sponsorId
   },
 })
 
@@ -203,18 +230,11 @@ export const update = mutation({
           message: "A valid email address is required.",
         })
       }
-      const existing = await ctx.db
-        .query("sponsors")
-        .withIndex("by_email_normalized", (q) =>
-          q.eq("emailNormalized", emailNormalized)
-        )
-        .unique()
-      if (existing && existing._id !== sponsor._id) {
-        throw new ConvexError({
-          code: "BAD_REQUEST",
-          message: "Another sponsor already uses that email.",
-        })
-      }
+      const primary = await getPrimaryContact(ctx, sponsor._id)
+      await assertContactEmailAvailable(ctx, emailNormalized, {
+        excludeContactId: primary?._id,
+        excludeSponsorId: sponsor._id,
+      })
       nextEmail = emailNormalized
       patch.email = nextEmail
       patch.emailNormalized = emailNormalized
@@ -240,22 +260,38 @@ export const update = mutation({
     }
 
     await ctx.db.patch("sponsors", sponsor._id, patch)
+    const primary = await syncPrimaryContactFromSponsor(ctx, {
+      sponsor,
+      actorId,
+      name: nextName,
+      emailNormalized: nextEmail,
+      now: patch.updatedAt,
+    })
 
-    if (sponsor.authUserId !== undefined) {
+    const authUserId = primary.authUserId ?? sponsor.authUserId
+    if (authUserId !== undefined) {
       await syncSponsorAuthUserProfile(ctx, {
-        authUserId: sponsor.authUserId,
+        authUserId,
         name: nextName,
         email: nextEmail,
         avatarUrl: nextAvatarUrl,
       })
     }
 
-    if (
-      args.active === false &&
-      sponsor.active &&
-      sponsor.authUserId !== undefined
-    ) {
-      await revokeSponsorAuthSessions(ctx, sponsor.authUserId)
+    if (args.active === false && sponsor.active) {
+      const contacts = await listContactsForSponsor(ctx, sponsor._id)
+      const now = Date.now()
+      for (const contact of contacts) {
+        if (contact.active) {
+          await ctx.db.patch("sponsorContacts", contact._id, {
+            active: false,
+            portalAccess: false,
+            updatedById: actorId,
+            updatedAt: now,
+          })
+        }
+      }
+      await revokeAllSponsorAuthSessions(ctx, sponsor)
     }
     return null
   },
@@ -279,16 +315,33 @@ export const sendAccessEmail = mutation({
       })
     }
 
-    await ensureSponsorAuthAccount(ctx, {
+    const primary = await ensurePrimaryContactForSponsor(ctx, sponsor, actorId)
+    if (!primary.active) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Primary sponsor contact is archived.",
+      })
+    }
+    if (!primary.portalAccess) {
+      await ctx.db.patch("sponsorContacts", primary._id, {
+        portalAccess: true,
+        updatedById: actorId,
+        updatedAt: Date.now(),
+      })
+    }
+    const refreshedPrimary =
+      (await ctx.db.get("sponsorContacts", primary._id)) ?? primary
+
+    await ensureContactAuthAccount(ctx, {
+      contact: refreshedPrimary,
       sponsor,
       updatedById: actorId,
     })
-    const refreshedSponsor = await ctx.db.get("sponsors", sponsor._id)
-    const sponsorEmail = refreshedSponsor?.email ?? sponsor.email
+
     const now = Date.now()
     const portalUrl = sponsorPortalLoginUrl()
     const { subject, message } = getSponsorshipEmailPayload("invite", {
-      sponsorName: sponsor.name,
+      sponsorName: refreshedPrimary.name,
     })
     await scheduleSponsorshipEmailBatch(ctx, {
       emailType: "invite",
@@ -300,12 +353,17 @@ export const sendAccessEmail = mutation({
       recipients: [
         {
           sponsorId: sponsor._id,
-          email: sponsorEmail,
-          name: sponsor.name,
+          email: refreshedPrimary.email,
+          name: refreshedPrimary.name,
         },
       ],
     })
 
+    await ctx.db.patch("sponsorContacts", refreshedPrimary._id, {
+      lastAccessEmailSentAt: now,
+      updatedById: actorId,
+      updatedAt: now,
+    })
     await ctx.db.patch("sponsors", sponsor._id, {
       lastAccessEmailSentAt: now,
       updatedById: actorId,
@@ -313,7 +371,7 @@ export const sendAccessEmail = mutation({
     })
 
     return {
-      sentTo: sponsorEmail,
+      sentTo: refreshedPrimary.email,
       hasAuthAccount: true,
     }
   },
@@ -325,8 +383,8 @@ export const revokeSessions = mutation({
   handler: async (ctx, args) => {
     await requireSponsorPortalAdmin(ctx)
     const sponsor = await ctx.db.get("sponsors", args.sponsorId)
-    if (sponsor?.authUserId === undefined) return null
-    await revokeSponsorAuthSessions(ctx, sponsor.authUserId)
+    if (!sponsor) return null
+    await revokeAllSponsorAuthSessions(ctx, sponsor)
     return null
   },
 })

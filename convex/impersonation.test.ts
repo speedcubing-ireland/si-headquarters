@@ -218,6 +218,62 @@ describe("admin impersonation", () => {
     })
   })
 
+  test("directors can impersonate a specific sponsor contact", async () => {
+    const t = createSponsorTestHarness()
+    const { sponsorId, ownerId } = await seedSponsorSession(t)
+    const directorId = await t.run(async (ctx) => seedDirectorUser(ctx))
+    const director = t.withIdentity({ subject: directorId })
+
+    const ccAuthUser = (await t.mutation(components.sponsorAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          email: "finance-cc@example.com",
+          name: "Finance CC",
+          emailVerified: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      },
+    })) as { _id: string }
+    const ccContactId = await t.run(async (ctx) =>
+      ctx.db.insert("sponsorContacts", {
+        sponsorId,
+        name: "Finance CC",
+        email: "finance-cc@example.com",
+        emailNormalized: "finance-cc@example.com",
+        authUserId: ccAuthUser._id,
+        active: true,
+        isPrimary: false,
+        receivesCc: true,
+        portalAccess: true,
+        canBid: false,
+        createdById: ownerId,
+        updatedById: ownerId,
+        updatedAt: Date.now(),
+      })
+    )
+
+    const link = await director.mutation(
+      api.impersonation.mutations.createSponsorLink,
+      {
+        sponsorId,
+        contactId: ccContactId,
+        reason: "Support request",
+      }
+    )
+    const redeemed = await t.mutation(api.impersonation.mutations.redeemSponsorToken, {
+      token: tokenFromUrl(link.url),
+    })
+
+    expect(redeemed.sponsorName).toBe("Finance CC")
+    const me = await t.query(api.plugins.sponsor.portal.auth.me, {
+      sessionToken: redeemed.sessionToken,
+    })
+    expect(me?.contact?.email).toBe("finance-cc@example.com")
+    expect(me?.permissions.canBid).toBe(false)
+  })
+
   test("inactive sponsors cannot be impersonated", async () => {
     const t = createSponsorTestHarness()
     const { sponsorId } = await seedSponsorSession(t)

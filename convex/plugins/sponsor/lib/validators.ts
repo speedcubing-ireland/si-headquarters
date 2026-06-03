@@ -87,6 +87,7 @@ export const sponsorshipEmailRecipient = v.object({
   sponsorId: v.optional(v.id("sponsors")),
   email: v.string(),
   name: v.optional(v.string()),
+  cc: v.optional(v.array(v.string())),
 })
 
 export type SponsorshipEmailRecipient = Infer<typeof sponsorshipEmailRecipient>
@@ -156,6 +157,32 @@ export const sponsorForUI = v.object({
   active: v.boolean(),
   hasAuthAccount: v.boolean(),
   lastAccessEmailSentAt: v.optional(v.number()),
+})
+
+export const sponsorContactPermissions = v.object({
+  canBid: v.boolean(),
+  portalAccess: v.boolean(),
+  receivesCc: v.boolean(),
+})
+
+export const sponsorContactForUI = v.object({
+  id: v.id("sponsorContacts"),
+  sponsorId: v.id("sponsors"),
+  name: v.string(),
+  email: v.string(),
+  active: v.boolean(),
+  isPrimary: v.boolean(),
+  receivesCc: v.boolean(),
+  portalAccess: v.boolean(),
+  canBid: v.boolean(),
+  hasAuthAccount: v.boolean(),
+  lastAccessEmailSentAt: v.optional(v.number()),
+})
+
+export const sponsorPortalMe = v.object({
+  sponsor: sponsorForUI,
+  contact: v.optional(sponsorContactForUI),
+  permissions: sponsorContactPermissions,
 })
 
 export const sponsorCompetitionFields = {

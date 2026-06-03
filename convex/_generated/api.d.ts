@@ -87,6 +87,8 @@ import type * as plugins_sponsor_admin_auctions_lifecycle from "../plugins/spons
 import type * as plugins_sponsor_admin_auctions_management from "../plugins/sponsor/admin/auctions/management.js";
 import type * as plugins_sponsor_admin_auctions_reminders from "../plugins/sponsor/admin/auctions/reminders.js";
 import type * as plugins_sponsor_admin_auctions_shared from "../plugins/sponsor/admin/auctions/shared.js";
+import type * as plugins_sponsor_admin_contacts from "../plugins/sponsor/admin/contacts.js";
+import type * as plugins_sponsor_admin_contactsBackfill from "../plugins/sponsor/admin/contactsBackfill.js";
 import type * as plugins_sponsor_admin_propertyStatus from "../plugins/sponsor/admin/propertyStatus.js";
 import type * as plugins_sponsor_admin_sponsors from "../plugins/sponsor/admin/sponsors.js";
 import type * as plugins_sponsor_auth_accounts from "../plugins/sponsor/auth/accounts.js";
@@ -125,6 +127,7 @@ import type * as plugins_sponsor_lib_bidPlacement from "../plugins/sponsor/lib/b
 import type * as plugins_sponsor_lib_bidding from "../plugins/sponsor/lib/bidding.js";
 import type * as plugins_sponsor_lib_competitionSnapshot from "../plugins/sponsor/lib/competitionSnapshot.js";
 import type * as plugins_sponsor_lib_competitionSponsorStatus from "../plugins/sponsor/lib/competitionSponsorStatus.js";
+import type * as plugins_sponsor_lib_contacts from "../plugins/sponsor/lib/contacts.js";
 import type * as plugins_sponsor_lib_lifecycle from "../plugins/sponsor/lib/lifecycle.js";
 import type * as plugins_sponsor_lib_sponsorBidStatus from "../plugins/sponsor/lib/sponsorBidStatus.js";
 import type * as plugins_sponsor_lib_sponsorOwnedCompetitions from "../plugins/sponsor/lib/sponsorOwnedCompetitions.js";
@@ -292,6 +295,8 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/admin/auctions/management": typeof plugins_sponsor_admin_auctions_management;
   "plugins/sponsor/admin/auctions/reminders": typeof plugins_sponsor_admin_auctions_reminders;
   "plugins/sponsor/admin/auctions/shared": typeof plugins_sponsor_admin_auctions_shared;
+  "plugins/sponsor/admin/contacts": typeof plugins_sponsor_admin_contacts;
+  "plugins/sponsor/admin/contactsBackfill": typeof plugins_sponsor_admin_contactsBackfill;
   "plugins/sponsor/admin/propertyStatus": typeof plugins_sponsor_admin_propertyStatus;
   "plugins/sponsor/admin/sponsors": typeof plugins_sponsor_admin_sponsors;
   "plugins/sponsor/auth/accounts": typeof plugins_sponsor_auth_accounts;
@@ -330,6 +335,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/lib/bidding": typeof plugins_sponsor_lib_bidding;
   "plugins/sponsor/lib/competitionSnapshot": typeof plugins_sponsor_lib_competitionSnapshot;
   "plugins/sponsor/lib/competitionSponsorStatus": typeof plugins_sponsor_lib_competitionSponsorStatus;
+  "plugins/sponsor/lib/contacts": typeof plugins_sponsor_lib_contacts;
   "plugins/sponsor/lib/lifecycle": typeof plugins_sponsor_lib_lifecycle;
   "plugins/sponsor/lib/sponsorBidStatus": typeof plugins_sponsor_lib_sponsorBidStatus;
   "plugins/sponsor/lib/sponsorOwnedCompetitions": typeof plugins_sponsor_lib_sponsorOwnedCompetitions;

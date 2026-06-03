@@ -67,7 +67,7 @@ function SponsorSettingsEnabled() {
     null
   )
   const [isSavingName, setIsSavingName] = useState(false)
-  const displayName = displayNameOverride ?? me?.name ?? ""
+  const displayName = displayNameOverride ?? me?.sponsor.name ?? ""
 
   useEffect(() => {
     if (authPending) return
@@ -153,7 +153,12 @@ function SponsorSettingsEnabled() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" value={me?.email ?? ""} readOnly disabled />
+              <Input
+                id="email"
+                value={me?.contact?.email ?? me?.sponsor.email ?? ""}
+                readOnly
+                disabled
+              />
             </div>
             <Button type="submit" size="sm" disabled={isSavingName}>
               {isSavingName ? <SponsorButtonSpinner /> : "Save name"}

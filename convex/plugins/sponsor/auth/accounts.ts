@@ -2,6 +2,16 @@ import { ConvexError } from "convex/values"
 import { components } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
+import {
+  contactPermissions,
+  ensurePrimaryContactForSponsor,
+  findContactByAuthUserId,
+  listContactsForSponsor,
+  syncSponsorPrimaryEmailFromContact,
+  type SponsorContactPermissions,
+} from "@/convex/plugins/sponsor/lib/contacts"
+
+export type { SponsorContactPermissions }
 
 interface SponsorAuthUserDoc {
   _id: string
@@ -161,23 +171,62 @@ export async function findSponsorAuthUserByEmail(
   return result === null ? null : parseSponsorAuthUserDoc(result)
 }
 
-export async function ensureSponsorAuthAccount(
+async function findAuthConflictForContact(
+  ctx: MutationCtx,
+  authUserId: string,
+  contactId: Id<"sponsorContacts">,
+  sponsorId: Id<"sponsors">
+): Promise<void> {
+  const linkedContact = await findContactByAuthUserId(ctx, authUserId)
+  if (linkedContact && linkedContact._id !== contactId) {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message:
+        "A sponsor auth account already exists for this email and is linked to another contact.",
+    })
+  }
+  const linkedSponsor = await findSponsorByAuthUserId(ctx, authUserId)
+  if (linkedSponsor) {
+    if (linkedSponsor._id !== sponsorId) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message:
+          "A sponsor auth account already exists for this email and is linked to another sponsor.",
+      })
+    }
+    const sponsorPrimary = await listContactsForSponsor(ctx, linkedSponsor._id)
+    const primary = sponsorPrimary.find((row) => row.isPrimary)
+    if (primary && primary._id !== contactId) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message:
+          "A sponsor auth account already exists for this email and is linked to another sponsor.",
+      })
+    }
+  }
+}
+
+export async function ensureContactAuthAccount(
   ctx: MutationCtx,
   args: {
+    contact: Doc<"sponsorContacts">
     sponsor: Doc<"sponsors">
     updatedById: Id<"users">
   }
 ): Promise<{ authUserId: string; created: boolean }> {
   const now = Date.now()
-  const canonicalEmail = args.sponsor.emailNormalized
-  const sponsorNeedsCanonicalEmail =
-    args.sponsor.email !== canonicalEmail ||
-    args.sponsor.emailNormalized !== canonicalEmail
+  const canonicalEmail = args.contact.emailNormalized
   const existingLinkedUser =
-    args.sponsor.authUserId !== undefined
-      ? await findSponsorAuthUserById(ctx, args.sponsor.authUserId)
+    args.contact.authUserId !== undefined
+      ? await findSponsorAuthUserById(ctx, args.contact.authUserId)
       : null
   if (existingLinkedUser !== null) {
+    await findAuthConflictForContact(
+      ctx,
+      existingLinkedUser._id,
+      args.contact._id,
+      args.sponsor._id
+    )
     if (existingLinkedUser.email !== canonicalEmail) {
       await ctx.runMutation(components.sponsorAuth.adapter.updateOne, {
         input: {
@@ -189,38 +238,32 @@ export async function ensureSponsorAuthAccount(
         },
       })
     }
-    if (sponsorNeedsCanonicalEmail) {
-      await ctx.db.patch("sponsors", args.sponsor._id, {
-        email: canonicalEmail,
-        emailNormalized: canonicalEmail,
-        updatedById: args.updatedById,
-        updatedAt: now,
+    await ctx.db.patch("sponsorContacts", args.contact._id, {
+      authUserId: existingLinkedUser._id,
+      updatedById: args.updatedById,
+      updatedAt: now,
+    })
+    if (args.contact.isPrimary) {
+      await syncSponsorPrimaryEmailFromContact(ctx, {
+        sponsorId: args.sponsor._id,
+        contact: {
+          ...args.contact,
+          authUserId: existingLinkedUser._id,
+        },
+        actorId: args.updatedById,
       })
     }
     return { authUserId: existingLinkedUser._id, created: false }
   }
 
-  const existingByCanonicalEmail = await findSponsorAuthUserByEmail(
-    ctx,
-    canonicalEmail
-  )
-  const existingByOriginalEmail =
-    existingByCanonicalEmail !== null || args.sponsor.email === canonicalEmail
-      ? null
-      : await findSponsorAuthUserByEmail(ctx, args.sponsor.email)
-  const existingByEmail = existingByCanonicalEmail ?? existingByOriginalEmail
+  const existingByEmail = await findSponsorAuthUserByEmail(ctx, canonicalEmail)
   if (existingByEmail !== null) {
-    const alreadyLinked = await findSponsorByAuthUserId(
+    await findAuthConflictForContact(
       ctx,
-      existingByEmail._id
+      existingByEmail._id,
+      args.contact._id,
+      args.sponsor._id
     )
-    if (alreadyLinked && alreadyLinked._id !== args.sponsor._id) {
-      throw new ConvexError({
-        code: "BAD_REQUEST",
-        message:
-          "A sponsor auth account already exists for this email and is linked to another sponsor.",
-      })
-    }
     if (existingByEmail.email !== canonicalEmail) {
       await ctx.runMutation(components.sponsorAuth.adapter.updateOne, {
         input: {
@@ -232,13 +275,18 @@ export async function ensureSponsorAuthAccount(
         },
       })
     }
-    await ctx.db.patch("sponsors", args.sponsor._id, {
-      email: canonicalEmail,
-      emailNormalized: canonicalEmail,
+    await ctx.db.patch("sponsorContacts", args.contact._id, {
       authUserId: existingByEmail._id,
       updatedById: args.updatedById,
       updatedAt: now,
     })
+    if (args.contact.isPrimary) {
+      await syncSponsorPrimaryEmailFromContact(ctx, {
+        sponsorId: args.sponsor._id,
+        contact: { ...args.contact, authUserId: existingByEmail._id },
+        actorId: args.updatedById,
+      })
+    }
     return { authUserId: existingByEmail._id, created: false }
   }
 
@@ -250,7 +298,7 @@ export async function ensureSponsorAuthAccount(
         model: "user",
         data: {
           email: canonicalEmail,
-          name: args.sponsor.name,
+          name: args.contact.name,
           emailVerified: false,
           createdAt: now,
           updatedAt: now,
@@ -272,14 +320,38 @@ export async function ensureSponsorAuthAccount(
     })
   }
 
-  await ctx.db.patch("sponsors", args.sponsor._id, {
-    email: canonicalEmail,
-    emailNormalized: canonicalEmail,
+  await ctx.db.patch("sponsorContacts", args.contact._id, {
     authUserId: newUserDoc._id,
     updatedById: args.updatedById,
     updatedAt: now,
   })
+  if (args.contact.isPrimary) {
+    await syncSponsorPrimaryEmailFromContact(ctx, {
+      sponsorId: args.sponsor._id,
+      contact: { ...args.contact, authUserId: newUserDoc._id },
+      actorId: args.updatedById,
+    })
+  }
   return { authUserId: newUserDoc._id, created: true }
+}
+
+export async function ensureSponsorAuthAccount(
+  ctx: MutationCtx,
+  args: {
+    sponsor: Doc<"sponsors">
+    updatedById: Id<"users">
+  }
+): Promise<{ authUserId: string; created: boolean }> {
+  const primary = await ensurePrimaryContactForSponsor(
+    ctx,
+    args.sponsor,
+    args.updatedById
+  )
+  return await ensureContactAuthAccount(ctx, {
+    contact: primary,
+    sponsor: args.sponsor,
+    updatedById: args.updatedById,
+  })
 }
 
 export async function syncSponsorAuthUserProfile(
@@ -320,11 +392,19 @@ export async function revokeSponsorAuthSessions(
   })
 }
 
+const LEGACY_PORTAL_PERMISSIONS: SponsorContactPermissions = {
+  canBid: true,
+  portalAccess: true,
+  receivesCc: false,
+}
+
 export async function requireSponsorByAuthSessionToken(
   ctx: SponsorCtx,
   sessionToken: string
 ): Promise<{
   sponsor: Doc<"sponsors">
+  contact: Doc<"sponsorContacts"> | null
+  permissions: SponsorContactPermissions
   session: SponsorAuthSessionDoc
   user: SponsorAuthUserDoc
 }> {
@@ -357,7 +437,14 @@ export async function requireSponsorByAuthSessionToken(
     })
   }
 
-  const sponsor = await findSponsorByAuthUserId(ctx, user._id)
+  const contact = await findContactByAuthUserId(ctx, user._id)
+  let sponsor: Doc<"sponsors"> | null = null
+  if (contact) {
+    sponsor = await ctx.db.get("sponsors", contact.sponsorId)
+  } else {
+    sponsor = await findSponsorByAuthUserId(ctx, user._id)
+  }
+
   if (sponsor?.active !== true) {
     throw new ConvexError({
       code: "UNAUTHENTICATED",
@@ -365,5 +452,34 @@ export async function requireSponsorByAuthSessionToken(
     })
   }
 
-  return { sponsor, session, user }
+  if (contact) {
+    if (!contact.active || !contact.portalAccess) {
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Sponsor portal access is not enabled for this contact.",
+      })
+    }
+    return {
+      sponsor,
+      contact,
+      permissions: contactPermissions(contact),
+      session,
+      user,
+    }
+  }
+
+  if (sponsor.authUserId !== user._id) {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Sponsor portal access is not enabled.",
+    })
+  }
+
+  return {
+    sponsor,
+    contact: null,
+    permissions: LEGACY_PORTAL_PERMISSIONS,
+    session,
+    user,
+  }
 }
