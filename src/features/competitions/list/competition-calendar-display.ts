@@ -28,6 +28,20 @@ export interface CalendarMonthGroup {
   rows: CompetitionCalendarRow[]
 }
 
+export function getCalendarMonthKey(year: number, monthIndex: number): string {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`
+}
+
+export function getInitialScrollMonthKey(
+  year: number,
+  now: Date = new Date()
+): string | null {
+  if (year !== now.getFullYear()) {
+    return null
+  }
+  return getCalendarMonthKey(year, now.getMonth())
+}
+
 function formatMonthShort(date: Date): string {
   return date.toLocaleString("en-IE", { month: "short" }).toUpperCase()
 }

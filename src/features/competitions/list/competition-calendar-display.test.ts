@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest"
-import { getCompetitionDateChip } from "@/features/competitions/list/competition-calendar-display"
+import {
+  getCalendarMonthKey,
+  getCompetitionDateChip,
+  getInitialScrollMonthKey,
+} from "@/features/competitions/list/competition-calendar-display"
 
 function rowWithDates(from: string | null, to: string | null) {
   return { compDates: { from, to } }
@@ -43,5 +47,29 @@ describe("getCompetitionDateChip", () => {
     expect(getCompetitionDateChip(rowWithDates(null, null))).toEqual({
       kind: "tbd",
     })
+  })
+})
+
+describe("getCalendarMonthKey", () => {
+  test("formats year and zero-padded month", () => {
+    expect(getCalendarMonthKey(2026, 0)).toBe("2026-01")
+    expect(getCalendarMonthKey(2026, 11)).toBe("2026-12")
+  })
+})
+
+describe("getInitialScrollMonthKey", () => {
+  test("returns current month key for the current year", () => {
+    expect(
+      getInitialScrollMonthKey(2026, new Date("2026-06-03T12:00:00"))
+    ).toBe("2026-06")
+  })
+
+  test("returns null for other years", () => {
+    expect(
+      getInitialScrollMonthKey(2025, new Date("2026-06-03T12:00:00"))
+    ).toBeNull()
+    expect(
+      getInitialScrollMonthKey(2027, new Date("2026-06-03T12:00:00"))
+    ).toBeNull()
   })
 })
