@@ -218,8 +218,8 @@ export function UserDetailPanel({
       </Card>
 
       <UserSettingsCard
-        title="Account"
-        description="Disabled users cannot sign in to HQ."
+        title="Account Enabled"
+        description="Inactive users cannot sign in to HQ."
         action={
           <Switch
             id="account-enabled"
