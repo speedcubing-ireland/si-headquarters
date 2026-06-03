@@ -18,7 +18,6 @@ import { SponsorButtonSpinner } from "@/plugins/sponsor/components/sponsor-ui"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import {
   SPONSOR_LOGIN_STEPS,
-  SPONSOR_PORTAL_INTRO,
 } from "@/plugins/sponsor/lib/sponsor-guide"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
@@ -170,7 +169,6 @@ function SponsorLoginEnabled() {
                 </Badge>
                 <CardTitle className="text-2xl">Sponsor sign-in</CardTitle>
                 <CardDescription className="space-y-2">
-                  <span className="block">{SPONSOR_PORTAL_INTRO.lead}</span>
                   <span className="block">
                     Enter the email address Speedcubing Ireland has on file for
                     your sponsor account.

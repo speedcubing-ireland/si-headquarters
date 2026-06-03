@@ -1,11 +1,5 @@
 export const SPONSOR_TEAM_EMAIL = "sponsorship@speedcubingireland.com"
 
-export const SPONSOR_PORTAL_INTRO = {
-  title: "Sponsor portal",
-  lead: "Thank you for your continued support of Speedcubing Ireland CLG (Speedcubing Ireland).",
-  body: "As part of our work to improve the efficiency and sustainability of our work, we are beginning to transition over to a new sponsorship bidding system.",
-} as const
-
 export const SPONSOR_LOGIN_STEPS = [
   "Open the portal link",
   "Enter your email (note: this must be the same email we have on file)",
