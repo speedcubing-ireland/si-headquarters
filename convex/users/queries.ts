@@ -13,6 +13,7 @@ import {
   listTeamSummariesForUser,
 } from "@/convex/teams/model"
 import { teamNameValidator } from "@/convex/teams/validators"
+import { resolveUserAvatarUrl } from "@/convex/users/avatar"
 import { toAdminUserSummary } from "@/convex/users/adminModel"
 import {
   adminUserSummaryValidator,
@@ -23,12 +24,15 @@ import { v } from "convex/values"
 import type { Doc, Id } from "../_generated/dataModel"
 
 export function toPublicUser(
-  user: Pick<Doc<"users">, "_id" | "name" | "image">
+  user: Pick<
+    Doc<"users">,
+    "_id" | "name" | "image" | "discordUserId" | "discordAvatarHash"
+  >
 ): PublicUser {
   return {
     _id: user._id,
     name: user.name,
-    image: user.image,
+    image: resolveUserAvatarUrl(user) ?? user.image,
   }
 }
 
@@ -144,6 +148,13 @@ export const currentUser = query({
     if (principal === null) {
       return null
     }
-    return await ctx.db.get("users", principal.userId)
+    const user = await ctx.db.get("users", principal.userId)
+    if (user === null) {
+      return null
+    }
+    return {
+      ...user,
+      image: resolveUserAvatarUrl(user) ?? user.image,
+    }
   },
 })

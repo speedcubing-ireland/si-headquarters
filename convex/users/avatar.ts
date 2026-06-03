@@ -12,7 +12,8 @@ export function resolveDiscordAvatarUrl(
   avatarHash: string | undefined
 ): string {
   if (avatarHash !== undefined && avatarHash.length > 0) {
-    return `https://cdn.discordapp.com/avatars/${discordUserId}/${avatarHash}.png?size=128`
+    const extension = avatarHash.startsWith("a_") ? "gif" : "png"
+    return `https://cdn.discordapp.com/avatars/${discordUserId}/${avatarHash}.${extension}?size=128`
   }
   const index = Number((BigInt(discordUserId) >> 22n) % 6n)
   return `https://cdn.discordapp.com/embed/avatars/${String(index)}.png`

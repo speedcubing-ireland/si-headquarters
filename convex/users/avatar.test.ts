@@ -44,4 +44,11 @@ describe("resolveDiscordAvatarUrl", () => {
       /^https:\/\/cdn\.discordapp\.com\/embed\/avatars\/\d\.png$/
     )
   })
+
+  test("uses gif extension for animated avatars", () => {
+    const url = resolveDiscordAvatarUrl("123", "a_animatedhash")
+    expect(url).toBe(
+      "https://cdn.discordapp.com/avatars/123/a_animatedhash.gif?size=128"
+    )
+  })
 })
