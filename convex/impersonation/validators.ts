@@ -4,6 +4,9 @@ import { v } from "convex/values"
 export const IMPERSONATION_TICKET_TTL_MS = 5 * 60 * 1000
 export const IMPERSONATION_SESSION_TTL_MS = 60 * 60 * 1000
 
+export const INVALID_IMPERSONATION_LINK_MESSAGE =
+  "Impersonation link is invalid or expired."
+
 export const impersonationTarget = v.union(
   v.object({
     type: v.literal("user"),
@@ -37,6 +40,7 @@ export const impersonationSessionFields = {
   createdAt: v.number(),
   redeemedAt: v.optional(v.number()),
   redeemedSession: v.optional(impersonationRedeemedSession),
+  consumedByNonceHash: v.optional(v.string()),
   endedAt: v.optional(v.number()),
   revokedAt: v.optional(v.number()),
 }
@@ -51,4 +55,11 @@ export const impersonationLinkResultValidator = v.object({
   url: v.string(),
   ticketExpiresAt: v.number(),
   sessionExpiresAt: v.number(),
+})
+
+export const impersonationBannerValidator = v.object({
+  actorUserId: v.id("users"),
+  actorName: v.string(),
+  expiresAt: v.number(),
+  reason: v.string(),
 })

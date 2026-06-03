@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { Copy, ExternalLink } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 import { api } from "@/convex/_generated/api"
 import { ObjectAvatar } from "@/components/object-avatar"
@@ -32,7 +32,7 @@ import {
   userDisplayName,
 } from "@/features/admin/users/utils"
 
-type GeneratedLink = FunctionReturnType<
+type ImpersonationLink = FunctionReturnType<
   typeof api.impersonation.mutations.createUserLink
 >
 
@@ -40,18 +40,7 @@ type SponsorOption = FunctionReturnType<
   typeof api.plugins.sponsor.admin.sponsors.list
 >[number]
 
-function userComboboxLabel(user: AdminUser) {
-  const name = userDisplayName(user)
-  return user.email !== undefined && user.email.length > 0
-    ? `${name} (${user.email})`
-    : name
-}
-
-function sponsorComboboxLabel(sponsor: SponsorOption) {
-  return `${sponsor.name} (${sponsor.email})`
-}
-
-function GeneratedLinkPanel({ link }: { link: GeneratedLink | null }) {
+function GeneratedLinkPanel({ link }: { link: ImpersonationLink | null }) {
   if (link === null) {
     return null
   }
@@ -94,6 +83,63 @@ function GeneratedLinkPanel({ link }: { link: GeneratedLink | null }) {
   )
 }
 
+function ImpersonationLinkCard({
+  title,
+  description,
+  targetFieldId,
+  reasonId,
+  reason,
+  onReasonChange,
+  onCreate,
+  busy,
+  link,
+  children,
+}: {
+  title: string
+  description: string
+  targetFieldId: string
+  reasonId: string
+  reason: string
+  onReasonChange: (value: string) => void
+  onCreate: () => void
+  busy: boolean
+  link: ImpersonationLink | null
+  children: ReactNode
+}) {
+  const canCreate = reason.trim().length >= 3 && !busy
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Field>
+          <FieldLabel htmlFor={targetFieldId}>{title.slice(0, -1)}</FieldLabel>
+          {children}
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={reasonId}>Reason</FieldLabel>
+          <Input
+            id={reasonId}
+            value={reason}
+            onChange={(event) => {
+              onReasonChange(event.target.value)
+            }}
+            placeholder="Support or troubleshooting reason"
+          />
+        </Field>
+        <Button type="button" disabled={!canCreate} onClick={onCreate}>
+          {busy ? <Spinner /> : null}
+          Create {title.toLowerCase()} link
+        </Button>
+        <GeneratedLinkPanel link={link} />
+      </CardContent>
+    </Card>
+  )
+}
+
 export function AdminImpersonationPage() {
   const users = useQuery(api.users.queries.listForAdmin, {})
   const sponsors = useQuery(api.plugins.sponsor.admin.sponsors.list, {})
@@ -108,8 +154,8 @@ export function AdminImpersonationPage() {
   )
   const [userReason, setUserReason] = useState("")
   const [sponsorReason, setSponsorReason] = useState("")
-  const [userLink, setUserLink] = useState<GeneratedLink | null>(null)
-  const [sponsorLink, setSponsorLink] = useState<GeneratedLink | null>(null)
+  const [userLink, setUserLink] = useState<ImpersonationLink | null>(null)
+  const [sponsorLink, setSponsorLink] = useState<ImpersonationLink | null>(null)
   const [busy, setBusy] = useState<"user" | "sponsor" | null>(null)
 
   const userOptions = useMemo(
@@ -134,35 +180,23 @@ export function AdminImpersonationPage() {
     return <Page.Status variant="loading" message="Loading impersonation..." />
   }
 
-  const onCreateUserLink = async () => {
-    if (selectedUser === null) return
-    setBusy("user")
+  const createLink = async (
+    kind: "user" | "sponsor",
+    run: () => Promise<ImpersonationLink>
+  ) => {
+    setBusy(kind)
     try {
-      const result = await createUserLink({
-        userId: selectedUser._id,
-        reason: userReason,
-      })
-      setUserLink(result)
-      toast.success("User impersonation link created.")
-    } catch (caught) {
-      toast.error(
-        caught instanceof Error ? caught.message : "Could not create link."
+      const result = await run()
+      if (kind === "user") {
+        setUserLink(result)
+      } else {
+        setSponsorLink(result)
+      }
+      toast.success(
+        kind === "user"
+          ? "User impersonation link created."
+          : "Sponsor impersonation link created."
       )
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const onCreateSponsorLink = async () => {
-    if (selectedSponsor === null) return
-    setBusy("sponsor")
-    try {
-      const result = await createSponsorLink({
-        sponsorId: selectedSponsor.id,
-        reason: sponsorReason,
-      })
-      setSponsorLink(result)
-      toast.success("Sponsor impersonation link created.")
     } catch (caught) {
       toast.error(
         caught instanceof Error ? caught.message : "Could not create link."
@@ -174,154 +208,136 @@ export function AdminImpersonationPage() {
 
   return (
     <div className="grid gap-4 @xl/main:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Users</CardTitle>
-          <CardDescription>
-            Generate a one-time HQ sign-in link for an active user.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field>
-            <FieldLabel htmlFor="user-id">User</FieldLabel>
-            <Combobox
-              items={userOptions}
-              itemToStringLabel={userComboboxLabel}
-              isItemEqualToValue={(left, right) => left._id === right._id}
-              value={selectedUser}
-              onValueChange={(user) => {
-                setSelectedUser(user)
-                setUserLink(null)
-              }}
-            >
-              <ComboboxInput
-                id="user-id"
-                className="w-full"
-                placeholder="Search users..."
-                showClear
-              />
-              <ComboboxContent>
-                <ComboboxEmpty>No users found.</ComboboxEmpty>
-                <ComboboxList>
-                  <ComboboxCollection>
-                    {(user: AdminUser) => (
-                      <ComboboxItem key={user._id} value={user}>
-                        <ObjectAvatar
-                          obj={{
-                            _id: user._id,
-                            name: user.name,
-                            image: user.image,
-                          }}
-                          avatarUrl={user.avatarUrl}
-                          size="sm"
-                        />
-                        <span className="min-w-0 truncate">
-                          {userComboboxLabel(user)}
-                        </span>
-                      </ComboboxItem>
-                    )}
-                  </ComboboxCollection>
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="user-reason">Reason</FieldLabel>
-            <Input
-              id="user-reason"
-              value={userReason}
-              onChange={(event) => {
-                setUserReason(event.target.value)
-                setUserLink(null)
-              }}
-              placeholder="Support or troubleshooting reason"
-            />
-          </Field>
-          <Button
-            type="button"
-            disabled={
-              selectedUser === null ||
-              userReason.trim().length < 3 ||
-              busy !== null
-            }
-            onClick={() => void onCreateUserLink()}
-          >
-            {busy === "user" ? <Spinner /> : null}
-            Create user link
-          </Button>
-          <GeneratedLinkPanel link={userLink} />
-        </CardContent>
-      </Card>
+      <ImpersonationLinkCard
+        title="Users"
+        description="Generate a one-time HQ sign-in link for an active user."
+        targetFieldId="user-id"
+        reasonId="user-reason"
+        reason={userReason}
+        onReasonChange={(value) => {
+          setUserReason(value)
+          setUserLink(null)
+        }}
+        onCreate={() => {
+          if (selectedUser === null) {
+            return
+          }
+          void createLink("user", () =>
+            createUserLink({
+              userId: selectedUser._id,
+              reason: userReason,
+            })
+          )
+        }}
+        busy={busy === "user"}
+        link={userLink}
+      >
+        <Combobox
+          items={userOptions}
+          itemToStringLabel={(user) => {
+            const name = userDisplayName(user)
+            return user.email !== undefined && user.email.length > 0
+              ? `${name} (${user.email})`
+              : name
+          }}
+          isItemEqualToValue={(left, right) => left._id === right._id}
+          value={selectedUser}
+          onValueChange={(user) => {
+            setSelectedUser(user)
+            setUserLink(null)
+          }}
+        >
+          <ComboboxInput
+            id="user-id"
+            className="w-full"
+            placeholder="Search users..."
+            showClear
+          />
+          <ComboboxContent>
+            <ComboboxEmpty>No users found.</ComboboxEmpty>
+            <ComboboxList>
+              <ComboboxCollection>
+                {(user: AdminUser) => (
+                  <ComboboxItem key={user._id} value={user}>
+                    <ObjectAvatar
+                      obj={{
+                        _id: user._id,
+                        name: user.name,
+                        image: user.image,
+                      }}
+                      avatarUrl={user.avatarUrl}
+                      size="sm"
+                    />
+                    <span className="min-w-0 truncate">
+                      {userDisplayName(user)}
+                      {user.email !== undefined && user.email.length > 0
+                        ? ` (${user.email})`
+                        : ""}
+                    </span>
+                  </ComboboxItem>
+                )}
+              </ComboboxCollection>
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+      </ImpersonationLinkCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Sponsors</CardTitle>
-          <CardDescription>
-            Generate a one-time sponsor portal link for an active sponsor.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field>
-            <FieldLabel htmlFor="sponsor-id">Sponsor</FieldLabel>
-            <Combobox
-              items={sponsorOptions}
-              itemToStringLabel={sponsorComboboxLabel}
-              isItemEqualToValue={(left, right) => left.id === right.id}
-              value={selectedSponsor}
-              onValueChange={(sponsor) => {
-                setSelectedSponsor(sponsor)
-                setSponsorLink(null)
-              }}
-            >
-              <ComboboxInput
-                id="sponsor-id"
-                className="w-full"
-                placeholder="Search sponsors..."
-                showClear
-              />
-              <ComboboxContent>
-                <ComboboxEmpty>No sponsors found.</ComboboxEmpty>
-                <ComboboxList>
-                  <ComboboxCollection>
-                    {(sponsor: SponsorOption) => (
-                      <ComboboxItem key={sponsor.id} value={sponsor}>
-                        <span className="min-w-0 truncate">
-                          {sponsorComboboxLabel(sponsor)}
-                        </span>
-                      </ComboboxItem>
-                    )}
-                  </ComboboxCollection>
-                </ComboboxList>
-              </ComboboxContent>
-            </Combobox>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="sponsor-reason">Reason</FieldLabel>
-            <Input
-              id="sponsor-reason"
-              value={sponsorReason}
-              onChange={(event) => {
-                setSponsorReason(event.target.value)
-                setSponsorLink(null)
-              }}
-              placeholder="Support or troubleshooting reason"
-            />
-          </Field>
-          <Button
-            type="button"
-            disabled={
-              selectedSponsor === null ||
-              sponsorReason.trim().length < 3 ||
-              busy !== null
-            }
-            onClick={() => void onCreateSponsorLink()}
-          >
-            {busy === "sponsor" ? <Spinner /> : null}
-            Create sponsor link
-          </Button>
-          <GeneratedLinkPanel link={sponsorLink} />
-        </CardContent>
-      </Card>
+      <ImpersonationLinkCard
+        title="Sponsors"
+        description="Generate a one-time sponsor portal link for an active sponsor."
+        targetFieldId="sponsor-id"
+        reasonId="sponsor-reason"
+        reason={sponsorReason}
+        onReasonChange={(value) => {
+          setSponsorReason(value)
+          setSponsorLink(null)
+        }}
+        onCreate={() => {
+          if (selectedSponsor === null) {
+            return
+          }
+          void createLink("sponsor", () =>
+            createSponsorLink({
+              sponsorId: selectedSponsor.id,
+              reason: sponsorReason,
+            })
+          )
+        }}
+        busy={busy === "sponsor"}
+        link={sponsorLink}
+      >
+        <Combobox
+          items={sponsorOptions}
+          itemToStringLabel={(sponsor) => `${sponsor.name} (${sponsor.email})`}
+          isItemEqualToValue={(left, right) => left.id === right.id}
+          value={selectedSponsor}
+          onValueChange={(sponsor) => {
+            setSelectedSponsor(sponsor)
+            setSponsorLink(null)
+          }}
+        >
+          <ComboboxInput
+            id="sponsor-id"
+            className="w-full"
+            placeholder="Search sponsors..."
+            showClear
+          />
+          <ComboboxContent>
+            <ComboboxEmpty>No sponsors found.</ComboboxEmpty>
+            <ComboboxList>
+              <ComboboxCollection>
+                {(sponsor: SponsorOption) => (
+                  <ComboboxItem key={sponsor.id} value={sponsor}>
+                    <span className="min-w-0 truncate">
+                      {sponsor.name} ({sponsor.email})
+                    </span>
+                  </ComboboxItem>
+                )}
+              </ComboboxCollection>
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+      </ImpersonationLinkCard>
     </div>
   )
 }

@@ -5,12 +5,23 @@ import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import {
   IMPERSONATION_SESSION_TTL_MS,
   IMPERSONATION_TICKET_TTL_MS,
+  INVALID_IMPERSONATION_LINK_MESSAGE,
 } from "@/convex/impersonation/validators"
 
 export type ImpersonationTargetKind = "user" | "sponsor"
 export type ImpersonationCtx = QueryCtx | MutationCtx
 
+const MIN_CONSUMPTION_NONCE_LENGTH = 16
+const MIN_TOKEN_LENGTH = 32
+
 type JsonRecord = Record<string, string | number | boolean | null | undefined>
+
+function invalidLink(): never {
+  throw new ConvexError({
+    code: "UNAUTHENTICATED",
+    message: INVALID_IMPERSONATION_LINK_MESSAGE,
+  })
+}
 
 function bytesToHex(bytes: Uint8Array): string {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")
@@ -45,6 +56,57 @@ export function normalizeReason(reason: string): string {
   return trimmed
 }
 
+export function normalizeConsumptionNonce(consumptionNonce: string): string {
+  const normalized = consumptionNonce.trim()
+  if (normalized.length < MIN_CONSUMPTION_NONCE_LENGTH) {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: "Invalid login request.",
+    })
+  }
+  return normalized
+}
+
+async function findTicketByToken(ctx: ImpersonationCtx, token: string) {
+  const trimmed = token.trim()
+  if (trimmed.length < MIN_TOKEN_LENGTH) {
+    invalidLink()
+  }
+  const tokenHash = await hashToken(trimmed)
+  const ticket = await ctx.db
+    .query("impersonationSessions")
+    .withIndex("by_token_hash", (q) => q.eq("tokenHash", tokenHash))
+    .unique()
+  if (ticket === null) {
+    invalidLink()
+  }
+  return { ticket, now: Date.now() }
+}
+
+export async function getConsumableUserTicket(
+  ctx: MutationCtx,
+  args: {
+    token: string
+    consumedByNonceHash: string
+  }
+) {
+  const { ticket, now } = await findTicketByToken(ctx, args.token)
+  if (
+    ticket.target.type !== "user" ||
+    ticket.ticketExpiresAt <= now ||
+    ticket.revokedAt !== undefined
+  ) {
+    invalidLink()
+  }
+  if (ticket.redeemedAt === undefined) {
+    return { ticket, alreadyConsumedByNonce: false, now }
+  }
+  if (ticket.consumedByNonceHash === args.consumedByNonceHash) {
+    return { ticket, alreadyConsumedByNonce: true, now }
+  }
+  invalidLink()
+}
+
 export async function requireFreshTicket(
   ctx: ImpersonationCtx,
   args: {
@@ -52,22 +114,14 @@ export async function requireFreshTicket(
     targetType: ImpersonationTargetKind
   }
 ) {
-  const tokenHash = await hashToken(args.token)
-  const ticket = await ctx.db
-    .query("impersonationSessions")
-    .withIndex("by_token_hash", (q) => q.eq("tokenHash", tokenHash))
-    .unique()
-  const now = Date.now()
+  const { ticket, now } = await findTicketByToken(ctx, args.token)
   if (
-    ticket?.target.type !== args.targetType ||
+    ticket.target.type !== args.targetType ||
     ticket.ticketExpiresAt <= now ||
     ticket.redeemedAt !== undefined ||
     ticket.revokedAt !== undefined
   ) {
-    throw new ConvexError({
-      code: "UNAUTHENTICATED",
-      message: "Impersonation link is invalid or expired.",
-    })
+    invalidLink()
   }
   return { ticket, now }
 }
@@ -114,15 +168,35 @@ export async function getUserName(
   return user?.name ?? user?.email ?? "Director"
 }
 
-export function normalizeImpersonationSessionId(
+export async function buildImpersonationBanner(
   ctx: ImpersonationCtx,
-  value: string
+  args: {
+    ticket: Doc<"impersonationSessions">
+    actorUserId: Id<"users">
+    expiresAt: number
+  }
 ) {
-  return ctx.db.normalizeId("impersonationSessions", value)
+  return {
+    actorUserId: args.actorUserId,
+    actorName: await getUserName(ctx, args.actorUserId),
+    expiresAt: args.expiresAt,
+    reason: args.ticket.reason,
+  }
 }
 
-export function normalizeUserId(ctx: ImpersonationCtx, value: string) {
-  return ctx.db.normalizeId("users", value)
+export function impersonationSessionIdFromSponsorSession(
+  ctx: ImpersonationCtx,
+  session: JsonRecord
+) {
+  const raw = session.impersonationSessionId
+  return typeof raw === "string"
+    ? ctx.db.normalizeId("impersonationSessions", raw)
+    : null
+}
+
+export function userIdFromSponsorSession(ctx: ImpersonationCtx, session: JsonRecord) {
+  const raw = session.impersonatedByUserId
+  return typeof raw === "string" ? ctx.db.normalizeId("users", raw) : null
 }
 
 export async function insertImpersonationTicket(
@@ -160,5 +234,55 @@ export function impersonationLinkResult(
     url: `${baseUrl}${path}?token=${encodeURIComponent(token)}`,
     ticketExpiresAt,
     sessionExpiresAt,
+  }
+}
+
+export async function redeemUserTicketForAuth(
+  ctx: MutationCtx,
+  args: { token: string; consumptionNonce: string }
+) {
+  const consumptionNonce = normalizeConsumptionNonce(args.consumptionNonce)
+  const consumedByNonceHash = await hashToken(consumptionNonce)
+  const { ticket, alreadyConsumedByNonce, now } = await getConsumableUserTicket(
+    ctx,
+    {
+      token: args.token,
+      consumedByNonceHash,
+    }
+  )
+  if (ticket.target.type !== "user") {
+    return null
+  }
+  const targetUser = await ctx.db.get("users", ticket.target.userId)
+  if (targetUser === null || targetUser.disabled === true) {
+    return null
+  }
+
+  if (alreadyConsumedByNonce) {
+    const redeemedSession = ticket.redeemedSession
+    if (redeemedSession?.kind !== "hq") {
+      return null
+    }
+    return {
+      userId: ticket.target.userId,
+      sessionId: redeemedSession.authSessionId,
+    }
+  }
+
+  const sessionId = await ctx.db.insert("authSessions", {
+    userId: ticket.target.userId,
+    expirationTime: ticket.sessionExpiresAt,
+    impersonationSessionId: ticket._id,
+    impersonatedByUserId: ticket.createdByUserId,
+    impersonationExpiresAt: ticket.sessionExpiresAt,
+  })
+  await ctx.db.patch("impersonationSessions", ticket._id, {
+    redeemedAt: now,
+    redeemedSession: { kind: "hq", authSessionId: sessionId },
+    consumedByNonceHash,
+  })
+  return {
+    userId: ticket.target.userId,
+    sessionId,
   }
 }

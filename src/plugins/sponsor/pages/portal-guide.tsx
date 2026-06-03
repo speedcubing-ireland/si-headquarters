@@ -1,5 +1,4 @@
-import { Link, Navigate, useNavigate } from "@tanstack/react-router"
-import { useMutation } from "convex/react"
+import { Link, Navigate } from "@tanstack/react-router"
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,7 +6,6 @@ import {
   LogOut,
   Mail,
 } from "lucide-react"
-import { toast } from "sonner"
 import {
   SponsorPageHeader,
   SponsorPageShell,
@@ -33,12 +31,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
-import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
-import { api } from "@/convex/_generated/api"
-import {
-  clearSponsorImpersonationSessionToken,
-  useSponsorSessionToken,
-} from "@/plugins/sponsor/lib/sponsor-session-token"
+import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
+import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import {
   SPONSOR_AUCTIONS_OVERVIEW,
   SPONSOR_BIDDING_NOTICE,
@@ -60,30 +54,12 @@ export function PortalGuidePage() {
 }
 
 function SponsorGuideEnabled() {
-  const navigate = useNavigate()
-  const {
-    sessionToken,
-    isPending: authPending,
-    isImpersonating,
-  } = useSponsorSessionToken()
-  const endSponsorImpersonation = useMutation(
-    api.impersonation.mutations.endSponsorImpersonation
-  )
+  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
+  const onLogout = useSponsorPortalSignOut()
   const isSignedIn = sessionToken !== null
 
   if (authPending) {
     return <SponsorPageLoading />
-  }
-
-  const onLogout = async () => {
-    if (isImpersonating && sessionToken !== null) {
-      await endSponsorImpersonation({ sessionToken })
-      clearSponsorImpersonationSessionToken()
-    } else {
-      await sponsorAuthClient.signOut()
-    }
-    toast.success("Signed out.")
-    await navigate({ to: "/sponsor/login" })
   }
 
   const backTo = isSignedIn ? "/sponsor/auctions" : "/sponsor/login"

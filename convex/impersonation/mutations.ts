@@ -8,8 +8,8 @@ import {
   findSponsorSessionByToken,
   getUserName,
   impersonationLinkResult,
+  impersonationSessionIdFromSponsorSession,
   insertImpersonationTicket,
-  normalizeImpersonationSessionId,
   requireFreshTicket,
 } from "@/convex/impersonation/model"
 import { requireDirector } from "@/convex/permissions/principal"
@@ -179,16 +179,11 @@ export const endSponsorImpersonation = mutation({
     if (session === null || typeof session._id !== "string") {
       return null
     }
-    if (typeof session.impersonationSessionId === "string") {
-      const ticketId = normalizeImpersonationSessionId(
-        ctx,
-        session.impersonationSessionId
-      )
-      if (ticketId !== null) {
-        await ctx.db.patch("impersonationSessions", ticketId, {
-          endedAt: Date.now(),
-        })
-      }
+    const ticketId = impersonationSessionIdFromSponsorSession(ctx, session)
+    if (ticketId !== null) {
+      await ctx.db.patch("impersonationSessions", ticketId, {
+        endedAt: Date.now(),
+      })
     }
     await ctx.runMutation(components.sponsorAuth.adapter.deleteOne, {
       input: {

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Page } from "@/components/layout/page"
-import { useCan } from "@/features/auth/ability"
+import { useAdminAccess } from "@/features/admin/use-admin-access"
 
 export function AdminAccessGuard({
   children,
@@ -11,12 +11,7 @@ export function AdminAccessGuard({
   loadingMessage?: string
   deniedMessage?: string
 }) {
-  const userManagement = useCan("manage", "UserManagement")
-  const impersonation = useCan("manage", "all")
-
-  const isLoading = userManagement.isLoading || impersonation.isLoading
-
-  const allowed = userManagement.allowed || impersonation.allowed
+  const { isLoading, allowed } = useAdminAccess()
 
   if (isLoading) {
     return <Page.Status variant="loading" message={loadingMessage} />

@@ -25,11 +25,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
-import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
-import {
-  clearSponsorImpersonationSessionToken,
-  useSponsorSessionToken,
-} from "@/plugins/sponsor/lib/sponsor-session-token"
+import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
+import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 
 function toActionError(error: object, fallback: string): string {
@@ -55,11 +52,8 @@ export function PortalSettingsPage() {
 
 function SponsorSettingsEnabled() {
   const navigate = useNavigate()
-  const {
-    sessionToken,
-    isPending: authPending,
-    isImpersonating,
-  } = useSponsorSessionToken()
+  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
+  const onLogout = useSponsorPortalSignOut()
   const meResult = useQuery(
     api.plugins.sponsor.portal.auth.me,
     sessionToken !== null ? { sessionToken } : "skip"
@@ -68,9 +62,6 @@ function SponsorSettingsEnabled() {
   const me = meState.data
   const updateDisplayName = useMutation(
     api.plugins.sponsor.portal.auth.updateDisplayName
-  )
-  const endSponsorImpersonation = useMutation(
-    api.impersonation.mutations.endSponsorImpersonation
   )
   const [displayNameOverride, setDisplayNameOverride] = useState<string | null>(
     null
@@ -106,17 +97,6 @@ function SponsorSettingsEnabled() {
     } finally {
       setIsSavingName(false)
     }
-  }
-
-  const onLogout = async () => {
-    if (isImpersonating) {
-      await endSponsorImpersonation({ sessionToken })
-      clearSponsorImpersonationSessionToken()
-    } else {
-      await sponsorAuthClient.signOut()
-    }
-    toast.success("Signed out.")
-    await navigate({ to: "/sponsor/login" })
   }
 
   return (

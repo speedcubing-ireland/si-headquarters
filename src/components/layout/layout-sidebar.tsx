@@ -23,10 +23,11 @@ import {
 } from "@/components/ui/sidebar"
 import { SidebarTeamsNav } from "./sidebar-teams-nav"
 import { SidebarUser } from "./layout-sidebar-user"
+import { UserImpersonationBanner } from "@/features/impersonation/impersonation-banner"
 import { PLUGINS } from "@/plugins/registry"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { Can } from "@/features/auth"
-import { useCan } from "@/features/auth/ability"
+import { useAdminAccess } from "@/features/admin/use-admin-access"
 
 const homeLink = { label: "Home", to: "/" as const, icon: HomeIcon }
 
@@ -140,12 +141,7 @@ function SidebarAdminLinks() {
 }
 
 function AdminAccessSidebarGroup() {
-  const userManagement = useCan("manage", "UserManagement")
-  const impersonation = useCan("manage", "all")
-
-  const isLoading = userManagement.isLoading || impersonation.isLoading
-
-  const allowed = userManagement.allowed || impersonation.allowed
+  const { isLoading, allowed } = useAdminAccess()
 
   if (isLoading || !allowed) {
     return null
@@ -201,6 +197,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarTitle />
+        <UserImpersonationBanner />
       </SidebarHeader>
       <SidebarContent>
         <SidebarHomeLink />

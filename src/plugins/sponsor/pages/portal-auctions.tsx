@@ -5,12 +5,11 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router"
-import { useMutation, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { ArrowRight, BookOpen, LogOut, Settings } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useEffect, useMemo, type ReactNode } from "react"
-import { toast } from "sonner"
 import { api } from "@/convex/_generated/api"
 import { PageListMessage } from "@/components/layout/page-list-message"
 import { StatCard } from "@/components/stat-card"
@@ -38,11 +37,8 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
-import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
-import {
-  clearSponsorImpersonationSessionToken,
-  useSponsorSessionToken,
-} from "@/plugins/sponsor/lib/sponsor-session-token"
+import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
+import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 import { cn } from "@/lib/utils"
 import {
@@ -243,14 +239,8 @@ function SponsorAuctionsEnabled() {
     segments[0] === "sponsor" &&
     segments[1] === "auctions"
   const navigate = useNavigate()
-  const {
-    sessionToken,
-    isPending: authPending,
-    isImpersonating,
-  } = useSponsorSessionToken()
-  const endSponsorImpersonation = useMutation(
-    api.impersonation.mutations.endSponsorImpersonation
-  )
+  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
+  const onLogout = useSponsorPortalSignOut()
   const meResult = useQuery(
     api.plugins.sponsor.portal.auth.me,
     sessionToken !== null ? { sessionToken } : "skip"
@@ -305,17 +295,6 @@ function SponsorAuctionsEnabled() {
   }
   if (isAuctionDetailRoute) {
     return <Outlet />
-  }
-
-  const onLogout = async () => {
-    if (isImpersonating) {
-      await endSponsorImpersonation({ sessionToken })
-      clearSponsorImpersonationSessionToken()
-    } else {
-      await sponsorAuthClient.signOut()
-    }
-    toast.success("Signed out.")
-    await navigate({ to: "/sponsor/login" })
   }
 
   return (

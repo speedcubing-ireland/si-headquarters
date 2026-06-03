@@ -25,6 +25,9 @@ function tokenFromUrl(url: string): string {
   return token
 }
 
+const TEST_CONSUMPTION_NONCE = "nonce-fixed-for-strict-mode-1234"
+const OTHER_CONSUMPTION_NONCE = "another-nonce-different-5678"
+
 describe("admin impersonation", () => {
   test("directors can create and redeem user impersonation links", async () => {
     const t = convexTest(schema, modules)
@@ -41,7 +44,10 @@ describe("admin impersonation", () => {
     })
     const redeemed = await t.mutation(
       internal.impersonation.internal.redeemUserTokenForAuth,
-      { token: tokenFromUrl(link.url) }
+      {
+        token: tokenFromUrl(link.url),
+        consumptionNonce: TEST_CONSUMPTION_NONCE,
+      }
     )
 
     if (redeemed === null) {
@@ -75,7 +81,38 @@ describe("admin impersonation", () => {
     })
   })
 
-  test("user impersonation links are single use", async () => {
+  test("user impersonation redeem is idempotent for the same consumption nonce", async () => {
+    const t = convexTest(schema, modules)
+    const { directorId, targetUserId } = await t.run(async (ctx) => {
+      const directorId = await seedDirectorUser(ctx)
+      const targetUserId = await insertTestUser(ctx, "Target User")
+      return { directorId, targetUserId }
+    })
+    const director = t.withIdentity({ subject: directorId })
+    const link = await director.mutation(api.impersonation.mutations.createUserLink, {
+      userId: targetUserId,
+      reason: "Support request",
+    })
+    const token = tokenFromUrl(link.url)
+
+    const first = await t.mutation(
+      internal.impersonation.internal.redeemUserTokenForAuth,
+      { token, consumptionNonce: TEST_CONSUMPTION_NONCE }
+    )
+    const second = await t.mutation(
+      internal.impersonation.internal.redeemUserTokenForAuth,
+      { token, consumptionNonce: TEST_CONSUMPTION_NONCE }
+    )
+
+    if (first === null || second === null) {
+      throw new Error("Expected impersonation token to redeem")
+    }
+    expect(first.userId).toBe(targetUserId)
+    expect(second.userId).toBe(targetUserId)
+    expect(second.sessionId).toBe(first.sessionId)
+  })
+
+  test("user impersonation blocks replay with a different consumption nonce", async () => {
     const t = convexTest(schema, modules)
     const { directorId, targetUserId } = await t.run(async (ctx) => {
       const directorId = await seedDirectorUser(ctx)
@@ -92,11 +129,13 @@ describe("admin impersonation", () => {
     expect(
       await t.mutation(internal.impersonation.internal.redeemUserTokenForAuth, {
         token,
+        consumptionNonce: TEST_CONSUMPTION_NONCE,
       })
     ).not.toBeNull()
     expect(
       await t.mutation(internal.impersonation.internal.redeemUserTokenForAuth, {
         token,
+        consumptionNonce: OTHER_CONSUMPTION_NONCE,
       })
     ).toBeNull()
   })
@@ -124,6 +163,7 @@ describe("admin impersonation", () => {
     expect(
       await t.mutation(internal.impersonation.internal.redeemUserTokenForAuth, {
         token: tokenFromUrl(link.url),
+        consumptionNonce: TEST_CONSUMPTION_NONCE,
       })
     ).toBeNull()
   })

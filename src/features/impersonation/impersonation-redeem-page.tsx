@@ -1,14 +1,8 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { impersonationTokenFromSearch } from "@/features/impersonation/impersonation-token"
 import { cn } from "@/lib/utils"
-
-function readTokenFromLocation(): string | null {
-  if (typeof window === "undefined") {
-    return null
-  }
-  return new URLSearchParams(window.location.search).get("token")
-}
 
 export function ImpersonationRedeemPage({
   title,
@@ -18,21 +12,35 @@ export function ImpersonationRedeemPage({
   redeem: (token: string) => Promise<void>
 }) {
   const [error, setError] = useState<string | null>(null)
-  const token = useMemo(() => readTokenFromLocation(), [])
+  const token = useMemo(() => impersonationTokenFromSearch(), [])
   const tokenError =
-    token === null || token.length === 0
-      ? "Impersonation link is missing a token."
-      : null
-  const validToken = tokenError === null ? token : null
+    token === null ? "Impersonation link is missing a token." : null
+
+  const redeemRef = useRef(redeem)
+  useEffect(() => {
+    redeemRef.current = redeem
+  })
+
+  const attemptedTokenRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (validToken === null) {
+    if (token === null) {
       return
     }
+
+    if (attemptedTokenRef.current === token) {
+      return
+    }
+    attemptedTokenRef.current = token
+
+    const cancelledRef = { current: false }
     void (async () => {
       try {
-        await redeem(validToken)
+        await redeemRef.current(token)
       } catch (caught) {
+        if (cancelledRef.current) {
+          return
+        }
         setError(
           caught instanceof Error
             ? caught.message
@@ -40,7 +48,14 @@ export function ImpersonationRedeemPage({
         )
       }
     })()
-  }, [redeem, validToken])
+
+    return () => {
+      cancelledRef.current = true
+      if (attemptedTokenRef.current === token) {
+        attemptedTokenRef.current = null
+      }
+    }
+  }, [token])
 
   const displayError = tokenError ?? error
 

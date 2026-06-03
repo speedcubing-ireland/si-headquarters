@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "group/alert relative grid w-full gap-0.5 rounded-lg border px-2.5 py-2 text-left text-sm has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+  "group/alert relative w-full rounded-lg border px-2.5 py-2 text-left text-sm",
   {
     variants: {
       variant: {
@@ -12,9 +12,16 @@ const alertVariants = cva(
         destructive:
           "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
       },
+      layout: {
+        default:
+          "grid gap-0.5 has-data-[slot=alert-action]:relative has-data-[slot=alert-action]:pr-18 has-[>svg]:grid-cols-[auto_1fr] has-[>svg]:gap-x-2 *:[svg]:row-span-2 *:[svg]:translate-y-0.5 *:[svg]:text-current *:[svg:not([class*='size-'])]:size-4",
+        stacked:
+          "flex flex-col gap-2 has-data-[slot=alert-action]:pr-2.5",
+      },
     },
     defaultVariants: {
       variant: "default",
+      layout: "default",
     },
   }
 )
@@ -22,13 +29,15 @@ const alertVariants = cva(
 function Alert({
   className,
   variant,
+  layout,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
   return (
     <div
       data-slot="alert"
+      data-layout={layout ?? "default"}
       role="alert"
-      className={cn(alertVariants({ variant }), className)}
+      className={cn(alertVariants({ variant, layout }), className)}
       {...props}
     />
   )
@@ -67,7 +76,11 @@ function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-action"
-      className={cn("absolute top-2 right-2", className)}
+      className={cn(
+        "absolute top-2 right-2",
+        "group-data-[layout=stacked]/alert:static group-data-[layout=stacked]/alert:w-full",
+        className
+      )}
       {...props}
     />
   )

@@ -16,12 +16,13 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       id: "impersonation",
       authorize: async (credentials, ctx) => {
         const token = credentials.token
-        if (typeof token !== "string") {
+        const consumptionNonce = credentials.consumptionNonce
+        if (typeof token !== "string" || typeof consumptionNonce !== "string") {
           return null
         }
         return await ctx.runMutation(
           internal.impersonation.internal.redeemUserTokenForAuth,
-          { token }
+          { token, consumptionNonce }
         )
       },
     }),

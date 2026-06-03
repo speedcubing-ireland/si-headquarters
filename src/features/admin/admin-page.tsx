@@ -1,11 +1,11 @@
 import type { LucideIcon } from "lucide-react"
 import { ShieldAlertIcon, UsersIcon } from "lucide-react"
-import { useMemo, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminImpersonationPage } from "@/features/admin/impersonation"
 import { isAdminTab, type AdminTab } from "@/features/admin/types"
 import { AdminUsersPage } from "@/features/admin/users"
-import { useCan } from "@/features/auth/ability"
+import { useAdminAccess } from "@/features/admin/use-admin-access"
 import { cn } from "@/lib/utils"
 
 interface AdminPageProps {
@@ -30,26 +30,6 @@ const ADMIN_TAB_CONFIG: Record<
 }
 
 const ADMIN_TABS_GAP = "gap-4 @lg/main:gap-6"
-
-function useAvailableAdminTabs() {
-  const userManagement = useCan("manage", "UserManagement")
-  const impersonation = useCan("manage", "all")
-
-  const tabs = useMemo(() => {
-    const available: AdminTab[] = []
-    if (userManagement.allowed) {
-      available.push("users")
-    }
-    if (impersonation.allowed) {
-      available.push("impersonation")
-    }
-    return available
-  }, [impersonation.allowed, userManagement.allowed])
-
-  const isLoading = userManagement.isLoading || impersonation.isLoading
-
-  return { tabs, isLoading }
-}
 
 function resolveActiveTab(
   availableTabs: readonly AdminTab[],
@@ -128,7 +108,7 @@ function AdminTabsInner({
 }
 
 export function AdminPage({ initialTab, onTabChange }: AdminPageProps) {
-  const { tabs: availableTabs, isLoading } = useAvailableAdminTabs()
+  const { tabs: availableTabs, isLoading } = useAdminAccess()
   const defaultTab = resolveActiveTab(availableTabs, initialTab)
 
   if (isLoading || defaultTab === null) {
