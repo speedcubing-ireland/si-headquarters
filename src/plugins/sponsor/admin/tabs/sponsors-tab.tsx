@@ -1,4 +1,6 @@
-import { Loader2, Send, ShieldX } from "lucide-react"
+import { Send, ShieldX } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
+import { SponsorInlineLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -95,7 +97,7 @@ export function SponsorsTab({
             />
             <Button type="submit" disabled={isSubmittingSponsor}>
               {isSubmittingSponsor ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner />
               ) : (
                 "Create sponsor"
               )}
@@ -113,9 +115,7 @@ export function SponsorsTab({
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoadingSponsors ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            </div>
+            <SponsorInlineLoading className="py-8" />
           ) : sponsors.length === 0 ? (
             <p className="text-sm text-muted-foreground">No sponsors yet.</p>
           ) : (

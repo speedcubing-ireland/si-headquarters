@@ -1,6 +1,6 @@
 import { Navigate } from "@tanstack/react-router"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
-import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
+import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 
 export function PortalIndexPage() {
   if (!isSponsorshipEnabled) {
@@ -10,11 +10,10 @@ export function PortalIndexPage() {
 }
 
 function SponsorIndexEnabled() {
-  const { data: session, isPending } = sponsorAuthClient.useSession()
+  const { sessionToken, isPending } = useSponsorSessionToken()
   if (isPending) {
     return null
   }
-  const sessionToken = session?.session.token ?? null
   if (sessionToken !== null) {
     return <Navigate to="/sponsor/auctions" />
   }

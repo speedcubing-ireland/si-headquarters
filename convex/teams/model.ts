@@ -203,3 +203,30 @@ export async function listMembersForTeams(
   }
   return members
 }
+
+export async function buildTeamSummariesByUserId(
+  ctx: TeamCtx
+): Promise<Map<Id<"users">, TeamSummary[]>> {
+  const [teams, memberships] = await Promise.all([
+    collectAll(ctx, "teams"),
+    collectAll(ctx, "teamMemberships"),
+  ])
+  const teamById = new Map(teams.map((team) => [team._id, team]))
+  const teamsByUserId = new Map<Id<"users">, TeamSummary[]>()
+
+  for (const membership of memberships) {
+    const team = teamById.get(membership.teamId)
+    if (team === undefined) {
+      continue
+    }
+    const existing = teamsByUserId.get(membership.userId) ?? []
+    existing.push(toTeamSummary(team))
+    teamsByUserId.set(membership.userId, existing)
+  }
+
+  for (const entries of teamsByUserId.values()) {
+    entries.sort(compareTeamSummariesByName)
+  }
+
+  return teamsByUserId
+}

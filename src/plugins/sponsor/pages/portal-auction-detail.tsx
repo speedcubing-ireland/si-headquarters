@@ -1,37 +1,41 @@
 import { Navigate, useNavigate } from "@tanstack/react-router"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useAction, useMutation, useQuery } from "convex/react"
-import { formatDistanceToNow } from "date-fns"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, Info, ShieldCheck } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { SubmitEvent } from "react"
 import { toast } from "sonner"
 import { api } from "@/convex/_generated/api"
-import { AuctionBiddingHelpAlert } from "@/plugins/sponsor/components/auction-bidding-help"
+import { AuctionBiddingHelpDialog } from "@/plugins/sponsor/components/auction-bidding-help"
 import {
-  AuctionAmountEntryCard,
   AuctionBidActivityCard,
+  AuctionBiddingActionCard,
   AuctionBiddingSummaryCard,
+  AuctionProxyBiddingPanels,
+  AuctionProxyHeroStatusCard,
+  AuctionUnavailableCard,
 } from "@/plugins/sponsor/components/auction-bidding-cards"
 import { AuctionCompetitionSummaryPanel } from "@/plugins/sponsor/components/competition-summary-panel"
 import {
   SponsorPageHeader,
   SponsorPageShell,
 } from "@/plugins/sponsor/components/sponsor-page-layout"
+import { SponsorPageLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import {
   formatDateTime,
   formatEuroFromCents,
   isProxySponsorshipFramework,
   isSealedSponsorshipFramework,
+  proxyDirectBidCopy,
+  proxyMaxBidCopy,
   SPONSORSHIP_BIDDING_HELP_TITLE,
   sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
-import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
+import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 
 function toSponsorBidErrorMessage(error: object): string {
@@ -63,6 +67,16 @@ function toSponsorBidErrorMessage(error: object): string {
   return "Failed to submit bid."
 }
 
+function formatAuctionCountdown(targetTime: number, now: number): string {
+  const totalSeconds = Math.max(0, Math.ceil((targetTime - now) / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return [hours, minutes, seconds]
+    .map((part) => String(part).padStart(2, "0"))
+    .join(":")
+}
+
 export function PortalAuctionDetailPage({
   auctionId,
 }: {
@@ -80,13 +94,16 @@ function SponsorAuctionDetailEnabled({
   auctionId: Id<"sponsorshipAuctions">
 }) {
   const navigate = useNavigate()
-  const { data: authSession, isPending: authPending } =
-    sponsorAuthClient.useSession()
-  const sessionToken = authSession?.session.token ?? null
+  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
   const [amountEuros, setAmountEuros] = useState("")
-  const [isHowBiddingOpen, setIsHowBiddingOpen] = useState(false)
+  const [isBiddingHelpOpen, setIsBiddingHelpOpen] = useState(false)
   const [isSubmittingBid, setIsSubmittingBid] = useState(false)
   const [isSubmittingMaxBid, setIsSubmittingMaxBid] = useState(false)
+  const [pendingBidCents, setPendingBidCents] = useState<number | null>(null)
+  const [pendingMaxBidCents, setPendingMaxBidCents] = useState<number | null>(
+    null
+  )
+  const [now, setNow] = useState(() => Date.now())
   const refreshedSummaryAuctionIdRef = useRef<string | null>(null)
   const [maxAmountEurosOverride, setMaxAmountEurosOverride] = useState<
     string | null
@@ -100,6 +117,15 @@ function SponsorAuctionDetailEnabled({
     api.plugins.sponsor.admin.auctions.competitionSnapshot
       .refreshCompetitionSnapshot
   )
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   useEffect(() => {
     if (authPending) return
@@ -151,7 +177,9 @@ function SponsorAuctionDetailEnabled({
     ) {
       return
     }
-    if (queryData.auction.competitionSummarySource === "wca") return
+    if (queryData.auction.competitionSummarySource === "wca") {
+      return
+    }
     const auctionIdToRefresh = String(queryData.auction.id)
     if (refreshedSummaryAuctionIdRef.current === auctionIdToRefresh) return
     refreshedSummaryAuctionIdRef.current = auctionIdToRefresh
@@ -162,19 +190,11 @@ function SponsorAuctionDetailEnabled({
   }, [queryData, refreshCompetitionSnapshot, sessionToken])
 
   if (authPending) {
-    return (
-      <div className="flex min-h-svh items-center justify-center">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <SponsorPageLoading />
   }
   if (sessionToken === null) return null
   if (dataState.isLoading) {
-    return (
-      <div className="flex min-h-svh items-center justify-center">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <SponsorPageLoading />
   }
   const data = dataState.data
   if (data === null) {
@@ -189,7 +209,7 @@ function SponsorAuctionDetailEnabled({
     : data.auction.startPriceCents
   const minimumBidEuros = (minimumBidCents / 100).toFixed(2)
 
-  const submitBid = async (event: SubmitEvent) => {
+  const requestSubmitBid = (event: SubmitEvent) => {
     event.preventDefault()
     const amount = amountEuros.length
       ? Math.round(Number(amountEuros) * 100)
@@ -208,16 +228,21 @@ function SponsorAuctionDetailEnabled({
       )
       return
     }
+    setPendingBidCents(amount)
+  }
 
+  const submitBid = async () => {
+    if (pendingBidCents === null) return
     setIsSubmittingBid(true)
     try {
       await placeBid({
         sessionToken,
         auctionId: typedAuctionId,
-        amountCents: amount,
+        amountCents: pendingBidCents,
       })
       toast.success(isProxyAuction ? "Bid submitted." : "Sealed bid submitted.")
       setAmountEuros("")
+      setPendingBidCents(null)
     } catch (caught) {
       toast.error(
         caught instanceof Error
@@ -229,7 +254,7 @@ function SponsorAuctionDetailEnabled({
     }
   }
 
-  const submitMaxBid = async (event: SubmitEvent) => {
+  const requestSubmitMaxBid = (event: SubmitEvent) => {
     event.preventDefault()
     if (!isProxyAuction) {
       toast.error("Max bids are only available for Proxy Bidding auctions.")
@@ -244,20 +269,25 @@ function SponsorAuctionDetailEnabled({
     }
     if (max < minimumNextBidCents) {
       toast.error(
-        `Max amount must be at least ${formatEuroFromCents(minimumNextBidCents)}.`
+        `Max bid must be at least ${formatEuroFromCents(minimumNextBidCents)}.`
       )
       return
     }
+    setPendingMaxBidCents(max)
+  }
 
+  const submitMaxBid = async () => {
+    if (pendingMaxBidCents === null) return
     setIsSubmittingMaxBid(true)
     try {
       await setMaxBid({
         sessionToken,
         auctionId: typedAuctionId,
-        maxAmountCents: max,
+        maxAmountCents: pendingMaxBidCents,
       })
       toast.success("Max bid updated.")
-      setMaxAmountEurosSynced((max / 100).toFixed(2))
+      setMaxAmountEurosSynced((pendingMaxBidCents / 100).toFixed(2))
+      setPendingMaxBidCents(null)
     } catch (caught) {
       toast.error(
         caught instanceof Error
@@ -269,17 +299,12 @@ function SponsorAuctionDetailEnabled({
     }
   }
 
-  const maxBidFormHint =
-    "Set the highest amount you are willing to pay. Automatic bidding can go up to this amount."
   const auctionEnded = data.auction.state === "closed"
   const closingStatusText = auctionEnded
-    ? `Closed ${formatDistanceToNow(new Date(data.auction.endsAt), {
-        addSuffix: true,
-      })}`
-    : `${formatDateTime(data.auction.endsAt)} (${formatDistanceToNow(
-        new Date(data.auction.endsAt),
-        { addSuffix: true }
-      )})`
+    ? `Closed ${formatDateTime(data.auction.endsAt)}`
+    : data.auction.state === "scheduled"
+      ? `Opens in ${formatAuctionCountdown(data.auction.startsAt, now)}`
+      : `Closes in ${formatAuctionCountdown(data.auction.endsAt, now)}`
   const isSealedPriceHidden =
     isSealedSponsorshipFramework(data.auction.framework) &&
     data.auction.state !== "closed"
@@ -303,125 +328,232 @@ function SponsorAuctionDetailEnabled({
       typeLabel: event.isOwnBid ? (event.isAuto ? "Auto" : "Manual") : "Bid",
       createdAtLabel: formatDateTime(event.createdAt),
     }))
-
+  const isWinningProxyBidder =
+    isProxyAuction && data.auction.sponsorBidStatus === "winning"
+  const directBidCopy = proxyDirectBidCopy(data.auction.sponsorBidStatus)
+  const maxBidCopy = proxyMaxBidCopy(data.myMaxBidCents)
+  const proxyStatusNotice = isWinningProxyBidder
+    ? "You are currently winning! The proxy system will automatically bid on your behalf up to your secret maximum."
+    : data.auction.sponsorBidStatus === "not_winning"
+      ? "You are not winning. Place a counter bid to regain the lead, or raise your secret max so proxy bidding can respond for you."
+      : "You have not bid yet. Place a visible bid, set a secret max, or do both before the auction closes."
+  const isClosingSoon =
+    data.auction.state === "active" &&
+    data.auction.endsAt - now < 10 * 60 * 1000
+  const myMaxBidSummaryText =
+    data.myMaxBidCents !== undefined
+      ? formatEuroFromCents(data.myMaxBidCents)
+      : "No max bid set"
   return (
     <SponsorPageShell maxWidthClassName="max-w-5xl">
       <SponsorPageHeader
         title={data.auction.competitionName}
+        subtitle={sponsorshipFrameworkLabel(data.auction.framework)}
         actions={
-          <Button
-            variant="outline"
-            onClick={() => void navigate({ to: "/sponsor/auctions" })}
-          >
-            <ArrowLeft className="size-4" />
-            Back to auctions
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsBiddingHelpOpen(true)
+              }}
+            >
+              <Info className="size-4" />
+              {SPONSORSHIP_BIDDING_HELP_TITLE}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void navigate({ to: "/sponsor/auctions" })}
+            >
+              <ArrowLeft className="size-4" />
+              Back to auctions
+            </Button>
+          </>
         }
       />
 
-      <AuctionBiddingSummaryCard
-        stateLabel={sponsorshipStateLabel(data.auction.state)}
-        stateVariant={sponsorshipStateBadgeVariant(data.auction.state)}
-        frameworkLabel={sponsorshipFrameworkLabel(data.auction.framework)}
-        helpTitle={SPONSORSHIP_BIDDING_HELP_TITLE}
-        onHelpToggle={() => {
-          setIsHowBiddingOpen((current) => !current)
-        }}
-        helpContent={
-          isHowBiddingOpen ? (
-            <AuctionBiddingHelpAlert framework={data.auction.framework} />
-          ) : null
-        }
-        closesAtText={closingStatusText}
-        priceLabel={isClosedSealedAuction ? "Winning bid" : "Current price"}
-        priceValue={
-          isSealedPriceHidden
-            ? "Sealed until close"
-            : formatEuroFromCents(currentPriceCentsForDisplay)
-        }
-        sponsorBidStatus={data.auction.sponsorBidStatus}
-        myLastBidText={
-          data.myLastBidCents !== undefined
-            ? formatEuroFromCents(data.myLastBidCents)
-            : "Not set"
-        }
-        myMaxBidText={
-          isProxyAuction
-            ? data.myMaxBidCents !== undefined
-              ? formatEuroFromCents(data.myMaxBidCents)
-              : "Not set"
-            : undefined
-        }
+      {isProxyAuction ? (
+        <AuctionProxyHeroStatusCard
+          currentPriceLabel={
+            data.auction.state === "closed" ? "Final price" : "Current price"
+          }
+          currentPriceText={formatEuroFromCents(currentPriceCentsForDisplay)}
+          closesAtText={closingStatusText}
+          isClosingSoon={isClosingSoon}
+          sponsorBidStatus={data.auction.sponsorBidStatus}
+          myMaxBidText={myMaxBidSummaryText}
+        />
+      ) : (
+        <AuctionBiddingSummaryCard
+          stateLabel={sponsorshipStateLabel(data.auction.state)}
+          stateVariant={sponsorshipStateBadgeVariant(data.auction.state)}
+          helpTitle={SPONSORSHIP_BIDDING_HELP_TITLE}
+          closesAtText={closingStatusText}
+          priceLabel={
+            isSealedPriceHidden
+              ? "Current price hidden"
+              : isClosedSealedAuction
+                ? "Winning bid"
+                : "Current price"
+          }
+          priceValue={
+            isSealedPriceHidden
+              ? "Sealed until close"
+              : formatEuroFromCents(currentPriceCentsForDisplay)
+          }
+          sponsorBidStatus={data.auction.sponsorBidStatus}
+          personalMetricLabel="Your latest bid"
+          personalMetricText={
+            data.myLastBidCents !== undefined
+              ? formatEuroFromCents(data.myLastBidCents)
+              : "No bid yet"
+          }
+        />
+      )}
+
+      <AuctionBiddingHelpDialog
+        framework={data.auction.framework}
+        open={isBiddingHelpOpen}
+        onOpenChange={setIsBiddingHelpOpen}
       />
+
+      {data.auction.state === "active" ? (
+        isProxyAuction ? (
+          <AuctionProxyBiddingPanels
+            minimumNextBidText={formatEuroFromCents(minimumNextBidCents)}
+            amountEuros={amountEuros}
+            maxAmountEuros={maxAmountEuros}
+            minimumNextBidEuros={minimumNextBidEuros}
+            directBidTitle={directBidCopy.title}
+            directBidDescription={directBidCopy.description}
+            directBidSubmitLabel={directBidCopy.submitLabel}
+            maxBidTitle={maxBidCopy.title}
+            maxBidDescription={maxBidCopy.description}
+            maxBidSubmitLabel={maxBidCopy.submitLabel}
+            statusNotice={proxyStatusNotice}
+            sponsorBidStatus={data.auction.sponsorBidStatus}
+            isSubmittingNormalBid={isSubmittingBid}
+            isSubmittingMaxBid={isSubmittingMaxBid}
+            normalBidConfirmation={
+              pendingBidCents !== null
+                ? {
+                    open: true,
+                    title: directBidCopy.confirmationTitle,
+                    description: directBidCopy.confirmationDescription,
+                    amountLabel: "Visible bid",
+                    amountValue: formatEuroFromCents(pendingBidCents),
+                    detailLabel: "Current effect",
+                    detailValue: isWinningProxyBidder
+                      ? "Raises visible price"
+                      : "May trigger proxy response",
+                    confirmLabel: directBidCopy.submitLabel,
+                    isSubmitting: isSubmittingBid,
+                    icon: <ArrowUpRight className="size-5" aria-hidden />,
+                    onOpenChange: (open) => {
+                      if (!open) setPendingBidCents(null)
+                    },
+                    onConfirm: () => {
+                      void submitBid()
+                    },
+                  }
+                : undefined
+            }
+            maxBidConfirmation={
+              pendingMaxBidCents !== null
+                ? {
+                    open: true,
+                    title: maxBidCopy.confirmationTitle,
+                    description: maxBidCopy.confirmationDescription,
+                    amountLabel: "Secret max",
+                    amountValue: formatEuroFromCents(pendingMaxBidCents),
+                    detailLabel: "Current effect",
+                    detailValue: "Stays hidden",
+                    confirmLabel: maxBidCopy.submitLabel,
+                    isSubmitting: isSubmittingMaxBid,
+                    icon: <ShieldCheck className="size-5" aria-hidden />,
+                    onOpenChange: (open) => {
+                      if (!open) setPendingMaxBidCents(null)
+                    },
+                    onConfirm: () => {
+                      void submitMaxBid()
+                    },
+                  }
+                : undefined
+            }
+            onAmountChange={setAmountEuros}
+            onMaxAmountChange={setMaxAmountEurosSynced}
+            onSubmitNormalBid={(event: SubmitEvent) => {
+              requestSubmitBid(event)
+            }}
+            onSubmitMaxBid={(event: SubmitEvent) => {
+              requestSubmitMaxBid(event)
+            }}
+          />
+        ) : (
+          <AuctionBiddingActionCard
+            bidForm={{
+              title: "Submit sealed bid",
+              description:
+                "Enter the amount you are willing to pay. You can update it before the auction closes.",
+              minimumLabel: "Minimum sealed bid",
+              minimumValue: formatEuroFromCents(minimumBidCents),
+              minimumHint: "Only your latest submitted sealed bid counts.",
+              inputId: "amount",
+              inputLabel: "Bid amount (EUR)",
+              inputValue: amountEuros,
+              inputMin: minimumBidEuros,
+              inputPlaceholder: minimumBidEuros,
+              onInputChange: setAmountEuros,
+              onSubmit: (event: SubmitEvent) => {
+                requestSubmitBid(event)
+              },
+              submitLabel: "Submit sealed bid",
+              isSubmitting: isSubmittingBid,
+            }}
+            sealedNotice={
+              data.myLastBidCents !== undefined
+                ? `Your submitted bid is ${formatEuroFromCents(data.myLastBidCents)}. Submitting again replaces it.`
+                : "You have not submitted a sealed bid yet."
+            }
+            confirmation={
+              pendingBidCents !== null
+                ? {
+                    open: true,
+                    title: "Submit this sealed bid?",
+                    description:
+                      "Only your latest sealed bid counts. The amount stays hidden until the auction closes.",
+                    amountLabel: "Sealed bid",
+                    amountValue: formatEuroFromCents(pendingBidCents),
+                    detailLabel: "Visibility",
+                    detailValue: "Hidden until close",
+                    confirmLabel: "Submit sealed bid",
+                    isSubmitting: isSubmittingBid,
+                    icon: <ShieldCheck className="size-5" aria-hidden />,
+                    onOpenChange: (open) => {
+                      if (!open) setPendingBidCents(null)
+                    },
+                    onConfirm: () => {
+                      void submitBid()
+                    },
+                  }
+                : undefined
+            }
+          />
+        )
+      ) : (
+        <AuctionUnavailableCard
+          message={
+            data.auction.state === "scheduled"
+              ? `Bidding is not open yet. ${closingStatusText}.`
+              : "Bidding is closed for this auction."
+          }
+        />
+      )}
+
       <AuctionCompetitionSummaryPanel
         summary={data.auction.competitionSummary}
         source={data.auction.competitionSummarySource}
       />
-
-      {data.auction.state === "active" ? (
-        <div className="space-y-4">
-          <AuctionAmountEntryCard
-            title="Place Bid"
-            description={
-              isProxyAuction
-                ? "Submit a direct bid amount."
-                : "Submit a sealed bid. You can raise or lower it before close; only your latest bid is counted."
-            }
-            minimumLabel={
-              isProxyAuction
-                ? "Current minimum next bid"
-                : "Competition minimum bid"
-            }
-            minimumValue={formatEuroFromCents(minimumBidCents)}
-            minimumHint={
-              !isProxyAuction
-                ? "No minimum increment ladder applies in sealed mode."
-                : undefined
-            }
-            inputId="amount"
-            inputLabel="Bid amount (EUR)"
-            inputValue={amountEuros}
-            inputMin={minimumBidEuros}
-            inputPlaceholder={minimumBidEuros}
-            onInputChange={setAmountEuros}
-            onSubmit={(event: SubmitEvent) => {
-              void submitBid(event)
-            }}
-            submitLabel={isProxyAuction ? "Submit bid" : "Submit sealed bid"}
-            isSubmitting={isSubmittingBid}
-          />
-
-          {isProxyAuction ? (
-            <AuctionAmountEntryCard
-              title="Set Max Bid"
-              description={maxBidFormHint}
-              minimumLabel="Current max bid"
-              minimumValue={
-                data.myMaxBidCents !== undefined
-                  ? formatEuroFromCents(data.myMaxBidCents)
-                  : "Not set"
-              }
-              inputId="max"
-              inputLabel="Max amount (EUR)"
-              inputValue={maxAmountEuros}
-              inputMin={minimumNextBidEuros}
-              inputPlaceholder={minimumNextBidEuros}
-              onInputChange={setMaxAmountEurosSynced}
-              onSubmit={(event: SubmitEvent) => {
-                void submitMaxBid(event)
-              }}
-              submitLabel="Save max bid"
-              isSubmitting={isSubmittingMaxBid}
-            />
-          ) : null}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-4 text-sm text-muted-foreground">
-            Bidding is not open for this auction.
-          </CardContent>
-        </Card>
-      )}
 
       <AuctionBidActivityCard
         isProxyAuction={isProxyAuction}
@@ -432,7 +564,11 @@ function SponsorAuctionDetailEnabled({
         }
         bidHistoryVisible={data.bidHistoryVisible}
         items={bidActivityItems}
-        sealedMessage="Only your own submitted amount is visible in your bid form."
+        sealedMessage={
+          data.myLastBidCents !== undefined
+            ? `Your current sealed bid is ${formatEuroFromCents(data.myLastBidCents)}.`
+            : "No sealed bid has been submitted yet."
+        }
         unavailableMessage="Bid history is unavailable until bidding opens."
         emptyMessage="No bids yet."
       />

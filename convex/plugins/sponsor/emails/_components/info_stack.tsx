@@ -10,10 +10,18 @@ export function SponsorshipInfoStack(props: { rows: EmailInfoRow[] }) {
   const [first, ...rest] = props.rows
   return (
     <Section>
-      <SponsorshipInfoBlock label={first.label} value={first.value} />
+      <SponsorshipInfoBlock
+        label={first.label}
+        value={first.value}
+        valueHref={first.valueHref}
+      />
       {rest.map((row) => (
         <Section key={row.label} className="mt-3">
-          <SponsorshipInfoBlock label={row.label} value={row.value} />
+          <SponsorshipInfoBlock
+            label={row.label}
+            value={row.value}
+            valueHref={row.valueHref}
+          />
         </Section>
       ))}
     </Section>

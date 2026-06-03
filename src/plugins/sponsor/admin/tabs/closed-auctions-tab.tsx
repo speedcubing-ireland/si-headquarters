@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -149,7 +149,7 @@ export function ClosedAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
                 </div>
                 {isLoadingClosedAuctionManagerView ? (
                   <div className="flex items-center justify-center py-4">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    <Spinner />
                   </div>
                 ) : closedAuctionManagerView ? (
                   <AuctionBidStatusSection

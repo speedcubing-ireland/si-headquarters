@@ -13,26 +13,23 @@ import {
 
 export function ProxyBidIncrementTable() {
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        {SPONSOR_PROXY_BID_INCREMENTS.description}
-      </p>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Current leading bid</TableHead>
-            <TableHead className="text-right">Minimum increment</TableHead>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{SPONSOR_PROXY_BID_INCREMENTS.columnHeaders.range}</TableHead>
+          <TableHead className="text-right">
+            {SPONSOR_PROXY_BID_INCREMENTS.columnHeaders.increment}
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {PROXY_BID_INCREMENT_ROWS.map((row) => (
+          <TableRow key={row.rangeLabel}>
+            <TableCell>{row.rangeLabel}</TableCell>
+            <TableCell className="text-right">{row.incrementLabel}</TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {PROXY_BID_INCREMENT_ROWS.map((row) => (
-            <TableRow key={row.rangeLabel}>
-              <TableCell>{row.rangeLabel}</TableCell>
-              <TableCell className="text-right">{row.incrementLabel}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+        ))}
+      </TableBody>
+    </Table>
   )
 }

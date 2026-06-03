@@ -1,11 +1,11 @@
 import { Navigate } from "@tanstack/react-router"
 import { Page, PAGE_CONTENT_PADDING } from "@/components/layout/page"
-import { cn } from "@/lib/utils"
 import { AbilityRouteGuard } from "@/features/auth"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
+import { cn } from "@/lib/utils"
 import { SponsorshipAdminContent } from "@/plugins/sponsor/admin/sponsorship-admin-content"
 
-export function AdminSponsorshipPage() {
+export function SponsorshipAdminPage() {
   if (!isSponsorshipEnabled) {
     return <Navigate to="/" />
   }
@@ -18,7 +18,7 @@ export function AdminSponsorshipPage() {
       loadingMessage="Loading sponsorship admin…"
     >
       <Page.Shell
-        title="Sponsorship Admin"
+        title="Sponsorship"
         contentClassName={cn(PAGE_CONTENT_PADDING, "flex flex-col gap-4")}
       >
         <SponsorshipAdminContent />

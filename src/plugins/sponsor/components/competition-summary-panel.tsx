@@ -1,15 +1,26 @@
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
-
-interface CompetitionSummary {
-  name: string
-  address: string
-  startDate: string
-  endDate: string
-  competitorLimit?: number
-  eventIds: string[]
-}
-
-type CompetitionSummarySource = "competition_record" | "wca"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import { formatDateRange } from "@/plugins/sponsor/components/competition-summary-format"
+import { buildGoogleMapsUrl } from "@/plugins/sponsor/components/competition-summary-maps"
+import { SponsorMetricDetail } from "@/plugins/sponsor/components/sponsor-metric-tile"
+import type {
+  SponsorshipCompetitionSummary,
+  SponsorshipCompetitionSummarySource,
+} from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 
 const WCA_EVENT_NAME_BY_ID: Record<string, string> = {
   "222": "2x2x2 Cube",
@@ -31,84 +42,125 @@ const WCA_EVENT_NAME_BY_ID: Record<string, string> = {
   "333mbf": "3x3x3 Multi-Blind",
 }
 
-import { formatDateRange } from "@/plugins/sponsor/components/competition-summary-format"
-
 function eventLabel(eventId: string): string {
   const displayName = WCA_EVENT_NAME_BY_ID[eventId]
   return displayName ? displayName : eventId.toUpperCase()
 }
 
-export function AuctionCompetitionSummaryPanel(props: {
-  summary: CompetitionSummary
-  source: CompetitionSummarySource
-}) {
+function EventsSummary({ eventIds }: { eventIds: string[] }) {
+  if (eventIds.length === 0) {
+    return <p className="text-muted-foreground">Not available yet</p>
+  }
+
   return (
-    <section className="space-y-3 rounded-lg border bg-card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-xs tracking-wide text-muted-foreground uppercase">
-            Competition summary
-          </p>
-          <h2 className="text-lg font-semibold">{props.summary.name}</h2>
-        </div>
-        <Badge variant="outline">
-          {props.source === "wca" ? "Synced from WCA" : "Basic details only"}
-        </Badge>
+    <div className="space-y-2">
+      <p className="font-medium tabular-nums">
+        {eventIds.length} {eventIds.length === 1 ? "event" : "events"}
+      </p>
+      <div className="flex flex-wrap gap-1">
+        {eventIds.map((eventId) => (
+          <Badge
+            key={eventId}
+            variant="secondary"
+            className="h-6 rounded-sm px-2 text-xs font-normal"
+          >
+            {eventLabel(eventId)}
+          </Badge>
+        ))}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1">
-          <p className="text-xs tracking-wide text-muted-foreground uppercase">
-            Address
-          </p>
-          <p className="text-sm">
-            {props.summary.address.trim()
-              ? props.summary.address
-              : "Not available yet"}
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs tracking-wide text-muted-foreground uppercase">
-            Dates
-          </p>
-          <p className="text-sm">{formatDateRange(props.summary)}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs tracking-wide text-muted-foreground uppercase">
-            Competitor limit
-          </p>
-          <p className="text-sm">
-            {props.summary.competitorLimit !== undefined
-              ? String(props.summary.competitorLimit)
-              : "Not set"}
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs tracking-wide text-muted-foreground uppercase">
-            Events
-          </p>
-          {props.summary.eventIds.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {props.summary.eventIds.map((eventId) => (
-                <Badge
-                  key={eventId}
-                  variant="secondary"
-                  className="text-[11px]"
-                >
-                  {eventLabel(eventId)}
-                </Badge>
-              ))}
+    </div>
+  )
+}
+
+export function AuctionCompetitionSummaryPanel(props: {
+  summary: SponsorshipCompetitionSummary
+  source: SponsorshipCompetitionSummarySource
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const address = props.summary.address.trim()
+  const mapsUrl = buildGoogleMapsUrl(props.summary)
+  const summaryLine = [
+    formatDateRange(props.summary),
+    props.summary.competitorLimit !== undefined
+      ? `${String(props.summary.competitorLimit)} competitor limit`
+      : "No competitor limit listed",
+    props.summary.eventIds.length > 0
+      ? `${String(props.summary.eventIds.length)} events`
+      : "Events not listed",
+  ].join(" · ")
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card className="gap-0 py-0">
+        <CardHeader className="pt-4 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <CardDescription>Competition details</CardDescription>
+              <CardTitle className="text-xl">{props.summary.name}</CardTitle>
+              <p className="text-sm text-muted-foreground">{summaryLine}</p>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Not available yet</p>
-          )}
-        </div>
-      </div>
-    </section>
+            <Badge variant="outline" className="shrink-0">
+              {props.source === "wca"
+                ? "Synced from WCA"
+                : "Basic details only"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="border-t pt-4 pb-4">
+            <div className="grid gap-x-8 gap-y-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+              <SponsorMetricDetail label="Location">
+                {address.length > 0 ? (
+                  mapsUrl !== null ? (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium underline decoration-border underline-offset-4 hover:text-primary"
+                    >
+                      {address}
+                    </a>
+                  ) : (
+                    <p className="font-medium">{address}</p>
+                  )
+                ) : (
+                  <p className="text-muted-foreground">Not available yet</p>
+                )}
+              </SponsorMetricDetail>
+
+              <SponsorMetricDetail label="Dates">
+                <p className="font-medium">{formatDateRange(props.summary)}</p>
+              </SponsorMetricDetail>
+
+              <SponsorMetricDetail label="Competitor limit">
+                <p className="font-medium tabular-nums">
+                  {props.summary.competitorLimit !== undefined
+                    ? String(props.summary.competitorLimit)
+                    : "Not set"}
+                </p>
+              </SponsorMetricDetail>
+            </div>
+            <div className="mt-5 border-t pt-4">
+              <SponsorMetricDetail label="Events">
+                <EventsSummary eventIds={props.summary.eventIds} />
+              </SponsorMetricDetail>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+        <CardFooter>
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="outline">
+              {isOpen ? "Hide details" : "Show details"}
+            </Button>
+          </CollapsibleTrigger>
+        </CardFooter>
+      </Card>
+    </Collapsible>
   )
 }
 
 export function AuctionCompetitionSummaryCompact(props: {
-  summary: CompetitionSummary
+  summary: SponsorshipCompetitionSummary
 }) {
   const dateRange = formatDateRange(props.summary)
   const limitLabel =
@@ -121,7 +173,7 @@ export function AuctionCompetitionSummaryCompact(props: {
       : "Events not listed"
   return (
     <p className="text-sm text-muted-foreground">
-      Competition Summary: {dateRange} · {limitLabel} · {eventsLabel}
+      {dateRange} · {limitLabel} · {eventsLabel}
     </p>
   )
 }

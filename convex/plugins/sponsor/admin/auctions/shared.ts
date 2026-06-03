@@ -5,7 +5,7 @@ import {
   competitionSponsorPropertyStatus,
   sponsorshipAuctionFramework,
   auctionState,
-} from "@/convex/plugins/sponsor/lib/sponsorTypes"
+} from "@/convex/plugins/sponsor/lib/validators"
 import { competitionSnapshot } from "../../lib/competitionSnapshot"
 
 export const DEFAULT_SCHEDULE_WINDOW_MS = 5 * 60 * 1000

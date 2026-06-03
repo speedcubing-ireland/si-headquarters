@@ -6,11 +6,21 @@ import {
   requirePrincipal,
   requireUserManagement,
 } from "@/convex/permissions/principal"
-import { getTeamByName, listMemberIdsForTeam } from "@/convex/teams/model"
+import {
+  buildTeamSummariesByUserId,
+  getTeamByName,
+  listMemberIdsForTeam,
+  listTeamSummariesForUser,
+} from "@/convex/teams/model"
 import { teamNameValidator } from "@/convex/teams/validators"
+import { toAdminUserSummary } from "@/convex/users/adminModel"
+import {
+  adminUserSummaryValidator,
+  publicUserValidator,
+  type PublicUser,
+} from "./validators"
 import { v } from "convex/values"
 import type { Doc, Id } from "../_generated/dataModel"
-import { publicUserValidator, type PublicUser } from "./validators"
 
 export function toPublicUser(
   user: Pick<Doc<"users">, "_id" | "name" | "image">
@@ -97,55 +107,33 @@ export const listForCompetition = query({
 
 export const listForAdmin = query({
   args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id("users"),
-      _creationTime: v.number(),
-      name: v.optional(v.string()),
-      image: v.optional(v.string()),
-      email: v.optional(v.string()),
-      disabled: v.optional(v.boolean()),
-      teams: v.array(
-        v.object({
-          _id: v.id("teams"),
-          name: v.string(),
-        })
-      ),
-    })
-  ),
+  returns: v.array(adminUserSummaryValidator),
   handler: async (ctx) => {
     await requireUserManagement(ctx)
-    const [users, teams, memberships] = await Promise.all([
+    const [users, teamsByUserId] = await Promise.all([
       collectAll(ctx, "users"),
-      collectAll(ctx, "teams"),
-      collectAll(ctx, "teamMemberships"),
+      buildTeamSummariesByUserId(ctx),
     ])
-    const teamById = new Map(teams.map((team) => [team._id, team]))
-    const teamsByUserId = new Map<
-      Id<"users">,
-      { _id: Id<"teams">; name: string }[]
-    >()
 
-    for (const membership of memberships) {
-      const team = teamById.get(membership.teamId)
-      if (team === undefined) {
-        continue
-      }
-      const entry = { _id: team._id, name: team.name }
-      const existing = teamsByUserId.get(membership.userId) ?? []
-      existing.push(entry)
-      teamsByUserId.set(membership.userId, existing)
+    return users.map((user) =>
+      toAdminUserSummary(user, teamsByUserId.get(user._id) ?? [])
+    )
+  },
+})
+
+export const getForAdmin = query({
+  args: {
+    userId: v.id("users"),
+  },
+  returns: v.union(adminUserSummaryValidator, v.null()),
+  handler: async (ctx, args) => {
+    await requireUserManagement(ctx)
+    const user = await ctx.db.get("users", args.userId)
+    if (user === null) {
+      return null
     }
-
-    return users.map((user) => ({
-      _id: user._id,
-      _creationTime: user._creationTime,
-      name: user.name,
-      image: user.image,
-      email: user.email,
-      disabled: user.disabled,
-      teams: teamsByUserId.get(user._id) ?? [],
-    }))
+    const teams = await listTeamSummariesForUser(ctx, user._id)
+    return toAdminUserSummary(user, teams)
   },
 })
 

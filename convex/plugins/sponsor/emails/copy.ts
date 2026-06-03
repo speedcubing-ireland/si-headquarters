@@ -1,4 +1,7 @@
-import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
+import {
+  auctionFrameworkLabel,
+  type SponsorshipAuctionFramework,
+} from "@/convex/plugins/sponsor/lib/types"
 import type {
   SponsorOtpAuthType,
   SponsorPortalOtpPurpose,
@@ -28,17 +31,11 @@ function competitionName(ctx: EmailCopyContext): string {
   return ctx.competitionName ?? "the competition"
 }
 
+/** @deprecated Use {@link auctionFrameworkLabel} for titles; pass {@link frameworkGuideUrl} for detail links. */
 export function describeAuctionFramework(
   framework: SponsorshipAuctionFramework
 ): string {
-  switch (framework) {
-    case "first_sealed":
-      return "Sealed bid auction (similar to our previous system): one hidden bid per sponsor, latest bid counts, earliest bid wins ties. The highest bidder wins and pays their bid amount. Bids stay hidden until close."
-    case "vickrey":
-      return "Vickrey (second-price sealed bid) auction: one hidden bid per sponsor, latest bid counts, earliest bid wins ties. The highest bidder wins and pays the second-highest bid, or the competition minimum if they are the only bidder. Other parties see the settlement amount, not the winner's full bid."
-    case "ebay_proxy":
-      return "Proxy bidding auction (eBay-style): bids are visible while active. Place a direct bid and optional maximum bid; the system auto-bids up to your maximum if you are outbid. Closing may extend for late counter bids. Outbid emails are not a substitute for checking the portal."
-  }
+  return auctionFrameworkLabel(framework)
 }
 
 function lifecycleScheduledCopy(ctx: EmailCopyContext): EmailTemplateCopy {
@@ -68,7 +65,15 @@ function lifecycleScheduledCopy(ctx: EmailCopyContext): EmailTemplateCopy {
       value: formatEmailDateTime(ctx.endsAt),
     })
   }
-  if (
+  if (ctx.framework !== undefined) {
+    infoRows.push({
+      label: "Auction format",
+      value: auctionFrameworkLabel(ctx.framework),
+      ...(ctx.frameworkGuideUrl !== undefined && ctx.frameworkGuideUrl.length > 0
+        ? { valueHref: ctx.frameworkGuideUrl }
+        : {}),
+    })
+  } else if (
     ctx.frameworkDescription !== undefined &&
     ctx.frameworkDescription.length > 0
   ) {
@@ -156,7 +161,7 @@ function lifecycleOutbidCopy(ctx: EmailCopyContext): EmailTemplateCopy {
           ]
         : []),
     ],
-    bodyParagraphs: ["Place a new bid to stay in contention."],
+    bodyParagraphs: [],
     footnoteParagraphs: [],
     showAntiSnipingNote: true,
   }
@@ -165,10 +170,16 @@ function lifecycleOutbidCopy(ctx: EmailCopyContext): EmailTemplateCopy {
 function scheduleInfoRows(ctx: EmailCopyContext): EmailInfoRow[] {
   const rows: EmailInfoRow[] = []
   if (ctx.startsAt !== undefined) {
-    rows.push({ label: "Starts", value: formatEmailDateTime(ctx.startsAt) })
+    rows.push({
+      label: "Bidding opens",
+      value: formatEmailDateTime(ctx.startsAt),
+    })
   }
   if (ctx.endsAt !== undefined) {
-    rows.push({ label: "Ends", value: formatEmailDateTime(ctx.endsAt) })
+    rows.push({
+      label: "Bidding closes",
+      value: formatEmailDateTime(ctx.endsAt),
+    })
   }
   return rows
 }
@@ -207,8 +218,8 @@ function outcomeCopy(
     case "auction_closed_winner": {
       const body =
         ctx.settlementAmountCents !== undefined
-          ? `Congratulations. Your winning bid is ${formatMoney(ctx.settlementAmountCents)}. Finance will follow up with invoice details.`
-          : "Congratulations. You are the confirmed sponsor. Finance will follow up with invoice details."
+          ? `Congratulations. Your winning bid is ${formatMoney(ctx.settlementAmountCents)}. The Sponsorship Team will follow up with invoice details.`
+          : "Congratulations. You are the confirmed sponsor. The Sponsorship Team will follow up with invoice details."
       const infoRows: EmailInfoRow[] = [
         { label: "Competition", value: name },
         { label: "Status", value: "Winner confirmed" },
@@ -302,10 +313,10 @@ function internalInvoiceCopy(ctx: EmailCopyContext): EmailTemplateCopy {
 
   return {
     preview: `${name} sponsorship outcome`,
-    title: "Invoice Follow-up Required",
+    title: "Invoice follow-up required",
     subtitle:
-      "Please review the sponsorship outcome and complete finance follow-up in HQ.",
-    ctaLabel: "Open Sponsorship Admin",
+      "Please review the sponsorship outcome and complete invoice follow-up in HQ.",
+    ctaLabel: "Open sponsorship admin",
     infoRows,
     bodyParagraphs: [],
     footnoteParagraphs: [],
@@ -317,9 +328,9 @@ function inviteCopy(ctx: EmailCopyContext): EmailTemplateCopy {
   const sponsorName = ctx.sponsorName ?? "Sponsor"
   return {
     preview: "Sponsor portal access details",
-    title: "Sponsor Portal Access",
+    title: "Sponsor portal access",
     subtitle: `Hi ${sponsorName}, your sponsor portal account is ready.`,
-    ctaLabel: "Open Sponsor Portal",
+    ctaLabel: "Open sponsor portal",
     infoRows: [],
     bodyParagraphs: [],
     footnoteParagraphs: [],
@@ -380,11 +391,11 @@ export function sponsorshipEmailMessageFallback(
     case "auction_active_reminder":
       return "Bidding for this sponsorship auction closes in approximately 1 hour."
     case "auction_ebay_outbid":
-      return "You have been outbid in this sponsorship auction. Place a new bid to stay in contention."
+      return "You have been outbid in this sponsorship auction."
     case "auction_closed_winner":
       return ctx.settlementAmountCents !== undefined
-        ? `You won the sponsorship auction at ${formatMoney(ctx.settlementAmountCents)}. Finance will follow up with invoice details.`
-        : "You won the sponsorship auction. Finance will follow up with invoice details."
+        ? `You won the sponsorship auction at ${formatMoney(ctx.settlementAmountCents)}. The Sponsorship Team will follow up with invoice details.`
+        : "You won the sponsorship auction. The Sponsorship Team will follow up with invoice details."
     case "auction_closed_outbid":
       return "This sponsorship auction has now closed. Thank you for participating."
     case "auction_closed_none":

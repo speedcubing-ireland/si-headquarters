@@ -12,7 +12,7 @@ describe("getPageTitle", () => {
     ["/tasks", headquartersPageTitle("Tasks")],
     ["/teams/abc123/tasks", headquartersPageTitle("Team Tasks")],
     ["/competitions", HQ],
-    ["/admin/sponsorship", HQ],
+    ["/plugins/sponsorship", HQ],
     ["/sponsors", HQ],
     ["/sponsor", SP],
     ["/sponsor/", SP],

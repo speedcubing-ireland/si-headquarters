@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest"
+import { renderToStaticMarkup } from "react-dom/server"
+import { AuctionCompetitionSummaryPanel } from "./competition-summary-panel"
 import { formatDate, formatDateRange } from "./competition-summary-format"
 
 const irishDate = (iso: string) =>
@@ -61,5 +63,36 @@ describe("formatDateRange", () => {
     })
     expect(result).toContain(" to ")
     expect(result).not.toContain("/")
+  })
+})
+
+describe("AuctionCompetitionSummaryPanel", () => {
+  test("renders long event lists compactly without a disclosure row", () => {
+    const html = renderToStaticMarkup(
+      <AuctionCompetitionSummaryPanel
+        source="wca"
+        summary={{
+          name: "Mayo Cubing 2026",
+          address: "Foxford Sports & Leisure Centre",
+          startDate: "2026-09-05",
+          endDate: "2026-09-06",
+          competitorLimit: 80,
+          eventIds: [
+            "333",
+            "222",
+            "444",
+            "555",
+            "666",
+            "333bf",
+            "333oh",
+            "clock",
+          ],
+        }}
+      />
+    )
+
+    expect(html).toContain("8 events")
+    expect(html).not.toContain("Clock")
+    expect(html).not.toContain("Show 2 more")
   })
 })

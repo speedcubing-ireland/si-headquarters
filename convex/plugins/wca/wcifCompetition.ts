@@ -45,7 +45,7 @@ function isWcifVenue(value: object): value is WcifVenue {
   )
 }
 
-function parseWcifSchedule(record: JsonRecord): Schedule | null {
+export function parseWcifSchedule(record: JsonRecord): Schedule | null {
   const startDate = readString(record, "startDate")
   const numberOfDays = readNumber(record, "numberOfDays")
   const venueObjects = readObjectArray(record, "venues")

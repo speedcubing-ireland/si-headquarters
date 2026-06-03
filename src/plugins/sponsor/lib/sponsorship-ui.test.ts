@@ -3,6 +3,8 @@ import {
   competitionPropertyStatusLabel,
   formatAuctionPriceLine,
   formatAuctionTablePrice,
+  proxyDirectBidCopy,
+  proxyMaxBidCopy,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 const baseAuction = {
@@ -81,6 +83,46 @@ describe("formatAuctionTablePrice", () => {
     expect(formatAuctionTablePrice(baseAuction)).toEqual({
       amountCents: 15_000,
       showWinningBidLabel: false,
+    })
+  })
+})
+
+describe("proxyDirectBidCopy", () => {
+  it("tells a winning sponsor they can raise the visible price", () => {
+    expect(proxyDirectBidCopy("winning")).toMatchObject({
+      title: "Raise current price",
+      submitLabel: "Raise current price",
+      confirmationTitle: "Raise the visible price?",
+    })
+  })
+
+  it("frames an outbid sponsor's visible bid as a counter bid", () => {
+    expect(proxyDirectBidCopy("not_winning")).toMatchObject({
+      title: "Counter bid",
+      submitLabel: "Place counter bid",
+    })
+  })
+
+  it("uses first-bid language when the sponsor has not bid yet", () => {
+    expect(proxyDirectBidCopy("no_bid_submitted")).toMatchObject({
+      title: "Place bid",
+      submitLabel: "Place bid",
+    })
+  })
+})
+
+describe("proxyMaxBidCopy", () => {
+  it("uses set language before a max bid exists", () => {
+    expect(proxyMaxBidCopy(undefined)).toMatchObject({
+      title: "Set max bid",
+      submitLabel: "Set max bid",
+    })
+  })
+
+  it("uses increase language after a max bid exists", () => {
+    expect(proxyMaxBidCopy(12_500)).toMatchObject({
+      title: "Increase max bid",
+      submitLabel: "Increase max bid",
     })
   })
 })

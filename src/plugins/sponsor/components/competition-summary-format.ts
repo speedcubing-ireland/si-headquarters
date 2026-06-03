@@ -1,11 +1,4 @@
-interface CompetitionSummary {
-  name: string
-  address: string
-  startDate: string
-  endDate: string
-  competitorLimit?: number
-  eventIds: string[]
-}
+import type { SponsorshipCompetitionSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 
 export function formatDate(date: string): string {
   if (date.trim().length === 0) return "TBC"
@@ -19,7 +12,9 @@ export function formatDate(date: string): string {
   })
 }
 
-export function formatDateRange(summary: CompetitionSummary): string {
+export function formatDateRange(
+  summary: Pick<SponsorshipCompetitionSummary, "startDate" | "endDate">
+): string {
   const start = formatDate(summary.startDate)
   const end = formatDate(summary.endDate)
   return start === end ? start : `${start} to ${end}`

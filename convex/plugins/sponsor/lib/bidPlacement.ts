@@ -13,7 +13,7 @@ import {
 import {
   isSealedAuctionFramework,
   sealedAuctionPricingRule,
-} from "@/convex/plugins/sponsor/lib/sponsorTypes"
+} from "@/convex/plugins/sponsor/lib/types"
 
 export interface PlaceSponsorshipBidInput {
   auction: Doc<"sponsorshipAuctions">

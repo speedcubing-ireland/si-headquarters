@@ -1,5 +1,4 @@
 import { Link, Navigate, useNavigate } from "@tanstack/react-router"
-import { Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import type { SubmitEvent } from "react"
 import { toast } from "sonner"
@@ -14,12 +13,15 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
+import { SponsorButtonSpinner } from "@/plugins/sponsor/components/sponsor-ui"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import {
   SPONSOR_LOGIN_STEPS,
   SPONSOR_PORTAL_INTRO,
 } from "@/plugins/sponsor/lib/sponsor-guide"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
+import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 
 const OTP_REQUEST_UI_TIMEOUT_MS = 3_000
 
@@ -33,15 +35,16 @@ export function PortalLoginPage() {
 function SponsorLoginEnabled() {
   const navigate = useNavigate()
   const { data: session, isPending } = sponsorAuthClient.useSession()
+  const { sessionToken: storedSessionToken } = useSponsorSessionToken()
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
   const [otpSent, setOtpSent] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
 
   useEffect(() => {
-    if (!session) return
+    if (!session && storedSessionToken === null) return
     void navigate({ to: "/sponsor/auctions" })
-  }, [navigate, session])
+  }, [navigate, session, storedSessionToken])
 
   const normalizedEmail = email.trim().toLowerCase()
 
@@ -155,7 +158,7 @@ function SponsorLoginEnabled() {
         {isPending ? (
           <Card className="border-muted-foreground/10 shadow-sm">
             <CardContent className="flex items-center justify-center py-10">
-              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              <Spinner className="size-5 text-muted-foreground" />
             </CardContent>
           </Card>
         ) : (
@@ -227,11 +230,7 @@ function SponsorLoginEnabled() {
                     type="submit"
                     disabled={isBusy || !normalizedEmail || !otpSent}
                   >
-                    {isBusy ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      "Sign in"
-                    )}
+                    {isBusy ? <SponsorButtonSpinner /> : "Sign in"}
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">
                     {SPONSOR_LOGIN_STEPS[5]}

@@ -4,39 +4,30 @@ import {
   canAccessSponsorPortalAdminForUser,
   getPrincipalOrNull,
   permissionsFor,
+  requireUserManagement,
 } from "@/convex/permissions/principal"
+import { permissionValidator } from "@/convex/permissions/shared"
 import { v } from "convex/values"
 
 export const currentPermissions = query({
   args: {},
   returns: v.object({
-    permissions: v.array(
-      v.object({
-        action: v.union(
-          v.literal("read"),
-          v.literal("create"),
-          v.literal("update"),
-          v.literal("delete"),
-          v.literal("manage"),
-          v.literal("access")
-        ),
-        subject: v.union(
-          v.literal("all"),
-          v.literal("Competition"),
-          v.literal("Task"),
-          v.literal("Team"),
-          v.literal("User"),
-          v.literal("UserManagement"),
-          v.literal("SponsorPortalAdmin")
-        ),
-      })
-    ),
+    permissions: v.array(permissionValidator),
   }),
   handler: async (ctx) => {
     const principal = await getPrincipalOrNull(ctx)
     return {
       permissions: permissionsFor(principal),
     }
+  },
+})
+
+export const assertUserManagement = internalQuery({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requireUserManagement(ctx)
+    return null
   },
 })
 

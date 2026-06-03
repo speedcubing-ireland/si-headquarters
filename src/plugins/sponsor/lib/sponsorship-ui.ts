@@ -1,20 +1,19 @@
-export const SPONSORSHIP_FRAMEWORKS = [
-  "first_sealed",
-  "vickrey",
-  "ebay_proxy",
-] as const
+import { formatDistanceToNow } from "date-fns"
+import {
+  SPONSORSHIP_AUCTION_FRAMEWORKS,
+  isProxyAuctionFramework,
+  isSealedAuctionFramework,
+  type SponsorshipAuctionFramework,
+} from "@/convex/plugins/sponsor/lib/types"
+import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
+import type { SponsorshipLifecycle } from "@/convex/plugins/sponsor/lib/sponsorshipLifecycle"
 
-export type SponsorshipFramework = (typeof SPONSORSHIP_FRAMEWORKS)[number]
+export const SPONSORSHIP_FRAMEWORKS = SPONSORSHIP_AUCTION_FRAMEWORKS
+
+export type SponsorshipFramework = SponsorshipAuctionFramework
+export type { SponsorBidStatus, SponsorshipLifecycle }
 export const SPONSORSHIP_BIDDING_HELP_TITLE = "How this auction works"
-export const SPONSOR_GUIDE_PAGE_TITLE = "Sponsor information"
-
-export type SponsorBidStatus =
-  | "winning"
-  | "not_winning"
-  | "winner"
-  | "not_winner"
-  | "bid_submitted"
-  | "no_bid_submitted"
+export const SPONSOR_GUIDE_PAGE_TITLE = "Sponsor Management System"
 
 export type SponsorshipAuctionState =
   | "draft"
@@ -51,13 +50,13 @@ export function isSponsorshipFramework(
 export function isProxySponsorshipFramework(
   framework: SponsorshipFramework
 ): boolean {
-  return framework === "ebay_proxy"
+  return isProxyAuctionFramework(framework)
 }
 
 export function isSealedSponsorshipFramework(
   framework: SponsorshipFramework
 ): boolean {
-  return !isProxySponsorshipFramework(framework)
+  return isSealedAuctionFramework(framework)
 }
 
 export function sponsorshipFrameworkLabel(
@@ -90,6 +89,82 @@ export function sponsorBidStatusLabel(status: SponsorBidStatus): string {
   }
 }
 
+export interface ProxyDirectBidCopy {
+  title: string
+  description: string
+  submitLabel: string
+  confirmationTitle: string
+  confirmationDescription: string
+}
+
+const defaultProxyDirectBidCopy: ProxyDirectBidCopy = {
+  title: "Place bid",
+  description:
+    "Enter a visible bid to join the auction. You can also set a secret max bid.",
+  submitLabel: "Place bid",
+  confirmationTitle: "Place this bid?",
+  confirmationDescription:
+    "This bid will be visible in the auction activity and may make you the current leader.",
+}
+
+export function proxyDirectBidCopy(
+  status: SponsorBidStatus | undefined
+): ProxyDirectBidCopy {
+  switch (status) {
+    case "winning":
+      return {
+        title: "Raise current price",
+        description:
+          "You are winning. You may optionally raise the visible current price for everyone.",
+        submitLabel: "Raise current price",
+        confirmationTitle: "Raise the visible price?",
+        confirmationDescription:
+          "This direct bid will be visible in the auction activity and will raise the current price if accepted.",
+      }
+    case "not_winning":
+      return {
+        title: "Counter bid",
+        description:
+          "Enter a visible bid. Another sponsor's proxy max may respond automatically.",
+        submitLabel: "Place counter bid",
+        confirmationTitle: "Place this counter bid?",
+        confirmationDescription:
+          "This bid will be visible in the auction activity. Proxy bids may update the current price immediately.",
+      }
+    case undefined:
+    case "bid_submitted":
+    case "no_bid_submitted":
+    case "winner":
+    case "not_winner":
+      return defaultProxyDirectBidCopy
+  }
+}
+
+export interface ProxyMaxBidCopy {
+  title: string
+  description: string
+  submitLabel: string
+  confirmationTitle: string
+  confirmationDescription: string
+}
+
+export function proxyMaxBidCopy(
+  existingMaxBidCents: number | undefined
+): ProxyMaxBidCopy {
+  const hasExistingMaxBid = existingMaxBidCents !== undefined
+  return {
+    title: hasExistingMaxBid ? "Increase max bid" : "Set max bid",
+    description:
+      "Your secret proxy limit stays hidden. The system only bids enough to keep you ahead.",
+    submitLabel: hasExistingMaxBid ? "Increase max bid" : "Set max bid",
+    confirmationTitle: hasExistingMaxBid
+      ? "Increase your secret max?"
+      : "Set your secret max?",
+    confirmationDescription:
+      "Your max bid stays secret. It may update the current price only when proxy rules require it.",
+  }
+}
+
 export function sponsorshipStateLabel(state: SponsorshipAuctionState): string {
   switch (state) {
     case "draft":
@@ -115,6 +190,45 @@ export function sponsorshipStateBadgeVariant(
     case "closed":
       return "outline"
   }
+}
+
+export function sponsorshipLifecycleLabel(
+  lifecycle: SponsorshipLifecycle
+): string {
+  switch (lifecycle) {
+    case "upcoming":
+      return "Upcoming"
+    case "ongoing":
+      return "Ongoing"
+    case "completed":
+      return "Completed"
+  }
+}
+
+export function sponsorshipLifecycleBadgeVariant(
+  lifecycle: SponsorshipLifecycle
+): "default" | "secondary" | "outline" {
+  switch (lifecycle) {
+    case "upcoming":
+      return "default"
+    case "ongoing":
+      return "secondary"
+    case "completed":
+      return "outline"
+  }
+}
+
+export function sponsorshipLifecycleStatusText(
+  lifecycle: SponsorshipLifecycle,
+  startDate: string,
+  now = Date.now()
+): string {
+  if (lifecycle === "ongoing") return "Ongoing"
+  if (lifecycle === "completed") return "Completed"
+  const startMillis = Date.parse(startDate)
+  if (!Number.isFinite(startMillis)) return "Upcoming"
+  if (startMillis <= now) return "Starting soon"
+  return `Starts ${formatDistanceToNow(new Date(startMillis), { addSuffix: true })}`
 }
 
 export function formatEuroFromCents(cents: number): string {

@@ -1,3 +1,5 @@
+import { v, type Infer } from "convex/values"
+
 export const TEAM_NAMES = {
   VOLUNTEER: "Volunteer",
   DIRECTORS: "Directors",
@@ -12,49 +14,56 @@ export const TEAM_NAMES = {
 
 export type TeamName = (typeof TEAM_NAMES)[keyof typeof TEAM_NAMES]
 
-/** Teams shown in admin membership UI (excludes grant-less placeholder teams). */
-export const ADMIN_ASSIGNABLE_TEAM_NAMES = [
-  TEAM_NAMES.VOLUNTEER,
-  TEAM_NAMES.DIRECTORS,
-  TEAM_NAMES.COMPETITIONS,
-  TEAM_NAMES.FINANCE,
-  TEAM_NAMES.DELEGATES,
-] as const satisfies readonly TeamName[]
+const ALL_TEAM_NAMES: readonly string[] = Object.values(TEAM_NAMES)
 
-/**
- * Teams used for permission grants or baseline membership, but not as
- * functional teams in application pickers, navigation, or task workflows.
- */
+export function isTeamName(teamName: string): teamName is TeamName {
+  return ALL_TEAM_NAMES.includes(teamName)
+}
+
+export const teamNameValidator = v.union(
+  v.literal(TEAM_NAMES.VOLUNTEER),
+  v.literal(TEAM_NAMES.DIRECTORS),
+  v.literal(TEAM_NAMES.COMPETITIONS),
+  v.literal(TEAM_NAMES.FINANCE),
+  v.literal(TEAM_NAMES.SOCIAL_MEDIA),
+  v.literal(TEAM_NAMES.MERCH),
+  v.literal(TEAM_NAMES.GRAPHICS),
+  v.literal(TEAM_NAMES.SOFTWARE),
+  v.literal(TEAM_NAMES.DELEGATES)
+)
+
 export const NON_APPLICATION_TEAM_NAMES = [
   TEAM_NAMES.VOLUNTEER,
 ] as const satisfies readonly TeamName[]
-
-export const ADMIN_ASSIGNABLE_TEAM_NAME_SET: ReadonlySet<string> = new Set(
-  ADMIN_ASSIGNABLE_TEAM_NAMES
-)
 
 export const NON_APPLICATION_TEAM_NAME_SET: ReadonlySet<string> = new Set(
   NON_APPLICATION_TEAM_NAMES
 )
 
-export type Action =
-  | "read"
-  | "create"
-  | "update"
-  | "delete"
-  | "manage"
-  | "access"
+export const actionValidator = v.union(
+  v.literal("read"),
+  v.literal("create"),
+  v.literal("update"),
+  v.literal("delete"),
+  v.literal("manage"),
+  v.literal("access")
+)
 
-export type Subject =
-  | "all"
-  | "Competition"
-  | "Task"
-  | "Team"
-  | "User"
-  | "UserManagement"
-  | "SponsorPortalAdmin"
+export const subjectValidator = v.union(
+  v.literal("all"),
+  v.literal("Competition"),
+  v.literal("Task"),
+  v.literal("Team"),
+  v.literal("User"),
+  v.literal("UserManagement"),
+  v.literal("SponsorPortalAdmin")
+)
 
-export interface Permission {
-  action: Action
-  subject: Subject
-}
+export const permissionValidator = v.object({
+  action: actionValidator,
+  subject: subjectValidator,
+})
+
+export type Action = Infer<typeof actionValidator>
+export type Subject = Infer<typeof subjectValidator>
+export type Permission = Infer<typeof permissionValidator>

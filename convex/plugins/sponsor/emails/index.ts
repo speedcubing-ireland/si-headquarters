@@ -5,7 +5,6 @@ export {
 } from "./render"
 export type { SponsorshipEmailContext } from "@/convex/plugins/sponsor/lib/validators"
 export {
-  describeAuctionFramework,
   getSponsorshipEmailPayload,
   sponsorshipEmailMessageFallback,
   sponsorshipEmailSubject,

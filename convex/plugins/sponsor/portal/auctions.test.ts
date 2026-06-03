@@ -240,6 +240,13 @@ function makeProxyPortalCtx(input: {
             }),
           }
         }
+        if (table === "sponsorshipAuctionReminders") {
+          return {
+            withIndex: () => ({
+              collect: async () => [],
+            }),
+          }
+        }
         throw new Error(`Unexpected query table: ${table}`)
       },
       get: async (table: string, id: string) => {

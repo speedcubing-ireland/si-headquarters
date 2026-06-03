@@ -43,6 +43,10 @@ export function sponsorPortalAuctionsIndexUrl(): string {
   return `${resolveSponsorPortalBaseUrl()}/auctions`
 }
 
+export function sponsorPortalGuideUrl(): string {
+  return `${resolveSponsorPortalBaseUrl()}/guide`
+}
+
 export function sponsorshipAdminPageUrl(): string {
-  return `${resolveHqSiteBaseUrl()}/admin/sponsorship`
+  return `${resolveHqSiteBaseUrl()}/plugins/sponsorship`
 }

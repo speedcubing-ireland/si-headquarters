@@ -19,6 +19,20 @@ export function isSealedAuctionFramework(
   return !isProxyAuctionFramework(framework)
 }
 
+/** Short label for emails and UI (matches sponsor portal guide titles). */
+export function auctionFrameworkLabel(
+  framework: SponsorshipAuctionFramework
+): string {
+  switch (framework) {
+    case "first_sealed":
+      return "Sealed bid"
+    case "vickrey":
+      return "Vickrey auction"
+    case "ebay_proxy":
+      return "Proxy bidding"
+  }
+}
+
 export type SealedAuctionPricingRule = "first_price" | "second_price"
 
 export function sealedAuctionPricingRule(

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
+import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
-  describeAuctionFramework,
   getSponsorshipEmailPayload,
   sponsorshipEmailMessageFallback,
   sponsorshipEmailSubject,
@@ -10,20 +10,11 @@ import {
 } from "./copy"
 import { formatMoney } from "./_design"
 
-describe("describeAuctionFramework", () => {
-  test("describes sealed first-price auctions", () => {
-    expect(describeAuctionFramework("first_sealed")).toContain("Sealed bid")
-    expect(describeAuctionFramework("first_sealed")).toContain(
-      "pays their bid amount"
-    )
-  })
-
-  test("describes vickrey auctions", () => {
-    expect(describeAuctionFramework("vickrey")).toContain("second-highest")
-  })
-
-  test("describes proxy auctions", () => {
-    expect(describeAuctionFramework("ebay_proxy")).toContain("Proxy bidding")
+describe("auctionFrameworkLabel", () => {
+  test("returns brief framework titles", () => {
+    expect(auctionFrameworkLabel("first_sealed")).toBe("Sealed bid")
+    expect(auctionFrameworkLabel("vickrey")).toBe("Vickrey auction")
+    expect(auctionFrameworkLabel("ebay_proxy")).toBe("Proxy bidding")
   })
 })
 
@@ -53,7 +44,7 @@ describe("getSponsorshipEmailPayload", () => {
       competitionName: "Irish Open 2026",
     })
     expect(payload.subject).toBe("Irish Open 2026: you have been outbid")
-    expect(payload.message).toContain("Place a new bid")
+    expect(payload.message).toContain("outbid")
   })
 
   test("formats winner fallback with settlement amount", () => {
@@ -62,6 +53,8 @@ describe("getSponsorshipEmailPayload", () => {
       settlementAmountCents: 125_000,
     })
     expect(payload.message).toContain("EUR 1250.00")
+    expect(payload.message).toContain("Sponsorship Team")
+    expect(payload.message).not.toContain("Finance will follow up")
   })
 })
 

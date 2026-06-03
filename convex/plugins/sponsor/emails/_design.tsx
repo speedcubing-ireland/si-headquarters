@@ -120,7 +120,7 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
               ) : null}
               <Section className="mt-4">{props.children}</Section>
               <Text className="text-brand-muted m-0 mt-4 text-xs leading-5">
-                Need help with {props.title}? Reply to this email and the
+                Need help? Reply to this email and the
                 Sponsorship Team will assist.
               </Text>
               {showCta ? (
@@ -138,20 +138,45 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
   )
 }
 
+/** All sponsorship email times use Ireland (Europe/Dublin), including DST. */
 export function formatEmailDateTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleString("en-IE", {
+  const date = new Date(timestamp)
+  const formatted = date.toLocaleString("en-IE", {
     dateStyle: "full",
     timeStyle: "short",
     timeZone: "Europe/Dublin",
   })
+  const timeZoneName =
+    new Intl.DateTimeFormat("en-IE", {
+      timeZone: "Europe/Dublin",
+      timeZoneName: "longGeneric",
+    })
+      .formatToParts(date)
+      .find((part) => part.type === "timeZoneName")?.value ?? "Irish time"
+  return `${formatted} (${timeZoneName})`
 }
 
-export function SponsorshipInfoBlock(props: { label: string; value: string }) {
+export function SponsorshipInfoBlock(props: {
+  label: string
+  value: string
+  valueHref?: string
+}) {
+  const showLink =
+    props.valueHref !== undefined && props.valueHref.length > 0
+
   return (
     <Section className="border-brand-border rounded-lg border px-4 py-3">
       <Text className="text-brand-muted m-0 text-xs">{props.label}</Text>
       <Text className="text-brand-foreground m-0 mt-1 text-sm font-semibold">
         {props.value}
+        {showLink ? (
+          <>
+            {" "}
+            <a href={props.valueHref} className="text-brand-primary font-semibold">
+              Read more
+            </a>
+          </>
+        ) : null}
       </Text>
     </Section>
   )

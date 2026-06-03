@@ -7,3 +7,5 @@ export const builtInThemes = [
 ] as const
 
 export type BuiltInTheme = (typeof builtInThemes)[number]["value"]
+
+export const STAT_CARD_EMPHASIS_CLASS = "border-primary/30"

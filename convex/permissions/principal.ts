@@ -4,6 +4,7 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import {
   TEAM_NAMES,
+  isTeamName,
   type Action,
   type Permission,
   type Subject,
@@ -38,12 +39,6 @@ const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
     { action: "read", subject: "User" },
   ],
   [TEAM_NAMES.FINANCE]: [{ action: "access", subject: "SponsorPortalAdmin" }],
-}
-
-const ALL_TEAM_NAMES: readonly string[] = Object.values(TEAM_NAMES)
-
-function isTeamName(teamName: string): teamName is TeamName {
-  return ALL_TEAM_NAMES.includes(teamName)
 }
 
 function teamGrants(teamName: TeamName): readonly Permission[] {
@@ -183,6 +178,14 @@ export async function requireUserManagement(
 ): Promise<Id<"users">> {
   const principal = await requirePrincipal(ctx)
   requireCan(principal, "manage", "UserManagement")
+  return principal.userId
+}
+
+export async function requireDirector(ctx: AuthCtx): Promise<Id<"users">> {
+  const principal = await requirePrincipal(ctx)
+  if (!hasTeam(principal, TEAM_NAMES.DIRECTORS)) {
+    throwForbidden("Directors only.")
+  }
   return principal.userId
 }
 

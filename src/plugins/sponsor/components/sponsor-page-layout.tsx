@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { SponsorImpersonationBanner } from "@/features/impersonation/impersonation-banner"
 
 export function SponsorPageShell({
   children,
@@ -8,8 +9,9 @@ export function SponsorPageShell({
   maxWidthClassName?: string
 }) {
   return (
-    <div className="min-h-svh bg-linear-to-b from-muted/40 to-background px-4 py-4 sm:px-6">
+    <div className="min-h-svh bg-background px-4 py-4 sm:px-6">
       <div className={cn("mx-auto w-full space-y-4", maxWidthClassName)}>
+        <SponsorImpersonationBanner />
         {children}
       </div>
     </div>
@@ -19,20 +21,15 @@ export function SponsorPageShell({
 export function SponsorPageHeader({
   title,
   subtitle,
-  eyebrow = "Sponsor Portal",
   actions,
 }: {
   title: string
   subtitle?: string
-  eyebrow?: string
   actions?: React.ReactNode
 }) {
   return (
     <header className="flex min-h-14 flex-wrap items-center justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-xs tracking-wide text-muted-foreground uppercase">
-          {eyebrow}
-        </p>
         <h1 className="truncate text-2xl font-semibold">{title}</h1>
         {subtitle !== undefined && subtitle.length > 0 ? (
           <p className="text-sm text-muted-foreground">{subtitle}</p>

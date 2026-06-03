@@ -1,8 +1,17 @@
-import { Info } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { SponsorFrameworkGuideGrid } from "@/plugins/sponsor/components/sponsor-framework-guide-card"
 import {
-  sponsorshipFrameworkGuide,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  SponsorFrameworkGuideCard,
+  SponsorFrameworkGuideGrid,
+} from "@/plugins/sponsor/components/sponsor-framework-guide-card"
+import {
+  SPONSORSHIP_BIDDING_HELP_TITLE,
+  sponsorshipFrameworkLabel,
   type SponsorshipFramework,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
@@ -10,61 +19,28 @@ export function AuctionBiddingHelpOverview() {
   return <SponsorFrameworkGuideGrid />
 }
 
-export function AuctionBiddingHelpAlert(props: {
+export function AuctionBiddingHelpDialog({
+  framework,
+  open,
+  onOpenChange,
+  title = SPONSORSHIP_BIDDING_HELP_TITLE,
+}: {
   framework: SponsorshipFramework
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title?: string
 }) {
-  const guide = sponsorshipFrameworkGuide(props.framework)
   return (
-    <Alert className="border-primary/30 bg-primary/5">
-      <Info className="size-4" />
-      <AlertTitle>{guide.title}</AlertTitle>
-      <AlertDescription className="space-y-3">
-        <p className="text-muted-foreground">{guide.tagline}</p>
-        <p>{guide.summary}</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <p className="text-xs font-medium tracking-wide uppercase">
-              Bidding
-            </p>
-            <ul className="space-y-1">
-              {guide.bidding.map((rule) => (
-                <li key={rule} className="flex items-start gap-1.5">
-                  <span className="mt-0.5">•</span>
-                  <span>{rule}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-medium tracking-wide uppercase">
-              Closing
-            </p>
-            <ul className="space-y-1">
-              {guide.closing.map((rule) => (
-                <li key={rule} className="flex items-start gap-1.5">
-                  <span className="mt-0.5">•</span>
-                  <span>{rule}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        {guide.notes !== undefined && guide.notes.length > 0 ? (
-          <div className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-            <p className="text-xs font-medium tracking-wide uppercase">
-              Good to know
-            </p>
-            <ul className="space-y-1">
-              {guide.notes.map((note) => (
-                <li key={note} className="flex items-start gap-1.5">
-                  <span className="mt-0.5">•</span>
-                  <span>{note}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </AlertDescription>
-    </Alert>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {sponsorshipFrameworkLabel(framework)} rules for this auction.
+          </DialogDescription>
+        </DialogHeader>
+        <SponsorFrameworkGuideCard framework={framework} embedded />
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -1,5 +1,5 @@
 import type { Doc } from "@/convex/_generated/dataModel"
-import { isSealedAuctionFramework } from "@/convex/plugins/sponsor/lib/sponsorTypes"
+import { isSealedAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 
 type AuctionVisibilityInput = Pick<
   Doc<"sponsorshipAuctions">,

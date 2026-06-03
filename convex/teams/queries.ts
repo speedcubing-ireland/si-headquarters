@@ -5,7 +5,6 @@ import {
   requirePrincipal,
   requireUserManagement,
 } from "@/convex/permissions/principal"
-import { ADMIN_ASSIGNABLE_TEAM_NAME_SET } from "@/convex/permissions/shared"
 import {
   isApplicationTeam,
   listMemberIdsForTeam,
@@ -94,8 +93,7 @@ export const listForUserManagement = query({
     await requireUserManagement(ctx)
     const teams = await collectAll(ctx, "teams")
     return teams
-      .filter((team) => ADMIN_ASSIGNABLE_TEAM_NAME_SET.has(team.name))
-      .map(toTeamSummary)
+      .map((team) => toTeamSummary(team))
       .sort((left, right) => left.name.localeCompare(right.name))
   },
 })

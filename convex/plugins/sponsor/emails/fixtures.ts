@@ -4,7 +4,7 @@ import {
   sponsorPortalAuctionsIndexUrl,
   sponsorPortalLoginUrl,
 } from "@/convex/plugins/sponsor/siteUrls"
-import { describeAuctionFramework } from "./copy"
+import { sponsorPortalGuideUrl } from "@/convex/plugins/sponsor/siteUrls"
 
 const competitionName = "Irish Open 2026"
 const recipientName = "Sponsor Team"
@@ -36,7 +36,8 @@ export const fixtures = {
   auctionScheduled: {
     variant: "auction_scheduled",
     ...auctionContext,
-    frameworkDescription: describeAuctionFramework("first_sealed"),
+    framework: "first_sealed",
+    frameworkGuideUrl: sponsorPortalGuideUrl(),
     startPriceCents: 10_000,
     currency: "EUR",
   },

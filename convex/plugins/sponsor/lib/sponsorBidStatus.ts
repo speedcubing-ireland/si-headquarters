@@ -1,5 +1,5 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/sponsorTypes"
+import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 
 export type SponsorBidStatus =
   | "winning"

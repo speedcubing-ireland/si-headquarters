@@ -15,7 +15,7 @@ describe("sponsor-site path mapping", () => {
     ["/auctions/abc123", "/sponsor/auctions/abc123"],
     ["/sponsor/login", "/sponsor/login"],
     ["/competitions", "/sponsor/404"],
-    ["/admin/sponsorship", "/sponsor/404"],
+    ["/plugins/sponsorship", "/sponsor/404"],
   ])("public %s → internal %s", (publicPath, internalPath) => {
     expect(mapBrowserPathToInternal(publicPath)).toBe(internalPath)
     expect(publicPathToInternal(publicPath)).toBe(internalPath)

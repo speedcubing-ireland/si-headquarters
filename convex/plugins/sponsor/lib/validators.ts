@@ -74,6 +74,8 @@ export const sponsorshipEmailContext = v.object({
   startsAt: v.optional(v.number()),
   endsAt: v.optional(v.number()),
   frameworkDescription: v.optional(v.string()),
+  framework: v.optional(sponsorshipAuctionFramework),
+  frameworkGuideUrl: v.optional(v.string()),
   startPriceCents: v.optional(v.number()),
   currency: v.optional(v.string()),
   sponsorHasBid: v.optional(v.boolean()),

@@ -10,7 +10,7 @@ export const sponsorPlugin: Plugin = {
   nav: [
     {
       label: "Sponsorship",
-      to: "/admin/sponsorship",
+      to: "/plugins/sponsorship",
       icon: GavelIcon,
       ability: {
         action: "access",

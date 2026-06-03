@@ -14,6 +14,9 @@ const wcaCompetitionDetails = v.object({
   event_ids: v.array(v.string()),
   competitor_limit: v.union(v.number(), v.null()),
   venue: v.string(),
+  venue_address: v.optional(v.string()),
+  latitude_degrees: v.optional(v.number()),
+  longitude_degrees: v.optional(v.number()),
 })
 
 interface WcaCompetitionDetails {
@@ -26,6 +29,9 @@ interface WcaCompetitionDetails {
   event_ids: string[]
   competitor_limit: number | null
   venue: string
+  venue_address?: string
+  latitude_degrees?: number
+  longitude_degrees?: number
 }
 
 function isPlainObject(
@@ -48,6 +54,14 @@ function readNumberOrNullField(
 ): number | null {
   const value = record[key]
   return typeof value === "number" ? value : null
+}
+
+function readOptionalNumberField(
+  record: Record<string, object | string | number | boolean | null>,
+  key: string
+): number | undefined {
+  const value = record[key]
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined
 }
 
 function readStringArrayField(
@@ -96,6 +110,10 @@ function parseWcaCompetitionDetails(
     return null
   }
 
+  const venueAddress = readStringField(value, "venue_address")
+  const latitude = readOptionalNumberField(value, "latitude_degrees")
+  const longitude = readOptionalNumberField(value, "longitude_degrees")
+
   return {
     id,
     name,
@@ -106,6 +124,9 @@ function parseWcaCompetitionDetails(
     event_ids: eventIds,
     competitor_limit: readNumberOrNullField(value, "competitor_limit"),
     venue,
+    ...(venueAddress !== undefined ? { venue_address: venueAddress } : {}),
+    ...(latitude !== undefined ? { latitude_degrees: latitude } : {}),
+    ...(longitude !== undefined ? { longitude_degrees: longitude } : {}),
   }
 }
 

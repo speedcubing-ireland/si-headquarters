@@ -1,8 +1,8 @@
 import { Link, Navigate, useNavigate } from "@tanstack/react-router"
+import { useMutation } from "convex/react"
 import {
   AlertTriangle,
   ArrowLeft,
-  Loader2,
   LogIn,
   LogOut,
   Mail,
@@ -13,26 +13,37 @@ import {
   SponsorPageShell,
 } from "@/plugins/sponsor/components/sponsor-page-layout"
 import { PortalThemeToggle } from "@/plugins/sponsor/components/portal-theme-toggle"
+import { SponsorPageLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { ProxyBidIncrementTable } from "@/plugins/sponsor/components/proxy-bid-increment-table"
 import { SponsorFrameworkGuideCard } from "@/plugins/sponsor/components/sponsor-framework-guide-card"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
+import { api } from "@/convex/_generated/api"
+import {
+  clearSponsorImpersonationSessionToken,
+  useSponsorSessionToken,
+} from "@/plugins/sponsor/lib/sponsor-session-token"
 import {
   SPONSOR_AUCTIONS_OVERVIEW,
   SPONSOR_BIDDING_NOTICE,
   SPONSOR_CLOSING_AND_RESULTS,
-  SPONSOR_PROXY_BID_INCREMENTS,
+  SPONSOR_MINIMUM_BIDS,
   SPONSOR_TEAM_EMAIL,
 } from "@/plugins/sponsor/lib/sponsor-guide"
 import {
@@ -50,32 +61,47 @@ export function PortalGuidePage() {
 
 function SponsorGuideEnabled() {
   const navigate = useNavigate()
-  const { data: authSession, isPending: authPending } =
-    sponsorAuthClient.useSession()
-  const sessionToken = authSession?.session.token ?? null
+  const {
+    sessionToken,
+    isPending: authPending,
+    isImpersonating,
+  } = useSponsorSessionToken()
+  const endSponsorImpersonation = useMutation(
+    api.impersonation.mutations.endSponsorImpersonation
+  )
   const isSignedIn = sessionToken !== null
 
   if (authPending) {
-    return (
-      <div className="flex min-h-svh items-center justify-center">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <SponsorPageLoading />
   }
 
   const onLogout = async () => {
-    await sponsorAuthClient.signOut()
+    if (isImpersonating && sessionToken !== null) {
+      await endSponsorImpersonation({ sessionToken })
+      clearSponsorImpersonationSessionToken()
+    } else {
+      await sponsorAuthClient.signOut()
+    }
     toast.success("Signed out.")
     await navigate({ to: "/sponsor/login" })
   }
+
+  const backTo = isSignedIn ? "/sponsor/auctions" : "/sponsor/login"
+  const backLabel = isSignedIn ? "Back to auctions" : "Back to sign in"
 
   return (
     <SponsorPageShell maxWidthClassName="max-w-3xl">
       <SponsorPageHeader
         title={SPONSOR_GUIDE_PAGE_TITLE}
-        subtitle="How auctions work, bidding rules, and sponsorship policy"
+        subtitle="Auction formats, bidding rules, and sponsorship policy"
         actions={
           <>
+            <Button asChild variant="ghost" size="sm">
+              <Link to={backTo}>
+                <ArrowLeft className="size-4" />
+                {backLabel}
+              </Link>
+            </Button>
             <PortalThemeToggle />
             {isSignedIn ? (
               <Button variant="outline" onClick={() => void onLogout()}>
@@ -94,124 +120,98 @@ function SponsorGuideEnabled() {
         }
       />
 
-      <div className="flex flex-wrap gap-2">
-        {isSignedIn ? (
-          <Button asChild variant="outline" size="sm">
-            <Link to="/sponsor/auctions">
-              <ArrowLeft className="size-4" />
-              Back to auctions
-            </Link>
-          </Button>
-        ) : (
-          <Button asChild variant="outline" size="sm">
-            <Link to="/sponsor/login">
-              <ArrowLeft className="size-4" />
-              Back to sign in
-            </Link>
-          </Button>
-        )}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{SPONSOR_AUCTIONS_OVERVIEW.title}</CardTitle>
+          <CardDescription>{SPONSOR_AUCTIONS_OVERVIEW.body}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 text-muted-foreground">
+          <p>{SPONSOR_AUCTIONS_OVERVIEW.detail}</p>
+          <div>
+            <p>{SPONSOR_AUCTIONS_OVERVIEW.formatsIntro}</p>
+            <ul className="mt-2 list-disc pl-6">
+              {SPONSOR_AUCTIONS_OVERVIEW.formatItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>{SPONSOR_AUCTIONS_OVERVIEW.title}</CardTitle>
-            <CardDescription>{SPONSOR_AUCTIONS_OVERVIEW.body}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {SPONSOR_AUCTIONS_OVERVIEW.formatsIntro}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SPONSORSHIP_FRAMEWORKS.map((framework) => (
-                <Badge key={framework} variant="secondary">
+      <Card>
+        <CardHeader>
+          <CardTitle>Auction formats</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Accordion
+            type="single"
+            collapsible
+            defaultValue={SPONSORSHIP_FRAMEWORKS[0]}
+          >
+            {SPONSORSHIP_FRAMEWORKS.map((framework) => (
+              <AccordionItem key={framework} value={framework}>
+                <AccordionTrigger>
                   {sponsorshipFrameworkLabel(framework)}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <SponsorFrameworkGuideCard framework={framework} embedded />
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Auction formats</CardTitle>
-            <CardDescription>
-              Each competition uses one format. Open an auction to see which
-              applies.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs
-              defaultValue={SPONSORSHIP_FRAMEWORKS[0]}
-              className="space-y-4"
+      <Card>
+        <CardHeader>
+          <CardTitle>{SPONSOR_MINIMUM_BIDS.title}</CardTitle>
+          <CardDescription>{SPONSOR_MINIMUM_BIDS.sealedAndVickrey}</CardDescription>
+        </CardHeader>
+        <CardContent divided>
+          <p className="text-muted-foreground">{SPONSOR_MINIMUM_BIDS.proxyIntro}</p>
+          <ProxyBidIncrementTable />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{SPONSOR_CLOSING_AND_RESULTS.title}</CardTitle>
+          <CardDescription>{SPONSOR_CLOSING_AND_RESULTS.body}</CardDescription>
+        </CardHeader>
+      </Card>
+
+      <Alert variant="destructive">
+        <AlertTriangle />
+        <AlertTitle>{SPONSOR_BIDDING_NOTICE.title}</AlertTitle>
+        <AlertDescription>
+          {SPONSOR_BIDDING_NOTICE.paragraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </AlertDescription>
+      </Alert>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact</CardTitle>
+          <CardDescription>
+            Sponsor team email:{" "}
+            <a
+              className="text-foreground underline underline-offset-4"
+              href={`mailto:${SPONSOR_TEAM_EMAIL}`}
             >
-              <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
-                {SPONSORSHIP_FRAMEWORKS.map((framework) => (
-                  <TabsTrigger key={framework} value={framework}>
-                    {sponsorshipFrameworkLabel(framework)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              {SPONSORSHIP_FRAMEWORKS.map((framework) => (
-                <TabsContent key={framework} value={framework}>
-                  <div className="space-y-6">
-                    <SponsorFrameworkGuideCard framework={framework} embedded />
-                    {framework === "ebay_proxy" ? (
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold">
-                          {SPONSOR_PROXY_BID_INCREMENTS.title}
-                        </h3>
-                        <ProxyBidIncrementTable />
-                      </div>
-                    ) : null}
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{SPONSOR_CLOSING_AND_RESULTS.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {SPONSOR_CLOSING_AND_RESULTS.body}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Alert variant="destructive">
-          <AlertTriangle />
-          <AlertTitle>{SPONSOR_BIDDING_NOTICE.title}</AlertTitle>
-          <AlertDescription>
-            <div className="space-y-2">
-              {SPONSOR_BIDDING_NOTICE.paragraphs.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-            </div>
-          </AlertDescription>
-        </Alert>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Need help?</CardTitle>
-            <CardDescription>
-              Contact the Speedcubing Ireland sponsorship team with questions or
-              technical issues.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <a href={`mailto:${SPONSOR_TEAM_EMAIL}`}>
-                <Mail className="size-4" />
-                {SPONSOR_TEAM_EMAIL}
-              </a>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+              {SPONSOR_TEAM_EMAIL}
+            </a>
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button asChild variant="outline">
+            <a href={`mailto:${SPONSOR_TEAM_EMAIL}`}>
+              <Mail className="size-4" />
+              Email sponsorship team
+            </a>
+          </Button>
+        </CardFooter>
+      </Card>
     </SponsorPageShell>
   )
 }

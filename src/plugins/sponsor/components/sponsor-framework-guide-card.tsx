@@ -7,7 +7,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -21,82 +20,86 @@ function GuideBulletList({
 }) {
   if (items.length === 0) return null
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {title}
-      </p>
-      <ul className="space-y-1.5 text-sm text-muted-foreground">
+    <div>
+      <p className="font-medium">{title}</p>
+      <ul className="mt-2 list-disc pl-6 text-muted-foreground">
         {items.map((item) => (
-          <li key={item} className="flex items-start gap-2">
-            <span className="mt-2 size-1 shrink-0 rounded-full bg-foreground/50" />
-            <span>{item}</span>
-          </li>
+          <li key={item}>{item}</li>
         ))}
       </ul>
     </div>
   )
 }
 
+function GuideNotesAlert({
+  notes,
+  spanColumns = false,
+}: {
+  notes: readonly string[]
+  spanColumns?: boolean
+}) {
+  return (
+    <Alert className={spanColumns ? "sm:col-span-2" : undefined}>
+      <AlertTitle>Good to know</AlertTitle>
+      <AlertDescription className="flex flex-col gap-2">
+        {notes.map((note) => (
+          <p key={note} className="mb-0">
+            {note}
+          </p>
+        ))}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 function SponsorFrameworkGuideBody({
   framework,
-  compact,
 }: {
   framework: SponsorshipFramework
-  compact: boolean
 }) {
   const guide = sponsorshipFrameworkGuide(framework)
+  const notes = guide.notes ?? []
+  const hasClosing = guide.closing.length > 0
+  const hasNotes = notes.length > 0
+
   return (
-    <>
-      <p className="text-sm leading-relaxed">{guide.summary}</p>
-      <div className={compact ? "grid gap-4" : "grid gap-4 sm:grid-cols-2"}>
-        <GuideBulletList title="Bidding" items={guide.bidding} />
-        <GuideBulletList title="Closing" items={guide.closing} />
-      </div>
-      {guide.notes !== undefined && guide.notes.length > 0 ? (
-        <Alert>
-          <AlertTitle>Good to know</AlertTitle>
-          <AlertDescription>
-            <ul className="space-y-2">
-              {guide.notes.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-    </>
+    <div className="flex flex-col gap-4">
+      <p className="mb-0">{guide.summary}</p>
+      {hasClosing ? (
+        <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
+          <GuideBulletList title="Bidding" items={guide.bidding} />
+          <GuideBulletList title="Closing" items={guide.closing} />
+          {hasNotes ? <GuideNotesAlert notes={notes} spanColumns /> : null}
+        </div>
+      ) : (
+        <>
+          <GuideBulletList title="Bidding" items={guide.bidding} />
+          {hasNotes ? <GuideNotesAlert notes={notes} /> : null}
+        </>
+      )}
+    </div>
   )
 }
 
 export function SponsorFrameworkGuideCard({
   framework,
-  compact = false,
   embedded = false,
 }: {
   framework: SponsorshipFramework
-  compact?: boolean
-  /** Render body only (e.g. inside another Card's tabs). */
+  /** Render body only (e.g. inside an accordion on the guide page). */
   embedded?: boolean
 }) {
-  const guide = sponsorshipFrameworkGuide(framework)
-
   if (embedded) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{guide.tagline}</p>
-        <SponsorFrameworkGuideBody framework={framework} compact={compact} />
-      </div>
-    )
+    return <SponsorFrameworkGuideBody framework={framework} />
   }
 
   return (
-    <Card size={compact ? "sm" : "default"}>
+    <Card>
       <CardHeader>
         <CardTitle>{sponsorshipFrameworkLabel(framework)}</CardTitle>
-        <CardDescription>{guide.tagline}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <SponsorFrameworkGuideBody framework={framework} compact={compact} />
+      <CardContent>
+        <SponsorFrameworkGuideBody framework={framework} />
       </CardContent>
     </Card>
   )
@@ -109,13 +112,9 @@ export function SponsorFrameworkGuideGrid() {
     "ebay_proxy",
   ]
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid items-start gap-4 lg:grid-cols-3">
       {frameworks.map((framework) => (
-        <SponsorFrameworkGuideCard
-          key={framework}
-          framework={framework}
-          compact
-        />
+        <SponsorFrameworkGuideCard key={framework} framework={framework} />
       ))}
     </div>
   )

@@ -1,6 +1,14 @@
-import { Loader2 } from "lucide-react"
+import { SponsorInlineLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import type { Id } from "@/convex/_generated/dataModel"
 import {
   formatAuctionTablePrice,
@@ -42,11 +50,7 @@ export function AuctionTable({
   isLoading: boolean
 }) {
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <SponsorInlineLoading className="py-10" />
   }
 
   if (rows.length === 0) {
@@ -54,28 +58,31 @@ export function AuctionTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
-          <tr>
-            <th className="px-3 py-2 text-left font-medium">Competition</th>
-            <th className="px-3 py-2 text-left font-medium">Phase</th>
-            <th className="px-3 py-2 text-left font-medium">State</th>
-            <th className="px-3 py-2 text-left font-medium">Framework</th>
-            <th className="px-3 py-2 text-left font-medium">Window</th>
-            <th className="px-3 py-2 text-left font-medium">Price</th>
-            <th className="px-3 py-2 text-right font-medium">Action</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead>Competition</TableHead>
+            <TableHead>Phase</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead>Framework</TableHead>
+            <TableHead>Window</TableHead>
+            <TableHead>Price</TableHead>
+            <TableHead className="text-right">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((auction) => {
             const isSelected = selectedId === auction.id
             const { amountCents, showWinningBidLabel } =
               formatAuctionTablePrice(auction)
 
             return (
-              <tr key={auction.id} className={isSelected ? "bg-primary/5" : ""}>
-                <td className="px-3 py-2 align-top">
+              <TableRow
+                key={auction.id}
+                data-state={isSelected ? "selected" : undefined}
+              >
+                <TableCell className="align-top whitespace-normal">
                   <div className="space-y-0.5">
                     <p className="font-medium">{auction.competitionName}</p>
                     {auction.competitionCompStart !== undefined &&
@@ -85,32 +92,32 @@ export function AuctionTable({
                       </p>
                     ) : null}
                   </div>
-                </td>
-                <td className="px-3 py-2">{auction.competitionPhaseName}</td>
-                <td className="px-3 py-2">
+                </TableCell>
+                <TableCell>{auction.competitionPhaseName}</TableCell>
+                <TableCell>
                   <Badge variant={sponsorshipStateBadgeVariant(auction.state)}>
                     {sponsorshipStateLabel(auction.state)}
                   </Badge>
-                </td>
-                <td className="px-3 py-2">
+                </TableCell>
+                <TableCell>
                   {sponsorshipFrameworkLabel(auction.framework)}
-                </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
                   {formatDateTime(auction.startsAt)}
                   <br />
                   {formatDateTime(auction.endsAt)}
-                </td>
-                <td className="px-3 py-2">
+                </TableCell>
+                <TableCell>
                   <div className="space-y-0.5">
-                    <p>{formatEuroFromCents(amountCents)}</p>
+                    <p className="tabular-nums">{formatEuroFromCents(amountCents)}</p>
                     {showWinningBidLabel ? (
                       <p className="text-xs text-muted-foreground">
                         Winning bid
                       </p>
                     ) : null}
                   </div>
-                </td>
-                <td className="px-3 py-2 text-right">
+                </TableCell>
+                <TableCell className="text-right">
                   <Button
                     size="sm"
                     variant="outline"
@@ -120,12 +127,12 @@ export function AuctionTable({
                   >
                     {actionLabel}
                   </Button>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }

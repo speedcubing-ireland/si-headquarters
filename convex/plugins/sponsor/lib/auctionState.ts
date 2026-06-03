@@ -3,7 +3,7 @@ import { resolveProxyState, resolveSealedOutcome } from "./bidding"
 import {
   isProxyAuctionFramework,
   sealedAuctionPricingRule,
-} from "@/convex/plugins/sponsor/lib/sponsorTypes"
+} from "@/convex/plugins/sponsor/lib/types"
 
 type AuctionDoc = Doc<"sponsorshipAuctions">
 type IntentDoc = Doc<"sponsorshipBidIntents">

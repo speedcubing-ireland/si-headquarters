@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
-import { sponsorForUI } from "@/convex/plugins/sponsor/lib/sponsorTypes"
+import { sponsorForUI } from "@/convex/plugins/sponsor/lib/validators"
 import { syncSponsorAuthUserProfile } from "../auth/accounts"
 import { requireSponsorSession } from "./shared"
 

@@ -1,11 +1,8 @@
-import {
-  AlertTriangle,
-  Lock,
-  LockOpen,
-  Loader2,
-  RefreshCw,
-  Trash2,
-} from "lucide-react"
+import { AlertTriangle, Lock, LockOpen, RefreshCw, Trash2 } from "lucide-react"
+import { STAT_CARD_EMPHASIS_CLASS } from "@/lib/theme-constants"
+import { SponsorInlineLoading } from "@/plugins/sponsor/components/sponsor-ui"
+import { Spinner } from "@/components/ui/spinner"
+import { cn } from "@/lib/utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -91,9 +88,7 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
 
   if (isLoadingManagerView || managerView === null) {
     return (
-      <div className="flex items-center justify-center py-6">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
+      <SponsorInlineLoading className="py-6" />
     )
   }
 
@@ -115,7 +110,12 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
           <Badge variant="outline">Bid events: {managerView.eventCount}</Badge>
         </div>
       </div>
-      <div className="space-y-2 rounded-md border p-3 text-sm">
+      <div
+        className={cn(
+          "space-y-2 rounded-md border p-3 text-sm",
+          !isSelectedAuctionCompetitionSummaryReady && STAT_CARD_EMPHASIS_CLASS
+        )}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
             Competition data status
@@ -164,7 +164,7 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
           }
         >
           {refreshingAuctionId === selectedAuction.id ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner />
           ) : (
             <RefreshCw className="size-4" />
           )}
@@ -318,7 +318,7 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
           }
         >
           {isSavingAuction ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner />
           ) : (
             "Save changes"
           )}
@@ -330,44 +330,64 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
         ) : null}
       </form>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="space-y-3 rounded-md border p-3">
+        <div>
+          <p className="text-sm font-medium">Lifecycle actions</p>
+          <p className="text-xs text-muted-foreground">
+            Save pending edits before starting or closing an auction.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {selectedAuction.state === "draft" ||
+          selectedAuction.state === "scheduled" ? (
+            <Button
+              size="sm"
+              disabled={
+                busyAuctionId === selectedAuction.id ||
+                hasPendingEditChanges ||
+                refreshingAuctionId === selectedAuction.id
+              }
+              onClick={() => void onStartAuction(selectedAuction.id)}
+            >
+              Start auction
+            </Button>
+          ) : null}
+          {selectedAuction.state !== "closed" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                busyAuctionId === selectedAuction.id || hasPendingEditChanges
+              }
+              onClick={() => void onCloseAuction(selectedAuction.id)}
+            >
+              Close auction
+            </Button>
+          ) : null}
+        </div>
         {selectedAuction.state === "draft" ||
         selectedAuction.state === "scheduled" ? (
-          <Button
-            size="sm"
-            disabled={
-              busyAuctionId === selectedAuction.id ||
-              hasPendingEditChanges ||
-              refreshingAuctionId === selectedAuction.id
-            }
-            onClick={() => void onStartAuction(selectedAuction.id)}
-          >
-            Start auction
-          </Button>
-        ) : null}
-        {selectedAuction.state !== "closed" ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={
-              busyAuctionId === selectedAuction.id || hasPendingEditChanges
-            }
-            onClick={() => void onCloseAuction(selectedAuction.id)}
-          >
-            Close auction
-          </Button>
-        ) : null}
-        {selectedAuction.state === "draft" ||
-        selectedAuction.state === "scheduled" ? (
-          <Button
-            size="sm"
-            variant="destructive"
-            disabled={busyAuctionId === selectedAuction.id}
-            onClick={() => void onDeleteBeforeOpen(selectedAuction.id)}
-          >
-            <Trash2 className="size-4" />
-            Delete before open
-          </Button>
+          <div className="border-t pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-destructive">
+                  Delete draft auction
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Only available before bidding opens.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={busyAuctionId === selectedAuction.id}
+                onClick={() => void onDeleteBeforeOpen(selectedAuction.id)}
+              >
+                <Trash2 className="size-4" />
+                Delete before open
+              </Button>
+            </div>
+          </div>
         ) : null}
       </div>
       {selectedAuction.state !== "draft" &&

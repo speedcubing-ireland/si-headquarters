@@ -32,6 +32,9 @@ export const tables = {
     ipAddress: v.optional(v.union(v.null(), v.string())),
     userAgent: v.optional(v.union(v.null(), v.string())),
     userId: v.string(),
+    impersonationSessionId: v.optional(v.union(v.null(), v.string())),
+    impersonatedByUserId: v.optional(v.union(v.null(), v.string())),
+    impersonationExpiresAt: v.optional(v.union(v.null(), v.number())),
   })
     .index("expiresAt", ["expiresAt"])
     .index("expiresAt_userId", ["expiresAt", "userId"])

@@ -4,17 +4,35 @@ import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import { requireSponsorByAuthSessionToken } from "../auth/accounts"
 import { minNextBidCents } from "../lib/bidding"
 import { resolveSponsorBidStatus } from "../lib/sponsorBidStatus"
+import { isSealedAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
-  isSealedAuctionFramework,
   sponsorshipAuctionFramework,
   auctionState,
-} from "@/convex/plugins/sponsor/lib/sponsorTypes"
+} from "@/convex/plugins/sponsor/lib/validators"
 import {
   sponsorshipCompetitionSummary,
   sponsorshipCompetitionSummarySource,
 } from "../lib/competitionSnapshot"
+import { isSponsorVisibleAuctionState } from "../lib/visibility"
 
 type SponsorCtx = QueryCtx | MutationCtx
+
+export async function listInvitedVisibleAuctions(
+  ctx: QueryCtx,
+  sponsorId: Id<"sponsors">
+): Promise<Doc<"sponsorshipAuctions">[]> {
+  const invites = await ctx.db
+    .query("sponsorshipAuctionInvites")
+    .withIndex("by_sponsor", (q) => q.eq("sponsorId", sponsorId))
+    .collect()
+  const auctions = await Promise.all(
+    invites.map((invite) => ctx.db.get("sponsorshipAuctions", invite.auctionId))
+  )
+  return auctions.filter((auction): auction is Doc<"sponsorshipAuctions"> => {
+    if (!auction) return false
+    return isSponsorVisibleAuctionState(auction.state)
+  })
+}
 
 export const sponsorAuctionListItem = v.object({
   id: v.id("sponsorshipAuctions"),
@@ -40,6 +58,25 @@ export const sponsorAuctionListItem = v.object({
       v.literal("bid_submitted"),
       v.literal("no_bid_submitted")
     )
+  ),
+})
+
+export const sponsorSponsorshipLifecycle = v.union(
+  v.literal("upcoming"),
+  v.literal("ongoing"),
+  v.literal("completed")
+)
+
+export const sponsorSponsorshipListItem = v.object({
+  competitionId: v.id("competitions"),
+  competitionName: v.string(),
+  competitionSummary: sponsorshipCompetitionSummary,
+  competitionSummarySource: sponsorshipCompetitionSummarySource,
+  lifecycle: sponsorSponsorshipLifecycle,
+  managementAuctionId: v.id("sponsorshipAuctions"),
+  acquiredVia: v.union(
+    v.literal("auction_win"),
+    v.literal("manual_assignment")
   ),
 })
 

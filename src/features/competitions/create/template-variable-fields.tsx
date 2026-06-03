@@ -2,12 +2,10 @@
 
 import type { AutoFormFieldProps } from "@/components/ui/autoform"
 import { AutoForm } from "@/components/ui/autoform"
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import * as UserSelector from "@/components/data-selectors/user-selector"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import {
   buildTemplateVariableSchema,
   type TemplateVariableDefinition,
@@ -23,8 +21,7 @@ function UserVariableField({ path, value }: AutoFormFieldProps) {
   const form = useFormContext<TemplateVariableFormValues>()
   const users = useQuery(api.users.queries.list, {})
   const rawUserId = typeof value === "string" ? value : ""
-  const selectedUser =
-    users?.find((user) => user._id === rawUserId) ?? null
+  const selectedUser = users?.find((user) => user._id === rawUserId) ?? null
   const userId = selectedUser?._id ?? null
 
   return (
@@ -46,7 +43,7 @@ function UsersVariableField({ path, value }: AutoFormFieldProps) {
   const form = useFormContext<TemplateVariableFormValues>()
   const rawUserIds = Array.isArray(value)
     ? value.filter(
-        (entry): entry is string =>
+        (entry): entry is Id<"users"> =>
           typeof entry === "string" && entry.length > 0
       )
     : []

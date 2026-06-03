@@ -1,21 +1,23 @@
 import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
+import type { MutationCtx } from "@/convex/_generated/server"
 import { compareBidIntentChronology } from "../lib/auctionState"
 import { placeSponsorshipBid } from "../lib/bidPlacement"
 import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
   competitionSponsorPropertyStatus,
-  isProxyAuctionFramework,
-} from "@/convex/plugins/sponsor/lib/sponsorTypes"
+} from "@/convex/plugins/sponsor/lib/validators"
 import { sendEbayAuctionOutbidEmail } from "../admin/auctions/emails"
 import { scheduleAuctionClosure } from "../admin/auctions/lifecycle"
+import { syncActiveRemindersToAuctionEnd } from "../admin/auctions/reminders"
 import {
   isBidHistoryVisibleToSponsor,
   isSponsorVisibleAuctionState,
 } from "../lib/visibility"
 import {
+  listInvitedVisibleAuctions,
   requireAuctionInvite,
   requireSponsorSession,
   sponsorAuctionListItem,
@@ -45,24 +47,10 @@ async function rescheduleClosureWhenExtended(
   if (extendedEndsAt === undefined) return
   const updatedAuction = await ctx.db.get("sponsorshipAuctions", auctionId)
   if (updatedAuction?.state !== "active") return
-  await scheduleAuctionClosure(ctx, updatedAuction)
-}
-
-async function listInvitedVisibleAuctions(
-  ctx: QueryCtx,
-  sponsorId: Id<"sponsors">
-): Promise<Doc<"sponsorshipAuctions">[]> {
-  const invites = await ctx.db
-    .query("sponsorshipAuctionInvites")
-    .withIndex("by_sponsor", (q) => q.eq("sponsorId", sponsorId))
-    .collect()
-  const auctions = await Promise.all(
-    invites.map((invite) => ctx.db.get("sponsorshipAuctions", invite.auctionId))
-  )
-  return auctions.filter((auction): auction is Doc<"sponsorshipAuctions"> => {
-    if (!auction) return false
-    return isSponsorVisibleAuctionState(auction.state)
-  })
+  await Promise.all([
+    scheduleAuctionClosure(ctx, updatedAuction),
+    syncActiveRemindersToAuctionEnd(ctx, updatedAuction),
+  ])
 }
 
 export function sponsorBidEventLabel(input: {

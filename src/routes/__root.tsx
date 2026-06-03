@@ -27,6 +27,11 @@ function isSponsorPortalPath(pathname: string): boolean {
   return normalized.startsWith("/sponsor")
 }
 
+function isPublicImpersonationPath(pathname: string): boolean {
+  const normalized = pathname.replace(/\/+$/, "") || "/"
+  return normalized === "/impersonate/user"
+}
+
 function SignInForm() {
   const { signIn } = useAuthActions()
 
@@ -77,6 +82,10 @@ function RootLayoutInner() {
   useEffect(() => {
     document.title = getPageTitle(pathname)
   }, [pathname])
+
+  if (isPublicImpersonationPath(pathname)) {
+    return <Outlet />
+  }
 
   if (isSponsorPortal) {
     return <Outlet />

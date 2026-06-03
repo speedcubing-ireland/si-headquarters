@@ -114,6 +114,8 @@ export function buildLifecycleProps(
     portalUrl: lifecyclePortal.portalUrl,
     startsAt: input.context?.startsAt,
     endsAt: input.context?.endsAt,
+    framework: input.context?.framework,
+    frameworkGuideUrl: input.context?.frameworkGuideUrl,
     frameworkDescription: input.context?.frameworkDescription,
     startPriceCents: input.context?.startPriceCents,
     currency: input.context?.currency,

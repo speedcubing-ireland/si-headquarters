@@ -2,10 +2,7 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 import { listMembersForTeams } from "@/convex/teams/model"
-import {
-  describeAuctionFramework,
-  getSponsorshipEmailPayload,
-} from "@/convex/plugins/sponsor/emails/copy"
+import { getSponsorshipEmailPayload } from "@/convex/plugins/sponsor/emails/copy"
 import type {
   SponsorshipAuctionEmailType,
   SponsorshipEmailContext,
@@ -13,11 +10,10 @@ import type {
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
   sponsorPortalAuctionUrl,
+  sponsorPortalGuideUrl,
   sponsorshipAdminPageUrl,
 } from "@/convex/plugins/sponsor/siteUrls"
 import { scheduleSponsorshipEmailBatch } from "../../emails/send"
-
-export { describeAuctionFramework }
 
 function sponsorAuctionUrl(auctionId: Id<"sponsorshipAuctions">): string {
   return sponsorPortalAuctionUrl(String(auctionId))
@@ -97,7 +93,8 @@ export async function sendAuctionScheduledEmails(
     portalUrl: sponsorAuctionUrl(auction._id),
     startsAt: auction.startsAt,
     endsAt: auction.endsAt,
-    frameworkDescription: describeAuctionFramework(auction.framework),
+    framework: auction.framework,
+    frameworkGuideUrl: sponsorPortalGuideUrl(),
     startPriceCents: auction.startPriceCents,
     currency: auction.currency,
   }
@@ -274,10 +271,7 @@ export async function sendAuctionClosureEmails(
     })
   }
 
-  const managerIds = await listMembersForTeams(ctx, [
-    TEAM_NAMES.DIRECTORS,
-    TEAM_NAMES.FINANCE,
-  ])
+  const managerIds = await listMembersForTeams(ctx, [TEAM_NAMES.FINANCE])
   const managerUsers = await Promise.all(
     [...managerIds].map((userId) => ctx.db.get("users", userId))
   )

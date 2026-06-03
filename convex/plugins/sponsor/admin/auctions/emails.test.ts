@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
-import { describeAuctionFramework, sendAuctionScheduledEmails } from "./emails"
+import { sponsorPortalGuideUrl } from "@/convex/plugins/sponsor/siteUrls"
+import type { SponsorshipEmailContext } from "@/convex/plugins/sponsor/lib/validators"
+import { sendAuctionScheduledEmails } from "./emails"
+import { formatEmailDateTime } from "../../emails/_design"
 import {
   buildSponsorshipEmailHtml,
   buildSponsorshipEmailPlainText,
@@ -131,26 +134,6 @@ function createEmailCtx(input: {
   return { ctx, scheduledCalls }
 }
 
-describe("describeAuctionFramework", () => {
-  test("first_sealed returns sealed-bid first-price description", () => {
-    const result = describeAuctionFramework("first_sealed")
-    expect(result).toContain("Sealed bid")
-    expect(result).toContain("pays their bid amount")
-  })
-
-  test("vickrey returns sealed-bid second-price description", () => {
-    const result = describeAuctionFramework("vickrey")
-    expect(result).toContain("sealed bid")
-    expect(result).toContain("second-highest bid")
-  })
-
-  test("ebay_proxy returns proxy-bid description", () => {
-    const result = describeAuctionFramework("ebay_proxy")
-    expect(result).toContain("Proxy bidding")
-    expect(result).toContain("maximum bid")
-  })
-})
-
 describe("sendAuctionScheduledEmails", () => {
   test("enqueues scheduled emails for all invited sponsors", async () => {
     const auction = makeAuction({ framework: "vickrey" })
@@ -181,7 +164,8 @@ describe("sendAuctionScheduledEmails", () => {
       recipients: { sponsorId: string; email: string; name: string }[]
       context: {
         competitionName: string
-        frameworkDescription: string
+        framework: string
+        frameworkGuideUrl: string
         startPriceCents: number
         currency: string
         startsAt: number
@@ -195,9 +179,8 @@ describe("sendAuctionScheduledEmails", () => {
     expect(args.subject).toBe("Munster Open 2026: bidding opening soon")
 
     expect(args.context.competitionName).toBe("Munster Open 2026")
-    expect(args.context.frameworkDescription).toBe(
-      describeAuctionFramework("vickrey")
-    )
+    expect(args.context.framework).toBe("vickrey")
+    expect(args.context.frameworkGuideUrl).toBe(sponsorPortalGuideUrl())
     expect(args.context.startPriceCents).toBe(10_000)
     expect(args.context.currency).toBe("EUR")
     expect(args.context.startsAt).toBe(auction.startsAt)
@@ -281,11 +264,11 @@ describe("sendAuctionScheduledEmails", () => {
     ])
   })
 
-  describe("framework description is passed through context", () => {
+  describe("framework is passed through context", () => {
     const frameworks = ["first_sealed", "vickrey", "ebay_proxy"] as const
 
     for (const framework of frameworks) {
-      test(`${framework} auction passes matching frameworkDescription`, async () => {
+      test(`${framework} auction passes framework and guide URL`, async () => {
         const auction = makeAuction({ framework })
         const competition = makeCompetition()
         const { ctx, scheduledCalls } = createEmailCtx({
@@ -298,11 +281,10 @@ describe("sendAuctionScheduledEmails", () => {
 
         expect(scheduledCalls).toHaveLength(1)
         const args = scheduledCalls[0].args as {
-          context: { frameworkDescription: string }
+          context: { framework: string; frameworkGuideUrl: string }
         }
-        expect(args.context.frameworkDescription).toBe(
-          describeAuctionFramework(framework)
-        )
+        expect(args.context.framework).toBe(framework)
+        expect(args.context.frameworkGuideUrl).toBe(sponsorPortalGuideUrl())
       })
     }
   })
@@ -326,11 +308,7 @@ describe("sendAuctionScheduledEmails", () => {
 describe("buildSponsorshipEmailHtml — outcome template formats dates as en-IE", () => {
   // 31 Jan 2026 14:30 UTC — day ≠ month so American vs Irish is distinguishable
   const fixedTs = Date.UTC(2026, 0, 31, 14, 30)
-  const expectedDateSubstring = new Date(fixedTs).toLocaleString("en-IE", {
-    dateStyle: "full",
-    timeStyle: "short",
-    timeZone: "Europe/Dublin",
-  })
+  const expectedDateSubstring = formatEmailDateTime(fixedTs)
 
   const baseContext = {
     competitionName: "Irish Open 2026",
@@ -382,10 +360,11 @@ describe("buildSponsorshipEmailHtml — auction_scheduled template", () => {
     portalUrl: "https://hq.speedcubing.ie/sponsor/auctions/abc123",
     startsAt: Date.now() + 86_400_000,
     endsAt: Date.now() + 172_800_000,
-    frameworkDescription: describeAuctionFramework("first_sealed"),
+    framework: "first_sealed",
+    frameworkGuideUrl: sponsorPortalGuideUrl(),
     startPriceCents: 10_000,
     currency: "EUR",
-  }
+  } satisfies SponsorshipEmailContext
 
   test("renders non-empty HTML with competition name and portal link", async () => {
     const html = await buildSponsorshipEmailHtml({
@@ -397,6 +376,9 @@ describe("buildSponsorshipEmailHtml — auction_scheduled template", () => {
     expect(html.length).toBeGreaterThan(100)
     expect(html).toContain("Irish Open 2026")
     expect(html).toContain("abc123")
+    expect(html).toContain("Sealed bid")
+    expect(html).toContain("Read more")
+    expect(html).toContain(sponsorPortalGuideUrl())
   })
 
   test("renders non-empty plain text with competition name", async () => {
@@ -448,7 +430,7 @@ describe("buildSponsorshipEmailHtml — auction_scheduled template", () => {
 describe("buildSponsorshipEmailHtml — internal_invoice template", () => {
   const baseContext = {
     competitionName: "Irish Open 2026",
-    adminUrl: "https://hq.speedcubing.ie/admin/sponsorship",
+    adminUrl: "https://hq.speedcubing.ie/plugins/sponsorship",
   }
 
   test("renders HTML with action message and next steps when there is a winner", async () => {
@@ -464,6 +446,7 @@ describe("buildSponsorshipEmailHtml — internal_invoice template", () => {
     })
     expect(html).toContain("Irish Open 2026")
     expect(html).toContain("Acme Corp")
+    expect(html).toContain("Invoice follow-up required")
     expect(html).toContain(
       "Winner confirmed: Acme Corp at EUR 1250.00. Send invoice follow-up."
     )

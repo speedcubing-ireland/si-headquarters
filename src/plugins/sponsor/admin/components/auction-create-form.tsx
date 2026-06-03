@@ -1,4 +1,5 @@
-import { AlertTriangle, Loader2, Lock, LockOpen } from "lucide-react"
+import { AlertTriangle, Lock, LockOpen } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -263,7 +264,7 @@ export function AuctionCreateForm({ admin }: { admin: SponsorshipAdmin }) {
 
       <Button type="submit" disabled={isCreatingAuction}>
         {isCreatingAuction ? (
-          <Loader2 className="size-4 animate-spin" />
+          <Spinner />
         ) : (
           "Create draft"
         )}

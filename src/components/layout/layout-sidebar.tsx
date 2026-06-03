@@ -26,6 +26,7 @@ import { SidebarUser } from "./layout-sidebar-user"
 import { PLUGINS } from "@/plugins/registry"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { Can } from "@/features/auth"
+import { useCan } from "@/features/auth/ability"
 
 const homeLink = { label: "Home", to: "/" as const, icon: HomeIcon }
 
@@ -134,26 +135,41 @@ function SidebarPluginLinks() {
 
 function SidebarAdminLinks() {
   return (
-    <Can I="manage" a="UserManagement">
-      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-        <SidebarGroupLabel>Admin</SidebarGroupLabel>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Users">
-              <Link
-                to="/admin"
-                activeOptions={sidebarLinkActiveOptions}
-                activeProps={{ "data-active": true }}
-                inactiveProps={{ "data-active": false }}
-              >
-                <UsersIcon />
-                <span>Users</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroup>
-    </Can>
+    <AdminAccessSidebarGroup />
+  )
+}
+
+function AdminAccessSidebarGroup() {
+  const userManagement = useCan("manage", "UserManagement")
+  const impersonation = useCan("manage", "all")
+
+  const isLoading = userManagement.isLoading || impersonation.isLoading
+
+  const allowed = userManagement.allowed || impersonation.allowed
+
+  if (isLoading || !allowed) {
+    return null
+  }
+
+  return (
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel>Admin</SidebarGroupLabel>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild tooltip="Admin">
+            <Link
+              to="/admin"
+              activeOptions={{ exact: false }}
+              activeProps={{ "data-active": true }}
+              inactiveProps={{ "data-active": false }}
+            >
+              <UsersIcon />
+              <span>Admin</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
   )
 }
 

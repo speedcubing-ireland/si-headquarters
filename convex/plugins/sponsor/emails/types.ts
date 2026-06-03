@@ -3,6 +3,8 @@ import type { SponsorshipEmailContext } from "@/convex/plugins/sponsor/lib/valid
 export interface EmailInfoRow {
   label: string
   value: string
+  /** When set, the value is shown as a link in HTML emails (“Read more”). */
+  valueHref?: string
 }
 
 export interface EmailTemplateCopy {

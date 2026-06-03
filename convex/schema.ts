@@ -1,8 +1,10 @@
 import { defineSchema, defineTable } from "convex/server"
 import { authTables } from "@convex-dev/auth/server"
+import { v } from "convex/values"
 import { competitionsCoreFields } from "@/convex/competitions/validators"
 import { competitionUpdatesFields } from "@/convex/competitions/updates/validators"
 import { competitionWeekendSlotFields } from "@/convex/competitions/weekendSlots/validators"
+import { impersonationSessionsTable } from "@/convex/impersonation/validators"
 import { sponsorCompetitionFields } from "@/convex/plugins/sponsor/lib/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
@@ -25,9 +27,17 @@ import { competitionTemplateApplicationFields } from "@/convex/templates/validat
 const schema = defineSchema(
   {
     ...authTables,
+    authSessions: defineTable({
+      userId: v.id("users"),
+      expirationTime: v.number(),
+      impersonationSessionId: v.optional(v.id("impersonationSessions")),
+      impersonatedByUserId: v.optional(v.id("users")),
+      impersonationExpiresAt: v.optional(v.number()),
+    }).index("userId", ["userId"]),
     users: defineTable(usersFields)
       .index("email", ["email"])
-      .index("phone", ["phone"]),
+      .index("phone", ["phone"])
+      .index("by_discordUserId", ["discordUserId"]),
     teams: defineTable(teamsFields).index("by_name", ["name"]),
     teamMemberships: defineTable(teamMembershipFields)
       .index("by_userId", ["userId"])
@@ -92,6 +102,7 @@ const schema = defineSchema(
     competitionTemplateApplications: defineTable(
       competitionTemplateApplicationFields
     ).index("by_competitionId", ["competitionId"]),
+    impersonationSessions: impersonationSessionsTable,
     ...pluginTables,
   },
   {

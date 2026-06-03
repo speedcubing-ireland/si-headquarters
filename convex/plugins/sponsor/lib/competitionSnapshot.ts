@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, type Infer } from "convex/values"
 import type { Doc } from "@/convex/_generated/dataModel"
 import { competitionStartEnd } from "@/convex/competitions/dates"
 
@@ -7,7 +7,9 @@ export const sponsorshipCompetitionSummarySource = v.union(
   v.literal("wca")
 )
 
-export type SponsorshipCompetitionSummarySource = "competition_record" | "wca"
+export type SponsorshipCompetitionSummarySource = Infer<
+  typeof sponsorshipCompetitionSummarySource
+>
 
 export const sponsorshipCompetitionSummary = v.object({
   name: v.string(),
@@ -16,16 +18,13 @@ export const sponsorshipCompetitionSummary = v.object({
   endDate: v.string(),
   competitorLimit: v.optional(v.number()),
   eventIds: v.array(v.string()),
+  latitude: v.optional(v.number()),
+  longitude: v.optional(v.number()),
 })
 
-export interface SponsorshipCompetitionSummary {
-  name: string
-  address: string
-  startDate: string
-  endDate: string
-  competitorLimit?: number
-  eventIds: string[]
-}
+export type SponsorshipCompetitionSummary = Infer<
+  typeof sponsorshipCompetitionSummary
+>
 
 export const competitionSnapshot = v.object({
   summary: sponsorshipCompetitionSummary,
@@ -33,11 +32,7 @@ export const competitionSnapshot = v.object({
   fetchedAt: v.number(),
 })
 
-export interface SponsorshipCompetitionSnapshot {
-  summary: SponsorshipCompetitionSummary
-  source: SponsorshipCompetitionSummarySource
-  fetchedAt: number
-}
+export type SponsorshipCompetitionSnapshot = Infer<typeof competitionSnapshot>
 
 function buildAddress(input: {
   venue?: string
@@ -72,14 +67,30 @@ export function buildWcaCompetitionSummary(details: {
   end_date: string
   competitor_limit: number | null
   event_ids: string[]
+  venue_address?: string
+  latitude_degrees?: number
+  longitude_degrees?: number
 }): SponsorshipCompetitionSummary {
+  const venueAddress = details.venue_address?.trim() ?? ""
+  const address =
+    venueAddress.length > 0
+      ? venueAddress
+      : buildAddress({
+          venue: details.venue,
+          city: details.city,
+          countryIso2: details.country_iso2,
+        })
+  const latitude = details.latitude_degrees
+  const longitude = details.longitude_degrees
+  const hasCoordinates =
+    typeof latitude === "number" &&
+    typeof longitude === "number" &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude)
+
   return {
     name: details.name,
-    address: buildAddress({
-      venue: details.venue,
-      city: details.city,
-      countryIso2: details.country_iso2,
-    }),
+    address,
     startDate: details.start_date,
     endDate: details.end_date,
     competitorLimit:
@@ -87,6 +98,7 @@ export function buildWcaCompetitionSummary(details: {
         ? details.competitor_limit
         : undefined,
     eventIds: details.event_ids,
+    ...(hasCoordinates ? { latitude, longitude } : {}),
   }
 }
 

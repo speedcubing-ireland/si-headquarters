@@ -29,8 +29,8 @@ describe("task list page config", () => {
 
   it("uses Title Case page titles", () => {
     expect(GLOBAL_TASK_LIST_CONFIG.title).toBe("Tasks")
-    expect(teamTaskListConfig(teamId, "Merch").title).toBe("Merch Team Tasks")
-    expect(taskListPageTitle("Events")).toBe("Events Team Tasks")
+    expect(teamTaskListConfig(teamId, "Merch Team").title).toBe("Merch Team Tasks")
+    expect(taskListPageTitle("Events Team")).toBe("Events Team Tasks")
   })
 
   it("orders team task presets as Active, Unassigned, then All", () => {

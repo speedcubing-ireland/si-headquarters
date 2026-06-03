@@ -1,4 +1,5 @@
-import { Gavel, Loader2, Users } from "lucide-react"
+import { Gavel, Users } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminStats } from "@/plugins/sponsor/admin/components/admin-stats"
 import { ClosedAuctionsTab } from "@/plugins/sponsor/admin/tabs/closed-auctions-tab"
@@ -78,7 +79,7 @@ export function SponsorshipAdminContent() {
 
       {loading.isLoadingCompetitions ? (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="size-3 animate-spin" />
+          <Spinner className="size-3" />
           Loading competitions…
         </p>
       ) : null}

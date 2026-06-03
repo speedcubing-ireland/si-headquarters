@@ -45,6 +45,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 data: {
                   createdAt: number;
                   expiresAt: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
                   ipAddress?: null | string;
                   token: string;
                   updatedAt: number;
@@ -153,6 +156,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -352,6 +358,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -626,6 +635,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 update: {
                   createdAt?: number;
                   expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
                   ipAddress?: null | string;
                   token?: string;
                   updatedAt?: number;
@@ -642,6 +654,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -876,6 +891,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 update: {
                   createdAt?: number;
                   expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
                   ipAddress?: null | string;
                   token?: string;
                   updatedAt?: number;
@@ -892,6 +910,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -1087,6 +1108,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 data: {
                   createdAt: number;
                   expiresAt: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
                   ipAddress?: null | string;
                   token: string;
                   updatedAt: number;
@@ -1195,6 +1219,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -1394,6 +1421,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -1668,6 +1698,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 update: {
                   createdAt?: number;
                   expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
                   ipAddress?: null | string;
                   token?: string;
                   updatedAt?: number;
@@ -1684,6 +1717,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:
@@ -1918,6 +1954,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 update: {
                   createdAt?: number;
                   expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
                   ipAddress?: null | string;
                   token?: string;
                   updatedAt?: number;
@@ -1934,6 +1973,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ipAddress"
                     | "userAgent"
                     | "userId"
+                    | "impersonationSessionId"
+                    | "impersonatedByUserId"
+                    | "impersonationExpiresAt"
                     | "_id";
                   mode?: "sensitive" | "insensitive";
                   operator?:

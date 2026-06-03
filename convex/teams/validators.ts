@@ -1,5 +1,5 @@
 import { v, type Infer } from "convex/values"
-import { TEAM_NAMES } from "@/convex/permissions/shared"
+import { teamNameValidator } from "@/convex/permissions/shared"
 
 export const teamsFields = {
   name: v.string(),
@@ -16,14 +16,4 @@ export const teamSummary = v.object({
 })
 export type TeamSummary = Infer<typeof teamSummary>
 
-export const teamNameValidator = v.union(
-  v.literal(TEAM_NAMES.VOLUNTEER),
-  v.literal(TEAM_NAMES.DIRECTORS),
-  v.literal(TEAM_NAMES.COMPETITIONS),
-  v.literal(TEAM_NAMES.FINANCE),
-  v.literal(TEAM_NAMES.SOCIAL_MEDIA),
-  v.literal(TEAM_NAMES.MERCH),
-  v.literal(TEAM_NAMES.GRAPHICS),
-  v.literal(TEAM_NAMES.SOFTWARE),
-  v.literal(TEAM_NAMES.DELEGATES)
-)
+export { teamNameValidator }
