@@ -4,6 +4,7 @@ import { mutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
 import {
   requireCan,
+  requireCompetitionManagement,
   requirePrincipal,
   type Principal,
 } from "@/convex/permissions/principal"
@@ -14,6 +15,12 @@ import {
 } from "@/convex/permissions/shared"
 import { isMemberOfTeam } from "@/convex/teams/model"
 import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
+import {
+  competitionDatesFields,
+  competitionPeopleFields,
+} from "@/convex/competitions/validators"
+import { applyCompetitionTemplate } from "@/convex/templates/resolver"
+import { templateVariablesArg } from "@/convex/templates/validators"
 import { v } from "convex/values"
 
 type People = Doc<"competitions">["people"]
@@ -214,5 +221,51 @@ export const setOrganisers = mutation({
       organisers: organiserIds,
     }))
     return null
+  },
+})
+
+export const createFromTemplate = mutation({
+  args: {
+    templateKey: v.string(),
+    name: v.string(),
+    description: v.nullable(v.string()),
+    compDates: v.object(competitionDatesFields),
+    people: v.object(competitionPeopleFields),
+    variables: templateVariablesArg,
+  },
+  returns: v.id("competitions"),
+  handler: async (ctx, args) => {
+    const principal = await requireCompetitionManagement(ctx)
+    const name = args.name.trim()
+    if (!name) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Competition name is required",
+      })
+    }
+    const description = args.description?.trim()
+    await Promise.all([
+      requireUserInRoleTeam(ctx, "compLead", args.people.compLead),
+      requireUserInRoleTeam(ctx, "leadDelegate", args.people.leadDelegate),
+    ])
+
+    return await applyCompetitionTemplate(ctx, {
+      principalUserId: principal.userId,
+      templateKey: args.templateKey,
+      variables: args.variables,
+      competition: {
+        name,
+        description:
+          description !== undefined && description.length > 0
+            ? description
+            : null,
+        compDates: args.compDates,
+        people: {
+          compLead: args.people.compLead,
+          leadDelegate: args.people.leadDelegate,
+          organisers: [...new Set(args.people.organisers)],
+        },
+      },
+    })
   },
 })

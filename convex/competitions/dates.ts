@@ -36,3 +36,14 @@ export function competitionStartEnd(
 export function todayIsoDate(): string {
   return formatLocalDate(new Date())
 }
+
+/** Add calendar days to a `YYYY-MM-DD` string (UTC calendar math). */
+export function addIsoDays(isoDate: string, offsetDays: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day + offsetDays))
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-")
+}

@@ -105,16 +105,32 @@ function CompetitionPeopleSelectors({
   )
 }
 
-export function CompetitionCalendarPeopleFields({
-  row,
-}: {
-  row: CompetitionCalendarCompetitionRow
-}) {
+function useCompetitionPeopleMutations(competitionId: Id<"competitions">) {
   const setCompLead = useMutation(api.competitions.mutations.setCompLead)
   const setLeadDelegate = useMutation(
     api.competitions.mutations.setLeadDelegate
   )
   const setOrganisers = useMutation(api.competitions.mutations.setOrganisers)
+
+  return {
+    onCompLeadChange: (userId: Id<"users"> | null) => {
+      void setCompLead({ id: competitionId, userId })
+    },
+    onLeadDelegateChange: (userId: Id<"users"> | null) => {
+      void setLeadDelegate({ id: competitionId, userId })
+    },
+    onOrganisersChange: (organiserIds: Id<"users">[]) => {
+      void setOrganisers({ id: competitionId, organiserIds })
+    },
+  }
+}
+
+export function CompetitionCalendarPeopleFields({
+  row,
+}: {
+  row: CompetitionCalendarCompetitionRow
+}) {
+  const mutations = useCompetitionPeopleMutations(row._id)
 
   return (
     <Can I="manage" a="Competition">
@@ -128,15 +144,7 @@ export function CompetitionCalendarPeopleFields({
           leadDelegateId={row.leadDelegate?._id ?? null}
           organiserIds={row.organisers.map((person) => person._id)}
           singleAppearance="icon"
-          onCompLeadChange={(userId) => {
-            void setCompLead({ id: row._id, userId })
-          }}
-          onLeadDelegateChange={(userId) => {
-            void setLeadDelegate({ id: row._id, userId })
-          }}
-          onOrganisersChange={(organiserIds) => {
-            void setOrganisers({ id: row._id, organiserIds })
-          }}
+          {...mutations}
         />
       </div>
     </Can>
@@ -160,11 +168,7 @@ export function CompetitionPeopleCardFields({
   leadDelegate: PublicUser | null
   organisers: PublicUser[]
 }) {
-  const setCompLead = useMutation(api.competitions.mutations.setCompLead)
-  const setLeadDelegate = useMutation(
-    api.competitions.mutations.setLeadDelegate
-  )
-  const setOrganisers = useMutation(api.competitions.mutations.setOrganisers)
+  const mutations = useCompetitionPeopleMutations(competitionId)
 
   return (
     <Can I="manage" a="Competition">
@@ -177,9 +181,7 @@ export function CompetitionPeopleCardFields({
           teamName={TEAM_NAMES.COMPETITIONS}
           competitionId={competitionId}
           value={compLeadId}
-          onChange={(userId) => {
-            void setCompLead({ id: competitionId, userId })
-          }}
+          onChange={mutations.onCompLeadChange}
         />
       </PageCardRow>
       <PageCardRow icon={<FlagIcon className="size-4" />} label="Lead Delegate">
@@ -188,9 +190,7 @@ export function CompetitionPeopleCardFields({
           teamName={TEAM_NAMES.DELEGATES}
           competitionId={competitionId}
           value={leadDelegateId}
-          onChange={(userId) => {
-            void setLeadDelegate({ id: competitionId, userId })
-          }}
+          onChange={mutations.onLeadDelegateChange}
         />
       </PageCardRow>
       <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
@@ -198,9 +198,7 @@ export function CompetitionPeopleCardFields({
           selectedUsers={organisers}
           competitionId={competitionId}
           value={organiserIds}
-          onChange={(organiserIds) => {
-            void setOrganisers({ id: competitionId, organiserIds })
-          }}
+          onChange={mutations.onOrganisersChange}
         />
       </PageCardRow>
     </Can>

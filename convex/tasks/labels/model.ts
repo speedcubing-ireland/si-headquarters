@@ -1,6 +1,12 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
-import { normalizeTaskLabelCode, type TaskLabelSpec } from "./constants"
+import {
+  DEFAULT_TASK_LABELS,
+  getDefaultTaskLabelSpec,
+  normalizeTaskLabelCode,
+  type TaskLabelCode,
+  type TaskLabelSpec,
+} from "./constants"
 
 type TaskLabelLookupCtx = Pick<QueryCtx | MutationCtx, "db">
 
@@ -38,4 +44,17 @@ export async function ensureTaskLabel(
     name: spec.name,
     color: spec.color,
   })
+}
+
+export async function ensureDefaultTaskLabels(ctx: MutationCtx) {
+  for (const spec of DEFAULT_TASK_LABELS) {
+    await ensureTaskLabel(ctx, spec)
+  }
+}
+
+export async function ensureTaskLabelByCode(
+  ctx: MutationCtx,
+  code: TaskLabelCode
+): Promise<Id<"taskLabels">> {
+  return await ensureTaskLabel(ctx, getDefaultTaskLabelSpec(code))
 }

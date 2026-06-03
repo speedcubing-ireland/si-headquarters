@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button"
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
 import { Page } from "@/components/layout/page"
 import { CompetitionCalendarBoard } from "@/features/competitions/list/competition-calendar-board"
+import { CreateCompetitionDialog } from "@/features/competitions/create/create-competition-dialog"
+import { Can } from "@/features/auth"
 import { api } from "@/convex/_generated/api"
 import { useQuery } from "convex/react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
@@ -54,6 +56,9 @@ export function CompetitionsPage() {
       <Page.Header>
         <Page.Title>Competitions</Page.Title>
         <Page.Actions>
+          <Can I="manage" a="Competition">
+            <CreateCompetitionDialog />
+          </Can>
           <YearSelector year={year} onChange={setYear} />
         </Page.Actions>
       </Page.Header>

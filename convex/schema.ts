@@ -20,6 +20,7 @@ import {
 import { taskBlockersFields } from "@/convex/tasks/blockers/validators"
 import { savedViewFields } from "@/convex/views/validators"
 import { pluginTables } from "@/convex/plugins/registry"
+import { competitionTemplateApplicationFields } from "@/convex/templates/validators"
 
 const schema = defineSchema(
   {
@@ -88,6 +89,9 @@ const schema = defineSchema(
     savedViews: defineTable(savedViewFields)
       .index("by_owner_entity_page", ["ownerId", "entity", "pageId"])
       .index("by_visibility_entity_page", ["visibility", "entity", "pageId"]),
+    competitionTemplateApplications: defineTable(
+      competitionTemplateApplicationFields
+    ).index("by_competitionId", ["competitionId"]),
     ...pluginTables,
   },
   {

@@ -1,0 +1,592 @@
+import { ConvexError } from "convex/values"
+import { generateNKeysBetween } from "fractional-indexing"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { MutationCtx } from "@/convex/_generated/server"
+import { addIsoDays } from "@/convex/competitions/dates"
+import { getTeamByName } from "@/convex/teams/model"
+import { attachConfiguredIntegrationsForTask } from "@/convex/plugins/core/taskTemplateIntegrations"
+import { getDefaultTaskLabelName } from "@/convex/tasks/labels/constants"
+import {
+  ensureDefaultTaskLabels,
+  ensureTaskLabelByCode,
+} from "@/convex/tasks/labels/model"
+import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
+import type {
+  CompetitionTemplateDefinition,
+  CompetitionTemplateTaskSpec,
+  ReviewerExpression,
+  TaskAssigneesExpression,
+  TaskOwnerExpression,
+  TemplateCompetitionInput,
+} from "@/convex/templates/types"
+import type {
+  GeneratedCounts,
+  TemplatePreview,
+  TemplateVariables,
+  TemplateVariableValue,
+} from "@/convex/templates/validators"
+import { getCompetitionTemplate } from "@/convex/templates/registry"
+
+type PreviewTask = TemplatePreview["phases"][number]["tasks"][number]
+
+interface ApplyTemplateArgs {
+  principalUserId: Id<"users">
+  templateKey: string
+  competition: TemplateCompetitionInput
+  variables: TemplateVariables
+}
+
+const EMPTY_COUNTS: GeneratedCounts = {
+  phases: 0,
+  tasks: 0,
+  labels: 0,
+  reviewers: 0,
+  blockers: 0,
+  integrations: 0,
+  resources: 0,
+}
+
+function userFacingError(message: string): never {
+  throw new ConvexError({ code: "BAD_REQUEST", message })
+}
+
+function getTemplateOrThrow(templateKey: string): CompetitionTemplateDefinition {
+  const template = getCompetitionTemplate(templateKey)
+  if (template === null) {
+    userFacingError("Competition template not found.")
+  }
+  return template
+}
+
+function isMissing(value: TemplateVariableValue | undefined): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    (Array.isArray(value) && value.length === 0)
+  )
+}
+
+function normalizeVariables(
+  template: CompetitionTemplateDefinition,
+  input: TemplateVariables
+): TemplateVariables {
+  const definitions = template.variables ?? []
+  const normalized: TemplateVariables = { ...input }
+
+  for (const variable of definitions) {
+    if (!(variable.key in input) && variable.defaultValue !== undefined) {
+      normalized[variable.key] = variable.defaultValue
+    }
+
+    const value = normalized[variable.key]
+    if (variable.required === true && isMissing(value)) {
+      userFacingError(`${variable.label} is required.`)
+    }
+    if (isMissing(value)) continue
+
+    const type = Array.isArray(value) ? "array" : typeof value
+    const expected =
+      variable.type === "number"
+        ? "number"
+        : variable.type === "boolean"
+          ? "boolean"
+          : variable.type === "users"
+            ? "array"
+            : "string"
+    if (type !== expected) {
+      userFacingError(`${variable.label} has the wrong value type.`)
+    }
+  }
+
+  return normalized
+}
+
+function resolveRelativeDate(
+  competition: TemplateCompetitionInput,
+  variables: TemplateVariables,
+  spec: CompetitionTemplateTaskSpec["dueDate"]
+): string | null {
+  if (spec === undefined || spec === null) return null
+
+  let anchor: TemplateVariableValue | undefined
+  if (spec.anchor.type === "competitionStart") anchor = competition.compDates.from
+  if (spec.anchor.type === "competitionEnd") {
+    anchor = competition.compDates.to ?? competition.compDates.from
+  }
+  if (spec.anchor.type === "variable") anchor = variables[spec.anchor.key]
+
+  if (typeof anchor !== "string" || anchor.length === 0) return null
+  return addIsoDays(anchor, spec.offsetDays ?? 0)
+}
+
+function roleUserId(
+  competition: TemplateCompetitionInput,
+  role: "compLead" | "leadDelegate"
+) {
+  return competition.people[role]
+}
+
+async function requireExistingUser(
+  ctx: MutationCtx,
+  userId: Id<"users"> | null,
+  label: string
+): Promise<Id<"users"> | null> {
+  if (userId === null) return null
+  const user = await ctx.db.get("users", userId)
+  if (user === null) {
+    userFacingError(`${label} references a user that no longer exists.`)
+  }
+  return userId
+}
+
+function isTemplateUserId(
+  value: TemplateVariableValue | undefined
+): value is Id<"users"> {
+  return typeof value === "string" && value.length > 0
+}
+
+async function requireExistingUserFromTemplateValue(
+  ctx: MutationCtx,
+  value: TemplateVariableValue | undefined,
+  label: string
+): Promise<Id<"users"> | null> {
+  if (!isTemplateUserId(value)) return null
+  const user = await ctx.db.get("users", value)
+  if (user === null) {
+    userFacingError(`${label} references a user that no longer exists.`)
+  }
+  return value
+}
+
+async function resolveTeamRef(ctx: MutationCtx, teamName: string) {
+  const team = await getTeamByName(ctx, teamName)
+  if (team === null) {
+    userFacingError(`Team "${teamName}" must exist before using this template.`)
+  }
+  return { type: "teams" as const, id: team._id }
+}
+
+async function resolveOwner(
+  ctx: MutationCtx,
+  competition: TemplateCompetitionInput,
+  variables: TemplateVariables,
+  owner: TaskOwnerExpression | undefined
+): Promise<Doc<"tasks">["owner"]> {
+  if (owner === undefined || owner === null) return null
+  if (owner.type === "teamName") return await resolveTeamRef(ctx, owner.teamName)
+  if (owner.type === "competitionRole") {
+    const userId = await requireExistingUser(
+      ctx,
+      roleUserId(competition, owner.role),
+      owner.role
+    )
+    return userId === null ? null : { type: "users", id: userId }
+  }
+
+  const value = variables[owner.key]
+  if (typeof value !== "string" || value.length === 0) return null
+  const team = await getTeamByName(ctx, value)
+  if (team !== null) return { type: "teams", id: team._id }
+  const userId = await requireExistingUserFromTemplateValue(
+    ctx,
+    value,
+    owner.key
+  )
+  if (userId === null) return null
+  return {
+    type: "users",
+    id: userId,
+  }
+}
+
+async function resolveAssignees(
+  ctx: MutationCtx,
+  competition: TemplateCompetitionInput,
+  variables: TemplateVariables,
+  assignees: TaskAssigneesExpression | undefined
+): Promise<Doc<"tasks">["assigneeIds"]> {
+  if (assignees === undefined || assignees === null) return null
+  if (assignees === "assignable") return "assignable"
+  if (assignees.type === "competitionOrganisers") {
+    return competition.people.organisers.length > 0
+      ? competition.people.organisers
+      : null
+  }
+  if (assignees.type === "competitionRole") {
+    const userId = await requireExistingUser(
+      ctx,
+      roleUserId(competition, assignees.role),
+      assignees.role
+    )
+    return userId === null ? null : [userId]
+  }
+
+  const value = variables[assignees.key]
+  if (typeof value === "string" && value.length > 0) {
+    const userId = await requireExistingUserFromTemplateValue(
+      ctx,
+      value,
+      assignees.key
+    )
+    return userId === null ? null : [userId]
+  }
+  if (Array.isArray(value)) {
+    const ids = await Promise.all(
+      value.map((entry) =>
+        requireExistingUserFromTemplateValue(ctx, entry, assignees.key)
+      )
+    )
+    return ids.filter((id): id is Id<"users"> => id !== null)
+  }
+  return null
+}
+
+async function resolveReviewer(
+  ctx: MutationCtx,
+  competition: TemplateCompetitionInput,
+  variables: TemplateVariables,
+  reviewer: ReviewerExpression
+) {
+  if (reviewer.type === "teamName") {
+    return await resolveTeamRef(ctx, reviewer.teamName)
+  }
+  if (reviewer.type === "competitionRole") {
+    const userId = await requireExistingUser(
+      ctx,
+      roleUserId(competition, reviewer.role),
+      reviewer.role
+    )
+    return userId === null ? null : { type: "users" as const, id: userId }
+  }
+
+  const resolved = await requireExistingUserFromTemplateValue(
+    ctx,
+    variables[reviewer.key],
+    reviewer.key
+  )
+  return resolved === null ? null : { type: "users" as const, id: resolved }
+}
+
+function previewOwner(owner: TaskOwnerExpression | undefined) {
+  if (owner === undefined || owner === null) return null
+  if (owner.type === "teamName") return owner.teamName
+  if (owner.type === "competitionRole") return owner.role
+  return `Variable: ${owner.key}`
+}
+
+function previewAssignees(assignees: TaskAssigneesExpression | undefined) {
+  if (assignees === undefined || assignees === null) return null
+  if (assignees === "assignable") return "Assignable"
+  if (assignees.type === "competitionOrganisers") return "Organisers"
+  if (assignees.type === "competitionRole") return assignees.role
+  return `Variable: ${assignees.key}`
+}
+
+function previewReviewer(reviewer: ReviewerExpression) {
+  if (reviewer.type === "teamName") return reviewer.teamName
+  if (reviewer.type === "competitionRole") return reviewer.role
+  return `Variable: ${reviewer.key}`
+}
+
+function assertUniqueTaskKeys(
+  tasks: readonly CompetitionTemplateTaskSpec[],
+  seen = new Set<string>()
+) {
+  for (const task of tasks) {
+    if (seen.has(task.key)) {
+      userFacingError(`Duplicate template task key "${task.key}".`)
+    }
+    seen.add(task.key)
+    assertUniqueTaskKeys(task.subtasks ?? [], seen)
+  }
+}
+
+function countTaskTree(
+  tasks: readonly CompetitionTemplateTaskSpec[],
+  counts: GeneratedCounts
+) {
+  for (const task of tasks) {
+    counts.tasks += 1
+    counts.labels += task.labels?.length ?? 0
+    counts.reviewers += task.reviewers?.length ?? 0
+    counts.blockers += task.blockedBy?.length ?? 0
+    counts.integrations += task.integrationIds?.length ?? 0
+    countTaskTree(task.subtasks ?? [], counts)
+  }
+}
+
+function previewTaskTree(
+  competition: TemplateCompetitionInput,
+  variables: TemplateVariables,
+  tasks: readonly CompetitionTemplateTaskSpec[]
+): PreviewTask[] {
+  return tasks.map((task) => ({
+    key: task.key,
+    name: task.name,
+    description: task.description ?? null,
+    kind: task.kind ?? "standard",
+    dueDate: resolveRelativeDate(competition, variables, task.dueDate),
+    owner: previewOwner(task.owner),
+    assignees: previewAssignees(task.assignees),
+    reviewers: (task.reviewers ?? []).map(previewReviewer),
+    labels: (task.labels ?? []).map((code) => getDefaultTaskLabelName(code)),
+    integrationIds: [...(task.integrationIds ?? [])],
+    blockedBy: [...(task.blockedBy ?? [])],
+    subtasks: previewTaskTree(competition, variables, task.subtasks ?? []),
+  }))
+}
+
+export function buildCompetitionTemplatePreview({
+  competition,
+  templateKey,
+  variables,
+}: {
+  competition: TemplateCompetitionInput
+  templateKey: string
+  variables: TemplateVariables
+}): TemplatePreview {
+  const template = getTemplateOrThrow(templateKey)
+  const normalizedVariables = normalizeVariables(template, variables)
+  const counts = { ...EMPTY_COUNTS, phases: template.phases.length }
+  for (const phase of template.phases) {
+    assertUniqueTaskKeys(phase.tasks ?? [])
+    countTaskTree(phase.tasks ?? [], counts)
+  }
+  counts.resources = template.linkedResources?.length ?? 0
+
+  return {
+    templateKey: template.key,
+    templateVersion: template.version,
+    phases: template.phases.map((phase) => ({
+      key: phase.key,
+      name: phase.name,
+      color: phase.color,
+      isInitial: template.initialPhaseKey === phase.key,
+      tasks: previewTaskTree(competition, normalizedVariables, phase.tasks ?? []),
+    })),
+    counts,
+  }
+}
+
+async function insertTaskTree({
+  ctx,
+  competition,
+  counts,
+  labelIdsByCode,
+  parent,
+  taskIdsByKey,
+  tasks,
+  variables,
+}: {
+  ctx: MutationCtx
+  competition: TemplateCompetitionInput
+  counts: GeneratedCounts
+  labelIdsByCode: Map<string, Id<"taskLabels">>
+  parent: Doc<"tasks">["parent"]
+  taskIdsByKey: Map<string, Id<"tasks">>
+  tasks: readonly CompetitionTemplateTaskSpec[]
+  variables: TemplateVariables
+}) {
+  const orderKeys = generateNKeysBetween(null, null, tasks.length)
+
+  for (const [index, task] of tasks.entries()) {
+    const status = task.status ?? "backlog"
+    const taskId = await ctx.db.insert("tasks", {
+      name: task.name,
+      description: task.description ?? null,
+      parent,
+      order: orderKeys[index],
+      assigneeIds: await resolveAssignees(
+        ctx,
+        competition,
+        variables,
+        task.assignees
+      ),
+      owner: await resolveOwner(ctx, competition, variables, task.owner),
+      dueDate: resolveRelativeDate(competition, variables, task.dueDate),
+      kind: task.kind ?? "standard",
+      status,
+      statusIntent: { type: "manual", status },
+    })
+    counts.tasks += 1
+    taskIdsByKey.set(task.key, taskId)
+
+    for (const labelCode of task.labels ?? []) {
+      const labelId =
+        labelIdsByCode.get(labelCode) ??
+        (await ensureTaskLabelByCode(ctx, labelCode))
+      labelIdsByCode.set(labelCode, labelId)
+      await ctx.db.insert("taskLabelAssignments", { taskId, labelId })
+      counts.labels += 1
+    }
+
+    for (const reviewerSpec of task.reviewers ?? []) {
+      const reviewer = await resolveReviewer(
+        ctx,
+        competition,
+        variables,
+        reviewerSpec
+      )
+      if (reviewer === null) continue
+      await ctx.db.insert("taskReviewers", {
+        taskId,
+        reviewer,
+        approvedAt: null,
+        approvedBy: null,
+      })
+      counts.reviewers += 1
+    }
+
+    await attachConfiguredIntegrationsForTask(ctx, taskId, {
+      integrationIds: task.integrationIds,
+    })
+    counts.integrations += task.integrationIds?.length ?? 0
+
+    await insertTaskTree({
+      ctx,
+      competition,
+      counts,
+      labelIdsByCode,
+      parent: { type: "tasks", id: taskId },
+      taskIdsByKey,
+      tasks: task.subtasks ?? [],
+      variables,
+    })
+  }
+}
+
+async function upsertCompetitionResource(
+  ctx: MutationCtx,
+  competitionId: Id<"competitions">,
+  resource: NonNullable<CompetitionTemplateDefinition["linkedResources"]>[number]
+) {
+  const existing = await ctx.db
+    .query("competitionLinkedResources")
+    .withIndex("by_competitionId_and_resourceType_and_resourceKey", (q) =>
+      q
+        .eq("competitionId", competitionId)
+        .eq("resourceType", resource.resourceType)
+        .eq("resourceKey", resource.resourceKey)
+    )
+    .unique()
+
+  const row = {
+    competitionId,
+    resourceType: resource.resourceType,
+    resourceKey: resource.resourceKey,
+    data: resource.data,
+  }
+  if (existing) {
+    await ctx.db.patch("competitionLinkedResources", existing._id, row)
+  } else {
+    await ctx.db.insert("competitionLinkedResources", row)
+  }
+}
+
+export async function applyCompetitionTemplate(
+  ctx: MutationCtx,
+  args: ApplyTemplateArgs
+): Promise<Id<"competitions">> {
+  const template = getTemplateOrThrow(args.templateKey)
+  const variables = normalizeVariables(template, args.variables)
+  const phaseKeys = new Set(template.phases.map((phase) => phase.key))
+  if (
+    template.initialPhaseKey !== undefined &&
+    !phaseKeys.has(template.initialPhaseKey)
+  ) {
+    userFacingError("Initial phase key does not match a template phase.")
+  }
+
+  await ensureDefaultTaskLabels(ctx)
+
+  const competitionId = await ctx.db.insert("competitions", {
+    name: args.competition.name,
+    description: args.competition.description,
+    people: args.competition.people,
+    compDates: args.competition.compDates,
+    phaseId: null,
+    updateId: null,
+  })
+  const phaseIdsByKey = new Map<string, Id<"phases">>()
+  const taskIdsByKey = new Map<string, Id<"tasks">>()
+  const labelIdsByCode = new Map<string, Id<"taskLabels">>()
+  const counts = { ...EMPTY_COUNTS }
+  const phaseOrderKeys = generateNKeysBetween(null, null, template.phases.length)
+
+  for (const [index, phase] of template.phases.entries()) {
+    const phaseId = await ctx.db.insert("phases", {
+      name: phase.name,
+      owner: { type: "competitions", id: competitionId },
+      sortKey: phaseOrderKeys[index],
+      color: phase.color,
+    })
+    phaseIdsByKey.set(phase.key, phaseId)
+    counts.phases += 1
+    await insertTaskTree({
+      ctx,
+      competition: args.competition,
+      counts,
+      labelIdsByCode,
+      parent: { type: "phases", id: phaseId },
+      taskIdsByKey,
+      tasks: phase.tasks ?? [],
+      variables,
+    })
+  }
+
+  for (const phase of template.phases) {
+    for (const task of flattenTasks(phase.tasks ?? [])) {
+      const blockedTaskId = taskIdsByKey.get(task.key)
+      if (blockedTaskId === undefined) continue
+      for (const blockingKey of task.blockedBy ?? []) {
+        const blockingTaskId = taskIdsByKey.get(blockingKey)
+        if (blockingTaskId === undefined) {
+          userFacingError(`Unknown blocking task key "${blockingKey}".`)
+        }
+        await ctx.db.insert("taskBlockers", {
+          blockedTaskId,
+          blockingTaskId,
+        })
+        counts.blockers += 1
+      }
+    }
+  }
+
+  for (const resource of template.linkedResources ?? []) {
+    await upsertCompetitionResource(ctx, competitionId, resource)
+    counts.resources += 1
+  }
+
+  const initialPhaseId =
+    template.initialPhaseKey === undefined
+      ? null
+      : (phaseIdsByKey.get(template.initialPhaseKey) ?? null)
+  if (initialPhaseId !== null) {
+    await ctx.db.patch("competitions", competitionId, { phaseId: initialPhaseId })
+    await activatePhaseBacklogTasks(ctx, initialPhaseId)
+  }
+
+  await ctx.db.insert("competitionTemplateApplications", {
+    competitionId,
+    templateKey: template.key,
+    templateVersion: template.version,
+    appliedAt: Date.now(),
+    appliedBy: args.principalUserId,
+    variableSnapshot: variables,
+    generatedCounts: counts,
+  })
+
+  return competitionId
+}
+
+function flattenTasks(
+  tasks: readonly CompetitionTemplateTaskSpec[]
+): CompetitionTemplateTaskSpec[] {
+  const result: CompetitionTemplateTaskSpec[] = []
+  for (const task of tasks) {
+    result.push(task)
+    result.push(...flattenTasks(task.subtasks ?? []))
+  }
+  return result
+}

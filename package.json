@@ -24,6 +24,8 @@
   },
   "dependencies": {
     "@auth/core": "0.37.0",
+    "@autoform/react": "^4.0.0",
+    "@autoform/zod": "^5.0.0",
     "@base-ui/react": "^1.5.0",
     "@chenglou/pretext": "^0.0.7",
     "@convex-dev/auth": "^0.0.92",
@@ -71,6 +73,7 @@
     "react": "^19.2.6",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.6",
+    "react-hook-form": "^7",
     "react-medium-image-zoom": "^5.4.5",
     "react-resizable-panels": "^4.11.1",
     "recharts": "3.8.0",
