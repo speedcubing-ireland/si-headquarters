@@ -74,24 +74,71 @@ function isActiveTask(row: TaskBoardRow) {
   return !isTerminalComplete(row.statusView.effectiveStatus)
 }
 
+function isNonBacklogOpenTask(row: TaskBoardRow) {
+  return (
+    isActiveTask(row) && row.statusView.effectiveStatus !== "backlog"
+  )
+}
+
+function isInCompetitionCurrentPhase(
+  row: TaskBoardRow,
+  competition: Doc<"competitions">
+) {
+  if (competition.phaseId === null) return false
+  return (
+    row.competitionId === competition._id &&
+    row.phaseId === competition.phaseId
+  )
+}
+
+function isBlockedOpenTask(row: TaskBoardRow) {
+  return isNonBacklogOpenTask(row) && row.blockers.openCount > 0
+}
+
+function isOverdueOpenTask(row: TaskBoardRow, today: string) {
+  return isNonBacklogOpenTask(row) && isOverdue(row, today)
+}
+
+function countCompetitionPhaseWork(
+  competitions: Doc<"competitions">[],
+  rows: TaskBoardRow[],
+  today: string
+) {
+  const activeTaskCounts = new Map<Id<"competitions">, number>()
+  const blockedTaskCounts = new Map<Id<"competitions">, number>()
+  const overdueTaskCounts = new Map<Id<"competitions">, number>()
+
+  for (const competition of competitions) {
+    if (competition.phaseId === null) continue
+
+    let active = 0
+    let blocked = 0
+    let overdue = 0
+
+    for (const row of rows) {
+      if (!isInCompetitionCurrentPhase(row, competition)) continue
+      if (!isNonBacklogOpenTask(row)) continue
+      active += 1
+      if (isBlockedOpenTask(row)) blocked += 1
+      if (isOverdueOpenTask(row, today)) overdue += 1
+    }
+
+    if (active === 0) continue
+
+    activeTaskCounts.set(competition._id, active)
+    blockedTaskCounts.set(competition._id, blocked)
+    overdueTaskCounts.set(competition._id, overdue)
+  }
+
+  return { activeTaskCounts, blockedTaskCounts, overdueTaskCounts }
+}
+
 function isAssignedToUser(row: TaskBoardRow, userId: Id<"users">) {
   return row.assignees.userIds.includes(userId)
 }
 
 function isOverdue(row: TaskBoardRow, today: string) {
   return row.task.dueDate !== null && row.task.dueDate < today
-}
-
-function countByCompetition(
-  rows: TaskBoardRow[],
-  predicate: (row: TaskBoardRow) => boolean
-) {
-  const counts = new Map<Id<"competitions">, number>()
-  for (const row of rows) {
-    if (row.competitionId === null || !predicate(row)) continue
-    counts.set(row.competitionId, (counts.get(row.competitionId) ?? 0) + 1)
-  }
-  return counts
 }
 
 function blockedActiveTasksByBlockingTask(
@@ -184,7 +231,10 @@ function classifyTaskAction(
   const mine = assignedToUser || ownedByUserOrTeam
   const blockedTasks = blockedActiveTasks.get(row.task._id) ?? []
 
-  if (pendingReviewTaskIds.has(row.task._id)) {
+  if (
+    pendingReviewTaskIds.has(row.task._id) &&
+    row.statusView.effectiveStatus === "awaiting-review"
+  ) {
     return {
       reason: "review",
       reasonLabel: "Awaiting your review",
@@ -193,7 +243,11 @@ function classifyTaskAction(
     }
   }
 
-  if (mine && blockedTasks.length > 0) {
+  if (
+    mine &&
+    blockedTasks.length > 0 &&
+    row.statusView.effectiveStatus !== "backlog"
+  ) {
     return {
       reason: "blocking",
       reasonLabel: "Blocking",
@@ -211,7 +265,11 @@ function classifyTaskAction(
     }
   }
 
-  if (ownedByUserOrTeam && row.assignees.mode !== "assigned") {
+  if (
+    ownedByUserOrTeam &&
+    row.assignees.mode !== "assigned" &&
+    row.statusView.effectiveStatus !== "backlog"
+  ) {
     const label = ownerLabel(row, userId)
     return {
       reason: "unassigned-owned",
@@ -408,14 +466,8 @@ export const getHome = query({
         !isActionNeeded(action)
     )
 
-    const activeTaskCounts = countByCompetition(activeRows, () => true)
-    const blockedTaskCounts = countByCompetition(
-      activeRows,
-      (row) => row.blockers.openCount > 0
-    )
-    const overdueTaskCounts = countByCompetition(activeRows, (row) =>
-      isOverdue(row, today)
-    )
+    const { activeTaskCounts, blockedTaskCounts, overdueTaskCounts } =
+      countCompetitionPhaseWork(readableCompetitions, activeRows, today)
     const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
     const competitionsWithWork = sortCompetitionsWithWork(
       readableCompetitions.filter(

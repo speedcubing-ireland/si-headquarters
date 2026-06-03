@@ -419,6 +419,158 @@ describe("dashboard home", () => {
     expect(home.competitionsWithWork).toHaveLength(6)
   })
 
+  test("does not surface review action unless task is awaiting review", async () => {
+    const t = convexTest(schema, modules)
+    const { client, userId } = await withVolunteerTestClient(t)
+
+    const taskId = await t.run(async (ctx) => {
+      const { phaseId } = await insertCompetitionWithPhase(ctx, {
+        name: "Early Review",
+        from: "2999-01-01",
+        sortKey: "a",
+      })
+      const earlyReviewTaskId = await insertTask(ctx, {
+        name: "Review row but in progress",
+        phaseId,
+        order: "a",
+        status: "in-progress",
+        assigneeIds: [userId],
+      })
+      await ctx.db.insert("taskReviewers", {
+        taskId: earlyReviewTaskId,
+        reviewer: { type: "users", id: userId },
+        approvedAt: null,
+        approvedBy: null,
+      })
+      return earlyReviewTaskId
+    })
+
+    const home = await client.query(api.dashboard.queries.getHome, {})
+
+    expect(
+      home.actionNeeded.some(
+        (item) => item.task.task._id === taskId && item.reason === "review"
+      )
+    ).toBe(false)
+    expect(
+      home.assignedWork.find((item) => item.task.task._id === taskId)
+    ).toMatchObject({
+      reason: "in-progress",
+    })
+  })
+
+  test("does not surface backlog tasks in action needed as blocking or unassigned-owned", async () => {
+    const t = convexTest(schema, modules)
+    const { client, userId } = await withVolunteerTestClient(t)
+
+    const ids = await t.run(async (ctx) => {
+      const { phaseId } = await insertCompetitionWithPhase(ctx, {
+        name: "Backlog Actions",
+        from: "2999-01-01",
+        sortKey: "a",
+      })
+      const ownedBacklogTaskId = await insertTask(ctx, {
+        name: "Owned backlog",
+        phaseId,
+        order: "a",
+        status: "backlog",
+        owner: { type: "users", id: userId },
+      })
+      const blockingBacklogTaskId = await insertTask(ctx, {
+        name: "Blocking backlog",
+        phaseId,
+        order: "b",
+        status: "backlog",
+        assigneeIds: [userId],
+      })
+      const blockedTargetTaskId = await insertTask(ctx, {
+        name: "Blocked by backlog",
+        phaseId,
+        order: "c",
+        status: "to-do",
+      })
+      await ctx.db.insert("taskBlockers", {
+        blockedTaskId: blockedTargetTaskId,
+        blockingTaskId: blockingBacklogTaskId,
+      })
+      return { ownedBacklogTaskId, blockingBacklogTaskId }
+    })
+
+    const home = await client.query(api.dashboard.queries.getHome, {})
+    const actionNeededIds = new Set(
+      home.actionNeeded.map((item) => item.task.task._id)
+    )
+
+    expect(actionNeededIds.has(ids.ownedBacklogTaskId)).toBe(false)
+    expect(actionNeededIds.has(ids.blockingBacklogTaskId)).toBe(false)
+  })
+
+  test("counts competition work only in the current phase and excludes backlog", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+
+    await t.run(async (ctx) => {
+      const { competitionId, phaseId: currentPhaseId } =
+        await insertCompetitionWithPhase(ctx, {
+          name: "Phase Scoped",
+          from: "2999-01-01",
+          sortKey: "b",
+        })
+      const earlierPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Earlier",
+        "a",
+        "amber"
+      )
+
+      await insertTask(ctx, {
+        name: "Other phase only",
+        phaseId: earlierPhaseId,
+        order: "a",
+        status: "to-do",
+      })
+      await insertTask(ctx, {
+        name: "Current backlog",
+        phaseId: currentPhaseId,
+        order: "a",
+        status: "backlog",
+      })
+      const blockedTaskId = await insertTask(ctx, {
+        name: "Current blocked",
+        phaseId: currentPhaseId,
+        order: "b",
+        status: "in-progress",
+      })
+      const blockingTaskId = await insertTask(ctx, {
+        name: "Current blocker",
+        phaseId: currentPhaseId,
+        order: "c",
+        status: "to-do",
+      })
+      await insertTask(ctx, {
+        name: "Current open",
+        phaseId: currentPhaseId,
+        order: "d",
+        status: "to-do",
+      })
+      await ctx.db.insert("taskBlockers", {
+        blockedTaskId: blockedTaskId,
+        blockingTaskId: blockingTaskId,
+      })
+    })
+
+    const home = await client.query(api.dashboard.queries.getHome, {})
+    const competition = home.competitionsWithWork.find(
+      (entry) => entry.name === "Phase Scoped"
+    )
+
+    expect(competition).toMatchObject({
+      activeTaskCount: 3,
+      blockedTaskCount: 1,
+    })
+  })
+
   test("returns empty lists when no actions or competition work remain", async () => {
     const t = convexTest(schema, modules)
     const { client, userId } = await withVolunteerTestClient(t)
