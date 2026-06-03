@@ -1,5 +1,6 @@
 import { Dot } from "@/components/data-selectors/phase-selector"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { cn } from "@/lib/utils"
@@ -13,25 +14,6 @@ function ProgressTrackerFrame({ children }: { children: ReactNode }) {
     <div className={cn("flex flex-col", PROGRESS_TRACKER_HEIGHT_CLASS)}>
       {children}
     </div>
-  )
-}
-
-function ProgressSegment({
-  className,
-  count,
-  total,
-}: {
-  className: string
-  count: number
-  total: number
-}) {
-  if (count <= 0 || total <= 0) return null
-
-  return (
-    <div
-      className={cn("h-full shrink-0", className)}
-      style={{ width: `${String((count / total) * 100)}%` }}
-    />
   )
 }
 
@@ -49,6 +31,10 @@ export function ProgressTracker({
   }
 
   const { phase, progress } = data
+
+  const progressAriaLabel = phase
+    ? `${String(progress.done)} done, ${String(progress.inProgress)} in progress, ${String(progress.blocked)} blocked out of ${String(progress.total)} total`
+    : "No current phase progress"
 
   return (
     <ProgressTrackerFrame>
@@ -70,34 +56,15 @@ export function ProgressTracker({
           {progress.completionPercent}% complete
         </span>
       </div>
-      <div
-        aria-label={
-          phase
-            ? `${String(progress.done)} done, ${String(progress.inProgress)} in progress, ${String(progress.blocked)} blocked out of ${String(progress.total)} total`
-            : "No current phase progress"
-        }
-        aria-valuemax={progress.total}
+      <Progress
+        aria-label={progressAriaLabel}
+        aria-valuemax={100}
         aria-valuemin={0}
-        aria-valuenow={progress.done + progress.inProgress + progress.blocked}
-        className="h-2 w-full shrink-0 overflow-hidden rounded-full bg-muted"
-        role="progressbar"
-      >
-        <ProgressSegment
-          className="bg-primary"
-          count={progress.done}
-          total={progress.total}
-        />
-        <ProgressSegment
-          className="bg-yellow-500"
-          count={progress.inProgress}
-          total={progress.total}
-        />
-        <ProgressSegment
-          className="bg-destructive"
-          count={progress.blocked}
-          total={progress.total}
-        />
-      </div>
+        aria-valuenow={progress.completionPercent}
+        aria-valuetext={`${String(progress.completionPercent)}% complete`}
+        className="h-2"
+        value={progress.completionPercent}
+      />
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span>
           <span className="font-medium text-foreground">{progress.done}</span>{" "}
@@ -116,6 +83,14 @@ export function ProgressTracker({
         {progress.blocked > 0 ? (
           <span className="text-destructive">
             <span className="font-medium">{progress.blocked}</span> blocked
+          </span>
+        ) : null}
+        {progress.cancelled > 0 ? (
+          <span>
+            <span className="font-medium text-foreground">
+              {progress.cancelled}
+            </span>{" "}
+            cancelled
           </span>
         ) : null}
       </div>
