@@ -4,12 +4,7 @@ import {
   sponsorshipFrameworkLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 function GuideBulletList({
   title,

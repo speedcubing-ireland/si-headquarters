@@ -75,9 +75,7 @@ function isActiveTask(row: TaskBoardRow) {
 }
 
 function isNonBacklogOpenTask(row: TaskBoardRow) {
-  return (
-    isActiveTask(row) && row.statusView.effectiveStatus !== "backlog"
-  )
+  return isActiveTask(row) && row.statusView.effectiveStatus !== "backlog"
 }
 
 function isInCompetitionCurrentPhase(
@@ -86,8 +84,7 @@ function isInCompetitionCurrentPhase(
 ) {
   if (competition.phaseId === null) return false
   return (
-    row.competitionId === competition._id &&
-    row.phaseId === competition.phaseId
+    row.competitionId === competition._id && row.phaseId === competition.phaseId
   )
 }
 

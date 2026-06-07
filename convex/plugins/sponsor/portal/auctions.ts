@@ -6,9 +6,7 @@ import { compareBidIntentChronology } from "../lib/auctionState"
 import { placeSponsorshipBid } from "../lib/bidPlacement"
 import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
-import {
-  competitionSponsorPropertyStatus,
-} from "@/convex/plugins/sponsor/lib/validators"
+import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/validators"
 import { sendEbayAuctionOutbidEmail } from "../admin/auctions/emails"
 import { scheduleAuctionClosure } from "../admin/auctions/lifecycle"
 import { syncActiveRemindersToAuctionEnd } from "../admin/auctions/reminders"

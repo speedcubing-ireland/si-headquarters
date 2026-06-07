@@ -263,11 +263,7 @@ export function AuctionCreateForm({ admin }: { admin: SponsorshipAdmin }) {
       </div>
 
       <Button type="submit" disabled={isCreatingAuction}>
-        {isCreatingAuction ? (
-          <Spinner />
-        ) : (
-          "Create draft"
-        )}
+        {isCreatingAuction ? <Spinner /> : "Create draft"}
       </Button>
     </form>
   )

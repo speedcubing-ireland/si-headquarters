@@ -130,9 +130,7 @@ function SidebarPluginLinks() {
 }
 
 function SidebarAdminLinks() {
-  return (
-    <AdminAccessSidebarGroup />
-  )
+  return <AdminAccessSidebarGroup />
 }
 
 function AdminAccessSidebarGroup() {

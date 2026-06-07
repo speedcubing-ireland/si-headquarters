@@ -109,7 +109,9 @@ export function AuctionTable({
                 </TableCell>
                 <TableCell>
                   <div className="space-y-0.5">
-                    <p className="tabular-nums">{formatEuroFromCents(amountCents)}</p>
+                    <p className="tabular-nums">
+                      {formatEuroFromCents(amountCents)}
+                    </p>
                     {showWinningBidLabel ? (
                       <p className="text-xs text-muted-foreground">
                         Winning bid

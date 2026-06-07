@@ -37,7 +37,13 @@ function Form({
   return <div className={cn("grid gap-4", className)}>{children}</div>
 }
 
-function FieldWrapper({ children, error, field, id, label }: FieldWrapperProps) {
+function FieldWrapper({
+  children,
+  error,
+  field,
+  id,
+  label,
+}: FieldWrapperProps) {
   const description = renderRenderable(field.description)
 
   return (

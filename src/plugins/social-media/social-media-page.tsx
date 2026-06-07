@@ -16,10 +16,7 @@ function SocialMediaDashboardContent() {
       <Page.Header>
         <Page.Title>Social Media</Page.Title>
         <Page.Actions>
-          <DashboardRefreshButton
-            isFetching={isFetching}
-            onRefresh={refresh}
-          />
+          <DashboardRefreshButton isFetching={isFetching} onRefresh={refresh} />
         </Page.Actions>
       </Page.Header>
       <Page.Content className={cn(PAGE_CONTENT_PADDING, "flex flex-col gap-4")}>

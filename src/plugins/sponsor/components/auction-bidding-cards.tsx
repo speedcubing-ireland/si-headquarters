@@ -503,15 +503,9 @@ function AuctionRaiseVisiblePriceDialog({
   onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]>
 }) {
   return (
-    <Dialog
-      open={open && !isConfirmationOpen}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={open && !isConfirmationOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-        >
+        <Button type="button" variant="outline">
           Bid again while winning
         </Button>
       </DialogTrigger>

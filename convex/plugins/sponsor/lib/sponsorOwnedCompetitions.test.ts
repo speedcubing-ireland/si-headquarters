@@ -60,7 +60,9 @@ describe("sponsorOwnsCompetition", () => {
       sponsorOwnsCompetition({
         sponsorId,
         competition: makeCompetition({ manualSponsorId: sponsorId }),
-        auctions: [makeAuction({ state: "active", winnerSponsorId: undefined })],
+        auctions: [
+          makeAuction({ state: "active", winnerSponsorId: undefined }),
+        ],
       })
     ).toBe(true)
   })

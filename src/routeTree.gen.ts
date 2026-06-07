@@ -8,264 +8,264 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as TasksIndexRouteImport } from './routes/tasks/index'
-import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
-import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as TasksIdRouteImport } from './routes/tasks/$id'
-import { Route as SponsorSettingsRouteImport } from './routes/sponsor/settings'
-import { Route as SponsorLoginRouteImport } from './routes/sponsor/login'
-import { Route as SponsorImpersonateRouteImport } from './routes/sponsor/impersonate'
-import { Route as SponsorGuideRouteImport } from './routes/sponsor/guide'
-import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
-import { Route as Sponsor404RouteImport } from './routes/sponsor/404'
-import { Route as PluginsWca2faRouteImport } from './routes/plugins/wca-2fa'
-import { Route as PluginsSponsorshipRouteImport } from './routes/plugins/sponsorship'
-import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-media'
-import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
-import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
-import { Route as AdminImpersonationRouteImport } from './routes/admin/impersonation'
-import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
-import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as IndexRouteImport } from "./routes/index"
+import { Route as TasksIndexRouteImport } from "./routes/tasks/index"
+import { Route as SponsorIndexRouteImport } from "./routes/sponsor/index"
+import { Route as CompetitionsIndexRouteImport } from "./routes/competitions/index"
+import { Route as AdminIndexRouteImport } from "./routes/admin/index"
+import { Route as TasksIdRouteImport } from "./routes/tasks/$id"
+import { Route as SponsorSettingsRouteImport } from "./routes/sponsor/settings"
+import { Route as SponsorLoginRouteImport } from "./routes/sponsor/login"
+import { Route as SponsorImpersonateRouteImport } from "./routes/sponsor/impersonate"
+import { Route as SponsorGuideRouteImport } from "./routes/sponsor/guide"
+import { Route as SponsorAuctionsRouteImport } from "./routes/sponsor/auctions"
+import { Route as Sponsor404RouteImport } from "./routes/sponsor/404"
+import { Route as PluginsWca2faRouteImport } from "./routes/plugins/wca-2fa"
+import { Route as PluginsSponsorshipRouteImport } from "./routes/plugins/sponsorship"
+import { Route as PluginsSocialMediaRouteImport } from "./routes/plugins/social-media"
+import { Route as ImpersonateUserRouteImport } from "./routes/impersonate/user"
+import { Route as CompetitionsIdRouteImport } from "./routes/competitions/$id"
+import { Route as AdminImpersonationRouteImport } from "./routes/admin/impersonation"
+import { Route as SponsorAuctionsAuctionIdRouteImport } from "./routes/sponsor/auctions/$auctionId"
+import { Route as TeamsTeamIdTasksIndexRouteImport } from "./routes/teams/$teamId/tasks/index"
 
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksIndexRoute = TasksIndexRouteImport.update({
-  id: '/tasks/',
-  path: '/tasks/',
+  id: "/tasks/",
+  path: "/tasks/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorIndexRoute = SponsorIndexRouteImport.update({
-  id: '/sponsor/',
-  path: '/sponsor/',
+  id: "/sponsor/",
+  path: "/sponsor/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
-  id: '/competitions/',
-  path: '/competitions/',
+  id: "/competitions/",
+  path: "/competitions/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
+  id: "/admin/",
+  path: "/admin/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksIdRoute = TasksIdRouteImport.update({
-  id: '/tasks/$id',
-  path: '/tasks/$id',
+  id: "/tasks/$id",
+  path: "/tasks/$id",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorSettingsRoute = SponsorSettingsRouteImport.update({
-  id: '/sponsor/settings',
-  path: '/sponsor/settings',
+  id: "/sponsor/settings",
+  path: "/sponsor/settings",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorLoginRoute = SponsorLoginRouteImport.update({
-  id: '/sponsor/login',
-  path: '/sponsor/login',
+  id: "/sponsor/login",
+  path: "/sponsor/login",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorImpersonateRoute = SponsorImpersonateRouteImport.update({
-  id: '/sponsor/impersonate',
-  path: '/sponsor/impersonate',
+  id: "/sponsor/impersonate",
+  path: "/sponsor/impersonate",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorGuideRoute = SponsorGuideRouteImport.update({
-  id: '/sponsor/guide',
-  path: '/sponsor/guide',
+  id: "/sponsor/guide",
+  path: "/sponsor/guide",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorAuctionsRoute = SponsorAuctionsRouteImport.update({
-  id: '/sponsor/auctions',
-  path: '/sponsor/auctions',
+  id: "/sponsor/auctions",
+  path: "/sponsor/auctions",
   getParentRoute: () => rootRouteImport,
 } as any)
 const Sponsor404Route = Sponsor404RouteImport.update({
-  id: '/sponsor/404',
-  path: '/sponsor/404',
+  id: "/sponsor/404",
+  path: "/sponsor/404",
   getParentRoute: () => rootRouteImport,
 } as any)
 const PluginsWca2faRoute = PluginsWca2faRouteImport.update({
-  id: '/plugins/wca-2fa',
-  path: '/plugins/wca-2fa',
+  id: "/plugins/wca-2fa",
+  path: "/plugins/wca-2fa",
   getParentRoute: () => rootRouteImport,
 } as any)
 const PluginsSponsorshipRoute = PluginsSponsorshipRouteImport.update({
-  id: '/plugins/sponsorship',
-  path: '/plugins/sponsorship',
+  id: "/plugins/sponsorship",
+  path: "/plugins/sponsorship",
   getParentRoute: () => rootRouteImport,
 } as any)
 const PluginsSocialMediaRoute = PluginsSocialMediaRouteImport.update({
-  id: '/plugins/social-media',
-  path: '/plugins/social-media',
+  id: "/plugins/social-media",
+  path: "/plugins/social-media",
   getParentRoute: () => rootRouteImport,
 } as any)
 const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
-  id: '/impersonate/user',
-  path: '/impersonate/user',
+  id: "/impersonate/user",
+  path: "/impersonate/user",
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
-  id: '/competitions/$id',
-  path: '/competitions/$id',
+  id: "/competitions/$id",
+  path: "/competitions/$id",
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminImpersonationRoute = AdminImpersonationRouteImport.update({
-  id: '/admin/impersonation',
-  path: '/admin/impersonation',
+  id: "/admin/impersonation",
+  path: "/admin/impersonation",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorAuctionsAuctionIdRoute =
   SponsorAuctionsAuctionIdRouteImport.update({
-    id: '/$auctionId',
-    path: '/$auctionId',
+    id: "/$auctionId",
+    path: "/$auctionId",
     getParentRoute: () => SponsorAuctionsRoute,
   } as any)
 const TeamsTeamIdTasksIndexRoute = TeamsTeamIdTasksIndexRouteImport.update({
-  id: '/teams/$teamId/tasks/',
-  path: '/teams/$teamId/tasks/',
+  id: "/teams/$teamId/tasks/",
+  path: "/teams/$teamId/tasks/",
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
-  '/competitions/$id': typeof CompetitionsIdRoute
-  '/impersonate/user': typeof ImpersonateUserRoute
-  '/plugins/social-media': typeof PluginsSocialMediaRoute
-  '/plugins/sponsorship': typeof PluginsSponsorshipRoute
-  '/plugins/wca-2fa': typeof PluginsWca2faRoute
-  '/sponsor/404': typeof Sponsor404Route
-  '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
-  '/sponsor/guide': typeof SponsorGuideRoute
-  '/sponsor/impersonate': typeof SponsorImpersonateRoute
-  '/sponsor/login': typeof SponsorLoginRoute
-  '/sponsor/settings': typeof SponsorSettingsRoute
-  '/tasks/$id': typeof TasksIdRoute
-  '/admin/': typeof AdminIndexRoute
-  '/competitions/': typeof CompetitionsIndexRoute
-  '/sponsor/': typeof SponsorIndexRoute
-  '/tasks/': typeof TasksIndexRoute
-  '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
-  '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
+  "/": typeof IndexRoute
+  "/admin/impersonation": typeof AdminImpersonationRoute
+  "/competitions/$id": typeof CompetitionsIdRoute
+  "/impersonate/user": typeof ImpersonateUserRoute
+  "/plugins/social-media": typeof PluginsSocialMediaRoute
+  "/plugins/sponsorship": typeof PluginsSponsorshipRoute
+  "/plugins/wca-2fa": typeof PluginsWca2faRoute
+  "/sponsor/404": typeof Sponsor404Route
+  "/sponsor/auctions": typeof SponsorAuctionsRouteWithChildren
+  "/sponsor/guide": typeof SponsorGuideRoute
+  "/sponsor/impersonate": typeof SponsorImpersonateRoute
+  "/sponsor/login": typeof SponsorLoginRoute
+  "/sponsor/settings": typeof SponsorSettingsRoute
+  "/tasks/$id": typeof TasksIdRoute
+  "/admin/": typeof AdminIndexRoute
+  "/competitions/": typeof CompetitionsIndexRoute
+  "/sponsor/": typeof SponsorIndexRoute
+  "/tasks/": typeof TasksIndexRoute
+  "/sponsor/auctions/$auctionId": typeof SponsorAuctionsAuctionIdRoute
+  "/teams/$teamId/tasks/": typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
-  '/competitions/$id': typeof CompetitionsIdRoute
-  '/impersonate/user': typeof ImpersonateUserRoute
-  '/plugins/social-media': typeof PluginsSocialMediaRoute
-  '/plugins/sponsorship': typeof PluginsSponsorshipRoute
-  '/plugins/wca-2fa': typeof PluginsWca2faRoute
-  '/sponsor/404': typeof Sponsor404Route
-  '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
-  '/sponsor/guide': typeof SponsorGuideRoute
-  '/sponsor/impersonate': typeof SponsorImpersonateRoute
-  '/sponsor/login': typeof SponsorLoginRoute
-  '/sponsor/settings': typeof SponsorSettingsRoute
-  '/tasks/$id': typeof TasksIdRoute
-  '/admin': typeof AdminIndexRoute
-  '/competitions': typeof CompetitionsIndexRoute
-  '/sponsor': typeof SponsorIndexRoute
-  '/tasks': typeof TasksIndexRoute
-  '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
-  '/teams/$teamId/tasks': typeof TeamsTeamIdTasksIndexRoute
+  "/": typeof IndexRoute
+  "/admin/impersonation": typeof AdminImpersonationRoute
+  "/competitions/$id": typeof CompetitionsIdRoute
+  "/impersonate/user": typeof ImpersonateUserRoute
+  "/plugins/social-media": typeof PluginsSocialMediaRoute
+  "/plugins/sponsorship": typeof PluginsSponsorshipRoute
+  "/plugins/wca-2fa": typeof PluginsWca2faRoute
+  "/sponsor/404": typeof Sponsor404Route
+  "/sponsor/auctions": typeof SponsorAuctionsRouteWithChildren
+  "/sponsor/guide": typeof SponsorGuideRoute
+  "/sponsor/impersonate": typeof SponsorImpersonateRoute
+  "/sponsor/login": typeof SponsorLoginRoute
+  "/sponsor/settings": typeof SponsorSettingsRoute
+  "/tasks/$id": typeof TasksIdRoute
+  "/admin": typeof AdminIndexRoute
+  "/competitions": typeof CompetitionsIndexRoute
+  "/sponsor": typeof SponsorIndexRoute
+  "/tasks": typeof TasksIndexRoute
+  "/sponsor/auctions/$auctionId": typeof SponsorAuctionsAuctionIdRoute
+  "/teams/$teamId/tasks": typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
-  '/competitions/$id': typeof CompetitionsIdRoute
-  '/impersonate/user': typeof ImpersonateUserRoute
-  '/plugins/social-media': typeof PluginsSocialMediaRoute
-  '/plugins/sponsorship': typeof PluginsSponsorshipRoute
-  '/plugins/wca-2fa': typeof PluginsWca2faRoute
-  '/sponsor/404': typeof Sponsor404Route
-  '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
-  '/sponsor/guide': typeof SponsorGuideRoute
-  '/sponsor/impersonate': typeof SponsorImpersonateRoute
-  '/sponsor/login': typeof SponsorLoginRoute
-  '/sponsor/settings': typeof SponsorSettingsRoute
-  '/tasks/$id': typeof TasksIdRoute
-  '/admin/': typeof AdminIndexRoute
-  '/competitions/': typeof CompetitionsIndexRoute
-  '/sponsor/': typeof SponsorIndexRoute
-  '/tasks/': typeof TasksIndexRoute
-  '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
-  '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
+  "/": typeof IndexRoute
+  "/admin/impersonation": typeof AdminImpersonationRoute
+  "/competitions/$id": typeof CompetitionsIdRoute
+  "/impersonate/user": typeof ImpersonateUserRoute
+  "/plugins/social-media": typeof PluginsSocialMediaRoute
+  "/plugins/sponsorship": typeof PluginsSponsorshipRoute
+  "/plugins/wca-2fa": typeof PluginsWca2faRoute
+  "/sponsor/404": typeof Sponsor404Route
+  "/sponsor/auctions": typeof SponsorAuctionsRouteWithChildren
+  "/sponsor/guide": typeof SponsorGuideRoute
+  "/sponsor/impersonate": typeof SponsorImpersonateRoute
+  "/sponsor/login": typeof SponsorLoginRoute
+  "/sponsor/settings": typeof SponsorSettingsRoute
+  "/tasks/$id": typeof TasksIdRoute
+  "/admin/": typeof AdminIndexRoute
+  "/competitions/": typeof CompetitionsIndexRoute
+  "/sponsor/": typeof SponsorIndexRoute
+  "/tasks/": typeof TasksIndexRoute
+  "/sponsor/auctions/$auctionId": typeof SponsorAuctionsAuctionIdRoute
+  "/teams/$teamId/tasks/": typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/admin/impersonation'
-    | '/competitions/$id'
-    | '/impersonate/user'
-    | '/plugins/social-media'
-    | '/plugins/sponsorship'
-    | '/plugins/wca-2fa'
-    | '/sponsor/404'
-    | '/sponsor/auctions'
-    | '/sponsor/guide'
-    | '/sponsor/impersonate'
-    | '/sponsor/login'
-    | '/sponsor/settings'
-    | '/tasks/$id'
-    | '/admin/'
-    | '/competitions/'
-    | '/sponsor/'
-    | '/tasks/'
-    | '/sponsor/auctions/$auctionId'
-    | '/teams/$teamId/tasks/'
+    | "/"
+    | "/admin/impersonation"
+    | "/competitions/$id"
+    | "/impersonate/user"
+    | "/plugins/social-media"
+    | "/plugins/sponsorship"
+    | "/plugins/wca-2fa"
+    | "/sponsor/404"
+    | "/sponsor/auctions"
+    | "/sponsor/guide"
+    | "/sponsor/impersonate"
+    | "/sponsor/login"
+    | "/sponsor/settings"
+    | "/tasks/$id"
+    | "/admin/"
+    | "/competitions/"
+    | "/sponsor/"
+    | "/tasks/"
+    | "/sponsor/auctions/$auctionId"
+    | "/teams/$teamId/tasks/"
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/admin/impersonation'
-    | '/competitions/$id'
-    | '/impersonate/user'
-    | '/plugins/social-media'
-    | '/plugins/sponsorship'
-    | '/plugins/wca-2fa'
-    | '/sponsor/404'
-    | '/sponsor/auctions'
-    | '/sponsor/guide'
-    | '/sponsor/impersonate'
-    | '/sponsor/login'
-    | '/sponsor/settings'
-    | '/tasks/$id'
-    | '/admin'
-    | '/competitions'
-    | '/sponsor'
-    | '/tasks'
-    | '/sponsor/auctions/$auctionId'
-    | '/teams/$teamId/tasks'
+    | "/"
+    | "/admin/impersonation"
+    | "/competitions/$id"
+    | "/impersonate/user"
+    | "/plugins/social-media"
+    | "/plugins/sponsorship"
+    | "/plugins/wca-2fa"
+    | "/sponsor/404"
+    | "/sponsor/auctions"
+    | "/sponsor/guide"
+    | "/sponsor/impersonate"
+    | "/sponsor/login"
+    | "/sponsor/settings"
+    | "/tasks/$id"
+    | "/admin"
+    | "/competitions"
+    | "/sponsor"
+    | "/tasks"
+    | "/sponsor/auctions/$auctionId"
+    | "/teams/$teamId/tasks"
   id:
-    | '__root__'
-    | '/'
-    | '/admin/impersonation'
-    | '/competitions/$id'
-    | '/impersonate/user'
-    | '/plugins/social-media'
-    | '/plugins/sponsorship'
-    | '/plugins/wca-2fa'
-    | '/sponsor/404'
-    | '/sponsor/auctions'
-    | '/sponsor/guide'
-    | '/sponsor/impersonate'
-    | '/sponsor/login'
-    | '/sponsor/settings'
-    | '/tasks/$id'
-    | '/admin/'
-    | '/competitions/'
-    | '/sponsor/'
-    | '/tasks/'
-    | '/sponsor/auctions/$auctionId'
-    | '/teams/$teamId/tasks/'
+    | "__root__"
+    | "/"
+    | "/admin/impersonation"
+    | "/competitions/$id"
+    | "/impersonate/user"
+    | "/plugins/social-media"
+    | "/plugins/sponsorship"
+    | "/plugins/wca-2fa"
+    | "/sponsor/404"
+    | "/sponsor/auctions"
+    | "/sponsor/guide"
+    | "/sponsor/impersonate"
+    | "/sponsor/login"
+    | "/sponsor/settings"
+    | "/tasks/$id"
+    | "/admin/"
+    | "/competitions/"
+    | "/sponsor/"
+    | "/tasks/"
+    | "/sponsor/auctions/$auctionId"
+    | "/teams/$teamId/tasks/"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -290,145 +290,145 @@ export interface RootRouteChildren {
   TeamsTeamIdTasksIndexRoute: typeof TeamsTeamIdTasksIndexRoute
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
+    "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tasks/': {
-      id: '/tasks/'
-      path: '/tasks'
-      fullPath: '/tasks/'
+    "/tasks/": {
+      id: "/tasks/"
+      path: "/tasks"
+      fullPath: "/tasks/"
       preLoaderRoute: typeof TasksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/': {
-      id: '/sponsor/'
-      path: '/sponsor'
-      fullPath: '/sponsor/'
+    "/sponsor/": {
+      id: "/sponsor/"
+      path: "/sponsor"
+      fullPath: "/sponsor/"
       preLoaderRoute: typeof SponsorIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/competitions/': {
-      id: '/competitions/'
-      path: '/competitions'
-      fullPath: '/competitions/'
+    "/competitions/": {
+      id: "/competitions/"
+      path: "/competitions"
+      fullPath: "/competitions/"
       preLoaderRoute: typeof CompetitionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/': {
-      id: '/admin/'
-      path: '/admin'
-      fullPath: '/admin/'
+    "/admin/": {
+      id: "/admin/"
+      path: "/admin"
+      fullPath: "/admin/"
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tasks/$id': {
-      id: '/tasks/$id'
-      path: '/tasks/$id'
-      fullPath: '/tasks/$id'
+    "/tasks/$id": {
+      id: "/tasks/$id"
+      path: "/tasks/$id"
+      fullPath: "/tasks/$id"
       preLoaderRoute: typeof TasksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/settings': {
-      id: '/sponsor/settings'
-      path: '/sponsor/settings'
-      fullPath: '/sponsor/settings'
+    "/sponsor/settings": {
+      id: "/sponsor/settings"
+      path: "/sponsor/settings"
+      fullPath: "/sponsor/settings"
       preLoaderRoute: typeof SponsorSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/login': {
-      id: '/sponsor/login'
-      path: '/sponsor/login'
-      fullPath: '/sponsor/login'
+    "/sponsor/login": {
+      id: "/sponsor/login"
+      path: "/sponsor/login"
+      fullPath: "/sponsor/login"
       preLoaderRoute: typeof SponsorLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/impersonate': {
-      id: '/sponsor/impersonate'
-      path: '/sponsor/impersonate'
-      fullPath: '/sponsor/impersonate'
+    "/sponsor/impersonate": {
+      id: "/sponsor/impersonate"
+      path: "/sponsor/impersonate"
+      fullPath: "/sponsor/impersonate"
       preLoaderRoute: typeof SponsorImpersonateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/guide': {
-      id: '/sponsor/guide'
-      path: '/sponsor/guide'
-      fullPath: '/sponsor/guide'
+    "/sponsor/guide": {
+      id: "/sponsor/guide"
+      path: "/sponsor/guide"
+      fullPath: "/sponsor/guide"
       preLoaderRoute: typeof SponsorGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/auctions': {
-      id: '/sponsor/auctions'
-      path: '/sponsor/auctions'
-      fullPath: '/sponsor/auctions'
+    "/sponsor/auctions": {
+      id: "/sponsor/auctions"
+      path: "/sponsor/auctions"
+      fullPath: "/sponsor/auctions"
       preLoaderRoute: typeof SponsorAuctionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/404': {
-      id: '/sponsor/404'
-      path: '/sponsor/404'
-      fullPath: '/sponsor/404'
+    "/sponsor/404": {
+      id: "/sponsor/404"
+      path: "/sponsor/404"
+      fullPath: "/sponsor/404"
       preLoaderRoute: typeof Sponsor404RouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/plugins/wca-2fa': {
-      id: '/plugins/wca-2fa'
-      path: '/plugins/wca-2fa'
-      fullPath: '/plugins/wca-2fa'
+    "/plugins/wca-2fa": {
+      id: "/plugins/wca-2fa"
+      path: "/plugins/wca-2fa"
+      fullPath: "/plugins/wca-2fa"
       preLoaderRoute: typeof PluginsWca2faRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/plugins/sponsorship': {
-      id: '/plugins/sponsorship'
-      path: '/plugins/sponsorship'
-      fullPath: '/plugins/sponsorship'
+    "/plugins/sponsorship": {
+      id: "/plugins/sponsorship"
+      path: "/plugins/sponsorship"
+      fullPath: "/plugins/sponsorship"
       preLoaderRoute: typeof PluginsSponsorshipRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/plugins/social-media': {
-      id: '/plugins/social-media'
-      path: '/plugins/social-media'
-      fullPath: '/plugins/social-media'
+    "/plugins/social-media": {
+      id: "/plugins/social-media"
+      path: "/plugins/social-media"
+      fullPath: "/plugins/social-media"
       preLoaderRoute: typeof PluginsSocialMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/impersonate/user': {
-      id: '/impersonate/user'
-      path: '/impersonate/user'
-      fullPath: '/impersonate/user'
+    "/impersonate/user": {
+      id: "/impersonate/user"
+      path: "/impersonate/user"
+      fullPath: "/impersonate/user"
       preLoaderRoute: typeof ImpersonateUserRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/competitions/$id': {
-      id: '/competitions/$id'
-      path: '/competitions/$id'
-      fullPath: '/competitions/$id'
+    "/competitions/$id": {
+      id: "/competitions/$id"
+      path: "/competitions/$id"
+      fullPath: "/competitions/$id"
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/impersonation': {
-      id: '/admin/impersonation'
-      path: '/admin/impersonation'
-      fullPath: '/admin/impersonation'
+    "/admin/impersonation": {
+      id: "/admin/impersonation"
+      path: "/admin/impersonation"
+      fullPath: "/admin/impersonation"
       preLoaderRoute: typeof AdminImpersonationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sponsor/auctions/$auctionId': {
-      id: '/sponsor/auctions/$auctionId'
-      path: '/$auctionId'
-      fullPath: '/sponsor/auctions/$auctionId'
+    "/sponsor/auctions/$auctionId": {
+      id: "/sponsor/auctions/$auctionId"
+      path: "/$auctionId"
+      fullPath: "/sponsor/auctions/$auctionId"
       preLoaderRoute: typeof SponsorAuctionsAuctionIdRouteImport
       parentRoute: typeof SponsorAuctionsRoute
     }
-    '/teams/$teamId/tasks/': {
-      id: '/teams/$teamId/tasks/'
-      path: '/teams/$teamId/tasks'
-      fullPath: '/teams/$teamId/tasks/'
+    "/teams/$teamId/tasks/": {
+      id: "/teams/$teamId/tasks/"
+      path: "/teams/$teamId/tasks"
+      fullPath: "/teams/$teamId/tasks/"
       preLoaderRoute: typeof TeamsTeamIdTasksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -444,7 +444,7 @@ const SponsorAuctionsRouteChildren: SponsorAuctionsRouteChildren = {
 }
 
 const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
-  SponsorAuctionsRouteChildren,
+  SponsorAuctionsRouteChildren
 )
 
 const rootRouteChildren: RootRouteChildren = {

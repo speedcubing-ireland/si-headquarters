@@ -1,7 +1,6 @@
 import type { Doc } from "@/convex/_generated/dataModel"
 
-const DICEBEAR_INITIALS_BASE =
-  "https://api.dicebear.com/9.x/initials/svg?seed="
+const DICEBEAR_INITIALS_BASE = "https://api.dicebear.com/9.x/initials/svg?seed="
 
 export function dicebearInitialsUrl(seed: string): string {
   return `${DICEBEAR_INITIALS_BASE}${encodeURIComponent(seed)}`

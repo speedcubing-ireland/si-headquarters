@@ -18,10 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
 import * as DateRangeSelector from "@/features/competitions/components/date-range-selector"
 import { CompetitionPeopleFormFields } from "@/features/competitions/create/competition-people-form-fields"
@@ -38,12 +35,7 @@ import type { Id } from "@/convex/_generated/dataModel"
 import { useMutation, useQuery } from "convex/react"
 import { LoaderCircleIcon, PlusIcon } from "lucide-react"
 import { useNavigate } from "@tanstack/react-router"
-import {
-  useMemo,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react"
+import { useMemo, useState, type ComponentProps, type ReactNode } from "react"
 
 export function CreateCompetitionDialog({
   children,
@@ -97,7 +89,9 @@ export function CreateCompetitionDialog({
     variableValues
   )
   const canPreview =
-    selectedTemplate !== undefined && name.trim().length > 0 && requiredSatisfied
+    selectedTemplate !== undefined &&
+    name.trim().length > 0 &&
+    requiredSatisfied
 
   const preview = useQuery(
     api.templates.queries.previewCompetitionTemplate,
@@ -249,7 +243,9 @@ export function CreateCompetitionDialog({
           </div>
 
           <Field>
-            <FieldLabel htmlFor="competition-description">Description</FieldLabel>
+            <FieldLabel htmlFor="competition-description">
+              Description
+            </FieldLabel>
             <Textarea
               id="competition-description"
               value={description}

@@ -16,9 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { SponsorButtonSpinner } from "@/plugins/sponsor/components/sponsor-ui"
 import { isSponsorshipEnabled } from "@/lib/feature-flags"
-import {
-  SPONSOR_LOGIN_STEPS,
-} from "@/plugins/sponsor/lib/sponsor-guide"
+import { SPONSOR_LOGIN_STEPS } from "@/plugins/sponsor/lib/sponsor-guide"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 

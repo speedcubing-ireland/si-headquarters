@@ -50,7 +50,9 @@ function userFacingError(message: string): never {
   throw new ConvexError({ code: "BAD_REQUEST", message })
 }
 
-function getTemplateOrThrow(templateKey: string): CompetitionTemplateDefinition {
+function getTemplateOrThrow(
+  templateKey: string
+): CompetitionTemplateDefinition {
   const template = getCompetitionTemplate(templateKey)
   if (template === null) {
     userFacingError("Competition template not found.")
@@ -110,7 +112,8 @@ function resolveRelativeDate(
   if (spec === undefined || spec === null) return null
 
   let anchor: TemplateVariableValue | undefined
-  if (spec.anchor.type === "competitionStart") anchor = competition.compDates.from
+  if (spec.anchor.type === "competitionStart")
+    anchor = competition.compDates.from
   if (spec.anchor.type === "competitionEnd") {
     anchor = competition.compDates.to ?? competition.compDates.from
   }
@@ -174,7 +177,8 @@ async function resolveOwner(
   owner: TaskOwnerExpression | undefined
 ): Promise<Doc<"tasks">["owner"]> {
   if (owner === undefined || owner === null) return null
-  if (owner.type === "teamName") return await resolveTeamRef(ctx, owner.teamName)
+  if (owner.type === "teamName")
+    return await resolveTeamRef(ctx, owner.teamName)
   if (owner.type === "competitionRole") {
     const userId = await requireExistingUser(
       ctx,
@@ -363,7 +367,11 @@ export function buildCompetitionTemplatePreview({
       name: phase.name,
       color: phase.color,
       isInitial: template.initialPhaseKey === phase.key,
-      tasks: previewTaskTree(competition, normalizedVariables, phase.tasks ?? []),
+      tasks: previewTaskTree(
+        competition,
+        normalizedVariables,
+        phase.tasks ?? []
+      ),
     })),
     counts,
   }
@@ -459,7 +467,9 @@ async function insertTaskTree({
 async function upsertCompetitionResource(
   ctx: MutationCtx,
   competitionId: Id<"competitions">,
-  resource: NonNullable<CompetitionTemplateDefinition["linkedResources"]>[number]
+  resource: NonNullable<
+    CompetitionTemplateDefinition["linkedResources"]
+  >[number]
 ) {
   const existing = await ctx.db
     .query("competitionLinkedResources")
@@ -512,7 +522,11 @@ export async function applyCompetitionTemplate(
   const taskIdsByKey = new Map<string, Id<"tasks">>()
   const labelIdsByCode = new Map<string, Id<"taskLabels">>()
   const counts = { ...EMPTY_COUNTS }
-  const phaseOrderKeys = generateNKeysBetween(null, null, template.phases.length)
+  const phaseOrderKeys = generateNKeysBetween(
+    null,
+    null,
+    template.phases.length
+  )
 
   for (const [index, phase] of template.phases.entries()) {
     const phaseId = await ctx.db.insert("phases", {
@@ -563,7 +577,9 @@ export async function applyCompetitionTemplate(
       ? null
       : (phaseIdsByKey.get(template.initialPhaseKey) ?? null)
   if (initialPhaseId !== null) {
-    await ctx.db.patch("competitions", competitionId, { phaseId: initialPhaseId })
+    await ctx.db.patch("competitions", competitionId, {
+      phaseId: initialPhaseId,
+    })
     await activatePhaseBacklogTasks(ctx, initialPhaseId)
   }
 

@@ -92,7 +92,9 @@ function AuctionListStatusValue({
   return <SponsorBidStatusBadge status={status} size="compact" showDot />
 }
 
-function auctionListMetrics(auction: PortalAuctionListRow): AuctionListMetricColumn[] {
+function auctionListMetrics(
+  auction: PortalAuctionListRow
+): AuctionListMetricColumn[] {
   const { amountCents } = formatAuctionTablePrice(auction)
   const statusColumn = {
     value: <AuctionListStatusValue status={auction.sponsorBidStatus} />,

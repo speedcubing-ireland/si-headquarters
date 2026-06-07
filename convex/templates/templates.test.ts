@@ -3,10 +3,7 @@
 import { api } from "@/convex/_generated/api"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 import schema from "@/convex/schema"
-import {
-  addUserToTeam,
-  insertTestUser,
-} from "@/convex/testHelpers"
+import { addUserToTeam, insertTestUser } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 import { ensureTeamByName } from "@/convex/teams/model"
 import { convexTest } from "convex-test"

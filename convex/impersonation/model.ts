@@ -194,7 +194,10 @@ export function impersonationSessionIdFromSponsorSession(
     : null
 }
 
-export function userIdFromSponsorSession(ctx: ImpersonationCtx, session: JsonRecord) {
+export function userIdFromSponsorSession(
+  ctx: ImpersonationCtx,
+  session: JsonRecord
+) {
   const raw = session.impersonatedByUserId
   return typeof raw === "string" ? ctx.db.normalizeId("users", raw) : null
 }

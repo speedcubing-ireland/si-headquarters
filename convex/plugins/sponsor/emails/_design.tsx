@@ -120,8 +120,8 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
               ) : null}
               <Section className="mt-4">{props.children}</Section>
               <Text className="text-brand-muted m-0 mt-4 text-xs leading-5">
-                Need help? Reply to this email and the
-                Sponsorship Team will assist.
+                Need help? Reply to this email and the Sponsorship Team will
+                assist.
               </Text>
               {showCta ? (
                 <Section className="mt-4">
@@ -161,8 +161,7 @@ export function SponsorshipInfoBlock(props: {
   value: string
   valueHref?: string
 }) {
-  const showLink =
-    props.valueHref !== undefined && props.valueHref.length > 0
+  const showLink = props.valueHref !== undefined && props.valueHref.length > 0
 
   return (
     <Section className="border-brand-border rounded-lg border px-4 py-3">
@@ -172,7 +171,10 @@ export function SponsorshipInfoBlock(props: {
         {showLink ? (
           <>
             {" "}
-            <a href={props.valueHref} className="text-brand-primary font-semibold">
+            <a
+              href={props.valueHref}
+              className="text-brand-primary font-semibold"
+            >
               Read more
             </a>
           </>

@@ -26,7 +26,10 @@ export function createDraftFromUser(user: AdminUser): UserManagementDraft {
   }
 }
 
-function discordDraftEquals(draft: AdminDiscordUpdate, user: AdminUser): boolean {
+function discordDraftEquals(
+  draft: AdminDiscordUpdate,
+  user: AdminUser
+): boolean {
   if (draft.kind === "unchanged") {
     return true
   }

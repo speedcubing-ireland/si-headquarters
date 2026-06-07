@@ -151,7 +151,9 @@ function createEmailCtx(input: {
           return {
             withIndex: (
               _index: string,
-              indexFn: (q: { eq: (field: string, value: string) => void }) => void
+              indexFn: (q: {
+                eq: (field: string, value: string) => void
+              }) => void
             ) => {
               const eqState = { field: "", value: "" }
               indexFn({

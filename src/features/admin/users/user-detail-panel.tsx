@@ -118,9 +118,7 @@ export function UserDetailPanel({
   }
 
   if (user === undefined) {
-    return (
-      <EmptyDetailState className={className}>Loading…</EmptyDetailState>
-    )
+    return <EmptyDetailState className={className}>Loading…</EmptyDetailState>
   }
 
   if (user === null || draft === null) {
@@ -179,7 +177,9 @@ export function UserDetailPanel({
               className="shrink-0"
             />
             <div className="min-w-0">
-              <CardTitle className="truncate">{userDisplayName(user)}</CardTitle>
+              <CardTitle className="truncate">
+                {userDisplayName(user)}
+              </CardTitle>
               {user.email !== undefined && user.email.length > 0 ? (
                 <CardDescription className="truncate">
                   {user.email}

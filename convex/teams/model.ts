@@ -94,9 +94,7 @@ export async function listTeamSummariesForUser(
   userId: Id<"users">
 ) {
   const teams = await listTeamsForUser(ctx, userId)
-  return teams
-    .map(toTeamSummary)
-    .sort(compareTeamSummariesByName)
+  return teams.map(toTeamSummary).sort(compareTeamSummariesByName)
 }
 
 export async function listApplicationTeamSummariesForUser(

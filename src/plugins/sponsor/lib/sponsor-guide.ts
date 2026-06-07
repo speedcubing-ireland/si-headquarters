@@ -62,7 +62,8 @@ export const SPONSORSHIP_FRAMEWORK_GUIDES = {
     ],
   },
   ebay_proxy: {
-    summary: "Proxy bidding runs an open bidding similar to the style of eBay auctions.",
+    summary:
+      "Proxy bidding runs an open bidding similar to the style of eBay auctions.",
     bidding: [
       "All bids are visible during the auction to all parties",
       "Sponsors can place a direct bid, and also a hidden maximum bid",

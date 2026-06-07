@@ -33,7 +33,5 @@ export function UserImpersonationRedeem() {
     [consumptionNonce, navigate, signIn]
   )
 
-  return (
-    <ImpersonationRedeemPage title="User impersonation" redeem={redeem} />
-  )
+  return <ImpersonationRedeemPage title="User impersonation" redeem={redeem} />
 }

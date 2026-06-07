@@ -40,7 +40,11 @@ describe("socialMedia resolveHqLinks", () => {
           updateId: null,
           wcaCompetitionId: linkedWcaId,
         })
-        return { linkedWcaId, competitionId, competitionName: "Irish Open 2026" }
+        return {
+          linkedWcaId,
+          competitionId,
+          competitionName: "Irish Open 2026",
+        }
       }
     )
 

@@ -34,7 +34,10 @@ export function TemplatePreviewPanel({
       </div>
       <div className="grid gap-1">
         {preview.phases.map((phase) => (
-          <div key={phase.key} className="flex items-center justify-between gap-3">
+          <div
+            key={phase.key}
+            className="flex items-center justify-between gap-3"
+          >
             <span className="truncate">
               {phase.name}
               {phase.isInitial ? " (initial)" : ""}

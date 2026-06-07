@@ -191,7 +191,9 @@ export const _fireReminder = internalMutation({
     const intents = await ctx.db
       .query("sponsorshipBidIntents")
       .withIndex("by_auction_and_sponsor", (q) =>
-        q.eq("auctionId", reminder.auctionId).eq("sponsorId", reminder.sponsorId)
+        q
+          .eq("auctionId", reminder.auctionId)
+          .eq("sponsorId", reminder.sponsorId)
       )
       .collect()
     const hasSponsorValidBid = intents.some((intent) => intent.isValid)

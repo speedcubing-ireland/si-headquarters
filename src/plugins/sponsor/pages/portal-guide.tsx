@@ -1,11 +1,5 @@
 import { Link, Navigate } from "@tanstack/react-router"
-import {
-  AlertTriangle,
-  ArrowLeft,
-  LogIn,
-  LogOut,
-  Mail,
-} from "lucide-react"
+import { AlertTriangle, ArrowLeft, LogIn, LogOut, Mail } from "lucide-react"
 import {
   SponsorPageHeader,
   SponsorPageShell,
@@ -141,10 +135,14 @@ function SponsorGuideEnabled() {
       <Card>
         <CardHeader>
           <CardTitle>{SPONSOR_MINIMUM_BIDS.title}</CardTitle>
-          <CardDescription>{SPONSOR_MINIMUM_BIDS.sealedAndVickrey}</CardDescription>
+          <CardDescription>
+            {SPONSOR_MINIMUM_BIDS.sealedAndVickrey}
+          </CardDescription>
         </CardHeader>
         <CardContent divided>
-          <p className="text-muted-foreground">{SPONSOR_MINIMUM_BIDS.proxyIntro}</p>
+          <p className="text-muted-foreground">
+            {SPONSOR_MINIMUM_BIDS.proxyIntro}
+          </p>
           <ProxyBidIncrementTable />
         </CardContent>
       </Card>

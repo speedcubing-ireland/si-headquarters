@@ -87,9 +87,7 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
   }
 
   if (isLoadingManagerView || managerView === null) {
-    return (
-      <SponsorInlineLoading className="py-6" />
-    )
+    return <SponsorInlineLoading className="py-6" />
   }
 
   return (
@@ -317,11 +315,7 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
             selectedAuction.state === "closed"
           }
         >
-          {isSavingAuction ? (
-            <Spinner />
-          ) : (
-            "Save changes"
-          )}
+          {isSavingAuction ? <Spinner /> : "Save changes"}
         </Button>
         {hasPendingEditChanges ? (
           <p className="text-xs text-muted-foreground">

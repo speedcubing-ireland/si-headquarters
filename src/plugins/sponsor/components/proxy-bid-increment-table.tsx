@@ -16,7 +16,9 @@ export function ProxyBidIncrementTable() {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>{SPONSOR_PROXY_BID_INCREMENTS.columnHeaders.range}</TableHead>
+          <TableHead>
+            {SPONSOR_PROXY_BID_INCREMENTS.columnHeaders.range}
+          </TableHead>
           <TableHead className="text-right">
             {SPONSOR_PROXY_BID_INCREMENTS.columnHeaders.increment}
           </TableHead>

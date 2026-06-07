@@ -44,7 +44,9 @@ export function SponsorMetricTile({
       )}
     >
       <SponsorMetricLabel
-        className={labelIcon !== undefined ? "flex items-center gap-1.5" : undefined}
+        className={
+          labelIcon !== undefined ? "flex items-center gap-1.5" : undefined
+        }
       >
         {labelIcon}
         {label}

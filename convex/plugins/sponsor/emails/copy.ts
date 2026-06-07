@@ -69,7 +69,8 @@ function lifecycleScheduledCopy(ctx: EmailCopyContext): EmailTemplateCopy {
     infoRows.push({
       label: "Auction format",
       value: auctionFrameworkLabel(ctx.framework),
-      ...(ctx.frameworkGuideUrl !== undefined && ctx.frameworkGuideUrl.length > 0
+      ...(ctx.frameworkGuideUrl !== undefined &&
+      ctx.frameworkGuideUrl.length > 0
         ? { valueHref: ctx.frameworkGuideUrl }
         : {}),
     })

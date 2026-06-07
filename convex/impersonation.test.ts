@@ -38,10 +38,13 @@ describe("admin impersonation", () => {
     })
     const director = t.withIdentity({ subject: directorId })
 
-    const link = await director.mutation(api.impersonation.mutations.createUserLink, {
-      userId: targetUserId,
-      reason: "Support request",
-    })
+    const link = await director.mutation(
+      api.impersonation.mutations.createUserLink,
+      {
+        userId: targetUserId,
+        reason: "Support request",
+      }
+    )
     const redeemed = await t.mutation(
       internal.impersonation.internal.redeemUserTokenForAuth,
       {
@@ -89,10 +92,13 @@ describe("admin impersonation", () => {
       return { directorId, targetUserId }
     })
     const director = t.withIdentity({ subject: directorId })
-    const link = await director.mutation(api.impersonation.mutations.createUserLink, {
-      userId: targetUserId,
-      reason: "Support request",
-    })
+    const link = await director.mutation(
+      api.impersonation.mutations.createUserLink,
+      {
+        userId: targetUserId,
+        reason: "Support request",
+      }
+    )
     const token = tokenFromUrl(link.url)
 
     const first = await t.mutation(
@@ -120,10 +126,13 @@ describe("admin impersonation", () => {
       return { directorId, targetUserId }
     })
     const director = t.withIdentity({ subject: directorId })
-    const link = await director.mutation(api.impersonation.mutations.createUserLink, {
-      userId: targetUserId,
-      reason: "Support request",
-    })
+    const link = await director.mutation(
+      api.impersonation.mutations.createUserLink,
+      {
+        userId: targetUserId,
+        reason: "Support request",
+      }
+    )
     const token = tokenFromUrl(link.url)
 
     expect(
@@ -148,10 +157,13 @@ describe("admin impersonation", () => {
       return { directorId, targetUserId }
     })
     const director = t.withIdentity({ subject: directorId })
-    const link = await director.mutation(api.impersonation.mutations.createUserLink, {
-      userId: targetUserId,
-      reason: "Support request",
-    })
+    const link = await director.mutation(
+      api.impersonation.mutations.createUserLink,
+      {
+        userId: targetUserId,
+        reason: "Support request",
+      }
+    )
 
     await t.run(async (ctx) => {
       const [ticket] = await ctx.db.query("impersonationSessions").collect()
@@ -194,13 +206,19 @@ describe("admin impersonation", () => {
     const directorId = await t.run(async (ctx) => seedDirectorUser(ctx))
     const director = t.withIdentity({ subject: directorId })
 
-    const link = await director.mutation(api.impersonation.mutations.createSponsorLink, {
-      sponsorId,
-      reason: "Support request",
-    })
-    const redeemed = await t.mutation(api.impersonation.mutations.redeemSponsorToken, {
-      token: tokenFromUrl(link.url),
-    })
+    const link = await director.mutation(
+      api.impersonation.mutations.createSponsorLink,
+      {
+        sponsorId,
+        reason: "Support request",
+      }
+    )
+    const redeemed = await t.mutation(
+      api.impersonation.mutations.redeemSponsorToken,
+      {
+        token: tokenFromUrl(link.url),
+      }
+    )
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- adapter boundary
     const session: object | null = await t.query(
       components.sponsorAuth.adapter.findOne,
@@ -224,18 +242,21 @@ describe("admin impersonation", () => {
     const directorId = await t.run(async (ctx) => seedDirectorUser(ctx))
     const director = t.withIdentity({ subject: directorId })
 
-    const ccAuthUser = (await t.mutation(components.sponsorAuth.adapter.create, {
-      input: {
-        model: "user",
-        data: {
-          email: "finance-cc@example.com",
-          name: "Finance CC",
-          emailVerified: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+    const ccAuthUser = (await t.mutation(
+      components.sponsorAuth.adapter.create,
+      {
+        input: {
+          model: "user",
+          data: {
+            email: "finance-cc@example.com",
+            name: "Finance CC",
+            emailVerified: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
         },
-      },
-    })) as { _id: string }
+      }
+    )) as { _id: string }
     const ccContactId = await t.run(async (ctx) =>
       ctx.db.insert("sponsorContacts", {
         sponsorId,
@@ -262,9 +283,12 @@ describe("admin impersonation", () => {
         reason: "Support request",
       }
     )
-    const redeemed = await t.mutation(api.impersonation.mutations.redeemSponsorToken, {
-      token: tokenFromUrl(link.url),
-    })
+    const redeemed = await t.mutation(
+      api.impersonation.mutations.redeemSponsorToken,
+      {
+        token: tokenFromUrl(link.url),
+      }
+    )
 
     expect(redeemed.sponsorName).toBe("Finance CC")
     const me = await t.query(api.plugins.sponsor.portal.auth.me, {

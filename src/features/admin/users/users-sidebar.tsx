@@ -3,12 +3,7 @@ import { useMemo, useState } from "react"
 import { PageListMessage } from "@/components/layout/page-list-message"
 import { ObjectAvatar } from "@/components/object-avatar"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   InputGroup,
   InputGroupAddon,

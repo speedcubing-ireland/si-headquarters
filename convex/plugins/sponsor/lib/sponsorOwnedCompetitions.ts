@@ -7,7 +7,9 @@ import {
 } from "@/convex/plugins/sponsor/lib/sponsorshipLifecycle"
 import type { sponsorSponsorshipListItem } from "@/convex/plugins/sponsor/portal/shared"
 
-export type SponsorSponsorshipListItem = Infer<typeof sponsorSponsorshipListItem>
+export type SponsorSponsorshipListItem = Infer<
+  typeof sponsorSponsorshipListItem
+>
 
 export function sponsorOwnsCompetition(input: {
   sponsorId: Id<"sponsors">
@@ -86,7 +88,8 @@ export function buildSponsorSponsorshipListItems(input: {
     })
     const wonAuction = competitionAuctions.some(
       (auction) =>
-        auction.state === "closed" && auction.winnerSponsorId === input.sponsorId
+        auction.state === "closed" &&
+        auction.winnerSponsorId === input.sponsorId
     )
     const acquiredVia = wonAuction ? "auction_win" : "manual_assignment"
 
