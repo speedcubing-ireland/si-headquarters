@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath githooks && chmod +x githooks/pre-commit || true",
     "dev": "bun run --parallel dev:frontend dev:sponsor dev:backend",
     "dev:frontend": "vite --port 5173",
     "dev:sponsor": "VITE_SPONSOR_SITE=1 vite --port 5174 --open /login",
@@ -12,6 +13,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx}\"",
+    "build:deploy": "bunx convex deploy --cmd 'bun run build'",
     "test": "vitest",
     "test:once": "vitest run",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
