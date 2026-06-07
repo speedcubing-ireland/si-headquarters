@@ -121,6 +121,82 @@ describe("sponsor contacts behavior", () => {
     expect(contact?.isPrimary).toBe(true)
   })
 
+  test("archived contact can be unarchived when sponsor is active", async () => {
+    const t = convexTest(schema, modules)
+    const managerId = await t.run((ctx) => seedDirectorUser(ctx))
+    const manager = t.withIdentity({ subject: managerId })
+
+    const sponsorId = await manager.mutation(
+      api.plugins.sponsor.admin.sponsors.create,
+      {
+        name: "Acme Corp",
+        email: "owner@example.com",
+      }
+    )
+    const contactId = await manager.mutation(
+      api.plugins.sponsor.admin.contacts.create,
+      {
+        sponsorId,
+        name: "Finance",
+        email: "finance@example.com",
+        canBid: true,
+        receivesCc: true,
+      }
+    )
+
+    await manager.mutation(api.plugins.sponsor.admin.contacts.update, {
+      contactId,
+      active: false,
+    })
+
+    await manager.mutation(api.plugins.sponsor.admin.contacts.update, {
+      contactId,
+      active: true,
+    })
+
+    const contact = await t.run((ctx) =>
+      ctx.db.get("sponsorContacts", contactId)
+    )
+    expect(contact?.active).toBe(true)
+    expect(contact?.portalAccess).toBe(false)
+    expect(contact?.canBid).toBe(true)
+    expect(contact?.receivesCc).toBe(true)
+  })
+
+  test("contact cannot be unarchived while sponsor is archived", async () => {
+    const t = convexTest(schema, modules)
+    const managerId = await t.run((ctx) => seedDirectorUser(ctx))
+    const manager = t.withIdentity({ subject: managerId })
+
+    const sponsorId = await manager.mutation(
+      api.plugins.sponsor.admin.sponsors.create,
+      {
+        name: "Acme Corp",
+        email: "owner@example.com",
+      }
+    )
+    const contactId = await manager.mutation(
+      api.plugins.sponsor.admin.contacts.create,
+      {
+        sponsorId,
+        name: "Finance",
+        email: "finance@example.com",
+      }
+    )
+
+    await manager.mutation(api.plugins.sponsor.admin.sponsors.update, {
+      sponsorId,
+      active: false,
+    })
+
+    await expect(
+      manager.mutation(api.plugins.sponsor.admin.contacts.update, {
+        contactId,
+        active: true,
+      })
+    ).rejects.toBeTruthy()
+  })
+
   test("primary contact cannot be archived directly", async () => {
     const t = convexTest(schema, modules)
     const managerId = await t.run((ctx) => seedDirectorUser(ctx))

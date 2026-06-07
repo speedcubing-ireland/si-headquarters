@@ -346,7 +346,7 @@ export async function buildAuctionEmailRecipient(
 }> {
   const primary = await getPrimaryContact(ctx, sponsor._id)
   const activePrimary = primary?.active === true ? primary : null
-  const cc = activePrimary ? await listCcEmailsForSponsor(ctx, sponsor._id) : []
+  const cc = await listCcEmailsForSponsor(ctx, sponsor._id)
   return {
     sponsorId: sponsor._id,
     email: activePrimary?.email ?? sponsor.email,

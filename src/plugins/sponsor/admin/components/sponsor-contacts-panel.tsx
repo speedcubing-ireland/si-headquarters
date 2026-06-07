@@ -1,4 +1,5 @@
 import {
+  ArchiveRestore,
   ChevronDown,
   Gavel,
   Mail,
@@ -55,6 +56,7 @@ export function SponsorContactsPanel({
     revokeContactSessions,
     setPrimaryContact,
     archiveContact,
+    unarchiveContact,
   } = useSponsorContactMutations()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
@@ -201,22 +203,25 @@ export function SponsorContactsPanel({
                       Send access
                     </Button>
                   ) : null}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busyContactId === contact.id}
-                    onClick={() => {
-                      void runContactAction(
-                        contact.id,
-                        () => revokeContactSessions({ contactId: contact.id }),
-                        "Sessions revoked.",
-                        "Failed to revoke sessions."
-                      )
-                    }}
-                  >
-                    <ShieldX className="size-3.5" />
-                    Revoke
-                  </Button>
+                  {contact.active ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busyContactId === contact.id}
+                      onClick={() => {
+                        void runContactAction(
+                          contact.id,
+                          () =>
+                            revokeContactSessions({ contactId: contact.id }),
+                          "Sessions revoked.",
+                          "Failed to revoke sessions."
+                        )
+                      }}
+                    >
+                      <ShieldX className="size-3.5" />
+                      Revoke
+                    </Button>
+                  ) : null}
                   {contact.active && !contact.isPrimary ? (
                     <Button
                       size="sm"
@@ -232,6 +237,24 @@ export function SponsorContactsPanel({
                       }}
                     >
                       Archive
+                    </Button>
+                  ) : null}
+                  {!contact.active && sponsorActive ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busyContactId === contact.id}
+                      onClick={() => {
+                        void runContactAction(
+                          contact.id,
+                          () => unarchiveContact(contact.id),
+                          "Contact restored.",
+                          "Failed to restore contact."
+                        )
+                      }}
+                    >
+                      <ArchiveRestore className="size-3.5" />
+                      Unarchive
                     </Button>
                   ) : null}
                 </ItemActions>

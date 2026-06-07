@@ -234,6 +234,18 @@ export const update = mutation({
       }
       patch.portalAccess = false
     }
+    if (args.active === true && !contact.active) {
+      if (!sponsor.active) {
+        throw new ConvexError({
+          code: "BAD_REQUEST",
+          message: "Cannot unarchive a contact while the sponsor is archived.",
+        })
+      }
+      await assertContactEmailAvailable(ctx, contact.emailNormalized, {
+        excludeContactId: contact._id,
+        excludeSponsorId: contact.isPrimary ? contact.sponsorId : undefined,
+      })
+    }
 
     await ctx.db.patch("sponsorContacts", contact._id, patch)
     const patchedContact = await ctx.db.get("sponsorContacts", contact._id)

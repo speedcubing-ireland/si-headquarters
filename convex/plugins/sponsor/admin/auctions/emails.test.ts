@@ -124,6 +124,7 @@ function createEmailCtx(input: {
   invites: InviteDoc[]
   sponsors: Map<string, SponsorDoc>
   extraContacts?: ContactDoc[]
+  contactsBySponsorId?: Map<string, ContactDoc[]>
 }) {
   const scheduledCalls: {
     delayMs: number
@@ -164,6 +165,10 @@ function createEmailCtx(input: {
                   if (eqState.field !== "sponsorId") return []
                   const sponsor = input.sponsors.get(eqState.value)
                   if (!sponsor) return []
+                  const override = input.contactsBySponsorId?.get(
+                    String(sponsor._id)
+                  )
+                  if (override !== undefined) return override
                   const primary = makePrimaryContact(sponsor)
                   const extras =
                     input.extraContacts?.filter(
@@ -272,6 +277,38 @@ describe("sendAuctionScheduledEmails", () => {
       invites: [makeInvite("auction1", "sA")],
       sponsors: new Map([["sA", sponsorA]]),
       extraContacts: [ccContact, inactiveCc],
+    })
+
+    await sendAuctionScheduledEmails(ctx, auction)
+
+    const args = scheduledCalls[0]?.args as {
+      recipients: { email: string; cc?: string[] }[]
+    }
+    expect(args.recipients).toHaveLength(1)
+    expect(args.recipients[0]?.email).toBe("sA@example.com")
+    expect(args.recipients[0]?.cc).toEqual(["cc@example.com"])
+  })
+
+  test("includes CC contacts when sponsor has no primary contact", async () => {
+    const auction = makeAuction()
+    const competition = makeCompetition()
+    const sponsorA = makeSponsor("sA")
+    const ccContact = makePrimaryContact(sponsorA, {
+      _id: "contact-cc" as ContactDoc["_id"],
+      name: "CC Person",
+      email: "cc@example.com",
+      emailNormalized: "cc@example.com",
+      isPrimary: false,
+      receivesCc: true,
+      portalAccess: false,
+      canBid: false,
+    })
+
+    const { ctx, scheduledCalls } = createEmailCtx({
+      competition,
+      invites: [makeInvite("auction1", "sA")],
+      sponsors: new Map([["sA", sponsorA]]),
+      contactsBySponsorId: new Map([[String(sponsorA._id), [ccContact]]]),
     })
 
     await sendAuctionScheduledEmails(ctx, auction)

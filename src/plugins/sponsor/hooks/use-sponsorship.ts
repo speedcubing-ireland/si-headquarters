@@ -71,6 +71,8 @@ export function useSponsorContactMutations() {
     setPrimaryContact,
     archiveContact: (contactId: Id<"sponsorContacts">) =>
       updateContact({ contactId, active: false }),
+    unarchiveContact: (contactId: Id<"sponsorContacts">) =>
+      updateContact({ contactId, active: true }),
   }
 }
 
