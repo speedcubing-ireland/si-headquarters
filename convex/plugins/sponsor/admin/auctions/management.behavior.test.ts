@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test"
-import { describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
@@ -45,6 +45,14 @@ async function seedAuctionPrereqs(t: ReturnType<typeof convexTest>): Promise<{
 }
 
 describe("auction management behavior", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   test("create auction stores record in draft state with competition snapshot", async () => {
     const t = createHarness()
     const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t)

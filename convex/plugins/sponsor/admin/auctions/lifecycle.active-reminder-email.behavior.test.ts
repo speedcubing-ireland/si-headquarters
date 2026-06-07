@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test"
-import { describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
 import { api, internal } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
@@ -132,6 +132,14 @@ async function getScheduledEmailArgs(
 }
 
 describe("auction active reminder email behavior", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   test("activation creates pending reminder rows for each invitee", async () => {
     const t = createHarness()
     const { managerId, auctionId, sponsorIds } = await seedScheduledAuction(t)

@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test"
-import { describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
@@ -7,6 +7,14 @@ import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelp
 import { seedDirectorUser } from "@/convex/testHelpers"
 
 describe("propertyStatus", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   test("not_offered when no auctions exist", async () => {
     const t = convexTest(schema, modules)
     const competitionId = await t.run(async (ctx) =>

@@ -13,9 +13,12 @@ import { modules } from "@/convex/test.setup"
 import { insertTestCompetition } from "./testHelpers"
 import { seedDirectorUser } from "@/convex/testHelpers"
 
-const sponsorAuthModules = import.meta.glob<string[]>(
-  "../auth/component/sponsorAuth/**/!(*.*.*)*.*s"
-)
+const sponsorAuthModules = {
+  "../auth/component/sponsorAuth/_generated/server.ts": () =>
+    import("../auth/component/sponsorAuth/_generated/server"),
+  "../auth/component/sponsorAuth/adapter.ts": () =>
+    import("./sponsorAuthTestAdapter.testSupport"),
+}
 
 export type SponsorTestHarness = TestConvex<typeof schema>
 

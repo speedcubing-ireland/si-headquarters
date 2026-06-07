@@ -36,14 +36,14 @@ bunx convex env set CLI_AUTH_TOKEN "$(openssl rand -hex 32)"
 
 **Integration credentials** (all required — see `convex/env.ts`):
 
-| Group | Keys |
-|---|---|
+| Group         | Keys                                                                           |
+| ------------- | ------------------------------------------------------------------------------ |
 | Service OAuth | `SERVICE_GOOGLE_ID/SECRET`, `SERVICE_WCA_ID/SECRET`, `SERVICE_CANVA_ID/SECRET` |
-| Canva | `CANVA_CERT_TEMPLATE_ID`, `CANVA_CERT_OUTPUT_FOLDER_ID`, `CANVA_LANYARD_*` |
-| Discord | `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID` |
-| WCA 2FA | `WCA_2FA_SECRET` |
-| Email | `SPONSORSHIP_EMAIL_SENDER_ADDRESS`, `RESEND_TEST_MODE` |
-| URLs | `SITE_URL`, `SPONSOR_SITE_URL` (optional) |
+| Canva         | `CANVA_CERT_TEMPLATE_ID`, `CANVA_CERT_OUTPUT_FOLDER_ID`, `CANVA_LANYARD_*`     |
+| Discord       | `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`                                        |
+| WCA 2FA       | `WCA_2FA_SECRET`                                                               |
+| Email         | `SPONSORSHIP_EMAIL_SENDER_ADDRESS`, `RESEND_TEST_MODE`                         |
+| URLs          | `SITE_URL`, `SPONSOR_SITE_URL` (optional)                                      |
 
 After setting service OAuth credentials, exchange tokens:
 
@@ -58,8 +58,8 @@ For production: `CONVEX_PROD=1 bun run auth <provider>`.
 
 **Optional client flags** (`.env.local`):
 
-| Variable | Effect |
-|---|---|
+| Variable                   | Effect                       |
+| -------------------------- | ---------------------------- |
 | `VITE_SPONSORSHIP_ENABLED` | `1` — enables sponsorship UI |
 
 ## Running
@@ -80,15 +80,15 @@ When deploying on vercel `CONVEX_DEPLOY_KEY` also needs to be set
 
 ## Scripts
 
-| Command | What it does |
-|---|---|
-| `bun run test` | Vitest (watch) |
-| `bun run test:once` | Vitest (CI) |
-| `bun run lint` / `lint:fix` | Oxlint |
-| `bun run format` / `format:check` | Oxfmt |
-| `bun run typecheck` | tsc + tsgo (Convex) |
-| `bun run email:dev` | Preview sponsor email templates |
-| `bun run openapi-ts` | Regenerate WCA/Canva API clients |
+| Command                           | What it does                     |
+| --------------------------------- | -------------------------------- |
+| `bun run test`                    | Vitest (watch)                   |
+| `bun run test:once`               | Vitest (CI)                      |
+| `bun run lint` / `lint:fix`       | Oxlint                           |
+| `bun run format` / `format:check` | Oxfmt                            |
+| `bun run typecheck`               | tsc + tsgo (Convex)              |
+| `bun run email:dev`               | Preview sponsor email templates  |
+| `bun run openapi-ts`              | Regenerate WCA/Canva API clients |
 
 ## Project layout
 
@@ -112,22 +112,22 @@ scripts/
 
 ## Auth
 
-| Audience | Mechanism |
-|---|---|
-| Staff (HQ) | Convex Auth + Google (`@speedcubingireland.com`) |
-| Sponsors | Better Auth — OTP email via `/api/sponsor-auth` |
-| Service APIs | OAuth CLI (`bun run auth`) — stores refresh tokens |
-| Admin testing | Impersonation tokens (admin UI) |
+| Audience      | Mechanism                                          |
+| ------------- | -------------------------------------------------- |
+| Staff (HQ)    | Convex Auth + Google (`@speedcubingireland.com`)   |
+| Sponsors      | Better Auth — OTP email via `/api/sponsor-auth`    |
+| Service APIs  | OAuth CLI (`bun run auth`) — stores refresh tokens |
+| Admin testing | Impersonation tokens (admin UI)                    |
 
 ## Integrations
 
-| Plugin | Purpose |
-|---|---|
-| **Sheets** | Schedule transfer and check-in population via Google Sheets/Drive |
-| **WCA** | Competition API + 2FA code generation |
-| **Canva** | Certificate and lanyard exports from brand templates |
-| **Discord** | Guild member lookup for account linking |
-| **Sponsor** | Auction portal, admin tooling, transactional email (Resend) |
+| Plugin      | Purpose                                                           |
+| ----------- | ----------------------------------------------------------------- |
+| **Sheets**  | Schedule transfer and check-in population via Google Sheets/Drive |
+| **WCA**     | Competition API + 2FA code generation                             |
+| **Canva**   | Certificate and lanyard exports from brand templates              |
+| **Discord** | Guild member lookup for account linking                           |
+| **Sponsor** | Auction portal, admin tooling, transactional email (Resend)       |
 
 ## License
 

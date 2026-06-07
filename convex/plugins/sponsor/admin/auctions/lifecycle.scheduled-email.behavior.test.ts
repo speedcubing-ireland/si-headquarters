@@ -1,5 +1,5 @@
 import { convexTest } from "convex-test"
-import { describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
 import { api, internal } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
@@ -116,6 +116,14 @@ async function getScheduledEmailArgs(
 }
 
 describe("auction scheduled email behavior", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   test("start with future startsAt enqueues auction_scheduled email", async () => {
     const t = createHarness()
     const { managerId, auctionId } = await seedScheduledAuction(t)
