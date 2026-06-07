@@ -65,7 +65,7 @@ export const setSubscription = mutation({
     const subId = await getSubscriptionRecordId(ctx, userId, args.object)
 
     if (!args.subscribe) {
-      if (subId) await ctx.db.delete(subId)
+      if (subId) await ctx.db.delete("subscriptions", subId)
       return
     }
 

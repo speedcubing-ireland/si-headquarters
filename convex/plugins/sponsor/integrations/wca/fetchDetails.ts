@@ -143,7 +143,7 @@ export const fetchCompetitionDetailsInternal = internalAction({
     if (!response.ok) {
       return null
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- fetch JSON boundary
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- fetch JSON boundary
     const body: object | null = await response.json()
     if (body === null || typeof body !== "object") {
       return null

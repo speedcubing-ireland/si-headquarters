@@ -103,13 +103,16 @@ TOTAL_START=$SECONDS
 
 printf "\n${BOLD}Running pre-commit checks…${RESET}  ${DIM}(--no-verify to skip)${RESET}\n\n"
 
-# 1. Lint (eslint — covers src, convex, and scripts)
+# 1. Lint (oxlint — covers src, convex, and scripts)
 run_step "lint" bun run lint || exit 1
 
-# 2. Typecheck (app, node, convex, scripts)
+# 2. Format (oxfmt)
+run_step "format" bun run format:check || exit 1
+
+# 3. Typecheck (app, node, convex, scripts)
 run_step "typecheck" bun run typecheck || exit 1
 
-# 3. Tests (convex and src)
+# 4. Tests (convex and src)
 run_step "tests" bun run test:once || exit 1
 
 TOTAL=$(( SECONDS - TOTAL_START ))

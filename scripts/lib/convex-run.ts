@@ -37,6 +37,6 @@ export async function convexRun<T>(
     throw new Error(stderrMessage !== "" ? stderrMessage : stdoutMessage)
   }
   // CLI boundary: Convex prints JSON; callers specify the expected shape.
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- convex run stdout
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- convex run stdout
   return JSON.parse(stdout.trim()) as T
 }

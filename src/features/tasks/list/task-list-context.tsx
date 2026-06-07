@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components -- context + provider colocated */
+/* oxlint-disable react/only-export-components -- context + provider colocated */
 import {
   createContext,
   use,

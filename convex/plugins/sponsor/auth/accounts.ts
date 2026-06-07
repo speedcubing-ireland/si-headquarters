@@ -62,7 +62,7 @@ async function querySponsorAuthDocument(
   args: SponsorAuthFindOneArgs
 ): Promise<object | null> {
   // Sponsor auth adapter queries return JSON documents without generated types.
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- adapter boundary
+  // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
   const queryResult: object | null = await ctx.runQuery(
     components.sponsorAuth.adapter.findOne,
     args
@@ -290,7 +290,7 @@ export async function ensureContactAuthAccount(
     return { authUserId: existingByEmail._id, created: false }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- adapter boundary
+  // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
   const newUser: object | null = await ctx.runMutation(
     components.sponsorAuth.adapter.create,
     {

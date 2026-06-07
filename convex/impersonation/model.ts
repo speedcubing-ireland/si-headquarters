@@ -134,7 +134,7 @@ export async function findSponsorSessionByToken(
   ctx: ImpersonationCtx,
   sessionToken: string
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- adapter boundary
+  // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
   const result: object | null = await ctx.runQuery(
     components.sponsorAuth.adapter.findOne,
     {
@@ -149,7 +149,7 @@ export async function findSponsorAuthUser(
   ctx: ImpersonationCtx,
   authUserId: string
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- adapter boundary
+  // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
   const result: object | null = await ctx.runQuery(
     components.sponsorAuth.adapter.findOne,
     {

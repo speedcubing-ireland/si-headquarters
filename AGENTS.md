@@ -13,3 +13,9 @@ Convex agent skills for common tasks can be installed by running
 <!-- convex-ai-end -->
 
 When finishing making changes - run typecheck and lint and test and if any issues arrise, ensure that there is not a better pattern that would avoid the root cause rather than a quick fix
+
+## Tooling
+
+- **Lint:** Oxlint with type-aware mode (`bun run lint`). Config: `.oxlintrc.json`. Convex rules use `@convex-dev/eslint-plugin` (JS plugin) plus `@trestleinc/convex-oxlint` for `explicit-table-ids`.
+- **Typecheck:** `tsc` for app/node/scripts; `tsgo` (`@typescript/native-preview`) for Convex — see `convex.json` and the `typecheck` script.
+- **Format:** Oxfmt (`bun run format:check`). Config: `.oxfmtrc.json`.

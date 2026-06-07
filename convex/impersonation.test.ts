@@ -219,7 +219,7 @@ describe("admin impersonation", () => {
         token: tokenFromUrl(link.url),
       }
     )
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- adapter boundary
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
     const session: object | null = await t.query(
       components.sponsorAuth.adapter.findOne,
       {

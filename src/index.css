@@ -144,8 +144,8 @@
   --task-label-violet-fg: var(--color-violet-700);
   --task-status-backlog-fg: var(--muted-foreground);
   --task-status-to-do-fg: oklch(0.38 0.018 286);
-  --task-status-in-progress-fg: oklch(0.62 0.14 68); 
-  --task-status-awaiting-review-fg: oklch(0.50 0.16 245);     
+  --task-status-in-progress-fg: oklch(0.62 0.14 68);
+  --task-status-awaiting-review-fg: oklch(0.5 0.16 245);
   --task-status-done-fg: var(--primary);
   --task-status-cancelled-fg: oklch(0.72 0.008 286);
   --task-status-auto-fg: oklch(0.52 0.18 300);
@@ -271,13 +271,13 @@
     transparent
   );
   --task-label-violet-fg: var(--color-violet-300);
-  --task-status-backlog-fg: var(--muted-foreground); 
-  --task-status-to-do-fg: oklch(0.72 0.012 286);  
-  --task-status-in-progress-fg: oklch(0.78 0.12 72);           
-  --task-status-awaiting-review-fg: oklch(0.72 0.13 248);      
-  --task-status-done-fg: var(--chart-2);                       
-  --task-status-cancelled-fg: oklch(0.42 0.008 286);           
-  --task-status-auto-fg: oklch(0.75 0.14 302); 
+  --task-status-backlog-fg: var(--muted-foreground);
+  --task-status-to-do-fg: oklch(0.72 0.012 286);
+  --task-status-in-progress-fg: oklch(0.78 0.12 72);
+  --task-status-awaiting-review-fg: oklch(0.72 0.13 248);
+  --task-status-done-fg: var(--chart-2);
+  --task-status-cancelled-fg: oklch(0.42 0.008 286);
+  --task-status-auto-fg: oklch(0.75 0.14 302);
 }
 
 @layer base {

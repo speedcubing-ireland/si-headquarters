@@ -19,7 +19,7 @@ export function isParsedRecord(value: ParsedJson): value is ParsedJsonRecord {
 export function parseJson(text: string): ParsedJson | null {
   try {
     // JSON.parse is typed as any; keep the boundary assertion in one place.
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    // oxlint-disable-next-line typescript/consistent-type-assertions
     return JSON.parse(text) as ParsedJson
   } catch {
     return null

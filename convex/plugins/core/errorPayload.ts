@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values"
 
 export function codeFromErrorPayload(
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types -- this validates arbitrary error payloads at the boundary
+  // oxlint-disable-next-line typescript/no-restricted-types -- this validates arbitrary error payloads at the boundary
   value: unknown
 ): string | null {
   if (
@@ -16,7 +16,7 @@ export function codeFromErrorPayload(
 }
 
 export function messageFromErrorPayload(
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types -- this validates arbitrary error payloads at the boundary
+  // oxlint-disable-next-line typescript/no-restricted-types -- this validates arbitrary error payloads at the boundary
   value: unknown
 ): string | null {
   if (
@@ -31,7 +31,7 @@ export function messageFromErrorPayload(
 }
 
 export function codeFromConvexError(
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types -- catch bindings are unknown
+  // oxlint-disable-next-line typescript/no-restricted-types -- catch bindings are unknown
   error: unknown
 ): string | null {
   if (!(error instanceof ConvexError)) {
@@ -52,7 +52,7 @@ export function messageFromJsonErrorPayload(message: string): string | null {
 }
 
 export function unknownErrorMessage(
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types -- catch bindings are unknown
+  // oxlint-disable-next-line typescript/no-restricted-types -- catch bindings are unknown
   error: unknown,
   options?: { includeConvexError?: boolean }
 ): string {

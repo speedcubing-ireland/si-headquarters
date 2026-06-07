@@ -268,7 +268,10 @@ describe("sendEbayAuctionOutbidEmail", () => {
           return args.emailType === "auction_ebay_outbid"
         })
       expect(batch).toBeDefined()
-      const args = (batch?.args as unknown[])[0] as { subject: string }
+      if (batch === undefined) {
+        throw new Error("expected sendSponsorshipEmailBatch call")
+      }
+      const args = (batch.args as unknown[])[0] as { subject: string }
       expect(args.subject).toContain("Irish Open 2026")
       expect(args.subject).toContain("outbid")
     })
