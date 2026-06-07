@@ -4,7 +4,7 @@ import type {
   WcifSchedule as Schedule,
   WcifVenue,
 } from "@/convex/plugins/wca/openapiClient/types.gen"
-import { WCA_BASE_URL } from "@/convex/plugins/wca/oauth"
+import { resolveWcaApiBaseUrl } from "@/convex/deploymentContext"
 import {
   isPlainObject,
   type JsonRecord,
@@ -115,7 +115,7 @@ export async function patchCompetitionWcif(
   payload: Pick<CompetitionWcif, "id" | "events" | "schedule">
 ): Promise<{ success: true } | { success: false; error: string }> {
   const response = await fetch(
-    `${WCA_BASE_URL}/api/v0/competitions/${encodeURIComponent(competitionId)}/wcif`,
+    `${resolveWcaApiBaseUrl()}/v0/competitions/${encodeURIComponent(competitionId)}/wcif`,
     {
       method: "PATCH",
       headers: {

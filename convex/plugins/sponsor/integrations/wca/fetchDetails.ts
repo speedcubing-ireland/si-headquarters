@@ -2,7 +2,7 @@
 
 import { v } from "convex/values"
 import { internalAction } from "@/convex/_generated/server"
-import { WCA_BASE_URL } from "@/convex/plugins/wca/oauth"
+import { resolveWcaApiBaseUrl } from "@/convex/deploymentContext"
 
 const wcaCompetitionDetails = v.object({
   id: v.string(),
@@ -135,7 +135,7 @@ export const fetchCompetitionDetailsInternal = internalAction({
   returns: v.union(wcaCompetitionDetails, v.null()),
   handler: async (_ctx, args) => {
     const response = await fetch(
-      `${WCA_BASE_URL}/api/v0/competitions/${encodeURIComponent(args.wcaCompetitionId)}`,
+      `${resolveWcaApiBaseUrl()}/v0/competitions/${encodeURIComponent(args.wcaCompetitionId)}`,
       {
         headers: { Accept: "application/json" },
       }

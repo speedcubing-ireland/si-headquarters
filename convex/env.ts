@@ -15,6 +15,7 @@ const PLUGIN_ENV_KEYS = Array.from(
 export const convexEnv = {
   ...requiredStrings(OAUTH_ENV_KEYS),
   ...requiredStrings(PLUGIN_ENV_KEYS),
+  DEPLOYMENT_CONTEXT: v.union(v.literal("staging"), v.literal("production")),
   CLI_AUTH_TOKEN: v.string(),
   SPONSOR_BETTER_AUTH_SECRET: v.string(),
   BETTER_AUTH_SECRET: v.optional(v.string()),

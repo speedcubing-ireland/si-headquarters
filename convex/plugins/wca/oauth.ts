@@ -1,11 +1,10 @@
 import { defineOAuthPlugin, type OAuthPluginMeta } from "../oauthProvider"
+import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 
 export const oauthCredentialEnv = {
   clientId: "SERVICE_WCA_ID",
   clientSecret: "SERVICE_WCA_SECRET",
 } as const
-
-export const WCA_BASE_URL = "https://www.worldcubeassociation.org"
 
 export const meta = {
   id: "wca",
@@ -26,8 +25,8 @@ export const plugin = defineOAuthPlugin({
   meta,
   client: {
     displayName: "WCA",
-    authorizationUrl: `${WCA_BASE_URL}/oauth/authorize`,
-    tokenUrl: `${WCA_BASE_URL}/oauth/token`,
+    authorizationUrl: () => `${resolveWcaBaseUrl()}/oauth/authorize`,
+    tokenUrl: () => `${resolveWcaBaseUrl()}/oauth/token`,
     scope: "public email manage_competitions",
     clientIdEnv: oauthCredentialEnv.clientId,
     clientSecretEnv: oauthCredentialEnv.clientSecret,

@@ -5,6 +5,7 @@ import type { Id } from "@/convex/_generated/dataModel"
 import { internal } from "@/convex/_generated/api"
 import { action } from "@/convex/_generated/server"
 import { upsertLinkedCompetitionResource } from "@/convex/plugins/core/linkCompetitionResource"
+import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 import { lookupWcaCompetition } from "@/convex/plugins/wca/api"
 import { createWcaClient } from "@/convex/plugins/wca/client"
 import {
@@ -45,7 +46,7 @@ function mapCompetitionOption(competition: MyCompetition | CompetitionIndex): {
     url:
       "url" in competition
         ? competition.url
-        : `https://www.worldcubeassociation.org/competitions/${competition.id}`,
+        : `${resolveWcaBaseUrl()}/competitions/${competition.id}`,
   }
 }
 

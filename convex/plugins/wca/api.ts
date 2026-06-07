@@ -1,14 +1,17 @@
 "use node"
 
+import {
+  resolveWcaApiBaseUrl,
+  resolveWcaBaseUrl,
+} from "@/convex/deploymentContext"
 import { readJsonObject, readString } from "@/convex/plugins/core/jsonBoundary"
-import { WCA_BASE_URL } from "@/convex/plugins/wca/oauth"
 
 export async function lookupWcaCompetition(
   accessToken: string,
   wcaCompetitionId: string
 ): Promise<{ name: string; url: string }> {
   const response = await fetch(
-    `${WCA_BASE_URL}/api/v0/competitions/${encodeURIComponent(wcaCompetitionId)}`,
+    `${resolveWcaApiBaseUrl()}/v0/competitions/${encodeURIComponent(wcaCompetitionId)}`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -29,7 +32,7 @@ export async function lookupWcaCompetition(
     name: readString(body, "name") ?? wcaCompetitionId,
     url:
       readString(body, "url") ??
-      `${WCA_BASE_URL}/competitions/${wcaCompetitionId}`,
+      `${resolveWcaBaseUrl()}/competitions/${wcaCompetitionId}`,
   }
 }
 
@@ -39,7 +42,7 @@ export async function pushWcifToCompetition(
   wcifJson: string
 ): Promise<void> {
   const response = await fetch(
-    `${WCA_BASE_URL}/api/v0/competitions/${encodeURIComponent(wcaCompetitionId)}/wcif`,
+    `${resolveWcaApiBaseUrl()}/v0/competitions/${encodeURIComponent(wcaCompetitionId)}/wcif`,
     {
       method: "PUT",
       headers: {

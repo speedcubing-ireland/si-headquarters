@@ -23,6 +23,7 @@ import type * as competitions_weekendSlots_mutations from "../competitions/weeke
 import type * as competitions_weekendSlots_validators from "../competitions/weekendSlots/validators.js";
 import type * as competitions_weekends from "../competitions/weekends.js";
 import type * as dashboard_queries from "../dashboard/queries.js";
+import type * as deploymentContext from "../deploymentContext.js";
 import type * as env from "../env.js";
 import type * as envTypes from "../envTypes.js";
 import type * as http from "../http.js";
@@ -237,6 +238,7 @@ declare const fullApi: ApiFromModules<{
   "competitions/weekendSlots/validators": typeof competitions_weekendSlots_validators;
   "competitions/weekends": typeof competitions_weekends;
   "dashboard/queries": typeof dashboard_queries;
+  deploymentContext: typeof deploymentContext;
   env: typeof env;
   envTypes: typeof envTypes;
   http: typeof http;

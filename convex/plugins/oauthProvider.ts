@@ -27,10 +27,12 @@ export interface OAuthPluginMeta {
   readonly cli: OAuthPluginCliMeta
 }
 
+type RuntimeUrl = string | (() => string)
+
 export interface OAuthClientConfig {
   displayName: string
-  authorizationUrl: string
-  tokenUrl: string
+  authorizationUrl: RuntimeUrl
+  tokenUrl: RuntimeUrl
   scope: string
   clientIdEnv: RequiredStringConvexEnvName
   clientSecretEnv: RequiredStringConvexEnvName
@@ -79,6 +81,10 @@ export function redirectUri(meta: OAuthPluginMeta): string {
   return `http://${meta.cli.redirectHost}:${String(meta.cli.port)}`
 }
 
+function resolveRuntimeUrl(url: RuntimeUrl): string {
+  return typeof url === "function" ? url() : url
+}
+
 function buildAuthorizeUrl(
   config: OAuthClientConfig,
   args: {
@@ -87,7 +93,7 @@ function buildAuthorizeUrl(
     extraParams?: Record<string, string>
   }
 ): string {
-  const url = new URL(config.authorizationUrl)
+  const url = new URL(resolveRuntimeUrl(config.authorizationUrl))
   url.searchParams.set(
     "client_id",
     requireConvexEnv(
@@ -141,7 +147,7 @@ async function requestOAuthToken(
     body.set("client_secret", clientSecret)
   }
 
-  const response = await fetch(config.tokenUrl, {
+  const response = await fetch(resolveRuntimeUrl(config.tokenUrl), {
     method: "POST",
     headers,
     body,

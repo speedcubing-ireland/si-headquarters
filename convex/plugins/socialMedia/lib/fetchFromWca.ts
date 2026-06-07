@@ -5,7 +5,7 @@ import {
 } from "@/convex/plugins/wca/openapiClient/sdk.gen"
 import type { CompetitionInfo } from "@/convex/plugins/wca/openapiClient/types.gen"
 import { detectSponsorLabels } from "@/convex/plugins/socialMedia/lib/sponsorDetection"
-import { WCA_BASE_URL } from "@/convex/plugins/wca/oauth"
+import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 
 export interface WcaDashboardCompetition {
   wcaCompetitionId: string
@@ -22,7 +22,7 @@ export interface WcaDashboardCompetition {
 }
 
 function wcaCompetitionUrl(competitionId: string): string {
-  return `${WCA_BASE_URL}/competitions/${competitionId}`
+  return `${resolveWcaBaseUrl()}/competitions/${competitionId}`
 }
 
 function uniqueCompetitionIds(competitions: { id?: string }[]): string[] {

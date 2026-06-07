@@ -3,14 +3,14 @@ import {
   createConfig,
   type Client,
 } from "@/convex/plugins/wca/openapiClient/client"
-import { WCA_BASE_URL } from "@/convex/plugins/wca/oauth"
+import { resolveWcaApiBaseUrl } from "@/convex/deploymentContext"
 
 export type WcaClient = Client
 
 export function createWcaClient(accessToken: string): WcaClient {
   return createClient(
     createConfig({
-      baseUrl: `${WCA_BASE_URL}/api`,
+      baseUrl: resolveWcaApiBaseUrl(),
       headers: new Headers({
         Authorization: `Bearer ${accessToken}`,
       }),
