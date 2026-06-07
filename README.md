@@ -128,3 +128,12 @@ scripts/
 | **Canva** | Certificate and lanyard exports from brand templates |
 | **Discord** | Guild member lookup for account linking |
 | **Sponsor** | Auction portal, admin tooling, transactional email (Resend) |
+
+## License
+
+The **source code** in this repository is released under the [MIT License](LICENSE).
+
+**Speedcubing Ireland–specific content is not freely licensed.** Copy, UI text,
+email templates, sponsor guide wording, logos, trade dress, and other branding
+that refers to Speedcubing Ireland remain the property of Speedcubing Ireland CLG
+(or their respective owners).
