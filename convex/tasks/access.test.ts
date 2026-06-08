@@ -142,6 +142,7 @@ describe("task access", () => {
       name: "Child",
       description: null,
       parent: { type: "tasks", id: parentId },
+      scope: { type: "competitions", id: competitionId },
       assigneeIds: null,
       owner: null,
       dueDate: null,

@@ -2,7 +2,8 @@ import { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar } from "@/components/ui/avatar"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
-import type { PublicUser } from "@/convex/users/validators"
+import type { SelectedTaskOwner as SelectedOwner } from "@/components/data-selectors/task-selector-model"
+import { objectRefKey } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { CastleIcon } from "lucide-react"
 import { useMemo, useState, type ComponentProps } from "react"
@@ -14,12 +15,8 @@ import type { SelectorChangeHandler, SelectorGroup } from "./selector-options"
 type OwnerRef = Doc<"tasks">["owner"]
 type OwnerValue = NonNullable<OwnerRef>
 type OwnerType = OwnerValue["type"]
-type Team = Pick<Doc<"teams">, "_id" | "name">
 type ObjectAvatarProps = Omit<ComponentProps<typeof ObjectAvatar>, "obj">
 type SelectorButtonProps = ComponentProps<typeof DataSelector.ButtonTrigger>
-type SelectedOwner =
-  | (PublicUser & { type: "users" })
-  | (Team & { type: "teams" })
 
 interface TaskOwnerSelectorProps extends Pick<
   SelectorButtonProps,
@@ -32,9 +29,6 @@ interface TaskOwnerSelectorProps extends Pick<
 }
 
 type OwnerFaceAppearance = "property" | "name" | "icon"
-
-const getOwnerValueKey = (ownerRef: OwnerValue) =>
-  `${ownerRef.type}:${ownerRef.id}`
 
 function toOwnerOption(owner: SelectedOwner) {
   if (owner.type === "users") {
@@ -175,7 +169,7 @@ function OwnerSelectorControl({
     [teams, users]
   )
   const model = useSingleDataSelector<OwnerOption, OwnerValue>({
-    getValueKey: getOwnerValueKey,
+    getValueKey: objectRefKey,
     groups: ownerGroups,
     selectedItem,
     value: value ?? selectedItem?.value ?? null,
@@ -228,5 +222,3 @@ export function IconButton({
 }: TaskOwnerSelectorProps) {
   return <OwnerSelectorControl appearance="icon" variant={variant} {...props} />
 }
-
-export type { SelectedOwner }

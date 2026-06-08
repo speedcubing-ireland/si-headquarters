@@ -11,12 +11,31 @@ import {
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
+import type { FunctionReturnType } from "convex/server"
+
+function collectCreationPhaseIds(
+  targets: FunctionReturnType<typeof api.tasks.queries.listCreationTargets>
+) {
+  return new Set(
+    targets.sections.flatMap((section) =>
+      section.phase === null ? [] : [section.phase._id]
+    )
+  )
+}
+
+function collectCreationTaskIds(
+  targets: FunctionReturnType<typeof api.tasks.queries.listCreationTargets>
+) {
+  return new Set(
+    targets.sections.flatMap((section) => section.tasks.map((task) => task._id))
+  )
+}
 
 describe("task mutations", () => {
   test("createTask creates a phase child with defaults and the next order", async () => {
     const t = convexTest(schema, modules)
     const { client } = await withVolunteerTestClient(t)
-    const phaseId = await t.run(async (ctx) => {
+    const seed = await t.run(async (ctx) => {
       const competitionId = await insertBlankCompetition(ctx)
       const phaseId = await insertCompetitionPhase(
         ctx,
@@ -28,13 +47,14 @@ describe("task mutations", () => {
         parent: { type: "phases", id: phaseId },
         order: "a",
       })
-      return phaseId
+      return { competitionId, phaseId }
     })
 
     const taskId = await client.mutation(api.tasks.mutations.createTask, {
       name: "  Book venue deposit  ",
       description: "  Confirm payment terms.  ",
-      parent: { type: "phases", id: phaseId },
+      parent: { type: "phases", id: seed.phaseId },
+      scope: { type: "competitions", id: seed.competitionId },
       assigneeIds: null,
       owner: null,
       dueDate: null,
@@ -46,7 +66,7 @@ describe("task mutations", () => {
     expect(task).toMatchObject({
       name: "Book venue deposit",
       description: "Confirm payment terms.",
-      parent: { type: "phases", id: phaseId },
+      parent: { type: "phases", id: seed.phaseId },
       assigneeIds: null,
       owner: null,
       dueDate: null,
@@ -82,13 +102,14 @@ describe("task mutations", () => {
         color: "sky",
       })
 
-      return { parentTaskId, assigneeId, teamId, labelId }
+      return { competitionId, parentTaskId, assigneeId, teamId, labelId }
     })
 
     const taskId = await client.mutation(api.tasks.mutations.createTask, {
       name: "Build schedule import",
       description: null,
       parent: { type: "tasks", id: seed.parentTaskId },
+      scope: { type: "competitions", id: seed.competitionId },
       initialStatus: "in-progress",
       assigneeIds: [seed.assigneeId, seed.assigneeId],
       owner: { type: "teams", id: seed.teamId },
@@ -122,7 +143,7 @@ describe("task mutations", () => {
   test("createTask recomputes parent status when adding children", async () => {
     const t = convexTest(schema, modules)
     const { client } = await withVolunteerTestClient(t)
-    const parentTaskId = await t.run(async (ctx) => {
+    const seed = await t.run(async (ctx) => {
       const competitionId = await insertBlankCompetition(ctx)
       const phaseId = await insertCompetitionPhase(
         ctx,
@@ -130,17 +151,19 @@ describe("task mutations", () => {
         "Setup",
         "a"
       )
-      return await insertSeedTask(ctx, {
+      const parentTaskId = await insertSeedTask(ctx, {
         parent: { type: "phases", id: phaseId },
         order: "a",
         status: "done",
       })
+      return { competitionId, parentTaskId }
     })
 
     await client.mutation(api.tasks.mutations.createTask, {
       name: "New incomplete child",
       description: null,
-      parent: { type: "tasks", id: parentTaskId },
+      parent: { type: "tasks", id: seed.parentTaskId },
+      scope: { type: "competitions", id: seed.competitionId },
       initialStatus: "backlog",
       assigneeIds: null,
       owner: null,
@@ -149,7 +172,7 @@ describe("task mutations", () => {
     })
 
     const parentTask = await t.run(
-      async (ctx) => await ctx.db.get("tasks", parentTaskId)
+      async (ctx) => await ctx.db.get("tasks", seed.parentTaskId)
     )
 
     expect(parentTask?.status).toBe("in-progress")
@@ -246,15 +269,15 @@ describe("task mutations", () => {
         scope: { type: "competitions", id: seed.competitionId },
       }
     )
-    const phaseIds = new Set(allTargets.phases.map((phase) => phase._id))
-    const taskIds = new Set(allTargets.tasks.map((task) => task._id))
+    const phaseIds = collectCreationPhaseIds(allTargets)
+    const taskIds = collectCreationTaskIds(allTargets)
 
     expect(phaseIds.has(seed.setupPhaseId)).toBe(true)
     expect(phaseIds.has(seed.laterPhaseId)).toBe(true)
     expect(phaseIds.has(seed.outsidePhaseId)).toBe(false)
     expect(taskIds.has(seed.selectedParentId)).toBe(true)
     expect(taskIds.has(seed.matchingTaskId)).toBe(true)
-    expect(taskIds.has(seed.visibleChildId)).toBe(true)
+    expect(taskIds.has(seed.visibleChildId)).toBe(false)
     expect(taskIds.has(seed.flowParentId)).toBe(true)
     expect(taskIds.has(seed.hiddenFlowChildId)).toBe(false)
     expect(taskIds.has(seed.doneParentId)).toBe(true)
@@ -269,9 +292,7 @@ describe("task mutations", () => {
         selectedParent: { type: "tasks", id: seed.selectedParentId },
       }
     )
-    const scopedSelectedTaskIds = new Set(
-      scopedSelectedTargets.tasks.map((task) => task._id)
-    )
+    const scopedSelectedTaskIds = collectCreationTaskIds(scopedSelectedTargets)
 
     expect(scopedSelectedTaskIds.has(seed.matchingTaskId)).toBe(true)
     expect(scopedSelectedTaskIds.has(seed.selectedParentId)).toBe(true)
@@ -284,8 +305,8 @@ describe("task mutations", () => {
         selectedParent: { type: "tasks", id: seed.outsideTaskId },
       }
     )
-    const outsideSelectedTaskIds = new Set(
-      outsideSelectedTargets.tasks.map((task) => task._id)
+    const outsideSelectedTaskIds = collectCreationTaskIds(
+      outsideSelectedTargets
     )
 
     expect(outsideSelectedTaskIds.has(seed.matchingTaskId)).toBe(true)
@@ -362,13 +383,13 @@ describe("task mutations", () => {
     const targets = await client.query(api.tasks.queries.listCreationTargets, {
       scope: { type: "tasks", id: seed.viewedTaskId },
     })
-    const phaseIds = new Set(targets.phases.map((phase) => phase._id))
-    const taskIds = new Set(targets.tasks.map((task) => task._id))
+    const phaseIds = collectCreationPhaseIds(targets)
+    const taskIds = collectCreationTaskIds(targets)
 
     expect(phaseIds.has(seed.phaseId)).toBe(false)
     expect(taskIds.has(seed.viewedTaskId)).toBe(true)
     expect(taskIds.has(seed.visibleChildId)).toBe(true)
-    expect(taskIds.has(seed.visibleGrandchildId)).toBe(true)
+    expect(taskIds.has(seed.visibleGrandchildId)).toBe(false)
     expect(taskIds.has(seed.doneParentId)).toBe(true)
     expect(taskIds.has(seed.hiddenDoneChildId)).toBe(false)
     expect(taskIds.has(seed.rootTaskId)).toBe(false)
@@ -376,10 +397,48 @@ describe("task mutations", () => {
     expect(taskIds.has(seed.otherTreeTaskId)).toBe(false)
   })
 
+  test("createTask rejects nested subtask parents for the current view", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const seed = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      const parentTaskId = await insertSeedTask(ctx, {
+        name: "Parent task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const nestedTaskId = await insertSeedTask(ctx, {
+        name: "Nested task",
+        parent: { type: "tasks", id: parentTaskId },
+        order: "a",
+      })
+      return { competitionId, nestedTaskId }
+    })
+
+    await expect(
+      client.mutation(api.tasks.mutations.createTask, {
+        name: "Invalid nested child",
+        description: null,
+        parent: { type: "tasks", id: seed.nestedTaskId },
+        scope: { type: "competitions", id: seed.competitionId },
+        assigneeIds: null,
+        owner: null,
+        dueDate: null,
+        labelIds: [],
+      })
+    ).rejects.toThrow("Task parent is not available in this view")
+  })
+
   test("createTask rejects invalid task input", async () => {
     const t = convexTest(schema, modules)
     const { client } = await withVolunteerTestClient(t)
-    const phaseId = await t.run(async (ctx) => {
+    const seed = await t.run(async (ctx) => {
       const competitionId = await insertBlankCompetition(ctx)
       const phaseId = await insertCompetitionPhase(
         ctx,
@@ -388,14 +447,15 @@ describe("task mutations", () => {
         "a"
       )
       await ctx.db.delete("phases", phaseId)
-      return phaseId
+      return { competitionId, phaseId }
     })
 
     await expect(
       client.mutation(api.tasks.mutations.createTask, {
         name: "   ",
         description: null,
-        parent: { type: "phases", id: phaseId },
+        parent: { type: "phases", id: seed.phaseId },
+        scope: { type: "competitions", id: seed.competitionId },
         assigneeIds: null,
         owner: null,
         dueDate: null,
@@ -407,18 +467,19 @@ describe("task mutations", () => {
       client.mutation(api.tasks.mutations.createTask, {
         name: "Missing parent",
         description: null,
-        parent: { type: "phases", id: phaseId },
+        parent: { type: "phases", id: seed.phaseId },
+        scope: { type: "competitions", id: seed.competitionId },
         assigneeIds: null,
         owner: null,
         dueDate: null,
         labelIds: [],
       })
-    ).rejects.toThrow("Task parent not found")
+    ).rejects.toThrow("Task parent is not available in this view")
   })
 
   test("createTask requires task management permission", async () => {
     const t = convexTest(schema, modules)
-    const phaseId = await t.run(async (ctx) => {
+    const seed = await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", { name: "Viewer" })
       const competitionId = await insertBlankCompetition(ctx)
       const phaseId = await insertCompetitionPhase(
@@ -427,15 +488,16 @@ describe("task mutations", () => {
         "Setup",
         "a"
       )
-      return { userId, phaseId }
+      return { userId, competitionId, phaseId }
     })
-    const viewer = t.withIdentity({ subject: phaseId.userId })
+    const viewer = t.withIdentity({ subject: seed.userId })
 
     await expect(
       viewer.mutation(api.tasks.mutations.createTask, {
         name: "Unauthorized task",
         description: null,
-        parent: { type: "phases", id: phaseId.phaseId },
+        parent: { type: "phases", id: seed.phaseId },
+        scope: { type: "competitions", id: seed.competitionId },
         assigneeIds: null,
         owner: null,
         dueDate: null,

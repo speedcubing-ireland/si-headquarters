@@ -1,4 +1,4 @@
-import { v } from "convex/values"
+import { v, type Infer } from "convex/values"
 import { taskKindType } from "@/convex/tasks/kind"
 import {
   taskStatusIntentType,
@@ -14,6 +14,8 @@ export const assigneesType = v.union(
 
 // Ultimately we will allow personal tasks, but through a special type of parent
 export const taskParentRef = v.union(objectRef("phases"), objectRef("tasks"))
+
+export type TaskParentRef = Infer<typeof taskParentRef>
 
 export const taskOwnerRef = v.union(
   v.null(),

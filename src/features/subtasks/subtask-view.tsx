@@ -38,6 +38,10 @@ function isOverdue(row: TaskInlineRow) {
   )
 }
 
+function isDirectSubtaskRow(row: TaskInlineRow) {
+  return row.path.depth === 0
+}
+
 function filterRows(
   rows: TaskInlineRow[],
   displayOptions: SubtaskDisplayOptions
@@ -49,7 +53,7 @@ function filterRows(
     ) {
       return false
     }
-    if (displayOptions.hideSubtasks && row.path.depth > 0) return false
+    if (displayOptions.hideSubtasks && !isDirectSubtaskRow(row)) return false
     return true
   })
 }
@@ -146,27 +150,16 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
     return null
   }
 
-  const currentPhaseId =
-    owner.type === "competitions"
-      ? (view.sections.find((section) => section.isCurrent)?.phaseId ?? null)
-      : null
-  const initialParent =
-    owner.type === "tasks"
-      ? ({ type: "tasks", id: owner.id } as const)
-      : currentPhaseId !== null
-        ? ({ type: "phases", id: currentPhaseId } as const)
-        : null
-
   return (
     <div className="col-span-full flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <AddTaskDialog initialParent={initialParent} parentScope={owner}>
+        <AddTaskDialog initialParent={view.defaultParent} parentScope={owner}>
           <Button variant="outline" size="lg" type="button">
             <PlusIcon />
             Add Task
           </Button>
         </AddTaskDialog>
-        <EditTasksDialog owner={owner} sections={view.sections} />
+        <EditTasksDialog sections={view.sections} />
         {taskId !== null && (
           <Button
             variant="outline"

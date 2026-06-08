@@ -19,3 +19,7 @@ export function objectRef<const TableName extends string>(
     id: v.id(tableName),
   })
 }
+
+export function objectRefKey(ref: { type: string; id: string }) {
+  return `${ref.type}:${ref.id}`
+}

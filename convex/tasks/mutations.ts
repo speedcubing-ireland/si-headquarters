@@ -15,6 +15,7 @@ import {
   assigneesType,
   taskOwnerRef,
   taskParentRef,
+  type TaskParentRef,
 } from "@/convex/tasks/validators"
 import { isClaimableAssigneeIds } from "@/convex/tasks/assignees"
 import {
@@ -35,6 +36,11 @@ import {
   taskRootPatch,
   type TaskRootContext,
 } from "@/convex/tasks/hierarchy"
+import {
+  requireValidCreationParent,
+  subtaskViewOwner,
+} from "@/convex/tasks/subtaskView"
+import { objectRefKey } from "@/convex/utils"
 import { v } from "convex/values"
 import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing"
 
@@ -42,10 +48,6 @@ const MAX_TASK_DELETE_TREE_SIZE = 200
 const MAX_TASK_REORDER_ITEMS = 200
 const MAX_TASK_REORDER_SECTIONS = 50
 const MAX_TASK_SCOPED_ROWS = 200
-
-type TaskParentRef =
-  | { type: "phases"; id: Id<"phases"> }
-  | { type: "tasks"; id: Id<"tasks"> }
 
 async function getNextTaskOrder(ctx: MutationCtx, parent: TaskParentRef) {
   const siblings =
@@ -103,10 +105,6 @@ async function requireExistingLabels(
 
 function parentsMatch(left: TaskParentRef, right: TaskParentRef) {
   return left.type === right.type && left.id === right.id
-}
-
-function parentKey(parent: TaskParentRef) {
-  return `${parent.type}:${parent.id}`
 }
 
 function assertWithinLimit<T>(rows: T[], limit: number, message: string) {
@@ -406,6 +404,7 @@ export const createTask = mutation({
     name: v.string(),
     description: v.nullable(v.string()),
     parent: taskParentRef,
+    scope: subtaskViewOwner,
     initialStatus: v.optional(taskStatusType),
     assigneeIds: assigneesType,
     owner: taskOwnerRef,
@@ -416,6 +415,7 @@ export const createTask = mutation({
   handler: async (ctx, args) => {
     const name = args.name.trim()
     if (name.length === 0) throw new Error("Task name is required")
+    await requireValidCreationParent(ctx, args.scope, args.parent)
     const principal = await requireTaskCreationParentAccess(ctx, args.parent)
 
     await requireExistingTaskParent(ctx, args.parent)
@@ -614,7 +614,7 @@ export const reorderTaskSections = mutation({
     let submittedTaskCount = 0
 
     for (const section of args.sections) {
-      const key = parentKey(section.parent)
+      const key = objectRefKey(section.parent)
       if (parentKeys.has(key)) {
         throw new Error("Task reorder contains duplicate parents")
       }

@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 
-type TaskParentRef = Doc<"tasks">["parent"]
+import type { TaskParentRef } from "@/convex/tasks/validators"
 type DbCtx = Pick<QueryCtx | MutationCtx, "db">
 
 export interface TaskRootContext {

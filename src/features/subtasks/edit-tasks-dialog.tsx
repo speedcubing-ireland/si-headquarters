@@ -74,9 +74,8 @@ import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
 
-type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
-type TaskParentRef = Doc<"tasks">["parent"]
+type TaskParentRef = NonNullable<SubtaskViewSection["parent"]>
 
 interface EditableTaskRow {
   id: Id<"tasks">
@@ -95,19 +94,6 @@ interface EditableTaskSection {
 
 const SECTION_DRAG_PREFIX = "section:"
 
-function getDirectRows(section: SubtaskViewSection) {
-  return section.rows.filter((row) => row.path.depth === 0)
-}
-
-function getSectionParent(
-  owner: SubtaskViewOwner,
-  section: SubtaskViewSection
-): TaskParentRef | null {
-  if (owner.type === "tasks") return { type: "tasks", id: owner.id }
-  if (section.phaseId === null) return null
-  return { type: "phases", id: section.phaseId }
-}
-
 function toEditableTaskRow(row: TaskInlineRow): EditableTaskRow {
   return {
     id: row.task._id,
@@ -118,19 +104,19 @@ function toEditableTaskRow(row: TaskInlineRow): EditableTaskRow {
   }
 }
 
-function buildEditableSections(
-  owner: SubtaskViewOwner,
-  sections: SubtaskViewSection[]
-): EditableTaskSection[] {
+function isDirectTaskRow(row: TaskInlineRow) {
+  return row.path.depth === 0
+}
+
+function buildEditableSections(sections: SubtaskViewSection[]) {
   return sections.flatMap((section) => {
-    const parent = getSectionParent(owner, section)
-    if (parent === null) return []
+    if (section.parent === null) return []
     return [
       {
         id: section.id,
         title: section.title,
-        parent,
-        rows: getDirectRows(section).map(toEditableTaskRow),
+        parent: section.parent,
+        rows: section.rows.filter(isDirectTaskRow).map(toEditableTaskRow),
       },
     ]
   })
@@ -478,10 +464,8 @@ function EditableSection({
 }
 
 export function EditTasksDialog({
-  owner,
   sections,
 }: {
-  owner: SubtaskViewOwner
   sections: SubtaskViewSection[]
 }) {
   const reorderTaskSections = useMutation(
@@ -498,8 +482,8 @@ export function EditTasksDialog({
     EditableTaskSection[]
   >([])
   const baselineSections = useMemo(
-    () => buildEditableSections(owner, sections),
-    [owner, sections]
+    () => buildEditableSections(sections),
+    [sections]
   )
   const baselineRowsBySection = useMemo(
     () =>

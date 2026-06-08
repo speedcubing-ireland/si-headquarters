@@ -15,7 +15,7 @@ import type { PublicUser } from "@/convex/users/validators"
 import type { TaskViewAssignees } from "@/convex/tasks/view"
 import { useMemo, useState, type ComponentProps } from "react"
 
-type AssigneeValue = Exclude<Doc<"tasks">["assigneeIds"], null>
+type AssigneeValue = Doc<"tasks">["assigneeIds"]
 type ObjectAvatarProps = Omit<ComponentProps<typeof ObjectAvatar>, "obj">
 type SelectorButtonProps = ComponentProps<typeof DataSelector.ButtonTrigger>
 
