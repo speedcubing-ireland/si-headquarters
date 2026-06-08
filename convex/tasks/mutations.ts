@@ -4,11 +4,9 @@ import {
   resetTaskDueNoticeState,
   scheduleTaskStatusNotifications,
 } from "@/convex/notifications/events"
-import { createChildTaskAndRecompute } from "@/convex/tasks/childTasks"
 import { taskKindType } from "@/convex/tasks/kind"
-import { reorderChildTasksAndRecompute } from "@/convex/tasks/status/recompute"
 import { taskStatusCommandType } from "@/convex/tasks/status/validators"
-import { assigneesType, taskOwnerRef, taskParentRef } from "@/convex/tasks/validators"
+import { assigneesType, taskOwnerRef } from "@/convex/tasks/validators"
 import { isClaimableAssigneeIds } from "@/convex/tasks/assignees"
 import {
   activatePhaseBacklogTasks,
@@ -83,52 +81,6 @@ export const setTaskOrder = mutation({
     const principal = await requireTaskManagement(ctx)
     const result = await setTaskOrderAndRecompute(ctx, args.id, args.order)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
-  },
-})
-
-export const createChildTask = mutation({
-  args: {
-    parent: taskParentRef,
-    name: v.string(),
-    description: v.optional(v.nullable(v.string())),
-  },
-  returns: v.id("tasks"),
-  handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
-    const name = args.name.trim()
-    if (name.length === 0) throw new Error("Task name is required")
-
-    const descriptionInput = args.description?.trim()
-    const description =
-      descriptionInput !== undefined && descriptionInput.length > 0
-        ? descriptionInput
-        : null
-
-    const { taskId, result } = await createChildTaskAndRecompute(ctx, {
-      parent: args.parent,
-      name,
-      description,
-    })
-    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
-    return taskId
-  },
-})
-
-export const reorderChildTasks = mutation({
-  args: {
-    parent: taskParentRef,
-    orderedTaskIds: v.array(v.id("tasks")),
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
-    const result = await reorderChildTasksAndRecompute(
-      ctx,
-      args.parent,
-      args.orderedTaskIds
-    )
-    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
-    return null
   },
 })
 

@@ -22,7 +22,6 @@ import {
   statusIntentEquals,
   type TaskStatusIntent,
 } from "@/convex/tasks/status/rules"
-import { generateNKeysBetween } from "fractional-indexing"
 
 interface ParentFlowContext {
   parent: Doc<"tasks">
@@ -94,47 +93,6 @@ export async function setTaskOrderAndRecompute(
     const task = await planner.getRequiredTask(taskId)
     planner.patchTask(task, { order })
     planner.enqueue(taskId)
-  })
-}
-
-export async function reorderChildTasksAndRecompute(
-  ctx: MutationCtx,
-  parent: Doc<"tasks">["parent"],
-  orderedTaskIds: Id<"tasks">[]
-) {
-  const loader = new TaskStatusLoader(ctx)
-  const siblings =
-    parent.type === "tasks"
-      ? await loader.getDirectSubtasks(parent.id)
-      : await loader.getPhaseTasks(parent.id)
-  const siblingIds = new Set(siblings.map((task) => task._id))
-
-  if (orderedTaskIds.length !== siblings.length) {
-    throw new Error("Must reorder all sibling tasks together")
-  }
-
-  const seen = new Set<Id<"tasks">>()
-  for (const taskId of orderedTaskIds) {
-    if (!siblingIds.has(taskId)) {
-      throw new Error("Task does not belong to this parent")
-    }
-    if (seen.has(taskId)) {
-      throw new Error("Duplicate task in reorder list")
-    }
-    seen.add(taskId)
-  }
-
-  const orderKeys = generateNKeysBetween(null, null, orderedTaskIds.length)
-
-  return await planTaskStatusMutation(ctx, async (planner) => {
-    for (const [index, taskId] of orderedTaskIds.entries()) {
-      const task = await planner.getRequiredTask(taskId)
-      if (task.parent.type !== parent.type || task.parent.id !== parent.id) {
-        throw new Error("Task parent mismatch")
-      }
-      planner.patchTask(task, { order: orderKeys[index] })
-      planner.enqueue(taskId)
-    }
   })
 }
 

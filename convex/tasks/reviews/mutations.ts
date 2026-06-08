@@ -103,6 +103,11 @@ export const revokeReviewerApproval = mutation({
     })
     const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    await scheduleNotificationEvent(ctx, {
+      kind: "taskAwaitingReview",
+      taskId: args.taskId,
+      actorId: principal.userId,
+    })
   },
 })
 
@@ -142,5 +147,10 @@ export const removeApprovalOverride = mutation({
     await ctx.db.delete("taskReviewOverrides", override._id)
     const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    await scheduleNotificationEvent(ctx, {
+      kind: "taskAwaitingReview",
+      taskId: args.taskId,
+      actorId: principal.userId,
+    })
   },
 })
