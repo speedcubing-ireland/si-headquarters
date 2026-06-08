@@ -15,7 +15,7 @@ import {
 
 export type TaskListScope =
   | { type: "global" }
-  | { type: "team"; teamId: Id<"teams"> }
+  | { type: "team"; teamId: Id<"teams">; teamName?: string }
 
 export interface TaskListPageConfig {
   pageId: string
@@ -45,7 +45,7 @@ export function teamTaskListConfig(
   return {
     pageId: `team:${teamId}`,
     title: taskListPageTitle(teamName),
-    scope: { type: "team", teamId },
+    scope: { type: "team", teamId, teamName },
     presets: ["active", "unassigned", "all"],
     defaultPreset: "active",
   }

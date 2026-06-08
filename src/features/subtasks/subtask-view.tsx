@@ -18,6 +18,7 @@ import {
   type SubtaskDisplayOptions,
 } from "@/features/subtasks/subtask-display-storage"
 import { TaskInlineDataRow } from "@/features/tasks/components/task-inline-data-row"
+import { AddTaskDialog } from "@/features/tasks/components/add-task-dialog"
 import { isTerminalRowStatus } from "@/features/tasks/task-row-status"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
 import { cn } from "@/lib/utils"
@@ -144,13 +145,26 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
     return null
   }
 
+  const currentPhaseId =
+    owner.type === "competitions"
+      ? (view.sections.find((section) => section.isCurrent)?.phaseId ?? null)
+      : null
+  const initialParent =
+    owner.type === "tasks"
+      ? ({ type: "tasks", id: owner.id } as const)
+      : currentPhaseId !== null
+        ? ({ type: "phases", id: currentPhaseId } as const)
+        : null
+
   return (
     <div className="col-span-full flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="lg" type="button">
-          <PlusIcon />
-          Add Task
-        </Button>
+        <AddTaskDialog initialParent={initialParent}>
+          <Button variant="outline" size="lg" type="button">
+            <PlusIcon />
+            Add Task
+          </Button>
+        </AddTaskDialog>
         {taskId !== null && (
           <Button
             variant="outline"

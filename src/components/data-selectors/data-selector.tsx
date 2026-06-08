@@ -67,16 +67,20 @@ export function SingleRoot<TItem, TValue>({
   children,
   model,
   onOpenChange,
+  onSearchChange,
   onValueChange,
   open,
   searchable,
+  searchQuery,
 }: {
   children: ReactNode
   model: SingleSelectorModel<TItem, TValue>
   onOpenChange?: (open: boolean) => void
+  onSearchChange?: (query: string) => void
   onValueChange: (value: TValue | null) => void
   open?: boolean
   searchable?: boolean
+  searchQuery?: string
 }) {
   return (
     <Combobox<SelectorOption<TItem, TValue>>
@@ -84,9 +88,11 @@ export function SingleRoot<TItem, TValue>({
       itemToStringLabel={getSelectorOptionLabel}
       isItemEqualToValue={isSelectorOptionEqual}
       open={open}
-      inputValue={searchable === true ? undefined : ""}
+      inputValue={searchable === true ? searchQuery : ""}
       onInputValueChange={
-        searchable === true ? undefined : ignoreInputValueChange
+        searchable === true && onSearchChange !== undefined
+          ? onSearchChange
+          : ignoreInputValueChange
       }
       value={model.selectedOptions[0] ?? null}
       onOpenChange={onOpenChange}
@@ -232,6 +238,7 @@ export function Content<TItem, TValue>({
   align = "end",
   clearLabel,
   headerActions,
+  loading,
   model,
   objectNoun,
   searchable,
@@ -239,13 +246,16 @@ export function Content<TItem, TValue>({
   align?: SelectorContentAlign
   clearLabel?: ReactNode
   headerActions?: HeaderAction[]
+  loading?: boolean
   model: BuiltSelectorOptions<TItem, TValue>
   objectNoun: string
   searchable?: boolean
 }) {
   const hasHeaderActions =
     headerActions !== undefined && headerActions.length > 0
-  if (!model.hasLoadedItems && !hasHeaderActions) return null
+  if (!model.hasLoadedItems && !hasHeaderActions && loading !== true) {
+    return null
+  }
 
   return (
     <OptionsContent
@@ -253,9 +263,11 @@ export function Content<TItem, TValue>({
       className="w-64 p-0"
       clearLabel={clearLabel}
       headerActions={headerActions}
+      loading={loading}
       model={model}
       objectNoun={objectNoun}
       searchable={searchable}
+      showLoadingState
     />
   )
 }

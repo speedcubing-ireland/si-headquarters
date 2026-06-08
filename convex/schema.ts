@@ -74,10 +74,13 @@ const schema = defineSchema(
         "object.id",
         "userId",
       ]),
-    phases: defineTable(phasesFields).index(
-      "by_owner_type_and_owner_id_and_sortKey",
-      ["owner.type", "owner.id", "sortKey"]
-    ),
+    phases: defineTable(phasesFields)
+      .index("by_owner_type_and_owner_id_and_sortKey", [
+        "owner.type",
+        "owner.id",
+        "sortKey",
+      ])
+      .searchIndex("search_name", { searchField: "name" }),
     tasks: defineTable(tasksFields)
       .index("by_parent_type_and_parent_id_and_order", [
         "parent.type",
@@ -85,7 +88,8 @@ const schema = defineSchema(
         "order",
       ])
       .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"])
-      .index("by_dueDate", ["dueDate"]),
+      .index("by_dueDate", ["dueDate"])
+      .searchIndex("search_name", { searchField: "name" }),
     taskLabels: defineTable(taskLabelsFields).index("by_code", ["code"]),
     taskLabelAssignments: defineTable(taskLabelAssignments)
       .index("by_taskId_and_labelId", ["taskId", "labelId"])

@@ -3,6 +3,7 @@
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import { requireTaskManagement } from "@/convex/permissions/principal"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import { taskFlowView, type TaskFlowView } from "@/convex/tasks/flowView"
 import {
@@ -28,6 +29,9 @@ import {
   toTaskViewSubtaskSummary,
   type TaskViewSubtaskSummary,
 } from "@/convex/tasks/view"
+import { taskKindType } from "@/convex/tasks/kind"
+import { phaseColor } from "@/convex/phases/validators"
+import { taskParentRef } from "@/convex/tasks/validators"
 import { v } from "convex/values"
 
 type TaskParentDetails =
@@ -50,6 +54,192 @@ type TaskParentDetails =
       }
     }
   | null
+
+const taskCreationPhaseTarget = v.object({
+  _id: v.id("phases"),
+  name: v.string(),
+  color: phaseColor,
+  competitionId: v.id("competitions"),
+  competitionName: v.string(),
+})
+
+const taskCreationTaskTarget = v.object({
+  _id: v.id("tasks"),
+  name: v.string(),
+  kind: taskKindType,
+  pathLabel: v.string(),
+  contextLabel: v.string(),
+})
+
+const CREATION_TARGET_DEFAULT_LIMIT = 50
+const CREATION_TARGET_SEARCH_LIMIT = 75
+const CREATION_TARGET_MAX_ANCESTOR_READS = 200
+
+function getTaskCreationPath(
+  task: Doc<"tasks">,
+  taskById: Map<Id<"tasks">, Doc<"tasks">>
+) {
+  const names = [task.name]
+  let parent = task.parent
+  let guard = 0
+
+  while (parent.type === "tasks" && guard < 20) {
+    const parentTask = taskById.get(parent.id)
+    if (!parentTask) break
+    names.unshift(parentTask.name)
+    parent = parentTask.parent
+    guard += 1
+  }
+
+  return {
+    phaseId: parent.type === "phases" ? parent.id : null,
+    pathLabel: names.join(" / "),
+  }
+}
+
+function getTaskCreationContext(
+  phaseId: Id<"phases"> | null,
+  phaseById: Map<Id<"phases">, Doc<"phases">>,
+  competitionById: Map<Id<"competitions">, Doc<"competitions">>
+) {
+  if (phaseId === null) return "No competition context"
+
+  const phase = phaseById.get(phaseId)
+  const competition =
+    phase !== undefined ? competitionById.get(phase.owner.id) : undefined
+  return [competition?.name, phase?.name].filter(Boolean).join(" / ")
+}
+
+function appendUniqueDoc<T extends { _id: string }>(docs: T[], doc: T | null) {
+  if (doc === null || docs.some((entry) => entry._id === doc._id)) return docs
+  return [...docs, doc]
+}
+
+async function listTaskCreationPhaseDocs(
+  ctx: QueryCtx,
+  search: string
+): Promise<Doc<"phases">[]> {
+  if (search.length > 0) {
+    return await ctx.db
+      .query("phases")
+      .withSearchIndex("search_name", (q) => q.search("name", search))
+      .take(CREATION_TARGET_SEARCH_LIMIT)
+  }
+
+  return await ctx.db
+    .query("phases")
+    .order("desc")
+    .take(CREATION_TARGET_DEFAULT_LIMIT)
+}
+
+async function listTaskCreationTaskDocs(
+  ctx: QueryCtx,
+  search: string
+): Promise<Doc<"tasks">[]> {
+  if (search.length > 0) {
+    return await ctx.db
+      .query("tasks")
+      .withSearchIndex("search_name", (q) => q.search("name", search))
+      .take(CREATION_TARGET_SEARCH_LIMIT)
+  }
+
+  return await ctx.db
+    .query("tasks")
+    .order("desc")
+    .take(CREATION_TARGET_DEFAULT_LIMIT)
+}
+
+async function loadTaskCreationAncestors(
+  ctx: QueryCtx,
+  taskDocs: Doc<"tasks">[]
+) {
+  const taskById = new Map(taskDocs.map((task) => [task._id, task]))
+  let ancestorReadCount = 0
+
+  for (;;) {
+    const missingParentIds = new Set<Id<"tasks">>()
+    const phaseIds = new Set<Id<"phases">>()
+
+    for (const task of taskById.values()) {
+      if (task.parent.type === "tasks" && !taskById.has(task.parent.id)) {
+        missingParentIds.add(task.parent.id)
+      } else if (task.parent.type === "phases") {
+        phaseIds.add(task.parent.id)
+      }
+    }
+
+    if (missingParentIds.size === 0) {
+      return { taskById, phaseIds }
+    }
+
+    ancestorReadCount += missingParentIds.size
+    if (ancestorReadCount > CREATION_TARGET_MAX_ANCESTOR_READS) {
+      throw new Error("Task creation target ancestry is too deep")
+    }
+
+    const parentTasks = await Promise.all(
+      [...missingParentIds].map((taskId) => ctx.db.get("tasks", taskId))
+    )
+
+    let addedParent = false
+    for (const parentTask of parentTasks) {
+      if (parentTask === null) continue
+      taskById.set(parentTask._id, parentTask)
+      addedParent = true
+    }
+
+    if (!addedParent) {
+      return { taskById, phaseIds }
+    }
+  }
+}
+
+async function loadPhaseMap(
+  ctx: QueryCtx,
+  phaseDocs: Doc<"phases">[],
+  phaseIds: Iterable<Id<"phases">>
+) {
+  const phaseById = new Map(phaseDocs.map((phase) => [phase._id, phase]))
+  const missingPhaseIds = [...phaseIds].filter(
+    (phaseId) => !phaseById.has(phaseId)
+  )
+  const missingPhases = await Promise.all(
+    missingPhaseIds.map((phaseId) => ctx.db.get("phases", phaseId))
+  )
+
+  for (const phase of missingPhases) {
+    if (phase !== null) {
+      phaseById.set(phase._id, phase)
+    }
+  }
+
+  return phaseById
+}
+
+async function loadCompetitionMap(
+  ctx: QueryCtx,
+  phases: Iterable<Doc<"phases">>
+) {
+  const competitionIds = new Set<Id<"competitions">>()
+  for (const phase of phases) {
+    competitionIds.add(phase.owner.id)
+  }
+
+  const competitions = await Promise.all(
+    [...competitionIds].map((competitionId) =>
+      ctx.db.get("competitions", competitionId)
+    )
+  )
+
+  return new Map(
+    competitions
+      .filter(
+        (competition): competition is Doc<"competitions"> =>
+          competition !== null
+      )
+      .map((competition) => [competition._id, competition])
+  )
+}
 
 export {
   flowViewTaskDetails,
@@ -210,6 +400,82 @@ async function getTaskBreadcrumbs(ctx: QueryCtx, id: Id<"tasks">) {
 
   return chain.reverse()
 }
+
+export const listCreationTargets = query({
+  args: {
+    search: v.optional(v.string()),
+    selectedParent: v.optional(v.union(taskParentRef, v.null())),
+  },
+  returns: v.object({
+    phases: v.array(taskCreationPhaseTarget),
+    tasks: v.array(taskCreationTaskTarget),
+  }),
+  handler: async (ctx, args) => {
+    await requireTaskManagement(ctx)
+    const search = (args.search ?? "").trim()
+    const selectedParent = args.selectedParent ?? null
+    let [targetPhases, targetTasks] = await Promise.all([
+      listTaskCreationPhaseDocs(ctx, search),
+      listTaskCreationTaskDocs(ctx, search),
+    ])
+
+    if (selectedParent?.type === "phases") {
+      targetPhases = appendUniqueDoc(
+        targetPhases,
+        await ctx.db.get("phases", selectedParent.id)
+      )
+    } else if (selectedParent?.type === "tasks") {
+      targetTasks = appendUniqueDoc(
+        targetTasks,
+        await ctx.db.get("tasks", selectedParent.id)
+      )
+    }
+
+    const { taskById, phaseIds } = await loadTaskCreationAncestors(
+      ctx,
+      targetTasks
+    )
+    const phaseById = await loadPhaseMap(ctx, targetPhases, phaseIds)
+    const competitionById = await loadCompetitionMap(ctx, phaseById.values())
+
+    return {
+      phases: targetPhases
+        .map((phase) => ({
+          _id: phase._id,
+          name: phase.name,
+          color: phase.color,
+          competitionId: phase.owner.id,
+          competitionName:
+            competitionById.get(phase.owner.id)?.name ?? "Unknown competition",
+        }))
+        .sort(
+          (left, right) =>
+            left.competitionName.localeCompare(right.competitionName) ||
+            left.name.localeCompare(right.name)
+        ),
+      tasks: targetTasks
+        .map((task) => {
+          const path = getTaskCreationPath(task, taskById)
+          return {
+            _id: task._id,
+            name: task.name,
+            kind: task.kind,
+            pathLabel: path.pathLabel,
+            contextLabel: getTaskCreationContext(
+              path.phaseId,
+              phaseById,
+              competitionById
+            ),
+          }
+        })
+        .sort(
+          (left, right) =>
+            left.contextLabel.localeCompare(right.contextLabel) ||
+            left.pathLabel.localeCompare(right.pathLabel)
+        ),
+    }
+  },
+})
 
 export const getPageRoot = query({
   args: {
