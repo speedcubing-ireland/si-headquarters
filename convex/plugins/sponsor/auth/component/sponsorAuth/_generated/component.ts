@@ -8,7 +8,7 @@
  * @module
  */
 
-import type { FunctionReference } from "convex/server"
+import type { FunctionReference } from "convex/server";
 
 /**
  * A utility for referencing a Convex component's exposed API.
@@ -31,88 +31,88 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           input:
             | {
                 data: {
-                  createdAt: number
-                  email: string
-                  emailVerified: boolean
-                  image?: null | string
-                  name: string
-                  updatedAt: number
-                  userId?: null | string
-                }
-                model: "user"
+                  createdAt: number;
+                  email: string;
+                  emailVerified: boolean;
+                  image?: null | string;
+                  name: string;
+                  updatedAt: number;
+                  userId?: null | string;
+                };
+                model: "user";
               }
             | {
                 data: {
-                  createdAt: number
-                  expiresAt: number
-                  impersonatedByUserId?: null | string
-                  impersonationExpiresAt?: null | number
-                  impersonationSessionId?: null | string
-                  ipAddress?: null | string
-                  token: string
-                  updatedAt: number
-                  userAgent?: null | string
-                  userId: string
-                }
-                model: "session"
+                  createdAt: number;
+                  expiresAt: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
+                  ipAddress?: null | string;
+                  token: string;
+                  updatedAt: number;
+                  userAgent?: null | string;
+                  userId: string;
+                };
+                model: "session";
               }
             | {
                 data: {
-                  accessToken?: null | string
-                  accessTokenExpiresAt?: null | number
-                  accountId: string
-                  createdAt: number
-                  idToken?: null | string
-                  password?: null | string
-                  providerId: string
-                  refreshToken?: null | string
-                  refreshTokenExpiresAt?: null | number
-                  scope?: null | string
-                  updatedAt: number
-                  userId: string
-                }
-                model: "account"
+                  accessToken?: null | string;
+                  accessTokenExpiresAt?: null | number;
+                  accountId: string;
+                  createdAt: number;
+                  idToken?: null | string;
+                  password?: null | string;
+                  providerId: string;
+                  refreshToken?: null | string;
+                  refreshTokenExpiresAt?: null | number;
+                  scope?: null | string;
+                  updatedAt: number;
+                  userId: string;
+                };
+                model: "account";
               }
             | {
                 data: {
-                  createdAt: number
-                  expiresAt: number
-                  identifier: string
-                  updatedAt: number
-                  value: string
-                }
-                model: "verification"
+                  createdAt: number;
+                  expiresAt: number;
+                  identifier: string;
+                  updatedAt: number;
+                  value: string;
+                };
+                model: "verification";
               }
             | {
                 data: {
-                  aaguid?: null | string
-                  backedUp: boolean
-                  counter: number
-                  createdAt?: null | number
-                  credentialID: string
-                  deviceType: string
-                  name?: null | string
-                  publicKey: string
-                  transports?: null | string
-                  userId: string
-                }
-                model: "passkey"
-              }
-          onCreateHandle?: string
-          select?: Array<string>
+                  aaguid?: null | string;
+                  backedUp: boolean;
+                  counter: number;
+                  createdAt?: null | number;
+                  credentialID: string;
+                  deviceType: string;
+                  name?: null | string;
+                  publicKey: string;
+                  transports?: null | string;
+                  userId: string;
+                };
+                model: "passkey";
+              };
+          onCreateHandle?: string;
+          select?: Array<string>;
         },
         any,
         Name
-      >
+      >;
       deleteMany: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -121,8 +121,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -134,20 +134,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -159,8 +159,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -172,20 +172,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -199,8 +199,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -212,28 +212,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -245,20 +245,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -270,8 +270,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -283,38 +283,38 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onDeleteHandle?: string
+                    | null;
+                }>;
+              };
+          onDeleteHandle?: string;
           paginationOpts: {
-            cursor: string | null
-            endCursor?: string | null
-            id?: number
-            maximumBytesRead?: number
-            maximumRowsRead?: number
-            numItems: number
-          }
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
         },
         any,
         Name
-      >
+      >;
       deleteOne: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -323,8 +323,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -336,20 +336,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -361,8 +361,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -374,20 +374,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -401,8 +401,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -414,28 +414,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -447,20 +447,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -472,8 +472,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -485,43 +485,43 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onDeleteHandle?: string
+                    | null;
+                }>;
+              };
+          onDeleteHandle?: string;
         },
         any,
         Name
-      >
+      >;
       findMany: FunctionReference<
         "query",
         "internal",
         {
-          join?: any
-          limit?: number
-          model: "user" | "session" | "account" | "verification" | "passkey"
-          offset?: number
+          join?: any;
+          limit?: number;
+          model: "user" | "session" | "account" | "verification" | "passkey";
+          offset?: number;
           paginationOpts: {
-            cursor: string | null
-            endCursor?: string | null
-            id?: number
-            maximumBytesRead?: number
-            maximumRowsRead?: number
-            numItems: number
-          }
-          select?: Array<string>
-          sortBy?: { direction: "asc" | "desc"; field: string }
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+          select?: Array<string>;
+          sortBy?: { direction: "asc" | "desc"; field: string };
           where?: Array<{
-            connector?: "AND" | "OR"
-            field: string
-            mode?: "sensitive" | "insensitive"
+            connector?: "AND" | "OR";
+            field: string;
+            mode?: "sensitive" | "insensitive";
             operator?:
               | "lt"
               | "lte"
@@ -533,30 +533,30 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "ne"
               | "contains"
               | "starts_with"
-              | "ends_with"
+              | "ends_with";
             value:
               | string
               | number
               | boolean
               | Array<string>
               | Array<number>
-              | null
-          }>
+              | null;
+          }>;
         },
         any,
         Name
-      >
+      >;
       findOne: FunctionReference<
         "query",
         "internal",
         {
-          join?: any
-          model: "user" | "session" | "account" | "verification" | "passkey"
-          select?: Array<string>
+          join?: any;
+          model: "user" | "session" | "account" | "verification" | "passkey";
+          select?: Array<string>;
           where?: Array<{
-            connector?: "AND" | "OR"
-            field: string
-            mode?: "sensitive" | "insensitive"
+            connector?: "AND" | "OR";
+            field: string;
+            mode?: "sensitive" | "insensitive";
             operator?:
               | "lt"
               | "lte"
@@ -568,37 +568,37 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "ne"
               | "contains"
               | "starts_with"
-              | "ends_with"
+              | "ends_with";
             value:
               | string
               | number
               | boolean
               | Array<string>
               | Array<number>
-              | null
-          }>
+              | null;
+          }>;
         },
         any,
         Name
-      >
+      >;
       updateMany: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 update: {
-                  createdAt?: number
-                  email?: string
-                  emailVerified?: boolean
-                  image?: null | string
-                  name?: string
-                  updatedAt?: number
-                  userId?: null | string
-                }
+                  createdAt?: number;
+                  email?: string;
+                  emailVerified?: boolean;
+                  image?: null | string;
+                  name?: string;
+                  updatedAt?: number;
+                  userId?: null | string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -607,8 +607,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -620,32 +620,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  impersonatedByUserId?: null | string
-                  impersonationExpiresAt?: null | number
-                  impersonationSessionId?: null | string
-                  ipAddress?: null | string
-                  token?: string
-                  updatedAt?: number
-                  userAgent?: null | string
-                  userId?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
+                  ipAddress?: null | string;
+                  token?: string;
+                  updatedAt?: number;
+                  userAgent?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -657,8 +657,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -670,34 +670,34 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 update: {
-                  accessToken?: null | string
-                  accessTokenExpiresAt?: null | number
-                  accountId?: string
-                  createdAt?: number
-                  idToken?: null | string
-                  password?: null | string
-                  providerId?: string
-                  refreshToken?: null | string
-                  refreshTokenExpiresAt?: null | number
-                  scope?: null | string
-                  updatedAt?: number
-                  userId?: string
-                }
+                  accessToken?: null | string;
+                  accessTokenExpiresAt?: null | number;
+                  accountId?: string;
+                  createdAt?: number;
+                  idToken?: null | string;
+                  password?: null | string;
+                  providerId?: string;
+                  refreshToken?: null | string;
+                  refreshTokenExpiresAt?: null | number;
+                  scope?: null | string;
+                  updatedAt?: number;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -711,8 +711,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -724,35 +724,35 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  identifier?: string
-                  updatedAt?: number
-                  value?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  identifier?: string;
+                  updatedAt?: number;
+                  value?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -764,32 +764,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 update: {
-                  aaguid?: null | string
-                  backedUp?: boolean
-                  counter?: number
-                  createdAt?: null | number
-                  credentialID?: string
-                  deviceType?: string
-                  name?: null | string
-                  publicKey?: string
-                  transports?: null | string
-                  userId?: string
-                }
+                  aaguid?: null | string;
+                  backedUp?: boolean;
+                  counter?: number;
+                  createdAt?: null | number;
+                  credentialID?: string;
+                  deviceType?: string;
+                  name?: null | string;
+                  publicKey?: string;
+                  transports?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -801,8 +801,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -814,47 +814,47 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onUpdateHandle?: string
+                    | null;
+                }>;
+              };
+          onUpdateHandle?: string;
           paginationOpts: {
-            cursor: string | null
-            endCursor?: string | null
-            id?: number
-            maximumBytesRead?: number
-            maximumRowsRead?: number
-            numItems: number
-          }
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
         },
         any,
         Name
-      >
+      >;
       updateOne: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 update: {
-                  createdAt?: number
-                  email?: string
-                  emailVerified?: boolean
-                  image?: null | string
-                  name?: string
-                  updatedAt?: number
-                  userId?: null | string
-                }
+                  createdAt?: number;
+                  email?: string;
+                  emailVerified?: boolean;
+                  image?: null | string;
+                  name?: string;
+                  updatedAt?: number;
+                  userId?: null | string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -863,8 +863,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -876,32 +876,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  impersonatedByUserId?: null | string
-                  impersonationExpiresAt?: null | number
-                  impersonationSessionId?: null | string
-                  ipAddress?: null | string
-                  token?: string
-                  updatedAt?: number
-                  userAgent?: null | string
-                  userId?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
+                  ipAddress?: null | string;
+                  token?: string;
+                  updatedAt?: number;
+                  userAgent?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -913,8 +913,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -926,34 +926,34 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 update: {
-                  accessToken?: null | string
-                  accessTokenExpiresAt?: null | number
-                  accountId?: string
-                  createdAt?: number
-                  idToken?: null | string
-                  password?: null | string
-                  providerId?: string
-                  refreshToken?: null | string
-                  refreshTokenExpiresAt?: null | number
-                  scope?: null | string
-                  updatedAt?: number
-                  userId?: string
-                }
+                  accessToken?: null | string;
+                  accessTokenExpiresAt?: null | number;
+                  accountId?: string;
+                  createdAt?: number;
+                  idToken?: null | string;
+                  password?: null | string;
+                  providerId?: string;
+                  refreshToken?: null | string;
+                  refreshTokenExpiresAt?: null | number;
+                  scope?: null | string;
+                  updatedAt?: number;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -967,8 +967,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -980,35 +980,35 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  identifier?: string
-                  updatedAt?: number
-                  value?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  identifier?: string;
+                  updatedAt?: number;
+                  value?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1020,32 +1020,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 update: {
-                  aaguid?: null | string
-                  backedUp?: boolean
-                  counter?: number
-                  createdAt?: null | number
-                  credentialID?: string
-                  deviceType?: string
-                  name?: null | string
-                  publicKey?: string
-                  transports?: null | string
-                  userId?: string
-                }
+                  aaguid?: null | string;
+                  backedUp?: boolean;
+                  counter?: number;
+                  createdAt?: null | number;
+                  credentialID?: string;
+                  deviceType?: string;
+                  name?: null | string;
+                  publicKey?: string;
+                  transports?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -1057,8 +1057,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1070,22 +1070,22 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onUpdateHandle?: string
+                    | null;
+                }>;
+              };
+          onUpdateHandle?: string;
         },
         any,
         Name
-      >
-    }
+      >;
+    };
     index: {
       create: FunctionReference<
         "mutation",
@@ -1094,88 +1094,88 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           input:
             | {
                 data: {
-                  createdAt: number
-                  email: string
-                  emailVerified: boolean
-                  image?: null | string
-                  name: string
-                  updatedAt: number
-                  userId?: null | string
-                }
-                model: "user"
+                  createdAt: number;
+                  email: string;
+                  emailVerified: boolean;
+                  image?: null | string;
+                  name: string;
+                  updatedAt: number;
+                  userId?: null | string;
+                };
+                model: "user";
               }
             | {
                 data: {
-                  createdAt: number
-                  expiresAt: number
-                  impersonatedByUserId?: null | string
-                  impersonationExpiresAt?: null | number
-                  impersonationSessionId?: null | string
-                  ipAddress?: null | string
-                  token: string
-                  updatedAt: number
-                  userAgent?: null | string
-                  userId: string
-                }
-                model: "session"
+                  createdAt: number;
+                  expiresAt: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
+                  ipAddress?: null | string;
+                  token: string;
+                  updatedAt: number;
+                  userAgent?: null | string;
+                  userId: string;
+                };
+                model: "session";
               }
             | {
                 data: {
-                  accessToken?: null | string
-                  accessTokenExpiresAt?: null | number
-                  accountId: string
-                  createdAt: number
-                  idToken?: null | string
-                  password?: null | string
-                  providerId: string
-                  refreshToken?: null | string
-                  refreshTokenExpiresAt?: null | number
-                  scope?: null | string
-                  updatedAt: number
-                  userId: string
-                }
-                model: "account"
+                  accessToken?: null | string;
+                  accessTokenExpiresAt?: null | number;
+                  accountId: string;
+                  createdAt: number;
+                  idToken?: null | string;
+                  password?: null | string;
+                  providerId: string;
+                  refreshToken?: null | string;
+                  refreshTokenExpiresAt?: null | number;
+                  scope?: null | string;
+                  updatedAt: number;
+                  userId: string;
+                };
+                model: "account";
               }
             | {
                 data: {
-                  createdAt: number
-                  expiresAt: number
-                  identifier: string
-                  updatedAt: number
-                  value: string
-                }
-                model: "verification"
+                  createdAt: number;
+                  expiresAt: number;
+                  identifier: string;
+                  updatedAt: number;
+                  value: string;
+                };
+                model: "verification";
               }
             | {
                 data: {
-                  aaguid?: null | string
-                  backedUp: boolean
-                  counter: number
-                  createdAt?: null | number
-                  credentialID: string
-                  deviceType: string
-                  name?: null | string
-                  publicKey: string
-                  transports?: null | string
-                  userId: string
-                }
-                model: "passkey"
-              }
-          onCreateHandle?: string
-          select?: Array<string>
+                  aaguid?: null | string;
+                  backedUp: boolean;
+                  counter: number;
+                  createdAt?: null | number;
+                  credentialID: string;
+                  deviceType: string;
+                  name?: null | string;
+                  publicKey: string;
+                  transports?: null | string;
+                  userId: string;
+                };
+                model: "passkey";
+              };
+          onCreateHandle?: string;
+          select?: Array<string>;
         },
         any,
         Name
-      >
+      >;
       deleteMany: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -1184,8 +1184,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1197,20 +1197,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -1222,8 +1222,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1235,20 +1235,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -1262,8 +1262,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1275,28 +1275,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1308,20 +1308,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -1333,8 +1333,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1346,38 +1346,38 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onDeleteHandle?: string
+                    | null;
+                }>;
+              };
+          onDeleteHandle?: string;
           paginationOpts: {
-            cursor: string | null
-            endCursor?: string | null
-            id?: number
-            maximumBytesRead?: number
-            maximumRowsRead?: number
-            numItems: number
-          }
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
         },
         any,
         Name
-      >
+      >;
       deleteOne: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -1386,8 +1386,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1399,20 +1399,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -1424,8 +1424,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1437,20 +1437,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -1464,8 +1464,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1477,28 +1477,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1510,20 +1510,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -1535,8 +1535,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1548,43 +1548,43 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onDeleteHandle?: string
+                    | null;
+                }>;
+              };
+          onDeleteHandle?: string;
         },
         any,
         Name
-      >
+      >;
       findMany: FunctionReference<
         "query",
         "internal",
         {
-          join?: any
-          limit?: number
-          model: "user" | "session" | "account" | "verification" | "passkey"
-          offset?: number
+          join?: any;
+          limit?: number;
+          model: "user" | "session" | "account" | "verification" | "passkey";
+          offset?: number;
           paginationOpts: {
-            cursor: string | null
-            endCursor?: string | null
-            id?: number
-            maximumBytesRead?: number
-            maximumRowsRead?: number
-            numItems: number
-          }
-          select?: Array<string>
-          sortBy?: { direction: "asc" | "desc"; field: string }
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+          select?: Array<string>;
+          sortBy?: { direction: "asc" | "desc"; field: string };
           where?: Array<{
-            connector?: "AND" | "OR"
-            field: string
-            mode?: "sensitive" | "insensitive"
+            connector?: "AND" | "OR";
+            field: string;
+            mode?: "sensitive" | "insensitive";
             operator?:
               | "lt"
               | "lte"
@@ -1596,30 +1596,30 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "ne"
               | "contains"
               | "starts_with"
-              | "ends_with"
+              | "ends_with";
             value:
               | string
               | number
               | boolean
               | Array<string>
               | Array<number>
-              | null
-          }>
+              | null;
+          }>;
         },
         any,
         Name
-      >
+      >;
       findOne: FunctionReference<
         "query",
         "internal",
         {
-          join?: any
-          model: "user" | "session" | "account" | "verification" | "passkey"
-          select?: Array<string>
+          join?: any;
+          model: "user" | "session" | "account" | "verification" | "passkey";
+          select?: Array<string>;
           where?: Array<{
-            connector?: "AND" | "OR"
-            field: string
-            mode?: "sensitive" | "insensitive"
+            connector?: "AND" | "OR";
+            field: string;
+            mode?: "sensitive" | "insensitive";
             operator?:
               | "lt"
               | "lte"
@@ -1631,37 +1631,37 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "ne"
               | "contains"
               | "starts_with"
-              | "ends_with"
+              | "ends_with";
             value:
               | string
               | number
               | boolean
               | Array<string>
               | Array<number>
-              | null
-          }>
+              | null;
+          }>;
         },
         any,
         Name
-      >
+      >;
       updateMany: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 update: {
-                  createdAt?: number
-                  email?: string
-                  emailVerified?: boolean
-                  image?: null | string
-                  name?: string
-                  updatedAt?: number
-                  userId?: null | string
-                }
+                  createdAt?: number;
+                  email?: string;
+                  emailVerified?: boolean;
+                  image?: null | string;
+                  name?: string;
+                  updatedAt?: number;
+                  userId?: null | string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -1670,8 +1670,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1683,32 +1683,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  impersonatedByUserId?: null | string
-                  impersonationExpiresAt?: null | number
-                  impersonationSessionId?: null | string
-                  ipAddress?: null | string
-                  token?: string
-                  updatedAt?: number
-                  userAgent?: null | string
-                  userId?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
+                  ipAddress?: null | string;
+                  token?: string;
+                  updatedAt?: number;
+                  userAgent?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -1720,8 +1720,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1733,34 +1733,34 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 update: {
-                  accessToken?: null | string
-                  accessTokenExpiresAt?: null | number
-                  accountId?: string
-                  createdAt?: number
-                  idToken?: null | string
-                  password?: null | string
-                  providerId?: string
-                  refreshToken?: null | string
-                  refreshTokenExpiresAt?: null | number
-                  scope?: null | string
-                  updatedAt?: number
-                  userId?: string
-                }
+                  accessToken?: null | string;
+                  accessTokenExpiresAt?: null | number;
+                  accountId?: string;
+                  createdAt?: number;
+                  idToken?: null | string;
+                  password?: null | string;
+                  providerId?: string;
+                  refreshToken?: null | string;
+                  refreshTokenExpiresAt?: null | number;
+                  scope?: null | string;
+                  updatedAt?: number;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -1774,8 +1774,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1787,35 +1787,35 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  identifier?: string
-                  updatedAt?: number
-                  value?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  identifier?: string;
+                  updatedAt?: number;
+                  value?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1827,32 +1827,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 update: {
-                  aaguid?: null | string
-                  backedUp?: boolean
-                  counter?: number
-                  createdAt?: null | number
-                  credentialID?: string
-                  deviceType?: string
-                  name?: null | string
-                  publicKey?: string
-                  transports?: null | string
-                  userId?: string
-                }
+                  aaguid?: null | string;
+                  backedUp?: boolean;
+                  counter?: number;
+                  createdAt?: null | number;
+                  credentialID?: string;
+                  deviceType?: string;
+                  name?: null | string;
+                  publicKey?: string;
+                  transports?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -1864,8 +1864,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1877,47 +1877,47 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onUpdateHandle?: string
+                    | null;
+                }>;
+              };
+          onUpdateHandle?: string;
           paginationOpts: {
-            cursor: string | null
-            endCursor?: string | null
-            id?: number
-            maximumBytesRead?: number
-            maximumRowsRead?: number
-            numItems: number
-          }
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
         },
         any,
         Name
-      >
+      >;
       updateOne: FunctionReference<
         "mutation",
         "internal",
         {
           input:
             | {
-                model: "user"
+                model: "user";
                 update: {
-                  createdAt?: number
-                  email?: string
-                  emailVerified?: boolean
-                  image?: null | string
-                  name?: string
-                  updatedAt?: number
-                  userId?: null | string
-                }
+                  createdAt?: number;
+                  email?: string;
+                  emailVerified?: boolean;
+                  image?: null | string;
+                  name?: string;
+                  updatedAt?: number;
+                  userId?: null | string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "email"
@@ -1926,8 +1926,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "createdAt"
                     | "updatedAt"
                     | "userId"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1939,32 +1939,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "session"
+                model: "session";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  impersonatedByUserId?: null | string
-                  impersonationExpiresAt?: null | number
-                  impersonationSessionId?: null | string
-                  ipAddress?: null | string
-                  token?: string
-                  updatedAt?: number
-                  userAgent?: null | string
-                  userId?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  impersonatedByUserId?: null | string;
+                  impersonationExpiresAt?: null | number;
+                  impersonationSessionId?: null | string;
+                  ipAddress?: null | string;
+                  token?: string;
+                  updatedAt?: number;
+                  userAgent?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "expiresAt"
                     | "token"
@@ -1976,8 +1976,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "impersonationSessionId"
                     | "impersonatedByUserId"
                     | "impersonationExpiresAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -1989,34 +1989,34 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "account"
+                model: "account";
                 update: {
-                  accessToken?: null | string
-                  accessTokenExpiresAt?: null | number
-                  accountId?: string
-                  createdAt?: number
-                  idToken?: null | string
-                  password?: null | string
-                  providerId?: string
-                  refreshToken?: null | string
-                  refreshTokenExpiresAt?: null | number
-                  scope?: null | string
-                  updatedAt?: number
-                  userId?: string
-                }
+                  accessToken?: null | string;
+                  accessTokenExpiresAt?: null | number;
+                  accountId?: string;
+                  createdAt?: number;
+                  idToken?: null | string;
+                  password?: null | string;
+                  providerId?: string;
+                  refreshToken?: null | string;
+                  refreshTokenExpiresAt?: null | number;
+                  scope?: null | string;
+                  updatedAt?: number;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "accountId"
                     | "providerId"
@@ -2030,8 +2030,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "password"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -2043,35 +2043,35 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "verification"
+                model: "verification";
                 update: {
-                  createdAt?: number
-                  expiresAt?: number
-                  identifier?: string
-                  updatedAt?: number
-                  value?: string
-                }
+                  createdAt?: number;
+                  expiresAt?: number;
+                  identifier?: string;
+                  updatedAt?: number;
+                  value?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "identifier"
                     | "value"
                     | "expiresAt"
                     | "createdAt"
                     | "updatedAt"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -2083,32 +2083,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
+                    | null;
+                }>;
               }
             | {
-                model: "passkey"
+                model: "passkey";
                 update: {
-                  aaguid?: null | string
-                  backedUp?: boolean
-                  counter?: number
-                  createdAt?: null | number
-                  credentialID?: string
-                  deviceType?: string
-                  name?: null | string
-                  publicKey?: string
-                  transports?: null | string
-                  userId?: string
-                }
+                  aaguid?: null | string;
+                  backedUp?: boolean;
+                  counter?: number;
+                  createdAt?: null | number;
+                  credentialID?: string;
+                  deviceType?: string;
+                  name?: null | string;
+                  publicKey?: string;
+                  transports?: null | string;
+                  userId?: string;
+                };
                 where?: Array<{
-                  connector?: "AND" | "OR"
+                  connector?: "AND" | "OR";
                   field:
                     | "name"
                     | "publicKey"
@@ -2120,8 +2120,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "transports"
                     | "createdAt"
                     | "aaguid"
-                    | "_id"
-                  mode?: "sensitive" | "insensitive"
+                    | "_id";
+                  mode?: "sensitive" | "insensitive";
                   operator?:
                     | "lt"
                     | "lte"
@@ -2133,20 +2133,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                     | "ne"
                     | "contains"
                     | "starts_with"
-                    | "ends_with"
+                    | "ends_with";
                   value:
                     | string
                     | number
                     | boolean
                     | Array<string>
                     | Array<number>
-                    | null
-                }>
-              }
-          onUpdateHandle?: string
+                    | null;
+                }>;
+              };
+          onUpdateHandle?: string;
         },
         any,
         Name
-      >
-    }
-  }
+      >;
+    };
+  };

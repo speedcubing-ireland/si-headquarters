@@ -18,11 +18,11 @@ import { isSponsorSite } from "@/lib/sponsor-site"
 
 function isSponsorPortalPath(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "") || "/"
-  if (!isSponsorshipEnabled) {
-    return false
-  }
   if (isSponsorSite()) {
     return true
+  }
+  if (!isSponsorshipEnabled) {
+    return false
   }
   return normalized.startsWith("/sponsor")
 }
