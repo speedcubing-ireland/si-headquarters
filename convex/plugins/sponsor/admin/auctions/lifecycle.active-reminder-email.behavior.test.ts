@@ -1,25 +1,16 @@
-import { convexTest } from "convex-test"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
-import { api, internal } from "@/convex/_generated/api"
-import schema from "@/convex/schema"
-import cronsSchema from "../../../../../node_modules/@convex-dev/crons/dist/component/schema.js"
-import { modules } from "@/convex/test.setup"
+import { internal } from "@/convex/_generated/api"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
 import { seedDirectorUser } from "@/convex/testHelpers"
-
-const cronsModules = import.meta.glob<string[]>(
-  "../../../../../node_modules/@convex-dev/crons/dist/component/**/*.js"
-)
-
-function createHarness() {
-  const t = convexTest(schema, modules)
-  t.registerComponent("crons", cronsSchema, cronsModules)
-  return t
-}
+import {
+  createSponsorAuctionTestHarness,
+  type SponsorAuctionTestHarness,
+} from "@/convex/plugins/sponsor/testing/auctionTestHarness.testSupport"
+import { scheduleAuctionActiveRemindersOnActivation } from "./reminders"
 
 async function firePendingRemindersForAuction(
-  t: ReturnType<typeof createHarness>,
+  t: SponsorAuctionTestHarness,
   auctionId: Id<"sponsorshipAuctions">
 ): Promise<void> {
   const rows = await t.run((ctx) =>
@@ -38,7 +29,7 @@ async function firePendingRemindersForAuction(
   }
 }
 
-async function seedScheduledAuction(t: ReturnType<typeof convexTest>): Promise<{
+async function seedScheduledAuction(t: SponsorAuctionTestHarness): Promise<{
   managerId: Id<"users">
   competitionId: Id<"competitions">
   sponsorIds: Id<"sponsors">[]
@@ -115,7 +106,7 @@ async function seedScheduledAuction(t: ReturnType<typeof convexTest>): Promise<{
 }
 
 async function getScheduledEmailArgs(
-  t: ReturnType<typeof createHarness>
+  t: SponsorAuctionTestHarness
 ): Promise<{ emailType: string; recipients: unknown[] }[]> {
   return t.run(async (ctx) => {
     const all = await ctx.db.system.query("_scheduled_functions").collect()
@@ -137,22 +128,22 @@ describe("auction active reminder email behavior", () => {
   })
 
   afterEach(() => {
+    vi.clearAllTimers()
     vi.useRealTimers()
   })
 
   test("activation creates pending reminder rows for each invitee", async () => {
-    const t = createHarness()
-    const { managerId, auctionId, sponsorIds } = await seedScheduledAuction(t)
+    const t = createSponsorAuctionTestHarness()
+    const { auctionId, sponsorIds } = await seedScheduledAuction(t)
 
     await t.run(async (ctx) => {
       await ctx.db.patch("sponsorshipAuctions", auctionId, {
         startsAt: Date.now() - 60_000,
+        state: "active",
       })
-    })
-
-    const manager = t.withIdentity({ subject: managerId })
-    await manager.mutation(api.plugins.sponsor.admin.auctions.lifecycle.start, {
-      auctionId,
+      const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      if (!auction) throw new Error("auction not found")
+      await scheduleAuctionActiveRemindersOnActivation(ctx, auction)
     })
 
     const reminders = await t.run(async (ctx) => {
@@ -178,7 +169,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("cron tick at due time sends email and marks rows sent", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
 
     const now = Date.now()
@@ -221,7 +212,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("already-sent rows produce no second email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
 
     const now = Date.now()
@@ -252,7 +243,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("mixed state: only pending due row fires", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
 
     const now = Date.now()
@@ -297,7 +288,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("not yet due: no email, rows stay pending", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
 
     const now = Date.now()
@@ -337,20 +328,19 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("activation with <1h remaining skips reminder (rows sent=true, no sentAt)", async () => {
-    const t = createHarness()
-    const { managerId, auctionId, sponsorIds } = await seedScheduledAuction(t)
+    const t = createSponsorAuctionTestHarness()
+    const { auctionId, sponsorIds } = await seedScheduledAuction(t)
 
     await t.run(async (ctx) => {
       const now = Date.now()
       await ctx.db.patch("sponsorshipAuctions", auctionId, {
         startsAt: now - 60_000,
         endsAt: now + 30 * 60_000,
+        state: "active",
       })
-    })
-
-    const manager = t.withIdentity({ subject: managerId })
-    await manager.mutation(api.plugins.sponsor.admin.auctions.lifecycle.start, {
-      auctionId,
+      const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      if (!auction) throw new Error("auction not found")
+      await scheduleAuctionActiveRemindersOnActivation(ctx, auction)
     })
 
     const rows = await t.run((ctx) =>
@@ -374,7 +364,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("auction closed before reminder due: reminder skipped, not sent", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
 
     const now = Date.now()
@@ -415,7 +405,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("inactive sponsor reminder is skipped without sending", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
     const [inactiveSponsorId] = sponsorIds
     const now = Date.now()
@@ -455,7 +445,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("sealed auction with valid bid: reminder skipped without email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
     const [sponsorId] = sponsorIds
     const now = Date.now()
@@ -500,7 +490,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("proxy auction when winning: reminder skipped without email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
     const [winningSponsorId] = sponsorIds
     const now = Date.now()
@@ -546,7 +536,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("proxy auction when outbid: reminder still sent", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
     const [outbidSponsorId, leaderSponsorId] = sponsorIds
     const now = Date.now()
@@ -592,7 +582,7 @@ describe("auction active reminder email behavior", () => {
   })
 
   test("personalisation: sponsorHasBid correct per sponsor", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorIds } = await seedScheduledAuction(t)
     const [sponsorA, sponsorB] = sponsorIds
 

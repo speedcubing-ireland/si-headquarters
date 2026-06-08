@@ -1,24 +1,14 @@
-import { convexTest } from "convex-test"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
 import { api } from "@/convex/_generated/api"
-import schema from "@/convex/schema"
-import cronsSchema from "../../../../../node_modules/@convex-dev/crons/dist/component/schema.js"
-import { modules } from "@/convex/test.setup"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
 import { seedDirectorUser } from "@/convex/testHelpers"
+import {
+  createSponsorAuctionTestHarness,
+  type SponsorAuctionTestHarness,
+} from "@/convex/plugins/sponsor/testing/auctionTestHarness.testSupport"
 
-const cronsModules = import.meta.glob<string[]>(
-  "../../../../../node_modules/@convex-dev/crons/dist/component/**/*.js"
-)
-
-function createHarness() {
-  const t = convexTest(schema, modules)
-  t.registerComponent("crons", cronsSchema, cronsModules)
-  return t
-}
-
-async function seedAuctionPrereqs(t: ReturnType<typeof convexTest>): Promise<{
+async function seedAuctionPrereqs(t: SponsorAuctionTestHarness): Promise<{
   managerId: Id<"users">
   competitionId: Id<"competitions">
   sponsorId: Id<"sponsors">
@@ -50,11 +40,12 @@ describe("auction management behavior", () => {
   })
 
   afterEach(() => {
+    vi.clearAllTimers()
     vi.useRealTimers()
   })
 
   test("create auction stores record in draft state with competition snapshot", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t)
     const manager = t.withIdentity({ subject: managerId })
 
@@ -82,7 +73,7 @@ describe("auction management behavior", () => {
   })
 
   test("update changes framework and dates in draft state", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t)
     const manager = t.withIdentity({ subject: managerId })
 
@@ -119,7 +110,7 @@ describe("auction management behavior", () => {
   })
 
   test("removeBeforeOpen deletes draft auction", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t)
     const manager = t.withIdentity({ subject: managerId })
 
@@ -147,7 +138,7 @@ describe("auction management behavior", () => {
   })
 
   test("removeBeforeOpen rejects active auctions", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { managerId, competitionId } = await seedAuctionPrereqs(t)
     const manager = t.withIdentity({ subject: managerId })
 
@@ -191,7 +182,7 @@ describe("auction management behavior", () => {
   })
 
   test("create rejects non-positive anti-sniping settings", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t)
     const manager = t.withIdentity({ subject: managerId })
     const now = Date.now()

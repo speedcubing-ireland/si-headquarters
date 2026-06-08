@@ -1,24 +1,14 @@
-import { convexTest } from "convex-test"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
 import { api, internal } from "@/convex/_generated/api"
-import schema from "@/convex/schema"
-import cronsSchema from "../../../../../node_modules/@convex-dev/crons/dist/component/schema.js"
-import { modules } from "@/convex/test.setup"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
 import { seedDirectorUser } from "@/convex/testHelpers"
+import {
+  createSponsorAuctionTestHarness,
+  type SponsorAuctionTestHarness,
+} from "@/convex/plugins/sponsor/testing/auctionTestHarness.testSupport"
 
-const cronsModules = import.meta.glob<string[]>(
-  "../../../../../node_modules/@convex-dev/crons/dist/component/**/*.js"
-)
-
-function createHarness() {
-  const t = convexTest(schema, modules)
-  t.registerComponent("crons", cronsSchema, cronsModules)
-  return t
-}
-
-async function seedScheduledAuction(t: ReturnType<typeof convexTest>): Promise<{
+async function seedScheduledAuction(t: SponsorAuctionTestHarness): Promise<{
   managerId: Id<"users">
   competitionId: Id<"competitions">
   sponsorIds: Id<"sponsors">[]
@@ -99,7 +89,7 @@ async function seedScheduledAuction(t: ReturnType<typeof convexTest>): Promise<{
  * Email batches schedule `sendSponsorshipEmailBatch` via runAfter(0, …).
  */
 async function getScheduledEmailArgs(
-  t: ReturnType<typeof createHarness>
+  t: SponsorAuctionTestHarness
 ): Promise<{ emailType: string; recipients: unknown[] }[]> {
   return t.run(async (ctx) => {
     const all = await ctx.db.system.query("_scheduled_functions").collect()
@@ -121,11 +111,12 @@ describe("auction scheduled email behavior", () => {
   })
 
   afterEach(() => {
+    vi.clearAllTimers()
     vi.useRealTimers()
   })
 
   test("start with future startsAt enqueues auction_scheduled email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { managerId, auctionId } = await seedScheduledAuction(t)
     const manager = t.withIdentity({ subject: managerId })
 
@@ -160,7 +151,7 @@ describe("auction scheduled email behavior", () => {
   }, 10_000)
 
   test("start with past startsAt enqueues auction_started, not auction_scheduled", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { managerId, auctionId } = await seedScheduledAuction(t)
 
     await t.run(async (ctx) => {
@@ -188,7 +179,7 @@ describe("auction scheduled email behavior", () => {
   }, 10_000)
 
   test("_activateAuction sends auction_started but not auction_scheduled", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId } = await seedScheduledAuction(t)
 
     await t.run(async (ctx) => {

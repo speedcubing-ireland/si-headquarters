@@ -1,16 +1,13 @@
-import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
-import schema from "@/convex/schema"
-import { modules } from "@/convex/test.setup"
 import { sendEbayAuctionOutbidEmail } from "./emails"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
+import {
+  createSponsorAuctionTestHarness,
+  type SponsorAuctionTestHarness,
+} from "@/convex/plugins/sponsor/testing/auctionTestHarness.testSupport"
 
-function createHarness() {
-  return convexTest(schema, modules)
-}
-
-async function seedProxyAuction(t: ReturnType<typeof createHarness>): Promise<{
+async function seedProxyAuction(t: SponsorAuctionTestHarness): Promise<{
   competitionId: Id<"competitions">
   auctionId: Id<"sponsorshipAuctions">
   sponsorAId: Id<"sponsors">
@@ -70,7 +67,7 @@ async function seedProxyAuction(t: ReturnType<typeof createHarness>): Promise<{
 }
 
 async function getOutbidScheduledEmails(
-  t: ReturnType<typeof createHarness>
+  t: SponsorAuctionTestHarness
 ): Promise<{ emailType: string; recipients: unknown[]; context: unknown }[]> {
   return t.run(async (ctx) => {
     const all = await ctx.db.system.query("_scheduled_functions").collect()
@@ -94,7 +91,7 @@ async function getOutbidScheduledEmails(
 
 describe("sendEbayAuctionOutbidEmail", () => {
   test("first send with no prior throttle record enqueues email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     await t.run(async (ctx) => {
@@ -109,7 +106,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("outbid by manual bid — enqueues exactly one auction_ebay_outbid to displaced sponsor", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     await t.run(async (ctx) => {
@@ -126,7 +123,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("throttle window — second outbid within 10 min does not enqueue another email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     await t.run(async (ctx) => {
@@ -143,7 +140,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("throttle release — second outbid after 11 min enqueues a second email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     // Insert a tracking row with sentAt 11 minutes ago
@@ -166,7 +163,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("throttle is per (auction, sponsor) — different sponsor still gets email", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId, sponsorBId } = await seedProxyAuction(t)
 
     await t.run(async (ctx) => {
@@ -188,7 +185,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("sealed auction framework — no email sent", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     await t.run(async (ctx) => {
@@ -208,7 +205,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("inactive sponsor — no email sent", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     await t.run(async (ctx) => {
@@ -226,7 +223,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("anti-sniping extension propagated — email context.endsAt reflects extended value", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     const extendedEndsAt = Date.now() + 7_200_000
@@ -250,7 +247,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
   })
 
   test("email subject contains competition name", async () => {
-    const t = createHarness()
+    const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
     await t.run(async (ctx) => {

@@ -5,7 +5,13 @@
  */
 import { convexTest } from "convex-test"
 import type { TestConvex } from "convex-test"
-import { components } from "@/convex/_generated/api"
+import type {
+  DataModelFromSchemaDefinition,
+  GenericActionCtx,
+  GenericDataModel,
+  GenericMutationCtx,
+} from "convex/server"
+import type { GenericId } from "convex/values"
 import type { Id } from "@/convex/_generated/dataModel"
 import schema from "@/convex/schema"
 import sponsorAuthSchema from "@/convex/plugins/sponsor/auth/component/sponsorAuth/schema"
@@ -21,11 +27,29 @@ const sponsorAuthModules = {
 }
 
 export type SponsorTestHarness = TestConvex<typeof schema>
+type SponsorAuthDataModel = DataModelFromSchemaDefinition<
+  typeof sponsorAuthSchema
+>
+type SponsorAuthUserId = GenericId<"user">
+
+interface ComponentRunner<DataModel extends GenericDataModel> {
+  runInComponent: <Output>(
+    componentPath: string,
+    func: (
+      ctx: GenericMutationCtx<DataModel> &
+        Pick<GenericActionCtx<DataModel>, "storage">
+    ) => Promise<Output>
+  ) => Promise<Output>
+}
 
 export function createSponsorTestHarness(): SponsorTestHarness {
   const t = convexTest(schema, modules)
   t.registerComponent("sponsorAuth", sponsorAuthSchema, sponsorAuthModules)
   return t
+}
+
+function sponsorAuthRunner(t: SponsorTestHarness) {
+  return t as SponsorTestHarness & ComponentRunner<SponsorAuthDataModel>
 }
 
 export async function seedSponsorSession(
@@ -39,27 +63,23 @@ export async function seedSponsorSession(
     ctx.db.insert("users", { email: "owner@example.com" })
   )
   const now = Date.now()
-  const sponsorAuthUser = (await t.mutation(
-    components.sponsorAuth.adapter.create,
-    {
-      input: {
-        model: "user",
-        data: {
-          email,
-          name,
-          emailVerified: true,
-          createdAt: now,
-          updatedAt: now,
-        },
-      },
-    }
-  )) as { _id: string }
+  const sponsorAuthUserId = await sponsorAuthRunner(t).runInComponent(
+    "sponsorAuth",
+    (ctx) =>
+      ctx.db.insert("user", {
+        email,
+        name,
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+  )
   const sponsorId = await t.run(async (ctx) => {
     const sponsorId = await ctx.db.insert("sponsors", {
       name: `${name} Ltd`,
       email,
       emailNormalized: email,
-      authUserId: sponsorAuthUser._id,
+      authUserId: sponsorAuthUserId,
       active: true,
       createdById: ownerId,
       updatedById: ownerId,
@@ -70,7 +90,7 @@ export async function seedSponsorSession(
       name: `${name} Ltd`,
       email,
       emailNormalized: email,
-      authUserId: sponsorAuthUser._id,
+      authUserId: sponsorAuthUserId,
       active: true,
       isPrimary: true,
       receivesCc: false,
@@ -82,24 +102,30 @@ export async function seedSponsorSession(
     })
     return sponsorId
   })
-  await t.mutation(components.sponsorAuth.adapter.create, {
-    input: {
-      model: "session",
-      data: {
-        token: sessionToken,
-        userId: sponsorAuthUser._id,
-        expiresAt: now + 60 * 60 * 1000,
-        createdAt: now,
-        updatedAt: now,
-      },
-    },
+  await sponsorAuthRunner(t).runInComponent("sponsorAuth", async (ctx) => {
+    await ctx.db.insert("session", {
+      token: sessionToken,
+      userId: sponsorAuthUserId,
+      expiresAt: now + 60 * 60 * 1000,
+      createdAt: now,
+      updatedAt: now,
+    })
   })
   return {
     sessionToken,
     sponsorId,
-    sponsorAuthUserId: sponsorAuthUser._id,
+    sponsorAuthUserId,
     ownerId,
   }
+}
+
+export async function getSponsorAuthUser(
+  t: SponsorTestHarness,
+  authUserId: SponsorAuthUserId
+) {
+  return await sponsorAuthRunner(t).runInComponent("sponsorAuth", (ctx) =>
+    ctx.db.get("user", authUserId)
+  )
 }
 
 export async function seedSponsorshipManager(
