@@ -3,9 +3,10 @@ import type { QueryCtx } from "@/convex/_generated/server"
 
 const MAX_COMPETITION_PHASES = 50
 const MAX_PHASE_TASKS = 200
+type TaskCompetitionCtx = Pick<QueryCtx, "db">
 
 export async function getCompetitionIdForTask(
-  ctx: QueryCtx,
+  ctx: TaskCompetitionCtx,
   task: Doc<"tasks">
 ): Promise<Id<"competitions"> | null> {
   const visited = new Set<Id<"tasks">>()
@@ -24,6 +25,16 @@ export async function getCompetitionIdForTask(
 
   const phase = await ctx.db.get("phases", parent.id)
   return phase?.owner.id ?? null
+}
+
+export async function getCompetitionForTask(
+  ctx: TaskCompetitionCtx,
+  task: Doc<"tasks">
+) {
+  const competitionId = await getCompetitionIdForTask(ctx, task)
+  return competitionId === null
+    ? null
+    : await ctx.db.get("competitions", competitionId)
 }
 
 export async function listCompetitionTaskIds(

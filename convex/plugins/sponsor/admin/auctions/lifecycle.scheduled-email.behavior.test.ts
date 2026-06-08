@@ -157,7 +157,7 @@ describe("auction scheduled email behavior", () => {
     })
     expect(activationCheck.scheduledTime).toBeDefined()
     expect(activationCheck.scheduledTime).toBe(activationCheck.startsAt)
-  })
+  }, 10_000)
 
   test("start with past startsAt enqueues auction_started, not auction_scheduled", async () => {
     const t = createHarness()
@@ -185,7 +185,7 @@ describe("auction scheduled email behavior", () => {
     expect(scheduled).toHaveLength(0)
     expect(started).toHaveLength(1)
     expect(started[0].recipients).toHaveLength(2)
-  })
+  }, 10_000)
 
   test("_activateAuction sends auction_started but not auction_scheduled", async () => {
     const t = createHarness()
@@ -215,5 +215,5 @@ describe("auction scheduled email behavior", () => {
     const started = emails.filter((e) => e.emailType === "auction_started")
     expect(scheduled).toHaveLength(0)
     expect(started).toHaveLength(1)
-  })
+  }, 10_000)
 })

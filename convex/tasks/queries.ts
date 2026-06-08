@@ -253,10 +253,10 @@ export const getProperties = query({
     const displayReader = createTaskViewDisplayReader(ctx)
     const statusLoader = new TaskStatusLoader(ctx)
 
-    const [labels, owner, assignees, statusView] = await Promise.all([
+    const [labels, owner, assigneeState, statusView] = await Promise.all([
       displayReader.getLabels(task._id),
       displayReader.getOwner(task.owner),
-      displayReader.getAssigneeUsers(task.assigneeIds),
+      displayReader.getAssignees(task.assigneeIds),
       buildTaskStatusViewWithFlowPosition(statusLoader, task),
     ])
 
@@ -264,7 +264,7 @@ export const getProperties = query({
       task,
       labels,
       owner,
-      assignees,
+      assigneeState,
       statusView,
     }
   },

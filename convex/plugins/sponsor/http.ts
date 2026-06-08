@@ -37,7 +37,6 @@ export function sponsorAuthAllowedOrigins(): string[] {
       [
         normalizeOrigin(env.SITE_URL),
         normalizeOrigin(env.SPONSOR_SITE_URL),
-        normalizeOrigin(env.VITE_SITE_URL),
         ...parseOriginList(env.CORS_ALLOWED_ORIGINS),
         "http://localhost:5173",
         "http://localhost:5174",

@@ -14,6 +14,10 @@ import {
   type TeamName,
 } from "@/convex/permissions/shared"
 import { isMemberOfTeam } from "@/convex/teams/model"
+import {
+  scheduleNotificationEvent,
+  scheduleTaskStatusNotifications,
+} from "@/convex/notifications/events"
 import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
 import {
   competitionDatesFields,
@@ -178,7 +182,12 @@ export const setCompPhase = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const principal = await requirePrincipal(ctx)
-    await requireCompetition(ctx, principal, args.id, "update")
+    const competition = await requireCompetition(
+      ctx,
+      principal,
+      args.id,
+      "update"
+    )
     const phase = await ctx.db.get("phases", args.phaseId)
 
     if (phase === null) {
@@ -194,10 +203,31 @@ export const setCompPhase = mutation({
       })
     }
 
+    const previousPhaseId = competition.phaseId
+    if (previousPhaseId === args.phaseId) {
+      return null
+    }
+
     await ctx.db.patch("competitions", args.id, {
       phaseId: args.phaseId,
     })
-    await activatePhaseBacklogTasks(ctx, args.phaseId)
+    await scheduleNotificationEvent(ctx, {
+      kind: "competitionPhaseChanged",
+      competitionId: args.id,
+      actorId: principal.userId,
+      previousPhaseId,
+      nextPhaseId: args.phaseId,
+    })
+    if (previousPhaseId !== null && previousPhaseId !== args.phaseId) {
+      await scheduleNotificationEvent(ctx, {
+        kind: "phaseOverdueTasks",
+        competitionId: args.id,
+        actorId: principal.userId,
+        previousPhaseId,
+      })
+    }
+    const result = await activatePhaseBacklogTasks(ctx, args.phaseId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
     return null
   },
 })

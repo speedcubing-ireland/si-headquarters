@@ -1,5 +1,7 @@
 import { mutation } from "@/convex/_generated/server"
 import { getTaskBlockerEdge } from "@/convex/tasks/blockers/loader"
+import { scheduleTaskUnblockedIfReady } from "@/convex/notifications/events"
+import { getPrincipalOrNull } from "@/convex/permissions/principal"
 import { v } from "convex/values"
 
 export const addBlocker = mutation({
@@ -41,7 +43,13 @@ export const removeBlocker = mutation({
   handler: async (ctx, args) => {
     const edge = await ctx.db.get("taskBlockers", args.id)
     if (!edge) return
+    const principal = await getPrincipalOrNull(ctx)
 
     await ctx.db.delete("taskBlockers", args.id)
+    await scheduleTaskUnblockedIfReady(
+      ctx,
+      edge.blockedTaskId,
+      principal?.userId ?? null
+    )
   },
 })

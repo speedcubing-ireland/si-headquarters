@@ -1,10 +1,8 @@
 import { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
-import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { TeamName } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
-import { useQuery } from "convex/react"
 import { UserRoundIcon } from "lucide-react"
 import { useState, type ComponentProps } from "react"
 import * as DataSelector from "./data-selector"
@@ -14,6 +12,12 @@ import {
 } from "./data-selector-model"
 import * as SelectorFace from "./selector-face"
 import type { SelectorChangeHandler } from "./selector-options"
+import {
+  getUserName,
+  renderUserItem,
+  useUserItems,
+  type UserFaceAppearance,
+} from "./user-selector-model"
 
 type User = PublicUser
 type UserId = Id<"users">
@@ -43,12 +47,6 @@ interface MultipleUserSelectorProps extends UserSelectorBaseProps {
   onChange: SelectorChangeHandler<UserId[]>
 }
 
-type UserFaceAppearance = "property" | "compact" | "icon"
-
-const getUserName = (user: User) => user.name ?? "Unknown user"
-const getUserId = (user: User) => user._id
-const getUserValueKey = (id: UserId) => id
-
 function getVisibleAvatarCount(userCount: number, maxAvatars?: number) {
   if (maxAvatars === undefined) {
     return Math.min(userCount, 3)
@@ -58,15 +56,6 @@ function getVisibleAvatarCount(userCount: number, maxAvatars?: number) {
   if (userCount <= slotCount) return userCount
 
   return slotCount - 1
-}
-
-function renderUserItem(user: User) {
-  return (
-    <>
-      <ObjectAvatar obj={user} size="sm" />
-      <span className="truncate">{getUserName(user)}</span>
-    </>
-  )
 }
 
 function EmptyUserFace({
@@ -137,30 +126,6 @@ export function Face({
   )
 }
 
-function useUserItems(
-  open: boolean,
-  teamName?: TeamName,
-  competitionId?: Id<"competitions">
-) {
-  const globalList = useQuery(
-    api.users.queries.list,
-    open && competitionId === undefined
-      ? teamName === undefined
-        ? {}
-        : { teamName }
-      : "skip"
-  )
-  const competitionList = useQuery(
-    api.users.queries.listForCompetition,
-    open && competitionId !== undefined
-      ? teamName === undefined
-        ? { competitionId }
-        : { competitionId, teamName }
-      : "skip"
-  )
-  return competitionId === undefined ? globalList : competitionList
-}
-
 function SingleUserSelectorControl({
   appearance = "property",
   avatarProps,
@@ -181,8 +146,8 @@ function SingleUserSelectorControl({
   const users = useUserItems(open, teamName, competitionId)
   const model = useSingleDataSelector<User, UserId>({
     getLabel: getUserName,
-    getValue: getUserId,
-    getValueKey: getUserValueKey,
+    getValue: (user) => user._id,
+    getValueKey: (id) => id,
     items: users,
     renderItem: renderUserItem,
     selectedItem: selectedUser,
@@ -243,8 +208,8 @@ function MultipleUserSelectorControl({
   const users = useUserItems(open, teamName, competitionId)
   const model = useMultipleDataSelector<User, UserId>({
     getLabel: getUserName,
-    getValue: getUserId,
-    getValueKey: getUserValueKey,
+    getValue: (user) => user._id,
+    getValueKey: (id) => id,
     items: users,
     renderItem: renderUserItem,
     selectedItems: selectedUsers,

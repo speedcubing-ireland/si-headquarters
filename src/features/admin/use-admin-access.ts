@@ -15,6 +15,7 @@ export function useAdminAccess() {
       available.push("users")
     }
     if (director.allowed) {
+      available.push("teams")
       available.push("impersonation")
     }
     return available

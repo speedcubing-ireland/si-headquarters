@@ -1,8 +1,8 @@
+import * as TaskAssigneeSelector from "@/components/data-selectors/task-assignee-selector"
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
 import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
-import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -172,9 +172,8 @@ const FlowItem = memo(function FlowItem({
               <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground/70 @sm/main:block" />
               <CornerRightDownIcon className="size-3.5 shrink-0 text-muted-foreground/70 @sm/main:hidden" />
               <span className="hidden @sm/main:inline-flex">
-                <UserSelector.MultiCompactButton
-                  selectedUsers={step.assignees.users}
-                  value={step.assignees.userIds}
+                <TaskAssigneeSelector.CompactButton
+                  assignees={step.assignees}
                   onChange={(assigneeIds) => {
                     void setAssignees({ id: taskId, assigneeIds })
                   }}
@@ -192,9 +191,8 @@ const FlowItem = memo(function FlowItem({
               />
             </ItemActions>
             <ItemActions>
-              <UserSelector.MultiCompactButton
-                selectedUsers={step.assignees.users}
-                value={step.assignees.userIds}
+              <TaskAssigneeSelector.CompactButton
+                assignees={step.assignees}
                 onChange={(assigneeIds) => {
                   void setAssignees({ id: taskId, assigneeIds })
                 }}

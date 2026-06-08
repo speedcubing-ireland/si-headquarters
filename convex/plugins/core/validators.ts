@@ -47,6 +47,10 @@ export const discordChannelResourceData = v.object({
   channelName: v.string(),
 })
 
+export type DiscordChannelResourceData = Infer<
+  typeof discordChannelResourceData
+>
+
 export const competitionResourceData = v.union(
   v.object({
     resourceType: v.literal("googleSheet"),

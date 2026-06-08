@@ -4,6 +4,7 @@ import { FlowView } from "@/features/subtasks/flow-view"
 import { SubtaskView } from "@/features/subtasks/subtask-view"
 import { TaskBlockersCard } from "@/features/tasks/components/task-blockers-card"
 import { TaskDetailsCard } from "@/features/tasks/components/task-details-card"
+import { TaskPendingReminders } from "@/features/tasks/components/task-reminders"
 import { TaskPropertiesCard } from "@/features/tasks/components/task-properties-card"
 import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
 import { api } from "@/convex/_generated/api"
@@ -39,6 +40,7 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
       >
         {(root) => (
           <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 @sm/main:grid-cols-2">
+            <TaskPendingReminders taskId={taskId} />
             <TaskDetailsCard taskId={taskId} />
             <TaskIntegrationsSection taskId={taskId} />
             <TaskPropertiesCard taskId={taskId} />

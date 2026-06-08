@@ -31,18 +31,28 @@ interface ParentFlowContext {
 const MAX_RECOMPUTE_STEPS = 1000
 const MAX_RECOMPUTE_PASSES_PER_TASK = 8
 
+export interface TaskStatusChange {
+  taskId: Id<"tasks">
+  before: Pick<Doc<"tasks">, "status" | "statusIntent" | "kind">
+  after: Pick<Doc<"tasks">, "status" | "statusIntent" | "kind">
+}
+
+export interface TaskStatusMutationResult {
+  changedTasks: TaskStatusChange[]
+}
+
 export async function requestTaskStatusChange(
   ctx: MutationCtx,
   taskId: Id<"tasks">,
   requestedStatus: TaskStatusCommand
 ) {
-  await planTaskStatusMutation(ctx, (planner) =>
+  return await planTaskStatusMutation(ctx, (planner) =>
     planner.setTaskStatus(taskId, requestedStatus)
   )
 }
 
 export async function reopenTaskStatus(ctx: MutationCtx, taskId: Id<"tasks">) {
-  await planTaskStatusMutation(ctx, (planner) =>
+  return await planTaskStatusMutation(ctx, (planner) =>
     planner.reopenTask(taskId, "to-do")
   )
 }
@@ -51,7 +61,9 @@ export async function activatePhaseBacklogTasks(
   ctx: MutationCtx,
   phaseId: Id<"phases">
 ) {
-  await planTaskStatusMutation(ctx, (planner) => planner.activatePhase(phaseId))
+  return await planTaskStatusMutation(ctx, (planner) =>
+    planner.activatePhase(phaseId)
+  )
 }
 
 export async function setTaskKindAndRecompute(
@@ -59,7 +71,7 @@ export async function setTaskKindAndRecompute(
   taskId: Id<"tasks">,
   kind: Doc<"tasks">["kind"]
 ) {
-  await planTaskStatusMutation(ctx, async (planner) => {
+  return await planTaskStatusMutation(ctx, async (planner) => {
     const task = await planner.getRequiredTask(taskId)
     planner.patchTask(task, {
       kind,
@@ -77,7 +89,7 @@ export async function setTaskOrderAndRecompute(
   taskId: Id<"tasks">,
   order: string
 ) {
-  await planTaskStatusMutation(ctx, async (planner) => {
+  return await planTaskStatusMutation(ctx, async (planner) => {
     const task = await planner.getRequiredTask(taskId)
     planner.patchTask(task, { order })
     planner.enqueue(taskId)
@@ -88,7 +100,7 @@ export async function recomputeRelatedTaskStatuses(
   ctx: MutationCtx,
   startTaskIds: Id<"tasks">[] | Id<"tasks">
 ) {
-  await planTaskStatusMutation(ctx, async (planner) => {
+  return await planTaskStatusMutation(ctx, async (planner) => {
     for (const taskId of Array.isArray(startTaskIds)
       ? startTaskIds
       : [startTaskIds]) {
@@ -101,14 +113,15 @@ export async function recomputeRelatedTaskStatuses(
 async function planTaskStatusMutation(
   ctx: MutationCtx,
   run: (planner: TaskStatusMutationPlanner) => Promise<void>
-) {
+): Promise<TaskStatusMutationResult> {
   const planner = new TaskStatusMutationPlanner(ctx)
   await run(planner)
-  await planner.commit()
+  return await planner.commit()
 }
 
 class TaskStatusMutationPlanner {
   private readonly patches = new Map<Id<"tasks">, TaskStatusPatch>()
+  private readonly originalTasks = new Map<Id<"tasks">, Doc<"tasks">>()
   private readonly queue: Id<"tasks">[] = []
   private readonly pending = new Set<Id<"tasks">>()
   private readonly passes = new Map<Id<"tasks">, number>()
@@ -208,13 +221,32 @@ class TaskStatusMutationPlanner {
     }
   }
 
-  async commit() {
+  async commit(): Promise<TaskStatusMutationResult> {
     await this.drainQueue()
 
+    const changedTasks: TaskStatusChange[] = []
     for (const [taskId, patch] of this.patches) {
       if (Object.keys(patch).length === 0) continue
+      const original = this.originalTasks.get(taskId)
+      if (original !== undefined) {
+        changedTasks.push({
+          taskId,
+          before: {
+            status: original.status,
+            statusIntent: original.statusIntent,
+            kind: original.kind,
+          },
+          after: {
+            status: patch.status ?? original.status,
+            statusIntent: patch.statusIntent ?? original.statusIntent,
+            kind: patch.kind ?? original.kind,
+          },
+        })
+      }
       await this.ctx.db.patch("tasks", taskId, patch)
     }
+
+    return { changedTasks }
   }
 
   enqueue(taskId: Id<"tasks">) {
@@ -265,6 +297,10 @@ class TaskStatusMutationPlanner {
       }) || changed
 
     if (!changed) return false
+
+    if (!this.originalTasks.has(task._id)) {
+      this.originalTasks.set(task._id, task)
+    }
 
     if (isEmptyPatch(nextPatch)) {
       this.patches.delete(task._id)

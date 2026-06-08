@@ -10,6 +10,15 @@ export const teamMembershipFields = {
   userId: v.id("users"),
 }
 
+export const teamDiscordChannelFields = {
+  teamId: v.id("teams"),
+  guildId: v.string(),
+  channelId: v.string(),
+  channelName: v.string(),
+  linkedAt: v.number(),
+  linkedBy: v.id("users"),
+}
+
 export const teamSummary = v.object({
   _id: v.id("teams"),
   name: v.string(),

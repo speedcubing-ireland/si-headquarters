@@ -11,6 +11,7 @@ import {
   ComboboxSeparator,
   ComboboxTrigger,
 } from "@/components/ui/combobox"
+import { CheckIcon } from "lucide-react"
 import type { ComponentProps, ReactNode } from "react"
 import {
   getSelectorOptionLabel,
@@ -30,6 +31,33 @@ import { SELECTOR_POPOVER_WIDTH } from "./selector-layout"
 
 type SelectorContentAlign = ComponentProps<typeof ComboboxContent>["align"]
 type DataSelectorButtonTriggerProps = Omit<SelectorButtonProps, "children">
+
+export interface HeaderAction {
+  key: string
+  label: ReactNode
+  selected?: boolean
+  onSelect: () => void
+}
+
+const headerActionClassName =
+  "relative flex w-full cursor-default items-center gap-2 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
+
+function HeaderActionRow({
+  label,
+  onSelect,
+  selected,
+}: Omit<HeaderAction, "key">) {
+  return (
+    <button type="button" className={headerActionClassName} onClick={onSelect}>
+      {label}
+      {selected === true ? (
+        <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
+          <CheckIcon className="pointer-events-none" />
+        </span>
+      ) : null}
+    </button>
+  )
+}
 
 function ignoreInputValueChange() {
   return undefined
@@ -203,23 +231,28 @@ export function PickContent<TItem, TValue>({
 export function Content<TItem, TValue>({
   align = "end",
   clearLabel,
+  headerActions,
   model,
   objectNoun,
   searchable,
 }: {
   align?: SelectorContentAlign
   clearLabel?: ReactNode
+  headerActions?: HeaderAction[]
   model: BuiltSelectorOptions<TItem, TValue>
   objectNoun: string
   searchable?: boolean
 }) {
-  if (!model.hasLoadedItems) return null
+  const hasHeaderActions =
+    headerActions !== undefined && headerActions.length > 0
+  if (!model.hasLoadedItems && !hasHeaderActions) return null
 
   return (
     <OptionsContent
       align={align}
       className="w-64 p-0"
       clearLabel={clearLabel}
+      headerActions={headerActions}
       model={model}
       objectNoun={objectNoun}
       searchable={searchable}
@@ -232,6 +265,7 @@ function OptionsContent<TItem, TValue>({
   className,
   clearLabel,
   emptyMessage,
+  headerActions,
   loading,
   model,
   objectNoun,
@@ -242,18 +276,22 @@ function OptionsContent<TItem, TValue>({
   className: string
   clearLabel?: ReactNode
   emptyMessage?: string
+  headerActions?: HeaderAction[]
   loading?: boolean
   model: BuiltSelectorOptions<TItem, TValue>
   objectNoun: string
   searchable?: boolean
   showLoadingState?: boolean
 }) {
+  const hasHeaderActions =
+    headerActions !== undefined && headerActions.length > 0
   const hasOptions =
     model.itemGroups !== undefined
       ? model.itemGroups.some((group) => group.items.length > 0)
       : model.items.length > 0
   const shouldRenderOptions =
     model.hasLoadedItems && (showLoadingState !== true || hasOptions)
+  const shouldRenderList = hasHeaderActions || shouldRenderOptions
 
   return (
     <ComboboxContent className={className} align={align}>
@@ -269,7 +307,7 @@ function OptionsContent<TItem, TValue>({
           ? `Loading ${objectNoun}...`
           : (emptyMessage ?? `No ${objectNoun} found.`)}
       </ComboboxEmpty>
-      {shouldRenderOptions ? (
+      {shouldRenderList ? (
         <ComboboxList>
           {clearLabel !== null && clearLabel !== undefined && (
             <>
@@ -277,7 +315,15 @@ function OptionsContent<TItem, TValue>({
               <ComboboxSeparator />
             </>
           )}
-          <OptionsCollection model={model} />
+          {hasHeaderActions ? (
+            <>
+              {headerActions.map(({ key, ...action }) => (
+                <HeaderActionRow key={key} {...action} />
+              ))}
+              <ComboboxSeparator />
+            </>
+          ) : null}
+          {shouldRenderOptions ? <OptionsCollection model={model} /> : null}
         </ComboboxList>
       ) : null}
     </ComboboxContent>
