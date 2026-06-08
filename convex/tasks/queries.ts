@@ -55,6 +55,10 @@ type TaskParentDetails =
     }
   | null
 
+type TaskCreationScope =
+  | { type: "competitions"; id: Id<"competitions"> }
+  | { type: "tasks"; id: Id<"tasks"> }
+
 const taskCreationPhaseTarget = v.object({
   _id: v.id("phases"),
   name: v.string(),
@@ -72,7 +76,6 @@ const taskCreationTaskTarget = v.object({
 })
 
 const CREATION_TARGET_DEFAULT_LIMIT = 50
-const CREATION_TARGET_SEARCH_LIMIT = 75
 const CREATION_TARGET_MAX_ANCESTOR_READS = 200
 
 function getTaskCreationPath(
@@ -115,38 +118,74 @@ function appendUniqueDoc<T extends { _id: string }>(docs: T[], doc: T | null) {
   return [...docs, doc]
 }
 
-async function listTaskCreationPhaseDocs(
+async function listTaskCreationCompetitionPhaseDocs(
   ctx: QueryCtx,
-  search: string
-): Promise<Doc<"phases">[]> {
-  if (search.length > 0) {
-    return await ctx.db
-      .query("phases")
-      .withSearchIndex("search_name", (q) => q.search("name", search))
-      .take(CREATION_TARGET_SEARCH_LIMIT)
-  }
-
+  competitionId: Id<"competitions">
+) {
   return await ctx.db
     .query("phases")
-    .order("desc")
-    .take(CREATION_TARGET_DEFAULT_LIMIT)
+    .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+      q.eq("owner.type", "competitions").eq("owner.id", competitionId)
+    )
+    .order("asc")
+    .take(CREATION_TARGET_DEFAULT_LIMIT + 1)
 }
 
-async function listTaskCreationTaskDocs(
+async function loadTasksByIds(ctx: QueryCtx, ids: Iterable<Id<"tasks">>) {
+  const uniqueIds = [...new Set(ids)]
+  const tasks = await Promise.all(
+    uniqueIds.map((taskId) => ctx.db.get("tasks", taskId))
+  )
+
+  return tasks.filter((task): task is Doc<"tasks"> => task !== null)
+}
+
+async function listScopedTaskCreationDocs(
   ctx: QueryCtx,
-  search: string
-): Promise<Doc<"tasks">[]> {
-  if (search.length > 0) {
-    return await ctx.db
-      .query("tasks")
-      .withSearchIndex("search_name", (q) => q.search("name", search))
-      .take(CREATION_TARGET_SEARCH_LIMIT)
+  scope: TaskCreationScope
+) {
+  if (scope.type === "competitions") {
+    const [phases, view] = await Promise.all([
+      listTaskCreationCompetitionPhaseDocs(ctx, scope.id),
+      getCompetitionSubtaskView(ctx, scope.id),
+    ])
+    const taskIds = view.sections.flatMap((section) =>
+      section.rows.map((row) => row.task._id)
+    )
+
+    return {
+      targetPhases: phases,
+      targetTasks: await loadTasksByIds(ctx, taskIds),
+    }
   }
 
-  return await ctx.db
-    .query("tasks")
-    .order("desc")
-    .take(CREATION_TARGET_DEFAULT_LIMIT)
+  const [ownerTask, view] = await Promise.all([
+    ctx.db.get("tasks", scope.id),
+    getTaskSubtaskView(ctx, scope.id),
+  ])
+  const taskIds = view.sections.flatMap((section) =>
+    section.rows.map((row) => row.task._id)
+  )
+  const targetTasks = await loadTasksByIds(ctx, taskIds)
+
+  return {
+    targetPhases: [],
+    targetTasks:
+      ownerTask === null
+        ? targetTasks
+        : appendUniqueDoc(targetTasks, ownerTask),
+  }
+}
+
+function searchMatches(...values: (string | null | undefined)[]) {
+  return (search: string) => {
+    if (search.length === 0) return true
+    const normalizedSearch = search.toLocaleLowerCase()
+
+    return values.some(
+      (value) => value?.toLocaleLowerCase().includes(normalizedSearch) ?? false
+    )
+  }
 }
 
 async function loadTaskCreationAncestors(
@@ -403,6 +442,7 @@ async function getTaskBreadcrumbs(ctx: QueryCtx, id: Id<"tasks">) {
 
 export const listCreationTargets = query({
   args: {
+    scope: subtaskViewOwner,
     search: v.optional(v.string()),
     selectedParent: v.optional(v.union(taskParentRef, v.null())),
   },
@@ -414,22 +454,8 @@ export const listCreationTargets = query({
     await requireTaskManagement(ctx)
     const search = (args.search ?? "").trim()
     const selectedParent = args.selectedParent ?? null
-    let [targetPhases, targetTasks] = await Promise.all([
-      listTaskCreationPhaseDocs(ctx, search),
-      listTaskCreationTaskDocs(ctx, search),
-    ])
-
-    if (selectedParent?.type === "phases") {
-      targetPhases = appendUniqueDoc(
-        targetPhases,
-        await ctx.db.get("phases", selectedParent.id)
-      )
-    } else if (selectedParent?.type === "tasks") {
-      targetTasks = appendUniqueDoc(
-        targetTasks,
-        await ctx.db.get("tasks", selectedParent.id)
-      )
-    }
+    const scopedTargets = await listScopedTaskCreationDocs(ctx, args.scope)
+    const { targetPhases, targetTasks } = scopedTargets
 
     const { taskById, phaseIds } = await loadTaskCreationAncestors(
       ctx,
@@ -437,42 +463,59 @@ export const listCreationTargets = query({
     )
     const phaseById = await loadPhaseMap(ctx, targetPhases, phaseIds)
     const competitionById = await loadCompetitionMap(ctx, phaseById.values())
+    const phaseTargets = targetPhases.map((phase) => ({
+      _id: phase._id,
+      name: phase.name,
+      color: phase.color,
+      competitionId: phase.owner.id,
+      competitionName:
+        competitionById.get(phase.owner.id)?.name ?? "Unknown competition",
+    }))
+    const taskTargets = targetTasks.map((task) => {
+      const path = getTaskCreationPath(task, taskById)
+      return {
+        _id: task._id,
+        name: task.name,
+        kind: task.kind,
+        pathLabel: path.pathLabel,
+        contextLabel: getTaskCreationContext(
+          path.phaseId,
+          phaseById,
+          competitionById
+        ),
+      }
+    })
+
+    let filteredPhaseTargets = phaseTargets.filter((phase) =>
+      searchMatches(phase.name, phase.competitionName)(search)
+    )
+    let filteredTaskTargets = taskTargets.filter((task) =>
+      searchMatches(task.name, task.pathLabel, task.contextLabel)(search)
+    )
+
+    if (selectedParent?.type === "phases") {
+      filteredPhaseTargets = appendUniqueDoc(
+        filteredPhaseTargets,
+        phaseTargets.find((phase) => phase._id === selectedParent.id) ?? null
+      )
+    } else if (selectedParent?.type === "tasks") {
+      filteredTaskTargets = appendUniqueDoc(
+        filteredTaskTargets,
+        taskTargets.find((task) => task._id === selectedParent.id) ?? null
+      )
+    }
 
     return {
-      phases: targetPhases
-        .map((phase) => ({
-          _id: phase._id,
-          name: phase.name,
-          color: phase.color,
-          competitionId: phase.owner.id,
-          competitionName:
-            competitionById.get(phase.owner.id)?.name ?? "Unknown competition",
-        }))
-        .sort(
-          (left, right) =>
-            left.competitionName.localeCompare(right.competitionName) ||
-            left.name.localeCompare(right.name)
-        ),
-      tasks: targetTasks
-        .map((task) => {
-          const path = getTaskCreationPath(task, taskById)
-          return {
-            _id: task._id,
-            name: task.name,
-            kind: task.kind,
-            pathLabel: path.pathLabel,
-            contextLabel: getTaskCreationContext(
-              path.phaseId,
-              phaseById,
-              competitionById
-            ),
-          }
-        })
-        .sort(
-          (left, right) =>
-            left.contextLabel.localeCompare(right.contextLabel) ||
-            left.pathLabel.localeCompare(right.pathLabel)
-        ),
+      phases: filteredPhaseTargets.sort(
+        (left, right) =>
+          left.competitionName.localeCompare(right.competitionName) ||
+          left.name.localeCompare(right.name)
+      ),
+      tasks: filteredTaskTargets.sort(
+        (left, right) =>
+          left.contextLabel.localeCompare(right.contextLabel) ||
+          left.pathLabel.localeCompare(right.pathLabel)
+      ),
     }
   },
 })

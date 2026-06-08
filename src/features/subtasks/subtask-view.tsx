@@ -23,6 +23,7 @@ import { isTerminalRowStatus } from "@/features/tasks/task-row-status"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
 import { cn } from "@/lib/utils"
 import { useEffect, useState } from "react"
+import { EditTasksDialog } from "@/features/subtasks/edit-tasks-dialog"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
@@ -159,12 +160,13 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
   return (
     <div className="col-span-full flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <AddTaskDialog initialParent={initialParent}>
+        <AddTaskDialog initialParent={initialParent} parentScope={owner}>
           <Button variant="outline" size="lg" type="button">
             <PlusIcon />
             Add Task
           </Button>
         </AddTaskDialog>
+        <EditTasksDialog owner={owner} sections={view.sections} />
         {taskId !== null && (
           <Button
             variant="outline"

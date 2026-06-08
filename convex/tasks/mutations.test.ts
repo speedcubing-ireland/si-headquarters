@@ -156,7 +156,143 @@ describe("task mutations", () => {
     expect(parentTask?.statusIntent).toEqual({ type: "manual", status: "done" })
   })
 
-  test("listCreationTargets searches tasks and includes selected parent", async () => {
+  test("listCreationTargets scopes competition parents to the visible tree", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const seed = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const setupPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      const laterPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Later",
+        "b"
+      )
+      const outsideCompetitionId = await insertBlankCompetition(ctx)
+      const outsidePhaseId = await insertCompetitionPhase(
+        ctx,
+        outsideCompetitionId,
+        "Outside",
+        "a"
+      )
+      const selectedParentId = await insertSeedTask(ctx, {
+        name: "Selected scoped parent",
+        parent: { type: "phases", id: setupPhaseId },
+        order: "a",
+      })
+      const matchingTaskId = await insertSeedTask(ctx, {
+        name: "Needle launch task",
+        parent: { type: "phases", id: setupPhaseId },
+        order: "b",
+      })
+      const visibleChildId = await insertSeedTask(ctx, {
+        name: "Visible nested task",
+        parent: { type: "tasks", id: matchingTaskId },
+        order: "a",
+      })
+      const flowParentId = await insertSeedTask(ctx, {
+        name: "Visible flow parent",
+        parent: { type: "phases", id: setupPhaseId },
+        order: "c",
+        kind: "flow",
+      })
+      const hiddenFlowChildId = await insertSeedTask(ctx, {
+        name: "Hidden flow child",
+        parent: { type: "tasks", id: flowParentId },
+        order: "a",
+      })
+      const doneParentId = await insertSeedTask(ctx, {
+        name: "Visible done parent",
+        parent: { type: "phases", id: laterPhaseId },
+        order: "a",
+        status: "done",
+      })
+      const hiddenDoneChildId = await insertSeedTask(ctx, {
+        name: "Hidden done child",
+        parent: { type: "tasks", id: doneParentId },
+        order: "a",
+        status: "done",
+      })
+      const outsideTaskId = await insertSeedTask(ctx, {
+        name: "Outside task",
+        parent: { type: "phases", id: outsidePhaseId },
+        order: "a",
+      })
+
+      return {
+        competitionId,
+        setupPhaseId,
+        laterPhaseId,
+        outsidePhaseId,
+        selectedParentId,
+        matchingTaskId,
+        visibleChildId,
+        flowParentId,
+        hiddenFlowChildId,
+        doneParentId,
+        hiddenDoneChildId,
+        outsideTaskId,
+      }
+    })
+
+    const allTargets = await client.query(
+      api.tasks.queries.listCreationTargets,
+      {
+        scope: { type: "competitions", id: seed.competitionId },
+      }
+    )
+    const phaseIds = new Set(allTargets.phases.map((phase) => phase._id))
+    const taskIds = new Set(allTargets.tasks.map((task) => task._id))
+
+    expect(phaseIds.has(seed.setupPhaseId)).toBe(true)
+    expect(phaseIds.has(seed.laterPhaseId)).toBe(true)
+    expect(phaseIds.has(seed.outsidePhaseId)).toBe(false)
+    expect(taskIds.has(seed.selectedParentId)).toBe(true)
+    expect(taskIds.has(seed.matchingTaskId)).toBe(true)
+    expect(taskIds.has(seed.visibleChildId)).toBe(true)
+    expect(taskIds.has(seed.flowParentId)).toBe(true)
+    expect(taskIds.has(seed.hiddenFlowChildId)).toBe(false)
+    expect(taskIds.has(seed.doneParentId)).toBe(true)
+    expect(taskIds.has(seed.hiddenDoneChildId)).toBe(false)
+    expect(taskIds.has(seed.outsideTaskId)).toBe(false)
+
+    const scopedSelectedTargets = await client.query(
+      api.tasks.queries.listCreationTargets,
+      {
+        scope: { type: "competitions", id: seed.competitionId },
+        search: "Needle",
+        selectedParent: { type: "tasks", id: seed.selectedParentId },
+      }
+    )
+    const scopedSelectedTaskIds = new Set(
+      scopedSelectedTargets.tasks.map((task) => task._id)
+    )
+
+    expect(scopedSelectedTaskIds.has(seed.matchingTaskId)).toBe(true)
+    expect(scopedSelectedTaskIds.has(seed.selectedParentId)).toBe(true)
+
+    const outsideSelectedTargets = await client.query(
+      api.tasks.queries.listCreationTargets,
+      {
+        scope: { type: "competitions", id: seed.competitionId },
+        search: "Needle",
+        selectedParent: { type: "tasks", id: seed.outsideTaskId },
+      }
+    )
+    const outsideSelectedTaskIds = new Set(
+      outsideSelectedTargets.tasks.map((task) => task._id)
+    )
+
+    expect(outsideSelectedTaskIds.has(seed.matchingTaskId)).toBe(true)
+    expect(outsideSelectedTaskIds.has(seed.outsideTaskId)).toBe(false)
+  })
+
+  test("listCreationTargets scopes task parents to the viewed task tree", async () => {
     const t = convexTest(schema, modules)
     const { client } = await withVolunteerTestClient(t)
     const seed = await t.run(async (ctx) => {
@@ -167,28 +303,77 @@ describe("task mutations", () => {
         "Setup",
         "a"
       )
-      const selectedParentId = await insertSeedTask(ctx, {
-        name: "Selected unrelated parent",
+      const rootTaskId = await insertSeedTask(ctx, {
+        name: "Root task",
         parent: { type: "phases", id: phaseId },
         order: "a",
       })
-      const matchingTaskId = await insertSeedTask(ctx, {
-        name: "Needle launch task",
+      const viewedTaskId = await insertSeedTask(ctx, {
+        name: "Viewed task",
+        parent: { type: "tasks", id: rootTaskId },
+        order: "a",
+      })
+      const visibleChildId = await insertSeedTask(ctx, {
+        name: "Visible child",
+        parent: { type: "tasks", id: viewedTaskId },
+        order: "a",
+      })
+      const visibleGrandchildId = await insertSeedTask(ctx, {
+        name: "Visible grandchild",
+        parent: { type: "tasks", id: visibleChildId },
+        order: "a",
+      })
+      const doneParentId = await insertSeedTask(ctx, {
+        name: "Visible done descendant",
+        parent: { type: "tasks", id: viewedTaskId },
+        order: "b",
+        status: "done",
+      })
+      const hiddenDoneChildId = await insertSeedTask(ctx, {
+        name: "Hidden done descendant",
+        parent: { type: "tasks", id: doneParentId },
+        order: "a",
+        status: "done",
+      })
+      const siblingTaskId = await insertSeedTask(ctx, {
+        name: "Sibling task",
+        parent: { type: "tasks", id: rootTaskId },
+        order: "b",
+      })
+      const otherTreeTaskId = await insertSeedTask(ctx, {
+        name: "Other tree task",
         parent: { type: "phases", id: phaseId },
         order: "b",
       })
 
-      return { matchingTaskId, selectedParentId }
+      return {
+        viewedTaskId,
+        rootTaskId,
+        phaseId,
+        visibleChildId,
+        visibleGrandchildId,
+        doneParentId,
+        hiddenDoneChildId,
+        siblingTaskId,
+        otherTreeTaskId,
+      }
     })
 
     const targets = await client.query(api.tasks.queries.listCreationTargets, {
-      search: "Needle",
-      selectedParent: { type: "tasks", id: seed.selectedParentId },
+      scope: { type: "tasks", id: seed.viewedTaskId },
     })
-    const targetIds = new Set(targets.tasks.map((task) => task._id))
+    const phaseIds = new Set(targets.phases.map((phase) => phase._id))
+    const taskIds = new Set(targets.tasks.map((task) => task._id))
 
-    expect(targetIds.has(seed.matchingTaskId)).toBe(true)
-    expect(targetIds.has(seed.selectedParentId)).toBe(true)
+    expect(phaseIds.has(seed.phaseId)).toBe(false)
+    expect(taskIds.has(seed.viewedTaskId)).toBe(true)
+    expect(taskIds.has(seed.visibleChildId)).toBe(true)
+    expect(taskIds.has(seed.visibleGrandchildId)).toBe(true)
+    expect(taskIds.has(seed.doneParentId)).toBe(true)
+    expect(taskIds.has(seed.hiddenDoneChildId)).toBe(false)
+    expect(taskIds.has(seed.rootTaskId)).toBe(false)
+    expect(taskIds.has(seed.siblingTaskId)).toBe(false)
+    expect(taskIds.has(seed.otherTreeTaskId)).toBe(false)
   })
 
   test("createTask rejects invalid task input", async () => {
@@ -257,6 +442,416 @@ describe("task mutations", () => {
         labelIds: [],
       })
     ).rejects.toThrow("You do not have permission")
+  })
+
+  test("reorderTasks rewrites sibling order with fractional keys and recomputes flow state", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const seed = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      const flowId = await insertSeedTask(ctx, {
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        kind: "flow",
+        status: "to-do",
+      })
+      await ctx.db.patch("tasks", flowId, { statusIntent: { type: "auto" } })
+      const firstId = await insertSeedTask(ctx, {
+        name: "First",
+        parent: { type: "tasks", id: flowId },
+        order: "a",
+        status: "done",
+      })
+      const secondId = await insertSeedTask(ctx, {
+        name: "Second",
+        parent: { type: "tasks", id: flowId },
+        order: "b",
+        status: "to-do",
+      })
+      const thirdId = await insertSeedTask(ctx, {
+        name: "Third",
+        parent: { type: "tasks", id: flowId },
+        order: "c",
+        status: "backlog",
+      })
+
+      return { flowId, firstId, secondId, thirdId }
+    })
+
+    await client.mutation(api.tasks.mutations.reorderTasks, {
+      parent: { type: "tasks", id: seed.flowId },
+      taskIds: [seed.thirdId, seed.firstId, seed.secondId],
+    })
+
+    const result = await t.run(async (ctx) => {
+      const tasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+          q.eq("parent.type", "tasks").eq("parent.id", seed.flowId)
+        )
+        .order("asc")
+        .collect()
+      return tasks.map((task) => ({
+        id: task._id,
+        order: task.order,
+        status: task.status,
+      }))
+    })
+
+    expect(result.map((task) => task.id)).toEqual([
+      seed.thirdId,
+      seed.firstId,
+      seed.secondId,
+    ])
+    expect(result.map((task) => task.order)).toEqual(["a0", "a1", "a2"])
+    expect(result.map((task) => task.status)).toEqual([
+      "to-do",
+      "backlog",
+      "backlog",
+    ])
+  })
+
+  test("reorderTaskSections moves tasks across phase parents", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const seed = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const firstPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      const secondPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Schedule",
+        "b"
+      )
+      const thirdPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Empty",
+        "c"
+      )
+      const firstId = await insertSeedTask(ctx, {
+        name: "First",
+        parent: { type: "phases", id: firstPhaseId },
+        order: "a",
+      })
+      const secondId = await insertSeedTask(ctx, {
+        name: "Second",
+        parent: { type: "phases", id: firstPhaseId },
+        order: "b",
+      })
+      const thirdId = await insertSeedTask(ctx, {
+        name: "Third",
+        parent: { type: "phases", id: secondPhaseId },
+        order: "a",
+      })
+
+      return {
+        firstId,
+        firstPhaseId,
+        secondId,
+        secondPhaseId,
+        thirdId,
+        thirdPhaseId,
+      }
+    })
+
+    await client.mutation(api.tasks.mutations.reorderTaskSections, {
+      sections: [
+        {
+          parent: { type: "phases", id: seed.firstPhaseId },
+          taskIds: [seed.secondId],
+        },
+        {
+          parent: { type: "phases", id: seed.secondPhaseId },
+          taskIds: [seed.thirdId, seed.firstId],
+        },
+        {
+          parent: { type: "phases", id: seed.thirdPhaseId },
+          taskIds: [],
+        },
+      ],
+    })
+
+    const result = await t.run(async (ctx) => {
+      async function phaseTaskIds(phaseId: typeof seed.firstPhaseId) {
+        const tasks = await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "phases").eq("parent.id", phaseId)
+          )
+          .order("asc")
+          .collect()
+        return tasks.map((task) => ({
+          id: task._id,
+          order: task.order,
+          parent: task.parent,
+        }))
+      }
+
+      return {
+        firstPhase: await phaseTaskIds(seed.firstPhaseId),
+        secondPhase: await phaseTaskIds(seed.secondPhaseId),
+        thirdPhase: await phaseTaskIds(seed.thirdPhaseId),
+      }
+    })
+
+    expect(result.firstPhase.map((task) => task.id)).toEqual([seed.secondId])
+    expect(result.firstPhase.map((task) => task.order)).toEqual(["a0"])
+    expect(result.secondPhase.map((task) => task.id)).toEqual([
+      seed.thirdId,
+      seed.firstId,
+    ])
+    expect(result.secondPhase.map((task) => task.order)).toEqual(["a0", "a1"])
+    expect(result.secondPhase[1]?.parent).toEqual({
+      type: "phases",
+      id: seed.secondPhaseId,
+    })
+    expect(result.thirdPhase).toEqual([])
+  })
+
+  test("reorderTaskSections rejects stale task lists", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const seed = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      await insertSeedTask(ctx, {
+        name: "First",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const secondId = await insertSeedTask(ctx, {
+        name: "Second",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+      })
+
+      return { phaseId, secondId }
+    })
+
+    await expect(
+      client.mutation(api.tasks.mutations.reorderTaskSections, {
+        sections: [
+          {
+            parent: { type: "phases", id: seed.phaseId },
+            taskIds: [seed.secondId],
+          },
+        ],
+      })
+    ).rejects.toThrow("Task list changed. Refresh and try again.")
+  })
+
+  test("reorderTaskSections rejects moves under descendants", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const seed = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      const parentId = await insertSeedTask(ctx, {
+        name: "Parent",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const childId = await insertSeedTask(ctx, {
+        name: "Child",
+        parent: { type: "tasks", id: parentId },
+        order: "a",
+      })
+
+      return { childId, parentId, phaseId }
+    })
+
+    await expect(
+      client.mutation(api.tasks.mutations.reorderTaskSections, {
+        sections: [
+          {
+            parent: { type: "phases", id: seed.phaseId },
+            taskIds: [],
+          },
+          {
+            parent: { type: "tasks", id: seed.parentId },
+            taskIds: [seed.childId],
+          },
+          {
+            parent: { type: "tasks", id: seed.childId },
+            taskIds: [seed.parentId],
+          },
+        ],
+      })
+    ).rejects.toThrow("Cannot move a task under itself or its descendants")
+  })
+
+  test("deleteTask removes a task tree and task-scoped records", async () => {
+    const t = convexTest(schema, modules)
+    const { client, userId } = await withVolunteerTestClient(t)
+    const seed = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      const parentId = await insertSeedTask(ctx, {
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "done",
+      })
+      const taskId = await insertSeedTask(ctx, {
+        parent: { type: "tasks", id: parentId },
+        order: "a",
+        status: "done",
+        integrationIds: ["canva.certificates"],
+      })
+      const childId = await insertSeedTask(ctx, {
+        parent: { type: "tasks", id: taskId },
+        order: "a",
+        status: "to-do",
+      })
+      const outsideTaskId = await insertSeedTask(ctx, {
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+        status: "to-do",
+      })
+      const labelId = await ctx.db.insert("taskLabels", {
+        code: "ops",
+        name: "Ops",
+        color: "sky",
+      })
+      await ctx.db.insert("taskLabelAssignments", { taskId, labelId })
+      await ctx.db.insert("taskReviewers", {
+        taskId,
+        reviewer: { type: "users", id: userId },
+        approvedAt: null,
+        approvedBy: null,
+      })
+      await ctx.db.insert("taskReviewOverrides", {
+        taskId,
+        overriddenAt: Date.now(),
+        overriddenBy: userId,
+      })
+      await ctx.db.insert("taskBlockers", {
+        blockingTaskId: taskId,
+        blockedTaskId: outsideTaskId,
+      })
+      await ctx.db.insert("taskBlockers", {
+        blockingTaskId: outsideTaskId,
+        blockedTaskId: childId,
+      })
+      await ctx.db.insert("taskReminders", {
+        taskId,
+        userId,
+        remindAt: Date.now() + 60_000,
+        message: null,
+        scheduledFunctionId: null,
+        sentAt: null,
+        cancelledAt: null,
+        failedAt: null,
+        lastError: null,
+      })
+      await ctx.db.insert("taskDueNoticeStates", {
+        taskId,
+        dueDate: "2026-06-20",
+        kind: "due-soon",
+        sentAt: Date.now(),
+      })
+      await ctx.db.insert("taskNudgeCooldowns", {
+        taskId,
+        assigneeId: userId,
+        lastNudgedAt: Date.now(),
+      })
+      await ctx.db.insert("subscriptions", {
+        userId,
+        object: { type: "tasks", id: taskId },
+      })
+
+      return { parentId, taskId, childId, outsideTaskId }
+    })
+
+    await client.mutation(api.tasks.mutations.deleteTask, { id: seed.taskId })
+
+    const result = await t.run(async (ctx) => {
+      const parent = await ctx.db.get("tasks", seed.parentId)
+      const deletedTask = await ctx.db.get("tasks", seed.taskId)
+      const deletedChild = await ctx.db.get("tasks", seed.childId)
+      const outsideTask = await ctx.db.get("tasks", seed.outsideTaskId)
+      const [
+        labelAssignments,
+        reviewers,
+        reviewOverrides,
+        blockers,
+        reminders,
+        dueNoticeStates,
+        nudgeCooldowns,
+        subscriptions,
+        integrations,
+      ] = await Promise.all([
+        ctx.db.query("taskLabelAssignments").collect(),
+        ctx.db.query("taskReviewers").collect(),
+        ctx.db.query("taskReviewOverrides").collect(),
+        ctx.db.query("taskBlockers").collect(),
+        ctx.db.query("taskReminders").collect(),
+        ctx.db.query("taskDueNoticeStates").collect(),
+        ctx.db.query("taskNudgeCooldowns").collect(),
+        ctx.db.query("subscriptions").collect(),
+        ctx.db.query("taskIntegrations").collect(),
+      ])
+
+      return {
+        parent,
+        deletedTask,
+        deletedChild,
+        outsideTask,
+        counts: {
+          labelAssignments: labelAssignments.length,
+          reviewers: reviewers.length,
+          reviewOverrides: reviewOverrides.length,
+          blockers: blockers.length,
+          reminders: reminders.length,
+          dueNoticeStates: dueNoticeStates.length,
+          nudgeCooldowns: nudgeCooldowns.length,
+          subscriptions: subscriptions.length,
+          integrations: integrations.length,
+        },
+      }
+    })
+
+    expect(result.deletedTask).toBeNull()
+    expect(result.deletedChild).toBeNull()
+    expect(result.outsideTask).not.toBeNull()
+    expect(result.parent?.status).toBe("done")
+    expect(result.counts).toEqual({
+      labelAssignments: 0,
+      reviewers: 0,
+      reviewOverrides: 0,
+      blockers: 0,
+      reminders: 0,
+      dueNoticeStates: 0,
+      nudgeCooldowns: 0,
+      subscriptions: 0,
+      integrations: 0,
+    })
   })
 
   test("claimTask claims unassigned and assignable tasks only", async () => {

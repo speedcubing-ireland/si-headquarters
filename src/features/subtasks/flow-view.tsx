@@ -6,6 +6,15 @@ import * as TaskStatusSelector from "@/components/data-selectors/task-status-sel
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Item,
   ItemActions,
   ItemContent,
@@ -22,7 +31,7 @@ import {
   ArrowRightIcon,
   CassetteTapeIcon,
   CornerRightDownIcon,
-  PencilIcon,
+  ListOrderedIcon,
   Undo2Icon,
 } from "lucide-react"
 import { memo } from "react"
@@ -216,20 +225,35 @@ export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
   return (
     <div className="col-span-full flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="lg">
-          <PencilIcon />
-          Edit Tasks
-        </Button>
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={() => {
-            void setTaskKind({ id: taskId, kind: "standard" })
-          }}
-        >
-          <Undo2Icon />
-          To Subtasks
-        </Button>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="lg" type="button">
+              <ListOrderedIcon />
+              Edit Tasks
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Convert before editing</DialogTitle>
+              <DialogDescription>
+                Flow steps cannot be reordered or deleted while flow mode is
+                active. Convert this flow to standard subtasks first, then edit
+                the task list.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter showCloseButton>
+              <Button
+                type="button"
+                onClick={() => {
+                  void setTaskKind({ id: taskId, kind: "standard" })
+                }}
+              >
+                <Undo2Icon />
+                To Subtasks
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       <Card className="col-span-full">
         <CardHeader>

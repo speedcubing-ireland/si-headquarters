@@ -18,15 +18,8 @@ import {
 import { Page } from "@/components/layout/page"
 import { useTaskListPage } from "@/features/tasks/list/task-list-context"
 import { TASK_LIST_PRESET_LABELS } from "@/features/tasks/list/task-list-config"
-import { AddTaskDialog } from "@/features/tasks/components/add-task-dialog"
 import type { SavedTaskView } from "@/features/tasks/list/use-task-saved-views"
-import {
-  GlobeIcon,
-  LayersPlus,
-  PinIcon,
-  PlusIcon,
-  UserIcon,
-} from "lucide-react"
+import { GlobeIcon, LayersPlus, PinIcon, UserIcon } from "lucide-react"
 import { useState, type ReactNode } from "react"
 
 function SavedViewChip({
@@ -108,20 +101,6 @@ export function TaskListNavbar({ actions }: { actions?: ReactNode }) {
     activePresetId,
     applyPreset,
   } = useTaskListPage()
-  const defaultOwner =
-    config.scope.type === "team"
-      ? ({ type: "teams", id: config.scope.teamId } as const)
-      : null
-  const defaultOwnerDisplay =
-    config.scope.type === "team"
-      ? ({
-          type: "teams",
-          _id: config.scope.teamId,
-          name:
-            config.scope.teamName ??
-            config.title.replace(/\s+Tasks$/, "").trim(),
-        } as const)
-      : null
 
   return (
     <Page.Header>
@@ -174,15 +153,6 @@ export function TaskListNavbar({ actions }: { actions?: ReactNode }) {
         <LayersPlus className="size-4" />
         <span className="hidden @sm/main:inline">New view</span>
       </Button>
-      <AddTaskDialog
-        defaultOwner={defaultOwner}
-        defaultOwnerDisplay={defaultOwnerDisplay}
-      >
-        <Button type="button" size="sm" className="h-8 shrink-0 gap-1 px-2.5">
-          <PlusIcon className="size-4" />
-          <span className="hidden @sm/main:inline">New task</span>
-        </Button>
-      </AddTaskDialog>
       {actions != null ? <Page.Actions>{actions}</Page.Actions> : null}
     </Page.Header>
   )

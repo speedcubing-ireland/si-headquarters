@@ -4,7 +4,7 @@ import {
   resetTaskDueNoticeState,
   scheduleTaskStatusNotifications,
 } from "@/convex/notifications/events"
-import type { Id } from "@/convex/_generated/dataModel"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { taskKindType } from "@/convex/tasks/kind"
 import {
@@ -27,14 +27,18 @@ import {
 } from "@/convex/tasks/status/recompute"
 import { requireTaskManagement } from "@/convex/permissions/principal"
 import { v } from "convex/values"
-import { generateKeyBetween } from "fractional-indexing"
+import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing"
 
-async function getNextTaskOrder(
-  ctx: MutationCtx,
-  parent:
-    | { type: "phases"; id: Id<"phases"> }
-    | { type: "tasks"; id: Id<"tasks"> }
-) {
+const MAX_TASK_DELETE_TREE_SIZE = 200
+const MAX_TASK_REORDER_ITEMS = 200
+const MAX_TASK_REORDER_SECTIONS = 50
+const MAX_TASK_SCOPED_ROWS = 200
+
+type TaskParentRef =
+  | { type: "phases"; id: Id<"phases"> }
+  | { type: "tasks"; id: Id<"tasks"> }
+
+async function getNextTaskOrder(ctx: MutationCtx, parent: TaskParentRef) {
   const siblings =
     parent.type === "phases"
       ? await ctx.db
@@ -64,9 +68,7 @@ async function getNextTaskOrder(
 
 async function requireExistingTaskParent(
   ctx: MutationCtx,
-  parent:
-    | { type: "phases"; id: Id<"phases"> }
-    | { type: "tasks"; id: Id<"tasks"> }
+  parent: TaskParentRef
 ) {
   const parentDoc =
     parent.type === "phases"
@@ -88,6 +90,274 @@ async function requireExistingLabels(
       throw new Error("Task label not found")
     }
   }
+}
+
+function parentsMatch(left: TaskParentRef, right: TaskParentRef) {
+  return left.type === right.type && left.id === right.id
+}
+
+function parentKey(parent: TaskParentRef) {
+  return `${parent.type}:${parent.id}`
+}
+
+function assertWithinLimit<T>(rows: T[], limit: number, message: string) {
+  if (rows.length > limit) throw new Error(message)
+  return rows
+}
+
+async function assertTaskCanMoveToParent(
+  ctx: MutationCtx,
+  taskId: Id<"tasks">,
+  parent: TaskParentRef
+) {
+  if (parent.type !== "tasks") return
+  let ancestorId: Id<"tasks"> = parent.id
+  const visited = new Set<Id<"tasks">>()
+
+  for (;;) {
+    if (ancestorId === taskId) {
+      throw new Error("Cannot move a task under itself or its descendants")
+    }
+    if (visited.has(ancestorId)) throw new Error("Task parent cycle detected")
+    visited.add(ancestorId)
+
+    const ancestor: Doc<"tasks"> | null = await ctx.db.get("tasks", ancestorId)
+    if (ancestor?.parent.type !== "tasks") return
+    ancestorId = ancestor.parent.id
+  }
+}
+
+async function getDirectTaskChildren(
+  ctx: MutationCtx,
+  taskId: Id<"tasks">,
+  limit = MAX_TASK_REORDER_ITEMS
+) {
+  const children = await ctx.db
+    .query("tasks")
+    .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+      q.eq("parent.type", "tasks").eq("parent.id", taskId)
+    )
+    .order("asc")
+    .take(limit + 1)
+
+  if (children.length > limit) {
+    throw new Error(`Task has more than ${String(limit)} direct subtasks`)
+  }
+
+  return children
+}
+
+async function getDirectParentChildren(
+  ctx: MutationCtx,
+  parent: TaskParentRef,
+  limit = MAX_TASK_REORDER_ITEMS
+) {
+  const children =
+    parent.type === "phases"
+      ? await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "phases").eq("parent.id", parent.id)
+          )
+          .order("asc")
+          .take(limit + 1)
+      : await getDirectTaskChildren(ctx, parent.id, limit)
+
+  if (children.length > limit) {
+    throw new Error(`Task parent has more than ${String(limit)} direct tasks`)
+  }
+
+  return children
+}
+
+async function deleteTaskScopedRows(ctx: MutationCtx, taskId: Id<"tasks">) {
+  const [
+    labelAssignments,
+    reviewers,
+    reviewOverrides,
+    blockingEdges,
+    blockedEdges,
+    reminders,
+    dueNoticeStates,
+    nudgeCooldowns,
+    subscriptions,
+    integrations,
+  ] = await Promise.all([
+    ctx.db
+      .query("taskLabelAssignments")
+      .withIndex("by_taskId_and_labelId", (q) => q.eq("taskId", taskId))
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskReviewers")
+      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskReviewOverrides")
+      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskBlockers")
+      .withIndex("by_blockingTaskId_and_blockedTaskId", (q) =>
+        q.eq("blockingTaskId", taskId)
+      )
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskBlockers")
+      .withIndex("by_blockedTaskId_and_blockingTaskId", (q) =>
+        q.eq("blockedTaskId", taskId)
+      )
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskReminders")
+      .withIndex(
+        "by_taskId_and_userId_and_cancelledAt_and_sentAt_and_remindAt",
+        (q) => q.eq("taskId", taskId)
+      )
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskDueNoticeStates")
+      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskNudgeCooldowns")
+      .withIndex("by_taskId_and_assigneeId", (q) => q.eq("taskId", taskId))
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("subscriptions")
+      .withIndex("by_object_type_and_object_id_and_userId", (q) =>
+        q.eq("object.type", "tasks").eq("object.id", taskId)
+      )
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+    ctx.db
+      .query("taskIntegrations")
+      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
+      .take(MAX_TASK_SCOPED_ROWS + 1),
+  ])
+
+  assertWithinLimit(
+    labelAssignments,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many label assignments to delete at once"
+  )
+  assertWithinLimit(
+    reviewers,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many reviewers to delete at once"
+  )
+  assertWithinLimit(
+    reviewOverrides,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many review overrides to delete at once"
+  )
+  assertWithinLimit(
+    blockingEdges,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many blocker edges to delete at once"
+  )
+  assertWithinLimit(
+    blockedEdges,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many blocked-by edges to delete at once"
+  )
+  assertWithinLimit(
+    reminders,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many reminders to delete at once"
+  )
+  assertWithinLimit(
+    dueNoticeStates,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many due notice states to delete at once"
+  )
+  assertWithinLimit(
+    nudgeCooldowns,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many nudge cooldowns to delete at once"
+  )
+  assertWithinLimit(
+    subscriptions,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many subscriptions to delete at once"
+  )
+  assertWithinLimit(
+    integrations,
+    MAX_TASK_SCOPED_ROWS,
+    "Task has too many integrations to delete at once"
+  )
+
+  await Promise.all(
+    reminders.map(async (reminder) => {
+      if (reminder.scheduledFunctionId !== null) {
+        try {
+          await ctx.scheduler.cancel(reminder.scheduledFunctionId)
+        } catch {
+          // The reminder may already be running; deleting the row below still
+          // makes the scheduled function a no-op.
+        }
+      }
+    })
+  )
+
+  const blockerEdges = new Map(
+    [...blockingEdges, ...blockedEdges].map((edge) => [edge._id, edge])
+  )
+
+  await Promise.all([
+    ...labelAssignments.map((row) =>
+      ctx.db.delete("taskLabelAssignments", row._id)
+    ),
+    ...reviewers.map((row) => ctx.db.delete("taskReviewers", row._id)),
+    ...reviewOverrides.map((row) =>
+      ctx.db.delete("taskReviewOverrides", row._id)
+    ),
+    ...[...blockerEdges.values()].map((row) =>
+      ctx.db.delete("taskBlockers", row._id)
+    ),
+    ...reminders.map((row) => ctx.db.delete("taskReminders", row._id)),
+    ...dueNoticeStates.map((row) =>
+      ctx.db.delete("taskDueNoticeStates", row._id)
+    ),
+    ...nudgeCooldowns.map((row) =>
+      ctx.db.delete("taskNudgeCooldowns", row._id)
+    ),
+    ...subscriptions.map((row) => ctx.db.delete("subscriptions", row._id)),
+    ...integrations.map((row) => ctx.db.delete("taskIntegrations", row._id)),
+  ])
+}
+
+async function collectTaskTreeForDeletion(
+  ctx: MutationCtx,
+  rootTaskId: Id<"tasks">
+) {
+  const orderedTaskIds: Id<"tasks">[] = []
+  const stack = [rootTaskId]
+  const visited = new Set<Id<"tasks">>()
+
+  while (stack.length > 0) {
+    const taskId = stack.pop()
+    if (taskId === undefined || visited.has(taskId)) continue
+    visited.add(taskId)
+    orderedTaskIds.push(taskId)
+
+    if (orderedTaskIds.length > MAX_TASK_DELETE_TREE_SIZE) {
+      throw new Error(
+        `Task delete would remove more than ${String(
+          MAX_TASK_DELETE_TREE_SIZE
+        )} tasks`
+      )
+    }
+
+    const children = await getDirectTaskChildren(
+      ctx,
+      taskId,
+      MAX_TASK_DELETE_TREE_SIZE
+    )
+    for (const child of children) {
+      stack.push(child._id)
+    }
+  }
+
+  return orderedTaskIds.reverse()
 }
 
 export const createTask = mutation({
@@ -219,6 +489,196 @@ export const setTaskOrder = mutation({
     const principal = await requireTaskManagement(ctx)
     const result = await setTaskOrderAndRecompute(ctx, args.id, args.order)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+  },
+})
+
+export const reorderTasks = mutation({
+  args: {
+    parent: taskParentRef,
+    taskIds: v.array(v.id("tasks")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const principal = await requireTaskManagement(ctx)
+    if (args.taskIds.length > MAX_TASK_REORDER_ITEMS) {
+      throw new Error(
+        `Cannot reorder more than ${String(MAX_TASK_REORDER_ITEMS)} tasks`
+      )
+    }
+
+    const uniqueTaskIds = new Set(args.taskIds)
+    if (uniqueTaskIds.size !== args.taskIds.length) {
+      throw new Error("Task reorder contains duplicate tasks")
+    }
+
+    await requireExistingTaskParent(ctx, args.parent)
+    const siblings = await getDirectParentChildren(ctx, args.parent)
+    if (siblings.length !== args.taskIds.length) {
+      throw new Error("Task list changed. Refresh and try again.")
+    }
+
+    const siblingById = new Map(siblings.map((task) => [task._id, task]))
+    for (const taskId of args.taskIds) {
+      const task = siblingById.get(taskId)
+      if (task === undefined || !parentsMatch(task.parent, args.parent)) {
+        throw new Error("Task does not belong to this parent")
+      }
+    }
+
+    const orderKeys = generateNKeysBetween(null, null, args.taskIds.length)
+    for (const [index, taskId] of args.taskIds.entries()) {
+      const task = siblingById.get(taskId)
+      if (task?.order === orderKeys[index]) continue
+      await ctx.db.patch("tasks", taskId, { order: orderKeys[index] })
+    }
+
+    if (args.parent.type === "tasks") {
+      const result = await recomputeRelatedTaskStatuses(ctx, args.parent.id)
+      await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    }
+
+    return null
+  },
+})
+
+export const reorderTaskSections = mutation({
+  args: {
+    sections: v.array(
+      v.object({
+        parent: taskParentRef,
+        taskIds: v.array(v.id("tasks")),
+      })
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const principal = await requireTaskManagement(ctx)
+    if (args.sections.length > MAX_TASK_REORDER_SECTIONS) {
+      throw new Error(
+        `Cannot reorder more than ${String(MAX_TASK_REORDER_SECTIONS)} sections`
+      )
+    }
+
+    const parentKeys = new Set<string>()
+    const submittedTaskIds = new Set<Id<"tasks">>()
+    let submittedTaskCount = 0
+
+    for (const section of args.sections) {
+      const key = parentKey(section.parent)
+      if (parentKeys.has(key)) {
+        throw new Error("Task reorder contains duplicate parents")
+      }
+      parentKeys.add(key)
+
+      submittedTaskCount += section.taskIds.length
+      if (submittedTaskCount > MAX_TASK_REORDER_ITEMS) {
+        throw new Error(
+          `Cannot reorder more than ${String(MAX_TASK_REORDER_ITEMS)} tasks`
+        )
+      }
+
+      for (const taskId of section.taskIds) {
+        if (submittedTaskIds.has(taskId)) {
+          throw new Error("Task reorder contains duplicate tasks")
+        }
+        submittedTaskIds.add(taskId)
+      }
+    }
+
+    const siblingsById = new Map<
+      Id<"tasks">,
+      Awaited<ReturnType<typeof getDirectParentChildren>>[number]
+    >()
+    const affectedParentTaskIds = new Set<Id<"tasks">>()
+
+    for (const section of args.sections) {
+      await requireExistingTaskParent(ctx, section.parent)
+      if (section.parent.type === "tasks") {
+        affectedParentTaskIds.add(section.parent.id)
+      }
+
+      const siblings = await getDirectParentChildren(ctx, section.parent)
+      for (const sibling of siblings) {
+        if (siblingsById.has(sibling._id)) {
+          throw new Error("Task list contains duplicate existing tasks")
+        }
+        siblingsById.set(sibling._id, sibling)
+      }
+    }
+
+    if (siblingsById.size !== submittedTaskCount) {
+      throw new Error("Task list changed. Refresh and try again.")
+    }
+
+    for (const taskId of submittedTaskIds) {
+      const task = siblingsById.get(taskId)
+      if (task === undefined) {
+        throw new Error("Task does not belong to a reordered parent")
+      }
+      if (task.parent.type === "tasks") {
+        affectedParentTaskIds.add(task.parent.id)
+      }
+    }
+
+    for (const section of args.sections) {
+      const orderKeys =
+        section.taskIds.length > 0
+          ? generateNKeysBetween(null, null, section.taskIds.length)
+          : []
+
+      for (const [index, taskId] of section.taskIds.entries()) {
+        const task = siblingsById.get(taskId)
+        if (task === undefined) {
+          throw new Error("Task does not belong to a reordered parent")
+        }
+        await assertTaskCanMoveToParent(ctx, taskId, section.parent)
+        const order = orderKeys[index]
+        if (parentsMatch(task.parent, section.parent) && task.order === order) {
+          continue
+        }
+        await ctx.db.patch("tasks", taskId, {
+          parent: section.parent,
+          order,
+        })
+      }
+    }
+
+    for (const parentTaskId of affectedParentTaskIds) {
+      const result = await recomputeRelatedTaskStatuses(ctx, parentTaskId)
+      await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    }
+
+    return null
+  },
+})
+
+export const deleteTask = mutation({
+  args: {
+    id: v.id("tasks"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const principal = await requireTaskManagement(ctx)
+    const task = await ctx.db.get("tasks", args.id)
+    if (task === null) throw new Error("Task not found")
+
+    const parentTaskId = task.parent.type === "tasks" ? task.parent.id : null
+    const taskIds = await collectTaskTreeForDeletion(ctx, task._id)
+
+    for (const taskId of taskIds) {
+      await deleteTaskScopedRows(ctx, taskId)
+      await ctx.db.delete("tasks", taskId)
+    }
+
+    if (parentTaskId !== null && !taskIds.includes(parentTaskId)) {
+      const parent = await ctx.db.get("tasks", parentTaskId)
+      if (parent !== null) {
+        const result = await recomputeRelatedTaskStatuses(ctx, parentTaskId)
+        await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+      }
+    }
+
+    return null
   },
 })
 

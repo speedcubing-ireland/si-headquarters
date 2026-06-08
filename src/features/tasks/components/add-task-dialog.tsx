@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input"
 import { PopoverPortalContainerProvider } from "@/components/ui/popover"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { SubtaskViewOwner } from "@/convex/tasks/subtaskView"
 import type { TaskViewAssignees } from "@/convex/tasks/view"
 import type { PublicUser } from "@/convex/users/validators"
 import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
@@ -159,11 +160,13 @@ function TaskParentFace({
 function TaskParentSelector({
   disabled,
   enabled,
+  scope,
   value,
   onChange,
 }: {
   disabled?: boolean
   enabled: boolean
+  scope: SubtaskViewOwner
   value: TaskParentRef | null
   onChange: (value: TaskParentRef | null) => void
 }) {
@@ -172,7 +175,9 @@ function TaskParentSelector({
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const targets = useQuery(
     api.tasks.queries.listCreationTargets,
-    enabled ? { search: deferredSearchQuery, selectedParent: value } : "skip"
+    enabled
+      ? { scope, search: deferredSearchQuery, selectedParent: value }
+      : "skip"
   )
   const phaseTargets = useMemo<PhaseTarget[] | undefined>(
     () =>
@@ -290,19 +295,9 @@ function buildAssigneeState(
 function selectedOwnerFromValue(
   value: TaskOwnerRef,
   users: PublicUser[] | undefined,
-  teams: { _id: Id<"teams">; name: string }[] | undefined,
-  fallback: TaskOwnerSelector.SelectedOwner | null | undefined
+  teams: { _id: Id<"teams">; name: string }[] | undefined
 ): TaskOwnerSelector.SelectedOwner | null {
   if (value === null) return null
-
-  if (
-    fallback !== null &&
-    fallback !== undefined &&
-    fallback.type === value.type &&
-    fallback._id === value.id
-  ) {
-    return fallback
-  }
 
   if (value.type === "users") {
     const user = users?.find((entry) => entry._id === value.id)
@@ -315,14 +310,12 @@ function selectedOwnerFromValue(
 
 export function AddTaskDialog({
   children,
-  defaultOwner = null,
-  defaultOwnerDisplay,
   initialParent = null,
+  parentScope,
 }: {
   children?: ReactNode
-  defaultOwner?: TaskOwnerRef
-  defaultOwnerDisplay?: TaskOwnerSelector.SelectedOwner | null
   initialParent?: TaskParentRef | null
+  parentScope: SubtaskViewOwner
 }) {
   const createTask = useMutation(api.tasks.mutations.createTask)
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
@@ -334,7 +327,7 @@ export function AddTaskDialog({
   const [parent, setParent] = useState<TaskParentRef | null>(initialParent)
   const [initialStatus, setInitialStatus] = useState<TaskStatus>("backlog")
   const [assigneeIds, setAssigneeIds] = useState<TaskAssigneeIds>(null)
-  const [owner, setOwner] = useState<TaskOwnerRef>(defaultOwner)
+  const [owner, setOwner] = useState<TaskOwnerRef>(null)
   const [labelIds, setLabelIds] = useState<Id<"taskLabels">[]>([])
   const [dueDate, setDueDate] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -361,8 +354,8 @@ export function AddTaskDialog({
     [assigneeIds, users]
   )
   const selectedOwner = useMemo(
-    () => selectedOwnerFromValue(owner, users, teams, defaultOwnerDisplay),
-    [defaultOwnerDisplay, owner, teams, users]
+    () => selectedOwnerFromValue(owner, users, teams),
+    [owner, teams, users]
   )
 
   const resetForm = () => {
@@ -371,7 +364,7 @@ export function AddTaskDialog({
     setParent(initialParent)
     setInitialStatus("backlog")
     setAssigneeIds(null)
-    setOwner(defaultOwner)
+    setOwner(null)
     setLabelIds([])
     setDueDate(null)
     setSubmitError(null)
@@ -481,6 +474,7 @@ export function AddTaskDialog({
                       <FieldLabel>Parent</FieldLabel>
                       <TaskParentSelector
                         enabled={open}
+                        scope={parentScope}
                         value={parent}
                         disabled={isSubmitting}
                         onChange={setParent}
