@@ -20,7 +20,6 @@ const booleanFlag = z
 export interface ClientRuntimeEnv {
   readonly VITE_CONVEX_URL: string | undefined
   readonly VITE_CONVEX_SITE_URL: string | undefined
-  readonly VITE_SPONSORSHIP_ENABLED: string | undefined
   readonly VITE_SPONSOR_SITE: string | undefined
 }
 
@@ -30,13 +29,11 @@ export function createClientEnv(runtimeEnv: ClientRuntimeEnv) {
     client: {
       VITE_CONVEX_URL: z.url(),
       VITE_CONVEX_SITE_URL: z.url(),
-      VITE_SPONSORSHIP_ENABLED: booleanFlag,
       VITE_SPONSOR_SITE: booleanFlag,
     },
     runtimeEnvStrict: {
       VITE_CONVEX_URL: runtimeEnv.VITE_CONVEX_URL,
       VITE_CONVEX_SITE_URL: runtimeEnv.VITE_CONVEX_SITE_URL,
-      VITE_SPONSORSHIP_ENABLED: runtimeEnv.VITE_SPONSORSHIP_ENABLED,
       VITE_SPONSOR_SITE: runtimeEnv.VITE_SPONSOR_SITE,
     },
     emptyStringAsUndefined: true,

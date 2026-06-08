@@ -56,12 +56,6 @@ bun run auth canva    # localhost:3849
 
 For production: `CONVEX_PROD=1 bun run auth <provider>`.
 
-**Optional client flags** (`.env.local`):
-
-| Variable                   | Effect                       |
-| -------------------------- | ---------------------------- |
-| `VITE_SPONSORSHIP_ENABLED` | `1` — enables sponsorship UI |
-
 ## Running
 
 ```sh

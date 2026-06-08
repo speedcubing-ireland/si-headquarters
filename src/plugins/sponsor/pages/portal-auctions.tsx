@@ -1,6 +1,5 @@
 import {
   Link,
-  Navigate,
   Outlet,
   useNavigate,
   useRouterState,
@@ -36,7 +35,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
@@ -225,13 +223,6 @@ function AuctionListRow({ auction }: { auction: PortalAuctionListRow }) {
 }
 
 export function PortalAuctionsPage() {
-  if (!isSponsorshipEnabled) {
-    return <Navigate to="/" />
-  }
-  return <SponsorAuctionsEnabled />
-}
-
-function SponsorAuctionsEnabled() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })

@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { Layout } from "@/components/layout/layout"
 import { AbilityProvider } from "@/features/auth"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { getPageTitle } from "@/lib/page-title"
 import { isSponsorSite } from "@/lib/sponsor-site"
 
@@ -20,9 +19,6 @@ function isSponsorPortalPath(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "") || "/"
   if (isSponsorSite()) {
     return true
-  }
-  if (!isSponsorshipEnabled) {
-    return false
   }
   return normalized.startsWith("/sponsor")
 }

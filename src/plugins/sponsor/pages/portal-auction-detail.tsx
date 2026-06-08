@@ -23,7 +23,6 @@ import {
 import { SponsorPageLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import {
   formatDateTime,
   formatEuroFromCents,
@@ -80,17 +79,6 @@ function formatAuctionCountdown(targetTime: number, now: number): string {
 }
 
 export function PortalAuctionDetailPage({
-  auctionId,
-}: {
-  auctionId: Id<"sponsorshipAuctions">
-}) {
-  if (!isSponsorshipEnabled) {
-    return <Navigate to="/" />
-  }
-  return <SponsorAuctionDetailEnabled auctionId={auctionId} />
-}
-
-function SponsorAuctionDetailEnabled({
   auctionId: typedAuctionId,
 }: {
   auctionId: Id<"sponsorshipAuctions">

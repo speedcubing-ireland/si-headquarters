@@ -1,4 +1,4 @@
-import { Link, Navigate, useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
 import { ArrowLeft, BookOpen, LogOut } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
@@ -44,13 +43,6 @@ function toActionError(error: object, fallback: string): string {
 }
 
 export function PortalSettingsPage() {
-  if (!isSponsorshipEnabled) {
-    return <Navigate to="/" />
-  }
-  return <SponsorSettingsEnabled />
-}
-
-function SponsorSettingsEnabled() {
   const navigate = useNavigate()
   const { sessionToken, isPending: authPending } = useSponsorSessionToken()
   const onLogout = useSponsorPortalSignOut()

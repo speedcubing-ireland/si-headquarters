@@ -1,4 +1,4 @@
-import { Link, Navigate } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import { AlertTriangle, ArrowLeft, LogIn, LogOut, Mail } from "lucide-react"
 import {
   SponsorPageHeader,
@@ -24,7 +24,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import {
@@ -41,13 +40,6 @@ import {
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function PortalGuidePage() {
-  if (!isSponsorshipEnabled) {
-    return <Navigate to="/" />
-  }
-  return <SponsorGuideEnabled />
-}
-
-function SponsorGuideEnabled() {
   const { sessionToken, isPending: authPending } = useSponsorSessionToken()
   const onLogout = useSponsorPortalSignOut()
   const isSignedIn = sessionToken !== null

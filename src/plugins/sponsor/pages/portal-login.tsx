@@ -1,4 +1,4 @@
-import { Link, Navigate, useNavigate } from "@tanstack/react-router"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 import type { SubmitEvent } from "react"
 import { toast } from "sonner"
@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { SponsorButtonSpinner } from "@/plugins/sponsor/components/sponsor-ui"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { SPONSOR_LOGIN_STEPS } from "@/plugins/sponsor/lib/sponsor-guide"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
@@ -23,13 +22,6 @@ import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-to
 const OTP_REQUEST_UI_TIMEOUT_MS = 3_000
 
 export function PortalLoginPage() {
-  if (!isSponsorshipEnabled) {
-    return <Navigate to="/" />
-  }
-  return <SponsorLoginEnabled />
-}
-
-function SponsorLoginEnabled() {
   const navigate = useNavigate()
   const { data: session, isPending } = sponsorAuthClient.useSession()
   const { sessionToken: storedSessionToken } = useSponsorSessionToken()

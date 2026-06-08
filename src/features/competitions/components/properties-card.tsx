@@ -11,7 +11,6 @@ import {
   PageCardRow,
 } from "@/components/page-card"
 import { PLUGINS } from "@/plugins/registry"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 
 export function PropertiesCard({
   competitionId,
@@ -49,16 +48,11 @@ export function PropertiesCard({
             }}
           />
         </PageCardRow>
-        {isSponsorshipEnabled
-          ? PLUGINS.flatMap((plugin) => plugin.competitionProperties).map(
-              (PropertyRow) => (
-                <PropertyRow
-                  key={PropertyRow.name}
-                  competitionId={competitionId}
-                />
-              )
-            )
-          : null}
+        {PLUGINS.flatMap((plugin) => plugin.competitionProperties).map(
+          (PropertyRow) => (
+            <PropertyRow key={PropertyRow.name} competitionId={competitionId} />
+          )
+        )}
       </PageCardContent>
       <PageCardFooter className="flex flex-col items-start gap-2">
         <CompetitionLinkedResourcesFooter competitionId={competitionId} />

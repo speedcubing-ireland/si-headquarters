@@ -1,15 +1,9 @@
-import { Navigate } from "@tanstack/react-router"
 import { Page, PAGE_CONTENT_PADDING } from "@/components/layout/page"
 import { AbilityRouteGuard } from "@/features/auth"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import { cn } from "@/lib/utils"
 import { SponsorshipAdminContent } from "@/plugins/sponsor/admin/sponsorship-admin-content"
 
 export function SponsorshipAdminPage() {
-  if (!isSponsorshipEnabled) {
-    return <Navigate to="/" />
-  }
-
   return (
     <AbilityRouteGuard
       action="access"

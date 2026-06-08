@@ -11,7 +11,6 @@ export default defineConfig(({ mode }) => {
   createClientEnv({
     VITE_CONVEX_URL: loadedEnv.VITE_CONVEX_URL,
     VITE_CONVEX_SITE_URL: loadedEnv.VITE_CONVEX_SITE_URL,
-    VITE_SPONSORSHIP_ENABLED: loadedEnv.VITE_SPONSORSHIP_ENABLED,
     VITE_SPONSOR_SITE: loadedEnv.VITE_SPONSOR_SITE,
   })
 

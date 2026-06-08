@@ -2,7 +2,6 @@ import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { parseCompetitionId } from "@/lib/convex-ids"
-import { isSponsorshipEnabled } from "@/lib/feature-flags"
 import type { CompetitionSponsorPropertyStatus } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export interface CompetitionSponsorOverride {
@@ -12,7 +11,7 @@ export interface CompetitionSponsorOverride {
 
 export function useCompetitionSponsorProperty(
   competitionId: Id<"competitions"> | null,
-  enabled = isSponsorshipEnabled
+  enabled = true
 ) {
   const property = useQuery(
     api.plugins.sponsor.admin.propertyStatus.getForCompetition,

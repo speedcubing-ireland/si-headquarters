@@ -15,7 +15,7 @@ export function resolveIsSponsorSite(): boolean {
     return true
   }
 
-  if (typeof window === "undefined" || window.location === undefined) {
+  if (typeof window === "undefined") {
     return false
   }
 
