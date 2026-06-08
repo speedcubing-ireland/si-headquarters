@@ -9,13 +9,17 @@ export function dicebearInitialsUrl(seed: string): string {
 export function resolveDiscordAvatarUrl(
   discordUserId: string,
   avatarHash: string | undefined
-): string {
+): string | undefined {
   if (avatarHash !== undefined && avatarHash.length > 0) {
     const extension = avatarHash.startsWith("a_") ? "gif" : "png"
     return `https://cdn.discordapp.com/avatars/${discordUserId}/${avatarHash}.${extension}?size=128`
   }
-  const index = Number((BigInt(discordUserId) >> 22n) % 6n)
-  return `https://cdn.discordapp.com/embed/avatars/${String(index)}.png`
+  try {
+    const index = Number((BigInt(discordUserId) >> 22n) % 6n)
+    return `https://cdn.discordapp.com/embed/avatars/${String(index)}.png`
+  } catch {
+    return undefined
+  }
 }
 
 export function resolveUserAvatarUrl(
@@ -24,7 +28,7 @@ export function resolveUserAvatarUrl(
     "name" | "image" | "discordUserId" | "discordAvatarHash"
   >
 ): string | undefined {
-  if (user.discordUserId !== undefined) {
+  if (user.discordUserId !== undefined && /^\d+$/.test(user.discordUserId)) {
     return resolveDiscordAvatarUrl(user.discordUserId, user.discordAvatarHash)
   }
   if (user.image !== undefined && user.image.length > 0) {

@@ -1,8 +1,8 @@
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
+import * as TaskAssigneeSelector from "@/components/data-selectors/task-assignee-selector"
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
 import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
-import * as UserSelector from "@/components/data-selectors/user-selector"
 import { AddTaskIntegrationButton } from "@/features/tasks/components/add-task-integration-button"
 import { AddTaskReviewerButton } from "@/features/tasks/components/add-task-reviewer-button"
 import {
@@ -35,7 +35,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
     return null
   }
 
-  const { assignees, labels, owner, statusView, task } = properties
+  const { assigneeState, labels, owner, statusView, task } = properties
 
   return (
     <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
@@ -52,9 +52,8 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
           />
         </PageCardRow>
         <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
-          <UserSelector.MultiPropertyButton
-            selectedUsers={assignees}
-            value={assignees.map((user) => user._id)}
+          <TaskAssigneeSelector.PropertyButton
+            assignees={assigneeState}
             onChange={(assigneeIds) => {
               void setAssignees({
                 id: taskId,

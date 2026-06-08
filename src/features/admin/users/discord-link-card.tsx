@@ -34,10 +34,11 @@ function resolveDiscordDisplay(
     return {
       displayName: discord.member.discordDisplayName,
       username: discord.member.discordUsername,
-      avatarUrl: resolveDiscordAvatarUrl(
-        discord.member.discordUserId,
-        discord.member.discordAvatarHash
-      ),
+      avatarUrl:
+        resolveDiscordAvatarUrl(
+          discord.member.discordUserId,
+          discord.member.discordAvatarHash
+        ) ?? "",
     }
   }
   if (user.discordUserId === undefined) {
@@ -46,10 +47,8 @@ function resolveDiscordDisplay(
   return {
     displayName: user.discordDisplayName ?? user.discordUsername ?? "Discord",
     username: user.discordUsername,
-    avatarUrl: resolveDiscordAvatarUrl(
-      user.discordUserId,
-      user.discordAvatarHash
-    ),
+    avatarUrl:
+      resolveDiscordAvatarUrl(user.discordUserId, user.discordAvatarHash) ?? "",
   }
 }
 

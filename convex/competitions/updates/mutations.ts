@@ -2,6 +2,7 @@ import { internal } from "@/convex/_generated/api"
 import { internalMutation, mutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
 import type { Doc } from "@/convex/_generated/dataModel"
+import { scheduleNotificationEvent } from "@/convex/notifications/events"
 import {
   canPerform,
   requireCan,
@@ -105,6 +106,12 @@ export const setForCompetition = mutation({
     })
 
     await ctx.db.patch("competitions", competition._id, { updateId })
+    await scheduleNotificationEvent(ctx, {
+      kind: "competitionUpdatePublished",
+      competitionId: competition._id,
+      updateId,
+      actorId: principal.userId,
+    })
 
     if (oldUpdateId) {
       await ctx.scheduler.runAfter(

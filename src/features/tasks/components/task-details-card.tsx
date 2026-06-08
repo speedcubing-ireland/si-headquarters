@@ -12,7 +12,7 @@ import { api } from "@/convex/_generated/api"
 import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import type { FunctionReturnType } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
-import { AlarmClockPlusIcon, BellIcon, CornerDownRightIcon } from "lucide-react"
+import { BellIcon, CornerDownRightIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -20,6 +20,7 @@ import { EditDetailsFormDialog } from "@/features/shared/edit-details-form-dialo
 import DynamicActionButton from "./dynamic-action-button"
 import { RouterButton } from "@/components/ui/router-button"
 import { PHASE_COLOR_CLASSES } from "@/components/data-selectors/phase-meta"
+import { TaskRemindersDialog } from "@/features/tasks/components/task-reminders"
 
 type TaskDetails = FunctionReturnType<typeof api.tasks.queries.getDetails>
 
@@ -137,10 +138,7 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
           <BellIcon />
           {watchingText}
         </Button>
-        <Button size="lg" variant="outline" noop>
-          <AlarmClockPlusIcon />
-          Reminders
-        </Button>
+        <TaskRemindersDialog taskId={taskId} />
       </CardFooter>
     </Card>
   )

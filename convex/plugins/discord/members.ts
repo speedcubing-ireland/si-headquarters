@@ -11,22 +11,6 @@ import type { DiscordLink } from "@/convex/users/validators"
 
 const DISCORD_API = "https://discord.com/api/v10"
 
-function requireBotToken(): string {
-  const token = env.DISCORD_BOT_TOKEN
-  if (token === "") {
-    throw new Error("DISCORD_BOT_TOKEN is not set in Convex env.")
-  }
-  return token
-}
-
-function requireGuildId(): string {
-  const guildId = env.DISCORD_GUILD_ID
-  if (guildId === "") {
-    throw new Error("DISCORD_GUILD_ID is not set in Convex env.")
-  }
-  return guildId
-}
-
 function readUserObject(
   member: JsonRecord
 ): { record: JsonRecord; nick: string | undefined } | null {
@@ -79,15 +63,13 @@ export async function searchGuildMembers(
   query: string,
   limit = 25
 ): Promise<DiscordLink[]> {
-  const token = requireBotToken()
-  const guildId = requireGuildId()
   const params = new URLSearchParams({
     query,
     limit: String(Math.min(Math.max(limit, 1), 100)),
   })
   const response = await fetch(
-    `${DISCORD_API}/guilds/${guildId}/members/search?${params.toString()}`,
-    { headers: { Authorization: `Bot ${token}` } }
+    `${DISCORD_API}/guilds/${env.DISCORD_GUILD_ID}/members/search?${params.toString()}`,
+    { headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` } }
   )
   if (!response.ok) {
     throw new Error(

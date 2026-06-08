@@ -261,9 +261,7 @@ describe("Task logic flow", () => {
 
       expect(properties.labels.map((label) => label._id)).toEqual([labelId])
       expect(properties.owner?._id).toBe(ownerId)
-      expect(properties.assignees.map((assignee) => assignee._id)).toEqual([
-        assigneeId,
-      ])
+      expect(properties.assigneeState.userIds).toEqual([assigneeId])
 
       const step = flowView.steps[0]
       expect(step.task._id).toBe(stepId)

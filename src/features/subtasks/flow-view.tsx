@@ -1,8 +1,8 @@
+import * as TaskAssigneeSelector from "@/components/data-selectors/task-assignee-selector"
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
 import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
-import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -22,11 +22,15 @@ import {
   ArrowRightIcon,
   CassetteTapeIcon,
   CornerRightDownIcon,
-  PencilIcon,
   Undo2Icon,
 } from "lucide-react"
-import { memo } from "react"
+import { memo, useState } from "react"
 import "./flow-view.css"
+import { AddSubtaskDialog } from "@/features/subtasks/add-subtask-dialog"
+import {
+  FlowOrderEditButton,
+  FlowOrderPanel,
+} from "@/features/subtasks/flow-order-editor"
 import { TaskInlineIndicators } from "./task-inline-indicators"
 
 const itemAppearance = {
@@ -172,9 +176,8 @@ const FlowItem = memo(function FlowItem({
               <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground/70 @sm/main:block" />
               <CornerRightDownIcon className="size-3.5 shrink-0 text-muted-foreground/70 @sm/main:hidden" />
               <span className="hidden @sm/main:inline-flex">
-                <UserSelector.MultiCompactButton
-                  selectedUsers={step.assignees.users}
-                  value={step.assignees.userIds}
+                <TaskAssigneeSelector.CompactButton
+                  assignees={step.assignees}
                   onChange={(assigneeIds) => {
                     void setAssignees({ id: taskId, assigneeIds })
                   }}
@@ -192,9 +195,8 @@ const FlowItem = memo(function FlowItem({
               />
             </ItemActions>
             <ItemActions>
-              <UserSelector.MultiCompactButton
-                selectedUsers={step.assignees.users}
-                value={step.assignees.userIds}
+              <TaskAssigneeSelector.CompactButton
+                assignees={step.assignees}
                 onChange={(assigneeIds) => {
                   void setAssignees({ id: taskId, assigneeIds })
                 }}
@@ -210,6 +212,7 @@ const FlowItem = memo(function FlowItem({
 export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
   const flow = useQuery(api.tasks.queries.getFlowView, { id: taskId })
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
+  const [isEditingOrder, setIsEditingOrder] = useState(false)
 
   if (flow === undefined) {
     return null
@@ -217,42 +220,64 @@ export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
 
   return (
     <div className="col-span-full flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="lg">
-          <PencilIcon />
-          Edit Tasks
-        </Button>
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={() => {
-            void setTaskKind({ id: taskId, kind: "standard" })
+      {isEditingOrder ? (
+        <FlowOrderPanel
+          flowTaskId={taskId}
+          steps={flow.steps}
+          onCancel={() => {
+            setIsEditingOrder(false)
           }}
-        >
-          <Undo2Icon />
-          To Subtasks
-        </Button>
-      </div>
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2">
-            Task Flow
-            <CassetteTapeIcon className="size-4" />
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex w-full flex-col">
-            {flow.steps.map((step, index) => (
-              <FlowItem
-                key={step.task._id}
-                index={index}
-                parent={flow.parent}
-                step={step}
-              />
-            ))}
+          onSaved={() => {
+            setIsEditingOrder(false)
+          }}
+        />
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <AddSubtaskDialog
+              owner={{ type: "tasks", id: taskId }}
+              triggerLabel="Add step"
+            />
+            <FlowOrderEditButton
+              stepCount={flow.steps.length}
+              onStart={() => {
+                setIsEditingOrder(true)
+              }}
+            />
+            <Button
+              variant="outline"
+              size="lg"
+              type="button"
+              onClick={() => {
+                void setTaskKind({ id: taskId, kind: "standard" })
+              }}
+            >
+              <Undo2Icon />
+              To Subtasks
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+          <Card className="col-span-full">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-2">
+                Task Flow
+                <CassetteTapeIcon className="size-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex w-full flex-col">
+                {flow.steps.map((step, index) => (
+                  <FlowItem
+                    key={step.task._id}
+                    index={index}
+                    parent={flow.parent}
+                    step={step}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

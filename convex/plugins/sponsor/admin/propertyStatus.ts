@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
+import { scheduleNotificationEvent } from "@/convex/notifications/events"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
@@ -20,13 +21,6 @@ async function sponsorName(
 
 export const getForCompetition = query({
   args: { competitionId: v.id("competitions") },
-  returns: v.object({
-    status: competitionSponsorPropertyStatus,
-    isManualOverride: v.boolean(),
-    winnerSponsorId: v.optional(v.id("sponsors")),
-    winnerSponsorName: v.optional(v.string()),
-    settlementAmountCents: v.optional(v.number()),
-  }),
   handler: async (ctx, args) => {
     const competition = await ctx.db.get("competitions", args.competitionId)
     if (competition === null) {
@@ -76,9 +70,8 @@ export const setManualOverride = mutation({
     status: v.optional(v.union(competitionSponsorPropertyStatus, v.null())),
     manualSponsorId: v.optional(v.union(v.id("sponsors"), v.null())),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    await requireSponsorPortalAdmin(ctx)
+    const actorId = await requireSponsorPortalAdmin(ctx)
     const competition = await ctx.db.get("competitions", args.competitionId)
     if (competition === null) {
       throw new ConvexError({
@@ -94,8 +87,29 @@ export const setManualOverride = mutation({
     if (args.manualSponsorId !== undefined) {
       patch.manualSponsorId = args.manualSponsorId ?? undefined
     }
+    const sponsorChanged =
+      args.manualSponsorId !== undefined &&
+      competition.manualSponsorId !== patch.manualSponsorId
+    const statusChanged =
+      args.status !== undefined &&
+      competition.manualSponsorPropertyStatus !==
+        patch.manualSponsorPropertyStatus
+
+    if (!sponsorChanged && !statusChanged) {
+      return null
+    }
 
     await ctx.db.patch("competitions", args.competitionId, patch)
+    const sponsor =
+      args.manualSponsorId !== undefined && args.manualSponsorId !== null
+        ? await ctx.db.get("sponsors", args.manualSponsorId)
+        : null
+    await scheduleNotificationEvent(ctx, {
+      kind: "sponsorSet",
+      competitionId: args.competitionId,
+      actorId,
+      sponsorName: sponsor?.name ?? null,
+    })
     return null
   },
 })

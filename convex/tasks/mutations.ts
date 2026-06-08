@@ -1,7 +1,15 @@
 import { mutation } from "@/convex/_generated/server"
+import {
+  assignTaskAndNotify,
+  resetTaskDueNoticeState,
+  scheduleTaskStatusNotifications,
+} from "@/convex/notifications/events"
+import { createChildTaskAndRecompute } from "@/convex/tasks/childTasks"
 import { taskKindType } from "@/convex/tasks/kind"
+import { reorderChildTasksAndRecompute } from "@/convex/tasks/status/recompute"
 import { taskStatusCommandType } from "@/convex/tasks/status/validators"
-import { taskOwnerRef } from "@/convex/tasks/validators"
+import { assigneesType, taskOwnerRef, taskParentRef } from "@/convex/tasks/validators"
+import { isClaimableAssigneeIds } from "@/convex/tasks/assignees"
 import {
   activatePhaseBacklogTasks,
   reopenTaskStatus,
@@ -37,8 +45,9 @@ export const setTaskStatus = mutation({
     status: taskStatusCommandType,
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
-    await requestTaskStatusChange(ctx, args.id, args.status)
+    const principal = await requireTaskManagement(ctx)
+    const result = await requestTaskStatusChange(ctx, args.id, args.status)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
 })
 
@@ -47,8 +56,9 @@ export const reopenTask = mutation({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
-    await reopenTaskStatus(ctx, args.id)
+    const principal = await requireTaskManagement(ctx)
+    const result = await reopenTaskStatus(ctx, args.id)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
 })
 
@@ -58,8 +68,9 @@ export const setTaskKind = mutation({
     kind: taskKindType,
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
-    await setTaskKindAndRecompute(ctx, args.id, args.kind)
+    const principal = await requireTaskManagement(ctx)
+    const result = await setTaskKindAndRecompute(ctx, args.id, args.kind)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
 })
 
@@ -69,8 +80,55 @@ export const setTaskOrder = mutation({
     order: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
-    await setTaskOrderAndRecompute(ctx, args.id, args.order)
+    const principal = await requireTaskManagement(ctx)
+    const result = await setTaskOrderAndRecompute(ctx, args.id, args.order)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+  },
+})
+
+export const createChildTask = mutation({
+  args: {
+    parent: taskParentRef,
+    name: v.string(),
+    description: v.optional(v.nullable(v.string())),
+  },
+  returns: v.id("tasks"),
+  handler: async (ctx, args) => {
+    const principal = await requireTaskManagement(ctx)
+    const name = args.name.trim()
+    if (name.length === 0) throw new Error("Task name is required")
+
+    const descriptionInput = args.description?.trim()
+    const description =
+      descriptionInput !== undefined && descriptionInput.length > 0
+        ? descriptionInput
+        : null
+
+    const { taskId, result } = await createChildTaskAndRecompute(ctx, {
+      parent: args.parent,
+      name,
+      description,
+    })
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    return taskId
+  },
+})
+
+export const reorderChildTasks = mutation({
+  args: {
+    parent: taskParentRef,
+    orderedTaskIds: v.array(v.id("tasks")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const principal = await requireTaskManagement(ctx)
+    const result = await reorderChildTasksAndRecompute(
+      ctx,
+      args.parent,
+      args.orderedTaskIds
+    )
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    return null
   },
 })
 
@@ -78,10 +136,10 @@ export const activatePhaseTasks = mutation({
   args: {
     phaseId: v.id("phases"),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
-    await activatePhaseBacklogTasks(ctx, args.phaseId)
+    const principal = await requireTaskManagement(ctx)
+    const result = await activatePhaseBacklogTasks(ctx, args.phaseId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
     return null
   },
 })
@@ -93,21 +151,29 @@ export const setTaskDueDate = mutation({
   },
   handler: async (ctx, args) => {
     await requireTaskManagement(ctx)
+    const task = await ctx.db.get("tasks", args.id)
+    const previousDueDate = task?.dueDate ?? null
     await ctx.db.patch("tasks", args.id, { dueDate: args.dueDate })
+    if (previousDueDate !== args.dueDate) {
+      await resetTaskDueNoticeState(ctx, args.id)
+    }
   },
 })
 
 export const setTaskAssignees = mutation({
   args: {
     id: v.id("tasks"),
-    assigneeIds: v.array(v.id("users")),
+    assigneeIds: assigneesType,
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
-    const assigneeIds = Array.from(new Set(args.assigneeIds))
-    const nextAssigneeIds = assigneeIds.length > 0 ? assigneeIds : null
+    const principal = await requireTaskManagement(ctx)
+    const nextAssigneeIds = Array.isArray(args.assigneeIds)
+      ? Array.from(new Set(args.assigneeIds))
+      : args.assigneeIds
 
-    await ctx.db.patch("tasks", args.id, {
+    await assignTaskAndNotify(ctx, {
+      taskId: args.id,
+      actorId: principal.userId,
       assigneeIds: nextAssigneeIds,
     })
   },
@@ -119,7 +185,16 @@ export const claimTask = mutation({
   },
   handler: async (ctx, args) => {
     const principal = await requireTaskManagement(ctx)
-    await ctx.db.patch("tasks", args.id, { assigneeIds: [principal.userId] })
+    const task = await ctx.db.get("tasks", args.id)
+    if (task === null) throw new Error("Task not found")
+    if (!isClaimableAssigneeIds(task.assigneeIds)) {
+      throw new Error("Task is already assigned")
+    }
+    await assignTaskAndNotify(ctx, {
+      taskId: args.id,
+      actorId: principal.userId,
+      assigneeIds: [principal.userId],
+    })
   },
 })
 

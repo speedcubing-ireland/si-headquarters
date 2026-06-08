@@ -6,6 +6,7 @@ import { internalQuery } from "@/convex/_generated/server"
 type AuthCtx = QueryCtx | MutationCtx
 import {
   requireCan,
+  requireDirector,
   requirePrincipal,
   type Principal,
 } from "@/convex/permissions/principal"
@@ -13,9 +14,16 @@ import { getCompetitionIdForTask } from "@/convex/tasks/blockers/competition"
 
 type DbCtx = QueryCtx | MutationCtx
 
+export const assertDirectorAccess = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    await requireDirector(ctx)
+    return null
+  },
+})
+
 export const assertCompetitionUpdateAccess = internalQuery({
   args: { competitionId: v.id("competitions") },
-  returns: v.null(),
   handler: async (ctx, args) => {
     await requireCompetitionForUpdate(ctx, args.competitionId)
     return null
@@ -109,7 +117,6 @@ export async function authorizeTaskRun(
 
 export const assertTaskIntegrationAccess = internalQuery({
   args: { integrationRowId: v.id("taskIntegrations") },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const row = await ctx.db.get("taskIntegrations", args.integrationRowId)
     if (row === null) {

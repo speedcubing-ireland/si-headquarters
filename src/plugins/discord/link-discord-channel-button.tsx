@@ -1,4 +1,3 @@
-import { buildSelectorOptions } from "@/components/data-selectors/selector-options"
 import { api } from "@/convex/_generated/api"
 import type { FunctionReturnType } from "convex/server"
 import {
@@ -10,6 +9,7 @@ import type { LinkResourceActionProps } from "@/plugins/integrations/registry"
 import { useAction } from "convex/react"
 import { MessageSquareIcon } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
+import { buildDiscordChannelSelectorOptions } from "@/plugins/discord/channel-selector-options"
 
 type DiscordChannel = FunctionReturnType<
   typeof api.plugins.discord.channels.listChannels
@@ -35,23 +35,10 @@ export function LinkDiscordChannelButton({
     onError: setError,
   })
 
-  const model = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-    const items =
-      channels?.filter((channel) =>
-        normalizedQuery === ""
-          ? true
-          : channel.channelName.toLowerCase().includes(normalizedQuery)
-      ) ?? []
-
-    return buildSelectorOptions({
-      items,
-      getLabel: (channel) => `#${channel.channelName}`,
-      getValue: (channel) => channel,
-      getValueKey: (channel) => channel.channelId,
-      renderItem: (channel) => `#${channel.channelName}`,
-    })
-  }, [channels, query])
+  const model = useMemo(
+    () => buildDiscordChannelSelectorOptions(channels, query),
+    [channels, query]
+  )
 
   return (
     <LinkResourcePicker<DiscordChannel, DiscordChannel>

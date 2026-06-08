@@ -1,5 +1,9 @@
 import { mutation } from "@/convex/_generated/server"
 import {
+  scheduleNotificationEvent,
+  scheduleTaskStatusNotifications,
+} from "@/convex/notifications/events"
+import {
   getTaskReviewer,
   getTaskReviewOverride,
 } from "@/convex/tasks/reviews/reviewState"
@@ -14,7 +18,7 @@ export const addReviewer = mutation({
     reviewer: taskReviewerRef,
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    const principal = await requireTaskManagement(ctx)
     const existingReviewer = await getTaskReviewer(
       ctx,
       args.taskId,
@@ -28,7 +32,15 @@ export const addReviewer = mutation({
       approvedAt: null,
       approvedBy: null,
     })
-    await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    await scheduleNotificationEvent(ctx, {
+      kind: "taskReviewersChanged",
+      taskId: args.taskId,
+      actorId: principal.userId,
+      change: "added",
+      reviewer: args.reviewer,
+    })
   },
 })
 
@@ -38,12 +50,20 @@ export const removeReviewer = mutation({
     reviewer: taskReviewerRef,
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    const principal = await requireTaskManagement(ctx)
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) return
 
     await ctx.db.delete("taskReviewers", reviewer._id)
-    await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    await scheduleNotificationEvent(ctx, {
+      kind: "taskReviewersChanged",
+      taskId: args.taskId,
+      actorId: principal.userId,
+      change: "removed",
+      reviewer: args.reviewer,
+    })
   },
 })
 
@@ -62,7 +82,8 @@ export const approveReviewer = mutation({
       approvedAt: Date.now(),
       approvedBy: principal.userId,
     })
-    await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
 })
 
@@ -72,7 +93,7 @@ export const revokeReviewerApproval = mutation({
     reviewer: taskReviewerRef,
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    const principal = await requireTaskManagement(ctx)
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) throw new Error("Task reviewer not found")
 
@@ -80,7 +101,8 @@ export const revokeReviewerApproval = mutation({
       approvedAt: null,
       approvedBy: null,
     })
-    await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
 })
 
@@ -103,7 +125,8 @@ export const overrideApproval = mutation({
     } else {
       await ctx.db.insert("taskReviewOverrides", override)
     }
-    await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
 })
 
@@ -112,11 +135,12 @@ export const removeApprovalOverride = mutation({
     taskId: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    const principal = await requireTaskManagement(ctx)
     const override = await getTaskReviewOverride(ctx, args.taskId)
     if (!override) return
 
     await ctx.db.delete("taskReviewOverrides", override._id)
-    await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
+    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
 })

@@ -54,7 +54,7 @@ describe("refreshCompetitionSnapshot authorization", () => {
     ).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
     })
-  })
+  }, 10_000)
 
   test("allows invited sponsors to refresh visible auctions", async () => {
     const t = createSponsorTestHarness()

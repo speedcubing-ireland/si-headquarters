@@ -19,6 +19,7 @@ import {
   taskStatusType,
 } from "@/convex/tasks/status/validators"
 import { taskLabelColorType } from "@/convex/tasks/labels/validators"
+import { concreteAssigneeIds } from "@/convex/tasks/assignees"
 import { toPublicUser } from "@/convex/users/queries"
 import { publicUserValidator, type PublicUser } from "@/convex/users/validators"
 import { v, type Infer } from "convex/values"
@@ -126,7 +127,7 @@ export type TaskViewDisplayFields = Infer<typeof taskViewDisplayFields>
 export type TaskViewSubtaskSummary = Infer<typeof taskViewSubtaskSummaryItem>[]
 
 type TaskViewOwner = Infer<typeof taskViewOwner>
-type TaskViewAssignees = Infer<typeof taskViewAssignees>
+export type TaskViewAssignees = Infer<typeof taskViewAssignees>
 type TaskViewLabel = Infer<typeof taskViewLabel>
 
 export interface HydratedTaskView {
@@ -279,10 +280,11 @@ export function createTaskViewDisplayReader(
   async function getAssigneeUsers(
     assigneeIds: Doc<"tasks">["assigneeIds"]
   ): Promise<PublicUser[]> {
-    if (!Array.isArray(assigneeIds) || assigneeIds.length === 0) return []
+    const userIds = concreteAssigneeIds(assigneeIds)
+    if (userIds.length === 0) return []
 
     return (
-      await Promise.all(assigneeIds.map((userId) => getPublicUser(userId)))
+      await Promise.all(userIds.map((userId) => getPublicUser(userId)))
     ).filter((user): user is PublicUser => user !== null)
   }
 
@@ -291,16 +293,16 @@ export function createTaskViewDisplayReader(
   ): Promise<TaskViewAssignees> {
     if (assigneeIds === "assignable")
       return emptyTaskViewAssignees("assignable")
-    if (!Array.isArray(assigneeIds) || assigneeIds.length === 0) {
-      return emptyTaskViewAssignees("none")
-    }
+
+    const userIds = concreteAssigneeIds(assigneeIds)
+    if (userIds.length === 0) return emptyTaskViewAssignees("none")
 
     const users = await getAssigneeUsers(assigneeIds)
 
     return {
       mode: "assigned",
-      count: assigneeIds.length,
-      userIds: assigneeIds,
+      count: userIds.length,
+      userIds,
       primaryUser: users[0] ?? null,
       users,
     }

@@ -2,10 +2,10 @@ import {
   SELECTOR_ICON_BUTTON_HOVER_CLASS,
   SELECTOR_ICON_SLOT_CLASS,
 } from "@/components/data-selectors/selector-layout"
+import * as TaskAssigneeSelector from "@/components/data-selectors/task-assignee-selector"
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
 import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
-import * as UserSelector from "@/components/data-selectors/user-selector"
 import { TaskPathCell } from "@/features/tasks/components/task-path-cell"
 import {
   taskOwnerSelectorValue,
@@ -25,10 +25,9 @@ export function TaskInlineDataRow({ row }: { row: TaskInlineRow }) {
   return (
     <>
       <div className={SELECTOR_ICON_SLOT_CLASS}>
-        <UserSelector.MultiIconButton
+        <TaskAssigneeSelector.IconButton
           className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
-          selectedUsers={row.assignees.users}
-          value={row.assignees.userIds}
+          assignees={row.assignees}
           onChange={(assigneeIds) => {
             void setAssignees({
               id: row.task._id,

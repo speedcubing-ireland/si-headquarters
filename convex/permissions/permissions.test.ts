@@ -51,7 +51,7 @@ describe("permissions", () => {
     expect(unauth.permissions).toEqual([])
     expect(volunteer.permissions.map(permissionKey)).toEqual(
       expect.arrayContaining([
-        "read:Competition",
+        "manage:Competition",
         "read:Team",
         "read:User",
         "manage:Task",

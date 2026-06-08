@@ -1,9 +1,9 @@
 import { SELECTOR_ICON_BUTTON_HOVER_CLASS } from "@/components/data-selectors/selector-layout"
+import * as TaskAssigneeSelector from "@/components/data-selectors/task-assignee-selector"
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
 import * as TaskStatusSelector from "@/components/data-selectors/task-status-selector"
-import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Card } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
 import { taskInlineIndicatorPropsFromRow } from "@/features/subtasks/task-inline-indicator-props"
@@ -66,10 +66,9 @@ function TaskCardControls({ row }: { row: TaskBoardRow }) {
             void setStatus({ id: row.task._id, status })
           }}
         />
-        <UserSelector.MultiIconButton
+        <TaskAssigneeSelector.IconButton
           className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
-          value={row.assignees.userIds}
-          selectedUsers={row.assignees.users}
+          assignees={row.assignees}
           avatarProps={{ className: "size-5", size: "default" }}
           onChange={(assigneeIds) => {
             void setAssignees({ id: row.task._id, assigneeIds })

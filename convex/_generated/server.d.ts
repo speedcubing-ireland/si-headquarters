@@ -33,8 +33,10 @@ type Env = {
   readonly CLI_AUTH_TOKEN: string;
   readonly CORS_ALLOWED_ORIGINS: string | undefined;
   readonly DEPLOYMENT_CONTEXT: "staging" | "production";
+  readonly DISCORD_ACTION_SECRET: string;
   readonly DISCORD_BOT_TOKEN: string;
   readonly DISCORD_GUILD_ID: string;
+  readonly DISCORD_PUBLIC_KEY: string;
   readonly RESEND_TEST_MODE: "true" | "false" | undefined;
   readonly SERVICE_CANVA_ID: string;
   readonly SERVICE_CANVA_SECRET: string;

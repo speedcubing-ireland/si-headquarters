@@ -21,7 +21,7 @@
     "dist/",
     ".agents/",
     "openapi/",
-    "convex/_generated",
+    "convex/**/_generated",
     "convex/plugins/**/openapiClient",
     "src/components/ui",
     "src/routeTree.gen.ts"

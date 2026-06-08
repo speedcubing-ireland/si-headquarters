@@ -9,7 +9,11 @@ import { sponsorCompetitionFields } from "@/convex/plugins/sponsor/lib/validator
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
 import { phasesFields } from "@/convex/phases/validators"
-import { teamMembershipFields, teamsFields } from "@/convex/teams/validators"
+import {
+  teamDiscordChannelFields,
+  teamMembershipFields,
+  teamsFields,
+} from "@/convex/teams/validators"
 import { tasksFields } from "@/convex/tasks/validators"
 import {
   taskLabelAssignments,
@@ -23,6 +27,11 @@ import { taskBlockersFields } from "@/convex/tasks/blockers/validators"
 import { savedViewFields } from "@/convex/views/validators"
 import { pluginTables } from "@/convex/plugins/registry"
 import { competitionTemplateApplicationFields } from "@/convex/templates/validators"
+import {
+  taskDueNoticeStateFields,
+  taskNudgeCooldownFields,
+  taskReminderFields,
+} from "@/convex/notifications/validators"
 
 const schema = defineSchema(
   {
@@ -42,6 +51,10 @@ const schema = defineSchema(
     teamMemberships: defineTable(teamMembershipFields)
       .index("by_userId", ["userId"])
       .index("by_teamId_and_userId", ["teamId", "userId"]),
+    teamDiscordChannels: defineTable(teamDiscordChannelFields).index(
+      "by_teamId",
+      ["teamId"]
+    ),
     competitions: defineTable({
       ...competitionsCoreFields,
       ...sponsorCompetitionFields,
@@ -71,7 +84,8 @@ const schema = defineSchema(
         "parent.id",
         "order",
       ])
-      .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"]),
+      .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"])
+      .index("by_dueDate", ["dueDate"]),
     taskLabels: defineTable(taskLabelsFields).index("by_code", ["code"]),
     taskLabelAssignments: defineTable(taskLabelAssignments)
       .index("by_taskId_and_labelId", ["taskId", "labelId"])
@@ -96,6 +110,17 @@ const schema = defineSchema(
         "blockingTaskId",
         "blockedTaskId",
       ]),
+    taskReminders: defineTable(taskReminderFields).index(
+      "by_taskId_and_userId_and_cancelledAt_and_sentAt_and_remindAt",
+      ["taskId", "userId", "cancelledAt", "sentAt", "remindAt"]
+    ),
+    taskDueNoticeStates: defineTable(taskDueNoticeStateFields)
+      .index("by_taskId", ["taskId"])
+      .index("by_taskId_and_dueDate_and_kind", ["taskId", "dueDate", "kind"]),
+    taskNudgeCooldowns: defineTable(taskNudgeCooldownFields).index(
+      "by_taskId_and_assigneeId",
+      ["taskId", "assigneeId"]
+    ),
     savedViews: defineTable(savedViewFields)
       .index("by_owner_entity_page", ["ownerId", "entity", "pageId"])
       .index("by_visibility_entity_page", ["visibility", "entity", "pageId"]),

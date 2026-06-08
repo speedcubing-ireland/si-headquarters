@@ -72,7 +72,7 @@ describe("competition update mutations", () => {
     expect(updateId).toBeDefined()
   })
 
-  test("rejects volunteers from editing weekend slots", async () => {
+  test("volunteers can edit weekend slots", async () => {
     const t = convexTest(schema, modules)
     const volunteerId = await t.run(async (ctx) => {
       const userId = await insertTestUser(ctx, "Volunteer")
@@ -88,8 +88,6 @@ describe("competition update mutations", () => {
           weekendStart: "2026-06-06",
           note: "Reserved",
         })
-    ).rejects.toMatchObject({
-      data: { code: "FORBIDDEN" },
-    })
+    ).resolves.toBeDefined()
   })
 })

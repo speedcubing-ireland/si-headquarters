@@ -24,7 +24,7 @@ type AuthCtx = QueryCtx | MutationCtx
 
 const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
   [TEAM_NAMES.VOLUNTEER]: [
-    { action: "read", subject: "Competition" },
+    { action: "manage", subject: "Competition" },
     { action: "read", subject: "Team" },
     { action: "read", subject: "User" },
     { action: "manage", subject: "Task" },
