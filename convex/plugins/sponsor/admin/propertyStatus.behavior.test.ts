@@ -17,6 +17,8 @@ describe("propertyStatus", () => {
 
   test("not_offered when no auctions exist", async () => {
     const t = convexTest(schema, modules)
+    const managerId = await t.run((ctx) => seedDirectorUser(ctx))
+    const manager = t.withIdentity({ subject: managerId })
     const competitionId = await t.run(async (ctx) =>
       insertTestCompetition(ctx, {
         name: "Test Comp",
@@ -25,7 +27,7 @@ describe("propertyStatus", () => {
       })
     )
 
-    const result = await t.query(
+    const result = await manager.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
       { competitionId }
     )
@@ -74,7 +76,7 @@ describe("propertyStatus", () => {
       })
     })
 
-    const result = await t.query(
+    const result = await manager.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
       { competitionId }
     )
@@ -121,7 +123,7 @@ describe("propertyStatus", () => {
       expect(auction?.state).toBe("draft")
     })
 
-    const result = await t.query(
+    const result = await manager.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
       { competitionId }
     )
@@ -171,7 +173,7 @@ describe("propertyStatus", () => {
       })
     })
 
-    const result = await t.query(
+    const result = await manager.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
       { competitionId }
     )
@@ -209,7 +211,7 @@ describe("propertyStatus", () => {
       }
     )
 
-    const result = await t.query(
+    const result = await manager.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
       { competitionId }
     )
@@ -238,7 +240,7 @@ describe("propertyStatus", () => {
       }
     )
 
-    const result = await t.query(
+    const result = await manager.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
       { competitionId }
     )
@@ -289,7 +291,7 @@ describe("propertyStatus", () => {
       })
     })
 
-    const result = await t.query(
+    const result = await manager.query(
       api.plugins.sponsor.admin.propertyStatus.getForCompetition,
       { competitionId }
     )

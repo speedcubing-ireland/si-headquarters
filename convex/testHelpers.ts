@@ -9,6 +9,10 @@ import type {
 } from "@/convex/tasks/status/resolver"
 import type { TaskIntegrationId } from "@/convex/plugins/core/validators"
 import { attachConfiguredIntegrationsForTask } from "@/convex/plugins/core/taskTemplateIntegrations"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
 import type { TestConvex } from "convex-test"
 import type schema from "@/convex/schema"
 
@@ -112,6 +116,7 @@ export async function insertSeedTask(
     name: seed.name ?? `Task ${seed.order}`,
     description: null,
     parent: seed.parent,
+    ...taskRootPatch(await deriveTaskRootContextFromParent(ctx, seed.parent)),
     order: seed.order,
     assigneeIds: null,
     owner: null,

@@ -8,6 +8,7 @@ import type { MutationCtx } from "@/convex/_generated/server"
 import { getCompetitionIdForTask } from "@/convex/tasks/blockers/competition"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
+import { withVolunteerTestClient } from "@/convex/testHelpers"
 
 interface TaskSeed {
   name: string
@@ -71,6 +72,7 @@ async function insertTask(ctx: MutationCtx, seed: TaskSeed) {
 describe("task blockers", () => {
   test("addBlocker creates an edge and rejects self-block", async () => {
     const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
     const { blockedId, blockingId } = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
@@ -88,20 +90,23 @@ describe("task blockers", () => {
       return { blockedId, blockingId }
     })
 
-    const edgeId = await t.mutation(api.tasks.blockers.mutations.addBlocker, {
-      blockedTaskId: blockedId,
-      blockingTaskId: blockingId,
-    })
+    const edgeId = await actor.mutation(
+      api.tasks.blockers.mutations.addBlocker,
+      {
+        blockedTaskId: blockedId,
+        blockingTaskId: blockingId,
+      }
+    )
 
     await expect(
-      t.mutation(api.tasks.blockers.mutations.addBlocker, {
+      actor.mutation(api.tasks.blockers.mutations.addBlocker, {
         blockedTaskId: blockedId,
         blockingTaskId: blockingId,
       })
     ).resolves.toBe(edgeId)
 
     await expect(
-      t.mutation(api.tasks.blockers.mutations.addBlocker, {
+      actor.mutation(api.tasks.blockers.mutations.addBlocker, {
         blockedTaskId: blockedId,
         blockingTaskId: blockedId,
       })
@@ -110,6 +115,7 @@ describe("task blockers", () => {
 
   test("removeBlocker deletes the edge", async () => {
     const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
     const { blockedId, blockingId } = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
@@ -127,14 +133,19 @@ describe("task blockers", () => {
       return { blockedId, blockingId }
     })
 
-    const edgeId = await t.mutation(api.tasks.blockers.mutations.addBlocker, {
-      blockedTaskId: blockedId,
-      blockingTaskId: blockingId,
+    const edgeId = await actor.mutation(
+      api.tasks.blockers.mutations.addBlocker,
+      {
+        blockedTaskId: blockedId,
+        blockingTaskId: blockingId,
+      }
+    )
+
+    await actor.mutation(api.tasks.blockers.mutations.removeBlocker, {
+      id: edgeId,
     })
 
-    await t.mutation(api.tasks.blockers.mutations.removeBlocker, { id: edgeId })
-
-    const blockers = await t.query(api.tasks.blockers.queries.getForTask, {
+    const blockers = await actor.query(api.tasks.blockers.queries.getForTask, {
       id: blockedId,
     })
 
@@ -146,6 +157,7 @@ describe("task blockers", () => {
 
   test("getForTask returns both directions hydrated", async () => {
     const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
     const { blockedId, blockingId } = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
@@ -165,12 +177,12 @@ describe("task blockers", () => {
       return { blockedId, blockingId }
     })
 
-    await t.mutation(api.tasks.blockers.mutations.addBlocker, {
+    await actor.mutation(api.tasks.blockers.mutations.addBlocker, {
       blockedTaskId: blockedId,
       blockingTaskId: blockingId,
     })
 
-    const blockers = await t.query(api.tasks.blockers.queries.getForTask, {
+    const blockers = await actor.query(api.tasks.blockers.queries.getForTask, {
       id: blockedId,
     })
 
@@ -181,7 +193,7 @@ describe("task blockers", () => {
       effectiveStatus: "in-progress",
     })
 
-    const reverse = await t.query(api.tasks.blockers.queries.getForTask, {
+    const reverse = await actor.query(api.tasks.blockers.queries.getForTask, {
       id: blockingId,
     })
 
@@ -191,6 +203,7 @@ describe("task blockers", () => {
 
   test("listPotentialBlockers excludes self and linked tasks", async () => {
     const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
     const { blockedId, blockingId, otherId } = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
@@ -213,12 +226,12 @@ describe("task blockers", () => {
       return { blockedId, blockingId, otherId }
     })
 
-    await t.mutation(api.tasks.blockers.mutations.addBlocker, {
+    await actor.mutation(api.tasks.blockers.mutations.addBlocker, {
       blockedTaskId: blockedId,
       blockingTaskId: blockingId,
     })
 
-    const potential = await t.query(
+    const potential = await actor.query(
       api.tasks.blockers.queries.listPotentialBlockers,
       { taskId: blockedId }
     )
@@ -228,6 +241,7 @@ describe("task blockers", () => {
 
   test("subtask view rows include blocker counts that track blocker status", async () => {
     const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
     const { parentId, childId, blockingId } = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
@@ -256,7 +270,7 @@ describe("task blockers", () => {
       return { parentId, childId, blockingId }
     })
 
-    const initial = await t.query(api.tasks.queries.getSubtaskView, {
+    const initial = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
     })
 
@@ -276,7 +290,7 @@ describe("task blockers", () => {
       })
     })
 
-    const afterDone = await t.query(api.tasks.queries.getSubtaskView, {
+    const afterDone = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
     })
 
@@ -292,6 +306,7 @@ describe("task blockers", () => {
 
   test("listPotentialBlockers excludes terminal-complete tasks", async () => {
     const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
     const { blockedId, openId } = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
@@ -316,7 +331,7 @@ describe("task blockers", () => {
       return { blockedId, openId }
     })
 
-    const potential = await t.query(
+    const potential = await actor.query(
       api.tasks.blockers.queries.listPotentialBlockers,
       { taskId: blockedId }
     )
@@ -326,6 +341,7 @@ describe("task blockers", () => {
 
   test("blocker counts reflect multiple blockers with mixed status", async () => {
     const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
     const { parentId, childId } = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
@@ -366,7 +382,7 @@ describe("task blockers", () => {
       return { parentId, childId }
     })
 
-    const view = await t.query(api.tasks.queries.getSubtaskView, {
+    const view = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
     })
 

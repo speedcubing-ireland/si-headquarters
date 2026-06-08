@@ -1,11 +1,12 @@
 import { collectAll } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query, type QueryCtx } from "@/convex/_generated/server"
-import { requireActiveUserId } from "@/convex/permissions/principal"
+import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
 import {
   buildFlatTaskInlinePath,
   taskInlineRow,
 } from "@/convex/tasks/inlineRow"
+import { listCompetitionTaskIds } from "@/convex/tasks/blockers/competition"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
   buildSubtasksWithStatusViews,
@@ -154,16 +155,78 @@ export const listForBoard = query({
   args: {},
   returns: v.array(taskBoardRow),
   handler: async (ctx) => {
-    await requireActiveUserId(ctx)
-    return await buildTaskBoardRows(ctx)
+    const principal = await requirePrincipal(ctx)
+    const competitions = await collectAll(ctx, "competitions")
+
+    if (canPerform(principal, "manage", "Task")) {
+      return await buildTaskBoardRows(ctx, { competitions })
+    }
+
+    const readableCompetitions = competitions.filter((competition) =>
+      canPerform(principal, "read", "Competition", competition)
+    )
+    const [tasks, phases] = await Promise.all([
+      listTasksForCompetitions(
+        ctx,
+        readableCompetitions.map((competition) => competition._id)
+      ),
+      collectAll(ctx, "phases"),
+    ])
+
+    return await buildTaskBoardRows(ctx, {
+      tasks,
+      phases,
+      competitions: readableCompetitions,
+    })
   },
 })
 
-export async function buildTaskBoardRows(ctx: QueryCtx) {
+async function listTasksForCompetitions(
+  ctx: QueryCtx,
+  competitionIds: Id<"competitions">[]
+) {
+  const taskIds = new Set<Id<"tasks">>()
+  const indexedTasks = await Promise.all(
+    competitionIds.map((competitionId) =>
+      ctx.db
+        .query("tasks")
+        .withIndex("by_rootCompetitionId", (q) =>
+          q.eq("rootCompetitionId", competitionId)
+        )
+        .collect()
+    )
+  )
+  for (const task of indexedTasks.flat()) {
+    taskIds.add(task._id)
+  }
+
+  const legacyTaskIds = await Promise.all(
+    competitionIds.map((competitionId) =>
+      listCompetitionTaskIds(ctx, competitionId)
+    )
+  )
+  for (const taskId of legacyTaskIds.flat()) {
+    taskIds.add(taskId)
+  }
+
+  const tasks = await Promise.all(
+    [...taskIds].map((taskId) => ctx.db.get("tasks", taskId))
+  )
+  return tasks.filter((task): task is Doc<"tasks"> => task !== null)
+}
+
+export async function buildTaskBoardRows(
+  ctx: QueryCtx,
+  input?: {
+    tasks?: Doc<"tasks">[]
+    phases?: Doc<"phases">[]
+    competitions?: Doc<"competitions">[]
+  }
+) {
   const [tasks, phases, competitions] = await Promise.all([
-    collectAll(ctx, "tasks"),
-    collectAll(ctx, "phases"),
-    collectAll(ctx, "competitions"),
+    input?.tasks ?? collectAll(ctx, "tasks"),
+    input?.phases ?? collectAll(ctx, "phases"),
+    input?.competitions ?? collectAll(ctx, "competitions"),
   ])
   const taskById = new Map(tasks.map((task) => [task._id, task]))
   const phaseById = new Map(phases.map((phase) => [phase._id, phase]))

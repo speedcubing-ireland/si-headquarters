@@ -12,6 +12,7 @@ import type {
   TaskStatus,
   TaskStatusIntent,
 } from "@/convex/tasks/status/resolver"
+import { withVolunteerTestClient } from "@/convex/testHelpers"
 
 interface TaskSeed {
   name: string
@@ -77,6 +78,7 @@ async function insertTask(ctx: MutationCtx, seed: TaskSeed) {
 describe("subtask view", () => {
   test("task owner returns a single pseudo-phase with hydrated task rows", async () => {
     const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
     const { parentId, childId, grandchildId, labelId, ownerId, assigneeId } =
       await t.run(async (ctx) => {
         const competitionId = await insertCompetition(ctx)
@@ -123,7 +125,7 @@ describe("subtask view", () => {
         return { parentId, childId, grandchildId, labelId, ownerId, assigneeId }
       })
 
-    const view = await t.query(api.tasks.queries.getSubtaskView, {
+    const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
     })
 
@@ -170,6 +172,7 @@ describe("subtask view", () => {
 
   test("competition owner returns ordered real phase sections", async () => {
     const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
     const { competitionId, conceptPhaseId, currentPhaseId, currentTaskId } =
       await t.run(async (ctx) => {
         const competitionId = await insertCompetition(ctx)
@@ -204,7 +207,7 @@ describe("subtask view", () => {
         return { competitionId, conceptPhaseId, currentPhaseId, currentTaskId }
       })
 
-    const view = await t.query(api.tasks.queries.getSubtaskView, {
+    const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "competitions", id: competitionId },
     })
 
@@ -240,6 +243,7 @@ describe("subtask view", () => {
 
   test("flow, done, and cancelled tasks do not contribute nested subtask rows", async () => {
     const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
     const parentId = await t.run(async (ctx) => {
       const competitionId = await insertCompetition(ctx)
       const phaseId = await insertPhase(ctx, competitionId, "Operations", "a")
@@ -306,7 +310,7 @@ describe("subtask view", () => {
       return parentId
     })
 
-    const view = await t.query(api.tasks.queries.getSubtaskView, {
+    const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
     })
 

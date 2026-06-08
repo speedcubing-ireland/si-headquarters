@@ -22,6 +22,7 @@ async function sponsorName(
 export const getForCompetition = query({
   args: { competitionId: v.id("competitions") },
   handler: async (ctx, args) => {
+    await requireSponsorPortalAdmin(ctx)
     const competition = await ctx.db.get("competitions", args.competitionId)
     if (competition === null) {
       throw new ConvexError({

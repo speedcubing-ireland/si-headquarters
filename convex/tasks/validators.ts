@@ -25,6 +25,8 @@ export const tasksFields = {
   name: v.string(),
   description: v.nullable(v.string()),
   parent: taskParentRef,
+  rootPhaseId: v.optional(v.id("phases")),
+  rootCompetitionId: v.optional(v.id("competitions")),
   order: v.string(),
   assigneeIds: assigneesType,
   owner: taskOwnerRef,

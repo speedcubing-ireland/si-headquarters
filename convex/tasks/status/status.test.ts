@@ -3366,7 +3366,7 @@ describe("Regression coverage", () => {
           id: secondId,
           order: "b",
         })
-      ).rejects.toThrow("Task status recompute parent cycle detected")
+      ).rejects.toThrow("Task parent cycle detected")
     })
 
     test("preview fails loudly instead of looping through a parent cycle", async () => {

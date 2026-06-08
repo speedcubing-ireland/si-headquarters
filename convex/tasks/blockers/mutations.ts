@@ -1,7 +1,8 @@
 import { mutation } from "@/convex/_generated/server"
 import { getTaskBlockerEdge } from "@/convex/tasks/blockers/loader"
 import { scheduleTaskUnblockedIfReady } from "@/convex/notifications/events"
-import { getPrincipalOrNull } from "@/convex/permissions/principal"
+import { requireTaskManageAccess } from "@/convex/tasks/access"
+import { getCompetitionIdForTask } from "@/convex/tasks/hierarchy"
 import { v } from "convex/values"
 
 export const addBlocker = mutation({
@@ -14,13 +15,24 @@ export const addBlocker = mutation({
       throw new Error("A task cannot block itself")
     }
 
-    const [blockedTask, blockingTask] = await Promise.all([
-      ctx.db.get("tasks", args.blockedTaskId),
-      ctx.db.get("tasks", args.blockingTaskId),
+    const [blockedAccess, blockingAccess] = await Promise.all([
+      requireTaskManageAccess(ctx, args.blockedTaskId),
+      requireTaskManageAccess(ctx, args.blockingTaskId),
     ])
+    const blockedTask = blockedAccess.task
+    const blockingTask = blockingAccess.task
 
-    if (!blockedTask) throw new Error("Blocked task not found")
-    if (!blockingTask) throw new Error("Blocking task not found")
+    const [blockedCompetitionId, blockingCompetitionId] = await Promise.all([
+      getCompetitionIdForTask(ctx, blockedTask),
+      getCompetitionIdForTask(ctx, blockingTask),
+    ])
+    if (
+      blockedCompetitionId === null ||
+      blockingCompetitionId === null ||
+      blockedCompetitionId !== blockingCompetitionId
+    ) {
+      throw new Error("Blockers must belong to the same competition")
+    }
 
     const existing = await getTaskBlockerEdge(
       ctx,
@@ -43,13 +55,13 @@ export const removeBlocker = mutation({
   handler: async (ctx, args) => {
     const edge = await ctx.db.get("taskBlockers", args.id)
     if (!edge) return
-    const principal = await getPrincipalOrNull(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, edge.blockedTaskId)
 
     await ctx.db.delete("taskBlockers", args.id)
     await scheduleTaskUnblockedIfReady(
       ctx,
       edge.blockedTaskId,
-      principal?.userId ?? null
+      principal.userId
     )
   },
 })

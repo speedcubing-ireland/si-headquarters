@@ -12,6 +12,10 @@ import {
   type TaskReviewerDetails,
 } from "@/convex/tasks/reviews/validators"
 import { requireCan, requirePrincipal } from "@/convex/permissions/principal"
+import {
+  requireTaskManageAccess,
+  requireTaskReadAccess,
+} from "@/convex/tasks/access"
 import { takeApplicationTeamSummaries } from "@/convex/teams/model"
 import { toPublicUser } from "@/convex/users/queries"
 import { v } from "convex/values"
@@ -23,6 +27,7 @@ export const getForTask = query({
     taskId: v.id("tasks"),
   },
   handler: async (ctx, args) => {
+    await requireTaskReadAccess(ctx, args.taskId)
     return await getTaskReviewState(ctx, args.taskId)
   },
 })
@@ -32,6 +37,7 @@ export const getDetailsForTask = query({
     taskId: v.id("tasks"),
   },
   handler: async (ctx, args) => {
+    await requireTaskReadAccess(ctx, args.taskId)
     return await getTaskReviewDetails(ctx, args.taskId)
   },
 })
@@ -42,6 +48,7 @@ export const getReviewerDetailsForTask = query({
   },
   returns: taskReviewerDetailsForTask,
   handler: async (ctx, args) => {
+    await requireTaskReadAccess(ctx, args.taskId)
     const { state, reviewers, override } = await getTaskReviewDetails(
       ctx,
       args.taskId
@@ -109,6 +116,7 @@ export const previewFlowReopenForReviewChange = query({
     operation: reviewPreviewOperation,
   },
   handler: async (ctx, args) => {
+    await requireTaskManageAccess(ctx, args.taskId)
     const task = await getTaskOrThrow(ctx, args.taskId)
     return await previewReviewChangeImpact(ctx, task, args.operation)
   },

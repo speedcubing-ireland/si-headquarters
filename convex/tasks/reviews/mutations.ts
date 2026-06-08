@@ -9,7 +9,12 @@ import {
 } from "@/convex/tasks/reviews/reviewState"
 import { taskReviewerRef } from "@/convex/tasks/reviews/validators"
 import { recomputeRelatedTaskStatuses } from "@/convex/tasks/status/recompute"
-import { requireTaskManagement } from "@/convex/permissions/principal"
+import {
+  canManageTask,
+  isReviewerRefForPrincipal,
+  requireTaskManageAccess,
+  requireTaskReadAccess,
+} from "@/convex/tasks/access"
 import { v } from "convex/values"
 
 export const addReviewer = mutation({
@@ -18,7 +23,7 @@ export const addReviewer = mutation({
     reviewer: taskReviewerRef,
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.taskId)
     const existingReviewer = await getTaskReviewer(
       ctx,
       args.taskId,
@@ -50,7 +55,7 @@ export const removeReviewer = mutation({
     reviewer: taskReviewerRef,
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.taskId)
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) return
 
@@ -73,10 +78,16 @@ export const approveReviewer = mutation({
     reviewer: taskReviewerRef,
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
-
+    const { principal, task } = await requireTaskReadAccess(ctx, args.taskId)
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) throw new Error("Task reviewer not found")
+
+    const canApprove =
+      (await canManageTask(ctx, task, principal)) ||
+      (await isReviewerRefForPrincipal(ctx, args.reviewer, principal))
+    if (!canApprove) {
+      throw new Error("Only the designated reviewer can approve this task")
+    }
 
     await ctx.db.patch("taskReviewers", reviewer._id, {
       approvedAt: Date.now(),
@@ -93,7 +104,7 @@ export const revokeReviewerApproval = mutation({
     reviewer: taskReviewerRef,
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.taskId)
     const reviewer = await getTaskReviewer(ctx, args.taskId, args.reviewer)
     if (!reviewer) throw new Error("Task reviewer not found")
 
@@ -116,7 +127,7 @@ export const overrideApproval = mutation({
     taskId: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.taskId)
 
     const existingOverride = await getTaskReviewOverride(ctx, args.taskId)
     const override = {
@@ -140,7 +151,7 @@ export const removeApprovalOverride = mutation({
     taskId: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.taskId)
     const override = await getTaskReviewOverride(ctx, args.taskId)
     if (!override) return
 

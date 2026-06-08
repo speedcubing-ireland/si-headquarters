@@ -1,46 +1,31 @@
-import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import {
+  getCompetitionForTask,
+  getCompetitionIdForTask,
+} from "@/convex/tasks/hierarchy"
 
 const MAX_COMPETITION_PHASES = 50
 const MAX_PHASE_TASKS = 200
-type TaskCompetitionCtx = Pick<QueryCtx, "db">
 
-export async function getCompetitionIdForTask(
-  ctx: TaskCompetitionCtx,
-  task: Doc<"tasks">
-): Promise<Id<"competitions"> | null> {
-  const visited = new Set<Id<"tasks">>()
-  let parent = task.parent
-
-  while (parent.type === "tasks") {
-    if (visited.has(parent.id)) {
-      throw new Error("Task parent cycle detected")
-    }
-    visited.add(parent.id)
-
-    const parentTask = await ctx.db.get("tasks", parent.id)
-    if (!parentTask) return null
-    parent = parentTask.parent
-  }
-
-  const phase = await ctx.db.get("phases", parent.id)
-  return phase?.owner.id ?? null
-}
-
-export async function getCompetitionForTask(
-  ctx: TaskCompetitionCtx,
-  task: Doc<"tasks">
-) {
-  const competitionId = await getCompetitionIdForTask(ctx, task)
-  return competitionId === null
-    ? null
-    : await ctx.db.get("competitions", competitionId)
-}
+export { getCompetitionForTask, getCompetitionIdForTask }
 
 export async function listCompetitionTaskIds(
   ctx: QueryCtx,
   competitionId: Id<"competitions">
 ): Promise<Id<"tasks">[]> {
+  const taskIds = new Set<Id<"tasks">>()
+  const indexedTasks = await ctx.db
+    .query("tasks")
+    .withIndex("by_rootCompetitionId", (q) =>
+      q.eq("rootCompetitionId", competitionId)
+    )
+    .collect()
+
+  for (const task of indexedTasks) {
+    taskIds.add(task._id)
+  }
+
   const phases = await ctx.db
     .query("phases")
     .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
@@ -54,8 +39,6 @@ export async function listCompetitionTaskIds(
       `Competition has more than ${String(MAX_COMPETITION_PHASES)} phases`
     )
   }
-
-  const taskIds: Id<"tasks">[] = []
 
   for (const phase of phases) {
     const phaseTasks = await ctx.db
@@ -73,18 +56,18 @@ export async function listCompetitionTaskIds(
     }
 
     for (const phaseTask of phaseTasks) {
-      taskIds.push(phaseTask._id)
+      taskIds.add(phaseTask._id)
       await collectDescendantTaskIds(ctx, phaseTask._id, taskIds, new Set())
     }
   }
 
-  return taskIds
+  return [...taskIds]
 }
 
 async function collectDescendantTaskIds(
   ctx: QueryCtx,
   taskId: Id<"tasks">,
-  taskIds: Id<"tasks">[],
+  taskIds: Set<Id<"tasks">>,
   visited: Set<Id<"tasks">>
 ) {
   if (visited.has(taskId)) {
@@ -107,7 +90,7 @@ async function collectDescendantTaskIds(
   }
 
   for (const subtask of subtasks) {
-    taskIds.push(subtask._id)
+    taskIds.add(subtask._id)
     await collectDescendantTaskIds(ctx, subtask._id, taskIds, visited)
   }
 }

@@ -3,8 +3,15 @@
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireTaskManagement } from "@/convex/permissions/principal"
+import {
+  requireCompetitionForRead,
+  requireCompetitionForUpdate,
+} from "@/convex/plugins/core/authorize"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
+import {
+  requireTaskManageAccess,
+  requireTaskReadAccess,
+} from "@/convex/tasks/access"
 import { taskFlowView, type TaskFlowView } from "@/convex/tasks/flowView"
 import {
   buildTaskStatusView,
@@ -451,7 +458,11 @@ export const listCreationTargets = query({
     tasks: v.array(taskCreationTaskTarget),
   }),
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    if (args.scope.type === "competitions") {
+      await requireCompetitionForUpdate(ctx, args.scope.id)
+    } else {
+      await requireTaskManageAccess(ctx, args.scope.id)
+    }
     const search = (args.search ?? "").trim()
     const selectedParent = args.selectedParent ?? null
     const scopedTargets = await listScopedTaskCreationDocs(ctx, args.scope)
@@ -525,8 +536,7 @@ export const getPageRoot = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) return null
+    const { task } = await requireTaskReadAccess(ctx, args.id)
 
     return {
       taskId: task._id,
@@ -541,8 +551,7 @@ export const getDetails = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
+    const { task } = await requireTaskReadAccess(ctx, args.id)
     const statusLoader = new TaskStatusLoader(ctx)
 
     return {
@@ -557,8 +566,7 @@ export const getProperties = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
+    const { task } = await requireTaskReadAccess(ctx, args.id)
     const displayReader = createTaskViewDisplayReader(ctx)
     const statusLoader = new TaskStatusLoader(ctx)
 
@@ -584,8 +592,7 @@ export const getStatusView = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
+    const { task } = await requireTaskReadAccess(ctx, args.id)
 
     const statusLoader = new TaskStatusLoader(ctx)
     return await buildTaskStatusViewWithFlowPosition(statusLoader, task)
@@ -598,8 +605,7 @@ export const getFlowView = query({
   },
   returns: taskFlowView,
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
+    const { task } = await requireTaskReadAccess(ctx, args.id)
     if (task.kind !== "flow") throw new Error("Task is not a flow")
 
     const statusLoader = new TaskStatusLoader(ctx)
@@ -615,9 +621,11 @@ export const getSubtaskView = query({
   returns: taskSubtaskView,
   handler: async (ctx, args) => {
     if (args.owner.type === "tasks") {
+      await requireTaskReadAccess(ctx, args.owner.id)
       return await getTaskSubtaskView(ctx, args.owner.id)
     }
 
+    await requireCompetitionForRead(ctx, args.owner.id)
     return await getCompetitionSubtaskView(ctx, args.owner.id)
   },
 })
@@ -628,6 +636,7 @@ export const previewFlowReopenForStatusChange = query({
     status: taskStatusCommandType,
   },
   handler: async (ctx, args) => {
+    await requireTaskReadAccess(ctx, args.id)
     return await previewStatusChangeFlowReopen(ctx, args.id, args.status)
   },
 })
@@ -637,8 +646,7 @@ export const listSubtasks = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
+    const { task } = await requireTaskReadAccess(ctx, args.id)
 
     const statusLoader = new TaskStatusLoader(ctx)
     const subtasks = await statusLoader.getDirectSubtasks(task._id)

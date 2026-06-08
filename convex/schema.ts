@@ -87,6 +87,8 @@ const schema = defineSchema(
         "parent.id",
         "order",
       ])
+      .index("by_rootCompetitionId", ["rootCompetitionId"])
+      .index("by_rootPhaseId", ["rootPhaseId"])
       .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"])
       .index("by_dueDate", ["dueDate"])
       .searchIndex("search_name", { searchField: "name" }),

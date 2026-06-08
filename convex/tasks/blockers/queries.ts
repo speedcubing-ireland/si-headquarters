@@ -4,6 +4,10 @@ import {
   getCompetitionIdForTask,
   listCompetitionTaskIds,
 } from "@/convex/tasks/blockers/competition"
+import {
+  requireTaskManageAccess,
+  requireTaskReadAccess,
+} from "@/convex/tasks/access"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
   potentialBlockerTask,
@@ -55,8 +59,7 @@ export const getForTask = query({
   },
   returns: taskBlockersForTask,
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.id)
-    if (!task) throw new Error("Task not found")
+    await requireTaskReadAccess(ctx, args.id)
 
     const blockersLoader = new TaskBlockersLoader(ctx)
     const statusLoader = new TaskStatusLoader(ctx)
@@ -107,8 +110,7 @@ export const listPotentialBlockers = query({
   },
   returns: v.array(potentialBlockerTask),
   handler: async (ctx, args) => {
-    const task = await ctx.db.get("tasks", args.taskId)
-    if (!task) throw new Error("Task not found")
+    const { task } = await requireTaskManageAccess(ctx, args.taskId)
 
     const competitionId = await getCompetitionIdForTask(ctx, task)
     if (!competitionId) return []

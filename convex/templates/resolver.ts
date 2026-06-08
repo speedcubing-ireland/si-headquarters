@@ -10,6 +10,10 @@ import {
   ensureDefaultTaskLabels,
   ensureTaskLabelByCode,
 } from "@/convex/tasks/labels/model"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
 import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
 import type {
   CompetitionTemplateDefinition,
@@ -404,6 +408,7 @@ async function insertTaskTree({
       name: task.name,
       description: task.description ?? null,
       parent,
+      ...taskRootPatch(await deriveTaskRootContextFromParent(ctx, parent)),
       order: orderKeys[index],
       assigneeIds: await resolveAssignees(
         ctx,

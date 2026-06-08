@@ -4,6 +4,7 @@ import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { scheduleNotificationEvent } from "@/convex/notifications/events"
 import { requireActiveUserId } from "@/convex/permissions/principal"
+import { requireTaskReadAccess } from "@/convex/tasks/access"
 import { v } from "convex/values"
 
 const MIN_REMINDER_DELAY_MS = 60_000
@@ -37,6 +38,7 @@ export const listForTask = query({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
     const userId = await requireActiveUserId(ctx)
+    await requireTaskReadAccess(ctx, args.taskId)
     const reminders = await ctx.db
       .query("taskReminders")
       .withIndex(
@@ -69,6 +71,7 @@ export const createForTask = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireActiveUserId(ctx)
+    await requireTaskReadAccess(ctx, args.taskId)
     validateFutureReminder(args.remindAt)
     const task = await ctx.db.get("tasks", args.taskId)
     if (task === null) throw new Error("Task not found")

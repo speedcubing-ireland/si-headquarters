@@ -4,6 +4,7 @@ import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import { scheduleNotificationEvent } from "@/convex/notifications/events"
 import { requireActiveUserId } from "@/convex/permissions/principal"
 import { concreteAssigneeIds } from "@/convex/tasks/assignees"
+import { requireTaskReadAccess } from "@/convex/tasks/access"
 import { isTerminalComplete } from "@/convex/tasks/status/rules"
 import { v } from "convex/values"
 
@@ -97,10 +98,11 @@ export const getEligibility = query({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
     const userId = await requireActiveUserId(ctx)
-    const task = await ctx.db.get("tasks", args.taskId)
-    if (task === null) {
+    const existingTask = await ctx.db.get("tasks", args.taskId)
+    if (existingTask === null) {
       return { canNudge: false as const, reason: "missing_task" as const }
     }
+    const { task } = await requireTaskReadAccess(ctx, args.taskId)
     if (!Array.isArray(task.assigneeIds) || task.assigneeIds.length === 0) {
       return { canNudge: false as const, reason: "no_assignees" as const }
     }
@@ -137,6 +139,7 @@ export const nudgeTask = mutation({
   args: { taskId: v.id("tasks") },
   handler: async (ctx, args) => {
     const userId = await requireActiveUserId(ctx)
+    await requireTaskReadAccess(ctx, args.taskId)
     const message = await nudgeTaskAssignees(ctx, userId, args.taskId)
     if (message !== "Nudge sent.") {
       throw new Error(message)

@@ -25,7 +25,16 @@ import {
   setTaskKindAndRecompute,
   setTaskOrderAndRecompute,
 } from "@/convex/tasks/status/recompute"
+import {
+  requireTaskCreationParentAccess,
+  requireTaskManageAccess,
+} from "@/convex/tasks/access"
 import { requireTaskManagement } from "@/convex/permissions/principal"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+  type TaskRootContext,
+} from "@/convex/tasks/hierarchy"
 import { v } from "convex/values"
 import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing"
 
@@ -360,6 +369,38 @@ async function collectTaskTreeForDeletion(
   return orderedTaskIds.reverse()
 }
 
+async function patchDescendantRootContext(
+  ctx: MutationCtx,
+  rootTaskId: Id<"tasks">,
+  root: TaskRootContext
+) {
+  const stack = [rootTaskId]
+  const visited = new Set<Id<"tasks">>()
+
+  while (stack.length > 0) {
+    const taskId = stack.pop()
+    if (taskId === undefined || visited.has(taskId)) continue
+    visited.add(taskId)
+    if (visited.size > MAX_TASK_DELETE_TREE_SIZE) {
+      throw new Error(
+        `Task move would update more than ${String(
+          MAX_TASK_DELETE_TREE_SIZE
+        )} tasks`
+      )
+    }
+
+    const children = await getDirectTaskChildren(
+      ctx,
+      taskId,
+      MAX_TASK_DELETE_TREE_SIZE
+    )
+    for (const child of children) {
+      await ctx.db.patch("tasks", child._id, taskRootPatch(root))
+      stack.push(child._id)
+    }
+  }
+}
+
 export const createTask = mutation({
   args: {
     name: v.string(),
@@ -373,9 +414,9 @@ export const createTask = mutation({
   },
   returns: v.id("tasks"),
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
     const name = args.name.trim()
     if (name.length === 0) throw new Error("Task name is required")
+    const principal = await requireTaskCreationParentAccess(ctx, args.parent)
 
     await requireExistingTaskParent(ctx, args.parent)
     const labelIds = Array.from(new Set(args.labelIds))
@@ -388,10 +429,12 @@ export const createTask = mutation({
     const description =
       descTrim !== undefined && descTrim.length > 0 ? descTrim : null
     const status = args.initialStatus ?? "backlog"
+    const root = await deriveTaskRootContextFromParent(ctx, args.parent)
     const taskId = await ctx.db.insert("tasks", {
       name,
       description,
       parent: args.parent,
+      ...taskRootPatch(root),
       order: await getNextTaskOrder(ctx, args.parent),
       assigneeIds: null,
       owner: args.owner,
@@ -433,7 +476,7 @@ export const setTaskDetails = mutation({
     description: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    await requireTaskManageAccess(ctx, args.id)
     const name = args.name.trim()
     if (name.length === 0) throw new Error("Task name is required")
 
@@ -451,7 +494,7 @@ export const setTaskStatus = mutation({
     status: taskStatusCommandType,
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.id)
     const result = await requestTaskStatusChange(ctx, args.id, args.status)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
@@ -462,7 +505,7 @@ export const reopenTask = mutation({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.id)
     const result = await reopenTaskStatus(ctx, args.id)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
@@ -474,7 +517,7 @@ export const setTaskKind = mutation({
     kind: taskKindType,
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.id)
     const result = await setTaskKindAndRecompute(ctx, args.id, args.kind)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
@@ -486,7 +529,7 @@ export const setTaskOrder = mutation({
     order: v.string(),
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.id)
     const result = await setTaskOrderAndRecompute(ctx, args.id, args.order)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
   },
@@ -499,7 +542,7 @@ export const reorderTasks = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const principal = await requireTaskCreationParentAccess(ctx, args.parent)
     if (args.taskIds.length > MAX_TASK_REORDER_ITEMS) {
       throw new Error(
         `Cannot reorder more than ${String(MAX_TASK_REORDER_ITEMS)} tasks`
@@ -552,12 +595,19 @@ export const reorderTaskSections = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
     if (args.sections.length > MAX_TASK_REORDER_SECTIONS) {
       throw new Error(
         `Cannot reorder more than ${String(MAX_TASK_REORDER_SECTIONS)} sections`
       )
     }
+    if (args.sections.length === 0) {
+      await requireTaskManagement(ctx)
+      return null
+    }
+    const principal = await requireTaskCreationParentAccess(
+      ctx,
+      args.sections[0].parent
+    )
 
     const parentKeys = new Set<string>()
     const submittedTaskIds = new Set<Id<"tasks">>()
@@ -583,6 +633,10 @@ export const reorderTaskSections = mutation({
         }
         submittedTaskIds.add(taskId)
       }
+    }
+
+    for (const section of args.sections) {
+      await requireTaskCreationParentAccess(ctx, section.parent)
     }
 
     const siblingsById = new Map<
@@ -636,10 +690,15 @@ export const reorderTaskSections = mutation({
         if (parentsMatch(task.parent, section.parent) && task.order === order) {
           continue
         }
+        const root = await deriveTaskRootContextFromParent(ctx, section.parent)
         await ctx.db.patch("tasks", taskId, {
           parent: section.parent,
+          ...taskRootPatch(root),
           order,
         })
+        if (!parentsMatch(task.parent, section.parent)) {
+          await patchDescendantRootContext(ctx, taskId, root)
+        }
       }
     }
 
@@ -658,9 +717,7 @@ export const deleteTask = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
-    const task = await ctx.db.get("tasks", args.id)
-    if (task === null) throw new Error("Task not found")
+    const { principal, task } = await requireTaskManageAccess(ctx, args.id)
 
     const parentTaskId = task.parent.type === "tasks" ? task.parent.id : null
     const taskIds = await collectTaskTreeForDeletion(ctx, task._id)
@@ -687,7 +744,10 @@ export const activatePhaseTasks = mutation({
     phaseId: v.id("phases"),
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const principal = await requireTaskCreationParentAccess(ctx, {
+      type: "phases",
+      id: args.phaseId,
+    })
     const result = await activatePhaseBacklogTasks(ctx, args.phaseId)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
     return null
@@ -700,7 +760,7 @@ export const setTaskDueDate = mutation({
     dueDate: v.nullable(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    await requireTaskManageAccess(ctx, args.id)
     const task = await ctx.db.get("tasks", args.id)
     const previousDueDate = task?.dueDate ?? null
     await ctx.db.patch("tasks", args.id, { dueDate: args.dueDate })
@@ -716,7 +776,7 @@ export const setTaskAssignees = mutation({
     assigneeIds: assigneesType,
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
+    const { principal } = await requireTaskManageAccess(ctx, args.id)
     const nextAssigneeIds = Array.isArray(args.assigneeIds)
       ? Array.from(new Set(args.assigneeIds))
       : args.assigneeIds
@@ -734,9 +794,7 @@ export const claimTask = mutation({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const principal = await requireTaskManagement(ctx)
-    const task = await ctx.db.get("tasks", args.id)
-    if (task === null) throw new Error("Task not found")
+    const { principal, task } = await requireTaskManageAccess(ctx, args.id)
     if (!isClaimableAssigneeIds(task.assigneeIds)) {
       throw new Error("Task is already assigned")
     }
@@ -754,7 +812,7 @@ export const setTaskOwner = mutation({
     owner: taskOwnerRef,
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    await requireTaskManageAccess(ctx, args.id)
     await ctx.db.patch("tasks", args.id, { owner: args.owner })
   },
 })
@@ -765,7 +823,7 @@ export const setTaskLabels = mutation({
     labelIds: v.array(v.id("taskLabels")),
   },
   handler: async (ctx, args) => {
-    await requireTaskManagement(ctx)
+    await requireTaskManageAccess(ctx, args.id)
     const labelIds = new Set(args.labelIds)
     const existingAssignments = await ctx.db
       .query("taskLabelAssignments")
