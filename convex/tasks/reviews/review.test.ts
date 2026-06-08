@@ -11,12 +11,37 @@ import {
   seedVolunteerTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
+import type { NotificationEvent } from "@/convex/notifications/validators"
 import { modules } from "@/convex/test.setup"
+
+type ConvexTest = ReturnType<typeof convexTest>
 
 interface TaskSeed {
   parent: Doc<"tasks">["parent"]
   order: string
   status?: Doc<"tasks">["status"]
+  kind?: Doc<"tasks">["kind"]
+}
+
+async function scheduledNotificationEvents(t: ConvexTest) {
+  return t.run(async (ctx) => {
+    const all = await ctx.db.system.query("_scheduled_functions").collect()
+    return all
+      .filter((fn) => fn.name.includes("dispatchEvent"))
+      .map((fn) => {
+        const args = fn.args[0] as { event: NotificationEvent }
+        return args.event
+      })
+  })
+}
+
+function awaitingReviewEventsForTask(
+  events: NotificationEvent[],
+  taskId: Id<"tasks">
+) {
+  return events.filter(
+    (event) => event.kind === "taskAwaitingReview" && event.taskId === taskId
+  )
 }
 
 async function insertUser(
@@ -75,7 +100,7 @@ async function insertTask(
     assigneeIds: null,
     owner: null,
     dueDate: null,
-    kind: "standard",
+    kind: seed.kind ?? "standard",
     status,
     statusIntent: { type: "manual", status },
   })
@@ -432,6 +457,110 @@ describe("task reviews", () => {
     expect(reviewers.teams.map((team) => team.name)).not.toContain(
       TEAM_NAMES.VOLUNTEER
     )
+  })
+
+  test("revoking approval on an in-progress task does not notify awaiting review", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
+      const reviewerId = await insertUser(ctx, "Reviewer")
+      const taskId = await seedPhaseTask(ctx, {
+        order: "a",
+        status: "in-progress",
+      })
+      await ctx.db.insert("taskReviewers", {
+        taskId,
+        reviewer: { type: "users", id: reviewerId },
+        approvedAt: null,
+        approvedBy: null,
+      })
+      return { actorId, taskId, reviewerId }
+    })
+    const actor = t.withIdentity({ subject: actorId })
+
+    await actor.mutation(api.tasks.reviews.mutations.approveReviewer, {
+      taskId,
+      reviewer: { type: "users", id: reviewerId },
+    })
+
+    const scheduledBefore = await scheduledNotificationEvents(t)
+
+    await actor.mutation(api.tasks.reviews.mutations.revokeReviewerApproval, {
+      taskId,
+      reviewer: { type: "users", id: reviewerId },
+    })
+
+    const scheduledAfter = await scheduledNotificationEvents(t)
+    const newEvents = scheduledAfter.slice(scheduledBefore.length)
+
+    expect(awaitingReviewEventsForTask(newEvents, taskId)).toEqual([])
+  })
+
+  test("revoking approval on a completed flow step notifies awaiting review once", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, firstStepId, reviewerId } = await t.run(async (ctx) => {
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
+      const reviewerId = await insertUser(ctx, "Reviewer")
+      const flowId = await seedPhaseTask(ctx, {
+        order: "a",
+        kind: "flow",
+        status: "in-progress",
+      })
+      const firstStepId = await insertTask(ctx, {
+        parent: { type: "tasks", id: flowId },
+        order: "a",
+        status: "done",
+      })
+      await ctx.db.insert("taskReviewers", {
+        taskId: firstStepId,
+        reviewer: { type: "users", id: reviewerId },
+        approvedAt: Date.now(),
+        approvedBy: actorId,
+      })
+      return { actorId, firstStepId, reviewerId }
+    })
+    const actor = t.withIdentity({ subject: actorId })
+
+    const scheduledBefore = await scheduledNotificationEvents(t)
+
+    await actor.mutation(api.tasks.reviews.mutations.revokeReviewerApproval, {
+      taskId: firstStepId,
+      reviewer: { type: "users", id: reviewerId },
+    })
+
+    const scheduledAfter = await scheduledNotificationEvents(t)
+    const newEvents = scheduledAfter.slice(scheduledBefore.length)
+
+    expect(awaitingReviewEventsForTask(newEvents, firstStepId)).toHaveLength(1)
+  })
+
+  test("removing an approval override on an in-progress task does not notify awaiting review", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, taskId } = await t.run(async (ctx) => {
+      const actorId = await seedVolunteerTestUser(ctx, "Actor")
+      const taskId = await seedPhaseTask(ctx, {
+        order: "a",
+        status: "in-progress",
+      })
+      await ctx.db.insert("taskReviewOverrides", {
+        taskId,
+        overriddenAt: Date.now(),
+        overriddenBy: actorId,
+      })
+      return { actorId, taskId }
+    })
+    const actor = t.withIdentity({ subject: actorId })
+
+    const scheduledBefore = await scheduledNotificationEvents(t)
+
+    await actor.mutation(api.tasks.reviews.mutations.removeApprovalOverride, {
+      taskId,
+    })
+
+    const scheduledAfter = await scheduledNotificationEvents(t)
+    const newEvents = scheduledAfter.slice(scheduledBefore.length)
+
+    expect(awaitingReviewEventsForTask(newEvents, taskId)).toEqual([])
   })
 
   test("review state reads are bounded by a per-task reviewer limit", async () => {

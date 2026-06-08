@@ -22,11 +22,15 @@ import {
   ArrowRightIcon,
   CassetteTapeIcon,
   CornerRightDownIcon,
-  PencilIcon,
   Undo2Icon,
 } from "lucide-react"
-import { memo } from "react"
+import { memo, useState } from "react"
 import "./flow-view.css"
+import { AddSubtaskDialog } from "@/features/subtasks/add-subtask-dialog"
+import {
+  FlowOrderEditButton,
+  FlowOrderPanel,
+} from "@/features/subtasks/flow-order-editor"
 import { TaskInlineIndicators } from "./task-inline-indicators"
 
 const itemAppearance = {
@@ -208,6 +212,7 @@ const FlowItem = memo(function FlowItem({
 export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
   const flow = useQuery(api.tasks.queries.getFlowView, { id: taskId })
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
+  const [isEditingOrder, setIsEditingOrder] = useState(false)
 
   if (flow === undefined) {
     return null
@@ -215,42 +220,64 @@ export function FlowView({ taskId }: { taskId: Id<"tasks"> }) {
 
   return (
     <div className="col-span-full flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="lg">
-          <PencilIcon />
-          Edit Tasks
-        </Button>
-        <Button
-          variant="outline"
-          size="lg"
-          onClick={() => {
-            void setTaskKind({ id: taskId, kind: "standard" })
+      {isEditingOrder ? (
+        <FlowOrderPanel
+          flowTaskId={taskId}
+          steps={flow.steps}
+          onCancel={() => {
+            setIsEditingOrder(false)
           }}
-        >
-          <Undo2Icon />
-          To Subtasks
-        </Button>
-      </div>
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2">
-            Task Flow
-            <CassetteTapeIcon className="size-4" />
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex w-full flex-col">
-            {flow.steps.map((step, index) => (
-              <FlowItem
-                key={step.task._id}
-                index={index}
-                parent={flow.parent}
-                step={step}
-              />
-            ))}
+          onSaved={() => {
+            setIsEditingOrder(false)
+          }}
+        />
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <AddSubtaskDialog
+              owner={{ type: "tasks", id: taskId }}
+              triggerLabel="Add step"
+            />
+            <FlowOrderEditButton
+              stepCount={flow.steps.length}
+              onStart={() => {
+                setIsEditingOrder(true)
+              }}
+            />
+            <Button
+              variant="outline"
+              size="lg"
+              type="button"
+              onClick={() => {
+                void setTaskKind({ id: taskId, kind: "standard" })
+              }}
+            >
+              <Undo2Icon />
+              To Subtasks
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+          <Card className="col-span-full">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-2">
+                Task Flow
+                <CassetteTapeIcon className="size-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex w-full flex-col">
+                {flow.steps.map((step, index) => (
+                  <FlowItem
+                    key={step.task._id}
+                    index={index}
+                    parent={flow.parent}
+                    step={step}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

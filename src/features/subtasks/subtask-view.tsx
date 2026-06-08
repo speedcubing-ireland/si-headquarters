@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
-import { PlusIcon, CassetteTapeIcon, CircleCheck } from "lucide-react"
+import { AddSubtaskDialog } from "@/features/subtasks/add-subtask-dialog"
+import { CassetteTapeIcon, CircleCheck } from "lucide-react"
 import { api } from "@/convex/_generated/api"
 import type { TaskSubtaskView } from "@/convex/tasks/queries"
 import { getProgress } from "@/convex/tasks/status/rules"
@@ -147,10 +148,7 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
   return (
     <div className="col-span-full flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="lg" type="button">
-          <PlusIcon />
-          Add Task
-        </Button>
+        <AddSubtaskDialog owner={owner} sections={view.sections} />
         {taskId !== null && (
           <Button
             variant="outline"
