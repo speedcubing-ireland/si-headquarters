@@ -114,7 +114,7 @@
     "oxlint": "^1.68.0",
     "oxlint-tsgolint": "^0.23.0",
     "react-email": "^6.5.0",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.3",
     "vite": "^8",
     "vitest": "^4.1.8"
   },
