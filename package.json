@@ -98,7 +98,7 @@
     "@convex-dev/crons": "^0.2.1",
     "@convex-dev/eslint-plugin": "^2.0.0",
     "@edge-runtime/vm": "^5.0.0",
-    "@hey-api/openapi-ts": "^0.98.1",
+    "@hey-api/openapi-ts": "^0.98.2",
     "@react-email/ui": "6.5.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/router-plugin": "^1.168.18",
