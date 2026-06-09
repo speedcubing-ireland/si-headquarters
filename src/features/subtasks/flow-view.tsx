@@ -26,6 +26,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { TaskFlowView } from "@/convex/tasks/flowView"
 import { cn } from "@/lib/utils"
+import { Link } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
 import {
   ArrowRightIcon,
@@ -121,7 +122,17 @@ const FlowItem = memo(function FlowItem({
                   <span className="font-mono text-muted-foreground">
                     #{index + 1}
                   </span>{" "}
-                  {step.task.name}
+                  <Link
+                    to="/tasks/$id"
+                    params={{ id: taskId }}
+                    title={step.task.name}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                    }}
+                    className="font-medium text-foreground hover:text-foreground hover:underline"
+                  >
+                    {step.task.name}
+                  </Link>
                 </h3>
                 <TaskInlineIndicators
                   blockers={step.blockers}
