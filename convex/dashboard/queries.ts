@@ -287,11 +287,7 @@ function classifyTaskAction(
     }
   }
 
-  if (
-    assignedToUser &&
-    (row.statusView.effectiveStatus === "to-do" ||
-      row.statusView.effectiveStatus === "backlog")
-  ) {
+  if (assignedToUser && row.statusView.effectiveStatus === "to-do") {
     return {
       reason: "assigned-todo",
       reasonLabel: "Ready to start",
@@ -422,7 +418,7 @@ export const getHome = query({
     )
     const activeRows = taskRows.filter(
       (row) =>
-        isActiveTask(row) &&
+        isNonBacklogOpenTask(row) &&
         (row.competitionId === null ||
           readableCompetitionIds.has(row.competitionId))
     )

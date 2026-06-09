@@ -509,6 +509,11 @@ describe("dashboard home", () => {
 
     expect(actionNeededIds.has(ids.ownedBacklogTaskId)).toBe(false)
     expect(actionNeededIds.has(ids.blockingBacklogTaskId)).toBe(false)
+
+    const assignedWorkIds = new Set(
+      home.assignedWork.map((item) => item.task.task._id)
+    )
+    expect(assignedWorkIds.has(ids.blockingBacklogTaskId)).toBe(false)
   })
 
   test("counts competition work only in the current phase and excludes backlog", async () => {
