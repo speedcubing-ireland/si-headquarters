@@ -6,7 +6,7 @@ const L = TASK_LABEL_CODES
 
 export const standardCompetitionTemplate = {
   key: "standard-competition",
-  version: 3,
+  version: 4,
   name: "Normal Competition",
   description: "Default template for competitions",
   initialPhaseKey: "concept",
@@ -113,11 +113,17 @@ export const standardCompetitionTemplate = {
           owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
           subtasks: [
             {
+              key: "prepare-for-announcement",
+              name: "Check through tasks",
+              description:
+                "Check through tasks to make sure they are all complete and ready for announcement.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+            },
+            {
               key: "preflight-checks",
               name: "Preflight checks",
               description: "Run preflight checks before submitting on WCA.",
               owner: { type: "teamName", teamName: TEAM_NAMES.DELEGATES },
-              assignees: { type: "competitionRole", role: "leadDelegate" },
             },
             {
               key: "prepare-social-media",
@@ -194,7 +200,7 @@ export const standardCompetitionTemplate = {
                 "Prepare final certificate designs for approval and print.",
               owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
               reviewers: [{ type: "teamName", teamName: TEAM_NAMES.GRAPHICS }],
-              labels: [L.design, L.certificates],
+              labels: [L.design],
               integrationIds: ["canva.certificates"],
             },
             {

@@ -253,7 +253,7 @@ describe("competition templates", () => {
 
     expect(stored.application).toBeDefined()
     expect(stored.application.templateKey).toBe("standard-competition")
-    expect(stored.application.templateVersion).toBe(3)
+    expect(stored.application.templateVersion).toBe(4)
     expect(stored.application.generatedCounts.phases).toBe(6)
     expect(stored.application.generatedCounts.tasks).toBeGreaterThan(15)
     expect(stored.application.generatedCounts.blockers).toBe(4)
