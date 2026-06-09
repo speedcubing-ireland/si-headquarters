@@ -122,7 +122,6 @@ import type * as plugins_sponsor_admin_auctions_management from "../plugins/spon
 import type * as plugins_sponsor_admin_auctions_reminders from "../plugins/sponsor/admin/auctions/reminders.js";
 import type * as plugins_sponsor_admin_auctions_shared from "../plugins/sponsor/admin/auctions/shared.js";
 import type * as plugins_sponsor_admin_contacts from "../plugins/sponsor/admin/contacts.js";
-import type * as plugins_sponsor_admin_contactsBackfill from "../plugins/sponsor/admin/contactsBackfill.js";
 import type * as plugins_sponsor_admin_propertyStatus from "../plugins/sponsor/admin/propertyStatus.js";
 import type * as plugins_sponsor_admin_sponsors from "../plugins/sponsor/admin/sponsors.js";
 import type * as plugins_sponsor_auth_accounts from "../plugins/sponsor/auth/accounts.js";
@@ -214,7 +213,6 @@ import type * as subscriptions_index from "../subscriptions/index.js";
 import type * as subscriptions_validators from "../subscriptions/validators.js";
 import type * as tasks_access from "../tasks/access.js";
 import type * as tasks_assignees from "../tasks/assignees.js";
-import type * as tasks_backfillTaskRoot from "../tasks/backfillTaskRoot.js";
 import type * as tasks_blockers_counts from "../tasks/blockers/counts.js";
 import type * as tasks_blockers_loader from "../tasks/blockers/loader.js";
 import type * as tasks_blockers_mutations from "../tasks/blockers/mutations.js";
@@ -392,7 +390,6 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/admin/auctions/reminders": typeof plugins_sponsor_admin_auctions_reminders;
   "plugins/sponsor/admin/auctions/shared": typeof plugins_sponsor_admin_auctions_shared;
   "plugins/sponsor/admin/contacts": typeof plugins_sponsor_admin_contacts;
-  "plugins/sponsor/admin/contactsBackfill": typeof plugins_sponsor_admin_contactsBackfill;
   "plugins/sponsor/admin/propertyStatus": typeof plugins_sponsor_admin_propertyStatus;
   "plugins/sponsor/admin/sponsors": typeof plugins_sponsor_admin_sponsors;
   "plugins/sponsor/auth/accounts": typeof plugins_sponsor_auth_accounts;
@@ -484,7 +481,6 @@ declare const fullApi: ApiFromModules<{
   "subscriptions/validators": typeof subscriptions_validators;
   "tasks/access": typeof tasks_access;
   "tasks/assignees": typeof tasks_assignees;
-  "tasks/backfillTaskRoot": typeof tasks_backfillTaskRoot;
   "tasks/blockers/counts": typeof tasks_blockers_counts;
   "tasks/blockers/loader": typeof tasks_blockers_loader;
   "tasks/blockers/mutations": typeof tasks_blockers_mutations;

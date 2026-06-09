@@ -1,6 +1,6 @@
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
-import { api, internal } from "@/convex/_generated/api"
+import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 import {
@@ -223,42 +223,6 @@ describe("sponsor contacts behavior", () => {
         active: false,
       })
     ).rejects.toBeTruthy()
-  })
-
-  test("backfill creates primary contacts for legacy sponsors", async () => {
-    const t = convexTest(schema, modules)
-    const managerId = await t.run((ctx) => seedDirectorUser(ctx))
-    const now = Date.now()
-    const sponsorId = await t.run((ctx) =>
-      ctx.db.insert("sponsors", {
-        name: "Legacy Sponsor",
-        email: "legacy@example.com",
-        emailNormalized: "legacy@example.com",
-        authUserId: "legacy-auth-user",
-        active: true,
-        createdById: managerId,
-        updatedById: managerId,
-        updatedAt: now,
-      })
-    )
-
-    const result = await t.mutation(
-      internal.plugins.sponsor.admin.contactsBackfill.backfillPrimaryContacts,
-      {}
-    )
-    expect(result.created).toBe(1)
-
-    const contact = await t.run((ctx) =>
-      ctx.db
-        .query("sponsorContacts")
-        .withIndex("by_sponsor", (q) => q.eq("sponsorId", sponsorId))
-        .unique()
-    )
-    expect(contact?.isPrimary).toBe(true)
-    expect(contact?.authUserId).toBe("legacy-auth-user")
-    expect(contact?.portalAccess).toBe(true)
-    expect(contact?.canBid).toBe(true)
-    expect(contact?.receivesCc).toBe(false)
   })
 
   test("non-bidding contact cannot place bids on invited auction", async () => {
