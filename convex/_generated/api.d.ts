@@ -176,6 +176,8 @@ import type * as plugins_wca_scheduleTransferCore from "../plugins/wca/scheduleT
 import type * as plugins_wca_twoFactor from "../plugins/wca/twoFactor.js";
 import type * as plugins_wca_wcifCompetition from "../plugins/wca/wcifCompetition.js";
 import type * as reactions from "../reactions.js";
+import type * as seed_model from "../seed/model.js";
+import type * as seed_mutations from "../seed/mutations.js";
 import type * as sendEmails from "../sendEmails.js";
 import type * as subscriptions_index from "../subscriptions/index.js";
 import type * as subscriptions_validators from "../subscriptions/validators.js";
@@ -408,6 +410,8 @@ declare const fullApi: ApiFromModules<{
   "plugins/wca/twoFactor": typeof plugins_wca_twoFactor;
   "plugins/wca/wcifCompetition": typeof plugins_wca_wcifCompetition;
   reactions: typeof reactions;
+  "seed/model": typeof seed_model;
+  "seed/mutations": typeof seed_mutations;
   sendEmails: typeof sendEmails;
   "subscriptions/index": typeof subscriptions_index;
   "subscriptions/validators": typeof subscriptions_validators;

@@ -18,37 +18,55 @@ bun run convex dev   # links your Convex deployment
 
 **Convex Auth** (Google login for staff):
 
+Setup an auth oauth client in the google cloud dashboard
+Authorised Javascript Origins: http://localhost:5173
+OAuth redirect URI: `{CONVEX_SITE_URL}/api/auth/callback/google`
+The current config restricts emails to `@speedcubingireland.com`.
+
 ```sh
-bunx @convex-dev/auth jwks
+bunx @convex-dev/auth
 bunx convex env set AUTH_GOOGLE_ID "<id>"
 bunx convex env set AUTH_GOOGLE_SECRET "<secret>"
 ```
-
-OAuth redirect URI: `{CONVEX_SITE_URL}/api/auth/callback/google`
-The current config restricts emails to `@speedcubingireland.com`.
 
 **App secrets:**
 
 ```sh
 bunx convex env set SPONSOR_BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-bunx convex env set CLI_AUTH_TOKEN "$(openssl rand -hex 32)"
+openssl rand -hex 32 # note this value, set it in local env also as CLI_AUTH_TOKEN
+bunx convex env set CLI_AUTH_TOKEN "<above_value>"
 ```
 
 **Integration credentials** (all required — see `convex/env.ts`):
 
-| Group         | Keys                                                                           |
-| ------------- | ------------------------------------------------------------------------------ |
-| Service OAuth | `SERVICE_GOOGLE_ID/SECRET`, `SERVICE_WCA_ID/SECRET`, `SERVICE_CANVA_ID/SECRET` |
-| Canva         | `CANVA_CERT_TEMPLATE_ID`, `CANVA_CERT_OUTPUT_FOLDER_ID`, `CANVA_LANYARD_*`     |
-| Discord       | `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`                                        |
-| WCA 2FA       | `WCA_2FA_SECRET`                                                               |
-| Email         | `SPONSORSHIP_EMAIL_SENDER_ADDRESS`, `RESEND_TEST_MODE`                         |
-| URLs          | `SITE_URL`, `SPONSOR_SITE_URL` (optional)                                      |
+WCA Client:
+Redirect URI - http://localhost:3848
+Scopes - public dob email manage_competitions openid profile cms
+
+Canva Client:
+Redirect URI - http://127.0.0.1:3849
+Scopes - I am not bothered to write this down, just guess or use AI :)
+You will need to specify some templates for integrations also
+
+Google Client:
+Redirect URI - http://localhost:3847
+You likely also need to enable various APIs for the project such as sheets/drive
+
+Discord:
+Create a bot and add it to the server. I am not bothered to write the scopes so just guess/use ai :)
+Set DISCORD_GUILD_ID from the server you are using
+Set DISCORD_PUBLIC_KEY from the portal
+Set DISCORD_ACTION_SECRET with random content e.g. `openssl rand -base64 32`
+Set DISCORD_BOT_TOKEN from the portal
+
+In the portal you will need to set the Interactions Endpoint URL with `https://{CONVEX_SITE_URL}/discord/interactions`
+This requires the project to be deployed first as discord confirms the URL.
+
+For a full list of ENV variables you may need to set - check ./convex/\_generated/server.d.ts Env type
 
 After setting service OAuth credentials, exchange tokens:
 
 ```sh
-export CLI_AUTH_TOKEN=<value>
 bun run auth google   # localhost:3847
 bun run auth wca      # localhost:3848
 bun run auth canva    # localhost:3849
@@ -63,6 +81,10 @@ bun run dev
 ```
 
 Starts HQ frontend (`:5173`), sponsor portal (`:5174`), and Convex dev sync in parallel.
+
+After the first deploy (or on a fresh dev deployment), run the bootstrap mutation from the [Convex dashboard](https://dashboard.convex.dev): **`seed/mutations:run`**.
+
+It is idempotent and safe to re-run. It ensures all default teams and task labels exist, and if there is exactly one user with no team assignments yet, adds that user to the Directors team.
 
 ## Deploying
 
