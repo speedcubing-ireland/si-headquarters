@@ -154,10 +154,10 @@ export function AddTaskDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="top-[max(1rem,calc(50svh_-_24rem))] right-4 left-4 max-h-[calc(100svh-2rem)] w-auto max-w-none translate-x-0 translate-y-0 overflow-visible p-0 sm:right-[max(1rem,calc(50%_-_21rem))] sm:left-[max(1rem,calc(50%_-_21rem))] sm:max-w-none">
+      <DialogContent className="top-[max(1rem,calc(50svh-24rem))] right-4 left-4 max-h-[calc(100svh-2rem)] w-auto max-w-none translate-x-0 translate-y-0 overflow-visible p-0 sm:right-[max(1rem,calc(50%-21rem))] sm:left-[max(1rem,calc(50%-21rem))] sm:max-w-none">
         <div
           ref={setPortalContainer}
-          className="pointer-events-none fixed inset-0 z-[60]"
+          className="pointer-events-none fixed inset-0 z-60"
         />
         <ComboboxPortalContainerProvider
           container={portalContainer ?? undefined}
