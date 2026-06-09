@@ -1,9 +1,5 @@
 import { defineOAuthPlugin, type OAuthPluginMeta } from "../oauthProvider"
-
-export const oauthCredentialEnv = {
-  clientId: "SERVICE_CANVA_ID",
-  clientSecret: "SERVICE_CANVA_SECRET",
-} as const
+import { CANVA_OAUTH_ENV } from "@/convex/plugins/canva/definition"
 
 const SCOPE = [
   "design:content:write",
@@ -38,8 +34,8 @@ export const plugin = defineOAuthPlugin({
     authorizationUrl: "https://www.canva.com/api/oauth/authorize",
     tokenUrl: "https://api.canva.com/rest/v1/oauth/token",
     scope: SCOPE,
-    clientIdEnv: oauthCredentialEnv.clientId,
-    clientSecretEnv: oauthCredentialEnv.clientSecret,
+    clientIdEnv: CANVA_OAUTH_ENV.clientId,
+    clientSecretEnv: CANVA_OAUTH_ENV.clientSecret,
     defaultExpiresInSec: 14_400,
     authStyle: "basic",
   },

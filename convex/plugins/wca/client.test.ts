@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { DEPLOYMENT_CONTEXT_ENV } from "@/convex/deploymentContext"
 import { createWcaClient } from "@/convex/plugins/wca/client"
-import { oauthCredentialEnv, plugin } from "@/convex/plugins/wca/oauth"
+import { plugin } from "@/convex/plugins/wca/oauth"
+import { WCA_OAUTH_ENV } from "@/convex/plugins/wca/definition"
 
 describe("WCA deployment-aware URLs", () => {
   afterEach(() => {
@@ -30,7 +31,7 @@ describe("WCA deployment-aware URLs", () => {
 
   test("OAuth authorization URL uses production WCA URL", () => {
     vi.stubEnv(DEPLOYMENT_CONTEXT_ENV, "production")
-    vi.stubEnv(oauthCredentialEnv.clientId, "client-id")
+    vi.stubEnv(WCA_OAUTH_ENV.clientId, "client-id")
 
     const url = new URL(
       plugin.buildAuthorizeUrl({
@@ -46,7 +47,7 @@ describe("WCA deployment-aware URLs", () => {
 
   test("OAuth authorization URL uses staging WCA URL", () => {
     vi.stubEnv(DEPLOYMENT_CONTEXT_ENV, "staging")
-    vi.stubEnv(oauthCredentialEnv.clientId, "client-id")
+    vi.stubEnv(WCA_OAUTH_ENV.clientId, "client-id")
 
     const url = new URL(
       plugin.buildAuthorizeUrl({

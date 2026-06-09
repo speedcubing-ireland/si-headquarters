@@ -10,8 +10,10 @@ export default defineConfig({
   },
   test: {
     environment: "edge-runtime",
+    setupFiles: ["./vitest.setup.ts"],
     include: [
       "convex/**/*.test.{ts,tsx,js,jsx}",
+      "scripts/**/*.test.{ts,tsx,js,jsx}",
       "src/**/*.test.{ts,tsx,js,jsx}",
     ],
   },

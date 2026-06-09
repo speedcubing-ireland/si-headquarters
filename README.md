@@ -16,55 +16,65 @@ bun run convex dev   # links your Convex deployment
 
 ### Environment
 
+Run the setup wizard for a fresh dev deployment:
+
+```sh
+bun run set-convex-env
+```
+
+The wizard targets your Convex dev deployment by default, keeps existing
+deployment values unless you choose to replace them, generates local app
+secrets, and writes the generated `CLI_AUTH_TOKEN` to `.env.local` for the
+OAuth helper.
+
+For another deployment, pass an explicit reference:
+
+```sh
+bun run set-convex-env -- --deployment prod
+```
+
+The wizard prompts for real credentials only. Do not reuse credentials pasted in
+chat or committed files; rotate any secret that has been exposed.
+
 **Convex Auth** (Google login for staff):
 
-Setup an auth oauth client in the google cloud dashboard
-Authorised Javascript Origins: http://localhost:5173
-OAuth redirect URI: `{CONVEX_SITE_URL}/api/auth/callback/google`
+Create an auth OAuth client in the Google Cloud dashboard.
+
+Authorised JavaScript origins:
+
+- `http://localhost:5173`
+
+OAuth redirect URI:
+
+- `{CONVEX_SITE_URL}/api/auth/callback/google`
+
 The current config restricts emails to `@speedcubingireland.com`.
 
-```sh
-bunx @convex-dev/auth
-bunx convex env set AUTH_GOOGLE_ID "<id>"
-bunx convex env set AUTH_GOOGLE_SECRET "<secret>"
-```
-
-**App secrets:**
-
-```sh
-bunx convex env set SPONSOR_BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-openssl rand -hex 32 # note this value, set it in local env also as CLI_AUTH_TOKEN
-bunx convex env set CLI_AUTH_TOKEN "<above_value>"
-```
-
-**Integration credentials** (all required — see `convex/env.ts`):
+**Integration credentials** (all required by the wizard):
 
 WCA Client:
 Redirect URI - http://localhost:3848
-Scopes - public dob email manage_competitions openid profile cms
+Scopes - public email manage_competitions
 
 Canva Client:
 Redirect URI - http://127.0.0.1:3849
-Scopes - I am not bothered to write this down, just guess or use AI :)
-You will need to specify some templates for integrations also
+Scopes - design:content:write design:meta:read folder:read folder:write brandtemplate:meta:read brandtemplate:content:read
+You will need to specify the certificate and lanyard template and output folder IDs.
 
 Google Client:
 Redirect URI - http://localhost:3847
 You likely also need to enable various APIs for the project such as sheets/drive
 
 Discord:
-Create a bot and add it to the server. I am not bothered to write the scopes so just guess/use ai :)
+Create a bot and add it to the server.
 Set DISCORD_GUILD_ID from the server you are using
 Set DISCORD_PUBLIC_KEY from the portal
-Set DISCORD_ACTION_SECRET with random content e.g. `openssl rand -base64 32`
 Set DISCORD_BOT_TOKEN from the portal
 
 In the portal you will need to set the Interactions Endpoint URL with `https://{CONVEX_SITE_URL}/discord/interactions`
 This requires the project to be deployed first as discord confirms the URL.
 
-For a full list of ENV variables you may need to set - check ./convex/\_generated/server.d.ts Env type
-
-After setting service OAuth credentials, exchange tokens:
+After setting service OAuth credentials with the wizard, exchange tokens:
 
 ```sh
 bun run auth google   # localhost:3847

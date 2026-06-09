@@ -4,10 +4,8 @@ function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value
 }
 
-const DEFAULT_HQ_SITE_URL = "https://hq.speedcubingireland.com"
-
 export function resolveHqSiteBaseUrl(): string {
-  return trimTrailingSlash(env.SITE_URL ?? DEFAULT_HQ_SITE_URL)
+  return trimTrailingSlash(env.SITE_URL)
 }
 
 export function hqSiteUrl(path: string): string {
@@ -15,21 +13,11 @@ export function hqSiteUrl(path: string): string {
 }
 
 export function resolveSponsorPortalBaseUrl(): string {
-  return trimTrailingSlash(
-    env.SPONSOR_SITE_URL ??
-      env.SITE_URL ??
-      "https://sponsors.speedcubingireland.com"
-  )
+  return trimTrailingSlash(env.SPONSOR_SITE_URL)
 }
 
 export function resolveSponsorPortalBaseUrlForAuth(): string {
-  return trimTrailingSlash(
-    env.SPONSOR_SITE_URL ??
-      env.SITE_URL ??
-      (process.env.NODE_ENV === "production"
-        ? "https://sponsors.speedcubingireland.com"
-        : "http://localhost:5174")
-  )
+  return trimTrailingSlash(env.SPONSOR_SITE_URL)
 }
 
 export function resolveSponsorPortalOriginForAuth(): string {

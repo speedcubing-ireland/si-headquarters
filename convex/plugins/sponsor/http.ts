@@ -2,6 +2,7 @@ import type { HttpRouter } from "convex/server"
 import { betterAuth } from "better-auth"
 import {
   createSponsorAuthOptions,
+  resolveSponsorAuthRuntimeConfig,
   sponsorAuthComponent,
 } from "@/convex/plugins/sponsor/auth/server"
 import { env } from "@/convex/_generated/server"
@@ -50,7 +51,10 @@ export function registerSponsorHttpRoutes(http: HttpRouter): void {
     http,
     (ctx) =>
       betterAuth(
-        createSponsorAuthOptions(ctx, { requireConfiguredSecret: false })
+        createSponsorAuthOptions(
+          ctx,
+          resolveSponsorAuthRuntimeConfig({ requireConfiguredSecret: false })
+        )
       ),
     {
       cors: {

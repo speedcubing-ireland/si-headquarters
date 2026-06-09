@@ -4,8 +4,29 @@ import {
   uniqueOrigins,
   resolveSponsorAuthSecret,
   buildSponsorOtpEmail,
+  createSponsorAuth,
   createSponsorAuthOptions,
+  SPONSOR_AUTH_ANALYSIS_CONFIG,
 } from "./server"
+
+type RestorableEnvKey =
+  | "BETTER_AUTH_SECRET"
+  | "SITE_URL"
+  | "SPONSOR_BETTER_AUTH_SECRET"
+  | "SPONSOR_SITE_URL"
+
+function restoreEnv(key: RestorableEnvKey, value: string | undefined) {
+  if (value !== undefined) {
+    process.env[key] = value
+    return
+  }
+
+  if (key === "SITE_URL") delete process.env.SITE_URL
+  else if (key === "SPONSOR_SITE_URL") delete process.env.SPONSOR_SITE_URL
+  else if (key === "SPONSOR_BETTER_AUTH_SECRET")
+    delete process.env.SPONSOR_BETTER_AUTH_SECRET
+  else delete process.env.BETTER_AUTH_SECRET
+}
 
 describe("trimTrailingSlash", () => {
   test("removes trailing slash", () => {
@@ -111,10 +132,36 @@ describe("createSponsorAuthOptions", () => {
     runAction: () => Promise.resolve(),
   } as unknown as Parameters<typeof createSponsorAuthOptions>[0]
 
+  test("does not read Convex env during adapter schema analysis", async () => {
+    const savedSiteUrl = process.env.SITE_URL
+    const savedSponsorSiteUrl = process.env.SPONSOR_SITE_URL
+    const savedSponsorSecret = process.env.SPONSOR_BETTER_AUTH_SECRET
+    const savedBetterAuthSecret = process.env.BETTER_AUTH_SECRET
+    delete process.env.SITE_URL
+    delete process.env.SPONSOR_SITE_URL
+    delete process.env.SPONSOR_BETTER_AUTH_SECRET
+    delete process.env.BETTER_AUTH_SECRET
+
+    const options = createSponsorAuthOptions(
+      fakeCtx,
+      SPONSOR_AUTH_ANALYSIS_CONFIG
+    )
+    const adapter = await import("./component/sponsorAuth/adapter")
+
+    restoreEnv("SITE_URL", savedSiteUrl)
+    restoreEnv("SPONSOR_SITE_URL", savedSponsorSiteUrl)
+    restoreEnv("SPONSOR_BETTER_AUTH_SECRET", savedSponsorSecret)
+    restoreEnv("BETTER_AUTH_SECRET", savedBetterAuthSecret)
+
+    expect(options.baseURL).toBe("http://localhost:3210")
+    expect(options.trustedOrigins).toContain("http://localhost:5174")
+    expect(adapter.create).toBeDefined()
+  })
+
   test("uses email OTP only (no password or passkey)", () => {
     let options: ReturnType<typeof createSponsorAuthOptions>
     try {
-      options = createSponsorAuthOptions(fakeCtx)
+      options = createSponsorAuthOptions(fakeCtx, SPONSOR_AUTH_ANALYSIS_CONFIG)
     } catch {
       return
     }
@@ -125,6 +172,22 @@ describe("createSponsorAuthOptions", () => {
     expect(
       (options.plugins ?? []).find((p) => p.id === "email-otp")
     ).toBeDefined()
+  })
+
+  test("runtime auth requires a configured production secret", () => {
+    const savedSponsorSecret = process.env.SPONSOR_BETTER_AUTH_SECRET
+    const savedBetterAuthSecret = process.env.BETTER_AUTH_SECRET
+    delete process.env.SPONSOR_BETTER_AUTH_SECRET
+    delete process.env.BETTER_AUTH_SECRET
+
+    try {
+      expect(() => createSponsorAuth(fakeCtx)).toThrow(
+        "Missing BETTER_AUTH_SECRET"
+      )
+    } finally {
+      restoreEnv("SPONSOR_BETTER_AUTH_SECRET", savedSponsorSecret)
+      restoreEnv("BETTER_AUTH_SECRET", savedBetterAuthSecret)
+    }
   })
 })
 

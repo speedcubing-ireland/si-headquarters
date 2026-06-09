@@ -14,7 +14,18 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["bun"]
+    "types": ["bun"],
+    "paths": {
+      "@/convex/*": ["../convex/*"],
+      "@/*": ["../src/*"]
+    }
   },
-  "include": ["**/*.ts"]
+  "include": [
+    "**/*.ts",
+    "../convex/envConfig.ts",
+    "../convex/plugins/canva/definition.ts",
+    "../convex/plugins/discord/definition.ts",
+    "../convex/plugins/google/definition.ts",
+    "../convex/plugins/wca/definition.ts"
+  ]
 }

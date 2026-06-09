@@ -1,14 +1,13 @@
 import type { SponsorPortalOtpEmailProps } from "@/convex/plugins/sponsor/lib/validators"
-import {
-  sponsorshipAdminPageUrl,
-  sponsorPortalAuctionsIndexUrl,
-  sponsorPortalLoginUrl,
-} from "@/convex/plugins/sponsor/siteUrls"
-import { sponsorPortalGuideUrl } from "@/convex/plugins/sponsor/siteUrls"
 
 const competitionName = "Irish Open 2026"
 const recipientName = "Sponsor Team"
-const portalUrl = sponsorPortalAuctionsIndexUrl()
+const portalBaseUrl = "https://sponsors.speedcubingireland.com"
+const hqBaseUrl = "https://hq.speedcubingireland.com"
+const portalLoginUrl = `${portalBaseUrl}/login`
+const portalAuctionsUrl = `${portalBaseUrl}/auctions`
+const portalGuideUrl = `${portalBaseUrl}/guide`
+const adminUrl = `${hqBaseUrl}/plugins/sponsorship`
 
 const auctionTimestamps = {
   startsAt: Date.now() + 3 * 24 * 60 * 60 * 1000,
@@ -18,26 +17,26 @@ const auctionTimestamps = {
 const auctionContext = {
   recipientName,
   competitionName,
-  portalUrl,
+  portalUrl: portalAuctionsUrl,
   ...auctionTimestamps,
 } as const
 
 export const fixtures = {
   invite: {
     sponsorName: "Example Sponsor",
-    portalUrl: sponsorPortalLoginUrl(),
+    portalUrl: portalLoginUrl,
   },
   otpSignIn: {
     otp: "847291",
     purposeLabel: "sign in",
     expiresInMinutes: 60,
-    portalUrl: sponsorPortalLoginUrl(),
+    portalUrl: portalLoginUrl,
   } satisfies SponsorPortalOtpEmailProps,
   auctionScheduled: {
     variant: "auction_scheduled",
     ...auctionContext,
     framework: "first_sealed",
-    frameworkGuideUrl: sponsorPortalGuideUrl(),
+    frameworkGuideUrl: portalGuideUrl,
     startPriceCents: 10_000,
     currency: "EUR",
   },
@@ -45,7 +44,7 @@ export const fixtures = {
     variant: "auction_active_reminder",
     recipientName,
     competitionName,
-    portalUrl,
+    portalUrl: portalAuctionsUrl,
     endsAt: Date.now() + 60 * 60 * 1000,
     sponsorHasBid: true,
   },
@@ -53,7 +52,7 @@ export const fixtures = {
     variant: "auction_ebay_outbid",
     recipientName,
     competitionName,
-    portalUrl,
+    portalUrl: portalAuctionsUrl,
     endsAt: auctionTimestamps.endsAt,
   },
   auctionStarted: {
@@ -65,31 +64,31 @@ export const fixtures = {
     recipientName,
     competitionName,
     settlementAmountCents: 125_000,
-    portalUrl,
+    portalUrl: portalAuctionsUrl,
   },
   auctionClosedOutbid: {
     variant: "auction_closed_outbid",
     recipientName,
     competitionName,
-    portalUrl,
+    portalUrl: portalAuctionsUrl,
   },
   auctionClosedNone: {
     variant: "auction_closed_none",
     recipientName,
     competitionName,
-    portalUrl,
+    portalUrl: portalAuctionsUrl,
   },
   internalInvoiceWinner: {
     competitionName,
     winnerSponsorName: "Example Sponsor",
     settlementAmountCents: 125_000,
-    adminUrl: sponsorshipAdminPageUrl(),
+    adminUrl,
     message:
       "Winner confirmed: Example Sponsor at EUR 1250.00. Send invoice follow-up.",
   },
   internalInvoiceNoWinner: {
     competitionName,
-    adminUrl: sponsorshipAdminPageUrl(),
+    adminUrl,
     message: "No winning sponsor. Mark competition sponsorship status as None.",
   },
 } as const

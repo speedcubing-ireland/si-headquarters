@@ -22,6 +22,7 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsgo -p convex/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit",
     "auth": "bun scripts/auth.ts",
+    "set-convex-env": "bun scripts/set-convex-env.ts",
     "preview": "vite preview",
     "openapi-ts": "openapi-ts",
     "email:dev": "email dev --dir convex/plugins/sponsor/emails --port 3000"

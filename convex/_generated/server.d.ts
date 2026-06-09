@@ -25,6 +25,8 @@ import type { DataModel } from "./dataModel.js";
  * Typesafe environment variables declared in `convex.config.ts`.
  */
 type Env = {
+  readonly AUTH_GOOGLE_ID: string;
+  readonly AUTH_GOOGLE_SECRET: string;
   readonly BETTER_AUTH_SECRET: string | undefined;
   readonly CANVA_CERT_OUTPUT_FOLDER_ID: string;
   readonly CANVA_CERT_TEMPLATE_ID: string;
@@ -37,17 +39,20 @@ type Env = {
   readonly DISCORD_BOT_TOKEN: string;
   readonly DISCORD_GUILD_ID: string;
   readonly DISCORD_PUBLIC_KEY: string;
-  readonly RESEND_TEST_MODE: "true" | "false" | undefined;
+  readonly JWKS: string;
+  readonly JWT_PRIVATE_KEY: string;
+  readonly RESEND_API_KEY: string;
+  readonly RESEND_TEST_MODE: "true" | "false";
   readonly SERVICE_CANVA_ID: string;
   readonly SERVICE_CANVA_SECRET: string;
   readonly SERVICE_GOOGLE_ID: string;
   readonly SERVICE_GOOGLE_SECRET: string;
   readonly SERVICE_WCA_ID: string;
   readonly SERVICE_WCA_SECRET: string;
-  readonly SITE_URL: string | undefined;
-  readonly SPONSORSHIP_EMAIL_SENDER_ADDRESS: string | undefined;
+  readonly SITE_URL: string;
+  readonly SPONSORSHIP_EMAIL_SENDER_ADDRESS: string;
   readonly SPONSOR_BETTER_AUTH_SECRET: string;
-  readonly SPONSOR_SITE_URL: string | undefined;
+  readonly SPONSOR_SITE_URL: string;
   readonly VITE_SITE_URL: string | undefined;
   readonly WCA_2FA_SECRET: string;
 };

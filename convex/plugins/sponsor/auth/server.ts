@@ -34,6 +34,24 @@ interface SponsorAuthSecretSource {
   readonly BETTER_AUTH_SECRET: string | undefined
 }
 
+export interface SponsorAuthRuntimeConfig {
+  readonly baseUrl: string
+  readonly sponsorSiteOrigin: string
+  readonly secret: string
+  readonly siteUrl: string | undefined
+  readonly sponsorSiteUrl: string | undefined
+  readonly nextPublicSiteUrl: string | undefined
+}
+
+export const SPONSOR_AUTH_ANALYSIS_CONFIG = {
+  baseUrl: "http://localhost:3210",
+  sponsorSiteOrigin: "http://localhost:5174",
+  secret: SPONSOR_AUTH_DEV_SECRET,
+  siteUrl: undefined,
+  sponsorSiteUrl: undefined,
+  nextPublicSiteUrl: undefined,
+} as const satisfies SponsorAuthRuntimeConfig
+
 export function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value
 }
@@ -71,6 +89,20 @@ export function resolveSponsorAuthSecret(
   return SPONSOR_AUTH_DEV_SECRET
 }
 
+export function resolveSponsorAuthRuntimeConfig(options?: {
+  requireConfiguredSecret?: boolean
+}): SponsorAuthRuntimeConfig {
+  return {
+    baseUrl:
+      process.env.CONVEX_SITE_URL ?? SPONSOR_AUTH_ANALYSIS_CONFIG.baseUrl,
+    sponsorSiteOrigin: resolveSponsorSiteOrigin(),
+    secret: resolveSponsorAuthSecret(options?.requireConfiguredSecret ?? false),
+    siteUrl: env.SITE_URL,
+    sponsorSiteUrl: env.SPONSOR_SITE_URL,
+    nextPublicSiteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+  }
+}
+
 export async function buildSponsorOtpEmail(args: {
   email: string
   otp: string
@@ -104,19 +136,13 @@ export const sponsorAuthComponent = createClient<DataModel, typeof schema>(
 
 export function createSponsorAuthOptions(
   ctx: GenericCtx<DataModel>,
-  options?: { requireConfiguredSecret?: boolean }
+  config: SponsorAuthRuntimeConfig
 ): BetterAuthOptions {
-  const baseUrl = process.env.CONVEX_SITE_URL ?? "http://localhost:3210"
-  const sponsorSiteOrigin = resolveSponsorSiteOrigin()
-  const secret = resolveSponsorAuthSecret(
-    options?.requireConfiguredSecret ?? false
-  )
-
   const trustedOrigins = uniqueOrigins([
-    env.SPONSOR_SITE_URL,
-    env.SITE_URL,
-    process.env.NEXT_PUBLIC_SITE_URL,
-    sponsorSiteOrigin,
+    config.sponsorSiteUrl,
+    config.siteUrl,
+    config.nextPublicSiteUrl,
+    config.sponsorSiteOrigin,
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:3000",
@@ -125,9 +151,9 @@ export function createSponsorAuthOptions(
 
   return {
     appName: "Speedcubing Ireland Sponsor Portal",
-    baseURL: trimTrailingSlash(baseUrl),
+    baseURL: trimTrailingSlash(config.baseUrl),
     basePath: SPONSOR_AUTH_BASE_PATH,
-    secret,
+    secret: config.secret,
     trustedOrigins,
     database: sponsorAuthComponent.adapter(ctx),
     user: {
@@ -148,7 +174,7 @@ export function createSponsorAuthOptions(
     },
     plugins: [
       crossDomain({
-        siteUrl: sponsorSiteOrigin,
+        siteUrl: config.sponsorSiteOrigin,
       }),
       emailOTP({
         disableSignUp: true,
@@ -180,8 +206,9 @@ export function createSponsorAuthOptions(
 
 export function createSponsorAuth(ctx: GenericCtx<DataModel>) {
   return betterAuth(
-    createSponsorAuthOptions(ctx, {
-      requireConfiguredSecret: true,
-    })
+    createSponsorAuthOptions(
+      ctx,
+      resolveSponsorAuthRuntimeConfig({ requireConfiguredSecret: true })
+    )
   )
 }
