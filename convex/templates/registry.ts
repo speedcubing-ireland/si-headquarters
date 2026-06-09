@@ -6,7 +6,7 @@ const L = TASK_LABEL_CODES
 
 export const standardCompetitionTemplate = {
   key: "standard-competition",
-  version: 2,
+  version: 3,
   name: "Normal Competition",
   description: "Default template for competitions",
   initialPhaseKey: "concept",
@@ -44,9 +44,27 @@ export const standardCompetitionTemplate = {
           description: `Confirm the venue booking:
 - Ensure deposit is paid when required and logged in budget sheet
 - Add booking confirmation to the competition's google drive folder`,
+          kind: "flow",
           owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
           reviewers: [{ type: "teamName", teamName: TEAM_NAMES.FINANCE }],
-          labels: [L.venue, L.budget],
+          labels: [L.venue],
+          subtasks: [
+            {
+              key: "venue-booking-confirmed",
+              name: "Venue Booking Confirmed",
+              description:
+                "Confirm the venue booking and add confirmation to the competition's google drive folder.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+            },
+            {
+              key: "deposit-paid-and-logged",
+              name: "Deposit paid and logged",
+              description:
+                "Ensure deposit is paid when required and logged in budget sheet.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+              labels: [L.budget],
+            },
+          ],
         },
         {
           key: "schedule-made",
@@ -64,15 +82,57 @@ export const standardCompetitionTemplate = {
           key: "sponsorship",
           name: "Sponsorship",
           description: "Secure sponsors and update sponsorship details.",
-          owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+          kind: "flow",
+          owner: { type: "teamName", teamName: TEAM_NAMES.FINANCE },
           labels: [L.sponsors],
+          blockedBy: ["venue-booked", "schedule-made"],
           subtasks: [
             {
-              key: "sponsor-bidding",
-              name: "Sponsor bidding",
-              description: "Allow sponsors to bid for this competition",
+              key: "sponsor-bidding-complete",
+              name: "Bidding Complete and Budget Updated",
+              description:
+                "Complete sponsor bidding and update the competition budget.",
               owner: { type: "teamName", teamName: TEAM_NAMES.FINANCE },
-              labels: [L.sponsors],
+              labels: [L.budget],
+            },
+            {
+              key: "wca-page-updated",
+              name: "WCA Page updated",
+              description:
+                "Update the WCA competition page with sponsorship details.",
+              assignees: { type: "competitionRole", role: "compLead" },
+            },
+          ],
+        },
+        {
+          key: "submit-competition",
+          name: "Submit competition",
+          description:
+            "Run preflight checks and submit the competition on WCA.",
+          kind: "flow",
+          owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+          subtasks: [
+            {
+              key: "preflight-checks",
+              name: "Preflight checks",
+              description: "Run preflight checks before submitting on WCA.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.DELEGATES },
+              assignees: { type: "competitionRole", role: "leadDelegate" },
+            },
+            {
+              key: "prepare-social-media",
+              name: "Prepare social media",
+              description:
+                "Prepare social media assets and copy for the competition announcement.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.SOCIAL_MEDIA },
+              assignees: "assignable",
+            },
+            {
+              key: "submit-on-wca",
+              name: "Submit on WCA",
+              description: "Submit the competition on the WCA website.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.DELEGATES },
+              assignees: { type: "competitionRole", role: "leadDelegate" },
             },
           ],
         },
@@ -90,6 +150,7 @@ export const standardCompetitionTemplate = {
 - Post competition announcement in Discord and open a discussion thread
 - Publish competition announcement and registration posts to social channels`,
           owner: { type: "teamName", teamName: TEAM_NAMES.SOCIAL_MEDIA },
+          assignees: "assignable",
           labels: [L.promotion],
           subtasks: [
             {
@@ -97,6 +158,14 @@ export const standardCompetitionTemplate = {
               name: "Instagram and Facebook posts published",
               description:
                 "Publish competition announcement and registration posts to social channels.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.SOCIAL_MEDIA },
+              labels: [L.promotion],
+            },
+            {
+              key: "discord-thread-made",
+              name: "Discord Thread Made",
+              description:
+                "Post competition announcement in Discord and open a discussion thread.",
               owner: { type: "teamName", teamName: TEAM_NAMES.SOCIAL_MEDIA },
               labels: [L.promotion],
             },
@@ -111,15 +180,16 @@ export const standardCompetitionTemplate = {
           labels: [L.registration],
         },
         {
-          key: "certificates-ready",
-          name: "Certificates ready",
+          key: "podium-certificates",
+          name: "Podium Certificates",
           description: "Design and order certificates for the competition.",
+          kind: "flow",
           owner: { type: "teamName", teamName: TEAM_NAMES.FINANCE },
-          labels: [L.printing],
+          labels: [L.certificates],
           subtasks: [
             {
-              key: "certificates-designed",
-              name: "Certificates designed",
+              key: "design-certificate",
+              name: "Design Certificate",
               description:
                 "Prepare final certificate designs for approval and print.",
               owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
@@ -127,16 +197,14 @@ export const standardCompetitionTemplate = {
               labels: [L.design, L.certificates],
               integrationIds: ["canva.certificates"],
             },
+            {
+              key: "certificates-ordered",
+              name: "Certificates Ordered",
+              description: "Order certificates for the competition.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.FINANCE },
+              labels: [L.printing],
+            },
           ],
-        },
-        {
-          key: "lanyard-designed",
-          name: "Lanyard designed",
-          description: "Create and approve the lanyard design for event use.",
-          owner: { type: "teamName", teamName: TEAM_NAMES.GRAPHICS },
-          reviewers: [{ type: "teamName", teamName: TEAM_NAMES.GRAPHICS }],
-          labels: [L.design],
-          integrationIds: ["canva.lanyards"],
         },
       ],
     },
@@ -146,18 +214,27 @@ export const standardCompetitionTemplate = {
       color: "amber",
       tasks: [
         {
-          key: "groups-and-printing",
-          name: "Groups and printing done",
-          description: `Finalize groups and print all required competition materials:
+          key: "waiting-list-emailed",
+          name: "Waiting list emailed and refunded",
+          description:
+            "Email the waiting list and process refunds for unaccepted registrations.",
+          owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+          labels: [L.registration],
+        },
+        {
+          key: "groups-ready",
+          name: "Groups Ready",
+          description: `Finalize groups and prepare registration materials:
 - Adjust the schedule based on final registrations and event load
 - Generate final groups using approved grouping tools
-- Print scorecards and lanyards from approved design files`,
+- Prepare check-in sheets for registration desk operations`,
+          kind: "flow",
           owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
-          labels: [L.registration, L.printing],
+          labels: [L.registration],
           subtasks: [
             {
               key: "schedule-finalised",
-              name: "Schedule finalised for actual registration numbers",
+              name: "Schedule finalised for registration numbers",
               description:
                 "Adjust the schedule based on final registrations and event load.",
               owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
@@ -172,15 +249,59 @@ export const standardCompetitionTemplate = {
               owner: { type: "teamName", teamName: TEAM_NAMES.DELEGATES },
               labels: [L.registration],
             },
+            {
+              key: "check-in-sheet-ready",
+              name: "Check-in sheet ready",
+              description:
+                "Prepare check-in sheets for registration desk operations.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+              labels: [L.registration],
+              integrationIds: ["sheet.populate-checkin"],
+            },
           ],
         },
         {
-          key: "waiting-list-emailed",
-          name: "Waiting list emailed and refunded",
-          description:
-            "Email the waiting list and process refunds for unaccepted registrations.",
+          key: "printing-complete",
+          name: "Printing Complete",
+          description: `Print all required competition materials:
+- Design and print lanyards from approved design files
+- Print scorecards
+- Make badges`,
           owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
-          labels: [L.registration, L.budget],
+          labels: [L.printing],
+          blockedBy: ["groups-ready"],
+          subtasks: [
+            {
+              key: "lanyards-designed",
+              name: "Lanyards designed",
+              description:
+                "Create and approve the lanyard design for event use.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+              labels: [L.design],
+              integrationIds: ["canva.lanyards"],
+            },
+            {
+              key: "lanyards-printed",
+              name: "Lanyards printed",
+              description: "Print lanyards from approved design files.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+              labels: [L.printing],
+            },
+            {
+              key: "scorecards-printed",
+              name: "Scorecards printed",
+              description: "Print scorecards for the competition.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+              labels: [L.printing],
+            },
+            {
+              key: "badges-made",
+              name: "Badges made",
+              description: "Make badges for the competition.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.MERCH },
+              labels: [L.printing],
+            },
+          ],
         },
         {
           key: "pre-comp-email",
@@ -189,15 +310,7 @@ export const standardCompetitionTemplate = {
             "Write and send pre-competition information email to competitors.",
           owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
           labels: [L.registration],
-        },
-        {
-          key: "check-in-sheet",
-          name: "Check-in sheet ready for registration",
-          description:
-            "Prepare check-in sheets for registration desk operations.",
-          owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
-          labels: [L.registration],
-          integrationIds: ["sheet.populate-checkin"],
+          blockedBy: ["groups-ready"],
         },
       ],
     },
@@ -214,19 +327,39 @@ export const standardCompetitionTemplate = {
           labels: [L.budget],
         },
         {
-          key: "podium-photos-posted",
-          name: "Podium photos posted",
-          description: "Publish podium photos after competition completion.",
-          owner: { type: "teamName", teamName: TEAM_NAMES.SOCIAL_MEDIA },
-          labels: [L.promotion],
+          key: "report-submitted",
+          name: "Report submitted",
+          description: "Submit the competition report on WCA.",
+          owner: { type: "teamName", teamName: TEAM_NAMES.DELEGATES },
+          assignees: { type: "competitionRole", role: "leadDelegate" },
         },
         {
-          key: "final-budget-filled",
-          name: "Final budget filled out",
-          description:
-            "Complete final budget reconciliation and close out finance records.",
-          owner: { type: "teamName", teamName: TEAM_NAMES.FINANCE },
-          labels: [L.budget],
+          key: "post-comp-social-media",
+          name: "Post-Competition Social Media",
+          description: "Publish post-competition photos across key channels.",
+          kind: "flow",
+          owner: { type: "teamName", teamName: TEAM_NAMES.SOCIAL_MEDIA },
+          labels: [L.promotion],
+          subtasks: [
+            {
+              key: "podium-photos-discord",
+              name: "Podium photos in Discord",
+              description:
+                "Share podium photos in the competition Discord thread.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
+              assignees: "assignable",
+              labels: [L.promotion],
+            },
+            {
+              key: "podium-competition-photos-posted",
+              name: "Podium and Competition photos posted",
+              description:
+                "Publish podium and competition photos to social channels.",
+              owner: { type: "teamName", teamName: TEAM_NAMES.SOCIAL_MEDIA },
+              assignees: "assignable",
+              labels: [L.promotion],
+            },
+          ],
         },
       ],
     },

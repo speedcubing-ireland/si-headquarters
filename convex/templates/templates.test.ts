@@ -26,6 +26,7 @@ async function seedTemplateActors() {
     await ensureTeamByName(ctx, TEAM_NAMES.SOCIAL_MEDIA)
     await ensureTeamByName(ctx, TEAM_NAMES.GRAPHICS)
     await ensureTeamByName(ctx, TEAM_NAMES.FINANCE)
+    await ensureTeamByName(ctx, TEAM_NAMES.MERCH)
 
     return {
       actorId,
@@ -99,6 +100,7 @@ describe("competition templates", () => {
       "Size and venue picked"
     )
     expect(preview.counts.tasks).toBeGreaterThan(15)
+    expect(preview.counts.blockers).toBeGreaterThan(0)
   })
 
   test("creates a competition from the standard template", async () => {
@@ -134,6 +136,7 @@ describe("competition templates", () => {
       const taskByName = new Map(tasks.map((task) => [task.name, task]))
       const reviewers = await ctx.db.query("taskReviewers").collect()
       const integrations = await ctx.db.query("taskIntegrations").collect()
+      const blockers = await ctx.db.query("taskBlockers").collect()
       const applications = await ctx.db
         .query("competitionTemplateApplications")
         .withIndex("by_competitionId", (q) =>
@@ -141,16 +144,44 @@ describe("competition templates", () => {
         )
         .collect()
 
+      const blockingTaskNames = (blockedTaskId: string) =>
+        blockers
+          .filter((row) => row.blockedTaskId === blockedTaskId)
+          .map((row) => {
+            const task = tasks.find((entry) => entry._id === row.blockingTaskId)
+            return task?.name ?? null
+          })
+          .filter((name): name is string => name !== null)
+          .sort()
+
+      const venueBooked = taskByName.get("Venue booked")
+      const lanyardsDesigned = taskByName.get("Lanyards designed")
+      const checkInSheetReady = taskByName.get("Check-in sheet ready")
+
       return {
         application: applications[0],
+        blockers,
+        checkInSheetReadyTaskId: checkInSheetReady?._id ?? null,
         competition,
         integrations,
+        lanyardsDesignedTaskId: lanyardsDesigned?._id ?? null,
         phaseNames: phases.map((phase) => phase.name),
         phaseTasks,
         reviewerCount: reviewers.length,
         scheduleTask: taskByName.get("Schedule made"),
+        sponsorshipBlockers: blockingTaskNames(
+          taskByName.get("Sponsorship")?._id ?? ""
+        ),
+        printingCompleteBlockers: blockingTaskNames(
+          taskByName.get("Printing Complete")?._id ?? ""
+        ),
+        preCompEmailBlockers: blockingTaskNames(
+          taskByName.get("Pre-comp email written and sent")?._id ?? ""
+        ),
+        taskNames: tasks.map((task) => task.name),
+        venueBookedKind: venueBooked?.kind ?? null,
         venueBookedReviewers: reviewers.filter(
-          (row) => row.taskId === taskByName.get("Venue booked")?._id
+          (row) => row.taskId === venueBooked?._id
         ).length,
       }
     })
@@ -170,6 +201,7 @@ describe("competition templates", () => {
         ?.status
     ).toBe("to-do")
     expect(stored.scheduleTask?.name).toBe("Schedule made")
+    expect(stored.venueBookedKind).toBe("flow")
     expect(stored.venueBookedReviewers).toBeGreaterThan(0)
     expect(stored.reviewerCount).toBeGreaterThan(0)
     expect(stored.integrations.map((row) => row.integrationId).sort()).toEqual([
@@ -178,10 +210,52 @@ describe("competition templates", () => {
       "sheet.populate-checkin",
       "sheet.transfer-schedule-to-wca",
     ])
+    expect(
+      stored.integrations.find((row) => row.integrationId === "canva.lanyards")
+        ?.taskId
+    ).toBe(stored.lanyardsDesignedTaskId)
+    expect(
+      stored.integrations.find(
+        (row) => row.integrationId === "sheet.populate-checkin"
+      )?.taskId
+    ).toBe(stored.checkInSheetReadyTaskId)
+
+    for (const taskName of [
+      "Submit competition",
+      "Podium Certificates",
+      "Printing Complete",
+      "Report submitted",
+      "Post-Competition Social Media",
+      "Discord Thread Made",
+      "Groups Ready",
+    ]) {
+      expect(stored.taskNames).toContain(taskName)
+    }
+
+    for (const taskName of [
+      "Lanyard designed",
+      "Final budget filled out",
+      "Podium photos posted",
+      "Check-in sheet ready for registration",
+      "Groups and printing done",
+      "Certificates ready",
+    ]) {
+      expect(stored.taskNames).not.toContain(taskName)
+    }
+
+    expect(stored.sponsorshipBlockers).toEqual([
+      "Schedule made",
+      "Venue booked",
+    ])
+    expect(stored.printingCompleteBlockers).toEqual(["Groups Ready"])
+    expect(stored.preCompEmailBlockers).toEqual(["Groups Ready"])
+    expect(stored.blockers.length).toBe(4)
+
     expect(stored.application).toBeDefined()
     expect(stored.application.templateKey).toBe("standard-competition")
-    expect(stored.application.templateVersion).toBe(2)
+    expect(stored.application.templateVersion).toBe(3)
     expect(stored.application.generatedCounts.phases).toBe(6)
     expect(stored.application.generatedCounts.tasks).toBeGreaterThan(15)
+    expect(stored.application.generatedCounts.blockers).toBe(4)
   })
 })
