@@ -207,14 +207,14 @@ describe("admin impersonation", () => {
     const director = t.withIdentity({ subject: directorId })
 
     const link = await director.mutation(
-      api.impersonation.mutations.createSponsorLink,
+      api.plugins.sponsor.impersonation.createLink,
       {
         sponsorId,
         reason: "Support request",
       }
     )
     const redeemed = await t.mutation(
-      api.impersonation.mutations.redeemSponsorToken,
+      api.plugins.sponsor.impersonation.redeemToken,
       {
         token: tokenFromUrl(link.url),
       }
@@ -276,7 +276,7 @@ describe("admin impersonation", () => {
     )
 
     const link = await director.mutation(
-      api.impersonation.mutations.createSponsorLink,
+      api.plugins.sponsor.impersonation.createLink,
       {
         sponsorId,
         contactId: ccContactId,
@@ -284,7 +284,7 @@ describe("admin impersonation", () => {
       }
     )
     const redeemed = await t.mutation(
-      api.impersonation.mutations.redeemSponsorToken,
+      api.plugins.sponsor.impersonation.redeemToken,
       {
         token: tokenFromUrl(link.url),
       }
@@ -308,7 +308,7 @@ describe("admin impersonation", () => {
     const director = t.withIdentity({ subject: directorId })
 
     await expect(
-      director.mutation(api.impersonation.mutations.createSponsorLink, {
+      director.mutation(api.plugins.sponsor.impersonation.createLink, {
         sponsorId,
         reason: "Support request",
       })

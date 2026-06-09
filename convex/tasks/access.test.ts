@@ -150,7 +150,7 @@ describe("task access", () => {
     })
 
     const child = await t.run(async (ctx) => ctx.db.get("tasks", childId))
-    expect(child?.rootPhaseId).toBe(phaseId)
-    expect(child?.rootCompetitionId).toBe(competitionId)
+    expect(child?.rootPhase.id).toBe(phaseId)
+    expect(child?.root).toEqual({ type: "competitions", id: competitionId })
   })
 })

@@ -4,7 +4,7 @@ import type { Id, Doc } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
 import { v } from "convex/values"
 import { subscribableObjectRef } from "@/convex/subscriptions/validators"
-import { requireCompetitionForRead } from "@/convex/plugins/core/authorize"
+import { requireScopedObjectForRead } from "@/convex/access/scopedObject"
 import { requireTaskReadAccess } from "@/convex/tasks/access"
 
 async function getSubscriptionRecordId(
@@ -29,8 +29,8 @@ async function requireSubscribableReadAccess(
   ctx: QueryCtx | MutationCtx,
   object: Doc<"subscriptions">["object"]
 ) {
-  if (object.type === "competitions") {
-    await requireCompetitionForRead(ctx, object.id)
+  if (object.type === "competitions" || object.type === "projects") {
+    await requireScopedObjectForRead(ctx, object)
     return
   }
   await requireTaskReadAccess(ctx, object.id)

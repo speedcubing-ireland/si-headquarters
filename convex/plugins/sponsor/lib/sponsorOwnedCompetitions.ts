@@ -13,10 +13,10 @@ export type SponsorSponsorshipListItem = Infer<
 
 export function sponsorOwnsCompetition(input: {
   sponsorId: Id<"sponsors">
-  competition: Pick<Doc<"competitions">, "manualSponsorId">
+  override: Pick<Doc<"competitionSponsorOverrides">, "manualSponsorId"> | null
   auctions: Pick<Doc<"sponsorshipAuctions">, "state" | "winnerSponsorId">[]
 }): boolean {
-  if (input.competition.manualSponsorId === input.sponsorId) {
+  if (input.override?.manualSponsorId === input.sponsorId) {
     return true
   }
   return input.auctions.some(
@@ -41,6 +41,10 @@ export function buildSponsorSponsorshipListItems(input: {
   sponsorId: Id<"sponsors">
   auctions: Doc<"sponsorshipAuctions">[]
   competitionsById: Map<Id<"competitions">, Doc<"competitions">>
+  overridesByCompetitionId: Map<
+    Id<"competitions">,
+    Doc<"competitionSponsorOverrides"> | null
+  >
   now?: number
 }): SponsorSponsorshipListItem[] {
   const auctionsByCompetition = new Map<
@@ -61,7 +65,7 @@ export function buildSponsorSponsorshipListItems(input: {
     if (
       !sponsorOwnsCompetition({
         sponsorId: input.sponsorId,
-        competition,
+        override: input.overridesByCompetitionId.get(competitionId) ?? null,
         auctions: competitionAuctions,
       })
     ) {

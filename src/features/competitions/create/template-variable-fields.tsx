@@ -1,6 +1,6 @@
 "use client"
 
-import type { AutoFormFieldProps } from "@/components/ui/autoform"
+import type { AutoFormFieldProps } from "@autoform/react"
 import { AutoForm } from "@/components/ui/autoform"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import * as UserSelector from "@/components/data-selectors/user-selector"

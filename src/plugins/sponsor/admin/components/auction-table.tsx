@@ -10,9 +10,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { Id } from "@/convex/_generated/dataModel"
+import { formatDateTime } from "@/lib/format/irish-dates"
 import {
   formatAuctionTablePrice,
-  formatDateTime,
   formatEuroFromCents,
   sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,

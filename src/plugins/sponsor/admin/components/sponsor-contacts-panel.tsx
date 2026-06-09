@@ -35,7 +35,7 @@ import {
   useSponsorContactMutations,
   useSponsorContacts,
 } from "@/plugins/sponsor/hooks/use-sponsorship"
-import { formatDateTime } from "@/plugins/sponsor/lib/sponsorship-ui"
+import { formatDateTime } from "@/lib/format/irish-dates"
 
 export function SponsorContactsPanel({
   sponsorId,

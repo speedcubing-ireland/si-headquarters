@@ -23,8 +23,8 @@ import {
 import { SponsorPageLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { formatDateTime } from "@/lib/format/irish-dates"
 import {
-  formatDateTime,
   formatEuroFromCents,
   isProxySponsorshipFramework,
   isSealedSponsorshipFramework,

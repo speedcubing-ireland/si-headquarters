@@ -23,7 +23,12 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
         items={breadcrumbs.map((i) => ({
           key: i.id,
           label: i.name,
-          to: i.type === "tasks" ? "/tasks/$id" : "/competitions/$id",
+          to:
+            i.type === "tasks"
+              ? "/tasks/$id"
+              : i.type === "projects"
+                ? "/projects/$id"
+                : "/competitions/$id",
           params: { id: i.id },
         }))}
       />

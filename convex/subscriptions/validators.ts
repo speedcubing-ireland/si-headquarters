@@ -3,6 +3,7 @@ import { objectRef } from "@/convex/utils"
 
 export const subscribableObjectRef = v.union(
   objectRef("competitions"),
+  objectRef("projects"),
   objectRef("tasks")
 )
 

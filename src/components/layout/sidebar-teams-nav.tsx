@@ -19,7 +19,12 @@ import { isParsedRecord, parseJson } from "@/lib/parsed-json"
 import { cn } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { Link } from "@tanstack/react-router"
-import { ChevronRightIcon, ListChecksIcon, UsersIcon } from "lucide-react"
+import {
+  ChevronRightIcon,
+  FolderKanbanIcon,
+  ListChecksIcon,
+  UsersIcon,
+} from "lucide-react"
 import { useState } from "react"
 
 const TEAMS_OPEN_STORAGE_KEY = "sidebar:teams-open:v1"
@@ -96,6 +101,20 @@ function TeamCollapsibleSection({
                 >
                   <ListChecksIcon />
                   <span>Tasks</span>
+                </Link>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+            <SidebarMenuSubItem>
+              <SidebarMenuSubButton asChild>
+                <Link
+                  to="/teams/$teamId/projects"
+                  params={{ teamId }}
+                  activeOptions={{ exact: true }}
+                  activeProps={{ "data-active": true }}
+                  inactiveProps={{ "data-active": false }}
+                >
+                  <FolderKanbanIcon />
+                  <span>Projects</span>
                 </Link>
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>

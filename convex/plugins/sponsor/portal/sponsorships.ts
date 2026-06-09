@@ -2,6 +2,7 @@ import { v } from "convex/values"
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { buildSponsorSponsorshipListItems } from "../lib/sponsorOwnedCompetitions"
+import { getCompetitionSponsorOverridesByCompetitionId } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 import {
   listInvitedVisibleAuctions,
   requireSponsorSession,
@@ -17,11 +18,14 @@ export const listMySponsorships = query({
     const competitionIds = [
       ...new Set(auctionDocs.map((auction) => auction.competitionId)),
     ]
-    const competitions = await Promise.all(
-      competitionIds.map((competitionId) =>
-        ctx.db.get("competitions", competitionId)
-      )
-    )
+    const [competitions, overridesByCompetitionId] = await Promise.all([
+      Promise.all(
+        competitionIds.map((competitionId) =>
+          ctx.db.get("competitions", competitionId)
+        )
+      ),
+      getCompetitionSponsorOverridesByCompetitionId(ctx, competitionIds),
+    ])
     const competitionsById = new Map<Id<"competitions">, Doc<"competitions">>()
     for (const competition of competitions) {
       if (!competition) continue
@@ -32,6 +36,7 @@ export const listMySponsorships = query({
       sponsorId: sponsor._id,
       auctions: auctionDocs,
       competitionsById,
+      overridesByCompetitionId,
     })
   },
 })

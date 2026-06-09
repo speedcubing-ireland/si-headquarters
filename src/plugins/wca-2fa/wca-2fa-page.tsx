@@ -80,22 +80,23 @@ function Wca2faContent() {
 
   const syncedNowMs = nowMs + serverOffsetMs
   const remainingMs = useMemo(() => {
-    if (codeState === null) {
+    if (codeState === undefined) {
       return 0
     }
     return Math.max(codeState.expiresAtMs - syncedNowMs, 0)
   }, [codeState, syncedNowMs])
-  const hasCode = codeState !== null
+  const hasCode = codeState !== undefined
   const isCodeActive = hasCode && remainingMs > 0
   const periodMs = (codeState?.periodSeconds ?? 30) * 1000
   const progress = isCodeActive
     ? Math.min(Math.max(remainingMs / periodMs, 0), 1)
     : 0
   const secondsRemaining = isCodeActive ? Math.ceil(remainingMs / 1000) : 0
-  const visibleCode = codeState !== null && remainingMs > 0 ? codeState : null
+  const visibleCode =
+    codeState !== undefined && remainingMs > 0 ? codeState : undefined
 
   const copyCode = async () => {
-    if (codeState === null || !isCodeActive) {
+    if (codeState === undefined || !isCodeActive) {
       return
     }
     try {
@@ -155,7 +156,7 @@ function Wca2faContent() {
           </div>
 
           <div className="flex flex-col items-center gap-4 py-3">
-            {visibleCode !== null ? (
+            {visibleCode !== undefined ? (
               <OtpCodeDisplay
                 code={visibleCode.code}
                 digits={visibleCode.digits}

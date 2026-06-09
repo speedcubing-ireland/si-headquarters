@@ -1,17 +1,12 @@
 import { v } from "convex/values"
-import { objectRef } from "@/convex/utils"
+import { competitionOrProjectRef, literalUnion } from "@/convex/utils"
+import { PHASE_COLORS } from "@/convex/phases/colors"
 
-export const PHASE_COLORS = ["gray", "red", "sky", "amber", "green"] as const
-
-export const phaseOwnerRef = objectRef("competitions")
-
-export const phaseColor = v.union(
-  ...PHASE_COLORS.map((color) => v.literal(color))
-)
+export const phaseColor = literalUnion(PHASE_COLORS)
 
 export const phasesFields = {
   name: v.string(),
-  owner: phaseOwnerRef,
+  owner: competitionOrProjectRef,
   sortKey: v.string(),
   color: phaseColor,
 }

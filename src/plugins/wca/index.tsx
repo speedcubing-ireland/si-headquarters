@@ -4,7 +4,10 @@ import { LinkWcaCompetitionButton } from "@/plugins/wca/link-wca-competition-but
 
 export const wcaIntegrationPlugin = {
   id: "wca",
-  competitionLink: "wcaCompetition",
+  linkedResource: {
+    resourceType: "wcaCompetition",
+    objectTypes: ["competitions"],
+  },
   adminIcon: GlobeIcon,
   matchesResourceType: (type) => type === "wcaCompetition",
   resourceIcon: () => <GlobeIcon className="text-blue-600" />,

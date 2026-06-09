@@ -52,6 +52,7 @@ export const actionValidator = v.union(
 export const subjectValidator = v.union(
   v.literal("all"),
   v.literal("Competition"),
+  v.literal("Project"),
   v.literal("Task"),
   v.literal("Team"),
   v.literal("User"),

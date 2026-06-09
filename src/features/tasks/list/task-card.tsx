@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card"
 import { api } from "@/convex/_generated/api"
 import { taskInlineIndicatorPropsFromRow } from "@/features/subtasks/task-inline-indicator-props"
 import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
-import { TaskCompLink } from "@/features/tasks/components/task-comp-link"
+import { TaskRootLink } from "@/features/tasks/components/task-root-link"
 import {
   taskOwnerSelectorValue,
   type TaskBoardRow,
@@ -131,8 +131,8 @@ export function TaskCard({ row }: { row: TaskBoardRow }) {
           >
             {row.path.taskTitle}
           </Link>
-          {row.competitionId !== null && row.competitionName !== null ? (
-            <TaskCompLink
+          {row.competitionId !== null || row.projectId !== null ? (
+            <TaskRootLink
               row={row}
               className="h-5 self-start px-1.5 text-[10px]"
             />

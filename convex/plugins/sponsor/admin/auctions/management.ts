@@ -26,6 +26,7 @@ import {
 } from "./competitionSnapshot"
 import { scheduleAuctionActivation } from "./lifecycle"
 import { resolveCompetitionSponsorStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
+import { getCompetitionSponsorOverridesByCompetitionId } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 
 function normalizePositiveDurationMs(
   fieldName: string,
@@ -286,9 +287,11 @@ export const listCompetitionsForManager = query({
           .filter((phaseId): phaseId is Id<"phases"> => phaseId !== null)
       ),
     ]
-    const [phases, auctions] = await Promise.all([
+    const competitionIds = competitions.map((competition) => competition._id)
+    const [phases, auctions, overridesByCompetitionId] = await Promise.all([
       Promise.all(phaseIds.map((phaseId) => ctx.db.get("phases", phaseId))),
       collectAll(ctx, "sponsorshipAuctions"),
+      getCompetitionSponsorOverridesByCompetitionId(ctx, competitionIds),
     ])
     const phaseNameById = new Map<Id<"phases">, string>()
     for (const phase of phases) {
@@ -307,6 +310,7 @@ export const listCompetitionsForManager = query({
 
     return competitions.map((competition) => {
       const scopedAuctions = auctionsByCompetition.get(competition._id) ?? []
+      const override = overridesByCompetitionId.get(competition._id) ?? null
       const hasClosedWinner = scopedAuctions.some(
         (auction) =>
           auction.state === "closed" && auction.winnerSponsorId !== undefined
@@ -324,11 +328,11 @@ export const listCompetitionsForManager = query({
         sponsorPropertyStatus: resolveCompetitionSponsorStatus({
           auctionStates: scopedAuctions.map((auction) => auction.state),
           hasClosedWinner,
-          manualSponsorId: competition.manualSponsorId,
-          manualStatus: competition.manualSponsorPropertyStatus,
+          manualSponsorId: override?.manualSponsorId,
+          manualStatus: override?.manualSponsorPropertyStatus,
         }),
-        manualSponsorPropertyStatus: competition.manualSponsorPropertyStatus,
-        manualSponsorId: competition.manualSponsorId,
+        manualSponsorPropertyStatus: override?.manualSponsorPropertyStatus,
+        manualSponsorId: override?.manualSponsorId,
       }
     })
   },
@@ -345,11 +349,14 @@ export const listForManager = query({
     const competitionIds = [
       ...new Set(auctions.map((auction) => auction.competitionId)),
     ]
-    const competitions = await Promise.all(
-      competitionIds.map((competitionId) =>
-        ctx.db.get("competitions", competitionId)
-      )
-    )
+    const [competitions, overridesByCompetitionId] = await Promise.all([
+      Promise.all(
+        competitionIds.map((competitionId) =>
+          ctx.db.get("competitions", competitionId)
+        )
+      ),
+      getCompetitionSponsorOverridesByCompetitionId(ctx, competitionIds),
+    ])
     const competitionById = new Map<Id<"competitions">, Doc<"competitions">>()
     const phaseIds = new Set<Id<"phases">>()
     for (const competition of competitions) {
@@ -384,7 +391,7 @@ export const listForManager = query({
     >()
     for (const competitionId of competitionIds) {
       const scopedAuctions = auctionsByCompetition.get(competitionId) ?? []
-      const competition = competitionById.get(competitionId)
+      const override = overridesByCompetitionId.get(competitionId) ?? null
       const hasClosedWinner = scopedAuctions.some(
         (auction) =>
           auction.state === "closed" && auction.winnerSponsorId !== undefined
@@ -394,8 +401,8 @@ export const listForManager = query({
         resolveCompetitionSponsorStatus({
           auctionStates: scopedAuctions.map((auction) => auction.state),
           hasClosedWinner,
-          manualSponsorId: competition?.manualSponsorId,
-          manualStatus: competition?.manualSponsorPropertyStatus,
+          manualSponsorId: override?.manualSponsorId,
+          manualStatus: override?.manualSponsorPropertyStatus,
         })
       )
     }

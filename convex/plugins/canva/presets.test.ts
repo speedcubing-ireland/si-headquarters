@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { TASK_INTEGRATION_IDS } from "@/convex/plugins/core/constants"
+import { TASK_INTEGRATION_IDS } from "@/convex/integrations/taskIntegrations/constants"
 import {
   buildCanvaOutputTitle,
   CANVA_PRESETS,

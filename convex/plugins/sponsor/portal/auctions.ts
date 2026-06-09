@@ -5,6 +5,7 @@ import type { MutationCtx } from "@/convex/_generated/server"
 import { compareBidIntentChronology } from "../lib/auctionState"
 import { placeSponsorshipBid } from "../lib/bidPlacement"
 import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { getCompetitionSponsorOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/validators"
 import { sendEbayAuctionOutbidEmail } from "../admin/auctions/emails"
@@ -214,10 +215,13 @@ export const getAuction = query({
         : auction.winnerSponsorId
           ? "sponsor"
           : "none"
-    const sponsorPropertyStatus = competition.manualSponsorId
+    const override = await getCompetitionSponsorOverride(
+      ctx,
+      auction.competitionId
+    )
+    const sponsorPropertyStatus = override?.manualSponsorId
       ? "sponsor"
-      : (competition.manualSponsorPropertyStatus ??
-        derivedSponsorPropertyStatus)
+      : (override?.manualSponsorPropertyStatus ?? derivedSponsorPropertyStatus)
     const competitionSummary =
       auction.competitionSnapshot?.summary ??
       buildCompetitionRecordSummary({

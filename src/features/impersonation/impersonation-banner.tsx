@@ -10,10 +10,8 @@ import {
   AlertTitle,
 } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { useEndSponsorImpersonation } from "@/features/impersonation/use-end-sponsor-impersonation"
-import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 
-function ImpersonationBanner({
+export function ImpersonationBanner({
   actorName,
   expiresAt,
   onEnd,
@@ -75,30 +73,5 @@ export function UserImpersonationBanner() {
         }}
       />
     </div>
-  )
-}
-
-export function SponsorImpersonationBanner() {
-  const { sessionToken, isImpersonating } = useSponsorSessionToken()
-  const impersonation = useQuery(
-    api.impersonation.queries.currentSponsorImpersonation,
-    sessionToken !== null ? { sessionToken } : "skip"
-  )
-  const endSponsorImpersonation = useEndSponsorImpersonation()
-
-  if (!isImpersonating || sessionToken === null || !impersonation) {
-    return null
-  }
-
-  return (
-    <ImpersonationBanner
-      actorName={impersonation.actorName}
-      expiresAt={impersonation.expiresAt}
-      onEnd={() => {
-        void endSponsorImpersonation(sessionToken).then(() => {
-          window.location.assign("/sponsor/login")
-        })
-      }}
-    />
   )
 }

@@ -132,6 +132,25 @@ function buildCompetitionEmbed(input: {
   }
 }
 
+function buildProjectEmbed(input: {
+  project: Doc<"projects">
+  actor: Doc<"users"> | null
+  url: string
+  title: string
+  color?: number
+  description?: string
+  fields: NonNullable<NotificationEmbed["fields"]>
+}): NotificationEmbed {
+  return {
+    title: input.title,
+    description: input.description ?? input.project.name,
+    url: input.url,
+    color: input.color ?? EMBED_COLOR.normal,
+    fields: input.fields,
+    author: embedAuthor(input.actor),
+  }
+}
+
 export function taskDraftShell(input: {
   task: Doc<"tasks">
   competition: Doc<"competitions"> | null
@@ -199,6 +218,45 @@ export function competitionDraftShell(input: {
       {
         kind: "url",
         label: "View competition",
+        url: input.url,
+        row: input.viewButtonRow,
+      },
+      ...(input.buttons ?? []),
+    ],
+  }
+}
+
+export function projectDraftShell(input: {
+  project: Doc<"projects">
+  actor: Doc<"users"> | null
+  target: NotificationTarget
+  fallbackText: string
+  title?: string
+  url: string
+  color?: number
+  description?: string
+  fields: NonNullable<NotificationEmbed["fields"]>
+  buttons?: NotificationDraft["buttons"]
+  viewButtonRow?: number
+}): NotificationDraft {
+  return {
+    target: input.target,
+    fallbackText: input.fallbackText,
+    embeds: [
+      buildProjectEmbed({
+        project: input.project,
+        actor: input.actor,
+        url: input.url,
+        title: input.title ?? input.fallbackText,
+        color: input.color,
+        description: input.description,
+        fields: input.fields,
+      }),
+    ],
+    buttons: [
+      {
+        kind: "url",
+        label: "View project",
         url: input.url,
         row: input.viewButtonRow,
       },

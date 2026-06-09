@@ -29,7 +29,7 @@ describe("competitionSponsorStatus", () => {
   test("resolveCompetitionSponsorPropertyStatus merges competition and auctions", () => {
     expect(
       resolveCompetitionSponsorPropertyStatus({
-        competition: { manualSponsorPropertyStatus: "none" },
+        override: { manualSponsorPropertyStatus: "none" },
         auctions: [{ state: "active", winnerSponsorId: undefined }],
       })
     ).toBe("none")

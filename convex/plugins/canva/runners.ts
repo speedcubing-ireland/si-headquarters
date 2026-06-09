@@ -3,9 +3,9 @@
 import { internal } from "@/convex/_generated/api"
 import type { ActionCtx } from "@/convex/_generated/server"
 import type {
-  IntegrationRunResult,
-  RunContext,
-} from "@/convex/plugins/core/integrationTypes"
+  TaskIntegrationRunContext,
+  TaskIntegrationRunResult,
+} from "@/convex/integrations/taskIntegrations/pluginContract"
 import { autofillBrandTemplate } from "@/convex/plugins/canva/api"
 import {
   buildCanvaOutputTitle,
@@ -16,14 +16,14 @@ import {
 
 async function runCanvaAutofill(
   ctx: ActionCtx,
-  run: RunContext,
+  run: TaskIntegrationRunContext,
   preset: CanvaPreset
-): Promise<IntegrationRunResult> {
+): Promise<TaskIntegrationRunResult> {
   const { sourceBrandTemplateId, destinationFolderId } =
     resolveCanvaPresetEnv(preset)
 
   const accessToken = await ctx.runAction(
-    internal.plugins.core.tokens.getValidServiceToken,
+    internal.integrations.tokens.getValidServiceToken,
     { service: "canva" }
   )
 
@@ -48,8 +48,8 @@ async function runCanvaAutofill(
 
 export async function runCanvaIntegration(
   ctx: ActionCtx,
-  run: RunContext
-): Promise<IntegrationRunResult> {
+  run: TaskIntegrationRunContext
+): Promise<TaskIntegrationRunResult> {
   const preset = getCanvaPreset(run.integrationId)
   return runCanvaAutofill(ctx, run, preset)
 }

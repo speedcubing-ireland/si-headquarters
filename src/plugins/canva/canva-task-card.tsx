@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/convex/_generated/api"
-import { formatCatchError } from "@/features/integrations/error-message"
+import { unknownErrorMessage } from "@/convex/integrations/errorPayload"
 import {
   TaskIntegrationCardShell,
   type TaskIntegrationCardRow,
@@ -69,7 +69,7 @@ export function CanvaTaskCard({ row }: { row: TaskIntegrationCardRow }) {
         })
       )
     } catch (caught) {
-      setLinkError(formatCatchError(caught))
+      setLinkError(unknownErrorMessage(caught, { includeConvexError: true }))
     } finally {
       setLinkPending(null)
     }
@@ -85,7 +85,7 @@ export function CanvaTaskCard({ row }: { row: TaskIntegrationCardRow }) {
       await linkDesign({ id: row._id, designUrl: candidate.designUrl })
       resetManualDialog(false)
     } catch (caught) {
-      setLinkError(formatCatchError(caught))
+      setLinkError(unknownErrorMessage(caught, { includeConvexError: true }))
     } finally {
       setLinkPending(null)
     }

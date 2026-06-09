@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { NO_CURRENT_PHASE_PROGRESS } from "@/convex/competitions/phaseSnapshot"
+import { NO_CURRENT_PHASE_PROGRESS } from "@/convex/phases/progress"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
@@ -45,7 +45,6 @@ describe("competition queries", () => {
             to: null,
           },
           phaseId: null,
-          updateId: null,
         })
 
         return {
@@ -68,60 +67,6 @@ describe("competition queries", () => {
     expect(people.people.organisers.map((user) => user._id)).toEqual([
       organiserId,
     ])
-  })
-
-  test("current update query returns update author and handles empty updates", async () => {
-    const t = convexTest(schema, modules)
-    const {
-      viewerId,
-      competitionWithUpdateId,
-      competitionWithoutUpdateId,
-      authorId,
-    } = await t.run(async (ctx) => {
-      const viewerId = await ctx.db.insert("users", {
-        name: "Viewer",
-      })
-      await ensureVolunteerMembership(ctx, viewerId)
-      const authorId = await ctx.db.insert("users", {
-        name: "Update Author",
-      })
-      const competitionWithUpdateId = await insertCompetition(ctx, "With")
-      const competitionWithoutUpdateId = await insertCompetition(ctx, "Empty")
-      const updateId = await ctx.db.insert("competitionUpdates", {
-        competitionId: competitionWithUpdateId,
-        authorId,
-        body: "Hello world",
-        editedAt: 1,
-      })
-      await ctx.db.patch("competitions", competitionWithUpdateId, {
-        updateId,
-      })
-
-      return {
-        viewerId,
-        competitionWithUpdateId,
-        competitionWithoutUpdateId,
-        authorId,
-      }
-    })
-    const viewer = t.withIdentity({ subject: viewerId })
-
-    const withUpdate = await viewer.query(
-      api.competitions.queries.getCurrentUpdate,
-      {
-        id: competitionWithUpdateId,
-      }
-    )
-    const withoutUpdate = await viewer.query(
-      api.competitions.queries.getCurrentUpdate,
-      {
-        id: competitionWithoutUpdateId,
-      }
-    )
-
-    expect(withUpdate.update?.body).toBe("Hello world")
-    expect(withUpdate.update?.author?._id).toBe(authorId)
-    expect(withoutUpdate.update).toBeNull()
   })
 
   test("current phase progress returns null phase and zero progress without a current phase", async () => {
@@ -451,6 +396,5 @@ async function insertCompetition(
       to: null,
     },
     phaseId: null,
-    updateId: null,
   })
 }

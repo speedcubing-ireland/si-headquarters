@@ -1,5 +1,4 @@
 import { v, type Infer } from "convex/values"
-import { teamNameValidator } from "@/convex/permissions/shared"
 
 export const teamsFields = {
   name: v.string(),
@@ -24,5 +23,3 @@ export const teamSummary = v.object({
   name: v.string(),
 })
 export type TeamSummary = Infer<typeof teamSummary>
-
-export { teamNameValidator }

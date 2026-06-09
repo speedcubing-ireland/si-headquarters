@@ -1,12 +1,15 @@
 import { defineTable } from "convex/server"
 import { v } from "convex/values"
+import { objectLinkedResourceFields } from "@/convex/integrations/validators"
 import {
-  competitionResourceData,
-  competitionResourceType,
+  projectWorkflowFields,
+  projectWorkflowRunFields,
+} from "@/convex/projectWorkflows/validators"
+import {
   taskIntegrationId,
   taskIntegrationOutput,
   taskIntegrationStatus,
-} from "@/convex/plugins/core/validators"
+} from "@/convex/integrations/taskIntegrations/validators"
 
 export const oauthPluginTables = {
   serviceTokens: defineTable({
@@ -18,18 +21,16 @@ export const oauthPluginTables = {
 }
 
 export const integrationPluginTables = {
-  competitionLinkedResources: defineTable({
-    competitionId: v.id("competitions"),
-    resourceType: competitionResourceType,
-    resourceKey: v.string(),
-    data: competitionResourceData,
-  })
-    .index("by_competitionId_and_resourceType", [
-      "competitionId",
+  objectLinkedResources: defineTable(objectLinkedResourceFields)
+    .index("by_object_type_and_object_id", ["object.type", "object.id"])
+    .index("by_object_type_and_object_id_and_resourceType", [
+      "object.type",
+      "object.id",
       "resourceType",
     ])
-    .index("by_competitionId_and_resourceType_and_resourceKey", [
-      "competitionId",
+    .index("by_object_type_and_object_id_and_resourceType_and_resourceKey", [
+      "object.type",
+      "object.id",
       "resourceType",
       "resourceKey",
     ]),
@@ -44,4 +45,18 @@ export const integrationPluginTables = {
   })
     .index("by_taskId", ["taskId"])
     .index("by_taskId_and_integrationId", ["taskId", "integrationId"]),
+}
+
+export const projectWorkflowTables = {
+  projectWorkflows: defineTable(projectWorkflowFields)
+    .index("by_projectId", ["projectId"])
+    .index("by_projectId_and_workflowId", ["projectId", "workflowId"])
+    .index("by_workflowId_and_enabled", ["workflowId", "enabled"]),
+  workflowRuns: defineTable(projectWorkflowRunFields)
+    .index("by_projectWorkflowId", ["projectWorkflowId"])
+    .index("by_projectWorkflowId_and_queuedAt", [
+      "projectWorkflowId",
+      "queuedAt",
+    ])
+    .index("by_status", ["status"]),
 }

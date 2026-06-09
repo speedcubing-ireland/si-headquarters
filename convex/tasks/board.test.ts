@@ -6,6 +6,10 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
 import { withVolunteerTestClient } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 
@@ -23,7 +27,6 @@ async function insertCompetition(ctx: MutationCtx) {
       to: null,
     },
     phaseId: null,
-    updateId: null,
   })
 }
 
@@ -53,6 +56,12 @@ describe("task board", () => {
         name: "Parent",
         description: null,
         parent: { type: "phases", id: phaseId },
+        ...taskRootPatch(
+          await deriveTaskRootContextFromParent(ctx, {
+            type: "phases",
+            id: phaseId,
+          })
+        ),
         order: "a",
         assigneeIds: null,
         owner: null,
@@ -65,6 +74,12 @@ describe("task board", () => {
         name: "Child A",
         description: null,
         parent: { type: "tasks", id: parentId },
+        ...taskRootPatch(
+          await deriveTaskRootContextFromParent(ctx, {
+            type: "tasks",
+            id: parentId,
+          })
+        ),
         order: "a",
         assigneeIds: null,
         owner: null,
@@ -77,6 +92,12 @@ describe("task board", () => {
         name: "Child B",
         description: null,
         parent: { type: "tasks", id: parentId },
+        ...taskRootPatch(
+          await deriveTaskRootContextFromParent(ctx, {
+            type: "tasks",
+            id: parentId,
+          })
+        ),
         order: "b",
         assigneeIds: null,
         owner: null,

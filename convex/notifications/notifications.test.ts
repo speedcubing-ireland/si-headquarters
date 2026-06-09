@@ -15,11 +15,12 @@ import { api } from "@/convex/_generated/api"
 import {
   ensureVolunteerMembership,
   insertBlankCompetition,
+  insertBlankProject,
   insertCompetitionPhase,
   insertSeedTask,
 } from "@/convex/testHelpers"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
-import { ensureTeamByName } from "@/convex/teams/model"
+import { addTeamMember, ensureTeamByName } from "@/convex/teams/model"
 import { resetTaskDueNoticeState } from "@/convex/notifications/events"
 import { NUDGE_COOLDOWN_MS } from "@/convex/notifications/nudge"
 import { modules } from "@/convex/test.setup"
@@ -261,6 +262,89 @@ describe("notification drafts", () => {
     expect(drafts[0]?.embeds[0]?.author?.name).toBe("SI Headquarters")
     expect(drafts[0]?.embeds[0]?.fields?.[0]?.value).toContain(
       "**1 day ago** (2026-06-07)"
+    )
+  })
+
+  test("project update drafts route to lead, members, team members, and subscribers", async () => {
+    const t = convexTest(schema, modules)
+    const { projectId, updateId, actorId } = await t.run(async (ctx) => {
+      const projectId = await insertBlankProject(ctx)
+      const actorId = await insertLinkedUser(ctx, "Lead Actor", "discord-lead")
+      const memberId = await insertLinkedUser(ctx, "Member", "discord-member")
+      const teamMemberId = await insertLinkedUser(
+        ctx,
+        "Team Member",
+        "discord-team-member"
+      )
+      const subscriberId = await insertLinkedUser(
+        ctx,
+        "Subscriber",
+        "discord-subscriber"
+      )
+      const unlinkedId = await ctx.db.insert("users", { name: "Unlinked" })
+      const teamId = await ensureTeamByName(ctx, TEAM_NAMES.SOFTWARE)
+      await addTeamMember(ctx, teamId, teamMemberId)
+      await ctx.db.patch("projects", projectId, { leadUserId: actorId })
+      await ctx.db.insert("projectMembers", {
+        projectId,
+        member: { type: "users", id: memberId },
+      })
+      await ctx.db.insert("projectMembers", {
+        projectId,
+        member: { type: "users", id: unlinkedId },
+      })
+      await ctx.db.insert("projectMembers", {
+        projectId,
+        member: { type: "teams", id: teamId },
+      })
+      await ctx.db.insert("subscriptions", {
+        userId: subscriberId,
+        object: { type: "projects", id: projectId },
+      })
+      await ctx.db.insert("objectLinkedResources", {
+        object: { type: "projects", id: projectId },
+        resourceType: "discordChannel",
+        resourceKey: "default",
+        data: {
+          resourceType: "discordChannel",
+          guildId: "guild-1",
+          channelId: "project-channel-1",
+          channelName: "sample-project",
+        },
+      })
+      const updateId = await ctx.db.insert("objectUpdates", {
+        object: { type: "projects", id: projectId },
+        authorId: actorId,
+        body: "The venue booking automation is ready for review.",
+        editedAt: Date.now(),
+      })
+      return { projectId, updateId, actorId }
+    })
+
+    const drafts = await t.query(
+      internal.notifications.model.resolveEventDrafts,
+      {
+        event: {
+          kind: "updatePublished",
+          object: { type: "projects", id: projectId },
+          updateId,
+          actorId,
+        },
+      }
+    )
+
+    expect(drafts.map((draft) => draft.target)).toEqual(
+      expect.arrayContaining([
+        { kind: "discordChannel", channelId: "project-channel-1" },
+        { kind: "discordUser", discordUserId: "discord-member" },
+        { kind: "discordUser", discordUserId: "discord-team-member" },
+        { kind: "discordUser", discordUserId: "discord-subscriber" },
+      ])
+    )
+    expect(drafts).toHaveLength(4)
+    expect(drafts[0]?.embeds[0]?.title).toBe("Project Update: Sample Project")
+    expect(drafts[0]?.embeds[0]?.fields?.[0]?.value).toContain(
+      "venue booking automation"
     )
   })
 })
@@ -580,8 +664,8 @@ describe("status and review notifications", () => {
         "Reviewer",
         "discord-reviewer"
       )
-      await ctx.db.insert("competitionLinkedResources", {
-        competitionId,
+      await ctx.db.insert("objectLinkedResources", {
+        object: { type: "competitions", id: competitionId },
         resourceType: "discordChannel",
         resourceKey: "default",
         data: {
@@ -784,8 +868,8 @@ describe("competition subscriber mirrors", () => {
       internal.notifications.model.resolveEventDrafts,
       {
         event: {
-          kind: "competitionPhaseChanged",
-          competitionId,
+          kind: "phaseChanged",
+          object: { type: "competitions", id: competitionId },
           actorId: null,
           previousPhaseId,
           nextPhaseId,

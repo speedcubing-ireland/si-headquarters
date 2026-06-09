@@ -93,7 +93,7 @@ export const exchangeCodeAndStoreTokens = action({
         redirectUri: args.redirectUri,
         codeVerifier: args.codeVerifier,
       })
-      await ctx.runMutation(internal.plugins.core.tokensStore.saveToken, {
+      await ctx.runMutation(internal.integrations.tokensStore.saveToken, {
         service: plugin.meta.service,
         token,
       })

@@ -34,12 +34,12 @@ export function AddTaskIntegrationButton({
   ...buttonProps
 }: AddTaskIntegrationButtonProps) {
   const available = useQuery(
-    api.plugins.core.taskIntegrations.listAvailableForTask,
+    api.integrations.taskIntegrations.queries.listAvailableForTask,
     {
       taskId,
     }
   )
-  const attach = useMutation(api.plugins.core.taskIntegrations.attach)
+  const attach = useMutation(api.integrations.taskIntegrations.mutations.attach)
   const [open, setOpen] = useState(false)
   const [pendingId, setPendingId] = useState<string | null>(null)
 

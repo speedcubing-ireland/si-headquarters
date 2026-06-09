@@ -291,7 +291,7 @@
       "plugins": ["typescript"]
     },
     {
-      "files": ["convex/plugins/core/jsonBoundary.ts"],
+      "files": ["convex/integrations/jsonBoundary.ts"],
       "rules": {
         "typescript/no-unsafe-argument": "off"
       },

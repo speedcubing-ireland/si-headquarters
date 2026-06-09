@@ -4,7 +4,8 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { addIsoDays } from "@/convex/competitions/dates"
 import { getTeamByName } from "@/convex/teams/model"
-import { attachConfiguredIntegrationsForTask } from "@/convex/plugins/core/taskTemplateIntegrations"
+import { upsertObjectLinkedResource } from "@/convex/integrations/objectResourcesModel"
+import { attachConfiguredIntegrationsForTask } from "@/convex/integrations/taskIntegrations/templates"
 import { getDefaultTaskLabelName } from "@/convex/tasks/labels/constants"
 import {
   ensureDefaultTaskLabels,
@@ -469,34 +470,19 @@ async function insertTaskTree({
   }
 }
 
-async function upsertCompetitionResource(
+async function upsertTemplateLinkedResource(
   ctx: MutationCtx,
   competitionId: Id<"competitions">,
   resource: NonNullable<
     CompetitionTemplateDefinition["linkedResources"]
   >[number]
 ) {
-  const existing = await ctx.db
-    .query("competitionLinkedResources")
-    .withIndex("by_competitionId_and_resourceType_and_resourceKey", (q) =>
-      q
-        .eq("competitionId", competitionId)
-        .eq("resourceType", resource.resourceType)
-        .eq("resourceKey", resource.resourceKey)
-    )
-    .unique()
-
-  const row = {
-    competitionId,
+  await upsertObjectLinkedResource(ctx, {
+    object: { type: "competitions" as const, id: competitionId },
     resourceType: resource.resourceType,
     resourceKey: resource.resourceKey,
     data: resource.data,
-  }
-  if (existing) {
-    await ctx.db.patch("competitionLinkedResources", existing._id, row)
-  } else {
-    await ctx.db.insert("competitionLinkedResources", row)
-  }
+  })
 }
 
 export async function applyCompetitionTemplate(
@@ -521,7 +507,6 @@ export async function applyCompetitionTemplate(
     people: args.competition.people,
     compDates: args.competition.compDates,
     phaseId: null,
-    updateId: null,
   })
   const phaseIdsByKey = new Map<string, Id<"phases">>()
   const taskIdsByKey = new Map<string, Id<"tasks">>()
@@ -573,7 +558,7 @@ export async function applyCompetitionTemplate(
   }
 
   for (const resource of template.linkedResources ?? []) {
-    await upsertCompetitionResource(ctx, competitionId, resource)
+    await upsertTemplateLinkedResource(ctx, competitionId, resource)
     counts.resources += 1
   }
 

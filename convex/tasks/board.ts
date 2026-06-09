@@ -2,11 +2,12 @@ import { collectAll } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query, type QueryCtx } from "@/convex/_generated/server"
 import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
+import { canReadProject } from "@/convex/projects/access"
 import {
   buildFlatTaskInlinePath,
   taskInlineRow,
 } from "@/convex/tasks/inlineRow"
-import { listCompetitionTaskIds } from "@/convex/tasks/blockers/competition"
+import { listRootTaskIds } from "@/convex/tasks/blockers/root"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
   buildSubtasksWithStatusViews,
@@ -20,17 +21,21 @@ import { v } from "convex/values"
 export const taskBoardRow = v.object({
   ...taskInlineRow.fields,
   competitionId: v.union(v.id("competitions"), v.null()),
+  projectId: v.union(v.id("projects"), v.null()),
   phaseId: v.union(v.id("phases"), v.null()),
   competitionName: v.union(v.string(), v.null()),
   competitionYear: v.union(v.number(), v.null()),
+  projectName: v.union(v.string(), v.null()),
   phaseName: v.union(v.string(), v.null()),
 })
 
-interface TaskCompetitionContext {
+interface TaskRootDisplayContext {
   competitionId: Id<"competitions"> | null
+  projectId: Id<"projects"> | null
   phaseId: Id<"phases"> | null
   competitionName: string | null
   competitionYear: number | null
+  projectName: string | null
   phaseName: string | null
 }
 
@@ -54,44 +59,71 @@ function getCompetitionYear(
 function resolvePhaseContext(
   phaseId: Id<"phases">,
   phaseById: Map<Id<"phases">, Doc<"phases">>,
-  competitionById: Map<Id<"competitions">, Doc<"competitions">>
-): TaskCompetitionContext {
+  competitionById: Map<Id<"competitions">, Doc<"competitions">>,
+  projectById: Map<Id<"projects">, Doc<"projects">>
+): TaskRootDisplayContext {
   const phase = phaseById.get(phaseId)
   if (!phase) {
     return {
       competitionId: null,
+      projectId: null,
       phaseId: null,
       competitionName: null,
       competitionYear: null,
+      projectName: null,
       phaseName: null,
     }
   }
-  const competition = competitionById.get(phase.owner.id)
+
+  if (phase.owner.type === "competitions") {
+    const competition = competitionById.get(phase.owner.id)
+    return {
+      competitionId: phase.owner.id,
+      projectId: null,
+      phaseId: phase._id,
+      competitionName: competition?.name ?? null,
+      competitionYear: getCompetitionYear(competition),
+      projectName: null,
+      phaseName: phase.name,
+    }
+  }
+
+  const project = projectById.get(phase.owner.id)
   return {
-    competitionId: phase.owner.id,
+    competitionId: null,
+    projectId: phase.owner.id,
     phaseId: phase._id,
-    competitionName: competition?.name ?? null,
-    competitionYear: getCompetitionYear(competition),
+    competitionName: null,
+    competitionYear: null,
+    projectName: project?.name ?? null,
     phaseName: phase.name,
   }
 }
 
-function getTaskCompetitionContext(
+function getTaskRootDisplayContext(
   task: Doc<"tasks">,
   taskById: Map<Id<"tasks">, Doc<"tasks">>,
   phaseById: Map<Id<"phases">, Doc<"phases">>,
-  competitionById: Map<Id<"competitions">, Doc<"competitions">>
-): TaskCompetitionContext {
-  const empty: TaskCompetitionContext = {
+  competitionById: Map<Id<"competitions">, Doc<"competitions">>,
+  projectById: Map<Id<"projects">, Doc<"projects">>
+): TaskRootDisplayContext {
+  const empty: TaskRootDisplayContext = {
     competitionId: null,
+    projectId: null,
     phaseId: null,
     competitionName: null,
     competitionYear: null,
+    projectName: null,
     phaseName: null,
   }
 
   if (task.parent.type === "phases") {
-    return resolvePhaseContext(task.parent.id, phaseById, competitionById)
+    return resolvePhaseContext(
+      task.parent.id,
+      phaseById,
+      competitionById,
+      projectById
+    )
   }
 
   let parent: Doc<"tasks">["parent"] = task.parent
@@ -105,7 +137,7 @@ function getTaskCompetitionContext(
     return empty
   }
 
-  return resolvePhaseContext(parent.id, phaseById, competitionById)
+  return resolvePhaseContext(parent.id, phaseById, competitionById, projectById)
 }
 
 function groupDirectChildrenByParentId(tasks: Doc<"tasks">[]) {
@@ -162,13 +194,22 @@ export const listForBoard = query({
       return await buildTaskBoardRows(ctx, { competitions })
     }
 
+    const projects = await collectAll(ctx, "projects")
     const readableCompetitions = competitions.filter((competition) =>
       canPerform(principal, "read", "Competition", competition)
     )
+    const readableProjects = []
+    for (const project of projects) {
+      if (await canReadProject(ctx, principal, project)) {
+        readableProjects.push(project)
+      }
+    }
+
     const [tasks, phases] = await Promise.all([
-      listTasksForCompetitions(
+      listTasksForRoots(
         ctx,
-        readableCompetitions.map((competition) => competition._id)
+        readableCompetitions.map((competition) => competition._id),
+        readableProjects.map((project) => project._id)
       ),
       collectAll(ctx, "phases"),
     ])
@@ -177,37 +218,24 @@ export const listForBoard = query({
       tasks,
       phases,
       competitions: readableCompetitions,
+      projects: readableProjects,
     })
   },
 })
 
-async function listTasksForCompetitions(
+async function listTasksForRoots(
   ctx: QueryCtx,
-  competitionIds: Id<"competitions">[]
+  competitionIds: Id<"competitions">[],
+  projectIds: Id<"projects">[]
 ) {
-  const taskIds = new Set<Id<"tasks">>()
-  const indexedTasks = await Promise.all(
-    competitionIds.map((competitionId) =>
-      ctx.db
-        .query("tasks")
-        .withIndex("by_rootCompetitionId", (q) =>
-          q.eq("rootCompetitionId", competitionId)
-        )
-        .collect()
-    )
+  const roots = [
+    ...competitionIds.map((id) => ({ type: "competitions", id }) as const),
+    ...projectIds.map((id) => ({ type: "projects", id }) as const),
+  ]
+  const taskIdSets = await Promise.all(
+    roots.map((root) => listRootTaskIds(ctx, root))
   )
-  for (const task of indexedTasks.flat()) {
-    taskIds.add(task._id)
-  }
-
-  const legacyTaskIds = await Promise.all(
-    competitionIds.map((competitionId) =>
-      listCompetitionTaskIds(ctx, competitionId)
-    )
-  )
-  for (const taskId of legacyTaskIds.flat()) {
-    taskIds.add(taskId)
-  }
+  const taskIds = new Set(taskIdSets.flat())
 
   const tasks = await Promise.all(
     [...taskIds].map((taskId) => ctx.db.get("tasks", taskId))
@@ -221,18 +249,21 @@ export async function buildTaskBoardRows(
     tasks?: Doc<"tasks">[]
     phases?: Doc<"phases">[]
     competitions?: Doc<"competitions">[]
+    projects?: Doc<"projects">[]
   }
 ) {
-  const [tasks, phases, competitions] = await Promise.all([
+  const [tasks, phases, competitions, projects] = await Promise.all([
     input?.tasks ?? collectAll(ctx, "tasks"),
     input?.phases ?? collectAll(ctx, "phases"),
     input?.competitions ?? collectAll(ctx, "competitions"),
+    input?.projects ?? collectAll(ctx, "projects"),
   ])
   const taskById = new Map(tasks.map((task) => [task._id, task]))
   const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
   const competitionById = new Map(
     competitions.map((competition) => [competition._id, competition])
   )
+  const projectById = new Map(projects.map((project) => [project._id, project]))
   const statusLoader = new TaskStatusLoader(ctx)
   const blockersLoader = new TaskBlockersLoader(ctx)
   const displayReader = createTaskViewDisplayReader(ctx, {
@@ -257,21 +288,24 @@ export async function buildTaskBoardRows(
         statusView,
         directSubtaskViews: directSubtaskViewsByParentId.get(task._id),
       })
-      const competitionContext = getTaskCompetitionContext(
+      const rootContext = getTaskRootDisplayContext(
         task,
         taskById,
         phaseById,
-        competitionById
+        competitionById,
+        projectById
       )
 
       return {
         ...details,
         path: buildFlatTaskInlinePath(task, taskById, statusView),
-        competitionId: competitionContext.competitionId,
-        phaseId: competitionContext.phaseId,
-        competitionName: competitionContext.competitionName,
-        competitionYear: competitionContext.competitionYear,
-        phaseName: competitionContext.phaseName,
+        competitionId: rootContext.competitionId,
+        projectId: rootContext.projectId,
+        phaseId: rootContext.phaseId,
+        competitionName: rootContext.competitionName,
+        competitionYear: rootContext.competitionYear,
+        projectName: rootContext.projectName,
+        phaseName: rootContext.phaseName,
       }
     })
   )

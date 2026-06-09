@@ -1,8 +1,6 @@
 import { Badge } from "@/components/ui/badge"
-import {
-  formatDateTime,
-  formatEuroFromCents,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatEuroFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 import type {
   InvitedSponsorDisplay,
   SponsorBidOutcomeDisplay,

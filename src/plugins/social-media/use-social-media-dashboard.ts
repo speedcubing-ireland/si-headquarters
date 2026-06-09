@@ -19,7 +19,7 @@ export function useSocialMediaDashboard() {
   const { data, error, isFetching, hasLoaded, refresh } = useAsyncLoad(load)
 
   return {
-    competitions: data,
+    competitions: data ?? null,
     error,
     isFetching,
     hasLoaded,

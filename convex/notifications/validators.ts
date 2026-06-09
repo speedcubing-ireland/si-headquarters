@@ -1,5 +1,6 @@
 import { v, type Infer } from "convex/values"
 import { taskReviewerRef } from "@/convex/tasks/reviews/validators"
+import { competitionOrProjectRef } from "@/convex/utils"
 
 export const dueNoticeKind = v.union(
   v.literal("due-soon"),
@@ -121,23 +122,28 @@ export const notificationEvent = v.union(
     recipientIds: v.array(v.id("users")),
   }),
   v.object({
-    kind: v.literal("competitionPhaseChanged"),
-    competitionId: v.id("competitions"),
+    kind: v.literal("phaseChanged"),
+    object: competitionOrProjectRef,
     actorId: v.union(v.id("users"), v.null()),
     previousPhaseId: v.union(v.id("phases"), v.null()),
     nextPhaseId: v.id("phases"),
   }),
   v.object({
     kind: v.literal("phaseOverdueTasks"),
-    competitionId: v.id("competitions"),
+    object: competitionOrProjectRef,
     actorId: v.union(v.id("users"), v.null()),
     previousPhaseId: v.id("phases"),
   }),
   v.object({
-    kind: v.literal("competitionUpdatePublished"),
-    competitionId: v.id("competitions"),
-    updateId: v.id("competitionUpdates"),
+    kind: v.literal("updatePublished"),
+    object: competitionOrProjectRef,
+    updateId: v.id("objectUpdates"),
     actorId: v.union(v.id("users"), v.null()),
+  }),
+  v.object({
+    kind: v.literal("projectWorkflowAttention"),
+    projectId: v.id("projects"),
+    workflowRunId: v.id("workflowRuns"),
   }),
   v.object({
     kind: v.literal("sponsorSet"),

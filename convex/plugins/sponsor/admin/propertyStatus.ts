@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
 import { scheduleNotificationEvent } from "@/convex/notifications/events"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import {
@@ -9,6 +9,10 @@ import {
   isCompetitionSponsorManualOverride,
   resolveCompetitionSponsorPropertyStatus,
 } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
+import {
+  getCompetitionSponsorOverride,
+  upsertCompetitionSponsorOverride,
+} from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/validators"
 
 async function sponsorName(
@@ -31,7 +35,11 @@ export const getForCompetition = query({
       })
     }
 
-    const isManualOverride = isCompetitionSponsorManualOverride(competition)
+    const override = await getCompetitionSponsorOverride(
+      ctx,
+      args.competitionId
+    )
+    const isManualOverride = isCompetitionSponsorManualOverride(override)
     const auctions = await ctx.db
       .query("sponsorshipAuctions")
       .withIndex("by_competition", (q) =>
@@ -40,12 +48,12 @@ export const getForCompetition = query({
       .collect()
 
     const status = resolveCompetitionSponsorPropertyStatus({
-      competition,
+      override,
       auctions,
     })
 
     const winnerSponsorId = isManualOverride
-      ? competition.manualSponsorId
+      ? override?.manualSponsorId
       : findWinningClosedAuction(auctions)?.winnerSponsorId
 
     const winningAuction = isManualOverride
@@ -81,26 +89,35 @@ export const setManualOverride = mutation({
       })
     }
 
-    const patch: Partial<Doc<"competitions">> = {}
-    if (args.status !== undefined) {
-      patch.manualSponsorPropertyStatus = args.status ?? undefined
-    }
-    if (args.manualSponsorId !== undefined) {
-      patch.manualSponsorId = args.manualSponsorId ?? undefined
-    }
+    const existing = await getCompetitionSponsorOverride(
+      ctx,
+      args.competitionId
+    )
+    const manualSponsorPropertyStatus =
+      args.status !== undefined
+        ? (args.status ?? undefined)
+        : existing?.manualSponsorPropertyStatus
+    const manualSponsorId =
+      args.manualSponsorId !== undefined
+        ? (args.manualSponsorId ?? undefined)
+        : existing?.manualSponsorId
     const sponsorChanged =
       args.manualSponsorId !== undefined &&
-      competition.manualSponsorId !== patch.manualSponsorId
+      existing?.manualSponsorId !== manualSponsorId
     const statusChanged =
       args.status !== undefined &&
-      competition.manualSponsorPropertyStatus !==
-        patch.manualSponsorPropertyStatus
+      existing?.manualSponsorPropertyStatus !== manualSponsorPropertyStatus
 
     if (!sponsorChanged && !statusChanged) {
       return null
     }
 
-    await ctx.db.patch("competitions", args.competitionId, patch)
+    await upsertCompetitionSponsorOverride(ctx, {
+      competitionId: args.competitionId,
+      manualSponsorPropertyStatus,
+      manualSponsorId,
+      updatedById: actorId,
+    })
     const sponsor =
       args.manualSponsorId !== undefined && args.manualSponsorId !== null
         ? await ctx.db.get("sponsors", args.manualSponsorId)

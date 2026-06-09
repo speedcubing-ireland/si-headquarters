@@ -1,6 +1,10 @@
 import type { Doc } from "@/convex/_generated/dataModel"
+import type {
+  LinkedResourceData,
+  LinkedResourceType,
+} from "@/convex/integrations/validators"
+import type { TaskIntegrationId } from "@/convex/integrations/taskIntegrations/validators"
 import type { TeamName } from "@/convex/permissions/shared"
-import type { TaskIntegrationId } from "@/convex/plugins/core/validators"
 import type { TaskLabelCode } from "@/convex/tasks/labels/constants"
 import type { TaskKind } from "@/convex/tasks/kind"
 import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
@@ -50,10 +54,10 @@ export type ReviewerExpression =
   | { type: "competitionRole"; role: "compLead" | "leadDelegate" }
   | { type: "variable"; key: string }
 
-export interface CompetitionResourceTemplateSpec {
-  resourceType: Doc<"competitionLinkedResources">["resourceType"]
+export interface LinkedResourceTemplateSpec {
+  resourceType: LinkedResourceType
   resourceKey: string
-  data: Doc<"competitionLinkedResources">["data"]
+  data: LinkedResourceData
 }
 
 export interface CompetitionTemplateTaskSpec {
@@ -88,7 +92,7 @@ export interface CompetitionTemplateDefinition {
   variables?: readonly TemplateVariableDefinition[]
   phases: readonly CompetitionTemplatePhaseSpec[]
   initialPhaseKey?: string
-  linkedResources?: readonly CompetitionResourceTemplateSpec[]
+  linkedResources?: readonly LinkedResourceTemplateSpec[]
 }
 
 export type TemplateCompetitionInput = Infer<typeof templateCompetitionInput>

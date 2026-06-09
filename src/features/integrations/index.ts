@@ -1,4 +1,3 @@
-export { formatCatchError } from "@/features/integrations/error-message"
 export { TaskIntegrationsSection } from "@/features/integrations/task-integrations-section"
 export {
   TaskIntegrationCardShell,
@@ -13,7 +12,8 @@ export {
   useAsyncAction,
   useAsyncLoad,
   useLinkAction,
+  useOpenLoad,
   useTaggedAsyncAction,
 } from "@/features/integrations/use-async-action"
-export { useOpenLoad } from "@/features/integrations/use-open-load"
+export { useLinkResourcePicker } from "@/features/integrations/use-link-resource-picker"
 export { useTaskIntegrationActions } from "@/features/integrations/use-task-integration-actions"

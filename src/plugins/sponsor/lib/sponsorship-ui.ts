@@ -7,11 +7,9 @@ import {
 } from "@/convex/plugins/sponsor/lib/types"
 import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
 import type { SponsorshipLifecycle } from "@/convex/plugins/sponsor/lib/sponsorshipLifecycle"
-
 export const SPONSORSHIP_FRAMEWORKS = SPONSORSHIP_AUCTION_FRAMEWORKS
 
 export type SponsorshipFramework = SponsorshipAuctionFramework
-export type { SponsorBidStatus, SponsorshipLifecycle }
 export const SPONSORSHIP_BIDDING_HELP_TITLE = "How this auction works"
 export const SPONSOR_GUIDE_PAGE_TITLE = "Sponsor Management System"
 
@@ -26,12 +24,6 @@ export type CompetitionSponsorPropertyStatus =
   | "bidding"
   | "none"
   | "sponsor"
-
-export type { SponsorshipFrameworkGuide } from "@/plugins/sponsor/lib/sponsor-guide"
-export {
-  sponsorshipFrameworkGuide,
-  sponsorshipFrameworkGuideBullets,
-} from "@/plugins/sponsor/lib/sponsor-guide"
 
 export interface AuctionPriceFields {
   framework: SponsorshipFramework
@@ -233,10 +225,6 @@ export function sponsorshipLifecycleStatusText(
 
 export function formatEuroFromCents(cents: number): string {
   return `EUR ${(cents / 100).toFixed(2)}`
-}
-
-export function formatDateTime(value: number): string {
-  return new Date(value).toLocaleString()
 }
 
 export function competitionPropertyStatusLabel(

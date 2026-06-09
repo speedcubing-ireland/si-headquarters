@@ -5,7 +5,7 @@ import {
   readJsonObjectArray,
   readString,
   type JsonRecord,
-} from "@/convex/plugins/core/jsonBoundary"
+} from "@/convex/integrations/jsonBoundary"
 import { env } from "@/convex/_generated/server"
 import type { DiscordLink } from "@/convex/users/validators"
 

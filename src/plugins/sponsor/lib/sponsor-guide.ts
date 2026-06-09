@@ -133,10 +133,3 @@ export function sponsorshipFrameworkGuide(
 ): SponsorshipFrameworkGuide {
   return SPONSORSHIP_FRAMEWORK_GUIDES[framework]
 }
-
-export function sponsorshipFrameworkGuideBullets(
-  framework: keyof typeof SPONSORSHIP_FRAMEWORK_GUIDES
-): readonly string[] {
-  const guide = sponsorshipFrameworkGuide(framework)
-  return [...guide.bidding, ...guide.closing, ...(guide.notes ?? [])]
-}

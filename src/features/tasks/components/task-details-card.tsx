@@ -1,5 +1,4 @@
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardAction,
@@ -12,11 +11,12 @@ import { api } from "@/convex/_generated/api"
 import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import type { FunctionReturnType } from "convex/server"
 import { useMutation, useQuery } from "convex/react"
-import { BellIcon, CornerDownRightIcon } from "lucide-react"
+import { CornerDownRightIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
 import type { Id } from "@/convex/_generated/dataModel"
 import { EditDetailsFormDialog } from "@/features/shared/edit-details-form-dialog"
+import { ObjectWatchButton } from "@/features/subscriptions/object-watch-button"
 import DynamicActionButton from "./dynamic-action-button"
 import { RouterButton } from "@/components/ui/router-button"
 import { PHASE_COLOR_CLASSES } from "@/components/data-selectors/phase-meta"
@@ -28,16 +28,19 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
   if (!parent) return null
 
   if (parent.type === "phases") {
+    const root = parent.competition ?? parent.project
+    if (root === null) return null
+
     return (
       <>
         <CornerDownRightIcon className="size-4" />
         <RouterButton
-          to={`/competitions/$id`}
-          params={{ id: parent.competition._id }}
+          to={parent.competition ? `/competitions/$id` : `/projects/$id`}
+          params={{ id: root._id }}
           variant="outline"
           size="sm"
         >
-          <span className="truncate">{parent.competition.name}</span>
+          <span className="truncate">{root.name}</span>
           <Badge variant="outline" className="ml-2 gap-1.25">
             <span
               className={`size-2 rounded-full ${PHASE_COLOR_CLASSES[parent.color]}`}
@@ -74,16 +77,6 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
   const taskDetails = useQuery(api.tasks.queries.getDetails, { id: taskId })
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
   const updateDetails = useMutation(api.tasks.mutations.setTaskDetails)
-  const isWatching = useQuery(api.subscriptions.index.getSubscription, {
-    object: {
-      type: "tasks",
-      id: taskId,
-    },
-  })
-  const setSubscription = useMutation(api.subscriptions.index.setSubscription)
-  const isSubscribed = isWatching === true
-  const watchingText = isSubscribed ? "Subscribed" : "Watch"
-  const watchingVariant = isSubscribed ? "ghost" : "outline"
 
   if (taskDetails === undefined) {
     return null
@@ -122,22 +115,7 @@ export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
       </CardContent>
       <CardFooter className="flex gap-2">
         <DynamicActionButton task={task} />
-        <Button
-          size="lg"
-          variant={watchingVariant}
-          onClick={() => {
-            void setSubscription({
-              object: {
-                type: "tasks",
-                id: taskId,
-              },
-              subscribe: !isSubscribed,
-            })
-          }}
-        >
-          <BellIcon />
-          {watchingText}
-        </Button>
+        <ObjectWatchButton object={{ type: "tasks", id: taskId }} />
         <TaskRemindersDialog taskId={taskId} />
       </CardFooter>
     </Card>

@@ -1,10 +1,10 @@
 "use node"
 
-import {
-  type IntegrationRunResult,
-  requireRunResource,
-  type RunContext,
-} from "@/convex/plugins/core/integrationTypes"
+import type {
+  TaskIntegrationRunContext,
+  TaskIntegrationRunResult,
+} from "@/convex/integrations/taskIntegrations/pluginContract"
+import { requireRunResource } from "@/convex/integrations/taskIntegrations/runResource"
 import { CHECKIN_SHARE_EMAIL } from "@/convex/plugins/sheets/constants"
 import { shareSheetWithEmail } from "@/convex/plugins/sheets/googleApi"
 import { fetchGoogleAndWcaTokens } from "@/convex/plugins/sheets/tokens"
@@ -16,8 +16,8 @@ import {
 
 export async function runTransferScheduleToWca(
   ctx: ActionCtx,
-  run: RunContext
-): Promise<IntegrationRunResult> {
+  run: TaskIntegrationRunContext
+): Promise<TaskIntegrationRunResult> {
   const sheet = requireRunResource(run, "googleSheet")
   const wca = requireRunResource(run, "wcaCompetition")
   const { googleAccessToken, wcaAccessToken } =
@@ -52,8 +52,8 @@ export async function runTransferScheduleToWca(
 
 export async function runPopulateCheckin(
   ctx: ActionCtx,
-  run: RunContext
-): Promise<IntegrationRunResult> {
+  run: TaskIntegrationRunContext
+): Promise<TaskIntegrationRunResult> {
   const sheet = requireRunResource(run, "googleSheet")
   const wca = requireRunResource(run, "wcaCompetition")
   const { googleAccessToken, wcaAccessToken } =

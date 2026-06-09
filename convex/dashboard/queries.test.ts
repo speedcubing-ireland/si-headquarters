@@ -13,6 +13,10 @@ import {
   insertTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
 import { modules } from "@/convex/test.setup"
 
 async function insertTask(
@@ -27,10 +31,12 @@ async function insertTask(
     dueDate?: string | null
   }
 ) {
+  const parent = { type: "phases", id: input.phaseId } as const
   return await ctx.db.insert("tasks", {
     name: input.name,
     description: null,
-    parent: { type: "phases", id: input.phaseId },
+    parent,
+    ...taskRootPatch(await deriveTaskRootContextFromParent(ctx, parent)),
     order: input.order,
     assigneeIds: input.assigneeIds ?? null,
     owner: input.owner ?? null,

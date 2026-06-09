@@ -7,6 +7,10 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
 import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
+import {
   seedVolunteerTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
@@ -41,7 +45,6 @@ async function insertPhase(ctx: MutationCtx): Promise<Id<"phases">> {
       to: null,
     },
     phaseId: null,
-    updateId: null,
   })
 
   return await ctx.db.insert("phases", {
@@ -72,6 +75,7 @@ async function insertTask(
     name: seed.name ?? `Task ${seed.order}`,
     description: null,
     parent: seed.parent,
+    ...taskRootPatch(await deriveTaskRootContextFromParent(ctx, seed.parent)),
     order: seed.order,
     assigneeIds: null,
     owner: null,
@@ -3366,7 +3370,7 @@ describe("Regression coverage", () => {
           id: secondId,
           order: "b",
         })
-      ).rejects.toThrow("Task parent cycle detected")
+      ).rejects.toThrow("Task status recompute parent cycle detected")
     })
 
     test("preview fails loudly instead of looping through a parent cycle", async () => {

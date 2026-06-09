@@ -3,8 +3,8 @@ import {
   readNumber,
   readString,
   type JsonRecord,
-} from "@/convex/plugins/core/jsonBoundary"
-import type { OAuthService } from "@/convex/plugins/core/types"
+} from "@/convex/integrations/jsonBoundary"
+import type { OAuthService } from "@/convex/integrations/validators"
 import {
   requireConvexEnv,
   type RequiredStringConvexEnvName,

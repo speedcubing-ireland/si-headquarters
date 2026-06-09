@@ -6,7 +6,7 @@ import {
   useLinkAction,
   useOpenLoad,
 } from "@/features/integrations"
-import { formatCatchError } from "@/features/integrations/error-message"
+import { unknownErrorMessage } from "@/convex/integrations/errorPayload"
 import type { LinkResourceActionProps } from "@/plugins/integrations/registry"
 import { useAction } from "convex/react"
 import { GlobeIcon } from "lucide-react"
@@ -29,9 +29,7 @@ const wcaGroupAccessors = {
   renderItem: wcaOptionAccessors.renderItem,
 }
 
-export function LinkWcaCompetitionButton({
-  competitionId,
-}: LinkResourceActionProps) {
+export function LinkWcaCompetitionButton({ object }: LinkResourceActionProps) {
   const { open, setOpen, close, error, setError, pending, run } =
     useLinkAction()
   const [query, setQuery] = useState("")
@@ -50,8 +48,8 @@ export function LinkWcaCompetitionButton({
   const linkCompetition = useAction(api.plugins.wca.resources.linkCompetition)
 
   const loadMyCompetitions = useCallback(
-    () => listMyCompetitions({ competitionId }),
-    [competitionId, listMyCompetitions]
+    () => listMyCompetitions({ object }),
+    [listMyCompetitions, object]
   )
 
   const { data: myCompetitions, reset: resetMyCompetitions } = useOpenLoad({
@@ -69,7 +67,7 @@ export function LinkWcaCompetitionButton({
     async function loadSearchResults(search: string) {
       try {
         const items = await searchCompetitions({
-          competitionId,
+          object,
           query: search,
         })
         if (!cancelled) {
@@ -78,7 +76,7 @@ export function LinkWcaCompetitionButton({
         }
       } catch (caught) {
         if (!cancelled) {
-          setError(formatCatchError(caught))
+          setError(unknownErrorMessage(caught, { includeConvexError: true }))
         }
       }
     }
@@ -86,7 +84,7 @@ export function LinkWcaCompetitionButton({
     return () => {
       cancelled = true
     }
-  }, [activeSearch, competitionId, searchCompetitions, setError])
+  }, [activeSearch, object, searchCompetitions, setError])
 
   const model = useMemo(
     () =>
@@ -153,7 +151,7 @@ export function LinkWcaCompetitionButton({
       onPick={async (competition) => {
         const linked = await run(async () => {
           await linkCompetition({
-            competitionId,
+            object,
             wcaCompetitionId: competition.id,
           })
         })

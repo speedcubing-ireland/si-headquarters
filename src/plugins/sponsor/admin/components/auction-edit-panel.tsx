@@ -18,10 +18,10 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
 import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import { formatDateTime } from "@/lib/format/irish-dates"
 import {
   SPONSORSHIP_FRAMEWORKS,
   competitionPropertyStatusLabel,
-  formatDateTime,
   isSponsorshipFramework,
   sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,

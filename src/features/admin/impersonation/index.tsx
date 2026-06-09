@@ -26,19 +26,19 @@ import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Page } from "@/components/layout/page"
-import { formatDateTime } from "@/plugins/sponsor/lib/sponsorship-ui"
 import { type AdminUser, userDisplayName } from "@/features/admin/users/utils"
+import { formatDateTime } from "@/lib/format/irish-dates"
 
 type ImpersonationLink = FunctionReturnType<
   typeof api.impersonation.mutations.createUserLink
 >
 
 type SponsorOption = FunctionReturnType<
-  typeof api.plugins.sponsor.admin.sponsors.list
+  typeof api.admin.sponsorImpersonation.listSponsors
 >[number]
 
 type SponsorContactOption = FunctionReturnType<
-  typeof api.plugins.sponsor.admin.contacts.listBySponsor
+  typeof api.admin.sponsorImpersonation.listContactsBySponsor
 >[number]
 
 function GeneratedLinkPanel({ link }: { link: ImpersonationLink | null }) {
@@ -145,10 +145,10 @@ function ImpersonationLinkCard({
 
 export function AdminImpersonationPage() {
   const users = useQuery(api.users.queries.listForAdmin, {})
-  const sponsors = useQuery(api.plugins.sponsor.admin.sponsors.list, {})
+  const sponsors = useQuery(api.admin.sponsorImpersonation.listSponsors, {})
   const createUserLink = useMutation(api.impersonation.mutations.createUserLink)
   const createSponsorLink = useMutation(
-    api.impersonation.mutations.createSponsorLink
+    api.admin.sponsorImpersonation.createLink
   )
 
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
@@ -158,7 +158,7 @@ export function AdminImpersonationPage() {
   const [selectedContact, setSelectedContact] =
     useState<SponsorContactOption | null>(null)
   const sponsorContacts = useQuery(
-    api.plugins.sponsor.admin.contacts.listBySponsor,
+    api.admin.sponsorImpersonation.listContactsBySponsor,
     selectedSponsor !== null ? { sponsorId: selectedSponsor.id } : "skip"
   )
   const [userReason, setUserReason] = useState("")

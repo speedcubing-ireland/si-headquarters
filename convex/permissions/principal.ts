@@ -12,9 +12,6 @@ import {
 } from "@/convex/permissions/shared"
 import { listTeamNamesForUser } from "@/convex/teams/model"
 
-export { TEAM_NAMES }
-export type { Action, Permission, Subject, TeamName }
-
 export interface Principal {
   userId: Id<"users">
   teamNames: TeamName[]
@@ -25,6 +22,8 @@ type AuthCtx = QueryCtx | MutationCtx
 const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
   [TEAM_NAMES.VOLUNTEER]: [
     { action: "manage", subject: "Competition" },
+    { action: "read", subject: "Project" },
+    { action: "create", subject: "Project" },
     { action: "read", subject: "Team" },
     { action: "read", subject: "User" },
     { action: "manage", subject: "Task" },

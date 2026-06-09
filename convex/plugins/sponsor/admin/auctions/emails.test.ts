@@ -62,7 +62,6 @@ function makeCompetition(
       to: "2026-09-02",
     },
     phaseId: null,
-    updateId: null,
     ...overrides,
   }
 }

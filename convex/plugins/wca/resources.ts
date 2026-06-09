@@ -4,7 +4,8 @@ import { v } from "convex/values"
 import type { Id } from "@/convex/_generated/dataModel"
 import { internal } from "@/convex/_generated/api"
 import { action } from "@/convex/_generated/server"
-import { upsertLinkedCompetitionResource } from "@/convex/plugins/core/linkCompetitionResource"
+import { upsertLinkedObjectResource } from "@/convex/integrations/linkObjectResource"
+import { competitionOrProjectRef } from "@/convex/utils"
 import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 import { lookupWcaCompetition } from "@/convex/plugins/wca/api"
 import { createWcaClient } from "@/convex/plugins/wca/client"
@@ -65,17 +66,16 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 
 export const linkCompetition = action({
   args: {
-    competitionId: v.id("competitions"),
+    object: competitionOrProjectRef,
     wcaCompetitionId: v.string(),
   },
-  returns: v.id("competitionLinkedResources"),
-  handler: async (ctx, args): Promise<Id<"competitionLinkedResources">> => {
-    await ctx.runQuery(
-      internal.plugins.core.authorize.assertCompetitionUpdateAccess,
-      { competitionId: args.competitionId }
-    )
+  returns: v.id("objectLinkedResources"),
+  handler: async (ctx, args): Promise<Id<"objectLinkedResources">> => {
+    if (args.object.type !== "competitions") {
+      throw new Error("WCA competitions can only be linked to competitions.")
+    }
     const accessToken = await ctx.runAction(
-      internal.plugins.core.tokens.getValidServiceToken,
+      internal.integrations.tokens.getValidServiceToken,
       { service: "wca" }
     )
     const wcaCompetitionId = args.wcaCompetitionId.trim()
@@ -84,8 +84,8 @@ export const linkCompetition = action({
       wcaCompetitionId
     )
 
-    return await upsertLinkedCompetitionResource(ctx, {
-      competitionId: args.competitionId,
+    const resourceId = await upsertLinkedObjectResource(ctx, {
+      object: args.object,
       resourceType: "wcaCompetition",
       data: {
         resourceType: "wcaCompetition",
@@ -93,29 +93,30 @@ export const linkCompetition = action({
         name,
         url,
       },
-      afterUpsert: async () => {
-        await ctx.runMutation(
-          internal.plugins.wca.competitionLink.patchCompetitionWcaId,
-          {
-            competitionId: args.competitionId,
-            wcaCompetitionId,
-          }
-        )
-      },
     })
+    await ctx.runMutation(
+      internal.plugins.wca.competitionLink.patchCompetitionWcaId,
+      {
+        competitionId: args.object.id,
+        wcaCompetitionId,
+      }
+    )
+    return resourceId
   },
 })
 
 export const listMyCompetitions = action({
-  args: { competitionId: v.id("competitions") },
+  args: { object: competitionOrProjectRef },
   returns: v.array(wcaCompetitionOption),
   handler: async (ctx, args) => {
-    await ctx.runQuery(
-      internal.plugins.core.authorize.assertCompetitionUpdateAccess,
-      { competitionId: args.competitionId }
-    )
+    if (args.object.type !== "competitions") {
+      throw new Error("WCA competitions can only be linked to competitions.")
+    }
+    await ctx.runQuery(internal.access.authorize.assertObjectUpdateAccess, {
+      object: args.object,
+    })
     const accessToken = await ctx.runAction(
-      internal.plugins.core.tokens.getValidServiceToken,
+      internal.integrations.tokens.getValidServiceToken,
       { service: "wca" }
     )
     const client = createWcaClient(accessToken)
@@ -136,21 +137,23 @@ export const listMyCompetitions = action({
 
 export const searchCompetitions = action({
   args: {
-    competitionId: v.id("competitions"),
+    object: competitionOrProjectRef,
     query: v.string(),
   },
   returns: v.array(wcaCompetitionOption),
   handler: async (ctx, args) => {
-    await ctx.runQuery(
-      internal.plugins.core.authorize.assertCompetitionUpdateAccess,
-      { competitionId: args.competitionId }
-    )
+    if (args.object.type !== "competitions") {
+      throw new Error("WCA competitions can only be linked to competitions.")
+    }
+    await ctx.runQuery(internal.access.authorize.assertObjectUpdateAccess, {
+      object: args.object,
+    })
     const query = args.query.trim()
     if (query.length === 0) {
       return []
     }
     const accessToken = await ctx.runAction(
-      internal.plugins.core.tokens.getValidServiceToken,
+      internal.integrations.tokens.getValidServiceToken,
       { service: "wca" }
     )
     const client = createWcaClient(accessToken)

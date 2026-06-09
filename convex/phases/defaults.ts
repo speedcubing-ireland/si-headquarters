@@ -1,10 +1,7 @@
 // To-do this should be moved to the templating engine when that exists
 
 import { generateNKeysBetween } from "fractional-indexing"
-
-import type { PHASE_COLORS } from "./validators"
-
-type PhaseColor = (typeof PHASE_COLORS)[number]
+import type { PhaseColor } from "./colors"
 
 const DEFAULT_COMPETITION_PHASES = [
   { name: "Concept", color: "gray" },

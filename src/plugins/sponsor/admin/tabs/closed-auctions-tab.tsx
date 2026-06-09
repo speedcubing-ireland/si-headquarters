@@ -12,8 +12,8 @@ import { TabsContent } from "@/components/ui/tabs"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
 import { AuctionTable } from "@/plugins/sponsor/admin/components/auction-table"
 import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import { formatDateTime } from "@/lib/format/irish-dates"
 import {
-  formatDateTime,
   formatEuroFromCents,
   sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,

@@ -159,6 +159,8 @@ export const sponsorForUI = v.object({
   lastAccessEmailSentAt: v.optional(v.number()),
 })
 
+export type SponsorForUI = Infer<typeof sponsorForUI>
+
 export const sponsorContactPermissions = v.object({
   canBid: v.boolean(),
   portalAccess: v.boolean(),
@@ -179,13 +181,18 @@ export const sponsorContactForUI = v.object({
   lastAccessEmailSentAt: v.optional(v.number()),
 })
 
+export type SponsorContactForUI = Infer<typeof sponsorContactForUI>
+
 export const sponsorPortalMe = v.object({
   sponsor: sponsorForUI,
   contact: v.optional(sponsorContactForUI),
   permissions: sponsorContactPermissions,
 })
 
-export const sponsorCompetitionFields = {
+export const competitionSponsorOverrideFields = {
+  competitionId: v.id("competitions"),
   manualSponsorPropertyStatus: v.optional(competitionSponsorPropertyStatus),
   manualSponsorId: v.optional(v.id("sponsors")),
+  updatedById: v.id("users"),
+  updatedAt: v.number(),
 }

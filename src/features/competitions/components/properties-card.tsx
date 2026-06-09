@@ -1,18 +1,17 @@
-import * as PhaseSelector from "@/components/data-selectors/phase-selector"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import { PhasePropertyRow } from "@/features/shared/phase-property-row"
 import { useMutation, useQuery } from "convex/react"
-import { InfoIcon, MilestoneIcon } from "lucide-react"
-import { CompetitionLinkedResourcesFooter } from "@/features/competition-resources/footer"
+import { InfoIcon } from "lucide-react"
+import { ObjectLinkedResourcesFooter } from "@/features/integrations/object-linked-resources-footer"
 import {
   PageCard,
   PageCardContent,
   PageCardFooter,
-  PageCardRow,
 } from "@/components/page-card"
 import { PLUGINS } from "@/plugins/registry"
 
-export function PropertiesCard({
+export function CompetitionPropertiesCard({
   competitionId,
 }: {
   competitionId: Id<"competitions">
@@ -32,22 +31,17 @@ export function PropertiesCard({
   return (
     <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
       <PageCardContent>
-        <PageCardRow icon={<MilestoneIcon className="size-4" />} label="Phase">
-          <PhaseSelector.PropertyButton
-            owner={{
-              type: "competitions",
+        <PhasePropertyRow
+          owner={{ type: "competitions", id: comp._id }}
+          phaseId={comp.phaseId}
+          selectedPhase={phase}
+          onChange={(phaseId) => {
+            void setCompPhase({
               id: comp._id,
-            }}
-            selectedPhase={phase}
-            value={comp.phaseId}
-            onChange={(phaseId) => {
-              void setCompPhase({
-                id: comp._id,
-                phaseId,
-              })
-            }}
-          />
-        </PageCardRow>
+              phaseId,
+            })
+          }}
+        />
         {PLUGINS.flatMap((plugin) => plugin.competitionProperties).map(
           (PropertyRow) => (
             <PropertyRow key={PropertyRow.name} competitionId={competitionId} />
@@ -55,7 +49,9 @@ export function PropertiesCard({
         )}
       </PageCardContent>
       <PageCardFooter className="flex flex-col items-start gap-2">
-        <CompetitionLinkedResourcesFooter competitionId={competitionId} />
+        <ObjectLinkedResourcesFooter
+          object={{ type: "competitions", id: competitionId }}
+        />
       </PageCardFooter>
     </PageCard>
   )

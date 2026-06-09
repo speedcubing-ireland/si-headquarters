@@ -2,7 +2,7 @@ import { mutation } from "@/convex/_generated/server"
 import { getTaskBlockerEdge } from "@/convex/tasks/blockers/loader"
 import { scheduleTaskUnblockedIfReady } from "@/convex/notifications/events"
 import { requireTaskManageAccess } from "@/convex/tasks/access"
-import { getCompetitionIdForTask } from "@/convex/tasks/hierarchy"
+import { taskRootsMatch } from "@/convex/tasks/hierarchy"
 import { v } from "convex/values"
 
 export const addBlocker = mutation({
@@ -22,16 +22,8 @@ export const addBlocker = mutation({
     const blockedTask = blockedAccess.task
     const blockingTask = blockingAccess.task
 
-    const [blockedCompetitionId, blockingCompetitionId] = await Promise.all([
-      getCompetitionIdForTask(ctx, blockedTask),
-      getCompetitionIdForTask(ctx, blockingTask),
-    ])
-    if (
-      blockedCompetitionId === null ||
-      blockingCompetitionId === null ||
-      blockedCompetitionId !== blockingCompetitionId
-    ) {
-      throw new Error("Blockers must belong to the same competition")
+    if (!taskRootsMatch(blockedTask, blockingTask)) {
+      throw new Error("Blockers must belong to the same competition or project")
     }
 
     const existing = await getTaskBlockerEdge(

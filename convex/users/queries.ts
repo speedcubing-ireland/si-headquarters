@@ -12,7 +12,7 @@ import {
   listMemberIdsForTeam,
   listTeamSummariesForUser,
 } from "@/convex/teams/model"
-import { teamNameValidator } from "@/convex/teams/validators"
+import { teamNameValidator } from "@/convex/permissions/shared"
 import { resolveUserAvatarUrl } from "@/convex/users/avatar"
 import { toAdminUserSummary } from "@/convex/users/adminModel"
 import {

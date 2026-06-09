@@ -1,9 +1,7 @@
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import {
-  getCompetitionIdForTask,
-  listCompetitionTaskIds,
-} from "@/convex/tasks/blockers/competition"
+import { listRootTaskIds } from "@/convex/tasks/blockers/root"
+import { getTaskRootRef } from "@/convex/tasks/hierarchy"
 import {
   requireTaskManageAccess,
   requireTaskReadAccess,
@@ -112,16 +110,12 @@ export const listPotentialBlockers = query({
   handler: async (ctx, args) => {
     const { task } = await requireTaskManageAccess(ctx, args.taskId)
 
-    const competitionId = await getCompetitionIdForTask(ctx, task)
-    if (!competitionId) return []
-
     const blockersLoader = new TaskBlockersLoader(ctx)
-    const [competitionTaskIds, blockingMeEdges, blockedByMeEdges] =
-      await Promise.all([
-        listCompetitionTaskIds(ctx, competitionId),
-        blockersLoader.getBlockersOf(args.taskId),
-        blockersLoader.getBlockedBy(args.taskId),
-      ])
+    const [rootTaskIds, blockingMeEdges, blockedByMeEdges] = await Promise.all([
+      listRootTaskIds(ctx, getTaskRootRef(task)),
+      blockersLoader.getBlockersOf(args.taskId),
+      blockersLoader.getBlockedBy(args.taskId),
+    ])
 
     const excludedIds = new Set<Id<"tasks">>([args.taskId])
     for (const edge of blockingMeEdges) {
@@ -131,7 +125,7 @@ export const listPotentialBlockers = query({
       excludedIds.add(edge.blockedTaskId)
     }
 
-    const candidates = competitionTaskIds.filter((id) => !excludedIds.has(id))
+    const candidates = rootTaskIds.filter((id) => !excludedIds.has(id))
 
     const tasks = await Promise.all(
       candidates.map((id) => ctx.db.get("tasks", id))

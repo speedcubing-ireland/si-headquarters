@@ -13,7 +13,7 @@ import {
   readObjectArray,
   readRecord,
   readString,
-} from "@/convex/plugins/core/jsonBoundary"
+} from "@/convex/integrations/jsonBoundary"
 import type { WcaClient } from "@/convex/plugins/wca/client"
 import { getCompetitionWcif } from "@/convex/plugins/wca/openapiClient/sdk.gen"
 

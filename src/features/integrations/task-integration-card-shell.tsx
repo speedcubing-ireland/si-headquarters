@@ -7,27 +7,21 @@ import {
   IntegrationCardHeader,
   IntegrationCardRoot,
 } from "@/features/integrations/integration-card-parts"
-import type { Doc } from "@/convex/_generated/dataModel"
-import type {
-  TaskIntegrationId,
-  TaskIntegrationStatus,
-} from "@/convex/plugins/core/types"
+import type { api } from "@/convex/_generated/api"
+import type { TaskIntegrationStatus } from "@/convex/integrations/taskIntegrations/validators"
 import { isIntegrationStatus } from "@/features/integrations/integration-status"
 import { useTaskIntegrationActions } from "@/features/integrations/use-task-integration-actions"
 import { cn } from "@/lib/utils"
+import type { FunctionReturnType } from "convex/server"
 import type { ReactNode } from "react"
 
 export type TaskIntegrationCardActions = ReturnType<
   typeof useTaskIntegrationActions
 >
 
-export type TaskIntegrationCardRow = Doc<"taskIntegrations"> & {
-  definition: {
-    id: TaskIntegrationId
-    label: string
-    pluginId: string
-  }
-}
+export type TaskIntegrationCardRow = FunctionReturnType<
+  typeof api.integrations.taskIntegrations.queries.listForTask
+>[number]
 
 export interface TaskIntegrationCardContext {
   actions: TaskIntegrationCardActions
@@ -43,6 +37,7 @@ export function TaskIntegrationCardShell({
   lastMessageClassName,
   row,
   showLastMessage = true,
+  statusLabel,
   title,
 }: {
   actions?: (context: TaskIntegrationCardContext) => ReactNode
@@ -52,6 +47,7 @@ export function TaskIntegrationCardShell({
   lastMessageClassName?: string
   row: TaskIntegrationCardRow
   showLastMessage?: boolean
+  statusLabel?: string
   title?: string
 }) {
   const actions = useTaskIntegrationActions(row)
@@ -66,6 +62,7 @@ export function TaskIntegrationCardShell({
         icon={icon}
         title={title ?? row.definition.label}
         status={status}
+        statusLabel={statusLabel}
       >
         <IntegrationCardDeleteButton
           disabled={actions.pending === "delete"}

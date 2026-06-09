@@ -1,4 +1,4 @@
-import type { BackendIntegrationPlugin } from "@/convex/plugins/core/integrationTypes"
+import type { BackendIntegrationPlugin } from "@/convex/integrations/taskIntegrations/pluginContract"
 import {
   runPopulateCheckin,
   runTransferScheduleToWca,

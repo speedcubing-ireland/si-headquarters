@@ -1,4 +1,4 @@
-import { TaskCompLink } from "@/features/tasks/components/task-comp-link"
+import { TaskRootLink } from "@/features/tasks/components/task-root-link"
 import { TaskInlineDataRow } from "@/features/tasks/components/task-inline-data-row"
 import { TASK_LIST_GRID_CLASS } from "@/features/list-views/components/list-board-columns"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
@@ -12,7 +12,7 @@ export function TaskRow({ row }: { row: TaskBoardRow }) {
         TASK_LIST_GRID_CLASS
       )}
     >
-      <TaskCompLink row={row} className="mr-1 justify-self-start" />
+      <TaskRootLink row={row} className="mr-1 justify-self-start" />
       <TaskInlineDataRow row={row} />
     </div>
   )

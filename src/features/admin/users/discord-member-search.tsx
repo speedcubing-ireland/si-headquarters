@@ -37,7 +37,9 @@ export function DiscordMemberSearch({
   linkedDiscordByUserId: Map<string, { userId: Id<"users">; label: string }>
   currentUserId: Id<"users">
 }) {
-  const searchMembers = useAction(api.users.actions.searchDiscordGuildMembers)
+  const searchMembers = useAction(
+    api.admin.discord.searchGuildMembersForUserManagement
+  )
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [searchState, setSearchState] = useState<SearchState>(emptySearchState)

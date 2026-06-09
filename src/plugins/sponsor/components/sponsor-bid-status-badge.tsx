@@ -1,7 +1,5 @@
-import {
-  sponsorBidStatusLabel,
-  type SponsorBidStatus,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
+import { sponsorBidStatusLabel } from "@/plugins/sponsor/lib/sponsorship-ui"
 import { Check, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"

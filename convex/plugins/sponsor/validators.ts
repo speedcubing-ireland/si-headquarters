@@ -3,6 +3,7 @@ import { v } from "convex/values"
 import { competitionSnapshot } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import {
   auctionState,
+  competitionSponsorOverrideFields,
   sponsorshipAuctionFramework,
   sponsorshipBidIntentMode,
 } from "@/convex/plugins/sponsor/lib/validators"
@@ -125,4 +126,8 @@ export const sponsorTables = {
     .index("by_sponsor", ["sponsorId"])
     .index("by_email_normalized", ["emailNormalized"])
     .index("by_auth_user_id", ["authUserId"]),
+
+  competitionSponsorOverrides: defineTable(
+    competitionSponsorOverrideFields
+  ).index("by_competitionId", ["competitionId"]),
 }

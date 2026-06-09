@@ -24,16 +24,13 @@ async function validateDesignCandidate(
     designUrl: string
   }
 ) {
-  await ctx.runQuery(
-    internal.plugins.core.authorize.assertTaskIntegrationAccess,
-    {
-      integrationRowId: args.id,
-    }
-  )
+  await ctx.runQuery(internal.access.authorize.assertTaskIntegrationAccess, {
+    integrationRowId: args.id,
+  })
 
   const parsed = parseCanvaDesignUrl(args.designUrl)
   const accessToken = await ctx.runAction(
-    internal.plugins.core.tokens.getValidServiceToken,
+    internal.integrations.tokens.getValidServiceToken,
     { service: "canva" }
   )
   const metadata = await fetchCanvaDesignMetadata(accessToken, parsed.designId)

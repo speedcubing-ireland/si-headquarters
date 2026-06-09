@@ -1,6 +1,7 @@
 import * as React from "react"
 import {
   BlocksIcon,
+  FolderKanbanIcon,
   HomeIcon,
   ListChecksIcon,
   UsersIcon,
@@ -37,6 +38,7 @@ const projectLinkItems: {
 }[] = [
   { label: "Tasks", to: "/tasks", icon: ListChecksIcon },
   { label: "Competitions", to: "/competitions", icon: TrophyIcon },
+  { label: "Projects", to: "/projects", icon: FolderKanbanIcon },
 ]
 
 const sidebarLinkActiveOptions = { exact: true } as const

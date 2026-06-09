@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 import {
   TASK_INTEGRATION_DEFINITIONS,
   TASK_INTEGRATION_IDS,
-} from "@/convex/plugins/core/constants"
+} from "@/convex/integrations/taskIntegrations/constants"
 import {
   INTEGRATION_PLUGINS,
   TASK_INTEGRATION_CARDS,

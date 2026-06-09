@@ -1,8 +1,8 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import { formatDateTime } from "@/lib/format/irish-dates"
 import {
-  formatDateTime,
   formatEuroFromCents,
   sponsorshipFrameworkLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"

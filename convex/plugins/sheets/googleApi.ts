@@ -7,7 +7,7 @@ import {
   readRecord,
   readString,
   type JsonRecord,
-} from "@/convex/plugins/core/jsonBoundary"
+} from "@/convex/integrations/jsonBoundary"
 import {
   SCHEDULE_CACHE_TTL_MS,
   SCHEDULE_RANGES,

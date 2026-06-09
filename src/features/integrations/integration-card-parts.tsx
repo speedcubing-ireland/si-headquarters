@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { IntegrationStatusBadge } from "@/features/integrations/integration-status-badge"
-import type { TaskIntegrationStatus } from "@/convex/plugins/core/types"
+import type { TaskIntegrationStatus } from "@/convex/integrations/taskIntegrations/validators"
 import { cn } from "@/lib/utils"
 import { TrashIcon } from "lucide-react"
 import type { ReactNode } from "react"
@@ -27,11 +27,13 @@ export function IntegrationCardHeader({
   icon,
   title,
   status,
+  statusLabel,
   children,
 }: {
   icon: ReactNode
   title: string
   status?: TaskIntegrationStatus
+  statusLabel?: string
   children?: ReactNode
 }) {
   return (
@@ -40,20 +42,12 @@ export function IntegrationCardHeader({
         {icon}
         <span className="min-w-0 flex-1 truncate">{title}</span>
         {status !== undefined ? (
-          <IntegrationCardStatus status={status} />
+          <IntegrationStatusBadge status={status} label={statusLabel} />
         ) : null}
         {children}
       </CardTitle>
     </CardHeader>
   )
-}
-
-export function IntegrationCardStatus({
-  status,
-}: {
-  status: TaskIntegrationStatus
-}) {
-  return <IntegrationStatusBadge status={status} />
 }
 
 export function IntegrationCardDeleteButton({

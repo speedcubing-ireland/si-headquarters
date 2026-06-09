@@ -4,8 +4,13 @@ import { TEAM_NAMES } from "@/convex/permissions/shared"
 import {
   addUserToTeam,
   insertBlankCompetition,
+  insertBlankProject,
   insertTestUser,
 } from "@/convex/testHelpers"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
 import { modules } from "@/convex/test.setup"
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
@@ -52,6 +57,8 @@ describe("permissions", () => {
     expect(volunteer.permissions.map(permissionKey)).toEqual(
       expect.arrayContaining([
         "manage:Competition",
+        "read:Project",
+        "create:Project",
         "read:Team",
         "read:User",
         "manage:Task",
@@ -143,6 +150,82 @@ describe("permissions", () => {
     expect(users.map((user) => user._id)).toContain(otherUserId)
   })
 
+  test("project user members can read and update projects", async () => {
+    const t = convexTest(schema, modules)
+    const { memberId, outsiderId, projectId } = await t.run(async (ctx) => {
+      const memberId = await insertTestUser(ctx, "Project Member")
+      const outsiderId = await insertTestUser(ctx, "Outsider")
+      const projectId = await insertBlankProject(ctx)
+      await ctx.db.insert("projectMembers", {
+        projectId,
+        member: { type: "users", id: memberId },
+      })
+      return { memberId, outsiderId, projectId }
+    })
+
+    await expect(
+      t
+        .withIdentity({ subject: outsiderId })
+        .query(api.projects.queries.getPageRoot, { id: projectId })
+    ).resolves.toBeNull()
+
+    await expect(
+      t
+        .withIdentity({ subject: memberId })
+        .query(api.projects.queries.getPageRoot, { id: projectId })
+    ).resolves.toMatchObject({ _id: projectId })
+
+    await expect(
+      t
+        .withIdentity({ subject: memberId })
+        .mutation(api.projects.mutations.setDetails, {
+          id: projectId,
+          name: "Updated project",
+          description: null,
+        })
+    ).resolves.toBeNull()
+  })
+
+  test("project team members can read and update projects", async () => {
+    const t = convexTest(schema, modules)
+    const { teamMemberId, outsiderId, projectId } = await t.run(async (ctx) => {
+      const teamMemberId = await insertTestUser(ctx, "Project Team Member")
+      const outsiderId = await insertTestUser(ctx, "Outsider")
+      await addUserToTeam(ctx, teamMemberId, TEAM_NAMES.GRAPHICS)
+      const team = await ctx.db
+        .query("teams")
+        .withIndex("by_name", (q) => q.eq("name", TEAM_NAMES.GRAPHICS))
+        .unique()
+      if (team === null) throw new Error("Team not found")
+      const projectId = await insertBlankProject(ctx)
+      await ctx.db.insert("projectMembers", {
+        projectId,
+        member: { type: "teams", id: team._id },
+      })
+      return { teamMemberId, outsiderId, projectId }
+    })
+
+    await expect(
+      t
+        .withIdentity({ subject: outsiderId })
+        .mutation(api.projects.mutations.setStatus, {
+          id: projectId,
+          status: "active",
+        })
+    ).rejects.toMatchObject({
+      data: { code: "FORBIDDEN" },
+    })
+
+    await expect(
+      t
+        .withIdentity({ subject: teamMemberId })
+        .mutation(api.projects.mutations.setStatus, {
+          id: projectId,
+          status: "active",
+        })
+    ).resolves.toBeNull()
+  })
+
   test("organisers without teams cannot list users globally", async () => {
     const t = convexTest(schema, modules)
     const organiserId = await t.run(async (ctx) => {
@@ -178,10 +261,12 @@ describe("permissions", () => {
         owner: { type: "competitions", id: competitionId },
         sortKey: "a0",
       })
+      const parent = { type: "phases", id: phaseId } as const
       const taskId = await ctx.db.insert("tasks", {
         name: "Blocked task",
         description: null,
-        parent: { type: "phases", id: phaseId },
+        parent,
+        ...taskRootPatch(await deriveTaskRootContextFromParent(ctx, parent)),
         kind: "standard",
         status: "backlog",
         statusIntent: { type: "manual", status: "backlog" },

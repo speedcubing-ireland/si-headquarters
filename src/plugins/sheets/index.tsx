@@ -6,7 +6,10 @@ import { TransferScheduleCard } from "@/plugins/sheets/transfer-schedule-card"
 
 export const sheetsIntegrationPlugin = {
   id: "sheets",
-  competitionLink: "googleSheet",
+  linkedResource: {
+    resourceType: "googleSheet",
+    objectTypes: ["competitions"],
+  },
   adminIcon: FileSpreadsheetIcon,
   matchesResourceType: (type) => type === "googleSheet",
   resourceIcon: () => <FileSpreadsheetIcon className="text-lime-500" />,

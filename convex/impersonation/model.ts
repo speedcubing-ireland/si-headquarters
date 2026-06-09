@@ -1,5 +1,4 @@
 import { ConvexError } from "convex/values"
-import { components } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import {
@@ -13,8 +12,6 @@ export type ImpersonationCtx = QueryCtx | MutationCtx
 
 const MIN_CONSUMPTION_NONCE_LENGTH = 16
 const MIN_TOKEN_LENGTH = 32
-
-type JsonRecord = Record<string, string | number | boolean | null | undefined>
 
 function invalidLink(): never {
   throw new ConvexError({
@@ -126,40 +123,6 @@ export async function requireFreshTicket(
   return { ticket, now }
 }
 
-function isJsonRecord(value: object): value is JsonRecord {
-  return !Array.isArray(value)
-}
-
-export async function findSponsorSessionByToken(
-  ctx: ImpersonationCtx,
-  sessionToken: string
-) {
-  // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
-  const result: object | null = await ctx.runQuery(
-    components.sponsorAuth.adapter.findOne,
-    {
-      model: "session",
-      where: [{ field: "token", value: sessionToken }],
-    }
-  )
-  return result !== null && isJsonRecord(result) ? result : null
-}
-
-export async function findSponsorAuthUser(
-  ctx: ImpersonationCtx,
-  authUserId: string
-) {
-  // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
-  const result: object | null = await ctx.runQuery(
-    components.sponsorAuth.adapter.findOne,
-    {
-      model: "user",
-      where: [{ field: "_id", value: authUserId }],
-    }
-  )
-  return result !== null && isJsonRecord(result) ? result : null
-}
-
 export async function getUserName(
   ctx: ImpersonationCtx,
   userId: Id<"users">
@@ -182,24 +145,6 @@ export async function buildImpersonationBanner(
     expiresAt: args.expiresAt,
     reason: args.ticket.reason,
   }
-}
-
-export function impersonationSessionIdFromSponsorSession(
-  ctx: ImpersonationCtx,
-  session: JsonRecord
-) {
-  const raw = session.impersonationSessionId
-  return typeof raw === "string"
-    ? ctx.db.normalizeId("impersonationSessions", raw)
-    : null
-}
-
-export function userIdFromSponsorSession(
-  ctx: ImpersonationCtx,
-  session: JsonRecord
-) {
-  const raw = session.impersonatedByUserId
-  return typeof raw === "string" ? ctx.db.normalizeId("users", raw) : null
 }
 
 export async function insertImpersonationTicket(

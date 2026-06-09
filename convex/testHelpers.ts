@@ -7,8 +7,8 @@ import type {
   TaskStatus,
   TaskStatusIntent,
 } from "@/convex/tasks/status/resolver"
-import type { TaskIntegrationId } from "@/convex/plugins/core/validators"
-import { attachConfiguredIntegrationsForTask } from "@/convex/plugins/core/taskTemplateIntegrations"
+import type { TaskIntegrationId } from "@/convex/integrations/taskIntegrations/validators"
+import { attachConfiguredIntegrationsForTask } from "@/convex/integrations/taskIntegrations/templates"
 import {
   deriveTaskRootContextFromParent,
   taskRootPatch,
@@ -79,7 +79,6 @@ export async function insertBlankCompetition(
     },
     compDates: { from: null, to: null },
     phaseId: null,
-    updateId: null,
   })
 }
 
@@ -100,6 +99,35 @@ export async function insertCompetitionPhase(
   return await ctx.db.insert("phases", {
     name,
     owner: { type: "competitions", id: competitionId },
+    sortKey,
+    color,
+  })
+}
+
+export async function insertBlankProject(
+  ctx: MutationCtx,
+  scope: Doc<"projects">["scope"] = { type: "global" }
+): Promise<Id<"projects">> {
+  return await ctx.db.insert("projects", {
+    name: "Sample Project",
+    description: null,
+    scope,
+    leadUserId: null,
+    phaseId: null,
+    status: "planning",
+  })
+}
+
+export async function insertProjectPhase(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  name: string,
+  sortKey: string,
+  color: Doc<"phases">["color"] = "gray"
+): Promise<Id<"phases">> {
+  return await ctx.db.insert("phases", {
+    name,
+    owner: { type: "projects", id: projectId },
     sortKey,
     color,
   })

@@ -7,6 +7,10 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import type { TaskKind } from "@/convex/tasks/kind"
 import schema from "@/convex/schema"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
 import { modules } from "@/convex/test.setup"
 import type {
   TaskStatus,
@@ -36,7 +40,6 @@ async function insertCompetition(ctx: MutationCtx) {
       to: null,
     },
     phaseId: null,
-    updateId: null,
   })
 }
 
@@ -65,6 +68,7 @@ async function insertTask(ctx: MutationCtx, seed: TaskSeed) {
     name: seed.name,
     description: null,
     parent: seed.parent,
+    ...taskRootPatch(await deriveTaskRootContextFromParent(ctx, seed.parent)),
     order: seed.order,
     assigneeIds: null,
     owner: null,

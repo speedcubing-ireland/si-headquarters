@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
-import { useEndSponsorImpersonation } from "@/features/impersonation/use-end-sponsor-impersonation"
+import { useEndSponsorImpersonation } from "@/plugins/sponsor/impersonation/use-end-sponsor-impersonation"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 

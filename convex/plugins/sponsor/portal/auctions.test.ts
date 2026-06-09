@@ -355,7 +355,6 @@ function makeProxyPortalCtx(input: {
               to: "2026-09-02",
             },
             phaseId: null,
-            updateId: null,
           }
         }
         return null

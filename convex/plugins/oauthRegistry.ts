@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values"
-import type { OAuthService } from "@/convex/plugins/core/types"
+import type { OAuthService } from "@/convex/integrations/validators"
 import { plugin as canvaPlugin } from "@/convex/plugins/canva/oauth"
 import { plugin as googlePlugin } from "@/convex/plugins/google/oauth"
 import type { OAuthPlugin } from "@/convex/plugins/oauthProvider"

@@ -20,6 +20,10 @@ export function formatDateRange(startDate: string, endDate: string): string {
   return start === end ? start : `${start} to ${end}`
 }
 
+export function formatDateTime(timestampMs: number): string {
+  return `${formatInTimeZone(new Date(timestampMs), DUBLIN_TZ, "MMM d, yyyy 'at' HH:mm")} (Dublin)`
+}
+
 export function formatDateTimeInDublin(
   date: string | null | undefined
 ): string {
@@ -28,5 +32,5 @@ export function formatDateTimeInDublin(
   }
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return date
-  return `${formatInTimeZone(parsed, DUBLIN_TZ, "MMM d, yyyy 'at' HH:mm")} (Dublin)`
+  return formatDateTime(parsed.getTime())
 }

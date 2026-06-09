@@ -1,5 +1,5 @@
 import { defineTable } from "convex/server"
-import { v } from "convex/values"
+import { v, type Infer } from "convex/values"
 
 export const IMPERSONATION_TICKET_TTL_MS = 5 * 60 * 1000
 export const IMPERSONATION_SESSION_TTL_MS = 60 * 60 * 1000
@@ -57,6 +57,10 @@ export const impersonationLinkResultValidator = v.object({
   ticketExpiresAt: v.number(),
   sessionExpiresAt: v.number(),
 })
+
+export type ImpersonationLinkResult = Infer<
+  typeof impersonationLinkResultValidator
+>
 
 export const impersonationBannerValidator = v.object({
   actorUserId: v.id("users"),

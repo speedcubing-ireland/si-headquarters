@@ -17,4 +17,11 @@ crons.cron(
   {}
 )
 
+crons.cron(
+  "project workflow daily scan 08:15 UTC",
+  "15 8 * * *",
+  internal.projectWorkflows.mutations.queueDailyRuns,
+  {}
+)
+
 export default crons

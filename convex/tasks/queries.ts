@@ -3,7 +3,8 @@
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireCompetitionForRead } from "@/convex/plugins/core/authorize"
+import { requireCompetitionForRead } from "@/convex/competitions/access"
+import { requireProjectForRead } from "@/convex/projects/access"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import { requireTaskReadAccess } from "@/convex/tasks/access"
 import { taskFlowView, type TaskFlowView } from "@/convex/tasks/flowView"
@@ -20,6 +21,7 @@ import { taskStatusCommandType } from "@/convex/tasks/status/validators"
 import { getProgress } from "@/convex/tasks/status/rules"
 import {
   getCompetitionSubtaskView,
+  getProjectSubtaskView,
   getTaskSubtaskView,
   listCreationTargetsForScope,
   subtaskViewOwner,
@@ -52,7 +54,11 @@ type TaskParentDetails =
       competition: {
         _id: Id<"competitions">
         name: string
-      }
+      } | null
+      project: {
+        _id: Id<"projects">
+        name: string
+      } | null
     }
   | null
 
@@ -141,16 +147,34 @@ async function getTaskParentDetails(
       const phase = await ctx.db.get("phases", task.parent.id)
       if (!phase) return null
 
-      const competition = await ctx.db.get("competitions", phase.owner.id)
-      return competition
+      if (phase.owner.type === "competitions") {
+        const competition = await ctx.db.get("competitions", phase.owner.id)
+        return competition
+          ? {
+              type: "phases",
+              _id: phase._id,
+              name: phase.name,
+              color: phase.color,
+              competition: {
+                _id: competition._id,
+                name: competition.name,
+              },
+              project: null,
+            }
+          : null
+      }
+
+      const project = await ctx.db.get("projects", phase.owner.id)
+      return project
         ? {
             type: "phases",
             _id: phase._id,
             name: phase.name,
             color: phase.color,
-            competition: {
-              _id: competition._id,
-              name: competition.name,
+            competition: null,
+            project: {
+              _id: project._id,
+              name: project.name,
             },
           }
         : null
@@ -207,14 +231,24 @@ async function getTaskBreadcrumbs(ctx: QueryCtx, id: Id<"tasks">) {
 
   const rootPhase = await ctx.db.get("phases", parent.id)
   if (!rootPhase) throw new Error("Phase not found")
-  const rootPhaseComp = await ctx.db.get("competitions", rootPhase.owner.id)
-  if (!rootPhaseComp) throw new Error("Comp not found")
 
-  chain.push({
-    id: rootPhaseComp._id,
-    type: "competitions",
-    name: rootPhaseComp.name,
-  })
+  if (rootPhase.owner.type === "competitions") {
+    const rootPhaseComp = await ctx.db.get("competitions", rootPhase.owner.id)
+    if (!rootPhaseComp) throw new Error("Competition not found")
+    chain.push({
+      id: rootPhaseComp._id,
+      type: "competitions",
+      name: rootPhaseComp.name,
+    })
+  } else {
+    const rootPhaseProject = await ctx.db.get("projects", rootPhase.owner.id)
+    if (!rootPhaseProject) throw new Error("Project not found")
+    chain.push({
+      id: rootPhaseProject._id,
+      type: "projects",
+      name: rootPhaseProject.name,
+    })
+  }
 
   return chain.reverse()
 }
@@ -325,8 +359,13 @@ export const getSubtaskView = query({
       return await getTaskSubtaskView(ctx, args.owner.id)
     }
 
-    await requireCompetitionForRead(ctx, args.owner.id)
-    return await getCompetitionSubtaskView(ctx, args.owner.id)
+    if (args.owner.type === "competitions") {
+      await requireCompetitionForRead(ctx, args.owner.id)
+      return await getCompetitionSubtaskView(ctx, args.owner.id)
+    }
+
+    await requireProjectForRead(ctx, args.owner.id)
+    return await getProjectSubtaskView(ctx, args.owner.id)
   },
 })
 
@@ -377,6 +416,10 @@ type BreadcrumbChain = ((
   | {
       id: Id<"competitions">
       type: "competitions"
+    }
+  | {
+      id: Id<"projects">
+      type: "projects"
     }
 ) & {
   name: string

@@ -17,6 +17,5 @@ export const competitionsCoreFields = {
   people: v.object(competitionPeopleFields),
   compDates: v.object(competitionDatesFields),
   phaseId: v.nullable(v.id("phases")),
-  updateId: v.nullable(v.id("competitionUpdates")),
   wcaCompetitionId: v.optional(v.string()),
 }

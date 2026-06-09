@@ -3,7 +3,7 @@ import { requireConvexEnv, type ConvexEnvSource } from "@/convex/envTypes"
 import {
   TASK_INTEGRATION_DEFINITIONS,
   type TaskIntegrationIdFromDefinitions,
-} from "@/convex/plugins/core/constants"
+} from "@/convex/integrations/taskIntegrations/constants"
 
 const CANVA_PRESET_IDS = [
   "canva.certificates",

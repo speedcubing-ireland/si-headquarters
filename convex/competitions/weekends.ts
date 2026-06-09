@@ -1,7 +1,5 @@
 import { formatLocalDate, parseLocalDate } from "@/convex/competitions/dates"
 
-export { formatLocalDate, parseLocalDate } from "@/convex/competitions/dates"
-
 export function getSaturdayOfWeek(date: Date): Date {
   const normalized = new Date(date)
   normalized.setHours(0, 0, 0, 0)

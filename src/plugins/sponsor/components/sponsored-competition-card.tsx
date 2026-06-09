@@ -6,10 +6,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import type { SponsorshipCompetitionSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import { formatDateRange } from "@/lib/format/irish-dates"
 import { cn } from "@/lib/utils"
+import type { SponsorshipLifecycle } from "@/convex/plugins/sponsor/lib/sponsorshipLifecycle"
 import {
   sponsorshipLifecycleBadgeVariant,
   sponsorshipLifecycleStatusText,
-  type SponsorshipLifecycle,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export interface SponsoredCompetitionCardProps {

@@ -1,9 +1,11 @@
 import { Page, PAGE_CONTENT_PADDING_SCROLL } from "@/components/layout/page"
-import { DetailsCard } from "@/features/competitions/components/details/details-card"
-import { PeopleCard } from "@/features/competitions/components/people-card"
-import { PropertiesCard } from "@/features/competitions/components/properties-card"
-import { UpdateCard } from "@/features/competitions/components/updates/update-card"
+import { CompetitionDetailsCard } from "@/features/competitions/components/details-card"
+import { CompetitionPeopleCard } from "@/features/competitions/components/people-card"
+import { CompetitionPropertiesCard } from "@/features/competitions/components/properties-card"
+import { EditPhasesButton } from "@/features/phases/edit-phases-dialog"
 import { SubtaskView } from "@/features/subtasks/subtask-view"
+import { CurrentUpdateCard } from "@/features/updates/current-update-card"
+import { ObjectPageGrid } from "@/features/shared/object-page-grid"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
@@ -28,13 +30,23 @@ export function CompetitionPage({
         emptyMessage="Competition not found."
       >
         {(comp) => (
-          <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 @sm/main:grid-cols-2">
-            <DetailsCard comp={comp} competitionId={competitionId} />
-            <PropertiesCard competitionId={competitionId} />
-            <PeopleCard competitionId={competitionId} />
-            <UpdateCard competitionId={competitionId} />
-            <SubtaskView owner={{ type: "competitions", id: competitionId }} />
-          </div>
+          <ObjectPageGrid>
+            <CompetitionDetailsCard comp={comp} competitionId={competitionId} />
+            <CompetitionPropertiesCard competitionId={competitionId} />
+            <CompetitionPeopleCard competitionId={competitionId} />
+            <CurrentUpdateCard
+              object={{ type: "competitions", id: competitionId }}
+              title="Competition update"
+            />
+            <SubtaskView
+              owner={{ type: "competitions", id: competitionId }}
+              toolbarActions={
+                <EditPhasesButton
+                  owner={{ type: "competitions", id: competitionId }}
+                />
+              }
+            />
+          </ObjectPageGrid>
         )}
       </Page.EntityState>
     </Page.Shell>

@@ -4,7 +4,7 @@ import {
   resolveWcaApiBaseUrl,
   resolveWcaBaseUrl,
 } from "@/convex/deploymentContext"
-import { readJsonObject, readString } from "@/convex/plugins/core/jsonBoundary"
+import { readJsonObject, readString } from "@/convex/integrations/jsonBoundary"
 
 export async function lookupWcaCompetition(
   accessToken: string,

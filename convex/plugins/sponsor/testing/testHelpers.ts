@@ -24,7 +24,6 @@ export async function insertTestCompetition(
       to: args.to,
     },
     phaseId: null,
-    updateId: null,
     wcaCompetitionId: args.wcaCompetitionId,
   })
 }

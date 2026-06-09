@@ -1,19 +1,14 @@
-import { collectAll } from "@/convex/utils"
+import { collectAll, competitionOrProjectRef } from "@/convex/utils"
 import { query } from "@/convex/_generated/server"
-import type { Doc } from "@/convex/_generated/dataModel"
-import type { QueryCtx } from "@/convex/_generated/server"
 import { requireActiveUserId } from "@/convex/permissions/principal"
-import { phaseColor, phaseOwnerRef } from "./validators"
+import {
+  getOwnerCurrentPhaseId,
+  hasPhaseTasks,
+  listPhasesForOwner,
+  MAX_PHASES_FOR_OWNER,
+} from "@/convex/phases/model"
+import { phaseColor } from "./validators"
 import { v } from "convex/values"
-
-function listPhasesForOwner(ctx: QueryCtx, owner: Doc<"phases">["owner"]) {
-  return ctx.db
-    .query("phases")
-    .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
-      q.eq("owner.type", owner.type).eq("owner.id", owner.id)
-    )
-    .collect()
-}
 
 export const list = query({
   args: {},
@@ -22,7 +17,7 @@ export const list = query({
       _id: v.id("phases"),
       name: v.string(),
       color: phaseColor,
-      owner: phaseOwnerRef,
+      owner: competitionOrProjectRef,
     })
   ),
   handler: async (ctx) => {
@@ -39,7 +34,7 @@ export const list = query({
 
 export const listForOwner = query({
   args: {
-    owner: phaseOwnerRef,
+    owner: competitionOrProjectRef,
   },
   returns: v.array(
     v.object({
@@ -47,12 +42,55 @@ export const listForOwner = query({
       _creationTime: v.number(),
       name: v.string(),
       color: phaseColor,
-      owner: phaseOwnerRef,
+      owner: competitionOrProjectRef,
       sortKey: v.string(),
     })
   ),
   handler: async (ctx, args) => {
     await requireActiveUserId(ctx)
     return await listPhasesForOwner(ctx, args.owner)
+  },
+})
+
+export const listManageForOwner = query({
+  args: {
+    owner: competitionOrProjectRef,
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id("phases"),
+      _creationTime: v.number(),
+      name: v.string(),
+      color: phaseColor,
+      owner: competitionOrProjectRef,
+      sortKey: v.string(),
+      hasTasks: v.boolean(),
+      isCurrent: v.boolean(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    await requireActiveUserId(ctx)
+    const [phases, currentPhaseId] = await Promise.all([
+      ctx.db
+        .query("phases")
+        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+          q.eq("owner.type", args.owner.type).eq("owner.id", args.owner.id)
+        )
+        .order("asc")
+        .take(MAX_PHASES_FOR_OWNER + 1),
+      getOwnerCurrentPhaseId(ctx, args.owner),
+    ])
+
+    if (phases.length > MAX_PHASES_FOR_OWNER) {
+      throw new Error("Too many phases to manage at once.")
+    }
+
+    return await Promise.all(
+      phases.map(async (phase) => ({
+        ...phase,
+        hasTasks: await hasPhaseTasks(ctx, phase._id),
+        isCurrent: phase._id === currentPhaseId,
+      }))
+    )
   },
 })

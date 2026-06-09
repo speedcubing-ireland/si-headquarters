@@ -7,9 +7,9 @@ import {
   readNumber,
   readString,
   type JsonRecord,
-} from "@/convex/plugins/core/jsonBoundary"
+} from "@/convex/integrations/jsonBoundary"
 import { env } from "@/convex/_generated/server"
-import type { DiscordChannelResourceData } from "@/convex/plugins/core/validators"
+import type { DiscordChannelResourceData } from "@/convex/integrations/validators"
 
 const DISCORD_API = "https://discord.com/api/v10"
 

@@ -5,7 +5,7 @@ import {
   readJsonObject,
   readRecord,
   readString,
-} from "@/convex/plugins/core/jsonBoundary"
+} from "@/convex/integrations/jsonBoundary"
 
 export interface CanvaDatasetField {
   type: string

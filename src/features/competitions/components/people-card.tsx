@@ -1,16 +1,11 @@
 import { CompetitionPeopleCardFields } from "@/features/competitions/competition-people-selectors"
-import { Button } from "@/components/ui/button"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
-import { MessageCirclePlusIcon, UserIcon } from "lucide-react"
-import {
-  PageCard,
-  PageCardContent,
-  PageCardFooter,
-} from "@/components/page-card"
+import { UserIcon } from "lucide-react"
+import { PageCard, PageCardContent } from "@/components/page-card"
 
-export function PeopleCard({
+export function CompetitionPeopleCard({
   competitionId,
 }: {
   competitionId: Id<"competitions">
@@ -38,12 +33,6 @@ export function PeopleCard({
           organisers={people.organisers}
         />
       </PageCardContent>
-      <PageCardFooter>
-        <Button className="w-full" noop>
-          <MessageCirclePlusIcon />
-          Invite Organiser To HQ
-        </Button>
-      </PageCardFooter>
     </PageCard>
   )
 }

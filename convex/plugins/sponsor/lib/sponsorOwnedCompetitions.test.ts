@@ -49,7 +49,7 @@ describe("sponsorOwnsCompetition", () => {
     expect(
       sponsorOwnsCompetition({
         sponsorId,
-        competition: makeCompetition(),
+        override: null,
         auctions: [makeAuction()],
       })
     ).toBe(true)
@@ -59,7 +59,7 @@ describe("sponsorOwnsCompetition", () => {
     expect(
       sponsorOwnsCompetition({
         sponsorId,
-        competition: makeCompetition({ manualSponsorId: sponsorId }),
+        override: { manualSponsorId: sponsorId },
         auctions: [
           makeAuction({ state: "active", winnerSponsorId: undefined }),
         ],
@@ -71,7 +71,7 @@ describe("sponsorOwnsCompetition", () => {
     expect(
       sponsorOwnsCompetition({
         sponsorId,
-        competition: makeCompetition(),
+        override: null,
         auctions: [
           makeAuction({
             winnerSponsorId: "other" as Id<"sponsors">,
@@ -116,6 +116,7 @@ describe("buildSponsorSponsorshipListItems", () => {
           }),
         ],
       ]),
+      overridesByCompetitionId: new Map(),
       now: new Date(2026, 0, 15).getTime(),
     })
 

@@ -6,6 +6,7 @@ import {
   EMBED_COLOR,
   embedField,
   isChannelTarget,
+  projectDraftShell,
   statusLabel,
   taskDraftShell,
   truncateDiscordPreview,
@@ -19,14 +20,18 @@ import {
   type ResolvedNotificationDraft,
 } from "@/convex/notifications/validators"
 import { concreteAssigneeIds } from "@/convex/tasks/assignees"
-import { getCompetitionForTask } from "@/convex/tasks/blockers/competition"
+import { getCompetitionForTask } from "@/convex/tasks/hierarchy"
 import { isTerminalComplete } from "@/convex/tasks/status/rules"
-import { hqSiteUrl } from "@/convex/plugins/sponsor/siteUrls"
+import { hqSiteUrl } from "@/convex/urls"
 import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
+import { getLinkedDiscordChannelTarget } from "@/convex/integrations/objectResources"
+import { getProjectWorkflowDefinition } from "@/convex/projectWorkflows/registry"
+import { enrichTaskNotificationDraft } from "@/convex/notifications/enrichers"
 
 const MAX_MANUAL_SUBSCRIBERS = 100
+const MAX_PROJECT_MEMBERS = 100
+const MAX_PROJECT_NOTIFICATION_TEAM_MEMBERS = 100
 const MAX_TASK_REVIEWERS = 50
-const MAX_TASK_INTEGRATIONS = 20
 
 type ReadCtx = Pick<QueryCtx, "db">
 
@@ -95,6 +100,10 @@ function competitionUrl(competitionId: Id<"competitions">) {
   return hqSiteUrl(`/competitions/${competitionId}`)
 }
 
+function projectUrl(projectId: Id<"projects">) {
+  return hqSiteUrl(`/projects/${projectId}`)
+}
+
 function targetKey(target: ResolvedNotificationDraft["target"]) {
   return target.kind === "discordUser"
     ? `u:${target.discordUserId}`
@@ -155,30 +164,84 @@ async function getCompetitionSubscriberTargets(
   }))
 }
 
+async function getProjectSubscriberIds(
+  ctx: ReadCtx,
+  projectId: Id<"projects">
+): Promise<Id<"users">[]> {
+  const subscriptions = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_object_type_and_object_id_and_userId", (q) =>
+      q.eq("object.type", "projects").eq("object.id", projectId)
+    )
+    .take(MAX_MANUAL_SUBSCRIBERS)
+  return subscriptions.map((subscription) => subscription.userId)
+}
+
+async function getProjectParticipantIds(
+  ctx: ReadCtx,
+  project: Doc<"projects">
+): Promise<Id<"users">[]> {
+  const userIds = new Set<Id<"users">>()
+  if (project.leadUserId !== null) {
+    userIds.add(project.leadUserId)
+  }
+
+  const members = await ctx.db
+    .query("projectMembers")
+    .withIndex("by_projectId", (q) => q.eq("projectId", project._id))
+    .take(MAX_PROJECT_MEMBERS + 1)
+  if (members.length > MAX_PROJECT_MEMBERS) {
+    throw new Error("Project has too many members for notifications.")
+  }
+
+  for (const member of members) {
+    const memberRef = member.member
+    if (memberRef.type === "users") {
+      userIds.add(memberRef.id)
+      continue
+    }
+
+    const teamMemberships = await ctx.db
+      .query("teamMemberships")
+      .withIndex("by_teamId_and_userId", (q) => q.eq("teamId", memberRef.id))
+      .take(MAX_PROJECT_NOTIFICATION_TEAM_MEMBERS + 1)
+    if (teamMemberships.length > MAX_PROJECT_NOTIFICATION_TEAM_MEMBERS) {
+      throw new Error("Project member team has too many notification targets.")
+    }
+    for (const teamMembership of teamMemberships)
+      userIds.add(teamMembership.userId)
+  }
+
+  return [...userIds]
+}
+
+async function projectFeedTargets(
+  ctx: ReadCtx,
+  project: Doc<"projects">
+): Promise<NotificationTarget[]> {
+  const channelTarget = await getLinkedDiscordChannelTarget(ctx, {
+    type: "projects",
+    id: project._id,
+  })
+  const targetUserIds = new Set<Id<"users">>([
+    ...(await getProjectSubscriberIds(ctx, project._id)),
+    ...(await getProjectParticipantIds(ctx, project)),
+  ])
+  return [
+    ...(channelTarget === null ? [] : [channelTarget]),
+    ...[...targetUserIds].map((userId) => ({ kind: "user" as const, userId })),
+  ]
+}
+
 async function competitionChannelTarget(
   ctx: ReadCtx,
   competitionId: Id<"competitions">
 ): Promise<NotificationTarget[]> {
-  const target = await getCompetitionChannelTarget(ctx, competitionId)
+  const target = await getLinkedDiscordChannelTarget(ctx, {
+    type: "competitions",
+    id: competitionId,
+  })
   return target === null ? [] : [target]
-}
-
-async function getCompetitionChannelTarget(
-  ctx: ReadCtx,
-  competitionId: Id<"competitions">
-): Promise<Extract<NotificationTarget, { kind: "discordChannel" }> | null> {
-  const resource = await ctx.db
-    .query("competitionLinkedResources")
-    .withIndex("by_competitionId_and_resourceType_and_resourceKey", (q) =>
-      q
-        .eq("competitionId", competitionId)
-        .eq("resourceType", "discordChannel")
-        .eq("resourceKey", "default")
-    )
-    .unique()
-  return resource?.data.resourceType === "discordChannel"
-    ? { kind: "discordChannel", channelId: resource.data.channelId }
-    : null
 }
 
 async function competitionFeedTargets(
@@ -266,10 +329,11 @@ function actorSuppressionId(event: NotificationEvent): Id<"users"> | null {
     case "taskStatusChanged":
     case "taskAwaitingReview":
     case "taskReviewersChanged":
-    case "competitionPhaseChanged":
-    case "competitionUpdatePublished":
+    case "phaseChanged":
+    case "updatePublished":
     case "sponsorSet":
       return event.actorId
+    case "projectWorkflowAttention":
     case "assignableTaskReady":
     case "taskUnblocked":
     case "taskDueSoon":
@@ -294,60 +358,6 @@ async function resolveDrafts(
     resolved.push({ ...draft, target })
   }
   return dedupeDrafts(resolved)
-}
-
-async function addCanvaEnrichment(
-  ctx: ReadCtx,
-  draft: NotificationDraft,
-  taskId: Id<"tasks">
-): Promise<NotificationDraft> {
-  const integrations = await ctx.db
-    .query("taskIntegrations")
-    .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
-    .take(MAX_TASK_INTEGRATIONS)
-  const design = integrations.find(
-    (row) => row.output?.kind === "canva_design"
-  )?.output
-  if (design?.kind !== "canva_design") return draft
-
-  const filename = `canva-${taskId}.png`
-  const attachments =
-    design.thumbnailUrl !== undefined
-      ? [
-          ...(draft.attachments ?? []),
-          {
-            filename,
-            url: design.thumbnailUrl,
-          },
-        ]
-      : draft.attachments
-  const [primaryEmbed, ...restEmbeds] = draft.embeds
-
-  return {
-    ...draft,
-    embeds: [
-      {
-        ...primaryEmbed,
-        fields: [
-          ...(primaryEmbed.fields ?? []),
-          {
-            name: ":art: Design",
-            value: `[Open linked Canva design](${design.designUrl})`,
-          },
-        ],
-        imageAttachment:
-          design.thumbnailUrl !== undefined
-            ? filename
-            : primaryEmbed.imageAttachment,
-      },
-      ...restEmbeds,
-    ],
-    buttons: [
-      ...draft.buttons,
-      { kind: "url", label: "Open Canva", url: design.designUrl },
-    ],
-    attachments,
-  }
 }
 
 async function taskWatcherDrafts(
@@ -380,7 +390,7 @@ async function taskWatcherDrafts(
     })
   )
   return await Promise.all(
-    drafts.map((draft) => addCanvaEnrichment(ctx, draft, task._id))
+    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
 }
 
@@ -468,7 +478,7 @@ async function buildTaskAssignedDrafts(
     })
   })
   return await Promise.all(
-    drafts.map((draft) => addCanvaEnrichment(ctx, draft, task._id))
+    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
 }
 
@@ -537,7 +547,7 @@ async function buildAwaitingReviewDrafts(
     })
   )
   return await Promise.all(
-    drafts.map((draft) => addCanvaEnrichment(ctx, draft, task._id))
+    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
 }
 
@@ -611,7 +621,7 @@ async function buildAssignableDrafts(
     })
   )
   return await Promise.all(
-    drafts.map((draft) => addCanvaEnrichment(ctx, draft, task._id))
+    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
 }
 
@@ -649,7 +659,7 @@ async function buildDueTaskDrafts(
     })
   )
   return await Promise.all(
-    drafts.map((draft) => addCanvaEnrichment(ctx, draft, task._id))
+    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
 }
 
@@ -714,7 +724,7 @@ async function buildReminderDrafts(
           ...(canOfferStart(task) ? [startTaskButtonInRow(task._id, 1)] : []),
         ],
       }),
-    ].map((draft) => addCanvaEnrichment(ctx, draft, task._id))
+    ].map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
 }
 
@@ -750,7 +760,7 @@ async function buildNudgeDrafts(
       })
     )
   return await Promise.all(
-    drafts.map((draft) => addCanvaEnrichment(ctx, draft, task._id))
+    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
 }
 
@@ -759,6 +769,7 @@ async function buildCompetitionFeedDrafts(
   competitionId: Id<"competitions">,
   input: {
     fallbackText: string
+    title?: string
     fields: NonNullable<NotificationDraft["embeds"][number]["fields"]>
     actorId: Id<"users"> | null
     color?: number
@@ -788,26 +799,106 @@ async function buildCompetitionFeedDrafts(
   )
 }
 
+async function buildProjectFeedDrafts(
+  ctx: ReadCtx,
+  projectId: Id<"projects">,
+  input: {
+    fallbackText: string
+    title?: string
+    fields: NonNullable<NotificationDraft["embeds"][number]["fields"]>
+    actorId: Id<"users"> | null
+    color?: number
+    description?: string
+    buttons?: NotificationDraft["buttons"]
+  }
+): Promise<NotificationDraft[]> {
+  const [project, actor] = await Promise.all([
+    ctx.db.get("projects", projectId),
+    getActor(ctx, input.actorId),
+  ])
+  if (project === null) return []
+  const targets = await projectFeedTargets(ctx, project)
+  const url = projectUrl(projectId)
+  return targets.map((target) =>
+    projectDraftShell({
+      project,
+      actor,
+      target,
+      fallbackText: input.fallbackText,
+      title: input.title,
+      url,
+      color: input.color,
+      description: input.description,
+      fields: input.fields,
+      buttons: input.buttons,
+    })
+  )
+}
+
+interface ObjectFeedInput {
+  fallbackText: string
+  title?: string
+  fields: NonNullable<NotificationDraft["embeds"][number]["fields"]>
+  actorId: Id<"users"> | null
+  color?: number
+  description?: string
+  buttons?: NotificationDraft["buttons"]
+}
+
+async function buildObjectFeedDrafts(
+  ctx: ReadCtx,
+  object:
+    | { type: "competitions"; id: Id<"competitions"> }
+    | { type: "projects"; id: Id<"projects"> },
+  input: ObjectFeedInput
+): Promise<NotificationDraft[]> {
+  if (object.type === "competitions") {
+    return await buildCompetitionFeedDrafts(ctx, object.id, input)
+  }
+  return await buildProjectFeedDrafts(ctx, object.id, input)
+}
+
+async function getScopedObjectName(
+  ctx: ReadCtx,
+  object:
+    | { type: "competitions"; id: Id<"competitions"> }
+    | { type: "projects"; id: Id<"projects"> }
+) {
+  if (object.type === "competitions") {
+    const competition = await ctx.db.get("competitions", object.id)
+    return {
+      name: competition?.name ?? "competition",
+      label: "competition" as const,
+    }
+  }
+  const project = await ctx.db.get("projects", object.id)
+  return {
+    name: project?.name ?? "project",
+    label: "project" as const,
+  }
+}
+
 async function buildPhaseChangedDrafts(
   ctx: ReadCtx,
-  event: Extract<NotificationEvent, { kind: "competitionPhaseChanged" }>
+  event: Extract<NotificationEvent, { kind: "phaseChanged" }>
 ) {
-  const [competition, previousPhase, nextPhase] = await Promise.all([
-    ctx.db.get("competitions", event.competitionId),
+  const [previousPhase, nextPhase, owner] = await Promise.all([
     event.previousPhaseId === null
       ? null
       : ctx.db.get("phases", event.previousPhaseId),
     ctx.db.get("phases", event.nextPhaseId),
+    getScopedObjectName(ctx, event.object),
   ])
   const previous = previousPhase?.name ?? "No phase"
   const next = nextPhase?.name ?? "Unknown phase"
-  return await buildCompetitionFeedDrafts(ctx, event.competitionId, {
-    fallbackText: `Phase changed: ${competition?.name ?? "competition"}`,
-    actorId: event.actorId,
-    description:
-      competition !== null
-        ? `${competition.name} has advanced to a new phase. Review updated task lists and deadlines.`
+  return await buildObjectFeedDrafts(ctx, event.object, {
+    fallbackText: `Phase changed: ${owner.name}`,
+    title:
+      owner.label === "project"
+        ? `Project Phase Changed: ${owner.name}`
         : undefined,
+    actorId: event.actorId,
+    description: `${owner.name} has advanced to a new phase. Review updated task lists and deadlines.`,
     fields: [
       embedField(
         ":twisted_rightwards_arrows:",
@@ -818,27 +909,60 @@ async function buildPhaseChangedDrafts(
   })
 }
 
-async function buildUpdateDrafts(
+async function buildUpdatePublishedDrafts(
   ctx: ReadCtx,
-  event: Extract<NotificationEvent, { kind: "competitionUpdatePublished" }>
+  event: Extract<NotificationEvent, { kind: "updatePublished" }>
 ) {
-  const [update, competition] = await Promise.all([
-    ctx.db.get("competitionUpdates", event.updateId),
-    ctx.db.get("competitions", event.competitionId),
+  const [update, owner] = await Promise.all([
+    ctx.db.get("objectUpdates", event.updateId),
+    getScopedObjectName(ctx, event.object),
   ])
   if (update === null) return []
   const preview = truncateDiscordPreview(update.body)
-  return await buildCompetitionFeedDrafts(ctx, event.competitionId, {
-    fallbackText: `Update: ${competition?.name ?? "competition"}`,
+  const objectLabel = owner.label === "project" ? "Project" : "Competition"
+  return await buildObjectFeedDrafts(ctx, event.object, {
+    fallbackText: `Update: ${owner.name}`,
+    title:
+      owner.label === "project" ? `Project Update: ${owner.name}` : undefined,
     actorId: event.actorId,
     fields: [
       embedField(
         ":memo:",
-        "Competition Update",
+        `${objectLabel} Update`,
         preview.length > 0 ? preview : "A new update was published."
       ),
     ],
   })
+}
+
+async function buildProjectWorkflowAttentionDrafts(
+  ctx: ReadCtx,
+  event: Extract<NotificationEvent, { kind: "projectWorkflowAttention" }>
+) {
+  const [project, run] = await Promise.all([
+    ctx.db.get("projects", event.projectId),
+    ctx.db.get("workflowRuns", event.workflowRunId),
+  ])
+  if (project === null || run === null || project.leadUserId === null) return []
+  const definition = getProjectWorkflowDefinition(run.workflowId)
+  const url = projectUrl(project._id)
+  return [
+    projectDraftShell({
+      project,
+      actor: null,
+      target: { kind: "user", userId: project.leadUserId },
+      fallbackText: `Workflow needs attention: ${project.name}`,
+      title: `Workflow Needs Attention: ${project.name}`,
+      url,
+      fields: [
+        embedField(
+          ":twisted_rightwards_arrows:",
+          definition.label,
+          run.summary ?? "This workflow needs attention."
+        ),
+      ],
+    }),
+  ]
 }
 
 async function buildSponsorSetDrafts(
@@ -861,11 +985,16 @@ async function buildPhaseOverdueDrafts(
   ctx: ReadCtx,
   event: Extract<NotificationEvent, { kind: "phaseOverdueTasks" }>
 ): Promise<NotificationDraft[]> {
-  const [competition, phase] = await Promise.all([
-    ctx.db.get("competitions", event.competitionId),
+  const [phase, owner] = await Promise.all([
     ctx.db.get("phases", event.previousPhaseId),
+    getScopedObjectName(ctx, event.object),
   ])
-  if (competition === null || phase === null) return []
+  if (phase === null) return []
+
+  const competition =
+    event.object.type === "competitions"
+      ? await ctx.db.get("competitions", event.object.id)
+      : null
 
   const tasks = await ctx.db
     .query("tasks")
@@ -893,7 +1022,7 @@ async function buildPhaseOverdueDrafts(
             embedField(
               ":triangular_flag_on_post:",
               "Open After Phase Change",
-              `${competition.name} moved on from **${phase.name}**, but this task is still open and unresolved.`
+              `${owner.name} moved on from **${phase.name}**, but this task is still open and unresolved.`
             ),
           ],
         }),
@@ -902,7 +1031,7 @@ async function buildPhaseOverdueDrafts(
   }
   return await Promise.all(
     draftEntries.map(({ draft, taskId }) =>
-      addCanvaEnrichment(ctx, draft, taskId)
+      enrichTaskNotificationDraft(ctx, draft, taskId)
     )
   )
 }
@@ -945,12 +1074,14 @@ async function buildEventDrafts(
       return await buildReminderDrafts(ctx, event)
     case "taskNudge":
       return await buildNudgeDrafts(ctx, event)
-    case "competitionPhaseChanged":
+    case "phaseChanged":
       return await buildPhaseChangedDrafts(ctx, event)
     case "phaseOverdueTasks":
       return await buildPhaseOverdueDrafts(ctx, event)
-    case "competitionUpdatePublished":
-      return await buildUpdateDrafts(ctx, event)
+    case "updatePublished":
+      return await buildUpdatePublishedDrafts(ctx, event)
+    case "projectWorkflowAttention":
+      return await buildProjectWorkflowAttentionDrafts(ctx, event)
     case "sponsorSet":
       return await buildSponsorSetDrafts(ctx, event)
   }

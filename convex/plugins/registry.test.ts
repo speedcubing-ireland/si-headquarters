@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest"
 import {
   TASK_INTEGRATION_DEFINITIONS,
   TASK_INTEGRATION_IDS,
-} from "@/convex/plugins/core/constants"
-import { buildTaskIntegrationDefinitions } from "@/convex/plugins/core/integrationTypes"
+} from "@/convex/integrations/taskIntegrations/constants"
+import { buildTaskIntegrationDefinitions } from "@/convex/integrations/taskIntegrations/registry"
 import { INTEGRATION_PLUGINS } from "@/convex/plugins/registry"
 
 describe("backend integration registry", () => {

@@ -1,21 +1,23 @@
 import { Badge } from "@/components/ui/badge"
-import type { TaskIntegrationStatus } from "@/convex/plugins/core/types"
+import type { TaskIntegrationStatus } from "@/convex/integrations/taskIntegrations/validators"
 import { cn } from "@/lib/utils"
 
 const STATUS_LABELS = {
   idle: "Idle",
   running: "Running",
   awaiting_manual_share: "Manual step",
-  awaiting_manual_events_confirmation: "Confirm on WCA",
+  awaiting_manual_events_confirmation: "Manual confirmation",
   completed: "Completed",
   error: "Error",
 } as const satisfies Record<TaskIntegrationStatus, string>
 
 export function IntegrationStatusBadge({
   status,
+  label,
   className,
 }: {
   status: TaskIntegrationStatus
+  label?: string
   className?: string
 }) {
   const variant =
@@ -29,7 +31,7 @@ export function IntegrationStatusBadge({
 
   return (
     <Badge variant={variant} className={cn("text-sm", className)}>
-      {STATUS_LABELS[status]}
+      {label ?? STATUS_LABELS[status]}
     </Badge>
   )
 }

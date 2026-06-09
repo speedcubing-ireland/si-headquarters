@@ -2,10 +2,12 @@ import { defineSchema, defineTable } from "convex/server"
 import { authTables } from "@convex-dev/auth/server"
 import { v } from "convex/values"
 import { competitionsCoreFields } from "@/convex/competitions/validators"
-import { competitionUpdatesFields } from "@/convex/competitions/updates/validators"
+import {
+  projectMemberFields,
+  projectsFields,
+} from "@/convex/projects/validators"
 import { competitionWeekendSlotFields } from "@/convex/competitions/weekendSlots/validators"
 import { impersonationSessionsTable } from "@/convex/impersonation/validators"
-import { sponsorCompetitionFields } from "@/convex/plugins/sponsor/lib/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
 import { phasesFields } from "@/convex/phases/validators"
@@ -32,6 +34,7 @@ import {
   taskNudgeCooldownFields,
   taskReminderFields,
 } from "@/convex/notifications/validators"
+import { objectUpdatesFields } from "@/convex/updates/validators"
 
 const schema = defineSchema(
   {
@@ -55,14 +58,29 @@ const schema = defineSchema(
       "by_teamId",
       ["teamId"]
     ),
-    competitions: defineTable({
-      ...competitionsCoreFields,
-      ...sponsorCompetitionFields,
-    }).index("by_wcaCompetitionId", ["wcaCompetitionId"]),
+    competitions: defineTable(competitionsCoreFields).index(
+      "by_wcaCompetitionId",
+      ["wcaCompetitionId"]
+    ),
+    projects: defineTable(projectsFields)
+      .index("by_scope_type", ["scope.type"])
+      .index("by_scope_type_and_scope_id", ["scope.type", "scope.id"])
+      .index("by_leadUserId", ["leadUserId"]),
+    projectMembers: defineTable(projectMemberFields)
+      .index("by_projectId", ["projectId"])
+      .index("by_projectId_and_member_type_and_member_id", [
+        "projectId",
+        "member.type",
+        "member.id",
+      ])
+      .index("by_member_type_and_member_id", ["member.type", "member.id"]),
     competitionWeekendSlots: defineTable(competitionWeekendSlotFields)
       .index("by_year", ["year"])
       .index("by_year_and_weekendStart", ["year", "weekendStart"]),
-    competitionUpdates: defineTable(competitionUpdatesFields),
+    objectUpdates: defineTable(objectUpdatesFields).index(
+      "by_object_type_and_object_id",
+      ["object.type", "object.id"]
+    ),
     subscriptions: defineTable(subscriptionsFields)
       .index("by_userId_and_object_type_and_object_id", [
         "userId",
@@ -87,8 +105,8 @@ const schema = defineSchema(
         "parent.id",
         "order",
       ])
-      .index("by_rootCompetitionId", ["rootCompetitionId"])
-      .index("by_rootPhaseId", ["rootPhaseId"])
+      .index("by_root_type_and_root_id", ["root.type", "root.id"])
+      .index("by_rootPhase_id", ["rootPhase.id"])
       .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"])
       .index("by_dueDate", ["dueDate"])
       .searchIndex("search_name", { searchField: "name" }),
@@ -137,7 +155,7 @@ const schema = defineSchema(
     ...pluginTables,
   },
   {
-    schemaValidation: false,
+    schemaValidation: true,
   }
 )
 

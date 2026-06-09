@@ -2,25 +2,21 @@
 
 import { v } from "convex/values"
 import type { Id } from "@/convex/_generated/dataModel"
-import { internal } from "@/convex/_generated/api"
 import { action } from "@/convex/_generated/server"
-import { upsertLinkedCompetitionResource } from "@/convex/plugins/core/linkCompetitionResource"
+import { upsertLinkedObjectResource } from "@/convex/integrations/linkObjectResource"
+import { competitionOrProjectRef } from "@/convex/utils"
 import { lookupDiscordChannel } from "@/convex/plugins/discord/api"
 
 export const linkChannel = action({
   args: {
-    competitionId: v.id("competitions"),
+    object: competitionOrProjectRef,
     channelId: v.string(),
   },
-  returns: v.id("competitionLinkedResources"),
-  handler: async (ctx, args): Promise<Id<"competitionLinkedResources">> => {
-    await ctx.runQuery(
-      internal.plugins.core.authorize.assertCompetitionUpdateAccess,
-      { competitionId: args.competitionId }
-    )
+  returns: v.id("objectLinkedResources"),
+  handler: async (ctx, args): Promise<Id<"objectLinkedResources">> => {
     const channel = await lookupDiscordChannel(args.channelId)
-    return await upsertLinkedCompetitionResource(ctx, {
-      competitionId: args.competitionId,
+    return await upsertLinkedObjectResource(ctx, {
+      object: args.object,
       resourceType: "discordChannel",
       data: {
         resourceType: "discordChannel",

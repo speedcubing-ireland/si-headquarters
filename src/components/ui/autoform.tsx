@@ -2,7 +2,6 @@
 
 import {
   AutoForm as BaseAutoForm,
-  buildZodFieldConfig,
   type AutoFormFieldComponents,
   type AutoFormFieldProps,
   type AutoFormUIComponents,
@@ -165,5 +164,3 @@ export function AutoForm<T extends FieldValues>({
   )
 }
 
-export { buildZodFieldConfig }
-export type { AutoFormFieldProps }

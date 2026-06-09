@@ -14,7 +14,7 @@ Refactor centered around competitions and tasks — redo both into a new project
 
 ### Specialised Views
 
-- [x] Build hard-coded specialised views with special features where needed 
+- [x] Build hard-coded specialised views with special features where needed
 
 #### Calendar view
 

@@ -1,9 +1,17 @@
+import { unknownErrorMessage } from "@/convex/integrations/errorPayload"
 import { useCallback, useEffect, useState } from "react"
-import { formatCatchError } from "@/features/integrations/error-message"
 
 interface AsyncLoadOptions<T> {
   clearDataOnError?: boolean
+  enabled?: boolean
   onSuccess?: (value: T) => void
+}
+
+function formatCatchError(
+  // oxlint-disable-next-line typescript/no-restricted-types -- catch bindings are validated at the boundary
+  caught: unknown
+): string {
+  return unknownErrorMessage(caught, { includeConvexError: true })
 }
 
 export function useAsyncAction() {
@@ -48,12 +56,20 @@ export function useTaggedAsyncAction<Tag extends string>() {
 
 export function useAsyncLoad<T>(
   load: () => Promise<T>,
-  { clearDataOnError = true, onSuccess }: AsyncLoadOptions<T> = {}
+  {
+    clearDataOnError = true,
+    enabled = true,
+    onSuccess,
+  }: AsyncLoadOptions<T> = {}
 ) {
-  const [data, setData] = useState<T | null>(null)
+  const [data, setData] = useState<T | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
-  const [isFetching, setIsFetching] = useState(true)
+  const [isFetching, setIsFetching] = useState(enabled)
   const [hasLoaded, setHasLoaded] = useState(false)
+
+  const reset = useCallback(() => {
+    setData(undefined)
+  }, [])
 
   const refresh = useCallback(async () => {
     setIsFetching(true)
@@ -64,7 +80,7 @@ export function useAsyncLoad<T>(
       onSuccess?.(result)
     } catch (caught) {
       if (clearDataOnError) {
-        setData(null)
+        setData(undefined)
       }
       setError(formatCatchError(caught))
     } finally {
@@ -74,8 +90,15 @@ export function useAsyncLoad<T>(
   }, [clearDataOnError, load, onSuccess])
 
   useEffect(() => {
+    if (!enabled) {
+      setIsFetching(false)
+      return
+    }
+
     let cancelled = false
     async function loadInitial() {
+      setIsFetching(true)
+      setError(null)
       try {
         const result = await load()
         if (cancelled) {
@@ -88,7 +111,7 @@ export function useAsyncLoad<T>(
           return
         }
         if (clearDataOnError) {
-          setData(null)
+          setData(undefined)
         }
         setError(formatCatchError(caught))
       } finally {
@@ -102,7 +125,7 @@ export function useAsyncLoad<T>(
     return () => {
       cancelled = true
     }
-  }, [clearDataOnError, load, onSuccess])
+  }, [clearDataOnError, enabled, load, onSuccess])
 
   return {
     data,
@@ -110,6 +133,35 @@ export function useAsyncLoad<T>(
     isFetching,
     hasLoaded,
     refresh,
+    reset,
+    setData,
+  }
+}
+
+export function useOpenLoad<T>({
+  open,
+  load,
+  onError,
+}: {
+  open: boolean
+  load: () => Promise<T>
+  onError: (message: string) => void
+}) {
+  const { data, reset, setData, error } = useAsyncLoad(load, {
+    enabled: open,
+    clearDataOnError: false,
+  })
+
+  useEffect(() => {
+    if (error !== null) {
+      onError(error)
+    }
+  }, [error, onError])
+
+  return {
+    data,
+    setData,
+    reset,
   }
 }
 

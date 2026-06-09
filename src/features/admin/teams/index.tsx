@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { api } from "@/convex/_generated/api"
-import { TeamDiscordChannelPicker } from "@/features/admin/teams/team-discord-channel-picker"
 import { useMutation, useQuery } from "convex/react"
 import { Trash2Icon } from "lucide-react"
+import { getTeamLinkedResourceAction } from "@/plugins/integrations/registry"
+
+const TeamDiscordChannelPicker = getTeamLinkedResourceAction("discord")
+
 export function AdminTeamsPage() {
   const rows = useQuery(api.teams.discordChannels.listAdmin, {})
   const clearChannel = useMutation(api.teams.discordChannels.clear)
@@ -28,10 +31,12 @@ export function AdminTeamsPage() {
                 : `#${row.channel.channelName}`}
             </div>
           </div>
-          <TeamDiscordChannelPicker
-            teamId={row.teamId}
-            linkedChannelName={row.channel?.channelName ?? null}
-          />
+          {TeamDiscordChannelPicker === undefined ? null : (
+            <TeamDiscordChannelPicker
+              teamId={row.teamId}
+              linkedChannelName={row.channel?.channelName ?? null}
+            />
+          )}
           <div className="flex gap-2 @lg/main:justify-end">
             <Button
               variant="ghost"

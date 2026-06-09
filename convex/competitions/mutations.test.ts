@@ -119,7 +119,6 @@ describe("competition mutations", () => {
         },
         compDates: { from: null, to: null },
         phaseId: null,
-        updateId: null,
       })
 
       return { actorId, competitionId }

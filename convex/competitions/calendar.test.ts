@@ -33,7 +33,6 @@ describe("competition calendar", () => {
           to: "2025-03-16",
         },
         phaseId: null,
-        updateId: null,
       })
     })
 

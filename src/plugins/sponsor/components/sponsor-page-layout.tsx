@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { SponsorImpersonationBanner } from "@/features/impersonation/impersonation-banner"
+import { SponsorImpersonationBanner } from "@/plugins/sponsor/impersonation/sponsor-impersonation-banner"
 
 export function SponsorPageShell({
   children,

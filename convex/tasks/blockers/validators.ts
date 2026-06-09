@@ -6,9 +6,6 @@ import {
 } from "@/convex/tasks/status/validators"
 import { taskViewAssignees } from "@/convex/tasks/view"
 
-export { blockerCounts } from "@/convex/tasks/blockers/counts"
-export type { BlockerCounts } from "@/convex/tasks/blockers/counts"
-
 export const taskBlockersFields = {
   blockingTaskId: v.id("tasks"),
   blockedTaskId: v.id("tasks"),

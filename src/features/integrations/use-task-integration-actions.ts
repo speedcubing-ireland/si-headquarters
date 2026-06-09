@@ -3,15 +3,19 @@ import type { Doc } from "@/convex/_generated/dataModel"
 import type {
   ManualTaskIntegrationStatus,
   TaskIntegrationRunInput,
-} from "@/convex/plugins/core/types"
+} from "@/convex/integrations/taskIntegrations/validators"
 import { useTaggedAsyncAction } from "@/features/integrations/use-async-action"
 import { useMutation } from "convex/react"
 
 export function useTaskIntegrationActions(row: Doc<"taskIntegrations">) {
-  const runMutation = useMutation(api.plugins.core.taskIntegrations.run)
-  const detachMutation = useMutation(api.plugins.core.taskIntegrations.detach)
+  const runMutation = useMutation(
+    api.integrations.taskIntegrations.mutations.run
+  )
+  const detachMutation = useMutation(
+    api.integrations.taskIntegrations.mutations.detach
+  )
   const confirmMutation = useMutation(
-    api.plugins.core.taskIntegrations.confirmManualStep
+    api.integrations.taskIntegrations.mutations.confirmManualStep
   )
   const { pending, error, run } = useTaggedAsyncAction<
     "run" | "delete" | "confirm"

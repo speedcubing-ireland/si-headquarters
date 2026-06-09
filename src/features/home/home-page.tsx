@@ -8,7 +8,7 @@ import {
   formatCompetitionCountdown,
   formatCompetitionDateRange,
 } from "@/features/competitions/competition-date-range-display"
-import { TaskCompLink } from "@/features/tasks/components/task-comp-link"
+import { TaskRootLink } from "@/features/tasks/components/task-root-link"
 import { cn } from "@/lib/utils"
 import { Link } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
@@ -142,7 +142,7 @@ function TaskContextLine({ item }: { item: TaskAction }) {
         </Link>
       ) : null}
       {row.competitionId !== null ? (
-        <TaskCompLink row={row} className="h-6 px-1.5 text-[10px]" />
+        <TaskRootLink row={row} className="h-6 px-1.5 text-[10px]" />
       ) : null}
       {showDueDate ? (
         <Badge variant="outline" className="font-mono">

@@ -4,9 +4,12 @@ import { TASK_INTEGRATION_CARDS } from "@/plugins/integrations/registry"
 import { useQuery } from "convex/react"
 
 export function TaskIntegrationsSection({ taskId }: { taskId: Id<"tasks"> }) {
-  const integrations = useQuery(api.plugins.core.taskIntegrations.listForTask, {
-    taskId,
-  })
+  const integrations = useQuery(
+    api.integrations.taskIntegrations.queries.listForTask,
+    {
+      taskId,
+    }
+  )
 
   if (integrations === undefined || integrations.length === 0) {
     return null

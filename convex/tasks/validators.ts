@@ -4,7 +4,7 @@ import {
   taskStatusIntentType,
   taskStatusType,
 } from "@/convex/tasks/status/validators"
-import { objectRef } from "@/convex/utils"
+import { competitionOrProjectRef, objectRef } from "@/convex/utils"
 
 export const assigneesType = v.union(
   v.null(),
@@ -17,6 +17,10 @@ export const taskParentRef = v.union(objectRef("phases"), objectRef("tasks"))
 
 export type TaskParentRef = Infer<typeof taskParentRef>
 
+export const taskRootPhaseRef = objectRef("phases")
+
+export type TaskRootPhaseRef = Infer<typeof taskRootPhaseRef>
+
 export const taskOwnerRef = v.union(
   v.null(),
   objectRef("users"),
@@ -27,8 +31,8 @@ export const tasksFields = {
   name: v.string(),
   description: v.nullable(v.string()),
   parent: taskParentRef,
-  rootPhaseId: v.optional(v.id("phases")),
-  rootCompetitionId: v.optional(v.id("competitions")),
+  rootPhase: taskRootPhaseRef,
+  root: competitionOrProjectRef,
   order: v.string(),
   assigneeIds: assigneesType,
   owner: taskOwnerRef,

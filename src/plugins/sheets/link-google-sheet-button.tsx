@@ -5,9 +5,7 @@ import { useAction } from "convex/react"
 import { FileSpreadsheetIcon } from "lucide-react"
 import { useState } from "react"
 
-export function LinkGoogleSheetButton({
-  competitionId,
-}: LinkResourceActionProps) {
+export function LinkGoogleSheetButton({ object }: LinkResourceActionProps) {
   const { open, setOpen, close, error, pending, run } = useLinkAction()
   const [sheetId, setSheetId] = useState("")
   const linkSheet = useAction(api.plugins.sheets.resources.linkSheet)
@@ -34,7 +32,7 @@ export function LinkGoogleSheetButton({
         void (async () => {
           const linked = await run(async () => {
             await linkSheet({
-              competitionId,
+              object,
               sheetId: sheetId.trim(),
             })
           })

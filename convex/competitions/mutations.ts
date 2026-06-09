@@ -3,28 +3,23 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { mutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
 import {
-  requireCan,
-  requireCompetitionManagement,
-  requirePrincipal,
-  type Principal,
-} from "@/convex/permissions/principal"
-import {
-  TEAM_NAMES,
-  type Action,
-  type TeamName,
-} from "@/convex/permissions/shared"
+  requireCompetitionForManage,
+  requireCompetitionForUpdate,
+} from "@/convex/competitions/access"
+import { requireCompetitionManagement } from "@/convex/permissions/principal"
+import { TEAM_NAMES, type TeamName } from "@/convex/permissions/shared"
 import { isMemberOfTeam } from "@/convex/teams/model"
 import {
-  scheduleNotificationEvent,
-  scheduleTaskStatusNotifications,
-} from "@/convex/notifications/events"
-import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
+  ownerPhaseId,
+  setCurrentPhaseForOwner,
+} from "@/convex/phases/setCurrentPhase"
 import {
   competitionDatesFields,
   competitionPeopleFields,
 } from "@/convex/competitions/validators"
 import { applyCompetitionTemplate } from "@/convex/templates/resolver"
 import { templateVariablesArg } from "@/convex/templates/validators"
+import { normalizeNullableText } from "@/convex/utils"
 import { v } from "convex/values"
 
 type People = Doc<"competitions">["people"]
@@ -43,23 +38,6 @@ const PERSON_TEAM_REQUIREMENTS = {
   PersonField,
   { teamName: TeamName; errorMessage: string }
 >
-
-async function requireCompetition(
-  ctx: MutationCtx,
-  principal: Principal,
-  id: Id<"competitions">,
-  action: Action
-): Promise<Doc<"competitions">> {
-  const competition = await ctx.db.get("competitions", id)
-  if (competition === null) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: "Competition not found",
-    })
-  }
-  requireCan(principal, action, "Competition", competition)
-  return competition
-}
 
 async function patchPeople(
   ctx: MutationCtx,
@@ -112,8 +90,7 @@ function setPersonMutation(field: PersonField) {
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-      const principal = await requirePrincipal(ctx)
-      await requireCompetition(ctx, principal, args.id, "manage")
+      await requireCompetitionForManage(ctx, args.id)
       await requireUserInRoleTeam(ctx, field, args.userId)
       await patchPeople(ctx, args.id, (people) => ({
         ...people,
@@ -132,8 +109,7 @@ export const setCompDates = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const principal = await requirePrincipal(ctx)
-    await requireCompetition(ctx, principal, args.id, "update")
+    await requireCompetitionForUpdate(ctx, args.id)
     await ctx.db.patch("competitions", args.id, {
       compDates: {
         from: args.from,
@@ -152,8 +128,7 @@ export const setCompDetails = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const principal = await requirePrincipal(ctx)
-    await requireCompetition(ctx, principal, args.id, "update")
+    await requireCompetitionForUpdate(ctx, args.id)
     const name = args.name.trim()
 
     if (!name) {
@@ -162,13 +137,9 @@ export const setCompDetails = mutation({
         message: "Competition name is required",
       })
     }
-    const description = args.description?.trim()
-    const nextDescription =
-      description !== undefined && description.length > 0 ? description : null
-
     await ctx.db.patch("competitions", args.id, {
       name,
-      description: nextDescription,
+      description: normalizeNullableText(args.description),
     })
     return null
   },
@@ -181,53 +152,16 @@ export const setCompPhase = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const principal = await requirePrincipal(ctx)
-    const competition = await requireCompetition(
+    const { principal, competition } = await requireCompetitionForUpdate(
       ctx,
-      principal,
-      args.id,
-      "update"
+      args.id
     )
-    const phase = await ctx.db.get("phases", args.phaseId)
-
-    if (phase === null) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Phase not found",
-      })
-    }
-    if (phase.owner.id !== args.id) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Phase not found for competition",
-      })
-    }
-
-    const previousPhaseId = competition.phaseId
-    if (previousPhaseId === args.phaseId) {
-      return null
-    }
-
-    await ctx.db.patch("competitions", args.id, {
+    await setCurrentPhaseForOwner(ctx, {
+      owner: { type: "competitions", id: args.id },
       phaseId: args.phaseId,
-    })
-    await scheduleNotificationEvent(ctx, {
-      kind: "competitionPhaseChanged",
-      competitionId: args.id,
       actorId: principal.userId,
-      previousPhaseId,
-      nextPhaseId: args.phaseId,
+      previousPhaseId: ownerPhaseId(competition),
     })
-    if (previousPhaseId !== null && previousPhaseId !== args.phaseId) {
-      await scheduleNotificationEvent(ctx, {
-        kind: "phaseOverdueTasks",
-        competitionId: args.id,
-        actorId: principal.userId,
-        previousPhaseId,
-      })
-    }
-    const result = await activatePhaseBacklogTasks(ctx, args.phaseId)
-    await scheduleTaskStatusNotifications(ctx, result, principal.userId)
     return null
   },
 })
@@ -243,8 +177,7 @@ export const setOrganisers = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const principal = await requirePrincipal(ctx)
-    await requireCompetition(ctx, principal, args.id, "manage")
+    await requireCompetitionForManage(ctx, args.id)
     const organiserIds = [...new Set(args.organiserIds)]
     await patchPeople(ctx, args.id, (people) => ({
       ...people,
@@ -273,7 +206,6 @@ export const createFromTemplate = mutation({
         message: "Competition name is required",
       })
     }
-    const description = args.description?.trim()
     await Promise.all([
       requireUserInRoleTeam(ctx, "compLead", args.people.compLead),
       requireUserInRoleTeam(ctx, "leadDelegate", args.people.leadDelegate),
@@ -285,10 +217,7 @@ export const createFromTemplate = mutation({
       variables: args.variables,
       competition: {
         name,
-        description:
-          description !== undefined && description.length > 0
-            ? description
-            : null,
+        description: normalizeNullableText(args.description),
         compDates: args.compDates,
         people: {
           compLead: args.people.compLead,

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
+import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as TasksIdRouteImport } from './routes/tasks/$id'
@@ -21,6 +22,7 @@ import { Route as SponsorImpersonateRouteImport } from './routes/sponsor/imperso
 import { Route as SponsorGuideRouteImport } from './routes/sponsor/guide'
 import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
 import { Route as Sponsor404RouteImport } from './routes/sponsor/404'
+import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 import { Route as PluginsWca2faRouteImport } from './routes/plugins/wca-2fa'
 import { Route as PluginsSponsorshipRouteImport } from './routes/plugins/sponsorship'
 import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-media'
@@ -29,6 +31,7 @@ import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AdminImpersonationRouteImport } from './routes/admin/impersonation'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
 import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
+import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -43,6 +46,11 @@ const TasksIndexRoute = TasksIndexRouteImport.update({
 const SponsorIndexRoute = SponsorIndexRouteImport.update({
   id: '/sponsor/',
   path: '/sponsor/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
@@ -90,6 +98,11 @@ const Sponsor404Route = Sponsor404RouteImport.update({
   path: '/sponsor/404',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/projects/$id',
+  path: '/projects/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PluginsWca2faRoute = PluginsWca2faRouteImport.update({
   id: '/plugins/wca-2fa',
   path: '/plugins/wca-2fa',
@@ -131,6 +144,12 @@ const TeamsTeamIdTasksIndexRoute = TeamsTeamIdTasksIndexRouteImport.update({
   path: '/teams/$teamId/tasks/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamsTeamIdProjectsIndexRoute =
+  TeamsTeamIdProjectsIndexRouteImport.update({
+    id: '/teams/$teamId/projects/',
+    path: '/teams/$teamId/projects/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -140,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
   '/plugins/wca-2fa': typeof PluginsWca2faRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/sponsor/404': typeof Sponsor404Route
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/guide': typeof SponsorGuideRoute
@@ -149,9 +169,11 @@ export interface FileRoutesByFullPath {
   '/tasks/$id': typeof TasksIdRoute
   '/admin/': typeof AdminIndexRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/teams/$teamId/projects/': typeof TeamsTeamIdProjectsIndexRoute
   '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRoutesByTo {
@@ -162,6 +184,7 @@ export interface FileRoutesByTo {
   '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
   '/plugins/wca-2fa': typeof PluginsWca2faRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/sponsor/404': typeof Sponsor404Route
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/guide': typeof SponsorGuideRoute
@@ -171,9 +194,11 @@ export interface FileRoutesByTo {
   '/tasks/$id': typeof TasksIdRoute
   '/admin': typeof AdminIndexRoute
   '/competitions': typeof CompetitionsIndexRoute
+  '/projects': typeof ProjectsIndexRoute
   '/sponsor': typeof SponsorIndexRoute
   '/tasks': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/teams/$teamId/projects': typeof TeamsTeamIdProjectsIndexRoute
   '/teams/$teamId/tasks': typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRoutesById {
@@ -185,6 +210,7 @@ export interface FileRoutesById {
   '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
   '/plugins/wca-2fa': typeof PluginsWca2faRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/sponsor/404': typeof Sponsor404Route
   '/sponsor/auctions': typeof SponsorAuctionsRouteWithChildren
   '/sponsor/guide': typeof SponsorGuideRoute
@@ -194,9 +220,11 @@ export interface FileRoutesById {
   '/tasks/$id': typeof TasksIdRoute
   '/admin/': typeof AdminIndexRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/teams/$teamId/projects/': typeof TeamsTeamIdProjectsIndexRoute
   '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
 }
 export interface FileRouteTypes {
@@ -209,6 +237,7 @@ export interface FileRouteTypes {
     | '/plugins/social-media'
     | '/plugins/sponsorship'
     | '/plugins/wca-2fa'
+    | '/projects/$id'
     | '/sponsor/404'
     | '/sponsor/auctions'
     | '/sponsor/guide'
@@ -218,9 +247,11 @@ export interface FileRouteTypes {
     | '/tasks/$id'
     | '/admin/'
     | '/competitions/'
+    | '/projects/'
     | '/sponsor/'
     | '/tasks/'
     | '/sponsor/auctions/$auctionId'
+    | '/teams/$teamId/projects/'
     | '/teams/$teamId/tasks/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -231,6 +262,7 @@ export interface FileRouteTypes {
     | '/plugins/social-media'
     | '/plugins/sponsorship'
     | '/plugins/wca-2fa'
+    | '/projects/$id'
     | '/sponsor/404'
     | '/sponsor/auctions'
     | '/sponsor/guide'
@@ -240,9 +272,11 @@ export interface FileRouteTypes {
     | '/tasks/$id'
     | '/admin'
     | '/competitions'
+    | '/projects'
     | '/sponsor'
     | '/tasks'
     | '/sponsor/auctions/$auctionId'
+    | '/teams/$teamId/projects'
     | '/teams/$teamId/tasks'
   id:
     | '__root__'
@@ -253,6 +287,7 @@ export interface FileRouteTypes {
     | '/plugins/social-media'
     | '/plugins/sponsorship'
     | '/plugins/wca-2fa'
+    | '/projects/$id'
     | '/sponsor/404'
     | '/sponsor/auctions'
     | '/sponsor/guide'
@@ -262,9 +297,11 @@ export interface FileRouteTypes {
     | '/tasks/$id'
     | '/admin/'
     | '/competitions/'
+    | '/projects/'
     | '/sponsor/'
     | '/tasks/'
     | '/sponsor/auctions/$auctionId'
+    | '/teams/$teamId/projects/'
     | '/teams/$teamId/tasks/'
   fileRoutesById: FileRoutesById
 }
@@ -276,6 +313,7 @@ export interface RootRouteChildren {
   PluginsSocialMediaRoute: typeof PluginsSocialMediaRoute
   PluginsSponsorshipRoute: typeof PluginsSponsorshipRoute
   PluginsWca2faRoute: typeof PluginsWca2faRoute
+  ProjectsIdRoute: typeof ProjectsIdRoute
   Sponsor404Route: typeof Sponsor404Route
   SponsorAuctionsRoute: typeof SponsorAuctionsRouteWithChildren
   SponsorGuideRoute: typeof SponsorGuideRoute
@@ -285,8 +323,10 @@ export interface RootRouteChildren {
   TasksIdRoute: typeof TasksIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   CompetitionsIndexRoute: typeof CompetitionsIndexRoute
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
   SponsorIndexRoute: typeof SponsorIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
+  TeamsTeamIdProjectsIndexRoute: typeof TeamsTeamIdProjectsIndexRoute
   TeamsTeamIdTasksIndexRoute: typeof TeamsTeamIdTasksIndexRoute
 }
 
@@ -311,6 +351,13 @@ declare module '@tanstack/react-router' {
       path: '/sponsor'
       fullPath: '/sponsor/'
       preLoaderRoute: typeof SponsorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/competitions/': {
@@ -376,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Sponsor404RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/plugins/wca-2fa': {
       id: '/plugins/wca-2fa'
       path: '/plugins/wca-2fa'
@@ -432,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeamsTeamIdTasksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teams/$teamId/projects/': {
+      id: '/teams/$teamId/projects/'
+      path: '/teams/$teamId/projects'
+      fullPath: '/teams/$teamId/projects/'
+      preLoaderRoute: typeof TeamsTeamIdProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -455,6 +516,7 @@ const rootRouteChildren: RootRouteChildren = {
   PluginsSocialMediaRoute: PluginsSocialMediaRoute,
   PluginsSponsorshipRoute: PluginsSponsorshipRoute,
   PluginsWca2faRoute: PluginsWca2faRoute,
+  ProjectsIdRoute: ProjectsIdRoute,
   Sponsor404Route: Sponsor404Route,
   SponsorAuctionsRoute: SponsorAuctionsRouteWithChildren,
   SponsorGuideRoute: SponsorGuideRoute,
@@ -464,8 +526,10 @@ const rootRouteChildren: RootRouteChildren = {
   TasksIdRoute: TasksIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   CompetitionsIndexRoute: CompetitionsIndexRoute,
+  ProjectsIndexRoute: ProjectsIndexRoute,
   SponsorIndexRoute: SponsorIndexRoute,
   TasksIndexRoute: TasksIndexRoute,
+  TeamsTeamIdProjectsIndexRoute: TeamsTeamIdProjectsIndexRoute,
   TeamsTeamIdTasksIndexRoute: TeamsTeamIdTasksIndexRoute,
 }
 export const routeTree = rootRouteImport

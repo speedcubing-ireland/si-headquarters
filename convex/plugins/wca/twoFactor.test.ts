@@ -3,7 +3,7 @@ import schema from "@/convex/schema"
 import {
   codeFromConvexError,
   unknownErrorMessage,
-} from "@/convex/plugins/core/errorPayload"
+} from "@/convex/integrations/errorPayload"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 import { WCA_2FA_SECRET_ENV } from "@/convex/plugins/wca/definition"
 import { addUserToTeam, insertTestUser } from "@/convex/testHelpers"

@@ -24,5 +24,8 @@ export const requireCompetitionId = requirer("competitions")
 export const parseTeamId = parser<"teams">()
 export const requireTeamId = requirer("teams")
 
+export const parseProjectId = parser<"projects">()
+export const requireProjectId = requirer("projects")
+
 export const parseSponsorshipAuctionId = parser<"sponsorshipAuctions">()
 export const requireSponsorshipAuctionId = requirer("sponsorshipAuctions")

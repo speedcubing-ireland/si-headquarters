@@ -1,10 +1,7 @@
 import { collectAll } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
-import {
-  competitionPhaseSnapshot,
-  competitionPhaseValidator,
-} from "@/convex/competitions/phaseSnapshot"
+import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
 import { todayIsoDate } from "@/convex/competitions/dates"
 import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
 import { teamIdsForTeamNames } from "@/convex/teams/model"
@@ -64,7 +61,7 @@ const competitionWorkSummaryValidator = v.object({
     from: v.nullable(v.string()),
     to: v.nullable(v.string()),
   }),
-  phase: competitionPhaseValidator,
+  phase: phaseSnapshotValidator,
   activeTaskCount: v.number(),
   blockedTaskCount: v.number(),
   overdueTaskCount: v.number(),
@@ -387,7 +384,7 @@ function buildCompetitionWorkSummary(
     _id: competition._id,
     name: competition.name,
     compDates: competition.compDates,
-    phase: competitionPhaseSnapshot(
+    phase: phaseSnapshot(
       competition.phaseId ? phaseById.get(competition.phaseId) : null
     ),
     activeTaskCount: activeTaskCounts.get(competition._id) ?? 0,

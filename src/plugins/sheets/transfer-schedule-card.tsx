@@ -7,7 +7,7 @@ import {
   type TaskIntegrationCardRow,
 } from "@/features/integrations/task-integration-card-shell"
 import { isManualIntegrationStatus } from "@/features/integrations/integration-status"
-import type { TaskIntegrationStatus } from "@/convex/plugins/core/types"
+import type { TaskIntegrationStatus } from "@/convex/integrations/taskIntegrations/validators"
 import { FileSpreadsheetIcon } from "lucide-react"
 import { useState } from "react"
 
@@ -20,6 +20,11 @@ export function TransferScheduleCard({ row }: { row: TaskIntegrationCardRow }) {
     <TaskIntegrationCardShell
       icon={<FileSpreadsheetIcon className="size-4 text-lime-500" />}
       row={row}
+      statusLabel={
+        row.status === "awaiting_manual_events_confirmation"
+          ? "Confirm on WCA"
+          : undefined
+      }
       actions={({ actions, status }) =>
         renderActions({ actions, status, overwriteEvents })
       }

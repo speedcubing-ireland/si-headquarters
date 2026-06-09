@@ -33,7 +33,7 @@ export const fetchCompetitions = action({
     )
 
     const accessToken = await ctx.runAction(
-      internal.plugins.core.tokens.getValidServiceToken,
+      internal.integrations.tokens.getValidServiceToken,
       { service: "wca" }
     )
 

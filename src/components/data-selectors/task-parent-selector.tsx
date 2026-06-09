@@ -74,9 +74,13 @@ function sectionParentTargets(
   return targets
 }
 
+function phaseOwnerName(target: PhaseTarget) {
+  return target.competitionName ?? target.projectName ?? "Project"
+}
+
 function getParentTargetLabel(target: ParentTarget) {
   if (target.targetType === "phases") {
-    return `${target.competitionName} ${target.name}`
+    return `${phaseOwnerName(target)} ${target.name}`
   }
 
   return `${target.sectionTitle} ${target.name}`
@@ -89,7 +93,7 @@ function renderPhaseTarget(target: PhaseTarget) {
       <span className="grid min-w-0 gap-0.5">
         <span className="truncate">{target.name}</span>
         <span className="truncate text-xs text-muted-foreground">
-          {target.competitionName}
+          {phaseOwnerName(target)}
         </span>
       </span>
     </div>

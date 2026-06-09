@@ -3,17 +3,14 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
+import { formatLocalDate } from "@/convex/competitions/dates"
 import {
-  formatLocalDate,
   getSaturdayOfWeek,
   parseCompDateRange,
   saturdaysInYear,
   weekendLabel,
 } from "@/convex/competitions/weekends"
-import {
-  competitionPhaseSnapshot,
-  competitionPhaseValidator,
-} from "@/convex/competitions/phaseSnapshot"
+import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
 import { getPublicUser } from "@/convex/users/queries"
 import { publicUserValidator } from "@/convex/users/validators"
 import { v } from "convex/values"
@@ -26,7 +23,7 @@ const calendarCompetitionRow = v.object({
     from: v.nullable(v.string()),
     to: v.nullable(v.string()),
   }),
-  phase: competitionPhaseValidator,
+  phase: phaseSnapshotValidator,
   compLead: v.union(publicUserValidator, v.null()),
   leadDelegate: v.union(publicUserValidator, v.null()),
   organisers: v.array(publicUserValidator),
@@ -74,7 +71,7 @@ async function buildCompetitionRow(
     ),
   ])
 
-  const phase = competitionPhaseSnapshot(
+  const phase = phaseSnapshot(
     competition.phaseId ? phaseById.get(competition.phaseId) : null
   )
 

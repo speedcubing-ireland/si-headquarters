@@ -9,7 +9,7 @@ import {
   Timer,
   AlertTriangle,
 } from "lucide-react"
-import type { SponsorBidStatus } from "@/plugins/sponsor/lib/sponsorship-ui"
+import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
 import { SponsorBidStatusBadge } from "@/plugins/sponsor/components/sponsor-bid-status-badge"
 import {
   SponsorMetricLabel,

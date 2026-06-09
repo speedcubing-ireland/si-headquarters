@@ -6,9 +6,11 @@ export type CompetitionSponsorPropertyStatus = Infer<
   typeof competitionSponsorPropertyStatus
 >
 
-type CompetitionSponsorFields = Pick<
-  Doc<"competitions">,
-  "manualSponsorId" | "manualSponsorPropertyStatus"
+type CompetitionSponsorOverrideFields = Partial<
+  Pick<
+    Doc<"competitionSponsorOverrides">,
+    "manualSponsorId" | "manualSponsorPropertyStatus"
+  >
 >
 
 type AuctionSponsorFields = Pick<
@@ -41,7 +43,7 @@ export function resolveCompetitionSponsorStatus(input: {
 }
 
 export function resolveCompetitionSponsorPropertyStatus(input: {
-  competition: CompetitionSponsorFields
+  override: CompetitionSponsorOverrideFields | null | undefined
   auctions: AuctionSponsorFields[]
 }): CompetitionSponsorPropertyStatus {
   return resolveCompetitionSponsorStatus({
@@ -50,8 +52,8 @@ export function resolveCompetitionSponsorPropertyStatus(input: {
       (auction) =>
         auction.state === "closed" && auction.winnerSponsorId !== undefined
     ),
-    manualSponsorId: input.competition.manualSponsorId,
-    manualStatus: input.competition.manualSponsorPropertyStatus,
+    manualSponsorId: input.override?.manualSponsorId,
+    manualStatus: input.override?.manualSponsorPropertyStatus,
   })
 }
 
@@ -59,7 +61,7 @@ export function deriveCompetitionSponsorStatusFromAuctions(
   auctions: AuctionSponsorFields[]
 ): CompetitionSponsorPropertyStatus {
   return resolveCompetitionSponsorPropertyStatus({
-    competition: {},
+    override: null,
     auctions,
   })
 }
@@ -74,10 +76,10 @@ export function findWinningClosedAuction(
 }
 
 export function isCompetitionSponsorManualOverride(
-  competition: CompetitionSponsorFields
+  override: CompetitionSponsorOverrideFields | null | undefined
 ): boolean {
   return (
-    competition.manualSponsorPropertyStatus !== undefined ||
-    competition.manualSponsorId !== undefined
+    override?.manualSponsorPropertyStatus !== undefined ||
+    override?.manualSponsorId !== undefined
   )
 }

@@ -5,10 +5,17 @@ import { describe, expect, test } from "vitest"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
-import { getCompetitionIdForTask } from "@/convex/tasks/blockers/competition"
+import {
+  deriveTaskRootContextFromParent,
+  taskRootPatch,
+} from "@/convex/tasks/hierarchy"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
-import { withVolunteerTestClient } from "@/convex/testHelpers"
+import {
+  insertBlankProject,
+  insertProjectPhase,
+  withVolunteerTestClient,
+} from "@/convex/testHelpers"
 
 interface TaskSeed {
   name: string
@@ -31,7 +38,6 @@ async function insertCompetition(ctx: MutationCtx) {
       to: null,
     },
     phaseId: null,
-    updateId: null,
   })
 }
 
@@ -59,6 +65,7 @@ async function insertTask(ctx: MutationCtx, seed: TaskSeed) {
     name: seed.name,
     description: null,
     parent: seed.parent,
+    ...taskRootPatch(await deriveTaskRootContextFromParent(ctx, seed.parent)),
     order: seed.order,
     assigneeIds: null,
     owner: null,
@@ -393,32 +400,109 @@ describe("task blockers", () => {
     expect(childRow?.blockers.blockedBy).toHaveLength(2)
   })
 
-  test("getCompetitionIdForTask rejects parent cycles", async () => {
+  test("deriveTaskRootContextFromParent copies root from task parent", async () => {
     const t = convexTest(schema, modules)
 
-    await expect(
-      t.run(async (ctx) => {
-        const competitionId = await insertCompetition(ctx)
-        const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
-        const taskA = await insertTask(ctx, {
-          name: "Task A",
-          parent: { type: "phases", id: phaseId },
-          order: "a",
-        })
-        const taskB = await insertTask(ctx, {
-          name: "Task B",
-          parent: { type: "tasks", id: taskA },
-          order: "a",
-        })
-        await ctx.db.patch("tasks", taskA, {
-          parent: { type: "tasks", id: taskB },
-        })
-
-        const task = await ctx.db.get("tasks", taskA)
-        if (!task) throw new Error("Task missing")
-
-        return await getCompetitionIdForTask(ctx, task)
+    const root = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const taskA = await insertTask(ctx, {
+        name: "Task A",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
       })
-    ).rejects.toThrow("Task parent cycle detected")
+      const taskB = await insertTask(ctx, {
+        name: "Task B",
+        parent: { type: "tasks", id: taskA },
+        order: "a",
+      })
+
+      return await deriveTaskRootContextFromParent(ctx, {
+        type: "tasks",
+        id: taskB,
+      })
+    })
+
+    expect(root.root.type).toBe("competitions")
+    expect(root.rootPhase.type).toBe("phases")
+  })
+
+  test("project tasks can block each other within the same project", async () => {
+    const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
+    const { blockedId, blockingId, otherId } = await t.run(async (ctx) => {
+      const projectId = await insertBlankProject(ctx)
+      const phaseId = await insertProjectPhase(ctx, projectId, "Setup", "a")
+      const blockedId = await insertTask(ctx, {
+        name: "Blocked task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const blockingId = await insertTask(ctx, {
+        name: "Blocking task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+      })
+      const otherId = await insertTask(ctx, {
+        name: "Other task",
+        parent: { type: "phases", id: phaseId },
+        order: "c",
+      })
+
+      return { blockedId, blockingId, otherId }
+    })
+
+    await actor.mutation(api.tasks.blockers.mutations.addBlocker, {
+      blockedTaskId: blockedId,
+      blockingTaskId: blockingId,
+    })
+
+    const potential = await actor.query(
+      api.tasks.blockers.queries.listPotentialBlockers,
+      { taskId: blockedId }
+    )
+
+    expect(potential.map((task) => task._id)).toEqual([otherId])
+  })
+
+  test("addBlocker rejects tasks from different roots", async () => {
+    const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
+    const { competitionTaskId, projectTaskId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const competitionPhaseId = await insertPhase(
+        ctx,
+        competitionId,
+        "Setup",
+        "a"
+      )
+      const competitionTaskId = await insertTask(ctx, {
+        name: "Competition task",
+        parent: { type: "phases", id: competitionPhaseId },
+        order: "a",
+      })
+
+      const projectId = await insertBlankProject(ctx)
+      const projectPhaseId = await insertProjectPhase(
+        ctx,
+        projectId,
+        "Setup",
+        "a"
+      )
+      const projectTaskId = await insertTask(ctx, {
+        name: "Project task",
+        parent: { type: "phases", id: projectPhaseId },
+        order: "a",
+      })
+
+      return { competitionTaskId, projectTaskId }
+    })
+
+    await expect(
+      actor.mutation(api.tasks.blockers.mutations.addBlocker, {
+        blockedTaskId: competitionTaskId,
+        blockingTaskId: projectTaskId,
+      })
+    ).rejects.toThrow("Blockers must belong to the same competition or project")
   })
 })

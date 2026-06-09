@@ -2,12 +2,15 @@
 
 import { api } from "@/convex/_generated/api"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
+import { TASK_INTEGRATION_IDS } from "@/convex/integrations/taskIntegrations/constants"
 import schema from "@/convex/schema"
 import { addUserToTeam, insertTestUser } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 import { ensureTeamByName } from "@/convex/teams/model"
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
+import { competitionTemplates } from "@/convex/templates/registry"
+import type { CompetitionTemplateTaskSpec } from "@/convex/templates/types"
 
 async function seedTemplateActors() {
   const t = convexTest(schema, modules)
@@ -36,6 +39,25 @@ async function seedTemplateActors() {
 }
 
 describe("competition templates", () => {
+  test("only references registered task integration ids", () => {
+    const registeredIds = new Set<string>(TASK_INTEGRATION_IDS)
+    const templateIds: string[] = []
+
+    function collectTaskIds(task: CompetitionTemplateTaskSpec) {
+      templateIds.push(...(task.integrationIds ?? []))
+      for (const subtask of task.subtasks ?? []) collectTaskIds(subtask)
+    }
+
+    for (const template of competitionTemplates) {
+      for (const phase of template.phases) {
+        for (const task of phase.tasks ?? []) collectTaskIds(task)
+      }
+    }
+
+    expect(templateIds.length).toBeGreaterThan(0)
+    expect(templateIds.filter((id) => !registeredIds.has(id))).toEqual([])
+  })
+
   test("lists the normal competition template without required variables", async () => {
     const { actor } = await seedTemplateActors()
 

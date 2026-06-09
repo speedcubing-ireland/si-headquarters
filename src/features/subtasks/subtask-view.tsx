@@ -22,7 +22,7 @@ import { AddTaskDialog } from "@/features/tasks/components/add-task-dialog"
 import { isTerminalRowStatus } from "@/features/tasks/task-row-status"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
 import { cn } from "@/lib/utils"
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { EditTasksDialog } from "@/features/subtasks/edit-tasks-dialog"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
@@ -134,7 +134,13 @@ function PhaseSection({
   )
 }
 
-export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
+export function SubtaskView({
+  owner,
+  toolbarActions,
+}: {
+  owner: SubtaskViewOwner
+  toolbarActions?: ReactNode
+}) {
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
   const view = useQuery(api.tasks.queries.getSubtaskView, { owner })
   const [displayOptions, setDisplayOptions] = useState(
@@ -160,6 +166,7 @@ export function SubtaskView({ owner }: { owner: SubtaskViewOwner }) {
           </Button>
         </AddTaskDialog>
         <EditTasksDialog sections={view.sections} />
+        {toolbarActions}
         {taskId !== null && (
           <Button
             variant="outline"
