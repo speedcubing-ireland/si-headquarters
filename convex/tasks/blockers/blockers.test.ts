@@ -208,6 +208,65 @@ describe("task blockers", () => {
     expect(reverse.blockedByMe[0]?.task._id).toBe(blockedId)
   })
 
+  test("getForTask hides completed blocking tasks but keeps the edge", async () => {
+    const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
+    const { blockedId, blockingId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const blockedId = await insertTask(ctx, {
+        name: "Blocked task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "to-do",
+      })
+      const blockingId = await insertTask(ctx, {
+        name: "Blocking task",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+        status: "in-progress",
+      })
+
+      await ctx.db.insert("taskBlockers", {
+        blockedTaskId: blockedId,
+        blockingTaskId: blockingId,
+      })
+
+      return { blockedId, blockingId }
+    })
+
+    const beforeDone = await actor.query(
+      api.tasks.blockers.queries.getForTask,
+      {
+        id: blockedId,
+      }
+    )
+    expect(beforeDone.blockingMe).toHaveLength(1)
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("tasks", blockingId, {
+        status: "done",
+        statusIntent: { type: "manual", status: "done" },
+      })
+    })
+
+    const afterDone = await actor.query(api.tasks.blockers.queries.getForTask, {
+      id: blockedId,
+    })
+    expect(afterDone.blockingMe).toEqual([])
+
+    const edgeCount = await t.run(async (ctx) => {
+      const edges = await ctx.db
+        .query("taskBlockers")
+        .withIndex("by_blockedTaskId_and_blockingTaskId", (q) =>
+          q.eq("blockedTaskId", blockedId)
+        )
+        .collect()
+      return edges.length
+    })
+    expect(edgeCount).toBe(1)
+  })
+
   test("listPotentialBlockers excludes self and linked tasks", async () => {
     const t = convexTest(schema, modules)
     const { client: actor } = await withVolunteerTestClient(t)

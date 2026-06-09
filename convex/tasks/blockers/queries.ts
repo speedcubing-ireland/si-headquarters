@@ -93,7 +93,8 @@ export const getForTask = query({
 
     return {
       blockingMe: blockingMe.filter(
-        (view): view is TaskBlockerView => view !== null
+        (view): view is TaskBlockerView =>
+          view !== null && !isTerminalComplete(view.task.effectiveStatus)
       ),
       blockedByMe: blockedByMe.filter(
         (view): view is TaskBlockerView => view !== null

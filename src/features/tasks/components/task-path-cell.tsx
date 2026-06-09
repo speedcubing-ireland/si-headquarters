@@ -58,7 +58,7 @@ export function TaskPathCell({ row }: { row: TaskInlineRow }) {
       taskTitle: row.path.taskTitle,
       subtaskTitle: row.path.subtaskTitle,
       subtaskIndicator: row.path.subtaskIndicator,
-      hasBlockIndicator: row.blockers.count > 0,
+      hasBlockIndicator: row.blockers.openCount > 0,
       labels: {
         count: row.labels.length,
         primaryName: primaryLabel?.name,
@@ -69,7 +69,7 @@ export function TaskPathCell({ row }: { row: TaskInlineRow }) {
   }, [
     primaryLabel?.name,
     rootMeasurement.font,
-    row.blockers.count,
+    row.blockers.openCount,
     row.labels.length,
     row.path.subtaskIndicator,
     row.path.subtaskTitle,

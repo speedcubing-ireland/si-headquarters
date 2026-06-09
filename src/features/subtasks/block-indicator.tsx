@@ -10,21 +10,19 @@ import { cn } from "@/lib/utils"
 import { ConstructionIcon } from "lucide-react"
 
 export function BlockIndicator({
-  count,
   openCount,
   blockedBy,
   className,
 }: BlockerCounts & { className?: string }) {
-  if (count === 0) return null
+  if (openCount === 0) return null
 
   const tooltip = formatBlockedByTooltip(blockedBy)
-  const hasOpenBlockers = openCount > 0
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Badge
-          variant={hasOpenBlockers ? "destructive" : "outline"}
+          variant="destructive"
           className={cn("px-1.5", className)}
           aria-label={tooltip}
           onClick={(event) => {

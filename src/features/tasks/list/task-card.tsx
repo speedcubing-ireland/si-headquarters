@@ -21,7 +21,7 @@ function TaskContext({ row }: { row: TaskBoardRow }) {
   const parentId = row.path.subtaskTitleId
   const hasParent = parentId !== null && row.path.subtaskTitle.length > 0
   const hasSubtasks = row.statusView.progress.total > 0
-  const hasBlockers = row.blockers.count > 0
+  const hasBlockers = row.blockers.openCount > 0
 
   if (!hasParent && !hasSubtasks && !hasBlockers) return null
 

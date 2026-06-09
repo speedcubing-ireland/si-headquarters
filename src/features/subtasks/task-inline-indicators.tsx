@@ -20,7 +20,7 @@ export function TaskInlineIndicators({
   progress,
   subtaskSummary,
 }: TaskInlineIndicatorProps) {
-  if (progress.total === 0 && blockers.count === 0) return null
+  if (progress.total === 0 && blockers.openCount === 0) return null
 
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-1", className)}>
