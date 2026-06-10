@@ -19,7 +19,9 @@ export const linkSheet = action({
       internal.integrations.tokens.getValidServiceToken,
       { service: "google" }
     )
-    const sheetId = args.sheetId.trim()
+    const trimmed = args.sheetId.trim()
+    const sheetId =
+      /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/.exec(trimmed)?.[1] ?? trimmed
     const { title, url } = await fetchSpreadsheetTitle(accessToken, sheetId)
     return await upsertLinkedObjectResource(ctx, {
       object: args.object,

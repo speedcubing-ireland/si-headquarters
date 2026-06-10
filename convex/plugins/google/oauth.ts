@@ -22,7 +22,7 @@ export const meta = {
   },
 } as const satisfies OAuthPluginMeta
 
-export const plugin = defineOAuthPlugin({
+const base = defineOAuthPlugin({
   meta,
   pkce: true,
   client: {
@@ -36,3 +36,13 @@ export const plugin = defineOAuthPlugin({
     authStyle: "body",
   },
 })
+
+export const plugin = {
+  ...base,
+  buildAuthorizeUrl(args: Parameters<typeof base.buildAuthorizeUrl>[0]) {
+    const url = new URL(base.buildAuthorizeUrl(args))
+    url.searchParams.set("access_type", "offline")
+    url.searchParams.set("prompt", "consent")
+    return url.href
+  },
+}

@@ -15,7 +15,7 @@ export function LinkGoogleSheetButton({ object }: LinkResourceActionProps) {
       icon={<FileSpreadsheetIcon className="text-lime-500" />}
       label="Link Google Sheet"
       submitLabel="Link sheet"
-      placeholder="Spreadsheet ID"
+      placeholder="Spreadsheet URL or ID"
       value={sheetId}
       onValueChange={setSheetId}
       canSubmit={sheetId.trim() !== ""}
