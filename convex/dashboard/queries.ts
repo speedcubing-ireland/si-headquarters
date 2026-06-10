@@ -429,7 +429,7 @@ function classifyTaskAction(
 
   if (
     ownedByUserOrTeam &&
-    row.assignees.mode !== "assigned" &&
+    row.assignees.mode === "assignable" &&
     row.statusView.effectiveStatus !== "backlog"
   ) {
     const label = ownerLabel(row, userId)

@@ -237,7 +237,6 @@ describe("dashboard home", () => {
       "blocking",
       "overdue",
       "unassigned-owned",
-      "unassigned-owned",
     ])
     expect(home.assignedWork.map((item) => item.reason)).toEqual([
       "in-progress",
@@ -254,9 +253,7 @@ describe("dashboard home", () => {
     expect(actionsByTaskId.get(ids.overdueTaskId)?.primaryAction).toBe(
       "open-task"
     )
-    expect(actionsByTaskId.get(ids.ownedUnassignedTaskId)?.primaryAction).toBe(
-      "claim"
-    )
+    expect(actionsByTaskId.has(ids.ownedUnassignedTaskId)).toBe(false)
     expect(
       actionsByTaskId.get(ids.teamOwnedUnassignedTaskId)?.primaryAction
     ).toBe("claim")
