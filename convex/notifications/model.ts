@@ -20,7 +20,15 @@ import {
   type ResolvedNotificationDraft,
 } from "@/convex/notifications/validators"
 import { concreteAssigneeIds } from "@/convex/tasks/assignees"
-import { getCompetitionForTask } from "@/convex/tasks/hierarchy"
+import {
+  getCompetitionForTask,
+  loadTaskRootDocs,
+} from "@/convex/tasks/hierarchy"
+import {
+  getTaskSubscriberIds,
+  getTaskWatcherIds,
+  MAX_MANUAL_SUBSCRIBERS,
+} from "@/convex/tasks/watchers"
 import { isTerminalComplete } from "@/convex/tasks/status/rules"
 import { hqSiteUrl } from "@/convex/urls"
 import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
@@ -28,7 +36,6 @@ import { getLinkedDiscordChannelTarget } from "@/convex/integrations/objectResou
 import { getProjectWorkflowDefinition } from "@/convex/projectWorkflows/registry"
 import { enrichTaskNotificationDraft } from "@/convex/notifications/enrichers"
 
-const MAX_MANUAL_SUBSCRIBERS = 100
 const MAX_PROJECT_MEMBERS = 100
 const MAX_PROJECT_NOTIFICATION_TEAM_MEMBERS = 100
 const MAX_TASK_REVIEWERS = 50
@@ -120,32 +127,59 @@ function dedupeDrafts(drafts: ResolvedNotificationDraft[]) {
   })
 }
 
-async function getTaskWatchers(
+async function getTaskOwnerChannelTarget(
   ctx: ReadCtx,
   task: Doc<"tasks">
-): Promise<Id<"users">[]> {
-  const watcherIds = new Set<Id<"users">>(concreteAssigneeIds(task.assigneeIds))
-  const subscriptions = await ctx.db
-    .query("subscriptions")
-    .withIndex("by_object_type_and_object_id_and_userId", (q) =>
-      q.eq("object.type", "tasks").eq("object.id", task._id)
-    )
-    .take(MAX_MANUAL_SUBSCRIBERS)
-  for (const subscription of subscriptions) watcherIds.add(subscription.userId)
-  return [...watcherIds]
+): Promise<NotificationTarget | null> {
+  if (task.root.type === "competitions") {
+    const targets = await competitionChannelTarget(ctx, task.root.id)
+    return targets[0] ?? null
+  }
+  return await getLinkedDiscordChannelTarget(ctx, {
+    type: "projects",
+    id: task.root.id,
+  })
 }
 
-async function getTaskSubscriberIds(
+async function buildTaskAlertDrafts(
   ctx: ReadCtx,
-  taskId: Id<"tasks">
-): Promise<Id<"users">[]> {
-  const subscriptions = await ctx.db
-    .query("subscriptions")
-    .withIndex("by_object_type_and_object_id_and_userId", (q) =>
-      q.eq("object.type", "tasks").eq("object.id", taskId)
-    )
-    .take(MAX_MANUAL_SUBSCRIBERS)
-  return subscriptions.map((subscription) => subscription.userId)
+  task: Doc<"tasks">,
+  input: {
+    fallbackText: string
+    fields: NonNullable<NotificationDraft["embeds"][number]["fields"]>
+    color: number
+    buttons?: NotificationDraft["buttons"]
+    includeOwnerChannel: boolean
+    watcherIds: Id<"users">[]
+  }
+): Promise<NotificationDraft[]> {
+  const { name } = await loadTaskRootDocs(ctx, task)
+  const url = taskUrl(task._id)
+  const targets: NotificationTarget[] = input.watcherIds.map((userId) => ({
+    kind: "user",
+    userId,
+  }))
+  if (input.includeOwnerChannel) {
+    const channelTarget = await getTaskOwnerChannelTarget(ctx, task)
+    if (channelTarget !== null) targets.push(channelTarget)
+  }
+
+  const drafts = targets.map((target) =>
+    taskDraftShell({
+      task,
+      rootName: name,
+      actor: null,
+      target,
+      fallbackText: input.fallbackText,
+      url,
+      color: input.color,
+      fields: input.fields,
+      buttons: input.buttons,
+    })
+  )
+  return await Promise.all(
+    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
+  )
 }
 
 async function getCompetitionSubscriberTargets(
@@ -338,9 +372,9 @@ function actorSuppressionId(event: NotificationEvent): Id<"users"> | null {
     case "taskUnblocked":
     case "taskDueSoon":
     case "taskOverdue":
+    case "ownerOverdueSummary":
     case "taskReminder":
     case "taskNudge":
-    case "phaseOverdueTasks":
       return null
   }
 }
@@ -371,15 +405,15 @@ async function taskWatcherDrafts(
     color?: number
   }
 ): Promise<NotificationDraft[]> {
-  const [competition, watcherIds] = await Promise.all([
-    getCompetitionForTask(ctx, task),
-    getTaskWatchers(ctx, task),
+  const [{ name }, watcherIds] = await Promise.all([
+    loadTaskRootDocs(ctx, task),
+    getTaskWatcherIds(ctx, task),
   ])
   const url = taskUrl(task._id)
   const drafts = watcherIds.map((userId) =>
     taskDraftShell({
       task,
-      competition,
+      rootName: name,
       actor,
       target: { kind: "user", userId },
       fallbackText: input.fallbackText,
@@ -408,10 +442,10 @@ async function buildTaskAssignedDrafts(
   const removed = previousAssignees.filter((userId) => !next.has(userId))
   if (added.length === 0 && removed.length === 0) return []
 
-  const [actor, competition, subscriberIds, addedUsers, removedUsers] =
+  const [actor, { name }, subscriberIds, addedUsers, removedUsers] =
     await Promise.all([
       getActor(ctx, event.actorId),
-      getCompetitionForTask(ctx, task),
+      loadTaskRootDocs(ctx, task),
       getTaskSubscriberIds(ctx, task._id),
       Promise.all(added.map((userId) => ctx.db.get("users", userId))),
       Promise.all(removed.map((userId) => ctx.db.get("users", userId))),
@@ -469,7 +503,7 @@ async function buildTaskAssignedDrafts(
     }
     return taskDraftShell({
       task,
-      competition,
+      rootName: name,
       actor,
       target: { kind: "user", userId },
       fallbackText,
@@ -513,16 +547,16 @@ async function buildAwaitingReviewDrafts(
 ): Promise<NotificationDraft[]> {
   const task = await ctx.db.get("tasks", event.taskId)
   if (task === null) return []
-  const [actor, competition, targets] = await Promise.all([
+  const [actor, { name }, targets] = await Promise.all([
     getActor(ctx, event.actorId),
-    getCompetitionForTask(ctx, task),
+    loadTaskRootDocs(ctx, task),
     reviewerTargets(ctx, task),
   ])
   const url = taskUrl(task._id)
   const drafts = targets.map((target) =>
     taskDraftShell({
       task,
-      competition,
+      rootName: name,
       actor,
       target,
       fallbackText: `Awaiting review: ${task.name}`,
@@ -588,16 +622,16 @@ async function buildAssignableDrafts(
 ) {
   const task = await ctx.db.get("tasks", event.taskId)
   if (task === null) return []
-  const [actor, competition, targets] = await Promise.all([
+  const [actor, { name }, targets] = await Promise.all([
     getActor(ctx, event.actorId),
-    getCompetitionForTask(ctx, task),
+    loadTaskRootDocs(ctx, task),
     assignableTargets(ctx, task),
   ])
   const url = taskUrl(task._id)
   const drafts = targets.map((target) =>
     taskDraftShell({
       task,
-      competition,
+      rootName: name,
       actor,
       target,
       fallbackText: `Ready to claim: ${task.name}`,
@@ -631,36 +665,79 @@ async function buildDueTaskDrafts(
 ): Promise<NotificationDraft[]> {
   const task = await ctx.db.get("tasks", event.taskId)
   if (task === null) return []
-  const [competition, watcherIds] = await Promise.all([
-    getCompetitionForTask(ctx, task),
-    event.kind === "taskOverdue"
-      ? getTaskWatchers(ctx, task)
-      : Promise.resolve(concreteAssigneeIds(task.assigneeIds)),
-  ])
-  const overdue = event.kind === "taskOverdue"
-  const dueValue =
-    event.kind === "taskOverdue"
-      ? `This task was due ${overdueLabel(event.dueDate, event.today)}.`
-      : `This task is due on **${event.dueDate}**.`
-  const url = taskUrl(task._id)
-  const drafts = watcherIds.map((userId) =>
-    taskDraftShell({
-      task,
-      competition,
-      actor: null,
-      target: { kind: "user", userId },
-      fallbackText: `${overdue ? "Overdue" : "Due soon"}: ${task.name}`,
-      url,
-      color: overdue ? EMBED_COLOR.urgent : EMBED_COLOR.warning,
+
+  if (event.kind === "taskDueSoon") {
+    return await buildTaskAlertDrafts(ctx, task, {
+      watcherIds: concreteAssigneeIds(task.assigneeIds),
+      includeOwnerChannel: false,
+      fallbackText: `Due soon: ${task.name}`,
+      color: EMBED_COLOR.warning,
       fields: [
-        embedField(":alarm_clock:", overdue ? "Overdue" : "Due Soon", dueValue),
+        embedField(
+          ":alarm_clock:",
+          "Due Soon",
+          `This task is due on **${event.dueDate}**.`
+        ),
       ],
       buttons: canOfferStart(task) ? [startTaskButton(task._id)] : [],
     })
+  }
+
+  const { name } = await loadTaskRootDocs(ctx, task)
+  const url = taskUrl(task._id)
+  const dueValue =
+    task.dueDate !== null
+      ? `This task was due ${overdueLabel(task.dueDate, event.today)}.`
+      : "This task is overdue and still needs attention."
+
+  const draft = taskDraftShell({
+    task,
+    rootName: name,
+    actor: null,
+    target: { kind: "user", userId: event.recipientId },
+    fallbackText: `Overdue: ${task.name}`,
+    url,
+    color: EMBED_COLOR.urgent,
+    fields: [embedField(":alarm_clock:", "Overdue", dueValue)],
+    buttons: canOfferStart(task) ? [startTaskButton(task._id)] : [],
+  })
+  return [await enrichTaskNotificationDraft(ctx, draft, task._id)]
+}
+
+async function buildOwnerOverdueSummaryDrafts(
+  ctx: ReadCtx,
+  event: Extract<NotificationEvent, { kind: "ownerOverdueSummary" }>
+): Promise<NotificationDraft[]> {
+  const [owner, tasks] = await Promise.all([
+    getScopedObjectName(ctx, event.owner),
+    Promise.all(event.taskIds.map((taskId) => ctx.db.get("tasks", taskId))),
+  ])
+  const openTasks = tasks.filter(
+    (task): task is Doc<"tasks"> =>
+      task !== null && !isTerminalComplete(task.status)
   )
-  return await Promise.all(
-    drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
+  if (openTasks.length === 0) return []
+
+  const lines = openTasks.map(
+    (task) => `• [${task.name}](${taskUrl(task._id)})`
   )
+  const summaryValue = lines.join("\n")
+  const countLabel = `${String(openTasks.length)} overdue task${
+    openTasks.length === 1 ? "" : "s"
+  }`
+
+  return await buildObjectFeedDrafts(ctx, event.owner, {
+    fallbackText: `${countLabel}: ${owner.name}`,
+    actorId: null,
+    color: EMBED_COLOR.urgent,
+    fields: [
+      embedField(
+        ":alarm_clock:",
+        "Overdue Tasks",
+        `${countLabel} still need attention in **${owner.name}**:\n${summaryValue}`
+      ),
+    ],
+  })
 }
 
 async function buildReminderDrafts(
@@ -678,7 +755,7 @@ async function buildReminderDrafts(
   }
   const task = await ctx.db.get("tasks", reminder.taskId)
   if (task === null) return []
-  const competition = await getCompetitionForTask(ctx, task)
+  const { name } = await loadTaskRootDocs(ctx, task)
   const reminderText =
     truncateDiscordPreview(reminder.message ?? undefined) ||
     "You asked to be reminded about this task."
@@ -687,7 +764,7 @@ async function buildReminderDrafts(
     [
       taskDraftShell({
         task,
-        competition,
+        rootName: name,
         actor: null,
         target: { kind: "user", userId: reminder.userId },
         fallbackText: `Reminder: ${task.name}`,
@@ -734,9 +811,9 @@ async function buildNudgeDrafts(
 ) {
   const task = await ctx.db.get("tasks", event.taskId)
   if (task === null) return []
-  const [actor, competition] = await Promise.all([
+  const [actor, { name }] = await Promise.all([
     getActor(ctx, event.actorId),
-    getCompetitionForTask(ctx, task),
+    loadTaskRootDocs(ctx, task),
   ])
   const actorName = userDisplayName(actor, "Someone")
   const url = taskUrl(task._id)
@@ -745,7 +822,7 @@ async function buildNudgeDrafts(
     .map((userId) =>
       taskDraftShell({
         task,
-        competition,
+        rootName: name,
         actor,
         target: { kind: "user", userId },
         fallbackText: `Nudge: ${task.name}`,
@@ -981,61 +1058,6 @@ async function buildSponsorSetDrafts(
   })
 }
 
-async function buildPhaseOverdueDrafts(
-  ctx: ReadCtx,
-  event: Extract<NotificationEvent, { kind: "phaseOverdueTasks" }>
-): Promise<NotificationDraft[]> {
-  const [phase, owner] = await Promise.all([
-    ctx.db.get("phases", event.previousPhaseId),
-    getScopedObjectName(ctx, event.object),
-  ])
-  if (phase === null) return []
-
-  const competition =
-    event.object.type === "competitions"
-      ? await ctx.db.get("competitions", event.object.id)
-      : null
-
-  const tasks = await ctx.db
-    .query("tasks")
-    .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
-      q.eq("parent.type", "phases").eq("parent.id", event.previousPhaseId)
-    )
-    .take(100)
-  const openRootTasks = tasks.filter((task) => !isTerminalComplete(task.status))
-  const draftEntries: { draft: NotificationDraft; taskId: Id<"tasks"> }[] = []
-  for (const task of openRootTasks) {
-    const watcherIds = await getTaskWatchers(ctx, task)
-    const url = taskUrl(task._id)
-    for (const userId of watcherIds) {
-      draftEntries.push({
-        taskId: task._id,
-        draft: taskDraftShell({
-          task,
-          competition,
-          actor: null,
-          target: { kind: "user", userId },
-          fallbackText: `Open task after phase change: ${task.name}`,
-          url,
-          color: EMBED_COLOR.warning,
-          fields: [
-            embedField(
-              ":triangular_flag_on_post:",
-              "Open After Phase Change",
-              `${owner.name} moved on from **${phase.name}**, but this task is still open and unresolved.`
-            ),
-          ],
-        }),
-      })
-    }
-  }
-  return await Promise.all(
-    draftEntries.map(({ draft, taskId }) =>
-      enrichTaskNotificationDraft(ctx, draft, taskId)
-    )
-  )
-}
-
 async function buildEventDrafts(
   ctx: ReadCtx,
   event: NotificationEvent
@@ -1070,14 +1092,14 @@ async function buildEventDrafts(
     case "taskDueSoon":
     case "taskOverdue":
       return await buildDueTaskDrafts(ctx, event)
+    case "ownerOverdueSummary":
+      return await buildOwnerOverdueSummaryDrafts(ctx, event)
     case "taskReminder":
       return await buildReminderDrafts(ctx, event)
     case "taskNudge":
       return await buildNudgeDrafts(ctx, event)
     case "phaseChanged":
       return await buildPhaseChangedDrafts(ctx, event)
-    case "phaseOverdueTasks":
-      return await buildPhaseOverdueDrafts(ctx, event)
     case "updatePublished":
       return await buildUpdatePublishedDrafts(ctx, event)
     case "projectWorkflowAttention":

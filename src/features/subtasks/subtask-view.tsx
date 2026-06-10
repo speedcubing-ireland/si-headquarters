@@ -28,16 +28,6 @@ import { EditTasksDialog } from "@/features/subtasks/edit-tasks-dialog"
 type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
 
-const todayIso = new Date().toISOString().slice(0, 10)
-
-function isOverdue(row: TaskInlineRow) {
-  return (
-    row.task.dueDate !== null &&
-    row.task.dueDate < todayIso &&
-    !isTerminalRowStatus(row.statusView.effectiveStatus)
-  )
-}
-
 function isDirectSubtaskRow(row: TaskInlineRow) {
   return row.path.depth === 0
 }
@@ -68,7 +58,7 @@ function getVisibleSection(
   return {
     rows,
     progress: getProgress(statuses),
-    overdueCount: rows.filter(isOverdue).length,
+    overdueCount: section.overdueCount,
   }
 }
 

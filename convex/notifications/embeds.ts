@@ -91,7 +91,7 @@ export function isChannelTarget(target: NotificationTarget): boolean {
 
 function buildTaskEmbed(input: {
   task: Doc<"tasks">
-  competition: Doc<"competitions"> | null
+  rootName: string | null
   actor: Doc<"users"> | null
   url: string
   title: string
@@ -103,8 +103,8 @@ function buildTaskEmbed(input: {
     title: input.title,
     description:
       input.description ??
-      (input.competition !== null
-        ? `${taskDescription(input.task)}\n${input.competition.name}`
+      (input.rootName !== null
+        ? `${taskDescription(input.task)}\n${input.rootName}`
         : taskDescription(input.task)),
     url: input.url,
     color: input.color ?? EMBED_COLOR.normal,
@@ -153,7 +153,7 @@ function buildProjectEmbed(input: {
 
 export function taskDraftShell(input: {
   task: Doc<"tasks">
-  competition: Doc<"competitions"> | null
+  rootName: string | null
   actor: Doc<"users"> | null
   target: NotificationTarget
   fallbackText: string
@@ -171,7 +171,7 @@ export function taskDraftShell(input: {
     embeds: [
       buildTaskEmbed({
         task: input.task,
-        competition: input.competition,
+        rootName: input.rootName,
         actor: input.actor,
         url: input.url,
         title: input.title ?? input.fallbackText,

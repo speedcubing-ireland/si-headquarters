@@ -245,6 +245,62 @@ describe("subtask view", () => {
     ])
   })
 
+  test("previous phase sections count carry-over overdue tasks", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const { competitionId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const conceptPhaseId = await insertPhase(
+        ctx,
+        competitionId,
+        "Concept",
+        "a"
+      )
+      const currentPhaseId = await insertPhase(
+        ctx,
+        competitionId,
+        "Pre-Announcement",
+        "b"
+      )
+      await ctx.db.patch("competitions", competitionId, {
+        phaseId: currentPhaseId,
+      })
+      await insertTask(ctx, {
+        name: "Left behind",
+        parent: { type: "phases", id: conceptPhaseId },
+        order: "a",
+        status: "to-do",
+      })
+      await insertTask(ctx, {
+        name: "Finished in concept",
+        parent: { type: "phases", id: conceptPhaseId },
+        order: "b",
+        status: "done",
+      })
+      await insertTask(ctx, {
+        name: "Current work",
+        parent: { type: "phases", id: currentPhaseId },
+        order: "a",
+        status: "to-do",
+      })
+      return { competitionId }
+    })
+
+    const view = await client.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "competitions", id: competitionId },
+    })
+
+    expect(
+      view.sections.map((section) => ({
+        title: section.title,
+        overdueCount: section.overdueCount,
+      }))
+    ).toEqual([
+      { title: "Concept", overdueCount: 1 },
+      { title: "Pre-Announcement", overdueCount: 0 },
+    ])
+  })
+
   test("flow, done, and cancelled tasks do not contribute nested subtask rows", async () => {
     const t = convexTest(schema, modules)
     const { client } = await withVolunteerTestClient(t)
@@ -336,5 +392,58 @@ describe("subtask view", () => {
         depth: 1,
       },
     ])
+  })
+})
+
+describe("project subtask view", () => {
+  async function insertProject(ctx: MutationCtx) {
+    return await ctx.db.insert("projects", {
+      name: "Ops Project",
+      description: null,
+      scope: { type: "global" },
+      leadUserId: null,
+      phaseId: null,
+      status: "planning",
+    })
+  }
+
+  async function insertProjectPhase(
+    ctx: MutationCtx,
+    projectId: Id<"projects">,
+    name: string,
+    sortKey: string
+  ) {
+    return await ctx.db.insert("phases", {
+      name,
+      owner: { type: "projects", id: projectId },
+      sortKey,
+      color: "gray",
+    })
+  }
+
+  test("returns phase sections for project owners", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+
+    const projectId = await t.run(async (ctx) => {
+      const projectId = await insertProject(ctx)
+      const phaseId = await insertProjectPhase(ctx, projectId, "Planning", "a")
+      await ctx.db.patch("projects", projectId, { phaseId })
+      await insertTask(ctx, {
+        name: "Project task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "to-do",
+      })
+      return projectId
+    })
+
+    const view = await client.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "projects", id: projectId },
+    })
+
+    expect(view.owner).toEqual({ type: "projects", id: projectId })
+    expect(view.sections.map((section) => section.title)).toEqual(["Planning"])
+    expect(view.sections[0]?.rows).toHaveLength(1)
   })
 })

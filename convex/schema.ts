@@ -30,7 +30,6 @@ import { savedViewFields } from "@/convex/views/validators"
 import { pluginTables } from "@/convex/plugins/registry"
 import { competitionTemplateApplicationFields } from "@/convex/templates/validators"
 import {
-  taskDueNoticeStateFields,
   taskNudgeCooldownFields,
   taskReminderFields,
 } from "@/convex/notifications/validators"
@@ -138,9 +137,6 @@ const schema = defineSchema(
       "by_taskId_and_userId_and_cancelledAt_and_sentAt_and_remindAt",
       ["taskId", "userId", "cancelledAt", "sentAt", "remindAt"]
     ),
-    taskDueNoticeStates: defineTable(taskDueNoticeStateFields)
-      .index("by_taskId", ["taskId"])
-      .index("by_taskId_and_dueDate_and_kind", ["taskId", "dueDate", "kind"]),
     taskNudgeCooldowns: defineTable(taskNudgeCooldownFields).index(
       "by_taskId_and_assigneeId",
       ["taskId", "assigneeId"]

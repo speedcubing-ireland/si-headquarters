@@ -832,12 +832,6 @@ describe("task mutations", () => {
         failedAt: null,
         lastError: null,
       })
-      await ctx.db.insert("taskDueNoticeStates", {
-        taskId,
-        dueDate: "2026-06-20",
-        kind: "due-soon",
-        sentAt: Date.now(),
-      })
       await ctx.db.insert("taskNudgeCooldowns", {
         taskId,
         assigneeId: userId,
@@ -864,7 +858,6 @@ describe("task mutations", () => {
         reviewOverrides,
         blockers,
         reminders,
-        dueNoticeStates,
         nudgeCooldowns,
         subscriptions,
         integrations,
@@ -874,7 +867,6 @@ describe("task mutations", () => {
         ctx.db.query("taskReviewOverrides").collect(),
         ctx.db.query("taskBlockers").collect(),
         ctx.db.query("taskReminders").collect(),
-        ctx.db.query("taskDueNoticeStates").collect(),
         ctx.db.query("taskNudgeCooldowns").collect(),
         ctx.db.query("subscriptions").collect(),
         ctx.db.query("taskIntegrations").collect(),
@@ -891,7 +883,6 @@ describe("task mutations", () => {
           reviewOverrides: reviewOverrides.length,
           blockers: blockers.length,
           reminders: reminders.length,
-          dueNoticeStates: dueNoticeStates.length,
           nudgeCooldowns: nudgeCooldowns.length,
           subscriptions: subscriptions.length,
           integrations: integrations.length,
@@ -909,7 +900,6 @@ describe("task mutations", () => {
       reviewOverrides: 0,
       blockers: 0,
       reminders: 0,
-      dueNoticeStates: 0,
       nudgeCooldowns: 0,
       subscriptions: 0,
       integrations: 0,

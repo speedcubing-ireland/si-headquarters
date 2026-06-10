@@ -2,11 +2,6 @@ import { v, type Infer } from "convex/values"
 import { taskReviewerRef } from "@/convex/tasks/reviews/validators"
 import { competitionOrProjectRef } from "@/convex/utils"
 
-export const dueNoticeKind = v.union(
-  v.literal("due-soon"),
-  v.literal("overdue")
-)
-
 export const taskReminderFields = {
   taskId: v.id("tasks"),
   userId: v.id("users"),
@@ -17,13 +12,6 @@ export const taskReminderFields = {
   cancelledAt: v.union(v.number(), v.null()),
   failedAt: v.union(v.number(), v.null()),
   lastError: v.union(v.string(), v.null()),
-}
-
-export const taskDueNoticeStateFields = {
-  taskId: v.id("tasks"),
-  dueDate: v.string(),
-  kind: dueNoticeKind,
-  sentAt: v.number(),
 }
 
 export const taskNudgeCooldownFields = {
@@ -108,8 +96,14 @@ export const notificationEvent = v.union(
   v.object({
     kind: v.literal("taskOverdue"),
     taskId: v.id("tasks"),
-    dueDate: v.string(),
-    today: v.optional(v.string()),
+    today: v.string(),
+    recipientId: v.id("users"),
+  }),
+  v.object({
+    kind: v.literal("ownerOverdueSummary"),
+    owner: competitionOrProjectRef,
+    today: v.string(),
+    taskIds: v.array(v.id("tasks")),
   }),
   v.object({
     kind: v.literal("taskReminder"),
@@ -127,12 +121,6 @@ export const notificationEvent = v.union(
     actorId: v.union(v.id("users"), v.null()),
     previousPhaseId: v.union(v.id("phases"), v.null()),
     nextPhaseId: v.id("phases"),
-  }),
-  v.object({
-    kind: v.literal("phaseOverdueTasks"),
-    object: competitionOrProjectRef,
-    actorId: v.union(v.id("users"), v.null()),
-    previousPhaseId: v.id("phases"),
   }),
   v.object({
     kind: v.literal("updatePublished"),
@@ -226,7 +214,6 @@ export const resolvedNotificationDraft = v.object({
   attachments: v.optional(v.array(notificationAttachmentRequest)),
 })
 
-export type DueNoticeKind = Infer<typeof dueNoticeKind>
 export type NotificationAttachmentRequest = Infer<
   typeof notificationAttachmentRequest
 >

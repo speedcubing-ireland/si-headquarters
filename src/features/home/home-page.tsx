@@ -23,6 +23,7 @@ import { useState } from "react"
 type HomeData = FunctionReturnType<typeof api.dashboard.queries.getHome>
 type TaskAction = HomeData["actionNeeded"][number]
 type CompetitionWithWork = HomeData["competitionsWithWork"][number]
+type ProjectWithWork = HomeData["projectsWithWork"][number]
 
 const ACTION_LABELS = {
   "open-task": "Open task",
@@ -47,7 +48,7 @@ function HomeSectionHeader({
 }: {
   title: string
   count: number
-  to: "/tasks" | "/competitions"
+  to: "/tasks" | "/competitions" | "/projects"
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
@@ -141,9 +142,7 @@ function TaskContextLine({ item }: { item: TaskAction }) {
           <span className="truncate">{row.path.subtaskTitle}</span>
         </Link>
       ) : null}
-      {row.competitionId !== null ? (
-        <TaskRootLink row={row} className="h-6 px-1.5 text-[10px]" />
-      ) : null}
+      <TaskRootLink row={row} className="h-6 px-1.5 text-[10px]" />
       {showDueDate ? (
         <Badge variant="outline" className="font-mono">
           Due {row.task.dueDate}
@@ -198,45 +197,83 @@ function TaskActionRow({
   )
 }
 
-function ActionNeededSection({ actions }: { actions: TaskAction[] }) {
+function TaskActionListSection({
+  title,
+  actions,
+  to = "/tasks",
+  compact = false,
+  emptyMessage,
+  hideWhenEmpty = false,
+}: {
+  title: string
+  actions: TaskAction[]
+  to?: "/tasks" | "/competitions" | "/projects"
+  compact?: boolean
+  emptyMessage?: string
+  hideWhenEmpty?: boolean
+}) {
+  if (hideWhenEmpty && actions.length === 0) return null
+
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      <HomeSectionHeader
-        title="Action needed"
-        count={actions.length}
-        to="/tasks"
-      />
+      <HomeSectionHeader title={title} count={actions.length} to={to} />
       {actions.length > 0 ? (
         <div className="grid gap-2">
           {actions.map((item) => (
-            <TaskActionRow key={taskActionKey(item)} item={item} />
+            <TaskActionRow
+              key={taskActionKey(item)}
+              item={item}
+              compact={compact}
+            />
           ))}
         </div>
-      ) : (
-        <PageListMessage>Nothing needs you right now.</PageListMessage>
-      )}
+      ) : emptyMessage !== undefined && emptyMessage.length > 0 ? (
+        <PageListMessage>{emptyMessage}</PageListMessage>
+      ) : null}
     </section>
+  )
+}
+
+function ActionNeededSection({ actions }: { actions: TaskAction[] }) {
+  return (
+    <TaskActionListSection
+      title="Action needed"
+      actions={actions}
+      emptyMessage="Nothing needs you right now."
+    />
   )
 }
 
 function AssignedWorkSection({ actions }: { actions: TaskAction[] }) {
   return (
-    <section className="flex min-w-0 flex-col gap-3">
-      <HomeSectionHeader
-        title="Assigned to me"
-        count={actions.length}
-        to="/tasks"
-      />
-      {actions.length > 0 ? (
-        <div className="grid gap-2">
-          {actions.map((item) => (
-            <TaskActionRow key={taskActionKey(item)} item={item} compact />
-          ))}
-        </div>
-      ) : (
-        <PageListMessage>No other assigned work is open.</PageListMessage>
-      )}
-    </section>
+    <TaskActionListSection
+      title="Assigned to me"
+      actions={actions}
+      compact
+      emptyMessage="No other assigned work is open."
+    />
+  )
+}
+
+function OwnerWorkCounts({
+  activeTaskCount,
+  blockedTaskCount,
+  overdueTaskCount,
+}: {
+  activeTaskCount: number
+  blockedTaskCount: number
+  overdueTaskCount: number
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      <Badge variant="secondary">{String(activeTaskCount)} active</Badge>
+      {blockedTaskCount > 0 ? (
+        <Badge variant="destructive">{String(blockedTaskCount)} blocked</Badge>
+      ) : null}
+      {overdueTaskCount > 0 ? (
+        <Badge variant="destructive">{String(overdueTaskCount)} overdue</Badge>
+      ) : null}
+    </div>
   )
 }
 
@@ -246,21 +283,11 @@ function CompetitionWorkCounts({
   competition: CompetitionWithWork
 }) {
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      <Badge variant="secondary">
-        {String(competition.activeTaskCount)} active
-      </Badge>
-      {competition.blockedTaskCount > 0 ? (
-        <Badge variant="destructive">
-          {String(competition.blockedTaskCount)} blocked
-        </Badge>
-      ) : null}
-      {competition.overdueTaskCount > 0 ? (
-        <Badge variant="destructive">
-          {String(competition.overdueTaskCount)} overdue
-        </Badge>
-      ) : null}
-    </div>
+    <OwnerWorkCounts
+      activeTaskCount={competition.activeTaskCount}
+      blockedTaskCount={competition.blockedTaskCount}
+      overdueTaskCount={competition.overdueTaskCount}
+    />
   )
 }
 
@@ -318,6 +345,75 @@ function CompetitionWorkRow({
   )
 }
 
+function ProjectWorkRow({ project }: { project: ProjectWithWork }) {
+  const hasRisk = project.blockedTaskCount > 0 || project.overdueTaskCount > 0
+
+  return (
+    <article className="rounded-md border bg-card/75 px-3 py-2.5">
+      <div className="flex min-w-0 items-start gap-3">
+        <CircleAlertIcon
+          className={cn(
+            "mt-0.5 size-4 shrink-0 text-muted-foreground",
+            hasRisk && "text-destructive"
+          )}
+        />
+        <div className="min-w-0 flex-1">
+          <Link
+            to="/projects/$id"
+            params={{ id: project._id }}
+            className="line-clamp-2 min-w-0 text-sm leading-snug font-medium hover:underline"
+          >
+            {project.name}
+          </Link>
+          {project.phase ? (
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5">
+                <Dot className="size-2" color={project.phase.color} />
+                {project.phase.name}
+              </span>
+            </div>
+          ) : null}
+          <OwnerWorkCounts
+            activeTaskCount={project.activeTaskCount}
+            blockedTaskCount={project.blockedTaskCount}
+            overdueTaskCount={project.overdueTaskCount}
+          />
+          <Button variant="outline" size="sm" asChild className="mt-3 w-full">
+            <Link to="/projects/$id" params={{ id: project._id }}>
+              Open work
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function ProjectsWithWorkSection({
+  projects,
+}: {
+  projects: ProjectWithWork[]
+}) {
+  return (
+    <section className="flex min-w-0 flex-col gap-3">
+      <HomeSectionHeader
+        title="Projects with work"
+        count={projects.length}
+        to="/projects"
+      />
+      {projects.length > 0 ? (
+        <div className="grid gap-2">
+          {projects.map((project) => (
+            <ProjectWorkRow key={project._id} project={project} />
+          ))}
+        </div>
+      ) : (
+        <PageListMessage>No projects have active work left.</PageListMessage>
+      )}
+    </section>
+  )
+}
+
 function CompetitionsWithWorkSection({
   competitions,
 }: {
@@ -348,15 +444,31 @@ function CompetitionsWithWorkSection({
   )
 }
 
+function StewardOverdueSection({ actions }: { actions: TaskAction[] }) {
+  return (
+    <TaskActionListSection
+      title="Overdue in your competitions & projects"
+      actions={actions}
+      hideWhenEmpty
+    />
+  )
+}
+
 function HomeContent({ data }: { data: HomeData }) {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div className="grid min-w-0 gap-6 @2xl/main:grid-cols-[minmax(0,1fr)_minmax(280px,0.62fr)]">
         <div className="flex min-w-0 flex-col gap-6">
           <ActionNeededSection actions={data.actionNeeded} />
+          <StewardOverdueSection actions={data.stewardOverdue} />
           <AssignedWorkSection actions={data.assignedWork} />
         </div>
-        <CompetitionsWithWorkSection competitions={data.competitionsWithWork} />
+        <div className="flex min-w-0 flex-col gap-6">
+          <CompetitionsWithWorkSection
+            competitions={data.competitionsWithWork}
+          />
+          <ProjectsWithWorkSection projects={data.projectsWithWork} />
+        </div>
       </div>
     </div>
   )

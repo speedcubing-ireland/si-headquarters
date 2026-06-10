@@ -9,7 +9,9 @@ import { TEAM_NAMES } from "@/convex/permissions/shared"
 import schema from "@/convex/schema"
 import {
   insertBlankCompetition,
+  insertBlankProject,
   insertCompetitionPhase,
+  insertProjectPhase,
   insertTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
@@ -514,6 +516,167 @@ describe("dashboard home", () => {
       home.assignedWork.map((item) => item.task.task._id)
     )
     expect(assignedWorkIds.has(ids.blockingBacklogTaskId)).toBe(false)
+  })
+
+  test("surfaces phase carry-over overdue for subscribed watchers", async () => {
+    const t = convexTest(schema, modules)
+    const { client, userId } = await withVolunteerTestClient(t)
+
+    const carryOverTaskId = await t.run(async (ctx) => {
+      const { competitionId } = await insertCompetitionWithPhase(ctx, {
+        name: "Carry Over Actions",
+        from: "2999-01-01",
+        sortKey: "b",
+      })
+      const earlierPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Earlier",
+        "a",
+        "amber"
+      )
+      const carryOverTaskId = await insertTask(ctx, {
+        name: "Left in earlier phase",
+        phaseId: earlierPhaseId,
+        order: "a",
+        status: "to-do",
+      })
+      await ctx.db.insert("subscriptions", {
+        userId,
+        object: { type: "tasks", id: carryOverTaskId },
+      })
+      return carryOverTaskId
+    })
+
+    const home = await client.query(api.dashboard.queries.getHome, {})
+    const action = home.actionNeeded.find(
+      (item) => item.task.task._id === carryOverTaskId
+    )
+
+    expect(action).toMatchObject({
+      reason: "overdue",
+      explanation: "This task is overdue.",
+    })
+  })
+
+  test("shows steward overdue tasks for competition leads who are not watchers", async () => {
+    const t = convexTest(schema, modules)
+    const { compLeadId, overdueTaskId } = await t.run(async (ctx) => {
+      const compLeadId = await insertTestUser(ctx, "Comp Lead")
+      const competitionId = await insertBlankCompetition(ctx)
+      await ctx.db.patch("competitions", competitionId, {
+        name: "Steward Open",
+        people: {
+          compLead: compLeadId,
+          leadDelegate: null,
+          organisers: [],
+        },
+      })
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Planning",
+        "a"
+      )
+      await ctx.db.patch("competitions", competitionId, { phaseId })
+      const overdueTaskId = await insertTask(ctx, {
+        name: "Unassigned overdue",
+        phaseId,
+        order: "a",
+        status: "to-do",
+        dueDate: "2000-01-01",
+      })
+      return { compLeadId, overdueTaskId }
+    })
+
+    const home = await t
+      .withIdentity({ subject: compLeadId })
+      .query(api.dashboard.queries.getHome, {})
+
+    expect(home.stewardOverdue.map((item) => item.task.task._id)).toContain(
+      overdueTaskId
+    )
+    expect(home.actionNeeded.map((item) => item.task.task._id)).not.toContain(
+      overdueTaskId
+    )
+    expect(home.stewardOverdue[0]).toMatchObject({
+      reason: "overdue",
+      explanation: "This task is overdue. Due 2000-01-01.",
+    })
+  })
+
+  test("shows steward overdue tasks for project leads who are not watchers", async () => {
+    const t = convexTest(schema, modules)
+    const { projectLeadId, overdueTaskId } = await t.run(async (ctx) => {
+      const projectLeadId = await insertTestUser(ctx, "Project Lead")
+      const projectId = await insertBlankProject(ctx)
+      await ctx.db.patch("projects", projectId, {
+        name: "Steward Project",
+        leadUserId: projectLeadId,
+      })
+      const phaseId = await insertProjectPhase(ctx, projectId, "Planning", "a")
+      await ctx.db.patch("projects", projectId, { phaseId })
+      const overdueTaskId = await insertTask(ctx, {
+        name: "Unassigned project overdue",
+        phaseId,
+        order: "a",
+        status: "to-do",
+        dueDate: "2000-01-01",
+      })
+      return { projectLeadId, overdueTaskId }
+    })
+
+    const home = await t
+      .withIdentity({ subject: projectLeadId })
+      .query(api.dashboard.queries.getHome, {})
+
+    expect(home.stewardOverdue.map((item) => item.task.task._id)).toContain(
+      overdueTaskId
+    )
+  })
+
+  test("includes readable projects with active current-phase work", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+
+    await t.run(async (ctx) => {
+      const projectId = await insertBlankProject(ctx)
+      await ctx.db.patch("projects", projectId, { name: "Active Project" })
+      const currentPhaseId = await insertProjectPhase(
+        ctx,
+        projectId,
+        "Current",
+        "a"
+      )
+      const backlogPhaseId = await insertProjectPhase(
+        ctx,
+        projectId,
+        "Backlog",
+        "b"
+      )
+      await ctx.db.patch("projects", projectId, { phaseId: currentPhaseId })
+      await insertTask(ctx, {
+        name: "Current phase task",
+        phaseId: currentPhaseId,
+        order: "a",
+        status: "to-do",
+      })
+      await insertTask(ctx, {
+        name: "Backlog phase task",
+        phaseId: backlogPhaseId,
+        order: "a",
+        status: "backlog",
+      })
+    })
+
+    const home = await client.query(api.dashboard.queries.getHome, {})
+    expect(home.projectsWithWork.map((project) => project.name)).toContain(
+      "Active Project"
+    )
+    const project = home.projectsWithWork.find(
+      (entry) => entry.name === "Active Project"
+    )
+    expect(project?.activeTaskCount).toBe(1)
   })
 
   test("counts competition work only in the current phase and excludes backlog", async () => {

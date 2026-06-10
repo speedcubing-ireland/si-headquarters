@@ -80,6 +80,17 @@ function isCompetitionOrganiser(
   return competition?.people.organisers.includes(principal.userId) ?? false
 }
 
+export function isCompetitionSteward(
+  principal: Principal,
+  competition: Doc<"competitions"> | undefined
+): boolean {
+  if (competition === undefined) return false
+  return (
+    competition.people.compLead === principal.userId ||
+    competition.people.leadDelegate === principal.userId
+  )
+}
+
 export function canPerform(
   principal: Principal | null,
   action: Action,
@@ -99,7 +110,8 @@ export function canPerform(
   return (
     subject === "Competition" &&
     (action === "read" || action === "update") &&
-    isCompetitionOrganiser(principal, competition)
+    (isCompetitionOrganiser(principal, competition) ||
+      isCompetitionSteward(principal, competition))
   )
 }
 

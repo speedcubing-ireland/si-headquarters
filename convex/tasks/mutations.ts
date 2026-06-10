@@ -1,7 +1,6 @@
 import { mutation } from "@/convex/_generated/server"
 import {
   assignTaskAndNotify,
-  resetTaskDueNoticeState,
   scheduleTaskStatusNotifications,
 } from "@/convex/notifications/events"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
@@ -185,7 +184,6 @@ async function deleteTaskScopedRows(ctx: MutationCtx, taskId: Id<"tasks">) {
     blockingEdges,
     blockedEdges,
     reminders,
-    dueNoticeStates,
     nudgeCooldowns,
     subscriptions,
     integrations,
@@ -220,10 +218,6 @@ async function deleteTaskScopedRows(ctx: MutationCtx, taskId: Id<"tasks">) {
         "by_taskId_and_userId_and_cancelledAt_and_sentAt_and_remindAt",
         (q) => q.eq("taskId", taskId)
       )
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskDueNoticeStates")
-      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
       .take(MAX_TASK_SCOPED_ROWS + 1),
     ctx.db
       .query("taskNudgeCooldowns")
@@ -272,11 +266,6 @@ async function deleteTaskScopedRows(ctx: MutationCtx, taskId: Id<"tasks">) {
     "Task has too many reminders to delete at once"
   )
   assertWithinLimit(
-    dueNoticeStates,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many due notice states to delete at once"
-  )
-  assertWithinLimit(
     nudgeCooldowns,
     MAX_TASK_SCOPED_ROWS,
     "Task has too many nudge cooldowns to delete at once"
@@ -321,9 +310,6 @@ async function deleteTaskScopedRows(ctx: MutationCtx, taskId: Id<"tasks">) {
       ctx.db.delete("taskBlockers", row._id)
     ),
     ...reminders.map((row) => ctx.db.delete("taskReminders", row._id)),
-    ...dueNoticeStates.map((row) =>
-      ctx.db.delete("taskDueNoticeStates", row._id)
-    ),
     ...nudgeCooldowns.map((row) =>
       ctx.db.delete("taskNudgeCooldowns", row._id)
     ),
@@ -761,12 +747,7 @@ export const setTaskDueDate = mutation({
   },
   handler: async (ctx, args) => {
     await requireTaskManageAccess(ctx, args.id)
-    const task = await ctx.db.get("tasks", args.id)
-    const previousDueDate = task?.dueDate ?? null
     await ctx.db.patch("tasks", args.id, { dueDate: args.dueDate })
-    if (previousDueDate !== args.dueDate) {
-      await resetTaskDueNoticeState(ctx, args.id)
-    }
   },
 })
 

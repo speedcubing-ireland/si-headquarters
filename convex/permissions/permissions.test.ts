@@ -131,6 +131,39 @@ describe("permissions", () => {
     ])
   })
 
+  test("comp lead and lead delegate can read their competition without team membership", async () => {
+    const t = convexTest(schema, modules)
+    const { compLeadId, leadDelegateId, competitionId } = await t.run(
+      async (ctx) => {
+        const compLeadId = await insertTestUser(ctx, "Comp Lead")
+        const leadDelegateId = await insertTestUser(ctx, "Lead Delegate")
+        const competitionId = await insertBlankCompetition(ctx)
+        await ctx.db.patch("competitions", competitionId, {
+          name: "Stewarded Open",
+          people: {
+            compLead: compLeadId,
+            leadDelegate: leadDelegateId,
+            organisers: [],
+          },
+        })
+        return { compLeadId, leadDelegateId, competitionId }
+      }
+    )
+
+    for (const userId of [compLeadId, leadDelegateId]) {
+      const competitions = await t
+        .withIdentity({ subject: userId })
+        .query(api.competitions.queries.list, {})
+
+      expect(competitions).toEqual([
+        {
+          _id: competitionId,
+          name: "Stewarded Open",
+        },
+      ])
+    }
+  })
+
   test("competitions team can list users for competition people pickers", async () => {
     const t = convexTest(schema, modules)
     const { managerId, competitionId, otherUserId } = await t.run(

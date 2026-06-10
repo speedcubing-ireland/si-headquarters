@@ -49,15 +49,6 @@ export async function setCurrentPhaseForOwner(
     nextPhaseId: args.phaseId,
   })
 
-  if (args.previousPhaseId !== null) {
-    await scheduleNotificationEvent(ctx, {
-      kind: "phaseOverdueTasks",
-      object: args.owner,
-      actorId: args.actorId,
-      previousPhaseId: args.previousPhaseId,
-    })
-  }
-
   const result = await activatePhaseBacklogTasks(ctx, args.phaseId)
   await scheduleTaskStatusNotifications(ctx, result, args.actorId)
 }

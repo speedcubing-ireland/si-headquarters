@@ -1,10 +1,9 @@
 // To-do some of these if not used eventually should be removed
 
+import { requireScopedObjectForRead } from "@/convex/access/scopedObject"
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireCompetitionForRead } from "@/convex/competitions/access"
-import { requireProjectForRead } from "@/convex/projects/access"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import { requireTaskReadAccess } from "@/convex/tasks/access"
 import { taskFlowView, type TaskFlowView } from "@/convex/tasks/flowView"
@@ -20,8 +19,7 @@ import {
 import { taskStatusCommandType } from "@/convex/tasks/status/validators"
 import { getProgress } from "@/convex/tasks/status/rules"
 import {
-  getCompetitionSubtaskView,
-  getProjectSubtaskView,
+  getOwnerSubtaskView,
   getTaskSubtaskView,
   listCreationTargetsForScope,
   subtaskViewOwner,
@@ -359,13 +357,8 @@ export const getSubtaskView = query({
       return await getTaskSubtaskView(ctx, args.owner.id)
     }
 
-    if (args.owner.type === "competitions") {
-      await requireCompetitionForRead(ctx, args.owner.id)
-      return await getCompetitionSubtaskView(ctx, args.owner.id)
-    }
-
-    await requireProjectForRead(ctx, args.owner.id)
-    return await getProjectSubtaskView(ctx, args.owner.id)
+    await requireScopedObjectForRead(ctx, args.owner)
+    return await getOwnerSubtaskView(ctx, args.owner)
   },
 })
 

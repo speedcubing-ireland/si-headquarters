@@ -6,7 +6,7 @@ import {
   type Principal,
 } from "@/convex/permissions/principal"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
-import { getMembership } from "@/convex/teams/model"
+import { isTeamMember } from "@/convex/teams/model"
 
 type DbCtx = QueryCtx | MutationCtx
 type ProjectScope = Doc<"projects">["scope"]
@@ -20,19 +20,11 @@ function isVolunteer(principal: Principal): boolean {
   return principal.teamNames.includes(TEAM_NAMES.VOLUNTEER)
 }
 
-function isProjectLead(
+export function isProjectLead(
   principal: Principal,
   project: Doc<"projects">
 ): boolean {
   return project.leadUserId === principal.userId
-}
-
-async function isTeamMember(
-  ctx: DbCtx,
-  teamId: Id<"teams">,
-  userId: Id<"users">
-): Promise<boolean> {
-  return (await getMembership(ctx, teamId, userId)) !== null
 }
 
 async function isProjectMember(

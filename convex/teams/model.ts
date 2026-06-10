@@ -41,6 +41,14 @@ export async function getMembership(
     .unique()
 }
 
+export async function isTeamMember(
+  ctx: TeamCtx,
+  teamId: Id<"teams">,
+  userId: Id<"users">
+) {
+  return (await getMembership(ctx, teamId, userId)) !== null
+}
+
 export async function addTeamMember(
   ctx: MutationCtx,
   teamId: Id<"teams">,

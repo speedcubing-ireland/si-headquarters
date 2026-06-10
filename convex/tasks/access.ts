@@ -1,15 +1,15 @@
 import { ConvexError } from "convex/values"
+import { requireScopedObjectForUpdate } from "@/convex/access/scopedObject"
 import { throwForbidden } from "@/convex/errors"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import {
   canPerform,
-  requireCan,
   requirePrincipal,
   type Principal,
 } from "@/convex/permissions/principal"
 import { canReadProject, canUpdateProject } from "@/convex/projects/access"
-import { getMembership } from "@/convex/teams/model"
+import { isTeamMember } from "@/convex/teams/model"
 import { concreteAssigneeIds } from "@/convex/tasks/assignees"
 
 type DbCtx = QueryCtx | MutationCtx
@@ -27,14 +27,6 @@ function throwTaskNotFound(): never {
     code: "NOT_FOUND",
     message: "Task not found",
   })
-}
-
-async function isTeamMember(
-  ctx: DbCtx,
-  teamId: Id<"teams">,
-  userId: Id<"users">
-) {
-  return (await getMembership(ctx, teamId, userId)) !== null
 }
 
 async function isTaskOwnerOrAssignee(
@@ -210,7 +202,6 @@ export async function requireTaskCreationParentAccess(
     return (await requireTaskManageAccess(ctx, parent.id)).principal
   }
 
-  const principal = await requirePrincipal(ctx)
   const phase = await ctx.db.get("phases", parent.id)
   if (phase === null) {
     throw new ConvexError({
@@ -219,27 +210,6 @@ export async function requireTaskCreationParentAccess(
     })
   }
 
-  if (phase.owner.type === "competitions") {
-    const competition = await ctx.db.get("competitions", phase.owner.id)
-    if (competition === null) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Competition not found",
-      })
-    }
-    requireCan(principal, "update", "Competition", competition)
-    return principal
-  }
-
-  const project = await ctx.db.get("projects", phase.owner.id)
-  if (project === null) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: "Project not found",
-    })
-  }
-  if (!(await canUpdateProject(ctx, principal, project))) {
-    throwForbidden("You do not have access to this task.")
-  }
+  const { principal } = await requireScopedObjectForUpdate(ctx, phase.owner)
   return principal
 }

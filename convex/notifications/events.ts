@@ -11,7 +11,6 @@ import { isTerminalComplete } from "@/convex/tasks/status/rules"
 import type { TaskStatusMutationResult } from "@/convex/tasks/status/recompute"
 
 const MAX_BLOCKER_EDGES_TO_CHECK = 100
-const MAX_DUE_NOTICE_STATES_PER_TASK = 20
 
 export async function scheduleNotificationEvent(
   ctx: Pick<MutationCtx, "scheduler">,
@@ -178,17 +177,4 @@ export async function scheduleTaskStatusNotifications(
       })
     }
   }
-}
-
-export async function resetTaskDueNoticeState(
-  ctx: MutationCtx,
-  taskId: Id<"tasks">
-) {
-  const states = await ctx.db
-    .query("taskDueNoticeStates")
-    .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
-    .take(MAX_DUE_NOTICE_STATES_PER_TASK)
-  await Promise.all(
-    states.map((state) => ctx.db.delete("taskDueNoticeStates", state._id))
-  )
 }

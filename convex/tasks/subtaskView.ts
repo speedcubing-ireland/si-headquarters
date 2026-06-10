@@ -1,7 +1,6 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
-import { requireCompetitionForUpdate } from "@/convex/competitions/access"
-import { requireProjectForUpdate } from "@/convex/projects/access"
+import { requireScopedObjectForUpdate } from "@/convex/access/scopedObject"
 import { requireTaskManageAccess } from "@/convex/tasks/access"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import { taskKindType } from "@/convex/tasks/kind"
@@ -21,11 +20,16 @@ import {
   TaskStatusLoader,
   type TaskWithStatusView,
 } from "@/convex/tasks/status/resolver"
+import { dublinToday } from "@/convex/notifications/time"
+import { listPhasesForOwnerBounded } from "@/convex/phases/model"
+import {
+  buildPhaseSortKeyById,
+  countOverdueInSection,
+} from "@/convex/tasks/overdue"
 import { getProgress } from "@/convex/tasks/status/rules"
 import { objectRef } from "@/convex/utils"
 import { v, type Infer } from "convex/values"
 
-const MAX_COMPETITION_PHASES_FOR_SUBTASK_VIEW = 50
 const MAX_TASK_CREATION_TARGETS_PER_SECTION = 200
 
 export const subtaskViewOwner = v.union(
@@ -42,6 +46,7 @@ const subtaskViewSection = v.object({
   phaseId: v.union(v.id("phases"), v.null()),
   title: v.string(),
   isCurrent: v.boolean(),
+  overdueCount: v.number(),
   progress: taskViewProgress,
   rows: v.array(subtaskViewRow),
 })
@@ -97,26 +102,6 @@ interface TaskDisplayReaderContext {
 
 type TaskDisplayReader = TaskDisplayReaderContext["displayReader"]
 type TaskStatus = TaskWithStatusView["statusView"]["effectiveStatus"]
-
-async function listOwnerPhases(ctx: DbCtx, owner: Doc<"phases">["owner"]) {
-  const phases = await ctx.db
-    .query("phases")
-    .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
-      q.eq("owner.type", owner.type).eq("owner.id", owner.id)
-    )
-    .order("asc")
-    .take(MAX_COMPETITION_PHASES_FOR_SUBTASK_VIEW + 1)
-
-  if (phases.length > MAX_COMPETITION_PHASES_FOR_SUBTASK_VIEW) {
-    throw new Error(
-      `Owner has more than ${String(
-        MAX_COMPETITION_PHASES_FOR_SUBTASK_VIEW
-      )} phases`
-    )
-  }
-
-  return phases
-}
 
 async function getPhaseTaskViews(
   loader: TaskStatusLoader,
@@ -223,6 +208,9 @@ async function buildSubtaskSection({
   phaseId,
   title,
   taskViews,
+  ownerCurrentPhaseId,
+  phaseSortKeyById,
+  today,
 }: {
   displayReader: TaskDisplayReader
   loader: TaskStatusLoader
@@ -234,6 +222,9 @@ async function buildSubtaskSection({
   phaseId: Id<"phases"> | null
   title: string
   taskViews: TaskWithStatusView[]
+  ownerCurrentPhaseId: Id<"phases"> | null
+  phaseSortKeyById: Map<Id<"phases">, string>
+  today: string
 }): Promise<TaskSubtaskView["sections"][number]> {
   const { rows, statuses } = await buildSubtaskRows({
     depth: 0,
@@ -244,6 +235,12 @@ async function buildSubtaskSection({
     parentTaskId: null,
     taskViews,
   })
+  const overdueCount = await countOverdueInSection(rows, taskViews, loader, {
+    sectionPhaseId: phaseId,
+    ownerCurrentPhaseId,
+    phaseSortKeyById,
+    today,
+  })
 
   return {
     id,
@@ -251,6 +248,7 @@ async function buildSubtaskSection({
     phaseId,
     title,
     isCurrent,
+    overdueCount,
     progress: getProgress(statuses),
     rows,
   }
@@ -280,6 +278,8 @@ export async function getTaskSubtaskView(
 
   const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const taskViews = await getTaskSubtaskViews(loader, task)
+  const today = dublinToday()
+  const phaseSortKeyById = buildPhaseSortKeyById([])
 
   return {
     owner: { type: "tasks", id: task._id },
@@ -294,6 +294,9 @@ export async function getTaskSubtaskView(
         parent: { type: "tasks", id: task._id },
         parentTitle: task.name,
         phaseId: null,
+        ownerCurrentPhaseId: null,
+        phaseSortKeyById,
+        today,
         title: "Subtasks",
         taskViews,
       }),
@@ -301,29 +304,22 @@ export async function getTaskSubtaskView(
   }
 }
 
-export async function getCompetitionSubtaskView(
+export async function getOwnerSubtaskView(
   ctx: QueryCtx,
-  competitionId: Id<"competitions">
+  owner: Extract<SubtaskViewOwner, { type: "competitions" | "projects" }>
 ): Promise<TaskSubtaskView> {
-  const competition = await ctx.db.get("competitions", competitionId)
-  if (!competition) throw new Error("Competition not found")
+  const doc = await ctx.db.get(owner.type, owner.id)
+  if (doc === null) {
+    throw new Error(
+      owner.type === "competitions"
+        ? "Competition not found"
+        : "Project not found"
+    )
+  }
 
   return await getPhaseOwnerSubtaskView(ctx, {
-    currentPhaseId: competition.phaseId,
-    owner: { type: "competitions", id: competition._id },
-  })
-}
-
-export async function getProjectSubtaskView(
-  ctx: QueryCtx,
-  projectId: Id<"projects">
-): Promise<TaskSubtaskView> {
-  const project = await ctx.db.get("projects", projectId)
-  if (!project) throw new Error("Project not found")
-
-  return await getPhaseOwnerSubtaskView(ctx, {
-    currentPhaseId: project.phaseId,
-    owner: { type: "projects", id: project._id },
+    currentPhaseId: doc.phaseId,
+    owner,
   })
 }
 
@@ -337,9 +333,11 @@ async function getPhaseOwnerSubtaskView(
     owner: Extract<SubtaskViewOwner, { type: "competitions" | "projects" }>
   }
 ): Promise<TaskSubtaskView> {
-  const phases = await listOwnerPhases(ctx, owner)
+  const phases = await listPhasesForOwnerBounded(ctx, owner)
   const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const currentPhase = phases.find((phase) => phase._id === currentPhaseId)
+  const today = dublinToday()
+  const phaseSortKeyById = buildPhaseSortKeyById(phases)
   const defaultParent =
     currentPhase === undefined
       ? null
@@ -355,6 +353,9 @@ async function getPhaseOwnerSubtaskView(
         parent: { type: "phases", id: phase._id },
         parentTitle: phase.name,
         phaseId: phase._id,
+        ownerCurrentPhaseId: currentPhaseId,
+        phaseSortKeyById,
+        today,
         title: phase.name,
         taskViews: await getPhaseTaskViews(loader, phase._id),
       })
@@ -430,32 +431,6 @@ async function listDirectTaskTargets(
   return tasks.map((task) => toCreationTaskTarget(task, sectionTitle))
 }
 
-async function buildProjectCreationSections(
-  ctx: DbCtx,
-  projectId: Id<"projects">
-): Promise<TaskCreationTargetSection[]> {
-  const project = await ctx.db.get("projects", projectId)
-  if (project === null) throw new Error("Project not found")
-
-  return await buildPhaseOwnerCreationSections(ctx, {
-    owner: { type: "projects", id: project._id },
-    root: { type: "projects", doc: project },
-  })
-}
-
-async function buildCompetitionCreationSections(
-  ctx: DbCtx,
-  competitionId: Id<"competitions">
-): Promise<TaskCreationTargetSection[]> {
-  const competition = await ctx.db.get("competitions", competitionId)
-  if (competition === null) throw new Error("Competition not found")
-
-  return await buildPhaseOwnerCreationSections(ctx, {
-    owner: { type: "competitions", id: competition._id },
-    root: { type: "competitions", doc: competition },
-  })
-}
-
 async function buildPhaseOwnerCreationSections(
   ctx: DbCtx,
   {
@@ -472,7 +447,7 @@ async function buildPhaseOwnerCreationSections(
   }
 ): Promise<TaskCreationTargetSection[]> {
   return await Promise.all(
-    (await listOwnerPhases(ctx, owner)).map(async (phase) => ({
+    (await listPhasesForOwnerBounded(ctx, owner)).map(async (phase) => ({
       id: `phase:${phase._id}`,
       title: phase.name,
       phase: toCreationPhaseTarget(phase, root),
@@ -621,15 +596,25 @@ export async function buildCreationTargetSections(
   ctx: DbCtx,
   scope: SubtaskViewOwner
 ): Promise<TaskCreationTargetSection[]> {
+  if (scope.type === "tasks") {
+    return await buildTaskCreationSections(ctx, scope.id)
+  }
+
   if (scope.type === "competitions") {
-    return await buildCompetitionCreationSections(ctx, scope.id)
+    const doc = await ctx.db.get("competitions", scope.id)
+    if (doc === null) throw new Error("Competition not found")
+    return await buildPhaseOwnerCreationSections(ctx, {
+      owner: scope,
+      root: { type: "competitions", doc },
+    })
   }
 
-  if (scope.type === "projects") {
-    return await buildProjectCreationSections(ctx, scope.id)
-  }
-
-  return await buildTaskCreationSections(ctx, scope.id)
+  const doc = await ctx.db.get("projects", scope.id)
+  if (doc === null) throw new Error("Project not found")
+  return await buildPhaseOwnerCreationSections(ctx, {
+    owner: scope,
+    root: { type: "projects", doc },
+  })
 }
 
 export function isValidCreationParent(
@@ -660,10 +645,8 @@ export async function listCreationTargetsForScope(
     selectedParent?: TaskParentRef | null
   }
 ): Promise<TaskCreationTargets> {
-  if (args.scope.type === "competitions") {
-    await requireCompetitionForUpdate(ctx, args.scope.id)
-  } else if (args.scope.type === "projects") {
-    await requireProjectForUpdate(ctx, args.scope.id)
+  if (args.scope.type === "competitions" || args.scope.type === "projects") {
+    await requireScopedObjectForUpdate(ctx, args.scope)
   } else {
     await requireTaskManageAccess(ctx, args.scope.id)
   }

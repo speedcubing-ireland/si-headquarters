@@ -113,3 +113,18 @@ export async function getProjectForTask(ctx: DbCtx, task: Doc<"tasks">) {
   const projectId = getProjectIdForTask(task)
   return projectId === null ? null : await ctx.db.get("projects", projectId)
 }
+
+export function taskRootName(
+  competition: Doc<"competitions"> | null,
+  project: Doc<"projects"> | null
+): string | null {
+  return competition?.name ?? project?.name ?? null
+}
+
+export async function loadTaskRootDocs(ctx: DbCtx, task: Doc<"tasks">) {
+  const [competition, project] = await Promise.all([
+    getCompetitionForTask(ctx, task),
+    getProjectForTask(ctx, task),
+  ])
+  return { competition, project, name: taskRootName(competition, project) }
+}
