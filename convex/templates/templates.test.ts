@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { api } from "@/convex/_generated/api"
+import { api, internal } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 import { TASK_INTEGRATION_IDS } from "@/convex/integrations/taskIntegrations/constants"
@@ -11,7 +11,7 @@ import { ensureTeamByName } from "@/convex/teams/model"
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
 import { competitionTemplates } from "@/convex/templates/registry"
-import type { CompetitionTemplateTaskSpec } from "@/convex/templates/types"
+import type { CompetitionTemplateTaskSpec } from "@/convex/templates/registry"
 
 const STANDARD_TEMPLATE = {
   templateKey: "standard-competition" as const,
@@ -95,36 +95,6 @@ describe("competition templates", () => {
     )
     expect(standard?.name).toBe("Normal Competition")
     expect(standard?.variables).toEqual([])
-  })
-
-  test("previews the standard template without variables", async () => {
-    const { actor } = await seedTemplateActors()
-
-    const preview = await actor.query(
-      api.templates.queries.previewCompetitionTemplate,
-      {
-        templateKey: STANDARD_TEMPLATE.templateKey,
-        competition: {
-          name: "Spring Open 2027",
-          description: null,
-          compDates: { from: "2027-03-20", to: "2027-03-21" },
-          people: {
-            compLead: null,
-            leadDelegate: null,
-            organisers: [],
-          },
-        },
-        variables: STANDARD_TEMPLATE.variables,
-      }
-    )
-
-    const conceptTasks =
-      preview.phases.find((phase) => phase.key === "concept")?.tasks ?? []
-    expect(conceptTasks.map((task) => task.name)).toContain(
-      "Size and venue picked"
-    )
-    expect(preview.counts.tasks).toBeGreaterThan(15)
-    expect(preview.counts.blockers).toBeGreaterThan(0)
   })
 
   test("creates a competition from the standard template", async () => {
@@ -270,7 +240,7 @@ describe("competition templates", () => {
   })
 
   test("applies a template to an existing empty competition", async () => {
-    const { actor, compLeadId, delegateId, organiserId, t } =
+    const { compLeadId, delegateId, organiserId, t } =
       await seedTemplateActors()
 
     const competitionId = await insertEmptyCompetition(t, {
@@ -279,7 +249,7 @@ describe("competition templates", () => {
       organisers: [organiserId],
     })
 
-    await actor.mutation(api.competitions.mutations.applyTemplateToExisting, {
+    await t.mutation(internal.templates.mutations.applyToExistingCompetition, {
       competitionId,
       ...STANDARD_TEMPLATE,
     })
@@ -307,8 +277,8 @@ describe("competition templates", () => {
     expect(stored.taskCount).toBeGreaterThan(15)
   })
 
-  test("blocks template application until phases and tasks are cleared", async () => {
-    const { actor, compLeadId, delegateId, t } = await seedTemplateActors()
+  test("blocks applying a template while phases remain", async () => {
+    const { compLeadId, delegateId, t } = await seedTemplateActors()
 
     const competitionId = await t.run(async (ctx) => {
       const competitionId = await ctx.db.insert("competitions", {
@@ -333,32 +303,10 @@ describe("competition templates", () => {
     })
 
     await expect(
-      actor.mutation(api.competitions.mutations.applyTemplateToExisting, {
+      t.mutation(internal.templates.mutations.applyToExistingCompetition, {
         competitionId,
         ...STANDARD_TEMPLATE,
       })
     ).rejects.toThrow(/Remove all phases/)
-
-    await actor.mutation(api.phases.mutations.saveForOwner, {
-      owner: { type: "competitions", id: competitionId },
-      phases: [],
-    })
-
-    await actor.mutation(api.competitions.mutations.applyTemplateToExisting, {
-      competitionId,
-      ...STANDARD_TEMPLATE,
-    })
-
-    const phaseCount = await t.run(async (ctx) => {
-      const phases = await ctx.db
-        .query("phases")
-        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
-          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
-        )
-        .collect()
-      return phases.length
-    })
-
-    expect(phaseCount).toBe(6)
   })
 })

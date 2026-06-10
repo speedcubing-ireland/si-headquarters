@@ -1,6 +1,103 @@
+import type { Doc } from "@/convex/_generated/dataModel"
+import type {
+  LinkedResourceData,
+  LinkedResourceType,
+} from "@/convex/integrations/validators"
+import type { TaskIntegrationId } from "@/convex/integrations/taskIntegrations/validators"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
+import type { TeamName } from "@/convex/permissions/shared"
 import { TASK_LABEL_CODES } from "@/convex/tasks/labels/constants"
-import type { CompetitionTemplateDefinition } from "@/convex/templates/types"
+import type { TaskLabelCode } from "@/convex/tasks/labels/constants"
+import type { TaskKind } from "@/convex/tasks/kind"
+import type { TaskStatus } from "@/convex/tasks/status/validators"
+import type { TemplateVariableValue } from "@/convex/templates/validators"
+
+type TemplateVariableType =
+  | "text"
+  | "date"
+  | "number"
+  | "boolean"
+  | "user"
+  | "users"
+  | "team"
+
+export interface TemplateVariableDefinition {
+  key: string
+  label: string
+  type: TemplateVariableType
+  required?: boolean
+  description?: string
+  defaultValue?: TemplateVariableValue
+  teamName?: TeamName
+}
+
+type DateAnchor =
+  | { type: "competitionStart" }
+  | { type: "competitionEnd" }
+  | { type: "variable"; key: string }
+
+interface RelativeDateExpression {
+  anchor: DateAnchor
+  offsetDays?: number
+}
+
+type TaskOwnerExpression =
+  | { type: "teamName"; teamName: TeamName }
+  | { type: "competitionRole"; role: "compLead" | "leadDelegate" }
+  | { type: "variable"; key: string }
+  | null
+
+type TaskAssigneesExpression =
+  | "assignable"
+  | { type: "competitionRole"; role: "compLead" | "leadDelegate" }
+  | { type: "competitionOrganisers" }
+  | { type: "variable"; key: string }
+  | null
+
+type ReviewerExpression =
+  | { type: "teamName"; teamName: TeamName }
+  | { type: "competitionRole"; role: "compLead" | "leadDelegate" }
+  | { type: "variable"; key: string }
+
+interface LinkedResourceTemplateSpec {
+  resourceType: LinkedResourceType
+  resourceKey: string
+  data: LinkedResourceData
+}
+
+export interface CompetitionTemplateTaskSpec {
+  key: string
+  name: string
+  description?: string | null
+  kind?: TaskKind
+  status?: TaskStatus
+  dueDate?: RelativeDateExpression | null
+  owner?: TaskOwnerExpression
+  assignees?: TaskAssigneesExpression
+  reviewers?: readonly ReviewerExpression[]
+  labels?: readonly TaskLabelCode[]
+  integrationIds?: readonly TaskIntegrationId[]
+  blockedBy?: readonly string[]
+  subtasks?: readonly CompetitionTemplateTaskSpec[]
+}
+
+interface CompetitionTemplatePhaseSpec {
+  key: string
+  name: string
+  color: Doc<"phases">["color"]
+  tasks?: readonly CompetitionTemplateTaskSpec[]
+}
+
+export interface CompetitionTemplateDefinition {
+  key: string
+  version: number
+  name: string
+  description?: string
+  variables?: readonly TemplateVariableDefinition[]
+  phases: readonly CompetitionTemplatePhaseSpec[]
+  initialPhaseKey?: string
+  linkedResources?: readonly LinkedResourceTemplateSpec[]
+}
 
 const L = TASK_LABEL_CODES
 
@@ -383,24 +480,4 @@ export const competitionTemplates: readonly CompetitionTemplateDefinition[] = [
 
 export function getCompetitionTemplate(key: string) {
   return competitionTemplates.find((template) => template.key === key) ?? null
-}
-
-export function toCompetitionTemplateSummary(
-  template: CompetitionTemplateDefinition
-) {
-  return {
-    key: template.key,
-    version: template.version,
-    name: template.name,
-    description: template.description ?? null,
-    variables: (template.variables ?? []).map((variable) => ({
-      key: variable.key,
-      label: variable.label,
-      type: variable.type,
-      required: variable.required ?? false,
-      description: variable.description ?? null,
-      defaultValue: variable.defaultValue ?? null,
-      teamName: variable.teamName ?? null,
-    })),
-  }
 }

@@ -227,38 +227,3 @@ export const createFromTemplate = mutation({
     })
   },
 })
-
-export const applyTemplateToExisting = mutation({
-  args: {
-    competitionId: v.id("competitions"),
-    templateKey: v.string(),
-    variables: templateVariablesArg,
-  },
-  returns: v.id("competitions"),
-  handler: async (ctx, args) => {
-    const { competition } = await requireCompetitionForManage(
-      ctx,
-      args.competitionId
-    )
-    await Promise.all([
-      requireUserInRoleTeam(ctx, "compLead", competition.people.compLead),
-      requireUserInRoleTeam(
-        ctx,
-        "leadDelegate",
-        competition.people.leadDelegate
-      ),
-    ])
-
-    return await applyCompetitionTemplate(ctx, {
-      templateKey: args.templateKey,
-      competitionId: args.competitionId,
-      variables: args.variables,
-      competition: {
-        name: competition.name,
-        description: competition.description,
-        compDates: competition.compDates,
-        people: competition.people,
-      },
-    })
-  },
-})
