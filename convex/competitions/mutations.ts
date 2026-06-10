@@ -17,7 +17,10 @@ import {
   competitionDatesFields,
   competitionPeopleFields,
 } from "@/convex/competitions/validators"
-import { applyCompetitionTemplate } from "@/convex/templates/resolver"
+import {
+  applyCompetitionTemplate,
+  applyCompetitionTemplateToExisting,
+} from "@/convex/templates/resolver"
 import { templateVariablesArg } from "@/convex/templates/validators"
 import { normalizeNullableText } from "@/convex/utils"
 import { v } from "convex/values"
@@ -225,6 +228,36 @@ export const createFromTemplate = mutation({
           organisers: [...new Set(args.people.organisers)],
         },
       },
+    })
+  },
+})
+
+export const applyTemplateToExisting = mutation({
+  args: {
+    competitionId: v.id("competitions"),
+    templateKey: v.string(),
+    variables: templateVariablesArg,
+  },
+  returns: v.id("competitions"),
+  handler: async (ctx, args) => {
+    const { principal, competition } = await requireCompetitionForManage(
+      ctx,
+      args.competitionId
+    )
+    await Promise.all([
+      requireUserInRoleTeam(ctx, "compLead", competition.people.compLead),
+      requireUserInRoleTeam(
+        ctx,
+        "leadDelegate",
+        competition.people.leadDelegate
+      ),
+    ])
+
+    return await applyCompetitionTemplateToExisting(ctx, {
+      principalUserId: principal.userId,
+      templateKey: args.templateKey,
+      competitionId: args.competitionId,
+      variables: args.variables,
     })
   },
 })

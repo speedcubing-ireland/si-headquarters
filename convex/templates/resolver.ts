@@ -15,6 +15,7 @@ import {
   deriveTaskRootContextFromParent,
   taskRootPatch,
 } from "@/convex/tasks/hierarchy"
+import { listPhasesForOwner } from "@/convex/phases/model"
 import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
 import type {
   CompetitionTemplateDefinition,
@@ -39,6 +40,47 @@ interface ApplyTemplateArgs {
   templateKey: string
   competition: TemplateCompetitionInput
   variables: TemplateVariables
+}
+
+interface ApplyTemplateToExistingArgs {
+  principalUserId: Id<"users">
+  templateKey: string
+  competitionId: Id<"competitions">
+  variables: TemplateVariables
+}
+
+function competitionDocToTemplateInput(
+  competition: Doc<"competitions">
+): TemplateCompetitionInput {
+  return {
+    name: competition.name,
+    description: competition.description,
+    compDates: competition.compDates,
+    people: competition.people,
+  }
+}
+
+async function assertCompetitionEligibleForTemplateApplication(
+  ctx: MutationCtx,
+  competitionId: Id<"competitions">
+): Promise<void> {
+  const existingApplication = await ctx.db
+    .query("competitionTemplateApplications")
+    .withIndex("by_competitionId", (q) => q.eq("competitionId", competitionId))
+    .first()
+  if (existingApplication !== null) {
+    userFacingError("This competition already had a template applied.")
+  }
+
+  const phases = await listPhasesForOwner(ctx, {
+    type: "competitions",
+    id: competitionId,
+  })
+  if (phases.length > 0) {
+    userFacingError(
+      "This competition already has phases. Remove them before applying a template."
+    )
+  }
 }
 
 const EMPTY_COUNTS: GeneratedCounts = {
@@ -485,9 +527,9 @@ async function upsertTemplateLinkedResource(
   })
 }
 
-export async function applyCompetitionTemplate(
+async function applyCompetitionTemplateStructure(
   ctx: MutationCtx,
-  args: ApplyTemplateArgs
+  args: ApplyTemplateArgs & { competitionId: Id<"competitions"> }
 ): Promise<Id<"competitions">> {
   const template = getTemplateOrThrow(args.templateKey)
   const variables = normalizeVariables(template, args.variables)
@@ -501,13 +543,7 @@ export async function applyCompetitionTemplate(
 
   await ensureDefaultTaskLabels(ctx)
 
-  const competitionId = await ctx.db.insert("competitions", {
-    name: args.competition.name,
-    description: args.competition.description,
-    people: args.competition.people,
-    compDates: args.competition.compDates,
-    phaseId: null,
-  })
+  const { competitionId } = args
   const phaseIdsByKey = new Map<string, Id<"phases">>()
   const taskIdsByKey = new Map<string, Id<"tasks">>()
   const labelIdsByCode = new Map<string, Id<"taskLabels">>()
@@ -584,6 +620,44 @@ export async function applyCompetitionTemplate(
   })
 
   return competitionId
+}
+
+export async function applyCompetitionTemplate(
+  ctx: MutationCtx,
+  args: ApplyTemplateArgs
+): Promise<Id<"competitions">> {
+  const competitionId = await ctx.db.insert("competitions", {
+    name: args.competition.name,
+    description: args.competition.description,
+    people: args.competition.people,
+    compDates: args.competition.compDates,
+    phaseId: null,
+  })
+
+  return await applyCompetitionTemplateStructure(ctx, {
+    ...args,
+    competitionId,
+  })
+}
+
+export async function applyCompetitionTemplateToExisting(
+  ctx: MutationCtx,
+  args: ApplyTemplateToExistingArgs
+): Promise<Id<"competitions">> {
+  const competition = await ctx.db.get("competitions", args.competitionId)
+  if (competition === null) {
+    userFacingError("Competition not found.")
+  }
+
+  await assertCompetitionEligibleForTemplateApplication(ctx, args.competitionId)
+
+  return await applyCompetitionTemplateStructure(ctx, {
+    principalUserId: args.principalUserId,
+    templateKey: args.templateKey,
+    variables: args.variables,
+    competition: competitionDocToTemplateInput(competition),
+    competitionId: args.competitionId,
+  })
 }
 
 function flattenTasks(
