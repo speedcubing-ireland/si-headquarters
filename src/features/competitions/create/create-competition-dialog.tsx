@@ -18,18 +18,15 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
 import * as DateRangeSelector from "@/features/competitions/components/date-range-selector"
 import { CompetitionPeopleFormFields } from "@/features/competitions/create/competition-people-form-fields"
+import { CompetitionTemplateFields } from "@/features/competitions/create/competition-template-fields"
 import { TemplatePreviewPanel } from "@/features/competitions/create/template-preview-panel"
-import { TemplateVariableFields } from "@/features/competitions/create/template-variable-fields"
 import {
-  getDefaultTemplateVariableValues,
-  normalizeTemplateVariableValues,
-  requiredTemplateVariablesSatisfied,
-  type TemplateVariableFormValues,
-} from "@/features/competitions/create/template-variable-schema"
+  useCompetitionTemplatePreview,
+  useCompetitionTemplateSelection,
+} from "@/features/competitions/create/use-competition-template-selection"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useMutation, useQuery } from "convex/react"
@@ -43,14 +40,23 @@ export function CreateCompetitionDialog({
   children?: ReactNode
 }) {
   const navigate = useNavigate()
-  const templates = useQuery(api.templates.queries.listCompetitionTemplates, {})
   const users = useQuery(api.users.queries.list, {})
   const createCompetition = useMutation(
     api.competitions.mutations.createFromTemplate
   )
+  const {
+    templates,
+    activeTemplateKey,
+    selectTemplateKey,
+    selectedTemplate,
+    variables,
+    variableValues,
+    setVariableValues,
+    normalizedVariables,
+    requiredSatisfied,
+  } = useCompetitionTemplateSelection()
 
   const [open, setOpen] = useState(false)
-  const [templateKey, setTemplateKey] = useState("")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [compDates, setCompDates] = useState<{
@@ -60,58 +66,28 @@ export function CreateCompetitionDialog({
   const [compLeadId, setCompLeadId] = useState<Id<"users"> | null>(null)
   const [leadDelegateId, setLeadDelegateId] = useState<Id<"users"> | null>(null)
   const [organiserIds, setOrganiserIds] = useState<Id<"users">[]>([])
-  const [variableValuesByTemplate, setVariableValuesByTemplate] = useState<
-    Record<string, TemplateVariableFormValues>
-  >({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
 
-  const defaultTemplateKey = templates?.[0]?.key ?? ""
-  const activeTemplateKey =
-    templateKey.length > 0 ? templateKey : defaultTemplateKey
-
-  const selectedTemplate = templates?.find(
-    (template) => template.key === activeTemplateKey
-  )
-  const variables = useMemo(
-    () => selectedTemplate?.variables ?? [],
-    [selectedTemplate]
-  )
-  const variableValues =
-    variableValuesByTemplate[activeTemplateKey] ??
-    getDefaultTemplateVariableValues(variables)
-  const normalizedVariables = useMemo(
-    () => normalizeTemplateVariableValues(variables, variableValues),
-    [variableValues, variables]
-  )
-  const requiredSatisfied = requiredTemplateVariablesSatisfied(
-    variables,
-    variableValues
-  )
   const canPreview =
     selectedTemplate !== undefined &&
     name.trim().length > 0 &&
     requiredSatisfied
-
-  const preview = useQuery(
-    api.templates.queries.previewCompetitionTemplate,
-    canPreview
-      ? {
-          templateKey: activeTemplateKey,
-          competition: {
-            name,
-            description: description.trim() || null,
-            compDates,
-            people: {
-              compLead: compLeadId,
-              leadDelegate: leadDelegateId,
-              organisers: organiserIds,
-            },
-          },
-          variables: normalizedVariables,
-        }
-      : "skip"
-  )
+  const preview = useCompetitionTemplatePreview({
+    activeTemplateKey,
+    competition: {
+      name,
+      description: description.trim() || null,
+      compDates,
+      people: {
+        compLead: compLeadId,
+        leadDelegate: leadDelegateId,
+        organisers: organiserIds,
+      },
+    },
+    enabled: canPreview,
+    normalizedVariables,
+  })
 
   const userById = useMemo(
     () => new Map(users?.map((user) => [user._id, user]) ?? []),
@@ -125,16 +101,15 @@ export function CreateCompetitionDialog({
     .map((id) => userById.get(id))
     .filter((user): user is NonNullable<typeof user> => user !== undefined)
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen)
-    if (!nextOpen) {
-      setSubmitError(null)
-      setIsCreating(false)
-    }
-  }
+  const canSubmit =
+    selectedTemplate !== undefined &&
+    activeTemplateKey.length > 0 &&
+    name.trim().length > 0 &&
+    requiredSatisfied &&
+    !isCreating
 
-  const handleCreate = async () => {
-    if (selectedTemplate === undefined || isCreating) return
+  async function handleCreate() {
+    if (!canSubmit) return
     setIsCreating(true)
     setSubmitError(null)
     try {
@@ -164,17 +139,17 @@ export function CreateCompetitionDialog({
     }
   }
 
-  const canSubmit =
-    selectedTemplate !== undefined &&
-    activeTemplateKey.length > 0 &&
-    name.trim().length > 0 &&
-    requiredSatisfied &&
-    !isCreating
-
-  const templateDescription = selectedTemplate?.description ?? null
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) {
+          setSubmitError(null)
+          setIsCreating(false)
+        }
+      }}
+    >
       <DialogTrigger asChild>
         {children ?? (
           <Button type="button">
@@ -194,31 +169,19 @@ export function CreateCompetitionDialog({
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="competition-template">Template</FieldLabel>
-            <NativeSelect
-              id="competition-template"
-              value={activeTemplateKey}
-              onChange={(event) => {
-                const nextKey = event.currentTarget.value
-                setTemplateKey(nextKey)
-                const nextTemplate = templates?.find(
-                  (template) => template.key === nextKey
-                )
-                setVariableValuesByTemplate((prev) => ({
-                  ...prev,
-                  [nextKey]: getDefaultTemplateVariableValues(
-                    nextTemplate?.variables ?? []
-                  ),
-                }))
-              }}
-            >
-              {templates?.map((template) => (
-                <NativeSelectOption key={template.key} value={template.key}>
-                  {template.name}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-            {templateDescription !== null ? (
-              <FieldDescription>{templateDescription}</FieldDescription>
+            <CompetitionTemplateFields
+              templates={templates}
+              activeTemplateKey={activeTemplateKey}
+              onTemplateKeyChange={selectTemplateKey}
+              variables={variables}
+              variableValues={variableValues}
+              onVariableValuesChange={setVariableValues}
+            />
+            {selectedTemplate?.description !== undefined &&
+            selectedTemplate.description !== null ? (
+              <FieldDescription>
+                {selectedTemplate.description}
+              </FieldDescription>
             ) : null}
           </Field>
 
@@ -266,23 +229,6 @@ export function CreateCompetitionDialog({
             onLeadDelegateChange={setLeadDelegateId}
             onOrganisersChange={setOrganiserIds}
           />
-
-          {variables.length > 0 ? (
-            <Field>
-              <FieldLabel>Template variables</FieldLabel>
-              <TemplateVariableFields
-                key={activeTemplateKey}
-                variables={variables}
-                values={variableValues}
-                onChange={(values) => {
-                  setVariableValuesByTemplate((prev) => ({
-                    ...prev,
-                    [activeTemplateKey]: values,
-                  }))
-                }}
-              />
-            </Field>
-          ) : null}
 
           {canPreview ? (
             <TemplatePreviewPanel preview={preview} />

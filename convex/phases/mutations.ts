@@ -3,6 +3,7 @@ import { mutation } from "@/convex/_generated/server"
 import type { Id } from "@/convex/_generated/dataModel"
 import { requireScopedObjectForUpdate } from "@/convex/access/scopedObject"
 import {
+  clearOwnerCurrentPhaseId,
   getOwnerCurrentPhaseId,
   hasPhaseTasks,
   listPhasesForOwnerBounded,
@@ -159,10 +160,7 @@ export const deleteEmptyPhase = mutation({
 
     const currentPhaseId = await getOwnerCurrentPhaseId(ctx, phase.owner)
     if (currentPhaseId === args.id) {
-      throw new ConvexError({
-        code: "BAD_REQUEST",
-        message: "Cannot delete the owner's current phase.",
-      })
+      await clearOwnerCurrentPhaseId(ctx, phase.owner)
     }
 
     await ctx.db.delete("phases", args.id)
@@ -240,10 +238,7 @@ export const saveForOwner = mutation({
       if (submittedIds.has(existing._id)) continue
 
       if (currentPhaseId === existing._id) {
-        throw new ConvexError({
-          code: "BAD_REQUEST",
-          message: "Cannot delete the owner's current phase.",
-        })
+        await clearOwnerCurrentPhaseId(ctx, args.owner)
       }
 
       if (await hasPhaseTasks(ctx, existing._id)) {

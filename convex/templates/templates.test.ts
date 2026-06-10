@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 import { TASK_INTEGRATION_IDS } from "@/convex/integrations/taskIntegrations/constants"
 import schema from "@/convex/schema"
@@ -11,6 +12,11 @@ import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
 import { competitionTemplates } from "@/convex/templates/registry"
 import type { CompetitionTemplateTaskSpec } from "@/convex/templates/types"
+
+const STANDARD_TEMPLATE = {
+  templateKey: "standard-competition" as const,
+  variables: {},
+}
 
 async function seedTemplateActors() {
   const t = convexTest(schema, modules)
@@ -28,15 +34,33 @@ async function seedTemplateActors() {
     await ensureTeamByName(ctx, TEAM_NAMES.FINANCE)
     await ensureTeamByName(ctx, TEAM_NAMES.MERCH)
 
-    return {
-      actorId,
-      compLeadId,
-      delegateId,
-      organiserId,
-    }
+    return { actorId, compLeadId, delegateId, organiserId }
   })
 
   return { t, actor: t.withIdentity({ subject: seeded.actorId }), ...seeded }
+}
+
+async function insertEmptyCompetition(
+  t: Awaited<ReturnType<typeof seedTemplateActors>>["t"],
+  people: {
+    compLead: Id<"users"> | null
+    leadDelegate: Id<"users"> | null
+    organisers?: Id<"users">[]
+  }
+) {
+  return await t.run(async (ctx) => {
+    return await ctx.db.insert("competitions", {
+      name: "Spring Open 2027",
+      description: null,
+      people: {
+        compLead: people.compLead,
+        leadDelegate: people.leadDelegate,
+        organisers: people.organisers ?? [],
+      },
+      compDates: { from: "2027-03-20", to: "2027-03-21" },
+      phaseId: null,
+    })
+  })
 }
 
 describe("competition templates", () => {
@@ -67,7 +91,7 @@ describe("competition templates", () => {
       {}
     )
     const standard = templates.find(
-      (template) => template.key === "standard-competition"
+      (template) => template.key === STANDARD_TEMPLATE.templateKey
     )
     expect(standard?.name).toBe("Normal Competition")
     expect(standard?.variables).toEqual([])
@@ -79,7 +103,7 @@ describe("competition templates", () => {
     const preview = await actor.query(
       api.templates.queries.previewCompetitionTemplate,
       {
-        templateKey: "standard-competition",
+        templateKey: STANDARD_TEMPLATE.templateKey,
         competition: {
           name: "Spring Open 2027",
           description: null,
@@ -90,7 +114,7 @@ describe("competition templates", () => {
             organisers: [],
           },
         },
-        variables: {},
+        variables: STANDARD_TEMPLATE.variables,
       }
     )
 
@@ -110,7 +134,7 @@ describe("competition templates", () => {
     const competitionId = await actor.mutation(
       api.competitions.mutations.createFromTemplate,
       {
-        templateKey: "standard-competition",
+        templateKey: STANDARD_TEMPLATE.templateKey,
         name: "Spring Open 2027",
         description: "",
         compDates: { from: "2027-03-20", to: "2027-03-21" },
@@ -119,7 +143,7 @@ describe("competition templates", () => {
           leadDelegate: delegateId,
           organisers: [organiserId],
         },
-        variables: {},
+        variables: STANDARD_TEMPLATE.variables,
       }
     )
 
@@ -137,12 +161,6 @@ describe("competition templates", () => {
       const reviewers = await ctx.db.query("taskReviewers").collect()
       const integrations = await ctx.db.query("taskIntegrations").collect()
       const blockers = await ctx.db.query("taskBlockers").collect()
-      const applications = await ctx.db
-        .query("competitionTemplateApplications")
-        .withIndex("by_competitionId", (q) =>
-          q.eq("competitionId", competitionId)
-        )
-        .collect()
 
       const blockingTaskNames = (blockedTaskId: string) =>
         blockers
@@ -159,7 +177,6 @@ describe("competition templates", () => {
       const checkInSheetReady = taskByName.get("Check-in sheet ready")
 
       return {
-        application: applications[0],
         blockers,
         checkInSheetReadyTaskId: checkInSheetReady?._id ?? null,
         competition,
@@ -250,43 +267,22 @@ describe("competition templates", () => {
     expect(stored.printingCompleteBlockers).toEqual(["Groups Ready"])
     expect(stored.preCompEmailBlockers).toEqual(["Groups Ready"])
     expect(stored.blockers.length).toBe(4)
-
-    expect(stored.application).toBeDefined()
-    expect(stored.application.templateKey).toBe("standard-competition")
-    expect(stored.application.templateVersion).toBe(4)
-    expect(stored.application.generatedCounts.phases).toBe(6)
-    expect(stored.application.generatedCounts.tasks).toBeGreaterThan(15)
-    expect(stored.application.generatedCounts.blockers).toBe(4)
   })
 
   test("applies a template to an existing empty competition", async () => {
     const { actor, compLeadId, delegateId, organiserId, t } =
       await seedTemplateActors()
 
-    const competitionId = await t.run(async (ctx) => {
-      return await ctx.db.insert("competitions", {
-        name: "Spring Open 2027",
-        description: null,
-        people: {
-          compLead: compLeadId,
-          leadDelegate: delegateId,
-          organisers: [organiserId],
-        },
-        compDates: { from: "2027-03-20", to: "2027-03-21" },
-        phaseId: null,
-      })
+    const competitionId = await insertEmptyCompetition(t, {
+      compLead: compLeadId,
+      leadDelegate: delegateId,
+      organisers: [organiserId],
     })
 
-    const returnedId = await actor.mutation(
-      api.competitions.mutations.applyTemplateToExisting,
-      {
-        competitionId,
-        templateKey: "standard-competition",
-        variables: {},
-      }
-    )
-
-    expect(returnedId).toBe(competitionId)
+    await actor.mutation(api.competitions.mutations.applyTemplateToExisting, {
+      competitionId,
+      ...STANDARD_TEMPLATE,
+    })
 
     const stored = await t.run(async (ctx) => {
       const competition = await ctx.db.get("competitions", competitionId)
@@ -296,16 +292,9 @@ describe("competition templates", () => {
           q.eq("owner.type", "competitions").eq("owner.id", competitionId)
         )
         .collect()
-      const applications = await ctx.db
-        .query("competitionTemplateApplications")
-        .withIndex("by_competitionId", (q) =>
-          q.eq("competitionId", competitionId)
-        )
-        .collect()
       const tasks = await ctx.db.query("tasks").collect()
 
       return {
-        application: applications[0],
         competition,
         phaseCount: phases.length,
         taskCount: tasks.length,
@@ -316,11 +305,9 @@ describe("competition templates", () => {
     expect(stored.competition?.phaseId).not.toBeNull()
     expect(stored.phaseCount).toBe(6)
     expect(stored.taskCount).toBeGreaterThan(15)
-    expect(stored.application).toBeDefined()
-    expect(stored.application.templateKey).toBe("standard-competition")
   })
 
-  test("rejects applying a template when phases already exist", async () => {
+  test("blocks template application until phases and tasks are cleared", async () => {
     const { actor, compLeadId, delegateId, t } = await seedTemplateActors()
 
     const competitionId = await t.run(async (ctx) => {
@@ -335,21 +322,43 @@ describe("competition templates", () => {
         compDates: { from: "2027-03-20", to: "2027-03-21" },
         phaseId: null,
       })
-      await ctx.db.insert("phases", {
+      const phaseId = await ctx.db.insert("phases", {
         name: "Concept",
         owner: { type: "competitions", id: competitionId },
         sortKey: "a0",
         color: "blue",
       })
+      await ctx.db.patch("competitions", competitionId, { phaseId })
       return competitionId
     })
 
     await expect(
       actor.mutation(api.competitions.mutations.applyTemplateToExisting, {
         competitionId,
-        templateKey: "standard-competition",
-        variables: {},
+        ...STANDARD_TEMPLATE,
       })
-    ).rejects.toThrow(/already has phases/)
+    ).rejects.toThrow(/Remove all phases/)
+
+    await actor.mutation(api.phases.mutations.saveForOwner, {
+      owner: { type: "competitions", id: competitionId },
+      phases: [],
+    })
+
+    await actor.mutation(api.competitions.mutations.applyTemplateToExisting, {
+      competitionId,
+      ...STANDARD_TEMPLATE,
+    })
+
+    const phaseCount = await t.run(async (ctx) => {
+      const phases = await ctx.db
+        .query("phases")
+        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
+        )
+        .collect()
+      return phases.length
+    })
+
+    expect(phaseCount).toBe(6)
   })
 })

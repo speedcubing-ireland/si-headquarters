@@ -1,15 +1,11 @@
 import { collectAll } from "@/convex/utils"
 import { query } from "@/convex/_generated/server"
-import {
-  getCompetitionOrNull,
-  requireCompetitionForRead,
-} from "@/convex/competitions/access"
+import { requireCompetitionForRead } from "@/convex/competitions/access"
 import {
   canPerform,
   requireCan,
   requirePrincipal,
 } from "@/convex/permissions/principal"
-import { listPhasesForOwner } from "@/convex/phases/model"
 import { getPublicUser, getPublicUsers } from "@/convex/users/queries"
 import {
   buildCurrentPhaseProgress,
@@ -107,49 +103,5 @@ export const getCurrentPhaseProgress = query({
     }
 
     return await buildCurrentPhaseProgress(ctx, competition.phaseId)
-  },
-})
-
-export const getTemplateApplicationState = query({
-  args: {
-    id: v.id("competitions"),
-  },
-  returns: v.object({
-    canApply: v.boolean(),
-    blockReason: v.union(v.string(), v.null()),
-  }),
-  handler: async (ctx, args) => {
-    const principal = await requirePrincipal(ctx)
-    const competition = await getCompetitionOrNull(ctx, args.id)
-    if (competition === null) {
-      return { canApply: false, blockReason: null }
-    }
-    if (!canPerform(principal, "manage", "Competition", competition)) {
-      return { canApply: false, blockReason: null }
-    }
-
-    const existingApplication = await ctx.db
-      .query("competitionTemplateApplications")
-      .withIndex("by_competitionId", (q) => q.eq("competitionId", args.id))
-      .first()
-    if (existingApplication !== null) {
-      return {
-        canApply: false,
-        blockReason: "A template was already applied to this competition.",
-      }
-    }
-
-    const phases = await listPhasesForOwner(ctx, {
-      type: "competitions",
-      id: args.id,
-    })
-    if (phases.length > 0) {
-      return {
-        canApply: false,
-        blockReason: "This competition already has phases.",
-      }
-    }
-
-    return { canApply: true, blockReason: null }
   },
 })

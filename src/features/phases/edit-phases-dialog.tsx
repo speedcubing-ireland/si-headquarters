@@ -116,7 +116,6 @@ function findPhaseByClientId(
 }
 
 function phaseDeleteDisabledReason(phase: EditablePhase) {
-  if (phase.isCurrent) return "Current phases cannot be deleted."
   if (phase.hasTasks) return "Delete the tasks in this phase first."
   return null
 }

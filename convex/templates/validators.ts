@@ -44,16 +44,6 @@ export const generatedCounts = v.object({
   resources: v.number(),
 })
 
-export const competitionTemplateApplicationFields = {
-  competitionId: v.id("competitions"),
-  templateKey: v.string(),
-  templateVersion: v.number(),
-  appliedAt: v.number(),
-  appliedBy: v.id("users"),
-  variableSnapshot: templateVariablesArg,
-  generatedCounts,
-}
-
 export const competitionTemplateSummary = v.object({
   key: v.string(),
   version: v.number(),

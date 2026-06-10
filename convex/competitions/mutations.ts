@@ -17,10 +17,7 @@ import {
   competitionDatesFields,
   competitionPeopleFields,
 } from "@/convex/competitions/validators"
-import {
-  applyCompetitionTemplate,
-  applyCompetitionTemplateToExisting,
-} from "@/convex/templates/resolver"
+import { applyCompetitionTemplate } from "@/convex/templates/resolver"
 import { templateVariablesArg } from "@/convex/templates/validators"
 import { normalizeNullableText } from "@/convex/utils"
 import { v } from "convex/values"
@@ -201,7 +198,7 @@ export const createFromTemplate = mutation({
   },
   returns: v.id("competitions"),
   handler: async (ctx, args) => {
-    const principal = await requireCompetitionManagement(ctx)
+    await requireCompetitionManagement(ctx)
     const name = args.name.trim()
     if (!name) {
       throw new ConvexError({
@@ -215,7 +212,6 @@ export const createFromTemplate = mutation({
     ])
 
     return await applyCompetitionTemplate(ctx, {
-      principalUserId: principal.userId,
       templateKey: args.templateKey,
       variables: args.variables,
       competition: {
@@ -240,7 +236,7 @@ export const applyTemplateToExisting = mutation({
   },
   returns: v.id("competitions"),
   handler: async (ctx, args) => {
-    const { principal, competition } = await requireCompetitionForManage(
+    const { competition } = await requireCompetitionForManage(
       ctx,
       args.competitionId
     )
@@ -253,11 +249,16 @@ export const applyTemplateToExisting = mutation({
       ),
     ])
 
-    return await applyCompetitionTemplateToExisting(ctx, {
-      principalUserId: principal.userId,
+    return await applyCompetitionTemplate(ctx, {
       templateKey: args.templateKey,
       competitionId: args.competitionId,
       variables: args.variables,
+      competition: {
+        name: competition.name,
+        description: competition.description,
+        compDates: competition.compDates,
+        people: competition.people,
+      },
     })
   },
 })

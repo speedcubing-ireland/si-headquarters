@@ -15,8 +15,8 @@ import {
   deriveTaskRootContextFromParent,
   taskRootPatch,
 } from "@/convex/tasks/hierarchy"
-import { listPhasesForOwner } from "@/convex/phases/model"
 import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
+import { getCompetitionTemplateApplicationBlockReason } from "@/convex/templates/model"
 import type {
   CompetitionTemplateDefinition,
   CompetitionTemplateTaskSpec,
@@ -36,51 +36,10 @@ import { getCompetitionTemplate } from "@/convex/templates/registry"
 type PreviewTask = TemplatePreview["phases"][number]["tasks"][number]
 
 interface ApplyTemplateArgs {
-  principalUserId: Id<"users">
   templateKey: string
   competition: TemplateCompetitionInput
   variables: TemplateVariables
-}
-
-interface ApplyTemplateToExistingArgs {
-  principalUserId: Id<"users">
-  templateKey: string
-  competitionId: Id<"competitions">
-  variables: TemplateVariables
-}
-
-function competitionDocToTemplateInput(
-  competition: Doc<"competitions">
-): TemplateCompetitionInput {
-  return {
-    name: competition.name,
-    description: competition.description,
-    compDates: competition.compDates,
-    people: competition.people,
-  }
-}
-
-async function assertCompetitionEligibleForTemplateApplication(
-  ctx: MutationCtx,
-  competitionId: Id<"competitions">
-): Promise<void> {
-  const existingApplication = await ctx.db
-    .query("competitionTemplateApplications")
-    .withIndex("by_competitionId", (q) => q.eq("competitionId", competitionId))
-    .first()
-  if (existingApplication !== null) {
-    userFacingError("This competition already had a template applied.")
-  }
-
-  const phases = await listPhasesForOwner(ctx, {
-    type: "competitions",
-    id: competitionId,
-  })
-  if (phases.length > 0) {
-    userFacingError(
-      "This competition already has phases. Remove them before applying a template."
-    )
-  }
+  competitionId?: Id<"competitions">
 }
 
 const EMPTY_COUNTS: GeneratedCounts = {
@@ -427,7 +386,6 @@ export function buildCompetitionTemplatePreview({
 async function insertTaskTree({
   ctx,
   competition,
-  counts,
   labelIdsByCode,
   parent,
   taskIdsByKey,
@@ -436,7 +394,6 @@ async function insertTaskTree({
 }: {
   ctx: MutationCtx
   competition: TemplateCompetitionInput
-  counts: GeneratedCounts
   labelIdsByCode: Map<string, Id<"taskLabels">>
   parent: Doc<"tasks">["parent"]
   taskIdsByKey: Map<string, Id<"tasks">>
@@ -465,7 +422,6 @@ async function insertTaskTree({
       status,
       statusIntent: { type: "manual", status },
     })
-    counts.tasks += 1
     taskIdsByKey.set(task.key, taskId)
 
     for (const labelCode of task.labels ?? []) {
@@ -474,7 +430,6 @@ async function insertTaskTree({
         (await ensureTaskLabelByCode(ctx, labelCode))
       labelIdsByCode.set(labelCode, labelId)
       await ctx.db.insert("taskLabelAssignments", { taskId, labelId })
-      counts.labels += 1
     }
 
     for (const reviewerSpec of task.reviewers ?? []) {
@@ -491,18 +446,15 @@ async function insertTaskTree({
         approvedAt: null,
         approvedBy: null,
       })
-      counts.reviewers += 1
     }
 
     await attachConfiguredIntegrationsForTask(ctx, taskId, {
       integrationIds: task.integrationIds,
     })
-    counts.integrations += task.integrationIds?.length ?? 0
 
     await insertTaskTree({
       ctx,
       competition,
-      counts,
       labelIdsByCode,
       parent: { type: "tasks", id: taskId },
       taskIdsByKey,
@@ -547,7 +499,6 @@ async function applyCompetitionTemplateStructure(
   const phaseIdsByKey = new Map<string, Id<"phases">>()
   const taskIdsByKey = new Map<string, Id<"tasks">>()
   const labelIdsByCode = new Map<string, Id<"taskLabels">>()
-  const counts = { ...EMPTY_COUNTS }
   const phaseOrderKeys = generateNKeysBetween(
     null,
     null,
@@ -562,11 +513,9 @@ async function applyCompetitionTemplateStructure(
       color: phase.color,
     })
     phaseIdsByKey.set(phase.key, phaseId)
-    counts.phases += 1
     await insertTaskTree({
       ctx,
       competition: args.competition,
-      counts,
       labelIdsByCode,
       parent: { type: "phases", id: phaseId },
       taskIdsByKey,
@@ -588,14 +537,12 @@ async function applyCompetitionTemplateStructure(
           blockedTaskId,
           blockingTaskId,
         })
-        counts.blockers += 1
       }
     }
   }
 
   for (const resource of template.linkedResources ?? []) {
     await upsertTemplateLinkedResource(ctx, competitionId, resource)
-    counts.resources += 1
   }
 
   const initialPhaseId =
@@ -609,16 +556,6 @@ async function applyCompetitionTemplateStructure(
     await activatePhaseBacklogTasks(ctx, initialPhaseId)
   }
 
-  await ctx.db.insert("competitionTemplateApplications", {
-    competitionId,
-    templateKey: template.key,
-    templateVersion: template.version,
-    appliedAt: Date.now(),
-    appliedBy: args.principalUserId,
-    variableSnapshot: variables,
-    generatedCounts: counts,
-  })
-
   return competitionId
 }
 
@@ -626,37 +563,29 @@ export async function applyCompetitionTemplate(
   ctx: MutationCtx,
   args: ApplyTemplateArgs
 ): Promise<Id<"competitions">> {
-  const competitionId = await ctx.db.insert("competitions", {
-    name: args.competition.name,
-    description: args.competition.description,
-    people: args.competition.people,
-    compDates: args.competition.compDates,
-    phaseId: null,
-  })
+  const competitionId =
+    args.competitionId ??
+    (await ctx.db.insert("competitions", {
+      name: args.competition.name,
+      description: args.competition.description,
+      people: args.competition.people,
+      compDates: args.competition.compDates,
+      phaseId: null,
+    }))
+
+  if (args.competitionId !== undefined) {
+    const blockReason = await getCompetitionTemplateApplicationBlockReason(
+      ctx,
+      args.competitionId
+    )
+    if (blockReason !== null) {
+      userFacingError(blockReason)
+    }
+  }
 
   return await applyCompetitionTemplateStructure(ctx, {
     ...args,
     competitionId,
-  })
-}
-
-export async function applyCompetitionTemplateToExisting(
-  ctx: MutationCtx,
-  args: ApplyTemplateToExistingArgs
-): Promise<Id<"competitions">> {
-  const competition = await ctx.db.get("competitions", args.competitionId)
-  if (competition === null) {
-    userFacingError("Competition not found.")
-  }
-
-  await assertCompetitionEligibleForTemplateApplication(ctx, args.competitionId)
-
-  return await applyCompetitionTemplateStructure(ctx, {
-    principalUserId: args.principalUserId,
-    templateKey: args.templateKey,
-    variables: args.variables,
-    competition: competitionDocToTemplateInput(competition),
-    competitionId: args.competitionId,
   })
 }
 

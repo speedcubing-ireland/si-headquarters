@@ -48,6 +48,19 @@ export async function getOwnerCurrentPhaseId(
   return project?.phaseId ?? null
 }
 
+export async function clearOwnerCurrentPhaseId(
+  ctx: MutationCtx,
+  owner: PhaseOwner
+): Promise<void> {
+  const table = owner.type
+  const doc = await ctx.db.get(table, owner.id)
+  if (doc?.phaseId == null) {
+    return
+  }
+
+  await ctx.db.patch(table, owner.id, { phaseId: null })
+}
+
 export async function hasPhaseTasks(ctx: DbCtx, phaseId: Id<"phases">) {
   const tasks = await ctx.db
     .query("tasks")

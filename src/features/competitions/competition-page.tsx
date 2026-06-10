@@ -1,5 +1,5 @@
 import { Page, PAGE_CONTENT_PADDING_SCROLL } from "@/components/layout/page"
-import { ApplyCompetitionTemplateButton } from "@/features/competitions/apply-competition-template-dialog"
+import { ApplyCompetitionTemplateDialog } from "@/features/competitions/apply-competition-template-dialog"
 import { CompetitionDetailsCard } from "@/features/competitions/components/details-card"
 import { CompetitionPeopleCard } from "@/features/competitions/components/people-card"
 import { CompetitionPropertiesCard } from "@/features/competitions/components/properties-card"
@@ -43,7 +43,7 @@ export function CompetitionPage({
               owner={{ type: "competitions", id: competitionId }}
               toolbarActions={
                 <>
-                  <ApplyCompetitionTemplateButton
+                  <ApplyCompetitionTemplateDialog
                     competitionId={competitionId}
                   />
                   <EditPhasesButton

@@ -10,93 +10,88 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { CompetitionTemplateFields } from "@/features/competitions/create/competition-template-fields"
 import { TemplatePreviewPanel } from "@/features/competitions/create/template-preview-panel"
-import { TemplateVariableFields } from "@/features/competitions/create/template-variable-fields"
 import {
-  getDefaultTemplateVariableValues,
-  normalizeTemplateVariableValues,
-  requiredTemplateVariablesSatisfied,
-  type TemplateVariableFormValues,
-} from "@/features/competitions/create/template-variable-schema"
+  useCompetitionTemplatePreview,
+  useCompetitionTemplateSelection,
+} from "@/features/competitions/create/use-competition-template-selection"
 import { api } from "@/convex/_generated/api"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { Id } from "@/convex/_generated/dataModel"
 import { useMutation, useQuery } from "convex/react"
 import { LayoutTemplateIcon, LoaderCircleIcon } from "lucide-react"
-import { useMemo, useState, type ReactNode } from "react"
+import { useState } from "react"
 import { toast } from "sonner"
 
 export function ApplyCompetitionTemplateDialog({
-  competition,
-  children,
+  competitionId,
 }: {
-  competition: Doc<"competitions">
-  children?: ReactNode
+  competitionId: Id<"competitions">
 }) {
-  const templates = useQuery(api.templates.queries.listCompetitionTemplates, {})
+  const applicationState = useQuery(api.templates.queries.getApplicationState, {
+    competitionId,
+  })
+  const competition = useQuery(api.competitions.queries.getPageRoot, {
+    id: competitionId,
+  })
   const applyTemplate = useMutation(
     api.competitions.mutations.applyTemplateToExisting
   )
+  const {
+    templates,
+    activeTemplateKey,
+    selectTemplateKey,
+    selectedTemplate,
+    variables,
+    variableValues,
+    setVariableValues,
+    normalizedVariables,
+    requiredSatisfied,
+  } = useCompetitionTemplateSelection()
+  const preview = useCompetitionTemplatePreview({
+    activeTemplateKey,
+    competition: {
+      name: competition?.name ?? "",
+      description: competition?.description ?? null,
+      compDates: competition?.compDates ?? { from: null, to: null },
+      people: competition?.people ?? {
+        compLead: null,
+        leadDelegate: null,
+        organisers: [],
+      },
+    },
+    enabled:
+      selectedTemplate !== undefined &&
+      requiredSatisfied &&
+      competition !== undefined &&
+      competition !== null,
+    normalizedVariables,
+  })
 
   const [open, setOpen] = useState(false)
-  const [templateKey, setTemplateKey] = useState("")
-  const [variableValuesByTemplate, setVariableValuesByTemplate] = useState<
-    Record<string, TemplateVariableFormValues>
-  >({})
   const [isApplying, setIsApplying] = useState(false)
 
-  const defaultTemplateKey = templates?.[0]?.key ?? ""
-  const activeTemplateKey =
-    templateKey.length > 0 ? templateKey : defaultTemplateKey
-  const selectedTemplate = templates?.find(
-    (template) => template.key === activeTemplateKey
-  )
-  const variables = useMemo(
-    () => selectedTemplate?.variables ?? [],
-    [selectedTemplate]
-  )
-  const variableValues =
-    variableValuesByTemplate[activeTemplateKey] ??
-    getDefaultTemplateVariableValues(variables)
-  const normalizedVariables = useMemo(
-    () => normalizeTemplateVariableValues(variables, variableValues),
-    [variableValues, variables]
-  )
-  const requiredSatisfied = requiredTemplateVariablesSatisfied(
-    variables,
-    variableValues
-  )
-  const canPreview = selectedTemplate !== undefined && requiredSatisfied
-
-  const preview = useQuery(
-    api.templates.queries.previewCompetitionTemplate,
-    canPreview
-      ? {
-          templateKey: activeTemplateKey,
-          competition: {
-            name: competition.name,
-            description: competition.description,
-            compDates: competition.compDates,
-            people: competition.people,
-          },
-          variables: normalizedVariables,
-        }
-      : "skip"
-  )
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen)
-    if (!nextOpen) {
-      setIsApplying(false)
-    }
+  if (
+    applicationState === undefined ||
+    !applicationState.canApply ||
+    competition === undefined ||
+    competition === null
+  ) {
+    return null
   }
 
-  const handleApply = async () => {
-    if (selectedTemplate === undefined || isApplying) return
+  const canSubmit =
+    selectedTemplate !== undefined &&
+    activeTemplateKey.length > 0 &&
+    requiredSatisfied &&
+    !isApplying
+
+  async function handleApply() {
+    if (!canSubmit) return
     setIsApplying(true)
     try {
       await applyTemplate({
-        competitionId: competition._id,
+        competitionId,
         templateKey: activeTemplateKey,
         variables: normalizedVariables,
       })
@@ -113,21 +108,21 @@ export function ApplyCompetitionTemplateDialog({
     }
   }
 
-  const canSubmit =
-    selectedTemplate !== undefined &&
-    activeTemplateKey.length > 0 &&
-    requiredSatisfied &&
-    !isApplying
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) {
+          setIsApplying(false)
+        }
+      }}
+    >
       <DialogTrigger asChild>
-        {children ?? (
-          <Button type="button" variant="outline" size="sm">
-            <LayoutTemplateIcon data-icon="inline-start" />
-            Apply template
-          </Button>
-        )}
+        <Button type="button" variant="outline" size="sm">
+          <LayoutTemplateIcon data-icon="inline-start" />
+          Apply template
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
@@ -140,30 +135,14 @@ export function ApplyCompetitionTemplateDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <NativeSelect
-            value={activeTemplateKey}
-            onChange={(event) => {
-              setTemplateKey(event.target.value)
-            }}
-          >
-            {(templates ?? []).map((template) => (
-              <NativeSelectOption key={template.key} value={template.key}>
-                {template.name}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-
-          <TemplateVariableFields
+          <CompetitionTemplateFields
+            templates={templates}
+            activeTemplateKey={activeTemplateKey}
+            onTemplateKeyChange={selectTemplateKey}
             variables={variables}
-            values={variableValues}
-            onChange={(nextValues) => {
-              setVariableValuesByTemplate((current) => ({
-                ...current,
-                [activeTemplateKey]: nextValues,
-              }))
-            }}
+            variableValues={variableValues}
+            onVariableValuesChange={setVariableValues}
           />
-
           {preview ? <TemplatePreviewPanel preview={preview} /> : null}
         </div>
 
@@ -189,29 +168,4 @@ export function ApplyCompetitionTemplateDialog({
       </DialogContent>
     </Dialog>
   )
-}
-
-export function ApplyCompetitionTemplateButton({
-  competitionId,
-}: {
-  competitionId: Id<"competitions">
-}) {
-  const templateState = useQuery(
-    api.competitions.queries.getTemplateApplicationState,
-    { id: competitionId }
-  )
-  const competition = useQuery(api.competitions.queries.getPageRoot, {
-    id: competitionId,
-  })
-
-  if (
-    templateState === undefined ||
-    !templateState.canApply ||
-    competition === undefined ||
-    competition === null
-  ) {
-    return null
-  }
-
-  return <ApplyCompetitionTemplateDialog competition={competition} />
 }
