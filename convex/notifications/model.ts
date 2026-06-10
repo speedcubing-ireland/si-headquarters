@@ -1,4 +1,5 @@
 import { internalQuery } from "@/convex/_generated/server"
+import { v } from "convex/values"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import {
@@ -1117,5 +1118,70 @@ export const resolveEventDrafts = internalQuery({
       await buildEventDrafts(ctx, args.event),
       actorSuppressionId(args.event)
     )
+  },
+})
+
+export const resolveAssignableClaimedDiscordUpdate = internalQuery({
+  args: { taskId: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get("tasks", args.taskId)
+    if (task === null) return null
+    const assigneeIds = concreteAssigneeIds(task.assigneeIds)
+    if (assigneeIds.length === 0) return null
+
+    const [assignee, { name }] = await Promise.all([
+      ctx.db.get("users", assigneeIds[0]),
+      loadTaskRootDocs(ctx, task),
+    ])
+    const draft = await enrichTaskNotificationDraft(
+      ctx,
+      taskDraftShell({
+        task,
+        rootName: name,
+        actor: assignee,
+        target: { kind: "user", userId: assigneeIds[0] },
+        fallbackText: `Claimed: ${task.name}`,
+        url: taskUrl(task._id),
+        color: EMBED_COLOR.success,
+        fields: [
+          embedField(
+            ":white_check_mark:",
+            "Claimed",
+            `**${userDisplayName(assignee)}** claimed this task.`
+          ),
+        ],
+      }),
+      task._id
+    )
+    const embed = draft.embeds[0]
+    const view = draft.buttons.find((button) => button.kind === "url")
+    if (view?.kind !== "url") return null
+    return {
+      embeds: [
+        {
+          title: embed.title,
+          description: embed.description,
+          url: embed.url,
+          color: embed.color,
+          fields: embed.fields,
+          author:
+            embed.author === undefined
+              ? undefined
+              : { name: embed.author.name, icon_url: embed.author.iconUrl },
+          footer: {
+            text: "SI Headquarters",
+            icon_url: "https://hq.speedcubingireland.com/favicon.png",
+          },
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      components: [
+        {
+          type: 1,
+          components: [{ type: 2, style: 5, label: view.label, url: view.url }],
+        },
+      ],
+      allowed_mentions: { parse: [] },
+    }
   },
 })

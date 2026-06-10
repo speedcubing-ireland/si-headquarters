@@ -1,13 +1,16 @@
 import { internal } from "@/convex/_generated/api"
-import { env, httpAction } from "@/convex/_generated/server"
+import { env, httpAction, internalAction } from "@/convex/_generated/server"
 import { decodeNotificationAction } from "@/convex/notifications/actionCodec"
 import { resolveDeploymentContext } from "@/convex/deploymentContext"
 import { verifyAsync } from "@noble/ed25519"
+import { v } from "convex/values"
 
+const DISCORD_API = "https://discord.com/api/v10"
 const DISCORD_INTERACTION_PING = 1
 const DISCORD_INTERACTION_MESSAGE_COMPONENT = 3
 const DISCORD_RESPONSE_PONG = 1
 const DISCORD_RESPONSE_CHANNEL_MESSAGE = 4
+const DISCORD_RESPONSE_UPDATE_MESSAGE = 7
 const EPHEMERAL_FLAG = 1 << 6
 
 type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject
@@ -162,12 +165,48 @@ export const discordInteractions = httpAction(async (ctx, req) => {
     )
   }
 
-  const result: { content: string } = await ctx.runMutation(
+  const result = await ctx.runMutation(
     internal.notifications.actions.executeDiscordAction,
-    {
-      discordUserId,
-      action: decoded.action,
-    }
+    { discordUserId, action: decoded.action }
   )
+
+  if (result.updateMessage !== undefined) {
+    const data = await ctx.runQuery(
+      internal.notifications.model.resolveAssignableClaimedDiscordUpdate,
+      { taskId: result.updateMessage }
+    )
+    if (data !== null) {
+      const token = payload.token
+      const applicationId = payload.application_id
+      if (
+        result.content !== "Task claimed." &&
+        typeof token === "string" &&
+        typeof applicationId === "string"
+      ) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.notifications.interactions.sendFollowup,
+          { applicationId, token, content: result.content }
+        )
+      }
+      return jsonResponse({ type: DISCORD_RESPONSE_UPDATE_MESSAGE, data })
+    }
+  }
+
   return ephemeral(result.content)
+})
+
+export const sendFollowup = internalAction({
+  args: {
+    applicationId: v.string(),
+    token: v.string(),
+    content: v.string(),
+  },
+  handler: async (_, args) => {
+    await fetch(`${DISCORD_API}/webhooks/${args.applicationId}/${args.token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: args.content, flags: EPHEMERAL_FLAG }),
+    })
+  },
 })

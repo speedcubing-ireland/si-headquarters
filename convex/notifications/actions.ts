@@ -6,6 +6,7 @@ import {
   assignTaskAndNotify,
   scheduleTaskStatusNotifications,
 } from "@/convex/notifications/events"
+import { userDisplayName } from "@/convex/notifications/embeds"
 import {
   notificationAction,
   type NotificationAction,
@@ -51,7 +52,10 @@ async function runClaimTask(
   const task = await ctx.db.get("tasks", taskId)
   if (task === null) return "This task no longer exists."
   if (!isClaimableAssigneeIds(task.assigneeIds)) {
-    return "This task is already assigned."
+    const [assigneeId] = concreteAssigneeIds(task.assigneeIds)
+    if (assigneeId === userId) return "You have already claimed this task."
+    const assignee = await ctx.db.get("users", assigneeId)
+    return `This task was already claimed by **${userDisplayName(assignee, "someone else")}**. You cannot claim it.`
   }
   if (!isClaimableTask(task)) {
     return "This task cannot be claimed from its current state."
@@ -190,11 +194,20 @@ export const executeDiscordAction = internalMutation({
   },
   handler: async (ctx, args) => {
     const user = await userForDiscordId(ctx, args.discordUserId)
-    if (user === null)
+    if (user === null) {
       return { content: "Discord is not linked to an active HQ user." }
+    }
 
+    const content = await executeAction(ctx, user._id, args.action)
+    if (args.action.kind !== "claimTask") return { content }
+
+    const task = await ctx.db.get("tasks", args.action.taskId)
     return {
-      content: await executeAction(ctx, user._id, args.action),
+      content,
+      updateMessage:
+        task !== null && !isClaimableAssigneeIds(task.assigneeIds)
+          ? args.action.taskId
+          : undefined,
     }
   },
 })

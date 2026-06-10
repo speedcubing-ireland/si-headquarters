@@ -567,6 +567,7 @@ describe("Discord notification actions", () => {
       }
     )
     expect(staleResult.content).toMatch(/cannot be claimed/)
+    expect(staleResult.updateMessage).toBeUndefined()
 
     await t.run(async (ctx) => {
       await ctx.db.patch("tasks", taskId, {
@@ -583,8 +584,17 @@ describe("Discord notification actions", () => {
     )
 
     expect(claimedResult.content).toBe("Task claimed.")
-    const task = await t.run(async (ctx) => ctx.db.get("tasks", taskId))
-    expect(task?.assigneeIds).not.toBe("assignable")
+    expect(claimedResult.updateMessage).toBe(taskId)
+
+    const alreadyClaimed = await t.mutation(
+      internal.notifications.actions.executeDiscordAction,
+      {
+        discordUserId: "discord-claimer",
+        action: { kind: "claimTask", taskId },
+      }
+    )
+    expect(alreadyClaimed.content).toMatch(/already claimed/)
+    expect(alreadyClaimed.updateMessage).toBe(taskId)
   })
 })
 
