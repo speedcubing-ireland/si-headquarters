@@ -51,7 +51,7 @@ async function getExistingCompetitionTemplateBlockReason(
 
   const tasks = await ctx.db
     .query("tasks")
-    .withIndex("by_root_type_and_root_id", (q) =>
+    .withIndex("by_root_type_and_root_id_and_status", (q) =>
       q.eq("root.type", "competitions").eq("root.id", competitionId)
     )
     .take(1)

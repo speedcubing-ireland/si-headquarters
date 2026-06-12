@@ -12,7 +12,7 @@ export async function listRootTaskIds(
   const taskIds = new Set<Id<"tasks">>()
   const indexedTasks = await ctx.db
     .query("tasks")
-    .withIndex("by_root_type_and_root_id", (q) =>
+    .withIndex("by_root_type_and_root_id_and_status", (q) =>
       q.eq("root.type", root.type).eq("root.id", root.id)
     )
     .collect()

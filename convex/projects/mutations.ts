@@ -40,7 +40,7 @@ async function hasProjectRootTasks(
 ) {
   const tasks = await ctx.db
     .query("tasks")
-    .withIndex("by_root_type_and_root_id", (q) =>
+    .withIndex("by_root_type_and_root_id_and_status", (q) =>
       q.eq("root.type", "projects").eq("root.id", projectId)
     )
     .take(1)

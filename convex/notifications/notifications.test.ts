@@ -17,6 +17,7 @@ import {
   insertBlankCompetition,
   insertBlankProject,
   insertCompetitionPhase,
+  insertProjectPhase,
   insertSeedTask,
 } from "@/convex/testHelpers"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
@@ -69,6 +70,47 @@ async function getScheduledNotificationEvents(
       .filter((entry) => entry.name.includes("dispatchEvent"))
       .map((entry) => (entry.args as [{ event: NotificationEvent }])[0].event)
   })
+}
+
+async function runDueScanToCompletion(
+  t: ReturnType<typeof convexTest>,
+  nowMs: number
+) {
+  await t.mutation(internal.notifications.due.runDueScan, { nowMs })
+
+  const executedJobIds = new Set<string>()
+  for (let iteration = 0; iteration < 500; iteration++) {
+    const job = await t.run(async (ctx) => {
+      const scheduled = await ctx.db.system
+        .query("_scheduled_functions")
+        .collect()
+      return (
+        scheduled.find(
+          (entry) =>
+            entry.name.includes("due:_") && !executedJobIds.has(entry._id)
+        ) ?? null
+      )
+    })
+    if (job === null) return
+
+    executedJobIds.add(job._id)
+    const args = (job.args as [object])[0]
+    if (job.name.includes("_continueDueScan")) {
+      await t.mutation(internal.notifications.due._continueDueScan, args as never)
+      continue
+    }
+    if (job.name.includes("_dispatchOverdueBatch")) {
+      await t.mutation(
+        internal.notifications.due._dispatchOverdueBatch,
+        args as never
+      )
+      continue
+    }
+
+    throw new Error(`Unexpected due scan scheduled job: ${job.name}`)
+  }
+
+  throw new Error("due scan did not finish scheduled work")
 }
 
 describe("notification action codec", () => {
@@ -512,7 +554,7 @@ describe("due notifications", () => {
       }
     })
 
-    await t.mutation(internal.notifications.due.runDueScan, { nowMs })
+    await runDueScanToCompletion(t, nowMs)
 
     const events = await getScheduledNotificationEvents(t)
 
@@ -541,6 +583,302 @@ describe("due notifications", () => {
         (event) => event.kind === "taskDueSoon" && event.taskId === todayTaskId
       )
     ).toBe(false)
+  })
+
+  test("due scan notifies for phase carryover-only tasks", async () => {
+    const t = convexTest(schema, modules)
+    const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)
+    const { carryoverTaskId, assigneeId, competitionId } = await t.run(
+      async (ctx) => {
+        const competitionId = await insertBlankCompetition(ctx)
+        const planningPhaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Planning",
+          "a"
+        )
+        const executionPhaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Execution",
+          "b"
+        )
+        await ctx.db.patch("competitions", competitionId, {
+          phaseId: executionPhaseId,
+        })
+        const carryoverTaskId = await insertSeedTask(ctx, {
+          name: "Carryover task",
+          parent: { type: "phases", id: planningPhaseId },
+          order: "a",
+          status: "to-do",
+        })
+        const assigneeId = await insertLinkedUser(
+          ctx,
+          "Assignee",
+          "discord-carryover"
+        )
+        await ctx.db.patch("tasks", carryoverTaskId, {
+          assigneeIds: [assigneeId],
+        })
+        return { carryoverTaskId, assigneeId, competitionId }
+      }
+    )
+
+    await runDueScanToCompletion(t, nowMs)
+    const events = await getScheduledNotificationEvents(t)
+
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "taskOverdue",
+          taskId: carryoverTaskId,
+          today: "2026-06-08",
+          recipientId: assigneeId,
+        }),
+        expect.objectContaining({
+          kind: "ownerOverdueSummary",
+          owner: { type: "competitions", id: competitionId },
+          today: "2026-06-08",
+          taskIds: [carryoverTaskId],
+        }),
+      ])
+    )
+  })
+
+  test("task both date-overdue and carryover notifies once", async () => {
+    const t = convexTest(schema, modules)
+    const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)
+    const { dedupedTaskId, assigneeId, competitionId } = await t.run(
+      async (ctx) => {
+        const competitionId = await insertBlankCompetition(ctx)
+        const planningPhaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Planning",
+          "a"
+        )
+        const executionPhaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Execution",
+          "b"
+        )
+        await ctx.db.patch("competitions", competitionId, {
+          phaseId: executionPhaseId,
+        })
+        const dedupedTaskId = await insertSeedTask(ctx, {
+          name: "Double overdue task",
+          parent: { type: "phases", id: planningPhaseId },
+          order: "a",
+          status: "to-do",
+        })
+        const assigneeId = await insertLinkedUser(
+          ctx,
+          "Assignee",
+          "discord-deduped"
+        )
+        await ctx.db.patch("tasks", dedupedTaskId, {
+          assigneeIds: [assigneeId],
+          dueDate: "2026-06-07",
+        })
+        return { dedupedTaskId, assigneeId, competitionId }
+      }
+    )
+
+    await runDueScanToCompletion(t, nowMs)
+    const events = await getScheduledNotificationEvents(t)
+
+    const taskOverdueEvents = events.filter(
+      (event) =>
+        event.kind === "taskOverdue" &&
+        event.taskId === dedupedTaskId &&
+        event.recipientId === assigneeId
+    )
+    const ownerSummaryEvents = events.filter(
+      (event): event is Extract<NotificationEvent, { kind: "ownerOverdueSummary" }> =>
+        event.kind === "ownerOverdueSummary" &&
+        event.owner.type === "competitions" &&
+        event.owner.id === competitionId
+    )
+
+    expect(taskOverdueEvents).toHaveLength(1)
+    expect(ownerSummaryEvents).toHaveLength(1)
+    expect(ownerSummaryEvents[0].taskIds).toEqual([dedupedTaskId])
+  })
+
+  test("due scan skips done, cancelled, and due-today tasks", async () => {
+    const t = convexTest(schema, modules)
+    const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)
+    const { doneTaskId, cancelledTaskId, todayTaskId } = await t.run(
+      async (ctx) => {
+        const { competitionId, phaseId } = await seedTaskInCompetition(ctx)
+        const assigneeId = await insertLinkedUser(
+          ctx,
+          "Assignee",
+          "discord-skipped"
+        )
+        const doneTaskId = await insertSeedTask(ctx, {
+          name: "Done overdue",
+          parent: { type: "phases", id: phaseId },
+          order: "b",
+          status: "done",
+        })
+        const cancelledTaskId = await insertSeedTask(ctx, {
+          name: "Cancelled overdue",
+          parent: { type: "phases", id: phaseId },
+          order: "c",
+          status: "cancelled",
+        })
+        const todayTaskId = await insertSeedTask(ctx, {
+          name: "Due today",
+          parent: { type: "phases", id: phaseId },
+          order: "d",
+          status: "to-do",
+        })
+        await Promise.all([
+          ctx.db.patch("tasks", doneTaskId, {
+            assigneeIds: [assigneeId],
+            dueDate: "2026-06-07",
+          }),
+          ctx.db.patch("tasks", cancelledTaskId, {
+            assigneeIds: [assigneeId],
+            dueDate: "2026-06-07",
+          }),
+          ctx.db.patch("tasks", todayTaskId, {
+            assigneeIds: [assigneeId],
+            dueDate: "2026-06-08",
+          }),
+        ])
+        void competitionId
+        return { doneTaskId, cancelledTaskId, todayTaskId }
+      }
+    )
+
+    await runDueScanToCompletion(t, nowMs)
+    const events = await getScheduledNotificationEvents(t)
+
+    for (const taskId of [doneTaskId, cancelledTaskId, todayTaskId]) {
+      expect(
+        events.some(
+          (event) =>
+            (event.kind === "taskDueSoon" || event.kind === "taskOverdue") &&
+            event.taskId === taskId
+        )
+      ).toBe(false)
+    }
+  })
+
+  test("due scan dispatches every overdue notification exactly once at volume", async () => {
+    const t = convexTest(schema, modules)
+    const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)
+    const { competitionIds, taskIds, assigneeId } = await t.run(async (ctx) => {
+      const assigneeId = await insertLinkedUser(
+        ctx,
+        "Assignee",
+        "discord-volume"
+      )
+      const competitionIds: Id<"competitions">[] = []
+      const taskIds: Id<"tasks">[] = []
+
+      for (let competitionIndex = 0; competitionIndex < 3; competitionIndex++) {
+        const competitionId = await insertBlankCompetition(ctx)
+        competitionIds.push(competitionId)
+        const phaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Planning",
+          "a"
+        )
+        for (let taskIndex = 0; taskIndex < 40; taskIndex++) {
+          const taskId = await insertSeedTask(ctx, {
+            name: `Overdue ${String(competitionIndex)}-${String(taskIndex)}`,
+            parent: { type: "phases", id: phaseId },
+            order: `t${String(taskIndex).padStart(3, "0")}`,
+            status: "to-do",
+          })
+          await ctx.db.patch("tasks", taskId, {
+            assigneeIds: [assigneeId],
+            dueDate: "2026-06-07",
+          })
+          taskIds.push(taskId)
+        }
+      }
+
+      return { competitionIds, taskIds, assigneeId }
+    })
+
+    await runDueScanToCompletion(t, nowMs)
+    const events = await getScheduledNotificationEvents(t)
+
+    const taskOverdueEvents = events.filter((event) => event.kind === "taskOverdue")
+    const ownerSummaryEvents = events.filter(
+      (event) => event.kind === "ownerOverdueSummary"
+    )
+
+    expect(taskOverdueEvents).toHaveLength(120)
+    expect(ownerSummaryEvents).toHaveLength(3)
+    for (const taskId of taskIds) {
+      expect(
+        taskOverdueEvents.filter(
+          (event) =>
+            event.taskId === taskId && event.recipientId === assigneeId
+        )
+      ).toHaveLength(1)
+    }
+    for (const competitionId of competitionIds) {
+      expect(
+        ownerSummaryEvents.filter(
+          (event) =>
+            event.owner.type === "competitions" && event.owner.id === competitionId
+        )
+      ).toHaveLength(1)
+    }
+  })
+
+  test("user-owned date-overdue task notifies watchers", async () => {
+    const t = convexTest(schema, modules)
+    const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)
+    const { overdueTaskId, assigneeId } = await t.run(async (ctx) => {
+      const projectId = await insertBlankProject(ctx)
+      const phaseId = await insertProjectPhase(ctx, projectId, "Planning", "a")
+      const overdueTaskId = await insertSeedTask(ctx, {
+        name: "User-owned overdue",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "to-do",
+      })
+      const assigneeId = await insertLinkedUser(
+        ctx,
+        "Assignee",
+        "discord-user-owned"
+      )
+      await ctx.db.patch("tasks", overdueTaskId, {
+        assigneeIds: [assigneeId],
+        dueDate: "2026-06-07",
+        owner: { type: "users", id: assigneeId },
+      })
+      return { overdueTaskId, assigneeId }
+    })
+
+    await runDueScanToCompletion(t, nowMs)
+    const events = await getScheduledNotificationEvents(t)
+
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "taskOverdue",
+          taskId: overdueTaskId,
+          recipientId: assigneeId,
+        }),
+      ])
+    )
+    expect(
+      events.some(
+        (event) =>
+          event.kind === "ownerOverdueSummary" &&
+          event.owner.type === "projects"
+      )
+    ).toBe(true)
   })
 })
 
