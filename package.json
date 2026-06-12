@@ -82,7 +82,7 @@
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.78.0",
-    "react-medium-image-zoom": "^5.4.6",
+    "react-medium-image-zoom": "^5.4.7",
     "react-resizable-panels": "^4.11.2",
     "recharts": "^3.8.1",
     "shadcn": "^4.11.0",
