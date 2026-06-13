@@ -8,12 +8,12 @@ import {
 } from "@/convex/impersonation/validators"
 import {
   buildImpersonationBanner,
-  createToken,
   getUserName,
   impersonationLinkResult,
   insertImpersonationTicket,
   requireFreshTicket,
 } from "@/convex/impersonation/model"
+import { createToken } from "@/convex/tokens"
 import { requireDirector } from "@/convex/permissions/principal"
 import {
   findContactByAuthUserId,

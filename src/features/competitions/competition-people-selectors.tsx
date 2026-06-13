@@ -5,6 +5,7 @@ import type { Id } from "@/convex/_generated/dataModel"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
 import { Can } from "@/features/auth"
+import { OrganiserInviteButton } from "@/features/competitions/components/organiser-invite-button"
 import type { CompetitionCalendarCompetitionRow } from "@/features/competitions/list/competition-calendar-display"
 import { useMutation } from "convex/react"
 import type { LucideIcon } from "lucide-react"
@@ -194,12 +195,15 @@ export function CompetitionPeopleCardFields({
         />
       </PageCardRow>
       <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
-        <UserSelector.MultiPropertyButton
-          selectedUsers={organisers}
-          competitionId={competitionId}
-          value={organiserIds}
-          onChange={mutations.onOrganisersChange}
-        />
+        <div className="flex items-center gap-1">
+          <UserSelector.MultiPropertyButton
+            selectedUsers={organisers}
+            competitionId={competitionId}
+            value={organiserIds}
+            onChange={mutations.onOrganisersChange}
+          />
+          <OrganiserInviteButton competitionId={competitionId} />
+        </div>
       </PageCardRow>
     </Can>
   )

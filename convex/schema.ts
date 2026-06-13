@@ -7,6 +7,7 @@ import {
   projectsFields,
 } from "@/convex/projects/validators"
 import { competitionWeekendSlotFields } from "@/convex/competitions/weekendSlots/validators"
+import { competitionOrganiserInvitesTable } from "@/convex/competitions/invites/validators"
 import { impersonationSessionsTable } from "@/convex/impersonation/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
@@ -47,7 +48,8 @@ const schema = defineSchema(
     users: defineTable(usersFields)
       .index("email", ["email"])
       .index("phone", ["phone"])
-      .index("by_discordUserId", ["discordUserId"]),
+      .index("by_discordUserId", ["discordUserId"])
+      .index("by_wcaUserId", ["wcaUserId"]),
     teams: defineTable(teamsFields).index("by_name", ["name"]),
     teamMemberships: defineTable(teamMembershipFields)
       .index("by_userId", ["userId"])
@@ -60,6 +62,7 @@ const schema = defineSchema(
       "by_wcaCompetitionId",
       ["wcaCompetitionId"]
     ),
+    competitionOrganiserInvites: competitionOrganiserInvitesTable,
     projects: defineTable(projectsFields)
       .index("by_scope_type", ["scope.type"])
       .index("by_scope_type_and_scope_id", ["scope.type", "scope.id"])

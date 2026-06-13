@@ -11,6 +11,7 @@ export const usersFields = {
   phoneVerificationTime: v.optional(v.number()),
   isAnonymous: v.optional(v.boolean()),
   disabled: v.optional(v.boolean()),
+  wcaUserId: v.optional(v.number()),
   discordUserId: v.optional(v.string()),
   discordUsername: v.optional(v.string()),
   discordDisplayName: v.optional(v.string()),

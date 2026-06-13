@@ -19,10 +19,7 @@ const DUE_SCAN_PAGE_SIZE = 250
 const CARRYOVER_OWNERS_PER_PASS = 50
 const DISPATCH_TASK_BUDGET = 50
 
-const SCAN_OPEN_STATUSES = [
-  ...OPEN_TASK_STATUSES,
-  "awaiting-review",
-] as const
+const SCAN_OPEN_STATUSES = [...OPEN_TASK_STATUSES, "awaiting-review"] as const
 
 type DueScanStage = "dueSoon" | "dateOverdue" | "phaseCarryover"
 
@@ -106,10 +103,7 @@ async function scanDateOverduePage(
   const page = await ctx.db
     .query("tasks")
     .withIndex("by_status_and_dueDate", (q) =>
-      q
-        .eq("status", input.status)
-        .gt("dueDate", "")
-        .lt("dueDate", input.today)
+      q.eq("status", input.status).gt("dueDate", "").lt("dueDate", input.today)
     )
     .paginate({
       numItems: DUE_SCAN_PAGE_SIZE,
@@ -193,11 +187,7 @@ async function scanCompetitionCarryoverPage(
     if (phaseId === null) continue
 
     const owner = { type: "competitions" as const, id: ownerDoc._id }
-    const earlierPhaseIds = await earlierPhaseIdsForOwner(
-      ctx,
-      owner,
-      phaseId
-    )
+    const earlierPhaseIds = await earlierPhaseIdsForOwner(ctx, owner, phaseId)
     await scanCarryoverTasksForOwner(
       ctx,
       owner,
@@ -226,11 +216,7 @@ async function scanProjectCarryoverPage(
     if (phaseId === null) continue
 
     const owner = { type: "projects" as const, id: ownerDoc._id }
-    const earlierPhaseIds = await earlierPhaseIdsForOwner(
-      ctx,
-      owner,
-      phaseId
-    )
+    const earlierPhaseIds = await earlierPhaseIdsForOwner(ctx, owner, phaseId)
     await scanCarryoverTasksForOwner(
       ctx,
       owner,

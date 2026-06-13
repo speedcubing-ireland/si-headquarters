@@ -115,6 +115,23 @@ export const URL_ENV_SETUP = [
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
+export const ORGANISER_AUTH_ENV_SETUP = [
+  {
+    key: "AUTH_WCA_ID",
+    group: "WCA",
+    kind: "prompt",
+    description:
+      "WCA OAuth client ID for organiser login (separate app from SERVICE_WCA_ID).",
+  },
+  {
+    key: "AUTH_WCA_SECRET",
+    group: "WCA",
+    kind: "prompt",
+    description: "WCA OAuth client secret for organiser login.",
+    sensitive: true,
+  },
+] as const satisfies readonly EnvSetupSpec[]
+
 export const EMAIL_ENV_SETUP = [
   {
     key: "RESEND_API_KEY",
@@ -146,6 +163,7 @@ export const REQUIRED_ENV_SETUP = [
   ...URL_ENV_SETUP,
   ...GOOGLE_DEFINITION.setup,
   ...WCA_DEFINITION.setup,
+  ...ORGANISER_AUTH_ENV_SETUP,
   ...CANVA_DEFINITION.setup,
   ...DISCORD_DEFINITION.setup,
   ...EMAIL_ENV_SETUP,

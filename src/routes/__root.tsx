@@ -1,6 +1,12 @@
 import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router"
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react"
+import {
+  Authenticated,
+  AuthLoading,
+  Unauthenticated,
+  useQuery,
+} from "convex/react"
 import { useEffect } from "react"
+import { api } from "@/convex/_generated/api"
 import {
   Card,
   CardContent,
@@ -23,13 +29,16 @@ function isSponsorPortalPath(pathname: string): boolean {
   return normalized.startsWith("/sponsor")
 }
 
-function isPublicImpersonationPath(pathname: string): boolean {
+function isPublicAuthPath(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "") || "/"
-  return normalized === "/impersonate/user"
+  return (
+    normalized === "/impersonate/user" || normalized === "/invite/organiser"
+  )
 }
 
 function SignInForm() {
   const { signIn } = useAuthActions()
+  const wcaSignInUrl = useQuery(api.organisers.queries.wcaSignInUrl, {})
 
   const handleGoogleSignIn = async () => {
     try {
@@ -62,6 +71,18 @@ function SignInForm() {
         >
           Speedcubing Ireland Volunteer (GSuite)
         </Button>
+        {typeof wcaSignInUrl === "string" ? (
+          <Button
+            type="button"
+            className="w-full"
+            variant="outline"
+            onClick={() => {
+              window.location.assign(wcaSignInUrl)
+            }}
+          >
+            External Organiser (WCA)
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -79,7 +100,7 @@ function RootLayoutInner() {
     document.title = getPageTitle(pathname)
   }, [pathname])
 
-  if (isPublicImpersonationPath(pathname)) {
+  if (isPublicAuthPath(pathname)) {
     return <Outlet />
   }
 

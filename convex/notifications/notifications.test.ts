@@ -96,7 +96,10 @@ async function runDueScanToCompletion(
     executedJobIds.add(job._id)
     const args = (job.args as [object])[0]
     if (job.name.includes("_continueDueScan")) {
-      await t.mutation(internal.notifications.due._continueDueScan, args as never)
+      await t.mutation(
+        internal.notifications.due._continueDueScan,
+        args as never
+      )
       continue
     }
     if (job.name.includes("_dispatchOverdueBatch")) {
@@ -695,7 +698,9 @@ describe("due notifications", () => {
         event.recipientId === assigneeId
     )
     const ownerSummaryEvents = events.filter(
-      (event): event is Extract<NotificationEvent, { kind: "ownerOverdueSummary" }> =>
+      (
+        event
+      ): event is Extract<NotificationEvent, { kind: "ownerOverdueSummary" }> =>
         event.kind === "ownerOverdueSummary" &&
         event.owner.type === "competitions" &&
         event.owner.id === competitionId
@@ -810,7 +815,9 @@ describe("due notifications", () => {
     await runDueScanToCompletion(t, nowMs)
     const events = await getScheduledNotificationEvents(t)
 
-    const taskOverdueEvents = events.filter((event) => event.kind === "taskOverdue")
+    const taskOverdueEvents = events.filter(
+      (event) => event.kind === "taskOverdue"
+    )
     const ownerSummaryEvents = events.filter(
       (event) => event.kind === "ownerOverdueSummary"
     )
@@ -820,8 +827,7 @@ describe("due notifications", () => {
     for (const taskId of taskIds) {
       expect(
         taskOverdueEvents.filter(
-          (event) =>
-            event.taskId === taskId && event.recipientId === assigneeId
+          (event) => event.taskId === taskId && event.recipientId === assigneeId
         )
       ).toHaveLength(1)
     }
@@ -829,7 +835,8 @@ describe("due notifications", () => {
       expect(
         ownerSummaryEvents.filter(
           (event) =>
-            event.owner.type === "competitions" && event.owner.id === competitionId
+            event.owner.type === "competitions" &&
+            event.owner.id === competitionId
         )
       ).toHaveLength(1)
     }
