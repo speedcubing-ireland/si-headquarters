@@ -11,6 +11,7 @@
     "builtin": true
   },
   "ignorePatterns": [
+    ".claude",
     "dist",
     "src/components/ui",
     "src/routeTree.gen.ts",
