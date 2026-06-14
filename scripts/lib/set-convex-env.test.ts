@@ -9,6 +9,7 @@ import {
   generateEnvValues,
   parseConvexEnvList,
   planEnvChanges,
+  renderDryRunPlan,
   updateDotenvContent,
 } from "./set-convex-env.ts"
 
@@ -71,6 +72,24 @@ describe("set-convex-env metadata", () => {
     for (const [key, value] of Object.entries(generated)) {
       expect(specsByKey.get(key)?.generatedValue).toBe(value)
     }
+  })
+})
+
+describe("dry run plan rendering", () => {
+  test("lists every variable with description, tags, and a summary", () => {
+    const output = renderDryRunPlan(buildWizardEnvSpecs())
+
+    // Descriptions are surfaced, not just keys.
+    expect(output).toContain("Google OAuth client ID for staff login.")
+    // Defaults and choices are surfaced for select inputs.
+    expect(output).toContain("default: staging")
+    expect(output).toContain("choices: staging, production")
+    // Input kinds and the secret marker are surfaced.
+    expect(output).toContain("[generated · secret]")
+    // A summary line counts the variables.
+    expect(output).toMatch(/\d+ variables · \d+ prompted · \d+ generated/)
+    // Metadata only — never prints generated secret values.
+    expect(output).not.toMatch(/-----BEGIN PRIVATE KEY-----/)
   })
 })
 

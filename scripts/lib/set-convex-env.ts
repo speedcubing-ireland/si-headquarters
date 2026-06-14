@@ -191,11 +191,21 @@ export function updateDotenvContent(
   return `${content}${content.endsWith("\n") ? "" : "\n"}${line}\n`
 }
 
+function renderSpecTags(spec: EnvSpec): string {
+  const tags: string[] = [spec.kind]
+  if (spec.sensitive === true) tags.push("secret")
+  if (spec.defaultValue !== undefined)
+    tags.push(`default: ${spec.defaultValue}`)
+  if (spec.choices !== undefined)
+    tags.push(`choices: ${spec.choices.join(", ")}`)
+  return `[${tags.join(" · ")}]`
+}
+
 export function renderDryRunPlan(specs: readonly EnvSpec[]): string {
   const lines = [
-    "Convex env wizard dry run",
+    "Convex env wizard — required variables (dry run)",
     "",
-    "The wizard would configure these keys without printing secret values:",
+    "Metadata only: no secret values are printed and the deployment is not contacted.",
   ]
   let currentGroup: EnvGroup | null = null
   for (const spec of specs) {
@@ -203,13 +213,18 @@ export function renderDryRunPlan(specs: readonly EnvSpec[]): string {
       currentGroup = spec.group
       lines.push("", `${currentGroup}:`)
     }
-    const source =
-      spec.kind === "generated"
-        ? "generated"
-        : spec.defaultValue !== undefined
-          ? "prompt, default available"
-          : "prompt"
-    lines.push(`  - ${spec.key} (${source})`)
+    lines.push(`  ${spec.key}`)
+    lines.push(`    ${spec.description}   ${renderSpecTags(spec)}`)
   }
+
+  const prompted = specs.filter((spec) => spec.kind !== "generated").length
+  const generated = specs.filter((spec) => spec.kind === "generated").length
+  const withDefaults = specs.filter(
+    (spec) => spec.defaultValue !== undefined
+  ).length
+  lines.push(
+    "",
+    `${String(specs.length)} variables · ${String(prompted)} prompted · ${String(generated)} generated · ${String(withDefaults)} with defaults`
+  )
   return lines.join("\n")
 }
