@@ -10,7 +10,7 @@ import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/validators"
 import { sendEbayAuctionOutbidEmail } from "../admin/auctions/emails"
 import { scheduleAuctionClosure } from "../admin/auctions/lifecycle"
-import { syncActiveRemindersToAuctionEnd } from "../admin/auctions/reminders"
+import { syncAuctionActiveReminders } from "../admin/auctions/reminders"
 import {
   isBidHistoryVisibleToSponsor,
   isSponsorVisibleAuctionState,
@@ -49,7 +49,7 @@ async function rescheduleClosureWhenExtended(
   if (updatedAuction?.state !== "active") return
   await Promise.all([
     scheduleAuctionClosure(ctx, updatedAuction),
-    syncActiveRemindersToAuctionEnd(ctx, updatedAuction),
+    syncAuctionActiveReminders(ctx, updatedAuction),
   ])
 }
 
