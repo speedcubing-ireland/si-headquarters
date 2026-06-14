@@ -26,6 +26,7 @@ import {
   markReminderSkipped,
   syncAuctionActiveReminders,
 } from "./reminders"
+import { isExpectedPendingSchedule } from "./scheduledFunctions"
 
 function buildReadinessSnapshot(
   competition: Doc<"competitions">
@@ -143,7 +144,7 @@ export const _activateAuction = internalMutation({
     if (!refreshed) return null
 
     await sendAuctionStartedEmails(ctx, refreshed)
-    await syncAuctionActiveReminders(ctx, refreshed, { reset: true })
+    await syncAuctionActiveReminders(ctx, refreshed, { createMissing: true })
     await scheduleAuctionClosure(ctx, refreshed)
     return null
   },
@@ -284,7 +285,9 @@ export const start = mutation({
       const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id)
       if (refreshed) {
         await sendAuctionStartedEmails(ctx, refreshed)
-        await syncAuctionActiveReminders(ctx, refreshed, { reset: true })
+        await syncAuctionActiveReminders(ctx, refreshed, {
+          createMissing: true,
+        })
         await scheduleAuctionClosure(ctx, refreshed)
       }
     }
@@ -312,76 +315,50 @@ export const close = mutation({
   },
 })
 
-async function clearStaleAuctionScheduleIds(
-  ctx: MutationCtx,
-  auction: Doc<"sponsorshipAuctions">
-): Promise<void> {
-  if (
-    auction.activationScheduledFunctionId === undefined &&
-    auction.closureScheduledFunctionId === undefined
-  ) {
-    return
-  }
-
-  await cancelScheduledIfPending(ctx, auction.activationScheduledFunctionId)
-  await cancelScheduledIfPending(ctx, auction.closureScheduledFunctionId)
-  await ctx.db.patch("sponsorshipAuctions", auction._id, {
-    activationScheduledFunctionId: undefined,
-    closureScheduledFunctionId: undefined,
-    updatedAt: Date.now(),
-  })
-}
-
-async function repairAuctionSchedules(
-  ctx: MutationCtx,
-  auction: Doc<"sponsorshipAuctions">
-): Promise<void> {
-  if (auction.state === "scheduled") {
-    await scheduleAuctionActivation(ctx, auction)
-    return
-  }
-
-  if (auction.state === "active") {
-    await scheduleAuctionClosure(ctx, auction)
-    await syncAuctionActiveReminders(ctx, auction, { reset: true })
-    return
-  }
-
-  await clearStaleAuctionScheduleIds(ctx, auction)
-}
-
-export const repairSchedules = mutation({
-  args: {
-    auctionId: v.optional(v.id("sponsorshipAuctions")),
-  },
+export const repairSchedules = internalMutation({
+  args: {},
   returns: v.null(),
-  handler: async (ctx, args) => {
-    await requireSponsorPortalAdmin(ctx)
-
-    if (args.auctionId !== undefined) {
-      const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
-      if (!auction) {
-        throw new ConvexError({
-          code: "NOT_FOUND",
-          message: "Auction not found.",
-        })
-      }
-      await repairAuctionSchedules(ctx, auction)
-      return null
-    }
-
+  handler: async (ctx) => {
     const scheduledAuctions = ctx.db
       .query("sponsorshipAuctions")
       .withIndex("by_state_and_start", (q) => q.eq("state", "scheduled"))
     for await (const auction of scheduledAuctions) {
-      await repairAuctionSchedules(ctx, auction)
+      const activationIsValid = await isExpectedPendingSchedule(
+        ctx,
+        auction.activationScheduledFunctionId,
+        {
+          functionReference:
+            internal.plugins.sponsor.admin.auctions.lifecycle._activateAuction,
+          scheduledTime: auction.startsAt,
+          argument: ["auctionId", auction._id],
+        }
+      )
+      if (!activationIsValid) {
+        await scheduleAuctionActivation(ctx, auction)
+      }
     }
 
     const activeAuctions = ctx.db
       .query("sponsorshipAuctions")
       .withIndex("by_state_and_end", (q) => q.eq("state", "active"))
     for await (const auction of activeAuctions) {
-      await repairAuctionSchedules(ctx, auction)
+      const closureIsValid = await isExpectedPendingSchedule(
+        ctx,
+        auction.closureScheduledFunctionId,
+        {
+          functionReference:
+            internal.plugins.sponsor.admin.auctions.lifecycle._closeAuction,
+          scheduledTime: auction.endsAt,
+          argument: ["auctionId", auction._id],
+        }
+      )
+      if (!closureIsValid) {
+        await scheduleAuctionClosure(ctx, auction)
+      }
+      await syncAuctionActiveReminders(ctx, auction, {
+        createMissing: true,
+        preserveValidSchedules: true,
+      })
     }
     return null
   },

@@ -1,6 +1,7 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { internal } from "@/convex/_generated/api"
+import { isExpectedPendingSchedule } from "./scheduledFunctions"
 
 /** Send the “bidding closes in 1 hour” email this long before `auction.endsAt`. */
 export const AUCTION_ACTIVE_REMINDER_LEAD_MS = 60 * 60 * 1000
@@ -90,18 +91,21 @@ export async function markReminderSkipped(
 export async function syncAuctionActiveReminders(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">,
-  options: { reset?: boolean } = {}
+  options: {
+    createMissing?: boolean
+    preserveValidSchedules?: boolean
+  } = {}
 ): Promise<void> {
   if (auction.state !== "active") return
 
-  const reset = options.reset ?? false
+  const createMissing = options.createMissing ?? false
   const scheduledFor = auctionActiveReminderScheduledFor(auction.endsAt)
   const [reminders, invites] = await Promise.all([
     ctx.db
       .query("sponsorshipAuctionReminders")
       .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
       .collect(),
-    reset
+    createMissing
       ? ctx.db
           .query("sponsorshipAuctionInvites")
           .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
@@ -109,7 +113,7 @@ export async function syncAuctionActiveReminders(
       : [],
   ])
 
-  if (reset) {
+  if (createMissing) {
     const sponsorsWithReminders = new Set(
       reminders.map((reminder) => reminder.sponsorId)
     )
@@ -127,12 +131,19 @@ export async function syncAuctionActiveReminders(
 
   for (const reminder of reminders) {
     if (reminder.sent) continue
-    if (
-      !reset &&
-      scheduledFor > Date.now() &&
-      reminder.scheduledFor === scheduledFor
-    ) {
-      continue
+    if (scheduledFor > Date.now() && reminder.scheduledFor === scheduledFor) {
+      if (!createMissing) continue
+      if (
+        options.preserveValidSchedules === true &&
+        (await isExpectedPendingSchedule(ctx, reminder.scheduledFunctionId, {
+          functionReference:
+            internal.plugins.sponsor.admin.auctions.lifecycle._fireReminder,
+          scheduledTime: scheduledFor,
+          argument: ["reminderId", reminder._id],
+        }))
+      ) {
+        continue
+      }
     }
     await rescheduleAuctionActiveReminder(ctx, reminder, scheduledFor)
   }

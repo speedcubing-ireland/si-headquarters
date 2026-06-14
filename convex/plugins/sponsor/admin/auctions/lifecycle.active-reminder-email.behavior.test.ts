@@ -143,7 +143,7 @@ describe("auction active reminder email behavior", () => {
       })
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
-      await syncAuctionActiveReminders(ctx, auction, { reset: true })
+      await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
     })
 
     const reminders = await t.run(async (ctx) => {
@@ -176,7 +176,7 @@ describe("auction active reminder email behavior", () => {
       await ctx.db.patch("sponsorshipAuctions", auctionId, { state: "active" })
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
-      await syncAuctionActiveReminders(ctx, auction, { reset: true })
+      await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
       return ctx.db
         .query("sponsorshipAuctionReminders")
         .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
@@ -382,7 +382,7 @@ describe("auction active reminder email behavior", () => {
       })
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
-      await syncAuctionActiveReminders(ctx, auction, { reset: true })
+      await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
     })
 
     const rows = await t.run((ctx) =>

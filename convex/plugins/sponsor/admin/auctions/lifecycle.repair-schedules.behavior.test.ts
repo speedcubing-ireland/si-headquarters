@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
-import { api } from "@/convex/_generated/api"
+import { internal } from "@/convex/_generated/api"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
 import { seedDirectorUser } from "@/convex/testHelpers"
 import {
@@ -11,7 +11,6 @@ import { syncAuctionActiveReminders } from "./reminders"
 import { scheduleAuctionClosure } from "./lifecycle"
 
 async function seedActiveAuction(t: SponsorAuctionTestHarness): Promise<{
-  managerId: Id<"users">
   sponsorIds: Id<"sponsors">[]
   auctionId: Id<"sponsorshipAuctions">
 }> {
@@ -80,20 +79,20 @@ async function seedActiveAuction(t: SponsorAuctionTestHarness): Promise<{
       invitedById: managerId,
       invitedAt: now,
     })
-    return { managerId, sponsorIds: [sponsorA, sponsorB], auctionId }
+    return { sponsorIds: [sponsorA, sponsorB], auctionId }
   })
 }
 
 describe("repairSchedules", () => {
   test("repairs orphaned closure and reminder jobs for an active auction", async () => {
     const t = createSponsorAuctionTestHarness()
-    const { managerId, auctionId } = await seedActiveAuction(t)
+    const { auctionId } = await seedActiveAuction(t)
 
     const previousSchedules = await t.run(async (ctx) => {
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
       await scheduleAuctionClosure(ctx, auction)
-      await syncAuctionActiveReminders(ctx, auction, { reset: true })
+      await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
       const scheduled = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!scheduled?.closureScheduledFunctionId) {
         throw new Error("expected closure schedule")
@@ -115,10 +114,9 @@ describe("repairSchedules", () => {
       }
     })
 
-    const manager = t.withIdentity({ subject: managerId })
-    await manager.mutation(
-      api.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
-      { auctionId }
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+      {}
     )
 
     const repaired = await t.run(async (ctx) => {
@@ -146,12 +144,11 @@ describe("repairSchedules", () => {
 
   test("creates missing reminder rows when activation scheduling was lost", async () => {
     const t = createSponsorAuctionTestHarness()
-    const { managerId, sponsorIds, auctionId } = await seedActiveAuction(t)
+    const { sponsorIds, auctionId } = await seedActiveAuction(t)
 
-    const manager = t.withIdentity({ subject: managerId })
-    await manager.mutation(
-      api.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
-      { auctionId }
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+      {}
     )
 
     const repaired = await t.run(async (ctx) => {
@@ -169,9 +166,61 @@ describe("repairSchedules", () => {
     }
   })
 
-  test("repairs all scheduled and active auctions when auctionId is omitted", async () => {
+  test("replaces schedules that no longer match the auction end", async () => {
     const t = createSponsorAuctionTestHarness()
-    const { managerId, auctionId: activeAuctionId } = await seedActiveAuction(t)
+    const { auctionId } = await seedActiveAuction(t)
+
+    const previous = await t.run(async (ctx) => {
+      const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      if (!auction) throw new Error("auction not found")
+      await scheduleAuctionClosure(ctx, auction)
+      await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
+
+      const scheduledAuction = await ctx.db.get(
+        "sponsorshipAuctions",
+        auctionId
+      )
+      const reminders = await ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+        .collect()
+      const endsAt = auction.endsAt + 30 * 60_000
+      await ctx.db.patch("sponsorshipAuctions", auctionId, { endsAt })
+      return { scheduledAuction, reminders, endsAt }
+    })
+
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+      {}
+    )
+
+    const repaired = await t.run(async (ctx) => {
+      const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      const reminders = await ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+        .collect()
+      return { auction, reminders }
+    })
+
+    expect(repaired.auction?.closureScheduledFunctionId).not.toBe(
+      previous.scheduledAuction?.closureScheduledFunctionId
+    )
+    for (const reminder of repaired.reminders) {
+      const oldReminder = previous.reminders.find(
+        (candidate) => candidate._id === reminder._id
+      )
+      if (!oldReminder) throw new Error("previous reminder not found")
+      expect(reminder.scheduledFor).toBe(previous.endsAt - 60 * 60_000)
+      expect(reminder.scheduledFunctionId).not.toBe(
+        oldReminder.scheduledFunctionId
+      )
+    }
+  })
+
+  test("repairs all open auctions without replacing valid schedules", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const { auctionId: activeAuctionId } = await seedActiveAuction(t)
     const scheduledAuctionId = await t.run(async (ctx) => {
       const auction = await ctx.db.get("sponsorshipAuctions", activeAuctionId)
       if (!auction) throw new Error("auction not found")
@@ -193,22 +242,54 @@ describe("repairSchedules", () => {
       })
     })
 
-    const manager = t.withIdentity({ subject: managerId })
-    await manager.mutation(
-      api.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
       {}
     )
 
-    const repaired = await t.run(async (ctx) => {
+    const firstRepair = await t.run(async (ctx) => {
       const [activeAuction, scheduledAuction] = await Promise.all([
         ctx.db.get("sponsorshipAuctions", activeAuctionId),
         ctx.db.get("sponsorshipAuctions", scheduledAuctionId),
       ])
-      return { activeAuction, scheduledAuction }
+      const reminders = await ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", activeAuctionId))
+        .collect()
+      return { activeAuction, scheduledAuction, reminders }
     })
-    expect(repaired.activeAuction?.closureScheduledFunctionId).toBeDefined()
+    expect(firstRepair.activeAuction?.closureScheduledFunctionId).toBeDefined()
     expect(
-      repaired.scheduledAuction?.activationScheduledFunctionId
+      firstRepair.scheduledAuction?.activationScheduledFunctionId
     ).toBeDefined()
+
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+      {}
+    )
+
+    const secondRepair = await t.run(async (ctx) => {
+      const [activeAuction, scheduledAuction] = await Promise.all([
+        ctx.db.get("sponsorshipAuctions", activeAuctionId),
+        ctx.db.get("sponsorshipAuctions", scheduledAuctionId),
+      ])
+      const reminders = await ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", activeAuctionId))
+        .collect()
+      return { activeAuction, scheduledAuction, reminders }
+    })
+
+    expect(secondRepair.activeAuction?.closureScheduledFunctionId).toBe(
+      firstRepair.activeAuction?.closureScheduledFunctionId
+    )
+    expect(secondRepair.scheduledAuction?.activationScheduledFunctionId).toBe(
+      firstRepair.scheduledAuction?.activationScheduledFunctionId
+    )
+    expect(
+      secondRepair.reminders.map((reminder) => reminder.scheduledFunctionId)
+    ).toEqual(
+      firstRepair.reminders.map((reminder) => reminder.scheduledFunctionId)
+    )
   })
 })
