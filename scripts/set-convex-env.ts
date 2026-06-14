@@ -168,15 +168,16 @@ function updateLocalCliToken(value: string): void {
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2))
-  const generated = await generateEnvValues()
-  const specs = buildWizardEnvSpecs(generated)
 
   if (options.dryRun) {
-    console.log(renderDryRunPlan(specs))
+    console.log(renderDryRunPlan(buildWizardEnvSpecs()))
     console.log("")
     console.log(`Target deployment: ${options.deployment}`)
     return
   }
+
+  const generated = await generateEnvValues()
+  const specs = buildWizardEnvSpecs(generated)
 
   console.log(`Configuring Convex env for deployment "${options.deployment}".`)
   console.log("Existing Convex values will be kept unless you replace them.\n")

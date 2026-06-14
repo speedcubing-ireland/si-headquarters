@@ -214,7 +214,7 @@
 
     "@convex-dev/workpool": ["@convex-dev/workpool@0.4.6", "", { "peerDependencies": { "convex": "^1.31.7", "convex-helpers": "^0.1.94" } }, "sha512-e+cIgQePx5rrGizvzaYocWQCsDFbFlYqR1ZbtFPLa909izwc5GvoasPJPANeFhHRWaA5NBipNVqNtfHySi7Ldw=="],
 
-    "@convex/reactions": ["@convex/reactions@github:get-convex/reactions#33f8cb5", { "peerDependencies": { "convex": "^1.24.8", "react": "^18.3.1 || ^19.0.0" } }, "get-convex-reactions-33f8cb5"],
+    "@convex/reactions": ["@convex/reactions@github:get-convex/reactions#33f8cb5", { "peerDependencies": { "convex": "^1.24.8", "react": "^18.3.1 || ^19.0.0" } }, "get-convex-reactions-33f8cb5", "sha512-k96C2yXpE7zsXKORwaQbX7x6g9XgggtNCR8PlLu5ssOZxbaw5iLjcCVhHnxbFmqSKBnLZSOL7RuslF9uadl3EQ=="],
 
     "@date-fns/tz": ["@date-fns/tz@1.4.1", "", {}, "sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA=="],
 

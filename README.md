@@ -16,7 +16,19 @@ bun run convex dev   # links your Convex deployment
 
 ### Environment
 
-Run the setup wizard for a fresh dev deployment:
+The wizard prompts for credentials interactively, so it helps to know what
+it will ask for before you start. Run it in dry-run mode first to get the full
+list of variables — with a description, input kind, and any default — so you
+can go and gather each credential (OAuth clients, API keys, template IDs, etc.)
+up front rather than discovering them one prompt at a time. It writes nothing
+and prints no secrets:
+
+```sh
+bun run set-convex-env --dry-run
+```
+
+Once you've collected everything on that list, run the wizard for a fresh dev
+deployment:
 
 ```sh
 bun run set-convex-env
@@ -26,6 +38,12 @@ The wizard targets your Convex dev deployment by default, keeps existing
 deployment values unless you choose to replace them, generates local app
 secrets, and writes the generated `CLI_AUTH_TOKEN` to `.env.local` for the
 OAuth helper.
+
+Flags:
+
+- `--dry-run` — print the required variables and their metadata, then exit.
+- `--deployment <ref>` — target a different deployment (default `dev`).
+- `--force` — replace every existing value without prompting.
 
 For another deployment, pass an explicit reference:
 
