@@ -21,82 +21,52 @@ async function cancelScheduledIfPending(
   }
 }
 
-export async function scheduleAuctionActiveReminder(
+async function scheduleAuctionActiveReminder(
   ctx: MutationCtx,
-  reminder: Doc<"sponsorshipAuctionReminders">
+  reminderId: Id<"sponsorshipAuctionReminders">,
+  scheduledFor: number
 ): Promise<void> {
   const scheduledFunctionId = await ctx.scheduler.runAt(
-    Math.max(reminder.scheduledFor, Date.now()),
+    Math.max(scheduledFor, Date.now()),
     internal.plugins.sponsor.admin.auctions.lifecycle._fireReminder,
-    { reminderId: reminder._id }
+    { reminderId }
   )
-  await ctx.db.patch("sponsorshipAuctionReminders", reminder._id, {
+  await ctx.db.patch("sponsorshipAuctionReminders", reminderId, {
+    scheduledFor,
     scheduledFunctionId,
   })
 }
 
-export async function scheduleAuctionActiveRemindersOnActivation(
+async function createAuctionActiveReminder(
   ctx: MutationCtx,
-  auction: Doc<"sponsorshipAuctions">
+  auctionId: Id<"sponsorshipAuctions">,
+  sponsorId: Id<"sponsors">,
+  scheduledFor: number
 ): Promise<void> {
-  const now = Date.now()
-  const scheduledFor = auctionActiveReminderScheduledFor(auction.endsAt)
-  const invites = await ctx.db
-    .query("sponsorshipAuctionInvites")
-    .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-    .collect()
-
-  for (const invite of invites) {
-    const sent = scheduledFor <= now
-    const reminderId = await ctx.db.insert("sponsorshipAuctionReminders", {
-      auctionId: auction._id,
-      sponsorId: invite.sponsorId,
-      scheduledFor,
-      sent,
-    })
-    if (sent) continue
-
-    const reminder = await ctx.db.get("sponsorshipAuctionReminders", reminderId)
-    if (reminder) await scheduleAuctionActiveReminder(ctx, reminder)
+  const sent = scheduledFor <= Date.now()
+  const reminderId = await ctx.db.insert("sponsorshipAuctionReminders", {
+    auctionId,
+    sponsorId,
+    scheduledFor,
+    sent,
+  })
+  if (!sent) {
+    await scheduleAuctionActiveReminder(ctx, reminderId, scheduledFor)
   }
 }
 
-/** Re-align pending 1-hour reminders when `endsAt` moves (e.g. anti-sniping extension). */
-export async function syncActiveRemindersToAuctionEnd(
+async function rescheduleAuctionActiveReminder(
   ctx: MutationCtx,
-  auction: Doc<"sponsorshipAuctions">
+  reminder: Doc<"sponsorshipAuctionReminders">,
+  scheduledFor: number
 ): Promise<void> {
-  if (auction.state !== "active") return
-
-  const now = Date.now()
-  const scheduledFor = auctionActiveReminderScheduledFor(auction.endsAt)
-  const reminders = await ctx.db
-    .query("sponsorshipAuctionReminders")
-    .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-    .collect()
-
-  for (const reminder of reminders) {
-    if (reminder.sent) continue
-
-    if (scheduledFor <= now) {
-      await cancelScheduledIfPending(ctx, reminder.scheduledFunctionId)
-      await markReminderSkipped(ctx, reminder._id)
-      continue
-    }
-
-    if (reminder.scheduledFor === scheduledFor) continue
-
-    await cancelScheduledIfPending(ctx, reminder.scheduledFunctionId)
-    await ctx.db.patch("sponsorshipAuctionReminders", reminder._id, {
-      scheduledFor,
-      scheduledFunctionId: undefined,
-    })
-    const updated = await ctx.db.get(
-      "sponsorshipAuctionReminders",
-      reminder._id
-    )
-    if (updated) await scheduleAuctionActiveReminder(ctx, updated)
+  await cancelScheduledIfPending(ctx, reminder.scheduledFunctionId)
+  if (scheduledFor <= Date.now()) {
+    await markReminderSkipped(ctx, reminder._id)
+    return
   }
+
+  await scheduleAuctionActiveReminder(ctx, reminder._id, scheduledFor)
 }
 
 export async function markReminderSent(
@@ -114,4 +84,56 @@ export async function markReminderSkipped(
   reminderId: Id<"sponsorshipAuctionReminders">
 ): Promise<void> {
   await ctx.db.patch("sponsorshipAuctionReminders", reminderId, { sent: true })
+}
+
+/** Keep active-auction reminder rows and scheduled jobs aligned with `endsAt`. */
+export async function syncAuctionActiveReminders(
+  ctx: MutationCtx,
+  auction: Doc<"sponsorshipAuctions">,
+  options: { reset?: boolean } = {}
+): Promise<void> {
+  if (auction.state !== "active") return
+
+  const reset = options.reset ?? false
+  const scheduledFor = auctionActiveReminderScheduledFor(auction.endsAt)
+  const [reminders, invites] = await Promise.all([
+    ctx.db
+      .query("sponsorshipAuctionReminders")
+      .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
+      .collect(),
+    reset
+      ? ctx.db
+          .query("sponsorshipAuctionInvites")
+          .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
+          .collect()
+      : [],
+  ])
+
+  if (reset) {
+    const sponsorsWithReminders = new Set(
+      reminders.map((reminder) => reminder.sponsorId)
+    )
+    for (const invite of invites) {
+      if (!sponsorsWithReminders.has(invite.sponsorId)) {
+        await createAuctionActiveReminder(
+          ctx,
+          auction._id,
+          invite.sponsorId,
+          scheduledFor
+        )
+      }
+    }
+  }
+
+  for (const reminder of reminders) {
+    if (reminder.sent) continue
+    if (
+      !reset &&
+      scheduledFor > Date.now() &&
+      reminder.scheduledFor === scheduledFor
+    ) {
+      continue
+    }
+    await rescheduleAuctionActiveReminder(ctx, reminder, scheduledFor)
+  }
 }

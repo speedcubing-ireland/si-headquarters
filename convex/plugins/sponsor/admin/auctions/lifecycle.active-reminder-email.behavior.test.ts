@@ -7,7 +7,7 @@ import {
   createSponsorAuctionTestHarness,
   type SponsorAuctionTestHarness,
 } from "@/convex/plugins/sponsor/testing/auctionTestHarness.testSupport"
-import { scheduleAuctionActiveRemindersOnActivation } from "./reminders"
+import { syncAuctionActiveReminders } from "./reminders"
 
 async function firePendingRemindersForAuction(
   t: SponsorAuctionTestHarness,
@@ -143,7 +143,7 @@ describe("auction active reminder email behavior", () => {
       })
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
-      await scheduleAuctionActiveRemindersOnActivation(ctx, auction)
+      await syncAuctionActiveReminders(ctx, auction, { reset: true })
     })
 
     const reminders = await t.run(async (ctx) => {
@@ -165,6 +165,48 @@ describe("auction active reminder email behavior", () => {
       expect(reminder.sent).toBe(false)
       expect(reminder.scheduledFor).toBe(expectedScheduledFor)
       expect(reminder.sentAt).toBeUndefined()
+    }
+  })
+
+  test("extending an auction reschedules pending reminders", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const { auctionId } = await seedScheduledAuction(t)
+
+    const previous = await t.run(async (ctx) => {
+      await ctx.db.patch("sponsorshipAuctions", auctionId, { state: "active" })
+      const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      if (!auction) throw new Error("auction not found")
+      await syncAuctionActiveReminders(ctx, auction, { reset: true })
+      return ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+        .collect()
+    })
+
+    const extension = 30 * 60_000
+    const updated = await t.run(async (ctx) => {
+      const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      if (!auction) throw new Error("auction not found")
+      await ctx.db.patch("sponsorshipAuctions", auctionId, {
+        endsAt: auction.endsAt + extension,
+      })
+      const extendedAuction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      if (!extendedAuction) throw new Error("auction not found")
+      await syncAuctionActiveReminders(ctx, extendedAuction)
+      return ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction", (q) => q.eq("auctionId", auctionId))
+        .collect()
+    })
+
+    for (const reminder of updated) {
+      const oldReminder = previous.find(({ _id }) => _id === reminder._id)
+      if (!oldReminder) throw new Error("previous reminder not found")
+      expect(reminder.scheduledFor).toBe(oldReminder.scheduledFor + extension)
+      expect(reminder.scheduledFunctionId).toBeDefined()
+      expect(reminder.scheduledFunctionId).not.toBe(
+        oldReminder.scheduledFunctionId
+      )
     }
   })
 
@@ -340,7 +382,7 @@ describe("auction active reminder email behavior", () => {
       })
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
-      await scheduleAuctionActiveRemindersOnActivation(ctx, auction)
+      await syncAuctionActiveReminders(ctx, auction, { reset: true })
     })
 
     const rows = await t.run((ctx) =>
