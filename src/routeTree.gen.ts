@@ -29,7 +29,6 @@ import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-
 import { Route as InviteOrganiserRouteImport } from './routes/invite/organiser'
 import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
-import { Route as AdminImpersonationRouteImport } from './routes/admin/impersonation'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
 import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
 import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
@@ -134,11 +133,6 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   path: '/competitions/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminImpersonationRoute = AdminImpersonationRouteImport.update({
-  id: '/admin/impersonation',
-  path: '/admin/impersonation',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SponsorAuctionsAuctionIdRoute =
   SponsorAuctionsAuctionIdRouteImport.update({
     id: '/$auctionId',
@@ -159,7 +153,6 @@ const TeamsTeamIdProjectsIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
   '/invite/organiser': typeof InviteOrganiserRoute
@@ -185,7 +178,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
   '/invite/organiser': typeof InviteOrganiserRoute
@@ -212,7 +204,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
   '/invite/organiser': typeof InviteOrganiserRoute
@@ -240,7 +231,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
     | '/invite/organiser'
@@ -266,7 +256,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
     | '/invite/organiser'
@@ -292,7 +281,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
     | '/invite/organiser'
@@ -319,7 +307,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminImpersonationRoute: typeof AdminImpersonationRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   ImpersonateUserRoute: typeof ImpersonateUserRoute
   InviteOrganiserRoute: typeof InviteOrganiserRoute
@@ -485,13 +472,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/impersonation': {
-      id: '/admin/impersonation'
-      path: '/admin/impersonation'
-      fullPath: '/admin/impersonation'
-      preLoaderRoute: typeof AdminImpersonationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sponsor/auctions/$auctionId': {
       id: '/sponsor/auctions/$auctionId'
       path: '/$auctionId'
@@ -530,7 +510,6 @@ const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminImpersonationRoute: AdminImpersonationRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   ImpersonateUserRoute: ImpersonateUserRoute,
   InviteOrganiserRoute: InviteOrganiserRoute,
