@@ -1,8 +1,4 @@
-import {
-  Link,
-  Outlet,
-  useRouterState,
-} from "@tanstack/react-router"
+import { Link, Outlet, useRouterState } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { ArrowRight, BookOpen, LogOut, Settings } from "lucide-react"

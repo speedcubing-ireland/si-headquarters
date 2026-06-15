@@ -61,8 +61,7 @@ export function AuthCallbackPage({
   redeem: (credential: string) => Promise<void>
 }) {
   const [error, setError] = useState<string | null>(null)
-  const credentialError =
-    credential === undefined ? missingMessage : null
+  const credentialError = credential === undefined ? missingMessage : null
 
   const redeemRef = useRef(redeem)
   useEffect(() => {
@@ -89,9 +88,7 @@ export function AuthCallbackPage({
         if (cancelledRef.current) {
           return
         }
-        setError(
-          caught instanceof Error ? caught.message : defaultErrorMessage
-        )
+        setError(caught instanceof Error ? caught.message : defaultErrorMessage)
       }
     })()
 

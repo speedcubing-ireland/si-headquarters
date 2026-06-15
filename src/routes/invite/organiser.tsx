@@ -20,7 +20,10 @@ function InviteLanding({ token }: { token: string }) {
 
   if (context === undefined) {
     return (
-      <PublicAuthMessage title="Organiser invite" message="Checking invite..." />
+      <PublicAuthMessage
+        title="Organiser invite"
+        message="Checking invite..."
+      />
     )
   }
   if (context === null) {
