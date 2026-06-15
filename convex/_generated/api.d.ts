@@ -149,6 +149,7 @@ import type * as plugins_sponsor_emails_auction_ebay_outbid from "../plugins/spo
 import type * as plugins_sponsor_emails_auction_scheduled from "../plugins/sponsor/emails/auction_scheduled.js";
 import type * as plugins_sponsor_emails_auction_started from "../plugins/sponsor/emails/auction_started.js";
 import type * as plugins_sponsor_emails_copy from "../plugins/sponsor/emails/copy.js";
+import type * as plugins_sponsor_emails_dedup from "../plugins/sponsor/emails/dedup.js";
 import type * as plugins_sponsor_emails_fixtures from "../plugins/sponsor/emails/fixtures.js";
 import type * as plugins_sponsor_emails_index from "../plugins/sponsor/emails/index.js";
 import type * as plugins_sponsor_emails_internal_invoice_no_winner from "../plugins/sponsor/emails/internal_invoice_no_winner.js";
@@ -427,6 +428,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/emails/auction_scheduled": typeof plugins_sponsor_emails_auction_scheduled;
   "plugins/sponsor/emails/auction_started": typeof plugins_sponsor_emails_auction_started;
   "plugins/sponsor/emails/copy": typeof plugins_sponsor_emails_copy;
+  "plugins/sponsor/emails/dedup": typeof plugins_sponsor_emails_dedup;
   "plugins/sponsor/emails/fixtures": typeof plugins_sponsor_emails_fixtures;
   "plugins/sponsor/emails/index": typeof plugins_sponsor_emails_index;
   "plugins/sponsor/emails/internal_invoice_no_winner": typeof plugins_sponsor_emails_internal_invoice_no_winner;

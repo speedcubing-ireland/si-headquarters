@@ -14,11 +14,14 @@ const emptyBidState = {
   currentLeaderMaxCents: undefined,
 } as const
 
-const emptyOutcome = {
-  winnerSponsorId: undefined,
-  winningBidId: undefined,
-  settlementAmountCents: undefined,
-} as const
+export type AuctionOutcome =
+  | { kind: "no_winner" }
+  | {
+      kind: "winner"
+      winnerSponsorId: Id<"sponsors">
+      winningBidId: Id<"sponsorshipBidIntents">
+      settlementAmountCents: number
+    }
 
 export function compareBidIntentChronology(a: IntentDoc, b: IntentDoc): number {
   if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt
@@ -165,50 +168,39 @@ export function resolveAuctionBidState(args: {
 export function resolveAuctionOutcome(args: {
   auction: AuctionDoc
   validIntents: IntentDoc[]
-}): Pick<
-  AuctionDoc,
-  "winnerSponsorId" | "winningBidId" | "settlementAmountCents"
-> {
+}): AuctionOutcome {
   if (args.validIntents.length === 0) {
-    return { ...emptyOutcome }
+    return { kind: "no_winner" }
   }
 
   if (!isProxyAuctionFramework(args.auction.framework)) {
     const sealed = resolveSealedLeader(args.auction, args.validIntents)
-    if (!sealed) return { ...emptyOutcome }
+    if (!sealed) return { kind: "no_winner" }
 
     return {
+      kind: "winner",
       winnerSponsorId: sealed.leaderIntent.sponsorId,
       winningBidId: sealed.leaderIntent._id,
       settlementAmountCents: sealed.sealedState.settlementBidCents,
     }
   }
 
-  const latestIntentBySponsor = latestBidIntentBySponsor(args.validIntents)
-  const currentLeaderIntent = args.auction.currentLeaderSponsorId
-    ? latestIntentBySponsor.get(args.auction.currentLeaderSponsorId)
-    : undefined
+  const state = resolveProxyState(
+    buildProxyContenders(args.validIntents),
+    args.auction.startPriceCents
+  )
+  if (!state) return { kind: "no_winner" }
 
-  let winnerSponsorId = currentLeaderIntent?.sponsorId
-  let settlementAmountCents = winnerSponsorId
-    ? (args.auction.currentPriceCents ?? args.auction.startPriceCents)
-    : undefined
-
-  if (!winnerSponsorId) {
-    const state = resolveProxyState(
-      buildProxyContenders(args.validIntents),
-      args.auction.startPriceCents
-    )
-    winnerSponsorId = state?.leaderSponsorId
-    settlementAmountCents = state?.currentPriceCents
+  const winnerIntent = latestBidIntentBySponsor(args.validIntents).get(
+    state.leaderSponsorId
+  )
+  if (!winnerIntent) {
+    throw new Error("Proxy auction winner is missing its winning bid intent.")
   }
-
-  const winnerIntent = winnerSponsorId
-    ? latestIntentBySponsor.get(winnerSponsorId)
-    : undefined
   return {
-    winnerSponsorId,
-    winningBidId: winnerIntent?._id,
-    settlementAmountCents,
+    kind: "winner",
+    winnerSponsorId: state.leaderSponsorId,
+    winningBidId: winnerIntent._id,
+    settlementAmountCents: state.currentPriceCents,
   }
 }

@@ -68,24 +68,16 @@ async function seedProxyAuction(t: SponsorAuctionTestHarness): Promise<{
 
 async function getOutbidScheduledEmails(
   t: SponsorAuctionTestHarness
-): Promise<{ emailType: string; recipients: unknown[]; context: unknown }[]> {
+): Promise<{ emailType: string; sponsorId?: string; context: unknown }[]> {
   return t.run(async (ctx) => {
-    const all = await ctx.db.system.query("_scheduled_functions").collect()
+    const all = await ctx.db.query("sponsorshipEmailDispatches").collect()
     return all
-      .filter((fn) => fn.name.includes("sendSponsorshipEmailBatch"))
-      .map((fn) => {
-        const args = (fn.args as unknown[])[0] as {
-          emailType: string
-          recipients: unknown[]
-          context: unknown
-        }
-        return {
-          emailType: args.emailType,
-          recipients: args.recipients,
-          context: args.context,
-        }
-      })
-      .filter((e) => e.emailType === "auction_ebay_outbid")
+      .filter((dispatch) => dispatch.emailType === "auction_ebay_outbid")
+      .map((dispatch) => ({
+        emailType: dispatch.emailType,
+        sponsorId: dispatch.sponsorId,
+        context: dispatch.context,
+      }))
   })
 }
 
@@ -117,9 +109,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
 
     const emails = await getOutbidScheduledEmails(t)
     expect(emails).toHaveLength(1)
-    const recipients = emails[0].recipients as { sponsorId: string }[]
-    expect(recipients).toHaveLength(1)
-    expect(recipients[0].sponsorId).toBe(sponsorAId)
+    expect(emails[0].sponsorId).toBe(sponsorAId)
   })
 
   test("throttle window — second outbid within 10 min does not enqueue another email", async () => {
@@ -177,9 +167,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
 
     const emails = await getOutbidScheduledEmails(t)
     expect(emails).toHaveLength(2)
-    const recipientIds = emails.flatMap((e) =>
-      (e.recipients as { sponsorId: string }[]).map((r) => r.sponsorId)
-    )
+    const recipientIds = emails.map((e) => e.sponsorId)
     expect(recipientIds).toContain(sponsorAId)
     expect(recipientIds).toContain(sponsorBId)
   })
@@ -257,20 +245,16 @@ describe("sendEbayAuctionOutbidEmail", () => {
     })
 
     await t.run(async (ctx) => {
-      const all = await ctx.db.system.query("_scheduled_functions").collect()
-      const batch = all
-        .filter((fn) => fn.name.includes("sendSponsorshipEmailBatch"))
-        .find((fn) => {
-          const args = (fn.args as unknown[])[0] as { emailType: string }
-          return args.emailType === "auction_ebay_outbid"
-        })
-      expect(batch).toBeDefined()
-      if (batch === undefined) {
-        throw new Error("expected sendSponsorshipEmailBatch call")
+      const all = await ctx.db.query("sponsorshipEmailDispatches").collect()
+      const dispatch = all.find(
+        (row) => row.emailType === "auction_ebay_outbid"
+      )
+      expect(dispatch).toBeDefined()
+      if (dispatch === undefined) {
+        throw new Error("expected auction_ebay_outbid dispatch")
       }
-      const args = (batch.args as unknown[])[0] as { subject: string }
-      expect(args.subject).toContain("Irish Open 2026")
-      expect(args.subject).toContain("outbid")
+      expect(dispatch.subject).toContain("Irish Open 2026")
+      expect(dispatch.subject).toContain("outbid")
     })
   })
 })

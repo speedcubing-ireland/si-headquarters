@@ -88,6 +88,7 @@ export const sponsorshipEmailRecipient = v.object({
   email: v.string(),
   name: v.optional(v.string()),
   cc: v.optional(v.array(v.string())),
+  dedupKey: v.optional(v.string()),
 })
 
 export type SponsorshipEmailRecipient = Infer<typeof sponsorshipEmailRecipient>

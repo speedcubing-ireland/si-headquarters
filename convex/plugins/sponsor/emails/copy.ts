@@ -402,9 +402,14 @@ export function sponsorshipEmailMessageFallback(
     case "auction_closed_none":
       return "This sponsorship auction closed without a winning bid."
     case "internal_invoice":
-      return ctx.winnerSponsorName !== undefined
-        ? `Winner confirmed: ${ctx.winnerSponsorName} at ${formatMoney(ctx.settlementAmountCents ?? 0)}. Send invoice follow-up.`
-        : "No winning sponsor. Mark competition sponsorship status as None or relaunch."
+      if (ctx.winnerSponsorName !== undefined) {
+        const amount =
+          ctx.settlementAmountCents !== undefined
+            ? ` at ${formatMoney(ctx.settlementAmountCents)}`
+            : ""
+        return `Winner confirmed: ${ctx.winnerSponsorName}${amount}. Send invoice follow-up.`
+      }
+      return "No winning sponsor. Mark competition sponsorship status as None or relaunch."
   }
 }
 

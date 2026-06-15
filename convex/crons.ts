@@ -17,4 +17,11 @@ crons.cron(
   {}
 )
 
+crons.cron(
+  "sponsor auction schedule + email repair",
+  "*/15 * * * *",
+  internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+  {}
+)
+
 export default crons

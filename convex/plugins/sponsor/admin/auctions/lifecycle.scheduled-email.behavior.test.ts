@@ -84,24 +84,12 @@ async function seedScheduledAuction(t: SponsorAuctionTestHarness): Promise<{
   })
 }
 
-/**
- * Helper: collect all pending scheduled functions and extract their args.
- * Email batches schedule `sendSponsorshipEmailBatch` via runAfter(0, …).
- */
 async function getScheduledEmailArgs(
   t: SponsorAuctionTestHarness
-): Promise<{ emailType: string; recipients: unknown[] }[]> {
+): Promise<{ emailType: string }[]> {
   return t.run(async (ctx) => {
-    const all = await ctx.db.system.query("_scheduled_functions").collect()
-    return all
-      .filter((fn) => fn.name.includes("sendSponsorshipEmailBatch"))
-      .map((fn) => {
-        const args = (fn.args as unknown[])[0] as {
-          emailType: string
-          recipients: unknown[]
-        }
-        return { emailType: args.emailType, recipients: args.recipients }
-      })
+    const all = await ctx.db.query("sponsorshipEmailDispatches").collect()
+    return all.map((dispatch) => ({ emailType: dispatch.emailType }))
   })
 }
 
@@ -131,8 +119,7 @@ describe("auction scheduled email behavior", () => {
 
     const emails = await getScheduledEmailArgs(t)
     const scheduled = emails.filter((e) => e.emailType === "auction_scheduled")
-    expect(scheduled).toHaveLength(1)
-    expect(scheduled[0].recipients).toHaveLength(2)
+    expect(scheduled).toHaveLength(2)
 
     const activationCheck = await t.run(async (ctx) => {
       const auctionRow = await ctx.db.get("sponsorshipAuctions", auctionId)
@@ -174,8 +161,7 @@ describe("auction scheduled email behavior", () => {
     const scheduled = emails.filter((e) => e.emailType === "auction_scheduled")
     const started = emails.filter((e) => e.emailType === "auction_started")
     expect(scheduled).toHaveLength(0)
-    expect(started).toHaveLength(1)
-    expect(started[0].recipients).toHaveLength(2)
+    expect(started).toHaveLength(2)
   }, 10_000)
 
   test("_activateAuction sends auction_started but not auction_scheduled", async () => {
@@ -205,6 +191,6 @@ describe("auction scheduled email behavior", () => {
     const scheduled = emails.filter((e) => e.emailType === "auction_scheduled")
     const started = emails.filter((e) => e.emailType === "auction_started")
     expect(scheduled).toHaveLength(0)
-    expect(started).toHaveLength(1)
+    expect(started).toHaveLength(2)
   }, 10_000)
 })

@@ -199,6 +199,12 @@ function makeProxyPortalCtx(input: {
 }) {
   const intents: IntentDoc[] = input.leaderIntent ? [input.leaderIntent] : []
   const patches: Partial<AuctionDoc>[] = []
+  const dispatches: {
+    dedupKey: string
+    emailType: string
+    sponsorId?: string
+    context?: { endsAt?: number }
+  }[] = []
   const scheduledCalls: {
     delayMs?: number
     scheduledTime?: number
@@ -312,6 +318,27 @@ function makeProxyPortalCtx(input: {
             }),
           }
         }
+        if (table === "sponsorshipEmailDispatches") {
+          return {
+            withIndex: (
+              _index: string,
+              indexFn: (q: {
+                eq: (field: string, value: string) => void
+              }) => void
+            ) => {
+              const eqState = { value: "" }
+              indexFn({
+                eq: (_field: string, value: string) => {
+                  eqState.value = value
+                },
+              })
+              return {
+                first: async () =>
+                  dispatches.find((d) => d.dedupKey === eqState.value) ?? null,
+              }
+            },
+          }
+        }
         throw new Error(`Unexpected query table: ${table}`)
       },
       get: async (table: string, id: string) => {
@@ -381,6 +408,15 @@ function makeProxyPortalCtx(input: {
         if (table === "sponsorshipBidEvents") {
           return "event-1" as Id<"sponsorshipBidEvents">
         }
+        if (table === "sponsorshipEmailDispatches") {
+          dispatches.push({
+            dedupKey: value.dedupKey as string,
+            emailType: value.emailType as string,
+            sponsorId: value.sponsorId as string | undefined,
+            context: value.context as { endsAt?: number } | undefined,
+          })
+          return `dispatch-${String(dispatches.length)}` as Id<"sponsorshipEmailDispatches">
+        }
         throw new Error(`Unexpected insert table: ${table}`)
       },
       patch: async (table: string, _id: string, patch: Partial<AuctionDoc>) => {
@@ -403,7 +439,7 @@ function makeProxyPortalCtx(input: {
     },
   } as unknown as MutationCtx
 
-  return { ctx, patches, scheduledCalls, sponsorId }
+  return { ctx, patches, scheduledCalls, dispatches, sponsorId }
 }
 
 describe("sponsor portal auction mutations", () => {
@@ -507,7 +543,7 @@ describe("proxy bid outbid email with anti-sniping", () => {
       antiSnipingExtendMs,
     })
 
-    const { ctx, scheduledCalls } = makeProxyPortalCtx({
+    const { ctx, scheduledCalls, dispatches } = makeProxyPortalCtx({
       auction,
       leaderSponsorId,
       competitionName: "Irish Open 2026",
@@ -532,17 +568,14 @@ describe("proxy bid outbid email with anti-sniping", () => {
 
     expect(result.extendedEndsAt).toBe(originalEndsAt + antiSnipingExtendMs)
 
-    const outbidEmail = scheduledCalls.find((call) => {
-      const args = call.args as { emailType?: string }
-      return args.emailType === "auction_ebay_outbid"
-    })
+    const outbidEmail = dispatches.find(
+      (d) => d.emailType === "auction_ebay_outbid"
+    )
     expect(outbidEmail).toBeDefined()
-    const emailArgs = outbidEmail?.args as {
-      context: { endsAt: number }
-      recipients: { sponsorId: string }[]
-    }
-    expect(emailArgs.context.endsAt).toBe(originalEndsAt + antiSnipingExtendMs)
-    expect(emailArgs.recipients[0]?.sponsorId).toBe(leaderSponsorId)
+    expect(outbidEmail?.context?.endsAt).toBe(
+      originalEndsAt + antiSnipingExtendMs
+    )
+    expect(outbidEmail?.sponsorId).toBe(leaderSponsorId)
 
     const closureJob = scheduledCalls.find((call) => {
       const args = call.args as { auctionId?: string }
@@ -568,7 +601,7 @@ describe("proxy bid outbid email with anti-sniping", () => {
       antiSnipingExtendMs: 5 * 60_000,
     })
 
-    const { ctx, scheduledCalls } = makeProxyPortalCtx({
+    const { ctx, dispatches } = makeProxyPortalCtx({
       auction,
       leaderSponsorId,
       leaderIntent: {
@@ -592,13 +625,11 @@ describe("proxy bid outbid email with anti-sniping", () => {
 
     expect(result.extendedEndsAt).toBeUndefined()
 
-    const outbidEmail = scheduledCalls.find((call) => {
-      const args = call.args as { emailType?: string }
-      return args.emailType === "auction_ebay_outbid"
-    })
+    const outbidEmail = dispatches.find(
+      (d) => d.emailType === "auction_ebay_outbid"
+    )
     expect(outbidEmail).toBeDefined()
-    const emailArgs = outbidEmail?.args as { context: { endsAt: number } }
-    expect(emailArgs.context.endsAt).toBe(originalEndsAt)
+    expect(outbidEmail?.context?.endsAt).toBe(originalEndsAt)
   })
 
   test("placeBid loses to incumbent automatic proxy — outbid email goes to challenger", async () => {
@@ -618,7 +649,7 @@ describe("proxy bid outbid email with anti-sniping", () => {
       antiSnipingExtendMs: 5 * 60_000,
     })
 
-    const { ctx, scheduledCalls, sponsorId } = makeProxyPortalCtx({
+    const { ctx, dispatches, sponsorId } = makeProxyPortalCtx({
       auction,
       leaderSponsorId,
       leaderIntent: {
@@ -640,15 +671,11 @@ describe("proxy bid outbid email with anti-sniping", () => {
       amountCents: 2000,
     })
 
-    const outbidEmail = scheduledCalls.find((call) => {
-      const args = call.args as { emailType?: string }
-      return args.emailType === "auction_ebay_outbid"
-    })
+    const outbidEmail = dispatches.find(
+      (d) => d.emailType === "auction_ebay_outbid"
+    )
     expect(outbidEmail).toBeDefined()
-    const emailArgs = outbidEmail?.args as {
-      recipients: { sponsorId: string }[]
-    }
-    expect(emailArgs.recipients[0]?.sponsorId).toBe(sponsorId)
+    expect(outbidEmail?.sponsorId).toBe(sponsorId)
   })
 })
 

@@ -83,6 +83,26 @@ async function seedActiveAuction(t: SponsorAuctionTestHarness): Promise<{
   })
 }
 
+async function getScheduledDispatchIds(
+  t: SponsorAuctionTestHarness
+): Promise<Id<"sponsorshipEmailDispatches">[]> {
+  return await t.run(async (ctx) => {
+    const scheduled = await ctx.db.system
+      .query("_scheduled_functions")
+      .collect()
+    return scheduled
+      .filter((entry) =>
+        entry.name.includes("processSponsorshipEmailDispatches")
+      )
+      .flatMap((entry) => {
+        const [args] = entry.args as [
+          { dispatchIds?: Id<"sponsorshipEmailDispatches">[] },
+        ]
+        return args.dispatchIds ?? []
+      })
+  })
+}
+
 describe("repairSchedules", () => {
   test("repairs orphaned closure and reminder jobs for an active auction", async () => {
     const t = createSponsorAuctionTestHarness()
@@ -291,5 +311,90 @@ describe("repairSchedules", () => {
     ).toEqual(
       firstRepair.reminders.map((reminder) => reminder.scheduledFunctionId)
     )
+  })
+
+  test("re-drives due pending email dispatch rows", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const dispatchId = await t.run(async (ctx) => {
+      const now = Date.now()
+      return await ctx.db.insert("sponsorshipEmailDispatches", {
+        dedupKey: "repair-pending",
+        emailType: "invite",
+        recipientEmail: "sponsor@example.com",
+        subject: "Sponsor portal access",
+        message: "Open the portal",
+        status: "pending",
+        attempts: 0,
+        createdAt: now - 10 * 60_000,
+        nextAttemptAt: now - 1_000,
+      })
+    })
+
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+      {}
+    )
+
+    await expect(getScheduledDispatchIds(t)).resolves.toContain(dispatchId)
+  })
+
+  test("does not re-drive pending dispatch rows before nextAttemptAt", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const dispatchId = await t.run(async (ctx) => {
+      const now = Date.now()
+      return await ctx.db.insert("sponsorshipEmailDispatches", {
+        dedupKey: "repair-future",
+        emailType: "invite",
+        recipientEmail: "sponsor@example.com",
+        subject: "Sponsor portal access",
+        message: "Open the portal",
+        status: "pending",
+        attempts: 0,
+        createdAt: now - 10 * 60_000,
+        nextAttemptAt: now + 60_000,
+      })
+    })
+
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+      {}
+    )
+
+    await expect(getScheduledDispatchIds(t)).resolves.not.toContain(dispatchId)
+  })
+
+  test("releases stale processing email dispatch rows", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const dispatchId = await t.run(async (ctx) => {
+      const now = Date.now()
+      return await ctx.db.insert("sponsorshipEmailDispatches", {
+        dedupKey: "repair-processing",
+        emailType: "invite",
+        recipientEmail: "sponsor@example.com",
+        subject: "Sponsor portal access",
+        message: "Open the portal",
+        status: "processing",
+        attempts: 0,
+        createdAt: now - 20 * 60_000,
+        processingStartedAt: now - 11 * 60_000,
+      })
+    })
+
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,
+      {}
+    )
+
+    const repaired = await t.run(async (ctx) => {
+      return await ctx.db.get("sponsorshipEmailDispatches", dispatchId)
+    })
+    expect(repaired).toMatchObject({
+      status: "pending",
+      attempts: 1,
+      lastError: "Processing lease expired before delivery completed.",
+    })
+    expect(repaired?.processingStartedAt).toBeUndefined()
+    expect(repaired?.nextAttemptAt).toBeTypeOf("number")
+    await expect(getScheduledDispatchIds(t)).resolves.toContain(dispatchId)
   })
 })

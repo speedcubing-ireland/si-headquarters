@@ -6,6 +6,8 @@ import {
   competitionSponsorOverrideFields,
   sponsorshipAuctionFramework,
   sponsorshipBidIntentMode,
+  sponsorshipEmailContext,
+  sponsorshipEmailType,
 } from "@/convex/plugins/sponsor/lib/validators"
 
 export const sponsorTables = {
@@ -82,6 +84,43 @@ export const sponsorTables = {
     sponsorId: v.id("sponsors"),
     sentAt: v.number(),
   }).index("by_auction_and_sponsor", ["auctionId", "sponsorId"]),
+
+  sponsorshipEmailDispatches: defineTable({
+    dedupKey: v.string(),
+    emailType: sponsorshipEmailType,
+    recipientEmail: v.string(),
+    recipientName: v.optional(v.string()),
+    cc: v.optional(v.array(v.string())),
+    subject: v.string(),
+    message: v.string(),
+    context: v.optional(sponsorshipEmailContext),
+    auctionId: v.optional(v.id("sponsorshipAuctions")),
+    sponsorId: v.optional(v.id("sponsors")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("sent"),
+      v.literal("skipped"),
+      v.literal("failed")
+    ),
+    emailId: v.optional(v.string()),
+    attempts: v.number(),
+    createdAt: v.number(),
+    nextAttemptAt: v.optional(v.number()),
+    lastAttemptAt: v.optional(v.number()),
+    processingStartedAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    sentAt: v.optional(v.number()),
+    failedAt: v.optional(v.number()),
+  })
+    .index("by_dedup_key", ["dedupKey"])
+    .index("by_status_and_created", ["status", "createdAt"])
+    .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])
+    .index("by_status_and_processing_started", [
+      "status",
+      "processingStartedAt",
+    ])
+    .index("by_auction", ["auctionId"]),
 
   sponsorshipBidIntents: defineTable({
     auctionId: v.id("sponsorshipAuctions"),

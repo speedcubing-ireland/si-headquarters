@@ -108,18 +108,13 @@ async function seedScheduledAuction(t: SponsorAuctionTestHarness): Promise<{
 
 async function getScheduledEmailArgs(
   t: SponsorAuctionTestHarness
-): Promise<{ emailType: string; recipients: unknown[] }[]> {
+): Promise<{ emailType: string; sponsorId?: string }[]> {
   return t.run(async (ctx) => {
-    const all = await ctx.db.system.query("_scheduled_functions").collect()
-    return all
-      .filter((fn) => fn.name.includes("sendSponsorshipEmailBatch"))
-      .map((fn) => {
-        const args = (fn.args as unknown[])[0] as {
-          emailType: string
-          recipients: unknown[]
-        }
-        return { emailType: args.emailType, recipients: args.recipients }
-      })
+    const all = await ctx.db.query("sponsorshipEmailDispatches").collect()
+    return all.map((dispatch) => ({
+      emailType: dispatch.emailType,
+      sponsorId: dispatch.sponsorId,
+    }))
   })
 }
 
@@ -781,30 +776,19 @@ describe("auction active reminder email behavior", () => {
     await firePendingRemindersForAuction(t, auctionId)
 
     const batchArgs = await t.run(async (ctx) => {
-      const all = await ctx.db.system.query("_scheduled_functions").collect()
+      const all = await ctx.db.query("sponsorshipEmailDispatches").collect()
       return all
-        .filter((fn) => fn.name.includes("sendSponsorshipEmailBatch"))
-        .filter((fn) => {
-          const args = (fn.args as unknown[])[0] as { emailType: string }
-          return args.emailType === "auction_active_reminder"
-        })
-        .map((fn) => {
-          return (fn.args as unknown[])[0] as {
-            emailType: string
-            recipients: { sponsorId: string }[]
-            context: { sponsorHasBid: boolean }
-          }
-        })
+        .filter((dispatch) => dispatch.emailType === "auction_active_reminder")
+        .map((dispatch) => ({
+          sponsorId: dispatch.sponsorId,
+          context: dispatch.context as { sponsorHasBid?: boolean } | undefined,
+        }))
     })
 
     expect(batchArgs).toHaveLength(2)
-    const sponsorAArgs = batchArgs.find(
-      (b) => b.recipients[0].sponsorId === sponsorA
-    )
-    const sponsorBArgs = batchArgs.find(
-      (b) => b.recipients[0].sponsorId === sponsorB
-    )
-    expect(sponsorAArgs?.context.sponsorHasBid).toBe(true)
-    expect(sponsorBArgs?.context.sponsorHasBid).toBe(false)
+    const sponsorAArgs = batchArgs.find((b) => b.sponsorId === sponsorA)
+    const sponsorBArgs = batchArgs.find((b) => b.sponsorId === sponsorB)
+    expect(sponsorAArgs?.context?.sponsorHasBid).toBe(true)
+    expect(sponsorBArgs?.context?.sponsorHasBid).toBe(false)
   })
 })

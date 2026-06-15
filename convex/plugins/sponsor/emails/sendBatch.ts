@@ -1,71 +1,62 @@
 "use node"
 
-import { ConvexError, v } from "convex/values"
+import { v } from "convex/values"
+import { internal } from "@/convex/_generated/api"
 import { internalAction } from "@/convex/_generated/server"
-import { resend } from "@/convex/sendEmails"
-import { getSponsorshipSenderAddress } from "@/convex/plugins/sponsor/emails/sender"
 import {
   buildSponsorshipEmailHtml,
   buildSponsorshipEmailPlainText,
 } from "@/convex/plugins/sponsor/emails/render"
-import {
-  scheduleSponsorshipEmailBatchArgs,
-  type ScheduleSponsorshipEmailBatchArgs,
-} from "@/convex/plugins/sponsor/lib/validators"
-import { normalizeEmail } from "@/convex/plugins/sponsor/sanitize"
 
-export const sendSponsorshipEmailBatch = internalAction({
-  args: scheduleSponsorshipEmailBatchArgs,
+export const processSponsorshipEmailDispatches = internalAction({
+  args: { dispatchIds: v.array(v.id("sponsorshipEmailDispatches")) },
   returns: v.object({
     sent: v.number(),
     skipped: v.number(),
   }),
-  handler: async (ctx, args: ScheduleSponsorshipEmailBatchArgs) => {
-    if (args.recipients.length === 0) {
-      throw new ConvexError({
-        code: "BAD_REQUEST",
-        message: "No recipients specified for sponsorship email batch.",
-      })
-    }
-
-    const from = getSponsorshipSenderAddress()
+  handler: async (ctx, args) => {
     let sent = 0
     let skipped = 0
 
-    for (const recipient of args.recipients) {
-      const recipientEmail = normalizeEmail(recipient.email)
-      if (recipientEmail.length === 0) {
+    for (const dispatchId of args.dispatchIds) {
+      const dispatch = await ctx.runMutation(
+        internal.plugins.sponsor.emails.send
+          .claimSponsorshipEmailDispatchForRender,
+        { dispatchId }
+      )
+      if (!dispatch) {
         skipped += 1
         continue
       }
 
-      const buildInput = {
-        emailType: args.emailType,
-        recipientName: recipient.name,
-        context: args.context,
-        messageFallback: args.message,
+      try {
+        const buildInput = {
+          emailType: dispatch.emailType,
+          recipientName: dispatch.recipientName,
+          context: dispatch.context,
+          messageFallback: dispatch.message,
+        }
+        const [html, text] = await Promise.all([
+          buildSponsorshipEmailHtml(buildInput),
+          buildSponsorshipEmailPlainText(buildInput),
+        ])
+
+        await ctx.runMutation(
+          internal.plugins.sponsor.emails.send.deliverSponsorshipEmailDispatch,
+          { dispatchId, html, text }
+        )
+        sent += 1
+      } catch (error) {
+        await ctx.runMutation(
+          internal.plugins.sponsor.emails.send
+            .recordSponsorshipEmailDispatchFailure,
+          {
+            dispatchId,
+            error: error instanceof Error ? error.message : String(error),
+          }
+        )
+        skipped += 1
       }
-
-      const [htmlBody, plainTextBody] = await Promise.all([
-        buildSponsorshipEmailHtml(buildInput),
-        buildSponsorshipEmailPlainText(buildInput),
-      ])
-
-      const cc =
-        recipient.cc
-          ?.map((address) => normalizeEmail(address))
-          .filter(
-            (address) => address.length > 0 && address !== recipientEmail
-          ) ?? []
-      await resend.sendEmail(ctx, {
-        from,
-        to: recipientEmail,
-        ...(cc.length > 0 ? { cc } : {}),
-        subject: args.subject,
-        html: htmlBody,
-        text: plainTextBody,
-      })
-      sent += 1
     }
 
     return { sent, skipped }

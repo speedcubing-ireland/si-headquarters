@@ -3,12 +3,13 @@ import type { Doc } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { sponsorPortalGuideUrl } from "@/convex/plugins/sponsor/siteUrls"
 import type { SponsorshipEmailContext } from "@/convex/plugins/sponsor/lib/validators"
-import { sendAuctionScheduledEmails } from "./emails"
+import { sendAuctionClosureEmails, sendAuctionScheduledEmails } from "./emails"
 import { formatEmailDateTime } from "../../emails/_design"
 import {
   buildSponsorshipEmailHtml,
   buildSponsorshipEmailPlainText,
 } from "../../emails/render"
+import { getSponsorshipEmailPayload } from "../../emails/copy"
 
 type AuctionDoc = Doc<"sponsorshipAuctions">
 type CompetitionDoc = Doc<"competitions">
@@ -130,6 +131,21 @@ function createEmailCtx(input: {
     fnRef: unknown
     args: unknown
   }[] = []
+  interface DispatchRow {
+    _id: string
+    dedupKey: string
+    emailType: string
+    recipientEmail: string
+    recipientName?: string
+    cc?: string[]
+    subject: string
+    message: string
+    context?: unknown
+    auctionId?: string
+    sponsorId?: string
+    status: string
+  }
+  const dispatches: DispatchRow[] = []
 
   const ctx = {
     db: {
@@ -138,7 +154,36 @@ function createEmailCtx(input: {
         if (table === "sponsors") return input.sponsors.get(id) ?? null
         return null
       },
+      insert: async (table: string, doc: Record<string, unknown>) => {
+        if (table === "sponsorshipEmailDispatches") {
+          const _id = `dispatch-${String(dispatches.length)}`
+          dispatches.push({ _id, ...(doc as Omit<DispatchRow, "_id">) })
+          return _id
+        }
+        throw new Error(`Unexpected insert table: ${table}`)
+      },
       query: (table: string) => {
+        if (table === "sponsorshipEmailDispatches") {
+          return {
+            withIndex: (
+              _index: string,
+              indexFn: (q: {
+                eq: (field: string, value: string) => void
+              }) => void
+            ) => {
+              const eqState = { value: "" }
+              indexFn({
+                eq: (_field: string, value: string) => {
+                  eqState.value = value
+                },
+              })
+              return {
+                first: async () =>
+                  dispatches.find((d) => d.dedupKey === eqState.value) ?? null,
+              }
+            },
+          }
+        }
         if (table === "sponsorshipAuctionInvites") {
           return {
             withIndex: () => ({
@@ -182,6 +227,20 @@ function createEmailCtx(input: {
             },
           }
         }
+        if (table === "teams") {
+          return {
+            withIndex: () => ({
+              unique: async () => null,
+            }),
+          }
+        }
+        if (table === "teamMemberships") {
+          return {
+            withIndex: () => ({
+              collect: async () => [],
+            }),
+          }
+        }
         throw new Error(`Unexpected query table: ${table}`)
       },
     },
@@ -192,7 +251,7 @@ function createEmailCtx(input: {
     },
   } as unknown as MutationCtx
 
-  return { ctx, scheduledCalls }
+  return { ctx, scheduledCalls, dispatches }
 }
 
 describe("sendAuctionScheduledEmails", () => {
@@ -207,7 +266,7 @@ describe("sendAuctionScheduledEmails", () => {
       ["sB", sponsorB],
     ])
 
-    const { ctx, scheduledCalls } = createEmailCtx({
+    const { ctx, scheduledCalls, dispatches } = createEmailCtx({
       competition,
       invites,
       sponsors,
@@ -216,37 +275,37 @@ describe("sendAuctionScheduledEmails", () => {
     await sendAuctionScheduledEmails(ctx, auction)
 
     expect(scheduledCalls).toHaveLength(1)
-    const call = scheduledCalls[0]
-    expect(call.delayMs).toBe(0)
+    expect(scheduledCalls[0].delayMs).toBe(0)
 
-    const args = call.args as {
-      emailType: string
-      subject: string
-      recipients: { sponsorId: string; email: string; name: string }[]
-      context: {
-        competitionName: string
-        framework: string
-        frameworkGuideUrl: string
-        startPriceCents: number
-        currency: string
-        startsAt: number
-        endsAt: number
-        portalUrl: string
-      }
+    expect(dispatches).toHaveLength(2)
+    expect(dispatches.every((d) => d.emailType === "auction_scheduled")).toBe(
+      true
+    )
+    expect(dispatches.every((d) => d.status === "pending")).toBe(true)
+    expect(
+      dispatches.every(
+        (d) => d.subject === "Munster Open 2026: bidding opening soon"
+      )
+    ).toBe(true)
+
+    const context = dispatches[0].context as {
+      competitionName: string
+      framework: string
+      frameworkGuideUrl: string
+      startPriceCents: number
+      currency: string
+      startsAt: number
+      endsAt: number
+      portalUrl: string
     }
-
-    expect(args.emailType).toBe("auction_scheduled")
-    expect(args.recipients).toHaveLength(2)
-    expect(args.subject).toBe("Munster Open 2026: bidding opening soon")
-
-    expect(args.context.competitionName).toBe("Munster Open 2026")
-    expect(args.context.framework).toBe("vickrey")
-    expect(args.context.frameworkGuideUrl).toBe(sponsorPortalGuideUrl())
-    expect(args.context.startPriceCents).toBe(10_000)
-    expect(args.context.currency).toBe("EUR")
-    expect(args.context.startsAt).toBe(auction.startsAt)
-    expect(args.context.endsAt).toBe(auction.endsAt)
-    expect(args.context.portalUrl).toContain(String(auction._id))
+    expect(context.competitionName).toBe("Munster Open 2026")
+    expect(context.framework).toBe("vickrey")
+    expect(context.frameworkGuideUrl).toBe(sponsorPortalGuideUrl())
+    expect(context.startPriceCents).toBe(10_000)
+    expect(context.currency).toBe("EUR")
+    expect(context.startsAt).toBe(auction.startsAt)
+    expect(context.endsAt).toBe(auction.endsAt)
+    expect(context.portalUrl).toContain(String(auction._id))
   })
 
   test("includes active CC contacts on auction lifecycle emails", async () => {
@@ -273,7 +332,7 @@ describe("sendAuctionScheduledEmails", () => {
       active: false,
     })
 
-    const { ctx, scheduledCalls } = createEmailCtx({
+    const { ctx, dispatches } = createEmailCtx({
       competition,
       invites: [makeInvite("auction1", "sA")],
       sponsors: new Map([["sA", sponsorA]]),
@@ -282,12 +341,9 @@ describe("sendAuctionScheduledEmails", () => {
 
     await sendAuctionScheduledEmails(ctx, auction)
 
-    const args = scheduledCalls[0]?.args as {
-      recipients: { email: string; cc?: string[] }[]
-    }
-    expect(args.recipients).toHaveLength(1)
-    expect(args.recipients[0]?.email).toBe("sA@example.com")
-    expect(args.recipients[0]?.cc).toEqual(["cc@example.com"])
+    expect(dispatches).toHaveLength(1)
+    expect(dispatches[0]?.recipientEmail).toBe("sa@example.com")
+    expect(dispatches[0]?.cc).toEqual(["cc@example.com"])
   })
 
   test("includes CC contacts when sponsor has no primary contact", async () => {
@@ -305,7 +361,7 @@ describe("sendAuctionScheduledEmails", () => {
       canBid: false,
     })
 
-    const { ctx, scheduledCalls } = createEmailCtx({
+    const { ctx, dispatches } = createEmailCtx({
       competition,
       invites: [makeInvite("auction1", "sA")],
       sponsors: new Map([["sA", sponsorA]]),
@@ -314,12 +370,9 @@ describe("sendAuctionScheduledEmails", () => {
 
     await sendAuctionScheduledEmails(ctx, auction)
 
-    const args = scheduledCalls[0]?.args as {
-      recipients: { email: string; cc?: string[] }[]
-    }
-    expect(args.recipients).toHaveLength(1)
-    expect(args.recipients[0]?.email).toBe("sA@example.com")
-    expect(args.recipients[0]?.cc).toEqual(["cc@example.com"])
+    expect(dispatches).toHaveLength(1)
+    expect(dispatches[0]?.recipientEmail).toBe("sa@example.com")
+    expect(dispatches[0]?.cc).toEqual(["cc@example.com"])
   })
 
   test("returns early without scheduling when competition is missing", async () => {
@@ -355,7 +408,7 @@ describe("sendAuctionScheduledEmails", () => {
     const sponsorA = makeSponsor("sA")
     const invites = [makeInvite("auction1", "sA"), makeInvite("auction1", "sB")]
 
-    const { ctx, scheduledCalls } = createEmailCtx({
+    const { ctx, dispatches } = createEmailCtx({
       competition,
       invites,
       sponsors: new Map([["sA", sponsorA]]),
@@ -363,12 +416,8 @@ describe("sendAuctionScheduledEmails", () => {
 
     await sendAuctionScheduledEmails(ctx, auction)
 
-    expect(scheduledCalls).toHaveLength(1)
-    const args = scheduledCalls[0].args as {
-      recipients: { sponsorId: string }[]
-    }
-    expect(args.recipients).toHaveLength(1)
-    expect(args.recipients[0].sponsorId).toBe("sA")
+    expect(dispatches).toHaveLength(1)
+    expect(dispatches[0].sponsorId).toBe("sA")
   })
 
   test("filters out inactive sponsors from lifecycle emails", async () => {
@@ -378,7 +427,7 @@ describe("sendAuctionScheduledEmails", () => {
     const sponsorB = makeSponsor("sB", { active: false })
     const invites = [makeInvite("auction1", "sA"), makeInvite("auction1", "sB")]
 
-    const { ctx, scheduledCalls } = createEmailCtx({
+    const { ctx, dispatches } = createEmailCtx({
       competition,
       invites,
       sponsors: new Map([
@@ -389,13 +438,35 @@ describe("sendAuctionScheduledEmails", () => {
 
     await sendAuctionScheduledEmails(ctx, auction)
 
-    expect(scheduledCalls).toHaveLength(1)
-    const args = scheduledCalls[0].args as {
-      recipients: { sponsorId: string; email: string; name: string }[]
-    }
-    expect(args.recipients).toEqual([
-      { sponsorId: "sA", email: "sA@example.com", name: "Sponsor sA" },
-    ])
+    expect(dispatches).toHaveLength(1)
+    expect(dispatches[0].sponsorId).toBe("sA")
+    expect(dispatches[0].recipientEmail).toBe("sa@example.com")
+    expect(dispatches[0].recipientName).toBe("Sponsor sA")
+  })
+
+  test("closure refuses incomplete persisted winner state", async () => {
+    const sponsorA = makeSponsor("sA")
+    const sponsorB = makeSponsor("sB")
+    const auction = makeAuction({
+      state: "closed",
+      winnerSponsorId: sponsorA._id,
+      winningBidId: undefined,
+      settlementAmountCents: undefined,
+    })
+    const { ctx, dispatches } = createEmailCtx({
+      competition: makeCompetition(),
+      invites: [makeInvite("auction1", "sA"), makeInvite("auction1", "sB")],
+      sponsors: new Map([
+        ["sA", sponsorA],
+        ["sB", sponsorB],
+      ]),
+    })
+
+    await expect(sendAuctionClosureEmails(ctx, auction)).rejects.toThrow(
+      "Closed auction outcome is incomplete"
+    )
+
+    expect(dispatches).toHaveLength(0)
   })
 
   describe("framework is passed through context", () => {
@@ -405,7 +476,7 @@ describe("sendAuctionScheduledEmails", () => {
       test(`${framework} auction passes framework and guide URL`, async () => {
         const auction = makeAuction({ framework })
         const competition = makeCompetition()
-        const { ctx, scheduledCalls } = createEmailCtx({
+        const { ctx, dispatches } = createEmailCtx({
           competition,
           invites: [makeInvite("auction1", "sA")],
           sponsors: new Map([["sA", makeSponsor("sA")]]),
@@ -413,12 +484,13 @@ describe("sendAuctionScheduledEmails", () => {
 
         await sendAuctionScheduledEmails(ctx, auction)
 
-        expect(scheduledCalls).toHaveLength(1)
-        const args = scheduledCalls[0].args as {
-          context: { framework: string; frameworkGuideUrl: string }
+        expect(dispatches).toHaveLength(1)
+        const context = dispatches[0].context as {
+          framework: string
+          frameworkGuideUrl: string
         }
-        expect(args.context.framework).toBe(framework)
-        expect(args.context.frameworkGuideUrl).toBe(sponsorPortalGuideUrl())
+        expect(context.framework).toBe(framework)
+        expect(context.frameworkGuideUrl).toBe(sponsorPortalGuideUrl())
       })
     }
   })
@@ -426,7 +498,7 @@ describe("sendAuctionScheduledEmails", () => {
   test("subject line includes the competition name", async () => {
     const auction = makeAuction()
     const competition = makeCompetition({ name: "Connacht Open 2026" })
-    const { ctx, scheduledCalls } = createEmailCtx({
+    const { ctx, dispatches } = createEmailCtx({
       competition,
       invites: [makeInvite("auction1", "sA")],
       sponsors: new Map([["sA", makeSponsor("sA")]]),
@@ -434,8 +506,7 @@ describe("sendAuctionScheduledEmails", () => {
 
     await sendAuctionScheduledEmails(ctx, auction)
 
-    const args = scheduledCalls[0].args as { subject: string }
-    expect(args.subject).toContain("Connacht Open 2026")
+    expect(dispatches[0].subject).toContain("Connacht Open 2026")
   })
 })
 
@@ -625,5 +696,17 @@ describe("buildSponsorshipEmailHtml — internal_invoice template", () => {
       messageFallback: "Invoice follow-up needed",
     })
     expect(html).toContain("Invoice follow-up needed")
+  })
+
+  test("fallback copy does not invent a zero settlement", () => {
+    const payload = getSponsorshipEmailPayload("internal_invoice", {
+      ...baseContext,
+      winnerSponsorName: "Acme Corp",
+    })
+
+    expect(payload.message).toBe(
+      "Winner confirmed: Acme Corp. Send invoice follow-up."
+    )
+    expect(payload.message).not.toContain("0.00")
   })
 })

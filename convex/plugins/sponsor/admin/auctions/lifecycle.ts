@@ -22,6 +22,10 @@ import {
   sendAuctionStartedEmails,
 } from "./emails"
 import {
+  SPONSORSHIP_EMAIL_DISPATCH_MAX_ATTEMPTS,
+  SPONSORSHIP_EMAIL_DISPATCH_PROCESSING_LEASE_MS,
+} from "../../emails/send"
+import {
   isCanonicalAuctionActiveReminder,
   markReminderSent,
   markReminderSkipped,
@@ -61,17 +65,28 @@ export async function closeAuctionInternal(
     .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
     .collect()
   const validIntents = intents.filter((intent) => intent.isValid)
-  const { settlementAmountCents, winnerSponsorId, winningBidId } =
-    resolveAuctionOutcome({
-      auction,
-      validIntents,
-    })
+  const outcome = resolveAuctionOutcome({
+    auction,
+    validIntents,
+  })
+  const outcomePatch: Pick<
+    Doc<"sponsorshipAuctions">,
+    "settlementAmountCents" | "winnerSponsorId" | "winningBidId"
+  > = outcome.kind === "winner"
+    ? {
+        winnerSponsorId: outcome.winnerSponsorId,
+        winningBidId: outcome.winningBidId,
+        settlementAmountCents: outcome.settlementAmountCents,
+      }
+    : {
+        winnerSponsorId: undefined,
+        winningBidId: undefined,
+        settlementAmountCents: undefined,
+      }
 
   await ctx.db.patch("sponsorshipAuctions", auction._id, {
     state: "closed",
-    winnerSponsorId,
-    winningBidId,
-    settlementAmountCents,
+    ...outcomePatch,
     updatedAt: Date.now(),
   })
 
@@ -383,6 +398,77 @@ export const repairSchedules = internalMutation({
         createMissing: true,
         preserveValidSchedules: true,
       })
+    }
+
+    const now = Date.now()
+    const staleBefore = now - 5 * 60 * 1000
+    const duePending = await ctx.db
+      .query("sponsorshipEmailDispatches")
+      .withIndex("by_status_and_next_attempt", (q) =>
+        q
+          .eq("status", "pending")
+          .gt("nextAttemptAt", 0)
+          .lte("nextAttemptAt", now)
+      )
+      .take(100)
+    const legacyStalePending = (
+      await ctx.db
+        .query("sponsorshipEmailDispatches")
+        .withIndex("by_status_and_created", (q) =>
+          q.eq("status", "pending").lt("createdAt", staleBefore)
+        )
+        .take(100)
+    ).filter((dispatch) => dispatch.nextAttemptAt === undefined)
+    const staleProcessing = await ctx.db
+      .query("sponsorshipEmailDispatches")
+      .withIndex("by_status_and_processing_started", (q) =>
+        q
+          .eq("status", "processing")
+          .lt(
+            "processingStartedAt",
+            now - SPONSORSHIP_EMAIL_DISPATCH_PROCESSING_LEASE_MS
+          )
+      )
+      .take(100)
+
+    const dispatchIds = new Set<Id<"sponsorshipEmailDispatches">>()
+    for (const dispatch of [...duePending, ...legacyStalePending]) {
+      dispatchIds.add(dispatch._id)
+    }
+    for (const dispatch of staleProcessing) {
+      const attempts = dispatch.attempts + 1
+      if (attempts >= SPONSORSHIP_EMAIL_DISPATCH_MAX_ATTEMPTS) {
+        await ctx.db.patch("sponsorshipEmailDispatches", dispatch._id, {
+          status: "failed",
+          attempts,
+          lastAttemptAt: now,
+          processingStartedAt: undefined,
+          nextAttemptAt: undefined,
+          lastError: "Processing lease expired before delivery completed.",
+          failedAt: now,
+        })
+        continue
+      }
+
+      await ctx.db.patch("sponsorshipEmailDispatches", dispatch._id, {
+        status: "pending",
+        attempts,
+        lastAttemptAt: now,
+        processingStartedAt: undefined,
+        nextAttemptAt: now,
+        lastError: "Processing lease expired before delivery completed.",
+        failedAt: undefined,
+      })
+      dispatchIds.add(dispatch._id)
+    }
+
+    if (dispatchIds.size > 0) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.plugins.sponsor.emails.sendBatch
+          .processSponsorshipEmailDispatches,
+        { dispatchIds: [...dispatchIds] }
+      )
     }
     return null
   },

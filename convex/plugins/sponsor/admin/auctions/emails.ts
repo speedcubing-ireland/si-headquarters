@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
@@ -69,7 +70,13 @@ async function queueAuctionEmails(
   input: {
     auction: Doc<"sponsorshipAuctions">
     type: SponsorshipAuctionEmailType
-    recipients: { sponsorId?: Id<"sponsors">; email: string; name?: string }[]
+    recipients: {
+      sponsorId?: Id<"sponsors">
+      email: string
+      name?: string
+      cc?: string[]
+      dedupKey?: string
+    }[]
     context: SponsorshipEmailContext
   }
 ): Promise<void> {
@@ -188,7 +195,7 @@ export async function sendEbayAuctionOutbidEmail(
   if (sponsor?.active !== true) return
   if (competition === null) return
 
-  await ctx.db.insert("sponsorshipAuctionOutbidNotices", {
+  const noticeId = await ctx.db.insert("sponsorshipAuctionOutbidNotices", {
     auctionId: auction._id,
     sponsorId: outbidSponsorId,
     sentAt: now,
@@ -203,33 +210,74 @@ export async function sendEbayAuctionOutbidEmail(
     "auction_ebay_outbid",
     context
   )
+  const recipient = await buildAuctionEmailRecipient(ctx, sponsor)
   await scheduleSponsorshipEmailBatch(ctx, {
     auctionId: auction._id,
     emailType: "auction_ebay_outbid",
     subject,
     message,
-    recipients: [await buildAuctionEmailRecipient(ctx, sponsor)],
+    // Outbid notices recur through the auction; key by the throttle-notice row
+    // so each genuine notice is delivered (not collapsed into the first).
+    recipients: [{ ...recipient, dedupKey: `auction_ebay_outbid:${noticeId}` }],
     context,
   })
+}
+
+type ClosedAuctionEmailOutcome =
+  | { kind: "no_winner" }
+  | {
+      kind: "winner"
+      winnerSponsorId: Id<"sponsors">
+      winningBidId: Id<"sponsorshipBidIntents">
+      settlementAmountCents: number
+    }
+
+function resolveClosedAuctionEmailOutcome(
+  auction: Doc<"sponsorshipAuctions">
+): ClosedAuctionEmailOutcome {
+  const { settlementAmountCents, winnerSponsorId, winningBidId } = auction
+  const hasWinner = winnerSponsorId !== undefined
+  const hasWinningBid = winningBidId !== undefined
+  const hasSettlement = settlementAmountCents !== undefined
+  const hasAnyOutcomeField = hasWinner || hasWinningBid || hasSettlement
+
+  if (!hasAnyOutcomeField) {
+    return { kind: "no_winner" }
+  }
+  if (!hasWinner || !hasWinningBid || !hasSettlement) {
+    throw new ConvexError({
+      code: "INTERNAL_ERROR",
+      message:
+        "Closed auction outcome is incomplete: winner, winning bid, and settlement amount must be recorded together.",
+    })
+  }
+
+  return {
+    kind: "winner",
+    winnerSponsorId,
+    winningBidId,
+    settlementAmountCents,
+  }
 }
 
 export async function sendAuctionClosureEmails(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">
 ): Promise<void> {
+  const outcome = resolveClosedAuctionEmailOutcome(auction)
   const resolved = await resolveAuctionEmailRecipients(ctx, auction)
   if (!resolved) return
   const { competition, sponsors: recipients } = resolved
 
-  if (auction.winnerSponsorId && auction.settlementAmountCents !== undefined) {
+  if (outcome.kind === "winner") {
     const winner = recipients.find(
-      (sponsor) => sponsor._id === auction.winnerSponsorId
+      (sponsor) => sponsor._id === outcome.winnerSponsorId
     )
     if (winner) {
       const winnerContext: SponsorshipEmailContext = {
         competitionName: competition.name,
         portalUrl: sponsorAuctionUrl(auction._id),
-        settlementAmountCents: auction.settlementAmountCents,
+        settlementAmountCents: outcome.settlementAmountCents,
         winnerSponsorName: winner.name,
       }
       await queueAuctionEmails(ctx, {
@@ -241,7 +289,7 @@ export async function sendAuctionClosureEmails(
     }
     const outbidRecipients = await toRecipientList(
       ctx,
-      recipients.filter((sponsor) => sponsor._id !== auction.winnerSponsorId)
+      recipients.filter((sponsor) => sponsor._id !== outcome.winnerSponsorId)
     )
     await queueAuctionEmails(ctx, {
       auction,
@@ -275,13 +323,15 @@ export async function sendAuctionClosureEmails(
     }
     return [{ email, name: user?.name ?? undefined }]
   })
-  const winnerSponsor = auction.winnerSponsorId
-    ? recipients.find((sponsor) => sponsor._id === auction.winnerSponsorId)
-    : null
+  const winnerSponsor =
+    outcome.kind === "winner"
+      ? await ctx.db.get("sponsors", outcome.winnerSponsorId)
+      : null
   const internalContext: SponsorshipEmailContext = {
     competitionName: competition.name,
     adminUrl: sponsorshipAdminUrl(),
-    settlementAmountCents: auction.settlementAmountCents,
+    settlementAmountCents:
+      outcome.kind === "winner" ? outcome.settlementAmountCents : undefined,
     winnerSponsorName: winnerSponsor?.name,
   }
   await queueAuctionEmails(ctx, {

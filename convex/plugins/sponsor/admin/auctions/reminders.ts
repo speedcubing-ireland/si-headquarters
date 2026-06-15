@@ -44,6 +44,19 @@ async function createAuctionActiveReminder(
   sponsorId: Id<"sponsors">,
   scheduledFor: number
 ): Promise<void> {
+  const existing = await ctx.db
+    .query("sponsorshipAuctionReminders")
+    .withIndex("by_auction_and_sponsor", (q) =>
+      q.eq("auctionId", auctionId).eq("sponsorId", sponsorId)
+    )
+    .first()
+  if (existing) {
+    if (!existing.sent) {
+      await rescheduleAuctionActiveReminder(ctx, existing, scheduledFor)
+    }
+    return
+  }
+
   const sent = scheduledFor <= Date.now()
   const reminderId = await ctx.db.insert("sponsorshipAuctionReminders", {
     auctionId,
