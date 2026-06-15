@@ -3,7 +3,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { insertTestCompetition } from "@/convex/plugins/sponsor/testing/testHelpers"
-import { seedDirectorUser } from "@/convex/testHelpers"
+import { insertTestUser, seedDirectorUser } from "@/convex/testHelpers"
 import {
   createSponsorAuctionTestHarness,
   type SponsorAuctionTestHarness,
@@ -329,6 +329,49 @@ describe("propertyStatus", () => {
     expect(result.status).toBe("sponsor")
     expect(result.winnerSponsorName).toBe("Acme Cubes")
     expect(result.settlementAmountCents).toBe(7500)
+    expect(result.isManualOverride).toBe(false)
+  })
+
+  test("competition organisers can read sponsor status without bid details", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const managerId = await t.run((ctx) => seedDirectorUser(ctx))
+    const organiserId = await t.run((ctx) => insertTestUser(ctx, "Organiser"))
+    const organiser = t.withIdentity({ subject: organiserId })
+
+    const competitionId = await t.run(async (ctx) =>
+      insertTestCompetition(ctx, {
+        name: "Organiser Visible Sponsor Comp",
+        from: "2026-09-01",
+        to: "2026-09-02",
+        organisers: [organiserId],
+      })
+    )
+
+    const sponsorId = await t.run((ctx) =>
+      seedSponsor(ctx, managerId, {
+        name: "Visible Sponsor",
+        email: "visible@test.com",
+      })
+    )
+
+    await seedAuction(t, {
+      managerId,
+      competitionId,
+      framework: "first_sealed",
+      state: "closed",
+      sponsorId,
+      winnerSponsorId: sponsorId,
+      settlementAmountCents: 7_500,
+    })
+
+    const result = await organiser.query(
+      api.plugins.sponsor.admin.propertyStatus.getForCompetition,
+      { competitionId }
+    )
+    expect(result.status).toBe("sponsor")
+    expect(result.winnerSponsorName).toBe("Visible Sponsor")
+    expect(result.winnerSponsorId).toBeUndefined()
+    expect(result.settlementAmountCents).toBeUndefined()
     expect(result.isManualOverride).toBe(false)
   })
 })

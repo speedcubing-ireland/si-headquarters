@@ -1,13 +1,8 @@
 import { webcrypto } from "node:crypto"
 import {
   REQUIRED_ENV_SETUP,
-  type EnvSetupGroup,
-  type EnvSetupKind,
   type EnvSetupSpec,
 } from "../../convex/envConfig.ts"
-
-export type EnvGroup = EnvSetupGroup
-export type EnvInputKind = EnvSetupKind
 
 export interface EnvSpec extends EnvSetupSpec {
   generatedValue?: string
@@ -54,7 +49,7 @@ function toPem(label: string, der: ArrayBuffer): string {
   )
 }
 
-export async function generateConvexAuthKeys(): Promise<
+async function generateConvexAuthKeys(): Promise<
   Pick<GeneratedEnvValues, "JWT_PRIVATE_KEY" | "JWKS">
 > {
   const keys = await webcrypto.subtle.generateKey(
@@ -142,23 +137,36 @@ export function planEnvChanges(
   options?: {
     force?: boolean
     replaceExistingKeys?: ReadonlySet<string>
+    providedKeys?: ReadonlySet<string>
   }
 ): EnvChangePlanEntry[] {
   const force = options?.force === true
   const replaceExistingKeys = options?.replaceExistingKeys ?? new Set<string>()
-  return specs.map((spec) => {
+  const providedKeys = options?.providedKeys
+  return specs.flatMap((spec) => {
     const exists = existingKeys.has(spec.key)
     const replaceExisting = force || replaceExistingKeys.has(spec.key)
-    return {
-      key: spec.key,
-      action: exists && !replaceExisting ? "skip-existing" : "set",
+    if (
+      spec.optional === true &&
+      providedKeys !== undefined &&
+      !providedKeys.has(spec.key) &&
+      (!exists || replaceExisting)
+    ) {
+      return []
     }
+    return [
+      {
+        key: spec.key,
+        action: exists && !replaceExisting ? "skip-existing" : "set",
+      },
+    ]
   })
 }
 
 export function validateEnvValue(spec: EnvSpec, value: string): string | null {
   const trimmed = value.trim()
   if (trimmed === "") {
+    if (spec.optional === true) return null
     return `${spec.key} is required.`
   }
   if (
@@ -194,6 +202,7 @@ export function updateDotenvContent(
 function renderSpecTags(spec: EnvSpec): string {
   const tags: string[] = [spec.kind]
   if (spec.sensitive === true) tags.push("secret")
+  if (spec.optional === true) tags.push("optional")
   if (spec.defaultValue !== undefined)
     tags.push(`default: ${spec.defaultValue}`)
   if (spec.choices !== undefined)
@@ -203,11 +212,11 @@ function renderSpecTags(spec: EnvSpec): string {
 
 export function renderDryRunPlan(specs: readonly EnvSpec[]): string {
   const lines = [
-    "Convex env wizard — required variables (dry run)",
+    "Convex env wizard — variables (dry run)",
     "",
     "Metadata only: no secret values are printed and the deployment is not contacted.",
   ]
-  let currentGroup: EnvGroup | null = null
+  let currentGroup: EnvSetupSpec["group"] | null = null
   for (const spec of specs) {
     if (spec.group !== currentGroup) {
       currentGroup = spec.group

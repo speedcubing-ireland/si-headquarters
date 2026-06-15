@@ -1,9 +1,15 @@
 import { CompetitionPeopleCardFields } from "@/features/competitions/competition-people-selectors"
+import { OrganiserInviteButton } from "@/features/competitions/components/organiser-invite-button"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import { Can } from "@/features/auth"
 import { useQuery } from "convex/react"
 import { UserIcon } from "lucide-react"
-import { PageCard, PageCardContent } from "@/components/page-card"
+import {
+  PageCard,
+  PageCardContent,
+  PageCardFooter,
+} from "@/components/page-card"
 
 export function CompetitionPeopleCard({
   competitionId,
@@ -13,6 +19,10 @@ export function CompetitionPeopleCard({
   const peopleDetails = useQuery(api.competitions.queries.getPeople, {
     id: competitionId,
   })
+  const wcaLoginConfigured = useQuery(
+    api.organisers.queries.wcaLoginConfigured,
+    {}
+  )
 
   if (peopleDetails === undefined) {
     return null
@@ -33,6 +43,13 @@ export function CompetitionPeopleCard({
           organisers={people.organisers}
         />
       </PageCardContent>
+      <Can I="manage" a="Competition">
+        {wcaLoginConfigured === true ? (
+          <PageCardFooter>
+            <OrganiserInviteButton competitionId={competitionId} />
+          </PageCardFooter>
+        ) : null}
+      </Can>
     </PageCard>
   )
 }

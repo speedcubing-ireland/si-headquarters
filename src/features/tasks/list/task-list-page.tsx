@@ -49,7 +49,13 @@ function effectiveKanbanGrouping(display: DisplaySettings, fallback: string) {
   return display.grouping
 }
 
-function TaskListPageBody({ emptyMessage }: { emptyMessage: string }) {
+function TaskListPageBody({
+  emptyMessage,
+  rows,
+}: {
+  emptyMessage: string
+  rows: TaskBoardRow[] | undefined
+}) {
   const {
     config,
     viewFilters,
@@ -58,7 +64,6 @@ function TaskListPageBody({ emptyMessage }: { emptyMessage: string }) {
     overlayMatchMode,
     display,
   } = useTaskListPage()
-  const rows = useQuery(api.tasks.board.listForBoard)
 
   const groups = useMemo(() => {
     if (!rows) return []
@@ -127,6 +132,8 @@ function TaskListPageContent({
   config: TaskListPageConfig
   emptyMessage?: string
 }) {
+  const rows = useQuery(api.tasks.board.listForBoard)
+
   useEffect(() => {
     document.title = headquartersPageTitle(config.title)
   }, [config.title])
@@ -137,13 +144,13 @@ function TaskListPageContent({
         header={<TaskListNavbar />}
         filtersRow={
           <TaskListFilterBar
-            filterPopover={<TasksFilterPopover />}
-            filterChips={<TasksFilterChips />}
+            filterPopover={<TasksFilterPopover rows={rows} />}
+            filterChips={<TasksFilterChips rows={rows} />}
             columnOptions={[...TASK_DISPLAY_OPTIONS]}
           />
         }
       >
-        <TaskListPageBody emptyMessage={emptyMessage} />
+        <TaskListPageBody emptyMessage={emptyMessage} rows={rows} />
       </TaskListPageLayout>
     </TaskListProvider>
   )

@@ -97,13 +97,13 @@ export const notificationEvent = v.union(
     kind: v.literal("taskOverdue"),
     taskId: v.id("tasks"),
     today: v.string(),
-    recipientId: v.id("users"),
   }),
   v.object({
     kind: v.literal("ownerOverdueSummary"),
     owner: competitionOrProjectRef,
     today: v.string(),
     taskIds: v.array(v.id("tasks")),
+    totalCount: v.number(),
   }),
   v.object({
     kind: v.literal("taskReminder"),

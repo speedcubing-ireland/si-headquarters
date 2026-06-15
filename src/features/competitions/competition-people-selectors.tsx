@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
-import { Can } from "@/features/auth"
+import { useCan } from "@/features/auth"
 import type { CompetitionCalendarCompetitionRow } from "@/features/competitions/list/competition-calendar-display"
 import { useMutation } from "convex/react"
 import type { LucideIcon } from "lucide-react"
@@ -105,6 +105,48 @@ function CompetitionPeopleSelectors({
   )
 }
 
+function CompetitionPeopleFaces({
+  compLead,
+  leadDelegate,
+  organisers,
+  singleAppearance,
+}: {
+  compLead: PublicUser | null
+  leadDelegate: PublicUser | null
+  organisers: PublicUser[]
+  singleAppearance: "property" | "icon"
+}) {
+  const avatarProps =
+    singleAppearance === "icon" ? listIconProps.avatarProps : undefined
+
+  return (
+    <>
+      <ListPeopleSlot icon={ClipboardPenIcon} label="Lead">
+        <UserSelector.Face
+          appearance={singleAppearance}
+          avatarProps={avatarProps}
+          users={compLead === null ? [] : [compLead]}
+        />
+      </ListPeopleSlot>
+      <ListPeopleSlot icon={FlagIcon} label="Delegate">
+        <UserSelector.Face
+          appearance={singleAppearance}
+          avatarProps={avatarProps}
+          users={leadDelegate === null ? [] : [leadDelegate]}
+        />
+      </ListPeopleSlot>
+      <ListPeopleSlot icon={UsersIcon} label="Organisers">
+        <UserSelector.Face
+          appearance={singleAppearance}
+          avatarProps={avatarProps}
+          maxAvatars={singleAppearance === "icon" ? 3 : undefined}
+          users={organisers}
+        />
+      </ListPeopleSlot>
+    </>
+  )
+}
+
 function useCompetitionPeopleMutations(competitionId: Id<"competitions">) {
   const setCompLead = useMutation(api.competitions.mutations.setCompLead)
   const setLeadDelegate = useMutation(
@@ -130,11 +172,12 @@ export function CompetitionCalendarPeopleFields({
 }: {
   row: CompetitionCalendarCompetitionRow
 }) {
+  const { allowed: canManageCompetition } = useCan("manage", "Competition")
   const mutations = useCompetitionPeopleMutations(row._id)
 
   return (
-    <Can I="manage" a="Competition">
-      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+    <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+      {canManageCompetition ? (
         <CompetitionPeopleSelectors
           competitionId={row._id}
           compLead={row.compLead}
@@ -146,8 +189,15 @@ export function CompetitionCalendarPeopleFields({
           singleAppearance="icon"
           {...mutations}
         />
-      </div>
-    </Can>
+      ) : (
+        <CompetitionPeopleFaces
+          compLead={row.compLead}
+          leadDelegate={row.leadDelegate}
+          organisers={row.organisers}
+          singleAppearance="icon"
+        />
+      )}
+    </div>
   )
 }
 
@@ -168,10 +218,39 @@ export function CompetitionPeopleCardFields({
   leadDelegate: PublicUser | null
   organisers: PublicUser[]
 }) {
+  const { allowed: canManageCompetition } = useCan("manage", "Competition")
   const mutations = useCompetitionPeopleMutations(competitionId)
 
+  if (!canManageCompetition) {
+    return (
+      <>
+        <PageCardRow
+          icon={<ClipboardPenIcon className="size-4" />}
+          label="Competition Lead"
+        >
+          <UserSelector.Face
+            appearance="property"
+            users={compLead === null ? [] : [compLead]}
+          />
+        </PageCardRow>
+        <PageCardRow
+          icon={<FlagIcon className="size-4" />}
+          label="Lead Delegate"
+        >
+          <UserSelector.Face
+            appearance="property"
+            users={leadDelegate === null ? [] : [leadDelegate]}
+          />
+        </PageCardRow>
+        <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
+          <UserSelector.Face appearance="property" users={organisers} />
+        </PageCardRow>
+      </>
+    )
+  }
+
   return (
-    <Can I="manage" a="Competition">
+    <>
       <PageCardRow
         icon={<ClipboardPenIcon className="size-4" />}
         label="Competition Lead"
@@ -201,6 +280,6 @@ export function CompetitionPeopleCardFields({
           onChange={mutations.onOrganisersChange}
         />
       </PageCardRow>
-    </Can>
+    </>
   )
 }

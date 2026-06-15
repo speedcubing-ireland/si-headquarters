@@ -26,9 +26,9 @@ import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 import { Route as PluginsWca2faRouteImport } from './routes/plugins/wca-2fa'
 import { Route as PluginsSponsorshipRouteImport } from './routes/plugins/sponsorship'
 import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-media'
+import { Route as InviteOrganiserRouteImport } from './routes/invite/organiser'
 import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
-import { Route as AdminImpersonationRouteImport } from './routes/admin/impersonation'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
 import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
 import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
@@ -118,6 +118,11 @@ const PluginsSocialMediaRoute = PluginsSocialMediaRouteImport.update({
   path: '/plugins/social-media',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteOrganiserRoute = InviteOrganiserRouteImport.update({
+  id: '/invite/organiser',
+  path: '/invite/organiser',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
   id: '/impersonate/user',
   path: '/impersonate/user',
@@ -126,11 +131,6 @@ const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
 const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   id: '/competitions/$id',
   path: '/competitions/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminImpersonationRoute = AdminImpersonationRouteImport.update({
-  id: '/admin/impersonation',
-  path: '/admin/impersonation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorAuctionsAuctionIdRoute =
@@ -153,9 +153,9 @@ const TeamsTeamIdProjectsIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
+  '/invite/organiser': typeof InviteOrganiserRoute
   '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
   '/plugins/wca-2fa': typeof PluginsWca2faRoute
@@ -178,9 +178,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
+  '/invite/organiser': typeof InviteOrganiserRoute
   '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
   '/plugins/wca-2fa': typeof PluginsWca2faRoute
@@ -204,9 +204,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin/impersonation': typeof AdminImpersonationRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
+  '/invite/organiser': typeof InviteOrganiserRoute
   '/plugins/social-media': typeof PluginsSocialMediaRoute
   '/plugins/sponsorship': typeof PluginsSponsorshipRoute
   '/plugins/wca-2fa': typeof PluginsWca2faRoute
@@ -231,9 +231,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
+    | '/invite/organiser'
     | '/plugins/social-media'
     | '/plugins/sponsorship'
     | '/plugins/wca-2fa'
@@ -256,9 +256,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
+    | '/invite/organiser'
     | '/plugins/social-media'
     | '/plugins/sponsorship'
     | '/plugins/wca-2fa'
@@ -281,9 +281,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/admin/impersonation'
     | '/competitions/$id'
     | '/impersonate/user'
+    | '/invite/organiser'
     | '/plugins/social-media'
     | '/plugins/sponsorship'
     | '/plugins/wca-2fa'
@@ -307,9 +307,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminImpersonationRoute: typeof AdminImpersonationRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   ImpersonateUserRoute: typeof ImpersonateUserRoute
+  InviteOrganiserRoute: typeof InviteOrganiserRoute
   PluginsSocialMediaRoute: typeof PluginsSocialMediaRoute
   PluginsSponsorshipRoute: typeof PluginsSponsorshipRoute
   PluginsWca2faRoute: typeof PluginsWca2faRoute
@@ -451,6 +451,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PluginsSocialMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/organiser': {
+      id: '/invite/organiser'
+      path: '/invite/organiser'
+      fullPath: '/invite/organiser'
+      preLoaderRoute: typeof InviteOrganiserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/impersonate/user': {
       id: '/impersonate/user'
       path: '/impersonate/user'
@@ -463,13 +470,6 @@ declare module '@tanstack/react-router' {
       path: '/competitions/$id'
       fullPath: '/competitions/$id'
       preLoaderRoute: typeof CompetitionsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/impersonation': {
-      id: '/admin/impersonation'
-      path: '/admin/impersonation'
-      fullPath: '/admin/impersonation'
-      preLoaderRoute: typeof AdminImpersonationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sponsor/auctions/$auctionId': {
@@ -510,9 +510,9 @@ const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminImpersonationRoute: AdminImpersonationRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   ImpersonateUserRoute: ImpersonateUserRoute,
+  InviteOrganiserRoute: InviteOrganiserRoute,
   PluginsSocialMediaRoute: PluginsSocialMediaRoute,
   PluginsSponsorshipRoute: PluginsSponsorshipRoute,
   PluginsWca2faRoute: PluginsWca2faRoute,

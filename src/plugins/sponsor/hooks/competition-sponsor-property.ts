@@ -10,16 +10,15 @@ export interface CompetitionSponsorOverride {
 }
 
 export function useCompetitionSponsorProperty(
-  competitionId: Id<"competitions"> | null,
-  enabled = true
+  competitionId: Id<"competitions"> | null
 ) {
   const property = useQuery(
     api.plugins.sponsor.admin.propertyStatus.getForCompetition,
-    competitionId !== null && enabled ? { competitionId } : "skip"
+    competitionId !== null ? { competitionId } : "skip"
   )
   return {
     property: property ?? null,
-    isLoading: enabled && competitionId !== null && property === undefined,
+    isLoading: competitionId !== null && property === undefined,
   }
 }
 

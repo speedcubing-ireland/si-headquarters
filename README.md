@@ -68,6 +68,20 @@ OAuth redirect URI:
 
 The current config restricts emails to `@speedcubingireland.com`.
 
+**Organiser WCA login** (optional):
+
+External organisers sign in with their WCA account. Create a second WCA OAuth
+application — separate from the `SERVICE_WCA_*` integration client:
+
+Redirect URI - `{SITE_URL}/invite/organiser` (e.g. `http://localhost:5173/invite/organiser`)
+Scopes - public email
+
+Set `AUTH_WCA_ID` / `AUTH_WCA_SECRET` in the Convex deployment. When unset, the
+WCA sign-in button and organiser invite links are hidden. Organisers join via
+an invite link generated from a competition's People card; links are valid for
+30 days, reusable by multiple organisers, and revocable. WCA sign-in without a
+valid invite only works for accounts that have already been invited.
+
 **Integration credentials** (all required by the wizard):
 
 WCA Client:

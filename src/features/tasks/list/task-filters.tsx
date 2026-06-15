@@ -25,10 +25,8 @@ import type {
 } from "@/features/tasks/list/task-list-types"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { isTaskStatus } from "@/convex/tasks/status/validators"
-import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
-import { useQuery } from "convex/react"
 import {
   CassetteTapeIcon,
   CircleDotIcon,
@@ -40,7 +38,7 @@ import {
 } from "lucide-react"
 import { useMemo, type ReactNode } from "react"
 
-type UserListEntry = Pick<Doc<"users">, "_id" | "name" | "image"> | PublicUser
+type UserListEntry = PublicUser
 
 export type TaskRowFilterInput = Pick<
   TaskBoardRow,
@@ -50,7 +48,9 @@ export type TaskRowFilterInput = Pick<
   | "owner"
   | "labels"
   | "competitionId"
+  | "competitionName"
   | "phaseId"
+  | "phaseName"
 >
 
 interface TaskFilterFieldConfig {
@@ -128,6 +128,57 @@ function userToFilterOption(user: UserListEntry): FilterOption {
     value: user._id,
     label: user.name ?? "Unknown",
     avatar: { name: user.name ?? "?", image: user.image ?? null },
+  }
+}
+
+function sortByName(left: { name: string }, right: { name: string }) {
+  return left.name.localeCompare(right.name)
+}
+
+function uniqueLookupValues(
+  rows: TaskBoardRow[] | undefined
+): TaskFilterLookup {
+  const users = new Map<string, UserListEntry>()
+  const teams = new Map<string, { _id: string; name: string }>()
+  const labels = new Map<
+    string,
+    Pick<Doc<"taskLabels">, "_id" | "code" | "name" | "color">
+  >()
+  const competitions = new Map<string, { _id: string; name: string }>()
+  const phases = new Map<string, { _id: string; name: string }>()
+
+  for (const row of rows ?? []) {
+    for (const user of row.assignees.users) {
+      users.set(user._id, user)
+    }
+    if (row.owner?.type === "users") {
+      users.set(row.owner._id, row.owner)
+    }
+    if (row.owner?.type === "teams") {
+      teams.set(row.owner._id, row.owner)
+    }
+    for (const label of row.labels) {
+      labels.set(label._id, label)
+    }
+    if (row.competitionId !== null && row.competitionName !== null) {
+      competitions.set(row.competitionId, {
+        _id: row.competitionId,
+        name: row.competitionName,
+      })
+    }
+    if (row.phaseId !== null && row.phaseName !== null) {
+      phases.set(row.phaseId, { _id: row.phaseId, name: row.phaseName })
+    }
+  }
+
+  return {
+    users: [...users.values()].sort((left, right) =>
+      (left.name ?? "").localeCompare(right.name ?? "")
+    ),
+    teams: [...teams.values()].sort(sortByName),
+    labels: [...labels.values()].sort(sortByName),
+    competitions: [...competitions.values()].sort(sortByName),
+    phases: [...phases.values()].sort(sortByName),
   }
 }
 
@@ -245,22 +296,10 @@ function renderTaskFilterValue(
   }
 }
 
-export function useTaskFilters() {
-  const users = useQuery(api.users.queries.list, {})
-  const teams = useQuery(api.teams.queries.listForTaskFilters)
-  const labels = useQuery(api.tasks.labels.queries.list)
-  const competitions = useQuery(api.competitions.queries.list)
-  const phases = useQuery(api.phases.queries.list)
-
+export function useTaskFilters(rows: TaskBoardRow[] | undefined) {
   const lookup = useMemo<TaskFilterLookup>(
-    () => ({
-      users: users ?? [],
-      teams: teams ?? [],
-      labels: labels ?? [],
-      competitions: competitions ?? [],
-      phases: phases ?? [],
-    }),
-    [competitions, labels, phases, teams, users]
+    () => uniqueLookupValues(rows),
+    [rows]
   )
 
   const assigneeOptions = useMemo<FilterOption[]>(

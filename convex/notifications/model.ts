@@ -684,25 +684,17 @@ async function buildDueTaskDrafts(
     })
   }
 
-  const { name } = await loadTaskRootDocs(ctx, task)
-  const url = taskUrl(task._id)
   const dueValue =
     task.dueDate !== null
       ? `This task was due ${overdueLabel(task.dueDate, event.today)}.`
       : "This task is overdue and still needs attention."
 
-  const draft = taskDraftShell({
-    task,
-    rootName: name,
-    actor: null,
-    target: { kind: "user", userId: event.recipientId },
+  return taskWatcherDrafts(ctx, task, null, {
     fallbackText: `Overdue: ${task.name}`,
-    url,
     color: EMBED_COLOR.urgent,
     fields: [embedField(":alarm_clock:", "Overdue", dueValue)],
     buttons: canOfferStart(task) ? [startTaskButton(task._id)] : [],
   })
-  return [await enrichTaskNotificationDraft(ctx, draft, task._id)]
 }
 
 async function buildOwnerOverdueSummaryDrafts(
@@ -717,17 +709,24 @@ async function buildOwnerOverdueSummaryDrafts(
     (task): task is Doc<"tasks"> =>
       task !== null && !isTerminalComplete(task.status)
   )
-  if (openTasks.length === 0) return []
+  if (openTasks.length === 0 && event.totalCount <= event.taskIds.length) {
+    return []
+  }
 
   const lines = openTasks.map(
-    (task) => `• [${task.name}](${taskUrl(task._id)})`
+    (task) =>
+      `• [${truncateDiscordPreview(task.name, 80)}](${taskUrl(task._id)})`
   )
+  const remainingCount = Math.max(0, event.totalCount - openTasks.length)
+  if (remainingCount > 0) {
+    lines.push(`• ...and ${String(remainingCount)} more`)
+  }
   const summaryValue = lines.join("\n")
-  const countLabel = `${String(openTasks.length)} overdue task${
-    openTasks.length === 1 ? "" : "s"
+  const countLabel = `${String(event.totalCount)} overdue task${
+    event.totalCount === 1 ? "" : "s"
   }`
 
-  return await buildObjectFeedDrafts(ctx, event.owner, {
+  return buildObjectFeedDrafts(ctx, event.owner, {
     fallbackText: `${countLabel}: ${owner.name}`,
     actorId: null,
     color: EMBED_COLOR.urgent,

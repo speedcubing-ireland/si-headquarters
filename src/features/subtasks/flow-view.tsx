@@ -185,6 +185,7 @@ const FlowItem = memo(function FlowItem({
             <ItemActions>
               <TaskOwnerSelector.NameButton
                 selectedOwner={step.owner}
+                scope={{ type: "tasks", id: taskId }}
                 onChange={(owner) => {
                   void setOwner({ id: taskId, owner })
                 }}
@@ -194,6 +195,7 @@ const FlowItem = memo(function FlowItem({
               <span className="hidden @sm/main:inline-flex">
                 <TaskAssigneeSelector.CompactButton
                   assignees={step.assignees}
+                  scope={{ type: "tasks", id: taskId }}
                   onChange={(assigneeIds) => {
                     void setAssignees({ id: taskId, assigneeIds })
                   }}
@@ -213,6 +215,7 @@ const FlowItem = memo(function FlowItem({
             <ItemActions>
               <TaskAssigneeSelector.CompactButton
                 assignees={step.assignees}
+                scope={{ type: "tasks", id: taskId }}
                 onChange={(assigneeIds) => {
                   void setAssignees({ id: taskId, assigneeIds })
                 }}

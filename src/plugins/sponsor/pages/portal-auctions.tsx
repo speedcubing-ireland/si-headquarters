@@ -1,14 +1,9 @@
-import {
-  Link,
-  Outlet,
-  useNavigate,
-  useRouterState,
-} from "@tanstack/react-router"
+import { Link, Outlet, useRouterState } from "@tanstack/react-router"
 import { useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
 import { ArrowRight, BookOpen, LogOut, Settings } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { useEffect, useMemo, type ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import { api } from "@/convex/_generated/api"
 import { PageListMessage } from "@/components/layout/page-list-message"
 import { StatCard } from "@/components/stat-card"
@@ -36,7 +31,7 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
-import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
+import { useRequireSponsorSession } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 import { cn } from "@/lib/utils"
 import {
@@ -231,8 +226,7 @@ export function PortalAuctionsPage() {
     segments.length > 2 &&
     segments[0] === "sponsor" &&
     segments[1] === "auctions"
-  const navigate = useNavigate()
-  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
+  const { sessionToken, authPending } = useRequireSponsorSession()
   const onLogout = useSponsorPortalSignOut()
   const meResult = useQuery(
     api.plugins.sponsor.portal.auth.me,
@@ -261,12 +255,6 @@ export function PortalAuctionsPage() {
     () => sponsorshipsState.data ?? [],
     [sponsorshipsState.data]
   )
-
-  useEffect(() => {
-    if (authPending) return
-    if (sessionToken !== null) return
-    void navigate({ to: "/sponsor/login" })
-  }, [authPending, navigate, sessionToken])
 
   const auctionsByState = useMemo(() => {
     const items = auctions

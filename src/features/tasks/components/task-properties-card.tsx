@@ -54,6 +54,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
         <PageCardRow icon={<UserIcon className="size-4" />} label="Assignee">
           <TaskAssigneeSelector.PropertyButton
             assignees={assigneeState}
+            scope={{ type: "tasks", id: taskId }}
             onChange={(assigneeIds) => {
               void setAssignees({
                 id: taskId,
@@ -65,6 +66,7 @@ export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
         <PageCardRow icon={<CastleIcon className="size-4" />} label="Owner">
           <TaskOwnerSelector.PropertyButton
             selectedOwner={owner}
+            scope={{ type: "tasks", id: taskId }}
             value={task.owner}
             onChange={(owner) => {
               void setOwner({ id: taskId, owner })

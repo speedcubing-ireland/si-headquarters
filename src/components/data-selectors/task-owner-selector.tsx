@@ -3,6 +3,8 @@ import { Avatar } from "@/components/ui/avatar"
 import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { SelectedTaskOwner as SelectedOwner } from "@/components/data-selectors/task-selector-model"
+import type { SubtaskViewOwner } from "@/convex/tasks/queries"
+import { useCan } from "@/features/auth"
 import { objectRefKey } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { CastleIcon } from "lucide-react"
@@ -24,6 +26,7 @@ interface TaskOwnerSelectorProps extends Pick<
 > {
   avatarProps?: ObjectAvatarProps
   selectedOwner?: SelectedOwner | null
+  scope?: SubtaskViewOwner
   value?: OwnerRef
   onChange: SelectorChangeHandler<OwnerRef>
 }
@@ -134,6 +137,7 @@ function OwnerSelectorControl({
   disabled,
   onChange,
   selectedOwner,
+  scope,
   size,
   value,
   variant,
@@ -141,18 +145,41 @@ function OwnerSelectorControl({
   appearance: OwnerFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const users = useQuery(api.users.queries.list, open ? {} : "skip")
+  const { allowed: canReadUsers, isLoading: userAccessLoading } = useCan(
+    "read",
+    "User"
+  )
+  const { allowed: canReadTeams, isLoading: teamAccessLoading } = useCan(
+    "read",
+    "Team"
+  )
+  const users = useQuery(
+    api.users.queries.list,
+    open && scope === undefined && !userAccessLoading && canReadUsers
+      ? {}
+      : "skip"
+  )
   const teams = useQuery(
     api.teams.queries.listForTaskFilters,
-    open ? {} : "skip"
+    open && scope === undefined && !teamAccessLoading && canReadTeams
+      ? {}
+      : "skip"
   )
+  const scopedOptions = useQuery(
+    api.tasks.queries.listAssignmentOptions,
+    open && scope !== undefined ? { scope } : "skip"
+  )
+  const ownerUsers = scope === undefined ? users : scopedOptions?.users
+  const ownerTeams = scope === undefined ? teams : scopedOptions?.teams
   const selectedItem = selectedOwner ? toOwnerOption(selectedOwner) : null
   const ownerGroups = useMemo<SelectorGroup<OwnerOption, OwnerValue>[]>(
     () => [
       {
         key: "teams",
         label: "Teams",
-        items: teams?.map((team) => toOwnerOption({ ...team, type: "teams" })),
+        items: ownerTeams?.map((team) =>
+          toOwnerOption({ ...team, type: "teams" })
+        ),
         getLabel: (owner) => owner.label,
         getValue: (owner) => owner.value,
         renderItem: renderOwnerItem,
@@ -160,13 +187,15 @@ function OwnerSelectorControl({
       {
         key: "users",
         label: "Users",
-        items: users?.map((user) => toOwnerOption({ ...user, type: "users" })),
+        items: ownerUsers?.map((user) =>
+          toOwnerOption({ ...user, type: "users" })
+        ),
         getLabel: (owner) => owner.label,
         getValue: (owner) => owner.value,
         renderItem: renderOwnerItem,
       },
     ],
-    [teams, users]
+    [ownerTeams, ownerUsers]
   )
   const model = useSingleDataSelector<OwnerOption, OwnerValue>({
     getValueKey: objectRefKey,

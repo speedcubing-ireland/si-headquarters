@@ -1,6 +1,18 @@
-import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router"
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react"
+import {
+  createRootRoute,
+  Outlet,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router"
+import {
+  Authenticated,
+  AuthLoading,
+  Unauthenticated,
+  useQuery,
+} from "convex/react"
 import { useEffect } from "react"
+import { api } from "@/convex/_generated/api"
+import { ORGANISER_INVITE_PATH } from "@/convex/competitions/invites/validators"
 import {
   Card,
   CardContent,
@@ -15,21 +27,18 @@ import { AbilityProvider } from "@/features/auth"
 import { getPageTitle } from "@/lib/page-title"
 import { isSponsorSite } from "@/lib/sponsor-site"
 
-function isSponsorPortalPath(pathname: string): boolean {
-  const normalized = pathname.replace(/\/+$/, "") || "/"
-  if (isSponsorSite()) {
-    return true
-  }
-  return normalized.startsWith("/sponsor")
-}
+const HQ_PUBLIC_AUTH_PATHS = new Set([
+  "/impersonate/user",
+  ORGANISER_INVITE_PATH,
+])
 
-function isPublicImpersonationPath(pathname: string): boolean {
-  const normalized = pathname.replace(/\/+$/, "") || "/"
-  return normalized === "/impersonate/user"
-}
-
-function SignInForm() {
+function SignInForm({
+  wcaSignInUrl,
+}: {
+  wcaSignInUrl: string | null | undefined
+}) {
   const { signIn } = useAuthActions()
+  const navigate = useNavigate()
 
   const handleGoogleSignIn = async () => {
     try {
@@ -62,28 +71,42 @@ function SignInForm() {
         >
           Speedcubing Ireland Volunteer (GSuite)
         </Button>
+        {wcaSignInUrl !== null ? (
+          <Button
+            type="button"
+            className="w-full"
+            variant="outline"
+            disabled={wcaSignInUrl === undefined}
+            onClick={() => {
+              if (wcaSignInUrl !== undefined) {
+                void navigate({ href: wcaSignInUrl })
+              }
+            }}
+          >
+            External Organiser (WCA)
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   )
 }
 
-function RootLayoutInner() {
-  const { isSponsorPortal, pathname } = useRouterState({
-    select: (state) => ({
-      isSponsorPortal: isSponsorPortalPath(state.location.pathname),
-      pathname: state.location.pathname,
-    }),
+function RootLayout() {
+  const wcaSignInUrl = useQuery(api.organisers.queries.wcaSignInUrl, {})
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
   })
+  const normalizedPath = pathname.replace(/\/+$/, "") || "/"
 
   useEffect(() => {
     document.title = getPageTitle(pathname)
   }, [pathname])
 
-  if (isPublicImpersonationPath(pathname)) {
+  if (HQ_PUBLIC_AUTH_PATHS.has(normalizedPath)) {
     return <Outlet />
   }
 
-  if (isSponsorPortal) {
+  if (isSponsorSite() || normalizedPath.startsWith("/sponsor")) {
     return <Outlet />
   }
 
@@ -114,7 +137,7 @@ function RootLayoutInner() {
               Sign in to access your competitions, tasks, and tools.
             </p>
           </div>
-          <SignInForm />
+          <SignInForm wcaSignInUrl={wcaSignInUrl} />
           <p className="mt-6 max-w-md text-center text-xs text-muted-foreground">
             Speedcubing Ireland Volunteers sign in with Google. External
             Organisers sign in with WCA. Contact an admin if you need access.
@@ -123,10 +146,6 @@ function RootLayoutInner() {
       </Unauthenticated>
     </>
   )
-}
-
-function RootLayout() {
-  return <RootLayoutInner />
 }
 
 export const Route = createRootRoute({ component: RootLayout })

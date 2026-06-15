@@ -70,12 +70,13 @@ export function AddTaskDialog({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const users = useQuery(api.users.queries.list, open ? {} : "skip")
-  const teams = useQuery(
-    api.teams.queries.listForTaskFilters,
-    open ? {} : "skip"
+  const assignmentOptions = useQuery(
+    api.tasks.queries.listAssignmentOptions,
+    open ? { scope: parentScope } : "skip"
   )
   const labels = useQuery(api.tasks.labels.queries.list, open ? {} : "skip")
+  const users = assignmentOptions?.users
+  const teams = assignmentOptions?.teams
 
   const selectedLabels = useMemo((): TaskLabelOption[] => {
     const labelById = new Map(labels?.map((label) => [label._id, label]))
@@ -244,6 +245,7 @@ export function AddTaskDialog({
                         <FieldLabel>Assignee</FieldLabel>
                         <TaskAssigneeSelector.PropertyButton
                           assignees={assigneeState}
+                          scope={parentScope}
                           disabled={isSubmitting}
                           onChange={setAssigneeIds}
                         />
@@ -254,6 +256,7 @@ export function AddTaskDialog({
                         <TaskOwnerSelector.PropertyButton
                           value={owner}
                           selectedOwner={selectedOwner}
+                          scope={parentScope}
                           disabled={isSubmitting}
                           onChange={setOwner}
                         />

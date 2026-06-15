@@ -69,6 +69,7 @@ function TaskCardControls({ row }: { row: TaskBoardRow }) {
         <TaskAssigneeSelector.IconButton
           className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           assignees={row.assignees}
+          scope={{ type: "tasks", id: row.task._id }}
           avatarProps={{ className: "size-5", size: "default" }}
           onChange={(assigneeIds) => {
             void setAssignees({ id: row.task._id, assigneeIds })
@@ -101,6 +102,7 @@ function TaskCardControls({ row }: { row: TaskBoardRow }) {
             className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
             value={ownerValue}
             selectedOwner={row.owner}
+            scope={{ type: "tasks", id: row.task._id }}
             avatarProps={{ className: "size-4.5", size: "default" }}
             onChange={(owner) => {
               void setTaskOwner({ id: row.task._id, owner })

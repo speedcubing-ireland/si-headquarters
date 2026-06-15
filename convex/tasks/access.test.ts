@@ -4,8 +4,10 @@ import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
+import { TEAM_NAMES } from "@/convex/permissions/shared"
 import { modules } from "@/convex/test.setup"
 import {
+  addUserToTeam,
   insertBlankCompetition,
   insertCompetitionPhase,
   insertSeedTask,
@@ -67,6 +69,66 @@ describe("task access", () => {
     })
 
     expect(details.task._id).toBe(taskId)
+  })
+
+  test("competition organisers can list task assignment options without global directory access", async () => {
+    const t = convexTest(schema, modules)
+    const { assignableUserId, competitionId, organiserId, outsiderId, taskId } =
+      await t.run(async (ctx) => {
+        const organiserId = await insertTestUser(ctx, "Organiser")
+        const assignableUserId = await insertTestUser(ctx, "Assignable")
+        const outsiderId = await insertTestUser(ctx, "Outsider")
+        await addUserToTeam(ctx, assignableUserId, TEAM_NAMES.GRAPHICS)
+        const competitionId = await insertBlankCompetition(ctx)
+        const competition = await ctx.db.get("competitions", competitionId)
+        if (competition === null) throw new Error("Competition missing")
+        await ctx.db.patch("competitions", competitionId, {
+          people: {
+            ...competition.people,
+            organisers: [organiserId],
+          },
+        })
+        const phaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Setup",
+          "a"
+        )
+        const taskId = await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+        })
+        return {
+          assignableUserId,
+          competitionId,
+          organiserId,
+          outsiderId,
+          taskId,
+        }
+      })
+
+    const organiser = t.withIdentity({ subject: organiserId })
+
+    await expect(organiser.query(api.users.queries.list, {})).rejects.toThrow()
+
+    const options = await organiser.query(
+      api.tasks.queries.listAssignmentOptions,
+      { scope: { type: "tasks", id: taskId } }
+    )
+    expect(options.users.map((user) => user._id)).toEqual(
+      expect.arrayContaining([assignableUserId, organiserId])
+    )
+    expect(options.teams.map((team) => team.name)).toContain(
+      TEAM_NAMES.GRAPHICS
+    )
+
+    await expect(
+      t
+        .withIdentity({ subject: outsiderId })
+        .query(api.tasks.queries.listAssignmentOptions, {
+          scope: { type: "competitions", id: competitionId },
+        })
+    ).rejects.toThrow()
   })
 
   test("assignees can read their task without competition read access", async () => {
