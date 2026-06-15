@@ -11,7 +11,7 @@ export async function isExpectedPendingSchedule(
   expected: {
     functionReference: SchedulableFunctionReference
     scheduledTime: number
-    argument: readonly [name: string, value: string]
+    args: Record<string, string | number>
   }
 ): Promise<boolean> {
   if (scheduledFunctionId === undefined) return false
@@ -27,8 +27,7 @@ export async function isExpectedPendingSchedule(
     return false
   }
 
-  const [name, value] = expected.argument
-  if (JSON.stringify(scheduled.args) !== JSON.stringify([{ [name]: value }])) {
+  if (JSON.stringify(scheduled.args) !== JSON.stringify([expected.args])) {
     return false
   }
 

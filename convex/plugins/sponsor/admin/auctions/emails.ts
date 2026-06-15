@@ -138,17 +138,11 @@ export async function sendAuctionStartedEmails(
 export async function sendAuctionActiveReminderEmail(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">,
-  sponsor: Doc<"sponsors">
+  sponsor: Doc<"sponsors">,
+  sponsorHasBid: boolean
 ): Promise<void> {
   const competition = await ctx.db.get("competitions", auction.competitionId)
   if (!competition) return
-  const intents = await ctx.db
-    .query("sponsorshipBidIntents")
-    .withIndex("by_auction_and_sponsor", (q) =>
-      q.eq("auctionId", auction._id).eq("sponsorId", sponsor._id)
-    )
-    .collect()
-  const sponsorHasBid = intents.some((i) => i.isValid)
   const context: SponsorshipEmailContext = {
     competitionName: competition.name,
     portalUrl: sponsorAuctionUrl(auction._id),

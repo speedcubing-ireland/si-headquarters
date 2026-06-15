@@ -30,7 +30,7 @@ async function scheduleAuctionActiveReminder(
   const scheduledFunctionId = await ctx.scheduler.runAt(
     Math.max(scheduledFor, Date.now()),
     internal.plugins.sponsor.admin.auctions.lifecycle._fireReminder,
-    { reminderId }
+    { reminderId, scheduledFor }
   )
   await ctx.db.patch("sponsorshipAuctionReminders", reminderId, {
     scheduledFor,
@@ -87,6 +87,32 @@ export async function markReminderSkipped(
   await ctx.db.patch("sponsorshipAuctionReminders", reminderId, { sent: true })
 }
 
+function reminderPriority(
+  left: Doc<"sponsorshipAuctionReminders">,
+  right: Doc<"sponsorshipAuctionReminders">
+): number {
+  const leftState = left.sentAt !== undefined ? 0 : left.sent ? 2 : 1
+  const rightState = right.sentAt !== undefined ? 0 : right.sent ? 2 : 1
+  if (leftState !== rightState) return leftState - rightState
+  return (
+    left._creationTime - right._creationTime ||
+    left._id.localeCompare(right._id)
+  )
+}
+
+export async function isCanonicalAuctionActiveReminder(
+  ctx: MutationCtx,
+  reminder: Doc<"sponsorshipAuctionReminders">
+): Promise<boolean> {
+  const reminders = await ctx.db
+    .query("sponsorshipAuctionReminders")
+    .withIndex("by_auction_and_sponsor", (q) =>
+      q.eq("auctionId", reminder.auctionId).eq("sponsorId", reminder.sponsorId)
+    )
+    .collect()
+  return [...reminders].sort(reminderPriority)[0]._id === reminder._id
+}
+
 /** Keep active-auction reminder rows and scheduled jobs aligned with `endsAt`. */
 export async function syncAuctionActiveReminders(
   ctx: MutationCtx,
@@ -113,9 +139,25 @@ export async function syncAuctionActiveReminders(
       : [],
   ])
 
+  const canonicalRemindersBySponsor = new Map<
+    Id<"sponsors">,
+    Doc<"sponsorshipAuctionReminders">
+  >()
+  for (const reminder of [...reminders].sort(reminderPriority)) {
+    if (!canonicalRemindersBySponsor.has(reminder.sponsorId)) {
+      canonicalRemindersBySponsor.set(reminder.sponsorId, reminder)
+    } else {
+      await cancelScheduledIfPending(ctx, reminder.scheduledFunctionId)
+      if (!reminder.sent) {
+        await markReminderSkipped(ctx, reminder._id)
+      }
+    }
+  }
+  const canonicalReminders = [...canonicalRemindersBySponsor.values()]
+
   if (createMissing) {
     const sponsorsWithReminders = new Set(
-      reminders.map((reminder) => reminder.sponsorId)
+      canonicalReminders.map((reminder) => reminder.sponsorId)
     )
     for (const invite of invites) {
       if (!sponsorsWithReminders.has(invite.sponsorId)) {
@@ -125,11 +167,12 @@ export async function syncAuctionActiveReminders(
           invite.sponsorId,
           scheduledFor
         )
+        sponsorsWithReminders.add(invite.sponsorId)
       }
     }
   }
 
-  for (const reminder of reminders) {
+  for (const reminder of canonicalReminders) {
     if (reminder.sent) continue
     if (scheduledFor > Date.now() && reminder.scheduledFor === scheduledFor) {
       if (!createMissing) continue
@@ -139,7 +182,7 @@ export async function syncAuctionActiveReminders(
           functionReference:
             internal.plugins.sponsor.admin.auctions.lifecycle._fireReminder,
           scheduledTime: scheduledFor,
-          argument: ["reminderId", reminder._id],
+          args: { reminderId: reminder._id, scheduledFor },
         }))
       ) {
         continue

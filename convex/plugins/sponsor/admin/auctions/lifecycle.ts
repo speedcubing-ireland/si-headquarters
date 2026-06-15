@@ -22,6 +22,7 @@ import {
   sendAuctionStartedEmails,
 } from "./emails"
 import {
+  isCanonicalAuctionActiveReminder,
   markReminderSent,
   markReminderSkipped,
   syncAuctionActiveReminders,
@@ -166,7 +167,10 @@ export const _closeAuction = internalMutation({
 })
 
 export const _fireReminder = internalMutation({
-  args: { reminderId: v.id("sponsorshipAuctionReminders") },
+  args: {
+    reminderId: v.id("sponsorshipAuctionReminders"),
+    scheduledFor: v.optional(v.number()),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const reminder = await ctx.db.get(
@@ -174,8 +178,18 @@ export const _fireReminder = internalMutation({
       args.reminderId
     )
     if (!reminder || reminder.sent) return null
+    if (
+      args.scheduledFor !== undefined &&
+      args.scheduledFor !== reminder.scheduledFor
+    ) {
+      return null
+    }
     const now = Date.now()
     if (reminder.scheduledFor > now) return null
+    if (!(await isCanonicalAuctionActiveReminder(ctx, reminder))) {
+      await markReminderSkipped(ctx, reminder._id)
+      return null
+    }
 
     const [reminderAuction, sponsor] = await Promise.all([
       ctx.db.get("sponsorshipAuctions", reminder.auctionId),
@@ -189,15 +203,20 @@ export const _fireReminder = internalMutation({
       await markReminderSkipped(ctx, reminder._id)
       return null
     }
-    const intents = await ctx.db
+    const sponsorIntents = ctx.db
       .query("sponsorshipBidIntents")
       .withIndex("by_auction_and_sponsor", (q) =>
         q
           .eq("auctionId", reminder.auctionId)
           .eq("sponsorId", reminder.sponsorId)
       )
-      .collect()
-    const hasSponsorValidBid = intents.some((intent) => intent.isValid)
+    let hasSponsorValidBid = false
+    for await (const intent of sponsorIntents) {
+      if (intent.isValid) {
+        hasSponsorValidBid = true
+        break
+      }
+    }
     if (
       shouldSkipAuctionActiveReminder({
         auction: reminderAuction,
@@ -208,7 +227,12 @@ export const _fireReminder = internalMutation({
       await markReminderSkipped(ctx, reminder._id)
       return null
     }
-    await sendAuctionActiveReminderEmail(ctx, reminderAuction, sponsor)
+    await sendAuctionActiveReminderEmail(
+      ctx,
+      reminderAuction,
+      sponsor,
+      hasSponsorValidBid
+    )
     await markReminderSent(ctx, reminder._id)
     return null
   },
@@ -330,7 +354,7 @@ export const repairSchedules = internalMutation({
           functionReference:
             internal.plugins.sponsor.admin.auctions.lifecycle._activateAuction,
           scheduledTime: auction.startsAt,
-          argument: ["auctionId", auction._id],
+          args: { auctionId: auction._id },
         }
       )
       if (!activationIsValid) {
@@ -349,7 +373,7 @@ export const repairSchedules = internalMutation({
           functionReference:
             internal.plugins.sponsor.admin.auctions.lifecycle._closeAuction,
           scheduledTime: auction.endsAt,
-          argument: ["auctionId", auction._id],
+          args: { auctionId: auction._id },
         }
       )
       if (!closureIsValid) {

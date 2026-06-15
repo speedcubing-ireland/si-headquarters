@@ -24,6 +24,7 @@ async function firePendingRemindersForAuction(
       internal.plugins.sponsor.admin.auctions.lifecycle._fireReminder,
       {
         reminderId: row._id,
+        scheduledFor: row.scheduledFor,
       }
     )
   }
@@ -168,6 +169,40 @@ describe("auction active reminder email behavior", () => {
     }
   })
 
+  test("activation creates one reminder per sponsor when invite rows are duplicated", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const { auctionId, managerId, sponsorIds } = await seedScheduledAuction(t)
+    const [sponsorId] = sponsorIds
+
+    await t.run(async (ctx) => {
+      const now = Date.now()
+      await ctx.db.insert("sponsorshipAuctionInvites", {
+        auctionId,
+        sponsorId,
+        invitedById: managerId,
+        invitedAt: now,
+      })
+      await ctx.db.patch("sponsorshipAuctions", auctionId, {
+        startsAt: now - 60_000,
+        state: "active",
+      })
+      const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
+      if (!auction) throw new Error("auction not found")
+      await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
+    })
+
+    const reminders = await t.run((ctx) =>
+      ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction_and_sponsor", (q) =>
+          q.eq("auctionId", auctionId).eq("sponsorId", sponsorId)
+        )
+        .collect()
+    )
+
+    expect(reminders).toHaveLength(1)
+  })
+
   test("extending an auction reschedules pending reminders", async () => {
     const t = createSponsorAuctionTestHarness()
     const { auctionId } = await seedScheduledAuction(t)
@@ -251,6 +286,95 @@ describe("auction active reminder email behavior", () => {
       expect(row.sent).toBe(true)
       expect(row.sentAt).toBeDefined()
     }
+  })
+
+  test("stale rescheduled reminder job does not send email", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const { auctionId, sponsorIds } = await seedScheduledAuction(t)
+    const [sponsorId] = sponsorIds
+    const now = Date.now()
+    const currentScheduledFor = now - 1_000
+    const staleScheduledFor = now - 6_000
+
+    const reminderId = await t.run(async (ctx) => {
+      await ctx.db.patch("sponsorshipAuctions", auctionId, {
+        state: "active",
+        endsAt: now + 30 * 60_000,
+      })
+      return await ctx.db.insert("sponsorshipAuctionReminders", {
+        auctionId,
+        sponsorId,
+        scheduledFor: currentScheduledFor,
+        sent: false,
+      })
+    })
+
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle._fireReminder,
+      {
+        reminderId,
+        scheduledFor: staleScheduledFor,
+      }
+    )
+
+    expect(await getScheduledEmailArgs(t)).toHaveLength(0)
+
+    await t.mutation(
+      internal.plugins.sponsor.admin.auctions.lifecycle._fireReminder,
+      {
+        reminderId,
+        scheduledFor: currentScheduledFor,
+      }
+    )
+
+    const emails = await getScheduledEmailArgs(t)
+    expect(
+      emails.filter((e) => e.emailType === "auction_active_reminder")
+    ).toHaveLength(1)
+  })
+
+  test("duplicate pending reminder rows produce one email", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const { auctionId, sponsorIds } = await seedScheduledAuction(t)
+    const [sponsorId] = sponsorIds
+    const now = Date.now()
+
+    await t.run(async (ctx) => {
+      await ctx.db.patch("sponsorshipAuctions", auctionId, {
+        state: "active",
+        endsAt: now + 30 * 60_000,
+      })
+      const scheduledFor = now - 1_000
+      await ctx.db.insert("sponsorshipAuctionReminders", {
+        auctionId,
+        sponsorId,
+        scheduledFor,
+        sent: false,
+      })
+      await ctx.db.insert("sponsorshipAuctionReminders", {
+        auctionId,
+        sponsorId,
+        scheduledFor,
+        sent: false,
+      })
+    })
+
+    await firePendingRemindersForAuction(t, auctionId)
+
+    const emails = await getScheduledEmailArgs(t)
+    expect(
+      emails.filter((e) => e.emailType === "auction_active_reminder")
+    ).toHaveLength(1)
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("sponsorshipAuctionReminders")
+        .withIndex("by_auction_and_sponsor", (q) =>
+          q.eq("auctionId", auctionId).eq("sponsorId", sponsorId)
+        )
+        .collect()
+    )
+    expect(rows.every((row) => row.sent)).toBe(true)
+    expect(rows.filter((row) => row.sentAt !== undefined)).toHaveLength(1)
   })
 
   test("already-sent rows produce no second email", async () => {
