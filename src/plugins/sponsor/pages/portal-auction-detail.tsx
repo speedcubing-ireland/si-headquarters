@@ -35,7 +35,7 @@ import {
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
-import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
+import { useRequireSponsorSession } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 
 function toSponsorBidErrorMessage(error: object): string {
@@ -84,7 +84,7 @@ export function PortalAuctionDetailPage({
   auctionId: Id<"sponsorshipAuctions">
 }) {
   const navigate = useNavigate()
-  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
+  const { sessionToken, authPending } = useRequireSponsorSession()
   const [amountEuros, setAmountEuros] = useState("")
   const [isBiddingHelpOpen, setIsBiddingHelpOpen] = useState(false)
   const [isSubmittingBid, setIsSubmittingBid] = useState(false)
@@ -116,12 +116,6 @@ export function PortalAuctionDetailPage({
       window.clearInterval(intervalId)
     }
   }, [])
-
-  useEffect(() => {
-    if (authPending) return
-    if (sessionToken !== null) return
-    void navigate({ to: "/sponsor/login" })
-  }, [authPending, navigate, sessionToken])
 
   const dataResult = useQuery(
     api.plugins.sponsor.portal.auctions.getAuction,

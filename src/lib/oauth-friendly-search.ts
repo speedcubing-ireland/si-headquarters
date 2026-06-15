@@ -3,7 +3,10 @@ export function parseOAuthFriendlySearch(searchStr: string) {
   const params = new URLSearchParams(normalized)
   const result: Record<string, string> = {}
   for (const [key, value] of params.entries()) {
-    result[key] = value
+    const trimmed = value.trim()
+    if (trimmed.length > 0) {
+      result[key] = trimmed
+    }
   }
   return result
 }

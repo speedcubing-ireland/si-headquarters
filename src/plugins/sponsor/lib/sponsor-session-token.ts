@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router"
 import { useEffect, useState } from "react"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
 
@@ -54,4 +55,18 @@ export function useSponsorSessionToken() {
     isPending,
     isImpersonating: false,
   }
+}
+
+export function useRequireSponsorSession() {
+  const navigate = useNavigate()
+  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
+
+  useEffect(() => {
+    if (authPending || sessionToken !== null) {
+      return
+    }
+    void navigate({ to: "/sponsor/login" })
+  }, [authPending, navigate, sessionToken])
+
+  return { sessionToken, authPending }
 }

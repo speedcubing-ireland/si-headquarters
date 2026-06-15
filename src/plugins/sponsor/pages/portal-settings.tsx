@@ -1,7 +1,7 @@
-import { Link, useNavigate } from "@tanstack/react-router"
+import { Link } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
 import { ArrowLeft, BookOpen, LogOut } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import type { SubmitEvent } from "react"
 import { toast } from "sonner"
 import { api } from "@/convex/_generated/api"
@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
-import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
+import { useRequireSponsorSession } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 
 function toActionError(error: object, fallback: string): string {
@@ -43,8 +43,7 @@ function toActionError(error: object, fallback: string): string {
 }
 
 export function PortalSettingsPage() {
-  const navigate = useNavigate()
-  const { sessionToken, isPending: authPending } = useSponsorSessionToken()
+  const { sessionToken, authPending } = useRequireSponsorSession()
   const onLogout = useSponsorPortalSignOut()
   const meResult = useQuery(
     api.plugins.sponsor.portal.auth.me,
@@ -60,12 +59,6 @@ export function PortalSettingsPage() {
   )
   const [isSavingName, setIsSavingName] = useState(false)
   const displayName = displayNameOverride ?? me?.sponsor.name ?? ""
-
-  useEffect(() => {
-    if (authPending) return
-    if (sessionToken !== null) return
-    void navigate({ to: "/sponsor/login" })
-  }, [authPending, navigate, sessionToken])
 
   if (authPending || sessionToken === null || meState.isLoading) {
     return <SponsorPageLoading />

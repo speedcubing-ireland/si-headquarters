@@ -1,16 +1,16 @@
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { ImpersonationBanner } from "@/features/impersonation/impersonation-banner"
-import { useEndSponsorImpersonation } from "@/plugins/sponsor/impersonation/use-end-sponsor-impersonation"
+import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-portal-sign-out"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 
 export function SponsorImpersonationBanner() {
+  const signOut = useSponsorPortalSignOut()
   const { sessionToken, isImpersonating } = useSponsorSessionToken()
   const impersonation = useQuery(
     api.plugins.sponsor.impersonation.current,
     sessionToken !== null ? { sessionToken } : "skip"
   )
-  const endSponsorImpersonation = useEndSponsorImpersonation()
 
   if (!isImpersonating || sessionToken === null || !impersonation) {
     return null
@@ -20,11 +20,7 @@ export function SponsorImpersonationBanner() {
     <ImpersonationBanner
       actorName={impersonation.actorName}
       expiresAt={impersonation.expiresAt}
-      onEnd={() => {
-        void endSponsorImpersonation(sessionToken).then(() => {
-          window.location.assign("/sponsor/login")
-        })
-      }}
+      onEnd={() => void signOut()}
     />
   )
 }

@@ -9,6 +9,7 @@ import { ConvexReactClient } from "convex/react"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
 import { isSponsorSite } from "@/lib/sponsor-site"
 import { createSponsorSiteRewrite } from "@/lib/sponsor-site-rewrite"
+import { ORGANISER_INVITE_PATH } from "@/convex/competitions/invites/validators"
 import {
   parseOAuthFriendlySearch,
   stringifyOAuthFriendlySearch,
@@ -43,8 +44,9 @@ createRoot(root).render(
     <ConvexAuthProvider
       client={convex}
       shouldHandleCode={() => {
-        const pathname = window.location.pathname.replace(/\/+$/, "") || "/"
-        return pathname !== "/invite/organiser"
+        const pathname =
+          router.state.location.pathname.replace(/\/+$/, "") || "/"
+        return pathname !== ORGANISER_INVITE_PATH
       }}
       replaceURL={(url) => {
         router.history.replace(url)
