@@ -1,7 +1,7 @@
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { useQuery } from "convex/react"
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { api } from "@/convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,30 +16,6 @@ import { formatDateTime } from "@/lib/format/irish-dates"
 
 const INVALID_INVITE_MESSAGE =
   "This organiser invite link is invalid, expired, or revoked. Ask the competition team for a new one."
-
-interface InviteSearch {
-  token: string | null
-  code: string | null
-  state: string | null
-  error: string | null
-}
-
-function inviteSearchFromLocation(): InviteSearch {
-  if (typeof window === "undefined") {
-    return { token: null, code: null, state: null, error: null }
-  }
-  const params = new URLSearchParams(window.location.search)
-  const read = (key: string) => {
-    const value = params.get(key)?.trim()
-    return value === undefined || value.length === 0 ? null : value
-  }
-  return {
-    token: read("token"),
-    code: read("code"),
-    state: read("state"),
-    error: read("error"),
-  }
-}
 
 function InviteShell({ children }: { children: ReactNode }) {
   return (
@@ -111,7 +87,7 @@ function WcaCallbackRedeem({
   inviteToken,
 }: {
   code: string
-  inviteToken: string | null
+  inviteToken: string | undefined
 }) {
   const navigate = useNavigate()
   const { signIn } = useAuthActions()
@@ -128,7 +104,7 @@ function WcaCallbackRedeem({
       try {
         const result = await signIn("wca", {
           code,
-          ...(inviteToken === null ? {} : { inviteToken }),
+          ...(inviteToken === undefined ? {} : { inviteToken }),
         })
         if (!result.signingIn) {
           throw new Error(INVALID_INVITE_MESSAGE)
@@ -160,9 +136,11 @@ function WcaCallbackRedeem({
 }
 
 export function OrganiserInvitePage() {
-  const search = useMemo(() => inviteSearchFromLocation(), [])
+  const { token, code, state, error } = useSearch({
+    from: "/invite/organiser",
+  })
 
-  if (search.error !== null) {
+  if (error !== undefined) {
     return (
       <InviteMessage
         title="Organiser sign in"
@@ -170,11 +148,11 @@ export function OrganiserInvitePage() {
       />
     )
   }
-  if (search.code !== null) {
-    return <WcaCallbackRedeem code={search.code} inviteToken={search.state} />
+  if (code !== undefined) {
+    return <WcaCallbackRedeem code={code} inviteToken={state} />
   }
-  if (search.token !== null) {
-    return <InviteLanding token={search.token} />
+  if (token !== undefined) {
+    return <InviteLanding token={token} />
   }
   return (
     <InviteMessage

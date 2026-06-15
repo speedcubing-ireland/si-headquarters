@@ -1,9 +1,13 @@
 import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
+import { requireCompetitionForRead } from "@/convex/competitions/access"
 import { scheduleNotificationEvent } from "@/convex/notifications/events"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
+import {
+  canAccessSponsorPortalAdminForUser,
+  requireSponsorPortalAdmin,
+} from "@/convex/permissions/principal"
 import {
   findWinningClosedAuction,
   isCompetitionSponsorManualOverride,
@@ -26,14 +30,11 @@ async function sponsorName(
 export const getForCompetition = query({
   args: { competitionId: v.id("competitions") },
   handler: async (ctx, args) => {
-    await requireSponsorPortalAdmin(ctx)
-    const competition = await ctx.db.get("competitions", args.competitionId)
-    if (competition === null) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Competition not found",
-      })
-    }
+    const { principal } = await requireCompetitionForRead(
+      ctx,
+      args.competitionId
+    )
+    const canManageSponsor = canAccessSponsorPortalAdminForUser(principal)
 
     const override = await getCompetitionSponsorOverride(
       ctx,
@@ -62,13 +63,15 @@ export const getForCompetition = query({
 
     return {
       status,
-      isManualOverride,
-      winnerSponsorId,
+      isManualOverride: canManageSponsor && isManualOverride,
+      winnerSponsorId: canManageSponsor ? winnerSponsorId : undefined,
       winnerSponsorName:
         winnerSponsorId !== undefined
           ? await sponsorName(ctx, winnerSponsorId)
           : undefined,
-      settlementAmountCents: winningAuction?.settlementAmountCents,
+      settlementAmountCents: canManageSponsor
+        ? winningAuction?.settlementAmountCents
+        : undefined,
     }
   },
 })

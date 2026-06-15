@@ -3,6 +3,7 @@ import { Avatar, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
+import { useCan } from "@/features/auth"
 import { objectRefKey } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { UsersRoundIcon } from "lucide-react"
@@ -139,17 +140,29 @@ export function MultiPropertyButton({
   variant,
 }: MultiUserTeamSelectorProps) {
   const [open, setOpen] = useState(false)
+  const { allowed: canReadUsers, isLoading: userAccessLoading } = useCan(
+    "read",
+    "User"
+  )
+  const { allowed: canReadTeams, isLoading: teamAccessLoading } = useCan(
+    "read",
+    "Team"
+  )
   const projectOptions = useQuery(
     api.projects.queries.listMemberOptions,
     open && projectId !== undefined ? { id: projectId } : "skip"
   )
   const globalUsers = useQuery(
     api.users.queries.list,
-    open && projectId === undefined ? {} : "skip"
+    open && projectId === undefined && !userAccessLoading && canReadUsers
+      ? {}
+      : "skip"
   )
   const globalTeams = useQuery(
     api.teams.queries.listForTaskFilters,
-    open && projectId === undefined ? {} : "skip"
+    open && projectId === undefined && !teamAccessLoading && canReadTeams
+      ? {}
+      : "skip"
   )
   const users = projectOptions?.users ?? globalUsers
   const teams = projectOptions?.teams ?? globalTeams

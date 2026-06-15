@@ -106,15 +106,10 @@ const schema = defineSchema(
         "parent.id",
         "order",
       ])
-      .index("by_root_type_and_root_id_and_status", [
-        "root.type",
-        "root.id",
-        "status",
-      ])
+      .index("by_root_type_and_root_id", ["root.type", "root.id"])
       .index("by_rootPhase_id", ["rootPhase.id"])
       .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"])
       .index("by_dueDate", ["dueDate"])
-      .index("by_status_and_dueDate", ["status", "dueDate"])
       .searchIndex("search_name", { searchField: "name" }),
     taskLabels: defineTable(taskLabelsFields).index("by_code", ["code"]),
     taskLabelAssignments: defineTable(taskLabelAssignments)
@@ -148,6 +143,10 @@ const schema = defineSchema(
       "by_taskId_and_assigneeId",
       ["taskId", "assigneeId"]
     ),
+    notificationDueScanStates: defineTable({
+      key: v.string(),
+      lastRunDate: v.string(),
+    }).index("by_key", ["key"]),
     savedViews: defineTable(savedViewFields)
       .index("by_owner_entity_page", ["ownerId", "entity", "pageId"])
       .index("by_visibility_entity_page", ["visibility", "entity", "pageId"]),

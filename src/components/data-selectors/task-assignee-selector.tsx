@@ -10,9 +10,12 @@ import {
 } from "@/components/data-selectors/user-selector-model"
 import type { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import type { PublicUser } from "@/convex/users/validators"
+import type { SubtaskViewOwner } from "@/convex/tasks/queries"
 import type { TaskViewAssignees } from "@/convex/tasks/view"
+import type { PublicUser } from "@/convex/users/validators"
+import { useQuery } from "convex/react"
 import { useMemo, useState, type ComponentProps } from "react"
 
 type AssigneeValue = Doc<"tasks">["assigneeIds"]
@@ -26,6 +29,7 @@ interface TaskAssigneeSelectorProps extends Pick<
   assignees: TaskViewAssignees
   avatarProps?: ObjectAvatarProps
   maxAvatars?: number
+  scope?: SubtaskViewOwner
   onChange: (value: AssigneeValue) => void
 }
 
@@ -80,13 +84,19 @@ function TaskAssigneeSelectorControl({
   disabled,
   maxAvatars,
   onChange,
+  scope,
   size,
   variant,
 }: TaskAssigneeSelectorProps & {
   appearance: UserFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const users = useUserItems(open)
+  const scopedOptions = useQuery(
+    api.tasks.queries.listAssignmentOptions,
+    open && scope !== undefined ? { scope } : "skip"
+  )
+  const globalUsers = useUserItems(open && scope === undefined)
+  const users = scope === undefined ? globalUsers : scopedOptions?.users
   const model = useMultipleDataSelector<PublicUser, Id<"users">>({
     getLabel: getUserName,
     getValue: (user) => user._id,

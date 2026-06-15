@@ -4,40 +4,39 @@ import {
   resolveWcaApiBaseUrl,
   resolveWcaBaseUrl,
 } from "@/convex/deploymentContext"
+import {
+  readJsonObject,
+  readNumber,
+  readRecord,
+  readString,
+} from "@/convex/integrations/jsonBoundary"
 import { hqSiteUrl } from "@/convex/urls"
 
 const WCA_LOGIN_SCOPE = "public email"
 
-export interface WcaLoginProfile {
-  wcaUserId: number
-  name?: string
-  email?: string
-  avatarUrl?: string
-}
-
-interface WcaLoginCredentials {
-  clientId: string
-  clientSecret: string
-}
-
-function wcaLoginCredentials(): WcaLoginCredentials | null {
-  const clientId = env.AUTH_WCA_ID
-  const clientSecret = env.AUTH_WCA_SECRET
-  if (clientId === undefined || clientSecret === undefined) {
+function wcaLoginCredentials() {
+  const clientId = env.AUTH_WCA_ID?.trim()
+  const clientSecret = env.AUTH_WCA_SECRET?.trim()
+  if (
+    clientId === undefined ||
+    clientId.length === 0 ||
+    clientSecret === undefined ||
+    clientSecret.length === 0
+  ) {
     return null
   }
   return { clientId, clientSecret }
 }
 
-export function isWcaLoginConfigured(): boolean {
+export function isWcaLoginConfigured() {
   return wcaLoginCredentials() !== null
 }
 
-export function wcaLoginRedirectUri(): string {
+function wcaLoginRedirectUri() {
   return hqSiteUrl(ORGANISER_INVITE_PATH)
 }
 
-export function buildWcaAuthorizeUrl(state: string): string | null {
+export function buildWcaAuthorizeUrl(state: string) {
   const credentials = wcaLoginCredentials()
   if (credentials === null) {
     return null
@@ -53,29 +52,7 @@ export function buildWcaAuthorizeUrl(state: string): string | null {
   return url.toString()
 }
 
-type JsonRecord = Record<string, object | string | number | boolean | null>
-
-function asJsonRecord(
-  value: object | string | number | boolean | null | undefined
-): JsonRecord | null {
-  if (value === null || value === undefined || typeof value !== "object") {
-    return null
-  }
-  return isPlainObject(value) ? value : null
-}
-
-function isPlainObject(value: object): value is JsonRecord {
-  return !Array.isArray(value)
-}
-
-function readString(record: JsonRecord, key: string): string | undefined {
-  const value = record[key]
-  return typeof value === "string" && value.length > 0 ? value : undefined
-}
-
-export async function exchangeWcaCodeForProfile(
-  code: string
-): Promise<WcaLoginProfile | null> {
+export async function exchangeWcaCodeForProfile(code: string) {
   const credentials = wcaLoginCredentials()
   if (credentials === null) {
     return null
@@ -95,9 +72,7 @@ export async function exchangeWcaCodeForProfile(
   if (!tokenResponse.ok) {
     return null
   }
-  // oxlint-disable-next-line typescript/no-unsafe-assignment -- fetch JSON boundary
-  const tokenBody: object | null = await tokenResponse.json()
-  const tokenRecord = asJsonRecord(tokenBody)
+  const tokenRecord = await readJsonObject(tokenResponse)
   if (tokenRecord === null) {
     return null
   }
@@ -112,18 +87,18 @@ export async function exchangeWcaCodeForProfile(
   if (!meResponse.ok) {
     return null
   }
-  // oxlint-disable-next-line typescript/no-unsafe-assignment -- fetch JSON boundary
-  const meBody: object | null = await meResponse.json()
-  const meRecord = asJsonRecord(meBody)
-  const profile = meRecord === null ? null : asJsonRecord(meRecord.me)
-  if (profile === null || typeof profile.id !== "number") {
+  const meRecord = await readJsonObject(meResponse)
+  const profile = meRecord === null ? undefined : readRecord(meRecord, "me")
+  if (profile === undefined) {
     return null
   }
-  const avatar = asJsonRecord(profile.avatar)
+  const wcaUserId = readNumber(profile, "id")
+  if (wcaUserId === undefined) return null
+  const avatar = readRecord(profile, "avatar")
   return {
-    wcaUserId: profile.id,
+    wcaUserId,
     name: readString(profile, "name"),
     email: readString(profile, "email"),
-    avatarUrl: avatar === null ? undefined : readString(avatar, "url"),
+    avatarUrl: avatar === undefined ? undefined : readString(avatar, "url"),
   }
 }

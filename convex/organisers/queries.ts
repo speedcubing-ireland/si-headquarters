@@ -1,19 +1,22 @@
 import { v } from "convex/values"
 import { query } from "@/convex/_generated/server"
 import { findActiveInviteWithCompetition } from "@/convex/competitions/invites/model"
-import { buildWcaAuthorizeUrl } from "@/convex/organisers/wcaLogin"
+import {
+  buildWcaAuthorizeUrl,
+  isWcaLoginConfigured,
+} from "@/convex/organisers/wcaLogin"
 
-// Returns null when WCA organiser login is not configured, hiding the
-// sign-in button.
+export const wcaLoginConfigured = query({
+  args: {},
+  handler: () => isWcaLoginConfigured(),
+})
+
 export const wcaSignInUrl = query({
   args: {},
   returns: v.union(v.string(), v.null()),
   handler: () => buildWcaAuthorizeUrl(""),
 })
 
-// Public, token-gated: powers the unauthenticated invite landing page. The
-// invite token is round-tripped through the OAuth state parameter so it can
-// be redeemed after WCA redirects back.
 export const inviteContext = query({
   args: {
     token: v.string(),

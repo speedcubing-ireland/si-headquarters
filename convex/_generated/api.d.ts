@@ -126,6 +126,7 @@ import type * as plugins_sponsor_admin_auctions_emails from "../plugins/sponsor/
 import type * as plugins_sponsor_admin_auctions_lifecycle from "../plugins/sponsor/admin/auctions/lifecycle.js";
 import type * as plugins_sponsor_admin_auctions_management from "../plugins/sponsor/admin/auctions/management.js";
 import type * as plugins_sponsor_admin_auctions_reminders from "../plugins/sponsor/admin/auctions/reminders.js";
+import type * as plugins_sponsor_admin_auctions_scheduledFunctions from "../plugins/sponsor/admin/auctions/scheduledFunctions.js";
 import type * as plugins_sponsor_admin_auctions_shared from "../plugins/sponsor/admin/auctions/shared.js";
 import type * as plugins_sponsor_admin_contacts from "../plugins/sponsor/admin/contacts.js";
 import type * as plugins_sponsor_admin_propertyStatus from "../plugins/sponsor/admin/propertyStatus.js";
@@ -403,6 +404,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/admin/auctions/lifecycle": typeof plugins_sponsor_admin_auctions_lifecycle;
   "plugins/sponsor/admin/auctions/management": typeof plugins_sponsor_admin_auctions_management;
   "plugins/sponsor/admin/auctions/reminders": typeof plugins_sponsor_admin_auctions_reminders;
+  "plugins/sponsor/admin/auctions/scheduledFunctions": typeof plugins_sponsor_admin_auctions_scheduledFunctions;
   "plugins/sponsor/admin/auctions/shared": typeof plugins_sponsor_admin_auctions_shared;
   "plugins/sponsor/admin/contacts": typeof plugins_sponsor_admin_contacts;
   "plugins/sponsor/admin/propertyStatus": typeof plugins_sponsor_admin_propertyStatus;

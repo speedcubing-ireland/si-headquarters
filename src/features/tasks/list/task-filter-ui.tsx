@@ -5,11 +5,16 @@ import { hasDateRangeValue } from "@/features/list-views/types"
 import { useTaskListPage } from "@/features/tasks/list/task-list-context"
 import { countActiveTaskFilterChips } from "@/features/tasks/list/task-list-types"
 import { useTaskFilters } from "@/features/tasks/list/task-filters"
+import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 
-export function TasksFilterPopover() {
+export function TasksFilterPopover({
+  rows,
+}: {
+  rows: TaskBoardRow[] | undefined
+}) {
   const { overlayFilters, setArrayFilter, clearOverlay, hiddenFilterKeys } =
     useTaskListPage()
-  const { filterTypes } = useTaskFilters()
+  const { filterTypes } = useTaskFilters(rows)
   const visibleFilterTypes = filterTypes.filter(
     (type) => !hiddenFilterKeys.includes(type.id)
   )
@@ -25,10 +30,14 @@ export function TasksFilterPopover() {
   )
 }
 
-export function TasksFilterChips() {
+export function TasksFilterChips({
+  rows,
+}: {
+  rows: TaskBoardRow[] | undefined
+}) {
   const { overlayFilters, setArrayFilter, setDueDate, hiddenFilterKeys } =
     useTaskListPage()
-  const { optionsByKey, chipDefs } = useTaskFilters()
+  const { optionsByKey, chipDefs } = useTaskFilters(rows)
   const visibleChipDefs = chipDefs.filter(
     (def) => !hiddenFilterKeys.includes(def.key)
   )

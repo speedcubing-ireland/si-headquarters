@@ -1,32 +1,7 @@
 import { v } from "convex/values"
-import type { Id } from "@/convex/_generated/dataModel"
 import { internalMutation } from "@/convex/_generated/server"
-import type { MutationCtx } from "@/convex/_generated/server"
 import { findActiveInviteWithCompetition } from "@/convex/competitions/invites/model"
 
-async function addOrganiserToCompetition(
-  ctx: MutationCtx,
-  competitionId: Id<"competitions">,
-  userId: Id<"users">
-): Promise<void> {
-  const competition = await ctx.db.get("competitions", competitionId)
-  if (competition === null || competition.people.organisers.includes(userId)) {
-    return
-  }
-  await ctx.db.patch("competitions", competitionId, {
-    people: {
-      ...competition.people,
-      organisers: [...competition.people.organisers, userId],
-    },
-  })
-}
-
-/**
- * Sign-in gate for the WCA ConvexCredentials provider. WCA identity has
- * already been verified by the OAuth code exchange; this decides whether a
- * session may be created. Uninvited WCA accounts without an existing HQ
- * user are rejected.
- */
 export const signInWithWca = internalMutation({
   args: {
     wcaUserId: v.number(),
@@ -50,32 +25,37 @@ export const signInWithWca = internalMutation({
         ? null
         : await findActiveInviteWithCompetition(ctx, args.inviteToken)
 
-    let userId: Id<"users">
-    if (existing === null) {
-      // First sign-in must come through a valid invite link.
-      if (inviteContext === null) {
-        return null
-      }
-      userId = await ctx.db.insert("users", {
-        wcaUserId: args.wcaUserId,
-        name: args.name,
-        email: args.email,
-        image: args.avatarUrl,
-      })
-    } else {
-      userId = existing._id
+    if (existing === null && inviteContext === null) {
+      return null
+    }
+
+    const userId =
+      existing === null
+        ? await ctx.db.insert("users", {
+            wcaUserId: args.wcaUserId,
+            name: args.name,
+            email: args.email,
+            image: args.avatarUrl,
+          })
+        : existing._id
+
+    if (existing !== null) {
       await ctx.db.patch("users", userId, {
         name: args.name ?? existing.name,
         image: args.avatarUrl ?? existing.image,
       })
     }
 
-    if (inviteContext !== null) {
-      await addOrganiserToCompetition(
-        ctx,
-        inviteContext.competition._id,
-        userId
-      )
+    if (
+      inviteContext !== null &&
+      !inviteContext.competition.people.organisers.includes(userId)
+    ) {
+      await ctx.db.patch("competitions", inviteContext.competition._id, {
+        people: {
+          ...inviteContext.competition.people,
+          organisers: [...inviteContext.competition.people.organisers, userId],
+        },
+      })
     }
 
     return { userId }

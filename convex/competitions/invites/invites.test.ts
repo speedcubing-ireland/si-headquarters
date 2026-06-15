@@ -1,6 +1,9 @@
 import { api, internal } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { ORGANISER_INVITE_TTL_MS } from "@/convex/competitions/invites/validators"
+import {
+  MAX_ACTIVE_ORGANISER_INVITES,
+  ORGANISER_INVITE_TTL_MS,
+} from "@/convex/competitions/invites/validators"
 import schema from "@/convex/schema"
 import {
   insertBlankCompetition,
@@ -11,14 +14,14 @@ import { modules } from "@/convex/test.setup"
 import { convexTest, type TestConvex } from "convex-test"
 import { describe, expect, test } from "vitest"
 
-function expectSignedIn(result: { userId: Id<"users"> } | null): Id<"users"> {
+function expectSignedIn(result: { userId: Id<"users"> } | null) {
   if (result === null) {
     throw new Error("expected WCA sign-in to succeed")
   }
   return result.userId
 }
 
-function tokenFromInviteUrl(url: string): string {
+function tokenFromInviteUrl(url: string) {
   const token = new URL(url).searchParams.get("token")
   if (token === null) {
     throw new Error("invite URL is missing a token")
@@ -36,7 +39,18 @@ async function setupInvite() {
       id: competitionId,
     }
   )
-  return { t, client, competitionId, link, token: tokenFromInviteUrl(link.url) }
+  const invites = await client.query(api.competitions.invites.queries.list, {
+    id: competitionId,
+  })
+  const invite = invites[0]
+  return {
+    t,
+    client,
+    competitionId,
+    inviteId: invite._id,
+    link,
+    token: tokenFromInviteUrl(link.url),
+  }
 }
 
 describe("organiser invites", () => {
@@ -87,14 +101,49 @@ describe("organiser invites", () => {
     ).rejects.toMatchObject({ data: { code: "FORBIDDEN" } })
   })
 
+  test("all active links remain visible and creation stops at the cap", async () => {
+    const { t, client, competitionId, inviteId } = await setupInvite()
+    await t.run(async (ctx) => {
+      const invite = await ctx.db.get("competitionOrganiserInvites", inviteId)
+      if (invite === null) throw new Error("missing invite")
+      const now = Date.now()
+      for (let index = 1; index < MAX_ACTIVE_ORGANISER_INVITES; index++) {
+        await ctx.db.insert("competitionOrganiserInvites", {
+          competitionId,
+          tokenHash: `active-${String(index)}`,
+          createdByUserId: invite.createdByUserId,
+          createdAt: now + index,
+          expiresAt: now + ORGANISER_INVITE_TTL_MS,
+        })
+      }
+      for (let index = 0; index < MAX_ACTIVE_ORGANISER_INVITES; index++) {
+        await ctx.db.insert("competitionOrganiserInvites", {
+          competitionId,
+          tokenHash: `expired-${String(index)}`,
+          createdByUserId: invite.createdByUserId,
+          createdAt: now + MAX_ACTIVE_ORGANISER_INVITES + index,
+          expiresAt: now - 1,
+        })
+      }
+    })
+
+    const invites = await client.query(api.competitions.invites.queries.list, {
+      id: competitionId,
+    })
+    expect(invites).toHaveLength(MAX_ACTIVE_ORGANISER_INVITES)
+    await expect(
+      client.mutation(api.competitions.invites.mutations.create, {
+        id: competitionId,
+      })
+    ).rejects.toMatchObject({ data: { code: "BAD_REQUEST" } })
+  })
+
   test("invite context is public and rejects bad tokens", async () => {
     const { t, token } = await setupInvite()
 
     const context = await t.query(api.organisers.queries.inviteContext, {
       token,
     })
-    // WCA login env is unset in tests, so a valid invite still yields null
-    // (no authorize URL); a bogus token must also yield null.
     expect(context).toBeNull()
     await expect(
       t.query(api.organisers.queries.inviteContext, { token: "short" })
@@ -105,9 +154,13 @@ describe("organiser invites", () => {
 describe("WCA sign-in gate", () => {
   async function signInWithWca(
     t: TestConvex<typeof schema>,
-    args: { wcaUserId: number; inviteToken?: string; name?: string }
+    args: {
+      wcaUserId: number
+      inviteToken?: string
+      name?: string
+    }
   ) {
-    return await t.mutation(internal.organisers.internal.signInWithWca, args)
+    return t.mutation(internal.organisers.internal.signInWithWca, args)
   }
 
   test("a valid invite creates the user and adds them as organiser", async () => {
@@ -173,11 +226,13 @@ describe("WCA sign-in gate", () => {
       signInWithWca(t, { wcaUserId: 7, inviteToken: token })
     ).resolves.toBeNull()
 
-    const fresh = await client.mutation(
+    const freshLink = await client.mutation(
       api.competitions.invites.mutations.create,
-      { id: competitionId }
+      {
+        id: competitionId,
+      }
     )
-    const freshToken = tokenFromInviteUrl(fresh.url)
+    const freshToken = tokenFromInviteUrl(freshLink.url)
     const invites = await client.query(api.competitions.invites.queries.list, {
       id: competitionId,
     })
@@ -202,15 +257,20 @@ describe("WCA sign-in gate", () => {
   })
 
   test("an expired invite does not block existing WCA users", async () => {
-    const { t, token } = await setupInvite()
+    const { t, inviteId, token } = await setupInvite()
     const created = await signInWithWca(t, {
       wcaUserId: 55,
       inviteToken: token,
     })
 
+    await t.run(async (ctx) => {
+      await ctx.db.patch("competitionOrganiserInvites", inviteId, {
+        expiresAt: Date.now() - 1,
+      })
+    })
     const again = await signInWithWca(t, {
       wcaUserId: 55,
-      inviteToken: "0".repeat(64),
+      inviteToken: token,
     })
     expect(again?.userId).toEqual(created?.userId)
   })

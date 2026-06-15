@@ -71,7 +71,7 @@ function SignInForm() {
         >
           Speedcubing Ireland Volunteer (GSuite)
         </Button>
-        {typeof wcaSignInUrl === "string" ? (
+        {wcaSignInUrl !== undefined && wcaSignInUrl !== null ? (
           <Button
             type="button"
             className="w-full"
@@ -88,7 +88,7 @@ function SignInForm() {
   )
 }
 
-function RootLayoutInner() {
+function RootLayout() {
   const { isSponsorPortal, pathname } = useRouterState({
     select: (state) => ({
       isSponsorPortal: isSponsorPortalPath(state.location.pathname),
@@ -144,10 +144,6 @@ function RootLayoutInner() {
       </Unauthenticated>
     </>
   )
-}
-
-function RootLayout() {
-  return <RootLayoutInner />
 }
 
 export const Route = createRootRoute({ component: RootLayout })

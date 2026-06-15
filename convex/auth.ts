@@ -13,9 +13,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         },
       },
     }),
-    // Organiser login. The OAuth code exchange happens server-side here
-    // rather than via an OAuth provider so that invite gating can reject
-    // the sign-in before any session exists.
     ConvexCredentials({
       id: "wca",
       authorize: async (credentials, ctx) => {
@@ -32,10 +29,10 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         if (profile === null) {
           return null
         }
-        return await ctx.runMutation(
-          internal.organisers.internal.signInWithWca,
-          { ...profile, inviteToken }
-        )
+        return ctx.runMutation(internal.organisers.internal.signInWithWca, {
+          ...profile,
+          inviteToken,
+        })
       },
     }),
     ConvexCredentials({

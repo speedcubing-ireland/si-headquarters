@@ -25,9 +25,9 @@ export function SponsorPropertyRow({
 }: {
   competitionId: string
 }) {
+  const { allowed: canManageSponsor } = useCan("access", "SponsorPortalAdmin")
   const { competitionConvexId, property, isLoading } =
     useCompetitionSponsorPropertyRow(competitionId)
-  const { allowed: canManageSponsor } = useCan("access", "SponsorPortalAdmin")
   const { sponsors, isLoading: sponsorsLoading } = useSponsors(canManageSponsor)
   const { setCompetitionSponsorOverride } = useCompetitionSponsorOverride()
 
@@ -47,7 +47,7 @@ export function SponsorPropertyRow({
   return (
     <PageCardRow icon={<HandshakeIcon className="size-4" />} label="Sponsor">
       <div className="flex min-w-0 items-center gap-2">
-        {property.isManualOverride ? (
+        {canManageSponsor && property.isManualOverride ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <span className="inline-flex shrink-0 text-amber-500">

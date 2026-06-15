@@ -3,6 +3,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { TeamName } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
+import { useCan } from "@/features/auth"
 import { useQuery } from "convex/react"
 
 export type UserFaceAppearance = "property" | "compact" | "icon"
@@ -23,9 +24,13 @@ export function useUserItems(
   teamName?: TeamName,
   competitionId?: Id<"competitions">
 ) {
+  const { allowed: canReadUsers, isLoading: userAccessLoading } = useCan(
+    "read",
+    "User"
+  )
   const globalList = useQuery(
     api.users.queries.list,
-    open && competitionId === undefined
+    open && competitionId === undefined && !userAccessLoading && canReadUsers
       ? teamName === undefined
         ? {}
         : { teamName }

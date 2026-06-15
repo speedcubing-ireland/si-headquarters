@@ -130,7 +130,7 @@ async function confirm(
 async function promptForValue(
   rl: ReturnType<typeof createPrompt>,
   spec: EnvSpec
-): Promise<string> {
+): Promise<string | null> {
   if (spec.kind === "generated") {
     if (spec.generatedValue === undefined) {
       throw new Error(`${spec.key} was not generated.`)
@@ -151,6 +151,7 @@ async function promptForValue(
       raw.trim() === "" && spec.defaultValue !== undefined
         ? spec.defaultValue
         : raw.trim()
+    if (value === "" && spec.optional === true) return null
     const validationError = validateEnvValue(spec, value)
     if (validationError === null) return value
     console.error(validationError)
@@ -202,7 +203,10 @@ async function main(): Promise<void> {
         if (!shouldReplace) continue
         replaceExistingKeys.add(spec.key)
       }
-      values.set(spec.key, await promptForValue(rl, spec))
+      const value = await promptForValue(rl, spec)
+      if (value !== null) {
+        values.set(spec.key, value)
+      }
     }
   } finally {
     rl.close()
@@ -211,6 +215,7 @@ async function main(): Promise<void> {
   const plan = planEnvChanges(specs, existingKeys, {
     force: options.force,
     replaceExistingKeys,
+    providedKeys: new Set(values.keys()),
   })
 
   for (const entry of plan) {

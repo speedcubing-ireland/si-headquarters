@@ -35,7 +35,7 @@ export const scanOrderingTasks = internalQuery({
 
     const tasks = await ctx.db
       .query("tasks")
-      .withIndex("by_root_type_and_root_id_and_status", (q) =>
+      .withIndex("by_root_type_and_root_id", (q) =>
         q.eq("root.type", "projects").eq("root.id", args.projectId)
       )
       .take(MAX_PROJECT_TASKS + 1)

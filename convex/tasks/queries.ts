@@ -1,11 +1,18 @@
 // To-do some of these if not used eventually should be removed
 
-import { requireScopedObjectForRead } from "@/convex/access/scopedObject"
+import {
+  requireScopedObjectForRead,
+  requireScopedObjectForUpdate,
+} from "@/convex/access/scopedObject"
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import { collectAll } from "@/convex/utils"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
-import { requireTaskReadAccess } from "@/convex/tasks/access"
+import {
+  requireTaskManageAccess,
+  requireTaskReadAccess,
+} from "@/convex/tasks/access"
 import { taskFlowView, type TaskFlowView } from "@/convex/tasks/flowView"
 import {
   buildTaskStatusView,
@@ -33,6 +40,10 @@ import {
   type TaskViewSubtaskSummary,
 } from "@/convex/tasks/view"
 import { taskParentRef } from "@/convex/tasks/validators"
+import { listAllApplicationTeamSummaries } from "@/convex/teams/model"
+import { teamSummary } from "@/convex/teams/validators"
+import { toPublicUser } from "@/convex/users/queries"
+import { publicUserValidator } from "@/convex/users/validators"
 import { v } from "convex/values"
 
 type TaskParentDetails =
@@ -260,6 +271,33 @@ export const listCreationTargets = query({
   returns: taskCreationTargets,
   handler: async (ctx, args) => {
     return await listCreationTargetsForScope(ctx, args)
+  },
+})
+
+export const listAssignmentOptions = query({
+  args: {
+    scope: subtaskViewOwner,
+  },
+  returns: v.object({
+    users: v.array(publicUserValidator),
+    teams: v.array(teamSummary),
+  }),
+  handler: async (ctx, args) => {
+    if (args.scope.type === "tasks") {
+      await requireTaskManageAccess(ctx, args.scope.id)
+    } else {
+      await requireScopedObjectForUpdate(ctx, args.scope)
+    }
+
+    const [users, teams] = await Promise.all([
+      collectAll(ctx, "users"),
+      listAllApplicationTeamSummaries(ctx),
+    ])
+
+    return {
+      users: users.map(toPublicUser),
+      teams,
+    }
   },
 })
 

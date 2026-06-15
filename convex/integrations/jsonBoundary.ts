@@ -39,6 +39,16 @@ function parseJsonText(text: string): JsonRoot {
   return narrowJsonRoot(JSON.parse(text) satisfies JsonWireValue)
 }
 
+function parseJsonObject(text: string): JsonRecord | null {
+  const body = parseJsonText(text)
+  return typeof body === "object" &&
+    body !== null &&
+    !Array.isArray(body) &&
+    isPlainObject(body)
+    ? body
+    : null
+}
+
 async function readJson(response: Response): Promise<JsonRoot | null> {
   const text = await response.text()
   if (text.trim() === "") {
@@ -99,11 +109,8 @@ export function readObjectArray(
 export async function readJsonObject(
   response: Response
 ): Promise<JsonRecord | null> {
-  const body = await readJson(response)
-  if (typeof body !== "object" || body === null || !isPlainObject(body)) {
-    return null
-  }
-  return body
+  const text = await response.text()
+  return text.trim() === "" ? null : parseJsonObject(text)
 }
 
 export async function readJsonObjectArray(

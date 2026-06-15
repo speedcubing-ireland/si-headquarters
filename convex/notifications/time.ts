@@ -39,8 +39,13 @@ export function dublinDateOffset(ymd: string, days: number) {
   return ymdFromUtcDate(date)
 }
 
-export function isDublinLocalHour(hour: number, nowMs = Date.now()) {
-  return partsFor(new Date(nowMs)).hour === hour
+export function isDublinLocalTimeInWindow(
+  startHour: number,
+  endHour: number,
+  nowMs = Date.now()
+) {
+  const { hour } = partsFor(new Date(nowMs))
+  return hour >= startHour && hour < endHour
 }
 
 export function nextDublinEightAm(nowMs = Date.now()) {

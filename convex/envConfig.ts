@@ -21,6 +21,7 @@ export interface EnvSetupSpec {
   kind: EnvSetupKind
   description: string
   sensitive?: boolean
+  optional?: boolean
   defaultValue?: string
   choices?: readonly string[]
 }
@@ -115,13 +116,14 @@ export const URL_ENV_SETUP = [
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
-export const ORGANISER_AUTH_ENV_SETUP = [
+const ORGANISER_AUTH_ENV_SETUP = [
   {
     key: "AUTH_WCA_ID",
     group: "WCA",
     kind: "prompt",
     description:
       "WCA OAuth client ID for organiser login (separate app from SERVICE_WCA_ID).",
+    optional: true,
   },
   {
     key: "AUTH_WCA_SECRET",
@@ -129,6 +131,7 @@ export const ORGANISER_AUTH_ENV_SETUP = [
     kind: "prompt",
     description: "WCA OAuth client secret for organiser login.",
     sensitive: true,
+    optional: true,
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
@@ -170,5 +173,7 @@ export const REQUIRED_ENV_SETUP = [
 ] as const satisfies readonly EnvSetupSpec[]
 
 export const REQUIRED_ENV_KEYS = unique(
-  REQUIRED_ENV_SETUP.map((spec) => spec.key)
+  REQUIRED_ENV_SETUP.filter((spec: EnvSetupSpec) => spec.optional !== true).map(
+    (spec) => spec.key
+  )
 )

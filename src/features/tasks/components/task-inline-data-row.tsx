@@ -28,6 +28,7 @@ export function TaskInlineDataRow({ row }: { row: TaskInlineRow }) {
         <TaskAssigneeSelector.IconButton
           className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           assignees={row.assignees}
+          scope={{ type: "tasks", id: row.task._id }}
           onChange={(assigneeIds) => {
             void setAssignees({
               id: row.task._id,
@@ -64,6 +65,7 @@ export function TaskInlineDataRow({ row }: { row: TaskInlineRow }) {
           className={SELECTOR_ICON_BUTTON_HOVER_CLASS}
           value={ownerValue}
           selectedOwner={row.owner}
+          scope={{ type: "tasks", id: row.task._id }}
           onChange={(newOwner) => {
             void setTaskOwner({ id: row.task._id, owner: newOwner })
           }}

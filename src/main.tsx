@@ -9,6 +9,10 @@ import { ConvexReactClient } from "convex/react"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
 import { isSponsorSite } from "@/lib/sponsor-site"
 import { createSponsorSiteRewrite } from "@/lib/sponsor-site-rewrite"
+import {
+  parseOAuthFriendlySearch,
+  stringifyOAuthFriendlySearch,
+} from "@/lib/oauth-friendly-search"
 import { env } from "@/env"
 import "./index.css"
 
@@ -16,6 +20,8 @@ const router = createRouter({
   routeTree,
   defaultPreload: "intent",
   scrollRestoration: true,
+  parseSearch: parseOAuthFriendlySearch,
+  stringifySearch: stringifyOAuthFriendlySearch,
   ...(isSponsorSite() ? { rewrite: createSponsorSiteRewrite() } : {}),
 })
 
@@ -34,7 +40,16 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <ConvexAuthProvider client={convex}>
+    <ConvexAuthProvider
+      client={convex}
+      shouldHandleCode={() => {
+        const pathname = window.location.pathname.replace(/\/+$/, "") || "/"
+        return pathname !== "/invite/organiser"
+      }}
+      replaceURL={(url) => {
+        router.history.replace(url)
+      }}
+    >
       <ThemeProvider>
         <TooltipProvider>
           <RouterProvider router={router} />

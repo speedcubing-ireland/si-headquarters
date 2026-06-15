@@ -1,16 +1,19 @@
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
-import { Copy, UserPlus, X } from "lucide-react"
+import { Copy, MessageCirclePlusIcon, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { Button } from "@/components/ui/button"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { formatDateTime } from "@/lib/format/irish-dates"
 
@@ -29,6 +32,7 @@ export function OrganiserInviteButton({
   const createInvite = useMutation(api.competitions.invites.mutations.create)
   const revokeInvite = useMutation(api.competitions.invites.mutations.revoke)
 
+  const [open, setOpen] = useState(false)
   const [link, setLink] = useState<InviteLink | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -48,26 +52,30 @@ export function OrganiserInviteButton({
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label="Invite organisers"
-        >
-          <UserPlus className="size-4" />
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) {
+          setLink(null)
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button type="button" className="w-full">
+          <MessageCirclePlusIcon />
+          Invite Organiser To HQ
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 space-y-3">
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Invite organisers</p>
-          <p className="text-xs text-muted-foreground">
+      </DialogTrigger>
+      <DialogContent className="space-y-3">
+        <DialogHeader>
+          <DialogTitle>Invite organisers</DialogTitle>
+          <DialogDescription>
             Share a link that lets organisers sign in with their WCA account and
             join this competition. Links last 30 days and can be used by
             multiple people.
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
         {link !== null ? (
           <div className="space-y-2 rounded-md bg-muted/40 p-2">
             <p className="font-mono text-xs break-all text-muted-foreground">
@@ -138,7 +146,7 @@ export function OrganiserInviteButton({
             </ul>
           </div>
         ) : null}
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   )
 }

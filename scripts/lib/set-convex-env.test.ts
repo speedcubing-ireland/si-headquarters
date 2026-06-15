@@ -11,6 +11,7 @@ import {
   planEnvChanges,
   renderDryRunPlan,
   updateDotenvContent,
+  validateEnvValue,
 } from "./set-convex-env.ts"
 
 describe("set-convex-env metadata", () => {
@@ -27,6 +28,18 @@ describe("set-convex-env metadata", () => {
     const uniqueKeys = new Set(specs.map((spec) => spec.key))
 
     expect(specs).toHaveLength(uniqueKeys.size)
+  })
+
+  test("organiser WCA login credentials are optional", () => {
+    const specs = buildWizardEnvSpecs()
+    for (const key of ["AUTH_WCA_ID", "AUTH_WCA_SECRET"]) {
+      const spec = specs.find((entry) => entry.key === key)
+      expect(spec?.optional).toBe(true)
+      expect(REQUIRED_ENV_KEYS).not.toContain(key)
+      expect(
+        spec === undefined ? "missing spec" : validateEnvValue(spec, "")
+      ).toBeNull()
+    }
   })
 
   test("uses dev-friendly defaults for setup choices", () => {
@@ -79,16 +92,12 @@ describe("dry run plan rendering", () => {
   test("lists every variable with description, tags, and a summary", () => {
     const output = renderDryRunPlan(buildWizardEnvSpecs())
 
-    // Descriptions are surfaced, not just keys.
     expect(output).toContain("Google OAuth client ID for staff login.")
-    // Defaults and choices are surfaced for select inputs.
     expect(output).toContain("default: staging")
     expect(output).toContain("choices: staging, production")
-    // Input kinds and the secret marker are surfaced.
     expect(output).toContain("[generated · secret]")
-    // A summary line counts the variables.
+    expect(output).toContain("[prompt · optional]")
     expect(output).toMatch(/\d+ variables · \d+ prompted · \d+ generated/)
-    // Metadata only — never prints generated secret values.
     expect(output).not.toMatch(/-----BEGIN PRIVATE KEY-----/)
   })
 })
@@ -133,6 +142,18 @@ describe("Convex env planning", () => {
       { key: "AUTH_GOOGLE_SECRET", action: "set" },
       { key: "CLI_AUTH_TOKEN", action: "set" },
     ])
+  })
+
+  test("omits optional values left blank", () => {
+    const specs = buildWizardEnvSpecs().filter((spec) =>
+      ["AUTH_WCA_ID", "AUTH_WCA_SECRET"].includes(spec.key)
+    )
+
+    expect(
+      planEnvChanges(specs, new Set(), {
+        providedKeys: new Set(),
+      })
+    ).toEqual([])
   })
 })
 
