@@ -57,6 +57,40 @@ export function resolveCompetitionSponsorPropertyStatus(input: {
   })
 }
 
+export function buildCompetitionSponsorStatusByCompetition(input: {
+  competitionIds: readonly Id<"competitions">[]
+  auctions: (AuctionSponsorFields & { competitionId: Id<"competitions"> })[]
+  overridesByCompetitionId: ReadonlyMap<
+    Id<"competitions">,
+    CompetitionSponsorOverrideFields | null
+  >
+}): Map<Id<"competitions">, CompetitionSponsorPropertyStatus> {
+  const auctionsByCompetition = new Map<
+    Id<"competitions">,
+    AuctionSponsorFields[]
+  >()
+  for (const auction of input.auctions) {
+    const scoped = auctionsByCompetition.get(auction.competitionId) ?? []
+    scoped.push(auction)
+    auctionsByCompetition.set(auction.competitionId, scoped)
+  }
+
+  const statusByCompetition = new Map<
+    Id<"competitions">,
+    CompetitionSponsorPropertyStatus
+  >()
+  for (const competitionId of input.competitionIds) {
+    statusByCompetition.set(
+      competitionId,
+      resolveCompetitionSponsorPropertyStatus({
+        override: input.overridesByCompetitionId.get(competitionId) ?? null,
+        auctions: auctionsByCompetition.get(competitionId) ?? [],
+      })
+    )
+  }
+  return statusByCompetition
+}
+
 export function deriveCompetitionSponsorStatusFromAuctions(
   auctions: AuctionSponsorFields[]
 ): CompetitionSponsorPropertyStatus {

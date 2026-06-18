@@ -6,6 +6,7 @@ import { compareBidIntentChronology } from "../lib/auctionState"
 import { placeSponsorshipBid } from "../lib/bidPlacement"
 import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import { getCompetitionSponsorOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
+import { resolveCompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/validators"
 import { sendEbayAuctionOutbidEmail } from "../admin/auctions/emails"
@@ -205,23 +206,14 @@ export const getAuction = query({
     const myLastBidCents = latestValidSponsorIntent?.amountCents
     const myMaxBidCents = latestValidSponsorIntent?.maxAmountCents
     const hasSponsorValidBid = sponsorIntents.some((intent) => intent.isValid)
-    const derivedSponsorPropertyStatus:
-      | "bidding"
-      | "none"
-      | "not_offered"
-      | "sponsor" =
-      auction.state === "active" || auction.state === "scheduled"
-        ? "bidding"
-        : auction.winnerSponsorId
-          ? "sponsor"
-          : "none"
     const override = await getCompetitionSponsorOverride(
       ctx,
       auction.competitionId
     )
-    const sponsorPropertyStatus = override?.manualSponsorId
-      ? "sponsor"
-      : (override?.manualSponsorPropertyStatus ?? derivedSponsorPropertyStatus)
+    const sponsorPropertyStatus = resolveCompetitionSponsorPropertyStatus({
+      override,
+      auctions: [auction],
+    })
     const competitionSummary =
       auction.competitionSnapshot?.summary ??
       buildCompetitionRecordSummary({
