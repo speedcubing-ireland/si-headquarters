@@ -198,28 +198,24 @@ export function competitionPropertyStatusLabel(
   }
 }
 
-function closedPriceCents(auction: AuctionPriceFields): number {
-  return (
-    auction.settlementAmountCents ??
-    auction.currentPriceCents ??
-    auction.startPriceCents
-  )
+export function displayAuctionPriceCents(auction: AuctionPriceFields): number {
+  return auction.state === "closed"
+    ? (auction.settlementAmountCents ??
+        auction.currentPriceCents ??
+        auction.startPriceCents)
+    : (auction.currentPriceCents ?? auction.startPriceCents)
 }
 
 export function formatAuctionTablePrice(auction: AuctionPriceFields): {
   amountCents: number
   showWinningBidLabel: boolean
 } {
-  const isClosed = auction.state === "closed"
-  const amountCents = isClosed
-    ? closedPriceCents(auction)
-    : (auction.currentPriceCents ?? auction.startPriceCents)
   const showWinningBidLabel =
-    isClosed &&
+    auction.state === "closed" &&
     (isSealedAuctionFramework(auction.framework) ||
       auction.settlementAmountCents !== undefined)
 
-  return { amountCents, showWinningBidLabel }
+  return { amountCents: displayAuctionPriceCents(auction), showWinningBidLabel }
 }
 
 export function normalizeSearchText(value: string): string {

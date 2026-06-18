@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   competitionPropertyStatusLabel,
+  displayAuctionPriceCents,
   formatAuctionTablePrice,
   proxyDirectBidCopy,
   proxyMaxBidCopy,
@@ -26,6 +27,28 @@ describe("competitionPropertyStatusLabel", () => {
     expect(competitionPropertyStatusLabel("bidding")).toBe(
       "Bidding in progress"
     )
+  })
+})
+
+describe("displayAuctionPriceCents", () => {
+  it("uses the current price while open and settlement once closed", () => {
+    expect(displayAuctionPriceCents(baseAuction)).toBe(15_000)
+    expect(
+      displayAuctionPriceCents({
+        ...baseAuction,
+        state: "closed",
+        settlementAmountCents: 14_000,
+      })
+    ).toBe(14_000)
+  })
+
+  it("falls back to start price when no current price is set", () => {
+    expect(
+      displayAuctionPriceCents({
+        ...baseAuction,
+        currentPriceCents: undefined,
+      })
+    ).toBe(10_000)
   })
 })
 

@@ -32,6 +32,7 @@ import {
   isSealedAuctionFramework,
 } from "@/convex/plugins/sponsor/lib/types"
 import {
+  displayAuctionPriceCents,
   formatEuroFromCents,
   proxyDirectBidCopy,
   proxyMaxBidCopy,
@@ -39,6 +40,11 @@ import {
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
+import {
+  formatAuctionCountdown,
+  parseBidAmountCents,
+  resolveDisplayedMaxBidEuros,
+} from "@/plugins/sponsor/lib/auction-bid-form"
 import { useRequireSponsorSession } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 
@@ -50,16 +56,6 @@ function toSponsorBidErrorMessage(
     return messageFromErrorPayload(caught.data) ?? "Failed to submit bid."
   }
   return "Failed to submit bid."
-}
-
-function formatAuctionCountdown(targetTime: number, now: number): string {
-  const totalSeconds = Math.max(0, Math.ceil((targetTime - now) / 1000))
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  return [hours, minutes, seconds]
-    .map((part) => String(part).padStart(2, "0"))
-    .join(":")
 }
 
 export function PortalAuctionDetailPage({
@@ -115,23 +111,20 @@ export function PortalAuctionDetailPage({
     sessionToken !== null ? `${sessionToken}:${typedAuctionId}` : "skip"
   )
   const queryData = dataState.data
-  const maxAmountEurosFromQuery =
-    queryData !== undefined &&
-    queryData !== null &&
-    isProxyAuctionFramework(queryData.auction.framework)
-      ? queryData.myMaxBidCents !== undefined
-        ? (queryData.myMaxBidCents / 100).toFixed(2)
-        : ""
-      : ""
   const currentAuctionId =
     queryData !== undefined && queryData !== null
       ? String(queryData.auction.id)
       : null
-  const maxAmountEuros =
-    maxAmountEurosOverride !== null &&
-    maxAmountEurosAuctionId === currentAuctionId
-      ? maxAmountEurosOverride
-      : maxAmountEurosFromQuery
+  const maxAmountEuros = resolveDisplayedMaxBidEuros({
+    override: maxAmountEurosOverride,
+    overrideAuctionId: maxAmountEurosAuctionId,
+    currentAuctionId,
+    serverMaxBidCents: queryData?.myMaxBidCents,
+    isProxyAuction:
+      queryData !== undefined &&
+      queryData !== null &&
+      isProxyAuctionFramework(queryData.auction.framework),
+  })
   const setMaxAmountEurosSynced = (value: string) => {
     setMaxAmountEurosOverride(value)
     setMaxAmountEurosAuctionId(currentAuctionId)
@@ -179,24 +172,22 @@ export function PortalAuctionDetailPage({
 
   const requestSubmitBid = (event: SubmitEvent) => {
     event.preventDefault()
-    const amount = amountEuros.length
-      ? Math.round(Number(amountEuros) * 100)
-      : undefined
-    if (amount === undefined) {
-      toast.error("Enter a bid amount.")
-      return
+    const result = parseBidAmountCents(amountEuros, minimumBidCents)
+    switch (result.status) {
+      case "empty":
+        toast.error("Enter a bid amount.")
+        return
+      case "invalid":
+        toast.error("Enter a valid bid amount.")
+        return
+      case "below_minimum":
+        toast.error(
+          `Bid must be at least ${formatEuroFromCents(result.minimumCents)}.`
+        )
+        return
+      case "ok":
+        setPendingBidCents(result.cents)
     }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Enter a valid bid amount.")
-      return
-    }
-    if (amount < minimumBidCents) {
-      toast.error(
-        `Bid must be at least ${formatEuroFromCents(minimumBidCents)}.`
-      )
-      return
-    }
-    setPendingBidCents(amount)
   }
 
   const submitBid = async () => {
@@ -224,20 +215,20 @@ export function PortalAuctionDetailPage({
       toast.error("Max bids are only available for Proxy Bidding auctions.")
       return
     }
-    const max = maxAmountEuros.length
-      ? Math.round(Number(maxAmountEuros) * 100)
-      : undefined
-    if (max === undefined || !Number.isFinite(max) || max <= 0) {
-      toast.error("Enter a valid max amount.")
-      return
+    const result = parseBidAmountCents(maxAmountEuros, minimumNextBidCents)
+    switch (result.status) {
+      case "empty":
+      case "invalid":
+        toast.error("Enter a valid max amount.")
+        return
+      case "below_minimum":
+        toast.error(
+          `Max bid must be at least ${formatEuroFromCents(result.minimumCents)}.`
+        )
+        return
+      case "ok":
+        setPendingMaxBidCents(result.cents)
     }
-    if (max < minimumNextBidCents) {
-      toast.error(
-        `Max bid must be at least ${formatEuroFromCents(minimumNextBidCents)}.`
-      )
-      return
-    }
-    setPendingMaxBidCents(max)
   }
 
   const submitMaxBid = async () => {
@@ -271,12 +262,7 @@ export function PortalAuctionDetailPage({
   const isClosedSealedAuction =
     isSealedAuctionFramework(data.auction.framework) &&
     data.auction.state === "closed"
-  const currentPriceCentsForDisplay =
-    data.auction.state === "closed"
-      ? (data.auction.settlementAmountCents ??
-        data.auction.currentPriceCents ??
-        data.auction.startPriceCents)
-      : (data.auction.currentPriceCents ?? data.auction.startPriceCents)
+  const currentPriceCentsForDisplay = displayAuctionPriceCents(data.auction)
   const bidActivityItems = data.events
     .slice()
     .reverse()
