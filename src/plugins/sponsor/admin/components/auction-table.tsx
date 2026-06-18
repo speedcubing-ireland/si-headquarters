@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { Id } from "@/convex/_generated/dataModel"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { formatDateTime } from "@/lib/format/irish-dates"
 import {
   auctionFrameworkLabel,
@@ -28,7 +28,7 @@ export interface ManagerAuctionRow {
   competitionPhaseName: string
   competitionCompStart?: string
   framework: SponsorshipAuctionFramework
-  state: "draft" | "scheduled" | "active" | "closed"
+  state: Doc<"sponsorshipAuctions">["state"]
   startsAt: number
   endsAt: number
   startPriceCents: number
