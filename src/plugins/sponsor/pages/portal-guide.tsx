@@ -4,7 +4,7 @@ import {
   SponsorPageHeader,
   SponsorPageShell,
 } from "@/plugins/sponsor/components/sponsor-page-layout"
-import { PortalThemeToggle } from "@/plugins/sponsor/components/portal-theme-toggle"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { SponsorPageLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { ProxyBidIncrementTable } from "@/plugins/sponsor/components/proxy-bid-increment-table"
 import { SponsorFrameworkGuideCard } from "@/plugins/sponsor/components/sponsor-framework-guide-card"
@@ -64,7 +64,7 @@ export function PortalGuidePage() {
                 {backLabel}
               </Link>
             </Button>
-            <PortalThemeToggle />
+            <ThemeToggle />
             {isSignedIn ? (
               <Button variant="outline" onClick={() => void onLogout()}>
                 <LogOut className="size-4" />

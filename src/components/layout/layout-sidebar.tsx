@@ -21,9 +21,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { SidebarTeamsNav } from "./sidebar-teams-nav"
 import { SidebarUser } from "./layout-sidebar-user"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { UserImpersonationBanner } from "@/features/impersonation/impersonation-banner"
 import { PLUGINS } from "@/plugins/registry"
 import { Can } from "@/features/auth"
@@ -187,6 +189,32 @@ function SidebarProjectLinks() {
   )
 }
 
+function SidebarThemeToggle() {
+  const { isMobile } = useSidebar()
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <ThemeToggle
+          contentAlign="end"
+          contentClassName="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+          contentSide={isMobile ? "bottom" : "right"}
+          contentSideOffset={4}
+          trigger={({ icon: Icon, label }) => (
+            <SidebarMenuButton
+              tooltip="Change theme"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <Icon />
+              <span>{label}</span>
+            </SidebarMenuButton>
+          )}
+        />
+      </SidebarMenuItem>
+    </SidebarMenu>
+  )
+}
+
 export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -202,6 +230,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarAdminLinks />
       </SidebarContent>
       <SidebarFooter>
+        <SidebarThemeToggle />
         <SidebarUser />
       </SidebarFooter>
       <SidebarRail />
