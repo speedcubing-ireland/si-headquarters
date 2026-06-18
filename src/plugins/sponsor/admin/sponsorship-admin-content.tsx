@@ -6,22 +6,31 @@ import { ClosedAuctionsTab } from "@/plugins/sponsor/admin/tabs/closed-auctions-
 import { OpenAuctionsTab } from "@/plugins/sponsor/admin/tabs/open-auctions-tab"
 import { AuctionTypesTab } from "@/plugins/sponsor/admin/tabs/auction-types-tab"
 import { SponsorsTab } from "@/plugins/sponsor/admin/tabs/sponsors-tab"
-import { isAdminSponsorshipTab } from "@/plugins/sponsor/admin/types"
+import {
+  isAdminSponsorshipTab,
+  type AdminSponsorshipTab,
+} from "@/plugins/sponsor/admin/types"
 import { useSponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import { useSponsorshipTabNavigation } from "@/plugins/sponsor/admin/use-sponsorship-tab-navigation"
 
-export function SponsorshipAdminContent() {
+export function SponsorshipAdminContent({
+  activeTab,
+}: {
+  activeTab: AdminSponsorshipTab
+}) {
   const admin = useSponsorshipAdmin()
   const { stats, loading, sponsors, actions } = admin
+  const setTab = useSponsorshipTabNavigation()
 
   return (
     <>
       <AdminStats stats={stats} />
 
       <Tabs
-        value={actions.activeTab}
+        value={activeTab}
         onValueChange={(value) => {
           if (isAdminSponsorshipTab(value)) {
-            actions.setActiveTab(value)
+            setTab(value)
           }
         }}
         className="space-y-4"

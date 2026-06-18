@@ -38,9 +38,6 @@ export function useSponsorshipAdmin() {
     deleteBeforeOpen,
   } = useSponsorshipAuctionMutations()
 
-  const [activeTab, setActiveTab] = useState<
-    "open" | "closed" | "sponsors" | "auctionTypes"
-  >("open")
   const [openSearchQuery, setOpenSearchQuery] = useState("")
   const [closedSearchQuery, setClosedSearchQuery] = useState("")
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create")
@@ -334,8 +331,6 @@ export function useSponsorshipAdmin() {
       ...editorActions,
       ...auctionActions,
       ...sponsorActions,
-      activeTab,
-      setActiveTab,
       setCreateCompetitionIdSelection,
       setEditInvitedSponsorIds,
     },

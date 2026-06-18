@@ -2,8 +2,13 @@ import { Page, PAGE_CONTENT_PADDING } from "@/components/layout/page"
 import { AbilityRouteGuard } from "@/features/auth"
 import { cn } from "@/lib/utils"
 import { SponsorshipAdminContent } from "@/plugins/sponsor/admin/sponsorship-admin-content"
+import type { AdminSponsorshipTab } from "@/plugins/sponsor/admin/types"
 
-export function SponsorshipAdminPage() {
+export function SponsorshipAdminPage({
+  activeTab,
+}: {
+  activeTab: AdminSponsorshipTab
+}) {
   return (
     <AbilityRouteGuard
       action="access"
@@ -15,7 +20,7 @@ export function SponsorshipAdminPage() {
         title="Sponsorship"
         contentClassName={cn(PAGE_CONTENT_PADDING, "flex flex-col gap-4")}
       >
-        <SponsorshipAdminContent />
+        <SponsorshipAdminContent activeTab={activeTab} />
       </Page.Shell>
     </AbilityRouteGuard>
   )

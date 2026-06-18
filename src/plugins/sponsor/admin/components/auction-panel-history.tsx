@@ -4,13 +4,14 @@ import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-a
 import { formatDateTime } from "@/lib/format/irish-dates"
 import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import { formatEuroFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
+import { useSponsorshipTabNavigation } from "@/plugins/sponsor/admin/use-sponsorship-tab-navigation"
 
 export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
-  const { open, actions, maps, closed } = admin
+  const { open, maps, closed } = admin
   const { panelCompetitionId, previousClosedAuctionsForPanel } = open
-  const { setActiveTab } = actions
   const { setSelectedClosedAuctionId } = closed
   const { sponsorById } = maps
+  const setTab = useSponsorshipTabNavigation()
 
   return (
     <div className="space-y-2">
@@ -64,7 +65,7 @@ export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
                   variant="outline"
                   onClick={() => {
                     setSelectedClosedAuctionId(auction.id)
-                    setActiveTab("closed")
+                    setTab("closed")
                   }}
                 >
                   View
