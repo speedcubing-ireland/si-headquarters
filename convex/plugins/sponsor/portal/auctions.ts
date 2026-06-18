@@ -303,9 +303,14 @@ interface SponsorBidMutationResult {
   extendedEndsAt?: number
 }
 
-export async function placeBidHandler(
+async function submitSponsorshipBid(
   ctx: MutationCtx,
-  args: PlaceBidArgs
+  args: {
+    sessionToken: string
+    auctionId: Id<"sponsorshipAuctions">
+    amountCents?: number
+    maxAmountCents?: number
+  }
 ): Promise<SponsorBidMutationResult> {
   const { sponsor } = await requireSponsorCanBid(ctx, args.sessionToken)
   await requireAuctionInvite(ctx, args.auctionId, sponsor._id)
@@ -317,10 +322,20 @@ export async function placeBidHandler(
       message: "Auction not found.",
     })
   }
+  if (
+    args.maxAmountCents !== undefined &&
+    !isProxyAuctionFramework(auction.framework)
+  ) {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: "Max bids are only available for Proxy Bidding auctions.",
+    })
+  }
   const result = await placeSponsorshipBid(ctx, {
     auction,
     sponsorId: sponsor._id,
     amountCents: args.amountCents,
+    maxAmountCents: args.maxAmountCents,
   })
   await rescheduleClosureWhenExtended(ctx, auction._id, result.extendedEndsAt)
   await maybeNotifyEbayOutbid(ctx, auction, result)
@@ -330,35 +345,16 @@ export async function placeBidHandler(
   }
 }
 
+export async function placeBidHandler(
+  ctx: MutationCtx,
+  args: PlaceBidArgs
+): Promise<SponsorBidMutationResult> {
+  return submitSponsorshipBid(ctx, args)
+}
+
 export async function setMaxBidHandler(
   ctx: MutationCtx,
   args: SetMaxBidArgs
 ): Promise<SponsorBidMutationResult> {
-  const { sponsor } = await requireSponsorCanBid(ctx, args.sessionToken)
-  await requireAuctionInvite(ctx, args.auctionId, sponsor._id)
-
-  const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
-  if (!auction) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: "Auction not found.",
-    })
-  }
-  if (!isProxyAuctionFramework(auction.framework)) {
-    throw new ConvexError({
-      code: "BAD_REQUEST",
-      message: "Max bids are only available for Proxy Bidding auctions.",
-    })
-  }
-  const result = await placeSponsorshipBid(ctx, {
-    auction,
-    sponsorId: sponsor._id,
-    maxAmountCents: args.maxAmountCents,
-  })
-  await rescheduleClosureWhenExtended(ctx, auction._id, result.extendedEndsAt)
-  await maybeNotifyEbayOutbid(ctx, auction, result)
-  return {
-    currentPriceCents: result.currentPriceCents,
-    extendedEndsAt: result.extendedEndsAt,
-  }
+  return submitSponsorshipBid(ctx, args)
 }
