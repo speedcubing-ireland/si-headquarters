@@ -579,7 +579,7 @@ describe("buildSponsorshipEmailHtml — auction_scheduled template", () => {
     expect(html.length).toBeGreaterThan(100)
     expect(html).toContain("Irish Open 2026")
     expect(html).toContain("abc123")
-    expect(html).toContain("Sealed bid")
+    expect(html).toContain("Sealed Bid")
     expect(html).toContain("Read more")
     expect(html).toContain(sponsorPortalGuideUrl())
   })

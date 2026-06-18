@@ -12,9 +12,9 @@ import { formatMoney } from "./_design"
 
 describe("auctionFrameworkLabel", () => {
   test("returns brief framework titles", () => {
-    expect(auctionFrameworkLabel("first_sealed")).toBe("Sealed bid")
-    expect(auctionFrameworkLabel("vickrey")).toBe("Vickrey auction")
-    expect(auctionFrameworkLabel("ebay_proxy")).toBe("Proxy bidding")
+    expect(auctionFrameworkLabel("first_sealed")).toBe("Sealed Bid")
+    expect(auctionFrameworkLabel("vickrey")).toBe("Vickrey Auction")
+    expect(auctionFrameworkLabel("ebay_proxy")).toBe("Proxy Bidding")
   })
 })
 

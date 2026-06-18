@@ -1,12 +1,19 @@
 import { formatDistanceToNow } from "date-fns"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
+  auctionFrameworkLabel,
   isProxyAuctionFramework,
   isSealedAuctionFramework,
   type SponsorshipAuctionFramework,
 } from "@/convex/plugins/sponsor/lib/types"
 import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
 import type { SponsorshipLifecycle } from "@/convex/plugins/sponsor/lib/sponsorshipLifecycle"
+
+export {
+  auctionFrameworkLabel as sponsorshipFrameworkLabel,
+  isProxyAuctionFramework as isProxySponsorshipFramework,
+  isSealedAuctionFramework as isSealedSponsorshipFramework,
+}
 export const SPONSORSHIP_FRAMEWORKS = SPONSORSHIP_AUCTION_FRAMEWORKS
 
 export type SponsorshipFramework = SponsorshipAuctionFramework
@@ -37,31 +44,6 @@ export function isSponsorshipFramework(
   value: string
 ): value is SponsorshipFramework {
   return SPONSORSHIP_FRAMEWORKS.some((framework) => framework === value)
-}
-
-export function isProxySponsorshipFramework(
-  framework: SponsorshipFramework
-): boolean {
-  return isProxyAuctionFramework(framework)
-}
-
-export function isSealedSponsorshipFramework(
-  framework: SponsorshipFramework
-): boolean {
-  return isSealedAuctionFramework(framework)
-}
-
-export function sponsorshipFrameworkLabel(
-  framework: SponsorshipFramework
-): string {
-  switch (framework) {
-    case "first_sealed":
-      return "Sealed Bid"
-    case "vickrey":
-      return "Vickrey Auction"
-    case "ebay_proxy":
-      return "Proxy Bidding"
-  }
 }
 
 export function sponsorBidStatusLabel(status: SponsorBidStatus): string {
@@ -256,14 +238,14 @@ function closedPriceCents(auction: AuctionPriceFields): number {
 
 export function formatAuctionPriceLine(auction: AuctionPriceFields): string {
   if (
-    isSealedSponsorshipFramework(auction.framework) &&
+    isSealedAuctionFramework(auction.framework) &&
     auction.state !== "closed"
   ) {
     return `Minimum bid: ${formatEuroFromCents(auction.startPriceCents)} · Price sealed until close`
   }
 
   if (
-    isSealedSponsorshipFramework(auction.framework) &&
+    isSealedAuctionFramework(auction.framework) &&
     auction.state === "closed"
   ) {
     return `Winning bid: ${formatEuroFromCents(closedPriceCents(auction))}`
@@ -292,7 +274,7 @@ export function formatAuctionTablePrice(auction: AuctionPriceFields): {
     : (auction.currentPriceCents ?? auction.startPriceCents)
   const showWinningBidLabel =
     isClosed &&
-    (isSealedSponsorshipFramework(auction.framework) ||
+    (isSealedAuctionFramework(auction.framework) ||
       auction.settlementAmountCents !== undefined)
 
   return { amountCents, showWinningBidLabel }
