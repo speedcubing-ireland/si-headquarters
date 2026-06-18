@@ -9,7 +9,7 @@ import {
   SponsorPageHeader,
   SponsorPageShell,
 } from "@/plugins/sponsor/components/sponsor-page-layout"
-import { PortalThemeToggle } from "@/plugins/sponsor/components/portal-theme-toggle"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   SponsorButtonSpinner,
   SponsorPageLoading,
@@ -90,7 +90,7 @@ export function PortalSettingsPage() {
         title="Settings"
         actions={
           <>
-            <PortalThemeToggle />
+            <ThemeToggle />
             <Button variant="outline" onClick={() => void onLogout()}>
               <LogOut className="size-4" />
               Log out

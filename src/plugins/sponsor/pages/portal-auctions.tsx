@@ -19,7 +19,7 @@ import {
   SponsorPageHeader,
   SponsorPageShell,
 } from "@/plugins/sponsor/components/sponsor-page-layout"
-import { PortalThemeToggle } from "@/plugins/sponsor/components/portal-theme-toggle"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -288,7 +288,7 @@ export function PortalAuctionsPage() {
         }
         actions={
           <>
-            <PortalThemeToggle />
+            <ThemeToggle />
             <Button asChild variant="outline">
               <Link to="/sponsor/guide">
                 <BookOpen className="size-4" />
