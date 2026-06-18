@@ -4,7 +4,7 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { compareBidIntentChronology } from "../lib/auctionState"
 import { placeSponsorshipBid } from "../lib/bidPlacement"
-import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { resolveCompetitionSummaryView } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import { getCompetitionSponsorOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 import { resolveCompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
@@ -117,22 +117,19 @@ export const listAuctions = query({
         const competitionName =
           competitionNames.get(auction.competitionId) ?? "Competition"
         const competition = competitionById.get(auction.competitionId)
-        const competitionSummary =
-          auction.competitionSnapshot?.summary ??
-          (competition !== undefined
-            ? buildCompetitionRecordSummary({
-                name: competition.name,
-                compDates: competition.compDates,
-              })
-            : buildCompetitionRecordSummary({
-                name: competitionName,
-                compDates: {
-                  from: new Date(auction.startsAt).toISOString().slice(0, 10),
-                  to: new Date(auction.endsAt).toISOString().slice(0, 10),
-                },
-              }))
-        const competitionSummarySource =
-          auction.competitionSnapshot?.source ?? "competition_record"
+        const {
+          summary: competitionSummary,
+          source: competitionSummarySource,
+        } = resolveCompetitionSummaryView(
+          auction.competitionSnapshot,
+          competition ?? {
+            name: competitionName,
+            compDates: {
+              from: new Date(auction.startsAt).toISOString().slice(0, 10),
+              to: new Date(auction.endsAt).toISOString().slice(0, 10),
+            },
+          }
+        )
         return toSponsorAuctionListItem({
           auction,
           competitionName,
@@ -214,14 +211,8 @@ export const getAuction = query({
       override,
       auctions: [auction],
     })
-    const competitionSummary =
-      auction.competitionSnapshot?.summary ??
-      buildCompetitionRecordSummary({
-        name: competition.name,
-        compDates: competition.compDates,
-      })
-    const competitionSummarySource =
-      auction.competitionSnapshot?.source ?? "competition_record"
+    const { summary: competitionSummary, source: competitionSummarySource } =
+      resolveCompetitionSummaryView(auction.competitionSnapshot, competition)
 
     return {
       auction: toSponsorAuctionListItem({

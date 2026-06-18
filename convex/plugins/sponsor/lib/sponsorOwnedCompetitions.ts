@@ -1,6 +1,6 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { Infer } from "convex/values"
-import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { resolveCompetitionSummaryView } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import {
   compareSponsorshipLifecycle,
   resolveSponsorshipLifecycle,
@@ -82,14 +82,11 @@ export function buildSponsorSponsorshipListItems(input: {
       input.sponsorId
     )
     const competitionName = competition.name
-    const competitionSummary =
-      managementAuction?.competitionSnapshot?.summary ??
-      buildCompetitionRecordSummary({
-        name: competitionName,
-        compDates: competition.compDates,
-      })
-    const competitionSummarySource =
-      managementAuction?.competitionSnapshot?.source ?? "competition_record"
+    const { summary: competitionSummary, source: competitionSummarySource } =
+      resolveCompetitionSummaryView(
+        managementAuction?.competitionSnapshot,
+        competition
+      )
     const lifecycle = resolveSponsorshipLifecycle({
       startDate: competitionSummary.startDate,
       endDate: competitionSummary.endDate,

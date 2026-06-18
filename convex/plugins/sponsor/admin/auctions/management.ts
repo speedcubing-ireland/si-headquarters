@@ -7,7 +7,7 @@ import { compareBidIntentChronologyWithIdTieBreak } from "../../lib/auctionState
 import { competitionStartEnd } from "@/convex/competitions/dates"
 import { sponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/validators"
 import {
-  buildCompetitionRecordSummary,
+  resolveCompetitionSummaryView,
   sponsorshipCompetitionSummary,
   sponsorshipCompetitionSummarySource,
 } from "../../lib/competitionSnapshot"
@@ -455,15 +455,11 @@ export const getManagerView = query({
         .collect(),
     ])
     if (!competition) return null
-    const competitionSummary =
-      auction.competitionSnapshot?.summary ??
-      buildCompetitionRecordSummary({
-        name: competition.name,
-        compDates: competition.compDates,
-      })
-    const competitionSummarySource =
-      auction.competitionSnapshot?.source ?? "competition_record"
-    const competitionSummaryFetchedAt = auction.competitionSnapshot?.fetchedAt
+    const {
+      summary: competitionSummary,
+      source: competitionSummarySource,
+      fetchedAt: competitionSummaryFetchedAt,
+    } = resolveCompetitionSummaryView(auction.competitionSnapshot, competition)
     const inviteSponsorIds = invites.map((invite) => invite.sponsorId)
     const invitedSponsorSet = new Set<Id<"sponsors">>(inviteSponsorIds)
     const totalBidCountBySponsor = new Map<Id<"sponsors">, number>()
