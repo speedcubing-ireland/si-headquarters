@@ -29,17 +29,6 @@ function getThemeOption(theme: string): ThemeToggleOption {
   )
 }
 
-function DefaultThemeToggleTrigger({ theme }: { theme: ThemeToggleOption }) {
-  const Icon = theme.icon
-
-  return (
-    <Button variant="outline" size="icon">
-      <Icon className="size-4" />
-      <span className="sr-only">Theme: {theme.label}</span>
-    </Button>
-  )
-}
-
 export function ThemeToggle({
   trigger,
   contentAlign = "end",
@@ -49,8 +38,12 @@ export function ThemeToggle({
 }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme()
   const currentTheme = getThemeOption(theme)
+  const CurrentThemeIcon = currentTheme.icon
   const toggleTrigger = trigger?.(currentTheme) ?? (
-    <DefaultThemeToggleTrigger theme={currentTheme} />
+    <Button variant="outline" size="icon">
+      <CurrentThemeIcon className="size-4" />
+      <span className="sr-only">Theme: {currentTheme.label}</span>
+    </Button>
   )
 
   return (
