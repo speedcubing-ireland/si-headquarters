@@ -99,6 +99,76 @@ export async function scheduleSponsorshipEmailBatch(
   )
 }
 
+export async function repairEmailDispatches(ctx: MutationCtx): Promise<void> {
+  const now = Date.now()
+  const staleBefore = now - 5 * 60 * 1000
+  const duePending = await ctx.db
+    .query("sponsorshipEmailDispatches")
+    .withIndex("by_status_and_next_attempt", (q) =>
+      q.eq("status", "pending").gt("nextAttemptAt", 0).lte("nextAttemptAt", now)
+    )
+    .take(100)
+  const legacyStalePending = (
+    await ctx.db
+      .query("sponsorshipEmailDispatches")
+      .withIndex("by_status_and_created", (q) =>
+        q.eq("status", "pending").lt("createdAt", staleBefore)
+      )
+      .take(100)
+  ).filter((dispatch) => dispatch.nextAttemptAt === undefined)
+  const staleProcessing = await ctx.db
+    .query("sponsorshipEmailDispatches")
+    .withIndex("by_status_and_processing_started", (q) =>
+      q
+        .eq("status", "processing")
+        .lt(
+          "processingStartedAt",
+          now - SPONSORSHIP_EMAIL_DISPATCH_PROCESSING_LEASE_MS
+        )
+    )
+    .take(100)
+
+  const dispatchIds = new Set<Id<"sponsorshipEmailDispatches">>()
+  for (const dispatch of [...duePending, ...legacyStalePending]) {
+    dispatchIds.add(dispatch._id)
+  }
+  for (const dispatch of staleProcessing) {
+    const attempts = dispatch.attempts + 1
+    if (attempts >= SPONSORSHIP_EMAIL_DISPATCH_MAX_ATTEMPTS) {
+      await ctx.db.patch("sponsorshipEmailDispatches", dispatch._id, {
+        status: "failed",
+        attempts,
+        lastAttemptAt: now,
+        processingStartedAt: undefined,
+        nextAttemptAt: undefined,
+        lastError: "Processing lease expired before delivery completed.",
+        failedAt: now,
+      })
+      continue
+    }
+
+    await ctx.db.patch("sponsorshipEmailDispatches", dispatch._id, {
+      status: "pending",
+      attempts,
+      lastAttemptAt: now,
+      processingStartedAt: undefined,
+      nextAttemptAt: now,
+      lastError: "Processing lease expired before delivery completed.",
+      failedAt: undefined,
+    })
+    dispatchIds.add(dispatch._id)
+  }
+
+  if (dispatchIds.size > 0) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.plugins.sponsor.emails.sendBatch
+        .processSponsorshipEmailDispatches,
+      { dispatchIds: [...dispatchIds] }
+    )
+  }
+}
+
 export const claimSponsorshipEmailDispatchForRender = internalMutation({
   args: { dispatchId: v.id("sponsorshipEmailDispatches") },
   returns: v.union(
