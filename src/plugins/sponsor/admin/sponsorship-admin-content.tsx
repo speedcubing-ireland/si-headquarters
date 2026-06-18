@@ -11,7 +11,7 @@ import {
   type AdminSponsorshipTab,
 } from "@/plugins/sponsor/admin/types"
 import { useSponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
-import { useSponsorshipTabNavigation } from "@/plugins/sponsor/admin/use-sponsorship-tab-navigation"
+import { useSponsorshipAdminNavigation } from "@/plugins/sponsor/admin/use-sponsorship-admin-search"
 
 export function SponsorshipAdminContent({
   activeTab,
@@ -20,7 +20,7 @@ export function SponsorshipAdminContent({
 }) {
   const admin = useSponsorshipAdmin()
   const { stats, loading, sponsors, actions } = admin
-  const setTab = useSponsorshipTabNavigation()
+  const { setTab } = useSponsorshipAdminNavigation()
 
   return (
     <>
@@ -49,7 +49,7 @@ export function SponsorshipAdminContent({
         </TabsList>
 
         <OpenAuctionsTab admin={admin} />
-        <ClosedAuctionsTab admin={admin} />
+        <ClosedAuctionsTab />
 
         <TabsContent value="sponsors" className="space-y-4">
           <SponsorsTab

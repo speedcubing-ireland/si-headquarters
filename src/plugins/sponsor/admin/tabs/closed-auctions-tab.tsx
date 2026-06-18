@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -11,31 +12,70 @@ import { Input } from "@/components/ui/input"
 import { TabsContent } from "@/components/ui/tabs"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
 import { AuctionTable } from "@/plugins/sponsor/admin/components/auction-table"
-import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
 import { formatDateTime } from "@/lib/format/irish-dates"
 import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
+  displayAuctionPriceCents,
   formatEuroFromCents,
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
+import {
+  useSponsors,
+  useSponsorshipAuctionManagerView,
+  useSponsorshipAuctionsForManager,
+} from "@/plugins/sponsor/hooks/use-sponsorship"
+import {
+  attachSponsorNames,
+  filterAuctionsBySearch,
+} from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
+import {
+  useSponsorshipAdminNavigation,
+  useSponsorshipAdminSearch,
+} from "@/plugins/sponsor/admin/use-sponsorship-admin-search"
 
-export function ClosedAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
-  const { closed, loading } = admin
-  const {
-    closedSearchQuery,
-    setClosedSearchQuery,
-    filteredClosedAuctions,
-    selectedClosedAuctionId,
-    setSelectedClosedAuctionId,
-    selectedClosedAuction,
-    selectedClosedAuctionWinnerName,
-    selectedClosedAuctionWinningBidCents,
-    selectedClosedAuctionInvitedSponsors,
-    selectedClosedAuctionSponsorOutcomes,
-    closedAuctionManagerView,
-  } = closed
-  const { isLoadingAuctions, isLoadingClosedAuctionManagerView } = loading
+export function ClosedAuctionsTab() {
+  const [searchQuery, setSearchQuery] = useState("")
+  const { closedAuctionId } = useSponsorshipAdminSearch()
+  const { setClosedAuctionId } = useSponsorshipAdminNavigation()
+
+  const { auctions, isLoading: isLoadingAuctions } =
+    useSponsorshipAuctionsForManager()
+  const { sponsors } = useSponsors()
+  const { managerView, isLoading: isLoadingManagerView } =
+    useSponsorshipAuctionManagerView(closedAuctionId ?? null)
+
+  const sponsorNameById = new Map(
+    sponsors.map((sponsor) => [sponsor.id, sponsor.name])
+  )
+  const resolveSponsorName = (sponsorId: (typeof sponsors)[number]["id"]) =>
+    sponsorNameById.get(sponsorId) ?? "Unknown sponsor"
+
+  const closedAuctions = auctions.filter(
+    (auction) => auction.state === "closed"
+  )
+  const filteredClosedAuctions = filterAuctionsBySearch(
+    closedAuctions,
+    searchQuery
+  )
+  const selectedClosedAuction =
+    closedAuctionId === undefined
+      ? null
+      : (closedAuctions.find((auction) => auction.id === closedAuctionId) ??
+        null)
+
+  const winnerName = selectedClosedAuction?.winnerSponsorId
+    ? resolveSponsorName(selectedClosedAuction.winnerSponsorId)
+    : "No winner"
+  const invitedSponsors =
+    managerView?.inviteSponsorIds.map((sponsorId) => ({
+      sponsorId,
+      sponsorName: resolveSponsorName(sponsorId),
+    })) ?? []
+  const sponsorOutcomes = attachSponsorNames(
+    managerView?.sponsorOutcomes ?? [],
+    resolveSponsorName
+  )
 
   return (
     <TabsContent value="closed" className="space-y-4">
@@ -50,19 +90,19 @@ export function ClosedAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
           <CardContent className="space-y-3">
             <Input
               placeholder="Search competitions or phases"
-              value={closedSearchQuery}
+              value={searchQuery}
               onChange={(event) => {
-                setClosedSearchQuery(event.target.value)
+                setSearchQuery(event.target.value)
               }}
               className="max-w-sm"
             />
             <AuctionTable
               rows={filteredClosedAuctions}
               emptyText="No closed auctions."
-              selectedId={selectedClosedAuctionId}
+              selectedId={closedAuctionId ?? null}
               actionLabel="View"
               onSelect={(auctionId) => {
-                setSelectedClosedAuctionId(auctionId)
+                setClosedAuctionId(auctionId)
               }}
               isLoading={isLoadingAuctions}
             />
@@ -107,16 +147,13 @@ export function ClosedAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
                 <div className="space-y-2 rounded-md border p-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Winner</span>
-                    <span className="font-medium">
-                      {selectedClosedAuctionWinnerName}
-                    </span>
+                    <span className="font-medium">{winnerName}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Winning bid</span>
                     <span className="font-medium tabular-nums">
                       {formatEuroFromCents(
-                        selectedClosedAuctionWinningBidCents ??
-                          selectedClosedAuction.startPriceCents
+                        displayAuctionPriceCents(selectedClosedAuction)
                       )}
                     </span>
                   </div>
@@ -147,16 +184,16 @@ export function ClosedAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
                     </span>
                   </div>
                 </div>
-                {isLoadingClosedAuctionManagerView ? (
+                {isLoadingManagerView ? (
                   <div className="flex items-center justify-center py-4">
                     <Spinner />
                   </div>
-                ) : closedAuctionManagerView ? (
+                ) : managerView ? (
                   <AuctionBidStatusSection
-                    intentCount={closedAuctionManagerView.intentCount}
-                    eventCount={closedAuctionManagerView.eventCount}
-                    invitedSponsors={selectedClosedAuctionInvitedSponsors}
-                    outcomes={selectedClosedAuctionSponsorOutcomes}
+                    intentCount={managerView.intentCount}
+                    eventCount={managerView.eventCount}
+                    invitedSponsors={invitedSponsors}
+                    outcomes={sponsorOutcomes}
                   />
                 ) : null}
               </>
