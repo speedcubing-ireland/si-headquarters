@@ -91,15 +91,6 @@ export function buildCompetitionSponsorStatusByCompetition(input: {
   return statusByCompetition
 }
 
-export function deriveCompetitionSponsorStatusFromAuctions(
-  auctions: AuctionSponsorFields[]
-): CompetitionSponsorPropertyStatus {
-  return resolveCompetitionSponsorPropertyStatus({
-    override: null,
-    auctions,
-  })
-}
-
 export function findWinningClosedAuction(
   auctions: Doc<"sponsorshipAuctions">[]
 ): Doc<"sponsorshipAuctions"> | undefined {

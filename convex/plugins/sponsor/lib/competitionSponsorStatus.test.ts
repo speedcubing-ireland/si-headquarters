@@ -1,28 +1,32 @@
 import { describe, expect, test } from "vitest"
 import {
-  deriveCompetitionSponsorStatusFromAuctions,
   isCompetitionSponsorManualOverride,
   resolveCompetitionSponsorPropertyStatus,
   resolveCompetitionSponsorStatus,
 } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 
 describe("competitionSponsorStatus", () => {
-  test("deriveCompetitionSponsorStatusFromAuctions", () => {
-    expect(deriveCompetitionSponsorStatusFromAuctions([])).toBe("not_offered")
+  test("resolveCompetitionSponsorPropertyStatus derives status from auctions", () => {
     expect(
-      deriveCompetitionSponsorStatusFromAuctions([
-        { state: "draft", winnerSponsorId: undefined },
-      ])
+      resolveCompetitionSponsorPropertyStatus({ override: null, auctions: [] })
+    ).toBe("not_offered")
+    expect(
+      resolveCompetitionSponsorPropertyStatus({
+        override: null,
+        auctions: [{ state: "draft", winnerSponsorId: undefined }],
+      })
     ).toBe("bidding")
     expect(
-      deriveCompetitionSponsorStatusFromAuctions([
-        { state: "closed", winnerSponsorId: "s1" as never },
-      ])
+      resolveCompetitionSponsorPropertyStatus({
+        override: null,
+        auctions: [{ state: "closed", winnerSponsorId: "s1" as never }],
+      })
     ).toBe("sponsor")
     expect(
-      deriveCompetitionSponsorStatusFromAuctions([
-        { state: "closed", winnerSponsorId: undefined },
-      ])
+      resolveCompetitionSponsorPropertyStatus({
+        override: null,
+        auctions: [{ state: "closed", winnerSponsorId: undefined }],
+      })
     ).toBe("none")
   })
 
