@@ -8,11 +8,16 @@ import { useSponsorshipAuctionManagerView } from "@/plugins/sponsor/hooks/use-sp
 import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
   centsToEuroInput,
-  hasSameIdSet,
-  normalizeSearchText,
-  parseDatetimeLocalInput,
+  displayAuctionPriceCents,
   toDatetimeLocalInput,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
+import { isCompetitionSponsorManualOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
+import {
+  attachSponsorNames,
+  filterAuctionsBySearch,
+  groupUnsponsoredCompetitionsByPhase,
+  hasPendingAuctionEdits,
+} from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
 
 type ManagerCompetition = FunctionReturnType<
   typeof api.plugins.sponsor.admin.auctions.management.listCompetitionsForManager
@@ -84,6 +89,8 @@ export function useSponsorshipAdminDerived({
     () => new Map(sponsors.map((sponsor) => [sponsor.id, sponsor])),
     [sponsors]
   )
+  const resolveSponsorName = (sponsorId: Id<"sponsors">): string =>
+    sponsorById.get(sponsorId)?.name ?? "Unknown sponsor"
   const auctionById = useMemo(
     () => new Map(auctions.map((auction) => [auction.id, auction])),
     [auctions]
@@ -112,47 +119,19 @@ export function useSponsorshipAdminDerived({
     () => auctions.filter((auction) => auction.state === "closed"),
     [auctions]
   )
-  const openSearchText = normalizeSearchText(openSearchQuery)
-  const closedSearchText = normalizeSearchText(closedSearchQuery)
   const filteredOpenAuctions = useMemo(
-    () =>
-      openAuctions.filter((auction) => {
-        if (!openSearchText) return true
-        return (
-          auction.competitionName.toLowerCase().includes(openSearchText) ||
-          auction.competitionPhaseName.toLowerCase().includes(openSearchText)
-        )
-      }),
-    [openAuctions, openSearchText]
+    () => filterAuctionsBySearch(openAuctions, openSearchQuery),
+    [openAuctions, openSearchQuery]
   )
   const filteredClosedAuctions = useMemo(
-    () =>
-      closedAuctions.filter((auction) => {
-        if (!closedSearchText) return true
-        return (
-          auction.competitionName.toLowerCase().includes(closedSearchText) ||
-          auction.competitionPhaseName.toLowerCase().includes(closedSearchText)
-        )
-      }),
-    [closedAuctions, closedSearchText]
+    () => filterAuctionsBySearch(closedAuctions, closedSearchQuery),
+    [closedAuctions, closedSearchQuery]
   )
 
-  const unsponsoredCompetitionsByPhase = useMemo(() => {
-    const grouped = new Map<string, (typeof competitions)[number][]>()
-    for (const competition of competitions) {
-      if (competition.sponsorPropertyStatus === "sponsor") continue
-      const phase = competition.currentPhaseName
-      const current = grouped.get(phase) ?? []
-      current.push(competition)
-      grouped.set(phase, current)
-    }
-    return [...grouped.entries()]
-      .map(([phase, items]) => ({
-        phase,
-        items: items.sort((a, b) => a.compStart.localeCompare(b.compStart)),
-      }))
-      .sort((a, b) => a.phase.localeCompare(b.phase))
-  }, [competitions])
+  const unsponsoredCompetitionsByPhase = useMemo(
+    () => groupUnsponsoredCompetitionsByPhase(competitions),
+    [competitions]
+  )
 
   const sponsoredCompetitions = useMemo(
     () =>
@@ -259,35 +238,27 @@ export function useSponsorshipAdminDerived({
   }, [auctionById, selectedClosedAuctionId])
 
   const selectedClosedAuctionWinnerName = selectedClosedAuction?.winnerSponsorId
-    ? (sponsorById.get(selectedClosedAuction.winnerSponsorId)?.name ??
-      "Unknown sponsor")
+    ? resolveSponsorName(selectedClosedAuction.winnerSponsorId)
     : "No winner"
 
   const selectedClosedAuctionWinningBidCents = selectedClosedAuction
-    ? (selectedClosedAuction.settlementAmountCents ??
-      selectedClosedAuction.currentPriceCents ??
-      selectedClosedAuction.startPriceCents)
+    ? displayAuctionPriceCents(selectedClosedAuction)
     : null
 
   const selectedClosedAuctionInvitedSponsors =
     closedAuctionManagerView?.inviteSponsorIds.map((sponsorId) => ({
       sponsorId,
-      sponsorName: sponsorById.get(sponsorId)?.name ?? "Unknown sponsor",
+      sponsorName: resolveSponsorName(sponsorId),
     })) ?? []
 
-  const selectedClosedAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[] = (
-    closedAuctionManagerView?.sponsorOutcomes ?? []
-  ).map((outcome) => ({
-    ...outcome,
-    sponsorName: sponsorById.get(outcome.sponsorId)?.name ?? "Unknown sponsor",
-  }))
+  const selectedClosedAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[] =
+    attachSponsorNames(
+      closedAuctionManagerView?.sponsorOutcomes ?? [],
+      resolveSponsorName
+    )
 
-  const selectedOpenAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[] = (
-    managerView?.sponsorOutcomes ?? []
-  ).map((outcome) => ({
-    ...outcome,
-    sponsorName: sponsorById.get(outcome.sponsorId)?.name ?? "Unknown sponsor",
-  }))
+  const selectedOpenAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[] =
+    attachSponsorNames(managerView?.sponsorOutcomes ?? [], resolveSponsorName)
 
   const selectedAuctionCompetitionSummary =
     managerView?.competitionSummary ?? null
@@ -314,8 +285,7 @@ export function useSponsorshipAdminDerived({
       : null
 
   const panelCompetitionHasManualSponsorOverride =
-    panelCompetition?.manualSponsorPropertyStatus !== undefined ||
-    panelCompetition?.manualSponsorId !== undefined
+    isCompetitionSponsorManualOverride(panelCompetition)
 
   const panelCompetitionManualSponsorName = panelCompetition?.manualSponsorId
     ? (sponsorById.get(panelCompetition.manualSponsorId)?.name ?? "Sponsor")
@@ -336,19 +306,15 @@ export function useSponsorshipAdminDerived({
 
   const hasPendingEditChanges = useMemo(() => {
     if (effectiveEditorMode !== "edit" || managerView == null) return false
-    const startsAt = parseDatetimeLocalInput(editStartsAtInput)
-    const endsAt = parseDatetimeLocalInput(editEndsAtInput)
-    const startPrice = Number(editStartPriceEuros)
-    const startPriceCents = Number.isFinite(startPrice)
-      ? Math.round(startPrice * 100)
-      : null
-    return (
-      editFramework !== managerView.auction.framework ||
-      startsAt !== managerView.auction.startsAt ||
-      endsAt !== managerView.auction.endsAt ||
-      startPriceCents !== managerView.auction.startPriceCents ||
-      !hasSameIdSet(editInvitedSponsorIds, managerView.inviteSponsorIds)
-    )
+    return hasPendingAuctionEdits({
+      editFramework,
+      editStartsAtInput,
+      editEndsAtInput,
+      editStartPriceEuros,
+      editInvitedSponsorIds,
+      auction: managerView.auction,
+      inviteSponsorIds: managerView.inviteSponsorIds,
+    })
   }, [
     editEndsAtInput,
     editFramework,
