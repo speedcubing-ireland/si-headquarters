@@ -149,19 +149,6 @@ export function sponsorshipStateBadgeVariant(
   }
 }
 
-export function sponsorshipLifecycleLabel(
-  lifecycle: SponsorshipLifecycle
-): string {
-  switch (lifecycle) {
-    case "upcoming":
-      return "Upcoming"
-    case "ongoing":
-      return "Ongoing"
-    case "completed":
-      return "Completed"
-  }
-}
-
 export function sponsorshipLifecycleBadgeVariant(
   lifecycle: SponsorshipLifecycle
 ): "default" | "secondary" | "outline" {
@@ -217,34 +204,6 @@ function closedPriceCents(auction: AuctionPriceFields): number {
     auction.currentPriceCents ??
     auction.startPriceCents
   )
-}
-
-export function formatAuctionPriceLine(auction: AuctionPriceFields): string {
-  if (
-    isSealedAuctionFramework(auction.framework) &&
-    auction.state !== "closed"
-  ) {
-    return `Minimum bid: ${formatEuroFromCents(auction.startPriceCents)} · Price sealed until close`
-  }
-
-  if (
-    isSealedAuctionFramework(auction.framework) &&
-    auction.state === "closed"
-  ) {
-    return `Winning bid: ${formatEuroFromCents(closedPriceCents(auction))}`
-  }
-
-  const current = formatEuroFromCents(
-    auction.currentPriceCents ?? auction.startPriceCents
-  )
-  if (
-    auction.state === "closed" &&
-    auction.settlementAmountCents !== undefined
-  ) {
-    return `Current: ${current} · Winning bid: ${formatEuroFromCents(auction.settlementAmountCents)}`
-  }
-
-  return `Current: ${current}`
 }
 
 export function formatAuctionTablePrice(auction: AuctionPriceFields): {
