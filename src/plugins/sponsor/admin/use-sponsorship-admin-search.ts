@@ -20,9 +20,28 @@ export function useSponsorshipAdminNavigation() {
         }),
       })
     },
+  }
+}
+
+export function useSponsorshipEditorNavigation() {
+  const navigate = useNavigate()
+  return {
+    openCreateAuction: () => {
+      void navigate({ to: "/plugins/sponsorship/auctions/new" })
+    },
+    openEditAuction: (auctionId: Id<"sponsorshipAuctions">) => {
+      void navigate({
+        to: "/plugins/sponsorship/auctions/$auctionId/edit",
+        params: { auctionId },
+      })
+    },
+    backToList: () => {
+      void navigate({ to: "/plugins/sponsorship", search: { tab: "open" } })
+    },
     viewClosedAuction: (closedAuctionId: Id<"sponsorshipAuctions">) => {
       void navigate({
-        search: (previous) => ({ ...previous, tab: "closed", closedAuctionId }),
+        to: "/plugins/sponsorship",
+        search: { tab: "closed", closedAuctionId },
       })
     },
   }

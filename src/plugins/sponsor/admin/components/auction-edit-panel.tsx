@@ -16,12 +16,21 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import type { Dispatch, SetStateAction, SubmitEvent } from "react"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
-import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import type { Id } from "@/convex/_generated/dataModel"
+import type { SponsorBidOutcomeDisplay } from "@/plugins/sponsor/admin/types"
+import type {
+  ManagerAuction,
+  ManagerCompetition,
+  ManagerSponsor,
+  ManagerView,
+} from "@/plugins/sponsor/admin/manager-types"
 import { formatDateTime } from "@/lib/format/irish-dates"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
   auctionFrameworkLabel,
+  type SponsorshipAuctionFramework,
 } from "@/convex/plugins/sponsor/lib/types"
 import {
   competitionPropertyStatusLabel,
@@ -39,47 +48,81 @@ function formatCompetitionSummaryDateRange(summary: {
   return start === end ? start : `${start} - ${end}`
 }
 
-export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
-  const { open, loading, actions } = admin
-  const {
-    selectedAuction,
-    managerView,
-    isSavingAuction,
-    busyAuctionId,
-    refreshingAuctionId,
-    editFramework,
-    setEditFramework,
-    isEditFrameworkUnlocked,
-    setIsEditFrameworkUnlocked,
-    editStartsAtInput,
-    setEditStartsAtInput,
-    editEndsAtInput,
-    setEditEndsAtInput,
-    editStartPriceEuros,
-    setEditStartPriceEuros,
-    editInvitedSponsorIds,
-    activeSponsors,
-    hasPendingEditChanges,
-    selectedOpenAuctionSponsorOutcomes,
-    selectedAuctionCompetitionSummary,
-    selectedAuctionCompetitionSummaryFetchedAt,
-    isSelectedAuctionCompetitionSummaryReady,
-    panelCompetition,
-    panelCompetitionHasManualSponsorOverride,
-    panelCompetitionManualSponsorName,
-    busyCompetitionId,
-  } = open
-  const { isLoadingManagerView } = loading
-  const {
-    toggleEditSponsorInvite,
-    onRevertCompetitionSponsorOverride,
-    onSaveAuctionChanges,
-    onRefreshAuctionCompetitionData,
-    onStartAuction,
-    onCloseAuction,
-    onDeleteBeforeOpen,
-  } = actions
-
+export function AuctionEditPanel({
+  selectedAuction,
+  managerView,
+  isSavingAuction,
+  busyAuctionId,
+  refreshingAuctionId,
+  editFramework,
+  setEditFramework,
+  isEditFrameworkUnlocked,
+  setIsEditFrameworkUnlocked,
+  editStartsAtInput,
+  setEditStartsAtInput,
+  editEndsAtInput,
+  setEditEndsAtInput,
+  editStartPriceEuros,
+  setEditStartPriceEuros,
+  editInvitedSponsorIds,
+  activeSponsors,
+  hasPendingEditChanges,
+  selectedOpenAuctionSponsorOutcomes,
+  selectedAuctionCompetitionSummary,
+  selectedAuctionCompetitionSummaryFetchedAt,
+  isSelectedAuctionCompetitionSummaryReady,
+  panelCompetition,
+  panelCompetitionHasManualSponsorOverride,
+  panelCompetitionManualSponsorName,
+  busyCompetitionId,
+  isLoadingManagerView,
+  toggleEditSponsorInvite,
+  onRevertCompetitionSponsorOverride,
+  onSaveAuctionChanges,
+  onRefreshAuctionCompetitionData,
+  onStartAuction,
+  onCloseAuction,
+  onDeleteBeforeOpen,
+}: {
+  selectedAuction: ManagerAuction | undefined
+  managerView: ManagerView | null
+  isSavingAuction: boolean
+  busyAuctionId: Id<"sponsorshipAuctions"> | null
+  refreshingAuctionId: Id<"sponsorshipAuctions"> | null
+  editFramework: SponsorshipAuctionFramework
+  setEditFramework: (value: SponsorshipAuctionFramework) => void
+  isEditFrameworkUnlocked: boolean
+  setIsEditFrameworkUnlocked: Dispatch<SetStateAction<boolean>>
+  editStartsAtInput: string
+  setEditStartsAtInput: (value: string) => void
+  editEndsAtInput: string
+  setEditEndsAtInput: (value: string) => void
+  editStartPriceEuros: string
+  setEditStartPriceEuros: (value: string) => void
+  editInvitedSponsorIds: Id<"sponsors">[]
+  activeSponsors: ManagerSponsor[]
+  hasPendingEditChanges: boolean
+  selectedOpenAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[]
+  selectedAuctionCompetitionSummary: ManagerView["competitionSummary"] | null
+  selectedAuctionCompetitionSummaryFetchedAt: ManagerView["competitionSummaryFetchedAt"]
+  isSelectedAuctionCompetitionSummaryReady: boolean
+  panelCompetition: ManagerCompetition | null
+  panelCompetitionHasManualSponsorOverride: boolean
+  panelCompetitionManualSponsorName: string | undefined
+  busyCompetitionId: Id<"competitions"> | null
+  isLoadingManagerView: boolean
+  toggleEditSponsorInvite: (sponsorId: Id<"sponsors">) => void
+  onRevertCompetitionSponsorOverride: (
+    competitionId: Id<"competitions">
+  ) => Promise<void>
+  onSaveAuctionChanges: (event: SubmitEvent) => Promise<void>
+  onRefreshAuctionCompetitionData: (
+    auctionId: Id<"sponsorshipAuctions">
+  ) => Promise<{ status: string; message: string }>
+  onStartAuction: (auctionId: Id<"sponsorshipAuctions">) => Promise<void>
+  onCloseAuction: (auctionId: Id<"sponsorshipAuctions">) => Promise<void>
+  onDeleteBeforeOpen: (auctionId: Id<"sponsorshipAuctions">) => Promise<void>
+}) {
   if (!selectedAuction) {
     return (
       <p className="text-sm text-muted-foreground">

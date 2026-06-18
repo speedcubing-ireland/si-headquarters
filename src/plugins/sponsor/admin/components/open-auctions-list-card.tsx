@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -9,18 +10,18 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { AuctionTable } from "@/plugins/sponsor/admin/components/auction-table"
-import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import { filterAuctionsBySearch } from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
+import { useSponsorshipEditorNavigation } from "@/plugins/sponsor/admin/use-sponsorship-admin-search"
+import { useSponsorshipAuctionsForManager } from "@/plugins/sponsor/hooks/use-sponsorship"
 
-export function OpenAuctionsListCard({ admin }: { admin: SponsorshipAdmin }) {
-  const { open, loading, actions } = admin
-  const {
-    openSearchQuery,
-    setOpenSearchQuery,
-    filteredOpenAuctions,
-    effectiveSelectedAuctionId,
-  } = open
-  const { isLoadingAuctions } = loading
-  const { resetCreatePanel, selectAuctionForEditing } = actions
+export function OpenAuctionsListCard() {
+  const [searchQuery, setSearchQuery] = useState("")
+  const { auctions, isLoading } = useSponsorshipAuctionsForManager()
+  const { openCreateAuction, openEditAuction } =
+    useSponsorshipEditorNavigation()
+
+  const openAuctions = auctions.filter((auction) => auction.state !== "closed")
+  const filteredOpenAuctions = filterAuctionsBySearch(openAuctions, searchQuery)
 
   return (
     <Card>
@@ -34,16 +35,16 @@ export function OpenAuctionsListCard({ admin }: { admin: SponsorshipAdmin }) {
         <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder="Search competitions or phases"
-            value={openSearchQuery}
+            value={searchQuery}
             onChange={(event) => {
-              setOpenSearchQuery(event.target.value)
+              setSearchQuery(event.target.value)
             }}
             className="max-w-sm"
           />
           <Button
             variant="outline"
             onClick={() => {
-              resetCreatePanel()
+              openCreateAuction()
             }}
           >
             <Plus className="size-4" />
@@ -53,10 +54,10 @@ export function OpenAuctionsListCard({ admin }: { admin: SponsorshipAdmin }) {
         <AuctionTable
           rows={filteredOpenAuctions}
           emptyText="No open auctions."
-          selectedId={effectiveSelectedAuctionId}
+          selectedId={null}
           actionLabel="Edit"
-          onSelect={selectAuctionForEditing}
-          isLoading={isLoadingAuctions}
+          onSelect={openEditAuction}
+          isLoading={isLoading}
         />
       </CardContent>
     </Card>

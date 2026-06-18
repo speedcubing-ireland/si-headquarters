@@ -48,7 +48,7 @@ export function SponsorshipAdminContent({
           </TabsTrigger>
         </TabsList>
 
-        <OpenAuctionsTab admin={admin} />
+        <OpenAuctionsTab />
         <ClosedAuctionsTab />
 
         <TabsContent value="sponsors" className="space-y-4">

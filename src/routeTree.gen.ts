@@ -32,6 +32,8 @@ import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
 import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
 import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
+import { Route as PluginsSponsorshipAuctionsNewRouteImport } from './routes/plugins/sponsorship_.auctions.new'
+import { Route as PluginsSponsorshipAuctionsAuctionIdEditRouteImport } from './routes/plugins/sponsorship_.auctions.$auctionId.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -150,6 +152,18 @@ const TeamsTeamIdProjectsIndexRoute =
     path: '/teams/$teamId/projects/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PluginsSponsorshipAuctionsNewRoute =
+  PluginsSponsorshipAuctionsNewRouteImport.update({
+    id: '/plugins/sponsorship_/auctions/new',
+    path: '/plugins/sponsorship/auctions/new',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PluginsSponsorshipAuctionsAuctionIdEditRoute =
+  PluginsSponsorshipAuctionsAuctionIdEditRouteImport.update({
+    id: '/plugins/sponsorship_/auctions/$auctionId/edit',
+    path: '/plugins/sponsorship/auctions/$auctionId/edit',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -173,8 +187,10 @@ export interface FileRoutesByFullPath {
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/plugins/sponsorship/auctions/new': typeof PluginsSponsorshipAuctionsNewRoute
   '/teams/$teamId/projects/': typeof TeamsTeamIdProjectsIndexRoute
   '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
+  '/plugins/sponsorship/auctions/$auctionId/edit': typeof PluginsSponsorshipAuctionsAuctionIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,8 +214,10 @@ export interface FileRoutesByTo {
   '/sponsor': typeof SponsorIndexRoute
   '/tasks': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/plugins/sponsorship/auctions/new': typeof PluginsSponsorshipAuctionsNewRoute
   '/teams/$teamId/projects': typeof TeamsTeamIdProjectsIndexRoute
   '/teams/$teamId/tasks': typeof TeamsTeamIdTasksIndexRoute
+  '/plugins/sponsorship/auctions/$auctionId/edit': typeof PluginsSponsorshipAuctionsAuctionIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -224,8 +242,10 @@ export interface FileRoutesById {
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
+  '/plugins/sponsorship_/auctions/new': typeof PluginsSponsorshipAuctionsNewRoute
   '/teams/$teamId/projects/': typeof TeamsTeamIdProjectsIndexRoute
   '/teams/$teamId/tasks/': typeof TeamsTeamIdTasksIndexRoute
+  '/plugins/sponsorship_/auctions/$auctionId/edit': typeof PluginsSponsorshipAuctionsAuctionIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -251,8 +271,10 @@ export interface FileRouteTypes {
     | '/sponsor/'
     | '/tasks/'
     | '/sponsor/auctions/$auctionId'
+    | '/plugins/sponsorship/auctions/new'
     | '/teams/$teamId/projects/'
     | '/teams/$teamId/tasks/'
+    | '/plugins/sponsorship/auctions/$auctionId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -276,8 +298,10 @@ export interface FileRouteTypes {
     | '/sponsor'
     | '/tasks'
     | '/sponsor/auctions/$auctionId'
+    | '/plugins/sponsorship/auctions/new'
     | '/teams/$teamId/projects'
     | '/teams/$teamId/tasks'
+    | '/plugins/sponsorship/auctions/$auctionId/edit'
   id:
     | '__root__'
     | '/'
@@ -301,8 +325,10 @@ export interface FileRouteTypes {
     | '/sponsor/'
     | '/tasks/'
     | '/sponsor/auctions/$auctionId'
+    | '/plugins/sponsorship_/auctions/new'
     | '/teams/$teamId/projects/'
     | '/teams/$teamId/tasks/'
+    | '/plugins/sponsorship_/auctions/$auctionId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -326,8 +352,10 @@ export interface RootRouteChildren {
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   SponsorIndexRoute: typeof SponsorIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
+  PluginsSponsorshipAuctionsNewRoute: typeof PluginsSponsorshipAuctionsNewRoute
   TeamsTeamIdProjectsIndexRoute: typeof TeamsTeamIdProjectsIndexRoute
   TeamsTeamIdTasksIndexRoute: typeof TeamsTeamIdTasksIndexRoute
+  PluginsSponsorshipAuctionsAuctionIdEditRoute: typeof PluginsSponsorshipAuctionsAuctionIdEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -493,6 +521,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeamsTeamIdProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plugins/sponsorship_/auctions/new': {
+      id: '/plugins/sponsorship_/auctions/new'
+      path: '/plugins/sponsorship/auctions/new'
+      fullPath: '/plugins/sponsorship/auctions/new'
+      preLoaderRoute: typeof PluginsSponsorshipAuctionsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins/sponsorship_/auctions/$auctionId/edit': {
+      id: '/plugins/sponsorship_/auctions/$auctionId/edit'
+      path: '/plugins/sponsorship/auctions/$auctionId/edit'
+      fullPath: '/plugins/sponsorship/auctions/$auctionId/edit'
+      preLoaderRoute: typeof PluginsSponsorshipAuctionsAuctionIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -529,8 +571,11 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsIndexRoute: ProjectsIndexRoute,
   SponsorIndexRoute: SponsorIndexRoute,
   TasksIndexRoute: TasksIndexRoute,
+  PluginsSponsorshipAuctionsNewRoute: PluginsSponsorshipAuctionsNewRoute,
   TeamsTeamIdProjectsIndexRoute: TeamsTeamIdProjectsIndexRoute,
   TeamsTeamIdTasksIndexRoute: TeamsTeamIdTasksIndexRoute,
+  PluginsSponsorshipAuctionsAuctionIdEditRoute:
+    PluginsSponsorshipAuctionsAuctionIdEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,4 +1,5 @@
 import { AlertTriangle, Lock, LockOpen } from "lucide-react"
+import type { Dispatch, SetStateAction, SubmitEvent } from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,47 +15,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import type { Id } from "@/convex/_generated/dataModel"
+import type {
+  ManagerCompetition,
+  ManagerSponsor,
+} from "@/plugins/sponsor/admin/manager-types"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
   auctionFrameworkLabel,
+  type SponsorshipAuctionFramework,
 } from "@/convex/plugins/sponsor/lib/types"
 import {
   competitionPropertyStatusLabel,
   isSponsorshipFramework,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
-export function AuctionCreateForm({ admin }: { admin: SponsorshipAdmin }) {
-  const { open, actions, maps } = admin
-  const {
-    isCreatingAuction,
-    createCompetitionId,
-    createStartsAtInput,
-    setCreateStartsAtInput,
-    createEndsAtInput,
-    setCreateEndsAtInput,
-    createFramework,
-    setCreateFramework,
-    isCreateFrameworkUnlocked,
-    setIsCreateFrameworkUnlocked,
-    createStartPriceEuros,
-    setCreateStartPriceEuros,
-    createInvitedSponsorIds,
-    activeSponsors,
-    unsponsoredCompetitionsByPhase,
-    sponsoredCompetitions,
-    competitionIdByString,
-    selectedCompetition,
-    busyCompetitionId,
-  } = open
-  const {
-    onCreateAuction,
-    toggleCreateSponsorInvite,
-    setCreateCompetitionIdSelection,
-    onRevertCompetitionSponsorOverride,
-  } = actions
-  const { sponsorById } = maps
-
+export function AuctionCreateForm({
+  isCreatingAuction,
+  createCompetitionId,
+  createStartsAtInput,
+  setCreateStartsAtInput,
+  createEndsAtInput,
+  setCreateEndsAtInput,
+  createFramework,
+  setCreateFramework,
+  isCreateFrameworkUnlocked,
+  setIsCreateFrameworkUnlocked,
+  createStartPriceEuros,
+  setCreateStartPriceEuros,
+  createInvitedSponsorIds,
+  activeSponsors,
+  unsponsoredCompetitionsByPhase,
+  sponsoredCompetitions,
+  competitionIdByString,
+  selectedCompetition,
+  busyCompetitionId,
+  onCreateAuction,
+  toggleCreateSponsorInvite,
+  setCreateCompetitionIdSelection,
+  onRevertCompetitionSponsorOverride,
+  sponsorById,
+}: {
+  isCreatingAuction: boolean
+  createCompetitionId: Id<"competitions"> | null
+  createStartsAtInput: string
+  setCreateStartsAtInput: (value: string) => void
+  createEndsAtInput: string
+  setCreateEndsAtInput: (value: string) => void
+  createFramework: SponsorshipAuctionFramework
+  setCreateFramework: (value: SponsorshipAuctionFramework) => void
+  isCreateFrameworkUnlocked: boolean
+  setIsCreateFrameworkUnlocked: Dispatch<SetStateAction<boolean>>
+  createStartPriceEuros: string
+  setCreateStartPriceEuros: (value: string) => void
+  createInvitedSponsorIds: Id<"sponsors">[]
+  activeSponsors: ManagerSponsor[]
+  unsponsoredCompetitionsByPhase: {
+    phase: string
+    items: ManagerCompetition[]
+  }[]
+  sponsoredCompetitions: ManagerCompetition[]
+  competitionIdByString: Map<string, Id<"competitions">>
+  selectedCompetition: ManagerCompetition | null
+  busyCompetitionId: Id<"competitions"> | null
+  onCreateAuction: (event: SubmitEvent) => Promise<void>
+  toggleCreateSponsorInvite: (sponsorId: Id<"sponsors">) => void
+  setCreateCompetitionIdSelection: (
+    competitionId: Id<"competitions"> | null
+  ) => void
+  onRevertCompetitionSponsorOverride: (
+    competitionId: Id<"competitions">
+  ) => Promise<void>
+  sponsorById: Map<Id<"sponsors">, ManagerSponsor>
+}) {
   return (
     <form
       className="space-y-3"
