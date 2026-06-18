@@ -27,13 +27,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { formatDateTime } from "@/lib/format/irish-dates"
 import {
+  auctionFrameworkLabel,
+  isProxyAuctionFramework,
+  isSealedAuctionFramework,
+} from "@/convex/plugins/sponsor/lib/types"
+import {
   formatEuroFromCents,
-  isProxySponsorshipFramework,
-  isSealedSponsorshipFramework,
   proxyDirectBidCopy,
   proxyMaxBidCopy,
   SPONSORSHIP_BIDDING_HELP_TITLE,
-  sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
@@ -116,7 +118,7 @@ export function PortalAuctionDetailPage({
   const maxAmountEurosFromQuery =
     queryData !== undefined &&
     queryData !== null &&
-    isProxySponsorshipFramework(queryData.auction.framework)
+    isProxyAuctionFramework(queryData.auction.framework)
       ? queryData.myMaxBidCents !== undefined
         ? (queryData.myMaxBidCents / 100).toFixed(2)
         : ""
@@ -167,7 +169,7 @@ export function PortalAuctionDetailPage({
     return <Navigate to="/sponsor/auctions" />
   }
 
-  const isProxyAuction = isProxySponsorshipFramework(data.auction.framework)
+  const isProxyAuction = isProxyAuctionFramework(data.auction.framework)
   const minimumNextBidCents = data.auction.minimumNextBidCents
   const minimumNextBidEuros = (minimumNextBidCents / 100).toFixed(2)
   const minimumBidCents = isProxyAuction
@@ -264,10 +266,10 @@ export function PortalAuctionDetailPage({
       ? `Opens in ${formatAuctionCountdown(data.auction.startsAt, now)}`
       : `Closes in ${formatAuctionCountdown(data.auction.endsAt, now)}`
   const isSealedPriceHidden =
-    isSealedSponsorshipFramework(data.auction.framework) &&
+    isSealedAuctionFramework(data.auction.framework) &&
     data.auction.state !== "closed"
   const isClosedSealedAuction =
-    isSealedSponsorshipFramework(data.auction.framework) &&
+    isSealedAuctionFramework(data.auction.framework) &&
     data.auction.state === "closed"
   const currentPriceCentsForDisplay =
     data.auction.state === "closed"
@@ -307,7 +309,7 @@ export function PortalAuctionDetailPage({
     <SponsorPageShell maxWidthClassName="max-w-5xl">
       <SponsorPageHeader
         title={data.auction.competitionName}
-        subtitle={sponsorshipFrameworkLabel(data.auction.framework)}
+        subtitle={auctionFrameworkLabel(data.auction.framework)}
         actions={
           <>
             <Button

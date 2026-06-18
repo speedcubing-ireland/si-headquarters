@@ -20,10 +20,12 @@ import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auct
 import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
 import { formatDateTime } from "@/lib/format/irish-dates"
 import {
-  SPONSORSHIP_FRAMEWORKS,
+  SPONSORSHIP_AUCTION_FRAMEWORKS,
+  auctionFrameworkLabel,
+} from "@/convex/plugins/sponsor/lib/types"
+import {
   competitionPropertyStatusLabel,
   isSponsorshipFramework,
-  sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
@@ -95,7 +97,7 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
       <div className="space-y-1 rounded-md border p-3 text-sm">
         <p className="font-medium">{selectedAuction.competitionName}</p>
         <p className="text-xs text-muted-foreground">
-          {sponsorshipFrameworkLabel(selectedAuction.framework)} ·{" "}
+          {auctionFrameworkLabel(selectedAuction.framework)} ·{" "}
           {selectedAuction.competitionPhaseName}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -235,13 +237,13 @@ export function AuctionEditPanel({ admin }: { admin: SponsorshipAdmin }) {
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select auction type">
-                {sponsorshipFrameworkLabel(editFramework)}
+                {auctionFrameworkLabel(editFramework)}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {SPONSORSHIP_FRAMEWORKS.map((framework) => (
+              {SPONSORSHIP_AUCTION_FRAMEWORKS.map((framework) => (
                 <SelectItem key={framework} value={framework}>
-                  {sponsorshipFrameworkLabel(framework)}
+                  {auctionFrameworkLabel(framework)}
                 </SelectItem>
               ))}
             </SelectContent>

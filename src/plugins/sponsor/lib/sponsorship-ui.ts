@@ -1,22 +1,12 @@
 import { formatDistanceToNow } from "date-fns"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
-  auctionFrameworkLabel,
-  isProxyAuctionFramework,
   isSealedAuctionFramework,
   type SponsorshipAuctionFramework,
 } from "@/convex/plugins/sponsor/lib/types"
 import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
 import type { SponsorshipLifecycle } from "@/convex/plugins/sponsor/lib/sponsorshipLifecycle"
 
-export {
-  auctionFrameworkLabel as sponsorshipFrameworkLabel,
-  isProxyAuctionFramework as isProxySponsorshipFramework,
-  isSealedAuctionFramework as isSealedSponsorshipFramework,
-}
-export const SPONSORSHIP_FRAMEWORKS = SPONSORSHIP_AUCTION_FRAMEWORKS
-
-export type SponsorshipFramework = SponsorshipAuctionFramework
 export const SPONSORSHIP_BIDDING_HELP_TITLE = "How this auction works"
 export const SPONSOR_GUIDE_PAGE_TITLE = "Sponsor Management System"
 
@@ -33,7 +23,7 @@ export type CompetitionSponsorPropertyStatus =
   | "sponsor"
 
 export interface AuctionPriceFields {
-  framework: SponsorshipFramework
+  framework: SponsorshipAuctionFramework
   state: SponsorshipAuctionState
   startPriceCents: number
   currentPriceCents?: number
@@ -42,8 +32,8 @@ export interface AuctionPriceFields {
 
 export function isSponsorshipFramework(
   value: string
-): value is SponsorshipFramework {
-  return SPONSORSHIP_FRAMEWORKS.some((framework) => framework === value)
+): value is SponsorshipAuctionFramework {
+  return SPONSORSHIP_AUCTION_FRAMEWORKS.some((framework) => framework === value)
 }
 
 export function sponsorBidStatusLabel(status: SponsorBidStatus): string {

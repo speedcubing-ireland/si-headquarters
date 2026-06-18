@@ -34,11 +34,11 @@ import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-porta
 import { useRequireSponsorSession } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 import { cn } from "@/lib/utils"
+import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
   formatAuctionTablePrice,
   formatEuroFromCents,
   SPONSOR_GUIDE_PAGE_TITLE,
-  sponsorshipFrameworkLabel,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
@@ -185,7 +185,7 @@ function AuctionListRow({ auction }: { auction: PortalAuctionListRow }) {
               <div className="flex flex-wrap items-center gap-2">
                 <CardTitle>{auction.competitionName}</CardTitle>
                 <Badge variant="secondary">
-                  {sponsorshipFrameworkLabel(auction.framework)}
+                  {auctionFrameworkLabel(auction.framework)}
                 </Badge>
                 {showNeedsAttention ? (
                   <Badge variant="destructive">Needs attention</Badge>

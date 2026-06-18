@@ -16,10 +16,12 @@ import {
 } from "@/components/ui/select"
 import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
 import {
-  SPONSORSHIP_FRAMEWORKS,
+  SPONSORSHIP_AUCTION_FRAMEWORKS,
+  auctionFrameworkLabel,
+} from "@/convex/plugins/sponsor/lib/types"
+import {
   competitionPropertyStatusLabel,
   isSponsorshipFramework,
-  sponsorshipFrameworkLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function AuctionCreateForm({ admin }: { admin: SponsorshipAdmin }) {
@@ -191,13 +193,13 @@ export function AuctionCreateForm({ admin }: { admin: SponsorshipAdmin }) {
         >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select auction type">
-              {sponsorshipFrameworkLabel(createFramework)}
+              {auctionFrameworkLabel(createFramework)}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {SPONSORSHIP_FRAMEWORKS.map((framework) => (
+            {SPONSORSHIP_AUCTION_FRAMEWORKS.map((framework) => (
               <SelectItem key={framework} value={framework}>
-                {sponsorshipFrameworkLabel(framework)}
+                {auctionFrameworkLabel(framework)}
               </SelectItem>
             ))}
           </SelectContent>

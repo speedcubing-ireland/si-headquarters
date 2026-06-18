@@ -12,12 +12,14 @@ import {
 import type { Id } from "@/convex/_generated/dataModel"
 import { formatDateTime } from "@/lib/format/irish-dates"
 import {
+  auctionFrameworkLabel,
+  type SponsorshipAuctionFramework,
+} from "@/convex/plugins/sponsor/lib/types"
+import {
   formatAuctionTablePrice,
   formatEuroFromCents,
-  sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
-  type SponsorshipFramework,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export interface ManagerAuctionRow {
@@ -25,7 +27,7 @@ export interface ManagerAuctionRow {
   competitionName: string
   competitionPhaseName: string
   competitionCompStart?: string
-  framework: SponsorshipFramework
+  framework: SponsorshipAuctionFramework
   state: "draft" | "scheduled" | "active" | "closed"
   startsAt: number
   endsAt: number
@@ -100,7 +102,7 @@ export function AuctionTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {sponsorshipFrameworkLabel(auction.framework)}
+                  {auctionFrameworkLabel(auction.framework)}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   {formatDateTime(auction.startsAt)}

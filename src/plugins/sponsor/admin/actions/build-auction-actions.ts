@@ -1,16 +1,14 @@
 import type { Dispatch, SetStateAction, SubmitEvent } from "react"
 import { toast } from "sonner"
 import type { Id } from "@/convex/_generated/dataModel"
-import {
-  parseDatetimeLocalInput,
-  type SponsorshipFramework,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
+import { parseDatetimeLocalInput } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 interface ManagerView {
   auction: {
     id: Id<"sponsorshipAuctions">
     state: string
-    framework: SponsorshipFramework
+    framework: SponsorshipAuctionFramework
     startsAt: number
     endsAt: number
     startPriceCents: number
@@ -23,19 +21,19 @@ export interface AuctionActionsDeps {
   createInvitedSponsorIds: Id<"sponsors">[]
   createStartsAtInput: string
   createEndsAtInput: string
-  createFramework: SponsorshipFramework
+  createFramework: SponsorshipAuctionFramework
   createStartPriceEuros: string
   editInvitedSponsorIds: Id<"sponsors">[]
   editStartsAtInput: string
   editEndsAtInput: string
-  editFramework: SponsorshipFramework
+  editFramework: SponsorshipAuctionFramework
   editStartPriceEuros: string
   effectiveSelectedAuctionId: Id<"sponsorshipAuctions"> | null
   managerView: ManagerView | null | undefined
   hasPendingEditChanges: boolean
   createAuction: (args: {
     competitionId: Id<"competitions">
-    framework: SponsorshipFramework
+    framework: SponsorshipAuctionFramework
     startsAt: number
     endsAt: number
     startPriceCents: number
@@ -43,7 +41,7 @@ export interface AuctionActionsDeps {
   }) => Promise<Id<"sponsorshipAuctions">>
   updateAuction: (args: {
     auctionId: Id<"sponsorshipAuctions">
-    framework: SponsorshipFramework
+    framework: SponsorshipAuctionFramework
     startsAt: number
     endsAt: number
     startPriceCents: number

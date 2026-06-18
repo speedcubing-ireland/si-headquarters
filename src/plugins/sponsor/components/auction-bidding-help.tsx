@@ -10,10 +10,10 @@ import {
   SponsorFrameworkGuideGrid,
 } from "@/plugins/sponsor/components/sponsor-framework-guide-card"
 import {
-  SPONSORSHIP_BIDDING_HELP_TITLE,
-  sponsorshipFrameworkLabel,
-  type SponsorshipFramework,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+  auctionFrameworkLabel,
+  type SponsorshipAuctionFramework,
+} from "@/convex/plugins/sponsor/lib/types"
+import { SPONSORSHIP_BIDDING_HELP_TITLE } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function AuctionBiddingHelpOverview() {
   return <SponsorFrameworkGuideGrid />
@@ -25,7 +25,7 @@ export function AuctionBiddingHelpDialog({
   onOpenChange,
   title = SPONSORSHIP_BIDDING_HELP_TITLE,
 }: {
-  framework: SponsorshipFramework
+  framework: SponsorshipAuctionFramework
   open: boolean
   onOpenChange: (open: boolean) => void
   title?: string
@@ -36,7 +36,7 @@ export function AuctionBiddingHelpDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {sponsorshipFrameworkLabel(framework)} rules for this auction.
+            {auctionFrameworkLabel(framework)} rules for this auction.
           </DialogDescription>
         </DialogHeader>
         <SponsorFrameworkGuideCard framework={framework} embedded />

@@ -1,7 +1,7 @@
 import type { SetStateAction, Dispatch } from "react"
 import { toast } from "sonner"
 import type { Id } from "@/convex/_generated/dataModel"
-import type { SponsorshipFramework } from "@/plugins/sponsor/lib/sponsorship-ui"
+import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import { toDatetimeLocalInput } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export interface EditorActionsDeps {
@@ -14,7 +14,7 @@ export interface EditorActionsDeps {
   setSelectedAuctionId: Dispatch<
     SetStateAction<Id<"sponsorshipAuctions"> | null>
   >
-  setCreateFramework: Dispatch<SetStateAction<SponsorshipFramework>>
+  setCreateFramework: Dispatch<SetStateAction<SponsorshipAuctionFramework>>
   setIsCreateFrameworkUnlocked: Dispatch<SetStateAction<boolean>>
   setCreateStartsAtInput: Dispatch<SetStateAction<string>>
   setCreateEndsAtInput: Dispatch<SetStateAction<string>>

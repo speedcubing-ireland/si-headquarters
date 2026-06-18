@@ -12,10 +12,8 @@ import {
   useSponsorMutations,
   useSponsors,
 } from "@/plugins/sponsor/hooks/use-sponsorship"
-import {
-  toDatetimeLocalInput,
-  type SponsorshipFramework,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
+import { toDatetimeLocalInput } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function useSponsorshipAdmin() {
   const { competitions, isLoading: isLoadingCompetitions } =
@@ -60,7 +58,7 @@ export function useSponsorshipAdmin() {
     toDatetimeLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000))
   )
   const [createFramework, setCreateFramework] =
-    useState<SponsorshipFramework>("first_sealed")
+    useState<SponsorshipAuctionFramework>("first_sealed")
   const [isCreateFrameworkUnlocked, setIsCreateFrameworkUnlocked] =
     useState(false)
   const [createStartPriceEuros, setCreateStartPriceEuros] = useState("100")
@@ -68,7 +66,7 @@ export function useSponsorshipAdmin() {
     useState<Id<"sponsors">[] | null>(null)
 
   const [editFramework, setEditFramework] =
-    useState<SponsorshipFramework>("first_sealed")
+    useState<SponsorshipAuctionFramework>("first_sealed")
   const [isEditFrameworkUnlocked, setIsEditFrameworkUnlocked] = useState(false)
   const [editStartsAtInput, setEditStartsAtInput] = useState("")
   const [editEndsAtInput, setEditEndsAtInput] = useState("")

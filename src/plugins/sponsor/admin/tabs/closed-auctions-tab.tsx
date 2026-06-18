@@ -13,9 +13,9 @@ import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auct
 import { AuctionTable } from "@/plugins/sponsor/admin/components/auction-table"
 import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
 import { formatDateTime } from "@/lib/format/irish-dates"
+import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
   formatEuroFromCents,
-  sponsorshipFrameworkLabel,
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
@@ -88,8 +88,8 @@ export function ClosedAuctionsTab({ admin }: { admin: SponsorshipAdmin }) {
                     {selectedClosedAuction.competitionName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {sponsorshipFrameworkLabel(selectedClosedAuction.framework)}{" "}
-                    · {selectedClosedAuction.competitionPhaseName}
+                    {auctionFrameworkLabel(selectedClosedAuction.framework)} ·{" "}
+                    {selectedClosedAuction.competitionPhaseName}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge

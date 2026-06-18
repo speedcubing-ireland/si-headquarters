@@ -2,10 +2,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
 import { formatDateTime } from "@/lib/format/irish-dates"
-import {
-  formatEuroFromCents,
-  sponsorshipFrameworkLabel,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
+import { formatEuroFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
   const { open, actions, maps, closed } = admin
@@ -55,8 +53,7 @@ export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
                     {formatDateTime(auction.endsAt)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {sponsorshipFrameworkLabel(auction.framework)} ·{" "}
-                    {winnerName}
+                    {auctionFrameworkLabel(auction.framework)} · {winnerName}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Winning bid: {formatEuroFromCents(winningBidCents)}

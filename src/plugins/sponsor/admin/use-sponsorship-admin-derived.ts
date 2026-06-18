@@ -5,13 +5,13 @@ import type { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { SponsorBidOutcomeDisplay } from "@/plugins/sponsor/admin/types"
 import { useSponsorshipAuctionManagerView } from "@/plugins/sponsor/hooks/use-sponsorship"
+import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
   centsToEuroInput,
   hasSameIdSet,
   normalizeSearchText,
   parseDatetimeLocalInput,
   toDatetimeLocalInput,
-  type SponsorshipFramework,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 type ManagerCompetition = FunctionReturnType<
@@ -61,12 +61,12 @@ export function useSponsorshipAdminDerived({
   setCreateInvitedSponsorIdsOverride: Dispatch<
     SetStateAction<Id<"sponsors">[] | null>
   >
-  editFramework: SponsorshipFramework
+  editFramework: SponsorshipAuctionFramework
   editStartsAtInput: string
   editEndsAtInput: string
   editStartPriceEuros: string
   editInvitedSponsorIds: Id<"sponsors">[]
-  setEditFramework: Dispatch<SetStateAction<SponsorshipFramework>>
+  setEditFramework: Dispatch<SetStateAction<SponsorshipAuctionFramework>>
   setIsEditFrameworkUnlocked: Dispatch<SetStateAction<boolean>>
   setEditStartsAtInput: Dispatch<SetStateAction<string>>
   setEditEndsAtInput: Dispatch<SetStateAction<string>>
