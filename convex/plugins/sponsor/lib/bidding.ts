@@ -143,6 +143,114 @@ export function resolveProxyState<TSponsorId extends string>(
   }
 }
 
+export interface ProxyBidIntentInput<
+  TSponsorId extends string,
+  TIntentId extends string,
+> {
+  sponsorId: TSponsorId
+  intentId: TIntentId
+  amountCents: number
+  isAmountExplicit: boolean
+  isMaxExplicit: boolean
+}
+
+export interface ProxyBidEventDraft<
+  TSponsorId extends string,
+  TIntentId extends string,
+> {
+  sponsorId: TSponsorId
+  amountCents: number
+  isAuto: boolean
+  intentId?: TIntentId
+}
+
+export interface ProxyBidEffect<
+  TSponsorId extends string,
+  TIntentId extends string,
+> {
+  visiblePriceCents: number
+  events: ProxyBidEventDraft<TSponsorId, TIntentId>[]
+  outbidSponsorId?: TSponsorId
+}
+
+export function deriveProxyBidEffect<
+  TSponsorId extends string,
+  TIntentId extends string,
+>(args: {
+  previous: {
+    leaderSponsorId: TSponsorId | undefined
+    visiblePriceCents: number
+  }
+  resolved: ProxyState<TSponsorId>
+  intent: ProxyBidIntentInput<TSponsorId, TIntentId>
+}): ProxyBidEffect<TSponsorId, TIntentId> {
+  const { previous, resolved, intent } = args
+  const stayedLeader =
+    previous.leaderSponsorId === intent.sponsorId &&
+    resolved.leaderSponsorId === intent.sponsorId
+  const isMaxOnlyIntent = !intent.isAmountExplicit && intent.isMaxExplicit
+
+  let visiblePriceCents =
+    isMaxOnlyIntent && stayedLeader
+      ? previous.visiblePriceCents
+      : resolved.currentPriceCents
+  if (intent.isAmountExplicit && stayedLeader) {
+    visiblePriceCents = Math.max(visiblePriceCents, intent.amountCents)
+  }
+
+  const visibleStateChanged =
+    previous.leaderSponsorId !== resolved.leaderSponsorId ||
+    previous.visiblePriceCents !== visiblePriceCents
+
+  const events: ProxyBidEventDraft<TSponsorId, TIntentId>[] = []
+  if (visibleStateChanged) {
+    const collapseToResolvedPrice =
+      resolved.leaderSponsorId !== intent.sponsorId ||
+      visiblePriceCents !== intent.amountCents
+    if (collapseToResolvedPrice) {
+      events.push({
+        sponsorId: resolved.leaderSponsorId,
+        amountCents: visiblePriceCents,
+        isAuto: true,
+        intentId:
+          resolved.leaderSponsorId === intent.sponsorId
+            ? intent.intentId
+            : undefined,
+      })
+    } else {
+      events.push({
+        sponsorId: intent.sponsorId,
+        amountCents: intent.amountCents,
+        isAuto: false,
+        intentId: intent.intentId,
+      })
+      const shouldInsertAutoEvent =
+        visiblePriceCents >= intent.amountCents &&
+        (resolved.leaderSponsorId !== intent.sponsorId ||
+          visiblePriceCents > intent.amountCents)
+      if (shouldInsertAutoEvent) {
+        events.push({
+          sponsorId: resolved.leaderSponsorId,
+          amountCents: visiblePriceCents,
+          isAuto: true,
+        })
+      }
+    }
+  }
+
+  let outbidSponsorId: TSponsorId | undefined
+  if (
+    previous.leaderSponsorId !== undefined &&
+    previous.leaderSponsorId !== resolved.leaderSponsorId
+  ) {
+    outbidSponsorId = previous.leaderSponsorId
+  } else if (resolved.leaderSponsorId !== intent.sponsorId) {
+    outbidSponsorId = intent.sponsorId
+  }
+
+  return { visiblePriceCents, events, outbidSponsorId }
+}
+
 export function resolveSealedOutcome<
   TSponsorId extends string,
   TIntentId extends string,

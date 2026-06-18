@@ -19,7 +19,6 @@ export function isSealedAuctionFramework(
   return !isProxyAuctionFramework(framework)
 }
 
-/** Short label for emails and UI (matches sponsor portal guide titles). */
 export function auctionFrameworkLabel(
   framework: SponsorshipAuctionFramework
 ): string {

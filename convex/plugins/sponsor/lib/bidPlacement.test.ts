@@ -883,9 +883,6 @@ describe("sponsorship bid placement", () => {
     })
     const { ctx, events, patches } = createMockMutationCtx([
       mockIntent({
-        // Lexicographically before mock insert ids (`intent-1`, …) so
-        // compareBidIntentChronologyWithIdTieBreak matches true bid order
-        // when createdAt/_creationTime collide (see auctionState).
         _id: "intent-0" as BidIntentDoc["_id"],
         sponsorId: "sB" as BidIntentDoc["sponsorId"],
         mode: "proxy",

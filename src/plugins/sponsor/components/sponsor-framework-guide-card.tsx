@@ -81,7 +81,6 @@ export function SponsorFrameworkGuideCard({
   embedded = false,
 }: {
   framework: SponsorshipFramework
-  /** Render body only (e.g. inside an accordion on the guide page). */
   embedded?: boolean
 }) {
   if (embedded) {

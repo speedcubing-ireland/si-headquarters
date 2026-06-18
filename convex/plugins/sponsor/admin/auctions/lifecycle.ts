@@ -104,11 +104,9 @@ async function cancelScheduledIfPending(
   try {
     await ctx.scheduler.cancel(id)
   } catch {
-    /* already completed or invalid */
   }
 }
 
-/** Schedule (or replace) activation at `auction.startsAt`. */
 export async function scheduleAuctionActivation(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">
@@ -125,7 +123,6 @@ export async function scheduleAuctionActivation(
   })
 }
 
-/** Schedule (or replace) automatic close at `auction.endsAt`. */
 export async function scheduleAuctionClosure(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">

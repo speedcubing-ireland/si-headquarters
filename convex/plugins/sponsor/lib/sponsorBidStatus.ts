@@ -61,7 +61,6 @@ function resolveSealedBidStatus(
   return auction.winnerSponsorId === sponsorId ? "winner" : "not_winner"
 }
 
-/** Whether the 1-hour "bidding closes" reminder should not be sent. */
 export function shouldSkipAuctionActiveReminder(input: {
   auction: AuctionSlice
   sponsorId: Id<"sponsors">

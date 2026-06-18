@@ -141,7 +141,6 @@ export async function sendAuctionStartedEmails(
   })
 }
 
-/** Eligibility (skip when bid already in good shape) is enforced in `_fireReminder`. */
 export async function sendAuctionActiveReminderEmail(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">,
@@ -216,8 +215,6 @@ export async function sendEbayAuctionOutbidEmail(
     emailType: "auction_ebay_outbid",
     subject,
     message,
-    // Outbid notices recur through the auction; key by the throttle-notice row
-    // so each genuine notice is delivered (not collapsed into the first).
     recipients: [{ ...recipient, dedupKey: `auction_ebay_outbid:${noticeId}` }],
     context,
   })

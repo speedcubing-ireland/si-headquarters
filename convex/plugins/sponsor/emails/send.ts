@@ -246,7 +246,6 @@ export const recordSponsorshipEmailDispatchFailure = internalMutation({
   },
 })
 
-/** Used from sponsor auth (mutation context) after React Email render. */
 export const deliverSponsorshipEmail = internalMutation({
   args: {
     from: v.string(),
