@@ -55,14 +55,17 @@ function normalizeMaxAmountCents(
   return maxAmountCents
 }
 
-function ensureActiveAuction(auction: Doc<"sponsorshipAuctions">): void {
+function ensureActiveAuction(
+  auction: Doc<"sponsorshipAuctions">,
+  now: number
+): void {
   if (auction.state !== "active") {
     throw new ConvexError({
       code: "FORBIDDEN",
       message: "Bidding is not open for this auction.",
     })
   }
-  if (Date.now() > auction.endsAt) {
+  if (now > auction.endsAt) {
     throw new ConvexError({
       code: "FORBIDDEN",
       message: "Auction has already closed.",
@@ -324,8 +327,8 @@ export async function placeSponsorshipBid(
   ctx: MutationCtx,
   input: PlaceSponsorshipBidInput
 ): Promise<PlaceSponsorshipBidResult> {
-  ensureActiveAuction(input.auction)
   const now = Date.now()
+  ensureActiveAuction(input.auction, now)
   const existingIntents = await ctx.db
     .query("sponsorshipBidIntents")
     .withIndex("by_auction", (q) => q.eq("auctionId", input.auction._id))
