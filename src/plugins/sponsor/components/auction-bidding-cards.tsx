@@ -12,7 +12,6 @@ import {
 import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
 import { SponsorBidStatusBadge } from "@/plugins/sponsor/components/sponsor-bid-status-badge"
 import {
-  SponsorMetricLabel,
   SponsorMetricTile,
   SponsorMutedPanel,
 } from "@/plugins/sponsor/components/sponsor-metric-tile"
@@ -720,87 +719,6 @@ export function AuctionProxyBiddingPanels({
         <AuctionBidConfirmationDialog {...maxBidConfirmation} />
       ) : null}
     </>
-  )
-}
-
-interface AuctionAmountEntryCardProps {
-  title: string
-  description: string
-  minimumLabel: string
-  minimumValue: string
-  minimumHint?: string
-  inputId: string
-  inputLabel: string
-  inputValue: string
-  inputMin: string
-  inputStep?: string
-  inputPlaceholder?: string
-  onInputChange: (value: string) => void
-  onSubmit: NonNullable<ComponentProps<"form">["onSubmit"]>
-  submitLabel: string
-  isSubmitting?: boolean
-}
-
-export function AuctionAmountEntryCard({
-  title,
-  description,
-  minimumLabel,
-  minimumValue,
-  minimumHint,
-  inputId,
-  inputLabel,
-  inputValue,
-  inputMin,
-  inputStep = "0.01",
-  inputPlaceholder,
-  onInputChange,
-  onSubmit,
-  submitLabel,
-  isSubmitting = false,
-}: AuctionAmountEntryCardProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-3 border-l-2 border-primary/40 pl-3">
-          <SponsorMetricLabel>{minimumLabel}</SponsorMetricLabel>
-          <p className="text-xl leading-none font-semibold tabular-nums">
-            {minimumValue}
-          </p>
-          {minimumHint !== undefined && minimumHint.length > 0 ? (
-            <p className="mt-1 text-xs text-muted-foreground">{minimumHint}</p>
-          ) : null}
-        </div>
-        <form
-          className="grid gap-3 sm:grid-cols-[1fr_auto]"
-          onSubmit={onSubmit}
-        >
-          <Field>
-            <FieldLabel htmlFor={inputId}>{inputLabel}</FieldLabel>
-            <Input
-              id={inputId}
-              type="number"
-              min={inputMin}
-              step={inputStep}
-              value={inputValue}
-              onChange={(event) => {
-                onInputChange(event.target.value)
-              }}
-              placeholder={inputPlaceholder}
-              disabled={isSubmitting}
-            />
-          </Field>
-          <div className="flex items-end">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? <SponsorButtonSpinner /> : submitLabel}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
   )
 }
 
