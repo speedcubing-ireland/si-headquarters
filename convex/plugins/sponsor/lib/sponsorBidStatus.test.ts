@@ -54,6 +54,18 @@ describe("resolveSponsorBidStatus", () => {
     ).toBe("not_winning")
   })
 
+  test("proxy active: sponsor with no valid bid has no-bid status", () => {
+    expect(
+      resolveSponsorBidStatus({
+        auction: auction({
+          currentLeaderSponsorId: "other" as Id<"sponsors">,
+        }),
+        sponsorId,
+        hasSponsorValidBid: false,
+      })
+    ).toBe("no_bid_submitted")
+  })
+
   test("proxy closed: winner vs not winner", () => {
     expect(
       resolveSponsorBidStatus({

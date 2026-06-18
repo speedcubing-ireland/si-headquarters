@@ -121,8 +121,27 @@ describe("sponsor portal payload redaction", () => {
       competitionSummarySource: "wca",
       hasAnyValidBid: true,
       sponsorId: "sponsor1" as Doc<"sponsors">["_id"],
+      hasSponsorValidBid: true,
     })
     expect(payload.sponsorBidStatus).toBe("winning")
+  })
+
+  test("active proxy auction shows no-bid status before sponsor bids", () => {
+    const payload = toSponsorAuctionListItem({
+      auction: mockAuction({
+        state: "active",
+        framework: "ebay_proxy",
+        currentLeaderSponsorId:
+          "sponsor2" as Doc<"sponsorshipAuctions">["currentLeaderSponsorId"],
+      }),
+      competitionName: "Irish Open",
+      competitionSummary: baseCompetitionSummary,
+      competitionSummarySource: "wca",
+      hasAnyValidBid: true,
+      sponsorId: "sponsor1" as Doc<"sponsors">["_id"],
+      hasSponsorValidBid: false,
+    })
+    expect(payload.sponsorBidStatus).toBe("no_bid_submitted")
   })
 
   test("closed auction includes sponsor winner status", () => {
