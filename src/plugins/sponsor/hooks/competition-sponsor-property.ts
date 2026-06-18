@@ -2,7 +2,7 @@ import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { parseCompetitionId } from "@/lib/convex-ids"
-import type { CompetitionSponsorPropertyStatus } from "@/plugins/sponsor/lib/sponsorship-ui"
+import type { CompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 
 export interface CompetitionSponsorOverride {
   status: CompetitionSponsorPropertyStatus

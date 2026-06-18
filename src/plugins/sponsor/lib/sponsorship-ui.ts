@@ -1,34 +1,25 @@
 import { formatDistanceToNow } from "date-fns"
+import type { Doc } from "@/convex/_generated/dataModel"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
   isSealedAuctionFramework,
   type SponsorshipAuctionFramework,
 } from "@/convex/plugins/sponsor/lib/types"
+import type { CompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
 import type { SponsorshipLifecycle } from "@/convex/plugins/sponsor/lib/sponsorshipLifecycle"
 
 export const SPONSORSHIP_BIDDING_HELP_TITLE = "How this auction works"
 export const SPONSOR_GUIDE_PAGE_TITLE = "Sponsor Management System"
 
-export type SponsorshipAuctionState =
-  | "draft"
-  | "scheduled"
-  | "active"
-  | "closed"
-
-export type CompetitionSponsorPropertyStatus =
-  | "not_offered"
-  | "bidding"
-  | "none"
-  | "sponsor"
-
-export interface AuctionPriceFields {
-  framework: SponsorshipAuctionFramework
-  state: SponsorshipAuctionState
-  startPriceCents: number
-  currentPriceCents?: number
-  settlementAmountCents?: number
-}
+export type AuctionPriceFields = Pick<
+  Doc<"sponsorshipAuctions">,
+  | "framework"
+  | "state"
+  | "startPriceCents"
+  | "currentPriceCents"
+  | "settlementAmountCents"
+>
 
 export function isSponsorshipFramework(
   value: string
@@ -129,7 +120,9 @@ export function proxyMaxBidCopy(
   }
 }
 
-export function sponsorshipStateLabel(state: SponsorshipAuctionState): string {
+export function sponsorshipStateLabel(
+  state: Doc<"sponsorshipAuctions">["state"]
+): string {
   switch (state) {
     case "draft":
       return "Draft"
@@ -143,7 +136,7 @@ export function sponsorshipStateLabel(state: SponsorshipAuctionState): string {
 }
 
 export function sponsorshipStateBadgeVariant(
-  state: SponsorshipAuctionState
+  state: Doc<"sponsorshipAuctions">["state"]
 ): "default" | "secondary" | "outline" {
   switch (state) {
     case "active":
