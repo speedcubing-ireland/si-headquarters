@@ -1,5 +1,7 @@
 import { Navigate, useNavigate } from "@tanstack/react-router"
 import type { Id } from "@/convex/_generated/dataModel"
+import { ConvexError } from "convex/values"
+import { messageFromErrorPayload } from "@/convex/integrations/errorPayload"
 import { useAction, useMutation, useQuery } from "convex/react"
 import { ArrowLeft, ArrowUpRight, Info, ShieldCheck } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
@@ -38,32 +40,12 @@ import {
 import { useRequireSponsorSession } from "@/plugins/sponsor/lib/sponsor-session-token"
 import { useRetainedQueryResult } from "@/hooks/convex/use-retained-query-result"
 
-function toSponsorBidErrorMessage(error: object): string {
-  if (!(error instanceof Error)) {
-    return "Failed to submit bid."
-  }
-  if (error.message.startsWith("Bid must be at least ")) {
-    return error.message
-  }
-  if (error.message.startsWith("Max amount must be at least ")) {
-    return error.message
-  }
-  const allowedMessages = new Set([
-    "Bidding is not open for this auction.",
-    "Auction has already closed.",
-    "Bid amount must be at least EUR 1.00.",
-    "Max amount must be greater than or equal to bid amount.",
-    "Enter a bid amount or max amount.",
-    "Enter a bid amount.",
-    "Sponsor session expired. Please sign in again.",
-    "You are not invited to this auction.",
-    "Auction not found.",
-    "Max bids are only available for Proxy Bidding auctions.",
-    "Max bids are not available for sealed auctions.",
-    "Your sponsor contact does not have permission to place bids.",
-  ])
-  if (allowedMessages.has(error.message)) {
-    return error.message
+function toSponsorBidErrorMessage(
+  // oxlint-disable-next-line typescript/no-restricted-types -- catch bindings are unknown
+  caught: unknown
+): string {
+  if (caught instanceof ConvexError) {
+    return messageFromErrorPayload(caught.data) ?? "Failed to submit bid."
   }
   return "Failed to submit bid."
 }
@@ -228,11 +210,7 @@ export function PortalAuctionDetailPage({
       setAmountEuros("")
       setPendingBidCents(null)
     } catch (caught) {
-      toast.error(
-        caught instanceof Error
-          ? toSponsorBidErrorMessage(caught)
-          : "Failed to submit bid."
-      )
+      toast.error(toSponsorBidErrorMessage(caught))
     } finally {
       setIsSubmittingBid(false)
     }
@@ -273,11 +251,7 @@ export function PortalAuctionDetailPage({
       setMaxAmountEurosSynced((pendingMaxBidCents / 100).toFixed(2))
       setPendingMaxBidCents(null)
     } catch (caught) {
-      toast.error(
-        caught instanceof Error
-          ? toSponsorBidErrorMessage(caught)
-          : "Failed to submit bid."
-      )
+      toast.error(toSponsorBidErrorMessage(caught))
     } finally {
       setIsSubmittingMaxBid(false)
     }
