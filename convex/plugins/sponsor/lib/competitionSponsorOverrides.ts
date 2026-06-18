@@ -32,6 +32,16 @@ export async function getCompetitionSponsorOverridesByCompetitionId(
   return new Map(entries)
 }
 
+export async function listCompetitionSponsorOverridesForSponsor(
+  ctx: DbCtx,
+  sponsorId: Id<"sponsors">
+) {
+  return await ctx.db
+    .query("competitionSponsorOverrides")
+    .withIndex("by_manualSponsorId", (q) => q.eq("manualSponsorId", sponsorId))
+    .collect()
+}
+
 export async function upsertCompetitionSponsorOverride(
   ctx: MutationCtx,
   args: {

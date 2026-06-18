@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values"
-import type { Id } from "@/convex/_generated/dataModel"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { mutation, query, type MutationCtx } from "@/convex/_generated/server"
 import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import { resolveAuctionBidState } from "../lib/auctionState"
@@ -25,6 +25,8 @@ import {
   syncPrimaryContactFromSponsor,
 } from "../lib/contacts"
 
+const OPEN_AUCTION_STATES = ["draft", "scheduled", "active"] as const
+
 function normalizeOptionalUrl(
   value: string | null | undefined
 ): string | undefined {
@@ -38,6 +40,67 @@ function normalizeOptionalUrl(
   return trimmed
 }
 
+async function collectSponsorAffectedOpenAuctions(
+  ctx: MutationCtx,
+  sponsorId: Id<"sponsors">
+): Promise<
+  {
+    auction: Doc<"sponsorshipAuctions">
+    validSponsorIntents: Doc<"sponsorshipBidIntents">[]
+  }[]
+> {
+  const validSponsorIntents = await ctx.db
+    .query("sponsorshipBidIntents")
+    .withIndex("by_sponsor_and_is_valid", (q) =>
+      q.eq("sponsorId", sponsorId).eq("isValid", true)
+    )
+    .collect()
+  const validIntentsByAuctionId = new Map<
+    Id<"sponsorshipAuctions">,
+    Doc<"sponsorshipBidIntents">[]
+  >()
+  for (const intent of validSponsorIntents) {
+    const existing = validIntentsByAuctionId.get(intent.auctionId) ?? []
+    existing.push(intent)
+    validIntentsByAuctionId.set(intent.auctionId, existing)
+  }
+
+  const [intentAuctions, leaderAuctionGroups] = await Promise.all([
+    Promise.all(
+      [...validIntentsByAuctionId.keys()].map((auctionId) =>
+        ctx.db.get("sponsorshipAuctions", auctionId)
+      )
+    ),
+    Promise.all(
+      OPEN_AUCTION_STATES.map((state) =>
+        ctx.db
+          .query("sponsorshipAuctions")
+          .withIndex("by_currentLeaderSponsorId_and_state", (q) =>
+            q.eq("currentLeaderSponsorId", sponsorId).eq("state", state)
+          )
+          .collect()
+      )
+    ),
+  ])
+
+  const auctionsById = new Map<
+    Id<"sponsorshipAuctions">,
+    Doc<"sponsorshipAuctions">
+  >()
+  for (const auction of intentAuctions) {
+    if (auction === null || auction.state === "closed") continue
+    auctionsById.set(auction._id, auction)
+  }
+  for (const auction of leaderAuctionGroups.flat()) {
+    auctionsById.set(auction._id, auction)
+  }
+
+  return [...auctionsById.values()].map((auction) => ({
+    auction,
+    validSponsorIntents: validIntentsByAuctionId.get(auction._id) ?? [],
+  }))
+}
+
 async function archiveSponsorFromOpenAuctions(
   ctx: MutationCtx,
   args: {
@@ -45,26 +108,11 @@ async function archiveSponsorFromOpenAuctions(
     sponsorId: Id<"sponsors">
   }
 ): Promise<void> {
-  const openAuctions = await ctx.db.query("sponsorshipAuctions").collect()
-  for (const auction of openAuctions) {
-    if (auction.state === "closed") continue
-
-    const sponsorIntents = await ctx.db
-      .query("sponsorshipBidIntents")
-      .withIndex("by_auction_and_sponsor", (q) =>
-        q.eq("auctionId", auction._id).eq("sponsorId", args.sponsorId)
-      )
-      .collect()
-    const validSponsorIntents = sponsorIntents.filter(
-      (intent) => intent.isValid
-    )
-    if (
-      validSponsorIntents.length === 0 &&
-      auction.currentLeaderSponsorId !== args.sponsorId
-    ) {
-      continue
-    }
-
+  const affectedAuctions = await collectSponsorAffectedOpenAuctions(
+    ctx,
+    args.sponsorId
+  )
+  for (const { auction, validSponsorIntents } of affectedAuctions) {
     await Promise.all(
       validSponsorIntents.map((intent) =>
         ctx.db.patch("sponsorshipBidIntents", intent._id, {

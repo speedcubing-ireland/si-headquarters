@@ -127,4 +127,41 @@ describe("buildSponsorSponsorshipListItems", () => {
     expect(items[0]?.lifecycle).toBe("ongoing")
     expect(items[1]?.lifecycle).toBe("upcoming")
   })
+
+  test("returns manual assignments even when no auction exists", () => {
+    const items = buildSponsorSponsorshipListItems({
+      sponsorId,
+      auctions: [],
+      competitionsById: new Map([
+        [
+          "comp-manual" as Id<"competitions">,
+          makeCompetition({
+            _id: "comp-manual" as Id<"competitions">,
+            name: "Manual Sponsor Open",
+          }),
+        ],
+      ]),
+      overridesByCompetitionId: new Map([
+        [
+          "comp-manual" as Id<"competitions">,
+          {
+            _id: "override1" as Id<"competitionSponsorOverrides">,
+            _creationTime: 0,
+            competitionId: "comp-manual" as Id<"competitions">,
+            manualSponsorId: sponsorId,
+            manualSponsorPropertyStatus: "sponsor",
+            updatedById: "user1" as Id<"users">,
+            updatedAt: 0,
+          },
+        ],
+      ]),
+    })
+
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({
+      competitionName: "Manual Sponsor Open",
+      acquiredVia: "manual_assignment",
+    })
+    expect(items[0]?.managementAuctionId).toBeUndefined()
+  })
 })
