@@ -43,6 +43,12 @@
       "skillPath": "skills/react-performance-optimization/SKILL.md",
       "computedHash": "8338b086e8e166e0b32ec3493a6b0f80c2e388cb5d3da10bcecaa1f2ce34d43d"
     },
+    "thermo-nuclear-code-quality-review": {
+      "source": "cursor/plugins",
+      "sourceType": "github",
+      "skillPath": "cursor-team-kit/skills/thermo-nuclear-code-quality-review/SKILL.md",
+      "computedHash": "9052b01b46b1d8dbf94c45f9313ec1983443f9a460e83d49cdc7fe0f640ca476"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
