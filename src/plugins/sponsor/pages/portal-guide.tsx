@@ -34,10 +34,10 @@ import {
   SPONSOR_TEAM_EMAIL,
 } from "@/plugins/sponsor/lib/sponsor-guide"
 import {
-  SPONSORSHIP_FRAMEWORKS,
-  SPONSOR_GUIDE_PAGE_TITLE,
-  sponsorshipFrameworkLabel,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+  SPONSORSHIP_AUCTION_FRAMEWORKS,
+  auctionFrameworkLabel,
+} from "@/convex/plugins/sponsor/lib/types"
+import { SPONSOR_GUIDE_PAGE_TITLE } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function PortalGuidePage() {
   const { sessionToken, isPending: authPending } = useSponsorSessionToken()
@@ -108,12 +108,12 @@ export function PortalGuidePage() {
           <Accordion
             type="single"
             collapsible
-            defaultValue={SPONSORSHIP_FRAMEWORKS[0]}
+            defaultValue={SPONSORSHIP_AUCTION_FRAMEWORKS[0]}
           >
-            {SPONSORSHIP_FRAMEWORKS.map((framework) => (
+            {SPONSORSHIP_AUCTION_FRAMEWORKS.map((framework) => (
               <AccordionItem key={framework} value={framework}>
                 <AccordionTrigger>
-                  {sponsorshipFrameworkLabel(framework)}
+                  {auctionFrameworkLabel(framework)}
                 </AccordionTrigger>
                 <AccordionContent>
                   <SponsorFrameworkGuideCard framework={framework} embedded />

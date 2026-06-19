@@ -51,6 +51,10 @@ export const sponsorTables = {
     updatedById: v.id("users"),
     updatedAt: v.number(),
   })
+    .index("by_currentLeaderSponsorId_and_state", [
+      "currentLeaderSponsorId",
+      "state",
+    ])
     .index("by_competition", ["competitionId"])
     .index("by_state_and_end", ["state", "endsAt"])
     .index("by_state_and_start", ["state", "startsAt"])
@@ -133,7 +137,8 @@ export const sponsorTables = {
   })
     .index("by_auction", ["auctionId"])
     .index("by_auction_and_sponsor", ["auctionId", "sponsorId"])
-    .index("by_auction_and_created_at", ["auctionId", "createdAt"]),
+    .index("by_auction_and_created_at", ["auctionId", "createdAt"])
+    .index("by_sponsor_and_is_valid", ["sponsorId", "isValid"]),
 
   sponsorshipBidEvents: defineTable({
     auctionId: v.id("sponsorshipAuctions"),
@@ -166,7 +171,7 @@ export const sponsorTables = {
     .index("by_email_normalized", ["emailNormalized"])
     .index("by_auth_user_id", ["authUserId"]),
 
-  competitionSponsorOverrides: defineTable(
-    competitionSponsorOverrideFields
-  ).index("by_competitionId", ["competitionId"]),
+  competitionSponsorOverrides: defineTable(competitionSponsorOverrideFields)
+    .index("by_competitionId", ["competitionId"])
+    .index("by_manualSponsorId", ["manualSponsorId"]),
 }

@@ -1,7 +1,4 @@
-import {
-  auctionFrameworkLabel,
-  type SponsorshipAuctionFramework,
-} from "@/convex/plugins/sponsor/lib/types"
+import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import type {
   SponsorOtpAuthType,
   SponsorPortalOtpPurpose,
@@ -29,13 +26,6 @@ const SCHEDULED_PORTAL_FOOTNOTE =
 
 function competitionName(ctx: EmailCopyContext): string {
   return ctx.competitionName ?? "the competition"
-}
-
-/** @deprecated Use {@link auctionFrameworkLabel} for titles; pass {@link frameworkGuideUrl} for detail links. */
-export function describeAuctionFramework(
-  framework: SponsorshipAuctionFramework
-): string {
-  return auctionFrameworkLabel(framework)
 }
 
 function lifecycleScheduledCopy(ctx: EmailCopyContext): EmailTemplateCopy {

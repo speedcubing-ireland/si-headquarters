@@ -511,7 +511,6 @@ describe("sendAuctionScheduledEmails", () => {
 })
 
 describe("buildSponsorshipEmailHtml — outcome template formats dates as en-IE", () => {
-  // 31 Jan 2026 14:30 UTC — day ≠ month so American vs Irish is distinguishable
   const fixedTs = Date.UTC(2026, 0, 31, 14, 30)
   const expectedDateSubstring = formatEmailDateTime(fixedTs)
 
@@ -551,7 +550,6 @@ describe("buildSponsorshipEmailHtml — outcome template formats dates as en-IE"
       context: { ...baseContext, settlementAmountCents: 100_000 },
       messageFallback: "fallback",
     })
-    // Both Starts and Ends rows are present; expectedDateSubstring should appear twice
     const occurrences = html.split(expectedDateSubstring).length - 1
     expect(occurrences).toBeGreaterThanOrEqual(2)
     expect(html).not.toContain("1/31/2026")
@@ -581,7 +579,7 @@ describe("buildSponsorshipEmailHtml — auction_scheduled template", () => {
     expect(html.length).toBeGreaterThan(100)
     expect(html).toContain("Irish Open 2026")
     expect(html).toContain("abc123")
-    expect(html).toContain("Sealed bid")
+    expect(html).toContain("Sealed Bid")
     expect(html).toContain("Read more")
     expect(html).toContain(sponsorPortalGuideUrl())
   })

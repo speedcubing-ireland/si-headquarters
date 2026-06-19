@@ -74,7 +74,7 @@ export const sponsorSponsorshipListItem = v.object({
   competitionSummary: sponsorshipCompetitionSummary,
   competitionSummarySource: sponsorshipCompetitionSummarySource,
   lifecycle: sponsorSponsorshipLifecycle,
-  managementAuctionId: v.id("sponsorshipAuctions"),
+  managementAuctionId: v.optional(v.id("sponsorshipAuctions")),
   acquiredVia: v.union(
     v.literal("auction_win"),
     v.literal("manual_assignment")

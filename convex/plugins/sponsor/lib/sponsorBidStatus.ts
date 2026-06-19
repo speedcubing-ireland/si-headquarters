@@ -26,7 +26,7 @@ export function resolveSponsorBidStatus(input: {
   }
 
   if (isProxyAuctionFramework(auction.framework)) {
-    return resolveProxyBidStatus(auction, sponsorId)
+    return resolveProxyBidStatus(auction, sponsorId, hasSponsorValidBid)
   }
 
   return resolveSealedBidStatus(auction, sponsorId, hasSponsorValidBid)
@@ -34,9 +34,13 @@ export function resolveSponsorBidStatus(input: {
 
 function resolveProxyBidStatus(
   auction: AuctionSlice,
-  sponsorId: Id<"sponsors">
+  sponsorId: Id<"sponsors">,
+  hasSponsorValidBid: boolean
 ): SponsorBidStatus {
   if (auction.state === "active") {
+    if (!hasSponsorValidBid) {
+      return "no_bid_submitted"
+    }
     return auction.currentLeaderSponsorId === sponsorId
       ? "winning"
       : "not_winning"
@@ -61,7 +65,6 @@ function resolveSealedBidStatus(
   return auction.winnerSponsorId === sponsorId ? "winner" : "not_winner"
 }
 
-/** Whether the 1-hour "bidding closes" reminder should not be sent. */
 export function shouldSkipAuctionActiveReminder(input: {
   auction: AuctionSlice
   sponsorId: Id<"sponsors">

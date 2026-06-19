@@ -5,7 +5,7 @@ import * as DataSelector from "@/components/data-selectors/data-selector"
 import { useSingleDataSelector } from "@/components/data-selectors/data-selector-model"
 import * as SelectorFace from "@/components/data-selectors/selector-face"
 import type { CompetitionSponsorOverride } from "@/plugins/sponsor/hooks/competition-sponsor-property"
-import type { CompetitionSponsorPropertyStatus } from "@/plugins/sponsor/lib/sponsorship-ui"
+import type { CompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 
 export interface SponsorListItem {
   id: Id<"sponsors">

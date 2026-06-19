@@ -14,16 +14,9 @@ import {
   sponsorPortalGuideUrl,
   sponsorshipAdminPageUrl,
 } from "@/convex/plugins/sponsor/siteUrls"
+import type { AuctionOutcome } from "../../lib/auctionState"
 import { buildAuctionEmailRecipient } from "../../lib/contacts"
 import { scheduleSponsorshipEmailBatch } from "../../emails/send"
-
-function sponsorAuctionUrl(auctionId: Id<"sponsorshipAuctions">): string {
-  return sponsorPortalAuctionUrl(String(auctionId))
-}
-
-function sponsorshipAdminUrl(): string {
-  return sponsorshipAdminPageUrl()
-}
 
 async function resolveAuctionEmailRecipients(
   ctx: MutationCtx,
@@ -104,7 +97,7 @@ export async function sendAuctionScheduledEmails(
   const { competition, sponsors } = resolved
   const context: SponsorshipEmailContext = {
     competitionName: competition.name,
-    portalUrl: sponsorAuctionUrl(auction._id),
+    portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     startsAt: auction.startsAt,
     endsAt: auction.endsAt,
     framework: auction.framework,
@@ -129,7 +122,7 @@ export async function sendAuctionStartedEmails(
   const { competition, sponsors } = resolved
   const context: SponsorshipEmailContext = {
     competitionName: competition.name,
-    portalUrl: sponsorAuctionUrl(auction._id),
+    portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     startsAt: auction.startsAt,
     endsAt: auction.endsAt,
   }
@@ -141,7 +134,6 @@ export async function sendAuctionStartedEmails(
   })
 }
 
-/** Eligibility (skip when bid already in good shape) is enforced in `_fireReminder`. */
 export async function sendAuctionActiveReminderEmail(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">,
@@ -152,7 +144,7 @@ export async function sendAuctionActiveReminderEmail(
   if (!competition) return
   const context: SponsorshipEmailContext = {
     competitionName: competition.name,
-    portalUrl: sponsorAuctionUrl(auction._id),
+    portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     endsAt: auction.endsAt,
     sponsorHasBid,
   }
@@ -203,7 +195,7 @@ export async function sendEbayAuctionOutbidEmail(
 
   const context: SponsorshipEmailContext = {
     competitionName: competition.name,
-    portalUrl: sponsorAuctionUrl(auction._id),
+    portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     endsAt: auction.endsAt,
   }
   const { subject, message } = getSponsorshipEmailPayload(
@@ -216,25 +208,14 @@ export async function sendEbayAuctionOutbidEmail(
     emailType: "auction_ebay_outbid",
     subject,
     message,
-    // Outbid notices recur through the auction; key by the throttle-notice row
-    // so each genuine notice is delivered (not collapsed into the first).
     recipients: [{ ...recipient, dedupKey: `auction_ebay_outbid:${noticeId}` }],
     context,
   })
 }
 
-type ClosedAuctionEmailOutcome =
-  | { kind: "no_winner" }
-  | {
-      kind: "winner"
-      winnerSponsorId: Id<"sponsors">
-      winningBidId: Id<"sponsorshipBidIntents">
-      settlementAmountCents: number
-    }
-
 function resolveClosedAuctionEmailOutcome(
   auction: Doc<"sponsorshipAuctions">
-): ClosedAuctionEmailOutcome {
+): AuctionOutcome {
   const { settlementAmountCents, winnerSponsorId, winningBidId } = auction
   const hasWinner = winnerSponsorId !== undefined
   const hasWinningBid = winningBidId !== undefined
@@ -276,7 +257,7 @@ export async function sendAuctionClosureEmails(
     if (winner) {
       const winnerContext: SponsorshipEmailContext = {
         competitionName: competition.name,
-        portalUrl: sponsorAuctionUrl(auction._id),
+        portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
         settlementAmountCents: outcome.settlementAmountCents,
         winnerSponsorName: winner.name,
       }
@@ -297,7 +278,7 @@ export async function sendAuctionClosureEmails(
       recipients: outbidRecipients,
       context: {
         competitionName: competition.name,
-        portalUrl: sponsorAuctionUrl(auction._id),
+        portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
       },
     })
   } else {
@@ -307,7 +288,7 @@ export async function sendAuctionClosureEmails(
       recipients: await toRecipientList(ctx, recipients),
       context: {
         competitionName: competition.name,
-        portalUrl: sponsorAuctionUrl(auction._id),
+        portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
       },
     })
   }
@@ -329,7 +310,7 @@ export async function sendAuctionClosureEmails(
       : null
   const internalContext: SponsorshipEmailContext = {
     competitionName: competition.name,
-    adminUrl: sponsorshipAdminUrl(),
+    adminUrl: sponsorshipAdminPageUrl(),
     settlementAmountCents:
       outcome.kind === "winner" ? outcome.settlementAmountCents : undefined,
     winnerSponsorName: winnerSponsor?.name,

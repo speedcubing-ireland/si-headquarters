@@ -1,6 +1,6 @@
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { Infer } from "convex/values"
-import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { resolveCompetitionSummaryView } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import {
   compareSponsorshipLifecycle,
   resolveSponsorshipLifecycle,
@@ -28,7 +28,7 @@ export function sponsorOwnsCompetition(input: {
 function pickManagementAuction(
   auctions: Doc<"sponsorshipAuctions">[],
   sponsorId: Id<"sponsors">
-): Doc<"sponsorshipAuctions"> {
+): Doc<"sponsorshipAuctions"> | undefined {
   const closedWin = auctions.find(
     (auction) =>
       auction.state === "closed" && auction.winnerSponsorId === sponsorId
@@ -58,8 +58,13 @@ export function buildSponsorSponsorshipListItems(input: {
   }
 
   const items: SponsorSponsorshipListItem[] = []
+  const competitionIds = new Set([
+    ...auctionsByCompetition.keys(),
+    ...input.overridesByCompetitionId.keys(),
+  ])
 
-  for (const [competitionId, competitionAuctions] of auctionsByCompetition) {
+  for (const competitionId of competitionIds) {
+    const competitionAuctions = auctionsByCompetition.get(competitionId) ?? []
     const competition = input.competitionsById.get(competitionId)
     if (!competition) continue
     if (
@@ -77,14 +82,11 @@ export function buildSponsorSponsorshipListItems(input: {
       input.sponsorId
     )
     const competitionName = competition.name
-    const competitionSummary =
-      managementAuction.competitionSnapshot?.summary ??
-      buildCompetitionRecordSummary({
-        name: competitionName,
-        compDates: competition.compDates,
-      })
-    const competitionSummarySource =
-      managementAuction.competitionSnapshot?.source ?? "competition_record"
+    const { summary: competitionSummary, source: competitionSummarySource } =
+      resolveCompetitionSummaryView(
+        managementAuction?.competitionSnapshot,
+        competition
+      )
     const lifecycle = resolveSponsorshipLifecycle({
       startDate: competitionSummary.startDate,
       endDate: competitionSummary.endDate,
@@ -103,8 +105,10 @@ export function buildSponsorSponsorshipListItems(input: {
       competitionSummary,
       competitionSummarySource,
       lifecycle,
-      managementAuctionId: managementAuction._id,
       acquiredVia,
+      ...(managementAuction !== undefined
+        ? { managementAuctionId: managementAuction._id }
+        : {}),
     })
   }
 

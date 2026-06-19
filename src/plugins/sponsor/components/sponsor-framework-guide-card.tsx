@@ -1,8 +1,8 @@
 import { sponsorshipFrameworkGuide } from "@/plugins/sponsor/lib/sponsor-guide"
 import {
-  sponsorshipFrameworkLabel,
-  type SponsorshipFramework,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+  auctionFrameworkLabel,
+  type SponsorshipAuctionFramework,
+} from "@/convex/plugins/sponsor/lib/types"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -50,7 +50,7 @@ function GuideNotesAlert({
 function SponsorFrameworkGuideBody({
   framework,
 }: {
-  framework: SponsorshipFramework
+  framework: SponsorshipAuctionFramework
 }) {
   const guide = sponsorshipFrameworkGuide(framework)
   const notes = guide.notes ?? []
@@ -80,8 +80,7 @@ export function SponsorFrameworkGuideCard({
   framework,
   embedded = false,
 }: {
-  framework: SponsorshipFramework
-  /** Render body only (e.g. inside an accordion on the guide page). */
+  framework: SponsorshipAuctionFramework
   embedded?: boolean
 }) {
   if (embedded) {
@@ -91,7 +90,7 @@ export function SponsorFrameworkGuideCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{sponsorshipFrameworkLabel(framework)}</CardTitle>
+        <CardTitle>{auctionFrameworkLabel(framework)}</CardTitle>
       </CardHeader>
       <CardContent>
         <SponsorFrameworkGuideBody framework={framework} />
@@ -101,7 +100,7 @@ export function SponsorFrameworkGuideCard({
 }
 
 export function SponsorFrameworkGuideGrid() {
-  const frameworks: SponsorshipFramework[] = [
+  const frameworks: SponsorshipAuctionFramework[] = [
     "first_sealed",
     "vickrey",
     "ebay_proxy",

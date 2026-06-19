@@ -58,6 +58,21 @@ export function buildCompetitionRecordSummary(
   }
 }
 
+export function resolveCompetitionSummaryView(
+  snapshot: SponsorshipCompetitionSnapshot | undefined,
+  fallback: Pick<Doc<"competitions">, "name" | "compDates">
+): {
+  summary: SponsorshipCompetitionSummary
+  source: SponsorshipCompetitionSummarySource
+  fetchedAt: number | undefined
+} {
+  return {
+    summary: snapshot?.summary ?? buildCompetitionRecordSummary(fallback),
+    source: snapshot?.source ?? "competition_record",
+    fetchedAt: snapshot?.fetchedAt,
+  }
+}
+
 export function buildWcaCompetitionSummary(details: {
   name: string
   venue: string

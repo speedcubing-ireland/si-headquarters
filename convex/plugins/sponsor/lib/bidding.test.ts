@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest"
 import {
+  deriveProxyBidEffect,
   incrementForEbayDeEur,
   minNextBidCents,
   resolveProxyState,
@@ -178,5 +179,106 @@ describe("sponsorship bidding engine", () => {
       }
     )
     expect(result?.settlementBidCents).toBe(10_000)
+  })
+})
+
+describe("deriveProxyBidEffect", () => {
+  test("first bid journals a single manual event and no outbid", () => {
+    const effect = deriveProxyBidEffect({
+      previous: { leaderSponsorId: undefined, visiblePriceCents: 1000 },
+      resolved: {
+        currentPriceCents: 1000,
+        leaderSponsorId: "A",
+        leaderMaxCents: 1000,
+        runnerUpMaxCents: null,
+      },
+      intent: {
+        sponsorId: "A",
+        intentId: "i1",
+        amountCents: 1000,
+        isAmountExplicit: true,
+        isMaxExplicit: false,
+      },
+    })
+    expect(effect.visiblePriceCents).toBe(1000)
+    expect(effect.events).toEqual([
+      { sponsorId: "A", amountCents: 1000, isAuto: false, intentId: "i1" },
+    ])
+    expect(effect.outbidSponsorId).toBeUndefined()
+  })
+
+  test("silent max raise by current leader keeps visible price and emits no events", () => {
+    const effect = deriveProxyBidEffect({
+      previous: { leaderSponsorId: "A", visiblePriceCents: 1500 },
+      resolved: {
+        currentPriceCents: 1500,
+        leaderSponsorId: "A",
+        leaderMaxCents: 5000,
+        runnerUpMaxCents: 1200,
+      },
+      intent: {
+        sponsorId: "A",
+        intentId: "i2",
+        amountCents: 1500,
+        isAmountExplicit: false,
+        isMaxExplicit: true,
+      },
+    })
+    expect(effect.visiblePriceCents).toBe(1500)
+    expect(effect.events).toEqual([])
+    expect(effect.outbidSponsorId).toBeUndefined()
+  })
+
+  test("losing bid collapses to the resolved price as a single auto event and outbids the bidder", () => {
+    const effect = deriveProxyBidEffect({
+      previous: { leaderSponsorId: "A", visiblePriceCents: 1000 },
+      resolved: {
+        currentPriceCents: 1550,
+        leaderSponsorId: "A",
+        leaderMaxCents: 5000,
+        runnerUpMaxCents: 1500,
+      },
+      intent: {
+        sponsorId: "B",
+        intentId: "i4",
+        amountCents: 1500,
+        isAmountExplicit: true,
+        isMaxExplicit: false,
+      },
+    })
+    expect(effect.visiblePriceCents).toBe(1550)
+    expect(effect.events).toEqual([
+      {
+        sponsorId: "A",
+        amountCents: 1550,
+        isAuto: true,
+        intentId: undefined,
+      },
+    ])
+    expect(effect.outbidSponsorId).toBe("B")
+  })
+
+  test("taking the lead records the bidder's manual event and flags the previous leader as outbid", () => {
+    const effect = deriveProxyBidEffect({
+      previous: { leaderSponsorId: "A", visiblePriceCents: 1500 },
+      resolved: {
+        currentPriceCents: 1600,
+        leaderSponsorId: "B",
+        leaderMaxCents: 5000,
+        runnerUpMaxCents: 1500,
+      },
+      intent: {
+        sponsorId: "B",
+        intentId: "i3",
+        amountCents: 1600,
+        isAmountExplicit: true,
+        isMaxExplicit: false,
+      },
+    })
+    expect(effect.visiblePriceCents).toBe(1600)
+    expect(effect.events).toEqual([
+      { sponsorId: "B", amountCents: 1600, isAuto: false, intentId: "i3" },
+    ])
+    expect(effect.outbidSponsorId).toBe("A")
   })
 })

@@ -181,6 +181,33 @@ describe("sponsorship bid placement", () => {
     })
   })
 
+  test("uses one timestamp for deadline validation and bid writes", async () => {
+    const endsAt = 10_000
+    const auction = activeAuction({
+      endsAt,
+      antiSnipingWindowMs: 0,
+      antiSnipingExtendMs: 0,
+    })
+    const nowSpy = vi
+      .spyOn(Date, "now")
+      .mockReturnValueOnce(endsAt - 1)
+      .mockReturnValueOnce(endsAt + 1_000)
+    const { ctx, intents, patches } = createMockMutationCtx()
+
+    try {
+      await placeSponsorshipBid(ctx, {
+        auction,
+        sponsorId: "s1" as BidIntentDoc["sponsorId"],
+        amountCents: 2000,
+      })
+    } finally {
+      nowSpy.mockRestore()
+    }
+
+    expect(intents[intents.length - 1]?.createdAt).toBe(endsAt - 1)
+    expect(patches[patches.length - 1]?.patch.updatedAt).toBe(endsAt - 1)
+  })
+
   test("rejects max-only updates below minimum next bid", async () => {
     const auction = activeAuction({
       startPriceCents: 1000,
@@ -883,9 +910,6 @@ describe("sponsorship bid placement", () => {
     })
     const { ctx, events, patches } = createMockMutationCtx([
       mockIntent({
-        // Lexicographically before mock insert ids (`intent-1`, …) so
-        // compareBidIntentChronologyWithIdTieBreak matches true bid order
-        // when createdAt/_creationTime collide (see auctionState).
         _id: "intent-0" as BidIntentDoc["_id"],
         sponsorId: "sB" as BidIntentDoc["sponsorId"],
         mode: "proxy",

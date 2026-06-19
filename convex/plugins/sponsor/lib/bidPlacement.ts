@@ -6,6 +6,7 @@ import {
   compareBidIntentChronologyWithIdTieBreak,
 } from "./auctionState"
 import {
+  deriveProxyBidEffect,
   minNextBidCents,
   resolveProxyState,
   resolveSealedOutcome,
@@ -54,14 +55,17 @@ function normalizeMaxAmountCents(
   return maxAmountCents
 }
 
-function ensureActiveAuction(auction: Doc<"sponsorshipAuctions">): void {
+function ensureActiveAuction(
+  auction: Doc<"sponsorshipAuctions">,
+  now: number
+): void {
   if (auction.state !== "active") {
     throw new ConvexError({
       code: "FORBIDDEN",
       message: "Bidding is not open for this auction.",
     })
   }
-  if (Date.now() > auction.endsAt) {
+  if (now > auction.endsAt) {
     throw new ConvexError({
       code: "FORBIDDEN",
       message: "Auction has already closed.",
@@ -267,67 +271,34 @@ async function placeProxyBid(
     })
   }
 
-  const previousLeaderSponsorId = hasExistingValidBid
-    ? input.auction.currentLeaderSponsorId
-    : undefined
-  const previousVisiblePriceCents = hasExistingValidBid
-    ? (input.auction.currentPriceCents ?? input.auction.startPriceCents)
-    : input.auction.startPriceCents
-  const isMaxOnlyIntent = !isAmountExplicit && isMaxExplicit
-  let visibleCurrentPriceCents =
-    isMaxOnlyIntent &&
-    previousLeaderSponsorId === input.sponsorId &&
-    state.leaderSponsorId === input.sponsorId
-      ? previousVisiblePriceCents
-      : state.currentPriceCents
-  const isExplicitDirectBidFromCurrentLeader =
-    isAmountExplicit &&
-    previousLeaderSponsorId === input.sponsorId &&
-    state.leaderSponsorId === input.sponsorId
-  if (isExplicitDirectBidFromCurrentLeader) {
-    visibleCurrentPriceCents = Math.max(visibleCurrentPriceCents, amountCents)
-  }
-  const visibleStateChanged =
-    previousLeaderSponsorId !== state.leaderSponsorId ||
-    previousVisiblePriceCents !== visibleCurrentPriceCents
-  const shouldCollapseToResolvedPrice =
-    state.leaderSponsorId !== input.sponsorId ||
-    visibleCurrentPriceCents !== amountCents
-
-  if (visibleStateChanged && shouldCollapseToResolvedPrice) {
-    await ctx.db.insert("sponsorshipBidEvents", {
-      auctionId: input.auction._id,
-      sponsorId: state.leaderSponsorId,
-      amountCents: visibleCurrentPriceCents,
-      isAuto: true,
-      intentId:
-        state.leaderSponsorId === input.sponsorId ? intentId : undefined,
-      createdAt: now,
-    })
-  } else if (visibleStateChanged) {
-    await ctx.db.insert("sponsorshipBidEvents", {
-      auctionId: input.auction._id,
+  const effect = deriveProxyBidEffect({
+    previous: {
+      leaderSponsorId: hasExistingValidBid
+        ? input.auction.currentLeaderSponsorId
+        : undefined,
+      visiblePriceCents: hasExistingValidBid
+        ? (input.auction.currentPriceCents ?? input.auction.startPriceCents)
+        : input.auction.startPriceCents,
+    },
+    resolved: state,
+    intent: {
       sponsorId: input.sponsorId,
-      amountCents,
-      isAuto: false,
       intentId,
+      amountCents,
+      isAmountExplicit,
+      isMaxExplicit,
+    },
+  })
+
+  for (const event of effect.events) {
+    await ctx.db.insert("sponsorshipBidEvents", {
+      auctionId: input.auction._id,
+      sponsorId: event.sponsorId,
+      amountCents: event.amountCents,
+      isAuto: event.isAuto,
+      intentId: event.intentId,
       createdAt: now,
     })
-
-    const autoEventAmountCents = visibleCurrentPriceCents
-    const shouldInsertAutoEvent =
-      autoEventAmountCents >= amountCents &&
-      (state.leaderSponsorId !== input.sponsorId ||
-        autoEventAmountCents > amountCents)
-    if (shouldInsertAutoEvent) {
-      await ctx.db.insert("sponsorshipBidEvents", {
-        auctionId: input.auction._id,
-        sponsorId: state.leaderSponsorId,
-        amountCents: autoEventAmountCents,
-        isAuto: true,
-        createdAt: now,
-      })
-    }
   }
 
   let extendedEndsAt: number | undefined
@@ -338,27 +309,17 @@ async function placeProxyBid(
   }
 
   await ctx.db.patch("sponsorshipAuctions", input.auction._id, {
-    currentPriceCents: visibleCurrentPriceCents,
+    currentPriceCents: effect.visiblePriceCents,
     currentLeaderSponsorId: state.leaderSponsorId,
     currentLeaderMaxCents: state.leaderMaxCents,
     endsAt: extendedEndsAt ?? input.auction.endsAt,
     updatedAt: now,
   })
 
-  let outbidSponsorId: Id<"sponsors"> | undefined
-  if (
-    previousLeaderSponsorId !== undefined &&
-    previousLeaderSponsorId !== state.leaderSponsorId
-  ) {
-    outbidSponsorId = previousLeaderSponsorId
-  } else if (state.leaderSponsorId !== input.sponsorId) {
-    outbidSponsorId = input.sponsorId
-  }
-
   return {
-    currentPriceCents: visibleCurrentPriceCents,
+    currentPriceCents: effect.visiblePriceCents,
     extendedEndsAt,
-    outbidSponsorId,
+    outbidSponsorId: effect.outbidSponsorId,
   }
 }
 
@@ -366,8 +327,8 @@ export async function placeSponsorshipBid(
   ctx: MutationCtx,
   input: PlaceSponsorshipBidInput
 ): Promise<PlaceSponsorshipBidResult> {
-  ensureActiveAuction(input.auction)
   const now = Date.now()
+  ensureActiveAuction(input.auction, now)
   const existingIntents = await ctx.db
     .query("sponsorshipBidIntents")
     .withIndex("by_auction", (q) => q.eq("auctionId", input.auction._id))

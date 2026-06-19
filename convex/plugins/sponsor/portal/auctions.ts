@@ -4,8 +4,9 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { compareBidIntentChronology } from "../lib/auctionState"
 import { placeSponsorshipBid } from "../lib/bidPlacement"
-import { buildCompetitionRecordSummary } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { resolveCompetitionSummaryView } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import { getCompetitionSponsorOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
+import { resolveCompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import { competitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/validators"
 import { sendEbayAuctionOutbidEmail } from "../admin/auctions/emails"
@@ -116,22 +117,19 @@ export const listAuctions = query({
         const competitionName =
           competitionNames.get(auction.competitionId) ?? "Competition"
         const competition = competitionById.get(auction.competitionId)
-        const competitionSummary =
-          auction.competitionSnapshot?.summary ??
-          (competition !== undefined
-            ? buildCompetitionRecordSummary({
-                name: competition.name,
-                compDates: competition.compDates,
-              })
-            : buildCompetitionRecordSummary({
-                name: competitionName,
-                compDates: {
-                  from: new Date(auction.startsAt).toISOString().slice(0, 10),
-                  to: new Date(auction.endsAt).toISOString().slice(0, 10),
-                },
-              }))
-        const competitionSummarySource =
-          auction.competitionSnapshot?.source ?? "competition_record"
+        const {
+          summary: competitionSummary,
+          source: competitionSummarySource,
+        } = resolveCompetitionSummaryView(
+          auction.competitionSnapshot,
+          competition ?? {
+            name: competitionName,
+            compDates: {
+              from: new Date(auction.startsAt).toISOString().slice(0, 10),
+              to: new Date(auction.endsAt).toISOString().slice(0, 10),
+            },
+          }
+        )
         return toSponsorAuctionListItem({
           auction,
           competitionName,
@@ -205,31 +203,16 @@ export const getAuction = query({
     const myLastBidCents = latestValidSponsorIntent?.amountCents
     const myMaxBidCents = latestValidSponsorIntent?.maxAmountCents
     const hasSponsorValidBid = sponsorIntents.some((intent) => intent.isValid)
-    const derivedSponsorPropertyStatus:
-      | "bidding"
-      | "none"
-      | "not_offered"
-      | "sponsor" =
-      auction.state === "active" || auction.state === "scheduled"
-        ? "bidding"
-        : auction.winnerSponsorId
-          ? "sponsor"
-          : "none"
     const override = await getCompetitionSponsorOverride(
       ctx,
       auction.competitionId
     )
-    const sponsorPropertyStatus = override?.manualSponsorId
-      ? "sponsor"
-      : (override?.manualSponsorPropertyStatus ?? derivedSponsorPropertyStatus)
-    const competitionSummary =
-      auction.competitionSnapshot?.summary ??
-      buildCompetitionRecordSummary({
-        name: competition.name,
-        compDates: competition.compDates,
-      })
-    const competitionSummarySource =
-      auction.competitionSnapshot?.source ?? "competition_record"
+    const sponsorPropertyStatus = resolveCompetitionSponsorPropertyStatus({
+      override,
+      auctions: [auction],
+    })
+    const { summary: competitionSummary, source: competitionSummarySource } =
+      resolveCompetitionSummaryView(auction.competitionSnapshot, competition)
 
     return {
       auction: toSponsorAuctionListItem({
@@ -303,9 +286,14 @@ interface SponsorBidMutationResult {
   extendedEndsAt?: number
 }
 
-export async function placeBidHandler(
+async function submitSponsorshipBid(
   ctx: MutationCtx,
-  args: PlaceBidArgs
+  args: {
+    sessionToken: string
+    auctionId: Id<"sponsorshipAuctions">
+    amountCents?: number
+    maxAmountCents?: number
+  }
 ): Promise<SponsorBidMutationResult> {
   const { sponsor } = await requireSponsorCanBid(ctx, args.sessionToken)
   await requireAuctionInvite(ctx, args.auctionId, sponsor._id)
@@ -317,10 +305,20 @@ export async function placeBidHandler(
       message: "Auction not found.",
     })
   }
+  if (
+    args.maxAmountCents !== undefined &&
+    !isProxyAuctionFramework(auction.framework)
+  ) {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: "Max bids are only available for Proxy Bidding auctions.",
+    })
+  }
   const result = await placeSponsorshipBid(ctx, {
     auction,
     sponsorId: sponsor._id,
     amountCents: args.amountCents,
+    maxAmountCents: args.maxAmountCents,
   })
   await rescheduleClosureWhenExtended(ctx, auction._id, result.extendedEndsAt)
   await maybeNotifyEbayOutbid(ctx, auction, result)
@@ -330,35 +328,16 @@ export async function placeBidHandler(
   }
 }
 
+export async function placeBidHandler(
+  ctx: MutationCtx,
+  args: PlaceBidArgs
+): Promise<SponsorBidMutationResult> {
+  return submitSponsorshipBid(ctx, args)
+}
+
 export async function setMaxBidHandler(
   ctx: MutationCtx,
   args: SetMaxBidArgs
 ): Promise<SponsorBidMutationResult> {
-  const { sponsor } = await requireSponsorCanBid(ctx, args.sessionToken)
-  await requireAuctionInvite(ctx, args.auctionId, sponsor._id)
-
-  const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
-  if (!auction) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: "Auction not found.",
-    })
-  }
-  if (!isProxyAuctionFramework(auction.framework)) {
-    throw new ConvexError({
-      code: "BAD_REQUEST",
-      message: "Max bids are only available for Proxy Bidding auctions.",
-    })
-  }
-  const result = await placeSponsorshipBid(ctx, {
-    auction,
-    sponsorId: sponsor._id,
-    maxAmountCents: args.maxAmountCents,
-  })
-  await rescheduleClosureWhenExtended(ctx, auction._id, result.extendedEndsAt)
-  await maybeNotifyEbayOutbid(ctx, auction, result)
-  return {
-    currentPriceCents: result.currentPriceCents,
-    extendedEndsAt: result.extendedEndsAt,
-  }
+  return submitSponsorshipBid(ctx, args)
 }

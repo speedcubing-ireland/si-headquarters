@@ -1,19 +1,25 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { SponsorshipAdmin } from "@/plugins/sponsor/admin/use-sponsorship-admin"
+import type { Id } from "@/convex/_generated/dataModel"
+import type {
+  ManagerAuction,
+  ManagerSponsor,
+} from "@/plugins/sponsor/admin/manager-types"
 import { formatDateTime } from "@/lib/format/irish-dates"
-import {
-  formatEuroFromCents,
-  sponsorshipFrameworkLabel,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
+import { formatEuroFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 
-export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
-  const { open, actions, maps, closed } = admin
-  const { panelCompetitionId, previousClosedAuctionsForPanel } = open
-  const { setActiveTab } = actions
-  const { setSelectedClosedAuctionId } = closed
-  const { sponsorById } = maps
-
+export function AuctionPanelHistory({
+  panelCompetitionId,
+  previousClosedAuctions,
+  sponsorById,
+  onViewClosedAuction,
+}: {
+  panelCompetitionId: Id<"competitions"> | null
+  previousClosedAuctions: ManagerAuction[]
+  sponsorById: Map<Id<"sponsors">, ManagerSponsor>
+  onViewClosedAuction: (auctionId: Id<"sponsorshipAuctions">) => void
+}) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -21,22 +27,20 @@ export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
           Previous closed auctions for this competition
         </p>
         {panelCompetitionId ? (
-          <Badge variant="outline">
-            {previousClosedAuctionsForPanel.length}
-          </Badge>
+          <Badge variant="outline">{previousClosedAuctions.length}</Badge>
         ) : null}
       </div>
       {panelCompetitionId === null ? (
         <p className="text-sm text-muted-foreground">
           Select a competition to view historical outcomes.
         </p>
-      ) : previousClosedAuctionsForPanel.length === 0 ? (
+      ) : previousClosedAuctions.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No previous closed auctions for this competition.
         </p>
       ) : (
         <div className="space-y-2">
-          {previousClosedAuctionsForPanel.map((auction) => {
+          {previousClosedAuctions.map((auction) => {
             const winningBidCents =
               auction.settlementAmountCents ??
               auction.currentPriceCents ??
@@ -55,8 +59,7 @@ export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
                     {formatDateTime(auction.endsAt)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {sponsorshipFrameworkLabel(auction.framework)} ·{" "}
-                    {winnerName}
+                    {auctionFrameworkLabel(auction.framework)} · {winnerName}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Winning bid: {formatEuroFromCents(winningBidCents)}
@@ -66,8 +69,7 @@ export function AuctionPanelHistory({ admin }: { admin: SponsorshipAdmin }) {
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    setSelectedClosedAuctionId(auction.id)
-                    setActiveTab("closed")
+                    onViewClosedAuction(auction.id)
                   }}
                 >
                   View

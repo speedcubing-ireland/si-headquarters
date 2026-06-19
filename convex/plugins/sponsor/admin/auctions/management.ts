@@ -7,7 +7,7 @@ import { compareBidIntentChronologyWithIdTieBreak } from "../../lib/auctionState
 import { competitionStartEnd } from "@/convex/competitions/dates"
 import { sponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/validators"
 import {
-  buildCompetitionRecordSummary,
+  resolveCompetitionSummaryView,
   sponsorshipCompetitionSummary,
   sponsorshipCompetitionSummarySource,
 } from "../../lib/competitionSnapshot"
@@ -25,7 +25,7 @@ import {
   scheduleCompetitionSnapshotRefresh,
 } from "./competitionSnapshot"
 import { scheduleAuctionActivation } from "./lifecycle"
-import { resolveCompetitionSponsorStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
+import { buildCompetitionSponsorStatusByCompetition } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { getCompetitionSponsorOverridesByCompetitionId } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 
 function normalizePositiveDurationMs(
@@ -298,23 +298,14 @@ export const listCompetitionsForManager = query({
       if (!phase) continue
       phaseNameById.set(phase._id, phase.name)
     }
-    const auctionsByCompetition = new Map<
-      Id<"competitions">,
-      Doc<"sponsorshipAuctions">[]
-    >()
-    for (const auction of auctions) {
-      const current = auctionsByCompetition.get(auction.competitionId) ?? []
-      current.push(auction)
-      auctionsByCompetition.set(auction.competitionId, current)
-    }
+    const statusByCompetition = buildCompetitionSponsorStatusByCompetition({
+      competitionIds,
+      auctions,
+      overridesByCompetitionId,
+    })
 
     return competitions.map((competition) => {
-      const scopedAuctions = auctionsByCompetition.get(competition._id) ?? []
       const override = overridesByCompetitionId.get(competition._id) ?? null
-      const hasClosedWinner = scopedAuctions.some(
-        (auction) =>
-          auction.state === "closed" && auction.winnerSponsorId !== undefined
-      )
       const { compStart, compEnd } = competitionStartEnd(competition)
       return {
         id: competition._id,
@@ -325,12 +316,8 @@ export const listCompetitionsForManager = query({
         currentPhaseName: competition.phaseId
           ? (phaseNameById.get(competition.phaseId) ?? "Unknown phase")
           : "No phase",
-        sponsorPropertyStatus: resolveCompetitionSponsorStatus({
-          auctionStates: scopedAuctions.map((auction) => auction.state),
-          hasClosedWinner,
-          manualSponsorId: override?.manualSponsorId,
-          manualStatus: override?.manualSponsorPropertyStatus,
-        }),
+        sponsorPropertyStatus:
+          statusByCompetition.get(competition._id) ?? "not_offered",
         manualSponsorPropertyStatus: override?.manualSponsorPropertyStatus,
         manualSponsorId: override?.manualSponsorId,
       }
@@ -375,37 +362,11 @@ export const listForManager = query({
       if (!phase) continue
       phaseNameById.set(phase._id, phase.name)
     }
-    const auctionsByCompetition = new Map<
-      Id<"competitions">,
-      Doc<"sponsorshipAuctions">[]
-    >()
-    for (const auction of auctions) {
-      const current = auctionsByCompetition.get(auction.competitionId) ?? []
-      current.push(auction)
-      auctionsByCompetition.set(auction.competitionId, current)
-    }
-
-    const statusByCompetition = new Map<
-      Id<"competitions">,
-      "not_offered" | "bidding" | "none" | "sponsor"
-    >()
-    for (const competitionId of competitionIds) {
-      const scopedAuctions = auctionsByCompetition.get(competitionId) ?? []
-      const override = overridesByCompetitionId.get(competitionId) ?? null
-      const hasClosedWinner = scopedAuctions.some(
-        (auction) =>
-          auction.state === "closed" && auction.winnerSponsorId !== undefined
-      )
-      statusByCompetition.set(
-        competitionId,
-        resolveCompetitionSponsorStatus({
-          auctionStates: scopedAuctions.map((auction) => auction.state),
-          hasClosedWinner,
-          manualSponsorId: override?.manualSponsorId,
-          manualStatus: override?.manualSponsorPropertyStatus,
-        })
-      )
-    }
+    const statusByCompetition = buildCompetitionSponsorStatusByCompetition({
+      competitionIds,
+      auctions,
+      overridesByCompetitionId,
+    })
 
     return auctions
       .map((auction) => {
@@ -494,15 +455,11 @@ export const getManagerView = query({
         .collect(),
     ])
     if (!competition) return null
-    const competitionSummary =
-      auction.competitionSnapshot?.summary ??
-      buildCompetitionRecordSummary({
-        name: competition.name,
-        compDates: competition.compDates,
-      })
-    const competitionSummarySource =
-      auction.competitionSnapshot?.source ?? "competition_record"
-    const competitionSummaryFetchedAt = auction.competitionSnapshot?.fetchedAt
+    const {
+      summary: competitionSummary,
+      source: competitionSummarySource,
+      fetchedAt: competitionSummaryFetchedAt,
+    } = resolveCompetitionSummaryView(auction.competitionSnapshot, competition)
     const inviteSponsorIds = invites.map((invite) => invite.sponsorId)
     const invitedSponsorSet = new Set<Id<"sponsors">>(inviteSponsorIds)
     const totalBidCountBySponsor = new Map<Id<"sponsors">, number>()

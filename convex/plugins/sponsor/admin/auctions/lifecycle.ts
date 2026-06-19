@@ -21,10 +21,7 @@ import {
   sendAuctionScheduledEmails,
   sendAuctionStartedEmails,
 } from "./emails"
-import {
-  SPONSORSHIP_EMAIL_DISPATCH_MAX_ATTEMPTS,
-  SPONSORSHIP_EMAIL_DISPATCH_PROCESSING_LEASE_MS,
-} from "../../emails/send"
+import { repairEmailDispatches } from "../../emails/send"
 import {
   isCanonicalAuctionActiveReminder,
   markReminderSent,
@@ -104,11 +101,10 @@ async function cancelScheduledIfPending(
   try {
     await ctx.scheduler.cancel(id)
   } catch {
-    /* already completed or invalid */
+    void 0
   }
 }
 
-/** Schedule (or replace) activation at `auction.startsAt`. */
 export async function scheduleAuctionActivation(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">
@@ -125,7 +121,6 @@ export async function scheduleAuctionActivation(
   })
 }
 
-/** Schedule (or replace) automatic close at `auction.endsAt`. */
 export async function scheduleAuctionClosure(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">
@@ -140,6 +135,15 @@ export async function scheduleAuctionClosure(
     closureScheduledFunctionId: scheduledFunctionId,
     updatedAt: Date.now(),
   })
+}
+
+async function runAuctionActivationEffects(
+  ctx: MutationCtx,
+  auction: Doc<"sponsorshipAuctions">
+): Promise<void> {
+  await sendAuctionStartedEmails(ctx, auction)
+  await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
+  await scheduleAuctionClosure(ctx, auction)
 }
 
 export const _activateAuction = internalMutation({
@@ -159,9 +163,7 @@ export const _activateAuction = internalMutation({
     const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id)
     if (!refreshed) return null
 
-    await sendAuctionStartedEmails(ctx, refreshed)
-    await syncAuctionActiveReminders(ctx, refreshed, { createMissing: true })
-    await scheduleAuctionClosure(ctx, refreshed)
+    await runAuctionActivationEffects(ctx, refreshed)
     return null
   },
 })
@@ -323,11 +325,7 @@ export const start = mutation({
     if (targetState === "active") {
       const refreshed = await ctx.db.get("sponsorshipAuctions", auction._id)
       if (refreshed) {
-        await sendAuctionStartedEmails(ctx, refreshed)
-        await syncAuctionActiveReminders(ctx, refreshed, {
-          createMissing: true,
-        })
-        await scheduleAuctionClosure(ctx, refreshed)
+        await runAuctionActivationEffects(ctx, refreshed)
       }
     }
     await scheduleCompetitionSnapshotRefresh(ctx, auction._id)
@@ -354,122 +352,56 @@ export const close = mutation({
   },
 })
 
+async function repairAuctionSchedules(ctx: MutationCtx): Promise<void> {
+  const scheduledAuctions = ctx.db
+    .query("sponsorshipAuctions")
+    .withIndex("by_state_and_start", (q) => q.eq("state", "scheduled"))
+  for await (const auction of scheduledAuctions) {
+    const activationIsValid = await isExpectedPendingSchedule(
+      ctx,
+      auction.activationScheduledFunctionId,
+      {
+        functionReference:
+          internal.plugins.sponsor.admin.auctions.lifecycle._activateAuction,
+        scheduledTime: auction.startsAt,
+        args: { auctionId: auction._id },
+      }
+    )
+    if (!activationIsValid) {
+      await scheduleAuctionActivation(ctx, auction)
+    }
+  }
+
+  const activeAuctions = ctx.db
+    .query("sponsorshipAuctions")
+    .withIndex("by_state_and_end", (q) => q.eq("state", "active"))
+  for await (const auction of activeAuctions) {
+    const closureIsValid = await isExpectedPendingSchedule(
+      ctx,
+      auction.closureScheduledFunctionId,
+      {
+        functionReference:
+          internal.plugins.sponsor.admin.auctions.lifecycle._closeAuction,
+        scheduledTime: auction.endsAt,
+        args: { auctionId: auction._id },
+      }
+    )
+    if (!closureIsValid) {
+      await scheduleAuctionClosure(ctx, auction)
+    }
+    await syncAuctionActiveReminders(ctx, auction, {
+      createMissing: true,
+      preserveValidSchedules: true,
+    })
+  }
+}
+
 export const repairSchedules = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const scheduledAuctions = ctx.db
-      .query("sponsorshipAuctions")
-      .withIndex("by_state_and_start", (q) => q.eq("state", "scheduled"))
-    for await (const auction of scheduledAuctions) {
-      const activationIsValid = await isExpectedPendingSchedule(
-        ctx,
-        auction.activationScheduledFunctionId,
-        {
-          functionReference:
-            internal.plugins.sponsor.admin.auctions.lifecycle._activateAuction,
-          scheduledTime: auction.startsAt,
-          args: { auctionId: auction._id },
-        }
-      )
-      if (!activationIsValid) {
-        await scheduleAuctionActivation(ctx, auction)
-      }
-    }
-
-    const activeAuctions = ctx.db
-      .query("sponsorshipAuctions")
-      .withIndex("by_state_and_end", (q) => q.eq("state", "active"))
-    for await (const auction of activeAuctions) {
-      const closureIsValid = await isExpectedPendingSchedule(
-        ctx,
-        auction.closureScheduledFunctionId,
-        {
-          functionReference:
-            internal.plugins.sponsor.admin.auctions.lifecycle._closeAuction,
-          scheduledTime: auction.endsAt,
-          args: { auctionId: auction._id },
-        }
-      )
-      if (!closureIsValid) {
-        await scheduleAuctionClosure(ctx, auction)
-      }
-      await syncAuctionActiveReminders(ctx, auction, {
-        createMissing: true,
-        preserveValidSchedules: true,
-      })
-    }
-
-    const now = Date.now()
-    const staleBefore = now - 5 * 60 * 1000
-    const duePending = await ctx.db
-      .query("sponsorshipEmailDispatches")
-      .withIndex("by_status_and_next_attempt", (q) =>
-        q
-          .eq("status", "pending")
-          .gt("nextAttemptAt", 0)
-          .lte("nextAttemptAt", now)
-      )
-      .take(100)
-    const legacyStalePending = (
-      await ctx.db
-        .query("sponsorshipEmailDispatches")
-        .withIndex("by_status_and_created", (q) =>
-          q.eq("status", "pending").lt("createdAt", staleBefore)
-        )
-        .take(100)
-    ).filter((dispatch) => dispatch.nextAttemptAt === undefined)
-    const staleProcessing = await ctx.db
-      .query("sponsorshipEmailDispatches")
-      .withIndex("by_status_and_processing_started", (q) =>
-        q
-          .eq("status", "processing")
-          .lt(
-            "processingStartedAt",
-            now - SPONSORSHIP_EMAIL_DISPATCH_PROCESSING_LEASE_MS
-          )
-      )
-      .take(100)
-
-    const dispatchIds = new Set<Id<"sponsorshipEmailDispatches">>()
-    for (const dispatch of [...duePending, ...legacyStalePending]) {
-      dispatchIds.add(dispatch._id)
-    }
-    for (const dispatch of staleProcessing) {
-      const attempts = dispatch.attempts + 1
-      if (attempts >= SPONSORSHIP_EMAIL_DISPATCH_MAX_ATTEMPTS) {
-        await ctx.db.patch("sponsorshipEmailDispatches", dispatch._id, {
-          status: "failed",
-          attempts,
-          lastAttemptAt: now,
-          processingStartedAt: undefined,
-          nextAttemptAt: undefined,
-          lastError: "Processing lease expired before delivery completed.",
-          failedAt: now,
-        })
-        continue
-      }
-
-      await ctx.db.patch("sponsorshipEmailDispatches", dispatch._id, {
-        status: "pending",
-        attempts,
-        lastAttemptAt: now,
-        processingStartedAt: undefined,
-        nextAttemptAt: now,
-        lastError: "Processing lease expired before delivery completed.",
-        failedAt: undefined,
-      })
-      dispatchIds.add(dispatch._id)
-    }
-
-    if (dispatchIds.size > 0) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.plugins.sponsor.emails.sendBatch
-          .processSponsorshipEmailDispatches,
-        { dispatchIds: [...dispatchIds] }
-      )
-    }
+    await repairAuctionSchedules(ctx)
+    await repairEmailDispatches(ctx)
     return null
   },
 })

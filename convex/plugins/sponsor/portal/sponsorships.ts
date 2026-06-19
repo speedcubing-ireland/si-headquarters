@@ -2,7 +2,10 @@ import { v } from "convex/values"
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { buildSponsorSponsorshipListItems } from "../lib/sponsorOwnedCompetitions"
-import { getCompetitionSponsorOverridesByCompetitionId } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
+import {
+  getCompetitionSponsorOverridesByCompetitionId,
+  listCompetitionSponsorOverridesForSponsor,
+} from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 import {
   listInvitedVisibleAuctions,
   requireSponsorSession,
@@ -14,9 +17,15 @@ export const listMySponsorships = query({
   returns: v.array(sponsorSponsorshipListItem),
   handler: async (ctx, args) => {
     const { sponsor } = await requireSponsorSession(ctx, args.sessionToken)
-    const auctionDocs = await listInvitedVisibleAuctions(ctx, sponsor._id)
+    const [auctionDocs, manualOverrides] = await Promise.all([
+      listInvitedVisibleAuctions(ctx, sponsor._id),
+      listCompetitionSponsorOverridesForSponsor(ctx, sponsor._id),
+    ])
     const competitionIds = [
-      ...new Set(auctionDocs.map((auction) => auction.competitionId)),
+      ...new Set([
+        ...auctionDocs.map((auction) => auction.competitionId),
+        ...manualOverrides.map((override) => override.competitionId),
+      ]),
     ]
     const [competitions, overridesByCompetitionId] = await Promise.all([
       Promise.all(
