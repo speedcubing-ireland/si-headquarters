@@ -150,6 +150,35 @@ async function canReadTaskViaRoot(
   return false
 }
 
+async function canReadTaskWithRoots(
+  ctx: DbCtx,
+  task: Doc<"tasks">,
+  principal: Principal,
+  rootCompetition: Doc<"competitions"> | null,
+  rootProject: Doc<"projects"> | null
+): Promise<boolean> {
+  return (
+    (await canReadTaskViaRoot(ctx, principal, rootCompetition, rootProject)) ||
+    canPerform(principal, "manage", "Task") ||
+    (await hasTaskParticipantRead(ctx, task, principal))
+  )
+}
+
+export async function canReadTask(
+  ctx: DbCtx,
+  task: Doc<"tasks">,
+  principal: Principal
+): Promise<boolean> {
+  const { rootCompetition, rootProject } = await loadTaskRoots(ctx, task)
+  return await canReadTaskWithRoots(
+    ctx,
+    task,
+    principal,
+    rootCompetition,
+    rootProject
+  )
+}
+
 export async function requireTaskAccess(
   ctx: DbCtx,
   taskId: Id<"tasks">,
@@ -167,18 +196,13 @@ export async function requireTaskAccess(
 
   if (
     level === "read" &&
-    (await canReadTaskViaRoot(ctx, principal, rootCompetition, rootProject))
-  ) {
-    return { principal, task, rootCompetition, rootProject }
-  }
-
-  if (level === "read" && canPerform(principal, "manage", "Task")) {
-    return { principal, task, rootCompetition, rootProject }
-  }
-
-  if (
-    level === "read" &&
-    (await hasTaskParticipantRead(ctx, task, principal))
+    (await canReadTaskWithRoots(
+      ctx,
+      task,
+      principal,
+      rootCompetition,
+      rootProject
+    ))
   ) {
     return { principal, task, rootCompetition, rootProject }
   }

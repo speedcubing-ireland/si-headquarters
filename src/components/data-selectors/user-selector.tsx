@@ -31,7 +31,6 @@ interface UserSelectorBaseProps extends Pick<
   avatarProps?: ObjectAvatarProps
   maxAvatars?: number
   teamName?: TeamName
-  /** When set, loads users via competition-scoped query (requires manage on that competition). */
   competitionId?: Id<"competitions">
 }
 

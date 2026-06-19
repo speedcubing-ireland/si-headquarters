@@ -3,7 +3,6 @@ import type { MutationCtx } from "@/convex/_generated/server"
 import { internal } from "@/convex/_generated/api"
 import { isExpectedPendingSchedule } from "./scheduledFunctions"
 
-/** Send the “bidding closes in 1 hour” email this long before `auction.endsAt`. */
 export const AUCTION_ACTIVE_REMINDER_LEAD_MS = 60 * 60 * 1000
 
 export function auctionActiveReminderScheduledFor(endsAt: number): number {
@@ -18,7 +17,7 @@ async function cancelScheduledIfPending(
   try {
     await ctx.scheduler.cancel(id)
   } catch {
-    /* already completed or invalid */
+    void 0
   }
 }
 
@@ -126,7 +125,6 @@ export async function isCanonicalAuctionActiveReminder(
   return [...reminders].sort(reminderPriority)[0]._id === reminder._id
 }
 
-/** Keep active-auction reminder rows and scheduled jobs aligned with `endsAt`. */
 export async function syncAuctionActiveReminders(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">,

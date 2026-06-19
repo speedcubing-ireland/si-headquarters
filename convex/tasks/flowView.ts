@@ -1,5 +1,3 @@
-// to-do this and subtask needs to have thier files properly cleaned up and moved
-
 import {
   taskViewTaskDetails,
   type TaskViewProgress,

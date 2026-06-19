@@ -53,7 +53,7 @@ function writeTeamsOpenState(state: TeamsOpenState) {
   try {
     localStorage.setItem(TEAMS_OPEN_STORAGE_KEY, JSON.stringify(state))
   } catch {
-    /* quota exceeded or private browsing */
+    void 0
   }
 }
 

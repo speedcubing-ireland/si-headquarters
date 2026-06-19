@@ -5,7 +5,6 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import { defineConfig, loadEnv } from "vite"
 import { createClientEnv } from "./src/env.schema"
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const loadedEnv = loadEnv(mode, process.cwd(), "VITE_")
   createClientEnv({

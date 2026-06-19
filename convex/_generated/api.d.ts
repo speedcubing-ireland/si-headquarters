@@ -13,6 +13,13 @@ import type * as access_scopedObject from "../access/scopedObject.js";
 import type * as admin_discord from "../admin/discord.js";
 import type * as admin_sponsorImpersonation from "../admin/sponsorImpersonation.js";
 import type * as auth from "../auth.js";
+import type * as comments_access from "../comments/access.js";
+import type * as comments_client from "../comments/client.js";
+import type * as comments_mentionTokens from "../comments/mentionTokens.js";
+import type * as comments_mentions from "../comments/mentions.js";
+import type * as comments_mutations from "../comments/mutations.js";
+import type * as comments_queries from "../comments/queries.js";
+import type * as comments_validators from "../comments/validators.js";
 import type * as competitions_access from "../competitions/access.js";
 import type * as competitions_calendar from "../competitions/calendar.js";
 import type * as competitions_dates from "../competitions/dates.js";
@@ -29,6 +36,7 @@ import type * as competitions_weekends from "../competitions/weekends.js";
 import type * as crons from "../crons.js";
 import type * as dashboard_queries from "../dashboard/queries.js";
 import type * as deploymentContext from "../deploymentContext.js";
+import type * as emoji from "../emoji.js";
 import type * as env from "../env.js";
 import type * as envConfig from "../envConfig.js";
 import type * as envTypes from "../envTypes.js";
@@ -292,6 +300,13 @@ declare const fullApi: ApiFromModules<{
   "admin/discord": typeof admin_discord;
   "admin/sponsorImpersonation": typeof admin_sponsorImpersonation;
   auth: typeof auth;
+  "comments/access": typeof comments_access;
+  "comments/client": typeof comments_client;
+  "comments/mentionTokens": typeof comments_mentionTokens;
+  "comments/mentions": typeof comments_mentions;
+  "comments/mutations": typeof comments_mutations;
+  "comments/queries": typeof comments_queries;
+  "comments/validators": typeof comments_validators;
   "competitions/access": typeof competitions_access;
   "competitions/calendar": typeof competitions_calendar;
   "competitions/dates": typeof competitions_dates;
@@ -308,6 +323,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   "dashboard/queries": typeof dashboard_queries;
   deploymentContext: typeof deploymentContext;
+  emoji: typeof emoji;
   env: typeof env;
   envConfig: typeof envConfig;
   envTypes: typeof envTypes;
@@ -588,6 +604,7 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   reactions: import("@convex/reactions/_generated/component.js").ComponentApi<"reactions">;
+  comments: import("@hamzasaleemorg/convex-comments/_generated/component.js").ComponentApi<"comments">;
   resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
   sponsorAuth: import("@/convex/plugins/sponsor/auth/component/sponsorAuth/_generated/component.js").ComponentApi<"sponsorAuth">;
 };

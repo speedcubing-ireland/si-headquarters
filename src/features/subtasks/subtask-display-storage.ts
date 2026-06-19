@@ -1,6 +1,5 @@
 import { z } from "zod"
 
-// One combined display preference shared by task and competition subtask views.
 const STORAGE_KEY = "subtask-view-display:v1"
 
 export interface SubtaskDisplayOptions {
@@ -22,7 +21,7 @@ function writeLocalStorageOrIgnore(key: string, value: string): void {
   try {
     localStorage.setItem(key, value)
   } catch {
-    /* quota exceeded or private browsing */
+    void 0
   }
 }
 

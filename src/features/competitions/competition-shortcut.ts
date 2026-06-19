@@ -1,4 +1,3 @@
-/** e.g. "my cool comp 2026" + year 2026 → "MCC26" */
 export function formatCompetitionShortcut(
   name: string,
   year: number | null

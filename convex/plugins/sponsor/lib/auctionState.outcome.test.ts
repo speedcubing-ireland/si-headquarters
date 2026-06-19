@@ -63,8 +63,6 @@ describe("resolveAuctionOutcome — proxy auctions", () => {
   })
 
   test("ignores stale denormalized currentLeaderSponsorId / currentPriceCents", () => {
-    // The live leader fields point at a sponsor with no valid intent and a
-    // bogus price — the outcome must be recomputed from the intents instead.
     const auction = makeAuction({
       currentLeaderSponsorId: "ghost" as AuctionDoc["currentLeaderSponsorId"],
       currentPriceCents: 999_999,

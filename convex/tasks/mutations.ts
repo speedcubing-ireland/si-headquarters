@@ -287,8 +287,7 @@ async function deleteTaskScopedRows(ctx: MutationCtx, taskId: Id<"tasks">) {
         try {
           await ctx.scheduler.cancel(reminder.scheduledFunctionId)
         } catch {
-          // The reminder may already be running; deleting the row below still
-          // makes the scheduled function a no-op.
+          void 0
         }
       }
     })

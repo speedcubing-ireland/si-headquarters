@@ -13,7 +13,6 @@ export type TaskLabelColor = (typeof TASK_LABEL_COLORS)[number]
 
 export const DEFAULT_TASK_LABEL_COLOR = "slate" satisfies TaskLabelColor
 
-/** Stable codes for labels used across competitions and templates. */
 export const TASK_LABEL_CODES = {
   budget: "budget",
   certificates: "certificates",
@@ -35,7 +34,6 @@ export interface TaskLabelSpec {
   color: TaskLabelColor
 }
 
-/** Canonical label definitions seeded into the database and referenced by templates. */
 export const DEFAULT_TASK_LABEL_BY_CODE = {
   [TASK_LABEL_CODES.budget]: {
     code: TASK_LABEL_CODES.budget,

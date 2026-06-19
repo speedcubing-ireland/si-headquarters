@@ -1,5 +1,4 @@
 /* oxlint-disable react/only-export-components -- compound Page API */
-// Inside HQ Layout, use @sm/main etc. container queries; keep viewport sm:/md: for portaled UI.
 import { cn } from "@/lib/utils"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Loader2, ShieldX } from "lucide-react"

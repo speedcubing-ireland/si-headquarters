@@ -1,6 +1,6 @@
 import { v, type Infer } from "convex/values"
 import { taskReviewerRef } from "@/convex/tasks/reviews/validators"
-import { competitionOrProjectRef } from "@/convex/utils"
+import { commentTargetRef, competitionOrProjectRef } from "@/convex/utils"
 
 export const taskReminderFields = {
   taskId: v.id("tasks"),
@@ -138,6 +138,13 @@ export const notificationEvent = v.union(
     competitionId: v.id("competitions"),
     actorId: v.union(v.id("users"), v.null()),
     sponsorName: v.union(v.string(), v.null()),
+  }),
+  v.object({
+    kind: v.literal("commentAdded"),
+    target: commentTargetRef,
+    actorId: v.id("users"),
+    body: v.string(),
+    mentionedUserIds: v.array(v.id("users")),
   })
 )
 

@@ -1,8 +1,3 @@
-/**
- * Shared convex-test harness for sponsor plugin integration tests.
- * Use `*.behavior.test.ts` for DB-backed flows; unit tests stay beside modules.
- * This file uses a `.test.ts` suffix so Convex does not bundle it for deployment.
- */
 import { convexTest } from "convex-test"
 import type { TestConvex } from "convex-test"
 import type {
@@ -190,7 +185,6 @@ export async function seedSponsorAuctionAccess(
   return { auctionId, sessionToken, sponsorId, competitionId }
 }
 
-// Vitest requires at least one test per test file.
 import { describe, expect, test } from "vitest"
 describe("sponsor test harness", () => {
   test("exports helpers for integration tests", () => {

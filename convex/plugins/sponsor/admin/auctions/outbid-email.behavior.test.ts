@@ -119,9 +119,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
     await t.run(async (ctx) => {
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
-      // First outbid
       await sendEbayAuctionOutbidEmail(ctx, auction, sponsorAId)
-      // Second outbid within 60s — should be throttled
       await sendEbayAuctionOutbidEmail(ctx, auction, sponsorAId)
     })
 
@@ -133,7 +131,6 @@ describe("sendEbayAuctionOutbidEmail", () => {
     const t = createSponsorAuctionTestHarness()
     const { auctionId, sponsorAId } = await seedProxyAuction(t)
 
-    // Insert a tracking row with sentAt 11 minutes ago
     await t.run(async (ctx) => {
       await ctx.db.insert("sponsorshipAuctionOutbidNotices", {
         auctionId,
@@ -159,9 +156,7 @@ describe("sendEbayAuctionOutbidEmail", () => {
     await t.run(async (ctx) => {
       const auction = await ctx.db.get("sponsorshipAuctions", auctionId)
       if (!auction) throw new Error("auction not found")
-      // Throttle sA
       await sendEbayAuctionOutbidEmail(ctx, auction, sponsorAId)
-      // sB should still get their email
       await sendEbayAuctionOutbidEmail(ctx, auction, sponsorBId)
     })
 

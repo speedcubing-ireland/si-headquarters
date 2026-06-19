@@ -36,6 +36,10 @@ import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
 import { getLinkedDiscordChannelTarget } from "@/convex/integrations/objectResources"
 import { getProjectWorkflowDefinition } from "@/convex/projectWorkflows/registry"
 import { enrichTaskNotificationDraft } from "@/convex/notifications/enrichers"
+import {
+  renderMentionText,
+  resolveBodyMentions,
+} from "@/convex/comments/mentions"
 
 const MAX_PROJECT_MEMBERS = 100
 const MAX_PROJECT_NOTIFICATION_TEAM_MEMBERS = 100
@@ -252,12 +256,15 @@ async function getProjectParticipantIds(
 
 async function projectFeedTargets(
   ctx: ReadCtx,
-  project: Doc<"projects">
+  project: Doc<"projects">,
+  includeChannel = true
 ): Promise<NotificationTarget[]> {
-  const channelTarget = await getLinkedDiscordChannelTarget(ctx, {
-    type: "projects",
-    id: project._id,
-  })
+  const channelTarget = includeChannel
+    ? await getLinkedDiscordChannelTarget(ctx, {
+        type: "projects",
+        id: project._id,
+      })
+    : null
   const targetUserIds = new Set<Id<"users">>([
     ...(await getProjectSubscriberIds(ctx, project._id)),
     ...(await getProjectParticipantIds(ctx, project)),
@@ -281,10 +288,13 @@ async function competitionChannelTarget(
 
 async function competitionFeedTargets(
   ctx: ReadCtx,
-  competitionId: Id<"competitions">
+  competitionId: Id<"competitions">,
+  includeChannel = true
 ): Promise<NotificationTarget[]> {
   return [
-    ...(await competitionChannelTarget(ctx, competitionId)),
+    ...(includeChannel
+      ? await competitionChannelTarget(ctx, competitionId)
+      : []),
     ...(await getCompetitionSubscriberTargets(ctx, competitionId)),
   ]
 }
@@ -367,6 +377,7 @@ function actorSuppressionId(event: NotificationEvent): Id<"users"> | null {
     case "phaseChanged":
     case "updatePublished":
     case "sponsorSet":
+    case "commentAdded":
       return event.actorId
     case "projectWorkflowAttention":
     case "assignableTaskReady":
@@ -404,6 +415,7 @@ async function taskWatcherDrafts(
     fields: NonNullable<NotificationDraft["embeds"][number]["fields"]>
     buttons?: NotificationDraft["buttons"]
     color?: number
+    extraTargets?: NotificationTarget[]
   }
 ): Promise<NotificationDraft[]> {
   const [{ name }, watcherIds] = await Promise.all([
@@ -411,12 +423,16 @@ async function taskWatcherDrafts(
     getTaskWatcherIds(ctx, task),
   ])
   const url = taskUrl(task._id)
-  const drafts = watcherIds.map((userId) =>
+  const targets: NotificationTarget[] = [
+    ...watcherIds.map((userId) => ({ kind: "user" as const, userId })),
+    ...(input.extraTargets ?? []),
+  ]
+  const drafts = targets.map((target) =>
     taskDraftShell({
       task,
       rootName: name,
       actor,
-      target: { kind: "user", userId },
+      target,
       fallbackText: input.fallbackText,
       url,
       color: input.color,
@@ -844,24 +860,16 @@ async function buildNudgeDrafts(
 async function buildCompetitionFeedDrafts(
   ctx: ReadCtx,
   competitionId: Id<"competitions">,
-  input: {
-    fallbackText: string
-    title?: string
-    fields: NonNullable<NotificationDraft["embeds"][number]["fields"]>
-    actorId: Id<"users"> | null
-    color?: number
-    description?: string
-    buttons?: NotificationDraft["buttons"]
-  }
+  input: ObjectFeedInput
 ): Promise<NotificationDraft[]> {
   const [competition, actor, targets] = await Promise.all([
     ctx.db.get("competitions", competitionId),
     getActor(ctx, input.actorId),
-    competitionFeedTargets(ctx, competitionId),
+    competitionFeedTargets(ctx, competitionId, input.includeChannel ?? true),
   ])
   if (competition === null) return []
   const url = competitionUrl(competitionId)
-  return targets.map((target) =>
+  return [...targets, ...(input.extraTargets ?? [])].map((target) =>
     competitionDraftShell({
       competition,
       actor,
@@ -879,24 +887,20 @@ async function buildCompetitionFeedDrafts(
 async function buildProjectFeedDrafts(
   ctx: ReadCtx,
   projectId: Id<"projects">,
-  input: {
-    fallbackText: string
-    title?: string
-    fields: NonNullable<NotificationDraft["embeds"][number]["fields"]>
-    actorId: Id<"users"> | null
-    color?: number
-    description?: string
-    buttons?: NotificationDraft["buttons"]
-  }
+  input: ObjectFeedInput
 ): Promise<NotificationDraft[]> {
   const [project, actor] = await Promise.all([
     ctx.db.get("projects", projectId),
     getActor(ctx, input.actorId),
   ])
   if (project === null) return []
-  const targets = await projectFeedTargets(ctx, project)
+  const targets = await projectFeedTargets(
+    ctx,
+    project,
+    input.includeChannel ?? true
+  )
   const url = projectUrl(projectId)
-  return targets.map((target) =>
+  return [...targets, ...(input.extraTargets ?? [])].map((target) =>
     projectDraftShell({
       project,
       actor,
@@ -920,6 +924,8 @@ interface ObjectFeedInput {
   color?: number
   description?: string
   buttons?: NotificationDraft["buttons"]
+  includeChannel?: boolean
+  extraTargets?: NotificationTarget[]
 }
 
 async function buildObjectFeedDrafts(
@@ -1058,6 +1064,46 @@ async function buildSponsorSetDrafts(
   })
 }
 
+async function buildCommentDrafts(
+  ctx: ReadCtx,
+  event: Extract<NotificationEvent, { kind: "commentAdded" }>
+): Promise<NotificationDraft[]> {
+  const [actor, mentionNames] = await Promise.all([
+    getActor(ctx, event.actorId),
+    resolveBodyMentions(ctx, event.body),
+  ])
+  const readableMentionIds = new Set(event.mentionedUserIds)
+  const preview =
+    truncateDiscordPreview(
+      renderMentionText(event.body, mentionNames, (id) =>
+        readableMentionIds.has(id)
+      )
+    ) || "A new comment was posted."
+  const fields = [embedField(":speech_balloon:", "New Comment", preview)]
+  const extraTargets: NotificationTarget[] = event.mentionedUserIds.map(
+    (userId) => ({ kind: "user", userId })
+  )
+
+  if (event.target.type === "tasks") {
+    const task = await ctx.db.get("tasks", event.target.id)
+    if (task === null) return []
+    return await taskWatcherDrafts(ctx, task, actor, {
+      fallbackText: `New comment: ${task.name}`,
+      fields,
+      extraTargets,
+    })
+  }
+
+  const { name } = await getScopedObjectName(ctx, event.target)
+  return await buildObjectFeedDrafts(ctx, event.target, {
+    fallbackText: `New comment: ${name}`,
+    actorId: event.actorId,
+    fields,
+    includeChannel: false,
+    extraTargets,
+  })
+}
+
 async function buildEventDrafts(
   ctx: ReadCtx,
   event: NotificationEvent
@@ -1106,6 +1152,8 @@ async function buildEventDrafts(
       return await buildProjectWorkflowAttentionDrafts(ctx, event)
     case "sponsorSet":
       return await buildSponsorSetDrafts(ctx, event)
+    case "commentAdded":
+      return await buildCommentDrafts(ctx, event)
   }
 }
 

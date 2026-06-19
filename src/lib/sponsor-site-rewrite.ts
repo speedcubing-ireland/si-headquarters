@@ -4,14 +4,6 @@ import {
   mapBrowserPathToInternal,
 } from "@/lib/sponsor-site"
 
-/**
- * TanStack Router rewrite for the sponsor portal origin.
- *
- * @see https://tanstack.com/router/latest/docs/guide/url-rewrites
- *
- * Internal route paths stay under `/sponsor/*` (file-based routes unchanged).
- * Browser URLs on the sponsor site use root paths (`/login`, `/auctions`, …).
- */
 export function createSponsorSiteRewrite(): LocationRewrite {
   return {
     input: ({ url }) => {

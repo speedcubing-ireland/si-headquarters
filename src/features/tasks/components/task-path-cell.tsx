@@ -87,7 +87,6 @@ export function TaskPathCell({ row }: { row: TaskInlineRow }) {
     [pathInput]
   )
 
-  // width must be a dependency — ResizeObserver updates it on sidebar/resize
   const layout = useMemo(
     () =>
       selectTaskPathLayout(

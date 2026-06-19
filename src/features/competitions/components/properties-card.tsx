@@ -27,7 +27,6 @@ export function CompetitionPropertiesCard({
 
   const { competition: comp, phase } = properties
 
-  // To-do: Most of this is still placeholder
   return (
     <PageCard title="Properties" icon={<InfoIcon className="size-4" />}>
       <PageCardContent>

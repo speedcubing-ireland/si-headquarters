@@ -27,6 +27,14 @@ export const competitionOrProjectRef = v.union(
 
 export type CompetitionOrProjectRef = Infer<typeof competitionOrProjectRef>
 
+export const commentTargetRef = v.union(
+  objectRef("competitions"),
+  objectRef("projects"),
+  objectRef("tasks")
+)
+
+export type CommentTargetRef = Infer<typeof commentTargetRef>
+
 export function objectRefKey(ref: { type: string; id: string }) {
   return `${ref.type}:${ref.id}`
 }

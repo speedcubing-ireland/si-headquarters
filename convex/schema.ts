@@ -49,7 +49,8 @@ const schema = defineSchema(
       .index("email", ["email"])
       .index("phone", ["phone"])
       .index("by_discordUserId", ["discordUserId"])
-      .index("by_wcaUserId", ["wcaUserId"]),
+      .index("by_wcaUserId", ["wcaUserId"])
+      .searchIndex("search_name", { searchField: "name" }),
     teams: defineTable(teamsFields).index("by_name", ["name"]),
     teamMemberships: defineTable(teamMembershipFields)
       .index("by_userId", ["userId"])

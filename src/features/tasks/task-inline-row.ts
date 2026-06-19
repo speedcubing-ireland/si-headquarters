@@ -1,12 +1,10 @@
 import type { FunctionReturnType } from "convex/server"
 import type { api } from "@/convex/_generated/api"
 
-/** Row shape shared by subtask view sections and the all-tasks board. */
 export type TaskInlineRow = FunctionReturnType<
   typeof api.tasks.queries.getSubtaskView
 >["sections"][number]["rows"][number]
 
-/** Board row adds competition/phase context for list filters and grouping. */
 export type TaskBoardRow = FunctionReturnType<
   typeof api.tasks.board.listForBoard
 >[number]

@@ -1,6 +1,5 @@
 import { createContext, use, type ReactNode } from "react"
 
-/** Matches Tailwind viewport md (768px) — main column below this uses compact layouts. */
 export const MAIN_CONTAINER_MD_WIDTH = 768
 
 export interface MainContainerContextValue {

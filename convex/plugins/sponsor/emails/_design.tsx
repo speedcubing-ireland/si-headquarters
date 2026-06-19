@@ -15,7 +15,6 @@ import type { TailwindConfig } from "@react-email/components"
 import { pixelBasedPreset } from "@react-email/components"
 import type { ReactNode } from "react"
 
-/** Hex brand tokens aligned with the HQ app theme (light mode). */
 export const emailBrandTokens = {
   primary: "#2f9e64",
   primaryFg: "#fafffe",
@@ -138,7 +137,6 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
   )
 }
 
-/** All sponsorship email times use Ireland (Europe/Dublin), including DST. */
 export function formatEmailDateTime(timestamp: number): string {
   const date = new Date(timestamp)
   const formatted = date.toLocaleString("en-IE", {

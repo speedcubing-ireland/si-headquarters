@@ -1,6 +1,5 @@
 import type { Doc } from "@/convex/_generated/dataModel"
 
-/** Parse `YYYY-MM-DD` as local calendar date (no time). */
 export function parseLocalDate(isoDate: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
   if (!match) return null
@@ -37,7 +36,6 @@ export function todayIsoDate(): string {
   return formatLocalDate(new Date())
 }
 
-/** Add calendar days to a `YYYY-MM-DD` string (UTC calendar math). */
 export function addIsoDays(isoDate: string, offsetDays: number): string {
   const [year, month, day] = isoDate.split("-").map(Number)
   const date = new Date(Date.UTC(year, month - 1, day + offsetDays))

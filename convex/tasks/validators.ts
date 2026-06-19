@@ -12,7 +12,6 @@ export const assigneesType = v.union(
   v.array(v.id("users"))
 )
 
-// Ultimately we will allow personal tasks, but through a special type of parent
 export const taskParentRef = v.union(objectRef("phases"), objectRef("tasks"))
 
 export type TaskParentRef = Infer<typeof taskParentRef>

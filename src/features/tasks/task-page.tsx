@@ -7,6 +7,7 @@ import { TaskDetailsCard } from "@/features/tasks/components/task-details-card"
 import { TaskPendingReminders } from "@/features/tasks/components/task-reminders"
 import { TaskPropertiesCard } from "@/features/tasks/components/task-properties-card"
 import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
+import { CommentsCardContainer } from "@/features/comments/comments-card-container"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
@@ -56,6 +57,7 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
             ) : (
               <SubtaskView owner={{ type: "tasks", id: taskId }} />
             )}
+            <CommentsCardContainer target={{ type: "tasks", id: taskId }} />
           </div>
         )}
       </Page.EntityState>

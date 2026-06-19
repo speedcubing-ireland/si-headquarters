@@ -18,7 +18,7 @@ async function cancelScheduledIfPending(
   try {
     await ctx.scheduler.cancel(scheduledFunctionId)
   } catch {
-    // A reminder may already be executing by the time a user cancels or snoozes.
+    void 0
   }
 }
 
