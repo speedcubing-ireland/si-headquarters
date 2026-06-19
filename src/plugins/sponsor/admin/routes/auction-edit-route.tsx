@@ -13,7 +13,6 @@ import {
 import { SponsorInlineLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { AbilityRouteGuard } from "@/features/auth"
 import type { Id } from "@/convex/_generated/dataModel"
-import { isCompetitionSponsorManualOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { AuctionEditPanel } from "@/plugins/sponsor/admin/components/auction-edit-panel"
 import { AuctionPanelHistory } from "@/plugins/sponsor/admin/components/auction-panel-history"
 import { validateAuctionFormInputs } from "@/plugins/sponsor/admin/auction-editor-draft"
@@ -66,7 +65,6 @@ function AuctionEditContent({
   const { busyCompetitionId, onRevertCompetitionSponsorOverride } =
     useCompetitionOverrideRevert()
 
-  const [isEditFrameworkUnlocked, setIsEditFrameworkUnlocked] = useState(false)
   const [isSavingAuction, setIsSavingAuction] = useState(false)
 
   const activeSponsors = useMemo(
@@ -133,14 +131,6 @@ function AuctionEditContent({
     )
   }
 
-  const toggleEditSponsorInvite = (sponsorId: Id<"sponsors">) => {
-    updateDraft({
-      invitedSponsorIds: draft.invitedSponsorIds.includes(sponsorId)
-        ? draft.invitedSponsorIds.filter((id) => id !== sponsorId)
-        : [...draft.invitedSponsorIds, sponsorId],
-    })
-  }
-
   const onSaveAuctionChanges = async (event: SubmitEvent) => {
     event.preventDefault()
     if (
@@ -194,25 +184,8 @@ function AuctionEditContent({
           isSavingAuction={isSavingAuction}
           busyAuctionId={lifecycle.busyAuctionId}
           refreshingAuctionId={lifecycle.refreshingAuctionId}
-          editFramework={draft.framework}
-          setEditFramework={(value) => {
-            updateDraft({ framework: value })
-          }}
-          isEditFrameworkUnlocked={isEditFrameworkUnlocked}
-          setIsEditFrameworkUnlocked={setIsEditFrameworkUnlocked}
-          editStartsAtInput={draft.startsAtInput}
-          setEditStartsAtInput={(value) => {
-            updateDraft({ startsAtInput: value })
-          }}
-          editEndsAtInput={draft.endsAtInput}
-          setEditEndsAtInput={(value) => {
-            updateDraft({ endsAtInput: value })
-          }}
-          editStartPriceEuros={draft.startPriceEuros}
-          setEditStartPriceEuros={(value) => {
-            updateDraft({ startPriceEuros: value })
-          }}
-          editInvitedSponsorIds={draft.invitedSponsorIds}
+          draft={draft}
+          onDraftChange={updateDraft}
           activeSponsors={activeSponsors}
           hasPendingEditChanges={dirty}
           selectedOpenAuctionSponsorOutcomes={attachSponsorNames(
@@ -227,18 +200,13 @@ function AuctionEditContent({
             managerView.competitionSummarySource === "wca"
           }
           panelCompetition={panelCompetition}
-          panelCompetitionHasManualSponsorOverride={isCompetitionSponsorManualOverride(
-            panelCompetition
-          )}
           panelCompetitionManualSponsorName={
             panelCompetition?.manualSponsorId
-              ? (sponsorById.get(panelCompetition.manualSponsorId)?.name ??
-                "Sponsor")
+              ? sponsorById.get(panelCompetition.manualSponsorId)?.name
               : undefined
           }
           busyCompetitionId={busyCompetitionId}
           isLoadingManagerView={isLoadingManagerView}
-          toggleEditSponsorInvite={toggleEditSponsorInvite}
           onRevertCompetitionSponsorOverride={
             onRevertCompetitionSponsorOverride
           }

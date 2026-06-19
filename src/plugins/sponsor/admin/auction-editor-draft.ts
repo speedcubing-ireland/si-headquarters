@@ -2,10 +2,10 @@ import type { Id } from "@/convex/_generated/dataModel"
 import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
   centsToEuroInput,
+  hasSameIdSet,
   parseDatetimeLocalInput,
   toDatetimeLocalInput,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
-import { hasPendingAuctionEdits } from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
 
 export interface AuctionEditorDraft {
   framework: SponsorshipAuctionFramework
@@ -41,15 +41,18 @@ export function isAuctionDraftDirty(
   draft: AuctionEditorDraft,
   snapshot: EditableAuctionSnapshot
 ): boolean {
-  return hasPendingAuctionEdits({
-    editFramework: draft.framework,
-    editStartsAtInput: draft.startsAtInput,
-    editEndsAtInput: draft.endsAtInput,
-    editStartPriceEuros: draft.startPriceEuros,
-    editInvitedSponsorIds: draft.invitedSponsorIds,
-    auction: snapshot.auction,
-    inviteSponsorIds: snapshot.inviteSponsorIds,
-  })
+  const startPrice = Number(draft.startPriceEuros)
+  const startPriceCents = Number.isFinite(startPrice)
+    ? Math.round(startPrice * 100)
+    : null
+  return (
+    draft.framework !== snapshot.auction.framework ||
+    parseDatetimeLocalInput(draft.startsAtInput) !==
+      snapshot.auction.startsAt ||
+    parseDatetimeLocalInput(draft.endsAtInput) !== snapshot.auction.endsAt ||
+    startPriceCents !== snapshot.auction.startPriceCents ||
+    !hasSameIdSet(draft.invitedSponsorIds, snapshot.inviteSponsorIds)
+  )
 }
 
 export interface ValidatedAuctionForm {

@@ -1,4 +1,3 @@
-
 export type BidAmountParse =
   | { status: "ok"; cents: number }
   | { status: "empty" }

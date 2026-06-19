@@ -1,20 +1,10 @@
-import { AlertTriangle, Lock, LockOpen, RefreshCw, Trash2 } from "lucide-react"
+import { RefreshCw, Trash2 } from "lucide-react"
 import { STAT_CARD_EMPHASIS_CLASS } from "@/lib/theme-constants"
 import { SponsorInlineLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Card,
   CardContent,
@@ -22,8 +12,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import type { Dispatch, SetStateAction, SubmitEvent } from "react"
+import type { SubmitEvent } from "react"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
+import { AuctionFormFields } from "@/plugins/sponsor/admin/components/auction-form-fields"
+import { CompetitionOverrideAlert } from "@/plugins/sponsor/admin/components/competition-override-alert"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { SponsorBidOutcomeDisplay } from "@/plugins/sponsor/admin/types"
 import type {
@@ -32,15 +24,10 @@ import type {
   ManagerSponsor,
   ManagerView,
 } from "@/plugins/sponsor/admin/manager-types"
+import type { AuctionEditorDraft } from "@/plugins/sponsor/admin/auction-editor-draft"
 import { formatDateTime } from "@/lib/format/irish-dates"
+import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
-  SPONSORSHIP_AUCTION_FRAMEWORKS,
-  auctionFrameworkLabel,
-  type SponsorshipAuctionFramework,
-} from "@/convex/plugins/sponsor/lib/types"
-import {
-  competitionPropertyStatusLabel,
-  isSponsorshipFramework,
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
@@ -60,17 +47,8 @@ export function AuctionEditPanel({
   isSavingAuction,
   busyAuctionId,
   refreshingAuctionId,
-  editFramework,
-  setEditFramework,
-  isEditFrameworkUnlocked,
-  setIsEditFrameworkUnlocked,
-  editStartsAtInput,
-  setEditStartsAtInput,
-  editEndsAtInput,
-  setEditEndsAtInput,
-  editStartPriceEuros,
-  setEditStartPriceEuros,
-  editInvitedSponsorIds,
+  draft,
+  onDraftChange,
   activeSponsors,
   hasPendingEditChanges,
   selectedOpenAuctionSponsorOutcomes,
@@ -78,11 +56,9 @@ export function AuctionEditPanel({
   selectedAuctionCompetitionSummaryFetchedAt,
   isSelectedAuctionCompetitionSummaryReady,
   panelCompetition,
-  panelCompetitionHasManualSponsorOverride,
   panelCompetitionManualSponsorName,
   busyCompetitionId,
   isLoadingManagerView,
-  toggleEditSponsorInvite,
   onRevertCompetitionSponsorOverride,
   onSaveAuctionChanges,
   onRefreshAuctionCompetitionData,
@@ -95,17 +71,8 @@ export function AuctionEditPanel({
   isSavingAuction: boolean
   busyAuctionId: Id<"sponsorshipAuctions"> | null
   refreshingAuctionId: Id<"sponsorshipAuctions"> | null
-  editFramework: SponsorshipAuctionFramework
-  setEditFramework: (value: SponsorshipAuctionFramework) => void
-  isEditFrameworkUnlocked: boolean
-  setIsEditFrameworkUnlocked: Dispatch<SetStateAction<boolean>>
-  editStartsAtInput: string
-  setEditStartsAtInput: (value: string) => void
-  editEndsAtInput: string
-  setEditEndsAtInput: (value: string) => void
-  editStartPriceEuros: string
-  setEditStartPriceEuros: (value: string) => void
-  editInvitedSponsorIds: Id<"sponsors">[]
+  draft: AuctionEditorDraft
+  onDraftChange: (patch: Partial<AuctionEditorDraft>) => void
   activeSponsors: ManagerSponsor[]
   hasPendingEditChanges: boolean
   selectedOpenAuctionSponsorOutcomes: SponsorBidOutcomeDisplay[]
@@ -113,11 +80,9 @@ export function AuctionEditPanel({
   selectedAuctionCompetitionSummaryFetchedAt: ManagerView["competitionSummaryFetchedAt"]
   isSelectedAuctionCompetitionSummaryReady: boolean
   panelCompetition: ManagerCompetition | null
-  panelCompetitionHasManualSponsorOverride: boolean
   panelCompetitionManualSponsorName: string | undefined
   busyCompetitionId: Id<"competitions"> | null
   isLoadingManagerView: boolean
-  toggleEditSponsorInvite: (sponsorId: Id<"sponsors">) => void
   onRevertCompetitionSponsorOverride: (
     competitionId: Id<"competitions">
   ) => Promise<void>
@@ -238,32 +203,15 @@ export function AuctionEditPanel({
         </CardContent>
       </Card>
 
-      {panelCompetition && panelCompetitionHasManualSponsorOverride ? (
-        <Alert>
-          <AlertTriangle className="size-4" />
-          <AlertTitle>Manual sponsor override active</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <p>
-              Override:{" "}
-              {panelCompetition.manualSponsorId
-                ? (panelCompetitionManualSponsorName ?? "Sponsor")
-                : competitionPropertyStatusLabel(
-                    panelCompetition.manualSponsorPropertyStatus ?? "none"
-                  )}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={busyCompetitionId === panelCompetition.id}
-              onClick={() =>
-                void onRevertCompetitionSponsorOverride(panelCompetition.id)
-              }
-            >
-              Revert override
-            </Button>
-          </AlertDescription>
-        </Alert>
+      {panelCompetition ? (
+        <CompetitionOverrideAlert
+          competition={panelCompetition}
+          manualSponsorName={panelCompetitionManualSponsorName}
+          busy={busyCompetitionId === panelCompetition.id}
+          onRevert={(competitionId) =>
+            void onRevertCompetitionSponsorOverride(competitionId)
+          }
+        />
       ) : null}
 
       <Card>
@@ -278,112 +226,11 @@ export function AuctionEditPanel({
             className="space-y-3"
             onSubmit={(event) => void onSaveAuctionChanges(event)}
           >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">Auction type</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-7"
-                  onClick={() => {
-                    setIsEditFrameworkUnlocked((current) => !current)
-                  }}
-                >
-                  {isEditFrameworkUnlocked ? (
-                    <LockOpen className="size-3.5" />
-                  ) : (
-                    <Lock className="size-3.5" />
-                  )}
-                  <span className="sr-only">
-                    {isEditFrameworkUnlocked
-                      ? "Lock auction type"
-                      : "Unlock auction type"}
-                  </span>
-                </Button>
-              </div>
-              <Select
-                value={editFramework}
-                onValueChange={(value) => {
-                  if (!isSponsorshipFramework(value)) return
-                  setEditFramework(value)
-                }}
-                disabled={!isEditFrameworkUnlocked}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select auction type">
-                    {auctionFrameworkLabel(editFramework)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {SPONSORSHIP_AUCTION_FRAMEWORKS.map((framework) => (
-                    <SelectItem key={framework} value={framework}>
-                      {auctionFrameworkLabel(framework)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-3 @md/main:grid-cols-2">
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Starts at</p>
-                <Input
-                  type="datetime-local"
-                  value={editStartsAtInput}
-                  onChange={(event) => {
-                    setEditStartsAtInput(event.target.value)
-                  }}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Ends at</p>
-                <Input
-                  type="datetime-local"
-                  value={editEndsAtInput}
-                  onChange={(event) => {
-                    setEditEndsAtInput(event.target.value)
-                  }}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Start price (EUR)
-                </p>
-                <Input
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  value={editStartPriceEuros}
-                  onChange={(event) => {
-                    setEditStartPriceEuros(event.target.value)
-                  }}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Invited sponsors</p>
-              <div className="grid gap-2 @md/main:grid-cols-2">
-                {activeSponsors.map((sponsor) => (
-                  <div
-                    key={`edit-${sponsor.id}`}
-                    className="flex items-center gap-2 rounded border px-2 py-1.5"
-                  >
-                    <Checkbox
-                      checked={editInvitedSponsorIds.includes(sponsor.id)}
-                      onCheckedChange={() => {
-                        toggleEditSponsorInvite(sponsor.id)
-                      }}
-                    />
-                    <span className="text-sm">{sponsor.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <AuctionFormFields
+              draft={draft}
+              onDraftChange={onDraftChange}
+              activeSponsors={activeSponsors}
+            />
 
             <Button
               type="submit"

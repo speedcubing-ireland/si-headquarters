@@ -14,15 +14,14 @@ import { Separator } from "@/components/ui/separator"
 import { AbilityRouteGuard } from "@/features/auth"
 import { cn } from "@/lib/utils"
 import type { Id } from "@/convex/_generated/dataModel"
-import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import { AuctionCreateForm } from "@/plugins/sponsor/admin/components/auction-create-form"
 import { AuctionPanelHistory } from "@/plugins/sponsor/admin/components/auction-panel-history"
 import { validateAuctionFormInputs } from "@/plugins/sponsor/admin/auction-editor-draft"
 import { groupUnsponsoredCompetitionsByPhase } from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
+import { useAuctionCreateDraft } from "@/plugins/sponsor/admin/hooks/use-auction-create-draft"
 import { useAuctionLifecycleActions } from "@/plugins/sponsor/admin/hooks/use-auction-lifecycle-actions"
 import { useCompetitionOverrideRevert } from "@/plugins/sponsor/admin/hooks/use-competition-override-revert"
 import { useSponsorshipEditorNavigation } from "@/plugins/sponsor/admin/use-sponsorship-admin-search"
-import { toDatetimeLocalInput } from "@/plugins/sponsor/lib/sponsorship-ui"
 import {
   useSponsors,
   useSponsorshipAuctionMutations,
@@ -56,25 +55,13 @@ function AuctionCreateContent() {
 
   const [createCompetitionIdSelection, setCreateCompetitionIdSelection] =
     useState<Id<"competitions"> | null>(null)
-  const [createStartsAtInput, setCreateStartsAtInput] = useState(() =>
-    toDatetimeLocalInput(new Date(Date.now() + 60 * 60 * 1000))
-  )
-  const [createEndsAtInput, setCreateEndsAtInput] = useState(() =>
-    toDatetimeLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000))
-  )
-  const [createFramework, setCreateFramework] =
-    useState<SponsorshipAuctionFramework>("first_sealed")
-  const [isCreateFrameworkUnlocked, setIsCreateFrameworkUnlocked] =
-    useState(false)
-  const [createStartPriceEuros, setCreateStartPriceEuros] = useState("100")
-  const [createInvitedSponsorIdsOverride, setCreateInvitedSponsorIdsOverride] =
-    useState<Id<"sponsors">[] | null>(null)
   const [isCreatingAuction, setIsCreatingAuction] = useState(false)
 
   const activeSponsors = useMemo(
     () => sponsors.filter((sponsor) => sponsor.active),
     [sponsors]
   )
+  const { draft, onDraftChange } = useAuctionCreateDraft(activeSponsors)
   const sponsorById = useMemo(
     () => new Map(sponsors.map((sponsor) => [sponsor.id, sponsor])),
     [sponsors]
@@ -114,12 +101,6 @@ function AuctionCreateContent() {
 
   const createCompetitionId =
     createCompetitionIdSelection ?? defaultCreateCompetitionId
-  const defaultCreateInvitedSponsorIds = useMemo(
-    () => activeSponsors.map((sponsor) => sponsor.id),
-    [activeSponsors]
-  )
-  const createInvitedSponsorIds =
-    createInvitedSponsorIdsOverride ?? defaultCreateInvitedSponsorIds
   const selectedCompetition =
     createCompetitionId === null
       ? null
@@ -137,28 +118,13 @@ function AuctionCreateContent() {
       .slice(0, 5)
   }, [auctions, createCompetitionId])
 
-  const toggleCreateSponsorInvite = (sponsorId: Id<"sponsors">) => {
-    setCreateInvitedSponsorIdsOverride((current) => {
-      const base = current ?? defaultCreateInvitedSponsorIds
-      return base.includes(sponsorId)
-        ? base.filter((id) => id !== sponsorId)
-        : [...base, sponsorId]
-    })
-  }
-
   const onCreateAuction = async (event: SubmitEvent) => {
     event.preventDefault()
     if (createCompetitionId === null) {
       toast.error("Select a competition first.")
       return
     }
-    const validation = validateAuctionFormInputs({
-      framework: createFramework,
-      startsAtInput: createStartsAtInput,
-      endsAtInput: createEndsAtInput,
-      startPriceEuros: createStartPriceEuros,
-      invitedSponsorIds: createInvitedSponsorIds,
-    })
+    const validation = validateAuctionFormInputs(draft)
     if (!validation.ok) {
       toast.error(validation.error)
       return
@@ -168,7 +134,7 @@ function AuctionCreateContent() {
     try {
       const auctionId = await createAuction({
         competitionId: createCompetitionId,
-        framework: createFramework,
+        framework: draft.framework,
         ...validation.values,
       })
       toast.success("Auction draft created.")
@@ -207,26 +173,16 @@ function AuctionCreateContent() {
         <CardContent className="space-y-4">
           <AuctionCreateForm
             isCreatingAuction={isCreatingAuction}
-            createCompetitionId={createCompetitionId}
-            createStartsAtInput={createStartsAtInput}
-            setCreateStartsAtInput={setCreateStartsAtInput}
-            createEndsAtInput={createEndsAtInput}
-            setCreateEndsAtInput={setCreateEndsAtInput}
-            createFramework={createFramework}
-            setCreateFramework={setCreateFramework}
-            isCreateFrameworkUnlocked={isCreateFrameworkUnlocked}
-            setIsCreateFrameworkUnlocked={setIsCreateFrameworkUnlocked}
-            createStartPriceEuros={createStartPriceEuros}
-            setCreateStartPriceEuros={setCreateStartPriceEuros}
-            createInvitedSponsorIds={createInvitedSponsorIds}
+            draft={draft}
+            onDraftChange={onDraftChange}
             activeSponsors={activeSponsors}
+            createCompetitionId={createCompetitionId}
             unsponsoredCompetitionsByPhase={unsponsoredCompetitionsByPhase}
             sponsoredCompetitions={sponsoredCompetitions}
             competitionIdByString={competitionIdByString}
             selectedCompetition={selectedCompetition}
             busyCompetitionId={busyCompetitionId}
             onCreateAuction={onCreateAuction}
-            toggleCreateSponsorInvite={toggleCreateSponsorInvite}
             setCreateCompetitionIdSelection={setCreateCompetitionIdSelection}
             onRevertCompetitionSponsorOverride={
               onRevertCompetitionSponsorOverride

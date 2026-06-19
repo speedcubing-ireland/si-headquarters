@@ -101,6 +101,7 @@ async function cancelScheduledIfPending(
   try {
     await ctx.scheduler.cancel(id)
   } catch {
+    void 0
   }
 }
 

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest"
 import type { Id } from "@/convex/_generated/dataModel"
-import { parseDatetimeLocalInput } from "@/plugins/sponsor/lib/sponsorship-ui"
 import {
   attachSponsorNames,
   filterAuctionsBySearch,
   groupUnsponsoredCompetitionsByPhase,
-  hasPendingAuctionEdits,
 } from "./sponsorship-admin-derivations"
 
 const auction = (competitionName: string, competitionPhaseName: string) => ({
@@ -73,43 +71,5 @@ describe("attachSponsorNames", () => {
       (id) => (id === ("s1" as Id<"sponsors">) ? "Acme" : "Unknown sponsor")
     )
     expect(result).toEqual([{ sponsorId: "s1", sponsorName: "Acme" }])
-  })
-})
-
-describe("hasPendingAuctionEdits", () => {
-  const startsAtInput = "2026-01-01T10:00"
-  const endsAtInput = "2026-01-01T12:00"
-  const auctionDoc = {
-    framework: "ebay_proxy" as const,
-    startsAt: parseDatetimeLocalInput(startsAtInput) ?? 0,
-    endsAt: parseDatetimeLocalInput(endsAtInput) ?? 0,
-    startPriceCents: 10_000,
-  }
-  const inviteSponsorIds = ["s1" as Id<"sponsors">]
-
-  const unchanged = {
-    editFramework: "ebay_proxy" as const,
-    editStartsAtInput: startsAtInput,
-    editEndsAtInput: endsAtInput,
-    editStartPriceEuros: "100",
-    editInvitedSponsorIds: inviteSponsorIds,
-    auction: auctionDoc,
-    inviteSponsorIds,
-  }
-
-  it("is false when nothing changed", () => {
-    expect(hasPendingAuctionEdits(unchanged)).toBe(false)
-  })
-
-  it("detects framework, price, and invite changes", () => {
-    expect(
-      hasPendingAuctionEdits({ ...unchanged, editFramework: "first_sealed" })
-    ).toBe(true)
-    expect(
-      hasPendingAuctionEdits({ ...unchanged, editStartPriceEuros: "150" })
-    ).toBe(true)
-    expect(
-      hasPendingAuctionEdits({ ...unchanged, editInvitedSponsorIds: [] })
-    ).toBe(true)
   })
 })

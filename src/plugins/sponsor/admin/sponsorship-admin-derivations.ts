@@ -1,10 +1,5 @@
 import type { Id } from "@/convex/_generated/dataModel"
-import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
-import {
-  hasSameIdSet,
-  normalizeSearchText,
-  parseDatetimeLocalInput,
-} from "@/plugins/sponsor/lib/sponsorship-ui"
+import { normalizeSearchText } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function filterAuctionsBySearch<
   T extends { competitionName: string; competitionPhaseName: string },
@@ -48,32 +43,4 @@ export function attachSponsorNames<T extends { sponsorId: Id<"sponsors"> }>(
     ...outcome,
     sponsorName: resolveSponsorName(outcome.sponsorId),
   }))
-}
-
-export function hasPendingAuctionEdits(input: {
-  editFramework: SponsorshipAuctionFramework
-  editStartsAtInput: string
-  editEndsAtInput: string
-  editStartPriceEuros: string
-  editInvitedSponsorIds: Id<"sponsors">[]
-  auction: {
-    framework: SponsorshipAuctionFramework
-    startsAt: number
-    endsAt: number
-    startPriceCents: number
-  }
-  inviteSponsorIds: Id<"sponsors">[]
-}): boolean {
-  const startPrice = Number(input.editStartPriceEuros)
-  const startPriceCents = Number.isFinite(startPrice)
-    ? Math.round(startPrice * 100)
-    : null
-  return (
-    input.editFramework !== input.auction.framework ||
-    parseDatetimeLocalInput(input.editStartsAtInput) !==
-      input.auction.startsAt ||
-    parseDatetimeLocalInput(input.editEndsAtInput) !== input.auction.endsAt ||
-    startPriceCents !== input.auction.startPriceCents ||
-    !hasSameIdSet(input.editInvitedSponsorIds, input.inviteSponsorIds)
-  )
 }
