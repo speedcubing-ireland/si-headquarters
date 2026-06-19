@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react"
 import { useMemo, useState, type SubmitEvent } from "react"
 import { toast } from "sonner"
-import { Page, PAGE_CONTENT_PADDING } from "@/components/layout/page"
+import { Page, PAGE_CONTENT_PADDING_SCROLL } from "@/components/layout/page"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -10,10 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { SponsorInlineLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { AbilityRouteGuard } from "@/features/auth"
-import { cn } from "@/lib/utils"
 import type { Id } from "@/convex/_generated/dataModel"
 import { isCompetitionSponsorManualOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { AuctionEditPanel } from "@/plugins/sponsor/admin/components/auction-edit-panel"
@@ -117,7 +115,7 @@ function AuctionEditContent({
     return (
       <Page.Shell
         title="Edit Sponsorship Auction"
-        contentClassName={cn(PAGE_CONTENT_PADDING, "flex flex-col gap-4")}
+        contentClassName={PAGE_CONTENT_PADDING_SCROLL}
       >
         <Button
           variant="ghost"
@@ -178,96 +176,97 @@ function AuctionEditContent({
   return (
     <Page.Shell
       title="Edit Sponsorship Auction"
-      contentClassName={cn(PAGE_CONTENT_PADDING, "flex flex-col gap-4")}
+      contentClassName={PAGE_CONTENT_PADDING_SCROLL}
     >
-      <Button
-        variant="ghost"
-        size="sm"
-        className="self-start"
-        onClick={backToList}
-      >
-        <ArrowLeft className="size-4" />
-        Back to auctions
-      </Button>
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit Sponsorship Auction</CardTitle>
-          <CardDescription>
-            Manage selected auction lifecycle and invites.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <AuctionEditPanel
-            selectedAuction={selectedAuction}
-            managerView={managerView}
-            isSavingAuction={isSavingAuction}
-            busyAuctionId={lifecycle.busyAuctionId}
-            refreshingAuctionId={lifecycle.refreshingAuctionId}
-            editFramework={draft.framework}
-            setEditFramework={(value) => {
-              updateDraft({ framework: value })
-            }}
-            isEditFrameworkUnlocked={isEditFrameworkUnlocked}
-            setIsEditFrameworkUnlocked={setIsEditFrameworkUnlocked}
-            editStartsAtInput={draft.startsAtInput}
-            setEditStartsAtInput={(value) => {
-              updateDraft({ startsAtInput: value })
-            }}
-            editEndsAtInput={draft.endsAtInput}
-            setEditEndsAtInput={(value) => {
-              updateDraft({ endsAtInput: value })
-            }}
-            editStartPriceEuros={draft.startPriceEuros}
-            setEditStartPriceEuros={(value) => {
-              updateDraft({ startPriceEuros: value })
-            }}
-            editInvitedSponsorIds={draft.invitedSponsorIds}
-            activeSponsors={activeSponsors}
-            hasPendingEditChanges={dirty}
-            selectedOpenAuctionSponsorOutcomes={attachSponsorNames(
-              managerView.sponsorOutcomes,
-              resolveSponsorName
-            )}
-            selectedAuctionCompetitionSummary={managerView.competitionSummary}
-            selectedAuctionCompetitionSummaryFetchedAt={
-              managerView.competitionSummaryFetchedAt
-            }
-            isSelectedAuctionCompetitionSummaryReady={
-              managerView.competitionSummarySource === "wca"
-            }
-            panelCompetition={panelCompetition}
-            panelCompetitionHasManualSponsorOverride={isCompetitionSponsorManualOverride(
-              panelCompetition
-            )}
-            panelCompetitionManualSponsorName={
-              panelCompetition?.manualSponsorId
-                ? (sponsorById.get(panelCompetition.manualSponsorId)?.name ??
-                  "Sponsor")
-                : undefined
-            }
-            busyCompetitionId={busyCompetitionId}
-            isLoadingManagerView={isLoadingManagerView}
-            toggleEditSponsorInvite={toggleEditSponsorInvite}
-            onRevertCompetitionSponsorOverride={
-              onRevertCompetitionSponsorOverride
-            }
-            onSaveAuctionChanges={onSaveAuctionChanges}
-            onRefreshAuctionCompetitionData={(id) =>
-              lifecycle.onRefreshAuctionCompetitionData(id)
-            }
-            onStartAuction={(id) => lifecycle.onStartAuction(id, dirty)}
-            onCloseAuction={(id) => lifecycle.onCloseAuction(id, dirty)}
-            onDeleteBeforeOpen={(id) => lifecycle.onDeleteBeforeOpen(id)}
-          />
-          <Separator />
-          <AuctionPanelHistory
-            panelCompetitionId={panelCompetition?.id ?? null}
-            previousClosedAuctions={previousClosedAuctionsForPanel}
-            sponsorById={sponsorById}
-            onViewClosedAuction={viewClosedAuction}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={backToList}
+        >
+          <ArrowLeft className="size-4" />
+          Back to auctions
+        </Button>
+        <AuctionEditPanel
+          selectedAuction={selectedAuction}
+          managerView={managerView}
+          isSavingAuction={isSavingAuction}
+          busyAuctionId={lifecycle.busyAuctionId}
+          refreshingAuctionId={lifecycle.refreshingAuctionId}
+          editFramework={draft.framework}
+          setEditFramework={(value) => {
+            updateDraft({ framework: value })
+          }}
+          isEditFrameworkUnlocked={isEditFrameworkUnlocked}
+          setIsEditFrameworkUnlocked={setIsEditFrameworkUnlocked}
+          editStartsAtInput={draft.startsAtInput}
+          setEditStartsAtInput={(value) => {
+            updateDraft({ startsAtInput: value })
+          }}
+          editEndsAtInput={draft.endsAtInput}
+          setEditEndsAtInput={(value) => {
+            updateDraft({ endsAtInput: value })
+          }}
+          editStartPriceEuros={draft.startPriceEuros}
+          setEditStartPriceEuros={(value) => {
+            updateDraft({ startPriceEuros: value })
+          }}
+          editInvitedSponsorIds={draft.invitedSponsorIds}
+          activeSponsors={activeSponsors}
+          hasPendingEditChanges={dirty}
+          selectedOpenAuctionSponsorOutcomes={attachSponsorNames(
+            managerView.sponsorOutcomes,
+            resolveSponsorName
+          )}
+          selectedAuctionCompetitionSummary={managerView.competitionSummary}
+          selectedAuctionCompetitionSummaryFetchedAt={
+            managerView.competitionSummaryFetchedAt
+          }
+          isSelectedAuctionCompetitionSummaryReady={
+            managerView.competitionSummarySource === "wca"
+          }
+          panelCompetition={panelCompetition}
+          panelCompetitionHasManualSponsorOverride={isCompetitionSponsorManualOverride(
+            panelCompetition
+          )}
+          panelCompetitionManualSponsorName={
+            panelCompetition?.manualSponsorId
+              ? (sponsorById.get(panelCompetition.manualSponsorId)?.name ??
+                "Sponsor")
+              : undefined
+          }
+          busyCompetitionId={busyCompetitionId}
+          isLoadingManagerView={isLoadingManagerView}
+          toggleEditSponsorInvite={toggleEditSponsorInvite}
+          onRevertCompetitionSponsorOverride={
+            onRevertCompetitionSponsorOverride
+          }
+          onSaveAuctionChanges={onSaveAuctionChanges}
+          onRefreshAuctionCompetitionData={(id) =>
+            lifecycle.onRefreshAuctionCompetitionData(id)
+          }
+          onStartAuction={(id) => lifecycle.onStartAuction(id, dirty)}
+          onCloseAuction={(id) => lifecycle.onCloseAuction(id, dirty)}
+          onDeleteBeforeOpen={(id) => lifecycle.onDeleteBeforeOpen(id)}
+        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Previous closed auctions</CardTitle>
+            <CardDescription>
+              Other closed auctions for this competition.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AuctionPanelHistory
+              panelCompetitionId={panelCompetition?.id ?? null}
+              previousClosedAuctions={previousClosedAuctionsForPanel}
+              sponsorById={sponsorById}
+              onViewClosedAuction={viewClosedAuction}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </Page.Shell>
   )
 }

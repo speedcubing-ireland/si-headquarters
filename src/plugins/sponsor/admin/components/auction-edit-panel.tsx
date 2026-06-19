@@ -15,7 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import type { Dispatch, SetStateAction, SubmitEvent } from "react"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -137,83 +143,101 @@ export function AuctionEditPanel({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1 rounded-md border p-3 text-sm">
-        <p className="font-medium">{selectedAuction.competitionName}</p>
-        <p className="text-xs text-muted-foreground">
-          {auctionFrameworkLabel(selectedAuction.framework)} ·{" "}
-          {selectedAuction.competitionPhaseName}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Badge variant={sponsorshipStateBadgeVariant(selectedAuction.state)}>
-            {sponsorshipStateLabel(selectedAuction.state)}
-          </Badge>
-          <Badge variant="outline">
-            Bid intents: {managerView.intentCount}
-          </Badge>
-          <Badge variant="outline">Bid events: {managerView.eventCount}</Badge>
-        </div>
-      </div>
-      <div
+      <Card>
+        <CardHeader>
+          <CardTitle>{selectedAuction.competitionName}</CardTitle>
+          <CardDescription>
+            {auctionFrameworkLabel(selectedAuction.framework)} ·{" "}
+            {selectedAuction.competitionPhaseName}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant={sponsorshipStateBadgeVariant(selectedAuction.state)}
+            >
+              {sponsorshipStateLabel(selectedAuction.state)}
+            </Badge>
+            <Badge variant="outline">
+              Bid intents: {managerView.intentCount}
+            </Badge>
+            <Badge variant="outline">
+              Bid events: {managerView.eventCount}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card
         className={cn(
-          "space-y-2 rounded-md border p-3 text-sm",
           !isSelectedAuctionCompetitionSummaryReady && STAT_CARD_EMPHASIS_CLASS
         )}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="space-y-1">
+              <CardTitle>Competition data</CardTitle>
+              <CardDescription>
+                WCA snapshot used for sponsor-facing auction details.
+              </CardDescription>
+            </div>
+            <Badge
+              variant={
+                isSelectedAuctionCompetitionSummaryReady
+                  ? "default"
+                  : "secondary"
+              }
+            >
+              {isSelectedAuctionCompetitionSummaryReady
+                ? "Synced from WCA"
+                : "Needs WCA sync"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {selectedAuctionCompetitionSummary ? (
+            <div className="space-y-1 text-sm">
+              <p className="font-medium">
+                {selectedAuctionCompetitionSummary.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Dates:{" "}
+                {formatCompetitionSummaryDateRange(
+                  selectedAuctionCompetitionSummary
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Competitor limit:{" "}
+                {selectedAuctionCompetitionSummary.competitorLimit !== undefined
+                  ? String(selectedAuctionCompetitionSummary.competitorLimit)
+                  : "Not set"}
+              </p>
+            </div>
+          ) : null}
           <p className="text-xs text-muted-foreground">
-            Competition data status
+            {selectedAuctionCompetitionSummaryFetchedAt !== undefined
+              ? `Last synced: ${formatDateTime(selectedAuctionCompetitionSummaryFetchedAt)}`
+              : "Last synced: not yet"}
           </p>
-          <Badge
-            variant={
-              isSelectedAuctionCompetitionSummaryReady ? "default" : "secondary"
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={refreshingAuctionId === selectedAuction.id}
+            onClick={() =>
+              void onRefreshAuctionCompetitionData(selectedAuction.id)
             }
           >
-            {isSelectedAuctionCompetitionSummaryReady
-              ? "Synced from WCA"
-              : "Needs WCA sync"}
-          </Badge>
-        </div>
-        {selectedAuctionCompetitionSummary ? (
-          <>
-            <p className="font-medium">
-              {selectedAuctionCompetitionSummary.name}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Dates:{" "}
-              {formatCompetitionSummaryDateRange(
-                selectedAuctionCompetitionSummary
-              )}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Competitor limit:{" "}
-              {selectedAuctionCompetitionSummary.competitorLimit !== undefined
-                ? String(selectedAuctionCompetitionSummary.competitorLimit)
-                : "Not set"}
-            </p>
-          </>
-        ) : null}
-        <p className="text-xs text-muted-foreground">
-          {selectedAuctionCompetitionSummaryFetchedAt !== undefined
-            ? `Last synced: ${formatDateTime(selectedAuctionCompetitionSummaryFetchedAt)}`
-            : "Last synced: not yet"}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={refreshingAuctionId === selectedAuction.id}
-          onClick={() =>
-            void onRefreshAuctionCompetitionData(selectedAuction.id)
-          }
-        >
-          {refreshingAuctionId === selectedAuction.id ? (
-            <Spinner />
-          ) : (
-            <RefreshCw className="size-4" />
-          )}
-          Refresh competition data
-        </Button>
-      </div>
+            {refreshingAuctionId === selectedAuction.id ? (
+              <Spinner />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            Refresh competition data
+          </Button>
+        </CardContent>
+      </Card>
+
       {panelCompetition && panelCompetitionHasManualSponsorOverride ? (
         <Alert>
           <AlertTriangle className="size-4" />
@@ -242,204 +266,226 @@ export function AuctionEditPanel({
         </Alert>
       ) : null}
 
-      <form
-        className="space-y-3"
-        onSubmit={(event) => void onSaveAuctionChanges(event)}
-      >
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">Auction type</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={() => {
-                setIsEditFrameworkUnlocked((current) => !current)
-              }}
-            >
-              {isEditFrameworkUnlocked ? (
-                <LockOpen className="size-3.5" />
-              ) : (
-                <Lock className="size-3.5" />
-              )}
-              <span className="sr-only">
-                {isEditFrameworkUnlocked
-                  ? "Lock auction type"
-                  : "Unlock auction type"}
-              </span>
-            </Button>
-          </div>
-          <Select
-            value={editFramework}
-            onValueChange={(value) => {
-              if (!isSponsorshipFramework(value)) return
-              setEditFramework(value)
-            }}
-            disabled={!isEditFrameworkUnlocked}
+      <Card>
+        <CardHeader>
+          <CardTitle>Auction settings</CardTitle>
+          <CardDescription>
+            Update schedule, pricing, and invited sponsors before bidding opens.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="space-y-3"
+            onSubmit={(event) => void onSaveAuctionChanges(event)}
           >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select auction type">
-                {auctionFrameworkLabel(editFramework)}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {SPONSORSHIP_AUCTION_FRAMEWORKS.map((framework) => (
-                <SelectItem key={framework} value={framework}>
-                  {auctionFrameworkLabel(framework)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-3 @md/main:grid-cols-2">
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Starts at</p>
-            <Input
-              type="datetime-local"
-              value={editStartsAtInput}
-              onChange={(event) => {
-                setEditStartsAtInput(event.target.value)
-              }}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Ends at</p>
-            <Input
-              type="datetime-local"
-              value={editEndsAtInput}
-              onChange={(event) => {
-                setEditEndsAtInput(event.target.value)
-              }}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Start price (EUR)</p>
-            <Input
-              type="number"
-              min="1"
-              step="0.01"
-              value={editStartPriceEuros}
-              onChange={(event) => {
-                setEditStartPriceEuros(event.target.value)
-              }}
-              required
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Invited sponsors</p>
-          <div className="grid gap-2 @md/main:grid-cols-2">
-            {activeSponsors.map((sponsor) => (
-              <div
-                key={`edit-${sponsor.id}`}
-                className="flex items-center gap-2 rounded border px-2 py-1.5"
-              >
-                <Checkbox
-                  checked={editInvitedSponsorIds.includes(sponsor.id)}
-                  onCheckedChange={() => {
-                    toggleEditSponsorInvite(sponsor.id)
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Auction type</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  onClick={() => {
+                    setIsEditFrameworkUnlocked((current) => !current)
                   }}
-                />
-                <span className="text-sm">{sponsor.name}</span>
+                >
+                  {isEditFrameworkUnlocked ? (
+                    <LockOpen className="size-3.5" />
+                  ) : (
+                    <Lock className="size-3.5" />
+                  )}
+                  <span className="sr-only">
+                    {isEditFrameworkUnlocked
+                      ? "Lock auction type"
+                      : "Unlock auction type"}
+                  </span>
+                </Button>
               </div>
-            ))}
-          </div>
-        </div>
+              <Select
+                value={editFramework}
+                onValueChange={(value) => {
+                  if (!isSponsorshipFramework(value)) return
+                  setEditFramework(value)
+                }}
+                disabled={!isEditFrameworkUnlocked}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select auction type">
+                    {auctionFrameworkLabel(editFramework)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {SPONSORSHIP_AUCTION_FRAMEWORKS.map((framework) => (
+                    <SelectItem key={framework} value={framework}>
+                      {auctionFrameworkLabel(framework)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={
-            isSavingAuction ||
-            selectedAuction.state === "active" ||
-            selectedAuction.state === "closed"
-          }
-        >
-          {isSavingAuction ? <Spinner /> : "Save changes"}
-        </Button>
-        {hasPendingEditChanges ? (
-          <p className="text-xs text-muted-foreground">
-            You have unsaved changes.
-          </p>
-        ) : null}
-      </form>
+            <div className="grid gap-3 @md/main:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Starts at</p>
+                <Input
+                  type="datetime-local"
+                  value={editStartsAtInput}
+                  onChange={(event) => {
+                    setEditStartsAtInput(event.target.value)
+                  }}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Ends at</p>
+                <Input
+                  type="datetime-local"
+                  value={editEndsAtInput}
+                  onChange={(event) => {
+                    setEditEndsAtInput(event.target.value)
+                  }}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Start price (EUR)
+                </p>
+                <Input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={editStartPriceEuros}
+                  onChange={(event) => {
+                    setEditStartPriceEuros(event.target.value)
+                  }}
+                  required
+                />
+              </div>
+            </div>
 
-      <div className="space-y-3 rounded-md border p-3">
-        <div>
-          <p className="text-sm font-medium">Lifecycle actions</p>
-          <p className="text-xs text-muted-foreground">
-            Save pending edits before starting or closing an auction.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {selectedAuction.state === "draft" ||
-          selectedAuction.state === "scheduled" ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Invited sponsors</p>
+              <div className="grid gap-2 @md/main:grid-cols-2">
+                {activeSponsors.map((sponsor) => (
+                  <div
+                    key={`edit-${sponsor.id}`}
+                    className="flex items-center gap-2 rounded border px-2 py-1.5"
+                  >
+                    <Checkbox
+                      checked={editInvitedSponsorIds.includes(sponsor.id)}
+                      onCheckedChange={() => {
+                        toggleEditSponsorInvite(sponsor.id)
+                      }}
+                    />
+                    <span className="text-sm">{sponsor.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <Button
-              size="sm"
-              disabled={
-                busyAuctionId === selectedAuction.id ||
-                hasPendingEditChanges ||
-                refreshingAuctionId === selectedAuction.id
-              }
-              onClick={() => void onStartAuction(selectedAuction.id)}
-            >
-              Start auction
-            </Button>
-          ) : null}
-          {selectedAuction.state !== "closed" ? (
-            <Button
-              size="sm"
+              type="submit"
               variant="outline"
               disabled={
-                busyAuctionId === selectedAuction.id || hasPendingEditChanges
+                isSavingAuction ||
+                selectedAuction.state === "active" ||
+                selectedAuction.state === "closed"
               }
-              onClick={() => void onCloseAuction(selectedAuction.id)}
             >
-              Close auction
+              {isSavingAuction ? <Spinner /> : "Save changes"}
             </Button>
-          ) : null}
-        </div>
-        {selectedAuction.state === "draft" ||
-        selectedAuction.state === "scheduled" ? (
-          <div className="border-t pt-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-destructive">
-                  Delete draft auction
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Only available before bidding opens.
-                </p>
-              </div>
+            {hasPendingEditChanges ? (
+              <p className="text-xs text-muted-foreground">
+                You have unsaved changes.
+              </p>
+            ) : null}
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lifecycle actions</CardTitle>
+          <CardDescription>
+            Save pending edits before starting or closing an auction.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {selectedAuction.state === "draft" ||
+            selectedAuction.state === "scheduled" ? (
               <Button
                 size="sm"
-                variant="destructive"
-                disabled={busyAuctionId === selectedAuction.id}
-                onClick={() => void onDeleteBeforeOpen(selectedAuction.id)}
+                disabled={
+                  busyAuctionId === selectedAuction.id ||
+                  hasPendingEditChanges ||
+                  refreshingAuctionId === selectedAuction.id
+                }
+                onClick={() => void onStartAuction(selectedAuction.id)}
               >
-                <Trash2 className="size-4" />
-                Delete before open
+                Start auction
               </Button>
-            </div>
+            ) : null}
+            {selectedAuction.state !== "closed" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={
+                  busyAuctionId === selectedAuction.id || hasPendingEditChanges
+                }
+                onClick={() => void onCloseAuction(selectedAuction.id)}
+              >
+                Close auction
+              </Button>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+          {selectedAuction.state === "draft" ||
+          selectedAuction.state === "scheduled" ? (
+            <div className="border-t pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-destructive">
+                    Delete draft auction
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Only available before bidding opens.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={busyAuctionId === selectedAuction.id}
+                  onClick={() => void onDeleteBeforeOpen(selectedAuction.id)}
+                >
+                  <Trash2 className="size-4" />
+                  Delete before open
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
       {selectedAuction.state !== "draft" &&
       selectedAuction.state !== "scheduled" ? (
-        <>
-          <Separator />
-          <AuctionBidStatusSection
-            intentCount={managerView.intentCount}
-            eventCount={managerView.eventCount}
-            outcomes={selectedOpenAuctionSponsorOutcomes}
-            flatBreakdown
-          />
-        </>
+        <Card>
+          <CardHeader>
+            <CardTitle>Bid status</CardTitle>
+            <CardDescription>
+              Sponsor outcomes for this auction.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AuctionBidStatusSection
+              intentCount={managerView.intentCount}
+              eventCount={managerView.eventCount}
+              outcomes={selectedOpenAuctionSponsorOutcomes}
+              flatBreakdown
+            />
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   )
