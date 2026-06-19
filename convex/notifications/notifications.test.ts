@@ -125,9 +125,16 @@ async function runDueScanToCompletion(
       )
       continue
     }
-    if (job.name.includes("_continueOverdueScan")) {
+    if (job.name.includes("_selectOverdueOwner")) {
       await t.mutation(
-        internal.notifications.due._continueOverdueScan,
+        internal.notifications.due._selectOverdueOwner,
+        args as never
+      )
+      continue
+    }
+    if (job.name.includes("_scanOverdueOwnerTasks")) {
+      await t.mutation(
+        internal.notifications.due._scanOverdueOwnerTasks,
         args as never
       )
       continue
@@ -546,7 +553,7 @@ describe("due notifications", () => {
 
     expect(
       scheduledAfterFirst.filter((entry) =>
-        entry.name.includes("due:_continueOverdueScan")
+        entry.name.includes("due:_selectOverdueOwner")
       )
     ).toHaveLength(1)
     expect(scheduledAfterSecond).toHaveLength(scheduledAfterFirst.length)
