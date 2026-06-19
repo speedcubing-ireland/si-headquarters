@@ -7,7 +7,7 @@ import type {
 import { objectRefKey } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { CassetteTapeIcon, CircleDotIcon, GitBranchIcon } from "lucide-react"
-import { useDeferredValue, useMemo, useState, type ComponentProps } from "react"
+import { useMemo, useState, type ComponentProps } from "react"
 import * as DataSelector from "./data-selector"
 import { useSingleDataSelector } from "./data-selector-model"
 import { Dot as PhaseDot } from "./phase-selector"
@@ -69,6 +69,18 @@ function sectionParentTargets(
 
   for (const task of section.tasks) {
     targets.push({ ...task, targetType: "tasks" })
+  }
+
+  return targets
+}
+
+function allPhaseTargets(sections: TaskCreationTargetSection[]): PhaseTarget[] {
+  const targets: PhaseTarget[] = []
+
+  for (const section of sections) {
+    if (section.phase !== null) {
+      targets.push({ ...section.phase, targetType: "phases" })
+    }
   }
 
   return targets
@@ -154,26 +166,41 @@ export function PropertyButton({
   variant,
 }: TaskParentSelectorProps) {
   const [open, setOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const deferredSearchQuery = useDeferredValue(searchQuery)
   const targets = useQuery(
     api.tasks.queries.listCreationTargets,
-    enabled
-      ? { scope, search: deferredSearchQuery, selectedParent: value }
-      : "skip"
+    enabled ? { scope, selectedParent: value } : "skip"
   )
-  const groups = useMemo<SelectorGroup<ParentTarget, TaskParentRef>[]>(
-    () =>
-      targets?.sections.map((section) => ({
+  const groups = useMemo<SelectorGroup<ParentTarget, TaskParentRef>[]>(() => {
+    const sections = targets?.sections
+    if (sections === undefined) return []
+
+    const phaseTargets = allPhaseTargets(sections)
+    const phasesGroup: SelectorGroup<ParentTarget, TaskParentRef>[] =
+      phaseTargets.length > 0
+        ? [
+            {
+              key: "__phases",
+              label: "Phases",
+              items: phaseTargets,
+              getLabel: getParentTargetLabel,
+              getValue: parentTargetValue,
+              renderItem: renderParentTarget,
+            },
+          ]
+        : []
+
+    return [
+      ...phasesGroup,
+      ...sections.map((section) => ({
         key: section.id,
         label: section.title,
         items: sectionParentTargets(section),
         getLabel: getParentTargetLabel,
         getValue: parentTargetValue,
         renderItem: renderParentTarget,
-      })) ?? [],
-    [targets?.sections]
-  )
+      })),
+    ]
+  }, [targets?.sections])
   const model = useSingleDataSelector<ParentTarget, TaskParentRef>({
     getValueKey: objectRefKey,
     groups,
@@ -185,12 +212,7 @@ export function PropertyButton({
       model={model}
       open={open}
       searchable
-      searchQuery={searchQuery}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen)
-        if (!nextOpen) setSearchQuery("")
-      }}
-      onSearchChange={setSearchQuery}
+      onOpenChange={setOpen}
       onValueChange={onChange}
     >
       <DataSelector.ButtonTrigger
