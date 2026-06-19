@@ -7,7 +7,6 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* Align container query breakpoints with viewport sm/md/lg/xl for @container/main */
   --container-sm: 40rem;
   --container-md: 48rem;
   --container-lg: 64rem;

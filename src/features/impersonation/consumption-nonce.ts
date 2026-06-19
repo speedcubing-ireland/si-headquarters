@@ -30,14 +30,14 @@ export function getOrCreateConsumptionNonce(token: string): string {
       }
     }
   } catch {
-    // Ignore malformed storage values and regenerate.
+    void 0
   }
 
   const nonce = crypto.randomUUID()
   try {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token, nonce }))
   } catch {
-    // Ignore storage failures; nonce still works in-memory.
+    void 0
   }
   return nonce
 }
@@ -56,6 +56,6 @@ export function clearConsumptionNonce(token: string): void {
       window.sessionStorage.removeItem(STORAGE_KEY)
     }
   } catch {
-    // Ignore cleanup failures.
+    void 0
   }
 }

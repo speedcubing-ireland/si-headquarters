@@ -1,5 +1,3 @@
-// To-do some of these if not used eventually should be removed
-
 import {
   requireScopedObjectForRead,
   requireScopedObjectForUpdate,

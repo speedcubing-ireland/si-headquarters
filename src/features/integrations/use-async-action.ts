@@ -165,7 +165,6 @@ export function useOpenLoad<T>({
   }
 }
 
-/** Open/close state for link pickers and popovers. */
 export function useLinkAction() {
   const [open, setOpen] = useState(false)
   const asyncAction = useAsyncAction()

@@ -31,7 +31,6 @@ export const sponsorshipEmailType = v.union(
 
 export type SponsorshipEmailType = Infer<typeof sponsorshipEmailType>
 
-/** Auction-related sponsorship emails (excludes sponsor invite). */
 export const SPONSORSHIP_AUCTION_EMAIL_TYPES = [
   "auction_scheduled",
   "auction_started",

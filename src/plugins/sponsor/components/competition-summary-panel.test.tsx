@@ -17,7 +17,6 @@ describe("formatDate", () => {
   })
 
   test("day appears before month (not American order)", () => {
-    // 2026-01-31 → should start with "31", not "Jan" or "1/"
     const result = formatDate("2026-01-31")
     expect(result.startsWith("31")).toBe(true)
     expect(result).not.toMatch(/^Jan/)

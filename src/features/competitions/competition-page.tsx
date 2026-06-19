@@ -5,6 +5,7 @@ import { CompetitionPropertiesCard } from "@/features/competitions/components/pr
 import { EditPhasesButton } from "@/features/phases/edit-phases-dialog"
 import { SubtaskView } from "@/features/subtasks/subtask-view"
 import { CurrentUpdateCard } from "@/features/updates/current-update-card"
+import { CommentsCardContainer } from "@/features/comments/comments-card-container"
 import { ObjectPageGrid } from "@/features/shared/object-page-grid"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -45,6 +46,9 @@ export function CompetitionPage({
                   owner={{ type: "competitions", id: competitionId }}
                 />
               }
+            />
+            <CommentsCardContainer
+              target={{ type: "competitions", id: competitionId }}
             />
           </ObjectPageGrid>
         )}

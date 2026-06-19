@@ -6,11 +6,8 @@ const TEXT_WIDTH_BUFFER_PX = 2
 const CHEVRON_WIDTH_PX = 16
 const PATH_GAP_WIDTH_PX = 4
 const PROGRESS_TO_LABEL_GAP_PX = 8
-/** Badge px-2 (16) + 1px border each side. */
 const LABEL_BADGE_CHROME_WIDTH_PX = 18
-/** h-5 badge with icon + px-2 + gap-1; text measured separately. */
 const PROGRESS_BADGE_CHROME_WIDTH_PX = 28
-/** Icon-only block badge: px-1.5 (12) + size-3 icon (12) + border (2). */
 const BLOCK_BADGE_CHROME_WIDTH_PX = 24
 
 export const DEFAULT_TASK_PATH_FONT =

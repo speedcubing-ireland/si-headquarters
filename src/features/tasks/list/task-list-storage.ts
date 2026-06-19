@@ -12,7 +12,7 @@ function writeLocalStorageOrIgnore(key: string, value: string): void {
   try {
     localStorage.setItem(key, value)
   } catch {
-    /* quota exceeded or private browsing */
+    void 0
   }
 }
 

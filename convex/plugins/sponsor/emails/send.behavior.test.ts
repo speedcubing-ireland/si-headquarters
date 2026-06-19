@@ -162,8 +162,6 @@ describe("scheduleSponsorshipEmailBatch — idempotency", () => {
     expect(dispatches[0].status).toBe("pending")
     expect(dispatches[0].recipientEmail).toBe("sa@example.com")
     expect(dispatches[0].nextAttemptAt).toBeTypeOf("number")
-    // Both calls still schedule processing (the second re-drives the pending
-    // row) but never duplicate the row itself.
     expect(scheduledCalls).toHaveLength(2)
   })
 

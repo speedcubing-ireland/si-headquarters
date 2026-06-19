@@ -61,7 +61,6 @@ async function querySponsorAuthDocument(
   ctx: SponsorCtx,
   args: SponsorAuthFindOneArgs
 ): Promise<object | null> {
-  // Sponsor auth adapter queries return JSON documents without generated types.
   // oxlint-disable-next-line typescript/no-unsafe-assignment -- adapter boundary
   const queryResult: object | null = await ctx.runQuery(
     components.sponsorAuth.adapter.findOne,

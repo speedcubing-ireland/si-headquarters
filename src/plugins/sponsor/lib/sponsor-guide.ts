@@ -88,7 +88,6 @@ export const SPONSOR_MINIMUM_BIDS = {
     "Proxy bidding operates on a dynamic minimum bid which starts at the minimum bid and increases based on the current winning bid. The increments can be seen in the table below.",
 } as const
 
-/** Bid increment ladder — proxy bidding only. */
 export const SPONSOR_PROXY_BID_INCREMENTS = {
   columnHeaders: {
     range: "Current winning bid",
@@ -101,7 +100,6 @@ export interface ProxyBidIncrementRow {
   incrementLabel: string
 }
 
-/** Matches eBay DE EUR increment brackets used by the bidding engine. */
 export const PROXY_BID_INCREMENT_ROWS: readonly ProxyBidIncrementRow[] = [
   { rangeLabel: "EUR 1.00 to 4.99", incrementLabel: "EUR 0.20" },
   { rangeLabel: "EUR 5.00 to 24.99", incrementLabel: "EUR 0.50" },

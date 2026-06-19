@@ -55,6 +55,10 @@ function hasTeam(principal: Principal, teamName: TeamName): boolean {
   return principal.teamNames.includes(teamName)
 }
 
+export function isDirector(principal: Principal): boolean {
+  return hasTeam(principal, TEAM_NAMES.DIRECTORS)
+}
+
 function hasDirectGrant(
   principal: Principal,
   action: Action,
@@ -105,8 +109,6 @@ export function canPerform(
     return true
   }
 
-  // Organiser-scoped competition access is evaluated server-side only.
-  // `permissionsFor()` / frontend `can()` mirror team grants, not this rule.
   return (
     subject === "Competition" &&
     (action === "read" || action === "update") &&

@@ -144,8 +144,6 @@ describe("project access", () => {
     const { volunteerId, memberId, projectId } = await t.run(async (ctx) => {
       const volunteerId = await seedVolunteerTestUser(ctx, "Volunteer")
       const memberId = await insertTestUser(ctx, "Project Member")
-      // The member needs to be able to read users and teams to see member options,
-      // which requires the Volunteer team.
       await addUserToTeam(ctx, memberId, TEAM_NAMES.VOLUNTEER)
       const projectId = await insertBlankProject(ctx)
       await ctx.db.insert("projectMembers", {
