@@ -47,6 +47,7 @@ export function ObjectDetailsCard({
       <CardHeader>
         <div className="flex items-center gap-4">
           <img
+            data-slot="object-icon"
             src={iconUrl}
             className="size-12 shrink-0 rounded-lg border border-border object-cover"
             alt=""
