@@ -99,6 +99,8 @@ You likely also need to enable various APIs for the project such as sheets/drive
 
 Discord:
 Create a bot and add it to the server.
+Scopes - `bot` `applications.commands`
+Bot permissions - `View Channels` `Send Messages`
 Set DISCORD_GUILD_ID from the server you are using
 Set DISCORD_PUBLIC_KEY from the portal
 Set DISCORD_BOT_TOKEN from the portal
