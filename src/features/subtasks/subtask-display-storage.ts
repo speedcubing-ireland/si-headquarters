@@ -9,7 +9,7 @@ export interface SubtaskDisplayOptions {
 
 export const defaultSubtaskDisplayOptions: SubtaskDisplayOptions = {
   hideCompleted: false,
-  hideSubtasks: false,
+  hideSubtasks: true,
 }
 
 const subtaskDisplayOptionsSchema = z.object({
