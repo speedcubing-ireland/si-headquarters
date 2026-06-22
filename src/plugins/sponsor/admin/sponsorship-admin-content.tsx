@@ -45,7 +45,7 @@ export function SponsorshipAdminContent({
           </TabsTrigger>
           <TabsTrigger value="auctionSettings">
             <Settings className="size-4" />
-            Auction Settings
+            Settings
           </TabsTrigger>
         </TabsList>
 
