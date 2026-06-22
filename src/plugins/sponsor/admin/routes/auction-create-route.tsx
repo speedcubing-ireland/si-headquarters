@@ -23,6 +23,7 @@ import { useAuctionLifecycleActions } from "@/plugins/sponsor/admin/hooks/use-au
 import { useCompetitionOverrideRevert } from "@/plugins/sponsor/admin/hooks/use-competition-override-revert"
 import { useSponsorshipEditorNavigation } from "@/plugins/sponsor/admin/use-sponsorship-admin-search"
 import {
+  useAuctionSettings,
   useSponsors,
   useSponsorshipAuctionMutations,
   useSponsorshipAuctionsForManager,
@@ -48,6 +49,7 @@ function AuctionCreateContent() {
   const { competitions } = useSponsorshipCompetitionsForManager()
   const { auctions } = useSponsorshipAuctionsForManager()
   const { sponsors } = useSponsors()
+  const { settings: auctionDefaults } = useAuctionSettings()
   const { createAuction } = useSponsorshipAuctionMutations()
   const { onRefreshAuctionCompetitionData } = useAuctionLifecycleActions()
   const { busyCompetitionId, onRevertCompetitionSponsorOverride } =
@@ -61,7 +63,10 @@ function AuctionCreateContent() {
     () => sponsors.filter((sponsor) => sponsor.active),
     [sponsors]
   )
-  const { draft, onDraftChange } = useAuctionCreateDraft(activeSponsors)
+  const { draft, onDraftChange } = useAuctionCreateDraft(
+    activeSponsors,
+    auctionDefaults
+  )
   const sponsorById = useMemo(
     () => new Map(sponsors.map((sponsor) => [sponsor.id, sponsor])),
     [sponsors]

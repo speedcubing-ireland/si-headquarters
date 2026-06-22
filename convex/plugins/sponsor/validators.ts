@@ -174,4 +174,12 @@ export const sponsorTables = {
   competitionSponsorOverrides: defineTable(competitionSponsorOverrideFields)
     .index("by_competitionId", ["competitionId"])
     .index("by_manualSponsorId", ["manualSponsorId"]),
+
+  sponsorshipAuctionSettings: defineTable({
+    key: v.string(),
+    startDelayHours: v.number(),
+    durationHours: v.number(),
+    updatedById: v.id("users"),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 }

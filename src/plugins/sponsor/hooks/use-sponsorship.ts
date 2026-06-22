@@ -112,6 +112,24 @@ export function useSponsorshipAuctionManagerView(
   }
 }
 
+export function useAuctionSettings(enabled = true) {
+  const settings = useQuery(
+    api.plugins.sponsor.admin.auctionSettings.get,
+    enabled ? {} : "skip"
+  )
+  return {
+    settings: settings ?? null,
+    isLoading: enabled && settings === undefined,
+  }
+}
+
+export function useAuctionSettingsMutations() {
+  const updateAuctionSettings = useMutation(
+    api.plugins.sponsor.admin.auctionSettings.update
+  )
+  return { updateAuctionSettings }
+}
+
 export function useSponsorshipAuctionMutations() {
   const createAuction = useMutation(
     api.plugins.sponsor.admin.auctions.management.create
