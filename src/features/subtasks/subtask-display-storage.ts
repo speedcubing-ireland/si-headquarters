@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-const STORAGE_KEY = "subtask-view-display:v1"
+const STORAGE_KEY = "subtask-view-display:v1.1"
 
 export interface SubtaskDisplayOptions {
   hideCompleted: boolean
@@ -9,7 +9,7 @@ export interface SubtaskDisplayOptions {
 
 export const defaultSubtaskDisplayOptions: SubtaskDisplayOptions = {
   hideCompleted: false,
-  hideSubtasks: false,
+  hideSubtasks: true,
 }
 
 const subtaskDisplayOptionsSchema = z.object({
