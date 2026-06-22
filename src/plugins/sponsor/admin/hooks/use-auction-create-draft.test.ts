@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest"
-import { computeAuctionScheduleMs } from "./use-auction-create-draft"
+import {
+  computeAuctionScheduleMs,
+  computeEndFromStartMs,
+} from "./use-auction-create-draft"
 
 const HOUR_MS = 60 * 60 * 1000
 const NOW = Date.UTC(2026, 0, 1, 12, 0, 0)
+
+describe("computeEndFromStartMs", () => {
+  it("adds the duration in hours to the start time", () => {
+    expect(computeEndFromStartMs(NOW, 2)).toBe(NOW + 2 * HOUR_MS)
+  })
+
+  it("scales linearly with duration", () => {
+    expect(computeEndFromStartMs(NOW, 5) - NOW).toBe(5 * HOUR_MS)
+  })
+
+  it("is independent of when now is — only start matters", () => {
+    const start = NOW + 3 * HOUR_MS
+    expect(computeEndFromStartMs(start, 1)).toBe(start + HOUR_MS)
+  })
+})
 
 describe("computeAuctionScheduleMs", () => {
   it("starts the auction after the configured delay", () => {

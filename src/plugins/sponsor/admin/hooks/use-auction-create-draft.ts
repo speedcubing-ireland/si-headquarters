@@ -8,6 +8,13 @@ export interface AuctionDefaults {
   durationHours: number
 }
 
+export function computeEndFromStartMs(
+  startMs: number,
+  durationHours: number
+): number {
+  return startMs + durationHours * 60 * 60 * 1000
+}
+
 export function computeAuctionScheduleMs(
   now: number,
   defaults: AuctionDefaults
@@ -15,7 +22,7 @@ export function computeAuctionScheduleMs(
   const startsAt = now + defaults.startDelayHours * 60 * 60 * 1000
   return {
     startsAt,
-    endsAt: startsAt + defaults.durationHours * 60 * 60 * 1000,
+    endsAt: computeEndFromStartMs(startsAt, defaults.durationHours),
   }
 }
 

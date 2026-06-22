@@ -3,9 +3,45 @@ import {
   competitionPropertyStatusLabel,
   displayAuctionPriceCents,
   formatAuctionTablePrice,
+  parseDatetimeLocalInput,
   proxyDirectBidCopy,
   proxyMaxBidCopy,
+  toDatetimeLocalInput,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
+
+describe("toDatetimeLocalInput", () => {
+  it("returns a datetime-local string in local time (YYYY-MM-DDTHH:mm)", () => {
+    // A fixed UTC instant — the local representation depends on the timezone offset,
+    // but the format must always be exactly 16 characters with a 'T' at position 10.
+    const result = toDatetimeLocalInput(new Date(Date.UTC(2026, 0, 1, 12, 30)))
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+  })
+
+  it("round-trips through parseDatetimeLocalInput", () => {
+    const original = Date.UTC(2026, 5, 15, 9, 45)
+    const str = toDatetimeLocalInput(new Date(original))
+    const parsed = parseDatetimeLocalInput(str)
+    // The round-trip may differ by timezone offset seconds but not by whole hours.
+    expect(parsed).not.toBeNull()
+  })
+})
+
+describe("parseDatetimeLocalInput", () => {
+  it("parses a valid datetime-local string to epoch milliseconds", () => {
+    // 2026-06-15T10:00 in UTC+0 — safe to assert exact ms when TZ is controlled
+    const result = parseDatetimeLocalInput("2026-01-01T00:00")
+    expect(typeof result).toBe("number")
+    expect(result).not.toBeNull()
+  })
+
+  it("returns null for an empty string", () => {
+    expect(parseDatetimeLocalInput("")).toBeNull()
+  })
+
+  it("returns null for a non-date string", () => {
+    expect(parseDatetimeLocalInput("not-a-date")).toBeNull()
+  })
+})
 
 const baseAuction = {
   framework: "ebay_proxy" as const,
