@@ -1,5 +1,5 @@
 import { internal } from "@/convex/_generated/api"
-import { env, httpAction, internalAction } from "@/convex/_generated/server"
+import { httpAction, internalAction } from "@/convex/_generated/server"
 import { decodeNotificationAction } from "@/convex/notifications/actionCodec"
 import { resolveDeploymentContext } from "@/convex/deploymentContext"
 import { requireConvexEnv } from "@/convex/envTypes"
@@ -112,6 +112,18 @@ function wrongDeploymentMessage(
   return `This button belongs to ${buttonDeploymentContext} ${productName}, but Discord sent it to ${currentDeploymentContext} ${productName}. Ask a ${productName} admin to resend it from the right ${productName} environment.`
 }
 
+function discordActionSecret(): string | null {
+  try {
+    const secret = requireConvexEnv(
+      "DISCORD_ACTION_SECRET",
+      "Discord interactions require DISCORD_ACTION_SECRET to be set."
+    ).trim()
+    return secret.length > 0 ? secret : null
+  } catch {
+    return null
+  }
+}
+
 export const discordInteractions = httpAction(async (ctx, req) => {
   const rawBody = await req.text()
   if (!(await verifyDiscordSignature(req, rawBody))) {
@@ -143,8 +155,8 @@ export const discordInteractions = httpAction(async (ctx, req) => {
     return ephemeral("This button payload is missing required Discord data.")
   }
 
-  const secret = env.DISCORD_ACTION_SECRET?.trim()
-  if (secret === undefined || secret.length === 0) {
+  const secret = discordActionSecret()
+  if (secret === null) {
     console.warn("DISCORD_ACTION_SECRET is not set for Discord interactions.")
     return ephemeral(
       `Discord actions are not configured correctly. Ask a ${organisationConfig.organisation.productName} admin to resend this from ${organisationConfig.organisation.productName}.`

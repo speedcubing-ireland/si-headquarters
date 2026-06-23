@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, test } from "vitest"
 import {
   defineOrganisationConfig,
+  type LoginProviderConfig,
   organisationConfigSchema,
 } from "./organisation-schema"
 import organisationConfig from "../organisation-config"
@@ -17,10 +18,21 @@ describe("organisation configuration", () => {
   })
 
   test("keeps configured provider ids as literal types", () => {
-    type ConfiguredProviderId =
-      (typeof organisationConfig.auth.providers)[number]["id"]
+    const providers = [
+      { id: "wca-staff", audience: "staff", label: "WCA Staff" },
+      {
+        id: "google",
+        audience: "staff",
+        label: "Google",
+        hostedDomain: "example.com",
+      },
+    ] as const satisfies readonly LoginProviderConfig[]
 
-    expectTypeOf<ConfiguredProviderId>().toEqualTypeOf<"wca-staff">()
+    type ProviderId = (typeof providers)[number]["id"]
+
+    expectTypeOf<ProviderId>().toExtend<LoginProviderConfig["id"]>()
+    expectTypeOf<ProviderId>().not.toEqualTypeOf<LoginProviderConfig["id"]>()
+    expectTypeOf<ProviderId>().not.toEqualTypeOf<string>()
   })
 
   test("accepts a minimal feature set", () => {
