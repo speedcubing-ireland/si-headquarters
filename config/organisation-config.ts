@@ -7,44 +7,54 @@ import {
 // edit. OAuth secrets and API credentials remain in the deployment environment.
 const organisationConfig = {
   organisation: {
-    name: "UK Cube Association",
-    productName: "Sponsor Panel",
+    name: "Speedcubing Ireland",
+    productName: "Headquarters",
   },
   branding: {
-    notificationFooterText: "UKCA Sponsor Panel",
+    notificationFooterText: "SI Headquarters",
     faviconPath: "/favicon.png",
   },
   regional: {
-    locale: "en-GB",
-    timeZone: "Europe/London",
-    timeZoneLabel: "London",
+    locale: "en-IE",
+    timeZone: "Europe/Dublin",
+    timeZoneLabel: "Dublin",
     reminderHour: 8,
   },
   contacts: {
-    sponsorshipTeamEmail: "sponsorship@example.com",
-    sponsorshipTeamName: "UKCA Sponsorship Team",
+    checkinShareEmail: "laptop@speedcubingireland.com",
+    sponsorshipTeamEmail: "sponsorship@speedcubingireland.com",
+    sponsorshipTeamName: "Sponsorship Team",
   },
   sponsorship: {
-    portalName: "UKCA Sponsor Panel",
-    productionHost: "sponsors.ukca.org",
-    defaultCurrency: "GBP",
+    portalName: "Speedcubing Ireland Sponsor Portal",
+    productionHost: "sponsors.speedcubingireland.com",
+    defaultCurrency: "EUR",
+  },
+  wca: {
+    scheduleTemplateCompetitionId: "IrelandTemplate2100",
   },
   features: {
-    google: false,
-    canva: false,
-    discord: false,
+    google: true,
+    canva: true,
+    discord: true,
     sponsors: true,
-    socialMedia: false,
+    socialMedia: true,
     wcaIntegration: true,
-    wca2fa: false,
-    organiserInvites: false,
+    wca2fa: true,
+    organiserInvites: true,
   },
   auth: {
     providers: [
       {
-        id: "wca-staff",
+        id: "google",
         audience: "staff",
-        label: "UKCA Volunteer (WCA)",
+        label: "Speedcubing Ireland Volunteer (GSuite)",
+        hostedDomain: "speedcubingireland.com",
+      },
+      {
+        id: "wca",
+        audience: "organiser",
+        label: "External Organiser (WCA)",
       },
     ],
   },

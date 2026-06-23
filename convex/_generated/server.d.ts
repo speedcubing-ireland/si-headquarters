@@ -25,30 +25,30 @@ import type { DataModel } from "./dataModel.js";
  * Typesafe environment variables declared in `convex.config.ts`.
  */
 type Env = {
-  readonly AUTH_GOOGLE_ID: string | undefined;
-  readonly AUTH_GOOGLE_SECRET: string | undefined;
+  readonly AUTH_GOOGLE_ID: string;
+  readonly AUTH_GOOGLE_SECRET: string;
   readonly AUTH_WCA_ID: string;
   readonly AUTH_WCA_SECRET: string;
   readonly BETTER_AUTH_SECRET: string | undefined;
-  readonly CANVA_CERT_OUTPUT_FOLDER_ID: string | undefined;
-  readonly CANVA_CERT_TEMPLATE_ID: string | undefined;
-  readonly CANVA_LANYARD_OUTPUT_FOLDER_ID: string | undefined;
-  readonly CANVA_LANYARD_TEMPLATE_ID: string | undefined;
+  readonly CANVA_CERT_OUTPUT_FOLDER_ID: string;
+  readonly CANVA_CERT_TEMPLATE_ID: string;
+  readonly CANVA_LANYARD_OUTPUT_FOLDER_ID: string;
+  readonly CANVA_LANYARD_TEMPLATE_ID: string;
   readonly CLI_AUTH_TOKEN: string;
   readonly CORS_ALLOWED_ORIGINS: string | undefined;
   readonly DEPLOYMENT_CONTEXT: "staging" | "production";
-  readonly DISCORD_ACTION_SECRET: string | undefined;
-  readonly DISCORD_BOT_TOKEN: string | undefined;
-  readonly DISCORD_GUILD_ID: string | undefined;
-  readonly DISCORD_PUBLIC_KEY: string | undefined;
+  readonly DISCORD_ACTION_SECRET: string;
+  readonly DISCORD_BOT_TOKEN: string;
+  readonly DISCORD_GUILD_ID: string;
+  readonly DISCORD_PUBLIC_KEY: string;
   readonly JWKS: string;
   readonly JWT_PRIVATE_KEY: string;
   readonly RESEND_API_KEY: string;
   readonly RESEND_TEST_MODE: "true" | "false";
-  readonly SERVICE_CANVA_ID: string | undefined;
-  readonly SERVICE_CANVA_SECRET: string | undefined;
-  readonly SERVICE_GOOGLE_ID: string | undefined;
-  readonly SERVICE_GOOGLE_SECRET: string | undefined;
+  readonly SERVICE_CANVA_ID: string;
+  readonly SERVICE_CANVA_SECRET: string;
+  readonly SERVICE_GOOGLE_ID: string;
+  readonly SERVICE_GOOGLE_SECRET: string;
   readonly SERVICE_WCA_ID: string;
   readonly SERVICE_WCA_SECRET: string;
   readonly SITE_URL: string;
@@ -56,7 +56,7 @@ type Env = {
   readonly SPONSOR_BETTER_AUTH_SECRET: string;
   readonly SPONSOR_SITE_URL: string;
   readonly VITE_SITE_URL: string | undefined;
-  readonly WCA_2FA_SECRET: string | undefined;
+  readonly WCA_2FA_SECRET: string;
 };
 
 /**
