@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Card,
   CardContent,
@@ -16,6 +17,7 @@ import type { SubmitEvent } from "react"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
 import { AuctionFormFields } from "@/plugins/sponsor/admin/components/auction-form-fields"
 import { CompetitionOverrideAlert } from "@/plugins/sponsor/admin/components/competition-override-alert"
+import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { SponsorBidOutcomeDisplay } from "@/plugins/sponsor/admin/types"
 import type {
@@ -31,6 +33,7 @@ import {
   sponsorshipStateBadgeVariant,
   sponsorshipStateLabel,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
+import { Streamdown } from "streamdown"
 
 function formatCompetitionSummaryDateRange(summary: {
   startDate: string
@@ -106,14 +109,22 @@ export function AuctionEditPanel({
     return <SponsorInlineLoading className="py-6" />
   }
 
+  const isCustomOffering = managerView.auction.subject.kind === "custom"
+  const canEditAuction =
+    selectedAuction.state !== "active" && selectedAuction.state !== "closed"
+  const customOfferingDescription =
+    draft.customOfferingDescriptionMarkdown.trim()
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{selectedAuction.competitionName}</CardTitle>
+          <CardTitle>{selectedAuction.subjectName}</CardTitle>
           <CardDescription>
-            {auctionFrameworkLabel(selectedAuction.framework)} ·{" "}
-            {selectedAuction.competitionPhaseName}
+            {auctionFrameworkLabel(selectedAuction.framework)}
+            {selectedAuction.competitionPhaseName !== undefined
+              ? ` · ${selectedAuction.competitionPhaseName}`
+              : null}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -135,32 +146,53 @@ export function AuctionEditPanel({
 
       <Card
         className={cn(
-          !isSelectedAuctionCompetitionSummaryReady && STAT_CARD_EMPHASIS_CLASS
+          !isCustomOffering &&
+            !isSelectedAuctionCompetitionSummaryReady &&
+            STAT_CARD_EMPHASIS_CLASS
         )}
       >
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="space-y-1">
-              <CardTitle>Competition data</CardTitle>
+              <CardTitle>
+                {isCustomOffering ? "Offering preview" : "Competition data"}
+              </CardTitle>
               <CardDescription>
-                WCA snapshot used for sponsor-facing auction details.
+                {isCustomOffering
+                  ? "Description shown to sponsors on the auction page."
+                  : "Competition details shown to sponsors on the auction page."}
               </CardDescription>
             </div>
             <Badge
               variant={
-                isSelectedAuctionCompetitionSummaryReady
+                isCustomOffering || isSelectedAuctionCompetitionSummaryReady
                   ? "default"
                   : "secondary"
               }
             >
-              {isSelectedAuctionCompetitionSummaryReady
-                ? "Synced from WCA"
-                : "Needs WCA sync"}
+              {isCustomOffering
+                ? "Custom offering"
+                : isSelectedAuctionCompetitionSummaryReady
+                  ? "Synced from WCA"
+                  : "Needs WCA sync"}
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {selectedAuctionCompetitionSummary ? (
+          {isCustomOffering ? (
+            <div className="space-y-3 text-sm">
+              <p className="font-medium">{draft.customOfferingName}</p>
+              {customOfferingDescription.length > 0 ? (
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <Streamdown>{customOfferingDescription}</Streamdown>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No description yet.
+                </p>
+              )}
+            </div>
+          ) : selectedAuctionCompetitionSummary ? (
             <div className="space-y-1 text-sm">
               <p className="font-medium">
                 {selectedAuctionCompetitionSummary.name}
@@ -179,27 +211,31 @@ export function AuctionEditPanel({
               </p>
             </div>
           ) : null}
-          <p className="text-xs text-muted-foreground">
-            {selectedAuctionCompetitionSummaryFetchedAt !== undefined
-              ? `Last synced: ${formatDateTime(selectedAuctionCompetitionSummaryFetchedAt)}`
-              : "Last synced: not yet"}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={refreshingAuctionId === selectedAuction.id}
-            onClick={() =>
-              void onRefreshAuctionCompetitionData(selectedAuction.id)
-            }
-          >
-            {refreshingAuctionId === selectedAuction.id ? (
-              <Spinner />
-            ) : (
-              <RefreshCw className="size-4" />
-            )}
-            Refresh competition data
-          </Button>
+          {!isCustomOffering ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {selectedAuctionCompetitionSummaryFetchedAt !== undefined
+                  ? `Last synced: ${formatDateTime(selectedAuctionCompetitionSummaryFetchedAt)}`
+                  : "Last synced: not yet"}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={refreshingAuctionId === selectedAuction.id}
+                onClick={() =>
+                  void onRefreshAuctionCompetitionData(selectedAuction.id)
+                }
+              >
+                {refreshingAuctionId === selectedAuction.id ? (
+                  <Spinner />
+                ) : (
+                  <RefreshCw className="size-4" />
+                )}
+                Refresh competition data
+              </Button>
+            </>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -226,6 +262,36 @@ export function AuctionEditPanel({
             className="space-y-3"
             onSubmit={(event) => void onSaveAuctionChanges(event)}
           >
+            {isCustomOffering ? (
+              <div className="space-y-3 rounded-md border p-3">
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Offering name</p>
+                  <Input
+                    value={draft.customOfferingName}
+                    onChange={(event) => {
+                      onDraftChange({
+                        customOfferingName: event.target.value,
+                      })
+                    }}
+                    disabled={!canEditAuction}
+                    required
+                  />
+                </div>
+                <MarkdownEditorField
+                  id="custom-offering-description"
+                  label="Offering description"
+                  placeholder="Describe the custom sponsorship package sponsors are bidding on..."
+                  value={draft.customOfferingDescriptionMarkdown}
+                  onChange={(value) => {
+                    onDraftChange({
+                      customOfferingDescriptionMarkdown: value,
+                    })
+                  }}
+                  disabled={!canEditAuction}
+                />
+              </div>
+            ) : null}
+
             <AuctionFormFields
               draft={draft}
               onDraftChange={onDraftChange}
@@ -272,7 +338,7 @@ export function AuctionEditPanel({
                 }
                 onClick={() => void onStartAuction(selectedAuction.id)}
               >
-                Start auction
+                Schedule auction
               </Button>
             ) : null}
             {selectedAuction.state !== "closed" ? (

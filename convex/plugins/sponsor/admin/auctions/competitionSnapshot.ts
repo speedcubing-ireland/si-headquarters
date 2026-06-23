@@ -18,8 +18,14 @@ import {
   sponsorshipCompetitionSummary,
   sponsorshipCompetitionSummarySource,
   type SponsorshipCompetitionSummary,
+  type SponsorshipCompetitionSummarySource,
   type SponsorshipCompetitionSnapshot,
 } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import {
+  auctionSubjectKind,
+  auctionSubjectName,
+  resolveAuctionSubject,
+} from "@/convex/plugins/sponsor/lib/auctionSubject"
 import { competitionStartEnd } from "@/convex/competitions/dates"
 
 const competitionSnapshotRefreshStatus = v.union(
@@ -39,10 +45,13 @@ const competitionSnapshotRefreshResult = v.object({
 
 const auctionSnapshotContext = v.object({
   auctionId: v.id("sponsorshipAuctions"),
-  competitionName: v.string(),
-  competitionCompStart: v.string(),
-  competitionCompEnd: v.string(),
+  subjectKind: auctionSubjectKind,
+  // Effective WCA id to fetch (the competition's link for hq subjects, or the
+  // auction's id for wca subjects). Undefined for custom or unlinked hq.
   wcaCompetitionId: v.optional(v.string()),
+  fallbackName: v.string(),
+  fallbackStartDate: v.string(),
+  fallbackEndDate: v.string(),
   competitionSnapshot: v.optional(competitionSnapshot),
 })
 
@@ -62,16 +71,16 @@ export function isExpectedSponsorAccessError(error: Error): boolean {
 }
 
 function buildFallbackSnapshotFromContext(context: {
-  competitionName: string
-  competitionCompStart: string
-  competitionCompEnd: string
+  fallbackName: string
+  fallbackStartDate: string
+  fallbackEndDate: string
 }): SponsorshipCompetitionSnapshot {
   return buildCompetitionSnapshot({
     summary: {
-      name: context.competitionName,
+      name: context.fallbackName,
       address: "",
-      startDate: context.competitionCompStart,
-      endDate: context.competitionCompEnd,
+      startDate: context.fallbackStartDate,
+      endDate: context.fallbackEndDate,
       eventIds: [],
     },
     source: "competition_record",
@@ -120,17 +129,55 @@ export const getSnapshotContextInternal = internalQuery({
   handler: async (ctx, args) => {
     const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
     if (!auction) return null
-    const competition = await ctx.db.get("competitions", auction.competitionId)
-    if (competition === null) {
-      return null
+    const subject = resolveAuctionSubject(auction)
+
+    const snapshotStart =
+      auction.competitionSnapshot?.summary.startDate ??
+      new Date(auction.startsAt).toISOString().slice(0, 10)
+    const snapshotEnd =
+      auction.competitionSnapshot?.summary.endDate ??
+      new Date(auction.endsAt).toISOString().slice(0, 10)
+
+    if (subject.kind === "hq_competition") {
+      const competition = await ctx.db.get(
+        "competitions",
+        subject.competitionId
+      )
+      if (competition === null) {
+        return null
+      }
+      const { compStart, compEnd } = competitionStartEnd(competition)
+      return {
+        auctionId: auction._id,
+        subjectKind: subject.kind,
+        wcaCompetitionId: competition.wcaCompetitionId,
+        fallbackName: competition.name,
+        fallbackStartDate: compStart,
+        fallbackEndDate: compEnd,
+        competitionSnapshot: auction.competitionSnapshot,
+      }
     }
-    const { compStart, compEnd } = competitionStartEnd(competition)
+
+    if (subject.kind === "wca_competition") {
+      return {
+        auctionId: auction._id,
+        subjectKind: subject.kind,
+        wcaCompetitionId: subject.wcaCompetitionId,
+        fallbackName: auctionSubjectName(auction),
+        fallbackStartDate: snapshotStart,
+        fallbackEndDate: snapshotEnd,
+        competitionSnapshot: auction.competitionSnapshot,
+      }
+    }
+
+    // custom
     return {
       auctionId: auction._id,
-      competitionName: competition.name,
-      competitionCompStart: compStart,
-      competitionCompEnd: compEnd,
-      wcaCompetitionId: competition.wcaCompetitionId,
+      subjectKind: subject.kind,
+      wcaCompetitionId: undefined,
+      fallbackName: auctionSubjectName(auction),
+      fallbackStartDate: snapshotStart,
+      fallbackEndDate: snapshotEnd,
       competitionSnapshot: auction.competitionSnapshot,
     }
   },
@@ -157,7 +204,7 @@ async function runCompetitionSnapshotRefresh(
   status: "ready" | "missing_wca_link" | "fetch_failed" | "not_found"
   message: string
   summary?: SponsorshipCompetitionSummary
-  summarySource?: "competition_record" | "wca"
+  summarySource?: SponsorshipCompetitionSummarySource
   fetchedAt?: number
 }> {
   const context = await ctx.runQuery(
@@ -169,6 +216,39 @@ async function runCompetitionSnapshotRefresh(
     return {
       status: "not_found",
       message: "Auction not found.",
+    }
+  }
+
+  if (context.subjectKind === "custom") {
+    const customSnapshot =
+      context.competitionSnapshot?.source === "custom"
+        ? context.competitionSnapshot
+        : buildCompetitionSnapshot({
+            summary: {
+              name: context.fallbackName,
+              address: "",
+              startDate: context.fallbackStartDate,
+              endDate: context.fallbackEndDate,
+              eventIds: [],
+            },
+            source: "custom",
+          })
+    if (context.competitionSnapshot?.source !== "custom") {
+      await ctx.runMutation(
+        internal.plugins.sponsor.admin.auctions.competitionSnapshot
+          .setSnapshotInternal,
+        {
+          auctionId: context.auctionId,
+          snapshot: customSnapshot,
+        }
+      )
+    }
+    return {
+      status: "ready",
+      message: "Custom offering details are up to date.",
+      summary: customSnapshot.summary,
+      summarySource: customSnapshot.source,
+      fetchedAt: customSnapshot.fetchedAt,
     }
   }
 

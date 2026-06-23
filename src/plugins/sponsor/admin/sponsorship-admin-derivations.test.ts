@@ -3,10 +3,12 @@ import type { Id } from "@/convex/_generated/dataModel"
 import {
   attachSponsorNames,
   filterAuctionsBySearch,
+  filterPreviousClosedAuctionsForSubject,
   groupUnsponsoredCompetitionsByPhase,
 } from "./sponsorship-admin-derivations"
 
 const auction = (competitionName: string, competitionPhaseName: string) => ({
+  subjectName: competitionName,
   competitionName,
   competitionPhaseName,
 })
@@ -71,5 +73,69 @@ describe("attachSponsorNames", () => {
       (id) => (id === ("s1" as Id<"sponsors">) ? "Acme" : "Unknown sponsor")
     )
     expect(result).toEqual([{ sponsorId: "s1", sponsorName: "Acme" }])
+  })
+})
+
+describe("filterPreviousClosedAuctionsForSubject", () => {
+  const auctions = [
+    {
+      id: "direct" as Id<"sponsorshipAuctions">,
+      state: "closed",
+      endsAt: 30,
+      wcaCompetitionId: "IrishChampionship2026",
+    },
+    {
+      id: "linked" as Id<"sponsorshipAuctions">,
+      state: "closed",
+      endsAt: 20,
+      competitionId: "comp1" as Id<"competitions">,
+      wcaCompetitionId: "IrishChampionship2026",
+    },
+    {
+      id: "other" as Id<"sponsorshipAuctions">,
+      state: "closed",
+      endsAt: 10,
+      competitionId: "comp2" as Id<"competitions">,
+      wcaCompetitionId: "CorkOpen2026",
+    },
+    {
+      id: "custom-associated" as Id<"sponsorshipAuctions">,
+      state: "closed",
+      endsAt: 15,
+      associatedCompetitionId: "comp1" as Id<"competitions">,
+    },
+    {
+      id: "open" as Id<"sponsorshipAuctions">,
+      state: "active",
+      endsAt: 40,
+      wcaCompetitionId: "IrishChampionship2026",
+    },
+  ]
+
+  it("matches direct and HQ-linked auctions through the same WCA id", () => {
+    expect(
+      filterPreviousClosedAuctionsForSubject(auctions, {
+        wcaCompetitionId: " IrishChampionship2026 ",
+      }).map((auction) => auction.id)
+    ).toEqual(["direct", "linked"])
+  })
+
+  it("matches by competition id and by the linked competition WCA id", () => {
+    expect(
+      filterPreviousClosedAuctionsForSubject(auctions, {
+        competitionId: "comp1" as Id<"competitions">,
+        wcaCompetitionId: "IrishChampionship2026",
+      }).map((auction) => auction.id)
+    ).toEqual(["direct", "linked", "custom-associated"])
+  })
+
+  it("excludes the selected auction when editing", () => {
+    expect(
+      filterPreviousClosedAuctionsForSubject(auctions, {
+        selectedAuctionId: "linked" as Id<"sponsorshipAuctions">,
+        competitionId: "comp1" as Id<"competitions">,
+        wcaCompetitionId: "IrishChampionship2026",
+      }).map((auction) => auction.id)
+    ).toEqual(["direct", "custom-associated"])
   })
 })

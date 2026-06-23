@@ -1,15 +1,30 @@
 import { collectAll } from "@/convex/utils"
 import { ConvexError, v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
+import type { MutationCtx } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
 import { compareBidIntentChronologyWithIdTieBreak } from "../../lib/auctionState"
 import { competitionStartEnd } from "@/convex/competitions/dates"
 import { sponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/validators"
 import {
+  auctionAssociatedCompetitionId,
+  auctionSubjectInput,
+  auctionSubjectName,
+  resolveAuctionSubject,
+  type AuctionSubjectInput,
+  type AuctionSubjectKind,
+} from "../../lib/auctionSubject"
+import {
+  buildCustomOfferingSnapshot,
+  buildCustomOfferingSummary,
+  buildWcaPlaceholderSnapshot,
   resolveCompetitionSummaryView,
   sponsorshipCompetitionSummary,
   sponsorshipCompetitionSummarySource,
+  type SponsorshipCompetitionSnapshot,
+  type SponsorshipCompetitionSummary,
+  type SponsorshipCompetitionSummarySource,
 } from "../../lib/competitionSnapshot"
 import {
   auctionForManager,
@@ -18,6 +33,7 @@ import {
   DEFAULT_SCHEDULE_WINDOW_MS,
   replaceAuctionInvites,
   requireNoOpenAuctionForCompetition,
+  requireNoOpenAuctionForWcaCompetition,
   toManagerAuction,
 } from "./shared"
 import {
@@ -49,7 +65,7 @@ function normalizePositiveDurationMs(
 
 export const create = mutation({
   args: {
-    competitionId: v.id("competitions"),
+    subject: auctionSubjectInput,
     framework: v.optional(sponsorshipAuctionFramework),
     startsAt: v.number(),
     endsAt: v.number(),
@@ -62,13 +78,6 @@ export const create = mutation({
   returns: v.id("sponsorshipAuctions"),
   handler: async (ctx, args) => {
     const actorId = await requireSponsorPortalAdmin(ctx)
-    const competition = await ctx.db.get("competitions", args.competitionId)
-    if (!competition) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Competition not found.",
-      })
-    }
     if (args.endsAt <= args.startsAt) {
       throw new ConvexError({
         code: "BAD_REQUEST",
@@ -89,11 +98,16 @@ export const create = mutation({
       "Anti-sniping extension",
       args.antiSnipingExtendMs
     )
-    await requireNoOpenAuctionForCompetition(ctx, args.competitionId)
+
+    const subjectFields = await resolveCreateSubjectFields(ctx, {
+      subject: args.subject,
+      startsAt: args.startsAt,
+      endsAt: args.endsAt,
+    })
 
     const now = Date.now()
     const auctionId = await ctx.db.insert("sponsorshipAuctions", {
-      competitionId: args.competitionId,
+      ...subjectFields.fields,
       framework: args.framework ?? "first_sealed",
       state: "draft",
       currency: args.currency ?? defaultSponsorshipCurrency(),
@@ -102,7 +116,7 @@ export const create = mutation({
       antiSnipingWindowMs: antiSnipingWindowMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
       antiSnipingExtendMs: antiSnipingExtendMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
       startPriceCents: args.startPriceCents,
-      competitionSnapshot: buildFallbackSnapshotForCompetition(competition),
+      competitionSnapshot: subjectFields.snapshot,
       createdById: actorId,
       updatedById: actorId,
       updatedAt: now,
@@ -118,6 +132,133 @@ export const create = mutation({
     return auctionId
   },
 })
+
+interface ResolvedCreateSubject {
+  fields: {
+    subjectKind: AuctionSubjectKind
+    competitionId?: Id<"competitions">
+    wcaCompetitionId?: string
+    customOffering?: {
+      name: string
+      descriptionMarkdown: string
+      associatedCompetitionId?: Id<"competitions">
+    }
+  }
+  snapshot: SponsorshipCompetitionSnapshot
+}
+
+async function resolveCreateSubjectFields(
+  ctx: MutationCtx,
+  input: {
+    subject: AuctionSubjectInput
+    startsAt: number
+    endsAt: number
+  }
+): Promise<ResolvedCreateSubject> {
+  const { subject, startsAt, endsAt } = input
+  if (subject.kind === "hq_competition") {
+    const competition = await ctx.db.get("competitions", subject.competitionId)
+    if (!competition) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Competition not found.",
+      })
+    }
+    await requireNoOpenAuctionForCompetition(ctx, subject.competitionId)
+    return {
+      fields: {
+        subjectKind: "hq_competition",
+        competitionId: subject.competitionId,
+      },
+      snapshot: buildFallbackSnapshotForCompetition(competition),
+    }
+  }
+  if (subject.kind === "wca_competition") {
+    const wcaCompetitionId = subject.wcaCompetitionId.trim()
+    if (wcaCompetitionId.length === 0) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "A WCA competition must be selected.",
+      })
+    }
+    await requireNoOpenAuctionForWcaCompetition(ctx, wcaCompetitionId)
+    return {
+      fields: {
+        subjectKind: "wca_competition",
+        wcaCompetitionId,
+      },
+      snapshot: buildWcaPlaceholderSnapshot({
+        wcaCompetitionId,
+        startsAt,
+        endsAt,
+      }),
+    }
+  }
+  // custom
+  const name = subject.name.trim()
+  if (name.length === 0) {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: "A custom offering needs a name.",
+    })
+  }
+  if (subject.associatedCompetitionId !== undefined) {
+    const competition = await ctx.db.get(
+      "competitions",
+      subject.associatedCompetitionId
+    )
+    if (!competition) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Competition not found.",
+      })
+    }
+  }
+  return {
+    fields: {
+      subjectKind: "custom",
+      customOffering: {
+        name,
+        descriptionMarkdown: subject.descriptionMarkdown,
+        associatedCompetitionId: subject.associatedCompetitionId,
+      },
+    },
+    snapshot: buildCustomOfferingSnapshot({ name, startsAt, endsAt }),
+  }
+}
+
+/**
+ * Resolve the auctioned-property summary, tolerating auctions that have no HQ
+ * competition (WCA-direct or standalone custom offerings) by falling back to the
+ * snapshot that is always seeded at creation time.
+ */
+function resolveAuctionSummaryView(
+  auction: Doc<"sponsorshipAuctions">,
+  competition: Doc<"competitions"> | null
+): {
+  summary: SponsorshipCompetitionSummary
+  source: SponsorshipCompetitionSummarySource
+  fetchedAt: number | undefined
+} {
+  if (competition) {
+    return resolveCompetitionSummaryView(
+      auction.competitionSnapshot,
+      competition
+    )
+  }
+  const snapshot = auction.competitionSnapshot
+  return {
+    summary:
+      snapshot?.summary ??
+      buildCustomOfferingSummary({
+        name: auctionSubjectName(auction),
+        startsAt: auction.startsAt,
+        endsAt: auction.endsAt,
+      }),
+    source: snapshot?.source ?? "custom",
+    fetchedAt: snapshot?.fetchedAt,
+  }
+}
 
 export const removeBeforeOpen = mutation({
   args: { auctionId: v.id("sponsorshipAuctions") },
@@ -173,37 +314,44 @@ export const update = mutation({
     endsAt: v.optional(v.number()),
     startPriceCents: v.optional(v.number()),
     invitedSponsorIds: v.optional(v.array(v.id("sponsors"))),
+    // Custom-offering edits (ignored for other subject kinds).
+    offeringName: v.optional(v.string()),
+    offeringDescriptionMarkdown: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const actorId = await requireSponsorPortalAdmin(ctx)
     const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
     if (!auction) return null
-    const competition = await ctx.db.get("competitions", auction.competitionId)
-    if (!competition) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Competition not found.",
-      })
-    }
+    const subject = resolveAuctionSubject(auction)
     if (auction.state === "closed") {
       throw new ConvexError({
         code: "FORBIDDEN",
         message: "Closed auctions cannot be edited.",
       })
     }
+    const isOfferingEdit =
+      args.offeringName !== undefined ||
+      args.offeringDescriptionMarkdown !== undefined
     if (
       auction.state === "active" &&
       (args.framework !== undefined ||
         args.startsAt !== undefined ||
         args.endsAt !== undefined ||
         args.startPriceCents !== undefined ||
-        args.invitedSponsorIds !== undefined)
+        args.invitedSponsorIds !== undefined ||
+        isOfferingEdit)
     ) {
       throw new ConvexError({
         code: "FORBIDDEN",
         message:
           "Active auctions cannot be edited. Use close and relaunch if changes are required.",
+      })
+    }
+    if (isOfferingEdit && subject.kind !== "custom") {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "Only custom-offering auctions have an editable name.",
       })
     }
 
@@ -232,12 +380,44 @@ export const update = mutation({
       })
     }
 
-    await ctx.db.patch("sponsorshipAuctions", auction._id, patch)
-    if (auction.competitionSnapshot?.source !== "wca") {
-      await ctx.db.patch("sponsorshipAuctions", auction._id, {
-        competitionSnapshot: buildFallbackSnapshotForCompetition(competition),
+    if (subject.kind === "custom") {
+      const nextName = (args.offeringName ?? subject.name).trim()
+      if (nextName.length === 0) {
+        throw new ConvexError({
+          code: "BAD_REQUEST",
+          message: "A custom offering needs a name.",
+        })
+      }
+      const nextDescription =
+        args.offeringDescriptionMarkdown ?? subject.descriptionMarkdown
+      patch.customOffering = {
+        name: nextName,
+        descriptionMarkdown: nextDescription,
+        associatedCompetitionId: subject.associatedCompetitionId,
+      }
+      patch.competitionSnapshot = buildCustomOfferingSnapshot({
+        name: nextName,
+        startsAt: nextStartsAt,
+        endsAt: nextEndsAt,
       })
+    } else if (subject.kind === "hq_competition") {
+      const competition = await ctx.db.get(
+        "competitions",
+        subject.competitionId
+      )
+      if (!competition) {
+        throw new ConvexError({
+          code: "NOT_FOUND",
+          message: "Competition not found.",
+        })
+      }
+      if (auction.competitionSnapshot?.source !== "wca") {
+        patch.competitionSnapshot =
+          buildFallbackSnapshotForCompetition(competition)
+      }
     }
+
+    await ctx.db.patch("sponsorshipAuctions", auction._id, patch)
     if (args.invitedSponsorIds !== undefined) {
       await replaceAuctionInvites(ctx, {
         auctionId: auction._id,
@@ -337,16 +517,30 @@ export const listForManager = query({
     const auctions = await collectAll(ctx, "sponsorshipAuctions")
     if (auctions.length === 0) return []
 
-    const competitionIds = [
-      ...new Set(auctions.map((auction) => auction.competitionId)),
+    const canonicalCompetitionIds = [
+      ...new Set(
+        auctions
+          .map((auction) => auction.competitionId)
+          .filter((id): id is Id<"competitions"> => id !== undefined)
+      ),
+    ]
+    const displayCompetitionIds = [
+      ...new Set(
+        auctions
+          .map((auction) => auctionAssociatedCompetitionId(auction))
+          .filter((id): id is Id<"competitions"> => id !== undefined)
+      ),
     ]
     const [competitions, overridesByCompetitionId] = await Promise.all([
       Promise.all(
-        competitionIds.map((competitionId) =>
+        displayCompetitionIds.map((competitionId) =>
           ctx.db.get("competitions", competitionId)
         )
       ),
-      getCompetitionSponsorOverridesByCompetitionId(ctx, competitionIds),
+      getCompetitionSponsorOverridesByCompetitionId(
+        ctx,
+        canonicalCompetitionIds
+      ),
     ])
     const competitionById = new Map<Id<"competitions">, Doc<"competitions">>()
     const phaseIds = new Set<Id<"phases">>()
@@ -367,27 +561,47 @@ export const listForManager = query({
       phaseNameById.set(phase._id, phase.name)
     }
     const statusByCompetition = buildCompetitionSponsorStatusByCompetition({
-      competitionIds,
+      competitionIds: canonicalCompetitionIds,
       auctions,
       overridesByCompetitionId,
     })
 
     return auctions
       .map((auction) => {
-        const competition = competitionById.get(auction.competitionId)
-        if (!competition) return null
-        const { compStart: competitionCompStart } =
-          competitionStartEnd(competition)
+        const associatedCompetitionId = auctionAssociatedCompetitionId(auction)
+        const competition =
+          associatedCompetitionId !== undefined
+            ? competitionById.get(associatedCompetitionId)
+            : undefined
+        const canonicalCompetition =
+          auction.competitionId !== undefined
+            ? competitionById.get(auction.competitionId)
+            : undefined
+        const subject = resolveAuctionSubject(auction)
+        const wcaCompetitionId =
+          subject.kind === "wca_competition"
+            ? subject.wcaCompetitionId
+            : competition?.wcaCompetitionId
         return {
           id: auction._id,
-          competitionId: auction.competitionId,
-          competitionName: competition.name,
-          competitionCompStart,
-          competitionPhaseName: competition.phaseId
-            ? (phaseNameById.get(competition.phaseId) ?? "Unknown phase")
-            : "No phase",
-          competitionSponsorStatus:
-            statusByCompetition.get(competition._id) ?? "not_offered",
+          subjectKind: subject.kind,
+          subjectName: auctionSubjectName(auction),
+          competitionId: canonicalCompetition?._id,
+          associatedCompetitionId: competition?._id,
+          wcaCompetitionId,
+          competitionName: competition?.name,
+          competitionCompStart: competition
+            ? competitionStartEnd(competition).compStart
+            : undefined,
+          competitionPhaseName: competition
+            ? competition.phaseId
+              ? (phaseNameById.get(competition.phaseId) ?? "Unknown phase")
+              : "No phase"
+            : undefined,
+          competitionSponsorStatus: canonicalCompetition
+            ? (statusByCompetition.get(canonicalCompetition._id) ??
+              "not_offered")
+            : undefined,
           framework: auction.framework,
           state: auction.state,
           currency: auction.currency,
@@ -401,7 +615,6 @@ export const listForManager = query({
           updatedAt: auction.updatedAt,
         }
       })
-      .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((a, b) => {
         if (a.state === "closed" && b.state !== "closed") return 1
         if (a.state !== "closed" && b.state === "closed") return -1
@@ -444,7 +657,9 @@ export const getManagerView = query({
     const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
     if (!auction) return null
     const [competition, invites, intents, events] = await Promise.all([
-      ctx.db.get("competitions", auction.competitionId),
+      auction.competitionId !== undefined
+        ? ctx.db.get("competitions", auction.competitionId)
+        : Promise.resolve(null),
       ctx.db
         .query("sponsorshipAuctionInvites")
         .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
@@ -458,12 +673,11 @@ export const getManagerView = query({
         .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
         .collect(),
     ])
-    if (!competition) return null
     const {
       summary: competitionSummary,
       source: competitionSummarySource,
       fetchedAt: competitionSummaryFetchedAt,
-    } = resolveCompetitionSummaryView(auction.competitionSnapshot, competition)
+    } = resolveAuctionSummaryView(auction, competition)
     const inviteSponsorIds = invites.map((invite) => invite.sponsorId)
     const invitedSponsorSet = new Set<Id<"sponsors">>(inviteSponsorIds)
     const totalBidCountBySponsor = new Map<Id<"sponsors">, number>()
@@ -528,7 +742,10 @@ export const getManagerView = query({
       competitionSummary,
       competitionSummarySource,
       competitionSummaryFetchedAt,
-      competitionWcaCompetitionId: competition.wcaCompetitionId,
+      competitionWcaCompetitionId:
+        auction.subjectKind === "wca_competition"
+          ? auction.wcaCompetitionId
+          : (competition?.wcaCompetitionId ?? undefined),
       inviteSponsorIds,
       intentCount: intents.length,
       eventCount: events.length,

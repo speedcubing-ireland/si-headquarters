@@ -2,46 +2,46 @@ import type { SubmitEvent } from "react"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import type { Id } from "@/convex/_generated/dataModel"
 import type {
   ManagerCompetition,
   ManagerSponsor,
 } from "@/plugins/sponsor/admin/manager-types"
 import type { AuctionEditorDraft } from "@/plugins/sponsor/admin/auction-editor-draft"
+import type { AuctionSubjectDraft } from "@/plugins/sponsor/admin/auction-subject-draft"
 import { AuctionFormFields } from "@/plugins/sponsor/admin/components/auction-form-fields"
-import { CompetitionOverrideAlert } from "@/plugins/sponsor/admin/components/competition-override-alert"
-import { competitionPropertyStatusLabel } from "@/plugins/sponsor/lib/sponsorship-ui"
+import { AuctionSubjectPicker } from "@/plugins/sponsor/admin/components/auction-subject-picker"
 
 export function AuctionCreateForm({
   isCreatingAuction,
   draft,
   onDraftChange,
+  subjectDraft,
+  onSubjectDraftChange,
   activeSponsors,
-  createCompetitionId,
+  competitions,
   unsponsoredCompetitionsByPhase,
   sponsoredCompetitions,
   competitionIdByString,
   selectedCompetition,
   busyCompetitionId,
   onCreateAuction,
-  setCreateCompetitionIdSelection,
   onRevertCompetitionSponsorOverride,
   sponsorById,
 }: {
   isCreatingAuction: boolean
   draft: AuctionEditorDraft
   onDraftChange: (patch: Partial<AuctionEditorDraft>) => void
+  subjectDraft: AuctionSubjectDraft
+  onSubjectDraftChange: (patch: Partial<AuctionSubjectDraft>) => void
   activeSponsors: ManagerSponsor[]
-  createCompetitionId: Id<"competitions"> | null
+  competitions: ManagerCompetition[]
   unsponsoredCompetitionsByPhase: {
     phase: string
     items: ManagerCompetition[]
@@ -51,9 +51,6 @@ export function AuctionCreateForm({
   selectedCompetition: ManagerCompetition | null
   busyCompetitionId: Id<"competitions"> | null
   onCreateAuction: (event: SubmitEvent) => Promise<void>
-  setCreateCompetitionIdSelection: (
-    competitionId: Id<"competitions"> | null
-  ) => void
   onRevertCompetitionSponsorOverride: (
     competitionId: Id<"competitions">
   ) => Promise<void>
@@ -61,97 +58,53 @@ export function AuctionCreateForm({
 }) {
   return (
     <form
-      className="space-y-3"
+      className="space-y-4"
       onSubmit={(event) => void onCreateAuction(event)}
     >
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">Competition</p>
-        <Select
-          value={
-            createCompetitionId === null ? "" : String(createCompetitionId)
-          }
-          onValueChange={(value) => {
-            setCreateCompetitionIdSelection(
-              competitionIdByString.get(value) ?? null
-            )
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select competition" />
-          </SelectTrigger>
-          <SelectContent>
-            {unsponsoredCompetitionsByPhase.map((group) => (
-              <SelectGroup key={group.phase}>
-                <SelectLabel>Needs Sponsor - {group.phase}</SelectLabel>
-                {group.items.map((competition) => (
-                  <SelectItem key={competition.id} value={competition.id}>
-                    {competition.name} ({competition.compStart})
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-            {sponsoredCompetitions.length > 0 ? (
-              <>
-                <SelectSeparator />
-                <SelectGroup>
-                  <SelectLabel>Other competitions</SelectLabel>
-                  {sponsoredCompetitions.map((competition) => (
-                    <SelectItem key={competition.id} value={competition.id}>
-                      {competition.name} ({competition.compStart})
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </>
-            ) : null}
-          </SelectContent>
-        </Select>
-        {selectedCompetition !== null ? (
-          <div className="space-y-2 rounded-md border p-3">
-            <p className="text-xs text-muted-foreground">
-              Phase: {selectedCompetition.currentPhaseName}
-            </p>
-            <p className="text-sm font-medium">{selectedCompetition.name}</p>
-            <p className="text-xs text-muted-foreground">
-              Dates: {selectedCompetition.compStart} -{" "}
-              {selectedCompetition.compEnd}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Sponsor status:{" "}
-              {competitionPropertyStatusLabel(
-                selectedCompetition.sponsorPropertyStatus
-              )}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {selectedCompetition.wcaCompetitionId !== undefined &&
-              selectedCompetition.wcaCompetitionId.length > 0
-                ? "WCA link present. Full competition details will sync after draft creation."
-                : "No WCA link yet. Full competition details cannot sync until linked."}
-            </p>
-            <CompetitionOverrideAlert
-              competition={selectedCompetition}
-              manualSponsorName={
-                selectedCompetition.manualSponsorId
-                  ? sponsorById.get(selectedCompetition.manualSponsorId)?.name
-                  : undefined
-              }
-              busy={busyCompetitionId === selectedCompetition.id}
-              onRevert={(competitionId) =>
-                void onRevertCompetitionSponsorOverride(competitionId)
-              }
-            />
-          </div>
-        ) : null}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Auction subject</CardTitle>
+          <CardDescription>
+            Choose the competition or offering this auction is for.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuctionSubjectPicker
+            draft={subjectDraft}
+            onDraftChange={onSubjectDraftChange}
+            competitions={competitions}
+            competitionIdByString={competitionIdByString}
+            unsponsoredCompetitionsByPhase={unsponsoredCompetitionsByPhase}
+            sponsoredCompetitions={sponsoredCompetitions}
+            selectedCompetition={selectedCompetition}
+            busyCompetitionId={busyCompetitionId}
+            onRevertCompetitionSponsorOverride={
+              onRevertCompetitionSponsorOverride
+            }
+            sponsorById={sponsorById}
+          />
+        </CardContent>
+      </Card>
 
-      <AuctionFormFields
-        draft={draft}
-        onDraftChange={onDraftChange}
-        activeSponsors={activeSponsors}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Auction settings</CardTitle>
+          <CardDescription>
+            Set the schedule, starting price, and invited sponsors.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <AuctionFormFields
+            draft={draft}
+            onDraftChange={onDraftChange}
+            activeSponsors={activeSponsors}
+          />
 
-      <Button type="submit" disabled={isCreatingAuction}>
-        {isCreatingAuction ? <Spinner /> : "Create draft"}
-      </Button>
+          <Button type="submit" disabled={isCreatingAuction}>
+            {isCreatingAuction ? <Spinner /> : "Create draft"}
+          </Button>
+        </CardContent>
+      </Card>
     </form>
   )
 }

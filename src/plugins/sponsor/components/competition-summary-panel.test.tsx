@@ -50,6 +50,29 @@ describe("formatDateRange", () => {
 })
 
 describe("AuctionCompetitionSummaryPanel", () => {
+  test("renders custom offering markdown without competition detail placeholders", () => {
+    const html = renderToStaticMarkup(
+      <AuctionCompetitionSummaryPanel
+        source="custom"
+        offeringDescriptionMarkdown="**Gold package**\n\nIncludes logo placement."
+        summary={{
+          name: "Gold sponsor package",
+          address: "",
+          startDate: "2026-09-05",
+          endDate: "2026-09-06",
+          eventIds: [],
+        }}
+      />
+    )
+
+    expect(html).toContain("More info")
+    expect(html).toContain("Gold package")
+    expect(html).toContain("Includes logo placement.")
+    expect(html).not.toContain("Competition details")
+    expect(html).not.toContain("Events not listed")
+    expect(html).not.toContain("No competitor limit listed")
+  })
+
   test("renders long event lists compactly without a disclosure row", () => {
     const html = renderToStaticMarkup(
       <AuctionCompetitionSummaryPanel

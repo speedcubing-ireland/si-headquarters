@@ -4,7 +4,12 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import { compareBidIntentChronology } from "../lib/auctionState"
 import { placeSponsorshipBid } from "../lib/bidPlacement"
-import { resolveCompetitionSummaryView } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import {
+  resolveCompetitionSummaryView,
+  type SponsorshipCompetitionSummary,
+  type SponsorshipCompetitionSummarySource,
+} from "@/convex/plugins/sponsor/lib/competitionSnapshot"
+import { auctionSubjectName } from "@/convex/plugins/sponsor/lib/auctionSubject"
 import { getCompetitionSponsorOverride } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 import { resolveCompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
@@ -71,7 +76,9 @@ export const listAuctions = query({
     const auctionDocs = await listInvitedVisibleAuctions(ctx, sponsor._id)
     const competitions = await Promise.all(
       auctionDocs.map((auction) =>
-        ctx.db.get("competitions", auction.competitionId)
+        auction.competitionId !== undefined
+          ? ctx.db.get("competitions", auction.competitionId)
+          : Promise.resolve(null)
       )
     )
     const intentsByAuction = await Promise.all(
@@ -82,11 +89,9 @@ export const listAuctions = query({
           .collect()
       )
     )
-    const competitionNames = new Map<Id<"competitions">, string>()
     const competitionById = new Map<Id<"competitions">, Doc<"competitions">>()
     for (const competition of competitions) {
       if (!competition) continue
-      competitionNames.set(competition._id, competition.name)
       competitionById.set(competition._id, competition)
     }
     const hasAnyValidBidByAuctionId = new Map<
@@ -114,9 +119,11 @@ export const listAuctions = query({
     return auctionDocs
       .sort((a, b) => b.endsAt - a.endsAt)
       .map((auction) => {
-        const competitionName =
-          competitionNames.get(auction.competitionId) ?? "Competition"
-        const competition = competitionById.get(auction.competitionId)
+        const competitionName = auctionSubjectName(auction)
+        const competition =
+          auction.competitionId !== undefined
+            ? competitionById.get(auction.competitionId)
+            : undefined
         const {
           summary: competitionSummary,
           source: competitionSummarySource,
@@ -172,10 +179,10 @@ export const getAuction = query({
     if (!auction || !isSponsorVisibleAuctionState(auction.state)) {
       return null
     }
-    const competition = await ctx.db.get("competitions", auction.competitionId)
-    if (!competition) {
-      return null
-    }
+    const competition =
+      auction.competitionId !== undefined
+        ? await ctx.db.get("competitions", auction.competitionId)
+        : null
 
     const bidHistoryVisible = isBidHistoryVisibleToSponsor(auction)
     const [events, auctionIntents] = await Promise.all([
@@ -203,21 +210,38 @@ export const getAuction = query({
     const myLastBidCents = latestValidSponsorIntent?.amountCents
     const myMaxBidCents = latestValidSponsorIntent?.maxAmountCents
     const hasSponsorValidBid = sponsorIntents.some((intent) => intent.isValid)
-    const override = await getCompetitionSponsorOverride(
-      ctx,
-      auction.competitionId
-    )
+    const override =
+      auction.competitionId !== undefined
+        ? await getCompetitionSponsorOverride(ctx, auction.competitionId)
+        : null
     const sponsorPropertyStatus = resolveCompetitionSponsorPropertyStatus({
       override,
       auctions: [auction],
     })
-    const { summary: competitionSummary, source: competitionSummarySource } =
-      resolveCompetitionSummaryView(auction.competitionSnapshot, competition)
+    let competitionSummary: SponsorshipCompetitionSummary
+    let competitionSummarySource: SponsorshipCompetitionSummarySource
+    if (competition) {
+      const view = resolveCompetitionSummaryView(
+        auction.competitionSnapshot,
+        competition
+      )
+      competitionSummary = view.summary
+      competitionSummarySource = view.source
+    } else {
+      competitionSummary = auction.competitionSnapshot?.summary ?? {
+        name: auctionSubjectName(auction),
+        address: "",
+        startDate: new Date(auction.startsAt).toISOString().slice(0, 10),
+        endDate: new Date(auction.endsAt).toISOString().slice(0, 10),
+        eventIds: [],
+      }
+      competitionSummarySource = auction.competitionSnapshot?.source ?? "custom"
+    }
 
     return {
       auction: toSponsorAuctionListItem({
         auction,
-        competitionName: competition.name,
+        competitionName: auctionSubjectName(auction),
         competitionSummary,
         competitionSummarySource,
         hasAnyValidBid,

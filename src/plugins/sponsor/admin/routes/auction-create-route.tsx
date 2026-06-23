@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react"
-import { useMemo, useState, type SubmitEvent } from "react"
+import { useEffect, useMemo, useState, type SubmitEvent } from "react"
 import { toast } from "sonner"
-import { Page, PAGE_CONTENT_PADDING } from "@/components/layout/page"
+import { Page, PAGE_CONTENT_PADDING_SCROLL } from "@/components/layout/page"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -10,14 +10,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { AbilityRouteGuard } from "@/features/auth"
-import { cn } from "@/lib/utils"
 import type { Id } from "@/convex/_generated/dataModel"
+import {
+  buildAuctionSubjectInput,
+  emptyAuctionSubjectDraft,
+  type AuctionSubjectDraft,
+} from "@/plugins/sponsor/admin/auction-subject-draft"
 import { AuctionCreateForm } from "@/plugins/sponsor/admin/components/auction-create-form"
 import { AuctionPanelHistory } from "@/plugins/sponsor/admin/components/auction-panel-history"
 import { validateAuctionFormInputs } from "@/plugins/sponsor/admin/auction-editor-draft"
-import { groupUnsponsoredCompetitionsByPhase } from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
+import {
+  filterPreviousClosedAuctionsForSubject,
+  groupUnsponsoredCompetitionsByPhase,
+} from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
 import { useAuctionCreateDraft } from "@/plugins/sponsor/admin/hooks/use-auction-create-draft"
 import { useAuctionLifecycleActions } from "@/plugins/sponsor/admin/hooks/use-auction-lifecycle-actions"
 import { useCompetitionOverrideRevert } from "@/plugins/sponsor/admin/hooks/use-competition-override-revert"
@@ -55,8 +61,9 @@ function AuctionCreateContent() {
   const { busyCompetitionId, onRevertCompetitionSponsorOverride } =
     useCompetitionOverrideRevert()
 
-  const [createCompetitionIdSelection, setCreateCompetitionIdSelection] =
-    useState<Id<"competitions"> | null>(null)
+  const [subjectDraft, setSubjectDraft] = useState<AuctionSubjectDraft>(
+    () => emptyAuctionSubjectDraft
+  )
   const [isCreatingAuction, setIsCreatingAuction] = useState(false)
 
   const activeSponsors = useMemo(
@@ -104,29 +111,51 @@ function AuctionCreateContent() {
     return (unsponsoredCompetitionsByPhase[0]?.items[0] ?? competitions[0]).id
   }, [competitions, unsponsoredCompetitionsByPhase])
 
+  useEffect(() => {
+    if (
+      subjectDraft.source === "hq_competition" &&
+      subjectDraft.hqCompetitionId === null &&
+      defaultCreateCompetitionId !== null
+    ) {
+      setSubjectDraft((current) =>
+        current.source === "hq_competition" && current.hqCompetitionId === null
+          ? { ...current, hqCompetitionId: defaultCreateCompetitionId }
+          : current
+      )
+    }
+  }, [
+    defaultCreateCompetitionId,
+    subjectDraft.hqCompetitionId,
+    subjectDraft.source,
+  ])
+
   const createCompetitionId =
-    createCompetitionIdSelection ?? defaultCreateCompetitionId
+    subjectDraft.source === "hq_competition"
+      ? subjectDraft.hqCompetitionId
+      : subjectDraft.source === "custom"
+        ? subjectDraft.customCompetitionId
+        : null
   const selectedCompetition =
     createCompetitionId === null
       ? null
       : (competitionById.get(createCompetitionId) ?? null)
+  const selectedWcaCompetitionId =
+    subjectDraft.source === "wca_competition"
+      ? subjectDraft.wca?.id
+      : selectedCompetition?.wcaCompetitionId
 
   const previousClosedAuctionsForPanel = useMemo(() => {
-    if (createCompetitionId === null) return []
-    return auctions
-      .filter(
-        (auction) =>
-          auction.state === "closed" &&
-          auction.competitionId === createCompetitionId
-      )
-      .sort((a, b) => b.endsAt - a.endsAt)
-      .slice(0, 5)
-  }, [auctions, createCompetitionId])
+    return filterPreviousClosedAuctionsForSubject(auctions, {
+      competitionId: createCompetitionId,
+      wcaCompetitionId: selectedWcaCompetitionId,
+    })
+  }, [auctions, createCompetitionId, selectedWcaCompetitionId])
 
   const onCreateAuction = async (event: SubmitEvent) => {
     event.preventDefault()
-    if (createCompetitionId === null) {
-      toast.error("Select a competition first.")
+    const subject = buildAuctionSubjectInput(subjectDraft)
+    if (!subject.ok) {
+      toast.error(subject.error)
       return
     }
     const validation = validateAuctionFormInputs(draft)
@@ -138,7 +167,7 @@ function AuctionCreateContent() {
     setIsCreatingAuction(true)
     try {
       const auctionId = await createAuction({
-        competitionId: createCompetitionId,
+        subject: subject.value,
         framework: draft.framework,
         ...validation.values,
       })
@@ -157,52 +186,63 @@ function AuctionCreateContent() {
   return (
     <Page.Shell
       title="Create Sponsorship Auction"
-      contentClassName={cn(PAGE_CONTENT_PADDING, "flex flex-col gap-4")}
+      contentClassName={PAGE_CONTENT_PADDING_SCROLL}
     >
-      <Button
-        variant="ghost"
-        size="sm"
-        className="self-start"
-        onClick={() => {
-          backToList()
-        }}
-      >
-        <ArrowLeft className="size-4" />
-        Back to auctions
-      </Button>
-      <Card>
-        <CardHeader>
-          <CardTitle>Create Sponsorship Auction</CardTitle>
-          <CardDescription>Create a draft for a competition.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <AuctionCreateForm
-            isCreatingAuction={isCreatingAuction}
-            draft={draft}
-            onDraftChange={onDraftChange}
-            activeSponsors={activeSponsors}
-            createCompetitionId={createCompetitionId}
-            unsponsoredCompetitionsByPhase={unsponsoredCompetitionsByPhase}
-            sponsoredCompetitions={sponsoredCompetitions}
-            competitionIdByString={competitionIdByString}
-            selectedCompetition={selectedCompetition}
-            busyCompetitionId={busyCompetitionId}
-            onCreateAuction={onCreateAuction}
-            setCreateCompetitionIdSelection={setCreateCompetitionIdSelection}
-            onRevertCompetitionSponsorOverride={
-              onRevertCompetitionSponsorOverride
-            }
-            sponsorById={sponsorById}
-          />
-          <Separator />
-          <AuctionPanelHistory
-            panelCompetitionId={createCompetitionId}
-            previousClosedAuctions={previousClosedAuctionsForPanel}
-            sponsorById={sponsorById}
-            onViewClosedAuction={viewClosedAuction}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={() => {
+            backToList()
+          }}
+        >
+          <ArrowLeft className="size-4" />
+          Back to auctions
+        </Button>
+
+        <AuctionCreateForm
+          isCreatingAuction={isCreatingAuction}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          subjectDraft={subjectDraft}
+          onSubjectDraftChange={(patch) => {
+            setSubjectDraft((current) => ({ ...current, ...patch }))
+          }}
+          activeSponsors={activeSponsors}
+          selectedCompetition={selectedCompetition}
+          competitions={competitions}
+          unsponsoredCompetitionsByPhase={unsponsoredCompetitionsByPhase}
+          sponsoredCompetitions={sponsoredCompetitions}
+          competitionIdByString={competitionIdByString}
+          busyCompetitionId={busyCompetitionId}
+          onCreateAuction={onCreateAuction}
+          onRevertCompetitionSponsorOverride={
+            onRevertCompetitionSponsorOverride
+          }
+          sponsorById={sponsorById}
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Previous closed auctions</CardTitle>
+            <CardDescription>
+              Other closed auctions for the selected competition.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AuctionPanelHistory
+              hasHistorySubject={
+                createCompetitionId !== null ||
+                selectedWcaCompetitionId !== undefined
+              }
+              previousClosedAuctions={previousClosedAuctionsForPanel}
+              sponsorById={sponsorById}
+              onViewClosedAuction={viewClosedAuction}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </Page.Shell>
   )
 }

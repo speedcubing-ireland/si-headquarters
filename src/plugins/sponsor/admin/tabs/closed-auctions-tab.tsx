@@ -125,11 +125,13 @@ export function ClosedAuctionsTab() {
               <>
                 <div className="space-y-1 rounded-md border p-3 text-sm">
                   <p className="font-medium">
-                    {selectedClosedAuction.competitionName}
+                    {selectedClosedAuction.subjectName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {auctionFrameworkLabel(selectedClosedAuction.framework)} ·{" "}
-                    {selectedClosedAuction.competitionPhaseName}
+                    {auctionFrameworkLabel(selectedClosedAuction.framework)}
+                    {selectedClosedAuction.competitionPhaseName !== undefined
+                      ? ` · ${selectedClosedAuction.competitionPhaseName}`
+                      : null}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge

@@ -7,6 +7,13 @@ import {
   auctionState,
 } from "@/convex/plugins/sponsor/lib/validators"
 import { competitionSnapshot } from "../../lib/competitionSnapshot"
+import {
+  auctionAssociatedCompetitionId,
+  auctionSubjectKind,
+  auctionSubjectName,
+  auctionSubjectView,
+  resolveAuctionSubject,
+} from "../../lib/auctionSubject"
 
 export const DEFAULT_SCHEDULE_WINDOW_MS = 5 * 60 * 1000
 
@@ -17,7 +24,10 @@ export interface SponsorshipReadinessSnapshot {
 
 export const auctionForManager = v.object({
   id: v.id("sponsorshipAuctions"),
-  competitionId: v.id("competitions"),
+  subject: auctionSubjectView,
+  subjectName: v.string(),
+  competitionId: v.optional(v.id("competitions")),
+  associatedCompetitionId: v.optional(v.id("competitions")),
   framework: sponsorshipAuctionFramework,
   state: auctionState,
   currency: v.string(),
@@ -48,11 +58,15 @@ export const competitionForSponsorshipManager = v.object({
 
 export const auctionTableRowForManager = v.object({
   id: v.id("sponsorshipAuctions"),
-  competitionId: v.id("competitions"),
-  competitionName: v.string(),
-  competitionCompStart: v.string(),
-  competitionPhaseName: v.string(),
-  competitionSponsorStatus: competitionSponsorPropertyStatus,
+  subjectKind: auctionSubjectKind,
+  subjectName: v.string(),
+  competitionId: v.optional(v.id("competitions")),
+  associatedCompetitionId: v.optional(v.id("competitions")),
+  wcaCompetitionId: v.optional(v.string()),
+  competitionName: v.optional(v.string()),
+  competitionCompStart: v.optional(v.string()),
+  competitionPhaseName: v.optional(v.string()),
+  competitionSponsorStatus: v.optional(competitionSponsorPropertyStatus),
   framework: sponsorshipAuctionFramework,
   state: auctionState,
   currency: v.string(),
@@ -89,6 +103,31 @@ export async function requireNoOpenAuctionForCompetition(
       code: "PRECONDITION_FAILED",
       message:
         "This competition already has a non-closed sponsorship auction. Close it before creating or starting another.",
+    })
+  }
+}
+
+export async function requireNoOpenAuctionForWcaCompetition(
+  ctx: MutationCtx,
+  wcaCompetitionId: string,
+  ignoreAuctionId?: Id<"sponsorshipAuctions">
+): Promise<void> {
+  const auctions = await ctx.db
+    .query("sponsorshipAuctions")
+    .withIndex("by_wcaCompetitionId", (q) =>
+      q.eq("wcaCompetitionId", wcaCompetitionId)
+    )
+    .collect()
+  const openAuction = auctions.find(
+    (auction) =>
+      auction.state !== "closed" &&
+      (ignoreAuctionId ? auction._id !== ignoreAuctionId : true)
+  )
+  if (openAuction) {
+    throw new ConvexError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "This WCA competition already has a non-closed sponsorship auction. Close it before creating another.",
     })
   }
 }
@@ -145,7 +184,10 @@ export async function replaceAuctionInvites(
 export function toManagerAuction(auction: Doc<"sponsorshipAuctions">) {
   return {
     id: auction._id,
+    subject: resolveAuctionSubject(auction),
+    subjectName: auctionSubjectName(auction),
     competitionId: auction.competitionId,
+    associatedCompetitionId: auctionAssociatedCompetitionId(auction),
     framework: auction.framework,
     state: auction.state,
     currency: auction.currency,

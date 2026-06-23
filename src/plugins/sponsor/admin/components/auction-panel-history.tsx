@@ -10,12 +10,12 @@ import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import { formatEuroFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function AuctionPanelHistory({
-  panelCompetitionId,
+  hasHistorySubject,
   previousClosedAuctions,
   sponsorById,
   onViewClosedAuction,
 }: {
-  panelCompetitionId: Id<"competitions"> | null
+  hasHistorySubject: boolean
   previousClosedAuctions: ManagerAuction[]
   sponsorById: Map<Id<"sponsors">, ManagerSponsor>
   onViewClosedAuction: (auctionId: Id<"sponsorshipAuctions">) => void
@@ -24,19 +24,19 @@ export function AuctionPanelHistory({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Previous closed auctions for this competition
+          Previous closed auctions for this sponsorship subject
         </p>
-        {panelCompetitionId ? (
+        {hasHistorySubject ? (
           <Badge variant="outline">{previousClosedAuctions.length}</Badge>
         ) : null}
       </div>
-      {panelCompetitionId === null ? (
+      {!hasHistorySubject ? (
         <p className="text-sm text-muted-foreground">
-          Select a competition to view historical outcomes.
+          Select a competition or WCA competition to view historical outcomes.
         </p>
       ) : previousClosedAuctions.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No previous closed auctions for this competition.
+          No previous closed auctions for this sponsorship subject.
         </p>
       ) : (
         <div className="space-y-2">

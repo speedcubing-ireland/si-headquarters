@@ -24,8 +24,11 @@ import {
 
 export interface ManagerAuctionRow {
   id: Id<"sponsorshipAuctions">
-  competitionName: string
-  competitionPhaseName: string
+  subjectName: string
+  subjectKind: "hq_competition" | "wca_competition" | "custom"
+  associatedCompetitionId?: Id<"competitions">
+  competitionName?: string
+  competitionPhaseName?: string
   competitionCompStart?: string
   framework: SponsorshipAuctionFramework
   state: Doc<"sponsorshipAuctions">["state"]
@@ -34,6 +37,15 @@ export interface ManagerAuctionRow {
   startPriceCents: number
   currentPriceCents?: number
   settlementAmountCents?: number
+}
+
+const auctionSubjectKindLabel: Record<
+  ManagerAuctionRow["subjectKind"],
+  string
+> = {
+  hq_competition: "HQ competition",
+  wca_competition: "WCA competition",
+  custom: "Custom offering",
 }
 
 export function AuctionTable({
@@ -64,8 +76,8 @@ export function AuctionTable({
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead>Competition</TableHead>
-            <TableHead>Phase</TableHead>
+            <TableHead>Auction</TableHead>
+            <TableHead>Source</TableHead>
             <TableHead>State</TableHead>
             <TableHead>Framework</TableHead>
             <TableHead>Window</TableHead>
@@ -86,7 +98,7 @@ export function AuctionTable({
               >
                 <TableCell className="align-top whitespace-normal">
                   <div className="space-y-0.5">
-                    <p className="font-medium">{auction.competitionName}</p>
+                    <p className="font-medium">{auction.subjectName}</p>
                     {auction.competitionCompStart !== undefined &&
                     auction.competitionCompStart.length > 0 ? (
                       <p className="text-xs text-muted-foreground">
@@ -95,7 +107,15 @@ export function AuctionTable({
                     ) : null}
                   </div>
                 </TableCell>
-                <TableCell>{auction.competitionPhaseName}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {auctionSubjectKindLabel[auction.subjectKind]}
+                  {auction.competitionPhaseName !== undefined ? (
+                    <>
+                      <br />
+                      {auction.competitionPhaseName}
+                    </>
+                  ) : null}
+                </TableCell>
                 <TableCell>
                   <Badge variant={sponsorshipStateBadgeVariant(auction.state)}>
                     {sponsorshipStateLabel(auction.state)}

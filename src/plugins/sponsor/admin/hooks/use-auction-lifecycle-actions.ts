@@ -67,10 +67,10 @@ export function useAuctionLifecycleActions({
         return
       }
       await startAuction(auctionId)
-      toast.success("Auction started.")
+      toast.success("Auction scheduled.")
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to start auction."
+        error instanceof Error ? error.message : "Failed to schedule auction."
       toast.error(message)
     } finally {
       setBusyAuctionId(null)

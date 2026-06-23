@@ -2,14 +2,20 @@ import type { Id } from "@/convex/_generated/dataModel"
 import { normalizeSearchText } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function filterAuctionsBySearch<
-  T extends { competitionName: string; competitionPhaseName: string },
+  T extends {
+    subjectName: string
+    competitionName?: string
+    competitionPhaseName?: string
+  },
 >(auctions: T[], rawQuery: string): T[] {
   const search = normalizeSearchText(rawQuery)
   if (search.length === 0) return auctions
-  return auctions.filter(
-    (auction) =>
-      auction.competitionName.toLowerCase().includes(search) ||
-      auction.competitionPhaseName.toLowerCase().includes(search)
+  return auctions.filter((auction) =>
+    [
+      auction.subjectName,
+      auction.competitionName,
+      auction.competitionPhaseName,
+    ].some((field) => field?.toLowerCase().includes(search) ?? false)
   )
 }
 
@@ -43,4 +49,58 @@ export function attachSponsorNames<T extends { sponsorId: Id<"sponsors"> }>(
     ...outcome,
     sponsorName: resolveSponsorName(outcome.sponsorId),
   }))
+}
+
+function normalizeWcaCompetitionId(
+  wcaCompetitionId: string | undefined | null
+): string | null {
+  const normalized = wcaCompetitionId?.trim()
+  return normalized !== undefined && normalized.length > 0 ? normalized : null
+}
+
+export function filterPreviousClosedAuctionsForSubject<
+  T extends {
+    id: Id<"sponsorshipAuctions">
+    state: string
+    endsAt: number
+    competitionId?: Id<"competitions">
+    associatedCompetitionId?: Id<"competitions">
+    wcaCompetitionId?: string
+  },
+>(
+  auctions: readonly T[],
+  input: {
+    selectedAuctionId?: Id<"sponsorshipAuctions">
+    competitionId?: Id<"competitions"> | null
+    wcaCompetitionId?: string | null
+    limit?: number
+  }
+): T[] {
+  const selectedWcaCompetitionId = normalizeWcaCompetitionId(
+    input.wcaCompetitionId
+  )
+  if (input.competitionId === null && selectedWcaCompetitionId === null) {
+    return []
+  }
+
+  return auctions
+    .filter((auction) => {
+      if (auction.state !== "closed") return false
+      if (auction.id === input.selectedAuctionId) return false
+      if (
+        input.competitionId !== null &&
+        input.competitionId !== undefined &&
+        (auction.competitionId === input.competitionId ||
+          auction.associatedCompetitionId === input.competitionId)
+      ) {
+        return true
+      }
+      return (
+        selectedWcaCompetitionId !== null &&
+        normalizeWcaCompetitionId(auction.wcaCompetitionId) ===
+          selectedWcaCompetitionId
+      )
+    })
+    .sort((a, b) => b.endsAt - a.endsAt)
+    .slice(0, input.limit ?? 5)
 }

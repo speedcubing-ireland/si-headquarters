@@ -9,8 +9,10 @@ import { resolveAuctionStartTargetState } from "../../lib/lifecycle"
 import { shouldSkipAuctionActiveReminder } from "../../lib/sponsorBidStatus"
 import {
   requireNoOpenAuctionForCompetition,
+  requireNoOpenAuctionForWcaCompetition,
   type SponsorshipReadinessSnapshot,
 } from "./shared"
+import { resolveAuctionSubject } from "../../lib/auctionSubject"
 import {
   cacheCompetitionFallbackSnapshot,
   scheduleCompetitionSnapshotRefresh,
@@ -50,6 +52,70 @@ function buildReadinessSnapshot(
     checkedAt: Date.now(),
     warnings,
   }
+}
+
+/**
+ * Validate that an auction is ready to open and return its readiness snapshot,
+ * branching on subject kind:
+ * - hq_competition: must be WCA-linked and synced (the original behaviour).
+ * - wca_competition: must have a WCA-sourced snapshot.
+ * - custom: always ready (the offering details are entered by the admin).
+ */
+async function assertAuctionStartReadiness(
+  ctx: MutationCtx,
+  auction: Doc<"sponsorshipAuctions">
+): Promise<SponsorshipReadinessSnapshot> {
+  const subject = resolveAuctionSubject(auction)
+
+  if (subject.kind === "custom") {
+    return { checkedAt: Date.now(), warnings: [] }
+  }
+
+  if (subject.kind === "wca_competition") {
+    if (auction.competitionSnapshot?.source !== "wca") {
+      throw new ConvexError({
+        code: "PRECONDITION_FAILED",
+        message:
+          "Competition details are not synced from WCA yet. Refresh competition data before opening.",
+      })
+    }
+    await requireNoOpenAuctionForWcaCompetition(
+      ctx,
+      subject.wcaCompetitionId,
+      auction._id
+    )
+    return { checkedAt: Date.now(), warnings: [] }
+  }
+
+  const competition = await ctx.db.get("competitions", subject.competitionId)
+  if (competition === null) {
+    throw new ConvexError({
+      code: "NOT_FOUND",
+      message: "Competition not found.",
+    })
+  }
+  const wcaCompetitionId = competition.wcaCompetitionId
+  if (wcaCompetitionId === undefined || wcaCompetitionId.length === 0) {
+    throw new ConvexError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "Competition must be linked to a WCA competition before starting sponsorship.",
+    })
+  }
+  await cacheCompetitionFallbackSnapshot(ctx, { auction, competition })
+  if (auction.competitionSnapshot?.source !== "wca") {
+    throw new ConvexError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "Competition details are not synced from WCA yet. Refresh competition data before opening.",
+    })
+  }
+  await requireNoOpenAuctionForCompetition(
+    ctx,
+    subject.competitionId,
+    auction._id
+  )
+  return buildReadinessSnapshot(competition)
 }
 
 export async function closeAuctionInternal(
@@ -278,35 +344,7 @@ export const start = mutation({
       return null
     }
 
-    const competition = await ctx.db.get("competitions", auction.competitionId)
-    if (competition === null) {
-      throw new ConvexError({
-        code: "NOT_FOUND",
-        message: "Competition not found.",
-      })
-    }
-    const wcaCompetitionId = competition.wcaCompetitionId
-    if (wcaCompetitionId === undefined || wcaCompetitionId.length === 0) {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message:
-          "Competition must be linked to a WCA competition before starting sponsorship.",
-      })
-    }
-    await cacheCompetitionFallbackSnapshot(ctx, { auction, competition })
-    if (auction.competitionSnapshot?.source !== "wca") {
-      throw new ConvexError({
-        code: "PRECONDITION_FAILED",
-        message:
-          "Competition details are not synced from WCA yet. Refresh competition data before opening.",
-      })
-    }
-    await requireNoOpenAuctionForCompetition(
-      ctx,
-      auction.competitionId,
-      auction._id
-    )
-    const readinessSnapshot = buildReadinessSnapshot(competition)
+    const readinessSnapshot = await assertAuctionStartReadiness(ctx, auction)
 
     await ctx.db.patch("sponsorshipAuctions", auction._id, {
       state: targetState,
@@ -340,7 +378,10 @@ export const close = mutation({
     await requireSponsorPortalAdmin(ctx)
     const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
     if (!auction) return null
-    const competition = await ctx.db.get("competitions", auction.competitionId)
+    const competition =
+      auction.competitionId !== undefined
+        ? await ctx.db.get("competitions", auction.competitionId)
+        : null
     if (competition) {
       await cacheCompetitionFallbackSnapshot(ctx, { auction, competition })
     }

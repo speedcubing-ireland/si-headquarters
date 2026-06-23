@@ -132,6 +132,7 @@ import type * as plugins_sponsor_admin_auctions_competitionSnapshot from "../plu
 import type * as plugins_sponsor_admin_auctions_emails from "../plugins/sponsor/admin/auctions/emails.js";
 import type * as plugins_sponsor_admin_auctions_lifecycle from "../plugins/sponsor/admin/auctions/lifecycle.js";
 import type * as plugins_sponsor_admin_auctions_management from "../plugins/sponsor/admin/auctions/management.js";
+import type * as plugins_sponsor_admin_auctions_migrations from "../plugins/sponsor/admin/auctions/migrations.js";
 import type * as plugins_sponsor_admin_auctions_reminders from "../plugins/sponsor/admin/auctions/reminders.js";
 import type * as plugins_sponsor_admin_auctions_scheduledFunctions from "../plugins/sponsor/admin/auctions/scheduledFunctions.js";
 import type * as plugins_sponsor_admin_auctions_shared from "../plugins/sponsor/admin/auctions/shared.js";
@@ -171,7 +172,9 @@ import type * as plugins_sponsor_emails_types from "../plugins/sponsor/emails/ty
 import type * as plugins_sponsor_http from "../plugins/sponsor/http.js";
 import type * as plugins_sponsor_impersonation from "../plugins/sponsor/impersonation.js";
 import type * as plugins_sponsor_integrations_wca_fetchDetails from "../plugins/sponsor/integrations/wca/fetchDetails.js";
+import type * as plugins_sponsor_integrations_wca_search from "../plugins/sponsor/integrations/wca/search.js";
 import type * as plugins_sponsor_lib_auctionState from "../plugins/sponsor/lib/auctionState.js";
+import type * as plugins_sponsor_lib_auctionSubject from "../plugins/sponsor/lib/auctionSubject.js";
 import type * as plugins_sponsor_lib_bidPlacement from "../plugins/sponsor/lib/bidPlacement.js";
 import type * as plugins_sponsor_lib_bidding from "../plugins/sponsor/lib/bidding.js";
 import type * as plugins_sponsor_lib_competitionSnapshot from "../plugins/sponsor/lib/competitionSnapshot.js";
@@ -199,6 +202,7 @@ import type * as plugins_validators from "../plugins/validators.js";
 import type * as plugins_wca_api from "../plugins/wca/api.js";
 import type * as plugins_wca_client from "../plugins/wca/client.js";
 import type * as plugins_wca_competitionLink from "../plugins/wca/competitionLink.js";
+import type * as plugins_wca_competitionOptions from "../plugins/wca/competitionOptions.js";
 import type * as plugins_wca_definition from "../plugins/wca/definition.js";
 import type * as plugins_wca_oauth from "../plugins/wca/oauth.js";
 import type * as plugins_wca_openapiClient_client_index from "../plugins/wca/openapiClient/client/index.js";
@@ -424,6 +428,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/admin/auctions/emails": typeof plugins_sponsor_admin_auctions_emails;
   "plugins/sponsor/admin/auctions/lifecycle": typeof plugins_sponsor_admin_auctions_lifecycle;
   "plugins/sponsor/admin/auctions/management": typeof plugins_sponsor_admin_auctions_management;
+  "plugins/sponsor/admin/auctions/migrations": typeof plugins_sponsor_admin_auctions_migrations;
   "plugins/sponsor/admin/auctions/reminders": typeof plugins_sponsor_admin_auctions_reminders;
   "plugins/sponsor/admin/auctions/scheduledFunctions": typeof plugins_sponsor_admin_auctions_scheduledFunctions;
   "plugins/sponsor/admin/auctions/shared": typeof plugins_sponsor_admin_auctions_shared;
@@ -463,7 +468,9 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/http": typeof plugins_sponsor_http;
   "plugins/sponsor/impersonation": typeof plugins_sponsor_impersonation;
   "plugins/sponsor/integrations/wca/fetchDetails": typeof plugins_sponsor_integrations_wca_fetchDetails;
+  "plugins/sponsor/integrations/wca/search": typeof plugins_sponsor_integrations_wca_search;
   "plugins/sponsor/lib/auctionState": typeof plugins_sponsor_lib_auctionState;
+  "plugins/sponsor/lib/auctionSubject": typeof plugins_sponsor_lib_auctionSubject;
   "plugins/sponsor/lib/bidPlacement": typeof plugins_sponsor_lib_bidPlacement;
   "plugins/sponsor/lib/bidding": typeof plugins_sponsor_lib_bidding;
   "plugins/sponsor/lib/competitionSnapshot": typeof plugins_sponsor_lib_competitionSnapshot;
@@ -491,6 +498,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/wca/api": typeof plugins_wca_api;
   "plugins/wca/client": typeof plugins_wca_client;
   "plugins/wca/competitionLink": typeof plugins_wca_competitionLink;
+  "plugins/wca/competitionOptions": typeof plugins_wca_competitionOptions;
   "plugins/wca/definition": typeof plugins_wca_definition;
   "plugins/wca/oauth": typeof plugins_wca_oauth;
   "plugins/wca/openapiClient/client/index": typeof plugins_wca_openapiClient_client_index;

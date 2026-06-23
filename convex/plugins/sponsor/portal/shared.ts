@@ -13,7 +13,12 @@ import {
 import {
   sponsorshipCompetitionSummary,
   sponsorshipCompetitionSummarySource,
+  type SponsorshipCompetitionSummarySource,
 } from "../lib/competitionSnapshot"
+import {
+  auctionSubjectKind,
+  resolveAuctionSubject,
+} from "../lib/auctionSubject"
 import { isSponsorVisibleAuctionState } from "../lib/visibility"
 
 type SponsorCtx = QueryCtx | MutationCtx
@@ -37,8 +42,10 @@ export async function listInvitedVisibleAuctions(
 
 export const sponsorAuctionListItem = v.object({
   id: v.id("sponsorshipAuctions"),
-  competitionId: v.id("competitions"),
+  subjectKind: auctionSubjectKind,
+  competitionId: v.optional(v.id("competitions")),
   competitionName: v.string(),
+  offeringDescriptionMarkdown: v.optional(v.string()),
   framework: sponsorshipAuctionFramework,
   state: auctionState,
   currency: v.string(),
@@ -170,7 +177,7 @@ export function toSponsorAuctionListItem(input: {
     competitorLimit?: number
     eventIds: string[]
   }
-  competitionSummarySource: "competition_record" | "wca"
+  competitionSummarySource: SponsorshipCompetitionSummarySource
   hasAnyValidBid: boolean
   sponsorId?: Id<"sponsors">
   hasSponsorValidBid?: boolean
@@ -201,10 +208,15 @@ export function toSponsorAuctionListItem(input: {
           hasSponsorValidBid: hasSponsorValidBid === true,
         })
 
+  const subject = resolveAuctionSubject(auction)
   return {
     id: auction._id,
+    subjectKind: subject.kind,
     competitionId: auction.competitionId,
     competitionName,
+    ...(subject.kind === "custom"
+      ? { offeringDescriptionMarkdown: subject.descriptionMarkdown }
+      : {}),
     framework: auction.framework,
     state: auction.state,
     currency: auction.currency,

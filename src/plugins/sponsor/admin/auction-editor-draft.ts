@@ -14,6 +14,9 @@ export interface AuctionEditorDraft {
   endsAtInput: string
   startPriceEuros: string
   invitedSponsorIds: Id<"sponsors">[]
+  isCustomOffering: boolean
+  customOfferingName: string
+  customOfferingDescriptionMarkdown: string
 }
 
 export interface EditableAuctionSnapshot {
@@ -22,6 +25,15 @@ export interface EditableAuctionSnapshot {
     startsAt: number
     endsAt: number
     startPriceCents: number
+    subject:
+      | { kind: "hq_competition"; competitionId: Id<"competitions"> }
+      | { kind: "wca_competition"; wcaCompetitionId: string }
+      | {
+          kind: "custom"
+          associatedCompetitionId?: Id<"competitions">
+          name: string
+          descriptionMarkdown: string
+        }
   }
   inviteSponsorIds: Id<"sponsors">[]
 }
@@ -35,6 +47,15 @@ export function createDraftFromManagerView(
     endsAtInput: toDatetimeLocalInput(new Date(snapshot.auction.endsAt)),
     startPriceEuros: centsToEuroInput(snapshot.auction.startPriceCents),
     invitedSponsorIds: snapshot.inviteSponsorIds,
+    isCustomOffering: snapshot.auction.subject.kind === "custom",
+    customOfferingName:
+      snapshot.auction.subject.kind === "custom"
+        ? snapshot.auction.subject.name
+        : "",
+    customOfferingDescriptionMarkdown:
+      snapshot.auction.subject.kind === "custom"
+        ? snapshot.auction.subject.descriptionMarkdown
+        : "",
   }
 }
 
@@ -52,7 +73,11 @@ export function isAuctionDraftDirty(
       snapshot.auction.startsAt ||
     parseDatetimeLocalInput(draft.endsAtInput) !== snapshot.auction.endsAt ||
     startPriceCents !== snapshot.auction.startPriceCents ||
-    !hasSameIdSet(draft.invitedSponsorIds, snapshot.inviteSponsorIds)
+    !hasSameIdSet(draft.invitedSponsorIds, snapshot.inviteSponsorIds) ||
+    (snapshot.auction.subject.kind === "custom" &&
+      (draft.customOfferingName.trim() !== snapshot.auction.subject.name ||
+        draft.customOfferingDescriptionMarkdown !==
+          snapshot.auction.subject.descriptionMarkdown))
   )
 }
 
@@ -84,6 +109,9 @@ export function validateAuctionFormInputs(
       ok: false,
       error: `Start price must be at least ${formatCurrencyFromCents(100)}.`,
     }
+  }
+  if (draft.isCustomOffering && draft.customOfferingName.trim().length === 0) {
+    return { ok: false, error: "Give the custom offering a name." }
   }
   return {
     ok: true,

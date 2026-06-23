@@ -510,6 +510,7 @@ export function PortalAuctionDetailPage({
       <AuctionCompetitionSummaryPanel
         summary={data.auction.competitionSummary}
         source={data.auction.competitionSummarySource}
+        offeringDescriptionMarkdown={data.auction.offeringDescriptionMarkdown}
       />
 
       <AuctionBidActivityCard

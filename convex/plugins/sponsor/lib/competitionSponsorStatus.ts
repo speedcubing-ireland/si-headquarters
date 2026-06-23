@@ -59,7 +59,10 @@ export function resolveCompetitionSponsorPropertyStatus(input: {
 
 export function buildCompetitionSponsorStatusByCompetition(input: {
   competitionIds: readonly Id<"competitions">[]
-  auctions: (AuctionSponsorFields & { competitionId: Id<"competitions"> })[]
+  auctions: (AuctionSponsorFields & {
+    competitionId?: Id<"competitions">
+    subjectKind?: Doc<"sponsorshipAuctions">["subjectKind"]
+  })[]
   overridesByCompetitionId: ReadonlyMap<
     Id<"competitions">,
     CompetitionSponsorOverrideFields | null
@@ -70,6 +73,14 @@ export function buildCompetitionSponsorStatusByCompetition(input: {
     AuctionSponsorFields[]
   >()
   for (const auction of input.auctions) {
+    // WCA-direct and custom offerings do not contribute to the canonical
+    // competition sponsorship status.
+    if (
+      auction.competitionId === undefined ||
+      auction.subjectKind === "custom"
+    ) {
+      continue
+    }
     const scoped = auctionsByCompetition.get(auction.competitionId) ?? []
     scoped.push(auction)
     auctionsByCompetition.set(auction.competitionId, scoped)

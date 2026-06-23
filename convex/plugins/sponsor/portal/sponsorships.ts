@@ -22,10 +22,12 @@ export const listMySponsorships = query({
       listCompetitionSponsorOverridesForSponsor(ctx, sponsor._id),
     ])
     const competitionIds = [
-      ...new Set([
-        ...auctionDocs.map((auction) => auction.competitionId),
-        ...manualOverrides.map((override) => override.competitionId),
-      ]),
+      ...new Set(
+        [
+          ...auctionDocs.map((auction) => auction.competitionId),
+          ...manualOverrides.map((override) => override.competitionId),
+        ].filter((id): id is Id<"competitions"> => id !== undefined)
+      ),
     ]
     const [competitions, overridesByCompetitionId] = await Promise.all([
       Promise.all(

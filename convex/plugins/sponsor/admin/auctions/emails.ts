@@ -10,6 +10,10 @@ import type {
 } from "@/convex/plugins/sponsor/lib/validators"
 import { isProxyAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
+  auctionSubjectName,
+  resolveAuctionSubject,
+} from "@/convex/plugins/sponsor/lib/auctionSubject"
+import {
   sponsorPortalAuctionUrl,
   sponsorPortalGuideUrl,
   sponsorshipAdminPageUrl,
@@ -18,28 +22,40 @@ import type { AuctionOutcome } from "../../lib/auctionState"
 import { buildAuctionEmailRecipient } from "../../lib/contacts"
 import { scheduleSponsorshipEmailBatch } from "../../emails/send"
 
+async function resolveAuctionEmailSubjectName(
+  ctx: MutationCtx,
+  auction: Doc<"sponsorshipAuctions">
+): Promise<string | null> {
+  const subject = resolveAuctionSubject(auction)
+  if (subject.kind !== "hq_competition") {
+    return auctionSubjectName(auction)
+  }
+  const competition = await ctx.db.get("competitions", subject.competitionId)
+  return competition?.name ?? null
+}
+
 async function resolveAuctionEmailRecipients(
   ctx: MutationCtx,
   auction: Doc<"sponsorshipAuctions">
 ): Promise<{
-  competition: Doc<"competitions">
+  subjectName: string
   sponsors: Doc<"sponsors">[]
 } | null> {
-  const [competition, invites] = await Promise.all([
-    ctx.db.get("competitions", auction.competitionId),
+  const [subjectName, invites] = await Promise.all([
+    resolveAuctionEmailSubjectName(ctx, auction),
     ctx.db
       .query("sponsorshipAuctionInvites")
       .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
       .collect(),
   ])
-  if (!competition) return null
+  if (subjectName === null) return null
   const allSponsors = await Promise.all(
     invites.map((invite) => ctx.db.get("sponsors", invite.sponsorId))
   )
   const sponsors = allSponsors.filter((sponsor): sponsor is Doc<"sponsors"> =>
     Boolean(sponsor?.active)
   )
-  return { competition, sponsors }
+  return { subjectName, sponsors }
 }
 
 async function toRecipientList(
@@ -93,10 +109,10 @@ export async function sendAuctionScheduledEmails(
   auction: Doc<"sponsorshipAuctions">
 ): Promise<void> {
   const resolved = await resolveAuctionEmailRecipients(ctx, auction)
-  if (!resolved) return
-  const { competition, sponsors } = resolved
+  if (resolved === null) return
+  const { subjectName, sponsors } = resolved
   const context: SponsorshipEmailContext = {
-    competitionName: competition.name,
+    competitionName: subjectName,
     portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     startsAt: auction.startsAt,
     endsAt: auction.endsAt,
@@ -118,10 +134,10 @@ export async function sendAuctionStartedEmails(
   auction: Doc<"sponsorshipAuctions">
 ): Promise<void> {
   const resolved = await resolveAuctionEmailRecipients(ctx, auction)
-  if (!resolved) return
-  const { competition, sponsors } = resolved
+  if (resolved === null) return
+  const { subjectName, sponsors } = resolved
   const context: SponsorshipEmailContext = {
-    competitionName: competition.name,
+    competitionName: subjectName,
     portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     startsAt: auction.startsAt,
     endsAt: auction.endsAt,
@@ -140,10 +156,10 @@ export async function sendAuctionActiveReminderEmail(
   sponsor: Doc<"sponsors">,
   sponsorHasBid: boolean
 ): Promise<void> {
-  const competition = await ctx.db.get("competitions", auction.competitionId)
-  if (!competition) return
+  const subjectName = await resolveAuctionEmailSubjectName(ctx, auction)
+  if (subjectName === null) return
   const context: SponsorshipEmailContext = {
-    competitionName: competition.name,
+    competitionName: subjectName,
     portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     endsAt: auction.endsAt,
     sponsorHasBid,
@@ -180,12 +196,12 @@ export async function sendEbayAuctionOutbidEmail(
     .first()
   if (latestNotice && latestNotice.sentAt > now - throttleWindowMs) return
 
-  const [sponsor, competition] = await Promise.all([
+  const [subjectName, sponsor] = await Promise.all([
+    resolveAuctionEmailSubjectName(ctx, auction),
     ctx.db.get("sponsors", outbidSponsorId),
-    ctx.db.get("competitions", auction.competitionId),
   ])
+  if (subjectName === null) return
   if (sponsor?.active !== true) return
-  if (competition === null) return
 
   const noticeId = await ctx.db.insert("sponsorshipAuctionOutbidNotices", {
     auctionId: auction._id,
@@ -194,7 +210,7 @@ export async function sendEbayAuctionOutbidEmail(
   })
 
   const context: SponsorshipEmailContext = {
-    competitionName: competition.name,
+    competitionName: subjectName,
     portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
     endsAt: auction.endsAt,
   }
@@ -247,8 +263,8 @@ export async function sendAuctionClosureEmails(
 ): Promise<void> {
   const outcome = resolveClosedAuctionEmailOutcome(auction)
   const resolved = await resolveAuctionEmailRecipients(ctx, auction)
-  if (!resolved) return
-  const { competition, sponsors: recipients } = resolved
+  if (resolved === null) return
+  const { subjectName, sponsors: recipients } = resolved
 
   if (outcome.kind === "winner") {
     const winner = recipients.find(
@@ -256,7 +272,7 @@ export async function sendAuctionClosureEmails(
     )
     if (winner) {
       const winnerContext: SponsorshipEmailContext = {
-        competitionName: competition.name,
+        competitionName: subjectName,
         portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
         settlementAmountCents: outcome.settlementAmountCents,
         winnerSponsorName: winner.name,
@@ -277,7 +293,7 @@ export async function sendAuctionClosureEmails(
       type: "auction_closed_outbid",
       recipients: outbidRecipients,
       context: {
-        competitionName: competition.name,
+        competitionName: subjectName,
         portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
       },
     })
@@ -287,7 +303,7 @@ export async function sendAuctionClosureEmails(
       type: "auction_closed_none",
       recipients: await toRecipientList(ctx, recipients),
       context: {
-        competitionName: competition.name,
+        competitionName: subjectName,
         portalUrl: sponsorPortalAuctionUrl(String(auction._id)),
       },
     })
@@ -309,7 +325,7 @@ export async function sendAuctionClosureEmails(
       ? await ctx.db.get("sponsors", outcome.winnerSponsorId)
       : null
   const internalContext: SponsorshipEmailContext = {
-    competitionName: competition.name,
+    competitionName: subjectName,
     adminUrl: sponsorshipAdminPageUrl(),
     settlementAmountCents:
       outcome.kind === "winner" ? outcome.settlementAmountCents : undefined,
