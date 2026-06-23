@@ -1,15 +1,22 @@
-import { SearchIcon } from "lucide-react"
+import { PlusIcon, SearchIcon } from "lucide-react"
 import { useMemo, useState } from "react"
 import { PageListMessage } from "@/components/layout/page-list-message"
 import { ObjectAvatar } from "@/components/object-avatar"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AddUserDialog } from "@/features/admin/users/add-user-dialog"
 import type { AdminUser } from "@/features/admin/users/utils"
 import { userDisplayName } from "@/features/admin/users/utils"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -29,14 +36,17 @@ export function UsersSidebar({
   users,
   selectedUserId,
   onSelectUser,
+  onUserCreated,
   className,
 }: {
   users: AdminUser[]
   selectedUserId: Id<"users"> | null
   onSelectUser: (userId: Id<"users">) => void
+  onUserCreated: (userId: Id<"users">) => void
   className?: string
 }) {
   const [query, setQuery] = useState("")
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
 
   const filteredUsers = useMemo(
     () => users.filter((user) => matchesUserQuery(user, query)),
@@ -54,6 +64,19 @@ export function UsersSidebar({
     >
       <CardHeader>
         <CardTitle>Users</CardTitle>
+        <CardAction>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Add user"
+            onClick={() => {
+              setAddDialogOpen(true)
+            }}
+          >
+            <PlusIcon className="size-4" />
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
         <InputGroup>
@@ -118,6 +141,11 @@ export function UsersSidebar({
           )}
         </ScrollArea>
       </CardContent>
+      <AddUserDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onCreated={onUserCreated}
+      />
     </Card>
   )
 }

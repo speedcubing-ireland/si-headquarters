@@ -66,6 +66,53 @@ function buildUserProfilePatch(
   }
 }
 
+export const createForAdmin = mutation({
+  args: {
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    wcaUserId: v.optional(v.number()),
+  },
+  returns: v.id("users"),
+  handler: async (ctx, args) => {
+    await requireUserManagement(ctx)
+    if (args.email === undefined && args.wcaUserId === undefined) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: "An email or WCA User ID is required.",
+      })
+    }
+    if (args.email !== undefined) {
+      const existing = await ctx.db
+        .query("users")
+        .withIndex("email", (q) => q.eq("email", args.email))
+        .unique()
+      if (existing !== null) {
+        throw new ConvexError({
+          code: "CONFLICT",
+          message: "A user with this email already exists.",
+        })
+      }
+    }
+    if (args.wcaUserId !== undefined) {
+      const existing = await ctx.db
+        .query("users")
+        .withIndex("by_wcaUserId", (q) => q.eq("wcaUserId", args.wcaUserId))
+        .unique()
+      if (existing !== null) {
+        throw new ConvexError({
+          code: "CONFLICT",
+          message: "A user with this WCA ID already exists.",
+        })
+      }
+    }
+    return ctx.db.insert("users", {
+      name: args.name,
+      email: args.email,
+      wcaUserId: args.wcaUserId,
+    })
+  },
+})
+
 export const updateForAdmin = mutation({
   args: {
     userId: v.id("users"),
