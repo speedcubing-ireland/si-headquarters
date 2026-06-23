@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test"
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest"
+import { describe, expect, test, vi } from "vitest"
 import { internal } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
@@ -32,29 +32,6 @@ import { addTeamMember, ensureTeamByName } from "@/convex/teams/model"
 import { NUDGE_COOLDOWN_MS } from "@/convex/notifications/nudge"
 import type { NotificationEvent } from "@/convex/notifications/validators"
 import { modules } from "@/convex/test.setup"
-
-beforeAll(() => {
-  vi.stubEnv("DEPLOYMENT_CONTEXT", "production")
-  vi.stubEnv("DISCORD_ACTION_SECRET", "test-discord-action-secret")
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request) => {
-      const url = input instanceof Request ? input.url : input.toString()
-      if (url.endsWith("/users/@me/channels")) {
-        return Response.json({ id: "test-discord-channel" })
-      }
-      if (url.includes("discord.com/api/v10/channels/")) {
-        return new Response(null, { status: 204 })
-      }
-      return new Response(null, { status: 404 })
-    })
-  )
-})
-
-afterAll(() => {
-  vi.unstubAllGlobals()
-  vi.unstubAllEnvs()
-})
 
 async function insertLinkedUser(
   ctx: MutationCtx,

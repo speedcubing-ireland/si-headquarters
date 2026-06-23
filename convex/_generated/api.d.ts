@@ -272,6 +272,7 @@ import type * as templates_registry from "../templates/registry.js";
 import type * as templates_resolver from "../templates/resolver.js";
 import type * as templates_validators from "../templates/validators.js";
 import type * as testHelpers from "../testHelpers.js";
+import type * as testing_discordNotificationTestEnv from "../testing/discordNotificationTestEnv.js";
 import type * as tokens from "../tokens.js";
 import type * as updates_model from "../updates/model.js";
 import type * as updates_mutations from "../updates/mutations.js";
@@ -563,6 +564,7 @@ declare const fullApi: ApiFromModules<{
   "templates/resolver": typeof templates_resolver;
   "templates/validators": typeof templates_validators;
   testHelpers: typeof testHelpers;
+  "testing/discordNotificationTestEnv": typeof testing_discordNotificationTestEnv;
   tokens: typeof tokens;
   "updates/model": typeof updates_model;
   "updates/mutations": typeof updates_mutations;
