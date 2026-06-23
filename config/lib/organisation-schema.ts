@@ -276,9 +276,29 @@ type FeatureConfigRequirements<F extends FeatureConfig> =
         : object
       : object)
 
+// When organiserInvites is enabled, enforce that the wca auth provider is present.
+type OrganiserInvitesAuthRequirements<
+  Config extends OrganisationConfigDefinition,
+> = Config["features"]["organiserInvites"] extends true
+  ? Extract<Config["auth"]["providers"][number], { id: "wca" }> extends never
+    ? {
+        auth: {
+          providers: readonly [
+            ...Config["auth"]["providers"],
+            Extract<LoginProviderConfig, { id: "wca" }>,
+          ]
+        }
+      }
+    : object
+  : object
+
 export function defineOrganisationConfig<
   const Config extends OrganisationConfigDefinition,
->(config: Config & FeatureConfigRequirements<Config["features"]>): Config {
+>(
+  config: Config &
+    FeatureConfigRequirements<Config["features"]> &
+    OrganiserInvitesAuthRequirements<Config>
+): Config {
   organisationConfigSchema.parse(config)
   return config
 }

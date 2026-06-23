@@ -70,7 +70,9 @@ export function UsersSidebar({
             variant="ghost"
             size="icon-sm"
             aria-label="Add user"
-            onClick={() =>{  setAddDialogOpen(true); }}
+            onClick={() => {
+              setAddDialogOpen(true)
+            }}
           >
             <PlusIcon className="size-4" />
           </Button>
