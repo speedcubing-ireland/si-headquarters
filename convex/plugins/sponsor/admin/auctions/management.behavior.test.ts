@@ -256,6 +256,82 @@ describe("auction management behavior", () => {
     ).rejects.toBeTruthy()
   })
 
+  test("create rejects wca-direct auction when hq-linked competition already has one", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const { managerId, sponsorId } = await seedAuctionPrereqs(t)
+    const wcaCompetitionId = "IrishChampionship2026"
+    const competitionId = await t.run((ctx) =>
+      insertTestCompetition(ctx, {
+        name: "Irish Championship",
+        from: "2026-09-01",
+        to: "2026-09-02",
+        organisers: [managerId],
+        wcaCompetitionId,
+      })
+    )
+    const manager = t.withIdentity({ subject: managerId })
+    const now = Date.now()
+
+    await manager.mutation(
+      api.plugins.sponsor.admin.auctions.management.create,
+      {
+        subject: { kind: "hq_competition", competitionId },
+        startsAt: now + 86_400_000,
+        endsAt: now + 172_800_000,
+        startPriceCents: 5000,
+        invitedSponsorIds: [sponsorId],
+      }
+    )
+
+    await expect(
+      manager.mutation(api.plugins.sponsor.admin.auctions.management.create, {
+        subject: { kind: "wca_competition", wcaCompetitionId },
+        startsAt: now + 86_400_000,
+        endsAt: now + 172_800_000,
+        startPriceCents: 5000,
+        invitedSponsorIds: [sponsorId],
+      })
+    ).rejects.toBeTruthy()
+  })
+
+  test("create rejects hq auction when wca-direct auction already exists for linked wca id", async () => {
+    const t = createSponsorAuctionTestHarness()
+    const { managerId, sponsorId } = await seedAuctionPrereqs(t)
+    const wcaCompetitionId = "IrishChampionship2026"
+    const competitionId = await t.run((ctx) =>
+      insertTestCompetition(ctx, {
+        name: "Irish Championship",
+        from: "2026-09-01",
+        to: "2026-09-02",
+        organisers: [managerId],
+        wcaCompetitionId,
+      })
+    )
+    const manager = t.withIdentity({ subject: managerId })
+    const now = Date.now()
+
+    await manager.mutation(
+      api.plugins.sponsor.admin.auctions.management.create,
+      {
+        subject: { kind: "wca_competition", wcaCompetitionId },
+        startsAt: now + 86_400_000,
+        endsAt: now + 172_800_000,
+        startPriceCents: 5000,
+        invitedSponsorIds: [sponsorId],
+      }
+    )
+
+    await expect(
+      manager.mutation(api.plugins.sponsor.admin.auctions.management.create, {
+        subject: { kind: "hq_competition", competitionId },
+        startsAt: now + 86_400_000,
+        endsAt: now + 172_800_000,
+        startPriceCents: 5000,
+        invitedSponsorIds: [sponsorId],
+      })
+    ).rejects.toBeTruthy()
+  })
+
   test("create rejects non-positive anti-sniping settings", async () => {
     const t = createSponsorAuctionTestHarness()
     const { managerId, competitionId, sponsorId } = await seedAuctionPrereqs(t)

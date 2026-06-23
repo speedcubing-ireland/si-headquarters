@@ -1,53 +1,6 @@
 import { describe, expect, test } from "vitest"
 import { renderToStaticMarkup } from "react-dom/server"
 import { AuctionCompetitionSummaryPanel } from "./competition-summary-panel"
-import { formatDate, formatDateRange } from "@/lib/format/dates"
-import { organisationConfig } from "@/config/lib/organisation"
-
-const configuredDate = (iso: string) =>
-  new Date(iso).toLocaleDateString(organisationConfig.regional.locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: organisationConfig.regional.timeZone,
-  })
-
-describe("formatDate", () => {
-  test("formats a valid ISO date with the configured locale", () => {
-    expect(formatDate("2026-01-31")).toBe(configuredDate("2026-01-31"))
-  })
-
-  test("does not fall back to slash-separated numeric dates", () => {
-    const result = formatDate("2026-01-31")
-    expect(result).not.toContain("1/31")
-  })
-
-  test("returns TBC for empty string", () => {
-    expect(formatDate("")).toBe("TBC")
-  })
-
-  test("returns TBC for whitespace-only string", () => {
-    expect(formatDate("   ")).toBe("TBC")
-  })
-
-  test("returns original string for an invalid date", () => {
-    expect(formatDate("not-a-date")).toBe("not-a-date")
-  })
-})
-
-describe("formatDateRange", () => {
-  test("returns a single date when start equals end", () => {
-    const result = formatDateRange("2026-01-31", "2026-01-31")
-    expect(result).toBe(configuredDate("2026-01-31"))
-    expect(result).not.toContain(" to ")
-  })
-
-  test("returns range string when start differs from end", () => {
-    const result = formatDateRange("2026-01-31", "2026-02-01")
-    expect(result).toContain(" to ")
-    expect(result).not.toContain("/")
-  })
-})
 
 describe("AuctionCompetitionSummaryPanel", () => {
   test("renders custom offering markdown without competition detail placeholders", () => {

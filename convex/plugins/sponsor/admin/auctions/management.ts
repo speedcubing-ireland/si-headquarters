@@ -4,6 +4,7 @@ import { mutation, query } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { requireSponsorPortalAdmin } from "@/convex/permissions/principal"
+import { assertWcaIntegrationEnabled } from "@/convex/plugins/sponsor/lib/wcaIntegration"
 import { compareBidIntentChronologyWithIdTieBreak } from "../../lib/auctionState"
 import { competitionStartEnd } from "@/convex/competitions/dates"
 import { sponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/validators"
@@ -174,6 +175,7 @@ async function resolveCreateSubjectFields(
     }
   }
   if (subject.kind === "wca_competition") {
+    assertWcaIntegrationEnabled()
     const wcaCompetitionId = subject.wcaCompetitionId.trim()
     if (wcaCompetitionId.length === 0) {
       throw new ConvexError({

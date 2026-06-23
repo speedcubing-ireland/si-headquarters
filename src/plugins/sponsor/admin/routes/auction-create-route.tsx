@@ -13,6 +13,7 @@ import {
 import { AbilityRouteGuard } from "@/features/auth"
 import type { Id } from "@/convex/_generated/dataModel"
 import {
+  applyAuctionSubjectDraftPatch,
   buildAuctionSubjectInput,
   emptyAuctionSubjectDraft,
   type AuctionSubjectDraft,
@@ -207,7 +208,9 @@ function AuctionCreateContent() {
           onDraftChange={onDraftChange}
           subjectDraft={subjectDraft}
           onSubjectDraftChange={(patch) => {
-            setSubjectDraft((current) => ({ ...current, ...patch }))
+            setSubjectDraft((current) =>
+              applyAuctionSubjectDraftPatch(current, patch)
+            )
           }}
           activeSponsors={activeSponsors}
           selectedCompetition={selectedCompetition}

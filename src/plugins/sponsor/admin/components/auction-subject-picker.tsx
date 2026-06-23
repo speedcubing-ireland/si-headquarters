@@ -18,10 +18,11 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
 import { cn } from "@/lib/utils"
-import type {
-  AuctionSubjectDraft,
-  AuctionSubjectSource,
-  WcaCompetitionSelection,
+import {
+  getAuctionSubjectSourceOptions,
+  isAllowedAuctionSubjectSource,
+  type AuctionSubjectDraft,
+  type WcaCompetitionSelection,
 } from "@/plugins/sponsor/admin/auction-subject-draft"
 import type {
   ManagerCompetition,
@@ -29,16 +30,6 @@ import type {
 } from "@/plugins/sponsor/admin/manager-types"
 import { CompetitionOverrideAlert } from "@/plugins/sponsor/admin/components/competition-override-alert"
 import { competitionPropertyStatusLabel } from "@/plugins/sponsor/lib/sponsorship-ui"
-
-const SOURCE_OPTIONS: { value: AuctionSubjectSource; label: string }[] = [
-  { value: "hq_competition", label: "HQ competition" },
-  { value: "wca_competition", label: "WCA competition" },
-  { value: "custom", label: "Custom offering" },
-]
-
-function isAuctionSubjectSource(value: string): value is AuctionSubjectSource {
-  return SOURCE_OPTIONS.some((option) => option.value === value)
-}
 
 export function AuctionSubjectPicker({
   draft,
@@ -68,6 +59,8 @@ export function AuctionSubjectPicker({
   ) => Promise<void>
   sponsorById: Map<Id<"sponsors">, ManagerSponsor>
 }) {
+  const sourceOptions = getAuctionSubjectSourceOptions()
+
   return (
     <div className="space-y-3">
       <div className="space-y-2">
@@ -75,13 +68,13 @@ export function AuctionSubjectPicker({
         <Tabs
           value={draft.source}
           onValueChange={(value) => {
-            if (isAuctionSubjectSource(value)) {
+            if (isAllowedAuctionSubjectSource(value)) {
               onDraftChange({ source: value })
             }
           }}
         >
           <TabsList className="w-full">
-            {SOURCE_OPTIONS.map((option) => (
+            {sourceOptions.map((option) => (
               <TabsTrigger
                 key={option.value}
                 value={option.value}

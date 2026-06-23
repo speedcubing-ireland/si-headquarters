@@ -15,6 +15,10 @@ export type FeatureId = (typeof FEATURE_IDS)[number]
 
 const nonEmptyString = z.string().trim().min(1)
 
+export const ORGANISATION_LOCALES = ["en-GB", "en-IE"] as const
+export type OrganisationLocale = (typeof ORGANISATION_LOCALES)[number]
+const organisationLocaleSchema = z.enum(ORGANISATION_LOCALES)
+
 const featureSchemaShape = {
   google: z.boolean(),
   canva: z.boolean(),
@@ -123,7 +127,7 @@ export const organisationConfigSchema = z
 
     regional: z
       .object({
-        locale: nonEmptyString,
+        locale: organisationLocaleSchema,
         timeZone: nonEmptyString,
         timeZoneLabel: nonEmptyString,
         reminderHour: z.number().int().min(0).max(23),

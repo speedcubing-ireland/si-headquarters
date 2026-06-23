@@ -1,18 +1,40 @@
+import { format, isValid, parse } from "date-fns"
+import { enGB, enIE } from "date-fns/locale"
 import { formatInTimeZone } from "date-fns-tz"
+import type { OrganisationLocale } from "@/config/lib/organisation-schema"
 import { organisationConfig } from "@/config/lib/organisation"
 
 const { locale, timeZone, timeZoneLabel } = organisationConfig.regional
 
+function localeFormatOptions(orgLocale: OrganisationLocale): {
+  locale: typeof enGB
+} {
+  switch (orgLocale) {
+    case "en-GB":
+      return { locale: enGB }
+    case "en-IE":
+      return { locale: enIE }
+  }
+}
+
+const formatOptions = localeFormatOptions(locale)
+
+const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+const DATE_ONLY_PARSE_FORMAT = "yyyy-MM-dd"
+const CALENDAR_DATE_FORMAT = "d MMM yyyy"
+
 export function formatDate(date: string): string {
-  if (date.trim().length === 0) return "TBC"
+  const trimmed = date.trim()
+  if (trimmed.length === 0) return "TBC"
+  if (ISO_DATE_ONLY.test(trimmed)) {
+    const parsed = parse(trimmed, DATE_ONLY_PARSE_FORMAT, new Date())
+    if (!isValid(parsed)) return date
+    return format(parsed, CALENDAR_DATE_FORMAT, formatOptions)
+  }
+
   const parsed = new Date(date)
   if (Number.isNaN(parsed.getTime())) return date
-  return parsed.toLocaleDateString(locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone,
-  })
+  return formatInTimeZone(parsed, timeZone, CALENDAR_DATE_FORMAT, formatOptions)
 }
 
 export function formatDateRange(startDate: string, endDate: string): string {

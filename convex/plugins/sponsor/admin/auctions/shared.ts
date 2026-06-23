@@ -84,27 +84,106 @@ function uniqueSponsorIds(sponsorIds: Id<"sponsors">[]): Id<"sponsors">[] {
   return [...new Set(sponsorIds)]
 }
 
+function findOpenAuction(
+  auctions: Doc<"sponsorshipAuctions">[],
+  ignoreAuctionId?: Id<"sponsorshipAuctions">
+): Doc<"sponsorshipAuctions"> | undefined {
+  return auctions.find(
+    (auction) =>
+      auction.state !== "closed" &&
+      (ignoreAuctionId === undefined || auction._id !== ignoreAuctionId)
+  )
+}
+
+interface AuctionScope {
+  competitionIds: Id<"competitions">[]
+  wcaCompetitionIds: string[]
+}
+
+async function resolveAuctionScopeFromCompetition(
+  ctx: MutationCtx,
+  competitionId: Id<"competitions">
+): Promise<AuctionScope> {
+  const competition = await ctx.db.get("competitions", competitionId)
+  const wcaCompetitionId = competition?.wcaCompetitionId
+  return {
+    competitionIds: [competitionId],
+    wcaCompetitionIds:
+      wcaCompetitionId !== undefined && wcaCompetitionId.length > 0
+        ? [wcaCompetitionId]
+        : [],
+  }
+}
+
+async function resolveAuctionScopeFromWcaCompetition(
+  ctx: MutationCtx,
+  wcaCompetitionId: string
+): Promise<AuctionScope> {
+  const linkedCompetitions = await ctx.db
+    .query("competitions")
+    .withIndex("by_wcaCompetitionId", (q) =>
+      q.eq("wcaCompetitionId", wcaCompetitionId)
+    )
+    .collect()
+  return {
+    competitionIds: linkedCompetitions.map((competition) => competition._id),
+    wcaCompetitionIds: [wcaCompetitionId],
+  }
+}
+
+async function gatherAuctionsInScope(
+  ctx: MutationCtx,
+  scope: AuctionScope
+): Promise<Doc<"sponsorshipAuctions">[]> {
+  const allResults = await Promise.all([
+    ...scope.competitionIds.map((id) =>
+      ctx.db
+        .query("sponsorshipAuctions")
+        .withIndex("by_competition", (q) => q.eq("competitionId", id))
+        .collect()
+    ),
+    ...scope.wcaCompetitionIds.map((id) =>
+      ctx.db
+        .query("sponsorshipAuctions")
+        .withIndex("by_wcaCompetitionId", (q) => q.eq("wcaCompetitionId", id))
+        .collect()
+    ),
+  ])
+  const auctionsById = new Map<
+    Id<"sponsorshipAuctions">,
+    Doc<"sponsorshipAuctions">
+  >()
+  for (const auction of allResults.flat()) {
+    auctionsById.set(auction._id, auction)
+  }
+  return [...auctionsById.values()]
+}
+
+const OPEN_AUCTION_EXISTS_MESSAGE =
+  "An open sponsorship auction already exists for this competition. Close it before creating or starting another."
+
+async function requireNoOpenAuctionInScope(
+  ctx: MutationCtx,
+  scope: AuctionScope,
+  ignoreAuctionId?: Id<"sponsorshipAuctions">
+): Promise<void> {
+  const auctions = await gatherAuctionsInScope(ctx, scope)
+  const openAuction = findOpenAuction(auctions, ignoreAuctionId)
+  if (openAuction) {
+    throw new ConvexError({
+      code: "PRECONDITION_FAILED",
+      message: OPEN_AUCTION_EXISTS_MESSAGE,
+    })
+  }
+}
+
 export async function requireNoOpenAuctionForCompetition(
   ctx: MutationCtx,
   competitionId: Id<"competitions">,
   ignoreAuctionId?: Id<"sponsorshipAuctions">
 ): Promise<void> {
-  const auctions = await ctx.db
-    .query("sponsorshipAuctions")
-    .withIndex("by_competition", (q) => q.eq("competitionId", competitionId))
-    .collect()
-  const openAuction = auctions.find(
-    (auction) =>
-      auction.state !== "closed" &&
-      (ignoreAuctionId ? auction._id !== ignoreAuctionId : true)
-  )
-  if (openAuction) {
-    throw new ConvexError({
-      code: "PRECONDITION_FAILED",
-      message:
-        "This competition already has a non-closed sponsorship auction. Close it before creating or starting another.",
-    })
-  }
+  const scope = await resolveAuctionScopeFromCompetition(ctx, competitionId)
+  await requireNoOpenAuctionInScope(ctx, scope, ignoreAuctionId)
 }
 
 export async function requireNoOpenAuctionForWcaCompetition(
@@ -112,24 +191,11 @@ export async function requireNoOpenAuctionForWcaCompetition(
   wcaCompetitionId: string,
   ignoreAuctionId?: Id<"sponsorshipAuctions">
 ): Promise<void> {
-  const auctions = await ctx.db
-    .query("sponsorshipAuctions")
-    .withIndex("by_wcaCompetitionId", (q) =>
-      q.eq("wcaCompetitionId", wcaCompetitionId)
-    )
-    .collect()
-  const openAuction = auctions.find(
-    (auction) =>
-      auction.state !== "closed" &&
-      (ignoreAuctionId ? auction._id !== ignoreAuctionId : true)
+  const scope = await resolveAuctionScopeFromWcaCompetition(
+    ctx,
+    wcaCompetitionId
   )
-  if (openAuction) {
-    throw new ConvexError({
-      code: "PRECONDITION_FAILED",
-      message:
-        "This WCA competition already has a non-closed sponsorship auction. Close it before creating another.",
-    })
-  }
+  await requireNoOpenAuctionInScope(ctx, scope, ignoreAuctionId)
 }
 
 export async function replaceAuctionInvites(

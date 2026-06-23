@@ -10,6 +10,7 @@ import {
   searchCompetitionOptions,
   wcaCompetitionOption,
 } from "@/convex/plugins/wca/competitionOptions"
+import { assertWcaIntegrationEnabled } from "@/convex/plugins/sponsor/lib/wcaIntegration"
 
 async function assertSponsorManagerAccess(ctx: ActionCtx): Promise<void> {
   const userId = await getAuthUserId(ctx)
@@ -46,6 +47,7 @@ export const listMyWcaCompetitions = action({
   args: {},
   returns: v.array(wcaCompetitionOption),
   handler: async (ctx) => {
+    assertWcaIntegrationEnabled()
     await assertSponsorManagerAccess(ctx)
     const accessToken = await getWcaServiceAccessToken(ctx)
     return fetchMyCompetitionOptions(accessToken)
@@ -60,6 +62,7 @@ export const searchWcaCompetitions = action({
   args: { query: v.string() },
   returns: v.array(wcaCompetitionOption),
   handler: async (ctx, args) => {
+    assertWcaIntegrationEnabled()
     await assertSponsorManagerAccess(ctx)
     const accessToken = await getWcaServiceAccessToken(ctx)
     try {
