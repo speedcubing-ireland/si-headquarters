@@ -79,6 +79,7 @@ export function AdminUsersPage() {
         users={sortedUsers}
         selectedUserId={selectedUserId}
         onSelectUser={requestSelectUser}
+        onUserCreated={selectUser}
         className={cn(
           "min-h-0 md:min-h-0",
           mobileShowsDetail && "hidden md:flex"
