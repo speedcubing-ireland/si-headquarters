@@ -1,17 +1,10 @@
-import { describe, expect, test, vi } from "vitest"
+import { describe, expect, test } from "vitest"
 import {
   TASK_INTEGRATION_DEFINITIONS,
   TASK_INTEGRATION_IDS,
 } from "@/convex/integrations/taskIntegrations/constants"
 import { buildTaskIntegrationDefinitions } from "@/convex/integrations/taskIntegrations/registry"
 import { INTEGRATION_PLUGINS } from "@/convex/plugins/registry"
-
-// Verify the full catalog wiring with every feature enabled, independent of
-// which features the shipped manifest gates on.
-vi.mock(
-  "@/config/lib/organisation",
-  () => import("@/config/lib/organisation.testFixture")
-)
 
 describe("backend integration registry", () => {
   test("registers every task integration id from constants", () => {

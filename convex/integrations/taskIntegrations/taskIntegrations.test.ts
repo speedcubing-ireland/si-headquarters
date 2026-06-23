@@ -1,14 +1,7 @@
 import { convexTest } from "convex-test"
-import { describe, expect, test, vi } from "vitest"
+import { describe, expect, test } from "vitest"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
-
-// Exercise integrations with every feature enabled, independent of which
-// features the shipped manifest gates on.
-vi.mock(
-  "@/config/lib/organisation",
-  () => import("@/config/lib/organisation.testFixture")
-)
 import { modules } from "@/convex/test.setup"
 import {
   addUserToTeam,

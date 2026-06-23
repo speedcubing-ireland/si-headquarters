@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest"
+import { describe, expect, test } from "vitest"
 import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
   getSponsorshipEmailPayload,
@@ -10,11 +10,6 @@ import {
 } from "./copy"
 import { formatMoney } from "./_design"
 import { sponsorshipConfig } from "@/config/lib/organisation"
-
-vi.mock(
-  "@/config/lib/organisation",
-  () => import("@/config/lib/organisation.testFixture")
-)
 
 describe("auctionFrameworkLabel", () => {
   test("returns brief framework titles", () => {

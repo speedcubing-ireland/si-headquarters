@@ -9,16 +9,9 @@ import { addUserToTeam, insertTestUser } from "@/convex/testHelpers"
 import { modules } from "@/convex/test.setup"
 import { ensureTeamByName } from "@/convex/teams/model"
 import { convexTest } from "convex-test"
-import { describe, expect, test, vi } from "vitest"
+import { describe, expect, test } from "vitest"
 import { competitionTemplates } from "@/convex/templates/registry"
 import type { CompetitionTemplateTaskSpec } from "@/convex/templates/registry"
-
-// Apply templates with every feature enabled so integration-bearing task specs
-// resolve, independent of which features the shipped manifest gates on.
-vi.mock(
-  "@/config/lib/organisation",
-  () => import("@/config/lib/organisation.testFixture")
-)
 
 const STANDARD_TEMPLATE = {
   templateKey: "standard-competition" as const,

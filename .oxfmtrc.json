@@ -10,7 +10,9 @@
     "stylesheet": "src/index.css",
     "functions": ["cn", "cva"]
   },
-  "sortPackageJson": false,
+  "sortPackageJson": {
+    "sortScripts": true
+  },
   "ignorePatterns": [
     ".claude/",
     "node_modules/",

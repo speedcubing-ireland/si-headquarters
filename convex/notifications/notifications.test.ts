@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test"
-import { describe, expect, test, vi } from "vitest"
+import { describe, expect, test } from "vitest"
 import { internal } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
@@ -12,13 +12,6 @@ import {
 } from "@/convex/notifications/actionCodec"
 import schema from "@/convex/schema"
 import { api } from "@/convex/_generated/api"
-
-// Discord notification actions require the discord feature, which the shipped
-// manifest may gate off; enable every feature for these tests.
-vi.mock(
-  "@/config/lib/organisation",
-  () => import("@/config/lib/organisation.testFixture")
-)
 import {
   ensureVolunteerMembership,
   insertBlankCompetition,
