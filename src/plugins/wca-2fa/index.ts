@@ -3,7 +3,7 @@ import type { Plugin } from "@/plugins/registry"
 
 export const wca2faPlugin: Plugin = {
   id: "wca-2fa",
-  feature: "wcaIntegration",
+  feature: "wca2fa",
   nav: [
     {
       label: "WCA 2FA",

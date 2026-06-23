@@ -95,6 +95,7 @@ describe("set-convex-env metadata", () => {
       sponsors: false,
       socialMedia: false,
       wcaIntegration: false,
+      wca2fa: false,
       organiserInvites: false,
     }
     config.auth.providers = config.auth.providers.filter(
@@ -105,6 +106,7 @@ describe("set-convex-env metadata", () => {
     expect(keys.some((key) => key.startsWith("CANVA_"))).toBe(false)
     expect(keys.some((key) => key.startsWith("DISCORD_"))).toBe(false)
     expect(keys.some((key) => key.startsWith("SERVICE_WCA_"))).toBe(false)
+    expect(keys).not.toContain("WCA_2FA_SECRET")
     expect(keys).not.toContain("AUTH_WCA_ID")
     expect(keys).not.toContain("SPONSOR_BETTER_AUTH_SECRET")
     expect(keys).not.toContain("SPONSOR_SITE_URL")

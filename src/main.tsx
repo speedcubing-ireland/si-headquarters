@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ConvexReactClient } from "convex/react"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
+import { STAFF_WCA_LOGIN_PATH } from "@/convex/wcaLogin/wcaLoginPaths"
 import { isSponsorSite } from "@/lib/sponsor-site"
 import { createSponsorSiteRewrite } from "@/lib/sponsor-site-rewrite"
 import { ORGANISER_INVITE_PATH } from "@/convex/competitions/invites/validators"
@@ -46,7 +47,7 @@ createRoot(root).render(
       shouldHandleCode={() => {
         const pathname =
           router.state.location.pathname.replace(/\/+$/, "") || "/"
-        return pathname !== ORGANISER_INVITE_PATH
+        return pathname !== ORGANISER_INVITE_PATH && pathname !== STAFF_WCA_LOGIN_PATH
       }}
       replaceURL={(url) => {
         router.history.replace(url)

@@ -36,6 +36,7 @@ const organisationConfig = {
     sponsors: true,
     socialMedia: false,
     wcaIntegration: true,
+    wca2fa: false,
     organiserInvites: false,
   },
   auth: {

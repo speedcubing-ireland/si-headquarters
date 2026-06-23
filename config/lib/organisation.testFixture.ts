@@ -41,6 +41,7 @@ const config = defineOrganisationConfig({
     sponsors: true,
     socialMedia: true,
     wcaIntegration: true,
+    wca2fa: true,
     organiserInvites: true,
   },
   auth: {

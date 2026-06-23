@@ -32,6 +32,7 @@ describe("organisation configuration", () => {
       sponsors: false,
       socialMedia: false,
       wcaIntegration: false,
+      wca2fa: false,
       organiserInvites: false,
     }
     config.auth.providers = config.auth.providers.filter(
@@ -108,6 +109,7 @@ describe("organisation configuration", () => {
         sponsors: true,
         socialMedia: false,
         wcaIntegration: true,
+        wca2fa: false,
         organiserInvites: false,
       },
       auth: {
@@ -157,6 +159,7 @@ describe("organisation configuration", () => {
           sponsors: false,
           socialMedia: false,
           wcaIntegration: true,
+          wca2fa: false,
           organiserInvites: false,
         },
         auth: {
@@ -206,6 +209,7 @@ describe("organisation configuration", () => {
           sponsors: false,
           socialMedia: false,
           wcaIntegration: false,
+          wca2fa: false,
           organiserInvites: false,
         },
         auth: {

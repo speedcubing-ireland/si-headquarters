@@ -7,6 +7,7 @@ export const FEATURE_IDS = [
   "sponsors",
   "socialMedia",
   "wcaIntegration",
+  "wca2fa",
   "organiserInvites",
 ] as const
 
@@ -21,6 +22,7 @@ const featureSchemaShape = {
   sponsors: z.boolean(),
   socialMedia: z.boolean(),
   wcaIntegration: z.boolean(),
+  wca2fa: z.boolean(),
   organiserInvites: z.boolean(),
 } satisfies Record<FeatureId, z.ZodBoolean>
 
