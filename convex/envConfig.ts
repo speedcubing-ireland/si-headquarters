@@ -163,21 +163,20 @@ const EMAIL_CORE_ENV_SETUP = [
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
-const SPONSORSHIP_EMAIL_SENDER_ENV_SETUP: EnvSetupSpec | undefined =
-  isFeatureEnabled("sponsors")
-    ? {
-        key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
-        group: "Email",
-        kind: "prompt",
-        description: "From address for sponsorship emails.",
-        defaultValue: configuredSponsorshipSenderAddress(),
-      }
-    : undefined
-
-export const EMAIL_ENV_SETUP: readonly EnvSetupSpec[] =
-  SPONSORSHIP_EMAIL_SENDER_ENV_SETUP === undefined
-    ? EMAIL_CORE_ENV_SETUP
-    : [...EMAIL_CORE_ENV_SETUP, SPONSORSHIP_EMAIL_SENDER_ENV_SETUP]
+export const EMAIL_ENV_SETUP: readonly EnvSetupSpec[] = [
+  ...EMAIL_CORE_ENV_SETUP,
+  ...(isFeatureEnabled("sponsors")
+    ? [
+        {
+          key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
+          group: "Email",
+          kind: "prompt",
+          description: "From address for sponsorship emails.",
+          defaultValue: configuredSponsorshipSenderAddress(),
+        } satisfies EnvSetupSpec,
+      ]
+    : []),
+]
 
 function uniqueByKey(specs: readonly EnvSetupSpec[]): EnvSetupSpec[] {
   const seen = new Set<string>()

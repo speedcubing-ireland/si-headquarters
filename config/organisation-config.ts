@@ -20,12 +20,20 @@ const organisationConfig = {
     timeZoneLabel: "London",
     reminderHour: 8,
   },
-  contacts: {},
+  contacts: {
+    sponsorshipTeamEmail: "sponsorship@example.com",
+    sponsorshipTeamName: "UKCA Sponsorship Team",
+  },
+  sponsorship: {
+    portalName: "UKCA Sponsor Panel",
+    productionHost: "sponsors.ukca.org",
+    defaultCurrency: "GBP",
+  },
   features: {
     google: false,
     canva: false,
     discord: false,
-    sponsors: false,
+    sponsors: true,
     socialMedia: false,
     wcaIntegration: true,
     organiserInvites: false,

@@ -90,6 +90,37 @@ describe("organisation configuration", () => {
     )
   })
 
+  test("rejects sponsor config missing required fields at the type level", () => {
+    const invalid = {
+      organisation: { name: "X", productName: "X" },
+      branding: { notificationFooterText: "X", faviconPath: "/f.png" },
+      regional: {
+        locale: "en-GB",
+        timeZone: "Europe/London",
+        timeZoneLabel: "London",
+        reminderHour: 8,
+      },
+      contacts: {},
+      features: {
+        google: false,
+        canva: false,
+        discord: false,
+        sponsors: true,
+        socialMedia: false,
+        wcaIntegration: true,
+        organiserInvites: false,
+      },
+      auth: {
+        providers: [{ id: "wca-staff", audience: "staff", label: "X" }],
+      },
+    } as const
+
+    expect(() =>
+      // @ts-expect-error sponsors:true requires sponsorship + contacts fields
+      defineOrganisationConfig(invalid)
+    ).toThrow(/require sponsorship configuration/)
+  })
+
   test("requires check-in sheet config when Google and WCA integration are enabled", () => {
     const config = cloneConfig()
     config.features = {

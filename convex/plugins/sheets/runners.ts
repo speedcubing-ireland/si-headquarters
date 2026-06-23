@@ -74,15 +74,15 @@ export async function runPopulateCheckin(
     }
   }
 
+  const checkinShareEmail = getCheckinShareEmail()
+
   try {
-    const checkinShareEmail = getCheckinShareEmail()
     await shareSheetWithEmail(
       googleAccessToken,
       sheet.sheetId,
       checkinShareEmail
     )
   } catch (err) {
-    const checkinShareEmail = getCheckinShareEmail()
     return {
       status: "error",
       lastMessage: `Wrote ${String(result.rowsWritten)} accepted registrations, but sharing the sheet with ${checkinShareEmail} failed: ${err instanceof Error ? err.message : "Unknown error"}. Share it manually in Google Drive.`,
@@ -93,7 +93,6 @@ export async function runPopulateCheckin(
     }
   }
 
-  const checkinShareEmail = getCheckinShareEmail()
   return {
     status: "completed",
     lastMessage: `Wrote ${String(result.rowsWritten)} accepted registrations and shared the sheet with ${checkinShareEmail}.`,

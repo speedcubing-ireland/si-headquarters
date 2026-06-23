@@ -30,17 +30,14 @@ const SCHEDULED_PORTAL_FOOTNOTE =
 
 const productName = organisationConfig.organisation.productName
 
-function sponsorCfg() {
-  return sponsorshipConfig()
-}
-
 function competitionName(ctx: EmailCopyContext): string {
   return ctx.competitionName ?? "the competition"
 }
 
 function lifecycleScheduledCopy(ctx: EmailCopyContext): EmailTemplateCopy {
+  const { sponsorship } = sponsorshipConfig()
   const name = competitionName(ctx)
-  const currency = ctx.currency ?? sponsorCfg().sponsorship.defaultCurrency
+  const currency = ctx.currency ?? sponsorship.defaultCurrency
   const subtitle = formatRecipientSubtitle(
     ctx.recipientName,
     (recipient) =>
@@ -189,6 +186,7 @@ function outcomeCopy(
   type: SponsorshipOutcomeEmailType,
   ctx: EmailCopyContext
 ): EmailTemplateCopy {
+  const { contacts } = sponsorshipConfig()
   const name = competitionName(ctx)
 
   switch (type) {
@@ -219,8 +217,8 @@ function outcomeCopy(
     case "auction_closed_winner": {
       const body =
         ctx.settlementAmountCents !== undefined
-          ? `Congratulations. Your winning bid is ${formatMoney(ctx.settlementAmountCents)}. The ${sponsorCfg().contacts.sponsorshipTeamName} will follow up with invoice details.`
-          : `Congratulations. You are the confirmed sponsor. The ${sponsorCfg().contacts.sponsorshipTeamName} will follow up with invoice details.`
+          ? `Congratulations. Your winning bid is ${formatMoney(ctx.settlementAmountCents)}. The ${contacts.sponsorshipTeamName} will follow up with invoice details.`
+          : `Congratulations. You are the confirmed sponsor. The ${contacts.sponsorshipTeamName} will follow up with invoice details.`
       const infoRows: EmailInfoRow[] = [
         { label: "Competition", value: name },
         { label: "Status", value: "Winner confirmed" },
@@ -355,10 +353,11 @@ export function sponsorshipEmailSubject(
   type: SponsorshipEmailType,
   ctx: EmailCopyContext
 ): string {
+  const { sponsorship } = sponsorshipConfig()
   const name = competitionName(ctx)
   switch (type) {
     case "invite":
-      return `${sponsorCfg().sponsorship.portalName} access`
+      return `${sponsorship.portalName} access`
     case "auction_scheduled":
       return `${name}: bidding opening soon`
     case "auction_started":
@@ -381,21 +380,22 @@ export function sponsorshipEmailMessageFallback(
   type: SponsorshipEmailType,
   ctx: EmailCopyContext
 ): string {
+  const { sponsorship, contacts } = sponsorshipConfig()
   switch (type) {
     case "invite":
       return "Open the sponsor portal and sign in with the one-time email code we send you."
     case "auction_scheduled":
       return "A sponsorship auction has been scheduled. You will be notified when bidding opens."
     case "auction_started":
-      return `Sponsorship bidding is now live in the ${sponsorCfg().sponsorship.portalName}. Please submit your bid before closing time.`
+      return `Sponsorship bidding is now live in the ${sponsorship.portalName}. Please submit your bid before closing time.`
     case "auction_active_reminder":
       return "Bidding for this sponsorship auction closes in approximately 1 hour."
     case "auction_ebay_outbid":
       return "You have been outbid in this sponsorship auction."
     case "auction_closed_winner":
       return ctx.settlementAmountCents !== undefined
-        ? `You won the sponsorship auction at ${formatMoney(ctx.settlementAmountCents)}. The ${sponsorCfg().contacts.sponsorshipTeamName} will follow up with invoice details.`
-        : `You won the sponsorship auction. The ${sponsorCfg().contacts.sponsorshipTeamName} will follow up with invoice details.`
+        ? `You won the sponsorship auction at ${formatMoney(ctx.settlementAmountCents)}. The ${contacts.sponsorshipTeamName} will follow up with invoice details.`
+        : `You won the sponsorship auction. The ${contacts.sponsorshipTeamName} will follow up with invoice details.`
     case "auction_closed_outbid":
       return "This sponsorship auction has now closed. Thank you for participating."
     case "auction_closed_none":
@@ -451,15 +451,15 @@ const OTP_EMAIL_TITLES: Record<SponsorPortalOtpPurpose, string> = {
   "change your email": "Your email change code",
 }
 
-const OTP_AUTH_SUBJECTS: Record<SponsorOtpAuthType, string> = {
-  "sign-in": `${sponsorCfg().sponsorship.portalName} sign-in code`,
-  "forget-password": `${sponsorCfg().sponsorship.portalName} sign-in code`,
-  "email-verification": `${sponsorCfg().sponsorship.portalName} email verification code`,
-  "change-email": `${sponsorCfg().sponsorship.portalName} email change code`,
-}
-
 export function sponsorOtpAuthEmailSubject(type: SponsorOtpAuthType): string {
-  return OTP_AUTH_SUBJECTS[type]
+  const { sponsorship } = sponsorshipConfig()
+  const subjects: Record<SponsorOtpAuthType, string> = {
+    "sign-in": `${sponsorship.portalName} sign-in code`,
+    "forget-password": `${sponsorship.portalName} sign-in code`,
+    "email-verification": `${sponsorship.portalName} email verification code`,
+    "change-email": `${sponsorship.portalName} email change code`,
+  }
+  return subjects[type]
 }
 
 export function sponsorOtpPurposeFromAuthType(
@@ -481,10 +481,11 @@ export function sponsorOtpEmailTemplateCopy(props: {
   otp: string
   expiresInMinutes: number
 }): EmailTemplateCopy {
+  const { sponsorship } = sponsorshipConfig()
   return {
-    preview: `${props.otp} is your ${sponsorCfg().sponsorship.portalName} code`,
+    preview: `${props.otp} is your ${sponsorship.portalName} code`,
     title: OTP_EMAIL_TITLES[props.purposeLabel],
-    subtitle: `Use the code below to ${props.purposeLabel} on the ${sponsorCfg().sponsorship.portalName}.`,
+    subtitle: `Use the code below to ${props.purposeLabel} on the ${sponsorship.portalName}.`,
     ctaLabel: "Open sponsor portal",
     infoRows: [],
     bodyParagraphs: [],

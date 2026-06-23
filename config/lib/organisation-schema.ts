@@ -26,6 +26,13 @@ const featureSchemaShape = {
 
 const featureSchema = z.object(featureSchemaShape).strict()
 
+export type FeatureConfig = z.infer<typeof featureSchema>
+
+export const checkinSheetsEnabled = (features: FeatureConfig) =>
+  features.google && features.wcaIntegration
+
+export const sponsorshipEnabled = (features: FeatureConfig) => features.sponsors
+
 // This provider must have the hostedDomain, this is what gates users when logging in not any of our own checks
 // (i.e. any user with their company email can make an account)
 const googleProviderSchema = z
@@ -183,10 +190,7 @@ export const organisationConfigSchema = z
       })
     }
 
-    const checkinSheetsEnabled =
-      config.features.google && config.features.wcaIntegration
-
-    if (checkinSheetsEnabled) {
+    if (checkinSheetsEnabled(config.features)) {
       requireConfig(
         ctx,
         config.contacts.checkinShareEmail,
@@ -209,7 +213,7 @@ export const organisationConfigSchema = z
       )
     }
 
-    if (config.features.sponsors) {
+    if (sponsorshipEnabled(config.features)) {
       requireConfig(
         ctx,
         config.contacts.sponsorshipTeamEmail,
@@ -245,13 +249,30 @@ type ReadonlyDeep<T> = T extends (...args: never[]) => infer Return
 
 export type OrganisationConfigDefinition = ReadonlyDeep<OrganisationConfig>
 
-export type DefinedOrganisationConfig<
-  Config extends OrganisationConfigDefinition,
-> = Config
+export interface SponsorshipConfigRequirements {
+  contacts: { sponsorshipTeamEmail: string; sponsorshipTeamName: string }
+  sponsorship: NonNullable<OrganisationConfig["sponsorship"]>
+}
+
+export interface CheckinSheetsConfigRequirements {
+  contacts: { checkinShareEmail: string }
+  wca: NonNullable<OrganisationConfig["wca"]>
+}
+
+// `object` is the intersection identity for a config (Config & object = Config),
+// so disabled features add no requirements. The constraint only fires for
+// literal-`true` flags, i.e. real `as const` manifests.
+type FeatureConfigRequirements<F extends FeatureConfig> =
+  (F["sponsors"] extends true ? SponsorshipConfigRequirements : object) &
+    (F["google"] extends true
+      ? F["wcaIntegration"] extends true
+        ? CheckinSheetsConfigRequirements
+        : object
+      : object)
 
 export function defineOrganisationConfig<
   const Config extends OrganisationConfigDefinition,
->(config: Config): DefinedOrganisationConfig<Config> {
+>(config: Config & FeatureConfigRequirements<Config["features"]>): Config {
   organisationConfigSchema.parse(config)
   return config
 }

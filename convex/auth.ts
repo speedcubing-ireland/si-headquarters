@@ -11,7 +11,7 @@ const wcaStaff = findLoginProvider("wca-staff")
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
-    ...(google?.id === "google"
+    ...(google !== undefined
       ? [
           Google({
             authorization: {
