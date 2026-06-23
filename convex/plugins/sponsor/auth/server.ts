@@ -18,7 +18,7 @@ import {
   resolveSponsorPortalOriginForAuth,
   sponsorPortalLoginUrl,
 } from "@/convex/plugins/sponsor/siteUrls"
-import { organisationConfig } from "@/config/lib/organisation"
+import { sponsorshipConfig } from "@/config/lib/organisation"
 import schema from "./component/sponsorAuth/schema"
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth"
@@ -150,7 +150,7 @@ export function createSponsorAuthOptions(
   ])
 
   return {
-    appName: organisationConfig.sponsorship.portalName,
+    appName: sponsorshipConfig().sponsorship.portalName,
     baseURL: trimTrailingSlash(config.baseUrl),
     basePath: SPONSOR_AUTH_BASE_PATH,
     secret: config.secret,

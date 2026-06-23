@@ -9,7 +9,7 @@ import {
   sponsorOtpPurposeFromAuthType,
 } from "./copy"
 import { formatMoney } from "./_design"
-import { organisationConfig } from "@/config/lib/organisation"
+import { sponsorshipConfig } from "@/config/lib/organisation"
 
 describe("auctionFrameworkLabel", () => {
   test("returns brief framework titles", () => {
@@ -22,7 +22,7 @@ describe("auctionFrameworkLabel", () => {
 describe("formatMoney", () => {
   test("formats cents as currency", () => {
     expect(formatMoney(125_000)).toBe(
-      `${organisationConfig.sponsorship.defaultCurrency} 1250.00`
+      `${sponsorshipConfig().sponsorship.defaultCurrency} 1250.00`
     )
     expect(formatMoney(10_000, "USD")).toBe("USD 100.00")
   })
@@ -56,10 +56,10 @@ describe("getSponsorshipEmailPayload", () => {
       settlementAmountCents: 125_000,
     })
     expect(payload.message).toContain(
-      `${organisationConfig.sponsorship.defaultCurrency} 1250.00`
+      `${sponsorshipConfig().sponsorship.defaultCurrency} 1250.00`
     )
     expect(payload.message).toContain(
-      organisationConfig.contacts.sponsorshipTeamName
+      sponsorshipConfig().contacts.sponsorshipTeamName
     )
     expect(payload.message).not.toContain("Finance will follow up")
   })

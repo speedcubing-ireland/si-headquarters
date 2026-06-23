@@ -4,9 +4,10 @@ import { GOOGLE_DEFINITION } from "@/convex/plugins/google/definition"
 import { WCA_DEFINITION } from "@/convex/plugins/wca/definition"
 import {
   configuredSponsorshipSenderAddress,
+  isFeatureEnabled,
   organisationConfig,
 } from "@/config/lib/organisation"
-import type { OrganisationConfig } from "@/config/lib/organisation-schema"
+import type { OrganisationConfigDefinition } from "@/config/lib/organisation-schema"
 
 export type EnvSetupGroup =
   | "Staff auth"
@@ -144,7 +145,7 @@ const WCA_AUTH_ENV_SETUP = [
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
-export const EMAIL_ENV_SETUP = [
+const EMAIL_CORE_ENV_SETUP = [
   {
     key: "RESEND_API_KEY",
     group: "Email",
@@ -160,14 +161,23 @@ export const EMAIL_ENV_SETUP = [
     defaultValue: "true",
     choices: ["true", "false"],
   },
-  {
-    key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
-    group: "Email",
-    kind: "prompt",
-    description: "From address for sponsorship emails.",
-    defaultValue: configuredSponsorshipSenderAddress(),
-  },
 ] as const satisfies readonly EnvSetupSpec[]
+
+const SPONSORSHIP_EMAIL_SENDER_ENV_SETUP: EnvSetupSpec | undefined =
+  isFeatureEnabled("sponsors")
+    ? {
+        key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
+        group: "Email",
+        kind: "prompt",
+        description: "From address for sponsorship emails.",
+        defaultValue: configuredSponsorshipSenderAddress(),
+      }
+    : undefined
+
+export const EMAIL_ENV_SETUP: readonly EnvSetupSpec[] =
+  SPONSORSHIP_EMAIL_SENDER_ENV_SETUP === undefined
+    ? EMAIL_CORE_ENV_SETUP
+    : [...EMAIL_CORE_ENV_SETUP, SPONSORSHIP_EMAIL_SENDER_ENV_SETUP]
 
 function uniqueByKey(specs: readonly EnvSetupSpec[]): EnvSetupSpec[] {
   const seen = new Set<string>()
@@ -193,7 +203,7 @@ export const ALL_ENV_SETUP = uniqueByKey([
 ])
 
 export function buildRequiredEnvSetup(
-  config: OrganisationConfig
+  config: OrganisationConfigDefinition
 ): EnvSetupSpec[] {
   const providerIds = new Set(
     config.auth.providers.map((provider) => provider.id)

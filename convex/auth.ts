@@ -3,15 +3,15 @@ import Google from "@auth/core/providers/google"
 import { ConvexCredentials } from "@convex-dev/auth/providers/ConvexCredentials"
 import { internal } from "@/convex/_generated/api"
 import { exchangeWcaCodeForProfile } from "@/convex/wcaLogin/wcaLogin"
-import { loginProvider } from "@/config/lib/organisation"
+import { findLoginProvider } from "@/config/lib/organisation"
 
-const google = loginProvider("google")
-const wca = loginProvider("wca")
-const wcaStaff = loginProvider("wca-staff")
+const google = findLoginProvider("google")
+const wca = findLoginProvider("wca")
+const wcaStaff = findLoginProvider("wca-staff")
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
-    ...(google !== undefined
+    ...(google?.id === "google"
       ? [
           Google({
             authorization: {

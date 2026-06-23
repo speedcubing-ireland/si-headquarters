@@ -1,8 +1,11 @@
-import { defineOrganisationConfig } from "./lib/organisation-schema"
+import {
+  defineOrganisationConfig,
+  type OrganisationConfigDefinition,
+} from "./lib/organisation-schema"
 
 // This non-secret manifest is the only file an organisation fork should need to
 // edit. OAuth secrets and API credentials remain in the deployment environment.
-export default defineOrganisationConfig({
+const organisationConfig = {
   organisation: {
     name: "UK Cube Association",
     productName: "Sponsor Panel",
@@ -17,15 +20,7 @@ export default defineOrganisationConfig({
     timeZoneLabel: "London",
     reminderHour: 8,
   },
-  contacts: {
-    sponsorshipTeamEmail: "sponsorship@ukca.org",
-    sponsorshipTeamName: "UKCA Sponsorship Team",
-  },
-  sponsorship: {
-    portalName: "UKCA Sponsor Portal",
-    productionHost: "sponsors.ukca.org",
-    defaultCurrency: "GBP",
-  },
+  contacts: {},
   features: {
     google: false,
     canva: false,
@@ -44,4 +39,6 @@ export default defineOrganisationConfig({
       },
     ],
   },
-})
+} as const satisfies OrganisationConfigDefinition
+
+export default defineOrganisationConfig(organisationConfig)

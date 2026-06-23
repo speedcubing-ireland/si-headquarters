@@ -1,8 +1,11 @@
-import { defineOrganisationConfig } from "./lib/organisation-schema"
+import {
+  defineOrganisationConfig,
+  type OrganisationConfigDefinition,
+} from "./lib/organisation-schema"
 
 // This non-secret manifest is the only file an organisation fork should need to
 // edit. OAuth secrets and API credentials remain in the deployment environment.
-export default defineOrganisationConfig({
+const organisationConfig = {
   organisation: {
     name: "Speedcubing Ireland",
     productName: "Headquarters",
@@ -54,4 +57,6 @@ export default defineOrganisationConfig({
       },
     ],
   },
-})
+} as const satisfies OrganisationConfigDefinition
+
+export default defineOrganisationConfig(organisationConfig)

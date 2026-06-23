@@ -14,7 +14,10 @@ import {
 import type { TailwindConfig } from "@react-email/components"
 import { pixelBasedPreset } from "@react-email/components"
 import type { ReactNode } from "react"
-import { organisationConfig } from "@/config/lib/organisation"
+import {
+  organisationConfig,
+  sponsorshipConfig,
+} from "@/config/lib/organisation"
 
 export const emailBrandTokens = {
   primary: "#2f9e64",
@@ -86,7 +89,7 @@ interface SponsorshipEmailShellProps {
 }
 
 export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
-  const sponsorshipTeamName = organisationConfig.contacts.sponsorshipTeamName
+  const sponsorshipTeamName = sponsorshipConfig().contacts.sponsorshipTeamName
   const showCta =
     props.ctaLabel !== undefined &&
     props.ctaLabel.length > 0 &&
@@ -187,7 +190,7 @@ export function SponsorshipInfoBlock(props: {
 
 export function formatMoney(
   cents: number,
-  currency = organisationConfig.sponsorship.defaultCurrency
+  currency = sponsorshipConfig().sponsorship.defaultCurrency
 ): string {
   return `${currency} ${(cents / 100).toFixed(2)}`
 }

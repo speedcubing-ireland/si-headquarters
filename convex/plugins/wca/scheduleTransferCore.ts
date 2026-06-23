@@ -31,7 +31,10 @@ import {
   getRegistrationStatus,
   isAcceptedRegistration,
 } from "@/convex/plugins/wca/registrationsLib"
-import { organisationConfig } from "@/config/lib/organisation"
+import {
+  checkinSheetsConfig,
+  organisationConfig,
+} from "@/config/lib/organisation"
 
 type WcaApiClient = ReturnType<typeof createWcaClient>
 type GoogleSheetCellValue = string | null
@@ -76,8 +79,10 @@ const PROGRESSION_RANGE = "Schedule!A2:F"
 const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U"
 const WCA_DATA_WRITE_RANGE = "WCA Data!A3"
 const SCHEDULE_TIMEZONE = organisationConfig.regional.timeZone
-const SCHEDULE_TEMPLATE_COMPETITION_ID =
-  organisationConfig.wca.scheduleTemplateCompetitionId
+
+function scheduleTemplateCompetitionId(): string {
+  return checkinSheetsConfig().wca.scheduleTemplateCompetitionId
+}
 const PERCENT_75_THRESHOLD_MIN = 72
 const PERCENT_75_THRESHOLD_MAX = 78
 const CHECKIN_EVENT_COLUMNS = [
@@ -493,7 +498,7 @@ async function fetchScheduleTemplate(
 ): Promise<Map<string, Round>> {
   const wcif = await loadCompetitionWcif(
     client,
-    SCHEDULE_TEMPLATE_COMPETITION_ID
+    scheduleTemplateCompetitionId()
   )
   if (!wcif) return new Map()
   return new Map(

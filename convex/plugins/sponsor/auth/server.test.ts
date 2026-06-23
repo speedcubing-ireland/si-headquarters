@@ -8,7 +8,7 @@ import {
   createSponsorAuthOptions,
   SPONSOR_AUTH_ANALYSIS_CONFIG,
 } from "./server"
-import { organisationConfig } from "@/config/lib/organisation"
+import { sponsorshipConfig } from "@/config/lib/organisation"
 
 type RestorableEnvKey =
   | "BETTER_AUTH_SECRET"
@@ -219,7 +219,7 @@ describe("buildSponsorOtpEmail sender address", () => {
       type: "sign-in",
     })
     expect(result.senderAddress).toBe(
-      organisationConfig.contacts.sponsorshipTeamEmail
+      sponsorshipConfig().contacts.sponsorshipTeamEmail
     )
   })
 
@@ -231,7 +231,7 @@ describe("buildSponsorOtpEmail sender address", () => {
       type: "sign-in",
     })
     expect(result.senderAddress).toBe(
-      organisationConfig.contacts.sponsorshipTeamEmail
+      sponsorshipConfig().contacts.sponsorshipTeamEmail
     )
   })
 })
@@ -244,7 +244,7 @@ describe("buildSponsorOtpEmail", () => {
       type: "sign-in",
     })
     expect(result.subject).toBe(
-      `${organisationConfig.sponsorship.portalName} sign-in code`
+      `${sponsorshipConfig().sponsorship.portalName} sign-in code`
     )
   })
 
@@ -255,7 +255,7 @@ describe("buildSponsorOtpEmail", () => {
       type: "email-verification",
     })
     expect(result.subject).toBe(
-      `${organisationConfig.sponsorship.portalName} email verification code`
+      `${sponsorshipConfig().sponsorship.portalName} email verification code`
     )
   })
 

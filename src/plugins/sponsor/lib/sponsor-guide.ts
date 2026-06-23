@@ -1,8 +1,12 @@
-import { organisationConfig } from "@/config/lib/organisation"
+import {
+  organisationConfig,
+  sponsorshipConfig,
+} from "@/config/lib/organisation"
 import { formatCurrencyFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 
-export const SPONSOR_TEAM_EMAIL =
-  organisationConfig.contacts.sponsorshipTeamEmail
+export function sponsorTeamEmail(): string {
+  return sponsorshipConfig().contacts.sponsorshipTeamEmail
+}
 
 export const SPONSOR_LOGIN_STEPS = [
   "Open the portal link",
@@ -147,14 +151,18 @@ export const SPONSOR_CLOSING_AND_RESULTS = {
   body: "Once an auction has ended, the system will determine the winning sponsor depending on the format of the auction. The winner will be notified and the final price will be displayed",
 } as const
 
-export const SPONSOR_BIDDING_NOTICE = {
-  title: "Bidding notice",
-  paragraphs: [
-    "Please note that all bids placed through the system are non-revokable except where allowed by the software. Failure to pay a winning bid will result in action such as exclusion from future sponsorship.",
-    `If there are any technical errors or if you need any assistance, please inform ${organisationConfig.organisation.name}'s ${organisationConfig.contacts.sponsorshipTeamName} immediately.`,
-    "We are happy to answer any questions or help out if you run into any issues. You will also be able to access information relating to the auction formats and our sponsorship policy via the sponsor portal.",
-  ],
-} as const
+export function sponsorBiddingNotice() {
+  const sponsorshipTeamName = sponsorshipConfig().contacts.sponsorshipTeamName
+
+  return {
+    title: "Bidding notice",
+    paragraphs: [
+      "Please note that all bids placed through the system are non-revokable except where allowed by the software. Failure to pay a winning bid will result in action such as exclusion from future sponsorship.",
+      `If there are any technical errors or if you need any assistance, please inform ${organisationConfig.organisation.name}'s ${sponsorshipTeamName} immediately.`,
+      "We are happy to answer any questions or help out if you run into any issues. You will also be able to access information relating to the auction formats and our sponsorship policy via the sponsor portal.",
+    ],
+  } as const
+}
 
 export function sponsorshipFrameworkGuide(
   framework: keyof typeof SPONSORSHIP_FRAMEWORK_GUIDES

@@ -28,7 +28,7 @@ import { scheduleAuctionActivation } from "./lifecycle"
 import { buildCompetitionSponsorStatusByCompetition } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { getCompetitionSponsorOverridesByCompetitionId } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
 import {
-  DEFAULT_SPONSORSHIP_CURRENCY,
+  defaultSponsorshipCurrency,
   formatSponsorshipAmount,
 } from "@/convex/plugins/sponsor/lib/currency"
 
@@ -96,7 +96,7 @@ export const create = mutation({
       competitionId: args.competitionId,
       framework: args.framework ?? "first_sealed",
       state: "draft",
-      currency: args.currency ?? DEFAULT_SPONSORSHIP_CURRENCY,
+      currency: args.currency ?? defaultSponsorshipCurrency(),
       startsAt: args.startsAt,
       endsAt: args.endsAt,
       antiSnipingWindowMs: antiSnipingWindowMs ?? DEFAULT_SCHEDULE_WINDOW_MS,

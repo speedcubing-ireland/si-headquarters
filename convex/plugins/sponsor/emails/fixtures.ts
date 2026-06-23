@@ -1,9 +1,9 @@
 import type { SponsorPortalOtpEmailProps } from "@/convex/plugins/sponsor/lib/validators"
-import { organisationConfig } from "@/config/lib/organisation"
+import { sponsorshipConfig } from "@/config/lib/organisation"
 
 const competitionName = "Irish Open 2026"
 const recipientName = "Sponsor Team"
-const portalBaseUrl = `https://${organisationConfig.sponsorship.productionHost}`
+const portalBaseUrl = `https://${sponsorshipConfig().sponsorship.productionHost}`
 const hqBaseUrl = "http://localhost:5173"
 const portalLoginUrl = `${portalBaseUrl}/login`
 const portalAuctionsUrl = `${portalBaseUrl}/auctions`
@@ -39,7 +39,7 @@ export const fixtures = {
     framework: "first_sealed",
     frameworkGuideUrl: portalGuideUrl,
     startPriceCents: 10_000,
-    currency: organisationConfig.sponsorship.defaultCurrency,
+    currency: sponsorshipConfig().sponsorship.defaultCurrency,
   },
   auctionActiveReminder: {
     variant: "auction_active_reminder",
@@ -84,7 +84,7 @@ export const fixtures = {
     winnerSponsorName: "Example Sponsor",
     settlementAmountCents: 125_000,
     adminUrl,
-    message: `Winner confirmed: Example Sponsor at ${organisationConfig.sponsorship.defaultCurrency} 1250.00. Send invoice follow-up.`,
+    message: `Winner confirmed: Example Sponsor at ${sponsorshipConfig().sponsorship.defaultCurrency} 1250.00. Send invoice follow-up.`,
   },
   internalInvoiceNoWinner: {
     competitionName,

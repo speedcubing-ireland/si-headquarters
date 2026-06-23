@@ -1,8 +1,5 @@
 import { env } from "@/convex/_generated/server"
-import { organisationConfig } from "@/config/lib/organisation"
-
-const DEFAULT_SPONSORSHIP_SENDER_ADDRESS =
-  organisationConfig.contacts.sponsorshipTeamEmail
+import { sponsorshipConfig } from "@/config/lib/organisation"
 
 export function getSponsorshipSenderAddress(
   source: { SPONSORSHIP_EMAIL_SENDER_ADDRESS?: string | undefined } = env
@@ -11,5 +8,5 @@ export function getSponsorshipSenderAddress(
   if (configured !== undefined && configured.length > 0) {
     return configured
   }
-  return DEFAULT_SPONSORSHIP_SENDER_ADDRESS
+  return sponsorshipConfig().contacts.sponsorshipTeamEmail
 }

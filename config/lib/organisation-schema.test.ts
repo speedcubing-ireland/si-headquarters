@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest"
+import { describe, expect, expectTypeOf, test } from "vitest"
 import {
   defineOrganisationConfig,
   organisationConfigSchema,
@@ -14,6 +14,13 @@ describe("organisation configuration", () => {
     expect(organisationConfigSchema.parse(organisationConfig)).toEqual(
       organisationConfig
     )
+  })
+
+  test("keeps configured provider ids as literal types", () => {
+    type ConfiguredProviderId =
+      (typeof organisationConfig.auth.providers)[number]["id"]
+
+    expectTypeOf<ConfiguredProviderId>().toEqualTypeOf<"wca-staff">()
   })
 
   test("accepts a minimal feature set", () => {
@@ -58,6 +65,80 @@ describe("organisation configuration", () => {
       (provider) => provider.id !== "wca"
     )
     expect(() => defineOrganisationConfig(config)).toThrow(/require the WCA/)
+  })
+
+  test("requires WCA integration when organiser invites are enabled", () => {
+    const config = cloneConfig()
+    config.features = {
+      ...config.features,
+      organiserInvites: true,
+      wcaIntegration: false,
+    }
+    expect(() => defineOrganisationConfig(config)).toThrow(
+      /require WCA integration/
+    )
+  })
+
+  test("requires sponsorship config when sponsors are enabled", () => {
+    const config = cloneConfig()
+    config.features = { ...config.features, sponsors: true }
+    delete config.sponsorship
+    delete config.contacts.sponsorshipTeamEmail
+    delete config.contacts.sponsorshipTeamName
+    expect(() => defineOrganisationConfig(config)).toThrow(
+      /require sponsorship configuration/
+    )
+  })
+
+  test("requires check-in sheet config when Google and WCA integration are enabled", () => {
+    const config = cloneConfig()
+    config.features = {
+      ...config.features,
+      google: true,
+      wcaIntegration: true,
+    }
+    delete config.wca
+    delete config.contacts.checkinShareEmail
+    expect(() => defineOrganisationConfig(config)).toThrow(
+      /require WCA configuration/
+    )
+  })
+
+  test("allows omitting sponsor and check-in config when features are disabled", () => {
+    expect(() =>
+      defineOrganisationConfig({
+        organisation: { name: "UKCA", productName: "UKCA Panel" },
+        branding: {
+          notificationFooterText: "UKCA Panel",
+          faviconPath: "/favicon.png",
+        },
+        regional: {
+          locale: "en-GB",
+          timeZone: "Europe/London",
+          timeZoneLabel: "London",
+          reminderHour: 8,
+        },
+        contacts: {},
+        features: {
+          google: false,
+          canva: false,
+          discord: false,
+          sponsors: false,
+          socialMedia: false,
+          wcaIntegration: true,
+          organiserInvites: false,
+        },
+        auth: {
+          providers: [
+            {
+              id: "wca-staff",
+              audience: "staff",
+              label: "UKCA Volunteer (WCA)",
+            },
+          ],
+        },
+      })
+    ).not.toThrow()
   })
 
   test("accepts wca-staff: 'staff' as the sole provider", () => {

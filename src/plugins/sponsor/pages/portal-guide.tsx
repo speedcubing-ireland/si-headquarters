@@ -28,10 +28,10 @@ import { useSponsorPortalSignOut } from "@/plugins/sponsor/lib/use-sponsor-porta
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
 import {
   SPONSOR_AUCTIONS_OVERVIEW,
-  SPONSOR_BIDDING_NOTICE,
+  sponsorBiddingNotice,
   SPONSOR_CLOSING_AND_RESULTS,
   SPONSOR_MINIMUM_BIDS,
-  SPONSOR_TEAM_EMAIL,
+  sponsorTeamEmail,
 } from "@/plugins/sponsor/lib/sponsor-guide"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
@@ -50,6 +50,8 @@ export function PortalGuidePage() {
 
   const backTo = isSignedIn ? "/sponsor/auctions" : "/sponsor/login"
   const backLabel = isSignedIn ? "Back to auctions" : "Back to sign in"
+  const biddingNotice = sponsorBiddingNotice()
+  const teamEmail = sponsorTeamEmail()
 
   return (
     <SponsorPageShell maxWidthClassName="max-w-3xl">
@@ -148,9 +150,9 @@ export function PortalGuidePage() {
 
       <Alert variant="destructive">
         <AlertTriangle />
-        <AlertTitle>{SPONSOR_BIDDING_NOTICE.title}</AlertTitle>
+        <AlertTitle>{biddingNotice.title}</AlertTitle>
         <AlertDescription>
-          {SPONSOR_BIDDING_NOTICE.paragraphs.map((paragraph) => (
+          {biddingNotice.paragraphs.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
           ))}
         </AlertDescription>
@@ -163,15 +165,15 @@ export function PortalGuidePage() {
             Sponsor team email:{" "}
             <a
               className="text-foreground underline underline-offset-4"
-              href={`mailto:${SPONSOR_TEAM_EMAIL}`}
+              href={`mailto:${teamEmail}`}
             >
-              {SPONSOR_TEAM_EMAIL}
+              {teamEmail}
             </a>
           </CardDescription>
         </CardHeader>
         <CardFooter>
           <Button asChild variant="outline">
-            <a href={`mailto:${SPONSOR_TEAM_EMAIL}`}>
+            <a href={`mailto:${teamEmail}`}>
               <Mail className="size-4" />
               Email sponsorship team
             </a>

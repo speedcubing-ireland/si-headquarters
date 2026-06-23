@@ -16,6 +16,7 @@ import { CANVA_DEFINITION } from "../../convex/plugins/canva/definition.ts"
 import { GOOGLE_DEFINITION } from "../../convex/plugins/google/definition.ts"
 import { WCA_DEFINITION } from "../../convex/plugins/wca/definition.ts"
 import organisationConfig from "../../config/organisation-config.ts"
+import { organisationConfigSchema } from "../../config/lib/organisation-schema.ts"
 import {
   buildWizardEnvSpecs,
   generateEnvValues,
@@ -84,7 +85,9 @@ describe("set-convex-env metadata", () => {
   })
 
   test("omits setup for disabled features and providers", () => {
-    const config = structuredClone(organisationConfig)
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
+    )
     config.features = {
       google: false,
       canva: false,
@@ -95,7 +98,7 @@ describe("set-convex-env metadata", () => {
       organiserInvites: false,
     }
     config.auth.providers = config.auth.providers.filter(
-      (provider) => provider.id === "google"
+      (provider) => provider.id !== "wca" && provider.id !== "wca-staff"
     )
     const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
 

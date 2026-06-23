@@ -28,16 +28,16 @@ import { AbilityProvider } from "@/features/auth"
 import { getPageTitle } from "@/lib/page-title"
 import { isSponsorSite } from "@/lib/sponsor-site"
 import {
+  findLoginProvider,
   isFeatureEnabled,
-  loginProvider,
   organisationConfig,
   type FeatureId,
   type LoginProviderConfig,
 } from "@/config/lib/organisation"
 import { featureForPluginPath } from "@/plugins/registry"
 
-const hasOrganiserWcaLogin = loginProvider("wca") !== undefined
-const hasStaffWcaLogin = loginProvider("wca-staff") !== undefined
+const hasOrganiserWcaLogin = findLoginProvider("wca") !== undefined
+const hasStaffWcaLogin = findLoginProvider("wca-staff") !== undefined
 
 const PRODUCT_PUBLIC_AUTH_PATHS = new Set([
   "/impersonate/user",
