@@ -22,6 +22,7 @@ import {
   auctionFrameworkLabel,
 } from "@/convex/plugins/sponsor/lib/types"
 import {
+  currencyInputLabel,
   isSponsorshipFramework,
   parseDatetimeLocalInput,
   toDatetimeLocalInput,

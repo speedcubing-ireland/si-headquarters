@@ -7,6 +7,7 @@ import {
   createSponsorAuctionTestHarness,
   type SponsorAuctionTestHarness,
 } from "@/convex/plugins/sponsor/testing/auctionTestHarness.testSupport"
+import { defaultSponsorshipCurrency } from "@/convex/plugins/sponsor/lib/currency"
 
 async function seedAuctionPrereqs(t: SponsorAuctionTestHarness): Promise<{
   managerId: Id<"users">
@@ -50,13 +51,14 @@ describe("auction management behavior", () => {
     const manager = t.withIdentity({ subject: managerId })
 
     const now = Date.now()
+    const startPriceCents = 5000
     const auctionId = await manager.mutation(
       api.plugins.sponsor.admin.auctions.management.create,
       {
         competitionId,
         startsAt: now + 86_400_000,
         endsAt: now + 172_800_000,
-        startPriceCents: 5000,
+        startPriceCents,
         invitedSponsorIds: [sponsorId],
       }
     )
@@ -66,8 +68,8 @@ describe("auction management behavior", () => {
     )
     expect(doc?.state).toBe("draft")
     expect(doc?.framework).toBe("first_sealed")
-    expect(doc?.currency).toBe("EUR")
-    expect(doc?.startPriceCents).toBe(5000)
+    expect(doc?.currency).toBe(defaultSponsorshipCurrency())
+    expect(doc?.startPriceCents).toBe(startPriceCents)
     expect(doc?.competitionSnapshot).toBeTruthy()
     expect(doc?.competitionId).toBe(competitionId)
   })

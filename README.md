@@ -47,16 +47,9 @@ Then add yourself to the Volunteer team (and any others) in the admin panel
 defaults, contact addresses, sponsor portal defaults, enabled features, and
 login providers. Secrets live in the deployment environment, not the manifest.
 
-Team object keys are stable authorization identifiers — change a team's `name`
-to relabel it without affecting permissions or membership.
+To change the appearance of emails, you will need to modify `convex/plugins/sponsor/emails/_design.tsx`
 
 Credentials and per-service setup: **[docs/services.md](docs/services.md)**.
-
-Upgrading an existing install to the optional `systemRole` field? Backfill once:
-
-```sh
-bunx convex run migrations:backfillTeamSystemRoles
-```
 
 ## Deploying
 
@@ -68,16 +61,16 @@ On Vercel, also set `CONVEX_DEPLOY_KEY`.
 
 ## Scripts
 
-| Command                           | What it does                     |
-| --------------------------------- | -------------------------------- |
+| Command                           | What it does                            |
+| --------------------------------- | --------------------------------------- |
 | `bun run dev`                     | Frontend + sponsor portal + Convex sync |
-| `bun run test`                    | Vitest (watch)                   |
-| `bun run test:once`               | Vitest (CI)                      |
-| `bun run lint` / `lint:fix`       | Oxlint                           |
-| `bun run format` / `format:check` | Oxfmt                            |
-| `bun run typecheck`               | tsc + tsgo (Convex)              |
-| `bun run email:dev`               | Preview sponsor email templates  |
-| `bun run openapi-ts`              | Regenerate WCA/Canva API clients |
+| `bun run test`                    | Vitest (watch)                          |
+| `bun run test:once`               | Vitest (CI)                             |
+| `bun run lint` / `lint:fix`       | Oxlint                                  |
+| `bun run format` / `format:check` | Oxfmt                                   |
+| `bun run typecheck`               | tsc + tsgo (Convex)                     |
+| `bun run email:dev`               | Preview sponsor email templates         |
+| `bun run openapi-ts`              | Regenerate WCA/Canva API clients        |
 
 ## Project layout
 

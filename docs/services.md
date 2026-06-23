@@ -65,11 +65,11 @@ when unset, the WCA button and organiser invites are hidden.
 
 All required by the wizard.
 
-| Service | Redirect URI | Scopes / notes |
-| ------- | ------------ | -------------- |
-| **WCA** | `http://localhost:3848` | `public email manage_competitions` |
-| **Canva** | `http://127.0.0.1:3849` | `design:content:write design:meta:read folder:read folder:write brandtemplate:meta:read brandtemplate:content:read` — also needs certificate/lanyard template + output folder IDs |
-| **Google** | `http://localhost:3847` | enable the Sheets/Drive APIs on the project |
+| Service    | Redirect URI            | Scopes / notes                                                                                                                                                                    |
+| ---------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **WCA**    | `http://localhost:3848` | `public email manage_competitions`                                                                                                                                                |
+| **Canva**  | `http://127.0.0.1:3849` | `design:content:write design:meta:read folder:read folder:write brandtemplate:meta:read brandtemplate:content:read` — also needs certificate/lanyard template + output folder IDs |
+| **Google** | `http://localhost:3847` | enable the Sheets/Drive APIs on the project                                                                                                                                       |
 
 ### Discord
 

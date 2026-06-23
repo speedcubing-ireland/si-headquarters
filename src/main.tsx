@@ -47,7 +47,10 @@ createRoot(root).render(
       shouldHandleCode={() => {
         const pathname =
           router.state.location.pathname.replace(/\/+$/, "") || "/"
-        return pathname !== ORGANISER_INVITE_PATH && pathname !== STAFF_WCA_LOGIN_PATH
+        return (
+          pathname !== ORGANISER_INVITE_PATH &&
+          pathname !== STAFF_WCA_LOGIN_PATH
+        )
       }}
       replaceURL={(url) => {
         router.history.replace(url)
