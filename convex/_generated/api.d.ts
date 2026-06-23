@@ -127,6 +127,7 @@ import type * as plugins_socialMedia_dashboard from "../plugins/socialMedia/dash
 import type * as plugins_socialMedia_lib_fetchFromWca from "../plugins/socialMedia/lib/fetchFromWca.js";
 import type * as plugins_socialMedia_lib_sponsorDetection from "../plugins/socialMedia/lib/sponsorDetection.js";
 import type * as plugins_socialMedia_resolveHqLinks from "../plugins/socialMedia/resolveHqLinks.js";
+import type * as plugins_sponsor_admin_auctionSettings from "../plugins/sponsor/admin/auctionSettings.js";
 import type * as plugins_sponsor_admin_auctions_competitionSnapshot from "../plugins/sponsor/admin/auctions/competitionSnapshot.js";
 import type * as plugins_sponsor_admin_auctions_emails from "../plugins/sponsor/admin/auctions/emails.js";
 import type * as plugins_sponsor_admin_auctions_lifecycle from "../plugins/sponsor/admin/auctions/lifecycle.js";
@@ -417,6 +418,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/socialMedia/lib/fetchFromWca": typeof plugins_socialMedia_lib_fetchFromWca;
   "plugins/socialMedia/lib/sponsorDetection": typeof plugins_socialMedia_lib_sponsorDetection;
   "plugins/socialMedia/resolveHqLinks": typeof plugins_socialMedia_resolveHqLinks;
+  "plugins/sponsor/admin/auctionSettings": typeof plugins_sponsor_admin_auctionSettings;
   "plugins/sponsor/admin/auctions/competitionSnapshot": typeof plugins_sponsor_admin_auctions_competitionSnapshot;
   "plugins/sponsor/admin/auctions/emails": typeof plugins_sponsor_admin_auctions_emails;
   "plugins/sponsor/admin/auctions/lifecycle": typeof plugins_sponsor_admin_auctions_lifecycle;

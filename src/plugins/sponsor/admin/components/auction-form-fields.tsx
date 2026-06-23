@@ -14,13 +14,19 @@ import type { Id } from "@/convex/_generated/dataModel"
 import type { ManagerSponsor } from "@/plugins/sponsor/admin/manager-types"
 import type { AuctionEditorDraft } from "@/plugins/sponsor/admin/auction-editor-draft"
 import {
+  computeAuctionScheduleMs,
+  computeEndFromStartMs,
+} from "@/plugins/sponsor/admin/hooks/use-auction-create-draft"
+import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
   auctionFrameworkLabel,
 } from "@/convex/plugins/sponsor/lib/types"
 import {
-  currencyInputLabel,
   isSponsorshipFramework,
+  parseDatetimeLocalInput,
+  toDatetimeLocalInput,
 } from "@/plugins/sponsor/lib/sponsorship-ui"
+import { useAuctionSettings } from "@/plugins/sponsor/hooks/use-sponsorship"
 
 export function AuctionFormFields({
   draft,
@@ -32,6 +38,8 @@ export function AuctionFormFields({
   activeSponsors: ManagerSponsor[]
 }) {
   const [isFrameworkUnlocked, setIsFrameworkUnlocked] = useState(false)
+  const { settings } = useAuctionSettings()
+  const defaults = settings ?? { startDelayHours: 1, durationHours: 1 }
 
   const toggleSponsorInvite = (sponsorId: Id<"sponsors">) => {
     onDraftChange({
@@ -101,6 +109,23 @@ export function AuctionFormFields({
             }}
             required
           />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-auto px-0 py-0 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              const startsAt = computeAuctionScheduleMs(
+                Date.now(),
+                defaults
+              ).startsAt
+              onDraftChange({
+                startsAtInput: toDatetimeLocalInput(new Date(startsAt)),
+              })
+            }}
+          >
+            Default start (+{defaults.startDelayHours}h from now)
+          </Button>
         </div>
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">Ends at</p>
@@ -112,6 +137,26 @@ export function AuctionFormFields({
             }}
             required
           />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-auto px-0 py-0 text-xs text-muted-foreground hover:text-foreground"
+            disabled={parseDatetimeLocalInput(draft.startsAtInput) === null}
+            onClick={() => {
+              const startMs = parseDatetimeLocalInput(draft.startsAtInput)
+              if (startMs === null) return
+              const endMs = computeEndFromStartMs(
+                startMs,
+                defaults.durationHours
+              )
+              onDraftChange({
+                endsAtInput: toDatetimeLocalInput(new Date(endMs)),
+              })
+            }}
+          >
+            Default end (+{defaults.durationHours}h from start)
+          </Button>
         </div>
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">

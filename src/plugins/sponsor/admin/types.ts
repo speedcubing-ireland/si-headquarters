@@ -22,6 +22,7 @@ export type AdminSponsorshipTab =
   | "closed"
   | "sponsors"
   | "auctionTypes"
+  | "auctionSettings"
 
 export function isAdminSponsorshipTab(
   value: string
@@ -30,6 +31,7 @@ export function isAdminSponsorshipTab(
     value === "open" ||
     value === "closed" ||
     value === "sponsors" ||
-    value === "auctionTypes"
+    value === "auctionTypes" ||
+    value === "auctionSettings"
   )
 }
