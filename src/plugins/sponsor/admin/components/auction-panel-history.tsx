@@ -5,7 +5,7 @@ import type {
   ManagerAuction,
   ManagerSponsor,
 } from "@/plugins/sponsor/admin/manager-types"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import { formatEuroFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 

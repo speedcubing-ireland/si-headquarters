@@ -4,11 +4,12 @@ import { plugin as canvaPlugin } from "@/convex/plugins/canva/oauth"
 import { plugin as googlePlugin } from "@/convex/plugins/google/oauth"
 import type { OAuthPlugin } from "@/convex/plugins/oauthProvider"
 import { plugin as wcaPlugin } from "@/convex/plugins/wca/oauth"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 
 export const OAUTH_PLUGINS: readonly OAuthPlugin[] = [
-  canvaPlugin,
-  googlePlugin,
-  wcaPlugin,
+  ...(isFeatureEnabled("canva") ? [canvaPlugin] : []),
+  ...(isFeatureEnabled("google") ? [googlePlugin] : []),
+  ...(isFeatureEnabled("wcaIntegration") ? [wcaPlugin] : []),
 ]
 
 export function oauthPluginById(pluginId: string): OAuthPlugin {

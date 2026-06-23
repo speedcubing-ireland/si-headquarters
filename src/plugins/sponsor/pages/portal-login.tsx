@@ -18,6 +18,7 @@ import { SponsorButtonSpinner } from "@/plugins/sponsor/components/sponsor-ui"
 import { SPONSOR_LOGIN_STEPS } from "@/plugins/sponsor/lib/sponsor-guide"
 import { sponsorAuthClient } from "@/plugins/sponsor/lib/sponsor-auth-client"
 import { useSponsorSessionToken } from "@/plugins/sponsor/lib/sponsor-session-token"
+import { organisationConfig } from "@/config/lib/organisation"
 
 const OTP_REQUEST_UI_TIMEOUT_MS = 3_000
 
@@ -160,8 +161,9 @@ export function PortalLoginPage() {
                 <CardTitle className="text-2xl">Sponsor sign-in</CardTitle>
                 <CardDescription className="space-y-2">
                   <span className="block">
-                    Enter the email address Speedcubing Ireland has on file for
-                    your sponsor account.
+                    Enter the email address{" "}
+                    {organisationConfig.organisation.name} has on file for your
+                    sponsor account.
                   </span>
                 </CardDescription>
               </CardHeader>

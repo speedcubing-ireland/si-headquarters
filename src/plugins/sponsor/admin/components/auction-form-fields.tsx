@@ -17,7 +17,10 @@ import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
   auctionFrameworkLabel,
 } from "@/convex/plugins/sponsor/lib/types"
-import { isSponsorshipFramework } from "@/plugins/sponsor/lib/sponsorship-ui"
+import {
+  currencyInputLabel,
+  isSponsorshipFramework,
+} from "@/plugins/sponsor/lib/sponsorship-ui"
 
 export function AuctionFormFields({
   draft,
@@ -111,7 +114,9 @@ export function AuctionFormFields({
           />
         </div>
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Start price (EUR)</p>
+          <p className="text-xs text-muted-foreground">
+            {currencyInputLabel("Start price")}
+          </p>
           <Input
             type="number"
             min="1"

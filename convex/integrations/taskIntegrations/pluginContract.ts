@@ -14,7 +14,7 @@ import type {
   TaskIntegrationRunInput,
   TaskIntegrationStatus,
 } from "@/convex/integrations/taskIntegrations/validators"
-import type { RequiredStringConvexEnvName } from "@/convex/envTypes"
+import type { StringConvexEnvName } from "@/convex/envTypes"
 import type { TaskNotificationEnricher } from "@/convex/notifications/types"
 
 export interface TaskIntegrationRunResult {
@@ -51,7 +51,7 @@ export interface TaskIntegrationDefinition {
 export interface BackendIntegrationPlugin {
   id: PluginId
   service?: IntegrationServiceId
-  env?: readonly RequiredStringConvexEnvName[]
+  env?: readonly StringConvexEnvName[]
   enrichTaskNotification?: TaskNotificationEnricher
   taskIntegrationRunners?: Partial<
     Record<TaskIntegrationId, TaskIntegrationRunner>

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { TabsContent } from "@/components/ui/tabs"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
 import { AuctionTable } from "@/plugins/sponsor/admin/components/auction-table"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
   displayAuctionPriceCents,

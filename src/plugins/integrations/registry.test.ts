@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest"
+import { describe, expect, test, vi } from "vitest"
 import {
   TASK_INTEGRATION_DEFINITIONS,
   TASK_INTEGRATION_IDS,
@@ -7,6 +7,13 @@ import {
   INTEGRATION_PLUGINS,
   TASK_INTEGRATION_CARDS,
 } from "@/plugins/integrations/registry"
+
+// Verify the full catalog wiring with every feature enabled, independent of
+// which features the shipped manifest gates on.
+vi.mock(
+  "@/config/lib/organisation",
+  () => import("@/config/lib/organisation.testFixture")
+)
 
 describe("frontend integration registry", () => {
   test("has a task card for every task integration id", () => {

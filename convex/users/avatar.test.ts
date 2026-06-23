@@ -8,7 +8,7 @@ import {
 describe("resolveUserAvatarUrl", () => {
   test("prefers Discord avatar when linked", () => {
     const url = resolveUserAvatarUrl({
-      name: "HQ User",
+      name: "Test User",
       image: "https://example.com/google.png",
       discordUserId: "123",
       discordAvatarHash: "abc",
@@ -18,17 +18,17 @@ describe("resolveUserAvatarUrl", () => {
 
   test("falls back to dicebear when only a name is available", () => {
     const url = resolveUserAvatarUrl({
-      name: "HQ User",
+      name: "Test User",
       image: undefined,
       discordUserId: undefined,
       discordAvatarHash: undefined,
     })
-    expect(url).toBe(dicebearInitialsUrl("HQ User"))
+    expect(url).toBe(dicebearInitialsUrl("Test User"))
   })
 
   test("falls back to Google image when Discord is not linked", () => {
     const url = resolveUserAvatarUrl({
-      name: "HQ User",
+      name: "Test User",
       image: "https://example.com/google.png",
       discordUserId: undefined,
       discordAvatarHash: undefined,

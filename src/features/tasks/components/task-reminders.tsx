@@ -24,23 +24,24 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { organisationConfig } from "@/config/lib/organisation"
 
-const DUBLIN_TZ = "Europe/Dublin"
+const { reminderHour, timeZone } = organisationConfig.regional
 
-function nextDublinEightAm(nowMs = Date.now()) {
-  const dublinEightAmOnDay = (dayOffset: number) => {
-    const inDublin = toZonedTime(new Date(nowMs), DUBLIN_TZ)
-    const target = set(addDays(inDublin, dayOffset), {
-      hours: 8,
+function nextConfiguredReminderTime(nowMs = Date.now()) {
+  const reminderTimeOnDay = (dayOffset: number) => {
+    const localNow = toZonedTime(new Date(nowMs), timeZone)
+    const target = set(addDays(localNow, dayOffset), {
+      hours: reminderHour,
       minutes: 0,
       seconds: 0,
       milliseconds: 0,
     })
-    return fromZonedTime(target, DUBLIN_TZ).getTime()
+    return fromZonedTime(target, timeZone).getTime()
   }
 
-  const candidate = dublinEightAmOnDay(1)
-  return candidate <= nowMs ? dublinEightAmOnDay(2) : candidate
+  const candidate = reminderTimeOnDay(1)
+  return candidate <= nowMs ? reminderTimeOnDay(2) : candidate
 }
 
 function formatReminderTime(remindAt: number) {
@@ -68,7 +69,7 @@ export function TaskRemindersDialog({ taskId }: { taskId: Id<"tasks"> }) {
 
   const reminderTime = () => {
     if (preset === "1h") return Date.now() + 60 * 60 * 1000
-    if (preset === "tomorrow") return nextDublinEightAm()
+    if (preset === "tomorrow") return nextConfiguredReminderTime()
     return new Date(customValue).getTime()
   }
   const handleCreateReminder = async () => {

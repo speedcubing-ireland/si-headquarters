@@ -2,6 +2,7 @@ import type { Id } from "@/convex/_generated/dataModel"
 import type { SponsorshipAuctionFramework } from "@/convex/plugins/sponsor/lib/types"
 import {
   centsToEuroInput,
+  formatCurrencyFromCents,
   hasSameIdSet,
   parseDatetimeLocalInput,
   toDatetimeLocalInput,
@@ -79,7 +80,10 @@ export function validateAuctionFormInputs(
   }
   const startPrice = Number(draft.startPriceEuros)
   if (!Number.isFinite(startPrice) || startPrice < 1) {
-    return { ok: false, error: "Start price must be at least EUR 1.00." }
+    return {
+      ok: false,
+      error: `Start price must be at least ${formatCurrencyFromCents(100)}.`,
+    }
   }
   return {
     ok: true,

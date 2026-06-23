@@ -6,7 +6,7 @@ import {
   insertImpersonationTicket,
 } from "@/convex/impersonation/model"
 import { requireDirector } from "@/convex/permissions/principal"
-import { resolveHqSiteBaseUrl } from "@/convex/urls"
+import { resolveMainSiteBaseUrl } from "@/convex/urls"
 
 export const createUserLink = mutation({
   args: {
@@ -38,7 +38,7 @@ export const createUserLink = mutation({
       })
 
     return impersonationLinkResult(
-      resolveHqSiteBaseUrl(),
+      resolveMainSiteBaseUrl(),
       "/impersonate/user",
       token,
       ticketExpiresAt,

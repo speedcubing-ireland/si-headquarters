@@ -1,25 +1,24 @@
 import { describe, expect, test } from "vitest"
 import { renderToStaticMarkup } from "react-dom/server"
 import { AuctionCompetitionSummaryPanel } from "./competition-summary-panel"
-import { formatDate, formatDateRange } from "@/lib/format/irish-dates"
+import { formatDate, formatDateRange } from "@/lib/format/dates"
+import { organisationConfig } from "@/config/lib/organisation"
 
-const irishDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IE", {
+const configuredDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(organisationConfig.regional.locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "Europe/Dublin",
+    timeZone: organisationConfig.regional.timeZone,
   })
 
 describe("formatDate", () => {
-  test("formats a valid ISO date in Irish locale", () => {
-    expect(formatDate("2026-01-31")).toBe(irishDate("2026-01-31"))
+  test("formats a valid ISO date with the configured locale", () => {
+    expect(formatDate("2026-01-31")).toBe(configuredDate("2026-01-31"))
   })
 
-  test("day appears before month (not American order)", () => {
+  test("does not fall back to slash-separated numeric dates", () => {
     const result = formatDate("2026-01-31")
-    expect(result.startsWith("31")).toBe(true)
-    expect(result).not.toMatch(/^Jan/)
     expect(result).not.toContain("1/31")
   })
 
@@ -39,7 +38,7 @@ describe("formatDate", () => {
 describe("formatDateRange", () => {
   test("returns a single date when start equals end", () => {
     const result = formatDateRange("2026-01-31", "2026-01-31")
-    expect(result).toBe(irishDate("2026-01-31"))
+    expect(result).toBe(configuredDate("2026-01-31"))
     expect(result).not.toContain(" to ")
   })
 

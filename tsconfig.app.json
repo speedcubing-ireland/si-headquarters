@@ -25,6 +25,7 @@
     "noUncheckedSideEffectImports": true,
     "paths": {
       "@/convex/*": ["./convex/*"],
+      "@/config/*": ["./config/*"],
       "@/*": ["./src/*"]
     }
   },

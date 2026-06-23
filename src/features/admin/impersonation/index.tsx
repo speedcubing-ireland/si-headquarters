@@ -27,7 +27,8 @@ import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Page } from "@/components/layout/page"
 import { type AdminUser, userDisplayName } from "@/features/admin/users/utils"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
+import { organisationConfig } from "@/config/lib/organisation"
 
 type ImpersonationLink = FunctionReturnType<
   typeof api.impersonation.mutations.createUserLink
@@ -253,7 +254,7 @@ export function AdminImpersonationPage() {
     <div className="grid gap-4 @xl/main:grid-cols-2">
       <ImpersonationLinkCard
         title="Users"
-        description="Generate a one-time HQ sign-in link for an active user."
+        description={`Generate a one-time ${organisationConfig.organisation.productName} sign-in link for an active user.`}
         targetFieldId="user-id"
         reasonId="user-reason"
         reason={userReason}

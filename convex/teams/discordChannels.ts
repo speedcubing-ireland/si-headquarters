@@ -1,4 +1,5 @@
-import { env, mutation, query } from "@/convex/_generated/server"
+import { mutation, query } from "@/convex/_generated/server"
+import { requireConvexEnv } from "@/convex/envTypes"
 import { requireDirector } from "@/convex/permissions/principal"
 import {
   listAllApplicationTeamSummaries,
@@ -55,9 +56,13 @@ export const set = mutation({
       .query("teamDiscordChannels")
       .withIndex("by_teamId", (q) => q.eq("teamId", args.teamId))
       .unique()
+    const guildId = requireConvexEnv(
+      "DISCORD_GUILD_ID",
+      "Discord channel linking requires DISCORD_GUILD_ID to be set."
+    )
     const row = {
       teamId: args.teamId,
-      guildId: env.DISCORD_GUILD_ID,
+      guildId,
       channelId: args.channelId.trim(),
       channelName: args.channelName.trim(),
       linkedAt: Date.now(),

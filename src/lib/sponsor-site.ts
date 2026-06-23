@@ -1,6 +1,7 @@
 import { env } from "@/env"
+import { organisationConfig } from "@/config/lib/organisation"
 
-const SPONSOR_PRODUCTION_HOST = "sponsors.speedcubingireland.com"
+const CONFIGURED_SPONSOR_HOST = organisationConfig.sponsorship.productionHost
 const SPONSOR_DEV_PORT = "5174"
 
 export const SPONSOR_NOT_FOUND_PATH = "/sponsor/404"
@@ -21,7 +22,7 @@ export function resolveIsSponsorSite(): boolean {
 
   const { hostname, port } = window.location
   return (
-    hostname === SPONSOR_PRODUCTION_HOST ||
+    hostname === CONFIGURED_SPONSOR_HOST ||
     (hostname === "localhost" && port === SPONSOR_DEV_PORT)
   )
 }

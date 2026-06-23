@@ -1,6 +1,7 @@
 import { parseLocalDate } from "@/convex/competitions/dates"
 import type { FunctionReturnType } from "convex/server"
 import type { api } from "@/convex/_generated/api"
+import { organisationConfig } from "@/config/lib/organisation"
 export type CompetitionCalendarRow = FunctionReturnType<
   typeof api.competitions.calendar.listForYear
 >["rows"][number]
@@ -43,7 +44,9 @@ export function getInitialScrollMonthKey(
 }
 
 function formatMonthShort(date: Date): string {
-  return date.toLocaleString("en-IE", { month: "short" }).toUpperCase()
+  return date
+    .toLocaleString(organisationConfig.regional.locale, { month: "short" })
+    .toUpperCase()
 }
 
 export function getCompetitionDateChip(
@@ -129,7 +132,9 @@ export function groupCalendarRowsByMonth(
         : "no-date"
     const label =
       date !== null && key !== "no-date"
-        ? date.toLocaleString("en-IE", { month: "long" })
+        ? date.toLocaleString(organisationConfig.regional.locale, {
+            month: "long",
+          })
         : "No date set"
 
     if (current === null) {

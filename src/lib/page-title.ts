@@ -1,20 +1,22 @@
-const HQ_TITLE_SUFFIX = "Headquarters | Speedcubing Ireland"
+import { organisationConfig } from "@/config/lib/organisation"
 
-export function headquartersPageTitle(pageName: string): string {
-  return `${pageName} | ${HQ_TITLE_SUFFIX}`
+const PRODUCT_TITLE_SUFFIX = `${organisationConfig.organisation.productName} | ${organisationConfig.organisation.name}`
+
+export function productPageTitle(pageName: string): string {
+  return `${pageName} | ${PRODUCT_TITLE_SUFFIX}`
 }
 
 export function getPageTitle(pathname: string): string {
   const normalized = pathname.replace(/\/+$/, "") || "/"
   if (normalized === "/sponsor" || normalized.startsWith("/sponsor/")) {
-    return "Sponsors | Speedcubing Ireland"
+    return `Sponsors | ${organisationConfig.organisation.name}`
   }
   if (normalized === "/tasks") {
-    return headquartersPageTitle("Tasks")
+    return productPageTitle("Tasks")
   }
   const teamTasksMatch = /^\/teams\/[^/]+\/tasks$/.exec(normalized)
   if (teamTasksMatch !== null) {
-    return headquartersPageTitle("Team Tasks")
+    return productPageTitle("Team Tasks")
   }
-  return HQ_TITLE_SUFFIX
+  return PRODUCT_TITLE_SUFFIX
 }

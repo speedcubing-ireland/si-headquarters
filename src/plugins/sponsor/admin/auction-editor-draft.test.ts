@@ -6,6 +6,7 @@ import {
   validateAuctionFormInputs,
   type EditableAuctionSnapshot,
 } from "./auction-editor-draft"
+import { formatCurrencyFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 const snapshot: EditableAuctionSnapshot = {
   auction: {
@@ -83,9 +84,12 @@ describe("validateAuctionFormInputs", () => {
     ).toEqual({ ok: false, error: "Enter a valid start/end range." })
   })
 
-  it("rejects a sub-EUR1 start price", () => {
+  it("rejects a start price below the configured minimum", () => {
     expect(
       validateAuctionFormInputs({ ...valid, startPriceEuros: "0.50" })
-    ).toEqual({ ok: false, error: "Start price must be at least EUR 1.00." })
+    ).toEqual({
+      ok: false,
+      error: `Start price must be at least ${formatCurrencyFromCents(100)}.`,
+    })
   })
 })

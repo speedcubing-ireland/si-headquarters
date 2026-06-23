@@ -28,7 +28,7 @@ import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery } from "convex/react"
-import { headquartersPageTitle } from "@/lib/page-title"
+import { productPageTitle } from "@/lib/page-title"
 import { useEffect, useMemo } from "react"
 
 const TASK_DISPLAY_OPTIONS = [
@@ -135,7 +135,7 @@ function TaskListPageContent({
   const rows = useQuery(api.tasks.board.listForBoard)
 
   useEffect(() => {
-    document.title = headquartersPageTitle(config.title)
+    document.title = productPageTitle(config.title)
   }, [config.title])
 
   return (

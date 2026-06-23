@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 import {
   auctionFrameworkLabel,
   type SponsorshipAuctionFramework,

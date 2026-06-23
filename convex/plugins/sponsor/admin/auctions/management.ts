@@ -27,6 +27,10 @@ import {
 import { scheduleAuctionActivation } from "./lifecycle"
 import { buildCompetitionSponsorStatusByCompetition } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
 import { getCompetitionSponsorOverridesByCompetitionId } from "@/convex/plugins/sponsor/lib/competitionSponsorOverrides"
+import {
+  DEFAULT_SPONSORSHIP_CURRENCY,
+  formatSponsorshipAmount,
+} from "@/convex/plugins/sponsor/lib/currency"
 
 function normalizePositiveDurationMs(
   fieldName: string,
@@ -74,7 +78,7 @@ export const create = mutation({
     if (args.startPriceCents < 100) {
       throw new ConvexError({
         code: "BAD_REQUEST",
-        message: "Start price must be at least EUR 1.00.",
+        message: `Start price must be at least ${formatSponsorshipAmount(100)}.`,
       })
     }
     const antiSnipingWindowMs = normalizePositiveDurationMs(
@@ -92,7 +96,7 @@ export const create = mutation({
       competitionId: args.competitionId,
       framework: args.framework ?? "first_sealed",
       state: "draft",
-      currency: args.currency ?? "EUR",
+      currency: args.currency ?? DEFAULT_SPONSORSHIP_CURRENCY,
       startsAt: args.startsAt,
       endsAt: args.endsAt,
       antiSnipingWindowMs: antiSnipingWindowMs ?? DEFAULT_SCHEDULE_WINDOW_MS,
@@ -224,7 +228,7 @@ export const update = mutation({
     if (patch.startPriceCents !== undefined && patch.startPriceCents < 100) {
       throw new ConvexError({
         code: "BAD_REQUEST",
-        message: "Start price must be at least EUR 1.00.",
+        message: `Start price must be at least ${formatSponsorshipAmount(100)}.`,
       })
     }
 

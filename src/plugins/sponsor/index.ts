@@ -7,6 +7,7 @@ import {
 
 export const sponsorPlugin: Plugin = {
   id: "sponsor",
+  feature: "sponsors",
   nav: [
     {
       label: "Sponsorship",

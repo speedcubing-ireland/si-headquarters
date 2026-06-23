@@ -25,7 +25,7 @@ import {
 import { SponsorPageLoading } from "@/plugins/sponsor/components/sponsor-ui"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 import {
   auctionFrameworkLabel,
   isProxyAuctionFramework,
@@ -33,6 +33,7 @@ import {
 } from "@/convex/plugins/sponsor/lib/types"
 import {
   displayAuctionPriceCents,
+  currencyInputLabel,
   formatEuroFromCents,
   proxyDirectBidCopy,
   proxyMaxBidCopy,
@@ -446,7 +447,7 @@ export function PortalAuctionDetailPage({
               minimumValue: formatEuroFromCents(minimumBidCents),
               minimumHint: "Only your latest submitted sealed bid counts.",
               inputId: "amount",
-              inputLabel: "Bid amount (EUR)",
+              inputLabel: currencyInputLabel("Bid amount"),
               inputValue: amountEuros,
               inputMin: minimumBidEuros,
               inputPlaceholder: minimumBidEuros,

@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from "date-fns"
 import type { Doc } from "@/convex/_generated/dataModel"
+import { organisationConfig } from "@/config/lib/organisation"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
   isSealedAuctionFramework,
@@ -175,8 +176,17 @@ export function sponsorshipLifecycleStatusText(
   return `Starts ${formatDistanceToNow(new Date(startMillis), { addSuffix: true })}`
 }
 
-export function formatEuroFromCents(cents: number): string {
-  return `EUR ${(cents / 100).toFixed(2)}`
+export function formatCurrencyFromCents(
+  cents: number,
+  currency = organisationConfig.sponsorship.defaultCurrency
+): string {
+  return `${currency} ${(cents / 100).toFixed(2)}`
+}
+
+export const formatEuroFromCents = formatCurrencyFromCents
+
+export function currencyInputLabel(label: string): string {
+  return `${label} (${organisationConfig.sponsorship.defaultCurrency})`
 }
 
 export function competitionPropertyStatusLabel(

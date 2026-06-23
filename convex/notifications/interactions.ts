@@ -2,8 +2,10 @@ import { internal } from "@/convex/_generated/api"
 import { env, httpAction, internalAction } from "@/convex/_generated/server"
 import { decodeNotificationAction } from "@/convex/notifications/actionCodec"
 import { resolveDeploymentContext } from "@/convex/deploymentContext"
+import { requireConvexEnv } from "@/convex/envTypes"
 import { verifyAsync } from "@noble/ed25519"
 import { v } from "convex/values"
+import { organisationConfig } from "@/config/lib/organisation"
 
 const DISCORD_API = "https://discord.com/api/v10"
 const DISCORD_INTERACTION_PING = 1
@@ -51,7 +53,12 @@ async function verifyDiscordSignature(req: Request, rawBody: string) {
   if (signatureHex === null || timestamp === null) return false
 
   const signature = hexToBytes(signatureHex)
-  const publicKey = hexToBytes(env.DISCORD_PUBLIC_KEY)
+  const publicKey = hexToBytes(
+    requireConvexEnv(
+      "DISCORD_PUBLIC_KEY",
+      "Discord interactions require DISCORD_PUBLIC_KEY to be set."
+    )
+  )
   if (signature === null || publicKey === null) return false
 
   return await verifyAsync(
@@ -101,7 +108,8 @@ function wrongDeploymentMessage(
   buttonDeploymentContext: "production" | "staging",
   currentDeploymentContext: "production" | "staging"
 ) {
-  return `This button belongs to ${buttonDeploymentContext} HQ, but Discord sent it to ${currentDeploymentContext} HQ. Ask an HQ admin to resend it from the right HQ environment.`
+  const productName = organisationConfig.organisation.productName
+  return `This button belongs to ${buttonDeploymentContext} ${productName}, but Discord sent it to ${currentDeploymentContext} ${productName}. Ask a ${productName} admin to resend it from the right ${productName} environment.`
 }
 
 export const discordInteractions = httpAction(async (ctx, req) => {
@@ -135,12 +143,11 @@ export const discordInteractions = httpAction(async (ctx, req) => {
     return ephemeral("This button payload is missing required Discord data.")
   }
 
-  const secret =
-    env.DISCORD_ACTION_SECRET === "" ? null : env.DISCORD_ACTION_SECRET
-  if (secret === null) {
+  const secret = env.DISCORD_ACTION_SECRET?.trim()
+  if (secret === undefined || secret.length === 0) {
     console.warn("DISCORD_ACTION_SECRET is not set for Discord interactions.")
     return ephemeral(
-      "Discord actions are not configured correctly. Ask an HQ admin to resend this from HQ."
+      `Discord actions are not configured correctly. Ask a ${organisationConfig.organisation.productName} admin to resend this from ${organisationConfig.organisation.productName}.`
     )
   }
 
@@ -160,8 +167,8 @@ export const discordInteractions = httpAction(async (ctx, req) => {
   if (!decoded.ok) {
     return ephemeral(
       decoded.reason === "expired"
-        ? "This button has expired. Open HQ to continue."
-        : "This button is no longer valid. Ask an HQ admin to resend this from HQ."
+        ? `This button has expired. Open ${organisationConfig.organisation.productName} to continue.`
+        : `This button is no longer valid. Ask a ${organisationConfig.organisation.productName} admin to resend this from ${organisationConfig.organisation.productName}.`
     )
   }
 

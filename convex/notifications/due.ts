@@ -3,10 +3,10 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { internalMutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
 import {
-  dublinDateOffset,
-  dublinToday,
-  isDublinLocalTimeInWindow,
-} from "@/convex/notifications/time"
+  localDateOffset,
+  localToday,
+  isConfiguredLocalTimeInWindow,
+} from "@/convex/notifications/localTime"
 import { scheduleNotificationEvent } from "@/convex/notifications/events"
 import { isTerminalComplete } from "@/convex/tasks/status/rules"
 import { competitionOrProjectRef } from "@/convex/utils"
@@ -116,7 +116,7 @@ async function scanDueSoonPage(
   nowMs: number,
   cursor: string | null
 ) {
-  const tomorrow = dublinDateOffset(dublinToday(nowMs), 1)
+  const tomorrow = localDateOffset(localToday(nowMs), 1)
   markPaginate(ctx, "dueSoon tasks")
   const page = await ctx.db
     .query("tasks")
@@ -219,7 +219,7 @@ async function scanOverdueOwnerTasks(
     return
   }
 
-  const today = dublinToday(state.nowMs)
+  const today = localToday(state.nowMs)
   markPaginate(ctx, "scan owner tasks")
   const page = await ctx.db
     .query("tasks")
@@ -313,12 +313,12 @@ export const runDueScan = internalMutation({
   handler: async (ctx, args) => {
     const nowMs = args.nowMs ?? Date.now()
     if (
-      !isDublinLocalTimeInWindow(
+      !isConfiguredLocalTimeInWindow(
         SCAN_WINDOW_START_HOUR,
         SCAN_WINDOW_END_HOUR,
         nowMs
       ) ||
-      !(await claimDailyScan(ctx, dublinToday(nowMs)))
+      !(await claimDailyScan(ctx, localToday(nowMs)))
     ) {
       return
     }

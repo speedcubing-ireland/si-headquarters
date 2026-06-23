@@ -31,6 +31,7 @@ import { ObjectAvatar } from "@/components/object-avatar"
 import { DiscordLinkSection } from "@/features/admin/users/discord-link-card"
 import { TeamMembershipChips } from "@/features/admin/users/team-membership-chips"
 import { useUserManagementDraft } from "@/features/admin/users/use-user-management-draft"
+import { organisationConfig } from "@/config/lib/organisation"
 import type {
   AdminUser,
   UserManagementTeam,
@@ -41,6 +42,7 @@ import {
   userDisplayName,
 } from "@/features/admin/users/utils"
 import { cn } from "@/lib/utils"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 
 function UserSettingsCard({
   title,
@@ -219,7 +221,7 @@ export function UserDetailPanel({
 
       <UserSettingsCard
         title="Account Enabled"
-        description="Inactive users cannot sign in to HQ."
+        description={`Inactive users cannot sign in to ${organisationConfig.organisation.productName}.`}
         action={
           <Switch
             id="account-enabled"
@@ -237,16 +239,18 @@ export function UserDetailPanel({
         }
       />
 
-      <UserSettingsCard title="Discord">
-        <DiscordLinkSection
-          user={user}
-          discord={draft.discord}
-          linkedDiscordByUserId={linkedDiscordByUserId}
-          onDiscordChange={(discord) => {
-            updateDraft((current) => ({ ...current, discord }))
-          }}
-        />
-      </UserSettingsCard>
+      {isFeatureEnabled("discord") ? (
+        <UserSettingsCard title="Discord">
+          <DiscordLinkSection
+            user={user}
+            discord={draft.discord}
+            linkedDiscordByUserId={linkedDiscordByUserId}
+            onDiscordChange={(discord) => {
+              updateDraft((current) => ({ ...current, discord }))
+            }}
+          />
+        </UserSettingsCard>
+      ) : null}
 
       <UserSettingsCard title="Teams">
         <TeamMembershipChips

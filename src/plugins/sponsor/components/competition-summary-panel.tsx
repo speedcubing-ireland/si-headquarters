@@ -20,7 +20,7 @@ import type {
   SponsorshipCompetitionSummary,
   SponsorshipCompetitionSummarySource,
 } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
-import { formatDateRange } from "@/lib/format/irish-dates"
+import { formatDateRange } from "@/lib/format/dates"
 import { formatWcaEventLabel } from "@/lib/wca-events"
 
 function EventsSummary({ eventIds }: { eventIds: string[] }) {

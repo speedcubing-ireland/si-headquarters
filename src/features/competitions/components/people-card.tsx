@@ -10,6 +10,7 @@ import {
   PageCardContent,
   PageCardFooter,
 } from "@/components/page-card"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 
 export function CompetitionPeopleCard({
   competitionId,
@@ -20,8 +21,8 @@ export function CompetitionPeopleCard({
     id: competitionId,
   })
   const wcaLoginConfigured = useQuery(
-    api.organisers.queries.wcaLoginConfigured,
-    {}
+    api.wcaLogin.queries.wcaLoginConfigured,
+    isFeatureEnabled("organiserInvites") ? {} : "skip"
   )
 
   if (peopleDetails === undefined) {
@@ -44,7 +45,7 @@ export function CompetitionPeopleCard({
         />
       </PageCardContent>
       <Can I="manage" a="Competition">
-        {wcaLoginConfigured === true ? (
+        {isFeatureEnabled("organiserInvites") && wcaLoginConfigured === true ? (
           <PageCardFooter>
             <OrganiserInviteButton competitionId={competitionId} />
           </PageCardFooter>

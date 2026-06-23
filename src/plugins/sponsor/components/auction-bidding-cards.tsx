@@ -10,6 +10,7 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import type { SponsorBidStatus } from "@/convex/plugins/sponsor/lib/sponsorBidStatus"
+import { currencyInputLabel } from "@/plugins/sponsor/lib/sponsorship-ui"
 import { SponsorBidStatusBadge } from "@/plugins/sponsor/components/sponsor-bid-status-badge"
 import {
   SponsorMetricTile,
@@ -525,7 +526,7 @@ function AuctionRaiseVisiblePriceDialog({
         </Alert>
         <ProxyCompactBidForm
           inputId="raise-visible-bid"
-          inputLabel="Bid amount (EUR)"
+          inputLabel={currencyInputLabel("Bid amount")}
           inputValue={amountEuros}
           inputMin={minimumNextBidEuros}
           inputPlaceholder={minimumNextBidEuros}
@@ -611,7 +612,7 @@ export function AuctionProxyBiddingPanels({
           <CardContent className="space-y-4">
             <ProxyCompactBidForm
               inputId="max-bid"
-              inputLabel="Update secret max bid (EUR)"
+              inputLabel={currencyInputLabel("Update secret max bid")}
               inputValue={maxAmountEuros}
               inputMin={minimumNextBidEuros}
               inputPlaceholder={minimumNextBidEuros}
@@ -667,7 +668,7 @@ export function AuctionProxyBiddingPanels({
         <CardContent>
           <ProxyCompactBidForm
             inputId="normal-bid"
-            inputLabel="Bid amount (EUR)"
+            inputLabel={currencyInputLabel("Bid amount")}
             inputValue={amountEuros}
             inputMin={minimumNextBidEuros}
             inputPlaceholder={minimumNextBidEuros}
@@ -698,7 +699,7 @@ export function AuctionProxyBiddingPanels({
           </Alert>
           <ProxyCompactBidForm
             inputId="max-bid"
-            inputLabel="Secret max bid (EUR)"
+            inputLabel={currencyInputLabel("Secret max bid")}
             inputValue={maxAmountEuros}
             inputMin={minimumNextBidEuros}
             inputPlaceholder={minimumNextBidEuros}

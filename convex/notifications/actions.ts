@@ -1,7 +1,7 @@
 import { internalMutation } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
-import { nextDublinEightAm } from "@/convex/notifications/time"
+import { nextConfiguredReminderTime } from "@/convex/notifications/localTime"
 import {
   assignTaskAndNotify,
   scheduleTaskStatusNotifications,
@@ -26,6 +26,7 @@ import {
   recomputeRelatedTaskStatuses,
   requestTaskStatusChange,
 } from "@/convex/tasks/status/recompute"
+import { organisationConfig } from "@/config/lib/organisation"
 const MAX_REVIEWERS_TO_APPROVE = 50
 
 async function userForDiscordId(ctx: MutationCtx, discordUserId: string) {
@@ -158,7 +159,7 @@ async function runSnoozeReminder(
     return "This reminder has already been cancelled."
   }
   const remindAt =
-    preset === "1h" ? Date.now() + 60 * 60 * 1000 : nextDublinEightAm()
+    preset === "1h" ? Date.now() + 60 * 60 * 1000 : nextConfiguredReminderTime()
   await rescheduleReminder(ctx, reminderId, remindAt)
   return preset === "1h"
     ? "Reminder snoozed for 1 hour."
@@ -195,7 +196,9 @@ export const executeDiscordAction = internalMutation({
   handler: async (ctx, args) => {
     const user = await userForDiscordId(ctx, args.discordUserId)
     if (user === null) {
-      return { content: "Discord is not linked to an active HQ user." }
+      return {
+        content: `Discord is not linked to an active ${organisationConfig.organisation.productName} user.`,
+      }
     }
 
     const content = await executeAction(ctx, user._id, args.action)

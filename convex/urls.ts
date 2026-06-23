@@ -4,10 +4,10 @@ function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value
 }
 
-export function resolveHqSiteBaseUrl(): string {
+export function resolveMainSiteBaseUrl(): string {
   return trimTrailingSlash(env.SITE_URL)
 }
 
-export function hqSiteUrl(path: string): string {
-  return `${resolveHqSiteBaseUrl()}${path}`
+export function mainSiteUrl(path: string): string {
+  return `${resolveMainSiteBaseUrl()}${path}`
 }

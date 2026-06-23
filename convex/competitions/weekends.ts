@@ -1,4 +1,5 @@
 import { formatLocalDate, parseLocalDate } from "@/convex/competitions/dates"
+import { organisationConfig } from "@/config/lib/organisation"
 
 export function getSaturdayOfWeek(date: Date): Date {
   const normalized = new Date(date)
@@ -54,8 +55,12 @@ export function weekendLabel(weekendStart: string): string {
   const sunday = new Date(saturday)
   sunday.setDate(saturday.getDate() + 1)
 
-  const satMonth = saturday.toLocaleString("en-IE", { month: "short" })
-  const sunMonth = sunday.toLocaleString("en-IE", { month: "short" })
+  const satMonth = saturday.toLocaleString(organisationConfig.regional.locale, {
+    month: "short",
+  })
+  const sunMonth = sunday.toLocaleString(organisationConfig.regional.locale, {
+    month: "short",
+  })
 
   if (satMonth === sunMonth) {
     return `${satMonth} ${String(saturday.getDate())}–${String(sunday.getDate())}`

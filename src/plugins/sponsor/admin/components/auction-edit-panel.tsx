@@ -25,7 +25,7 @@ import type {
   ManagerView,
 } from "@/plugins/sponsor/admin/manager-types"
 import type { AuctionEditorDraft } from "@/plugins/sponsor/admin/auction-editor-draft"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
   sponsorshipStateBadgeVariant,

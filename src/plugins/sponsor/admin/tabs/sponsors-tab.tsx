@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import type { Id } from "@/convex/_generated/dataModel"
 import { SponsorContactsPanel } from "@/plugins/sponsor/admin/components/sponsor-contacts-panel"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 import {
   useSponsors,
   useSponsorMutations,

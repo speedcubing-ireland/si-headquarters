@@ -12,6 +12,13 @@ import {
 } from "@/convex/notifications/actionCodec"
 import schema from "@/convex/schema"
 import { api } from "@/convex/_generated/api"
+
+// Discord notification actions require the discord feature, which the shipped
+// manifest may gate off; enable every feature for these tests.
+vi.mock(
+  "@/config/lib/organisation",
+  () => import("@/config/lib/organisation.testFixture")
+)
 import {
   ensureVolunteerMembership,
   insertBlankCompetition,
@@ -268,7 +275,7 @@ describe("notification drafts", () => {
     })
   })
 
-  test("task reminders include snooze actions and a custom-time HQ link", async () => {
+  test("task reminders include snooze actions and a custom-time product link", async () => {
     const t = convexTest(schema, modules)
     const { reminderId } = await t.run(async (ctx) => {
       const { taskId } = await seedTaskInCompetition(ctx)
@@ -533,7 +540,7 @@ describe("notification drafts", () => {
 })
 
 describe("due notifications", () => {
-  test("due scan accepts delayed Dublin-morning starts and claims the date once", async () => {
+  test("due scan accepts delayed local-morning starts and claims the date once", async () => {
     const t = convexTest(schema, modules)
     const delayedNowMs = Date.UTC(2026, 5, 8, 8, 30, 0)
 
@@ -559,7 +566,7 @@ describe("due notifications", () => {
     expect(scheduledAfterSecond).toHaveLength(scheduledAfterFirst.length)
   })
 
-  test("due scan skips invocations before the Dublin-morning window", async () => {
+  test("due scan skips invocations before the local-morning window", async () => {
     const t = convexTest(schema, modules)
 
     await t.mutation(internal.notifications.due.runDueScan, {

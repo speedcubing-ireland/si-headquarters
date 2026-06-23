@@ -68,6 +68,7 @@ import type * as integrations_tokensStore from "../integrations/tokensStore.js";
 import type * as integrations_validators from "../integrations/validators.js";
 import type * as notifications_actionCodec from "../notifications/actionCodec.js";
 import type * as notifications_actions from "../notifications/actions.js";
+import type * as notifications_branding from "../notifications/branding.js";
 import type * as notifications_dispatch from "../notifications/dispatch.js";
 import type * as notifications_due from "../notifications/due.js";
 import type * as notifications_embeds from "../notifications/embeds.js";
@@ -77,12 +78,9 @@ import type * as notifications_interactions from "../notifications/interactions.
 import type * as notifications_model from "../notifications/model.js";
 import type * as notifications_nudge from "../notifications/nudge.js";
 import type * as notifications_reminders from "../notifications/reminders.js";
-import type * as notifications_time from "../notifications/time.js";
+import type * as notifications_localTime from "../notifications/localTime.js";
 import type * as notifications_types from "../notifications/types.js";
 import type * as notifications_validators from "../notifications/validators.js";
-import type * as organisers_internal from "../organisers/internal.js";
-import type * as organisers_queries from "../organisers/queries.js";
-import type * as organisers_wcaLogin from "../organisers/wcaLogin.js";
 import type * as permissions_principal from "../permissions/principal.js";
 import type * as permissions_queries from "../permissions/queries.js";
 import type * as permissions_shared from "../permissions/shared.js";
@@ -179,6 +177,7 @@ import type * as plugins_sponsor_lib_competitionSnapshot from "../plugins/sponso
 import type * as plugins_sponsor_lib_competitionSponsorOverrides from "../plugins/sponsor/lib/competitionSponsorOverrides.js";
 import type * as plugins_sponsor_lib_competitionSponsorStatus from "../plugins/sponsor/lib/competitionSponsorStatus.js";
 import type * as plugins_sponsor_lib_contacts from "../plugins/sponsor/lib/contacts.js";
+import type * as plugins_sponsor_lib_currency from "../plugins/sponsor/lib/currency.js";
 import type * as plugins_sponsor_lib_lifecycle from "../plugins/sponsor/lib/lifecycle.js";
 import type * as plugins_sponsor_lib_sponsorBidStatus from "../plugins/sponsor/lib/sponsorBidStatus.js";
 import type * as plugins_sponsor_lib_sponsorOwnedCompetitions from "../plugins/sponsor/lib/sponsorOwnedCompetitions.js";
@@ -287,6 +286,10 @@ import type * as utils from "../utils.js";
 import type * as views_mutations from "../views/mutations.js";
 import type * as views_queries from "../views/queries.js";
 import type * as views_validators from "../views/validators.js";
+import type * as wcaLogin_internal from "../wcaLogin/internal.js";
+import type * as wcaLogin_queries from "../wcaLogin/queries.js";
+import type * as wcaLogin_wcaLogin from "../wcaLogin/wcaLogin.js";
+import type * as wcaLogin_wcaLoginPaths from "../wcaLogin/wcaLoginPaths.js";
 
 import type {
   ApiFromModules,
@@ -355,6 +358,7 @@ declare const fullApi: ApiFromModules<{
   "integrations/validators": typeof integrations_validators;
   "notifications/actionCodec": typeof notifications_actionCodec;
   "notifications/actions": typeof notifications_actions;
+  "notifications/branding": typeof notifications_branding;
   "notifications/dispatch": typeof notifications_dispatch;
   "notifications/due": typeof notifications_due;
   "notifications/embeds": typeof notifications_embeds;
@@ -364,12 +368,9 @@ declare const fullApi: ApiFromModules<{
   "notifications/model": typeof notifications_model;
   "notifications/nudge": typeof notifications_nudge;
   "notifications/reminders": typeof notifications_reminders;
-  "notifications/time": typeof notifications_time;
+  "notifications/localTime": typeof notifications_localTime;
   "notifications/types": typeof notifications_types;
   "notifications/validators": typeof notifications_validators;
-  "organisers/internal": typeof organisers_internal;
-  "organisers/queries": typeof organisers_queries;
-  "organisers/wcaLogin": typeof organisers_wcaLogin;
   "permissions/principal": typeof permissions_principal;
   "permissions/queries": typeof permissions_queries;
   "permissions/shared": typeof permissions_shared;
@@ -466,6 +467,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/lib/competitionSponsorOverrides": typeof plugins_sponsor_lib_competitionSponsorOverrides;
   "plugins/sponsor/lib/competitionSponsorStatus": typeof plugins_sponsor_lib_competitionSponsorStatus;
   "plugins/sponsor/lib/contacts": typeof plugins_sponsor_lib_contacts;
+  "plugins/sponsor/lib/currency": typeof plugins_sponsor_lib_currency;
   "plugins/sponsor/lib/lifecycle": typeof plugins_sponsor_lib_lifecycle;
   "plugins/sponsor/lib/sponsorBidStatus": typeof plugins_sponsor_lib_sponsorBidStatus;
   "plugins/sponsor/lib/sponsorOwnedCompetitions": typeof plugins_sponsor_lib_sponsorOwnedCompetitions;
@@ -574,6 +576,10 @@ declare const fullApi: ApiFromModules<{
   "views/mutations": typeof views_mutations;
   "views/queries": typeof views_queries;
   "views/validators": typeof views_validators;
+  "wcaLogin/internal": typeof wcaLogin_internal;
+  "wcaLogin/queries": typeof wcaLogin_queries;
+  "wcaLogin/wcaLogin": typeof wcaLogin_wcaLogin;
+  "wcaLogin/wcaLoginPaths": typeof wcaLogin_wcaLoginPaths;
 }>;
 
 /**

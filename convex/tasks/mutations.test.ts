@@ -1,9 +1,16 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test"
-import { describe, expect, test } from "vitest"
+import { describe, expect, test, vi } from "vitest"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
+
+// Exercise task deletion with every feature enabled so integration-scoped
+// records are present, independent of which features the manifest gates on.
+vi.mock(
+  "@/config/lib/organisation",
+  () => import("@/config/lib/organisation.testFixture")
+)
 import {
   insertBlankCompetition,
   insertCompetitionPhase,

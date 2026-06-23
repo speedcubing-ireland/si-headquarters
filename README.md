@@ -1,6 +1,6 @@
-# Headquarters
+# Organisation Operations Platform
 
-Internal operations platform for Speedcubing Ireland — competitions, tasks, teams, and sponsor workflows.
+Configurable operations platform for competitions, tasks, teams, and sponsor workflows.
 
 ## Prerequisites
 
@@ -12,6 +12,27 @@ Internal operations platform for Speedcubing Ireland — competitions, tasks, te
 ```sh
 bun install
 bun run convex dev   # links your Convex deployment
+```
+
+### Organisation configuration
+
+Forks customize the non-secret manifest at
+`config/organisation-config.ts`. It controls organisation branding, regional
+defaults, contact addresses, sponsor portal defaults, enabled features, and
+login providers. The manifest is checked by TypeScript and validated with Zod
+when loaded.
+
+Keep OAuth secrets and API credentials in the deployment environment rather
+than the manifest. The environment wizard only requests credentials for features
+and login providers enabled by the manifest.
+
+Team object keys are stable authorization identifiers; change a team's `name`
+to relabel it without changing permissions or membership. After first deploying
+the optional `systemRole` field to an existing installation, backfill current
+teams once:
+
+```sh
+bunx convex run migrations:backfillTeamSystemRoles
 ```
 
 ### Environment
@@ -66,21 +87,33 @@ OAuth redirect URI:
 
 - `{CONVEX_SITE_URL}/api/auth/callback/google`
 
-The current config restricts emails to `@speedcubingireland.com`.
+If the manifest enables Google staff login, `auth.providers[].hostedDomain`
+controls the allowed email domain.
 
-**Organiser WCA login** (optional):
+**WCA login** (staff + organisers, optional):
 
-External organisers sign in with their WCA account. Create a second WCA OAuth
-application — separate from the `SERVICE_WCA_*` integration client:
+Staff and external organisers sign in with their WCA account. Create a second
+WCA OAuth application — separate from the `SERVICE_WCA_*` integration client.
+The single app needs **both** redirect URIs registered:
 
-Redirect URI - `{SITE_URL}/invite/organiser` (e.g. `http://localhost:5173/invite/organiser`)
+Redirect URIs:
+
+- `{SITE_URL}/auth/wca` (e.g. `http://localhost:5173/auth/wca`) — staff sign-in
+- `{SITE_URL}/invite/organiser` (e.g. `http://localhost:5173/invite/organiser`) — organiser invites
+
 Scopes - public email
 
 Set `AUTH_WCA_ID` / `AUTH_WCA_SECRET` in the Convex deployment. When unset, the
-WCA sign-in button and organiser invite links are hidden. Organisers join via
-an invite link generated from a competition's People card; links are valid for
-30 days, reusable by multiple organisers, and revocable. WCA sign-in without a
-valid invite only works for accounts that have already been invited.
+WCA sign-in button and organiser invite links are hidden.
+
+The main sign-in page's **Sign in with WCA** button uses the staff flow
+(`/auth/wca`): it only admits WCA accounts already present in the `users` table
+(matched by `wcaUserId`); unknown accounts are rejected, no user is created.
+
+Organisers join via an invite link generated from a competition's People card
+(`/invite/organiser`); links are valid for 30 days, reusable by multiple
+organisers, and revocable. Organiser sign-in without a valid invite only works
+for accounts that have already been invited.
 
 **Integration credentials** (all required by the wizard):
 
@@ -124,7 +157,7 @@ For production: `CONVEX_PROD=1 bun run auth <provider>`.
 bun run dev
 ```
 
-Starts HQ frontend (`:5173`), sponsor portal (`:5174`), and Convex dev sync in parallel.
+Starts the main frontend (`:5173`), sponsor portal (`:5174`), and Convex dev sync in parallel.
 
 After the first deploy (or on a fresh dev deployment), run the bootstrap mutation from the [Convex dashboard](https://dashboard.convex.dev): **`seed/mutations:run`**.
 
@@ -174,7 +207,7 @@ scripts/
 
 | Audience      | Mechanism                                          |
 | ------------- | -------------------------------------------------- |
-| Staff (HQ)    | Convex Auth + Google (`@speedcubingireland.com`)   |
+| Staff         | Convex Auth + configured provider/domain           |
 | Sponsors      | Better Auth — OTP email via `/api/sponsor-auth`    |
 | Service APIs  | OAuth CLI (`bun run auth`) — stores refresh tokens |
 | Admin testing | Impersonation tokens (admin UI)                    |
@@ -193,7 +226,6 @@ scripts/
 
 The **source code** in this repository is released under the [MIT License](LICENSE).
 
-**Speedcubing Ireland–specific content is not freely licensed.** Copy, UI text,
-email templates, sponsor guide wording, logos, trade dress, and other branding
-that refers to Speedcubing Ireland remain the property of Speedcubing Ireland CLG
-(or their respective owners).
+Organisation-specific content in a deployed fork, including branding, logos,
+trade dress, and configured copy, remains the property of that organisation
+(or its respective owners).

@@ -22,7 +22,7 @@ describe("socialMedia sponsorDetection", () => {
 })
 
 describe("socialMedia resolveHqLinks", () => {
-  test("returns HQ links for linked WCA ids only", async () => {
+  test("returns main-app links for linked WCA ids only", async () => {
     const t = convexTest(schema, modules)
     const { linkedWcaId, competitionId, competitionName } = await t.run(
       async (ctx) => {

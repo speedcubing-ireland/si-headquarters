@@ -14,6 +14,10 @@ import {
   userDisplayName,
 } from "@/convex/notifications/embeds"
 import {
+  notificationFooterText,
+  notificationIconUrl,
+} from "@/convex/notifications/branding"
+import {
   notificationEvent,
   type NotificationDraft,
   type NotificationEvent,
@@ -31,7 +35,7 @@ import {
   MAX_MANUAL_SUBSCRIBERS,
 } from "@/convex/tasks/watchers"
 import { isTerminalComplete } from "@/convex/tasks/status/rules"
-import { hqSiteUrl } from "@/convex/urls"
+import { mainSiteUrl } from "@/convex/urls"
 import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
 import { getLinkedDiscordChannelTarget } from "@/convex/integrations/objectResources"
 import { getProjectWorkflowDefinition } from "@/convex/projectWorkflows/registry"
@@ -105,15 +109,15 @@ function startTaskButtonInRow(
 }
 
 function taskUrl(taskId: Id<"tasks">) {
-  return hqSiteUrl(`/tasks/${taskId}`)
+  return mainSiteUrl(`/tasks/${taskId}`)
 }
 
 function competitionUrl(competitionId: Id<"competitions">) {
-  return hqSiteUrl(`/competitions/${competitionId}`)
+  return mainSiteUrl(`/competitions/${competitionId}`)
 }
 
 function projectUrl(projectId: Id<"projects">) {
-  return hqSiteUrl(`/projects/${projectId}`)
+  return mainSiteUrl(`/projects/${projectId}`)
 }
 
 function targetKey(target: ResolvedNotificationDraft["target"]) {
@@ -1216,8 +1220,8 @@ export const resolveAssignableClaimedDiscordUpdate = internalQuery({
               ? undefined
               : { name: embed.author.name, icon_url: embed.author.iconUrl },
           footer: {
-            text: "SI Headquarters",
-            icon_url: "https://hq.speedcubingireland.com/favicon.png",
+            text: notificationFooterText(),
+            icon_url: notificationIconUrl(),
           },
           timestamp: new Date().toISOString(),
         },
