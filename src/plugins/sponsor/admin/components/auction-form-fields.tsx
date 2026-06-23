@@ -22,6 +22,8 @@ import {
   auctionFrameworkLabel,
 } from "@/convex/plugins/sponsor/lib/types"
 import {
+  auctionScheduleDraftLabels,
+  currencyInputLabel,
   isSponsorshipFramework,
   parseDatetimeLocalInput,
   toDatetimeLocalInput,
@@ -48,6 +50,10 @@ export function AuctionFormFields({
         : [...draft.invitedSponsorIds, sponsorId],
     })
   }
+
+  const startMs = parseDatetimeLocalInput(draft.startsAtInput)
+  const { opensIn: opensInLabel, duration: durationLabel } =
+    auctionScheduleDraftLabels(draft.startsAtInput, draft.endsAtInput)
 
   return (
     <>
@@ -109,23 +115,29 @@ export function AuctionFormFields({
             }}
             required
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-auto px-0 py-0 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              const startsAt = computeAuctionScheduleMs(
-                Date.now(),
-                defaults
-              ).startsAt
-              onDraftChange({
-                startsAtInput: toDatetimeLocalInput(new Date(startsAt)),
-              })
-            }}
-          >
-            Default start (+{defaults.startDelayHours}h from now)
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const startsAt = computeAuctionScheduleMs(
+                  Date.now(),
+                  defaults
+                ).startsAt
+                onDraftChange({
+                  startsAtInput: toDatetimeLocalInput(new Date(startsAt)),
+                })
+              }}
+            >
+              Set start to {defaults.startDelayHours}h from now
+            </Button>
+            {opensInLabel !== null ? (
+              <span className="text-xs text-muted-foreground">
+                {opensInLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">Ends at</p>
@@ -137,29 +149,36 @@ export function AuctionFormFields({
             }}
             required
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-auto px-0 py-0 text-xs text-muted-foreground hover:text-foreground"
-            disabled={parseDatetimeLocalInput(draft.startsAtInput) === null}
-            onClick={() => {
-              const startMs = parseDatetimeLocalInput(draft.startsAtInput)
-              if (startMs === null) return
-              const endMs = computeEndFromStartMs(
-                startMs,
-                defaults.durationHours
-              )
-              onDraftChange({
-                endsAtInput: toDatetimeLocalInput(new Date(endMs)),
-              })
-            }}
-          >
-            Default end (+{defaults.durationHours}h from start)
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={startMs === null}
+              onClick={() => {
+                if (startMs === null) return
+                const endMs = computeEndFromStartMs(
+                  startMs,
+                  defaults.durationHours
+                )
+                onDraftChange({
+                  endsAtInput: toDatetimeLocalInput(new Date(endMs)),
+                })
+              }}
+            >
+              Set end to {defaults.durationHours}h after start
+            </Button>
+            {durationLabel !== null ? (
+              <span className="text-xs text-muted-foreground">
+                Duration: {durationLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">Start price (EUR)</p>
+          <p className="text-xs text-muted-foreground">
+            {currencyInputLabel("Start price")}
+          </p>
           <Input
             type="number"
             min="1"

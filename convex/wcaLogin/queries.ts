@@ -4,7 +4,7 @@ import { findActiveInviteWithCompetition } from "@/convex/competitions/invites/m
 import {
   buildWcaAuthorizeUrl,
   isWcaLoginConfigured,
-} from "@/convex/organisers/wcaLogin"
+} from "@/convex/wcaLogin/wcaLogin"
 
 export const wcaLoginConfigured = query({
   args: {},
@@ -12,9 +12,11 @@ export const wcaLoginConfigured = query({
 })
 
 export const wcaSignInUrl = query({
-  args: {},
+  args: {
+    flow: v.union(v.literal("organiser"), v.literal("staff")),
+  },
   returns: v.union(v.string(), v.null()),
-  handler: () => buildWcaAuthorizeUrl(""),
+  handler: (_ctx, args) => buildWcaAuthorizeUrl("", args.flow),
 })
 
 export const inviteContext = query({
@@ -34,7 +36,7 @@ export const inviteContext = query({
     if (result === null) {
       return null
     }
-    const authorizeUrl = buildWcaAuthorizeUrl(args.token.trim())
+    const authorizeUrl = buildWcaAuthorizeUrl(args.token.trim(), "organiser")
     if (authorizeUrl === null) {
       return null
     }

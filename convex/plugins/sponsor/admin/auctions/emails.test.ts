@@ -510,7 +510,7 @@ describe("sendAuctionScheduledEmails", () => {
   })
 })
 
-describe("buildSponsorshipEmailHtml — outcome template formats dates as en-IE", () => {
+describe("buildSponsorshipEmailHtml — outcome template formats dates with the configured locale", () => {
   const fixedTs = Date.UTC(2026, 0, 31, 14, 30)
   const expectedDateSubstring = formatEmailDateTime(fixedTs)
 

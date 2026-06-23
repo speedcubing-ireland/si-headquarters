@@ -52,6 +52,12 @@ export function buildSponsorSponsorshipListItems(input: {
     Doc<"sponsorshipAuctions">[]
   >()
   for (const auction of input.auctions) {
+    if (
+      auction.competitionId === undefined ||
+      auction.subjectKind === "custom"
+    ) {
+      continue
+    }
     const existing = auctionsByCompetition.get(auction.competitionId) ?? []
     existing.push(auction)
     auctionsByCompetition.set(auction.competitionId, existing)

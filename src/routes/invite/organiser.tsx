@@ -9,14 +9,14 @@ import {
   AuthCallbackPage,
   PublicAuthMessage,
 } from "@/components/public-auth-card"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 
 const INVALID_INVITE_MESSAGE =
   "This organiser invite link is invalid, expired, or revoked. Ask the competition team for a new one."
 
 function InviteLanding({ token }: { token: string }) {
   const navigate = useNavigate()
-  const context = useQuery(api.organisers.queries.inviteContext, { token })
+  const context = useQuery(api.wcaLogin.queries.inviteContext, { token })
 
   if (context === undefined) {
     return (

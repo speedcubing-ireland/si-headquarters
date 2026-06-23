@@ -4,28 +4,26 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "prepare": "git config core.hooksPath githooks && chmod +x githooks/pre-commit || true",
+    "auth": "bun scripts/auth.ts",
+    "build": "tsc -b && vite build",
+    "build:deploy": "bunx convex deploy --cmd 'bun run build'",
     "dev": "bun run --parallel dev:frontend dev:sponsor dev:backend",
+    "dev:backend": "convex dev",
     "dev:frontend": "vite --port 5173",
     "dev:sponsor": "VITE_SPONSOR_SITE=1 vite --port 5174 --open /login",
-    "dev:backend": "convex dev",
     "dev:vite": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint --type-aware .",
-    "lint:fix": "oxlint --type-aware --fix .",
+    "email:dev": "email dev --dir convex/plugins/sponsor/emails --port 3000",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "build:deploy": "bunx convex deploy --cmd 'bun run build'",
+    "lint": "oxlint --type-aware --fix .",
+    "lint:check": "oxlint --type-aware .",
+    "openapi-ts": "openapi-ts",
+    "prepare": "git config core.hooksPath githooks && chmod +x githooks/pre-commit || true",
+    "preview": "vite preview",
+    "set-convex-env": "bun scripts/set-convex-env.ts",
     "test": "vitest",
     "test:once": "vitest run",
-    "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:coverage": "vitest run --coverage --coverage.reporter=text",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsgo -p convex/tsconfig.json --noEmit && tsc -p scripts/tsconfig.json --noEmit",
-    "auth": "bun scripts/auth.ts",
-    "set-convex-env": "bun scripts/set-convex-env.ts",
-    "preview": "vite preview",
-    "openapi-ts": "openapi-ts",
-    "email:dev": "email dev --dir convex/plugins/sponsor/emails --port 3000"
+    "typecheck": "tsgo -p tsconfig.app.json --noEmit & tsgo -p tsconfig.node.json --noEmit & tsgo -p convex/tsconfig.json --noEmit & tsgo -p scripts/tsconfig.json --noEmit & wait"
   },
   "dependencies": {
     "@auth/core": "0.41.2",
@@ -122,11 +120,11 @@
     "vite": "^8.0.16",
     "vitest": "^4.1.9"
   },
+  "overrides": {
+    "@better-fetch/fetch": "1.3.1",
+    "better-auth": "1.6.19"
+  },
   "trustedDependencies": [
     "@convex/reactions"
-  ],
-  "overrides": {
-    "better-auth": "1.6.19",
-    "@better-fetch/fetch": "1.3.1"
-  }
+  ]
 }

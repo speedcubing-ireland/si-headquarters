@@ -2,6 +2,10 @@ import { defineTable } from "convex/server"
 import { v } from "convex/values"
 import { competitionSnapshot } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import {
+  auctionSubjectKind,
+  customOfferingValidator,
+} from "@/convex/plugins/sponsor/lib/auctionSubject"
+import {
   auctionState,
   competitionSponsorOverrideFields,
   sponsorshipAuctionFramework,
@@ -28,7 +32,13 @@ export const sponsorTables = {
     .index("by_name", ["name"]),
 
   sponsorshipAuctions: defineTable({
-    competitionId: v.id("competitions"),
+    // Subject of the auction. `subjectKind` is optional for back-compat with
+    // rows created before it existed; those default to "hq_competition" via
+    // resolveAuctionSubject. See lib/auctionSubject.ts.
+    subjectKind: v.optional(auctionSubjectKind),
+    competitionId: v.optional(v.id("competitions")),
+    wcaCompetitionId: v.optional(v.string()),
+    customOffering: v.optional(customOfferingValidator),
     framework: sponsorshipAuctionFramework,
     state: auctionState,
     currency: v.string(),
@@ -56,6 +66,7 @@ export const sponsorTables = {
       "state",
     ])
     .index("by_competition", ["competitionId"])
+    .index("by_wcaCompetitionId", ["wcaCompetitionId"])
     .index("by_state_and_end", ["state", "endsAt"])
     .index("by_state_and_start", ["state", "startsAt"])
     .index("by_competition_and_state", ["competitionId", "state"]),

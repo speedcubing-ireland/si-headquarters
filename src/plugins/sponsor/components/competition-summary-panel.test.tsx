@@ -1,56 +1,31 @@
 import { describe, expect, test } from "vitest"
 import { renderToStaticMarkup } from "react-dom/server"
 import { AuctionCompetitionSummaryPanel } from "./competition-summary-panel"
-import { formatDate, formatDateRange } from "@/lib/format/irish-dates"
-
-const irishDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IE", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Europe/Dublin",
-  })
-
-describe("formatDate", () => {
-  test("formats a valid ISO date in Irish locale", () => {
-    expect(formatDate("2026-01-31")).toBe(irishDate("2026-01-31"))
-  })
-
-  test("day appears before month (not American order)", () => {
-    const result = formatDate("2026-01-31")
-    expect(result.startsWith("31")).toBe(true)
-    expect(result).not.toMatch(/^Jan/)
-    expect(result).not.toContain("1/31")
-  })
-
-  test("returns TBC for empty string", () => {
-    expect(formatDate("")).toBe("TBC")
-  })
-
-  test("returns TBC for whitespace-only string", () => {
-    expect(formatDate("   ")).toBe("TBC")
-  })
-
-  test("returns original string for an invalid date", () => {
-    expect(formatDate("not-a-date")).toBe("not-a-date")
-  })
-})
-
-describe("formatDateRange", () => {
-  test("returns a single date when start equals end", () => {
-    const result = formatDateRange("2026-01-31", "2026-01-31")
-    expect(result).toBe(irishDate("2026-01-31"))
-    expect(result).not.toContain(" to ")
-  })
-
-  test("returns range string when start differs from end", () => {
-    const result = formatDateRange("2026-01-31", "2026-02-01")
-    expect(result).toContain(" to ")
-    expect(result).not.toContain("/")
-  })
-})
 
 describe("AuctionCompetitionSummaryPanel", () => {
+  test("renders custom offering markdown without competition detail placeholders", () => {
+    const html = renderToStaticMarkup(
+      <AuctionCompetitionSummaryPanel
+        source="custom"
+        offeringDescriptionMarkdown="**Gold package**\n\nIncludes logo placement."
+        summary={{
+          name: "Gold sponsor package",
+          address: "",
+          startDate: "2026-09-05",
+          endDate: "2026-09-06",
+          eventIds: [],
+        }}
+      />
+    )
+
+    expect(html).toContain("More info")
+    expect(html).toContain("Gold package")
+    expect(html).toContain("Includes logo placement.")
+    expect(html).not.toContain("Competition details")
+    expect(html).not.toContain("Events not listed")
+    expect(html).not.toContain("No competitor limit listed")
+  })
+
   test("renders long event lists compactly without a disclosure row", () => {
     const html = renderToStaticMarkup(
       <AuctionCompetitionSummaryPanel

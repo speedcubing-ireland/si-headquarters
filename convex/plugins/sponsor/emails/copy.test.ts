@@ -9,6 +9,7 @@ import {
   sponsorOtpPurposeFromAuthType,
 } from "./copy"
 import { formatMoney } from "./_design"
+import { sponsorshipConfig } from "@/config/lib/organisation"
 
 describe("auctionFrameworkLabel", () => {
   test("returns brief framework titles", () => {
@@ -20,7 +21,9 @@ describe("auctionFrameworkLabel", () => {
 
 describe("formatMoney", () => {
   test("formats cents as currency", () => {
-    expect(formatMoney(125_000)).toBe("EUR 1250.00")
+    expect(formatMoney(125_000)).toBe(
+      `${sponsorshipConfig().sponsorship.defaultCurrency} 1250.00`
+    )
     expect(formatMoney(10_000, "USD")).toBe("USD 100.00")
   })
 })
@@ -52,8 +55,12 @@ describe("getSponsorshipEmailPayload", () => {
       competitionName: "Irish Open 2026",
       settlementAmountCents: 125_000,
     })
-    expect(payload.message).toContain("EUR 1250.00")
-    expect(payload.message).toContain("Sponsorship Team")
+    expect(payload.message).toContain(
+      `${sponsorshipConfig().sponsorship.defaultCurrency} 1250.00`
+    )
+    expect(payload.message).toContain(
+      sponsorshipConfig().contacts.sponsorshipTeamName
+    )
     expect(payload.message).not.toContain("Finance will follow up")
   })
 })

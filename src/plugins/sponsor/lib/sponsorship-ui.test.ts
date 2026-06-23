@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  auctionScheduleDraftLabels,
   competitionPropertyStatusLabel,
   displayAuctionPriceCents,
   formatAuctionTablePrice,
@@ -40,6 +41,43 @@ describe("parseDatetimeLocalInput", () => {
 
   it("returns null for a non-date string", () => {
     expect(parseDatetimeLocalInput("not-a-date")).toBeNull()
+  })
+})
+
+describe("auctionScheduleDraftLabels", () => {
+  it("returns null labels for invalid inputs", () => {
+    expect(auctionScheduleDraftLabels("", "")).toEqual({
+      opensIn: null,
+      duration: null,
+    })
+  })
+
+  it("returns opensIn when start is valid", () => {
+    const { opensIn, duration } = auctionScheduleDraftLabels(
+      "2026-12-01T12:00",
+      ""
+    )
+    expect(opensIn).toMatch(/^Opens /)
+    expect(duration).toBeNull()
+  })
+
+  it("returns duration when end is after start", () => {
+    const { duration } = auctionScheduleDraftLabels(
+      "2026-12-01T12:00",
+      "2026-12-01T14:00"
+    )
+    expect(duration).toBeTruthy()
+  })
+
+  it("returns null duration when end is not after start", () => {
+    expect(
+      auctionScheduleDraftLabels("2026-12-01T14:00", "2026-12-01T12:00")
+        .duration
+    ).toBeNull()
+    expect(
+      auctionScheduleDraftLabels("2026-12-01T12:00", "2026-12-01T12:00")
+        .duration
+    ).toBeNull()
   })
 })
 

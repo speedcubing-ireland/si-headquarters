@@ -16,7 +16,10 @@ import type { Id } from "@/convex/_generated/dataModel"
 import { AuctionEditPanel } from "@/plugins/sponsor/admin/components/auction-edit-panel"
 import { AuctionPanelHistory } from "@/plugins/sponsor/admin/components/auction-panel-history"
 import { validateAuctionFormInputs } from "@/plugins/sponsor/admin/auction-editor-draft"
-import { attachSponsorNames } from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
+import {
+  attachSponsorNames,
+  filterPreviousClosedAuctionsForSubject,
+} from "@/plugins/sponsor/admin/sponsorship-admin-derivations"
 import { useAuctionEditorDraft } from "@/plugins/sponsor/admin/hooks/use-auction-editor-draft"
 import { useAuctionLifecycleActions } from "@/plugins/sponsor/admin/hooks/use-auction-lifecycle-actions"
 import { useCompetitionOverrideRevert } from "@/plugins/sponsor/admin/hooks/use-competition-override-revert"
@@ -84,22 +87,29 @@ function AuctionEditContent({
   )
 
   const selectedAuction = auctions.find((auction) => auction.id === auctionId)
+  const selectedCompetitionId =
+    selectedAuction?.associatedCompetitionId ?? selectedAuction?.competitionId
   const panelCompetition =
-    selectedAuction !== undefined
-      ? (competitionById.get(selectedAuction.competitionId) ?? null)
+    selectedCompetitionId !== undefined
+      ? (competitionById.get(selectedCompetitionId) ?? null)
       : null
+  const selectedWcaCompetitionId =
+    selectedAuction?.wcaCompetitionId ?? panelCompetition?.wcaCompetitionId
   const previousClosedAuctionsForPanel = useMemo(() => {
-    if (selectedAuction === undefined) return []
-    return auctions
-      .filter(
-        (auction) =>
-          auction.state === "closed" &&
-          auction.competitionId === selectedAuction.competitionId &&
-          auction.id !== selectedAuction.id
-      )
-      .sort((a, b) => b.endsAt - a.endsAt)
-      .slice(0, 5)
-  }, [auctions, selectedAuction])
+    if (selectedAuction === undefined) {
+      return []
+    }
+    return filterPreviousClosedAuctionsForSubject(auctions, {
+      selectedAuctionId: selectedAuction.id,
+      competitionId: selectedCompetitionId,
+      wcaCompetitionId: selectedWcaCompetitionId,
+    })
+  }, [
+    auctions,
+    selectedAuction,
+    selectedCompetitionId,
+    selectedWcaCompetitionId,
+  ])
 
   if (isLoadingManagerView || isLoadingAuctions) {
     return (
@@ -150,6 +160,13 @@ function AuctionEditContent({
       await updateAuction({
         auctionId,
         framework: draft.framework,
+        ...(draft.isCustomOffering
+          ? {
+              offeringName: draft.customOfferingName,
+              offeringDescriptionMarkdown:
+                draft.customOfferingDescriptionMarkdown,
+            }
+          : {}),
         ...validation.values,
       })
       await refreshCompetitionSnapshot(auctionId).catch(() => undefined)
@@ -222,12 +239,15 @@ function AuctionEditContent({
           <CardHeader>
             <CardTitle>Previous closed auctions</CardTitle>
             <CardDescription>
-              Other closed auctions for this competition.
+              Other closed auctions for this sponsorship subject.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <AuctionPanelHistory
-              panelCompetitionId={panelCompetition?.id ?? null}
+              hasHistorySubject={
+                panelCompetition !== null ||
+                selectedWcaCompetitionId !== undefined
+              }
               previousClosedAuctions={previousClosedAuctionsForPanel}
               sponsorById={sponsorById}
               onViewClosedAuction={viewClosedAuction}

@@ -8,7 +8,7 @@ import {
 } from "@/convex/competitions/invites/validators"
 import { throwNotFound } from "@/convex/errors"
 import { createToken, hashToken } from "@/convex/tokens"
-import { hqSiteUrl } from "@/convex/urls"
+import { mainSiteUrl } from "@/convex/urls"
 
 export const create = mutation({
   args: {
@@ -47,7 +47,7 @@ export const create = mutation({
       expiresAt,
     })
     return {
-      url: hqSiteUrl(
+      url: mainSiteUrl(
         `${ORGANISER_INVITE_PATH}?token=${encodeURIComponent(token)}`
       ),
       expiresAt,

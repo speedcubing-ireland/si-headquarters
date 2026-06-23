@@ -20,7 +20,7 @@ import {
   TaskStatusLoader,
   type TaskWithStatusView,
 } from "@/convex/tasks/status/resolver"
-import { dublinToday } from "@/convex/notifications/time"
+import { localToday } from "@/convex/notifications/localTime"
 import { listPhasesForOwnerBounded } from "@/convex/phases/model"
 import {
   buildPhaseSortKeyById,
@@ -278,7 +278,7 @@ export async function getTaskSubtaskView(
 
   const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const taskViews = await getTaskSubtaskViews(loader, task)
-  const today = dublinToday()
+  const today = localToday()
   const phaseSortKeyById = buildPhaseSortKeyById([])
 
   return {
@@ -336,7 +336,7 @@ async function getPhaseOwnerSubtaskView(
   const phases = await listPhasesForOwnerBounded(ctx, owner)
   const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const currentPhase = phases.find((phase) => phase._id === currentPhaseId)
-  const today = dublinToday()
+  const today = localToday()
   const phaseSortKeyById = buildPhaseSortKeyById(phases)
   const defaultParent =
     currentPhase === undefined

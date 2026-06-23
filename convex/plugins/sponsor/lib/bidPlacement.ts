@@ -15,6 +15,7 @@ import {
   isSealedAuctionFramework,
   sealedAuctionPricingRule,
 } from "@/convex/plugins/sponsor/lib/types"
+import { formatSponsorshipAmount } from "@/convex/plugins/sponsor/lib/currency"
 
 export interface PlaceSponsorshipBidInput {
   auction: Doc<"sponsorshipAuctions">
@@ -34,7 +35,7 @@ function normalizeAmountCents(input: number): number {
   if (!Number.isFinite(amountCents) || amountCents < 100) {
     throw new ConvexError({
       code: "BAD_REQUEST",
-      message: "Bid amount must be at least EUR 1.00.",
+      message: `Bid amount must be at least ${formatSponsorshipAmount(100)}.`,
     })
   }
   return amountCents
@@ -96,7 +97,7 @@ async function placeSealedBid(
   if (amountCents < input.auction.startPriceCents) {
     throw new ConvexError({
       code: "BAD_REQUEST",
-      message: `Bid must be at least ${String(input.auction.startPriceCents / 100)} EUR.`,
+      message: `Bid must be at least ${formatSponsorshipAmount(input.auction.startPriceCents)}.`,
     })
   }
 
@@ -208,7 +209,7 @@ async function placeProxyBid(
   ) {
     throw new ConvexError({
       code: "BAD_REQUEST",
-      message: `Bid must be at least ${String(minimumRequiredBidCents / 100)} EUR.`,
+      message: `Bid must be at least ${formatSponsorshipAmount(minimumRequiredBidCents)}.`,
     })
   }
   let maxAmountCents =
@@ -222,7 +223,7 @@ async function placeProxyBid(
   ) {
     throw new ConvexError({
       code: "BAD_REQUEST",
-      message: `Max amount must be at least ${String(minimumRequiredBidCents / 100)} EUR.`,
+      message: `Max amount must be at least ${formatSponsorshipAmount(minimumRequiredBidCents)}.`,
     })
   }
   maxAmountCents ??= !isAmountExplicit

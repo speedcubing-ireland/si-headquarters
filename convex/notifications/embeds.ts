@@ -5,6 +5,10 @@ import type {
   NotificationTarget,
 } from "@/convex/notifications/validators"
 import { resolveUserAvatarUrl } from "@/convex/users/avatar"
+import {
+  notificationFooterText,
+  notificationIconUrl,
+} from "@/convex/notifications/branding"
 
 export const EMBED_COLOR = {
   normal: 0x2563eb,
@@ -15,8 +19,8 @@ export const EMBED_COLOR = {
 } as const
 
 const SYSTEM_AUTHOR = {
-  name: "SI Headquarters",
-  iconUrl: "https://hq.speedcubingireland.com/favicon.png",
+  name: notificationFooterText(),
+  iconUrl: notificationIconUrl(),
 } as const
 
 export function userDisplayName(

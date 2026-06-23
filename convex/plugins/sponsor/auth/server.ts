@@ -18,6 +18,7 @@ import {
   resolveSponsorPortalOriginForAuth,
   sponsorPortalLoginUrl,
 } from "@/convex/plugins/sponsor/siteUrls"
+import { sponsorshipConfig } from "@/config/lib/organisation"
 import schema from "./component/sponsorAuth/schema"
 
 const SPONSOR_AUTH_BASE_PATH = "/api/sponsor-auth"
@@ -146,11 +147,10 @@ export function createSponsorAuthOptions(
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:3000",
-    "https://hq.speedcubing.ie",
   ])
 
   return {
-    appName: "Speedcubing Ireland Sponsor Portal",
+    appName: sponsorshipConfig().sponsorship.portalName,
     baseURL: trimTrailingSlash(config.baseUrl),
     basePath: SPONSOR_AUTH_BASE_PATH,
     secret: config.secret,

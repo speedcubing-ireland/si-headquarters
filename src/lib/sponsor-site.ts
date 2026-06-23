@@ -1,6 +1,6 @@
+import { isFeatureEnabled, sponsorshipConfig } from "@/config/lib/organisation"
 import { env } from "@/env"
 
-const SPONSOR_PRODUCTION_HOST = "sponsors.speedcubingireland.com"
 const SPONSOR_DEV_PORT = "5174"
 
 export const SPONSOR_NOT_FOUND_PATH = "/sponsor/404"
@@ -8,6 +8,14 @@ export const SPONSOR_NOT_FOUND_PATH = "/sponsor/404"
 function normalizePathname(pathname: string): string {
   const trimmed = pathname.replace(/\/+$/, "")
   return trimmed.length > 0 ? trimmed : "/"
+}
+
+function configuredSponsorHost(): string | undefined {
+  if (!isFeatureEnabled("sponsors")) {
+    return undefined
+  }
+
+  return sponsorshipConfig().sponsorship.productionHost
 }
 
 export function resolveIsSponsorSite(): boolean {
@@ -20,8 +28,9 @@ export function resolveIsSponsorSite(): boolean {
   }
 
   const { hostname, port } = window.location
+  const sponsorHost = configuredSponsorHost()
   return (
-    hostname === SPONSOR_PRODUCTION_HOST ||
+    (sponsorHost !== undefined && hostname === sponsorHost) ||
     (hostname === "localhost" && port === SPONSOR_DEV_PORT)
   )
 }

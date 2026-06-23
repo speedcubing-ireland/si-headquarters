@@ -15,7 +15,7 @@ describe("toPublicUser", () => {
   test("resolves Discord avatar over auth image when linked", () => {
     const publicUser = toPublicUser({
       _id: testUserId,
-      name: "HQ User",
+      name: "Test User",
       image: "https://example.com/google.png",
       discordUserId: "123",
       discordAvatarHash: "abc",
@@ -28,7 +28,7 @@ describe("toPublicUser", () => {
   test("keeps auth image when Discord is not linked", () => {
     const publicUser = toPublicUser({
       _id: testUserId,
-      name: "HQ User",
+      name: "Test User",
       image: "https://example.com/google.png",
       discordUserId: undefined,
       discordAvatarHash: undefined,

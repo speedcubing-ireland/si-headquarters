@@ -1,7 +1,7 @@
 "use node"
 
 import { internal } from "@/convex/_generated/api"
-import { env, internalAction } from "@/convex/_generated/server"
+import { internalAction } from "@/convex/_generated/server"
 import {
   type NotificationAttachmentRequest,
   notificationEvent,
@@ -12,20 +12,39 @@ import {
   encodeNotificationAction,
 } from "@/convex/notifications/actionCodec"
 import { resolveDeploymentContext } from "@/convex/deploymentContext"
+import { requireConvexEnv } from "@/convex/envTypes"
+import {
+  notificationFooterText,
+  notificationIconUrl,
+} from "@/convex/notifications/branding"
 
 const DISCORD_API = "https://discord.com/api/v10"
 const DISCORD_EMBED_FOOTER = {
-  text: "SI Headquarters",
-  icon_url: "https://hq.speedcubingireland.com/favicon.png",
+  text: notificationFooterText(),
+  icon_url: notificationIconUrl(),
 } as const
 const DISCORD_MAX_ACTION_ROWS = 5
 const DISCORD_MAX_BUTTONS_PER_ROW = 5
+
+function discordBotToken(): string {
+  return requireConvexEnv(
+    "DISCORD_BOT_TOKEN",
+    "Discord notification dispatch requires DISCORD_BOT_TOKEN to be set."
+  )
+}
+
+function discordActionSecret(): string {
+  return requireConvexEnv(
+    "DISCORD_ACTION_SECRET",
+    "Discord notification dispatch requires DISCORD_ACTION_SECRET to be set."
+  )
+}
 
 async function createDmChannel(discordUserId: string): Promise<string> {
   const response = await fetch(`${DISCORD_API}/users/@me/channels`, {
     method: "POST",
     headers: {
-      Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
+      Authorization: `Bot ${discordBotToken()}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ recipient_id: discordUserId }),
@@ -58,7 +77,7 @@ async function toDiscordPayload(
   draft: ResolvedNotificationDraft,
   attachedFilenames: ReadonlySet<string>
 ) {
-  const secret = env.DISCORD_ACTION_SECRET
+  const secret = discordActionSecret()
   const deploymentContext = resolveDeploymentContext()
   const sentAt = new Date().toISOString()
   const embeds = draft.embeds.map((embed) => ({
@@ -167,7 +186,7 @@ async function sendDiscordMessage(
 
   let body: BodyInit
   let headers: HeadersInit = {
-    Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
+    Authorization: `Bot ${discordBotToken()}`,
   }
 
   if (attachedFiles.length === 0) {

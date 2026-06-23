@@ -11,6 +11,11 @@ import { modules } from "@/convex/test.setup"
 import { convexTest } from "convex-test"
 import { afterEach, describe, expect, test, vi } from "vitest"
 
+vi.mock(
+  "@/config/lib/organisation",
+  () => import("@/config/lib/organisation.testFixture")
+)
+
 const VALID_32CHAR_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"
 
 describe("wca twoFactor", () => {
@@ -73,6 +78,34 @@ describe("wca twoFactor", () => {
     expect(
       unknownErrorMessage(caught, { includeConvexError: true })
     ).not.toContain(invalidSecret)
+  })
+
+  test("rejects when wca2fa feature is disabled", async () => {
+    const organisation = await import("@/config/lib/organisation")
+    const isFeatureEnabledSpy = vi
+      .spyOn(organisation, "isFeatureEnabled")
+      .mockImplementation((feature) => feature !== "wca2fa")
+
+    vi.stubEnv(WCA_2FA_SECRET_ENV, VALID_32CHAR_SECRET)
+    const t = convexTest(schema, modules)
+    const userId = await t.run(async (ctx) => {
+      const id = await insertTestUser(ctx, "Competitions")
+      await addUserToTeam(ctx, id, TEAM_NAMES.COMPETITIONS)
+      return id
+    })
+
+    await expect(
+      t
+        .withIdentity({ subject: userId })
+        .action(api.plugins.wca.twoFactor.generateCode, {})
+    ).rejects.toMatchObject({
+      data: {
+        code: "PRECONDITION_FAILED",
+        message: "WCA 2FA is not enabled for this organisation.",
+      },
+    })
+
+    isFeatureEnabledSpy.mockRestore()
   })
 
   test("forbidden for users without Wca2fa access", async () => {

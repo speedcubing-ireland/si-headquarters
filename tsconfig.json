@@ -8,6 +8,7 @@
     "baseUrl": ".",
     "paths": {
       "@/convex/*": ["./convex/*"],
+      "@/config/*": ["./config/*"],
       "@/*": ["./src/*"]
     }
   }

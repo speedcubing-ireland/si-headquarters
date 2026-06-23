@@ -31,6 +31,10 @@ import {
   getRegistrationStatus,
   isAcceptedRegistration,
 } from "@/convex/plugins/wca/registrationsLib"
+import {
+  checkinSheetsConfig,
+  organisationConfig,
+} from "@/config/lib/organisation"
 
 type WcaApiClient = ReturnType<typeof createWcaClient>
 type GoogleSheetCellValue = string | null
@@ -74,8 +78,11 @@ const SUNDAY_RANGE = "Schedule!AM6:AP"
 const PROGRESSION_RANGE = "Schedule!A2:F"
 const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U"
 const WCA_DATA_WRITE_RANGE = "WCA Data!A3"
-const DUBLIN_TIMEZONE = "Europe/Dublin"
-const IRELAND_TEMPLATE_COMPETITION_ID = "IrelandTemplate2100"
+const SCHEDULE_TIMEZONE = organisationConfig.regional.timeZone
+
+function scheduleTemplateCompetitionId(): string {
+  return checkinSheetsConfig().wca.scheduleTemplateCompetitionId
+}
 const PERCENT_75_THRESHOLD_MIN = 72
 const PERCENT_75_THRESHOLD_MAX = 78
 const CHECKIN_EVENT_COLUMNS = [
@@ -422,13 +429,13 @@ export function buildCheckinSheetRows(
   return rows.map((entry) => entry.row)
 }
 
-function formatDublinTime(
+function formatScheduleTime(
   dateStr: string,
   hours: number,
   minutes: number
 ): string {
-  const dublinTimeStr = `${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`
-  return fromZonedTime(dublinTimeStr, DUBLIN_TIMEZONE).toISOString()
+  const localTimeStr = `${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`
+  return fromZonedTime(localTimeStr, SCHEDULE_TIMEZONE).toISOString()
 }
 
 function getNextDay(dateStr: string): string {
@@ -456,8 +463,8 @@ function buildActivity(row: SheetRow, dateStr: string, id: number): Activity {
     id,
     name,
     activityCode,
-    startTime: formatDublinTime(dateStr, hours, minutes),
-    endTime: formatDublinTime(
+    startTime: formatScheduleTime(dateStr, hours, minutes),
+    endTime: formatScheduleTime(
       dateStr,
       endDate.getHours(),
       endDate.getMinutes()
@@ -486,12 +493,12 @@ function buildDayActivities(
   return { activities, nextId: id }
 }
 
-async function fetchIrelandTemplate(
+async function fetchScheduleTemplate(
   client: WcaApiClient
 ): Promise<Map<string, Round>> {
   const wcif = await loadCompetitionWcif(
     client,
-    IRELAND_TEMPLATE_COMPETITION_ID
+    scheduleTemplateCompetitionId()
   )
   if (!wcif) return new Map()
   return new Map(
@@ -731,7 +738,7 @@ function buildVenue(
     latitudeMicrodegrees: Math.round((venueInfo?.lat ?? 0) * 1e6),
     longitudeMicrodegrees: Math.round((venueInfo?.lng ?? 0) * 1e6),
     countryIso2: venueInfo?.country ?? "IE",
-    timezone: DUBLIN_TIMEZONE,
+    timezone: SCHEDULE_TIMEZONE,
     rooms: [room],
     extensions: [],
   }
@@ -775,7 +782,7 @@ export async function executePushScheduleToWca(input: {
   const hasExistingVenue = wcif.schedule.venues.length > 0
 
   const [templateRounds, venueInfo, progressionRows] = await Promise.all([
-    fetchIrelandTemplate(wcaClient),
+    fetchScheduleTemplate(wcaClient),
     hasExistingVenue
       ? Promise.resolve(null)
       : fetchCompetitionVenueInfo(wcaClient, input.wcaCompetitionId),

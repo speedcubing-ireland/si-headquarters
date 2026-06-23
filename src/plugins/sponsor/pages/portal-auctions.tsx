@@ -194,7 +194,8 @@ function AuctionListRow({ auction }: { auction: PortalAuctionListRow }) {
               <AuctionCompetitionSummaryCompact
                 summary={auction.competitionSummary}
               />
-              {auction.competitionSummarySource !== "wca" ? (
+              {auction.subjectKind !== "custom" &&
+              auction.competitionSummarySource !== "wca" ? (
                 <p className="text-sm text-muted-foreground">
                   Detailed competition data is still syncing from WCA.
                 </p>

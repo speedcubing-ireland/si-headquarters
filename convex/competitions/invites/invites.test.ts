@@ -141,12 +141,12 @@ describe("organiser invites", () => {
   test("invite context is public and rejects bad tokens", async () => {
     const { t, token } = await setupInvite()
 
-    const context = await t.query(api.organisers.queries.inviteContext, {
+    const context = await t.query(api.wcaLogin.queries.inviteContext, {
       token,
     })
     expect(context).toBeNull()
     await expect(
-      t.query(api.organisers.queries.inviteContext, { token: "short" })
+      t.query(api.wcaLogin.queries.inviteContext, { token: "short" })
     ).resolves.toBeNull()
   })
 })
@@ -160,7 +160,7 @@ describe("WCA sign-in gate", () => {
       name?: string
     }
   ) {
-    return t.mutation(internal.organisers.internal.signInWithWca, args)
+    return t.mutation(internal.wcaLogin.internal.signInWithWca, args)
   }
 
   test("a valid invite creates the user and adds them as organiser", async () => {

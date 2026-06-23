@@ -11,14 +11,19 @@ import { canvaPlugin } from "@/convex/plugins/canva/backendPlugin"
 import { discordPlugin } from "@/convex/plugins/discord/definition"
 import { sheetsPlugin } from "@/convex/plugins/sheets/definition"
 import { wcaPlugin } from "@/convex/plugins/wca/definition"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 
 type BackendPlugin = BackendIntegrationPlugin & BackendProjectWorkflowPlugin
 
 export const INTEGRATION_PLUGINS = [
-  sheetsPlugin,
-  wcaPlugin,
-  canvaPlugin,
-  discordPlugin,
+  // Sheets integrations (schedule transfer + check-in) need both a Google sheet
+  // and a WCA competition, so the plugin is only useful when both are enabled.
+  ...(isFeatureEnabled("google") && isFeatureEnabled("wcaIntegration")
+    ? [sheetsPlugin]
+    : []),
+  ...(isFeatureEnabled("wcaIntegration") ? [wcaPlugin] : []),
+  ...(isFeatureEnabled("canva") ? [canvaPlugin] : []),
+  ...(isFeatureEnabled("discord") ? [discordPlugin] : []),
 ] as const satisfies readonly BackendIntegrationPlugin[]
 
 export const BACKEND_PLUGINS: readonly BackendPlugin[] = [

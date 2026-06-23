@@ -107,7 +107,7 @@ printf "\n${BOLD}Running pre-commit checks…${RESET}  ${DIM}(--no-verify to ski
 run_step "lint" bun run lint || exit 1
 
 # 2. Format (oxfmt)
-run_step "format" bun run format:check || exit 1
+run_step "format" bun run format || exit 1
 
 # 3. Typecheck (app, node, convex, scripts)
 run_step "typecheck" bun run typecheck || exit 1

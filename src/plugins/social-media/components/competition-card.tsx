@@ -28,10 +28,11 @@ import {
 } from "@/components/ui/tooltip"
 import {
   formatDateRange,
-  formatDateTimeInDublin,
-} from "@/lib/format/irish-dates"
+  formatDateTimeInConfiguredTimeZone,
+} from "@/lib/format/dates"
 import { formatWcaEventLabel, formatWcaEventShortLabel } from "@/lib/wca-events"
 import type { SocialMediaDashboardCompetition } from "@/plugins/social-media/use-social-media-dashboard"
+import { organisationConfig } from "@/config/lib/organisation"
 
 const VISIBLE_EVENT_COUNT = 4
 
@@ -170,7 +171,7 @@ export function CompetitionCard({
     ? competition.address.trim()
     : null
   const registrationOpen = hasText(competition.registrationOpen)
-    ? formatDateTimeInDublin(competition.registrationOpen)
+    ? formatDateTimeInConfiguredTimeZone(competition.registrationOpen)
     : null
 
   const copyPostInfo = async () => {
@@ -261,7 +262,7 @@ export function CompetitionCard({
               to="/competitions/$id"
               params={{ id: competition.hqCompetitionId }}
             >
-              Open in HQ
+              Open in {organisationConfig.organisation.productName}
               <ArrowRight className="size-3.5" />
             </Link>
           </Button>

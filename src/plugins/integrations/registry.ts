@@ -13,6 +13,7 @@ import { sheetsIntegrationPlugin } from "@/plugins/sheets"
 import { wcaIntegrationPlugin } from "@/plugins/wca"
 import type { LucideIcon } from "lucide-react"
 import type { ComponentType, ReactNode } from "react"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 
 export interface LinkResourceActionProps {
   object: CompetitionOrProjectRef
@@ -48,10 +49,14 @@ export interface IntegrationPlugin {
 }
 
 export const INTEGRATION_PLUGINS: IntegrationPlugin[] = [
-  sheetsIntegrationPlugin,
-  wcaIntegrationPlugin,
-  canvaIntegrationPlugin,
-  discordIntegrationPlugin,
+  // Sheets integrations (schedule transfer + check-in) and the linked Google
+  // sheet resource are only useful when both Google and WCA are enabled.
+  ...(isFeatureEnabled("google") && isFeatureEnabled("wcaIntegration")
+    ? [sheetsIntegrationPlugin]
+    : []),
+  ...(isFeatureEnabled("wcaIntegration") ? [wcaIntegrationPlugin] : []),
+  ...(isFeatureEnabled("canva") ? [canvaIntegrationPlugin] : []),
+  ...(isFeatureEnabled("discord") ? [discordIntegrationPlugin] : []),
 ]
 
 export function getLinkedResourcePlugins(

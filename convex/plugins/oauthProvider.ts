@@ -5,10 +5,7 @@ import {
   type JsonRecord,
 } from "@/convex/integrations/jsonBoundary"
 import type { OAuthService } from "@/convex/integrations/validators"
-import {
-  requireConvexEnv,
-  type RequiredStringConvexEnvName,
-} from "@/convex/envTypes"
+import { requireConvexEnv, type StringConvexEnvName } from "@/convex/envTypes"
 
 export interface OAuthPluginCliMeta {
   readonly providerDisplayName: string
@@ -34,8 +31,8 @@ export interface OAuthClientConfig {
   authorizationUrl: RuntimeUrl
   tokenUrl: RuntimeUrl
   scope: string
-  clientIdEnv: RequiredStringConvexEnvName
-  clientSecretEnv: RequiredStringConvexEnvName
+  clientIdEnv: StringConvexEnvName
+  clientSecretEnv: StringConvexEnvName
   defaultExpiresInSec: number
   authStyle: "basic" | "body"
   expiryFromCreatedAt?: boolean

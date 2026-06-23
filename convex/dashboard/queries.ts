@@ -2,7 +2,7 @@ import { collectAll, type CompetitionOrProjectRef } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
 import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
-import { dublinToday } from "@/convex/notifications/time"
+import { localToday } from "@/convex/notifications/localTime"
 import {
   canPerform,
   isCompetitionSteward,
@@ -611,7 +611,7 @@ export const getHome = query({
   }),
   handler: async (ctx) => {
     const principal = await requirePrincipal(ctx)
-    const today = dublinToday()
+    const today = localToday()
     const [
       taskRows,
       competitions,

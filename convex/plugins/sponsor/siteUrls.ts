@@ -1,16 +1,26 @@
-import { env } from "@/convex/_generated/server"
-import { resolveHqSiteBaseUrl } from "@/convex/urls"
+import { requireConvexEnv } from "@/convex/envTypes"
+import { resolveMainSiteBaseUrl } from "@/convex/urls"
 
 function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value
 }
 
 export function resolveSponsorPortalBaseUrl(): string {
-  return trimTrailingSlash(env.SPONSOR_SITE_URL)
+  return trimTrailingSlash(
+    requireConvexEnv(
+      "SPONSOR_SITE_URL",
+      "Sponsor portal URLs require SPONSOR_SITE_URL to be set."
+    )
+  )
 }
 
 export function resolveSponsorPortalBaseUrlForAuth(): string {
-  return trimTrailingSlash(env.SPONSOR_SITE_URL)
+  return trimTrailingSlash(
+    requireConvexEnv(
+      "SPONSOR_SITE_URL",
+      "Sponsor auth requires SPONSOR_SITE_URL to be set."
+    )
+  )
 }
 
 export function resolveSponsorPortalOriginForAuth(): string {
@@ -34,5 +44,5 @@ export function sponsorPortalGuideUrl(): string {
 }
 
 export function sponsorshipAdminPageUrl(): string {
-  return `${resolveHqSiteBaseUrl()}/plugins/sponsorship`
+  return `${resolveMainSiteBaseUrl()}/plugins/sponsorship`
 }

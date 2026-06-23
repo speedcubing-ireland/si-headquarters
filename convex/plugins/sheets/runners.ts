@@ -5,7 +5,7 @@ import type {
   TaskIntegrationRunResult,
 } from "@/convex/integrations/taskIntegrations/pluginContract"
 import { requireRunResource } from "@/convex/integrations/taskIntegrations/runResource"
-import { CHECKIN_SHARE_EMAIL } from "@/convex/plugins/sheets/constants"
+import { getCheckinShareEmail } from "@/convex/plugins/sheets/constants"
 import { shareSheetWithEmail } from "@/convex/plugins/sheets/googleApi"
 import { fetchGoogleAndWcaTokens } from "@/convex/plugins/sheets/tokens"
 import type { ActionCtx } from "@/convex/_generated/server"
@@ -74,16 +74,18 @@ export async function runPopulateCheckin(
     }
   }
 
+  const checkinShareEmail = getCheckinShareEmail()
+
   try {
     await shareSheetWithEmail(
       googleAccessToken,
       sheet.sheetId,
-      CHECKIN_SHARE_EMAIL
+      checkinShareEmail
     )
   } catch (err) {
     return {
       status: "error",
-      lastMessage: `Wrote ${String(result.rowsWritten)} accepted registrations, but sharing the sheet with ${CHECKIN_SHARE_EMAIL} failed: ${err instanceof Error ? err.message : "Unknown error"}. Share it manually in Google Drive.`,
+      lastMessage: `Wrote ${String(result.rowsWritten)} accepted registrations, but sharing the sheet with ${checkinShareEmail} failed: ${err instanceof Error ? err.message : "Unknown error"}. Share it manually in Google Drive.`,
       output: {
         kind: "checkin_populate",
         rowsWritten: result.rowsWritten,
@@ -93,7 +95,7 @@ export async function runPopulateCheckin(
 
   return {
     status: "completed",
-    lastMessage: `Wrote ${String(result.rowsWritten)} accepted registrations and shared the sheet with ${CHECKIN_SHARE_EMAIL}.`,
+    lastMessage: `Wrote ${String(result.rowsWritten)} accepted registrations and shared the sheet with ${checkinShareEmail}.`,
     output: {
       kind: "checkin_populate",
       rowsWritten: result.rowsWritten,

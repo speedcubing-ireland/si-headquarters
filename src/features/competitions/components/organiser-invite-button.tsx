@@ -15,7 +15,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
+import { organisationConfig } from "@/config/lib/organisation"
 
 type InviteLink = FunctionReturnType<
   typeof api.competitions.invites.mutations.create
@@ -64,7 +65,7 @@ export function OrganiserInviteButton({
       <DialogTrigger asChild>
         <Button type="button" className="w-full">
           <MessageCirclePlusIcon />
-          Invite Organiser To HQ
+          Invite Organiser To {organisationConfig.organisation.productName}
         </Button>
       </DialogTrigger>
       <DialogContent className="space-y-3">

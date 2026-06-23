@@ -3,6 +3,7 @@
 import { generate } from "otplib"
 import { ConvexError, v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 import { requireConvexEnv } from "@/convex/envTypes"
 import { WCA_2FA_SECRET_ENV } from "@/convex/plugins/wca/definition"
 import { action } from "@/convex/_generated/server"
@@ -21,6 +22,13 @@ export const generateCode = action({
     serverNowMs: v.number(),
   }),
   handler: async (ctx) => {
+    if (!isFeatureEnabled("wca2fa")) {
+      throw new ConvexError({
+        code: "PRECONDITION_FAILED",
+        message: "WCA 2FA is not enabled for this organisation.",
+      })
+    }
+
     await ctx.runQuery(internal.permissions.queries.assertWca2faAccess, {})
 
     let secret: string

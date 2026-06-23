@@ -1,12 +1,15 @@
-const DUBLIN_TIME_ZONE = "Europe/Dublin"
+import { organisationConfig } from "@/config/lib/organisation"
+
+const { locale, timeZone, reminderHour } = organisationConfig.regional
 
 function partsFor(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-IE", {
-    timeZone: DUBLIN_TIME_ZONE,
+  const parts = new Intl.DateTimeFormat(locale, {
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
+    minute: "2-digit",
     hourCycle: "h23",
   }).formatToParts(date)
   const get = (type: Intl.DateTimeFormatPartTypes) =>
@@ -16,6 +19,7 @@ function partsFor(date: Date) {
     month: get("month"),
     day: get("day"),
     hour: get("hour"),
+    minute: get("minute"),
   }
 }
 
@@ -28,18 +32,18 @@ function utcDateForLocalYmd(ymd: string) {
   return new Date(Date.UTC(year, month - 1, day))
 }
 
-export function dublinToday(nowMs = Date.now()) {
+export function localToday(nowMs = Date.now()) {
   const parts = partsFor(new Date(nowMs))
   return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`
 }
 
-export function dublinDateOffset(ymd: string, days: number) {
+export function localDateOffset(ymd: string, days: number) {
   const date = utcDateForLocalYmd(ymd)
   date.setUTCDate(date.getUTCDate() + days)
   return ymdFromUtcDate(date)
 }
 
-export function isDublinLocalTimeInWindow(
+export function isConfiguredLocalTimeInWindow(
   startHour: number,
   endHour: number,
   nowMs = Date.now()
@@ -48,20 +52,16 @@ export function isDublinLocalTimeInWindow(
   return hour >= startHour && hour < endHour
 }
 
-export function nextDublinEightAm(nowMs = Date.now()) {
-  const today = dublinToday(nowMs)
-  const tomorrow = dublinDateOffset(today, 1)
-  const candidate = localDublinTimeToUtcMs(tomorrow, 8, 0)
+export function nextConfiguredReminderTime(nowMs = Date.now()) {
+  const today = localToday(nowMs)
+  const tomorrow = localDateOffset(today, 1)
+  const candidate = localTimeToUtcMs(tomorrow, reminderHour, 0)
   return candidate <= nowMs
-    ? localDublinTimeToUtcMs(dublinDateOffset(tomorrow, 1), 8, 0)
+    ? localTimeToUtcMs(localDateOffset(tomorrow, 1), reminderHour, 0)
     : candidate
 }
 
-export function localDublinTimeToUtcMs(
-  ymd: string,
-  hour: number,
-  minute: number
-) {
+export function localTimeToUtcMs(ymd: string, hour: number, minute: number) {
   const [year, month, day] = ymd.split("-").map(Number)
   let guess = Date.UTC(year, month - 1, day, hour, minute)
 
@@ -71,7 +71,8 @@ export function localDublinTimeToUtcMs(
       parts.year,
       parts.month - 1,
       parts.day,
-      parts.hour
+      parts.hour,
+      parts.minute
     )
     const desiredAsUtc = Date.UTC(year, month - 1, day, hour, minute)
     const offset = localAsUtc - guess

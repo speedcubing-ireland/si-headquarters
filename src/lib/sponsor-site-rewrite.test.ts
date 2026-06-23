@@ -29,7 +29,7 @@ describe("createSponsorSiteRewrite", () => {
     expect(result.pathname).toBe("/auctions/abc123")
   })
 
-  it("routes unknown HQ paths to the sponsor not-found route on input", () => {
+  it("routes unknown main-app paths to the sponsor not-found route on input", () => {
     const url = new URL("http://localhost:5174/competitions")
     const result = rewrite.input?.({ url }) as URL
     expect(result.pathname).toBe("/sponsor/404")

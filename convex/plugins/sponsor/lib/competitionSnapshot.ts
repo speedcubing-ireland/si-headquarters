@@ -4,7 +4,9 @@ import { competitionStartEnd } from "@/convex/competitions/dates"
 
 export const sponsorshipCompetitionSummarySource = v.union(
   v.literal("competition_record"),
-  v.literal("wca")
+  v.literal("wca_pending"),
+  v.literal("wca"),
+  v.literal("custom")
 )
 
 export type SponsorshipCompetitionSummarySource = Infer<
@@ -115,6 +117,58 @@ export function buildWcaCompetitionSummary(details: {
     eventIds: details.event_ids,
     ...(hasCoordinates ? { latitude, longitude } : {}),
   }
+}
+
+function toIsoDate(value: number): string {
+  if (!Number.isFinite(value)) return ""
+  return new Date(value).toISOString().slice(0, 10)
+}
+
+export function buildCustomOfferingSummary(input: {
+  name: string
+  startsAt: number
+  endsAt: number
+}): SponsorshipCompetitionSummary {
+  return {
+    name: input.name,
+    address: "",
+    startDate: toIsoDate(input.startsAt),
+    endDate: toIsoDate(input.endsAt),
+    eventIds: [],
+  }
+}
+
+export function buildCustomOfferingSnapshot(input: {
+  name: string
+  startsAt: number
+  endsAt: number
+}): SponsorshipCompetitionSnapshot {
+  return buildCompetitionSnapshot({
+    summary: buildCustomOfferingSummary(input),
+    source: "custom",
+  })
+}
+
+/**
+ * Seed snapshot for a WCA-competition subject created without an HQ competition
+ * record. The real venue/event data is filled in by the snapshot refresh action;
+ * until then the summary just carries the WCA id as a placeholder name.
+ */
+export function buildWcaPlaceholderSnapshot(input: {
+  wcaCompetitionId: string
+  startsAt: number
+  endsAt: number
+}): SponsorshipCompetitionSnapshot {
+  return buildCompetitionSnapshot({
+    summary: {
+      name: input.wcaCompetitionId,
+      address: "",
+      startDate: toIsoDate(input.startsAt),
+      endDate: toIsoDate(input.endsAt),
+      eventIds: [],
+    },
+    source: "wca_pending",
+  })
 }
 
 export function buildCompetitionSnapshot(input: {

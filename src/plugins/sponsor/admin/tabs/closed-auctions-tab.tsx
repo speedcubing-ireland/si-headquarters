@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { TabsContent } from "@/components/ui/tabs"
 import { AuctionBidStatusSection } from "@/plugins/sponsor/admin/components/auction-bid-status-section"
 import { AuctionTable } from "@/plugins/sponsor/admin/components/auction-table"
-import { formatDateTime } from "@/lib/format/irish-dates"
+import { formatDateTime } from "@/lib/format/dates"
 import { auctionFrameworkLabel } from "@/convex/plugins/sponsor/lib/types"
 import {
   displayAuctionPriceCents,
@@ -125,11 +125,13 @@ export function ClosedAuctionsTab() {
               <>
                 <div className="space-y-1 rounded-md border p-3 text-sm">
                   <p className="font-medium">
-                    {selectedClosedAuction.competitionName}
+                    {selectedClosedAuction.subjectName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {auctionFrameworkLabel(selectedClosedAuction.framework)} ·{" "}
-                    {selectedClosedAuction.competitionPhaseName}
+                    {auctionFrameworkLabel(selectedClosedAuction.framework)}
+                    {selectedClosedAuction.competitionPhaseName !== undefined
+                      ? ` · ${selectedClosedAuction.competitionPhaseName}`
+                      : null}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge

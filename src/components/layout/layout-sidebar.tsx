@@ -30,6 +30,7 @@ import { UserImpersonationBanner } from "@/features/impersonation/impersonation-
 import { PLUGINS } from "@/plugins/registry"
 import { Can } from "@/features/auth"
 import { useAdminAccess } from "@/features/admin/use-admin-access"
+import { organisationConfig } from "@/config/lib/organisation"
 
 const homeLink = { label: "Home", to: "/" as const, icon: HomeIcon }
 
@@ -81,8 +82,12 @@ function SidebarTitle() {
               <BlocksIcon className="size-4" />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">Speedcubing Ireland</span>
-              <span className="truncate text-xs">Headquarters</span>
+              <span className="truncate font-medium">
+                {organisationConfig.organisation.name}
+              </span>
+              <span className="truncate text-xs">
+                {organisationConfig.organisation.productName}
+              </span>
             </div>
           </Link>
         </SidebarMenuButton>

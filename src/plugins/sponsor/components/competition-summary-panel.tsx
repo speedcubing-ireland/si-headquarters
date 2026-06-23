@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,7 +21,7 @@ import type {
   SponsorshipCompetitionSummary,
   SponsorshipCompetitionSummarySource,
 } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
-import { formatDateRange } from "@/lib/format/irish-dates"
+import { formatDateRange } from "@/lib/format/dates"
 import { formatWcaEventLabel } from "@/lib/wca-events"
 
 function EventsSummary({ eventIds }: { eventIds: string[] }) {
@@ -51,8 +52,28 @@ function EventsSummary({ eventIds }: { eventIds: string[] }) {
 export function AuctionCompetitionSummaryPanel(props: {
   summary: SponsorshipCompetitionSummary
   source: SponsorshipCompetitionSummarySource
+  offeringDescriptionMarkdown?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const offeringDescription = props.offeringDescriptionMarkdown?.trim() ?? ""
+  if (props.source === "custom") {
+    if (offeringDescription.length === 0) {
+      return null
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardDescription>More info</CardDescription>
+          <CardTitle className="text-xl">{props.summary.name}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Streamdown className="text-sm">{offeringDescription}</Streamdown>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const dateRange = formatDateRange(
     props.summary.startDate,
     props.summary.endDate

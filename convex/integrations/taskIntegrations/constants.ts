@@ -1,4 +1,4 @@
-import type { RequiredStringConvexEnvName } from "@/convex/envTypes"
+import type { StringConvexEnvName } from "@/convex/envTypes"
 import {
   DEFAULT_RESOURCE_KEYS,
   type LinkedResourceTypeId,
@@ -38,8 +38,8 @@ interface TaskIntegrationCatalogEntry {
     resourceKey: string
   }[]
   canva?: {
-    sourceBrandTemplateEnv: RequiredStringConvexEnvName
-    destinationFolderEnv: RequiredStringConvexEnvName
+    sourceBrandTemplateEnv: StringConvexEnvName
+    destinationFolderEnv: StringConvexEnvName
     naming: { outputSuffix: string }
   }
 }

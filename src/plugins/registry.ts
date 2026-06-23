@@ -4,6 +4,7 @@ import type { Action, Subject } from "@/features/auth/ability"
 import { sponsorPlugin } from "@/plugins/sponsor"
 import { socialMediaPlugin } from "@/plugins/social-media"
 import { wca2faPlugin } from "@/plugins/wca-2fa"
+import { isFeatureEnabled, type FeatureId } from "@/config/lib/organisation"
 
 export interface SidebarEntry {
   label: string
@@ -17,12 +18,24 @@ export interface SidebarEntry {
 
 export interface Plugin {
   id: string
+  feature: FeatureId
   nav: SidebarEntry[]
   competitionProperties: ComponentType<{ competitionId: string }>[]
 }
 
-export const PLUGINS: Plugin[] = [
-  wca2faPlugin,
-  socialMediaPlugin,
-  sponsorPlugin,
-]
+const ALL_PLUGINS: Plugin[] = [wca2faPlugin, socialMediaPlugin, sponsorPlugin]
+
+export const PLUGINS: Plugin[] = ALL_PLUGINS.filter((plugin) =>
+  isFeatureEnabled(plugin.feature)
+)
+
+export function featureForPluginPath(pathname: string): FeatureId | null {
+  for (const plugin of ALL_PLUGINS) {
+    for (const entry of plugin.nav) {
+      if (pathname === entry.to || pathname.startsWith(`${entry.to}/`)) {
+        return plugin.feature
+      }
+    }
+  }
+  return null
+}

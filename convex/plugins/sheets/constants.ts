@@ -1,1 +1,5 @@
-export const CHECKIN_SHARE_EMAIL = "laptop@speedcubingireland.com"
+import { checkinSheetsConfig } from "@/config/lib/organisation"
+
+export function getCheckinShareEmail(): string {
+  return checkinSheetsConfig().contacts.checkinShareEmail
+}

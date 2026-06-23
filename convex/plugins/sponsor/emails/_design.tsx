@@ -14,6 +14,10 @@ import {
 import type { TailwindConfig } from "@react-email/components"
 import { pixelBasedPreset } from "@react-email/components"
 import type { ReactNode } from "react"
+import {
+  organisationConfig,
+  sponsorshipConfig,
+} from "@/config/lib/organisation"
 
 export const emailBrandTokens = {
   primary: "#2f9e64",
@@ -85,6 +89,7 @@ interface SponsorshipEmailShellProps {
 }
 
 export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
+  const sponsorshipTeamName = sponsorshipConfig().contacts.sponsorshipTeamName
   const showCta =
     props.ctaLabel !== undefined &&
     props.ctaLabel.length > 0 &&
@@ -102,7 +107,7 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
           <Container className="border-brand-border bg-brand-surface mx-auto max-w-xl overflow-hidden rounded-xl border border-solid">
             <Section className="bg-brand-primary px-6 py-4">
               <Text className="text-brand-primary-fg m-0 text-xs font-semibold tracking-wide uppercase">
-                Speedcubing Ireland · Sponsorship
+                {organisationConfig.organisation.name} · {sponsorshipTeamName}
               </Text>
             </Section>
             <Section className="px-6 py-6">
@@ -119,8 +124,8 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
               ) : null}
               <Section className="mt-4">{props.children}</Section>
               <Text className="text-brand-muted m-0 mt-4 text-xs leading-5">
-                Need help? Reply to this email and the Sponsorship Team will
-                assist.
+                Need help? Reply to this email and the {sponsorshipTeamName}{" "}
+                will assist.
               </Text>
               {showCta ? (
                 <Section className="mt-4">
@@ -138,19 +143,20 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
 }
 
 export function formatEmailDateTime(timestamp: number): string {
+  const { locale, timeZone, timeZoneLabel } = organisationConfig.regional
   const date = new Date(timestamp)
-  const formatted = date.toLocaleString("en-IE", {
+  const formatted = date.toLocaleString(locale, {
     dateStyle: "full",
     timeStyle: "short",
-    timeZone: "Europe/Dublin",
+    timeZone,
   })
   const timeZoneName =
-    new Intl.DateTimeFormat("en-IE", {
-      timeZone: "Europe/Dublin",
+    new Intl.DateTimeFormat(locale, {
+      timeZone,
       timeZoneName: "longGeneric",
     })
       .formatToParts(date)
-      .find((part) => part.type === "timeZoneName")?.value ?? "Irish time"
+      .find((part) => part.type === "timeZoneName")?.value ?? timeZoneLabel
   return `${formatted} (${timeZoneName})`
 }
 
@@ -182,7 +188,10 @@ export function SponsorshipInfoBlock(props: {
   )
 }
 
-export function formatMoney(cents: number, currency = "EUR"): string {
+export function formatMoney(
+  cents: number,
+  currency = sponsorshipConfig().sponsorship.defaultCurrency
+): string {
   return `${currency} ${(cents / 100).toFixed(2)}`
 }
 

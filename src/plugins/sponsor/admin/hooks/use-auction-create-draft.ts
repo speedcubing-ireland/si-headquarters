@@ -34,6 +34,9 @@ function initialCreateDraft(defaults: AuctionDefaults): AuctionEditorDraft {
     endsAtInput: toDatetimeLocalInput(new Date(endsAt)),
     startPriceEuros: "100",
     invitedSponsorIds: [],
+    isCustomOffering: false,
+    customOfferingName: "",
+    customOfferingDescriptionMarkdown: "",
   }
 }
 

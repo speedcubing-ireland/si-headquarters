@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test"
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest"
+import { describe, expect, test } from "vitest"
 import { internal } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
@@ -25,29 +25,6 @@ import { addTeamMember, ensureTeamByName } from "@/convex/teams/model"
 import { NUDGE_COOLDOWN_MS } from "@/convex/notifications/nudge"
 import type { NotificationEvent } from "@/convex/notifications/validators"
 import { modules } from "@/convex/test.setup"
-
-beforeAll(() => {
-  vi.stubEnv("DEPLOYMENT_CONTEXT", "production")
-  vi.stubEnv("DISCORD_ACTION_SECRET", "test-discord-action-secret")
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: string | URL | Request) => {
-      const url = input instanceof Request ? input.url : input.toString()
-      if (url.endsWith("/users/@me/channels")) {
-        return Response.json({ id: "test-discord-channel" })
-      }
-      if (url.includes("discord.com/api/v10/channels/")) {
-        return new Response(null, { status: 204 })
-      }
-      return new Response(null, { status: 404 })
-    })
-  )
-})
-
-afterAll(() => {
-  vi.unstubAllGlobals()
-  vi.unstubAllEnvs()
-})
 
 async function insertLinkedUser(
   ctx: MutationCtx,
@@ -268,7 +245,7 @@ describe("notification drafts", () => {
     })
   })
 
-  test("task reminders include snooze actions and a custom-time HQ link", async () => {
+  test("task reminders include snooze actions and a custom-time product link", async () => {
     const t = convexTest(schema, modules)
     const { reminderId } = await t.run(async (ctx) => {
       const { taskId } = await seedTaskInCompetition(ctx)
@@ -533,7 +510,7 @@ describe("notification drafts", () => {
 })
 
 describe("due notifications", () => {
-  test("due scan accepts delayed Dublin-morning starts and claims the date once", async () => {
+  test("due scan accepts delayed local-morning starts and claims the date once", async () => {
     const t = convexTest(schema, modules)
     const delayedNowMs = Date.UTC(2026, 5, 8, 8, 30, 0)
 
@@ -559,7 +536,7 @@ describe("due notifications", () => {
     expect(scheduledAfterSecond).toHaveLength(scheduledAfterFirst.length)
   })
 
-  test("due scan skips invocations before the Dublin-morning window", async () => {
+  test("due scan skips invocations before the local-morning window", async () => {
     const t = convexTest(schema, modules)
 
     await t.mutation(internal.notifications.due.runDueScan, {

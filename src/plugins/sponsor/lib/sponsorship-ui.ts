@@ -1,5 +1,6 @@
-import { formatDistanceToNow } from "date-fns"
+import { formatDistance, formatDistanceToNow } from "date-fns"
 import type { Doc } from "@/convex/_generated/dataModel"
+import { sponsorshipConfig } from "@/config/lib/organisation"
 import {
   SPONSORSHIP_AUCTION_FRAMEWORKS,
   isSealedAuctionFramework,
@@ -175,8 +176,17 @@ export function sponsorshipLifecycleStatusText(
   return `Starts ${formatDistanceToNow(new Date(startMillis), { addSuffix: true })}`
 }
 
-export function formatEuroFromCents(cents: number): string {
-  return `EUR ${(cents / 100).toFixed(2)}`
+export function formatCurrencyFromCents(
+  cents: number,
+  currency = sponsorshipConfig().sponsorship.defaultCurrency
+): string {
+  return `${currency} ${(cents / 100).toFixed(2)}`
+}
+
+export const formatEuroFromCents = formatCurrencyFromCents
+
+export function currencyInputLabel(label: string): string {
+  return `${label} (${sponsorshipConfig().sponsorship.defaultCurrency})`
 }
 
 export function competitionPropertyStatusLabel(
@@ -237,6 +247,26 @@ export function toDatetimeLocalInput(date: Date): string {
 export function parseDatetimeLocalInput(value: string): number | null {
   const millis = new Date(value).getTime()
   return Number.isFinite(millis) ? millis : null
+}
+
+export function auctionScheduleDraftLabels(
+  startsAtInput: string,
+  endsAtInput: string
+): { opensIn: string | null; duration: string | null } {
+  const startMs = parseDatetimeLocalInput(startsAtInput)
+  const endMs = parseDatetimeLocalInput(endsAtInput)
+
+  const opensIn =
+    startMs !== null
+      ? `Opens ${formatDistanceToNow(new Date(startMs), { addSuffix: true })}`
+      : null
+
+  const duration =
+    startMs !== null && endMs !== null && endMs > startMs
+      ? formatDistance(new Date(startMs), new Date(endMs))
+      : null
+
+  return { opensIn, duration }
 }
 
 export function centsToEuroInput(cents: number | undefined): string {

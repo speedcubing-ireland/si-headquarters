@@ -27,8 +27,8 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly AUTH_GOOGLE_ID: string;
   readonly AUTH_GOOGLE_SECRET: string;
-  readonly AUTH_WCA_ID: string | undefined;
-  readonly AUTH_WCA_SECRET: string | undefined;
+  readonly AUTH_WCA_ID: string;
+  readonly AUTH_WCA_SECRET: string;
   readonly BETTER_AUTH_SECRET: string | undefined;
   readonly CANVA_CERT_OUTPUT_FOLDER_ID: string;
   readonly CANVA_CERT_TEMPLATE_ID: string;

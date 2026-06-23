@@ -6,7 +6,7 @@ import {
   readString,
   type JsonRecord,
 } from "@/convex/integrations/jsonBoundary"
-import { env } from "@/convex/_generated/server"
+import { requireConvexEnv } from "@/convex/envTypes"
 import type { DiscordLink } from "@/convex/users/validators"
 
 const DISCORD_API = "https://discord.com/api/v10"
@@ -63,13 +63,21 @@ export async function searchGuildMembers(
   query: string,
   limit = 25
 ): Promise<DiscordLink[]> {
+  const guildId = requireConvexEnv(
+    "DISCORD_GUILD_ID",
+    "Discord member search requires DISCORD_GUILD_ID to be set."
+  )
+  const botToken = requireConvexEnv(
+    "DISCORD_BOT_TOKEN",
+    "Discord member search requires DISCORD_BOT_TOKEN to be set."
+  )
   const params = new URLSearchParams({
     query,
     limit: String(Math.min(Math.max(limit, 1), 100)),
   })
   const response = await fetch(
-    `${DISCORD_API}/guilds/${env.DISCORD_GUILD_ID}/members/search?${params.toString()}`,
-    { headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` } }
+    `${DISCORD_API}/guilds/${guildId}/members/search?${params.toString()}`,
+    { headers: { Authorization: `Bot ${botToken}` } }
   )
   if (!response.ok) {
     throw new Error(

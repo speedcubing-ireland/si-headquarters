@@ -1,4 +1,12 @@
-export const SPONSOR_TEAM_EMAIL = "sponsorship@speedcubingireland.com"
+import {
+  organisationConfig,
+  sponsorshipConfig,
+} from "@/config/lib/organisation"
+import { formatCurrencyFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
+
+export function sponsorTeamEmail(): string {
+  return sponsorshipConfig().contacts.sponsorshipTeamEmail
+}
 
 export const SPONSOR_LOGIN_STEPS = [
   "Open the portal link",
@@ -14,8 +22,7 @@ export const SPONSOR_AUCTIONS_OVERVIEW = {
   body: "From the portal you should be able to see scheduled, active, and past auctions.",
   detail:
     "Each auction will have a start/end time, along with information for the type of auction it is. Some details about the competition should also be visible where the competition is not already announced.",
-  formatsIntro:
-    "Auctions will be set to one of three different formats. The auction page will say which format is being used, and this will be decided on a per-comp basis by Speedcubing Ireland. We have tried to use standard auction terminology in case you wanted to do further research about the format. The formats are:",
+  formatsIntro: `Auctions will be set to one of three different formats. The auction page will say which format is being used, and this will be decided on a per-comp basis by ${organisationConfig.organisation.name}. We have tried to use standard auction terminology in case you wanted to do further research about the format. The formats are:`,
   formatItems: [
     "Sealed Bid (similar to our old system)",
     "Vickrey Auction (winner pays the value of the highest losing bid)",
@@ -101,15 +108,42 @@ export interface ProxyBidIncrementRow {
 }
 
 export const PROXY_BID_INCREMENT_ROWS: readonly ProxyBidIncrementRow[] = [
-  { rangeLabel: "EUR 1.00 to 4.99", incrementLabel: "EUR 0.20" },
-  { rangeLabel: "EUR 5.00 to 24.99", incrementLabel: "EUR 0.50" },
-  { rangeLabel: "EUR 25.00 to 99.99", incrementLabel: "EUR 1.00" },
-  { rangeLabel: "EUR 100.00 to 249.99", incrementLabel: "EUR 2.50" },
-  { rangeLabel: "EUR 250.00 to 499.99", incrementLabel: "EUR 5.00" },
-  { rangeLabel: "EUR 500.00 to 999.99", incrementLabel: "EUR 10.00" },
-  { rangeLabel: "EUR 1,000.00 to 2,499.99", incrementLabel: "EUR 20.00" },
-  { rangeLabel: "EUR 2,500.00 to 4,999.99", incrementLabel: "EUR 50.00" },
-  { rangeLabel: "EUR 5,000.00 and above", incrementLabel: "EUR 100.00" },
+  {
+    rangeLabel: `${formatCurrencyFromCents(100)} to ${formatCurrencyFromCents(499)}`,
+    incrementLabel: formatCurrencyFromCents(20),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(500)} to ${formatCurrencyFromCents(2_499)}`,
+    incrementLabel: formatCurrencyFromCents(50),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(2_500)} to ${formatCurrencyFromCents(9_999)}`,
+    incrementLabel: formatCurrencyFromCents(100),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(10_000)} to ${formatCurrencyFromCents(24_999)}`,
+    incrementLabel: formatCurrencyFromCents(250),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(25_000)} to ${formatCurrencyFromCents(49_999)}`,
+    incrementLabel: formatCurrencyFromCents(500),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(50_000)} to ${formatCurrencyFromCents(99_999)}`,
+    incrementLabel: formatCurrencyFromCents(1_000),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(100_000)} to ${formatCurrencyFromCents(249_999)}`,
+    incrementLabel: formatCurrencyFromCents(2_000),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(250_000)} to ${formatCurrencyFromCents(499_999)}`,
+    incrementLabel: formatCurrencyFromCents(5_000),
+  },
+  {
+    rangeLabel: `${formatCurrencyFromCents(500_000)} and above`,
+    incrementLabel: formatCurrencyFromCents(10_000),
+  },
 ]
 
 export const SPONSOR_CLOSING_AND_RESULTS = {
@@ -117,14 +151,18 @@ export const SPONSOR_CLOSING_AND_RESULTS = {
   body: "Once an auction has ended, the system will determine the winning sponsor depending on the format of the auction. The winner will be notified and the final price will be displayed",
 } as const
 
-export const SPONSOR_BIDDING_NOTICE = {
-  title: "Bidding notice",
-  paragraphs: [
-    "Please note that all bids placed through the system are non-revokable except where allowed by the software. Failure to pay a winning bid will result in action such as exclusion from future sponsorship.",
-    "If there are any technical errors or if you need any assistance, please inform Speedcubing Ireland's sponsorship team immediately.",
-    "We are happy to answer any questions or help out if you run into any issues. You will also be able to access information relating to the auction formats and our sponsorship policy via the sponsor portal.",
-  ],
-} as const
+export function sponsorBiddingNotice() {
+  const sponsorshipTeamName = sponsorshipConfig().contacts.sponsorshipTeamName
+
+  return {
+    title: "Bidding notice",
+    paragraphs: [
+      "Please note that all bids placed through the system are non-revokable except where allowed by the software. Failure to pay a winning bid will result in action such as exclusion from future sponsorship.",
+      `If there are any technical errors or if you need any assistance, please inform ${organisationConfig.organisation.name}'s ${sponsorshipTeamName} immediately.`,
+      "We are happy to answer any questions or help out if you run into any issues. You will also be able to access information relating to the auction formats and our sponsorship policy via the sponsor portal.",
+    ],
+  } as const
+}
 
 export function sponsorshipFrameworkGuide(
   framework: keyof typeof SPONSORSHIP_FRAMEWORK_GUIDES

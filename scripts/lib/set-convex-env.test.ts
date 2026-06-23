@@ -1,9 +1,22 @@
 // @vitest-environment node
-import { describe, expect, test } from "vitest"
-import { REQUIRED_ENV_KEYS } from "../../convex/envConfig.ts"
+import { describe, expect, test, vi } from "vitest"
+import {
+  buildRequiredEnvSetup,
+  REQUIRED_ENV_KEYS,
+} from "../../convex/envConfig.ts"
+
+// Verify env-setup wiring for the full feature/provider set; the shipped
+// manifest gates most of it off. (The "omits disabled features" test below
+// imports the real manifest directly and is unaffected by this mock.)
+vi.mock(
+  "@/config/lib/organisation",
+  () => import("@/config/lib/organisation.testFixture")
+)
 import { CANVA_DEFINITION } from "../../convex/plugins/canva/definition.ts"
 import { GOOGLE_DEFINITION } from "../../convex/plugins/google/definition.ts"
 import { WCA_DEFINITION } from "../../convex/plugins/wca/definition.ts"
+import organisationConfig from "../../config/organisation-config.ts"
+import { organisationConfigSchema } from "../../config/lib/organisation-schema.ts"
 import {
   buildWizardEnvSpecs,
   generateEnvValues,
@@ -30,15 +43,16 @@ describe("set-convex-env metadata", () => {
     expect(specs).toHaveLength(uniqueKeys.size)
   })
 
-  test("organiser WCA login credentials are optional", () => {
+  test("WCA login credentials are required when a WCA provider is configured", () => {
     const specs = buildWizardEnvSpecs()
     for (const key of ["AUTH_WCA_ID", "AUTH_WCA_SECRET"]) {
       const spec = specs.find((entry) => entry.key === key)
-      expect(spec?.optional).toBe(true)
-      expect(REQUIRED_ENV_KEYS).not.toContain(key)
+      expect(spec).toBeDefined()
+      expect(spec?.optional).not.toBe(true)
+      expect(REQUIRED_ENV_KEYS).toContain(key)
       expect(
         spec === undefined ? "missing spec" : validateEnvValue(spec, "")
-      ).toBeNull()
+      ).toBe(`${key} is required.`)
     }
   })
 
@@ -70,6 +84,35 @@ describe("set-convex-env metadata", () => {
     }
   })
 
+  test("omits setup for disabled features and providers", () => {
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
+    )
+    config.features = {
+      google: false,
+      canva: false,
+      discord: false,
+      sponsors: false,
+      socialMedia: false,
+      wcaIntegration: false,
+      wca2fa: false,
+      organiserInvites: false,
+    }
+    config.auth.providers = config.auth.providers.filter(
+      (provider) => provider.id !== "wca" && provider.id !== "wca-staff"
+    )
+    const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
+
+    expect(keys.some((key) => key.startsWith("CANVA_"))).toBe(false)
+    expect(keys.some((key) => key.startsWith("DISCORD_"))).toBe(false)
+    expect(keys.some((key) => key.startsWith("SERVICE_WCA_"))).toBe(false)
+    expect(keys).not.toContain("WCA_2FA_SECRET")
+    expect(keys).not.toContain("AUTH_WCA_ID")
+    expect(keys).not.toContain("SPONSOR_BETTER_AUTH_SECRET")
+    expect(keys).not.toContain("SPONSOR_SITE_URL")
+    expect(keys).not.toContain("RESEND_API_KEY")
+  })
+
   test("generated wizard entries receive generated values", () => {
     const generated = {
       CLI_AUTH_TOKEN: "cli-token",
@@ -96,7 +139,6 @@ describe("dry run plan rendering", () => {
     expect(output).toContain("default: staging")
     expect(output).toContain("choices: staging, production")
     expect(output).toContain("[generated · secret]")
-    expect(output).toContain("[prompt · optional]")
     expect(output).toMatch(/\d+ variables · \d+ prompted · \d+ generated/)
     expect(output).not.toMatch(/-----BEGIN PRIVATE KEY-----/)
   })
@@ -123,28 +165,35 @@ describe("Convex env planning", () => {
     )
     const existing = new Set(["AUTH_GOOGLE_ID", "CLI_AUTH_TOKEN"])
 
-    expect(planEnvChanges(specs, existing)).toEqual([
-      { key: "AUTH_GOOGLE_ID", action: "skip-existing" },
-      { key: "AUTH_GOOGLE_SECRET", action: "set" },
-      { key: "CLI_AUTH_TOKEN", action: "skip-existing" },
-    ])
+    // Compare by key rather than position: planEnvChanges preserves the env
+    // setup ordering, which this test does not care about.
+    const actionByKey = (
+      ...args: Parameters<typeof planEnvChanges>
+    ): Record<string, string> =>
+      Object.fromEntries(planEnvChanges(...args).map((p) => [p.key, p.action]))
+
+    expect(actionByKey(specs, existing)).toEqual({
+      AUTH_GOOGLE_ID: "skip-existing",
+      AUTH_GOOGLE_SECRET: "set",
+      CLI_AUTH_TOKEN: "skip-existing",
+    })
     expect(
-      planEnvChanges(specs, existing, {
+      actionByKey(specs, existing, {
         replaceExistingKeys: new Set(["CLI_AUTH_TOKEN"]),
       })
-    ).toEqual([
-      { key: "AUTH_GOOGLE_ID", action: "skip-existing" },
-      { key: "AUTH_GOOGLE_SECRET", action: "set" },
-      { key: "CLI_AUTH_TOKEN", action: "set" },
-    ])
-    expect(planEnvChanges(specs, existing, { force: true })).toEqual([
-      { key: "AUTH_GOOGLE_ID", action: "set" },
-      { key: "AUTH_GOOGLE_SECRET", action: "set" },
-      { key: "CLI_AUTH_TOKEN", action: "set" },
-    ])
+    ).toEqual({
+      AUTH_GOOGLE_ID: "skip-existing",
+      AUTH_GOOGLE_SECRET: "set",
+      CLI_AUTH_TOKEN: "set",
+    })
+    expect(actionByKey(specs, existing, { force: true })).toEqual({
+      AUTH_GOOGLE_ID: "set",
+      AUTH_GOOGLE_SECRET: "set",
+      CLI_AUTH_TOKEN: "set",
+    })
   })
 
-  test("omits optional values left blank", () => {
+  test("plans required WCA credentials even when not pre-provided", () => {
     const specs = buildWizardEnvSpecs().filter((spec) =>
       ["AUTH_WCA_ID", "AUTH_WCA_SECRET"].includes(spec.key)
     )
@@ -153,7 +202,10 @@ describe("Convex env planning", () => {
       planEnvChanges(specs, new Set(), {
         providedKeys: new Set(),
       })
-    ).toEqual([])
+    ).toEqual([
+      { key: "AUTH_WCA_ID", action: "set" },
+      { key: "AUTH_WCA_SECRET", action: "set" },
+    ])
   })
 })
 

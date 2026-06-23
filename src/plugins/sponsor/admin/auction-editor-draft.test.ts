@@ -6,6 +6,7 @@ import {
   validateAuctionFormInputs,
   type EditableAuctionSnapshot,
 } from "./auction-editor-draft"
+import { formatCurrencyFromCents } from "@/plugins/sponsor/lib/sponsorship-ui"
 
 const snapshot: EditableAuctionSnapshot = {
   auction: {
@@ -13,8 +14,24 @@ const snapshot: EditableAuctionSnapshot = {
     startsAt: Date.UTC(2026, 0, 1, 10, 0),
     endsAt: Date.UTC(2026, 0, 1, 12, 0),
     startPriceCents: 10_000,
+    subject: {
+      kind: "hq_competition",
+      competitionId: "c1" as Id<"competitions">,
+    },
   },
   inviteSponsorIds: ["s1" as Id<"sponsors">, "s2" as Id<"sponsors">],
+}
+
+const customSnapshot: EditableAuctionSnapshot = {
+  auction: {
+    ...snapshot.auction,
+    subject: {
+      kind: "custom",
+      name: "Livestream sponsor",
+      descriptionMarkdown: "Sponsor the stream overlays.",
+    },
+  },
+  inviteSponsorIds: snapshot.inviteSponsorIds,
 }
 
 describe("createDraftFromManagerView", () => {
@@ -23,7 +40,18 @@ describe("createDraftFromManagerView", () => {
     expect(draft.framework).toBe("ebay_proxy")
     expect(draft.startPriceEuros).toBe("100.00")
     expect(draft.invitedSponsorIds).toEqual(snapshot.inviteSponsorIds)
+    expect(draft.isCustomOffering).toBe(false)
     expect(isAuctionDraftDirty(draft, snapshot)).toBe(false)
+  })
+
+  it("hydrates custom offering fields", () => {
+    const draft = createDraftFromManagerView(customSnapshot)
+    expect(draft.isCustomOffering).toBe(true)
+    expect(draft.customOfferingName).toBe("Livestream sponsor")
+    expect(draft.customOfferingDescriptionMarkdown).toBe(
+      "Sponsor the stream overlays."
+    )
+    expect(isAuctionDraftDirty(draft, customSnapshot)).toBe(false)
   })
 })
 
@@ -41,6 +69,25 @@ describe("isAuctionDraftDirty", () => {
       isAuctionDraftDirty(
         { ...clean, invitedSponsorIds: [snapshot.inviteSponsorIds[0]] },
         snapshot
+      )
+    ).toBe(true)
+  })
+
+  it("detects custom offering edits", () => {
+    const customClean = createDraftFromManagerView(customSnapshot)
+    expect(
+      isAuctionDraftDirty(
+        { ...customClean, customOfferingName: "Stage sponsor" },
+        customSnapshot
+      )
+    ).toBe(true)
+    expect(
+      isAuctionDraftDirty(
+        {
+          ...customClean,
+          customOfferingDescriptionMarkdown: "Sponsor the stage backdrop.",
+        },
+        customSnapshot
       )
     ).toBe(true)
   })
@@ -83,9 +130,21 @@ describe("validateAuctionFormInputs", () => {
     ).toEqual({ ok: false, error: "Enter a valid start/end range." })
   })
 
-  it("rejects a sub-EUR1 start price", () => {
+  it("rejects a start price below the configured minimum", () => {
     expect(
       validateAuctionFormInputs({ ...valid, startPriceEuros: "0.50" })
-    ).toEqual({ ok: false, error: "Start price must be at least EUR 1.00." })
+    ).toEqual({
+      ok: false,
+      error: `Start price must be at least ${formatCurrencyFromCents(100)}.`,
+    })
+  })
+
+  it("rejects empty custom offering names", () => {
+    expect(
+      validateAuctionFormInputs({
+        ...createDraftFromManagerView(customSnapshot),
+        customOfferingName: "  ",
+      })
+    ).toEqual({ ok: false, error: "Give the custom offering a name." })
   })
 })

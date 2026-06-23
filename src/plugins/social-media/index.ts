@@ -3,6 +3,7 @@ import type { Plugin } from "@/plugins/registry"
 
 export const socialMediaPlugin: Plugin = {
   id: "social-media",
+  feature: "socialMedia",
   nav: [
     {
       label: "Social Media",
