@@ -1,6 +1,18 @@
 import { mutation } from "@/convex/_generated/server"
-import { seedInitialData } from "@/convex/seed/model"
+import { createInitialUser, seedInitialData } from "@/convex/seed/model"
 import { v } from "convex/values"
+
+export const createUser = mutation({
+  args: {
+    wcaUserId: v.number(),
+    name: v.string(),
+    email: v.optional(v.string()),
+  },
+  returns: v.id("users"),
+  handler: async (ctx, args) => {
+    return await createInitialUser(ctx, args)
+  },
+})
 
 export const run = mutation({
   args: {},

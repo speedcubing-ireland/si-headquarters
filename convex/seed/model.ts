@@ -13,6 +13,23 @@ export interface SeedInitialDataResult {
   directorUserId: Id<"users"> | null
 }
 
+export async function createInitialUser(
+  ctx: MutationCtx,
+  args: { wcaUserId: number; name: string; email?: string }
+): Promise<Id<"users">> {
+  const existing = await ctx.db.query("users").first()
+  if (existing !== null) {
+    throw new Error(
+      "createInitialUser only runs on an empty deployment; a user already exists."
+    )
+  }
+  return await ctx.db.insert("users", {
+    wcaUserId: args.wcaUserId,
+    name: args.name,
+    email: args.email,
+  })
+}
+
 export async function seedInitialData(
   ctx: MutationCtx
 ): Promise<SeedInitialDataResult> {
