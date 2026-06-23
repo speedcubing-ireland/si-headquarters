@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from "date-fns"
+import { formatDistance, formatDistanceToNow } from "date-fns"
 import type { Doc } from "@/convex/_generated/dataModel"
 import { sponsorshipConfig } from "@/config/lib/organisation"
 import {
@@ -247,6 +247,26 @@ export function toDatetimeLocalInput(date: Date): string {
 export function parseDatetimeLocalInput(value: string): number | null {
   const millis = new Date(value).getTime()
   return Number.isFinite(millis) ? millis : null
+}
+
+export function auctionScheduleDraftLabels(
+  startsAtInput: string,
+  endsAtInput: string
+): { opensIn: string | null; duration: string | null } {
+  const startMs = parseDatetimeLocalInput(startsAtInput)
+  const endMs = parseDatetimeLocalInput(endsAtInput)
+
+  const opensIn =
+    startMs !== null
+      ? `Opens ${formatDistanceToNow(new Date(startMs), { addSuffix: true })}`
+      : null
+
+  const duration =
+    startMs !== null && endMs !== null && endMs > startMs
+      ? formatDistance(new Date(startMs), new Date(endMs))
+      : null
+
+  return { opensIn, duration }
 }
 
 export function centsToEuroInput(cents: number | undefined): string {
