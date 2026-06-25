@@ -58,6 +58,7 @@ import type { CSSProperties } from "react"
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 type PhaseOwner = Doc<"phases">["owner"]
 type PhaseColor = Doc<"phases">["color"]
@@ -472,8 +473,9 @@ function EditPhasesDialog({
 
 export function EditPhasesButton({ owner }: { owner: PhaseOwner }) {
   const phases = useQuery(api.phases.queries.listManageForOwner, { owner })
+  const isMobile = useIsMobile()
 
-  if (phases === undefined) {
+  if (phases === undefined || isMobile) {
     return null
   }
 
