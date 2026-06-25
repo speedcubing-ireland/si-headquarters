@@ -50,7 +50,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { useMutation, useQuery } from "convex/react"
 import {
   GripVerticalIcon,
-  ListOrderedIcon,
+  LayersIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -58,7 +58,7 @@ import type { CSSProperties } from "react"
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { SubtaskToolbarButton } from "@/features/subtasks/subtask-toolbar-button"
 
 type PhaseOwner = Doc<"phases">["owner"]
 type PhaseColor = Doc<"phases">["color"]
@@ -353,10 +353,7 @@ function EditPhasesDialog({
   return (
     <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
       <ResponsiveModalTrigger asChild>
-        <Button variant="outline" type="button">
-          <ListOrderedIcon />
-          Edit phases
-        </Button>
+        <SubtaskToolbarButton icon={LayersIcon} label="Edit phases" />
       </ResponsiveModalTrigger>
       <ResponsiveModalContent className="sm:max-w-3xl">
         <ResponsiveModalFrame>
@@ -473,9 +470,8 @@ function EditPhasesDialog({
 
 export function EditPhasesButton({ owner }: { owner: PhaseOwner }) {
   const phases = useQuery(api.phases.queries.listManageForOwner, { owner })
-  const isMobile = useIsMobile()
 
-  if (phases === undefined || isMobile) {
+  if (phases === undefined) {
     return null
   }
 

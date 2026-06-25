@@ -39,6 +39,7 @@ type ResponsiveModalShell = "dialog" | "drawer"
 
 interface ResponsiveModalContextValue {
   shell: ResponsiveModalShell
+  /** True when `variant="form"` on mobile (`shell === "dialog"` and not desktop). */
   isMobileForm: boolean
 }
 
@@ -91,17 +92,19 @@ function useResponsiveModalShell() {
 
 function scrollFocusedFieldIntoView(event: FocusEvent<HTMLDivElement>) {
   const { target } = event
-  if (
-    !(target instanceof HTMLInputElement) &&
-    !(target instanceof HTMLTextAreaElement) &&
-    !(target instanceof HTMLSelectElement) &&
-    target.getAttribute("contenteditable") !== "true"
-  ) {
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+
+  const field = target.closest(
+    "input, textarea, select, [contenteditable='true']"
+  )
+  if (field === null) {
     return
   }
 
   requestAnimationFrame(() => {
-    target.scrollIntoView({ block: "nearest" })
+    field.scrollIntoView({ block: "nearest" })
   })
 }
 
@@ -179,14 +182,13 @@ function ResponsiveModalClose({
 const desktopModalContentClassName =
   "relative flex max-h-[min(92dvh,calc(100svh-2rem))] min-w-0 flex-col gap-0 overflow-hidden p-0"
 
-const mobileFullscreenModalContentClassName =
+const mobileShellContentClassName =
   "relative flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden p-0"
 
-const mobileDrawerContentClassName =
-  "relative flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden p-0"
-
-type ResponsiveModalContentProps = ComponentProps<typeof DialogContent> &
-  Partial<ComponentProps<typeof DrawerContent>>
+type ResponsiveModalContentProps = ResponsiveModalChildProps &
+  Omit<ComponentProps<typeof DialogContent>, "children" | "className"> & {
+    className?: string
+  }
 
 function ResponsiveModalContent({
   className,
@@ -201,9 +203,7 @@ function ResponsiveModalContent({
     return (
       <DialogContent
         className={cn(
-          isMobileForm
-            ? mobileFullscreenModalContentClassName
-            : desktopModalContentClassName,
+          isMobileForm ? mobileShellContentClassName : desktopModalContentClassName,
           className
         )}
         showCloseButton={showCloseButton}
@@ -217,7 +217,7 @@ function ResponsiveModalContent({
 
   return (
     <DrawerContent
-      className={cn(mobileDrawerContentClassName, className)}
+      className={cn(mobileShellContentClassName, className)}
       {...props}
     >
       {children}

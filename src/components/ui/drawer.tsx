@@ -3,6 +3,7 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+/** Vaul's input repositioning conflicts with iOS Safari; browser scroll is more stable. */
 function Drawer({
   repositionInputs = false,
   ...props
