@@ -10,6 +10,7 @@ import {
   ResponsiveModalHeader,
   ResponsiveModalTitle,
   ResponsiveModalTrigger,
+  responsiveModalScrollAreaClassName,
 } from "@/components/ui/responsive-modal"
 import { Input } from "@/components/ui/input"
 import {
@@ -58,7 +59,7 @@ import type { CSSProperties } from "react"
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
-import { SubtaskToolbarButton } from "@/features/subtasks/subtask-toolbar-button"
+import { IconLabelToolbarButton } from "@/components/ui/icon-label-toolbar-button"
 
 type PhaseOwner = Doc<"phases">["owner"]
 type PhaseColor = Doc<"phases">["color"]
@@ -353,7 +354,7 @@ function EditPhasesDialog({
   return (
     <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
       <ResponsiveModalTrigger asChild>
-        <SubtaskToolbarButton icon={LayersIcon} label="Edit phases" />
+        <IconLabelToolbarButton icon={LayersIcon} label="Edit phases" />
       </ResponsiveModalTrigger>
       <ResponsiveModalContent className="sm:max-w-3xl">
         <ResponsiveModalFrame>
@@ -391,7 +392,7 @@ function EditPhasesDialog({
                 setActiveClientId(null)
               }}
             >
-              <ScrollArea className="pr-3">
+              <ScrollArea className={responsiveModalScrollAreaClassName}>
                 <SortableContext
                   items={editablePhases.map((phase) => phase.clientId)}
                   strategy={verticalListSortingStrategy}

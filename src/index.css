@@ -735,6 +735,7 @@
   }
   html {
     @apply font-sans;
+    /* Reserve scrollbar width so opening modals does not shift page layout. */
     scrollbar-gutter: stable;
   }
 }

@@ -20,6 +20,7 @@ import {
   ResponsiveModalHeader,
   ResponsiveModalTitle,
   ResponsiveModalTrigger,
+  responsiveModalScrollAreaClassName,
 } from "@/components/ui/responsive-modal"
 import {
   DropdownMenu,
@@ -41,7 +42,7 @@ import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { TaskSubtaskView } from "@/convex/tasks/queries"
 import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
-import { SubtaskToolbarButton } from "@/features/subtasks/subtask-toolbar-button"
+import { IconLabelToolbarButton } from "@/components/ui/icon-label-toolbar-button"
 import { cn } from "@/lib/utils"
 import {
   closestCorners,
@@ -601,7 +602,7 @@ export function EditTasksDialog({
   return (
     <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
       <ResponsiveModalTrigger asChild>
-        <SubtaskToolbarButton icon={ListOrderedIcon} label="Edit tasks" />
+        <IconLabelToolbarButton icon={ListOrderedIcon} label="Edit tasks" />
       </ResponsiveModalTrigger>
       <ResponsiveModalContent className="sm:max-w-3xl">
         <ResponsiveModalFrame>
@@ -623,7 +624,7 @@ export function EditTasksDialog({
                 resetDragState()
               }}
             >
-              <ScrollArea className="max-h-[min(62svh,34rem)] pr-3">
+              <ScrollArea className={responsiveModalScrollAreaClassName}>
                 <div className="grid gap-4">
                   {editableSections.map((section) => (
                     <EditableSection

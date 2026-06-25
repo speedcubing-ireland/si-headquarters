@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 import type { ComponentProps } from "react"
 
-type SubtaskToolbarButtonProps = Omit<
+type IconLabelToolbarButtonProps = Omit<
   ComponentProps<typeof Button>,
   "children" | "size"
 > & {
@@ -11,19 +11,19 @@ type SubtaskToolbarButtonProps = Omit<
   label: string
 }
 
-export function SubtaskToolbarButton({
+export function IconLabelToolbarButton({
   className,
   icon: Icon,
   label,
   type = "button",
   variant = "outline",
   ...props
-}: SubtaskToolbarButtonProps) {
+}: IconLabelToolbarButtonProps) {
   return (
     <Button
       aria-label={label}
       className={cn("shrink-0", className)}
-      size="default"
+      size="lg"
       title={label}
       type={type}
       variant={variant}

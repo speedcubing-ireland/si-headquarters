@@ -24,7 +24,7 @@ import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
 import { cn } from "@/lib/utils"
 import { useEffect, useState, type ReactNode } from "react"
 import { EditTasksDialog } from "@/features/subtasks/edit-tasks-dialog"
-import { SubtaskToolbarButton } from "@/features/subtasks/subtask-toolbar-button"
+import { IconLabelToolbarButton } from "@/components/ui/icon-label-toolbar-button"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
@@ -151,12 +151,12 @@ export function SubtaskView({
     <div className="col-span-full flex flex-col gap-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <AddTaskDialog initialParent={view.defaultParent} parentScope={owner}>
-          <SubtaskToolbarButton icon={PlusIcon} label="Add task" />
+          <IconLabelToolbarButton icon={PlusIcon} label="Add task" />
         </AddTaskDialog>
         <EditTasksDialog sections={view.sections} />
         {toolbarActions}
         {taskId !== null && (
-          <SubtaskToolbarButton
+          <IconLabelToolbarButton
             icon={CassetteTapeIcon}
             label="Create flow"
             onClick={() => {

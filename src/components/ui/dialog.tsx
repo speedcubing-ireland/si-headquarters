@@ -39,7 +39,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 z-50 bg-black/50 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -59,7 +59,7 @@ const dialogContentPresentationClassName: Record<
   default:
     "fixed top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95",
   fullscreen:
-    "fixed top-0 left-0 flex h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 rounded-none p-0",
+    "fixed inset-0 flex h-dvh max-h-dvh w-full max-w-none flex-col overflow-hidden rounded-none p-0",
 }
 
 function DialogContent({

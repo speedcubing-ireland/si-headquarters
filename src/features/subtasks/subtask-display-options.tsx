@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Switch } from "@/components/ui/switch"
-import { SubtaskToolbarButton } from "@/features/subtasks/subtask-toolbar-button"
+import { IconLabelToolbarButton } from "@/components/ui/icon-label-toolbar-button"
 import type { SubtaskDisplayOptions } from "@/features/subtasks/subtask-display-storage"
 import { SquareDashedKanbanIcon } from "lucide-react"
 import { useId } from "react"
@@ -28,7 +28,7 @@ export function SubtaskDisplayOptionsPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <SubtaskToolbarButton
+        <IconLabelToolbarButton
           className={className}
           icon={SquareDashedKanbanIcon}
           label="Display"

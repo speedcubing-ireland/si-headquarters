@@ -1,6 +1,5 @@
 "use client"
 
-import { ComboboxPortalContainerProvider } from "@/components/ui/combobox"
 import {
   Dialog,
   DialogClose,
@@ -11,22 +10,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
-import { PopoverPortalContainerProvider } from "@/components/ui/popover"
+import { OverlayPortalContainerProvider } from "@/components/ui/overlay-portal-container"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import {
-  createContext,
-  use,
   useState,
   type ComponentProps,
   type FocusEvent,
@@ -34,61 +21,18 @@ import {
   type ReactNode,
 } from "react"
 
-type ResponsiveModalVariant = "form" | "sheet"
-type ResponsiveModalShell = "dialog" | "drawer"
+/** Bounded height for scrollable DnD lists inside modal bodies. */
+export const responsiveModalScrollAreaClassName =
+  "max-h-[min(62svh,34rem)] pr-3"
 
-interface ResponsiveModalContextValue {
-  shell: ResponsiveModalShell
-  /** True when `variant="form"` on mobile (`shell === "dialog"` and not desktop). */
-  isMobileForm: boolean
-}
+const desktopModalContentClassName =
+  "relative flex max-h-[min(92dvh,calc(100svh-2rem))] min-w-0 flex-col gap-0 overflow-hidden p-0"
 
-const ResponsiveModalContext =
-  createContext<ResponsiveModalContextValue | null>(null)
+const mobileModalContentClassName =
+  "relative flex h-full min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden p-0"
 
-const SHELL_COMPONENTS = {
-  dialog: {
-    Trigger: DialogTrigger,
-    Close: DialogClose,
-    Header: DialogHeader,
-    Title: DialogTitle,
-    Description: DialogDescription,
-    Footer: DialogFooter,
-  },
-  drawer: {
-    Trigger: DrawerTrigger,
-    Close: DrawerClose,
-    Header: DrawerHeader,
-    Title: DrawerTitle,
-    Description: DrawerDescription,
-    Footer: DrawerFooter,
-  },
-} as const
-
-function resolveResponsiveModalShell(
-  isDesktop: boolean,
-  variant: ResponsiveModalVariant
-): ResponsiveModalShell {
-  if (isDesktop || variant === "form") {
-    return "dialog"
-  }
-  return "drawer"
-}
-
-function useResponsiveModalContext() {
-  const context = use(ResponsiveModalContext)
-  if (context === null) {
-    throw new Error(
-      "ResponsiveModal components must be used within ResponsiveModal"
-    )
-  }
-  return context
-}
-
-function useResponsiveModalShell() {
-  const { shell } = useResponsiveModalContext()
-  return SHELL_COMPONENTS[shell]
-}
+const responsiveModalLayoutClassName =
+  "flex min-h-0 min-w-0 flex-1 flex-col"
 
 function scrollFocusedFieldIntoView(event: FocusEvent<HTMLDivElement>) {
   const { target } = event
@@ -108,41 +52,10 @@ function scrollFocusedFieldIntoView(event: FocusEvent<HTMLDivElement>) {
   })
 }
 
-interface ResponsiveModalRootProps {
-  children: ReactNode
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-  /**
-   * `form` — fullscreen dialog on mobile (keyboard-friendly; iOS does not
-   * support `interactive-widget`). `sheet` — bottom drawer on mobile for
-   * lightweight content without heavy text input.
-   */
-  variant?: ResponsiveModalVariant
-}
+type ResponsiveModalRootProps = ComponentProps<typeof Dialog>
 
-function ResponsiveModal({
-  children,
-  variant = "form",
-  ...props
-}: ResponsiveModalRootProps) {
-  const isDesktop = !useIsMobile()
-  const shell = resolveResponsiveModalShell(isDesktop, variant)
-  const isMobileForm = !isDesktop && variant === "form"
-  const contextValue: ResponsiveModalContextValue = { shell, isMobileForm }
-
-  if (shell === "dialog") {
-    return (
-      <ResponsiveModalContext value={contextValue}>
-        <Dialog {...props}>{children}</Dialog>
-      </ResponsiveModalContext>
-    )
-  }
-
-  return (
-    <ResponsiveModalContext value={contextValue}>
-      <Drawer {...props}>{children}</Drawer>
-    </ResponsiveModalContext>
-  )
+function ResponsiveModal({ children, ...props }: ResponsiveModalRootProps) {
+  return <Dialog {...props}>{children}</Dialog>
 }
 
 type ResponsiveModalChildProps = {
@@ -156,12 +69,10 @@ function ResponsiveModalTrigger({
   children,
   ...props
 }: ResponsiveModalChildProps & ComponentProps<typeof DialogTrigger>) {
-  const { Trigger } = useResponsiveModalShell()
-
   return (
-    <Trigger className={className} {...props}>
+    <DialogTrigger className={className} {...props}>
       {children}
-    </Trigger>
+    </DialogTrigger>
   )
 }
 
@@ -170,25 +81,36 @@ function ResponsiveModalClose({
   children,
   ...props
 }: ResponsiveModalChildProps & ComponentProps<typeof DialogClose>) {
-  const { Close } = useResponsiveModalShell()
-
   return (
-    <Close className={className} {...props}>
+    <DialogClose className={className} {...props}>
       {children}
-    </Close>
+    </DialogClose>
   )
 }
 
-const desktopModalContentClassName =
-  "relative flex max-h-[min(92dvh,calc(100svh-2rem))] min-w-0 flex-col gap-0 overflow-hidden p-0"
+function ResponsiveModalOverlayPortals({
+  children,
+}: {
+  children: ReactNode
+}) {
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
+    null
+  )
 
-const mobileShellContentClassName =
-  "relative flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden p-0"
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div
+        ref={setPortalContainer}
+        className="pointer-events-none absolute inset-0 z-[60]"
+      />
+      <OverlayPortalContainerProvider container={portalContainer ?? undefined}>
+        {children}
+      </OverlayPortalContainerProvider>
+    </div>
+  )
+}
 
-type ResponsiveModalContentProps = ResponsiveModalChildProps &
-  Omit<ComponentProps<typeof DialogContent>, "children" | "className"> & {
-    className?: string
-  }
+type ResponsiveModalContentProps = ComponentProps<typeof DialogContent>
 
 function ResponsiveModalContent({
   className,
@@ -197,36 +119,22 @@ function ResponsiveModalContent({
   presentation,
   ...props
 }: ResponsiveModalContentProps) {
-  const { shell, isMobileForm } = useResponsiveModalContext()
-
-  if (shell === "dialog") {
-    return (
-      <DialogContent
-        className={cn(
-          isMobileForm ? mobileShellContentClassName : desktopModalContentClassName,
-          className
-        )}
-        showCloseButton={showCloseButton}
-        presentation={presentation ?? (isMobileForm ? "fullscreen" : "default")}
-        {...props}
-      >
-        {children}
-      </DialogContent>
-    )
-  }
+  const isMobile = useIsMobile()
 
   return (
-    <DrawerContent
-      className={cn(mobileShellContentClassName, className)}
+    <DialogContent
+      className={cn(
+        isMobile ? mobileModalContentClassName : desktopModalContentClassName,
+        className
+      )}
+      showCloseButton={showCloseButton}
+      presentation={presentation ?? (isMobile ? "fullscreen" : "default")}
       {...props}
     >
-      {children}
-    </DrawerContent>
+      <ResponsiveModalOverlayPortals>{children}</ResponsiveModalOverlayPortals>
+    </DialogContent>
   )
 }
-
-const responsiveModalLayoutClassName =
-  "flex min-h-0 min-w-0 flex-1 flex-col"
 
 /** Scroll-safe layout for non-form content (e.g. drag-and-drop lists). */
 function ResponsiveModalFrame({
@@ -254,49 +162,15 @@ function ResponsiveModalForm({
   )
 }
 
-/**
- * Anchors combobox and popover portals inside the modal so overlays are not
- * clipped by the scrollable body.
- */
-function ResponsiveModalPortalContainer({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
-    null
-  )
-
-  return (
-    <>
-      <div
-        ref={setPortalContainer}
-        className="pointer-events-none absolute inset-0 z-60"
-      />
-      <ComboboxPortalContainerProvider
-        container={portalContainer ?? undefined}
-      >
-        <PopoverPortalContainerProvider
-          container={portalContainer ?? undefined}
-        >
-          {children}
-        </PopoverPortalContainerProvider>
-      </ComboboxPortalContainerProvider>
-    </>
-  )
-}
-
 function ResponsiveModalHeader({
   className,
   children,
   ...props
 }: ResponsiveModalChildProps & ComponentProps<"div">) {
-  const { Header } = useResponsiveModalShell()
-
   return (
-    <Header className={cn("shrink-0 px-4 pt-4 pr-10", className)} {...props}>
+    <DialogHeader className={cn("shrink-0 px-4 pt-4 pr-10", className)} {...props}>
       {children}
-    </Header>
+    </DialogHeader>
   )
 }
 
@@ -305,12 +179,10 @@ function ResponsiveModalTitle({
   children,
   ...props
 }: ResponsiveModalChildProps & ComponentProps<typeof DialogTitle>) {
-  const { Title } = useResponsiveModalShell()
-
   return (
-    <Title className={className} {...props}>
+    <DialogTitle className={className} {...props}>
       {children}
-    </Title>
+    </DialogTitle>
   )
 }
 
@@ -319,12 +191,10 @@ function ResponsiveModalDescription({
   children,
   ...props
 }: ResponsiveModalChildProps & ComponentProps<typeof DialogDescription>) {
-  const { Description } = useResponsiveModalShell()
-
   return (
-    <Description className={className} {...props}>
+    <DialogDescription className={className} {...props}>
       {children}
-    </Description>
+    </DialogDescription>
   )
 }
 
@@ -352,15 +222,13 @@ function ResponsiveModalFooter({
   children,
   ...props
 }: ResponsiveModalChildProps & ComponentProps<"div">) {
-  const { Footer } = useResponsiveModalShell()
-
   return (
-    <Footer
+    <DialogFooter
       className={cn("mx-0 mb-0 shrink-0 border-t bg-muted/50", className)}
       {...props}
     >
       {children}
-    </Footer>
+    </DialogFooter>
   )
 }
 
@@ -374,8 +242,6 @@ export {
   ResponsiveModalForm,
   ResponsiveModalFrame,
   ResponsiveModalHeader,
-  ResponsiveModalPortalContainer,
   ResponsiveModalTitle,
   ResponsiveModalTrigger,
 }
-export type { ResponsiveModalVariant }
