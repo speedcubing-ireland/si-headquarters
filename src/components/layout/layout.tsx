@@ -4,11 +4,13 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <LayoutSidebar />
-      <SidebarInset className="@container/main">
-        <MainContainerProvider>{children}</MainContainerProvider>
-      </SidebarInset>
-    </SidebarProvider>
+    <div vaul-drawer-wrapper="" className="bg-background">
+      <SidebarProvider>
+        <LayoutSidebar />
+        <SidebarInset className="@container/main">
+          <MainContainerProvider>{children}</MainContainerProvider>
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
   )
 }

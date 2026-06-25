@@ -12,16 +12,6 @@ import * as TaskStatusSelector from "@/components/data-selectors/task-status-sel
 import { Button } from "@/components/ui/button"
 import { ComboboxPortalContainerProvider } from "@/components/ui/combobox"
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
   Field,
   FieldDescription,
   FieldError,
@@ -30,6 +20,18 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { PopoverPortalContainerProvider } from "@/components/ui/popover"
+import {
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalClose,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalForm,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from "@/components/ui/responsive-modal"
 import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { SubtaskViewOwner, TaskSubtaskView } from "@/convex/tasks/queries"
@@ -146,16 +148,16 @@ export function AddTaskDialog({
   const canSubmit = name.trim().length > 0 && parent !== null && !isSubmitting
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveModalTrigger asChild>
         {children ?? (
           <Button type="button">
             <PlusIcon />
             New task
           </Button>
         )}
-      </DialogTrigger>
-      <DialogContent className="top-[max(1rem,calc(50svh-24rem))] right-4 left-4 max-h-[calc(100svh-2rem)] w-auto max-w-none translate-x-0 translate-y-0 overflow-visible p-0 sm:right-[max(1rem,calc(50%-21rem))] sm:left-[max(1rem,calc(50%-21rem))] sm:max-w-none">
+      </ResponsiveModalTrigger>
+      <ResponsiveModalContent className="sm:max-w-3xl">
         <div
           ref={setPortalContainer}
           className="pointer-events-none fixed inset-0 z-60"
@@ -166,23 +168,22 @@ export function AddTaskDialog({
           <PopoverPortalContainerProvider
             container={portalContainer ?? undefined}
           >
-            <form
-              className="grid max-h-[calc(100svh-2rem)] min-h-0 grid-rows-[minmax(0,1fr)_auto]"
+            <ResponsiveModalForm
               onSubmit={(event) => {
                 void handleSubmit(event)
               }}
             >
-              <div className="grid min-h-0 gap-4 overflow-y-auto p-4">
-                <DialogHeader className="pr-8">
-                  <DialogTitle>New task</DialogTitle>
-                  <DialogDescription>
-                    Capture the work and set the ownership details before it
-                    lands.
-                  </DialogDescription>
-                </DialogHeader>
+              <ResponsiveModalHeader>
+                <ResponsiveModalTitle>New task</ResponsiveModalTitle>
+                <ResponsiveModalDescription>
+                  Capture the work and set the ownership details before it
+                  lands.
+                </ResponsiveModalDescription>
+              </ResponsiveModalHeader>
 
-                <div className="grid min-h-0 gap-4 sm:grid-cols-[minmax(0,1fr)_15rem]">
-                  <div className="grid min-h-0 content-start gap-4">
+              <ResponsiveModalBody className="grid gap-4">
+                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_15rem]">
+                  <div className="grid content-start gap-4">
                     <Field>
                       <FieldLabel htmlFor="new-task-name">Name</FieldLabel>
                       <Input
@@ -287,10 +288,10 @@ export function AddTaskDialog({
                 {submitError !== null ? (
                   <FieldError>{submitError}</FieldError>
                 ) : null}
-              </div>
+              </ResponsiveModalBody>
 
-              <DialogFooter className="mx-0 mb-0">
-                <DialogClose asChild>
+              <ResponsiveModalFooter>
+                <ResponsiveModalClose asChild>
                   <Button
                     type="button"
                     variant="outline"
@@ -298,15 +299,15 @@ export function AddTaskDialog({
                   >
                     Cancel
                   </Button>
-                </DialogClose>
+                </ResponsiveModalClose>
                 <Button type="submit" disabled={!canSubmit}>
                   {isSubmitting ? "Creating..." : "Create task"}
                 </Button>
-              </DialogFooter>
-            </form>
+              </ResponsiveModalFooter>
+            </ResponsiveModalForm>
           </PopoverPortalContainerProvider>
         </ComboboxPortalContainerProvider>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

@@ -27,7 +27,7 @@ export function MarkdownEditorField({
   const previewId = `${id}-preview`
 
   return (
-    <div className="grid min-h-0 gap-2">
+    <div className="grid min-w-0 gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
         <Label
@@ -44,7 +44,7 @@ export function MarkdownEditorField({
         </Label>
       </div>
 
-      <div className="min-h-0 rounded-lg border bg-background shadow-xs">
+      <div className="min-h-0 min-w-0 overflow-hidden rounded-lg border bg-background shadow-xs">
         <Textarea
           id={id}
           value={value}
@@ -54,18 +54,20 @@ export function MarkdownEditorField({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "h-[min(42svh,20rem)] min-h-48 resize-none border-0 bg-transparent p-3 font-mono text-sm shadow-none focus-visible:ring-0",
+            "field-sizing-fixed h-[min(24svh,12rem)] min-h-32 resize-none overflow-y-auto border-0 bg-transparent p-3 font-mono text-sm shadow-none focus-visible:ring-0 sm:h-[min(42svh,20rem)] sm:min-h-48",
             preview && "hidden"
           )}
         />
         <ScrollArea
           className={cn(
-            "h-[min(42svh,20rem)] min-h-48 p-3",
+            "h-[min(24svh,12rem)] min-h-32 min-w-0 p-3 sm:h-[min(42svh,20rem)] sm:min-h-48",
             !preview && "hidden"
           )}
         >
           {value.trim() ? (
-            <Streamdown>{value}</Streamdown>
+            <div className="wrap-break-word">
+              <Streamdown>{value}</Streamdown>
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">
               Nothing to preview yet.

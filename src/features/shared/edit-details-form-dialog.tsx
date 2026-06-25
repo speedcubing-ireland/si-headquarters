@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalForm,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from "@/components/ui/responsive-modal"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
@@ -72,55 +74,56 @@ export function EditDetailsFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveModalTrigger asChild>
         <Button variant="outline" size="icon" aria-label={triggerLabel}>
           <PencilIcon />
         </Button>
-      </DialogTrigger>
-      <DialogContent className="grid max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <form
+      </ResponsiveModalTrigger>
+      <ResponsiveModalContent className="sm:max-w-2xl">
+        <ResponsiveModalForm
           onSubmit={(event) => {
             void handleSubmit(event)
           }}
-          className="grid min-h-0 gap-4"
         >
-          <DialogHeader className="pr-8">
-            <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
               Write in Markdown and preview before saving.
-            </DialogDescription>
-          </DialogHeader>
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
 
-          <div className="grid gap-2">
-            <Label htmlFor={nameId}>Name</Label>
-            <Input
-              id={nameId}
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value)
-              }}
+          <ResponsiveModalBody className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor={nameId}>Name</Label>
+              <Input
+                id={nameId}
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value)
+                }}
+                disabled={isSubmitting}
+                required
+              />
+            </div>
+
+            <MarkdownEditorField
+              id={descriptionId}
+              label="Description"
+              placeholder={descriptionPlaceholder}
+              value={description}
+              onChange={setDescription}
               disabled={isSubmitting}
-              required
             />
-          </div>
+          </ResponsiveModalBody>
 
-          <MarkdownEditorField
-            id={descriptionId}
-            label="Description"
-            placeholder={descriptionPlaceholder}
-            value={description}
-            onChange={setDescription}
-            disabled={isSubmitting}
-          />
-
-          <DialogFooter>
+          <ResponsiveModalFooter>
             <Button type="submit" disabled={isSubmitting || !name.trim()}>
               {isSubmitting ? "Saving..." : "Save changes"}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </ResponsiveModalFooter>
+        </ResponsiveModalForm>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

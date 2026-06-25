@@ -1,15 +1,5 @@
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
   Field,
   FieldDescription,
   FieldError,
@@ -17,6 +7,18 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalClose,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalForm,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from "@/components/ui/responsive-modal"
 import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
 import type { Doc } from "@/convex/_generated/dataModel"
 import { api } from "@/convex/_generated/api"
@@ -85,105 +87,106 @@ export function CreateProjectDialog({ scope }: { scope: ProjectScope }) {
   const canSubmit = name.trim().length > 0 && !isSubmitting
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveModalTrigger asChild>
         <Button type="button">
           <PlusIcon />
           New project
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[min(92svh,720px)] overflow-y-auto sm:max-w-xl">
-        <form
-          className="grid gap-4"
+      </ResponsiveModalTrigger>
+      <ResponsiveModalContent className="sm:max-w-xl">
+        <ResponsiveModalForm
           onSubmit={(event) => {
             void handleSubmit(event)
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Create project</DialogTitle>
-            <DialogDescription>
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Create project</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
               {scope.type === "teams"
                 ? "Create a project scoped to this team."
                 : "Create a project visible to all active volunteers."}
-            </DialogDescription>
-          </DialogHeader>
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
 
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="project-name">Name</FieldLabel>
-              <Input
-                id="project-name"
-                value={name}
-                onChange={(event) => {
-                  setName(event.currentTarget.value)
-                }}
-                disabled={isSubmitting}
-                autoFocus
-                required
-              />
-            </Field>
-
-            <MarkdownEditorField
-              id="project-description"
-              label="Description"
-              value={description}
-              onChange={setDescription}
-              placeholder="Describe what this project is for..."
-              disabled={isSubmitting}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_11rem]">
+          <ResponsiveModalBody className="grid gap-4">
+            <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="project-first-phase">
-                  First phase
-                </FieldLabel>
+                <FieldLabel htmlFor="project-name">Name</FieldLabel>
                 <Input
-                  id="project-first-phase"
-                  value={firstPhaseName}
+                  id="project-name"
+                  value={name}
                   onChange={(event) => {
-                    setFirstPhaseName(event.currentTarget.value)
+                    setName(event.currentTarget.value)
                   }}
-                  placeholder="e.g. Planning"
                   disabled={isSubmitting}
+                  autoFocus
+                  required
                 />
-                <FieldDescription>Optional</FieldDescription>
               </Field>
 
-              <Field data-disabled={!hasFirstPhase}>
-                <FieldLabel>Phase color</FieldLabel>
-                <PhaseColorSelect
-                  value={firstPhaseColor}
-                  disabled={!hasFirstPhase || isSubmitting}
-                  onChange={setFirstPhaseColor}
-                />
-                <FieldDescription>
-                  {hasFirstPhase
-                    ? "Used on project cards."
-                    : "Add a phase name first."}
-                </FieldDescription>
-              </Field>
-            </div>
+              <MarkdownEditorField
+                id="project-description"
+                label="Description"
+                value={description}
+                onChange={setDescription}
+                placeholder="Describe what this project is for..."
+                disabled={isSubmitting}
+              />
 
-            {submitError !== null ? (
-              <FieldError>{submitError}</FieldError>
-            ) : null}
-          </FieldGroup>
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_11rem]">
+                <Field>
+                  <FieldLabel htmlFor="project-first-phase">
+                    First phase
+                  </FieldLabel>
+                  <Input
+                    id="project-first-phase"
+                    value={firstPhaseName}
+                    onChange={(event) => {
+                      setFirstPhaseName(event.currentTarget.value)
+                    }}
+                    placeholder="e.g. Planning"
+                    disabled={isSubmitting}
+                  />
+                  <FieldDescription>Optional</FieldDescription>
+                </Field>
 
-          <DialogFooter>
-            <DialogClose asChild>
+                <Field data-disabled={!hasFirstPhase}>
+                  <FieldLabel>Phase color</FieldLabel>
+                  <PhaseColorSelect
+                    value={firstPhaseColor}
+                    disabled={!hasFirstPhase || isSubmitting}
+                    onChange={setFirstPhaseColor}
+                  />
+                  <FieldDescription>
+                    {hasFirstPhase
+                      ? "Used on project cards."
+                      : "Add a phase name first."}
+                  </FieldDescription>
+                </Field>
+              </div>
+
+              {submitError !== null ? (
+                <FieldError>{submitError}</FieldError>
+              ) : null}
+            </FieldGroup>
+          </ResponsiveModalBody>
+
+          <ResponsiveModalFooter>
+            <ResponsiveModalClose asChild>
               <Button type="button" variant="outline" disabled={isSubmitting}>
                 Cancel
               </Button>
-            </DialogClose>
+            </ResponsiveModalClose>
             <Button type="submit" disabled={!canSubmit}>
               {isSubmitting ? (
                 <LoaderCircleIcon className="animate-spin" />
               ) : null}
               {isSubmitting ? "Creating..." : "Create project"}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </ResponsiveModalFooter>
+        </ResponsiveModalForm>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

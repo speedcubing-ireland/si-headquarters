@@ -21,14 +21,16 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalForm,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from "@/components/ui/responsive-modal"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker"
 import type { api } from "@/convex/_generated/api"
 import { MarkdownEditorField } from "@/features/shared/markdown-editor-field"
@@ -79,47 +81,48 @@ function AddUpdateDialog({
   }
 
   return (
-    <Dialog
+    <ResponsiveModal
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
         if (nextOpen) setBody("")
       }}
     >
-      <DialogTrigger asChild>
+      <ResponsiveModalTrigger asChild>
         <Button variant="outline" size="icon" aria-label={`Add ${title}`}>
           <PlusIcon />
         </Button>
-      </DialogTrigger>
-      <DialogContent className="grid max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <form
-          className="grid min-h-0 gap-4"
+      </ResponsiveModalTrigger>
+      <ResponsiveModalContent className="sm:max-w-2xl">
+        <ResponsiveModalForm
           onSubmit={(event) => {
             void handleSubmit(event)
           }}
         >
-          <DialogHeader className="pr-8">
-            <DialogTitle>Add {title}</DialogTitle>
-            <DialogDescription>
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Add {title}</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
               Write in Markdown and preview before saving.
-            </DialogDescription>
-          </DialogHeader>
-          <MarkdownEditorField
-            id={editorId}
-            label="Update"
-            placeholder={placeholder}
-            value={body}
-            onChange={setBody}
-            disabled={isSubmitting}
-          />
-          <DialogFooter>
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
+          <ResponsiveModalBody className="grid gap-4">
+            <MarkdownEditorField
+              id={editorId}
+              label="Update"
+              placeholder={placeholder}
+              value={body}
+              onChange={setBody}
+              disabled={isSubmitting}
+            />
+          </ResponsiveModalBody>
+          <ResponsiveModalFooter>
             <Button type="submit" disabled={isSubmitting || !body.trim()}>
               {isSubmitting ? "Saving..." : "Save update"}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </ResponsiveModalFooter>
+        </ResponsiveModalForm>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
 

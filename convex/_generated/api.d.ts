@@ -189,6 +189,7 @@ import type * as plugins_sponsor_lib_sponsorshipLifecycle from "../plugins/spons
 import type * as plugins_sponsor_lib_types from "../plugins/sponsor/lib/types.js";
 import type * as plugins_sponsor_lib_validators from "../plugins/sponsor/lib/validators.js";
 import type * as plugins_sponsor_lib_visibility from "../plugins/sponsor/lib/visibility.js";
+import type * as plugins_sponsor_lib_wcaIntegration from "../plugins/sponsor/lib/wcaIntegration.js";
 import type * as plugins_sponsor_plugin from "../plugins/sponsor/plugin.js";
 import type * as plugins_sponsor_portal_auctions from "../plugins/sponsor/portal/auctions.js";
 import type * as plugins_sponsor_portal_auth from "../plugins/sponsor/portal/auth.js";
@@ -485,6 +486,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/lib/types": typeof plugins_sponsor_lib_types;
   "plugins/sponsor/lib/validators": typeof plugins_sponsor_lib_validators;
   "plugins/sponsor/lib/visibility": typeof plugins_sponsor_lib_visibility;
+  "plugins/sponsor/lib/wcaIntegration": typeof plugins_sponsor_lib_wcaIntegration;
   "plugins/sponsor/plugin": typeof plugins_sponsor_plugin;
   "plugins/sponsor/portal/auctions": typeof plugins_sponsor_portal_auctions;
   "plugins/sponsor/portal/auth": typeof plugins_sponsor_portal_auth;

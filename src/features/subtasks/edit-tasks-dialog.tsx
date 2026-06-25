@@ -11,14 +11,16 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalBody,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalFrame,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalTrigger,
+} from "@/components/ui/responsive-modal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -596,71 +598,77 @@ export function EditTasksDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveModalTrigger asChild>
         <Button variant="outline" size="lg" type="button">
           <ListOrderedIcon />
           Edit Tasks
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-2rem)] sm:max-w-3xl">
-        <DialogHeader className="pr-8">
-          <DialogTitle>Edit tasks</DialogTitle>
-          <DialogDescription>
-            Drag direct tasks within a section or into another phase. Deleting a
-            task also deletes its subtasks.
-          </DialogDescription>
-        </DialogHeader>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => {
-            resetDragState()
-          }}
-        >
-          <ScrollArea className="max-h-[min(62svh,34rem)] pr-3">
-            <div className="grid gap-4">
-              {editableSections.map((section) => (
-                <EditableSection
-                  key={section.id}
-                  baselineRows={baselineRowsBySection.get(section.id) ?? []}
-                  section={section}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          </ScrollArea>
-          {createPortal(
-            <DragOverlay>
-              {activeTask !== null ? <DragPreview row={activeTask} /> : null}
-            </DragOverlay>,
-            document.body
-          )}
-        </DndContext>
-        <DialogFooter>
-          <Button
-            disabled={isSaving}
-            variant="outline"
-            type="button"
-            onClick={() => {
-              setOpen(false)
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            disabled={!hasChanges || isSaving}
-            onClick={() => {
-              void handleSave()
-            }}
-          >
-            {isSaving ? "Saving..." : "Save changes"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalTrigger>
+      <ResponsiveModalContent className="sm:max-w-3xl">
+        <ResponsiveModalFrame>
+          <ResponsiveModalHeader>
+            <ResponsiveModalTitle>Edit tasks</ResponsiveModalTitle>
+            <ResponsiveModalDescription>
+              Drag direct tasks within a section or into another phase. Deleting
+              a task also deletes its subtasks.
+            </ResponsiveModalDescription>
+          </ResponsiveModalHeader>
+          <ResponsiveModalBody className="grid gap-4">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => {
+                resetDragState()
+              }}
+            >
+              <ScrollArea className="max-h-[min(62svh,34rem)] pr-3">
+                <div className="grid gap-4">
+                  {editableSections.map((section) => (
+                    <EditableSection
+                      key={section.id}
+                      baselineRows={baselineRowsBySection.get(section.id) ?? []}
+                      section={section}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
+              {createPortal(
+                <DragOverlay>
+                  {activeTask !== null ? (
+                    <DragPreview row={activeTask} />
+                  ) : null}
+                </DragOverlay>,
+                document.body
+              )}
+            </DndContext>
+          </ResponsiveModalBody>
+          <ResponsiveModalFooter>
+            <Button
+              disabled={isSaving}
+              variant="outline"
+              type="button"
+              onClick={() => {
+                setOpen(false)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!hasChanges || isSaving}
+              onClick={() => {
+                void handleSave()
+              }}
+            >
+              {isSaving ? "Saving..." : "Save changes"}
+            </Button>
+          </ResponsiveModalFooter>
+        </ResponsiveModalFrame>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }
