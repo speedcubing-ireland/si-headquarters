@@ -235,6 +235,7 @@ import type * as subscriptions_validators from "../subscriptions/validators.js";
 import type * as tasks_access from "../tasks/access.js";
 import type * as tasks_assignees from "../tasks/assignees.js";
 import type * as tasks_blockers_counts from "../tasks/blockers/counts.js";
+import type * as tasks_blockers_dependency from "../tasks/blockers/dependency.js";
 import type * as tasks_blockers_loader from "../tasks/blockers/loader.js";
 import type * as tasks_blockers_mutations from "../tasks/blockers/mutations.js";
 import type * as tasks_blockers_queries from "../tasks/blockers/queries.js";
@@ -532,6 +533,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/access": typeof tasks_access;
   "tasks/assignees": typeof tasks_assignees;
   "tasks/blockers/counts": typeof tasks_blockers_counts;
+  "tasks/blockers/dependency": typeof tasks_blockers_dependency;
   "tasks/blockers/loader": typeof tasks_blockers_loader;
   "tasks/blockers/mutations": typeof tasks_blockers_mutations;
   "tasks/blockers/queries": typeof tasks_blockers_queries;
