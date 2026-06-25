@@ -10,6 +10,7 @@ const compactIndicatorBadgeClassName =
 const emptyBlockers = {
   count: 0,
   openCount: 0,
+  blockingCount: 0,
   blockedBy: [],
 } satisfies BlockerCounts
 

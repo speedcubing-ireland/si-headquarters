@@ -28,6 +28,7 @@ import { isTaskStatus } from "@/convex/tasks/status/validators"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
 import {
+  BanIcon,
   CassetteTapeIcon,
   CircleDotIcon,
   TagIcon,
@@ -47,6 +48,7 @@ export type TaskRowFilterInput = Pick<
   | "assignees"
   | "owner"
   | "labels"
+  | "dependencyStatuses"
   | "competitionId"
   | "competitionName"
   | "phaseId"
@@ -110,6 +112,12 @@ export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
     icon: CircleDotIcon,
     getRowValues: (row) => (row.phaseId !== null ? [row.phaseId] : []),
   },
+  {
+    id: "dependency",
+    label: "Dependencies",
+    icon: BanIcon,
+    getRowValues: (row) => row.dependencyStatuses,
+  },
 ]
 
 const STATUS_OPTIONS: FilterOption[] = TASK_STATUS_ORDER.map((status) => ({
@@ -121,6 +129,12 @@ const STATUS_OPTIONS: FilterOption[] = TASK_STATUS_ORDER.map((status) => ({
 const KIND_OPTIONS: FilterOption[] = [
   { value: "standard", label: "Standard", icon: CircleDotIcon },
   { value: "flow", label: "Flow", icon: CassetteTapeIcon },
+]
+
+const DEPENDENCY_OPTIONS: FilterOption[] = [
+  { value: "blocking", label: "Blocking", icon: BanIcon },
+  { value: "blocked", label: "Blocked", icon: BanIcon },
+  { value: "no-dependencies", label: "No dependencies", icon: CircleDotIcon },
 ]
 
 function userToFilterOption(user: UserListEntry): FilterOption {
@@ -291,6 +305,11 @@ function renderTaskFilterValue(
       )
     case "phase":
       return lookup.phases.find((entry) => entry._id === value)?.name ?? value
+    case "dependency":
+      return (
+        DEPENDENCY_OPTIONS.find((option) => option.value === value)?.label ??
+        value
+      )
     default:
       return value
   }
@@ -346,6 +365,7 @@ export function useTaskFilters(rows: TaskBoardRow[] | undefined) {
         value: phase._id,
         label: phase.name,
       })),
+      dependency: DEPENDENCY_OPTIONS,
     }),
     [
       assigneeOptions,

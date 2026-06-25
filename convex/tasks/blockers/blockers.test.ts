@@ -346,8 +346,10 @@ describe("task blockers", () => {
     expect(childRow?.blockers).toEqual({
       count: 1,
       openCount: 1,
+      blockingCount: 0,
       blockedBy: [{ name: "Blocking task", isOpen: true }],
     })
+    expect(childRow?.dependencyStatuses).toEqual(["blocked"])
 
     await t.run(async (ctx) => {
       await ctx.db.patch("tasks", blockingId, {
@@ -366,8 +368,10 @@ describe("task blockers", () => {
     expect(updatedRow?.blockers).toEqual({
       count: 1,
       openCount: 0,
+      blockingCount: 0,
       blockedBy: [{ name: "Blocking task", isOpen: false }],
     })
+    expect(updatedRow?.dependencyStatuses).toEqual(["no-dependencies"])
   })
 
   test("listPotentialBlockers excludes terminal-complete tasks", async () => {
@@ -563,5 +567,123 @@ describe("task blockers", () => {
         blockingTaskId: projectTaskId,
       })
     ).rejects.toThrow("Blockers must belong to the same competition or project")
+  })
+
+  test("blockingCount reflects outgoing blocker edges on the blocking task", async () => {
+    const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
+    const { parentId, blockedChildId, blockingTaskId } = await t.run(
+      async (ctx) => {
+        const competitionId = await insertCompetition(ctx)
+        const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+        const parentId = await insertTask(ctx, {
+          name: "Parent task",
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+        })
+        const blockedChildId = await insertTask(ctx, {
+          name: "Blocked child",
+          parent: { type: "tasks", id: parentId },
+          order: "a",
+          status: "to-do",
+        })
+        const blockingTaskId = await insertTask(ctx, {
+          name: "Blocking task",
+          parent: { type: "tasks", id: parentId },
+          order: "b",
+          status: "in-progress",
+        })
+
+        await ctx.db.insert("taskBlockers", {
+          blockedTaskId: blockedChildId,
+          blockingTaskId,
+        })
+
+        return { parentId, blockedChildId, blockingTaskId }
+      }
+    )
+
+    const view = await actor.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "tasks", id: parentId },
+    })
+
+    const blockedRow = view.sections[0]?.rows.find(
+      (row) => row.task._id === blockedChildId
+    )
+    const blockingRow = view.sections[0]?.rows.find(
+      (row) => row.task._id === blockingTaskId
+    )
+
+    expect(blockedRow?.blockers).toMatchObject({
+      openCount: 1,
+      blockingCount: 0,
+    })
+    expect(blockedRow?.dependencyStatuses).toEqual(["blocked"])
+
+    expect(blockingRow?.blockers).toMatchObject({
+      openCount: 0,
+      blockingCount: 1,
+    })
+    expect(blockingRow?.dependencyStatuses).toEqual(["blocking"])
+  })
+
+  test("dependencyStatuses returns both blocked and blocking for a task in both roles", async () => {
+    const t = convexTest(schema, modules)
+    const { client: actor } = await withVolunteerTestClient(t)
+    const { parentId, middleId } = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Setup", "a")
+      const parentId = await insertTask(ctx, {
+        name: "Parent task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      const upstreamId = await insertTask(ctx, {
+        name: "Upstream task",
+        parent: { type: "tasks", id: parentId },
+        order: "a",
+        status: "in-progress",
+      })
+      const middleId = await insertTask(ctx, {
+        name: "Middle task",
+        parent: { type: "tasks", id: parentId },
+        order: "b",
+        status: "to-do",
+      })
+      const downstreamId = await insertTask(ctx, {
+        name: "Downstream task",
+        parent: { type: "tasks", id: parentId },
+        order: "c",
+        status: "to-do",
+      })
+
+      // upstream blocks middle, middle blocks downstream
+      await Promise.all([
+        ctx.db.insert("taskBlockers", {
+          blockedTaskId: middleId,
+          blockingTaskId: upstreamId,
+        }),
+        ctx.db.insert("taskBlockers", {
+          blockedTaskId: downstreamId,
+          blockingTaskId: middleId,
+        }),
+      ])
+
+      return { parentId, middleId }
+    })
+
+    const view = await actor.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "tasks", id: parentId },
+    })
+
+    const middleRow = view.sections[0]?.rows.find(
+      (row) => row.task._id === middleId
+    )
+
+    expect(middleRow?.blockers).toMatchObject({
+      openCount: 1,
+      blockingCount: 1,
+    })
+    expect(middleRow?.dependencyStatuses).toEqual(["blocked", "blocking"])
   })
 })

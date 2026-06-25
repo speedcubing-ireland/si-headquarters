@@ -86,14 +86,20 @@ export class TaskBlockersLoader {
     taskId: Id<"tasks">,
     statusLoader: TaskStatusLoader
   ): Promise<BlockerCounts> {
-    const edges = await this.getBlockersOf(taskId)
-    if (edges.length === 0) {
-      return { count: 0, openCount: 0, blockedBy: [] }
+    const [incomingEdges, outgoingEdges] = await Promise.all([
+      this.getBlockersOf(taskId),
+      this.getBlockedBy(taskId),
+    ])
+
+    const blockingCount = outgoingEdges.length
+
+    if (incomingEdges.length === 0) {
+      return { count: 0, openCount: 0, blockingCount, blockedBy: [] }
     }
 
     const blockingTasks = (
       await Promise.all(
-        edges.map((edge) => statusLoader.getTask(edge.blockingTaskId))
+        incomingEdges.map((edge) => statusLoader.getTask(edge.blockingTaskId))
       )
     ).filter((task): task is Doc<"tasks"> => task !== null)
 
@@ -109,8 +115,9 @@ export class TaskBlockersLoader {
     const openCount = blockedBy.filter((entry) => entry.isOpen).length
 
     return {
-      count: edges.length,
+      count: incomingEdges.length,
       openCount,
+      blockingCount,
       blockedBy,
     }
   }

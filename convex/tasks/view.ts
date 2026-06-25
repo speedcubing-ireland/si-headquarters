@@ -5,6 +5,10 @@ import {
   blockerCounts,
   EMPTY_BLOCKER_COUNTS,
 } from "@/convex/tasks/blockers/counts"
+import {
+  deriveDependencyStatuses,
+  taskDependencyStatusType,
+} from "@/convex/tasks/blockers/dependency"
 import { taskKindType } from "@/convex/tasks/kind"
 import {
   buildSubtasksWithStatusViews,
@@ -108,6 +112,7 @@ export const taskViewTaskDetails = v.object({
   assignees: taskViewAssignees,
   statusView: taskViewStatusView,
   blockers: blockerCounts,
+  dependencyStatuses: v.array(taskDependencyStatusType),
   subtaskSummary: v.array(taskViewSubtaskSummaryItem),
 })
 
@@ -363,6 +368,10 @@ export function createTaskViewDisplayReader(
       assignees,
       statusView: toTaskViewStatusView(statusView),
       blockers,
+      dependencyStatuses: deriveDependencyStatuses(
+        blockers,
+        statusView.effectiveStatus
+      ),
       subtaskSummary,
     }
   }
