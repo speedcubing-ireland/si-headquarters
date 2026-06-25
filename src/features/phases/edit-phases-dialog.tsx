@@ -1,17 +1,14 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  ResponsiveModal,
-  ResponsiveModalBody,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalFrame,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-  ResponsiveModalTrigger,
-  responsiveModalScrollAreaClassName,
-} from "@/components/ui/responsive-modal"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
   Item,
@@ -51,7 +48,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { useMutation, useQuery } from "convex/react"
 import {
   GripVerticalIcon,
-  LayersIcon,
+  ListOrderedIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -59,7 +56,6 @@ import type { CSSProperties } from "react"
 import { useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
-import { IconLabelToolbarButton } from "@/components/ui/icon-label-toolbar-button"
 
 type PhaseOwner = Doc<"phases">["owner"]
 type PhaseColor = Doc<"phases">["color"]
@@ -352,120 +348,114 @@ function EditPhasesDialog({
   }
 
   return (
-    <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
-      <ResponsiveModalTrigger asChild>
-        <IconLabelToolbarButton icon={LayersIcon} label="Edit phases" />
-      </ResponsiveModalTrigger>
-      <ResponsiveModalContent className="sm:max-w-3xl">
-        <ResponsiveModalFrame>
-          <ResponsiveModalHeader>
-            <ResponsiveModalTitle>Edit phases</ResponsiveModalTitle>
-            <ResponsiveModalDescription>
-              Create phases, drag them into order, and remove empty phases.
-              Changes are applied when you save.
-            </ResponsiveModalDescription>
-          </ResponsiveModalHeader>
-          <ResponsiveModalBody className="grid gap-4">
-            <div className="flex items-center justify-between gap-3">
-              <Button
-                variant="outline"
-                type="button"
-                disabled={isSaving}
-                onClick={() => {
-                  setEditablePhases((current) => [
-                    ...current,
-                    newEditablePhase(),
-                  ])
-                }}
-              >
-                <PlusIcon />
-                Add phase
-              </Button>
-              {hasChanges ? <Badge variant="secondary">Unsaved</Badge> : null}
-            </div>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDragCancel={() => {
-                setActiveClientId(null)
-              }}
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" type="button">
+          <ListOrderedIcon />
+          Edit phases
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100svh-2rem)] sm:max-w-3xl">
+        <DialogHeader className="pr-8">
+          <DialogTitle>Edit phases</DialogTitle>
+          <DialogDescription>
+            Create phases, drag them into order, and remove empty phases.
+            Changes are applied when you save.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            type="button"
+            disabled={isSaving}
+            onClick={() => {
+              setEditablePhases((current) => [...current, newEditablePhase()])
+            }}
+          >
+            <PlusIcon />
+            Add phase
+          </Button>
+          {hasChanges && <Badge variant="secondary">Unsaved</Badge>}
+        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => {
+            setActiveClientId(null)
+          }}
+        >
+          <ScrollArea className="max-h-[min(62svh,34rem)] pr-3">
+            <SortableContext
+              items={editablePhases.map((phase) => phase.clientId)}
+              strategy={verticalListSortingStrategy}
             >
-              <ScrollArea className={responsiveModalScrollAreaClassName}>
-                <SortableContext
-                  items={editablePhases.map((phase) => phase.clientId)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {editablePhases.length > 0 ? (
-                    <ItemGroup className="gap-2">
-                      {editablePhases.map((phase) => (
-                        <SortablePhaseRow
-                          key={phase.clientId}
-                          disabled={isSaving}
-                          phase={phase}
-                          onChangeName={(clientId, name) => {
-                            updatePhase(clientId, (current) => ({
-                              ...current,
-                              name,
-                            }))
-                          }}
-                          onChangeColor={(clientId, color) => {
-                            updatePhase(clientId, (current) => ({
-                              ...current,
-                              color,
-                            }))
-                          }}
-                          onDelete={(clientId) => {
-                            setEditablePhases((current) =>
-                              current.filter(
-                                (phase) => phase.clientId !== clientId
-                              )
-                            )
-                          }}
-                        />
-                      ))}
-                    </ItemGroup>
-                  ) : (
-                    <p className="rounded-lg border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-                      No phases
-                    </p>
-                  )}
-                </SortableContext>
-              </ScrollArea>
-              {createPortal(
-                <DragOverlay>
-                  {activePhase !== null ? (
-                    <PhaseDragPreview phase={activePhase} />
-                  ) : null}
-                </DragOverlay>,
-                document.body
+              {editablePhases.length > 0 ? (
+                <ItemGroup className="gap-2">
+                  {editablePhases.map((phase) => (
+                    <SortablePhaseRow
+                      key={phase.clientId}
+                      disabled={isSaving}
+                      phase={phase}
+                      onChangeName={(clientId, name) => {
+                        updatePhase(clientId, (current) => ({
+                          ...current,
+                          name,
+                        }))
+                      }}
+                      onChangeColor={(clientId, color) => {
+                        updatePhase(clientId, (current) => ({
+                          ...current,
+                          color,
+                        }))
+                      }}
+                      onDelete={(clientId) => {
+                        setEditablePhases((current) =>
+                          current.filter((phase) => phase.clientId !== clientId)
+                        )
+                      }}
+                    />
+                  ))}
+                </ItemGroup>
+              ) : (
+                <p className="rounded-lg border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+                  No phases
+                </p>
               )}
-            </DndContext>
-          </ResponsiveModalBody>
-          <ResponsiveModalFooter>
-            <Button
-              disabled={isSaving}
-              variant="outline"
-              type="button"
-              onClick={() => {
-                setOpen(false)
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={!hasChanges || hasEmptyName || isSaving}
-              onClick={() => {
-                void handleSave()
-              }}
-            >
-              {isSaving ? "Saving..." : "Save changes"}
-            </Button>
-          </ResponsiveModalFooter>
-        </ResponsiveModalFrame>
-      </ResponsiveModalContent>
-    </ResponsiveModal>
+            </SortableContext>
+          </ScrollArea>
+          {createPortal(
+            <DragOverlay>
+              {activePhase !== null ? (
+                <PhaseDragPreview phase={activePhase} />
+              ) : null}
+            </DragOverlay>,
+            document.body
+          )}
+        </DndContext>
+        <DialogFooter>
+          <Button
+            disabled={isSaving}
+            variant="outline"
+            type="button"
+            onClick={() => {
+              setOpen(false)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={!hasChanges || hasEmptyName || isSaving}
+            onClick={() => {
+              void handleSave()
+            }}
+          >
+            {isSaving ? "Saving..." : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

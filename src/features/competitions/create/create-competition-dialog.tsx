@@ -2,16 +2,14 @@
 
 import { Button } from "@/components/ui/button"
 import {
-  ResponsiveModal,
-  ResponsiveModalBody,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalFrame,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-  ResponsiveModalTrigger,
-} from "@/components/ui/responsive-modal"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   Field,
   FieldDescription,
@@ -157,7 +155,7 @@ export function CreateCompetitionDialog({
   }
 
   return (
-    <ResponsiveModal
+    <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
@@ -167,129 +165,121 @@ export function CreateCompetitionDialog({
         }
       }}
     >
-      <ResponsiveModalTrigger asChild>
+      <DialogTrigger asChild>
         {children ?? (
           <Button type="button">
             <PlusIcon />
             New Competition
           </Button>
         )}
-      </ResponsiveModalTrigger>
-      <ResponsiveModalContent className="sm:max-w-2xl">
-        <ResponsiveModalFrame>
-          <ResponsiveModalHeader>
-            <ResponsiveModalTitle>New competition</ResponsiveModalTitle>
-            <ResponsiveModalDescription>
-              Create a competition from a template.
-            </ResponsiveModalDescription>
-          </ResponsiveModalHeader>
+      </DialogTrigger>
+      <DialogContent className="max-h-[min(92vh,760px)] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>New competition</DialogTitle>
+          <DialogDescription>
+            Create a competition from a template.
+          </DialogDescription>
+        </DialogHeader>
 
-          <ResponsiveModalBody className="grid gap-4">
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="competition-template">Template</FieldLabel>
-                <NativeSelect
-                  id="competition-template"
-                  value={activeTemplateKey}
-                  onChange={(event) => {
-                    selectTemplateKey(event.currentTarget.value)
-                  }}
-                >
-                  {(templates ?? []).map((template) => (
-                    <NativeSelectOption key={template.key} value={template.key}>
-                      {template.name}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                {variables.length > 0 ? (
-                  <TemplateVariableFields
-                    key={activeTemplateKey}
-                    variables={variables}
-                    values={variableValues}
-                    onChange={(nextValues) => {
-                      setVariableValuesByTemplate((current) => ({
-                        ...current,
-                        [activeTemplateKey]: nextValues,
-                      }))
-                    }}
-                  />
-                ) : null}
-                {selectedTemplate?.description !== undefined &&
-                selectedTemplate.description !== null ? (
-                  <FieldDescription>
-                    {selectedTemplate.description}
-                  </FieldDescription>
-                ) : null}
-              </Field>
-
-              <div className="grid gap-4 @md/main:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="competition-name">Name</FieldLabel>
-                  <Input
-                    id="competition-name"
-                    value={name}
-                    onChange={(event) => {
-                      setName(event.currentTarget.value)
-                    }}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Dates</FieldLabel>
-                  <DateRangeSelector.Button
-                    value={compDates}
-                    onChange={setCompDates}
-                  />
-                </Field>
-              </div>
-
-              <Field>
-                <FieldLabel htmlFor="competition-description">
-                  Description
-                </FieldLabel>
-                <Textarea
-                  id="competition-description"
-                  value={description}
-                  onChange={(event) => {
-                    setDescription(event.currentTarget.value)
-                  }}
-                />
-              </Field>
-
-              <CompetitionPeopleFormFields
-                compLead={compLead}
-                leadDelegate={leadDelegate}
-                organisers={organisers}
-                compLeadId={compLeadId}
-                leadDelegateId={leadDelegateId}
-                organiserIds={organiserIds}
-                onCompLeadChange={setCompLeadId}
-                onLeadDelegateChange={setLeadDelegateId}
-                onOrganisersChange={setOrganiserIds}
-              />
-
-              {submitError !== null ? (
-                <FieldError>{submitError}</FieldError>
-              ) : null}
-            </FieldGroup>
-          </ResponsiveModalBody>
-
-          <ResponsiveModalFooter>
-            <Button
-              type="button"
-              disabled={!canSubmit}
-              onClick={() => {
-                void handleCreate()
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="competition-template">Template</FieldLabel>
+            <NativeSelect
+              id="competition-template"
+              value={activeTemplateKey}
+              onChange={(event) => {
+                selectTemplateKey(event.currentTarget.value)
               }}
             >
-              {isCreating ? (
-                <LoaderCircleIcon className="animate-spin" />
-              ) : null}
-              Create
-            </Button>
-          </ResponsiveModalFooter>
-        </ResponsiveModalFrame>
-      </ResponsiveModalContent>
-    </ResponsiveModal>
+              {(templates ?? []).map((template) => (
+                <NativeSelectOption key={template.key} value={template.key}>
+                  {template.name}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+            {variables.length > 0 ? (
+              <TemplateVariableFields
+                key={activeTemplateKey}
+                variables={variables}
+                values={variableValues}
+                onChange={(nextValues) => {
+                  setVariableValuesByTemplate((current) => ({
+                    ...current,
+                    [activeTemplateKey]: nextValues,
+                  }))
+                }}
+              />
+            ) : null}
+            {selectedTemplate?.description !== undefined &&
+            selectedTemplate.description !== null ? (
+              <FieldDescription>
+                {selectedTemplate.description}
+              </FieldDescription>
+            ) : null}
+          </Field>
+
+          <div className="grid gap-4 @md/main:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="competition-name">Name</FieldLabel>
+              <Input
+                id="competition-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.currentTarget.value)
+                }}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Dates</FieldLabel>
+              <DateRangeSelector.Button
+                value={compDates}
+                onChange={setCompDates}
+              />
+            </Field>
+          </div>
+
+          <Field>
+            <FieldLabel htmlFor="competition-description">
+              Description
+            </FieldLabel>
+            <Textarea
+              id="competition-description"
+              value={description}
+              onChange={(event) => {
+                setDescription(event.currentTarget.value)
+              }}
+            />
+          </Field>
+
+          <CompetitionPeopleFormFields
+            compLead={compLead}
+            leadDelegate={leadDelegate}
+            organisers={organisers}
+            compLeadId={compLeadId}
+            leadDelegateId={leadDelegateId}
+            organiserIds={organiserIds}
+            onCompLeadChange={setCompLeadId}
+            onLeadDelegateChange={setLeadDelegateId}
+            onOrganisersChange={setOrganiserIds}
+          />
+
+          {submitError !== null ? <FieldError>{submitError}</FieldError> : null}
+        </FieldGroup>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            disabled={!canSubmit}
+            onClick={() => {
+              void handleCreate()
+            }}
+          >
+            {isCreating ? <LoaderCircleIcon className="animate-spin" /> : null}
+            Create
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

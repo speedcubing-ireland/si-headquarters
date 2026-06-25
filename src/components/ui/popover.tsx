@@ -1,8 +1,24 @@
 import * as React from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
-import { OverlayPortal } from "@/components/ui/overlay-portal-container"
 import { cn } from "@/lib/utils"
+
+const PopoverPortalContainerContext =
+  React.createContext<HTMLElement | undefined>(undefined)
+
+function PopoverPortalContainerProvider({
+  children,
+  container,
+}: {
+  children: React.ReactNode
+  container: HTMLElement | undefined
+}) {
+  return (
+    <PopoverPortalContainerContext.Provider value={container}>
+      {children}
+    </PopoverPortalContainerContext.Provider>
+  )
+}
 
 function Popover({
   ...props
@@ -22,6 +38,7 @@ function PopoverContent({
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  const portalContainer = React.useContext(PopoverPortalContainerContext)
   const content = (
     <PopoverPrimitive.Content
       data-slot="popover-content"
@@ -35,8 +52,14 @@ function PopoverContent({
     />
   )
 
+  if (portalContainer === undefined) {
+    return <PopoverPrimitive.Portal>{content}</PopoverPrimitive.Portal>
+  }
+
   return (
-    <OverlayPortal Portal={PopoverPrimitive.Portal}>{content}</OverlayPortal>
+    <PopoverPrimitive.Portal container={portalContainer}>
+      {content}
+    </PopoverPrimitive.Portal>
   )
 }
 
@@ -85,6 +108,7 @@ export {
   PopoverContent,
   PopoverDescription,
   PopoverHeader,
+  PopoverPortalContainerProvider,
   PopoverTitle,
   PopoverTrigger,
 }

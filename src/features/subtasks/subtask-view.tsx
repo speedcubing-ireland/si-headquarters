@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { CassetteTapeIcon, CircleCheck, PlusIcon } from "lucide-react"
+import { PlusIcon, CassetteTapeIcon, CircleCheck } from "lucide-react"
 import { api } from "@/convex/_generated/api"
 import type { TaskSubtaskView } from "@/convex/tasks/queries"
 import { getProgress } from "@/convex/tasks/status/rules"
@@ -24,7 +24,6 @@ import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
 import { cn } from "@/lib/utils"
 import { useEffect, useState, type ReactNode } from "react"
 import { EditTasksDialog } from "@/features/subtasks/edit-tasks-dialog"
-import { IconLabelToolbarButton } from "@/components/ui/icon-label-toolbar-button"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
@@ -149,23 +148,30 @@ export function SubtaskView({
 
   return (
     <div className="col-span-full flex flex-col gap-3">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
         <AddTaskDialog initialParent={view.defaultParent} parentScope={owner}>
-          <IconLabelToolbarButton icon={PlusIcon} label="Add task" />
+          <Button variant="outline" size="lg" type="button">
+            <PlusIcon />
+            Add Task
+          </Button>
         </AddTaskDialog>
         <EditTasksDialog sections={view.sections} />
         {toolbarActions}
         {taskId !== null && (
-          <IconLabelToolbarButton
-            icon={CassetteTapeIcon}
-            label="Create flow"
+          <Button
+            variant="outline"
+            size="lg"
+            type="button"
             onClick={() => {
               void setTaskKind({ id: taskId, kind: "flow" })
             }}
-          />
+          >
+            <CassetteTapeIcon />
+            Create Flow
+          </Button>
         )}
+        <div className="flex-1" />
         <SubtaskDisplayOptionsPopover
-          className="ml-auto"
           options={displayOptions}
           onChange={setDisplayOptions}
         />

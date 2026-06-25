@@ -6,23 +6,21 @@ import type { Id } from "@/convex/_generated/dataModel"
 import { findLoginProvider } from "@/config/lib/organisation"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import {
-  ResponsiveModal,
-  ResponsiveModalBody,
-  ResponsiveModalClose,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalForm,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@/components/ui/responsive-modal"
 import { Spinner } from "@/components/ui/spinner"
 
 const showEmailField = findLoginProvider("google") !== undefined
@@ -105,75 +103,73 @@ export function AddUserDialog({
   }
 
   return (
-    <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
-      <ResponsiveModalContent className="sm:max-w-lg">
-        <ResponsiveModalForm onSubmit={(e) => void handleSubmit(e)}>
-          <ResponsiveModalHeader>
-            <ResponsiveModalTitle>Add User</ResponsiveModalTitle>
-            {showEmailField && showWcaIdField ? (
-              <ResponsiveModalDescription>
-                At least an email or WCA User ID is required.
-              </ResponsiveModalDescription>
-            ) : null}
-          </ResponsiveModalHeader>
-          <ResponsiveModalBody>
-            <FieldGroup>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add User</DialogTitle>
+          {showEmailField && showWcaIdField ? (
+            <DialogDescription>
+              At least an email or WCA User ID is required.
+            </DialogDescription>
+          ) : null}
+        </DialogHeader>
+        <form id="add-user-form" onSubmit={(e) => void handleSubmit(e)}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="add-user-name">Name</FieldLabel>
+              <Input
+                id="add-user-name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                }}
+                placeholder="Full name"
+              />
+            </Field>
+            {showEmailField ? (
               <Field>
-                <FieldLabel htmlFor="add-user-name">Name</FieldLabel>
+                <FieldLabel htmlFor="add-user-email">Email</FieldLabel>
                 <Input
-                  id="add-user-name"
-                  value={name}
+                  id="add-user-email"
+                  type="email"
+                  value={email}
                   onChange={(e) => {
-                    setName(e.target.value)
+                    setEmail(e.target.value)
                   }}
-                  placeholder="Full name"
+                  placeholder="user@example.com"
                 />
               </Field>
-              {showEmailField ? (
-                <Field>
-                  <FieldLabel htmlFor="add-user-email">Email</FieldLabel>
-                  <Input
-                    id="add-user-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value)
-                    }}
-                    placeholder="user@example.com"
-                  />
-                </Field>
-              ) : null}
-              {showWcaIdField ? (
-                <Field>
-                  <FieldLabel htmlFor="add-user-wca">WCA User ID</FieldLabel>
-                  <Input
-                    id="add-user-wca"
-                    type="number"
-                    min={1}
-                    value={wcaUserId}
-                    onChange={(e) => {
-                      setWcaUserId(e.target.value)
-                    }}
-                    placeholder="e.g. 123456"
-                  />
-                </Field>
-              ) : null}
-              <FieldError>{error}</FieldError>
-            </FieldGroup>
-          </ResponsiveModalBody>
-          <ResponsiveModalFooter>
-            <ResponsiveModalClose asChild>
-              <Button type="button" variant="outline">
-                Cancel
-              </Button>
-            </ResponsiveModalClose>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? <Spinner /> : null}
-              Add User
+            ) : null}
+            {showWcaIdField ? (
+              <Field>
+                <FieldLabel htmlFor="add-user-wca">WCA User ID</FieldLabel>
+                <Input
+                  id="add-user-wca"
+                  type="number"
+                  min={1}
+                  value={wcaUserId}
+                  onChange={(e) => {
+                    setWcaUserId(e.target.value)
+                  }}
+                  placeholder="e.g. 123456"
+                />
+              </Field>
+            ) : null}
+            <FieldError>{error}</FieldError>
+          </FieldGroup>
+        </form>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Cancel
             </Button>
-          </ResponsiveModalFooter>
-        </ResponsiveModalForm>
-      </ResponsiveModalContent>
-    </ResponsiveModal>
+          </DialogClose>
+          <Button type="submit" form="add-user-form" disabled={isSubmitting}>
+            {isSubmitting ? <Spinner /> : null}
+            Add User
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

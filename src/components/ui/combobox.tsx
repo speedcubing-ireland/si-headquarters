@@ -4,7 +4,6 @@ import * as React from "react"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 
 import { cn } from "@/lib/utils"
-import { OverlayPortal } from "@/components/ui/overlay-portal-container"
 import { Button } from "@/components/ui/button"
 import {
   InputGroup,
@@ -15,6 +14,22 @@ import {
 import { ChevronDownIcon, XIcon, CheckIcon } from "lucide-react"
 
 const Combobox = ComboboxPrimitive.Root
+const ComboboxPortalContainerContext =
+  React.createContext<HTMLElement | undefined>(undefined)
+
+function ComboboxPortalContainerProvider({
+  children,
+  container,
+}: {
+  children: React.ReactNode
+  container: HTMLElement | undefined
+}) {
+  return (
+    <ComboboxPortalContainerContext.Provider value={container}>
+      {children}
+    </ComboboxPortalContainerContext.Provider>
+  )
+}
 
 function ComboboxValue({ ...props }: ComboboxPrimitive.Value.Props) {
   return <ComboboxPrimitive.Value data-slot="combobox-value" {...props} />
@@ -105,6 +120,7 @@ function ComboboxContent({
     ComboboxPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "alignOffset" | "anchor"
   >) {
+  const portalContainer = React.useContext(ComboboxPortalContainerContext)
   const content = (
     <>
       <ComboboxPrimitive.Positioner
@@ -128,8 +144,14 @@ function ComboboxContent({
     </>
   )
 
+  if (portalContainer === undefined) {
+    return <ComboboxPrimitive.Portal>{content}</ComboboxPrimitive.Portal>
+  }
+
   return (
-    <OverlayPortal Portal={ComboboxPrimitive.Portal}>{content}</OverlayPortal>
+    <ComboboxPrimitive.Portal container={portalContainer}>
+      {content}
+    </ComboboxPrimitive.Portal>
   )
 }
 
@@ -308,5 +330,6 @@ export {
   ComboboxChipsInput,
   ComboboxTrigger,
   ComboboxValue,
+  ComboboxPortalContainerProvider,
   useComboboxAnchor,
 }
