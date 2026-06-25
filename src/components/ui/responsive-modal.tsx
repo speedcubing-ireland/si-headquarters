@@ -29,6 +29,7 @@ import {
   use,
   useState,
   type ComponentProps,
+  type FocusEvent,
   type FormHTMLAttributes,
   type ReactNode,
 } from "react"
@@ -38,7 +39,7 @@ type ResponsiveModalShell = "dialog" | "drawer"
 
 interface ResponsiveModalContextValue {
   shell: ResponsiveModalShell
-  variant: ResponsiveModalVariant
+  isMobileForm: boolean
 }
 
 const ResponsiveModalContext =
@@ -63,6 +64,16 @@ const SHELL_COMPONENTS = {
   },
 } as const
 
+function resolveResponsiveModalShell(
+  isDesktop: boolean,
+  variant: ResponsiveModalVariant
+): ResponsiveModalShell {
+  if (isDesktop || variant === "form") {
+    return "dialog"
+  }
+  return "drawer"
+}
+
 function useResponsiveModalContext() {
   const context = use(ResponsiveModalContext)
   if (context === null) {
@@ -78,13 +89,30 @@ function useResponsiveModalShell() {
   return SHELL_COMPONENTS[shell]
 }
 
+function scrollFocusedFieldIntoView(event: FocusEvent<HTMLDivElement>) {
+  const { target } = event
+  if (
+    !(target instanceof HTMLInputElement) &&
+    !(target instanceof HTMLTextAreaElement) &&
+    !(target instanceof HTMLSelectElement) &&
+    target.getAttribute("contenteditable") !== "true"
+  ) {
+    return
+  }
+
+  requestAnimationFrame(() => {
+    target.scrollIntoView({ block: "nearest" })
+  })
+}
+
 interface ResponsiveModalRootProps {
   children: ReactNode
   open?: boolean
   onOpenChange?: (open: boolean) => void
   /**
-   * Semantic hint for layout styling. Both `form` and `sheet` use a bottom
-   * drawer on mobile and a centered dialog on desktop.
+   * `form` — fullscreen dialog on mobile (keyboard-friendly; iOS does not
+   * support `interactive-widget`). `sheet` — bottom drawer on mobile for
+   * lightweight content without heavy text input.
    */
   variant?: ResponsiveModalVariant
 }
@@ -95,12 +123,21 @@ function ResponsiveModal({
   ...props
 }: ResponsiveModalRootProps) {
   const isDesktop = !useIsMobile()
-  const shell: ResponsiveModalShell = isDesktop ? "dialog" : "drawer"
-  const Root = isDesktop ? Dialog : Drawer
+  const shell = resolveResponsiveModalShell(isDesktop, variant)
+  const isMobileForm = !isDesktop && variant === "form"
+  const contextValue: ResponsiveModalContextValue = { shell, isMobileForm }
+
+  if (shell === "dialog") {
+    return (
+      <ResponsiveModalContext value={contextValue}>
+        <Dialog {...props}>{children}</Dialog>
+      </ResponsiveModalContext>
+    )
+  }
 
   return (
-    <ResponsiveModalContext value={{ shell, variant }}>
-      <Root {...props}>{children}</Root>
+    <ResponsiveModalContext value={contextValue}>
+      <Drawer {...props}>{children}</Drawer>
     </ResponsiveModalContext>
   )
 }
@@ -142,6 +179,9 @@ function ResponsiveModalClose({
 const desktopModalContentClassName =
   "relative flex max-h-[min(92dvh,calc(100svh-2rem))] min-w-0 flex-col gap-0 overflow-hidden p-0"
 
+const mobileFullscreenModalContentClassName =
+  "relative flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden p-0"
+
 const mobileDrawerContentClassName =
   "relative flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden p-0"
 
@@ -152,15 +192,22 @@ function ResponsiveModalContent({
   className,
   children,
   showCloseButton,
+  presentation,
   ...props
 }: ResponsiveModalContentProps) {
-  const { shell } = useResponsiveModalContext()
+  const { shell, isMobileForm } = useResponsiveModalContext()
 
   if (shell === "dialog") {
     return (
       <DialogContent
-        className={cn(desktopModalContentClassName, className)}
+        className={cn(
+          isMobileForm
+            ? mobileFullscreenModalContentClassName
+            : desktopModalContentClassName,
+          className
+        )}
         showCloseButton={showCloseButton}
+        presentation={presentation ?? (isMobileForm ? "fullscreen" : "default")}
         {...props}
       >
         {children}
@@ -292,6 +339,7 @@ function ResponsiveModalBody({
         "min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4",
         className
       )}
+      onFocusCapture={scrollFocusedFieldIntoView}
       {...props}
     >
       {children}

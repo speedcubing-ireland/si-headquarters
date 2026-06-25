@@ -47,13 +47,30 @@ function DialogOverlay({
   )
 }
 
+type DialogContentPresentation = "default" | "fullscreen"
+
+const dialogContentSharedClassName =
+  "z-50 bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+
+const dialogContentPresentationClassName: Record<
+  DialogContentPresentation,
+  string
+> = {
+  default:
+    "fixed top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95",
+  fullscreen:
+    "fixed top-0 left-0 flex h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 rounded-none p-0",
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  presentation = "default",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  presentation?: DialogContentPresentation
 }) {
   return (
     <DialogPortal>
@@ -61,7 +78,8 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:max-w-sm",
+          dialogContentSharedClassName,
+          dialogContentPresentationClassName[presentation],
           className
         )}
         {...props}
