@@ -625,7 +625,7 @@ export function EditTasksDialog({
                 resetDragState()
               }}
             >
-              <ScrollArea className="max-h-[min(62svh,34rem)] pr-3">
+              <ScrollArea className="pr-3">
                 <div className="grid gap-4">
                   {editableSections.map((section) => (
                     <EditableSection

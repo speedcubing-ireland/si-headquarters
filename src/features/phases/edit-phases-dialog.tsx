@@ -394,7 +394,7 @@ function EditPhasesDialog({
                 setActiveClientId(null)
               }}
             >
-              <ScrollArea className="max-h-[min(62svh,34rem)] pr-3">
+              <ScrollArea className="pr-3">
                 <SortableContext
                   items={editablePhases.map((phase) => phase.clientId)}
                   strategy={verticalListSortingStrategy}

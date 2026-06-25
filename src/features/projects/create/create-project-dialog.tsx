@@ -120,7 +120,6 @@ export function CreateProjectDialog({ scope }: { scope: ProjectScope }) {
                     setName(event.currentTarget.value)
                   }}
                   disabled={isSubmitting}
-                  autoFocus
                   required
                 />
               </Field>

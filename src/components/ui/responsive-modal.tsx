@@ -38,7 +38,7 @@ type ResponsiveModalShell = "dialog" | "drawer"
 
 interface ResponsiveModalContextValue {
   shell: ResponsiveModalShell
-  isMobileForm: boolean
+  variant: ResponsiveModalVariant
 }
 
 const ResponsiveModalContext =
@@ -83,9 +83,8 @@ interface ResponsiveModalRootProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   /**
-   * `form` — full-screen dialog on mobile (keyboard-friendly; required on iOS
-   * where `interactive-widget` is unsupported). `sheet` — bottom drawer on
-   * mobile for short, lightweight content.
+   * Semantic hint for layout styling. Both `form` and `sheet` use a bottom
+   * drawer on mobile and a centered dialog on desktop.
    */
   variant?: ResponsiveModalVariant
 }
@@ -96,24 +95,12 @@ function ResponsiveModal({
   ...props
 }: ResponsiveModalRootProps) {
   const isDesktop = !useIsMobile()
-  const shell: ResponsiveModalShell =
-    isDesktop || variant === "form" ? "dialog" : "drawer"
-  const contextValue: ResponsiveModalContextValue = {
-    shell,
-    isMobileForm: !isDesktop && variant === "form",
-  }
-
-  if (shell === "dialog") {
-    return (
-      <ResponsiveModalContext value={contextValue}>
-        <Dialog {...props}>{children}</Dialog>
-      </ResponsiveModalContext>
-    )
-  }
+  const shell: ResponsiveModalShell = isDesktop ? "dialog" : "drawer"
+  const Root = isDesktop ? Dialog : Drawer
 
   return (
-    <ResponsiveModalContext value={contextValue}>
-      <Drawer {...props}>{children}</Drawer>
+    <ResponsiveModalContext value={{ shell, variant }}>
+      <Root {...props}>{children}</Root>
     </ResponsiveModalContext>
   )
 }
@@ -153,10 +140,10 @@ function ResponsiveModalClose({
 }
 
 const desktopModalContentClassName =
-  "flex max-h-[min(92dvh,calc(100svh-2rem))] min-w-0 flex-col gap-0 overflow-hidden p-0"
+  "relative flex max-h-[min(92dvh,calc(100svh-2rem))] min-w-0 flex-col gap-0 overflow-hidden p-0"
 
 const mobileDrawerContentClassName =
-  "flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden p-0"
+  "relative flex min-h-0 min-w-0 flex-col gap-0 overflow-hidden p-0"
 
 type ResponsiveModalContentProps = ComponentProps<typeof DialogContent> &
   Partial<ComponentProps<typeof DrawerContent>>
@@ -165,19 +152,15 @@ function ResponsiveModalContent({
   className,
   children,
   showCloseButton,
-  presentation,
   ...props
 }: ResponsiveModalContentProps) {
-  const { shell, isMobileForm } = useResponsiveModalContext()
+  const { shell } = useResponsiveModalContext()
 
   if (shell === "dialog") {
     return (
       <DialogContent
         className={cn(desktopModalContentClassName, className)}
         showCloseButton={showCloseButton}
-        presentation={
-          presentation ?? (isMobileForm ? "fullscreen" : "default")
-        }
         {...props}
       >
         {children}
@@ -241,7 +224,7 @@ function ResponsiveModalPortalContainer({
     <>
       <div
         ref={setPortalContainer}
-        className="pointer-events-none fixed inset-0 z-60"
+        className="pointer-events-none absolute inset-0 z-60"
       />
       <ComboboxPortalContainerProvider
         container={portalContainer ?? undefined}
@@ -306,7 +289,7 @@ function ResponsiveModalBody({
   return (
     <div
       className={cn(
-        "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 pb-4",
+        "min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4",
         className
       )}
       {...props}
