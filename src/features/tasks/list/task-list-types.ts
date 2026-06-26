@@ -89,6 +89,24 @@ export function countActiveTaskFilterChips(filters: TasksFilters): number {
   return count
 }
 
+/**
+ * Counts the chips that would actually render, skipping any filter keys hidden
+ * for the current scope (e.g. the forced `owner` filter on team pages). Used to
+ * decide whether the chip row should appear, including for the locked baseline
+ * chips of a preset.
+ */
+export function countVisibleTaskFilterChips(
+  filters: TasksFilters,
+  hiddenFilterKeys: readonly TaskFilterKey[]
+): number {
+  let count = 0
+  for (const key of TASK_FILTER_ARRAY_KEYS) {
+    if (!hiddenFilterKeys.includes(key)) count += filters[key].length
+  }
+  if (hasDateRangeValue(filters.dueDate)) count += 1
+  return count
+}
+
 export function shouldShowTaskMatchModeToggle(filters: TasksFilters): boolean {
   return countActiveFilterTypes(filters) >= 2
 }

@@ -25,14 +25,15 @@ export function TaskListFilterBar({
     createViewPublic,
     setCreateViewPublic,
     createViewOpen,
-    hasActiveFilters,
-    clearOverlay,
+    hasVisibleFilterChips,
+    canClearFilters,
+    clearEditableFilters,
   } = useTaskListPage()
 
   return (
     <>
       <div className="flex shrink-0 items-center gap-2">{filterPopover}</div>
-      {hasActiveFilters ? (
+      {hasVisibleFilterChips ? (
         <div className="order-3 flex min-w-0 basis-full flex-wrap items-center gap-2 @sm/main:order-none @sm/main:flex-1 @sm/main:basis-auto">
           {filterChips}
           <TaskMatchModeToggle />
@@ -53,12 +54,12 @@ export function TaskListFilterBar({
             </Label>
           </div>
         ) : null}
-        {hasActiveFilters ? (
+        {canClearFilters ? (
           <Button
             variant="outline"
             size="sm"
             type="button"
-            onClick={clearOverlay}
+            onClick={clearEditableFilters}
           >
             Clear
           </Button>

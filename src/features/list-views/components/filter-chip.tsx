@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group"
 import type { LucideIcon } from "lucide-react"
-import { X } from "lucide-react"
+import { Lock, X } from "lucide-react"
 import type { ReactNode } from "react"
 
 export function FilterChip<TValue extends string>({
@@ -13,6 +13,7 @@ export function FilterChip<TValue extends string>({
   onRemove,
   renderValue,
   wrapValueButton,
+  readOnly,
 }: {
   icon: LucideIcon
   label: string
@@ -22,6 +23,7 @@ export function FilterChip<TValue extends string>({
   onRemove: () => void
   renderValue: (value: TValue) => ReactNode
   wrapValueButton?: (button: React.ReactElement) => ReactNode
+  readOnly?: boolean
 }) {
   const hasMultiple = values.length > 1
   const isNotText = isNot
@@ -31,6 +33,50 @@ export function FilterChip<TValue extends string>({
     : hasMultiple
       ? "is any"
       : "is"
+
+  if (readOnly === true) {
+    return (
+      <ButtonGroup className="text-muted-foreground">
+        <Button
+          variant="outline"
+          size="xs"
+          type="button"
+          disabled
+          className="text-muted-foreground"
+        >
+          <Lock className="size-3" />
+          <Icon className="size-4" />
+          {label}
+        </Button>
+        <ButtonGroupSeparator orientation="vertical" />
+        <Button
+          variant="outline"
+          size="xs"
+          type="button"
+          disabled
+          className="text-muted-foreground"
+        >
+          {isNotText}
+        </Button>
+        <ButtonGroupSeparator orientation="vertical" />
+        <Button
+          variant="outline"
+          size="xs"
+          type="button"
+          disabled
+          className="min-w-0 text-muted-foreground"
+        >
+          {values.length === 1 ? (
+            renderValue(values[0])
+          ) : (
+            <span className="truncate">
+              {values.length} {label.toLowerCase()}
+            </span>
+          )}
+        </Button>
+      </ButtonGroup>
+    )
+  }
 
   const valueButton = (
     <Button variant="outline" size="xs" className="min-w-0" type="button">

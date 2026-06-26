@@ -25,6 +25,10 @@ import type {
   TasksFilters,
 } from "@/features/tasks/list/task-list-types"
 import {
+  countActiveTaskFilterChips,
+  countVisibleTaskFilterChips,
+} from "@/features/tasks/list/task-list-types"
+import {
   emptyOverlayFilters,
   getPresetSnapshot,
   hasOverlayFilters,
@@ -61,13 +65,22 @@ export interface TaskListContextValue {
   activePresetId: TaskListPresetId | null
   isDirty: boolean
   hasActiveFilters: boolean
+  hasVisibleFilterChips: boolean
+  canClearFilters: boolean
   showMatchModeToggle: boolean
   hiddenFilterKeys: readonly TaskFilterKey[]
+  lockedFilters: TasksFilters | null
+  editFilters: TasksFilters
+  editMatchMode: MatchMode
   setMatchMode: (matchMode: MatchMode) => void
   setArrayFilter: ArrayFilterSetter<TaskFilterKey>
   setDueDate: (range: DateRangeFilter | undefined) => void
+  setEditArrayFilter: ArrayFilterSetter<TaskFilterKey>
+  setEditDueDate: (range: DateRangeFilter | undefined) => void
+  setEditMatchMode: (matchMode: MatchMode) => void
   setDisplay: (display: DisplaySettings) => void
   clearOverlay: () => void
+  clearEditableFilters: () => void
   applyPreset: (presetId: TaskListPresetId) => void
   savedViews: ReturnType<typeof useTaskSavedViews>
   createViewOpen: boolean
@@ -297,6 +310,90 @@ function useTaskListState(config: TaskListPageConfig): TaskListContextValue {
     setOverlayMatchMode(undefined)
   }, [])
 
+  const setViewArrayFilter = useCallback<ArrayFilterSetter<TaskFilterKey>>(
+    (key, value) => {
+      setViewBaseline((current) => ({
+        ...current,
+        filters: { ...current.filters, [key]: value },
+      }))
+    },
+    []
+  )
+
+  const setViewDueDate = useCallback((range: DateRangeFilter | undefined) => {
+    setViewBaseline((current) => ({
+      ...current,
+      filters: { ...current.filters, dueDate: range },
+    }))
+  }, [])
+
+  const setViewMatchMode = useCallback((mode: MatchMode) => {
+    setViewBaseline((current) => ({ ...current, matchMode: mode }))
+  }, [])
+
+  const isSavedViewActive = activeViewId !== null
+  const editFilters = isSavedViewActive ? baseline.filters : overlayFilters
+  const editMatchMode = isSavedViewActive ? baseline.matchMode : userMatchMode
+  const lockedFilters = isSavedViewActive ? null : baseline.filters
+
+  const setEditArrayFilter = useCallback<ArrayFilterSetter<TaskFilterKey>>(
+    (key, value) => {
+      if (activeViewId !== null) {
+        setViewArrayFilter(key, value)
+      } else {
+        setArrayFilter(key, value)
+      }
+    },
+    [activeViewId, setViewArrayFilter, setArrayFilter]
+  )
+
+  const setEditDueDate = useCallback(
+    (range: DateRangeFilter | undefined) => {
+      if (activeViewId !== null) {
+        setViewDueDate(range)
+      } else {
+        setDueDate(range)
+      }
+    },
+    [activeViewId, setViewDueDate, setDueDate]
+  )
+
+  const setEditMatchMode = useCallback(
+    (mode: MatchMode) => {
+      if (activeViewId !== null) {
+        setViewMatchMode(mode)
+      } else {
+        setMatchMode(mode)
+      }
+    },
+    [activeViewId, setViewMatchMode, setMatchMode]
+  )
+
+  const clearEditableFilters = useCallback(() => {
+    if (activeViewId !== null) {
+      setViewBaseline({ filters: emptyOverlayFilters(), matchMode: "all" })
+    } else {
+      clearOverlay()
+    }
+  }, [activeViewId, clearOverlay])
+
+  const hiddenFilterKeys = isTeamScoped(config)
+    ? TEAM_HIDDEN_FILTER_KEYS
+    : EMPTY_HIDDEN_FILTER_KEYS
+
+  const hasVisibleFilterChips = useMemo(
+    () =>
+      (lockedFilters !== null &&
+        countVisibleTaskFilterChips(lockedFilters, hiddenFilterKeys) > 0) ||
+      countVisibleTaskFilterChips(editFilters, hiddenFilterKeys) > 0,
+    [lockedFilters, editFilters, hiddenFilterKeys]
+  )
+
+  const canClearFilters = useMemo(
+    () => countActiveTaskFilterChips(editFilters) > 0,
+    [editFilters]
+  )
+
   const handleSaveNewView = useCallback(async () => {
     const name = createViewName.trim()
     if (name.length === 0) return
@@ -324,15 +421,22 @@ function useTaskListState(config: TaskListPageConfig): TaskListContextValue {
     activePresetId,
     isDirty,
     hasActiveFilters,
-    showMatchModeToggle: shouldShowTaskMatchModeToggle(overlayFilters),
-    hiddenFilterKeys: isTeamScoped(config)
-      ? TEAM_HIDDEN_FILTER_KEYS
-      : EMPTY_HIDDEN_FILTER_KEYS,
+    hasVisibleFilterChips,
+    canClearFilters,
+    showMatchModeToggle: shouldShowTaskMatchModeToggle(editFilters),
+    hiddenFilterKeys,
+    lockedFilters,
+    editFilters,
+    editMatchMode,
     setMatchMode,
     setArrayFilter,
     setDueDate,
+    setEditArrayFilter,
+    setEditDueDate,
+    setEditMatchMode,
     setDisplay,
     clearOverlay,
+    clearEditableFilters,
     applyPreset,
     savedViews,
     createViewOpen,

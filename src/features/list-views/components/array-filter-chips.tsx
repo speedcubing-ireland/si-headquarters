@@ -23,11 +23,13 @@ export function ArrayFilterChips<K extends string>({
   filters,
   optionsByKey,
   setArrayFilter,
+  readOnly,
 }: {
   chipDefs: ArrayFilterChipDef<K>[]
   filters: Record<K, FilterItem[]>
   optionsByKey: Record<K, FilterOption[]>
   setArrayFilter: ArrayFilterSetter<K>
+  readOnly?: boolean
 }) {
   return (
     <>
@@ -40,24 +42,37 @@ export function ArrayFilterChips<K extends string>({
             values={item.values}
             isNot={item.isNot}
             onToggleIsNot={() => {
-              toggleFilterIsNot(filters, setArrayFilter, key, index)
+              if (readOnly !== true)
+                toggleFilterIsNot(filters, setArrayFilter, key, index)
             }}
             onRemove={() => {
-              removeFilterAt(setArrayFilter, key, filters[key], index)
+              if (readOnly !== true)
+                removeFilterAt(setArrayFilter, key, filters[key], index)
             }}
             renderValue={renderValue}
-            wrapValueButton={(button) => (
-              <FilterValueSelector
-                label={label}
-                options={optionsByKey[key]}
-                selectedValues={item.values}
-                onToggleValue={(value) => {
-                  toggleFilterValue(filters, setArrayFilter, key, index, value)
-                }}
-              >
-                {button}
-              </FilterValueSelector>
-            )}
+            wrapValueButton={
+              readOnly === true
+                ? undefined
+                : (button) => (
+                    <FilterValueSelector
+                      label={label}
+                      options={optionsByKey[key]}
+                      selectedValues={item.values}
+                      onToggleValue={(value) => {
+                        toggleFilterValue(
+                          filters,
+                          setArrayFilter,
+                          key,
+                          index,
+                          value
+                        )
+                      }}
+                    >
+                      {button}
+                    </FilterValueSelector>
+                  )
+            }
+            readOnly={readOnly}
           />
         ))
       )}

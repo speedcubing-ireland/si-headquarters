@@ -2,15 +2,16 @@ import { Button } from "@/components/ui/button"
 import { useTaskListPage } from "@/features/tasks/list/task-list-context"
 
 export function TaskMatchModeToggle() {
-  const { matchMode, setMatchMode, showMatchModeToggle } = useTaskListPage()
+  const { editMatchMode, setEditMatchMode, showMatchModeToggle } =
+    useTaskListPage()
 
   if (!showMatchModeToggle) {
     return null
   }
 
-  const nextMode = matchMode === "any" ? "all" : "any"
+  const nextMode = editMatchMode === "any" ? "all" : "any"
   const label =
-    matchMode === "any"
+    editMatchMode === "any"
       ? { short: "Any filter", long: "Match any filter" }
       : { short: "All filters", long: "Match all filters" }
 
@@ -20,12 +21,12 @@ export function TaskMatchModeToggle() {
       size="xs"
       type="button"
       title={
-        matchMode === "any"
+        editMatchMode === "any"
           ? "Items matching any active filter type are shown. Click to require all filter types."
           : "Items must match every active filter type. Click to match any filter type."
       }
       onClick={() => {
-        setMatchMode(nextMode)
+        setEditMatchMode(nextMode)
       }}
     >
       <span className="@sm/main:hidden">{label.short}</span>

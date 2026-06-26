@@ -12,8 +12,12 @@ export function TasksFilterPopover({
 }: {
   rows: TaskBoardRow[] | undefined
 }) {
-  const { overlayFilters, setArrayFilter, clearOverlay, hiddenFilterKeys } =
-    useTaskListPage()
+  const {
+    editFilters,
+    setEditArrayFilter,
+    clearEditableFilters,
+    hiddenFilterKeys,
+  } = useTaskListPage()
   const { filterTypes } = useTaskFilters(rows)
   const visibleFilterTypes = filterTypes.filter(
     (type) => !hiddenFilterKeys.includes(type.id)
@@ -22,10 +26,10 @@ export function TasksFilterPopover({
   return (
     <FilterPopover
       filterTypes={visibleFilterTypes}
-      filters={overlayFilters}
-      setArrayFilter={setArrayFilter}
-      clearFilters={clearOverlay}
-      activeCount={countActiveTaskFilterChips(overlayFilters)}
+      filters={editFilters}
+      setArrayFilter={setEditArrayFilter}
+      clearFilters={clearEditableFilters}
+      activeCount={countActiveTaskFilterChips(editFilters)}
     />
   )
 }
@@ -35,36 +39,61 @@ export function TasksFilterChips({
 }: {
   rows: TaskBoardRow[] | undefined
 }) {
-  const { overlayFilters, setArrayFilter, setDueDate, hiddenFilterKeys } =
-    useTaskListPage()
+  const {
+    lockedFilters,
+    editFilters,
+    setEditArrayFilter,
+    setEditDueDate,
+    hiddenFilterKeys,
+  } = useTaskListPage()
   const { optionsByKey, chipDefs } = useTaskFilters(rows)
   const visibleChipDefs = chipDefs.filter(
     (def) => !hiddenFilterKeys.includes(def.key)
   )
 
-  if (countActiveTaskFilterChips(overlayFilters) === 0) return null
-
-  const dueDate = overlayFilters.dueDate
+  const lockedDueDate =
+    lockedFilters !== null && hasDateRangeValue(lockedFilters.dueDate)
+      ? lockedFilters.dueDate
+      : undefined
+  const editDueDate = hasDateRangeValue(editFilters.dueDate)
+    ? editFilters.dueDate
+    : undefined
 
   return (
     <>
-      <ArrayFilterChips
-        chipDefs={visibleChipDefs}
-        filters={overlayFilters}
-        optionsByKey={optionsByKey}
-        setArrayFilter={setArrayFilter}
-      />
-      {dueDate && hasDateRangeValue(dueDate) ? (
+      {lockedFilters !== null ? (
+        <ArrayFilterChips
+          chipDefs={visibleChipDefs}
+          filters={lockedFilters}
+          optionsByKey={optionsByKey}
+          setArrayFilter={setEditArrayFilter}
+          readOnly
+        />
+      ) : null}
+      {lockedDueDate ? (
         <DateRangeFilterChip
           label="Due date"
-          dateRange={dueDate}
+          dateRange={lockedDueDate}
+          readOnly
+        />
+      ) : null}
+      <ArrayFilterChips
+        chipDefs={visibleChipDefs}
+        filters={editFilters}
+        optionsByKey={optionsByKey}
+        setArrayFilter={setEditArrayFilter}
+      />
+      {editDueDate ? (
+        <DateRangeFilterChip
+          label="Due date"
+          dateRange={editDueDate}
           onClear={() => {
-            setDueDate(undefined)
+            setEditDueDate(undefined)
           }}
           onToggleIsNot={() => {
-            setDueDate({
-              ...dueDate,
-              isNot: dueDate.isNot !== true,
+            setEditDueDate({
+              ...editDueDate,
+              isNot: editDueDate.isNot !== true,
             })
           }}
         />
