@@ -81,7 +81,18 @@ export async function getTaskReviewDetails(
   }
 }
 
-async function getTaskReviewParts(
+export function pendingReviewerTeamIds(parts: TaskReviewParts): Id<"teams">[] {
+  if (!buildTaskReviewState(parts).hasPendingReviews) return []
+  const ids: Id<"teams">[] = []
+  for (const row of parts.reviewers) {
+    if (row.approvedAt !== null) continue
+    if (row.reviewer.type !== "teams") continue
+    ids.push(row.reviewer.id)
+  }
+  return ids
+}
+
+export async function getTaskReviewParts(
   ctx: ReviewReadCtx,
   taskId: Id<"tasks">
 ): Promise<TaskReviewParts> {

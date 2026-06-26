@@ -16,6 +16,7 @@ export interface TasksFilters {
   competition: FilterItem[]
   phase: FilterItem[]
   dependency: FilterItem[]
+  pendingTeamApproval: FilterItem[]
   dueDate?: DateRangeFilter
 }
 
@@ -37,6 +38,7 @@ export const emptyTasksFilters: TasksFilters = {
   competition: [],
   phase: [],
   dependency: [],
+  pendingTeamApproval: [],
 }
 
 export const TASK_FILTER_ARRAY_KEYS = [
@@ -48,6 +50,7 @@ export const TASK_FILTER_ARRAY_KEYS = [
   "competition",
   "phase",
   "dependency",
+  "pendingTeamApproval",
 ] as const satisfies readonly (keyof TasksFilters)[]
 
 export type TaskFilterKey = (typeof TASK_FILTER_ARRAY_KEYS)[number]

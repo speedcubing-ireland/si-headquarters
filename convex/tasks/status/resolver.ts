@@ -2,7 +2,9 @@ import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 import type { TASK_KINDS } from "@/convex/tasks/kind"
 import {
-  getTaskReviewState,
+  buildTaskReviewState,
+  getTaskReviewParts,
+  type TaskReviewParts,
   type TaskReviewState,
 } from "@/convex/tasks/reviews/reviewState"
 import {
@@ -101,7 +103,7 @@ export class TaskStatusLoader {
   >()
   private readonly reviewCache = new Map<
     Id<"tasks">,
-    Promise<TaskReviewState>
+    Promise<TaskReviewParts>
   >()
 
   constructor(
@@ -175,15 +177,19 @@ export class TaskStatusLoader {
     return this.applyPendingAndSort(tasks)
   }
 
-  async getReviewState(taskId: Id<"tasks">): Promise<TaskReviewState> {
+  async getReviewParts(taskId: Id<"tasks">): Promise<TaskReviewParts> {
     const existing = this.reviewCache.get(taskId)
     if (existing) return await existing
 
-    const reviewPromise = getTaskReviewState(this.ctx, taskId)
-    this.reviewCache.set(taskId, reviewPromise)
+    const partsPromise = getTaskReviewParts(this.ctx, taskId)
+    this.reviewCache.set(taskId, partsPromise)
     this.stats.reviewReads += 1
 
-    return await reviewPromise
+    return await partsPromise
+  }
+
+  async getReviewState(taskId: Id<"tasks">): Promise<TaskReviewState> {
+    return buildTaskReviewState(await this.getReviewParts(taskId))
   }
 
   private applyPendingAndSort(tasks: Doc<"tasks">[]): Doc<"tasks">[] {

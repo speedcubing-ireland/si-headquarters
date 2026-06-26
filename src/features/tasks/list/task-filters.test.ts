@@ -11,7 +11,8 @@ function row(
   status: TaskBoardRow["statusView"]["effectiveStatus"],
   kind: TaskBoardRow["task"]["kind"],
   dueDate: string | null,
-  owner: TaskRowFilterInput["owner"] = null
+  owner: TaskRowFilterInput["owner"] = null,
+  pendingReviewerTeams: TaskRowFilterInput["pendingReviewerTeams"] = []
 ): TaskRowFilterInput {
   return {
     statusView: { effectiveStatus: status },
@@ -26,6 +27,8 @@ function row(
     labels: [],
     competitionId: null,
     phaseId: null,
+    dependencyStatuses: [],
+    pendingReviewerTeams,
   } as unknown as TaskRowFilterInput
 }
 
@@ -48,6 +51,51 @@ describe("filterTaskRows match mode", () => {
 
   it("match any matches if any filter type matches", () => {
     expect(filterTaskRows(rows, baseFilters, "any")).toHaveLength(3)
+  })
+})
+
+describe("pendingTeamApproval filter", () => {
+  const teamA = { _id: "teamA" as never, name: "Events" }
+  const teamB = { _id: "teamB" as never, name: "Tech" }
+
+  const rowWithTeams = (teams: (typeof teamA)[]) =>
+    row("to-do", "standard", null, null, teams)
+
+  const pendingRows = [
+    rowWithTeams([teamA]),
+    rowWithTeams([teamB]),
+    rowWithTeams([teamA, teamB]),
+    rowWithTeams([]),
+  ]
+
+  it("matches rows where the selected team has an outstanding approval", () => {
+    const filters = {
+      ...emptyTasksFilters,
+      pendingTeamApproval: [{ values: ["teamA"], isNot: false }],
+    }
+    expect(filterTaskRows(pendingRows, filters, "all")).toEqual([
+      pendingRows[0],
+      pendingRows[2],
+    ])
+  })
+
+  it("supports isNot to exclude rows where the team has an outstanding approval", () => {
+    const filters = {
+      ...emptyTasksFilters,
+      pendingTeamApproval: [{ values: ["teamA"], isNot: true }],
+    }
+    expect(filterTaskRows(pendingRows, filters, "all")).toEqual([
+      pendingRows[1],
+      pendingRows[3],
+    ])
+  })
+
+  it("returns no rows when no task has a pending approval for any of the selected teams", () => {
+    const filters = {
+      ...emptyTasksFilters,
+      pendingTeamApproval: [{ values: ["teamC"], isNot: false }],
+    }
+    expect(filterTaskRows(pendingRows, filters, "all")).toHaveLength(0)
   })
 })
 

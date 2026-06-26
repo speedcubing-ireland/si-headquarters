@@ -31,6 +31,7 @@ import {
   BanIcon,
   CassetteTapeIcon,
   CircleDotIcon,
+  ClipboardCheckIcon,
   TagIcon,
   TargetIcon,
   TrophyIcon,
@@ -49,6 +50,7 @@ export type TaskRowFilterInput = Pick<
   | "owner"
   | "labels"
   | "dependencyStatuses"
+  | "pendingReviewerTeams"
   | "competitionId"
   | "competitionName"
   | "phaseId"
@@ -118,6 +120,12 @@ export const TASK_FILTER_FIELDS: TaskFilterFieldConfig[] = [
     icon: BanIcon,
     getRowValues: (row) => row.dependencyStatuses,
   },
+  {
+    id: "pendingTeamApproval",
+    label: "Pending team approvals",
+    icon: ClipboardCheckIcon,
+    getRowValues: (row) => row.pendingReviewerTeams.map((t) => t._id),
+  },
 ]
 
 const STATUS_OPTIONS: FilterOption[] = TASK_STATUS_ORDER.map((status) => ({
@@ -160,6 +168,7 @@ function uniqueLookupValues(
   >()
   const competitions = new Map<string, { _id: string; name: string }>()
   const phases = new Map<string, { _id: string; name: string }>()
+  const pendingTeamApprovals = new Map<string, { _id: string; name: string }>()
 
   for (const row of rows ?? []) {
     for (const user of row.assignees.users) {
@@ -183,6 +192,9 @@ function uniqueLookupValues(
     if (row.phaseId !== null && row.phaseName !== null) {
       phases.set(row.phaseId, { _id: row.phaseId, name: row.phaseName })
     }
+    for (const team of row.pendingReviewerTeams) {
+      pendingTeamApprovals.set(team._id, team)
+    }
   }
 
   return {
@@ -193,6 +205,7 @@ function uniqueLookupValues(
     labels: [...labels.values()].sort(sortByName),
     competitions: [...competitions.values()].sort(sortByName),
     phases: [...phases.values()].sort(sortByName),
+    pendingTeamApprovals: [...pendingTeamApprovals.values()].sort(sortByName),
   }
 }
 
@@ -257,6 +270,7 @@ export interface TaskFilterLookup {
   labels: Pick<Doc<"taskLabels">, "_id" | "code" | "name" | "color">[]
   competitions: { _id: string; name: string }[]
   phases: { _id: string; name: string }[]
+  pendingTeamApprovals: { _id: string; name: string }[]
 }
 
 function renderTaskFilterValue(
@@ -308,6 +322,11 @@ function renderTaskFilterValue(
     case "dependency":
       return (
         DEPENDENCY_OPTIONS.find((option) => option.value === value)?.label ??
+        value
+      )
+    case "pendingTeamApproval":
+      return (
+        lookup.pendingTeamApprovals.find((team) => team._id === value)?.name ??
         value
       )
     default:
@@ -366,11 +385,17 @@ export function useTaskFilters(rows: TaskBoardRow[] | undefined) {
         label: phase.name,
       })),
       dependency: DEPENDENCY_OPTIONS,
+      pendingTeamApproval: lookup.pendingTeamApprovals.map((team) => ({
+        value: team._id,
+        label: team.name,
+        icon: ClipboardCheckIcon,
+      })),
     }),
     [
       assigneeOptions,
       lookup.competitions,
       lookup.labels,
+      lookup.pendingTeamApprovals,
       lookup.phases,
       ownerOptions,
     ]

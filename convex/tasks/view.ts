@@ -9,6 +9,10 @@ import {
   deriveDependencyStatuses,
   taskDependencyStatusType,
 } from "@/convex/tasks/blockers/dependency"
+import {
+  getTaskReviewParts,
+  pendingReviewerTeamIds,
+} from "@/convex/tasks/reviews/reviewState"
 import { taskKindType } from "@/convex/tasks/kind"
 import {
   buildSubtasksWithStatusViews,
@@ -74,6 +78,11 @@ export const taskViewLabel = v.object({
   color: taskLabelColorType,
 })
 
+export const taskViewTeamRef = v.object({
+  _id: v.id("teams"),
+  name: v.string(),
+})
+
 export const taskViewOwner = v.union(
   v.object({
     type: v.literal("users"),
@@ -113,6 +122,7 @@ export const taskViewTaskDetails = v.object({
   statusView: taskViewStatusView,
   blockers: blockerCounts,
   dependencyStatuses: v.array(taskDependencyStatusType),
+  pendingReviewerTeams: v.array(taskViewTeamRef),
   subtaskSummary: v.array(taskViewSubtaskSummaryItem),
 })
 
@@ -318,6 +328,19 @@ export function createTaskViewDisplayReader(
     return await blockersLoader.getCounts(taskId, statusLoader)
   }
 
+  async function getPendingReviewerTeams(
+    taskId: Id<"tasks">
+  ): Promise<{ _id: Id<"teams">; name: string }[]> {
+    const parts = statusLoader
+      ? await statusLoader.getReviewParts(taskId)
+      : await getTaskReviewParts(ctx, taskId)
+    const teamIds = pendingReviewerTeamIds(parts)
+    const teams = await Promise.all(teamIds.map((id) => getTeam(id)))
+    return teams
+      .filter((team): team is Doc<"teams"> => team !== null)
+      .map((team) => ({ _id: team._id, name: team.name }))
+  }
+
   async function getSubtaskSummary(
     task: Doc<"tasks">,
     directSubtaskViews?: TaskWithStatusView[]
@@ -344,14 +367,21 @@ export function createTaskViewDisplayReader(
     statusView,
     directSubtaskViews,
   }: HydratedTaskView): Promise<TaskViewTaskDetails> {
-    const [labels, owner, assignees, blockers, subtaskSummary] =
-      await Promise.all([
-        getLabels(task._id),
-        getOwner(task.owner),
-        getAssignees(task.assigneeIds),
-        getBlockerCounts(task._id),
-        getSubtaskSummary(task, directSubtaskViews),
-      ])
+    const [
+      labels,
+      owner,
+      assignees,
+      blockers,
+      pendingReviewerTeams,
+      subtaskSummary,
+    ] = await Promise.all([
+      getLabels(task._id),
+      getOwner(task.owner),
+      getAssignees(task.assigneeIds),
+      getBlockerCounts(task._id),
+      getPendingReviewerTeams(task._id),
+      getSubtaskSummary(task, directSubtaskViews),
+    ])
 
     return {
       task: {
@@ -372,6 +402,7 @@ export function createTaskViewDisplayReader(
         blockers,
         statusView.effectiveStatus
       ),
+      pendingReviewerTeams,
       subtaskSummary,
     }
   }
