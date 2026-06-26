@@ -100,7 +100,7 @@
     "@convex-dev/eslint-plugin": "^2.0.0",
     "@edge-runtime/vm": "^5.0.0",
     "@hey-api/openapi-ts": "^0.98.2",
-    "@react-email/ui": "6.6.3",
+    "@react-email/ui": "6.6.5",
     "@tailwindcss/typography": "^0.5.20",
     "@tanstack/router-plugin": "^1.168.18",
     "@trestleinc/convex-oxlint": "^0.2.0",
