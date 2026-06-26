@@ -19,14 +19,17 @@ import {
   mergeScopeFilters,
   type TaskListScope,
 } from "@/features/tasks/list/task-list-config"
-import type {
-  TaskFilterKey,
-  TasksFilters,
+import {
+  TASK_FILTER_ARRAY_KEYS,
+  type TaskFilterKey,
+  type TasksFilters,
 } from "@/features/tasks/list/task-list-types"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
 import { isTaskStatus } from "@/convex/tasks/status/validators"
+import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
+import { useQuery } from "convex/react"
 import {
   BanIcon,
   CassetteTapeIcon,
@@ -273,6 +276,118 @@ export interface TaskFilterLookup {
   pendingTeamApprovals: { _id: string; name: string }[]
 }
 
+export interface FilterChipEntityIds {
+  userIds: string[]
+  teamIds: string[]
+  labelIds: string[]
+  competitionIds: string[]
+  phaseIds: string[]
+}
+
+/**
+ * Collects the entity ids referenced by the active filter chips so they can be
+ * resolved to display names independently of the loaded rows. Only entity-typed
+ * keys are gathered; static/enum keys (status, kind, dependency) need no lookup.
+ */
+export function collectFilterEntityIds(
+  filterSets: TasksFilters[]
+): FilterChipEntityIds {
+  const userIds = new Set<string>()
+  const teamIds = new Set<string>()
+  const labelIds = new Set<string>()
+  const competitionIds = new Set<string>()
+  const phaseIds = new Set<string>()
+
+  for (const filters of filterSets) {
+    for (const key of TASK_FILTER_ARRAY_KEYS) {
+      for (const item of filters[key]) {
+        for (const value of item.values) {
+          if (value === "unassigned") continue
+          switch (key) {
+            case "assignee":
+              userIds.add(value)
+              break
+            case "owner": {
+              const [type, id] = value.split(":")
+              if (type === "users") userIds.add(id)
+              else if (type === "teams") teamIds.add(id)
+              break
+            }
+            case "labels":
+              labelIds.add(value)
+              break
+            case "competition":
+              competitionIds.add(value)
+              break
+            case "phase":
+              phaseIds.add(value)
+              break
+            case "pendingTeamApproval":
+              teamIds.add(value)
+              break
+            case "status":
+            case "kind":
+            case "dependency":
+              break
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    userIds: [...userIds],
+    teamIds: [...teamIds],
+    labelIds: [...labelIds],
+    competitionIds: [...competitionIds],
+    phaseIds: [...phaseIds],
+  }
+}
+
+interface ResolvedFilterEntities {
+  users: UserListEntry[]
+  teams: { _id: string; name: string }[]
+  labels: Pick<Doc<"taskLabels">, "_id" | "code" | "name" | "color">[]
+  competitions: { _id: string; name: string }[]
+  phases: { _id: string; name: string }[]
+}
+
+/**
+ * Merges row-derived lookup entries with entities resolved by the backend,
+ * preferring the row-derived entry when an id is present in both (so chips for
+ * loaded rows resolve instantly with no flash of the raw id).
+ */
+function mergeById<T extends { _id: string }>(base: T[], extra: T[]): T[] {
+  const seen = new Set(base.map((entry) => entry._id))
+  const merged = [...base]
+  for (const entry of extra) {
+    if (!seen.has(entry._id)) {
+      seen.add(entry._id)
+      merged.push(entry)
+    }
+  }
+  return merged
+}
+
+function mergeLookupWithResolved(
+  lookup: TaskFilterLookup,
+  resolved: ResolvedFilterEntities | undefined
+): TaskFilterLookup {
+  if (resolved === undefined) return lookup
+  return {
+    users: mergeById(lookup.users, resolved.users),
+    teams: mergeById(lookup.teams, resolved.teams),
+    labels: mergeById(lookup.labels, resolved.labels),
+    competitions: mergeById(lookup.competitions, resolved.competitions),
+    phases: mergeById(lookup.phases, resolved.phases),
+    // Pending-team-approval chips resolve from the same team docs.
+    pendingTeamApprovals: mergeById(
+      lookup.pendingTeamApprovals,
+      resolved.teams
+    ),
+  }
+}
+
 function renderTaskFilterValue(
   key: TaskFilterKey,
   value: string,
@@ -334,10 +449,32 @@ function renderTaskFilterValue(
   }
 }
 
-export function useTaskFilters(rows: TaskBoardRow[] | undefined) {
-  const lookup = useMemo<TaskFilterLookup>(
+export function useTaskFilters(
+  rows: TaskBoardRow[] | undefined,
+  resolveFilters?: TasksFilters[]
+) {
+  const rowLookup = useMemo<TaskFilterLookup>(
     () => uniqueLookupValues(rows),
     [rows]
+  )
+
+  const queryArgs = useMemo(() => {
+    if (resolveFilters === undefined) return "skip" as const
+    const ids = collectFilterEntityIds(resolveFilters)
+    const hasIds =
+      ids.userIds.length > 0 ||
+      ids.teamIds.length > 0 ||
+      ids.labelIds.length > 0 ||
+      ids.competitionIds.length > 0 ||
+      ids.phaseIds.length > 0
+    return hasIds ? ids : ("skip" as const)
+  }, [resolveFilters])
+
+  const resolved = useQuery(api.tasks.filterChips.resolveEntities, queryArgs)
+
+  const lookup = useMemo<TaskFilterLookup>(
+    () => mergeLookupWithResolved(rowLookup, resolved),
+    [rowLookup, resolved]
   )
 
   const assigneeOptions = useMemo<FilterOption[]>(

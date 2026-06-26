@@ -75,7 +75,7 @@ export function TaskListPageLayout({
         </Page.Toolbar>
       ) : (
         <Page.Toolbar className="flex min-h-12 items-center">
-          <div className="flex h-12 w-full flex-wrap items-center gap-2">
+          <div className="flex min-h-12 w-full flex-wrap items-center gap-2 py-2">
             {filtersRow}
           </div>
         </Page.Toolbar>

@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest"
 import {
+  collectFilterEntityIds,
   filterTaskRowsForListPage,
   filterTaskRows,
   type TaskRowFilterInput,
 } from "@/features/tasks/list/task-filters"
-import { emptyTasksFilters } from "@/features/tasks/list/task-list-types"
+import {
+  emptyTasksFilters,
+  type TasksFilters,
+} from "@/features/tasks/list/task-list-types"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
+
+function filtersWith(overrides: Partial<TasksFilters>): TasksFilters {
+  return { ...emptyTasksFilters, ...overrides }
+}
 
 function row(
   status: TaskBoardRow["statusView"]["effectiveStatus"],
@@ -167,5 +175,56 @@ describe("filterTaskRowsForListPage", () => {
         overlayMatchMode: "all",
       })
     ).toEqual([teamRows[0]])
+  })
+})
+
+describe("collectFilterEntityIds", () => {
+  it("returns empty arrays when there is nothing to resolve", () => {
+    expect(collectFilterEntityIds([emptyTasksFilters])).toEqual({
+      userIds: [],
+      teamIds: [],
+      labelIds: [],
+      competitionIds: [],
+      phaseIds: [],
+    })
+  })
+
+  it("collects entity ids by key and ignores enum/static keys", () => {
+    const filters = filtersWith({
+      status: [{ values: ["to-do"], isNot: false }],
+      dependency: [{ values: ["blocking"], isNot: false }],
+      assignee: [{ values: ["user-1", "unassigned"], isNot: false }],
+      owner: [{ values: ["users:user-2", "teams:team-1"], isNot: false }],
+      labels: [{ values: ["label-1"], isNot: false }],
+      competition: [{ values: ["comp-1"], isNot: false }],
+      phase: [{ values: ["phase-1"], isNot: false }],
+      pendingTeamApproval: [{ values: ["team-2"], isNot: false }],
+    })
+
+    expect(collectFilterEntityIds([filters])).toEqual({
+      userIds: ["user-1", "user-2"],
+      teamIds: ["team-1", "team-2"],
+      labelIds: ["label-1"],
+      competitionIds: ["comp-1"],
+      phaseIds: ["phase-1"],
+    })
+  })
+
+  it("dedupes ids across multiple filter sets", () => {
+    const locked = filtersWith({
+      assignee: [{ values: ["user-1"], isNot: false }],
+    })
+    const edit = filtersWith({
+      assignee: [{ values: ["user-1", "user-3"], isNot: false }],
+      owner: [{ values: ["teams:team-1"], isNot: false }],
+    })
+
+    expect(collectFilterEntityIds([locked, edit])).toEqual({
+      userIds: ["user-1", "user-3"],
+      teamIds: ["team-1"],
+      labelIds: [],
+      competitionIds: [],
+      phaseIds: [],
+    })
   })
 })

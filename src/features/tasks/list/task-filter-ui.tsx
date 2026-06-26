@@ -6,6 +6,7 @@ import { useTaskListPage } from "@/features/tasks/list/task-list-context"
 import { countActiveTaskFilterChips } from "@/features/tasks/list/task-list-types"
 import { useTaskFilters } from "@/features/tasks/list/task-filters"
 import type { TaskBoardRow } from "@/features/tasks/task-inline-row"
+import { useMemo } from "react"
 
 export function TasksFilterPopover({
   rows,
@@ -46,7 +47,12 @@ export function TasksFilterChips({
     setEditDueDate,
     hiddenFilterKeys,
   } = useTaskListPage()
-  const { optionsByKey, chipDefs } = useTaskFilters(rows)
+  const resolveFilters = useMemo(
+    () =>
+      lockedFilters !== null ? [lockedFilters, editFilters] : [editFilters],
+    [lockedFilters, editFilters]
+  )
+  const { optionsByKey, chipDefs } = useTaskFilters(rows, resolveFilters)
   const visibleChipDefs = chipDefs.filter(
     (def) => !hiddenFilterKeys.includes(def.key)
   )

@@ -242,6 +242,7 @@ import type * as tasks_blockers_queries from "../tasks/blockers/queries.js";
 import type * as tasks_blockers_root from "../tasks/blockers/root.js";
 import type * as tasks_blockers_validators from "../tasks/blockers/validators.js";
 import type * as tasks_board from "../tasks/board.js";
+import type * as tasks_filterChips from "../tasks/filterChips.js";
 import type * as tasks_flowView from "../tasks/flowView.js";
 import type * as tasks_hierarchy from "../tasks/hierarchy.js";
 import type * as tasks_inlineRow from "../tasks/inlineRow.js";
@@ -540,6 +541,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/blockers/root": typeof tasks_blockers_root;
   "tasks/blockers/validators": typeof tasks_blockers_validators;
   "tasks/board": typeof tasks_board;
+  "tasks/filterChips": typeof tasks_filterChips;
   "tasks/flowView": typeof tasks_flowView;
   "tasks/hierarchy": typeof tasks_hierarchy;
   "tasks/inlineRow": typeof tasks_inlineRow;
