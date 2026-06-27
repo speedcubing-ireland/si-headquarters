@@ -377,6 +377,7 @@ function actorSuppressionId(event: NotificationEvent): Id<"users"> | null {
     case "taskAssigned":
     case "taskStatusChanged":
     case "taskAwaitingReview":
+    case "taskApprovalOverridden":
     case "taskReviewersChanged":
     case "phaseChanged":
     case "updatePublished":
@@ -604,6 +605,38 @@ async function buildAwaitingReviewDrafts(
   return await Promise.all(
     drafts.map((draft) => enrichTaskNotificationDraft(ctx, draft, task._id))
   )
+}
+
+async function buildApprovalOverriddenDrafts(
+  ctx: ReadCtx,
+  event: Extract<NotificationEvent, { kind: "taskApprovalOverridden" }>
+): Promise<NotificationDraft[]> {
+  const task = await ctx.db.get("tasks", event.taskId)
+  if (task === null) return []
+  const channelTarget = await getTaskOwnerChannelTarget(ctx, task)
+  if (channelTarget === null) return []
+  const [actor, { name }] = await Promise.all([
+    getActor(ctx, event.actorId),
+    loadTaskRootDocs(ctx, task),
+  ])
+  const url = taskUrl(task._id)
+  const draft = taskDraftShell({
+    task,
+    rootName: name,
+    actor,
+    target: channelTarget,
+    fallbackText: `Approval overridden: ${task.name}`,
+    url,
+    color: EMBED_COLOR.review,
+    fields: [
+      embedField(
+        ":warning:",
+        "Approval overridden",
+        `${userDisplayName(actor, "Someone")} overrode the review approvals for this task.`
+      ),
+    ],
+  })
+  return [await enrichTaskNotificationDraft(ctx, draft, task._id)]
 }
 
 async function buildReviewersChangedDrafts(
@@ -1119,6 +1152,8 @@ async function buildEventDrafts(
       return await buildTaskStatusDrafts(ctx, event)
     case "taskAwaitingReview":
       return await buildAwaitingReviewDrafts(ctx, event)
+    case "taskApprovalOverridden":
+      return await buildApprovalOverriddenDrafts(ctx, event)
     case "taskReviewersChanged":
       return await buildReviewersChangedDrafts(ctx, event)
     case "assignableTaskReady":

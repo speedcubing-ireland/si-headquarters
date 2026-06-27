@@ -143,6 +143,11 @@ export const overrideApproval = mutation({
     }
     const result = await recomputeRelatedTaskStatuses(ctx, args.taskId)
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
+    await scheduleNotificationEvent(ctx, {
+      kind: "taskApprovalOverridden",
+      taskId: args.taskId,
+      actorId: principal.userId,
+    })
   },
 })
 

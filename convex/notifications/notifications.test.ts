@@ -1299,6 +1299,66 @@ describe("status and review notifications", () => {
       ])
     )
   })
+
+  test("approval override posts to linked competition channel", async () => {
+    const t = convexTest(schema, modules)
+    const { taskId, actorId } = await t.run(async (ctx) => {
+      const { taskId, competitionId } = await seedTaskInCompetition(ctx)
+      const actorId = await insertLinkedUser(ctx, "Manager", "discord-manager")
+      await ctx.db.insert("objectLinkedResources", {
+        object: { type: "competitions", id: competitionId },
+        resourceType: "discordChannel",
+        resourceKey: "default",
+        data: {
+          resourceType: "discordChannel",
+          channelId: "comp-channel-1",
+          channelName: "spring-open",
+          guildId: "guild-1",
+        },
+      })
+      return { taskId, actorId }
+    })
+
+    const drafts = await t.query(
+      internal.notifications.model.resolveEventDrafts,
+      {
+        event: {
+          kind: "taskApprovalOverridden",
+          taskId,
+          actorId,
+        },
+      }
+    )
+
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0]?.target).toEqual({
+      kind: "discordChannel",
+      channelId: "comp-channel-1",
+    })
+    expect(drafts[0]?.embeds[0]?.fields?.[0]?.name).toContain("overridden")
+  })
+
+  test("approval override produces no draft when no channel is linked", async () => {
+    const t = convexTest(schema, modules)
+    const { taskId, actorId } = await t.run(async (ctx) => {
+      const { taskId } = await seedTaskInCompetition(ctx)
+      const actorId = await insertLinkedUser(ctx, "Manager", "discord-manager")
+      return { taskId, actorId }
+    })
+
+    const drafts = await t.query(
+      internal.notifications.model.resolveEventDrafts,
+      {
+        event: {
+          kind: "taskApprovalOverridden",
+          taskId,
+          actorId,
+        },
+      }
+    )
+
+    expect(drafts).toHaveLength(0)
+  })
 })
 
 describe("nudge", () => {

@@ -3,6 +3,7 @@
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
 import { api } from "@/convex/_generated/api"
+import type { NotificationEvent } from "@/convex/notifications/validators"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx } from "@/convex/_generated/server"
 import schema from "@/convex/schema"
@@ -436,6 +437,46 @@ describe("task reviews", () => {
     expect(reviewers.teams.map((team) => team.name)).not.toContain(
       TEAM_NAMES.VOLUNTEER
     )
+  })
+
+  test("overrideApproval schedules a taskApprovalOverridden notification with the overriding user", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
+      const actorId = await seedVolunteerTestUser(ctx, "Manager")
+      const reviewerId = await insertUser(ctx, "Reviewer")
+      const taskId = await seedPhaseTask(ctx, {
+        order: "a",
+        status: "to-do",
+      })
+      return { actorId, taskId, reviewerId }
+    })
+    const actor = t.withIdentity({ subject: actorId })
+
+    await actor.mutation(api.tasks.reviews.mutations.addReviewer, {
+      taskId,
+      reviewer: { type: "users", id: reviewerId },
+    })
+    await actor.mutation(api.tasks.reviews.mutations.overrideApproval, {
+      taskId,
+    })
+
+    const scheduledEvents = await t.run(async (ctx) => {
+      const scheduled = await ctx.db.system
+        .query("_scheduled_functions")
+        .collect()
+      return scheduled
+        .filter((entry) => entry.name.includes("dispatchEvent"))
+        .map((entry) => (entry.args as [{ event: NotificationEvent }])[0].event)
+    })
+
+    const overrideEvent = scheduledEvents.find(
+      (event) => event.kind === "taskApprovalOverridden"
+    )
+    expect(overrideEvent).toMatchObject({
+      kind: "taskApprovalOverridden",
+      taskId,
+      actorId,
+    })
   })
 
   test("review state reads are bounded by a per-task reviewer limit", async () => {

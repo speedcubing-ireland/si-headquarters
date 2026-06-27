@@ -72,6 +72,11 @@ export const notificationEvent = v.union(
     actorId: v.union(v.id("users"), v.null()),
   }),
   v.object({
+    kind: v.literal("taskApprovalOverridden"),
+    taskId: v.id("tasks"),
+    actorId: v.id("users"),
+  }),
+  v.object({
     kind: v.literal("taskReviewersChanged"),
     taskId: v.id("tasks"),
     actorId: v.union(v.id("users"), v.null()),
