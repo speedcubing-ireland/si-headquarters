@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   check:
-    uses: ./.github/workflows/ci.yml
+    uses: ./ci.yml
 
   deploy:
     needs: check
@@ -21,7 +21,7 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
       - uses: oven-sh/setup-bun@v2
         with:
