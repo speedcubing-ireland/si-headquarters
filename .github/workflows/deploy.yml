@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   check:
-    uses: ./ci.yml
+    uses: ./github/workflows/ci.yml
 
   deploy:
     needs: check
