@@ -39,7 +39,10 @@ const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
     { action: "read", subject: "User" },
     { action: "access", subject: "Wca2fa" },
   ],
-  [TEAM_NAMES.DELEGATES]: [{ action: "access", subject: "Wca2fa" }],
+  [TEAM_NAMES.DELEGATES]: [
+    { action: "access", subject: "Wca2fa" },
+    { action: "access", subject: "RefundsDashboard" },
+  ],
   [TEAM_NAMES.FINANCE]: [{ action: "access", subject: "SponsorPortalAdmin" }],
   [TEAM_NAMES.SOCIAL_MEDIA]: [
     { action: "access", subject: "SocialMediaDashboard" },
@@ -249,7 +252,19 @@ export async function requireSocialMediaDashboardAccess(
     "access",
     "SocialMediaDashboard",
     undefined,
-    "Volunteer access required."
+    "Social Media Dashboard access required."
+  )
+  return principal.userId
+}
+
+export async function requireRefundsAccess(ctx: AuthCtx): Promise<Id<"users">> {
+  const principal = await requirePrincipal(ctx)
+  requireCan(
+    principal,
+    "access",
+    "RefundsDashboard",
+    undefined,
+    "Directors or Delegates only."
   )
   return principal.userId
 }

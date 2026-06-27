@@ -4,6 +4,7 @@ import {
   FolderKanbanIcon,
   HomeIcon,
   ListChecksIcon,
+  ReceiptIcon,
   UsersIcon,
   TrophyIcon,
   type LucideIcon,
@@ -157,7 +158,7 @@ function AdminAccessSidebarGroup() {
           <SidebarMenuButton asChild tooltip="Admin">
             <Link
               to="/admin"
-              activeOptions={{ exact: false }}
+              activeOptions={{ exact: true }}
               activeProps={{ "data-active": true }}
               inactiveProps={{ "data-active": false }}
             >
@@ -166,6 +167,21 @@ function AdminAccessSidebarGroup() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        <Can I="access" a="RefundsDashboard">
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Refunds">
+              <Link
+                to="/admin/refunds"
+                activeOptions={{ exact: false }}
+                activeProps={{ "data-active": true }}
+                inactiveProps={{ "data-active": false }}
+              >
+                <ReceiptIcon />
+                <span>Refunds</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </Can>
       </SidebarMenu>
     </SidebarGroup>
   )

@@ -437,6 +437,13 @@ export const standardCompetitionTemplate = {
           assignees: { type: "competitionRole", role: "leadDelegate" },
         },
         {
+          key: "refund-volunteers",
+          name: "Refund volunteers",
+          description: "Refund registration fees to eligible volunteers.",
+          owner: { type: "teamName", teamName: TEAM_NAMES.DELEGATES },
+          labels: [L.budget],
+        },
+        {
           key: "post-comp-social-media",
           name: "Post-Competition Social Media",
           description: "Publish post-competition photos across key channels.",

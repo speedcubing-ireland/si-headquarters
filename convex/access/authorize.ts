@@ -8,6 +8,7 @@ import {
   requireCan,
   requireDirector,
   requirePrincipal,
+  requireRefundsAccess,
 } from "@/convex/permissions/principal"
 import { requireProjectForUpdate } from "@/convex/projects/access"
 import { requireCompetitionScopedTask } from "@/convex/tasks/hierarchy"
@@ -20,6 +21,14 @@ export const assertDirectorAccess = internalQuery({
   args: {},
   handler: async (ctx) => {
     await requireDirector(ctx)
+    return null
+  },
+})
+
+export const assertRefundsAccess = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    await requireRefundsAccess(ctx)
     return null
   },
 })

@@ -30,6 +30,7 @@ import { Route as InviteOrganiserRouteImport } from './routes/invite/organiser'
 import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
 import { Route as AuthWcaRouteImport } from './routes/auth/wca'
+import { Route as AdminRefundsRouteImport } from './routes/admin/refunds'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
 import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
 import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
@@ -141,6 +142,11 @@ const AuthWcaRoute = AuthWcaRouteImport.update({
   path: '/auth/wca',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRefundsRoute = AdminRefundsRouteImport.update({
+  id: '/admin/refunds',
+  path: '/admin/refunds',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SponsorAuctionsAuctionIdRoute =
   SponsorAuctionsAuctionIdRouteImport.update({
     id: '/$auctionId',
@@ -173,6 +179,7 @@ const PluginsSponsorshipAuctionsAuctionIdEditRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
@@ -230,6 +238,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
   '/impersonate/user': typeof ImpersonateUserRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
     | '/impersonate/user'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
     | '/impersonate/user'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
     | '/impersonate/user'
@@ -345,6 +357,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRefundsRoute: typeof AdminRefundsRoute
   AuthWcaRoute: typeof AuthWcaRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
   ImpersonateUserRoute: typeof ImpersonateUserRoute
@@ -520,6 +533,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthWcaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/refunds': {
+      id: '/admin/refunds'
+      path: '/admin/refunds'
+      fullPath: '/admin/refunds'
+      preLoaderRoute: typeof AdminRefundsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sponsor/auctions/$auctionId': {
       id: '/sponsor/auctions/$auctionId'
       path: '/$auctionId'
@@ -572,6 +592,7 @@ const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRefundsRoute: AdminRefundsRoute,
   AuthWcaRoute: AuthWcaRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
   ImpersonateUserRoute: ImpersonateUserRoute,

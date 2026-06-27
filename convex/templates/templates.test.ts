@@ -212,6 +212,7 @@ describe("competition templates", () => {
       "Podium Certificates",
       "Printing Complete",
       "Report submitted",
+      "Refund volunteers",
       "Post-Competition Social Media",
       "Discord Thread Made",
       "Groups Ready",
