@@ -50,7 +50,7 @@
         "date-fns": "^4.4.0",
         "date-fns-tz": "^3.2.0",
         "embla-carousel-react": "^8.6.0",
-        "fractional-indexing": "^3.2.0",
+        "fractional-indexing": "^4.0.0",
         "frimousse": "^0.3.0",
         "input-otp": "^1.4.2",
         "lowlight": "^3.3.0",
@@ -64,8 +64,8 @@
         "react-hook-form": "^7.80.0",
         "react-medium-image-zoom": "^5.4.8",
         "react-resizable-panels": "^4.11.2",
-        "recharts": "^3.8.1",
-        "shadcn": "^4.11.0",
+        "recharts": "^3.9.0",
+        "shadcn": "^4.12.0",
         "sonner": "^2.0.7",
         "streamdown": "^2.5.0",
         "tailwind-merge": "^3.6.0",
@@ -75,7 +75,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@convex-dev/crons": "^0.2.1",
+        "@convex-dev/crons": "^0.2.2",
         "@convex-dev/eslint-plugin": "^2.0.0",
         "@edge-runtime/vm": "^5.0.0",
         "@hey-api/openapi-ts": "^0.98.2",
@@ -87,16 +87,16 @@
         "@types/node": "^25.9.4",
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
-        "@typescript/native-preview": "^7.0.0-dev.20260621.1",
-        "@vitejs/plugin-react": "^6.0.2",
+        "@typescript/native-preview": "^7.0.0-dev.20260627.2",
+        "@vitejs/plugin-react": "^6.0.3",
         "@vitest/coverage-v8": "^4.1.9",
         "convex-test": "^0.0.53",
         "oxfmt": "^0.55.0",
-        "oxlint": "^1.70.0",
+        "oxlint": "^1.71.0",
         "oxlint-tsgolint": "^0.23.0",
-        "react-email": "^6.6.3",
+        "react-email": "^6.6.5",
         "typescript": "~6.0.3",
-        "vite": "^8.0.16",
+        "vite": "^8.1.0",
         "vitest": "^4.1.9",
       },
     },
@@ -221,7 +221,7 @@
 
     "@convex-dev/workpool": ["@convex-dev/workpool@0.4.7", "", { "peerDependencies": { "convex": "^1.31.7", "convex-helpers": "^0.1.94" } }, "sha512-4O3VKcJXqYZ9icDgKdVPxjDGUAFK3oG0hbUwLcyYMYgsvVKlZDhvZRmczqSBZHLyrCGPpf925byh0dBigCfAGA=="],
 
-    "@convex/reactions": ["@convex/reactions@github:get-convex/reactions#33f8cb5", { "peerDependencies": { "convex": "^1.24.8", "react": "^18.3.1 || ^19.0.0" } }, "get-convex-reactions-33f8cb5", "sha512-k96C2yXpE7zsXKORwaQbX7x6g9XgggtNCR8PlLu5ssOZxbaw5iLjcCVhHnxbFmqSKBnLZSOL7RuslF9uadl3EQ=="],
+    "@convex/reactions": ["@convex/reactions@github:get-convex/reactions#33f8cb5", { "peerDependencies": { "convex": "^1.24.8", "react": "^18.3.1 || ^19.0.0" } }, "get-convex-reactions-33f8cb5"],
 
     "@date-fns/tz": ["@date-fns/tz@1.5.0", "", {}, "sha512-lwYN/vDPeNRULcepoE/LO2Pgx+7/RV+S9ARfbc9lr2DtGkOD7pAiruHvbR1RX3Qyf6ja47EWJDMsNK5vK08DJg=="],
 
@@ -1481,7 +1481,7 @@
 
     "forwarded": ["forwarded@0.2.0", "", {}, "sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow=="],
 
-    "fractional-indexing": ["fractional-indexing@3.4.0", "", {}, "sha512-8J3glhz2rrpKG6KmI7wmJo3zH1VjeOpN+vTJSw1fOyO+Viqq3zX6/5NGh6oaZB2qIAYdOYuu5Dz9xp4faOO0Pg=="],
+    "fractional-indexing": ["fractional-indexing@4.0.0", "", {}, "sha512-Nr2P1Yyaj2sy1Qdt/wI3GcByxrUdbSKg5+cGvw8f18hT2SkQt6V72iOjBpk7IO3UkzBsdlGRs2a4z6dLrJprgw=="],
 
     "fresh": ["fresh@2.0.0", "", {}, "sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A=="],
 
