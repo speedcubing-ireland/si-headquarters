@@ -129,6 +129,7 @@ function featureForPath(pathname: string): FeatureId | null {
   if (pathname.startsWith(ORGANISER_INVITE_PATH) && !hasOrganiserWcaLogin) {
     return "organiserInvites"
   }
+  if (pathname.startsWith("/admin/refunds")) return "refunds"
   return featureForPluginPath(pathname)
 }
 

@@ -43,6 +43,7 @@ const config = defineOrganisationConfig({
     wcaIntegration: true,
     wca2fa: true,
     organiserInvites: true,
+    refunds: true,
   },
   auth: {
     providers: [

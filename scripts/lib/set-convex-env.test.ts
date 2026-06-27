@@ -97,6 +97,7 @@ describe("set-convex-env metadata", () => {
       wcaIntegration: false,
       wca2fa: false,
       organiserInvites: false,
+      refunds: false,
     }
     config.auth.providers = config.auth.providers.filter(
       (provider) => provider.id !== "wca" && provider.id !== "wca-staff"

@@ -46,6 +46,7 @@ describe("organisation configuration", () => {
       wcaIntegration: false,
       wca2fa: false,
       organiserInvites: false,
+      refunds: false,
     }
     config.auth.providers = config.auth.providers.filter(
       (provider) => provider.audience === "staff"
@@ -123,6 +124,7 @@ describe("organisation configuration", () => {
         wcaIntegration: true,
         wca2fa: false,
         organiserInvites: false,
+        refunds: false,
       },
       auth: {
         providers: [{ id: "wca-staff", audience: "staff", label: "X" }],
@@ -173,6 +175,7 @@ describe("organisation configuration", () => {
           wcaIntegration: true,
           wca2fa: false,
           organiserInvites: false,
+          refunds: false,
         },
         auth: {
           providers: [
@@ -223,6 +226,7 @@ describe("organisation configuration", () => {
           wcaIntegration: false,
           wca2fa: false,
           organiserInvites: false,
+          refunds: false,
         },
         auth: {
           providers: [

@@ -9,6 +9,7 @@ export const FEATURE_IDS = [
   "wcaIntegration",
   "wca2fa",
   "organiserInvites",
+  "refunds",
 ] as const
 
 export type FeatureId = (typeof FEATURE_IDS)[number]
@@ -28,6 +29,7 @@ const featureSchemaShape = {
   wcaIntegration: z.boolean(),
   wca2fa: z.boolean(),
   organiserInvites: z.boolean(),
+  refunds: z.boolean(),
 } satisfies Record<FeatureId, z.ZodBoolean>
 
 const featureSchema = z.object(featureSchemaShape).strict()
