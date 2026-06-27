@@ -11,6 +11,7 @@ import {
   taskRootPatch,
 } from "@/convex/tasks/hierarchy"
 import {
+  linkOwnerDiscordChannel,
   seedVolunteerTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
@@ -2306,6 +2307,7 @@ describe("Regression coverage", () => {
           order: "a",
           status: "to-do",
         })
+        await linkOwnerDiscordChannel(ctx, taskId)
         return { actorId, taskId, reviewerId }
       })
       const actor = t.withIdentity({ subject: actorId })

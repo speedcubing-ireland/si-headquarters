@@ -13,6 +13,7 @@ import {
   taskRootPatch,
 } from "@/convex/tasks/hierarchy"
 import {
+  linkOwnerDiscordChannel,
   seedVolunteerTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
@@ -289,6 +290,7 @@ describe("task reviews", () => {
         order: "a",
         status: "to-do",
       })
+      await linkOwnerDiscordChannel(ctx, taskId)
       return { actorId, taskId, reviewerId }
     })
     const actor = t.withIdentity({ subject: actorId })
@@ -344,6 +346,7 @@ describe("task reviews", () => {
         order: "a",
         status: "to-do",
       })
+      await linkOwnerDiscordChannel(ctx, taskId)
       return { actorId, taskId, reviewerId, teamId }
     })
     const actor = t.withIdentity({ subject: actorId })
@@ -448,6 +451,7 @@ describe("task reviews", () => {
         order: "a",
         status: "to-do",
       })
+      await linkOwnerDiscordChannel(ctx, taskId)
       return { actorId, taskId, reviewerId }
     })
     const actor = t.withIdentity({ subject: actorId })
@@ -477,6 +481,42 @@ describe("task reviews", () => {
       taskId,
       actorId,
     })
+  })
+
+  test("overrideApproval throws when the task owner has no linked Discord channel", async () => {
+    const t = convexTest(schema, modules)
+    const { actorId, taskId, reviewerId } = await t.run(async (ctx) => {
+      const actorId = await seedVolunteerTestUser(ctx, "Manager")
+      const reviewerId = await insertUser(ctx, "Reviewer")
+      const taskId = await seedPhaseTask(ctx, {
+        order: "a",
+        status: "to-do",
+      })
+      return { actorId, taskId, reviewerId }
+    })
+    const actor = t.withIdentity({ subject: actorId })
+
+    await actor.mutation(api.tasks.reviews.mutations.addReviewer, {
+      taskId,
+      reviewer: { type: "users", id: reviewerId },
+    })
+
+    await expect(
+      actor.mutation(api.tasks.reviews.mutations.overrideApproval, { taskId })
+    ).rejects.toThrow("Link a Discord channel")
+
+    const scheduledEvents = await t.run(async (ctx) => {
+      const scheduled = await ctx.db.system
+        .query("_scheduled_functions")
+        .collect()
+      return scheduled
+        .filter((entry) => entry.name.includes("dispatchEvent"))
+        .map((entry) => (entry.args as [{ event: NotificationEvent }])[0].event)
+    })
+
+    expect(
+      scheduledEvents.some((event) => event.kind === "taskApprovalOverridden")
+    ).toBe(false)
   })
 
   test("review state reads are bounded by a per-task reviewer limit", async () => {

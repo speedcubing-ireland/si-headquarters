@@ -31,6 +31,8 @@ import {
 } from "lucide-react"
 import { ObjectAvatar } from "@/components/object-avatar"
 import type { Id } from "@/convex/_generated/dataModel"
+import { unknownErrorMessage } from "@/convex/integrations/errorPayload"
+import { toast } from "sonner"
 
 function ShowOverrideAlert({
   taskId,
@@ -171,7 +173,15 @@ export function TaskReviewCard({ taskId }: { taskId: Id<"tasks"> }) {
         <Button
           variant="destructive"
           onClick={() => {
-            void createOverride({ taskId })
+            void (async () => {
+              try {
+                await createOverride({ taskId })
+              } catch (caught) {
+                toast.error(
+                  unknownErrorMessage(caught, { includeConvexError: true })
+                )
+              }
+            })()
           }}
         >
           Override Approval

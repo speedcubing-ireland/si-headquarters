@@ -15,7 +15,8 @@ import {
   requireTaskManageAccess,
   requireTaskReadAccess,
 } from "@/convex/tasks/access"
-import { v } from "convex/values"
+import { getLinkedDiscordChannelTarget } from "@/convex/integrations/objectResources"
+import { ConvexError, v } from "convex/values"
 
 export const addReviewer = mutation({
   args: {
@@ -127,7 +128,16 @@ export const overrideApproval = mutation({
     taskId: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const { principal } = await requireTaskManageAccess(ctx, args.taskId)
+    const { principal, task } = await requireTaskManageAccess(ctx, args.taskId)
+
+    if ((await getLinkedDiscordChannelTarget(ctx, task.root)) === null) {
+      throw new ConvexError({
+        code: "PRECONDITION_FAILED",
+        message: `Link a Discord channel to this ${
+          task.root.type === "projects" ? "project" : "competition"
+        } before overriding approvals.`,
+      })
+    }
 
     const existingOverride = await getTaskReviewOverride(ctx, args.taskId)
     const override = {

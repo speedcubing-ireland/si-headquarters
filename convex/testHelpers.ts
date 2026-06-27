@@ -133,6 +133,25 @@ export async function insertProjectPhase(
   })
 }
 
+export async function linkOwnerDiscordChannel(
+  ctx: MutationCtx,
+  taskId: Id<"tasks">
+): Promise<void> {
+  const task = await ctx.db.get("tasks", taskId)
+  if (task === null) throw new Error("Task not found")
+  await ctx.db.insert("objectLinkedResources", {
+    object: task.root,
+    resourceType: "discordChannel",
+    resourceKey: "default",
+    data: {
+      resourceType: "discordChannel",
+      channelId: "comp-channel-1",
+      channelName: "spring-open",
+      guildId: "guild-1",
+    },
+  })
+}
+
 export async function insertSeedTask(
   ctx: MutationCtx,
   seed: SeedTaskInput
