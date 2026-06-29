@@ -49,10 +49,13 @@ function CompetitionLinks({
   wcaUrl,
   competitionName,
 }: {
-  sheetUrl: string
+  sheetUrl?: string
   wcaUrl?: string
   competitionName: string
 }) {
+  if (wcaUrl === undefined && sheetUrl === undefined) {
+    return null
+  }
   return (
     <span className="flex shrink-0 items-center gap-1">
       {wcaUrl !== undefined ? (
@@ -67,14 +70,16 @@ function CompetitionLinks({
           <ExternalLink className="size-3.5" />
         </a>
       ) : null}
-      <a
-        href={sheetUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-      >
-        Sheet
-      </a>
+      {sheetUrl !== undefined ? (
+        <a
+          href={sheetUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Sheet
+        </a>
+      ) : null}
     </span>
   )
 }
@@ -145,10 +150,7 @@ export function EventsPage() {
           <Page.Status variant="loading" message="Loading event schedules…" />
         ) : null}
         {!isLoading && rows?.length === 0 ? (
-          <Page.Status
-            variant="empty"
-            message="No competitions have a linked Google Sheet yet."
-          />
+          <Page.Status variant="empty" message="No competitions to show yet." />
         ) : null}
         {!isLoading &&
         rows !== null &&
@@ -156,7 +158,7 @@ export function EventsPage() {
         visibleRows.length === 0 ? (
           <Page.Status
             variant="empty"
-            message={`No ${scope} competitions have a linked Google Sheet.`}
+            message={`No ${scope} competitions to show.`}
           />
         ) : null}
         {visibleRows.length > 0 ? (
@@ -189,17 +191,23 @@ export function EventsPage() {
                           competitionPrimaryEnd(row.dates) ?? startDate
                         )
                   return (
-                    <TableRow key={row.competitionId}>
+                    <TableRow key={row.key}>
                       <TableCell className="sticky left-0 z-10 bg-background">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <Link
-                              to="/competitions/$id"
-                              params={{ id: row.competitionId }}
-                              className="block truncate font-medium hover:underline"
-                            >
-                              {row.competitionName}
-                            </Link>
+                            {row.competitionId !== null ? (
+                              <Link
+                                to="/competitions/$id"
+                                params={{ id: row.competitionId }}
+                                className="block truncate font-medium hover:underline"
+                              >
+                                {row.competitionName}
+                              </Link>
+                            ) : (
+                              <span className="block truncate font-medium">
+                                {row.competitionName}
+                              </span>
+                            )}
                             <span className="text-[11px] text-muted-foreground">
                               {formattedDates}
                             </span>
@@ -214,7 +222,7 @@ export function EventsPage() {
                             ) : null}
                           </div>
                           <CompetitionLinks
-                            sheetUrl={row.sheet.url}
+                            sheetUrl={row.sheet?.url ?? undefined}
                             wcaUrl={row.wcaCompetition?.url ?? undefined}
                             competitionName={row.competitionName}
                           />

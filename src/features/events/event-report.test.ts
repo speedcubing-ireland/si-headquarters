@@ -15,11 +15,13 @@ function reportRow(
   events: EventReportRow["events"] = []
 ): EventReportRow {
   return {
+    key: name,
     competitionId: name as EventReportRow["competitionId"],
     competitionName: name,
     dates: { from, to },
     sheet: { sheetId: name, title: name, url: `https://sheet/${name}` },
     wcaCompetition: null,
+    source: "sheet",
     events,
     fetchedAt: 1,
     error: null,

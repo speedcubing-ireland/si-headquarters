@@ -1,48 +1,56 @@
 "use node"
 
+import type { Id } from "@/convex/_generated/dataModel"
 import { action, type ActionCtx } from "@/convex/_generated/server"
 import { internal } from "@/convex/_generated/api"
 import {
   eventReportRowValidator,
   type EventReportRow,
-  type EventReportSource,
-  type EventScheduleSnapshot,
+  type EventReportSourceKind,
+  type EventRound,
 } from "@/convex/events/validators"
 import {
   EVENT_REPORT_CACHE_TTL_MS,
   EVENT_REPORT_FETCH_CONCURRENCY,
 } from "@/convex/events/constants"
 import { mapWithConcurrency } from "@/convex/events/concurrency"
+import { competitionPrimaryStart } from "@/convex/competitions/dates"
 import { fetchScheduleProgression } from "@/convex/plugins/sheets/googleApi"
 import { parseScheduleEventRounds } from "@/convex/plugins/sheets/schedule"
+import { fetchPublicCompetitionEventRounds } from "@/convex/plugins/wca/api"
+import {
+  fetchManagedCompetitions,
+  type ManagedWcaCompetition,
+} from "@/convex/plugins/wca/managedCompetitions"
 import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { ConvexError, v } from "convex/values"
 
-interface SheetLoadResult {
-  snapshot: EventScheduleSnapshot | null
+interface CachedEvents {
+  events: EventRound[]
+  fetchedAt: number
+}
+
+interface ResolvedEntry {
+  events: EventRound[]
+  fetchedAt: number | null
   error: string | null
 }
 
-interface SheetRefreshBatch {
-  loadsBySheetId: Map<string, SheetLoadResult>
-  refreshedSnapshots: EventScheduleSnapshot[]
+interface RefreshedSnapshot {
+  key: string
+  events: EventRound[]
+  fetchedAt: number
 }
 
-function resolveWcaCompetition(
-  source: EventReportSource,
-  wcaBaseUrl: string
-): EventReportSource["wcaCompetition"] {
-  if (source.wcaCompetition === null) {
-    return null
-  }
-  return {
-    ...source.wcaCompetition,
-    url:
-      source.wcaCompetition.url ??
-      `${wcaBaseUrl}/competitions/${encodeURIComponent(source.wcaCompetition.id)}`,
-  }
+interface ReportAccumulator {
+  key: string
+  competitionId: Id<"competitions"> | null
+  competitionName: string
+  dates: { from: string | null; to: string | null }
+  sheet: { sheetId: string; title: string; url: string } | null
+  wca: { id: string; url: string | null; isPublic: boolean } | null
 }
 
 function errorMessage(
@@ -51,90 +59,96 @@ function errorMessage(
 ): string {
   return error instanceof Error
     ? error.message
-    : "The competition sheet could not be read."
+    : "Event data could not be read."
 }
 
-function requireSheetLoad(
-  loadsBySheetId: ReadonlyMap<string, SheetLoadResult>,
-  sheetId: string
-): SheetLoadResult {
-  const load = loadsBySheetId.get(sheetId)
-  if (load === undefined) {
-    throw new Error(`Missing event report load result for sheet ${sheetId}.`)
-  }
-  return load
-}
-
-async function fetchSheetSnapshot(
-  accessToken: string,
-  sheetId: string
-): Promise<EventScheduleSnapshot> {
-  const progression = await fetchScheduleProgression(accessToken, sheetId)
-  return {
-    sheetId,
-    events: parseScheduleEventRounds(progression),
-    fetchedAt: Date.now(),
-  }
-}
-
-function cachedLoadResult(
-  snapshot: EventScheduleSnapshot | null,
-  error: string | null = null
-): SheetLoadResult {
-  return { snapshot, error }
-}
-
-async function refreshSheets(
-  ctx: Pick<ActionCtx, "runQuery" | "runMutation">,
-  sheetIds: readonly string[],
-  cachedBySheetId: ReadonlyMap<string, EventScheduleSnapshot>
-): Promise<SheetRefreshBatch> {
-  let accessToken: string
-  try {
-    accessToken = await resolveValidServiceToken(ctx, "google")
-  } catch (error) {
-    const message = errorMessage(error)
-    return {
-      loadsBySheetId: new Map(
-        sheetIds.map((sheetId) => [
-          sheetId,
-          cachedLoadResult(cachedBySheetId.get(sheetId) ?? null, message),
-        ])
-      ),
-      refreshedSnapshots: [],
+/**
+ * Loads event rounds for a set of cache keys, serving fresh cached snapshots
+ * within the TTL and falling back to stale snapshots (with an error) when a
+ * refresh fails.
+ */
+async function resolveCachedEvents(
+  keys: readonly string[],
+  cachedByKey: ReadonlyMap<string, CachedEvents>,
+  skipCache: boolean,
+  fetcher: (key: string) => Promise<EventRound[]>
+): Promise<{
+  entriesByKey: Map<string, ResolvedEntry>
+  refreshed: RefreshedSnapshot[]
+}> {
+  const cutoff = Date.now() - EVENT_REPORT_CACHE_TTL_MS
+  const entriesByKey = new Map<string, ResolvedEntry>()
+  const toRefresh: string[] = []
+  for (const key of keys) {
+    const cached = cachedByKey.get(key)
+    if (!skipCache && cached !== undefined && cached.fetchedAt > cutoff) {
+      entriesByKey.set(key, {
+        events: cached.events,
+        fetchedAt: cached.fetchedAt,
+        error: null,
+      })
+    } else {
+      toRefresh.push(key)
     }
   }
 
   const attempts = await mapWithConcurrency(
-    sheetIds,
+    toRefresh,
     EVENT_REPORT_FETCH_CONCURRENCY,
-    async (sheetId) => {
-      const cached = cachedBySheetId.get(sheetId) ?? null
+    async (key) => {
+      const cached = cachedByKey.get(key) ?? null
       try {
-        const snapshot = await fetchSheetSnapshot(accessToken, sheetId)
+        const events = await fetcher(key)
+        const fetchedAt = Date.now()
         return {
-          load: cachedLoadResult(snapshot),
-          refreshedSnapshot: snapshot,
+          key,
+          entry: { events, fetchedAt, error: null },
+          refreshed: { key, events, fetchedAt },
         }
       } catch (error) {
         return {
-          load: cachedLoadResult(cached, errorMessage(error)),
-          refreshedSnapshot: null,
+          key,
+          entry: {
+            events: cached?.events ?? [],
+            fetchedAt: cached?.fetchedAt ?? null,
+            error: errorMessage(error),
+          },
+          refreshed: null,
         }
       }
     }
   )
 
-  const loadsBySheetId = new Map<string, SheetLoadResult>()
-  const refreshedSnapshots: EventScheduleSnapshot[] = []
-  for (const [index, sheetId] of sheetIds.entries()) {
-    const attempt = attempts[index]
-    loadsBySheetId.set(sheetId, attempt.load)
-    if (attempt.refreshedSnapshot !== null) {
-      refreshedSnapshots.push(attempt.refreshedSnapshot)
+  const refreshed: RefreshedSnapshot[] = []
+  for (const attempt of attempts) {
+    entriesByKey.set(attempt.key, attempt.entry)
+    if (attempt.refreshed !== null) {
+      refreshed.push(attempt.refreshed)
     }
   }
-  return { loadsBySheetId, refreshedSnapshots }
+  return { entriesByKey, refreshed }
+}
+
+async function loadManagedCompetitions(
+  ctx: Pick<ActionCtx, "runQuery" | "runMutation">
+): Promise<{
+  competitions: ManagedWcaCompetition[]
+  accessToken: string | null
+}> {
+  let accessToken: string
+  try {
+    accessToken = await resolveValidServiceToken(ctx, "wca")
+  } catch {
+    return { competitions: [], accessToken: null }
+  }
+  try {
+    return {
+      competitions: await fetchManagedCompetitions(accessToken),
+      accessToken,
+    }
+  } catch {
+    return { competitions: [], accessToken }
+  }
 }
 
 export const loadReport = action({
@@ -150,65 +164,157 @@ export const loadReport = action({
       })
     }
 
-    const { sources, snapshots } = await ctx.runQuery(
+    const { competitions: managed, accessToken: wcaToken } =
+      await loadManagedCompetitions(ctx)
+
+    const { competitions, sheetSnapshots, wcaSnapshots } = await ctx.runQuery(
       internal.events.queries.loadReportContext,
-      {}
+      { wcaCompetitionIds: managed.map((competition) => competition.id) }
     )
-    if (sources.length === 0) {
-      return []
+
+    const accByKey = new Map<string, ReportAccumulator>()
+    for (const competition of competitions) {
+      const key =
+        competition.wcaCompetitionId ?? `hq:${competition.competitionId}`
+      accByKey.set(key, {
+        key,
+        competitionId: competition.competitionId,
+        competitionName: competition.competitionName,
+        dates: competition.dates,
+        sheet: competition.sheet,
+        wca:
+          competition.wcaCompetitionId === null
+            ? null
+            : { id: competition.wcaCompetitionId, url: null, isPublic: false },
+      })
     }
-
-    const cachedBySheetId = new Map(
-      snapshots.map((snapshot) => [snapshot.sheetId, snapshot])
-    )
-    const uniqueSheetIds = [
-      ...new Set(sources.map((source) => source.sheet.sheetId)),
-    ]
-    const cacheCutoff = Date.now() - EVENT_REPORT_CACHE_TTL_MS
-    const loadsBySheetId = new Map<string, SheetLoadResult>()
-    const sheetIdsToRefresh: string[] = []
-
-    for (const sheetId of uniqueSheetIds) {
-      const cached = cachedBySheetId.get(sheetId) ?? null
-      if (
-        args.skipCache !== true &&
-        cached !== null &&
-        cached.fetchedAt > cacheCutoff
-      ) {
-        loadsBySheetId.set(sheetId, cachedLoadResult(cached))
+    for (const competition of managed) {
+      const existing = accByKey.get(competition.id)
+      if (existing !== undefined) {
+        existing.wca = {
+          id: competition.id,
+          url: competition.url,
+          isPublic: competition.isPublic,
+        }
       } else {
-        sheetIdsToRefresh.push(sheetId)
-      }
-    }
-
-    if (sheetIdsToRefresh.length > 0) {
-      const refresh = await refreshSheets(
-        ctx,
-        sheetIdsToRefresh,
-        cachedBySheetId
-      )
-      for (const [sheetId, load] of refresh.loadsBySheetId) {
-        loadsBySheetId.set(sheetId, load)
-      }
-
-      if (refresh.refreshedSnapshots.length > 0) {
-        await ctx.runMutation(internal.events.mutations.saveScheduleSnapshots, {
-          snapshots: refresh.refreshedSnapshots,
+        accByKey.set(competition.id, {
+          key: competition.id,
+          competitionId: null,
+          competitionName: competition.name,
+          dates: { from: competition.startDate, to: competition.endDate },
+          sheet: null,
+          wca: {
+            id: competition.id,
+            url: competition.url,
+            isPublic: competition.isPublic,
+          },
         })
       }
     }
 
-    const wcaBaseUrl = resolveWcaBaseUrl()
-    return sources.map((source): EventReportRow => {
-      const load = requireSheetLoad(loadsBySheetId, source.sheet.sheetId)
-      const snapshot = load.snapshot
-      return {
-        ...source,
-        wcaCompetition: resolveWcaCompetition(source, wcaBaseUrl),
-        events: snapshot?.events ?? [],
-        fetchedAt: snapshot?.fetchedAt ?? null,
-        error: load.error,
+    const accumulators = [...accByKey.values()]
+    const sheetIds = new Set<string>()
+    const wcaIds = new Set<string>()
+    for (const acc of accumulators) {
+      if (acc.wca?.isPublic === true) {
+        wcaIds.add(acc.wca.id)
+      } else if (acc.sheet !== null) {
+        sheetIds.add(acc.sheet.sheetId)
       }
+    }
+
+    let googleTokenPromise: Promise<string> | null = null
+    const getGoogleToken = (): Promise<string> =>
+      (googleTokenPromise ??= resolveValidServiceToken(ctx, "google"))
+
+    const sheetLoad = await resolveCachedEvents(
+      [...sheetIds],
+      new Map(sheetSnapshots.map((s) => [s.sheetId, s])),
+      args.skipCache === true,
+      async (sheetId) =>
+        parseScheduleEventRounds(
+          await fetchScheduleProgression(await getGoogleToken(), sheetId)
+        )
+    )
+
+    const wcaLoad = await resolveCachedEvents(
+      [...wcaIds],
+      new Map(wcaSnapshots.map((s) => [s.wcaCompetitionId, s])),
+      args.skipCache === true,
+      async (wcaCompetitionId) => {
+        if (wcaToken === null) {
+          throw new Error("WCA is not connected.")
+        }
+        return fetchPublicCompetitionEventRounds(wcaToken, wcaCompetitionId)
+      }
+    )
+
+    if (sheetLoad.refreshed.length > 0) {
+      await ctx.runMutation(internal.events.mutations.saveScheduleSnapshots, {
+        snapshots: sheetLoad.refreshed.map(({ key, events, fetchedAt }) => ({
+          sheetId: key,
+          events,
+          fetchedAt,
+        })),
+      })
+    }
+    if (wcaLoad.refreshed.length > 0) {
+      await ctx.runMutation(internal.events.mutations.saveWcaSnapshots, {
+        snapshots: wcaLoad.refreshed.map(({ key, events, fetchedAt }) => ({
+          wcaCompetitionId: key,
+          events,
+          fetchedAt,
+        })),
+      })
+    }
+
+    const wcaBaseUrl = resolveWcaBaseUrl()
+    const rows = accumulators.map((acc): EventReportRow => {
+      let source: EventReportSourceKind
+      let entry: ResolvedEntry | undefined
+      if (acc.wca?.isPublic === true) {
+        source = "wca"
+        entry = wcaLoad.entriesByKey.get(acc.wca.id)
+      } else if (acc.sheet !== null) {
+        source = "sheet"
+        entry = sheetLoad.entriesByKey.get(acc.sheet.sheetId)
+      } else {
+        source = "none"
+      }
+
+      return {
+        key: acc.key,
+        competitionId: acc.competitionId,
+        competitionName: acc.competitionName,
+        dates: acc.dates,
+        sheet: acc.sheet,
+        wcaCompetition:
+          acc.wca === null
+            ? null
+            : {
+                id: acc.wca.id,
+                url:
+                  acc.wca.url ??
+                  `${wcaBaseUrl}/competitions/${encodeURIComponent(acc.wca.id)}`,
+                isPublic: acc.wca.isPublic,
+              },
+        source,
+        events: entry?.events ?? [],
+        fetchedAt: entry?.fetchedAt ?? null,
+        error:
+          source === "none"
+            ? "No public WCA schedule or linked Google Sheet is available."
+            : (entry?.error ?? null),
+      }
+    })
+
+    return rows.sort((left, right) => {
+      const leftDate = competitionPrimaryStart(left.dates) ?? "9999-12-31"
+      const rightDate = competitionPrimaryStart(right.dates) ?? "9999-12-31"
+      return (
+        leftDate.localeCompare(rightDate) ||
+        left.competitionName.localeCompare(right.competitionName)
+      )
     })
   },
 })

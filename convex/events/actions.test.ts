@@ -85,6 +85,99 @@ async function setupEventReport() {
   }
 }
 
+function requestUrl(input: unknown): string {
+  if (typeof input === "string") {
+    return input
+  }
+  if (input instanceof URL) {
+    return input.href
+  }
+  if (input instanceof Request) {
+    return input.url
+  }
+  return ""
+}
+
+describe("WCA-sourced event report", () => {
+  test("uses public WCIF round counts for managed WCA competitions", async () => {
+    const t = convexTest(schema, modules)
+    const volunteerId = await t.run(async (ctx) => {
+      const userId = await insertTestUser(ctx, "Volunteer")
+      await addUserToTeam(ctx, userId, TEAM_NAMES.VOLUNTEER)
+      await ctx.db.insert("competitions", {
+        name: "Irish Championship",
+        description: null,
+        people: { compLead: null, leadDelegate: null, organisers: [] },
+        compDates: { from: "2025-05-10", to: "2025-05-11" },
+        phaseId: null,
+        wcaCompetitionId: "IrishChampionship2025",
+      })
+      await ctx.db.insert("serviceTokens", {
+        service: "wca",
+        accessToken: "wca-access-token",
+        refreshToken: "wca-refresh-token",
+        expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      })
+      return userId
+    })
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = requestUrl(input)
+      if (url.includes("/competitions/mine")) {
+        return Response.json({
+          past_competitions: [
+            {
+              id: "IrishChampionship2025",
+              name: "Irish Championship 2025",
+              website: "",
+              start_date: "2025-05-10",
+              end_date: "2025-05-11",
+              registration_open: "",
+              url: "https://www.worldcubeassociation.org/competitions/IrishChampionship2025",
+              city: "Dublin",
+              country_iso2: "IE",
+              short_display_name: "Irish Championship 2025",
+              "visible?": true,
+              "cancelled?": false,
+            },
+          ],
+          future_competitions: [],
+          bookmarked_competitions: [],
+          registrations_by_competition: {},
+        })
+      }
+      if (url.includes("/wcif/public")) {
+        return Response.json({
+          events: [
+            { id: "333", rounds: [{}, {}, {}] },
+            { id: "222", rounds: [{}] },
+          ],
+        })
+      }
+      throw new Error(`Unexpected fetch to ${url}`)
+    })
+
+    const rows = await t
+      .withIdentity({ subject: volunteerId })
+      .action(api.events.actions.loadReport, {})
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      competitionName: "Irish Championship",
+      source: "wca",
+      events: [
+        { eventId: "333", rounds: 3 },
+        { eventId: "222", rounds: 1 },
+      ],
+      error: null,
+      wcaCompetition: {
+        id: "IrishChampionship2025",
+        isPublic: true,
+      },
+    })
+  })
+})
+
 describe("event report loading", () => {
   test("persists canonical schedule data and reads only progression rows", async () => {
     const { client, fetchMock, initial } = await setupEventReport()

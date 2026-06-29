@@ -35,7 +35,10 @@ import {
 } from "@/convex/notifications/validators"
 import { objectUpdatesFields } from "@/convex/updates/validators"
 import { refundVolunteerFields } from "@/convex/refunds/validators"
-import { eventScheduleSnapshotFields } from "@/convex/events/validators"
+import {
+  eventScheduleSnapshotFields,
+  wcaEventSnapshotFields,
+} from "@/convex/events/validators"
 
 const schema = defineSchema(
   {
@@ -68,6 +71,10 @@ const schema = defineSchema(
     eventScheduleSnapshots: defineTable(eventScheduleSnapshotFields).index(
       "by_sheetId",
       ["sheetId"]
+    ),
+    wcaEventSnapshots: defineTable(wcaEventSnapshotFields).index(
+      "by_wcaCompetitionId",
+      ["wcaCompetitionId"]
     ),
     competitionOrganiserInvites: competitionOrganiserInvitesTable,
     projects: defineTable(projectsFields)

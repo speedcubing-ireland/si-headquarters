@@ -80,15 +80,45 @@ describe("event report sources", () => {
         competitionId: seeded.competitionId,
         competitionName: "Irish Open",
         dates: { from: "2026-09-12", to: "2026-09-13" },
+        wcaCompetitionId: "IrishOpen2026",
         sheet: {
           sheetId: "sheet-id",
           title: "Irish Open schedule",
           url: "https://docs.google.com/spreadsheets/d/sheet-id",
         },
-        wcaCompetition: {
-          id: "IrishOpen2026",
-          url: null,
-        },
+      },
+    ])
+  })
+
+  test("includes WCA-linked competitions without a sheet when requested", async () => {
+    const t = convexTest(schema, modules)
+    const seeded = await t.run(async (ctx) => {
+      const volunteerId = await insertTestUser(ctx, "Volunteer")
+      await addUserToTeam(ctx, volunteerId, TEAM_NAMES.VOLUNTEER)
+      const competitionId = await ctx.db.insert("competitions", {
+        name: "Past Open",
+        description: null,
+        people: { compLead: null, leadDelegate: null, organisers: [] },
+        compDates: { from: "2025-03-01", to: "2025-03-02" },
+        phaseId: null,
+        wcaCompetitionId: "PastOpen2025",
+      })
+      return { volunteerId, competitionId }
+    })
+
+    const result = await t
+      .withIdentity({ subject: seeded.volunteerId })
+      .query(internal.events.queries.listReportSources, {
+        wcaCompetitionIds: ["PastOpen2025"],
+      })
+
+    expect(result).toEqual([
+      {
+        competitionId: seeded.competitionId,
+        competitionName: "Past Open",
+        dates: { from: "2025-03-01", to: "2025-03-02" },
+        wcaCompetitionId: "PastOpen2025",
+        sheet: null,
       },
     ])
   })
