@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest"
-import { mapWithConcurrency } from "@/convex/events/concurrency"
+import { mapWithConcurrency } from "@/convex/plugins/events/concurrency"
 
 describe("mapWithConcurrency", () => {
   test("preserves result order while bounding active work", async () => {

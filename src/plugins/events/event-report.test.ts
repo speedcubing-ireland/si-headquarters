@@ -1,12 +1,14 @@
 import { describe, expect, test } from "vitest"
-import type { EventReportRow } from "@/convex/events/validators"
+import type { EventReportRow } from "@/convex/plugins/events/validators"
 import {
   buildEventColumns,
+  columnRoundTotals,
   eventRoundsById,
   filterEventReportRows,
+  grandTotalRounds,
   reportFetchedAt,
   totalRounds,
-} from "@/features/events/event-report"
+} from "@/plugins/events/event-report"
 
 function reportRow(
   name: string,
@@ -29,22 +31,35 @@ function reportRow(
 }
 
 describe("event report", () => {
-  test("separates completed competitions from upcoming and undated ones", () => {
+  test("current scope shows future, ongoing, undated, and recently finished", () => {
+    const longPast = reportRow("Long past", "2024-01-01", "2024-01-02")
     const past = reportRow("Past", "2026-01-01", "2026-01-02")
-    const current = reportRow("Current", "2026-06-28", "2026-06-30")
+    const recent = reportRow("Recent", "2026-05-01", "2026-05-02")
+    const ongoing = reportRow("Ongoing", "2026-06-28", "2026-06-30")
     const future = reportRow("Future", "2026-08-01", "2026-08-02")
     const undated = reportRow("Undated", null, null)
+    const rows = [longPast, past, recent, ongoing, future, undated]
+
+    expect(filterEventReportRows(rows, "current", "2026-06-29")).toEqual([
+      recent,
+      ongoing,
+      future,
+      undated,
+    ])
+  })
+
+  test("past scope shows finished competitions within the last 14 months", () => {
+    const longPast = reportRow("Long past", "2024-01-01", "2024-01-02")
+    const past = reportRow("Past", "2026-01-01", "2026-01-02")
+    const recent = reportRow("Recent", "2026-05-01", "2026-05-02")
+    const ongoing = reportRow("Ongoing", "2026-06-28", "2026-06-30")
     const toOnly = reportRow("To only", null, "2026-01-02")
-    const rows = [past, current, future, undated, toOnly]
+    const rows = [longPast, past, recent, ongoing, toOnly]
 
     expect(filterEventReportRows(rows, "past", "2026-06-29")).toEqual([
       past,
+      recent,
       toOnly,
-    ])
-    expect(filterEventReportRows(rows, "upcoming", "2026-06-29")).toEqual([
-      current,
-      future,
-      undated,
     ])
   })
 
@@ -62,6 +77,25 @@ describe("event report", () => {
 
     expect(buildEventColumns(rows)).toEqual(["222", "333", "clock"])
     expect(totalRounds(rows[0])).toBe(7)
+  })
+
+  test("sums round counts per column and overall for the footer", () => {
+    const rows = [
+      reportRow("One", null, null, [
+        { eventId: "333", rounds: 4 },
+        { eventId: "222", rounds: 3 },
+      ]),
+      reportRow("Two", null, null, [
+        { eventId: "222", rounds: 2 },
+        { eventId: "clock", rounds: 1 },
+      ]),
+    ]
+
+    const totals = columnRoundTotals(rows)
+    expect(totals.get("222")).toBe(5)
+    expect(totals.get("333")).toBe(4)
+    expect(totals.get("clock")).toBe(1)
+    expect(grandTotalRounds(rows)).toBe(10)
   })
 
   test("uses the displayed event value when defensively totaling duplicates", () => {

@@ -6,18 +6,19 @@ import { internal } from "@/convex/_generated/api"
 import {
   eventReportRowValidator,
   type EventReportRow,
-  type EventReportSourceKind,
+  type EventReportSheet,
+  type EventReportWca,
   type EventRound,
-} from "@/convex/events/validators"
+} from "@/convex/plugins/events/validators"
 import {
   EVENT_REPORT_CACHE_TTL_MS,
   EVENT_REPORT_FETCH_CONCURRENCY,
-} from "@/convex/events/constants"
-import { mapWithConcurrency } from "@/convex/events/concurrency"
+} from "@/convex/plugins/events/constants"
+import { mapWithConcurrency } from "@/convex/plugins/events/concurrency"
 import { competitionPrimaryStart } from "@/convex/competitions/dates"
 import { fetchScheduleProgression } from "@/convex/plugins/sheets/googleApi"
 import { parseScheduleEventRounds } from "@/convex/plugins/sheets/schedule"
-import { fetchPublicCompetitionEventRounds } from "@/convex/plugins/wca/api"
+import { fetchPublicCompetitionEventRounds } from "@/convex/plugins/events/wcaSchedule"
 import {
   fetchManagedCompetitions,
   type ManagedWcaCompetition,
@@ -49,8 +50,28 @@ interface ReportAccumulator {
   competitionId: Id<"competitions"> | null
   competitionName: string
   dates: { from: string | null; to: string | null }
-  sheet: { sheetId: string; title: string; url: string } | null
-  wca: { id: string; url: string | null; isPublic: boolean } | null
+  sheet: EventReportSheet | null
+  wca: EventReportWca | null
+}
+
+type ResolvedSource =
+  | { kind: "wca"; id: string }
+  | { kind: "sheet"; sheetId: string }
+
+/**
+ * Picks the single schedule source for a competition: the public WCIF when the
+ * competition is announced, otherwise its linked sheet. Returns `null` when
+ * neither is available, in which case the competition is dropped from the
+ * report entirely.
+ */
+function resolveSource(acc: ReportAccumulator): ResolvedSource | null {
+  if (acc.wca?.isPublic === true) {
+    return { kind: "wca", id: acc.wca.id }
+  }
+  if (acc.sheet !== null) {
+    return { kind: "sheet", sheetId: acc.sheet.sheetId }
+  }
+  return null
 }
 
 function errorMessage(
@@ -129,6 +150,13 @@ async function resolveCachedEvents(
   return { entriesByKey, refreshed }
 }
 
+/**
+ * Loads the WCA competitions managed by the connected account. WCA being
+ * unavailable (no token, or the lookup failing) is treated as a soft
+ * degradation: the report still renders from linked sheets, and competitions
+ * that exist only on the WCA simply don't appear until the connection
+ * recovers. There is no per-row surface to attach a global WCA error to.
+ */
 async function loadManagedCompetitions(
   ctx: Pick<ActionCtx, "runQuery" | "runMutation">
 ): Promise<{
@@ -168,7 +196,7 @@ export const loadReport = action({
       await loadManagedCompetitions(ctx)
 
     const { competitions, sheetSnapshots, wcaSnapshots } = await ctx.runQuery(
-      internal.events.queries.loadReportContext,
+      internal.plugins.events.queries.loadReportContext,
       { wcaCompetitionIds: managed.map((competition) => competition.id) }
     )
 
@@ -189,13 +217,14 @@ export const loadReport = action({
       })
     }
     for (const competition of managed) {
+      const wca: EventReportWca = {
+        id: competition.id,
+        url: competition.url,
+        isPublic: competition.isPublic,
+      }
       const existing = accByKey.get(competition.id)
       if (existing !== undefined) {
-        existing.wca = {
-          id: competition.id,
-          url: competition.url,
-          isPublic: competition.isPublic,
-        }
+        existing.wca = wca
       } else {
         accByKey.set(competition.id, {
           key: competition.id,
@@ -203,23 +232,26 @@ export const loadReport = action({
           competitionName: competition.name,
           dates: { from: competition.startDate, to: competition.endDate },
           sheet: null,
-          wca: {
-            id: competition.id,
-            url: competition.url,
-            isPublic: competition.isPublic,
-          },
+          wca,
         })
       }
     }
 
-    const accumulators = [...accByKey.values()]
+    // Drop competitions with no readable schedule source up front, so the
+    // source decision is made exactly once and reused for both fetching and
+    // row building.
+    const sourced = [...accByKey.values()].flatMap((acc) => {
+      const source = resolveSource(acc)
+      return source === null ? [] : [{ acc, source }]
+    })
+
     const sheetIds = new Set<string>()
     const wcaIds = new Set<string>()
-    for (const acc of accumulators) {
-      if (acc.wca?.isPublic === true) {
-        wcaIds.add(acc.wca.id)
-      } else if (acc.sheet !== null) {
-        sheetIds.add(acc.sheet.sheetId)
+    for (const { source } of sourced) {
+      if (source.kind === "wca") {
+        wcaIds.add(source.id)
+      } else {
+        sheetIds.add(source.sheetId)
       }
     }
 
@@ -250,37 +282,36 @@ export const loadReport = action({
     )
 
     if (sheetLoad.refreshed.length > 0) {
-      await ctx.runMutation(internal.events.mutations.saveScheduleSnapshots, {
-        snapshots: sheetLoad.refreshed.map(({ key, events, fetchedAt }) => ({
-          sheetId: key,
-          events,
-          fetchedAt,
-        })),
-      })
+      await ctx.runMutation(
+        internal.plugins.events.mutations.saveScheduleSnapshots,
+        {
+          snapshots: sheetLoad.refreshed.map(({ key, events, fetchedAt }) => ({
+            sheetId: key,
+            events,
+            fetchedAt,
+          })),
+        }
+      )
     }
     if (wcaLoad.refreshed.length > 0) {
-      await ctx.runMutation(internal.events.mutations.saveWcaSnapshots, {
-        snapshots: wcaLoad.refreshed.map(({ key, events, fetchedAt }) => ({
-          wcaCompetitionId: key,
-          events,
-          fetchedAt,
-        })),
-      })
+      await ctx.runMutation(
+        internal.plugins.events.mutations.saveWcaSnapshots,
+        {
+          snapshots: wcaLoad.refreshed.map(({ key, events, fetchedAt }) => ({
+            wcaCompetitionId: key,
+            events,
+            fetchedAt,
+          })),
+        }
+      )
     }
 
     const wcaBaseUrl = resolveWcaBaseUrl()
-    const rows = accumulators.map((acc): EventReportRow => {
-      let source: EventReportSourceKind
-      let entry: ResolvedEntry | undefined
-      if (acc.wca?.isPublic === true) {
-        source = "wca"
-        entry = wcaLoad.entriesByKey.get(acc.wca.id)
-      } else if (acc.sheet !== null) {
-        source = "sheet"
-        entry = sheetLoad.entriesByKey.get(acc.sheet.sheetId)
-      } else {
-        source = "none"
-      }
+    const rows = sourced.map(({ acc, source }): EventReportRow => {
+      const entry =
+        source.kind === "wca"
+          ? wcaLoad.entriesByKey.get(source.id)
+          : sheetLoad.entriesByKey.get(source.sheetId)
 
       return {
         key: acc.key,
@@ -298,23 +329,24 @@ export const loadReport = action({
                   `${wcaBaseUrl}/competitions/${encodeURIComponent(acc.wca.id)}`,
                 isPublic: acc.wca.isPublic,
               },
-        source,
+        source: source.kind,
         events: entry?.events ?? [],
         fetchedAt: entry?.fetchedAt ?? null,
-        error:
-          source === "none"
-            ? "No public WCA schedule or linked Google Sheet is available."
-            : (entry?.error ?? null),
+        error: entry?.error ?? null,
       }
     })
 
+    // Furthest in the future first, longest ago last; undated rows sink to the
+    // bottom.
     return rows.sort((left, right) => {
-      const leftDate = competitionPrimaryStart(left.dates) ?? "9999-12-31"
-      const rightDate = competitionPrimaryStart(right.dates) ?? "9999-12-31"
-      return (
-        leftDate.localeCompare(rightDate) ||
-        left.competitionName.localeCompare(right.competitionName)
-      )
+      const leftDate = competitionPrimaryStart(left.dates)
+      const rightDate = competitionPrimaryStart(right.dates)
+      if (leftDate !== rightDate) {
+        if (leftDate === null) return 1
+        if (rightDate === null) return -1
+        return rightDate.localeCompare(leftDate)
+      }
+      return left.competitionName.localeCompare(right.competitionName)
     })
   },
 })

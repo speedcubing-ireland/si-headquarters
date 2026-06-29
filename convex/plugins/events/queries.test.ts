@@ -73,9 +73,11 @@ describe("event report sources", () => {
 
     const result = await t
       .withIdentity({ subject: seeded.volunteerId })
-      .query(internal.events.queries.listReportSources, {})
+      .query(internal.plugins.events.queries.loadReportContext, {
+        wcaCompetitionIds: [],
+      })
 
-    expect(result).toEqual([
+    expect(result.competitions).toEqual([
       {
         competitionId: seeded.competitionId,
         competitionName: "Irish Open",
@@ -108,11 +110,11 @@ describe("event report sources", () => {
 
     const result = await t
       .withIdentity({ subject: seeded.volunteerId })
-      .query(internal.events.queries.listReportSources, {
+      .query(internal.plugins.events.queries.loadReportContext, {
         wcaCompetitionIds: ["PastOpen2025"],
       })
 
-    expect(result).toEqual([
+    expect(result.competitions).toEqual([
       {
         competitionId: seeded.competitionId,
         competitionName: "Past Open",
@@ -134,7 +136,9 @@ describe("event report sources", () => {
     await expect(
       t
         .withIdentity({ subject: financeId })
-        .query(internal.events.queries.listReportSources, {})
+        .query(internal.plugins.events.queries.loadReportContext, {
+          wcaCompetitionIds: [],
+        })
     ).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
     })

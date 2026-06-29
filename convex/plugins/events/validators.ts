@@ -1,3 +1,4 @@
+import { defineTable } from "convex/server"
 import { v, type Infer } from "convex/values"
 
 export const eventRoundValidator = v.object({
@@ -13,28 +14,33 @@ export type EventRound = Infer<typeof eventRoundValidator>
  * - `wca` — the public WCIF of an announced WCA competition.
  * - `sheet` — the linked Google Sheet schedule (used while the competition is
  *   not yet public on the WCA website).
- * - `none` — neither source was available.
+ *
+ * Competitions with neither source available are dropped from the report
+ * rather than represented here.
  */
 export const eventReportSourceKindValidator = v.union(
   v.literal("wca"),
-  v.literal("sheet"),
-  v.literal("none")
+  v.literal("sheet")
 )
 
 export type EventReportSourceKind = Infer<typeof eventReportSourceKindValidator>
 
-const eventReportSheetValidator = v.object({
+export const eventReportSheetValidator = v.object({
   sheetId: v.string(),
   title: v.string(),
   url: v.string(),
 })
 
-const eventReportWcaValidator = v.object({
+export type EventReportSheet = Infer<typeof eventReportSheetValidator>
+
+export const eventReportWcaValidator = v.object({
   id: v.string(),
   url: v.nullable(v.string()),
   /** Whether the competition is publicly visible (announced) on the WCA. */
   isPublic: v.boolean(),
 })
+
+export type EventReportWca = Infer<typeof eventReportWcaValidator>
 
 export const eventReportSourceValidator = v.object({
   /** Stable identity for the row (WCA id when present, else the HQ comp id). */
@@ -73,6 +79,17 @@ export const wcaEventSnapshotFields = {
 export const wcaEventSnapshotValidator = v.object(wcaEventSnapshotFields)
 
 export type WcaEventSnapshot = Infer<typeof wcaEventSnapshotValidator>
+
+export const eventsTables = {
+  eventScheduleSnapshots: defineTable(eventScheduleSnapshotFields).index(
+    "by_sheetId",
+    ["sheetId"]
+  ),
+  wcaEventSnapshots: defineTable(wcaEventSnapshotFields).index(
+    "by_wcaCompetitionId",
+    ["wcaCompetitionId"]
+  ),
+}
 
 export const eventReportRowValidator = v.object({
   ...eventReportSourceValidator.fields,

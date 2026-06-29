@@ -6,6 +6,7 @@ import {
 import type { BackendProjectWorkflowPlugin } from "@/convex/projectWorkflows/types"
 import type { BackendIntegrationPlugin } from "@/convex/integrations/taskIntegrations/pluginContract"
 import { certificatesPlugin } from "@/convex/plugins/certificates/plugin"
+import { eventsTables } from "@/convex/plugins/events/validators"
 import { sponsorTables } from "@/convex/plugins/sponsor/validators"
 import { canvaPlugin } from "@/convex/plugins/canva/backendPlugin"
 import { discordPlugin } from "@/convex/plugins/discord/definition"
@@ -35,5 +36,6 @@ export const pluginTables = {
   ...oauthPluginTables,
   ...integrationPluginTables,
   ...projectWorkflowTables,
+  ...eventsTables,
   ...sponsorTables,
 }

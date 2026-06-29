@@ -9,6 +9,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -17,13 +18,15 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatDateRange } from "@/lib/format/dates"
 import {
   buildEventColumns,
+  columnRoundTotals,
   eventRoundsById,
   filterEventReportRows,
+  grandTotalRounds,
   reportFetchedAt,
   totalRounds,
   type EventReportScope,
-} from "@/features/events/event-report"
-import { useEventReport } from "@/features/events/use-event-report"
+} from "@/plugins/events/event-report"
+import { useEventReport } from "@/plugins/events/use-event-report"
 import { formatWcaEventShortLabel } from "@/lib/wca-events"
 import { useConfiguredToday } from "@/hooks/use-configured-today"
 import {
@@ -35,9 +38,8 @@ const REPORT_SCOPES: readonly {
   value: EventReportScope
   label: string
 }[] = [
-  { value: "upcoming", label: "Upcoming" },
+  { value: "current", label: "Current" },
   { value: "past", label: "Past" },
-  { value: "all", label: "All" },
 ]
 
 function isEventReportScope(value: string): value is EventReportScope {
@@ -86,7 +88,7 @@ function CompetitionLinks({
 
 export function EventsPage() {
   const { rows, error, isLoading, isRefreshing, refresh } = useEventReport()
-  const [scope, setScope] = useState<EventReportScope>("upcoming")
+  const [scope, setScope] = useState<EventReportScope>("current")
   const today = useConfiguredToday()
   const visibleRows = useMemo(
     () => filterEventReportRows(rows ?? [], scope, today),
@@ -96,6 +98,11 @@ export function EventsPage() {
     () => buildEventColumns(visibleRows),
     [visibleRows]
   )
+  const columnTotals = useMemo(
+    () => columnRoundTotals(visibleRows),
+    [visibleRows]
+  )
+  const grandTotal = useMemo(() => grandTotalRounds(visibleRows), [visibleRows])
   const lastUpdated = reportFetchedAt(rows ?? [])
 
   return (
@@ -250,6 +257,24 @@ export function EventsPage() {
                   )
                 })}
               </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell className="sticky left-0 z-10 bg-background font-semibold">
+                    Total
+                  </TableCell>
+                  {eventColumns.map((eventId) => (
+                    <TableCell
+                      key={eventId}
+                      className="px-1.5 text-center font-semibold tabular-nums"
+                    >
+                      {columnTotals.get(eventId) ?? 0}
+                    </TableCell>
+                  ))}
+                  <TableCell className="sticky right-0 z-10 bg-background text-center font-semibold tabular-nums">
+                    {grandTotal}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
             </Table>
           </div>
         ) : null}

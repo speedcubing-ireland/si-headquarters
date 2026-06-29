@@ -1,14 +1,15 @@
 import type { Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { internalQuery } from "@/convex/_generated/server"
-import { competitionPrimaryStart } from "@/convex/competitions/dates"
-import { MAX_EVENT_REPORT_SOURCES } from "@/convex/events/constants"
+import { MAX_EVENT_REPORT_SOURCES } from "@/convex/plugins/events/constants"
 import { DEFAULT_RESOURCE_KEYS } from "@/convex/integrations/constants"
 import { requireEventsDashboardAccess } from "@/convex/permissions/principal"
 import {
+  eventReportSheetValidator,
   eventScheduleSnapshotValidator,
   wcaEventSnapshotValidator,
-} from "@/convex/events/validators"
+  type EventReportSheet,
+} from "@/convex/plugins/events/validators"
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { ConvexError, v, type Infer } from "convex/values"
 
@@ -25,22 +26,10 @@ export const reportCompetitionValidator = v.object({
     to: v.nullable(v.string()),
   }),
   wcaCompetitionId: v.nullable(v.string()),
-  sheet: v.nullable(
-    v.object({
-      sheetId: v.string(),
-      title: v.string(),
-      url: v.string(),
-    })
-  ),
+  sheet: v.nullable(eventReportSheetValidator),
 })
 
 export type ReportCompetition = Infer<typeof reportCompetitionValidator>
-
-interface CompetitionSheet {
-  sheetId: string
-  title: string
-  url: string
-}
 
 function assertWithinSourceLimit(count: number): void {
   if (count > MAX_EVENT_REPORT_SOURCES) {
@@ -53,7 +42,7 @@ function assertWithinSourceLimit(count: number): void {
 
 async function loadLinkedSheets(
   ctx: QueryCtx
-): Promise<Map<Id<"competitions">, CompetitionSheet>> {
+): Promise<Map<Id<"competitions">, EventReportSheet>> {
   const sheetRows = await ctx.db
     .query("objectLinkedResources")
     .withIndex(
@@ -67,7 +56,7 @@ async function loadLinkedSheets(
     .take(MAX_EVENT_REPORT_SOURCES + 1)
   assertWithinSourceLimit(sheetRows.length)
 
-  const sheetsByCompetition = new Map<Id<"competitions">, CompetitionSheet>()
+  const sheetsByCompetition = new Map<Id<"competitions">, EventReportSheet>()
   for (const resource of sheetRows) {
     if (
       resource.object.type !== "competitions" ||
@@ -96,20 +85,22 @@ async function loadLinkedSheets(
 async function resolveWcaLinkedCompetitionIds(
   ctx: QueryCtx,
   wcaCompetitionIds: readonly string[]
-): Promise<Map<Id<"competitions">, true>> {
-  const ids = new Map<Id<"competitions">, true>()
-  for (const wcaCompetitionId of new Set(wcaCompetitionIds)) {
-    const competition = await ctx.db
-      .query("competitions")
-      .withIndex("by_wcaCompetitionId", (q) =>
-        q.eq("wcaCompetitionId", wcaCompetitionId)
-      )
-      .first()
-    if (competition !== null) {
-      ids.set(competition._id, true)
-    }
-  }
-  return ids
+): Promise<Set<Id<"competitions">>> {
+  const matches = await Promise.all(
+    [...new Set(wcaCompetitionIds)].map((wcaCompetitionId) =>
+      ctx.db
+        .query("competitions")
+        .withIndex("by_wcaCompetitionId", (q) =>
+          q.eq("wcaCompetitionId", wcaCompetitionId)
+        )
+        .first()
+    )
+  )
+  return new Set(
+    matches
+      .filter((competition) => competition !== null)
+      .map((competition) => competition._id)
+  )
 }
 
 async function loadReportCompetitions(
@@ -132,10 +123,12 @@ async function loadReportCompetitions(
 
   const competitionIds = new Set<Id<"competitions">>([
     ...sheetsByCompetition.keys(),
-    ...wcaLinkedIds.keys(),
+    ...wcaLinkedIds,
   ])
 
-  const competitions = (
+  // Order is irrelevant here: the report action merges these with the managed
+  // WCA competitions and sorts the combined set before returning it.
+  return (
     await Promise.all(
       [...competitionIds].map(
         async (competitionId): Promise<ReportCompetition | null> => {
@@ -154,23 +147,7 @@ async function loadReportCompetitions(
       )
     )
   ).filter((entry): entry is ReportCompetition => entry !== null)
-
-  return competitions.sort((left, right) => {
-    const leftDate = competitionPrimaryStart(left.dates) ?? "9999-12-31"
-    const rightDate = competitionPrimaryStart(right.dates) ?? "9999-12-31"
-    return (
-      leftDate.localeCompare(rightDate) ||
-      left.competitionName.localeCompare(right.competitionName)
-    )
-  })
 }
-
-export const listReportSources = internalQuery({
-  args: { wcaCompetitionIds: v.optional(v.array(v.string())) },
-  returns: v.array(reportCompetitionValidator),
-  handler: (ctx, args) =>
-    loadReportCompetitions(ctx, args.wcaCompetitionIds ?? []),
-})
 
 export const loadReportContext = internalQuery({
   args: { wcaCompetitionIds: v.array(v.string()) },

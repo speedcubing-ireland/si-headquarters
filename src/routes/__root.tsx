@@ -130,7 +130,6 @@ function featureForPath(pathname: string): FeatureId | null {
     return "organiserInvites"
   }
   if (pathname.startsWith("/admin/refunds")) return "refunds"
-  if (pathname.startsWith("/events")) return "events"
   return featureForPluginPath(pathname)
 }
 

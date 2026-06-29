@@ -59,7 +59,7 @@ async function setupEventReport() {
     })
   )
   const client = t.withIdentity({ subject: volunteerId })
-  const initial = await client.action(api.events.actions.loadReport, {})
+  const initial = await client.action(api.plugins.events.actions.loadReport, {})
   expect(initial[0]).toMatchObject({
     events: [
       { eventId: "333", rounds: 4 },
@@ -159,7 +159,7 @@ describe("WCA-sourced event report", () => {
 
     const rows = await t
       .withIdentity({ subject: volunteerId })
-      .action(api.events.actions.loadReport, {})
+      .action(api.plugins.events.actions.loadReport, {})
 
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
@@ -192,7 +192,10 @@ describe("event report loading", () => {
       "Schedule!A2:F",
     ])
 
-    const cached = await client.action(api.events.actions.loadReport, {})
+    const cached = await client.action(
+      api.plugins.events.actions.loadReport,
+      {}
+    )
     expect(cached).toEqual(initial)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
@@ -202,7 +205,7 @@ describe("event report loading", () => {
       await setupEventReport()
     await removeGoogleToken()
 
-    const stale = await client.action(api.events.actions.loadReport, {
+    const stale = await client.action(api.plugins.events.actions.loadReport, {
       skipCache: true,
     })
 
@@ -216,7 +219,7 @@ describe("event report loading", () => {
     const { client, fetchMock, initial } = await setupEventReport()
     fetchMock.mockRejectedValueOnce(new Error("Google unavailable"))
 
-    const stale = await client.action(api.events.actions.loadReport, {
+    const stale = await client.action(api.plugins.events.actions.loadReport, {
       skipCache: true,
     })
 

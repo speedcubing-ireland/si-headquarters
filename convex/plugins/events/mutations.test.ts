@@ -8,7 +8,7 @@ describe("event schedule snapshots", () => {
   test("upserts one snapshot per sheet", async () => {
     const t = convexTest(schema, modules)
 
-    await t.mutation(internal.events.mutations.saveScheduleSnapshots, {
+    await t.mutation(internal.plugins.events.mutations.saveScheduleSnapshots, {
       snapshots: [
         {
           sheetId: "sheet-id",
@@ -17,7 +17,7 @@ describe("event schedule snapshots", () => {
         },
       ],
     })
-    await t.mutation(internal.events.mutations.saveScheduleSnapshots, {
+    await t.mutation(internal.plugins.events.mutations.saveScheduleSnapshots, {
       snapshots: [
         {
           sheetId: "sheet-id",
@@ -42,7 +42,7 @@ describe("event schedule snapshots", () => {
     const t = convexTest(schema, modules)
 
     await expect(
-      t.mutation(internal.events.mutations.saveScheduleSnapshots, {
+      t.mutation(internal.plugins.events.mutations.saveScheduleSnapshots, {
         snapshots: [
           {
             sheetId: "sheet-id",

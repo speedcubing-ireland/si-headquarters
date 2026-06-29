@@ -3,8 +3,8 @@ import {
   eventScheduleSnapshotValidator,
   wcaEventSnapshotValidator,
   type EventRound,
-} from "@/convex/events/validators"
-import { MAX_EVENT_REPORT_SOURCES } from "@/convex/events/constants"
+} from "@/convex/plugins/events/validators"
+import { MAX_EVENT_REPORT_SOURCES } from "@/convex/plugins/events/constants"
 import { ConvexError, v } from "convex/values"
 
 function assertUniqueEvents(label: string, events: EventRound[]): void {

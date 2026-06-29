@@ -4,7 +4,7 @@ import { useAction } from "convex/react"
 import { useCallback } from "react"
 
 export function useEventReport() {
-  const loadReport = useAction(api.events.actions.loadReport)
+  const loadReport = useAction(api.plugins.events.actions.loadReport)
   const load = useCallback(() => loadReport({}), [loadReport])
   const refreshLoad = useCallback(
     () => loadReport({ skipCache: true }),

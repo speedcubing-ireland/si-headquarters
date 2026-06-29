@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { EventsPage } from "@/features/events/events-page"
+import { EventsPage } from "@/plugins/events/events-page"
 import { AbilityRouteGuard } from "@/features/auth"
 
 export const Route = createFileRoute("/events")({

@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import type { ComponentType } from "react"
 import type { Action, Subject } from "@/features/auth/ability"
+import { eventsPlugin } from "@/plugins/events"
 import { sponsorPlugin } from "@/plugins/sponsor"
 import { socialMediaPlugin } from "@/plugins/social-media"
 import { wca2faPlugin } from "@/plugins/wca-2fa"
@@ -23,7 +24,12 @@ export interface Plugin {
   competitionProperties: ComponentType<{ competitionId: string }>[]
 }
 
-const ALL_PLUGINS: Plugin[] = [wca2faPlugin, socialMediaPlugin, sponsorPlugin]
+const ALL_PLUGINS: Plugin[] = [
+  eventsPlugin,
+  wca2faPlugin,
+  socialMediaPlugin,
+  sponsorPlugin,
+]
 
 export const PLUGINS: Plugin[] = ALL_PLUGINS.filter((plugin) =>
   isFeatureEnabled(plugin.feature)
