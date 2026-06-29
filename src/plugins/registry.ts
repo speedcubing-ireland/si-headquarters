@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react"
 import type { ComponentType } from "react"
 import type { Action, Subject } from "@/features/auth/ability"
 import { eventsPlugin } from "@/plugins/events"
+import { refundsPlugin } from "@/plugins/refunds"
 import { sponsorPlugin } from "@/plugins/sponsor"
 import { socialMediaPlugin } from "@/plugins/social-media"
 import { wca2faPlugin } from "@/plugins/wca-2fa"
@@ -26,6 +27,7 @@ export interface Plugin {
 
 const ALL_PLUGINS: Plugin[] = [
   eventsPlugin,
+  refundsPlugin,
   wca2faPlugin,
   socialMediaPlugin,
   sponsorPlugin,

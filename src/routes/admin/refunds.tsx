@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { AbilityRouteGuard } from "@/features/auth"
-import { RefundsDashboard } from "@/features/admin/refunds"
+import { RefundsDashboard } from "@/plugins/refunds/refunds-dashboard"
 
 export const Route = createFileRoute("/admin/refunds")({
   component: RefundsRoute,

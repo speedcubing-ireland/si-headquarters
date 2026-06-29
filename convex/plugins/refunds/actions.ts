@@ -4,14 +4,14 @@ import { ConvexError } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { action } from "@/convex/_generated/server"
 import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
-import { buildRefundDecision } from "@/convex/refunds/logic"
+import { buildRefundDecision } from "@/convex/plugins/refunds/logic"
 import {
   refundComputationResultShape,
   type CompetitionRefundSummary,
   type RefundComputationResult,
   type RefundVolunteerRecord,
   type RefundVolunteerMatch,
-} from "@/convex/refunds/api"
+} from "@/convex/plugins/refunds/api"
 import { createWcaClient } from "@/convex/plugins/wca/client"
 import {
   getMyCompetitions,
@@ -48,7 +48,7 @@ export const computeRefunds = action({
     await ctx.runQuery(internal.access.authorize.assertRefundsAccess, {})
 
     const volunteerDocs: RefundVolunteerRecord[] = await ctx.runQuery(
-      internal.refunds.api.listVolunteersInternal,
+      internal.plugins.refunds.api.listVolunteersInternal,
       {}
     )
     const activeVolunteerDocs: RefundVolunteerRecord[] = volunteerDocs.filter(

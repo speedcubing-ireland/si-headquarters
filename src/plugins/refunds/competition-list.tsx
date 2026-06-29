@@ -18,7 +18,7 @@ import type {
   CompetitionRefundSummary,
   RefundComputationResult,
   RefundVolunteerMatch,
-} from "@/convex/refunds/api"
+} from "@/convex/plugins/refunds/api"
 import { formatDateRange } from "@/lib/format/dates"
 
 const STATUS_CONFIG: Record<

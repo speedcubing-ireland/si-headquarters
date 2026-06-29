@@ -4,7 +4,6 @@ import {
   FolderKanbanIcon,
   HomeIcon,
   ListChecksIcon,
-  ReceiptIcon,
   UsersIcon,
   TrophyIcon,
   type LucideIcon,
@@ -31,7 +30,7 @@ import { UserImpersonationBanner } from "@/features/impersonation/impersonation-
 import { PLUGINS } from "@/plugins/registry"
 import { Can } from "@/features/auth"
 import { useAdminAccess } from "@/features/admin/use-admin-access"
-import { isFeatureEnabled, organisationConfig } from "@/config/lib/organisation"
+import { organisationConfig } from "@/config/lib/organisation"
 
 const homeLink = { label: "Home", to: "/" as const, icon: HomeIcon }
 
@@ -167,23 +166,6 @@ function AdminAccessSidebarGroup() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        {isFeatureEnabled("refunds") && (
-          <Can I="access" a="RefundsDashboard">
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Refunds">
-                <Link
-                  to="/admin/refunds"
-                  activeOptions={{ exact: false }}
-                  activeProps={{ "data-active": true }}
-                  inactiveProps={{ "data-active": false }}
-                >
-                  <ReceiptIcon />
-                  <span>Refunds</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </Can>
-        )}
       </SidebarMenu>
     </SidebarGroup>
   )

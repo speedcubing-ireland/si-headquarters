@@ -14,8 +14,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import type { RefundVolunteerRecord } from "@/convex/refunds/api"
-import { useRefundMutations } from "@/features/admin/refunds/use-refunds"
+import type { RefundVolunteerRecord } from "@/convex/plugins/refunds/api"
+import { useRefundMutations } from "@/plugins/refunds/use-refunds"
 
 function parseWcaIdList(raw: string): string[] {
   return [

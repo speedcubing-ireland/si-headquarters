@@ -30,7 +30,10 @@ describe("refunds security", () => {
     })
 
     const delegate = t.withIdentity({ subject: delegateId })
-    const volunteers = await delegate.query(api.refunds.api.listVolunteers, {})
+    const volunteers = await delegate.query(
+      api.plugins.refunds.api.listVolunteers,
+      {}
+    )
     expect(volunteers.length).toBe(1)
     expect(volunteers[0]?.name).toBe("Refund Volunteer")
   })
@@ -41,7 +44,7 @@ describe("refunds security", () => {
     const volunteer = t.withIdentity({ subject: volunteerId })
 
     await expect(
-      volunteer.query(api.refunds.api.listVolunteers, {})
+      volunteer.query(api.plugins.refunds.api.listVolunteers, {})
     ).rejects.toMatchObject({ data: { code: "FORBIDDEN" } })
   })
 
@@ -55,7 +58,7 @@ describe("refunds security", () => {
     const delegate = t.withIdentity({ subject: delegateId })
 
     const volunteerId = await delegate.mutation(
-      api.refunds.api.createVolunteer,
+      api.plugins.refunds.api.createVolunteer,
       {
         name: "Managed Volunteer",
         wcaId: "2024MANA01",
@@ -63,14 +66,14 @@ describe("refunds security", () => {
       }
     )
 
-    await delegate.mutation(api.refunds.api.updateVolunteer, {
+    await delegate.mutation(api.plugins.refunds.api.updateVolunteer, {
       id: volunteerId,
       name: "Managed Volunteer Updated",
       transferToWcaIds: ["2020MOVE01"],
     })
 
     const beforeDelete = await delegate.query(
-      api.refunds.api.listVolunteers,
+      api.plugins.refunds.api.listVolunteers,
       {}
     )
     expect(
@@ -79,10 +82,13 @@ describe("refunds security", () => {
       )
     ).toBe(true)
 
-    await delegate.mutation(api.refunds.api.deleteVolunteer, {
+    await delegate.mutation(api.plugins.refunds.api.deleteVolunteer, {
       id: volunteerId,
     })
-    const afterDelete = await delegate.query(api.refunds.api.listVolunteers, {})
+    const afterDelete = await delegate.query(
+      api.plugins.refunds.api.listVolunteers,
+      {}
+    )
     expect(
       afterDelete.some(
         (volunteer: { id: string }) => volunteer.id === volunteerId
@@ -96,7 +102,7 @@ describe("refunds security", () => {
     const volunteer = t.withIdentity({ subject: volunteerId })
 
     await expect(
-      volunteer.mutation(api.refunds.api.createVolunteer, {
+      volunteer.mutation(api.plugins.refunds.api.createVolunteer, {
         name: "Sneaky Volunteer",
         wcaId: "2024SNKY01",
       })
@@ -109,7 +115,7 @@ describe("refunds security", () => {
     const volunteer = t.withIdentity({ subject: volunteerId })
 
     await expect(
-      volunteer.action(api.refunds.actions.computeRefunds, {})
+      volunteer.action(api.plugins.refunds.actions.computeRefunds, {})
     ).rejects.toMatchObject({ data: { code: "FORBIDDEN" } })
   })
 
@@ -124,7 +130,7 @@ describe("refunds security", () => {
 
     // Auth passes; failure is expected at WCA token fetch in test env.
     await expect(
-      delegate.action(api.refunds.actions.computeRefunds, {})
+      delegate.action(api.plugins.refunds.actions.computeRefunds, {})
     ).rejects.toMatchObject({ data: { code: "PRECONDITION_FAILED" } })
   })
 })

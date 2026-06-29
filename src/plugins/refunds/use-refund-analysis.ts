@@ -1,5 +1,5 @@
 import { useAsyncLoad } from "@/features/integrations"
-import type { RefundComputationResult } from "@/convex/refunds/api"
+import type { RefundComputationResult } from "@/convex/plugins/refunds/api"
 
 export function useRefundAnalysis(
   computeRefunds: () => Promise<RefundComputationResult>

@@ -34,7 +34,6 @@ import {
   taskReminderFields,
 } from "@/convex/notifications/validators"
 import { objectUpdatesFields } from "@/convex/updates/validators"
-import { refundVolunteerFields } from "@/convex/refunds/validators"
 
 const schema = defineSchema(
   {
@@ -153,9 +152,6 @@ const schema = defineSchema(
       .index("by_owner_entity_page", ["ownerId", "entity", "pageId"])
       .index("by_visibility_entity_page", ["visibility", "entity", "pageId"]),
     impersonationSessions: impersonationSessionsTable,
-    refundVolunteers: defineTable(refundVolunteerFields)
-      .index("by_wca_id", ["wcaId"])
-      .index("by_archived_name", ["archived", "name"]),
     ...pluginTables,
   },
   {
