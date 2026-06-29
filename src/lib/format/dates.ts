@@ -47,6 +47,10 @@ export function formatDateTime(timestampMs: number): string {
   return `${formatInTimeZone(new Date(timestampMs), timeZone, "MMM d, yyyy 'at' HH:mm")} (${timeZoneLabel})`
 }
 
+export function todayInConfiguredTimeZone(now: Date = new Date()): string {
+  return formatInTimeZone(now, timeZone, DATE_ONLY_PARSE_FORMAT)
+}
+
 export function formatDateTimeInConfiguredTimeZone(
   date: string | null | undefined
 ): string {

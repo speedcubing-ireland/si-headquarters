@@ -7,6 +7,7 @@ import {
   ReceiptIcon,
   UsersIcon,
   TrophyIcon,
+  CalendarDaysIcon,
   type LucideIcon,
 } from "lucide-react"
 import { Link } from "@tanstack/react-router"
@@ -207,6 +208,15 @@ function SidebarProjectLinks() {
         {projectLinkItems.map((item) => (
           <SidebarNavLink key={item.label} {...item} />
         ))}
+        {isFeatureEnabled("events") ? (
+          <Can I="access" a="EventsDashboard">
+            <SidebarNavLink
+              label="Events"
+              to="/events"
+              icon={CalendarDaysIcon}
+            />
+          </Can>
+        ) : null}
       </SidebarMenu>
     </SidebarGroup>
   )

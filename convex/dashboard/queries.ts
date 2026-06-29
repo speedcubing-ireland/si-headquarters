@@ -1,6 +1,7 @@
 import { collectAll, type CompetitionOrProjectRef } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
+import { competitionPrimaryStart } from "@/convex/competitions/dates"
 import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
 import { localToday } from "@/convex/notifications/localTime"
 import {
@@ -31,15 +32,6 @@ const PROJECT_LIMIT = 6
 const STEWARD_OVERDUE_LIMIT = 20
 
 type TaskBoardRow = Infer<typeof taskBoardRow>
-
-function competitionPrimaryStart(
-  compDates: Doc<"competitions">["compDates"]
-): string | null {
-  const from = compDates.from
-  if (from !== null && from.length > 0) return from
-  const to = compDates.to
-  return to !== null && to.length > 0 ? to : null
-}
 
 const taskActionReasonValidator = v.union(
   v.literal("blocking"),

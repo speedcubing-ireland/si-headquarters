@@ -9,16 +9,9 @@ import {
   type JsonRecord,
 } from "@/convex/integrations/jsonBoundary"
 import {
-  SCHEDULE_CACHE_TTL_MS,
   SCHEDULE_RANGES,
   type ScheduleReadResult,
-  parseSheetValues,
 } from "@/convex/plugins/sheets/schedule"
-
-const scheduleCache = new Map<
-  string,
-  { expiresAt: number; value: ScheduleReadResult }
->()
 
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
 
@@ -82,38 +75,37 @@ export async function readSheetRanges(
     }
     const range = readString(entry, "range")
     if (range !== undefined) {
-      result[range] = parseSheetValues(matrixFromValueRange(entry))
+      result[range] = matrixFromValueRange(entry) ?? []
     }
   }
   return result
 }
 
-export async function readSchedule(
+export async function fetchSchedule(
   accessToken: string,
   sheetId: string
 ): Promise<ScheduleReadResult> {
-  const cacheKey = sheetId
-  const cached = scheduleCache.get(cacheKey)
-  if (cached !== undefined && cached.expiresAt > Date.now()) {
-    return cached.value
-  }
-
   const ranges = [
-    SCHEDULE_RANGES.groupBlocks,
-    SCHEDULE_RANGES.eventBlocks,
+    SCHEDULE_RANGES.saturday,
+    SCHEDULE_RANGES.sunday,
     SCHEDULE_RANGES.progression,
   ]
   const data = await readSheetRanges(accessToken, sheetId, ranges)
-  const value = {
-    groupBlocks: data[SCHEDULE_RANGES.groupBlocks] ?? [],
-    eventBlocks: data[SCHEDULE_RANGES.eventBlocks] ?? [],
+  return {
+    saturday: data[SCHEDULE_RANGES.saturday] ?? [],
+    sunday: data[SCHEDULE_RANGES.sunday] ?? [],
     progression: data[SCHEDULE_RANGES.progression] ?? [],
   }
-  scheduleCache.set(cacheKey, {
-    expiresAt: Date.now() + SCHEDULE_CACHE_TTL_MS,
-    value,
-  })
-  return value
+}
+
+export async function fetchScheduleProgression(
+  accessToken: string,
+  sheetId: string
+): Promise<string[][]> {
+  const data = await readSheetRanges(accessToken, sheetId, [
+    SCHEDULE_RANGES.progression,
+  ])
+  return data[SCHEDULE_RANGES.progression] ?? []
 }
 
 export async function clearSheetRange(

@@ -42,7 +42,8 @@ const organisationConfig = {
     wcaIntegration: true,
     wca2fa: true,
     organiserInvites: true,
-    refunds: false,
+    refunds: true,
+    events: true,
   },
   auth: {
     providers: [

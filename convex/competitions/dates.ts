@@ -1,5 +1,28 @@
 import type { Doc } from "@/convex/_generated/dataModel"
 
+export interface CompetitionDateRange {
+  from: string | null
+  to: string | null
+}
+
+export function competitionPrimaryStart(
+  dates: CompetitionDateRange
+): string | null {
+  if (dates.from !== null && dates.from.length > 0) {
+    return dates.from
+  }
+  return dates.to !== null && dates.to.length > 0 ? dates.to : null
+}
+
+export function competitionPrimaryEnd(
+  dates: CompetitionDateRange
+): string | null {
+  if (dates.to !== null && dates.to.length > 0) {
+    return dates.to
+  }
+  return dates.from !== null && dates.from.length > 0 ? dates.from : null
+}
+
 export function parseLocalDate(isoDate: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
   if (!match) return null

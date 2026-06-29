@@ -10,6 +10,7 @@ export const FEATURE_IDS = [
   "wca2fa",
   "organiserInvites",
   "refunds",
+  "events",
 ] as const
 
 export type FeatureId = (typeof FEATURE_IDS)[number]
@@ -30,6 +31,7 @@ const featureSchemaShape = {
   wca2fa: z.boolean(),
   organiserInvites: z.boolean(),
   refunds: z.boolean(),
+  events: z.boolean(),
 } satisfies Record<FeatureId, z.ZodBoolean>
 
 const featureSchema = z.object(featureSchemaShape).strict()
@@ -195,6 +197,17 @@ export const organisationConfigSchema = z
         code: "custom",
         message: "Organiser invites require WCA integration.",
         path: ["features", "organiserInvites"],
+      })
+    }
+
+    if (
+      config.features.events &&
+      (!config.features.google || !config.features.wcaIntegration)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Events require Google and WCA integration.",
+        path: ["features", "events"],
       })
     }
 

@@ -8,19 +8,11 @@ import {
   startOfToday,
 } from "date-fns"
 import type { DateRange } from "react-day-picker"
+import { competitionPrimaryStart } from "@/convex/competitions/dates"
 
 export interface CompetitionDateRangeValue {
   from: string | null
   to: string | null
-}
-
-export function competitionPrimaryStart(
-  compDates: CompetitionDateRangeValue
-): string | null {
-  const from = compDates.from
-  if (from !== null && from.length > 0) return from
-  const to = compDates.to
-  return to !== null && to.length > 0 ? to : null
 }
 
 function parseCompetitionDate(isoDate: string) {

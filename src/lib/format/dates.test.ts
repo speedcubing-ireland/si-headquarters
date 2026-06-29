@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 import { format, parse } from "date-fns"
 import { enIE } from "date-fns/locale"
 import { formatInTimeZone } from "date-fns-tz"
-import { formatDate, formatDateRange } from "./dates"
+import { formatDate, formatDateRange, todayInConfiguredTimeZone } from "./dates"
 
 const formatOptions = { locale: enIE }
 
@@ -54,5 +54,13 @@ describe("formatDateRange", () => {
     const result = formatDateRange("2026-01-31", "2026-02-01")
     expect(result).toContain(" to ")
     expect(result).not.toContain("/")
+  })
+})
+
+describe("todayInConfiguredTimeZone", () => {
+  test("uses the configured organisation timezone", () => {
+    expect(
+      todayInConfiguredTimeZone(new Date("2026-06-29T23:30:00.000Z"))
+    ).toBe("2026-06-30")
   })
 })

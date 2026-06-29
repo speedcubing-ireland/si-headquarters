@@ -24,9 +24,16 @@ import {
 } from "@/convex/plugins/wca/wcifCompetition"
 import {
   clearSheetRange,
-  readSheetRanges,
+  fetchSchedule,
   writeSheetRange,
 } from "@/convex/plugins/sheets/googleApi"
+import {
+  normalizeScheduleName,
+  parseProgressionRows,
+  wcaEventIdForScheduleName,
+  type ProgressionRow,
+  type ScheduleReadResult,
+} from "@/convex/plugins/sheets/schedule"
 import {
   getRegistrationStatus,
   isAcceptedRegistration,
@@ -38,17 +45,6 @@ import {
 
 type WcaApiClient = ReturnType<typeof createWcaClient>
 type GoogleSheetCellValue = string | null
-
-async function fetchGoogleSheetValues(args: {
-  accessToken: string
-  spreadsheetId: string
-  range: string
-}): Promise<string[][]> {
-  const data = await readSheetRanges(args.accessToken, args.spreadsheetId, [
-    args.range,
-  ])
-  return data[args.range] ?? []
-}
 
 async function clearGoogleSheetValues(args: {
   accessToken: string
@@ -73,9 +69,6 @@ async function updateGoogleSheetValues(args: {
   )
 }
 
-const SATURDAY_RANGE = "Schedule!AH6:AK"
-const SUNDAY_RANGE = "Schedule!AM6:AP"
-const PROGRESSION_RANGE = "Schedule!A2:F"
 const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U"
 const WCA_DATA_WRITE_RANGE = "WCA Data!A3"
 const SCHEDULE_TIMEZONE = organisationConfig.regional.timeZone
@@ -105,26 +98,6 @@ const REGION_DISPLAY_NAMES =
     : null
 
 export const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"])
-
-export const EVENT_NAME_TO_ID: Record<string, string> = {
-  "3x3": "333",
-  "2x2": "222",
-  "4x4": "444",
-  "5x5": "555",
-  "6x6": "666",
-  "7x7": "777",
-  "3x3 blindfolded": "333bf",
-  "3x3 fewest moves": "333fm",
-  "3x3 one-handed": "333oh",
-  clock: "clock",
-  megaminx: "minx",
-  pyraminx: "pyram",
-  skewb: "skewb",
-  "square-1": "sq1",
-  "4x4 blindfolded": "444bf",
-  "5x5 blindfolded": "555bf",
-  "3x3 multi-blind": "333mbf",
-}
 
 interface OtherActivityDef {
   activityCode: string
@@ -191,15 +164,12 @@ function defaultTimeLimit(eventId: string) {
   return { centiseconds: 60000, cumulativeRoundIds: [] }
 }
 
-function normalize(name: string) {
-  return name.trim().toLowerCase()
-}
-
 function getActivityCode(name: string, round: number): string {
-  const normalized = normalize(name)
+  const normalized = normalizeScheduleName(name)
+  const eventId = wcaEventIdForScheduleName(normalized)
 
-  if (normalized in EVENT_NAME_TO_ID) {
-    return `${EVENT_NAME_TO_ID[normalized]}-r${String(round)}`
+  if (eventId !== undefined) {
+    return `${eventId}-r${String(round)}`
   }
 
   if (normalized in OTHER_ACTIVITIES) {
@@ -212,7 +182,7 @@ function getActivityCode(name: string, round: number): string {
 }
 
 function getActivityDisplayName(name: string): string {
-  const normalized = normalize(name)
+  const normalized = normalizeScheduleName(name)
 
   if (normalized in OTHER_ACTIVITIES) {
     return OTHER_ACTIVITIES[normalized].displayName
@@ -222,7 +192,7 @@ function getActivityDisplayName(name: string): string {
 }
 
 function isEvent(name: string): boolean {
-  return normalize(name) in EVENT_NAME_TO_ID
+  return wcaEventIdForScheduleName(name) !== undefined
 }
 
 interface SheetRow {
@@ -230,12 +200,6 @@ interface SheetRow {
   length: string
   event: string
   round: string
-}
-
-interface ProgressionRow {
-  eventId: string
-  roundCount: number
-  progressions: (number | null)[]
 }
 
 function parseDuration(length: string): number {
@@ -257,31 +221,6 @@ function parseSheetRows(rows: string[][]): SheetRow[] {
     .filter((r) => r.time && r.event)
 }
 
-function parseProgressionRows(rows: string[][]): ProgressionRow[] {
-  return rows
-    .map((row) => {
-      const eventName = (row[0] ?? "").trim()
-      const eventId = EVENT_NAME_TO_ID[normalize(eventName)]
-      if (!eventId) return null
-
-      const roundCount = Number.parseInt((row[1] ?? "").trim(), 10) || 0
-      const progressions: (number | null)[] = []
-
-      for (let i = 2; i < 6; i++) {
-        const val = (row[i] ?? "").trim()
-        if (val === "") {
-          progressions.push(null)
-        } else {
-          const num = Number.parseFloat(val)
-          progressions.push(Number.isFinite(num) ? num : null)
-        }
-      }
-
-      return { eventId, roundCount, progressions }
-    })
-    .filter((r): r is ProgressionRow => r !== null)
-}
-
 function buildAdvancementCondition(
   previousRoundSize: number,
   progressionValue: number | null
@@ -299,39 +238,14 @@ function buildAdvancementCondition(
   return { type: "ranking", level: Math.round(progressionValue) }
 }
 
-async function fetchScheduleFromSheets(
-  spreadsheetId: string,
-  accessToken: string
-): Promise<{ saturday: SheetRow[]; sunday: SheetRow[] }> {
-  const [saturdayRows, sundayRows] = await Promise.all([
-    fetchGoogleSheetValues({
-      accessToken,
-      spreadsheetId,
-      range: SATURDAY_RANGE,
-    }),
-    fetchGoogleSheetValues({
-      accessToken,
-      spreadsheetId,
-      range: SUNDAY_RANGE,
-    }),
-  ])
-
+function parseScheduleRows(schedule: ScheduleReadResult): {
+  saturday: SheetRow[]
+  sunday: SheetRow[]
+} {
   return {
-    saturday: parseSheetRows(saturdayRows),
-    sunday: parseSheetRows(sundayRows),
+    saturday: parseSheetRows(schedule.saturday),
+    sunday: parseSheetRows(schedule.sunday),
   }
-}
-
-async function fetchProgressionFromSheets(
-  spreadsheetId: string,
-  accessToken: string
-): Promise<ProgressionRow[]> {
-  const rows = await fetchGoogleSheetValues({
-    accessToken,
-    spreadsheetId,
-    range: PROGRESSION_RANGE,
-  })
-  return parseProgressionRows(rows)
 }
 
 function firstNameFromFullName(name: string): string {
@@ -757,12 +671,9 @@ export async function executePushScheduleToWca(input: {
   const overwriteEvents = input.overwriteEvents ?? false
   const wcaClient = createWcaClient(input.wcaAccessToken)
 
-  let scheduleData: { saturday: SheetRow[]; sunday: SheetRow[] }
+  let scheduleSheet: ScheduleReadResult
   try {
-    scheduleData = await fetchScheduleFromSheets(
-      input.sheetId,
-      input.googleAccessToken
-    )
+    scheduleSheet = await fetchSchedule(input.googleAccessToken, input.sheetId)
   } catch (err) {
     return {
       success: false,
@@ -770,6 +681,7 @@ export async function executePushScheduleToWca(input: {
     }
   }
 
+  const scheduleData = parseScheduleRows(scheduleSheet)
   if (scheduleData.saturday.length === 0 && scheduleData.sunday.length === 0) {
     return { success: false, error: "No schedule entries found in the sheet" }
   }
@@ -781,13 +693,13 @@ export async function executePushScheduleToWca(input: {
 
   const hasExistingVenue = wcif.schedule.venues.length > 0
 
-  const [templateRounds, venueInfo, progressionRows] = await Promise.all([
+  const [templateRounds, venueInfo] = await Promise.all([
     fetchScheduleTemplate(wcaClient),
     hasExistingVenue
       ? Promise.resolve(null)
       : fetchCompetitionVenueInfo(wcaClient, input.wcaCompetitionId),
-    fetchProgressionFromSheets(input.sheetId, input.googleAccessToken),
   ])
+  const progressionRows = parseProgressionRows(scheduleSheet.progression)
 
   const startDate = wcif.schedule.startDate
   const allActivities = buildCompetitionActivities(

@@ -47,6 +47,7 @@ describe("organisation configuration", () => {
       wca2fa: false,
       organiserInvites: false,
       refunds: false,
+      events: false,
     }
     config.auth.providers = config.auth.providers.filter(
       (provider) => provider.audience === "staff"
@@ -125,6 +126,7 @@ describe("organisation configuration", () => {
         wca2fa: false,
         organiserInvites: false,
         refunds: false,
+        events: false,
       },
       auth: {
         providers: [{ id: "wca-staff", audience: "staff", label: "X" }],
@@ -148,6 +150,18 @@ describe("organisation configuration", () => {
     delete config.contacts.checkinShareEmail
     expect(() => defineOrganisationConfig(config)).toThrow(
       /require WCA configuration/
+    )
+  })
+
+  test("requires Google and WCA integration when events are enabled", () => {
+    const config = cloneConfig()
+    config.features = {
+      ...config.features,
+      events: true,
+      google: false,
+    }
+    expect(() => defineOrganisationConfig(config)).toThrow(
+      /Events require Google and WCA integration/
     )
   })
 
@@ -176,6 +190,7 @@ describe("organisation configuration", () => {
           wca2fa: false,
           organiserInvites: false,
           refunds: false,
+          events: false,
         },
         auth: {
           providers: [
@@ -227,6 +242,7 @@ describe("organisation configuration", () => {
           wca2fa: false,
           organiserInvites: false,
           refunds: false,
+          events: false,
         },
         auth: {
           providers: [

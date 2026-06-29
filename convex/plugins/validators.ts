@@ -33,6 +33,12 @@ export const integrationPluginTables = {
       "object.id",
       "resourceType",
       "resourceKey",
+    ])
+    .index("by_object_type_and_resourceType_and_resourceKey_and_object_id", [
+      "object.type",
+      "resourceType",
+      "resourceKey",
+      "object.id",
     ]),
   taskIntegrations: defineTable({
     taskId: v.id("tasks"),

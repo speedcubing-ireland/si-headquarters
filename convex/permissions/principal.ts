@@ -28,6 +28,7 @@ const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
     { action: "read", subject: "User" },
     { action: "manage", subject: "Task" },
     { action: "access", subject: "SocialMediaDashboard" },
+    { action: "access", subject: "EventsDashboard" },
   ],
   [TEAM_NAMES.DIRECTORS]: [
     { action: "manage", subject: "all" },
@@ -38,6 +39,7 @@ const TEAM_GRANTS: Partial<Record<TeamName, readonly Permission[]>> = {
     { action: "manage", subject: "Competition" },
     { action: "read", subject: "User" },
     { action: "access", subject: "Wca2fa" },
+    { action: "access", subject: "EventsDashboard" },
   ],
   [TEAM_NAMES.DELEGATES]: [
     { action: "access", subject: "Wca2fa" },
@@ -265,6 +267,20 @@ export async function requireRefundsAccess(ctx: AuthCtx): Promise<Id<"users">> {
     "RefundsDashboard",
     undefined,
     "Directors or Delegates only."
+  )
+  return principal.userId
+}
+
+export async function requireEventsDashboardAccess(
+  ctx: AuthCtx
+): Promise<Id<"users">> {
+  const principal = await requirePrincipal(ctx)
+  requireCan(
+    principal,
+    "access",
+    "EventsDashboard",
+    undefined,
+    "Events dashboard access required."
   )
   return principal.userId
 }

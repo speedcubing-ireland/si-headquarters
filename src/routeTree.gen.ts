@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
@@ -37,6 +38,11 @@ import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$te
 import { Route as PluginsSponsorshipAuctionsNewRouteImport } from './routes/plugins/sponsorship_.auctions.new'
 import { Route as PluginsSponsorshipAuctionsAuctionIdEditRouteImport } from './routes/plugins/sponsorship_.auctions.$auctionId.edit'
 
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -179,6 +185,7 @@ const PluginsSponsorshipAuctionsAuctionIdEditRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/events': typeof EventsRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/events': typeof EventsRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
@@ -238,6 +246,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/events': typeof EventsRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/events'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/events'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/events'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
@@ -357,6 +369,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EventsRoute: typeof EventsRoute
   AdminRefundsRoute: typeof AdminRefundsRoute
   AuthWcaRoute: typeof AuthWcaRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
@@ -386,6 +399,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -592,6 +612,7 @@ const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EventsRoute: EventsRoute,
   AdminRefundsRoute: AdminRefundsRoute,
   AuthWcaRoute: AuthWcaRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,

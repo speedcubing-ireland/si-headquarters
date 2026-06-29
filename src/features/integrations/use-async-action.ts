@@ -5,6 +5,7 @@ interface AsyncLoadOptions<T> {
   clearDataOnError?: boolean
   enabled?: boolean
   onSuccess?: (value: T) => void
+  refreshLoad?: () => Promise<T>
 }
 
 function formatCatchError(
@@ -60,6 +61,7 @@ export function useAsyncLoad<T>(
     clearDataOnError = true,
     enabled = true,
     onSuccess,
+    refreshLoad = load,
   }: AsyncLoadOptions<T> = {}
 ) {
   const [data, setData] = useState<T | undefined>(undefined)
@@ -75,7 +77,7 @@ export function useAsyncLoad<T>(
     setIsFetching(true)
     setError(null)
     try {
-      const result = await load()
+      const result = await refreshLoad()
       setData(result)
       onSuccess?.(result)
     } catch (caught) {
@@ -87,7 +89,7 @@ export function useAsyncLoad<T>(
       setIsFetching(false)
       setHasLoaded(true)
     }
-  }, [clearDataOnError, load, onSuccess])
+  }, [clearDataOnError, onSuccess, refreshLoad])
 
   useEffect(() => {
     if (!enabled) {

@@ -60,7 +60,8 @@ export const subjectValidator = v.union(
   v.literal("SponsorPortalAdmin"),
   v.literal("Wca2fa"),
   v.literal("SocialMediaDashboard"),
-  v.literal("RefundsDashboard")
+  v.literal("RefundsDashboard"),
+  v.literal("EventsDashboard")
 )
 
 export const permissionValidator = v.object({
