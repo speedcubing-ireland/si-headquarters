@@ -113,7 +113,7 @@
     "@vitest/coverage-v8": "^4.1.9",
     "convex-test": "^0.0.53",
     "oxfmt": "^0.55.0",
-    "oxlint": "^1.71.0",
+    "oxlint": "^1.72.0",
     "oxlint-tsgolint": "^0.23.0",
     "react-email": "^6.6.5",
     "typescript": "~6.0.3",
