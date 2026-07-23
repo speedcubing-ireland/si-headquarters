@@ -35,11 +35,22 @@ import { organisationConfig } from "@/config/lib/organisation"
 
 const homeLink = { label: "Home", to: "/" as const, icon: HomeIcon }
 
-const achievementsLink = {
-  label: "Achievements",
-  href: "https://achievements.speedcubingireland.com",
-  icon: AwardIcon,
-}
+const achievementsLinkItems: {
+  label: string
+  href: string
+  icon: LucideIcon
+}[] = [
+  {
+    label: "Public site",
+    href: "https://achievements.speedcubingireland.com",
+    icon: AwardIcon,
+  },
+  {
+    label: "Admin site",
+    href: "https://si-api.blueglacier-893fcb86.northeurope.azurecontainerapps.io",
+    icon: AwardIcon,
+  },
+]
 
 const projectLinkItems: {
   label: string
@@ -74,6 +85,27 @@ function SidebarNavLink({
           <Icon />
           <span>{label}</span>
         </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+}
+
+function SidebarExternalNavLink({
+  label,
+  href,
+  icon: Icon,
+}: {
+  label: string
+  href: string
+  icon: LucideIcon
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild tooltip={label}>
+        <a href={href} target="_blank" rel="noopener noreferrer">
+          <Icon />
+          <span>{label}</span>
+        </a>
       </SidebarMenuButton>
     </SidebarMenuItem>
   )
@@ -183,18 +215,19 @@ function SidebarHomeLink() {
     <SidebarGroup>
       <SidebarMenu>
         <SidebarNavLink {...homeLink} />
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild tooltip={achievementsLink.label}>
-            <a
-              href={achievementsLink.href}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <achievementsLink.icon />
-              <span>{achievementsLink.label}</span>
-            </a>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+  )
+}
+
+function SidebarAchievementsLinks() {
+  return (
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel>Achievements</SidebarGroupLabel>
+      <SidebarMenu>
+        {achievementsLinkItems.map((item) => (
+          <SidebarExternalNavLink key={item.label} {...item} />
+        ))}
       </SidebarMenu>
     </SidebarGroup>
   )
@@ -248,6 +281,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarHomeLink />
+        <SidebarAchievementsLinks />
         <SidebarProjectLinks />
         <SidebarTeamsNav />
         <SidebarPluginLinks />
