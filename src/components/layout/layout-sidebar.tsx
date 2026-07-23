@@ -1,5 +1,6 @@
 import * as React from "react"
 import {
+  AwardIcon,
   BlocksIcon,
   FolderKanbanIcon,
   HomeIcon,
@@ -33,6 +34,12 @@ import { useAdminAccess } from "@/features/admin/use-admin-access"
 import { organisationConfig } from "@/config/lib/organisation"
 
 const homeLink = { label: "Home", to: "/" as const, icon: HomeIcon }
+
+const achievementsLink = {
+  label: "Achievements",
+  href: "https://achievements.speedcubingireland.com",
+  icon: AwardIcon,
+}
 
 const projectLinkItems: {
   label: string
@@ -176,6 +183,18 @@ function SidebarHomeLink() {
     <SidebarGroup>
       <SidebarMenu>
         <SidebarNavLink {...homeLink} />
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild tooltip={achievementsLink.label}>
+            <a
+              href={achievementsLink.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <achievementsLink.icon />
+              <span>{achievementsLink.label}</span>
+            </a>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
   )
