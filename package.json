@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@auth/core": "0.41.2",
-    "@autoform/react": "^4.0.0",
+    "@autoform/react": "^5.0.0",
     "@autoform/zod": "^5.0.0",
     "@base-ui/react": "^1.6.0",
     "@chenglou/pretext": "^0.0.8",
