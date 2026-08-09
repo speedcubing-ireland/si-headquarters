@@ -27,6 +27,7 @@ import {
   resolveAuctionSubject,
 } from "@/convex/plugins/sponsor/lib/auctionSubject"
 import { competitionStartEnd } from "@/convex/competitions/dates"
+import { DEFAULT_RESOURCE_KEYS } from "@/convex/integrations/constants"
 
 const competitionSnapshotRefreshStatus = v.union(
   v.literal("ready"),
@@ -46,6 +47,7 @@ const competitionSnapshotRefreshResult = v.object({
 const auctionSnapshotContext = v.object({
   auctionId: v.id("sponsorshipAuctions"),
   subjectKind: auctionSubjectKind,
+  competitionId: v.optional(v.id("competitions")),
   // Effective WCA id to fetch (the competition's link for hq subjects, or the
   // auction's id for wca subjects). Undefined for custom or unlinked hq.
   wcaCompetitionId: v.optional(v.string()),
@@ -150,6 +152,7 @@ export const getSnapshotContextInternal = internalQuery({
       return {
         auctionId: auction._id,
         subjectKind: subject.kind,
+        competitionId: competition._id,
         wcaCompetitionId: competition.wcaCompetitionId,
         fallbackName: competition.name,
         fallbackStartDate: compStart,
@@ -194,6 +197,58 @@ export const setSnapshotInternal = internalMutation({
       competitionSnapshot: args.snapshot,
     })
     return null
+  },
+})
+
+export const unlinkMissingWcaCompetitionInternal = internalMutation({
+  args: {
+    auctionId: v.id("sponsorshipAuctions"),
+    competitionId: v.id("competitions"),
+    expectedWcaCompetitionId: v.string(),
+  },
+  returns: v.union(competitionSnapshot, v.null()),
+  handler: async (ctx, args) => {
+    const competition = await ctx.db.get("competitions", args.competitionId)
+    if (
+      competition === null ||
+      competition.wcaCompetitionId !== args.expectedWcaCompetitionId
+    ) {
+      return null
+    }
+
+    const linkedResource = await ctx.db
+      .query("objectLinkedResources")
+      .withIndex(
+        "by_object_type_and_object_id_and_resourceType_and_resourceKey",
+        (q) =>
+          q
+            .eq("object.type", "competitions")
+            .eq("object.id", args.competitionId)
+            .eq("resourceType", "wcaCompetition")
+            .eq("resourceKey", DEFAULT_RESOURCE_KEYS.wcaCompetition)
+      )
+      .unique()
+    if (linkedResource !== null) {
+      await ctx.db.delete("objectLinkedResources", linkedResource._id)
+    }
+
+    await ctx.db.patch("competitions", args.competitionId, {
+      wcaCompetitionId: undefined,
+    })
+
+    const fallbackSnapshot = buildFallbackSnapshotForCompetition(competition)
+    const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
+    if (
+      auction !== null &&
+      resolveAuctionSubject(auction).kind === "hq_competition" &&
+      auction.competitionId === args.competitionId
+    ) {
+      await ctx.db.patch("sponsorshipAuctions", args.auctionId, {
+        competitionSnapshot: fallbackSnapshot,
+      })
+    }
+
+    return fallbackSnapshot
   },
 })
 
@@ -274,14 +329,48 @@ async function runCompetitionSnapshotRefresh(
     }
   }
 
-  const details = await ctx.runAction(
+  const fetchResult = await ctx.runAction(
     internal.plugins.sponsor.integrations.wca.fetchDetails
       .fetchCompetitionDetailsInternal,
     {
       wcaCompetitionId: context.wcaCompetitionId,
     }
   )
-  if (details === null) {
+
+  if (fetchResult.status === "not_found") {
+    if (context.competitionId !== undefined) {
+      const fallbackSnapshot = await ctx.runMutation(
+        internal.plugins.sponsor.admin.auctions.competitionSnapshot
+          .unlinkMissingWcaCompetitionInternal,
+        {
+          auctionId: context.auctionId,
+          competitionId: context.competitionId,
+          expectedWcaCompetitionId: context.wcaCompetitionId,
+        }
+      )
+      if (fallbackSnapshot !== null) {
+        return {
+          status: "missing_wca_link",
+          message: `WCA competition "${context.wcaCompetitionId}" could not be found. The WCA link has been removed.`,
+          summary: fallbackSnapshot.summary,
+          summarySource: fallbackSnapshot.source,
+          fetchedAt: fallbackSnapshot.fetchedAt,
+        }
+      }
+    }
+
+    const fallbackSnapshot =
+      context.competitionSnapshot ?? buildFallbackSnapshotFromContext(context)
+    return {
+      status: "fetch_failed",
+      message: `WCA competition "${context.wcaCompetitionId}" could not be found.`,
+      summary: fallbackSnapshot.summary,
+      summarySource: fallbackSnapshot.source,
+      fetchedAt: fallbackSnapshot.fetchedAt,
+    }
+  }
+
+  if (fetchResult.status === "fetch_failed") {
     if (context.competitionSnapshot?.source === "wca") {
       return {
         status: "ready",
@@ -312,6 +401,8 @@ async function runCompetitionSnapshotRefresh(
       fetchedAt: fallbackSnapshot.fetchedAt,
     }
   }
+
+  const details = fetchResult.details
 
   const snapshot = buildCompetitionSnapshot({
     summary: buildWcaCompetitionSummary(details),

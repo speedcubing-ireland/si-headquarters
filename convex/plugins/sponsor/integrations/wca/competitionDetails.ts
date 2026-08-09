@@ -22,6 +22,19 @@ export type SponsorshipWcaCompetitionDetails = Infer<
   typeof sponsorshipWcaCompetitionDetails
 >
 
+export const sponsorshipWcaCompetitionDetailsFetchResult = v.union(
+  v.object({
+    status: v.literal("found"),
+    details: sponsorshipWcaCompetitionDetails,
+  }),
+  v.object({ status: v.literal("not_found") }),
+  v.object({ status: v.literal("fetch_failed") })
+)
+
+export type SponsorshipWcaCompetitionDetailsFetchResult = Infer<
+  typeof sponsorshipWcaCompetitionDetailsFetchResult
+>
+
 export function mapCompetitionInfoToDetails(
   detail: CompetitionInfo
 ): SponsorshipWcaCompetitionDetails {
@@ -49,14 +62,19 @@ export function mapCompetitionInfoToDetails(
 export async function fetchCompetitionDetails(
   accessToken: string,
   wcaCompetitionId: string
-): Promise<SponsorshipWcaCompetitionDetails | null> {
+): Promise<SponsorshipWcaCompetitionDetailsFetchResult> {
   const client = createWcaClient(accessToken)
   const response = await competitionById({
     client,
     path: { competitionId: wcaCompetitionId },
   })
   if (response.data === undefined) {
-    return null
+    return {
+      status: response.response?.status === 404 ? "not_found" : "fetch_failed",
+    }
   }
-  return mapCompetitionInfoToDetails(response.data)
+  return {
+    status: "found",
+    details: mapCompetitionInfoToDetails(response.data),
+  }
 }

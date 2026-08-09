@@ -113,7 +113,10 @@ describe("fetchCompetitionDetails", () => {
       "HiddenComp2026"
     )
 
-    expect(result).toEqual(mapCompetitionInfoToDetails(competition))
+    expect(result).toEqual({
+      status: "found",
+      details: mapCompetitionInfoToDetails(competition),
+    })
     expect(createWcaClient).toHaveBeenCalledWith("service-account-token")
     expect(competitionById).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -122,17 +125,28 @@ describe("fetchCompetitionDetails", () => {
     )
   })
 
-  test("returns null when the WCA API responds with an error", async () => {
+  test("distinguishes a missing competition from transient WCA errors", async () => {
     vi.spyOn(wcaSdk, "competitionById").mockResolvedValue({
       data: undefined,
       error: {
         error: "Not found",
         data: { model: "Competition", id: "MissingComp2026" },
       },
+      response: new Response(null, { status: 404 }),
     } as Awaited<ReturnType<typeof wcaSdk.competitionById>>)
 
     await expect(
       fetchCompetitionDetails("service-account-token", "MissingComp2026")
-    ).resolves.toBeNull()
+    ).resolves.toEqual({ status: "not_found" })
+
+    vi.mocked(wcaSdk.competitionById).mockResolvedValue({
+      data: undefined,
+      error: { error: "Service unavailable" },
+      response: new Response(null, { status: 503 }),
+    } as Awaited<ReturnType<typeof wcaSdk.competitionById>>)
+
+    await expect(
+      fetchCompetitionDetails("service-account-token", "ExistingComp2026")
+    ).resolves.toEqual({ status: "fetch_failed" })
   })
 })
