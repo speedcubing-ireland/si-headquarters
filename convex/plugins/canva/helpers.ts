@@ -2,6 +2,7 @@ import { ConvexError } from "convex/values"
 import {
   isPlainObject,
   type JsonFieldValue,
+  type JsonRecord,
   readJsonObject,
   readRecord,
   readString,
@@ -61,6 +62,28 @@ export async function fetchCanvaDesignMetadata(
   accessToken: string,
   designId: string
 ): Promise<{ title: string; thumbnailUrl?: string }> {
+  const design = await fetchCanvaDesignRecord(accessToken, designId)
+  const title = readString(design, "title")
+  if (title === undefined || title.trim() === "") {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: "Canva design has no title.",
+    })
+  }
+  return { title, thumbnailUrl: canvaThumbnailUrl(design) }
+}
+
+export async function fetchCanvaThumbnailUrl(
+  accessToken: string,
+  designId: string
+): Promise<string | undefined> {
+  return canvaThumbnailUrl(await fetchCanvaDesignRecord(accessToken, designId))
+}
+
+async function fetchCanvaDesignRecord(
+  accessToken: string,
+  designId: string
+): Promise<JsonRecord> {
   const response = await fetch(
     `https://api.canva.com/rest/v1/designs/${encodeURIComponent(designId)}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -79,17 +102,12 @@ export async function fetchCanvaDesignMetadata(
       message: "Canva design lookup returned an invalid response.",
     })
   }
-  const title = readString(design, "title")
-  if (title === undefined || title.trim() === "") {
-    throw new ConvexError({
-      code: "BAD_REQUEST",
-      message: "Canva design has no title.",
-    })
-  }
+  return design
+}
+
+function canvaThumbnailUrl(design: JsonRecord): string | undefined {
   const thumbnail = readRecord(design, "thumbnail")
-  const thumbnailUrl =
-    thumbnail !== undefined ? readString(thumbnail, "url") : undefined
-  return { title, thumbnailUrl }
+  return thumbnail !== undefined ? readString(thumbnail, "url") : undefined
 }
 
 export function parseCanvaFolderInput(value: string): string {
@@ -210,7 +228,6 @@ export async function runCanvaAutofillJob(
 ): Promise<{
   designId: string
   designUrl: string
-  thumbnailUrl?: string
 }> {
   const folderId = parseCanvaFolderInput(input.destinationFolderId)
   const dataset = await readCanvaDataset(accessToken, input.brandTemplateId)
@@ -318,33 +335,9 @@ export async function runCanvaAutofillJob(
         }
       }
 
-      let thumbnailUrl: string | undefined
-      if (designRecord !== undefined) {
-        const thumbnail = readRecord(designRecord, "thumbnail")
-        thumbnailUrl =
-          thumbnail !== undefined ? readString(thumbnail, "url") : undefined
-      }
-
-      if (thumbnailUrl === undefined) {
-        const designResponse = await fetch(
-          `https://api.canva.com/rest/v1/designs/${encodeURIComponent(designId)}`,
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        )
-        if (designResponse.ok) {
-          const designBody = await readJsonObject(designResponse)
-          const design =
-            designBody !== null ? readRecord(designBody, "design") : undefined
-          const thumbnail =
-            design !== undefined ? readRecord(design, "thumbnail") : undefined
-          thumbnailUrl =
-            thumbnail !== undefined ? readString(thumbnail, "url") : undefined
-        }
-      }
-
       return {
         designId,
         designUrl: buildCanvaDesignEditUrl(designId),
-        thumbnailUrl,
       }
     }
 

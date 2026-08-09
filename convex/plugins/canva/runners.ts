@@ -33,7 +33,6 @@ async function runCanvaAutofill(
     competitionName: run.competitionName,
     outputTitle: buildCanvaOutputTitle(run.competitionName, preset),
   })
-
   return {
     status: "awaiting_manual_share",
     lastMessage: null,
@@ -41,7 +40,6 @@ async function runCanvaAutofill(
       kind: "canva_design",
       designId: design.designId,
       designUrl: design.designUrl,
-      thumbnailUrl: design.thumbnailUrl,
     },
   }
 }

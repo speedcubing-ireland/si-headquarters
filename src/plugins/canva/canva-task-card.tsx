@@ -15,14 +15,111 @@ import {
   type TaskIntegrationCardRow,
 } from "@/features/integrations/task-integration-card-shell"
 import { useAction } from "convex/react"
-import { ExternalLinkIcon, PaletteIcon } from "lucide-react"
-import { useState } from "react"
+import {
+  ExternalLinkIcon,
+  ImageOffIcon,
+  PaletteIcon,
+  RefreshCwIcon,
+} from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 
 interface CanvaDesignCandidate {
   designId: string
   designUrl: string
   title: string
   thumbnailUrl?: string
+}
+
+function CanvaThumbnail({
+  integrationId,
+}: {
+  integrationId: TaskIntegrationCardRow["_id"]
+}) {
+  const refreshThumbnail = useAction(api.plugins.canva.links.refreshThumbnail)
+  const [preview, setPreview] = useState<{
+    url: string | undefined
+    state: "loading" | "ready" | "error"
+    refreshAt: number | null
+  }>({ url: undefined, state: "loading", refreshAt: null })
+
+  const refresh = useCallback(async () => {
+    setPreview((current) => ({ ...current, state: "loading" }))
+    const result = await refreshThumbnail({ id: integrationId }).catch(
+      () => null
+    )
+    if (result?.success === true) {
+      setPreview({
+        url: result.thumbnailUrl,
+        state: "ready",
+        refreshAt: result.refreshAt,
+      })
+    } else {
+      setPreview((current) => ({
+        ...current,
+        state: "error",
+        refreshAt: current.url === undefined ? null : Date.now() + 60 * 1000,
+      }))
+    }
+  }, [integrationId, refreshThumbnail])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  useEffect(() => {
+    if (preview.refreshAt === null) return
+    const timer = window.setTimeout(
+      () => {
+        void refresh()
+      },
+      Math.max(0, preview.refreshAt - Date.now())
+    )
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [preview.refreshAt, refresh])
+
+  if (preview.url === undefined) {
+    return (
+      <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border bg-muted/20 text-muted-foreground">
+        {preview.state === "loading" ? (
+          <Spinner />
+        ) : (
+          <ImageOffIcon className="size-6" />
+        )}
+        <span className="text-sm">
+          {preview.state === "loading"
+            ? "Loading preview…"
+            : "Preview unavailable"}
+        </span>
+        {preview.state === "error" ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => void refresh()}
+          >
+            <RefreshCwIcon />
+            Retry
+          </Button>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex justify-center rounded-lg border">
+      <img
+        className="h-48 w-auto object-contain"
+        src={preview.url}
+        alt="Canva design preview"
+        onError={() => {
+          setPreview({ url: undefined, state: "loading", refreshAt: null })
+          void refresh()
+        }}
+      />
+    </div>
+  )
 }
 
 export function CanvaTaskCard({ row }: { row: TaskIntegrationCardRow }) {
@@ -157,14 +254,8 @@ export function CanvaTaskCard({ row }: { row: TaskIntegrationCardRow }) {
             <Spinner />
             Generating design...
           </div>
-        ) : output?.thumbnailUrl !== undefined ? (
-          <div className="flex justify-center rounded-lg border">
-            <img
-              className="h-48 w-auto object-contain"
-              src={output.thumbnailUrl}
-              alt=""
-            />
-          </div>
+        ) : output !== undefined ? (
+          <CanvaThumbnail integrationId={row._id} />
         ) : null}
       </TaskIntegrationCardShell>
       <Dialog open={manualOpen} onOpenChange={resetManualDialog}>

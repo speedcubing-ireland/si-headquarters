@@ -33,6 +33,7 @@ export const taskIntegrationOutput = v.union(
     kind: v.literal("canva_design"),
     designId: v.string(),
     designUrl: v.string(),
+    // Legacy rows may contain Canva's 15-minute URL. New previews are fetched on demand.
     thumbnailUrl: v.optional(v.string()),
   }),
   v.null()

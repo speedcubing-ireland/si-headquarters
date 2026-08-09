@@ -14,6 +14,15 @@ const storedTokenValidator = v.object({
   expiresAt: v.number(),
 })
 
+const saveRefreshedTokenResultValidator = v.union(
+  v.object({ status: v.literal("saved") }),
+  v.object({
+    status: v.literal("superseded"),
+    token: storedTokenValidator,
+  }),
+  v.object({ status: v.literal("missing") })
+)
+
 const serviceAccountStatusValidator = v.object({
   service: oauthService,
   displayName: v.string(),
@@ -115,5 +124,45 @@ export const saveToken = internalMutation({
       await ctx.db.insert("serviceTokens", row)
     }
     return null
+  },
+})
+
+export const saveRefreshedToken = internalMutation({
+  args: {
+    service: oauthService,
+    expectedToken: storedTokenValidator,
+    token: storedTokenValidator,
+  },
+  returns: saveRefreshedTokenResultValidator,
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("serviceTokens")
+      .withIndex("by_service", (q) => q.eq("service", args.service))
+      .unique()
+    if (existing === null) {
+      return { status: "missing" as const }
+    }
+
+    if (
+      existing.accessToken !== args.expectedToken.accessToken ||
+      existing.refreshToken !== args.expectedToken.refreshToken ||
+      existing.expiresAt !== args.expectedToken.expiresAt
+    ) {
+      return {
+        status: "superseded" as const,
+        token: {
+          accessToken: existing.accessToken,
+          refreshToken: existing.refreshToken,
+          expiresAt: existing.expiresAt,
+        },
+      }
+    }
+
+    await ctx.db.patch("serviceTokens", existing._id, {
+      accessToken: args.token.accessToken,
+      refreshToken: args.token.refreshToken,
+      expiresAt: args.token.expiresAt,
+    })
+    return { status: "saved" as const }
   },
 })

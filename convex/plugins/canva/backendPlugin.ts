@@ -5,10 +5,7 @@ import {
 } from "@/convex/plugins/canva/definition"
 import { runCanvaIntegration } from "@/convex/plugins/canva/runners"
 import type { BackendIntegrationPlugin } from "@/convex/integrations/taskIntegrations/pluginContract"
-import type {
-  TaskNotificationEnrichmentInput,
-  TaskNotificationEnricher,
-} from "@/convex/notifications/types"
+import type { TaskNotificationEnrichmentInput } from "@/convex/notifications/types"
 
 const canvaRunners: NonNullable<
   BackendIntegrationPlugin["taskIntegrationRunners"]
@@ -21,18 +18,12 @@ for (const preset of CANVA_PRESETS) {
 function enrichCanvaTaskNotification({
   draft,
   integrations,
-  taskId,
-}: TaskNotificationEnrichmentInput): ReturnType<TaskNotificationEnricher> {
+}: TaskNotificationEnrichmentInput) {
   const design = integrations.find(
     (row) => row.output?.kind === "canva_design"
   )?.output
   if (design?.kind !== "canva_design") return draft
 
-  const filename = `canva-${taskId}.png`
-  const attachments =
-    design.thumbnailUrl === undefined
-      ? draft.attachments
-      : [...(draft.attachments ?? []), { filename, url: design.thumbnailUrl }]
   const [primaryEmbed, ...restEmbeds] = draft.embeds
 
   return {
@@ -47,10 +38,6 @@ function enrichCanvaTaskNotification({
             value: `[Open linked Canva design](${design.designUrl})`,
           },
         ],
-        imageAttachment:
-          design.thumbnailUrl === undefined
-            ? primaryEmbed.imageAttachment
-            : filename,
       },
       ...restEmbeds,
     ],
@@ -58,7 +45,6 @@ function enrichCanvaTaskNotification({
       ...draft.buttons,
       { kind: "url" as const, label: "Open Canva", url: design.designUrl },
     ],
-    attachments,
   }
 }
 

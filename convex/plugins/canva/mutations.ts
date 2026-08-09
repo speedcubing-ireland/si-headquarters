@@ -1,11 +1,29 @@
 import { ConvexError, v } from "convex/values"
-import { internalMutation } from "@/convex/_generated/server"
+import { internalMutation, internalQuery } from "@/convex/_generated/server"
+import { requireTaskIntegrationAccess } from "@/convex/access/authorize"
+
+export const loadDesignForThumbnailRefresh = internalQuery({
+  args: { integrationRowId: v.id("taskIntegrations") },
+  returns: v.union(v.object({ designId: v.string() }), v.null()),
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get("taskIntegrations", args.integrationRowId)
+    if (row === null) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Task integration not found",
+      })
+    }
+    await requireTaskIntegrationAccess(ctx, row.taskId)
+    if (row.output?.kind !== "canva_design") return null
+    return { designId: row.output.designId }
+  },
+})
+
 export const applyLinkedCanvaDesign = internalMutation({
   args: {
     integrationRowId: v.id("taskIntegrations"),
     designId: v.string(),
     designUrl: v.string(),
-    thumbnailUrl: v.optional(v.string()),
     title: v.string(),
   },
   returns: v.null(),
@@ -34,7 +52,6 @@ export const applyLinkedCanvaDesign = internalMutation({
         kind: "canva_design",
         designId: args.designId,
         designUrl: args.designUrl,
-        thumbnailUrl: args.thumbnailUrl,
       },
     })
     return null

@@ -20,7 +20,6 @@ export async function autofillBrandTemplate(
 ): Promise<{
   designId: string
   designUrl: string
-  thumbnailUrl?: string
 }> {
   return await runCanvaAutofillJob(accessToken, {
     brandTemplateId: input.brandTemplateId,

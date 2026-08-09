@@ -149,13 +149,22 @@ async function requestOAuthToken(
     headers,
     body,
   })
+  const bodyJson = await readJsonObject(response).catch(() => null)
   if (!response.ok) {
+    const errorCode = sanitizeOAuthErrorDetail(
+      bodyJson === null ? undefined : readString(bodyJson, "code")
+    )
+    const providerMessage = sanitizeOAuthErrorDetail(
+      bodyJson === null ? undefined : readString(bodyJson, "message")
+    )
+    const codeSuffix = errorCode === undefined ? "" : `, ${errorCode}`
+    const messageSuffix =
+      providerMessage === undefined ? "" : ` ${providerMessage}`
     throw new Error(
-      `${config.displayName} token request failed (HTTP ${String(response.status)}).`
+      `${config.displayName} token request failed (HTTP ${String(response.status)}${codeSuffix}).${messageSuffix}`
     )
   }
 
-  const bodyJson = await readJsonObject(response)
   if (bodyJson === null) {
     throw new Error(`${config.displayName} token response was not an object.`)
   }
@@ -165,6 +174,11 @@ async function requestOAuthToken(
     refreshToken: parsed.refreshToken ?? "",
     expiresAt: tokenExpiresAt(parsed, config),
   }
+}
+
+function sanitizeOAuthErrorDetail(value: string | undefined) {
+  const sanitized = value?.replace(/\s+/g, " ").trim().slice(0, 300)
+  return sanitized === "" ? undefined : sanitized
 }
 
 async function exchangeAuthorizationCode(
