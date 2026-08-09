@@ -1,17 +1,32 @@
 import { v } from "convex/values"
-import { internalMutation, internalQuery } from "@/convex/_generated/server"
+import {
+  internalMutation,
+  internalQuery,
+  query,
+} from "@/convex/_generated/server"
 import { oauthService } from "@/convex/integrations/validators"
+import { requireDirector } from "@/convex/permissions/principal"
+import { OAUTH_PLUGINS } from "@/convex/plugins/oauthRegistry"
+
+const storedTokenValidator = v.object({
+  accessToken: v.string(),
+  refreshToken: v.string(),
+  expiresAt: v.number(),
+})
+
+const serviceAccountStatusValidator = v.object({
+  service: oauthService,
+  displayName: v.string(),
+  providerArg: v.string(),
+  connected: v.boolean(),
+  connectedAt: v.union(v.number(), v.null()),
+  expiresAt: v.union(v.number(), v.null()),
+  hasRefreshToken: v.boolean(),
+})
 
 export const loadToken = internalQuery({
   args: { service: oauthService },
-  returns: v.union(
-    v.object({
-      accessToken: v.string(),
-      refreshToken: v.string(),
-      expiresAt: v.number(),
-    }),
-    v.null()
-  ),
+  returns: v.union(storedTokenValidator, v.null()),
   handler: async (ctx, args) => {
     const row = await ctx.db
       .query("serviceTokens")
@@ -25,6 +40,51 @@ export const loadToken = internalQuery({
       refreshToken: row.refreshToken,
       expiresAt: row.expiresAt,
     }
+  },
+})
+
+export const loadTokenForDirector = internalQuery({
+  args: { service: oauthService },
+  returns: v.union(storedTokenValidator, v.null()),
+  handler: async (ctx, args) => {
+    await requireDirector(ctx)
+    const row = await ctx.db
+      .query("serviceTokens")
+      .withIndex("by_service", (q) => q.eq("service", args.service))
+      .unique()
+    if (row === null) {
+      return null
+    }
+    return {
+      accessToken: row.accessToken,
+      refreshToken: row.refreshToken,
+      expiresAt: row.expiresAt,
+    }
+  },
+})
+
+export const listServiceAccounts = query({
+  args: {},
+  returns: v.array(serviceAccountStatusValidator),
+  handler: async (ctx) => {
+    await requireDirector(ctx)
+    return await Promise.all(
+      OAUTH_PLUGINS.map(async (plugin) => {
+        const row = await ctx.db
+          .query("serviceTokens")
+          .withIndex("by_service", (q) => q.eq("service", plugin.meta.service))
+          .unique()
+        return {
+          service: plugin.meta.service,
+          displayName: plugin.client.displayName,
+          providerArg: plugin.meta.cli.providerArg,
+          connected: row !== null,
+          connectedAt: row?._creationTime ?? null,
+          expiresAt: row?.expiresAt ?? null,
+          hasRefreshToken: (row?.refreshToken ?? "") !== "",
+        }
+      })
+    )
   },
 })
 

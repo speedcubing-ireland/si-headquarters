@@ -1,11 +1,17 @@
 import type { LucideIcon } from "lucide-react"
-import { ShieldAlertIcon, UsersIcon, WorkflowIcon } from "lucide-react"
+import {
+  KeyRoundIcon,
+  ShieldAlertIcon,
+  UsersIcon,
+  WorkflowIcon,
+} from "lucide-react"
 import { useState, type ReactNode } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AdminImpersonationPage } from "@/features/admin/impersonation"
 import { AdminTeamsPage } from "@/features/admin/teams"
 import { isAdminTab, type AdminTab } from "@/features/admin/types"
 import { AdminUsersPage } from "@/features/admin/users"
+import { AdminServiceAccountsPage } from "@/features/admin/service-accounts"
 import { useAdminAccess } from "@/features/admin/use-admin-access"
 import { cn } from "@/lib/utils"
 
@@ -27,6 +33,11 @@ const ADMIN_TAB_CONFIG: Record<
     label: "Teams",
     icon: WorkflowIcon,
     content: () => <AdminTeamsPage />,
+  },
+  serviceAccounts: {
+    label: "Service accounts",
+    icon: KeyRoundIcon,
+    content: () => <AdminServiceAccountsPage />,
   },
   impersonation: {
     label: "Impersonation",

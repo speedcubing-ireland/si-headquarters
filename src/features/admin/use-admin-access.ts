@@ -16,6 +16,7 @@ export function useAdminAccess() {
     }
     if (director.allowed) {
       available.push("teams")
+      available.push("serviceAccounts")
       available.push("impersonation")
     }
     return available

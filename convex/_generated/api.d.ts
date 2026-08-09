@@ -182,6 +182,7 @@ import type * as plugins_sponsor_emails_sender from "../plugins/sponsor/emails/s
 import type * as plugins_sponsor_emails_types from "../plugins/sponsor/emails/types.js";
 import type * as plugins_sponsor_http from "../plugins/sponsor/http.js";
 import type * as plugins_sponsor_impersonation from "../plugins/sponsor/impersonation.js";
+import type * as plugins_sponsor_integrations_wca_competitionDetails from "../plugins/sponsor/integrations/wca/competitionDetails.js";
 import type * as plugins_sponsor_integrations_wca_fetchDetails from "../plugins/sponsor/integrations/wca/fetchDetails.js";
 import type * as plugins_sponsor_integrations_wca_search from "../plugins/sponsor/integrations/wca/search.js";
 import type * as plugins_sponsor_lib_auctionState from "../plugins/sponsor/lib/auctionState.js";
@@ -493,6 +494,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/emails/types": typeof plugins_sponsor_emails_types;
   "plugins/sponsor/http": typeof plugins_sponsor_http;
   "plugins/sponsor/impersonation": typeof plugins_sponsor_impersonation;
+  "plugins/sponsor/integrations/wca/competitionDetails": typeof plugins_sponsor_integrations_wca_competitionDetails;
   "plugins/sponsor/integrations/wca/fetchDetails": typeof plugins_sponsor_integrations_wca_fetchDetails;
   "plugins/sponsor/integrations/wca/search": typeof plugins_sponsor_integrations_wca_search;
   "plugins/sponsor/lib/auctionState": typeof plugins_sponsor_lib_auctionState;
