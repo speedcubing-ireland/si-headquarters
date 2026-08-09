@@ -9,11 +9,17 @@ import {
   isApplicationTeam,
   listMemberIdsForTeam,
   listAllApplicationTeamSummaries,
-  listApplicationTeamSummariesForUser,
+  listApplicationTeamsForUser,
   toTeamSummary,
   userCanAccessTeam,
 } from "@/convex/teams/model"
-import { teamSummary } from "@/convex/teams/validators"
+import {
+  isTeamSidebarPageEnabled,
+  resolveTeamSidebarPages,
+  teamNavigationSummary,
+  teamSidebarPage,
+  teamSummary,
+} from "@/convex/teams/validators"
 import { v } from "convex/values"
 
 export const list = query({
@@ -43,10 +49,14 @@ export const list = query({
 
 export const listForNavigation = query({
   args: {},
-  returns: v.array(teamSummary),
+  returns: v.array(teamNavigationSummary),
   handler: async (ctx) => {
     const principal = await requirePrincipal(ctx)
-    return await listApplicationTeamSummariesForUser(ctx, principal.userId)
+    const teams = await listApplicationTeamsForUser(ctx, principal.userId)
+    return teams.map((team) => ({
+      ...toTeamSummary(team),
+      sidebarPages: resolveTeamSidebarPages(team),
+    }))
   },
 })
 
@@ -60,9 +70,10 @@ export const listForTaskFilters = query({
   },
 })
 
-export const getForTaskPage = query({
+export const getForPage = query({
   args: {
     teamId: v.id("teams"),
+    page: teamSidebarPage,
   },
   returns: v.union(teamSummary, v.null()),
   handler: async (ctx, args) => {
@@ -79,6 +90,10 @@ export const getForTaskPage = query({
       principal.teamNames
     )
     if (!allowed) {
+      return null
+    }
+
+    if (!isTeamSidebarPageEnabled(team, args.page)) {
       return null
     }
 

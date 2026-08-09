@@ -59,11 +59,13 @@ function writeTeamsOpenState(state: TeamsOpenState) {
 
 function TeamCollapsibleSection({
   open,
+  sidebarPages,
   teamId,
   teamName,
   onOpenChange,
 }: {
   open: boolean
+  sidebarPages: { tasks: boolean; projects: boolean }
   teamId: Id<"teams">
   teamName: string
   onOpenChange: (teamId: Id<"teams">, open: boolean) => void
@@ -90,34 +92,38 @@ function TeamCollapsibleSection({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
-            <SidebarMenuSubItem>
-              <SidebarMenuSubButton asChild>
-                <Link
-                  to="/teams/$teamId/tasks"
-                  params={{ teamId }}
-                  activeOptions={{ exact: true }}
-                  activeProps={{ "data-active": true }}
-                  inactiveProps={{ "data-active": false }}
-                >
-                  <ListChecksIcon />
-                  <span>Tasks</span>
-                </Link>
-              </SidebarMenuSubButton>
-            </SidebarMenuSubItem>
-            <SidebarMenuSubItem>
-              <SidebarMenuSubButton asChild>
-                <Link
-                  to="/teams/$teamId/projects"
-                  params={{ teamId }}
-                  activeOptions={{ exact: true }}
-                  activeProps={{ "data-active": true }}
-                  inactiveProps={{ "data-active": false }}
-                >
-                  <FolderKanbanIcon />
-                  <span>Projects</span>
-                </Link>
-              </SidebarMenuSubButton>
-            </SidebarMenuSubItem>
+            {sidebarPages.tasks ? (
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild>
+                  <Link
+                    to="/teams/$teamId/tasks"
+                    params={{ teamId }}
+                    activeOptions={{ exact: true }}
+                    activeProps={{ "data-active": true }}
+                    inactiveProps={{ "data-active": false }}
+                  >
+                    <ListChecksIcon />
+                    <span>Tasks</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ) : null}
+            {sidebarPages.projects ? (
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild>
+                  <Link
+                    to="/teams/$teamId/projects"
+                    params={{ teamId }}
+                    activeOptions={{ exact: true }}
+                    activeProps={{ "data-active": true }}
+                    inactiveProps={{ "data-active": false }}
+                  >
+                    <FolderKanbanIcon />
+                    <span>Projects</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ) : null}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
@@ -128,8 +134,11 @@ function TeamCollapsibleSection({
 export function SidebarTeamsNav() {
   const teams = useQuery(api.teams.queries.listForNavigation)
   const [openByTeamId, setOpenByTeamId] = useState(readTeamsOpenState)
+  const visibleTeams = teams?.filter(
+    (team) => team.sidebarPages.tasks || team.sidebarPages.projects
+  )
 
-  if (teams === undefined || teams.length === 0) {
+  if (visibleTeams === undefined || visibleTeams.length === 0) {
     return null
   }
 
@@ -137,10 +146,11 @@ export function SidebarTeamsNav() {
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Teams</SidebarGroupLabel>
       <SidebarMenu>
-        {teams.map((team) => (
+        {visibleTeams.map((team) => (
           <TeamCollapsibleSection
             key={team._id}
             open={openByTeamId[team._id] ?? false}
+            sidebarPages={team.sidebarPages}
             teamId={team._id}
             teamName={team.name}
             onOpenChange={(teamId, open) => {

@@ -2,16 +2,38 @@ import { mutation, query } from "@/convex/_generated/server"
 import { requireConvexEnv } from "@/convex/envTypes"
 import { requireDirector } from "@/convex/permissions/principal"
 import {
-  listAllApplicationTeamSummaries,
+  listAllApplicationTeams,
   listMemberIdsForTeam,
 } from "@/convex/teams/model"
+import {
+  resolveTeamSidebarPages,
+  teamSidebarPages,
+} from "@/convex/teams/validators"
 import { v } from "convex/values"
 
 export const listAdmin = query({
   args: {},
+  returns: v.array(
+    v.object({
+      teamId: v.id("teams"),
+      teamName: v.string(),
+      memberCount: v.number(),
+      sidebarPages: teamSidebarPages,
+      channel: v.union(
+        v.null(),
+        v.object({
+          channelId: v.string(),
+          channelName: v.string(),
+          guildId: v.string(),
+          linkedAt: v.number(),
+          linkedBy: v.id("users"),
+        })
+      ),
+    })
+  ),
   handler: async (ctx) => {
     await requireDirector(ctx)
-    const teams = await listAllApplicationTeamSummaries(ctx)
+    const teams = await listAllApplicationTeams(ctx)
     const rows = []
     for (const team of teams) {
       const [channel, memberIds] = await Promise.all([
@@ -25,6 +47,7 @@ export const listAdmin = query({
         teamId: team._id,
         teamName: team.name,
         memberCount: memberIds.length,
+        sidebarPages: resolveTeamSidebarPages(team),
         channel:
           channel === null
             ? null
@@ -47,6 +70,7 @@ export const set = mutation({
     channelId: v.string(),
     channelName: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const linkedBy = await requireDirector(ctx)
     const team = await ctx.db.get("teams", args.teamId)
@@ -82,6 +106,7 @@ export const set = mutation({
 
 export const clear = mutation({
   args: { teamId: v.id("teams") },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await requireDirector(ctx)
     const existing = await ctx.db

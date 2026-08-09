@@ -149,19 +149,31 @@ export function ProjectsPage() {
 }
 
 export function TeamProjectsPage({ teamId }: { teamId: Id<"teams"> }) {
-  const team = useQuery(api.teams.queries.getForTaskPage, { teamId })
+  const team = useQuery(api.teams.queries.getForPage, {
+    teamId,
+    page: "projects",
+  })
+
+  if (team === undefined) {
+    return <Page.Status variant="loading" message="Loading team projects…" />
+  }
+
+  if (team === null) {
+    return (
+      <Page.Status
+        variant="denied"
+        message="You do not have access to this team's projects."
+      />
+    )
+  }
 
   return (
     <ProjectCardsPage
-      canCreate={team != null}
+      canCreate
       emptyNoun="team projects"
       loadingMessage="Loading team projects..."
       scope={{ type: "teams", id: teamId }}
-      title={
-        team === undefined || team === null
-          ? "Team projects"
-          : `${team.name} projects`
-      }
+      title={`${team.name} projects`}
     />
   )
 }

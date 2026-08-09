@@ -97,6 +97,12 @@ export function applicationTeamSummaries(
     .sort(compareTeamSummariesByName)
 }
 
+export function applicationTeams(teams: readonly Doc<"teams">[]) {
+  return teams
+    .filter((team) => isApplicationTeam(team.name))
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
+
 export async function listTeamSummariesForUser(
   ctx: TeamCtx,
   userId: Id<"users">
@@ -109,11 +115,22 @@ export async function listApplicationTeamSummariesForUser(
   ctx: TeamCtx,
   userId: Id<"users">
 ) {
-  return applicationTeamSummaries(await listTeamsForUser(ctx, userId))
+  return (await listApplicationTeamsForUser(ctx, userId)).map(toTeamSummary)
+}
+
+export async function listApplicationTeamsForUser(
+  ctx: TeamCtx,
+  userId: Id<"users">
+) {
+  return applicationTeams(await listTeamsForUser(ctx, userId))
 }
 
 export async function listAllApplicationTeamSummaries(ctx: TeamCtx) {
-  return applicationTeamSummaries(await collectAll(ctx, "teams"))
+  return (await listAllApplicationTeams(ctx)).map(toTeamSummary)
+}
+
+export async function listAllApplicationTeams(ctx: TeamCtx) {
+  return applicationTeams(await collectAll(ctx, "teams"))
 }
 
 export async function takeApplicationTeamSummaries(

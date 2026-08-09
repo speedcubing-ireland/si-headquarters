@@ -1,6 +1,14 @@
 import { mutation } from "@/convex/_generated/server"
-import { requireUserManagement } from "@/convex/permissions/principal"
-import { addTeamMember, removeTeamMember } from "@/convex/teams/model"
+import {
+  requireDirector,
+  requireUserManagement,
+} from "@/convex/permissions/principal"
+import {
+  addTeamMember,
+  isApplicationTeam,
+  removeTeamMember,
+} from "@/convex/teams/model"
+import { TEAM_SIDEBAR_PAGES, teamSidebarPage } from "@/convex/teams/validators"
 import { ConvexError, v } from "convex/values"
 
 export const addMember = mutation({
@@ -48,6 +56,39 @@ export const removeMember = mutation({
       })
     }
     await removeTeamMember(ctx, args.teamId, args.userId)
+    return null
+  },
+})
+
+export const setSidebarPageEnabled = mutation({
+  args: {
+    teamId: v.id("teams"),
+    page: teamSidebarPage,
+    enabled: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireDirector(ctx)
+    const team = await ctx.db.get("teams", args.teamId)
+    if (team === null || !isApplicationTeam(team.name)) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Team not found",
+      })
+    }
+
+    const disabledPages = new Set(team.disabledSidebarPages ?? [])
+    if (args.enabled) {
+      disabledPages.delete(args.page)
+    } else {
+      disabledPages.add(args.page)
+    }
+
+    await ctx.db.patch("teams", args.teamId, {
+      disabledSidebarPages: TEAM_SIDEBAR_PAGES.filter((page) =>
+        disabledPages.has(page)
+      ),
+    })
     return null
   },
 })
