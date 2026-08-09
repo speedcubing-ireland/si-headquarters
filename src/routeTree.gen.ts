@@ -9,63 +9,43 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as EventsRouteImport } from './routes/events'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TasksIndexRouteImport } from './routes/tasks/index'
-import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
-import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
-import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as TasksIdRouteImport } from './routes/tasks/$id'
-import { Route as SponsorSettingsRouteImport } from './routes/sponsor/settings'
-import { Route as SponsorLoginRouteImport } from './routes/sponsor/login'
-import { Route as SponsorImpersonateRouteImport } from './routes/sponsor/impersonate'
-import { Route as SponsorGuideRouteImport } from './routes/sponsor/guide'
-import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
-import { Route as Sponsor404RouteImport } from './routes/sponsor/404'
-import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
-import { Route as PluginsWca2faRouteImport } from './routes/plugins/wca-2fa'
-import { Route as PluginsSponsorshipRouteImport } from './routes/plugins/sponsorship'
-import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-media'
-import { Route as InviteOrganiserRouteImport } from './routes/invite/organiser'
-import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
-import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
-import { Route as AuthWcaRouteImport } from './routes/auth/wca'
 import { Route as AdminRefundsRouteImport } from './routes/admin/refunds'
+import { Route as AuthWcaRouteImport } from './routes/auth/wca'
+import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
+import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
+import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
+import { Route as InviteOrganiserRouteImport } from './routes/invite/organiser'
+import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-media'
+import { Route as PluginsSponsorshipRouteImport } from './routes/plugins/sponsorship'
+import { Route as PluginsWca2faRouteImport } from './routes/plugins/wca-2fa'
+import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
+import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
+import { Route as SponsorIndexRouteImport } from './routes/sponsor/index'
+import { Route as Sponsor404RouteImport } from './routes/sponsor/404'
+import { Route as SponsorAuctionsRouteImport } from './routes/sponsor/auctions'
+import { Route as SponsorGuideRouteImport } from './routes/sponsor/guide'
+import { Route as SponsorImpersonateRouteImport } from './routes/sponsor/impersonate'
+import { Route as SponsorLoginRouteImport } from './routes/sponsor/login'
+import { Route as SponsorSettingsRouteImport } from './routes/sponsor/settings'
+import { Route as TasksIndexRouteImport } from './routes/tasks/index'
+import { Route as TasksIdRouteImport } from './routes/tasks/$id'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
-import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
-import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
 import { Route as PluginsSponsorshipAuctionsNewRouteImport } from './routes/plugins/sponsorship_.auctions.new'
+import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
+import { Route as TeamsTeamIdTasksIndexRouteImport } from './routes/teams/$teamId/tasks/index'
 import { Route as PluginsSponsorshipAuctionsAuctionIdEditRouteImport } from './routes/plugins/sponsorship_.auctions.$auctionId.edit'
 
-const EventsRoute = EventsRouteImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TasksIndexRoute = TasksIndexRouteImport.update({
-  id: '/tasks/',
-  path: '/tasks/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SponsorIndexRoute = SponsorIndexRouteImport.update({
-  id: '/sponsor/',
-  path: '/sponsor/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
-  id: '/projects/',
-  path: '/projects/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
-  id: '/competitions/',
-  path: '/competitions/',
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -73,74 +53,9 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TasksIdRoute = TasksIdRouteImport.update({
-  id: '/tasks/$id',
-  path: '/tasks/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SponsorSettingsRoute = SponsorSettingsRouteImport.update({
-  id: '/sponsor/settings',
-  path: '/sponsor/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SponsorLoginRoute = SponsorLoginRouteImport.update({
-  id: '/sponsor/login',
-  path: '/sponsor/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SponsorImpersonateRoute = SponsorImpersonateRouteImport.update({
-  id: '/sponsor/impersonate',
-  path: '/sponsor/impersonate',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SponsorGuideRoute = SponsorGuideRouteImport.update({
-  id: '/sponsor/guide',
-  path: '/sponsor/guide',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SponsorAuctionsRoute = SponsorAuctionsRouteImport.update({
-  id: '/sponsor/auctions',
-  path: '/sponsor/auctions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const Sponsor404Route = Sponsor404RouteImport.update({
-  id: '/sponsor/404',
-  path: '/sponsor/404',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProjectsIdRoute = ProjectsIdRouteImport.update({
-  id: '/projects/$id',
-  path: '/projects/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsWca2faRoute = PluginsWca2faRouteImport.update({
-  id: '/plugins/wca-2fa',
-  path: '/plugins/wca-2fa',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsSponsorshipRoute = PluginsSponsorshipRouteImport.update({
-  id: '/plugins/sponsorship',
-  path: '/plugins/sponsorship',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsSocialMediaRoute = PluginsSocialMediaRouteImport.update({
-  id: '/plugins/social-media',
-  path: '/plugins/social-media',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InviteOrganiserRoute = InviteOrganiserRouteImport.update({
-  id: '/invite/organiser',
-  path: '/invite/organiser',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
-  id: '/impersonate/user',
-  path: '/impersonate/user',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
-  id: '/competitions/$id',
-  path: '/competitions/$id',
+const AdminRefundsRoute = AdminRefundsRouteImport.update({
+  id: '/admin/refunds',
+  path: '/admin/refunds',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthWcaRoute = AuthWcaRouteImport.update({
@@ -148,9 +63,94 @@ const AuthWcaRoute = AuthWcaRouteImport.update({
   path: '/auth/wca',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRefundsRoute = AdminRefundsRouteImport.update({
-  id: '/admin/refunds',
-  path: '/admin/refunds',
+const CompetitionsIndexRoute = CompetitionsIndexRouteImport.update({
+  id: '/competitions/',
+  path: '/competitions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
+  id: '/competitions/$id',
+  path: '/competitions/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
+  id: '/impersonate/user',
+  path: '/impersonate/user',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteOrganiserRoute = InviteOrganiserRouteImport.update({
+  id: '/invite/organiser',
+  path: '/invite/organiser',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsSocialMediaRoute = PluginsSocialMediaRouteImport.update({
+  id: '/plugins/social-media',
+  path: '/plugins/social-media',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsSponsorshipRoute = PluginsSponsorshipRouteImport.update({
+  id: '/plugins/sponsorship',
+  path: '/plugins/sponsorship',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsWca2faRoute = PluginsWca2faRouteImport.update({
+  id: '/plugins/wca-2fa',
+  path: '/plugins/wca-2fa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/projects/$id',
+  path: '/projects/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorIndexRoute = SponsorIndexRouteImport.update({
+  id: '/sponsor/',
+  path: '/sponsor/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Sponsor404Route = Sponsor404RouteImport.update({
+  id: '/sponsor/404',
+  path: '/sponsor/404',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorAuctionsRoute = SponsorAuctionsRouteImport.update({
+  id: '/sponsor/auctions',
+  path: '/sponsor/auctions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorGuideRoute = SponsorGuideRouteImport.update({
+  id: '/sponsor/guide',
+  path: '/sponsor/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorImpersonateRoute = SponsorImpersonateRouteImport.update({
+  id: '/sponsor/impersonate',
+  path: '/sponsor/impersonate',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorLoginRoute = SponsorLoginRouteImport.update({
+  id: '/sponsor/login',
+  path: '/sponsor/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SponsorSettingsRoute = SponsorSettingsRouteImport.update({
+  id: '/sponsor/settings',
+  path: '/sponsor/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksIndexRoute = TasksIndexRouteImport.update({
+  id: '/tasks/',
+  path: '/tasks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksIdRoute = TasksIdRouteImport.update({
+  id: '/tasks/$id',
+  path: '/tasks/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SponsorAuctionsAuctionIdRoute =
@@ -159,23 +159,23 @@ const SponsorAuctionsAuctionIdRoute =
     path: '/$auctionId',
     getParentRoute: () => SponsorAuctionsRoute,
   } as any)
-const TeamsTeamIdTasksIndexRoute = TeamsTeamIdTasksIndexRouteImport.update({
-  id: '/teams/$teamId/tasks/',
-  path: '/teams/$teamId/tasks/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TeamsTeamIdProjectsIndexRoute =
-  TeamsTeamIdProjectsIndexRouteImport.update({
-    id: '/teams/$teamId/projects/',
-    path: '/teams/$teamId/projects/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const PluginsSponsorshipAuctionsNewRoute =
   PluginsSponsorshipAuctionsNewRouteImport.update({
     id: '/plugins/sponsorship_/auctions/new',
     path: '/plugins/sponsorship/auctions/new',
     getParentRoute: () => rootRouteImport,
   } as any)
+const TeamsTeamIdProjectsIndexRoute =
+  TeamsTeamIdProjectsIndexRouteImport.update({
+    id: '/teams/$teamId/projects/',
+    path: '/teams/$teamId/projects/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const TeamsTeamIdTasksIndexRoute = TeamsTeamIdTasksIndexRouteImport.update({
+  id: '/teams/$teamId/tasks/',
+  path: '/teams/$teamId/tasks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PluginsSponsorshipAuctionsAuctionIdEditRoute =
   PluginsSponsorshipAuctionsAuctionIdEditRouteImport.update({
     id: '/plugins/sponsorship_/auctions/$auctionId/edit',
@@ -399,13 +399,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/events': {
-      id: '/events'
-      path: '/events'
-      fullPath: '/events'
-      preLoaderRoute: typeof EventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -413,32 +406,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tasks/': {
-      id: '/tasks/'
-      path: '/tasks'
-      fullPath: '/tasks/'
-      preLoaderRoute: typeof TasksIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sponsor/': {
-      id: '/sponsor/'
-      path: '/sponsor'
-      fullPath: '/sponsor/'
-      preLoaderRoute: typeof SponsorIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/projects/': {
-      id: '/projects/'
-      path: '/projects'
-      fullPath: '/projects/'
-      preLoaderRoute: typeof ProjectsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/competitions/': {
-      id: '/competitions/'
-      path: '/competitions'
-      fullPath: '/competitions/'
-      preLoaderRoute: typeof CompetitionsIndexRouteImport
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -448,102 +420,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tasks/$id': {
-      id: '/tasks/$id'
-      path: '/tasks/$id'
-      fullPath: '/tasks/$id'
-      preLoaderRoute: typeof TasksIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sponsor/settings': {
-      id: '/sponsor/settings'
-      path: '/sponsor/settings'
-      fullPath: '/sponsor/settings'
-      preLoaderRoute: typeof SponsorSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sponsor/login': {
-      id: '/sponsor/login'
-      path: '/sponsor/login'
-      fullPath: '/sponsor/login'
-      preLoaderRoute: typeof SponsorLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sponsor/impersonate': {
-      id: '/sponsor/impersonate'
-      path: '/sponsor/impersonate'
-      fullPath: '/sponsor/impersonate'
-      preLoaderRoute: typeof SponsorImpersonateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sponsor/guide': {
-      id: '/sponsor/guide'
-      path: '/sponsor/guide'
-      fullPath: '/sponsor/guide'
-      preLoaderRoute: typeof SponsorGuideRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sponsor/auctions': {
-      id: '/sponsor/auctions'
-      path: '/sponsor/auctions'
-      fullPath: '/sponsor/auctions'
-      preLoaderRoute: typeof SponsorAuctionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sponsor/404': {
-      id: '/sponsor/404'
-      path: '/sponsor/404'
-      fullPath: '/sponsor/404'
-      preLoaderRoute: typeof Sponsor404RouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/projects/$id': {
-      id: '/projects/$id'
-      path: '/projects/$id'
-      fullPath: '/projects/$id'
-      preLoaderRoute: typeof ProjectsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins/wca-2fa': {
-      id: '/plugins/wca-2fa'
-      path: '/plugins/wca-2fa'
-      fullPath: '/plugins/wca-2fa'
-      preLoaderRoute: typeof PluginsWca2faRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins/sponsorship': {
-      id: '/plugins/sponsorship'
-      path: '/plugins/sponsorship'
-      fullPath: '/plugins/sponsorship'
-      preLoaderRoute: typeof PluginsSponsorshipRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins/social-media': {
-      id: '/plugins/social-media'
-      path: '/plugins/social-media'
-      fullPath: '/plugins/social-media'
-      preLoaderRoute: typeof PluginsSocialMediaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/invite/organiser': {
-      id: '/invite/organiser'
-      path: '/invite/organiser'
-      fullPath: '/invite/organiser'
-      preLoaderRoute: typeof InviteOrganiserRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/impersonate/user': {
-      id: '/impersonate/user'
-      path: '/impersonate/user'
-      fullPath: '/impersonate/user'
-      preLoaderRoute: typeof ImpersonateUserRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/competitions/$id': {
-      id: '/competitions/$id'
-      path: '/competitions/$id'
-      fullPath: '/competitions/$id'
-      preLoaderRoute: typeof CompetitionsIdRouteImport
+    '/admin/refunds': {
+      id: '/admin/refunds'
+      path: '/admin/refunds'
+      fullPath: '/admin/refunds'
+      preLoaderRoute: typeof AdminRefundsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/wca': {
@@ -553,11 +434,130 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthWcaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/refunds': {
-      id: '/admin/refunds'
-      path: '/admin/refunds'
-      fullPath: '/admin/refunds'
-      preLoaderRoute: typeof AdminRefundsRouteImport
+    '/competitions/': {
+      id: '/competitions/'
+      path: '/competitions'
+      fullPath: '/competitions/'
+      preLoaderRoute: typeof CompetitionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/competitions/$id': {
+      id: '/competitions/$id'
+      path: '/competitions/$id'
+      fullPath: '/competitions/$id'
+      preLoaderRoute: typeof CompetitionsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/impersonate/user': {
+      id: '/impersonate/user'
+      path: '/impersonate/user'
+      fullPath: '/impersonate/user'
+      preLoaderRoute: typeof ImpersonateUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite/organiser': {
+      id: '/invite/organiser'
+      path: '/invite/organiser'
+      fullPath: '/invite/organiser'
+      preLoaderRoute: typeof InviteOrganiserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins/social-media': {
+      id: '/plugins/social-media'
+      path: '/plugins/social-media'
+      fullPath: '/plugins/social-media'
+      preLoaderRoute: typeof PluginsSocialMediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins/sponsorship': {
+      id: '/plugins/sponsorship'
+      path: '/plugins/sponsorship'
+      fullPath: '/plugins/sponsorship'
+      preLoaderRoute: typeof PluginsSponsorshipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins/wca-2fa': {
+      id: '/plugins/wca-2fa'
+      path: '/plugins/wca-2fa'
+      fullPath: '/plugins/wca-2fa'
+      preLoaderRoute: typeof PluginsWca2faRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/': {
+      id: '/sponsor/'
+      path: '/sponsor'
+      fullPath: '/sponsor/'
+      preLoaderRoute: typeof SponsorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/404': {
+      id: '/sponsor/404'
+      path: '/sponsor/404'
+      fullPath: '/sponsor/404'
+      preLoaderRoute: typeof Sponsor404RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/auctions': {
+      id: '/sponsor/auctions'
+      path: '/sponsor/auctions'
+      fullPath: '/sponsor/auctions'
+      preLoaderRoute: typeof SponsorAuctionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/guide': {
+      id: '/sponsor/guide'
+      path: '/sponsor/guide'
+      fullPath: '/sponsor/guide'
+      preLoaderRoute: typeof SponsorGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/impersonate': {
+      id: '/sponsor/impersonate'
+      path: '/sponsor/impersonate'
+      fullPath: '/sponsor/impersonate'
+      preLoaderRoute: typeof SponsorImpersonateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/login': {
+      id: '/sponsor/login'
+      path: '/sponsor/login'
+      fullPath: '/sponsor/login'
+      preLoaderRoute: typeof SponsorLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sponsor/settings': {
+      id: '/sponsor/settings'
+      path: '/sponsor/settings'
+      fullPath: '/sponsor/settings'
+      preLoaderRoute: typeof SponsorSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks/': {
+      id: '/tasks/'
+      path: '/tasks'
+      fullPath: '/tasks/'
+      preLoaderRoute: typeof TasksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks/$id': {
+      id: '/tasks/$id'
+      path: '/tasks/$id'
+      fullPath: '/tasks/$id'
+      preLoaderRoute: typeof TasksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sponsor/auctions/$auctionId': {
@@ -567,11 +567,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SponsorAuctionsAuctionIdRouteImport
       parentRoute: typeof SponsorAuctionsRoute
     }
-    '/teams/$teamId/tasks/': {
-      id: '/teams/$teamId/tasks/'
-      path: '/teams/$teamId/tasks'
-      fullPath: '/teams/$teamId/tasks/'
-      preLoaderRoute: typeof TeamsTeamIdTasksIndexRouteImport
+    '/plugins/sponsorship_/auctions/new': {
+      id: '/plugins/sponsorship_/auctions/new'
+      path: '/plugins/sponsorship/auctions/new'
+      fullPath: '/plugins/sponsorship/auctions/new'
+      preLoaderRoute: typeof PluginsSponsorshipAuctionsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/teams/$teamId/projects/': {
@@ -581,11 +581,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeamsTeamIdProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/plugins/sponsorship_/auctions/new': {
-      id: '/plugins/sponsorship_/auctions/new'
-      path: '/plugins/sponsorship/auctions/new'
-      fullPath: '/plugins/sponsorship/auctions/new'
-      preLoaderRoute: typeof PluginsSponsorshipAuctionsNewRouteImport
+    '/teams/$teamId/tasks/': {
+      id: '/teams/$teamId/tasks/'
+      path: '/teams/$teamId/tasks'
+      fullPath: '/teams/$teamId/tasks/'
+      preLoaderRoute: typeof TeamsTeamIdTasksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plugins/sponsorship_/auctions/$auctionId/edit': {

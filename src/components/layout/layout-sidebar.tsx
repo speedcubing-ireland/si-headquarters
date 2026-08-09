@@ -1,5 +1,6 @@
 import * as React from "react"
 import {
+  AwardIcon,
   BlocksIcon,
   FolderKanbanIcon,
   HomeIcon,
@@ -34,6 +35,23 @@ import { organisationConfig } from "@/config/lib/organisation"
 
 const homeLink = { label: "Home", to: "/" as const, icon: HomeIcon }
 
+const achievementsLinkItems: {
+  label: string
+  href: string
+  icon: LucideIcon
+}[] = [
+  {
+    label: "Public site",
+    href: "https://achievements.speedcubingireland.com",
+    icon: AwardIcon,
+  },
+  {
+    label: "Admin site",
+    href: "https://si-api.blueglacier-893fcb86.northeurope.azurecontainerapps.io",
+    icon: AwardIcon,
+  },
+]
+
 const projectLinkItems: {
   label: string
   to: ToOptions["to"]
@@ -67,6 +85,27 @@ function SidebarNavLink({
           <Icon />
           <span>{label}</span>
         </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+}
+
+function SidebarExternalNavLink({
+  label,
+  href,
+  icon: Icon,
+}: {
+  label: string
+  href: string
+  icon: LucideIcon
+}) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild tooltip={label}>
+        <a href={href} target="_blank" rel="noopener noreferrer">
+          <Icon />
+          <span>{label}</span>
+        </a>
       </SidebarMenuButton>
     </SidebarMenuItem>
   )
@@ -181,6 +220,19 @@ function SidebarHomeLink() {
   )
 }
 
+function SidebarAchievementsLinks() {
+  return (
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel>Achievements</SidebarGroupLabel>
+      <SidebarMenu>
+        {achievementsLinkItems.map((item) => (
+          <SidebarExternalNavLink key={item.label} {...item} />
+        ))}
+      </SidebarMenu>
+    </SidebarGroup>
+  )
+}
+
 function SidebarProjectLinks() {
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -229,6 +281,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarHomeLink />
+        <SidebarAchievementsLinks />
         <SidebarProjectLinks />
         <SidebarTeamsNav />
         <SidebarPluginLinks />
