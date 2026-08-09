@@ -2,6 +2,8 @@ import { parseJson } from "@/lib/parsed-json"
 import { z } from "zod"
 
 export const DASHBOARD_ORIGIN = "https://dashboard.speedcubingireland.com"
+const DASHBOARD_REQUEST_TIMEOUT_MS = 10_000
+const MAX_DASHBOARD_LINKS = 30
 
 const dashboardLinkIconSchema = z.enum([
   "identity-card",
@@ -11,16 +13,25 @@ const dashboardLinkIconSchema = z.enum([
 ])
 
 const dashboardLinkSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().min(1),
+  id: z.string().min(1).max(100),
+  title: z.string().min(1).max(100),
+  description: z.string().min(1).max(500),
   icon: dashboardLinkIconSchema,
-  href: z.string().regex(/^\/(?!\/)/),
-  actionLabel: z.string().min(1),
+  href: z
+    .string()
+    .max(2_000)
+    .regex(/^\/(?!\/)/),
+  actionLabel: z.string().min(1).max(100),
 })
 
 const dashboardLinksResponseSchema = z.object({
-  links: z.array(dashboardLinkSchema),
+  links: z
+    .array(dashboardLinkSchema)
+    .max(MAX_DASHBOARD_LINKS)
+    .refine(
+      (links) => new Set(links.map((link) => link.id)).size === links.length,
+      "Dashboard link ids must be unique"
+    ),
 })
 
 export type DashboardLink = z.infer<typeof dashboardLinkSchema>
@@ -33,6 +44,7 @@ export function parseDashboardLinksResponse(body: string): DashboardLink[] {
 export async function loadDashboardLinks(): Promise<DashboardLink[]> {
   const response = await fetch(`${DASHBOARD_ORIGIN}/api/links`, {
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(DASHBOARD_REQUEST_TIMEOUT_MS),
   })
 
   if (!response.ok) {

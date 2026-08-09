@@ -3,6 +3,7 @@
 import { ConvexError } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { action } from "@/convex/_generated/server"
+import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 import { buildRefundDecision } from "@/convex/plugins/refunds/logic"
 import {
@@ -62,10 +63,7 @@ export const computeRefunds = action({
     const periodStartMs = periodStartUtc.getTime()
     const periodEndMs = periodEndUtcExclusive.getTime()
 
-    const wcaToken: string = await ctx.runAction(
-      internal.integrations.tokens.getValidServiceToken,
-      { service: "wca" }
-    )
+    const wcaToken = await resolveValidServiceToken(ctx, "wca")
     const wcaClient = createWcaClient(wcaToken)
     const myCompetitionsResponse = await getMyCompetitions({
       client: wcaClient,

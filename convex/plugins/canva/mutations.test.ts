@@ -41,7 +41,6 @@ describe("canva task integration mutations", () => {
         integrationRowId,
         designId: "DAF123",
         designUrl: "https://www.canva.com/design/DAF123/edit",
-        title: "Test design",
       })
     ).rejects.toThrow(/running/)
   })

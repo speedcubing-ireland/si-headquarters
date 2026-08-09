@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { parseCanvaDesignUrl } from "@/convex/plugins/canva/api"
-import { fetchCanvaThumbnailUrl } from "@/convex/plugins/canva/helpers"
+import {
+  fetchCanvaThumbnailUrl,
+  parseCanvaFolderInput,
+} from "@/convex/plugins/canva/helpers"
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -20,6 +23,18 @@ describe("parseCanvaDesignUrl", () => {
     expect(() => parseCanvaDesignUrl("https://www.canva.com/")).toThrow(
       /Could not parse/
     )
+  })
+
+  test("rejects lookalike hosts and insecure Canva URLs", () => {
+    expect(() =>
+      parseCanvaDesignUrl("https://canva.com.attacker.example/design/DAFabc")
+    ).toThrow(/Could not parse/)
+    expect(() =>
+      parseCanvaDesignUrl("http://www.canva.com/design/DAFabc")
+    ).toThrow(/Could not parse/)
+    expect(() =>
+      parseCanvaFolderInput("https://evilcanva.com/folder/FAKE")
+    ).toThrow(/Folder URL/)
   })
 })
 

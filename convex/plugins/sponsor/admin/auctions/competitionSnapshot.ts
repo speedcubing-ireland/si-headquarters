@@ -27,7 +27,9 @@ import {
   resolveAuctionSubject,
 } from "@/convex/plugins/sponsor/lib/auctionSubject"
 import { competitionStartEnd } from "@/convex/competitions/dates"
-import { DEFAULT_RESOURCE_KEYS } from "@/convex/integrations/constants"
+import { unlinkCompetitionIfWcaLinkMatches } from "@/convex/plugins/wca/competitionLink"
+
+type MissingWcaLinkPolicy = "preserve" | "unlink"
 
 const competitionSnapshotRefreshStatus = v.union(
   v.literal("ready"),
@@ -208,33 +210,12 @@ export const unlinkMissingWcaCompetitionInternal = internalMutation({
   },
   returns: v.union(competitionSnapshot, v.null()),
   handler: async (ctx, args) => {
-    const competition = await ctx.db.get("competitions", args.competitionId)
-    if (
-      competition === null ||
-      competition.wcaCompetitionId !== args.expectedWcaCompetitionId
-    ) {
-      return null
-    }
-
-    const linkedResource = await ctx.db
-      .query("objectLinkedResources")
-      .withIndex(
-        "by_object_type_and_object_id_and_resourceType_and_resourceKey",
-        (q) =>
-          q
-            .eq("object.type", "competitions")
-            .eq("object.id", args.competitionId)
-            .eq("resourceType", "wcaCompetition")
-            .eq("resourceKey", DEFAULT_RESOURCE_KEYS.wcaCompetition)
-      )
-      .unique()
-    if (linkedResource !== null) {
-      await ctx.db.delete("objectLinkedResources", linkedResource._id)
-    }
-
-    await ctx.db.patch("competitions", args.competitionId, {
-      wcaCompetitionId: undefined,
-    })
+    const competition = await unlinkCompetitionIfWcaLinkMatches(
+      ctx,
+      args.competitionId,
+      args.expectedWcaCompetitionId
+    )
+    if (competition === null) return null
 
     const fallbackSnapshot = buildFallbackSnapshotForCompetition(competition)
     const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
@@ -254,7 +235,8 @@ export const unlinkMissingWcaCompetitionInternal = internalMutation({
 
 async function runCompetitionSnapshotRefresh(
   ctx: ActionCtx,
-  auctionId: Id<"sponsorshipAuctions">
+  auctionId: Id<"sponsorshipAuctions">,
+  missingWcaLinkPolicy: MissingWcaLinkPolicy
 ): Promise<{
   status: "ready" | "missing_wca_link" | "fetch_failed" | "not_found"
   message: string
@@ -338,7 +320,10 @@ async function runCompetitionSnapshotRefresh(
   )
 
   if (fetchResult.status === "not_found") {
-    if (context.competitionId !== undefined) {
+    if (
+      missingWcaLinkPolicy === "unlink" &&
+      context.competitionId !== undefined
+    ) {
       const fallbackSnapshot = await ctx.runMutation(
         internal.plugins.sponsor.admin.auctions.competitionSnapshot
           .unlinkMissingWcaCompetitionInternal,
@@ -431,14 +416,14 @@ async function authorizeSnapshotRefresh(
     auctionId: Id<"sponsorshipAuctions">
     sessionToken?: string
   }
-): Promise<void> {
+): Promise<MissingWcaLinkPolicy> {
   const userId = await getAuthUserId(ctx)
   if (userId !== null) {
     const isManager = await ctx.runQuery(
       internal.permissions.queries.canAccessSponsorPortalAdminForUserId,
       { userId }
     )
-    if (isManager) return
+    if (isManager) return "unlink"
   }
 
   if (args.sessionToken === undefined || args.sessionToken.length === 0) {
@@ -463,6 +448,7 @@ async function authorizeSnapshotRefresh(
           "You do not have access to refresh this auction competition data.",
       })
     }
+    return "preserve"
   } catch (error) {
     const err =
       error instanceof Error ? error : new Error("Snapshot refresh failed")
@@ -488,8 +474,12 @@ export const refreshCompetitionSnapshot = action({
   },
   returns: competitionSnapshotRefreshResult,
   handler: async (ctx, args) => {
-    await authorizeSnapshotRefresh(ctx, args)
-    return await runCompetitionSnapshotRefresh(ctx, args.auctionId)
+    const missingWcaLinkPolicy = await authorizeSnapshotRefresh(ctx, args)
+    return await runCompetitionSnapshotRefresh(
+      ctx,
+      args.auctionId,
+      missingWcaLinkPolicy
+    )
   },
 })
 
@@ -497,6 +487,6 @@ export const refreshCompetitionSnapshotInternal = internalAction({
   args: { auctionId: v.id("sponsorshipAuctions") },
   returns: competitionSnapshotRefreshResult,
   handler: async (ctx, args) => {
-    return await runCompetitionSnapshotRefresh(ctx, args.auctionId)
+    return await runCompetitionSnapshotRefresh(ctx, args.auctionId, "unlink")
   },
 })

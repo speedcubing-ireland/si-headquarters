@@ -53,6 +53,7 @@ import type * as integrations_jsonBoundary from "../integrations/jsonBoundary.js
 import type * as integrations_linkObjectResource from "../integrations/linkObjectResource.js";
 import type * as integrations_objectResources from "../integrations/objectResources.js";
 import type * as integrations_objectResourcesModel from "../integrations/objectResourcesModel.js";
+import type * as integrations_serviceTokens from "../integrations/serviceTokens.js";
 import type * as integrations_taskIntegrations_constants from "../integrations/taskIntegrations/constants.js";
 import type * as integrations_taskIntegrations_mutations from "../integrations/taskIntegrations/mutations.js";
 import type * as integrations_taskIntegrations_pluginContract from "../integrations/taskIntegrations/pluginContract.js";
@@ -365,6 +366,7 @@ declare const fullApi: ApiFromModules<{
   "integrations/linkObjectResource": typeof integrations_linkObjectResource;
   "integrations/objectResources": typeof integrations_objectResources;
   "integrations/objectResourcesModel": typeof integrations_objectResourcesModel;
+  "integrations/serviceTokens": typeof integrations_serviceTokens;
   "integrations/taskIntegrations/constants": typeof integrations_taskIntegrations_constants;
   "integrations/taskIntegrations/mutations": typeof integrations_taskIntegrations_mutations;
   "integrations/taskIntegrations/pluginContract": typeof integrations_taskIntegrations_pluginContract;

@@ -1,8 +1,8 @@
 "use node"
 
 import { v } from "convex/values"
-import { internal } from "@/convex/_generated/api"
 import { internalAction } from "@/convex/_generated/server"
+import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import {
   fetchCompetitionDetails,
   sponsorshipWcaCompetitionDetailsFetchResult,
@@ -16,10 +16,7 @@ export const fetchCompetitionDetailsInternal = internalAction({
     ctx,
     args
   ): Promise<SponsorshipWcaCompetitionDetailsFetchResult> => {
-    const accessToken: string = await ctx.runAction(
-      internal.integrations.tokens.getValidServiceToken,
-      { service: "wca" }
-    )
+    const accessToken = await resolveValidServiceToken(ctx, "wca")
     return fetchCompetitionDetails(accessToken, args.wcaCompetitionId)
   },
 })

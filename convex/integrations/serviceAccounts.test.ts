@@ -181,7 +181,8 @@ describe("service account administration", () => {
       Response.json(
         {
           code: "invalid_grant",
-          message: "Invalid\nrefresh token",
+          message:
+            "Invalid invalid-refresh-token with canva-client-secret\nvalue",
         },
         { status: 400 }
       )
@@ -196,7 +197,7 @@ describe("service account administration", () => {
     expect(result).toEqual({
       success: false,
       message:
-        "Canva token request failed (HTTP 400, invalid_grant). Invalid refresh token",
+        "Canva token request failed (HTTP 400, invalid_grant). Invalid [redacted] with [redacted] value",
     })
   })
 })

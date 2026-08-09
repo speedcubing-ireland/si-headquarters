@@ -2,7 +2,7 @@
 
 import { v } from "convex/values"
 import type { Id } from "@/convex/_generated/dataModel"
-import { internal } from "@/convex/_generated/api"
+import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import { action } from "@/convex/_generated/server"
 import { upsertLinkedObjectResource } from "@/convex/integrations/linkObjectResource"
 import { competitionOrProjectRef } from "@/convex/utils"
@@ -15,10 +15,7 @@ export const linkSheet = action({
   },
   returns: v.id("objectLinkedResources"),
   handler: async (ctx, args): Promise<Id<"objectLinkedResources">> => {
-    const accessToken = await ctx.runAction(
-      internal.integrations.tokens.getValidServiceToken,
-      { service: "google" }
-    )
+    const accessToken = await resolveValidServiceToken(ctx, "google")
     const trimmed = args.sheetId.trim()
     const sheetId =
       /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/.exec(trimmed)?.[1] ?? trimmed

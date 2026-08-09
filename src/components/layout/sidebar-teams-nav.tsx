@@ -15,16 +15,13 @@ import {
 } from "@/components/ui/sidebar"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import type { TeamSidebarPages } from "@/convex/teams/validators"
+import { TEAM_SIDEBAR_PAGE_ITEMS } from "@/features/teams/sidebar-pages"
 import { isParsedRecord, parseJson } from "@/lib/parsed-json"
 import { cn } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { Link } from "@tanstack/react-router"
-import {
-  ChevronRightIcon,
-  FolderKanbanIcon,
-  ListChecksIcon,
-  UsersIcon,
-} from "lucide-react"
+import { ChevronRightIcon, UsersIcon } from "lucide-react"
 import { useState } from "react"
 
 const TEAMS_OPEN_STORAGE_KEY = "sidebar:teams-open:v1"
@@ -65,7 +62,7 @@ function TeamCollapsibleSection({
   onOpenChange,
 }: {
   open: boolean
-  sidebarPages: { tasks: boolean; projects: boolean }
+  sidebarPages: TeamSidebarPages
   teamId: Id<"teams">
   teamName: string
   onOpenChange: (teamId: Id<"teams">, open: boolean) => void
@@ -92,38 +89,24 @@ function TeamCollapsibleSection({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <SidebarMenuSub>
-            {sidebarPages.tasks ? (
-              <SidebarMenuSubItem>
+            {TEAM_SIDEBAR_PAGE_ITEMS.filter(
+              (item) => sidebarPages[item.page]
+            ).map(({ page, label, to, icon: Icon }) => (
+              <SidebarMenuSubItem key={page}>
                 <SidebarMenuSubButton asChild>
                   <Link
-                    to="/teams/$teamId/tasks"
+                    to={to}
                     params={{ teamId }}
                     activeOptions={{ exact: true }}
                     activeProps={{ "data-active": true }}
                     inactiveProps={{ "data-active": false }}
                   >
-                    <ListChecksIcon />
-                    <span>Tasks</span>
+                    <Icon />
+                    <span>{label}</span>
                   </Link>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
-            ) : null}
-            {sidebarPages.projects ? (
-              <SidebarMenuSubItem>
-                <SidebarMenuSubButton asChild>
-                  <Link
-                    to="/teams/$teamId/projects"
-                    params={{ teamId }}
-                    activeOptions={{ exact: true }}
-                    activeProps={{ "data-active": true }}
-                    inactiveProps={{ "data-active": false }}
-                  >
-                    <FolderKanbanIcon />
-                    <span>Projects</span>
-                  </Link>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ) : null}
+            ))}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>

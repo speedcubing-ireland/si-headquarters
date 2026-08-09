@@ -12,6 +12,15 @@ export interface CanvaDatasetField {
   type: string
 }
 
+const CANVA_RESOURCE_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/
+
+function isCanvaUrl(url: URL): boolean {
+  return (
+    url.protocol === "https:" &&
+    (url.hostname === "canva.com" || url.hostname.endsWith(".canva.com"))
+  )
+}
+
 export function buildCanvaAutofillData(
   dataset: Record<string, CanvaDatasetField> | undefined,
   competitionName: string | null | undefined
@@ -45,16 +54,30 @@ export function parseCanvaDesignUrl(url: string): {
   designUrl: string
 } {
   const trimmed = url.trim()
-  const match = /\/design\/([A-Za-z0-9_-]+)/.exec(trimmed)
-  if (match?.[1] === undefined) {
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    throw new ConvexError({
+      code: "BAD_REQUEST",
+      message: "Could not parse Canva design id from URL.",
+    })
+  }
+  const match = /^\/design\/([^/]+)(?:\/|$)/.exec(parsed.pathname)
+  const designId = match?.[1]
+  if (
+    !isCanvaUrl(parsed) ||
+    designId === undefined ||
+    !CANVA_RESOURCE_ID_PATTERN.test(designId)
+  ) {
     throw new ConvexError({
       code: "BAD_REQUEST",
       message: "Could not parse Canva design id from URL.",
     })
   }
   return {
-    designId: match[1],
-    designUrl: trimmed,
+    designId,
+    designUrl: buildCanvaDesignEditUrl(designId),
   }
 }
 
@@ -70,7 +93,7 @@ export async function fetchCanvaDesignMetadata(
       message: "Canva design has no title.",
     })
   }
-  return { title, thumbnailUrl: canvaThumbnailUrl(design) }
+  return { title: title.trim(), thumbnailUrl: canvaThumbnailUrl(design) }
 }
 
 export async function fetchCanvaThumbnailUrl(
@@ -133,7 +156,7 @@ export function parseCanvaFolderInput(value: string): string {
     return folderId
   }
 
-  if (!/^[A-Za-z0-9_-]{1,50}$/.test(trimmed)) {
+  if (!CANVA_RESOURCE_ID_PATTERN.test(trimmed)) {
     throw new ConvexError({
       code: "BAD_REQUEST",
       message: "Folder must be a Canva folder ID or Canva folder URL.",
@@ -145,7 +168,7 @@ export function parseCanvaFolderInput(value: string): string {
 function parseCanvaFolderIdFromUrl(raw: string): string | null {
   try {
     const url = new URL(raw)
-    if (!url.hostname.includes("canva.com")) {
+    if (!isCanvaUrl(url)) {
       return null
     }
     const segments = url.pathname
@@ -159,7 +182,8 @@ function parseCanvaFolderIdFromUrl(raw: string): string | null {
     if (folderIndex + 1 >= segments.length) {
       return null
     }
-    return decodeURIComponent(segments[folderIndex + 1])
+    const folderId = decodeURIComponent(segments[folderIndex + 1])
+    return CANVA_RESOURCE_ID_PATTERN.test(folderId) ? folderId : null
   } catch {
     return null
   }

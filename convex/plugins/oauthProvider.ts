@@ -5,6 +5,7 @@ import {
   type JsonRecord,
 } from "@/convex/integrations/jsonBoundary"
 import type { OAuthService } from "@/convex/integrations/validators"
+import type { ServiceToken } from "@/convex/integrations/serviceTokens"
 import { requireConvexEnv, type StringConvexEnvName } from "@/convex/envTypes"
 
 export interface OAuthPluginCliMeta {
@@ -36,12 +37,6 @@ export interface OAuthClientConfig {
   defaultExpiresInSec: number
   authStyle: "basic" | "body"
   expiryFromCreatedAt?: boolean
-}
-
-export interface StoredServiceToken {
-  accessToken: string
-  refreshToken: string
-  expiresAt: number
 }
 
 interface OAuthTokenPayload {
@@ -125,7 +120,7 @@ function tokenExpiresAt(
 async function requestOAuthToken(
   config: OAuthClientConfig,
   body: URLSearchParams
-): Promise<StoredServiceToken> {
+): Promise<ServiceToken> {
   const clientId = requireConvexEnv(
     config.clientIdEnv,
     `${config.clientIdEnv} is not set in Convex env.`
@@ -151,11 +146,22 @@ async function requestOAuthToken(
   })
   const bodyJson = await readJsonObject(response).catch(() => null)
   if (!response.ok) {
+    const secrets = [
+      clientId,
+      clientSecret,
+      body.get("code"),
+      body.get("code_verifier"),
+      body.get("refresh_token"),
+    ]
+      .filter((secret): secret is string => secret !== null && secret !== "")
+      .sort((left, right) => right.length - left.length)
     const errorCode = sanitizeOAuthErrorDetail(
-      bodyJson === null ? undefined : readString(bodyJson, "code")
+      bodyJson === null ? undefined : readString(bodyJson, "code"),
+      secrets
     )
     const providerMessage = sanitizeOAuthErrorDetail(
-      bodyJson === null ? undefined : readString(bodyJson, "message")
+      bodyJson === null ? undefined : readString(bodyJson, "message"),
+      secrets
     )
     const codeSuffix = errorCode === undefined ? "" : `, ${errorCode}`
     const messageSuffix =
@@ -176,8 +182,15 @@ async function requestOAuthToken(
   }
 }
 
-function sanitizeOAuthErrorDetail(value: string | undefined) {
-  const sanitized = value?.replace(/\s+/g, " ").trim().slice(0, 300)
+function sanitizeOAuthErrorDetail(
+  value: string | undefined,
+  secrets: readonly string[]
+) {
+  let redacted = value
+  for (const secret of secrets) {
+    redacted = redacted?.replaceAll(secret, "[redacted]")
+  }
+  const sanitized = redacted?.replace(/\s+/g, " ").trim().slice(0, 300)
   return sanitized === "" ? undefined : sanitized
 }
 
@@ -188,7 +201,7 @@ async function exchangeAuthorizationCode(
     redirectUri: string
     codeVerifier?: string
   }
-): Promise<StoredServiceToken> {
+): Promise<ServiceToken> {
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code: args.code,
@@ -204,7 +217,7 @@ async function exchangeAuthorizationCode(
 async function refreshAccessToken(
   config: OAuthClientConfig,
   refreshToken: string
-): Promise<StoredServiceToken> {
+): Promise<ServiceToken> {
   const body = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: refreshToken,

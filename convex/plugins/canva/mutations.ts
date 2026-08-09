@@ -24,11 +24,9 @@ export const applyLinkedCanvaDesign = internalMutation({
     integrationRowId: v.id("taskIntegrations"),
     designId: v.string(),
     designUrl: v.string(),
-    title: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    void args.title
     const row = await ctx.db.get("taskIntegrations", args.integrationRowId)
     if (row === null) {
       throw new ConvexError({

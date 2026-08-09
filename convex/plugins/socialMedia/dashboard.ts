@@ -3,6 +3,7 @@
 import { v, type Infer } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { action } from "@/convex/_generated/server"
+import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import { fetchFutureCompetitionDetails } from "@/convex/plugins/socialMedia/lib/fetchFromWca"
 import type { HqLink } from "@/convex/plugins/socialMedia/resolveHqLinks"
 
@@ -32,10 +33,7 @@ export const fetchCompetitions = action({
       {}
     )
 
-    const accessToken = await ctx.runAction(
-      internal.integrations.tokens.getValidServiceToken,
-      { service: "wca" }
-    )
+    const accessToken = await resolveValidServiceToken(ctx, "wca")
 
     const wcaCompetitions = await fetchFutureCompetitionDetails(accessToken)
     const hqLinks: HqLink[] = await ctx.runQuery(

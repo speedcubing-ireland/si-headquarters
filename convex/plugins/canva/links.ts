@@ -4,8 +4,8 @@ import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { action, type ActionCtx } from "@/convex/_generated/server"
 import type { Id } from "@/convex/_generated/dataModel"
+import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import {
-  buildCanvaDesignEditUrl,
   fetchCanvaDesignMetadata,
   fetchCanvaThumbnailUrl,
   parseCanvaDesignUrl,
@@ -32,14 +32,11 @@ async function validateDesignCandidate(
   })
 
   const parsed = parseCanvaDesignUrl(args.designUrl)
-  const accessToken = await ctx.runAction(
-    internal.integrations.tokens.getValidServiceToken,
-    { service: "canva" }
-  )
+  const accessToken = await resolveValidServiceToken(ctx, "canva")
   const metadata = await fetchCanvaDesignMetadata(accessToken, parsed.designId)
   return {
     designId: parsed.designId,
-    designUrl: buildCanvaDesignEditUrl(parsed.designId),
+    designUrl: parsed.designUrl,
     title: metadata.title,
     thumbnailUrl: metadata.thumbnailUrl,
   }
@@ -71,7 +68,6 @@ export const linkDesign = action({
         integrationRowId: args.id,
         designId: design.designId,
         designUrl: design.designUrl,
-        title: design.title,
       }
     )
     return null
@@ -84,7 +80,7 @@ export const refreshThumbnail = action({
     v.object({
       success: v.literal(true),
       thumbnailUrl: v.string(),
-      refreshAt: v.number(),
+      refreshAfterMs: v.number(),
     }),
     v.object({ success: v.literal(false), message: v.string() })
   ),
@@ -100,10 +96,7 @@ export const refreshThumbnail = action({
       }
     }
 
-    const accessToken = await ctx.runAction(
-      internal.integrations.tokens.getValidServiceToken,
-      { service: "canva" }
-    )
+    const accessToken = await resolveValidServiceToken(ctx, "canva")
     const thumbnailUrl = await fetchCanvaThumbnailUrl(
       accessToken,
       design.designId
@@ -117,7 +110,7 @@ export const refreshThumbnail = action({
     return {
       success: true as const,
       thumbnailUrl,
-      refreshAt: Date.now() + THUMBNAIL_REFRESH_AFTER_MS,
+      refreshAfterMs: THUMBNAIL_REFRESH_AFTER_MS,
     }
   },
 })

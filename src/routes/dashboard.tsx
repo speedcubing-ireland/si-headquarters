@@ -93,7 +93,7 @@ function DashboardErrorPage() {
 
 export const Route = createFileRoute("/dashboard")({
   loader: loadDashboardLinks,
-  staleTime: Number.POSITIVE_INFINITY,
+  staleTime: 5 * 60 * 1000,
   pendingComponent: DashboardPendingPage,
   errorComponent: DashboardErrorPage,
   component: DashboardPage,

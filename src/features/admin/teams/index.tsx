@@ -6,6 +6,7 @@ import type { TeamSidebarPage } from "@/convex/teams/validators"
 import { useMutation, useQuery } from "convex/react"
 import { Trash2Icon } from "lucide-react"
 import { getTeamLinkedResourceAction } from "@/plugins/integrations/registry"
+import { TEAM_SIDEBAR_PAGE_ITEMS } from "@/features/teams/sidebar-pages"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -70,12 +71,7 @@ export function AdminTeamsPage() {
             <legend className="text-xs font-medium text-muted-foreground">
               Sidebar pages
             </legend>
-            {(
-              [
-                ["tasks", "Tasks"],
-                ["projects", "Projects"],
-              ] as const
-            ).map(([page, label]) => {
+            {TEAM_SIDEBAR_PAGE_ITEMS.map(({ page, label }) => {
               const settingKey = `${row.teamId}:${page}`
               return (
                 <label

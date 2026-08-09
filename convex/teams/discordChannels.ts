@@ -34,33 +34,33 @@ export const listAdmin = query({
   handler: async (ctx) => {
     await requireDirector(ctx)
     const teams = await listAllApplicationTeams(ctx)
-    const rows = []
-    for (const team of teams) {
-      const [channel, memberIds] = await Promise.all([
-        ctx.db
-          .query("teamDiscordChannels")
-          .withIndex("by_teamId", (q) => q.eq("teamId", team._id))
-          .unique(),
-        listMemberIdsForTeam(ctx, team._id),
-      ])
-      rows.push({
-        teamId: team._id,
-        teamName: team.name,
-        memberCount: memberIds.length,
-        sidebarPages: resolveTeamSidebarPages(team),
-        channel:
-          channel === null
-            ? null
-            : {
-                channelId: channel.channelId,
-                channelName: channel.channelName,
-                guildId: channel.guildId,
-                linkedAt: channel.linkedAt,
-                linkedBy: channel.linkedBy,
-              },
+    return await Promise.all(
+      teams.map(async (team) => {
+        const [channel, memberIds] = await Promise.all([
+          ctx.db
+            .query("teamDiscordChannels")
+            .withIndex("by_teamId", (q) => q.eq("teamId", team._id))
+            .unique(),
+          listMemberIdsForTeam(ctx, team._id),
+        ])
+        return {
+          teamId: team._id,
+          teamName: team.name,
+          memberCount: memberIds.length,
+          sidebarPages: resolveTeamSidebarPages(team),
+          channel:
+            channel === null
+              ? null
+              : {
+                  channelId: channel.channelId,
+                  channelName: channel.channelName,
+                  guildId: channel.guildId,
+                  linkedAt: channel.linkedAt,
+                  linkedBy: channel.linkedBy,
+                },
+        }
       })
-    }
-    return rows
+    )
   },
 })
 

@@ -2,44 +2,32 @@
 
 import { ConvexError, v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
+import { action, type ActionCtx } from "@/convex/_generated/server"
 import {
-  action,
-  internalAction,
-  type ActionCtx,
-} from "@/convex/_generated/server"
+  serviceTokensEqual,
+  type ServiceToken,
+} from "@/convex/integrations/serviceTokens"
 import {
   oauthService,
   type OAuthService,
 } from "@/convex/integrations/validators"
 import { oauthPluginForService } from "@/convex/plugins/oauthRegistry"
-import type { StoredServiceToken } from "@/convex/plugins/oauthProvider"
 
 const EXPIRY_BUFFER_SEC = 120
 const CONCURRENT_REFRESH_RETRY_DELAYS_MS = [0, 50, 150] as const
 
 type TokenStoreContext = Pick<ActionCtx, "runQuery" | "runMutation">
 
-function isUsableServiceToken(token: StoredServiceToken): boolean {
+function isUsableServiceToken(token: ServiceToken): boolean {
   const nowSec = Math.floor(Date.now() / 1000)
   return token.expiresAt > nowSec + EXPIRY_BUFFER_SEC
-}
-
-function tokenChanged(
-  stored: StoredServiceToken,
-  candidate: StoredServiceToken
-): boolean {
-  return (
-    candidate.accessToken !== stored.accessToken ||
-    candidate.refreshToken !== stored.refreshToken ||
-    candidate.expiresAt !== stored.expiresAt
-  )
 }
 
 async function waitForConcurrentRefresh(
   ctx: TokenStoreContext,
   service: OAuthService,
-  attemptedToken: StoredServiceToken
-): Promise<StoredServiceToken | null> {
+  attemptedToken: ServiceToken
+): Promise<ServiceToken | null> {
   for (const delayMs of CONCURRENT_REFRESH_RETRY_DELAYS_MS) {
     if (delayMs > 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
@@ -50,7 +38,7 @@ async function waitForConcurrentRefresh(
     )
     if (
       latest !== null &&
-      tokenChanged(attemptedToken, latest) &&
+      !serviceTokensEqual(attemptedToken, latest) &&
       isUsableServiceToken(latest)
     ) {
       return latest
@@ -62,10 +50,10 @@ async function waitForConcurrentRefresh(
 async function refreshStoredServiceToken(
   ctx: TokenStoreContext,
   service: OAuthService,
-  stored: StoredServiceToken
-): Promise<StoredServiceToken> {
+  stored: ServiceToken
+): Promise<ServiceToken> {
   const oauth = oauthPluginForService(service)
-  let refreshed: StoredServiceToken
+  let refreshed: ServiceToken
   try {
     refreshed = await oauth.refreshToken(stored.refreshToken)
   } catch (error) {
@@ -140,14 +128,6 @@ export async function resolveValidServiceToken(
   const token = await refreshStoredServiceToken(ctx, service, stored)
   return token.accessToken
 }
-
-export const getValidServiceToken = internalAction({
-  args: { service: oauthService },
-  returns: v.string(),
-  handler: async (ctx, args): Promise<string> => {
-    return await resolveValidServiceToken(ctx, args.service)
-  },
-})
 
 export const refreshServiceAccount = action({
   args: { service: oauthService },

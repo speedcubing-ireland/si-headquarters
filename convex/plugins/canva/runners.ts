@@ -1,7 +1,7 @@
 "use node"
 
-import { internal } from "@/convex/_generated/api"
 import type { ActionCtx } from "@/convex/_generated/server"
+import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import type {
   TaskIntegrationRunContext,
   TaskIntegrationRunResult,
@@ -22,10 +22,7 @@ async function runCanvaAutofill(
   const { sourceBrandTemplateId, destinationFolderId } =
     resolveCanvaPresetEnv(preset)
 
-  const accessToken = await ctx.runAction(
-    internal.integrations.tokens.getValidServiceToken,
-    { service: "canva" }
-  )
+  const accessToken = await resolveValidServiceToken(ctx, "canva")
 
   const design = await autofillBrandTemplate(accessToken, {
     brandTemplateId: sourceBrandTemplateId,

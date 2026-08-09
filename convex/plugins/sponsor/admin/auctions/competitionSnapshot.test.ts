@@ -17,9 +17,10 @@ async function seedLinkedCompetitionAuction(wcaCompetitionId: string) {
   vi.stubEnv("DEPLOYMENT_CONTEXT", "production")
   const t = createSponsorTestHarness()
   const directorId = await seedSponsorshipManager(t)
-  const { auctionId, competitionId } = await seedSponsorAuctionAccess(t, {
-    auctionState: "scheduled",
-  })
+  const { auctionId, competitionId, sessionToken } =
+    await seedSponsorAuctionAccess(t, {
+      auctionState: "scheduled",
+    })
   await t.mutation(internal.plugins.wca.competitionLink.saveCompetitionLink, {
     competitionId,
     wcaCompetitionId,
@@ -34,7 +35,7 @@ async function seedLinkedCompetitionAuction(wcaCompetitionId: string) {
       expiresAt: Math.floor(Date.now() / 1000) + 3_600,
     },
   })
-  return { t, directorId, auctionId, competitionId }
+  return { t, directorId, auctionId, competitionId, sessionToken }
 }
 
 describe("refreshCompetitionSnapshot authorization", () => {
@@ -194,5 +195,80 @@ describe("refreshCompetitionSnapshot WCA failures", () => {
       ctx.db.get("competitions", competitionId)
     )
     expect(competition?.wcaCompetitionId).toBe(wcaCompetitionId)
+  })
+
+  test("does not let sponsor sessions unlink an internal competition", async () => {
+    const wcaCompetitionId = "MissingComp2026"
+    const { t, auctionId, competitionId, sessionToken } =
+      await seedLinkedCompetitionAuction(wcaCompetitionId)
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ error: "Not found" }, { status: 404 })
+    )
+
+    const result = await t.action(
+      api.plugins.sponsor.admin.auctions.competitionSnapshot
+        .refreshCompetitionSnapshot,
+      { auctionId, sessionToken }
+    )
+
+    expect(result).toMatchObject({
+      status: "fetch_failed",
+      message: `WCA competition "${wcaCompetitionId}" could not be found.`,
+    })
+    const competition = await t.run((ctx) =>
+      ctx.db.get("competitions", competitionId)
+    )
+    expect(competition?.wcaCompetitionId).toBe(wcaCompetitionId)
+  })
+
+  test("preserves a competition relinked while the WCA request is in flight", async () => {
+    const staleWcaCompetitionId = "MissingComp2026"
+    const replacementWcaCompetitionId = "ReplacementComp2026"
+    const { t, directorId, auctionId, competitionId } =
+      await seedLinkedCompetitionAuction(staleWcaCompetitionId)
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      await t.mutation(
+        internal.plugins.wca.competitionLink.saveCompetitionLink,
+        {
+          competitionId,
+          wcaCompetitionId: replacementWcaCompetitionId,
+          name: "Replacement Competition",
+          url: `https://www.worldcubeassociation.org/competitions/${replacementWcaCompetitionId}`,
+        }
+      )
+      return Response.json({ error: "Not found" }, { status: 404 })
+    })
+
+    const result = await t
+      .withIdentity({ subject: directorId })
+      .action(
+        api.plugins.sponsor.admin.auctions.competitionSnapshot
+          .refreshCompetitionSnapshot,
+        { auctionId }
+      )
+
+    expect(result.status).toBe("fetch_failed")
+    const state = await t.run(async (ctx) => ({
+      competition: await ctx.db.get("competitions", competitionId),
+      linkedResource: await ctx.db
+        .query("objectLinkedResources")
+        .withIndex(
+          "by_object_type_and_object_id_and_resourceType_and_resourceKey",
+          (q) =>
+            q
+              .eq("object.type", "competitions")
+              .eq("object.id", competitionId)
+              .eq("resourceType", "wcaCompetition")
+              .eq("resourceKey", "default")
+        )
+        .unique(),
+    }))
+    expect(state.competition?.wcaCompetitionId).toBe(
+      replacementWcaCompetitionId
+    )
+    expect(state.linkedResource?.data).toMatchObject({
+      resourceType: "wcaCompetition",
+      wcaCompetitionId: replacementWcaCompetitionId,
+    })
   })
 })

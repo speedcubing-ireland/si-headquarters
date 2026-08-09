@@ -4,6 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server"
 import { ConvexError, v } from "convex/values"
 import type { ActionCtx } from "@/convex/_generated/server"
 import { internal } from "@/convex/_generated/api"
+import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import { action } from "@/convex/_generated/server"
 import {
   fetchMyCompetitionOptions,
@@ -32,12 +33,6 @@ async function assertSponsorManagerAccess(ctx: ActionCtx): Promise<void> {
   }
 }
 
-async function getWcaServiceAccessToken(ctx: ActionCtx): Promise<string> {
-  return ctx.runAction(internal.integrations.tokens.getValidServiceToken, {
-    service: "wca",
-  })
-}
-
 /**
  * List WCA competitions delegated to the HQ service account. Same data source as
  * convex/plugins/wca/resources.ts:listMyCompetitions, authorized for
@@ -49,7 +44,7 @@ export const listMyWcaCompetitions = action({
   handler: async (ctx) => {
     assertWcaIntegrationEnabled()
     await assertSponsorManagerAccess(ctx)
-    const accessToken = await getWcaServiceAccessToken(ctx)
+    const accessToken = await resolveValidServiceToken(ctx, "wca")
     return fetchMyCompetitionOptions(accessToken)
   },
 })
@@ -64,7 +59,7 @@ export const searchWcaCompetitions = action({
   handler: async (ctx, args) => {
     assertWcaIntegrationEnabled()
     await assertSponsorManagerAccess(ctx)
-    const accessToken = await getWcaServiceAccessToken(ctx)
+    const accessToken = await resolveValidServiceToken(ctx, "wca")
     try {
       return await searchCompetitionOptions(accessToken, args.query)
     } catch {
