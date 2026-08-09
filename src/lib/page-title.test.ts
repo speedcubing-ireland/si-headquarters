@@ -9,6 +9,7 @@ describe("getPageTitle", () => {
   it.each([
     ["/", PRODUCT_TITLE],
     ["/tasks", productPageTitle("Tasks")],
+    ["/dashboard", productPageTitle("Dashboard")],
     ["/teams/abc123/tasks", productPageTitle("Team Tasks")],
     ["/competitions", PRODUCT_TITLE],
     ["/plugins/sponsorship", PRODUCT_TITLE],

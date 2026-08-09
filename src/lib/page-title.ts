@@ -17,6 +17,9 @@ export function getPageTitle(pathname: string): string {
   if (normalized === "/events") {
     return productPageTitle("Events")
   }
+  if (normalized === "/dashboard") {
+    return productPageTitle("Dashboard")
+  }
   const teamTasksMatch = /^\/teams\/[^/]+\/tasks$/.exec(normalized)
   if (teamTasksMatch !== null) {
     return productPageTitle("Team Tasks")
