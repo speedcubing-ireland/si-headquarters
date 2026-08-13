@@ -112,7 +112,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "@vitest/coverage-v8": "^4.1.10",
     "convex-test": "^0.0.53",
-    "oxfmt": "^0.55.0",
+    "oxfmt": "^0.62.0",
     "oxlint": "^1.75.0",
     "oxlint-tsgolint": "^0.23.0",
     "react-email": "^6.9.0",
