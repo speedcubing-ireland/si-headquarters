@@ -22,6 +22,10 @@ export interface OAuthPluginMeta {
   readonly id: string
   readonly service: OAuthService
   readonly cli: OAuthPluginCliMeta
+  // Hostname this provider requires when the site runs on a loopback origin.
+  // Canva refuses `localhost` and accepts only `127.0.0.1`; the others have
+  // `localhost` registered. Ignored for deployed (non-loopback) origins.
+  readonly localhostRedirectHostname?: string
 }
 
 type RuntimeUrl = string | (() => string)
@@ -42,6 +46,9 @@ export interface StoredServiceToken {
   accessToken: string
   refreshToken: string
   expiresAt: number
+  // The scope the provider actually granted, when it reports one. Absent means
+  // "unknown" — callers fall back to the scope the plugin asked for.
+  scope?: string
 }
 
 interface OAuthTokenPayload {
@@ -49,6 +56,7 @@ interface OAuthTokenPayload {
   expiresIn: number
   refreshToken: string | undefined
   createdAtSec: number | undefined
+  scope: string | undefined
 }
 
 function parseOAuthToken(
@@ -64,6 +72,7 @@ function parseOAuthToken(
     expiresIn: readNumber(body, "expires_in") ?? defaultExpiresIn,
     refreshToken: readString(body, "refresh_token"),
     createdAtSec: readNumber(body, "created_at"),
+    scope: readString(body, "scope"),
   }
 }
 
@@ -173,6 +182,7 @@ async function requestOAuthToken(
     accessToken: parsed.accessToken,
     refreshToken: parsed.refreshToken ?? "",
     expiresAt: tokenExpiresAt(parsed, config),
+    scope: parsed.scope,
   }
 }
 
@@ -224,6 +234,7 @@ export function defineOAuthPlugin(def: {
   const { meta, client, pkce } = def
   return {
     meta,
+    usesPkce: pkce === true,
     matches: (pluginId: string) => matchesProvider(pluginId, meta),
     redirectUri: () => redirectUri(meta),
     buildAuthorizeUrl(args: {
