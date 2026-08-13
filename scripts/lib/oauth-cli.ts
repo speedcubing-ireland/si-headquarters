@@ -1,3 +1,4 @@
+import { generatePkcePair } from "../../convex/plugins/pkce.ts"
 import { convexRun } from "./convex-run.ts"
 
 interface OAuthAuthResponse {
@@ -50,24 +51,6 @@ function htmlErr(message: string) {
   )
 }
 
-function toBase64Url(bytes: Uint8Array) {
-  return Buffer.from(bytes)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "")
-}
-
-async function generatePkce() {
-  const verifierBytes = crypto.getRandomValues(new Uint8Array(32))
-  const codeVerifier = toBase64Url(verifierBytes)
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(codeVerifier)
-  )
-  return { codeVerifier, codeChallenge: toBase64Url(new Uint8Array(hash)) }
-}
-
 function requireCliToken(): string {
   const cliToken = process.env.CLI_AUTH_TOKEN
   if (cliToken !== undefined && cliToken !== "") return cliToken
@@ -109,7 +92,7 @@ export async function runCliOAuth(pluginId: string): Promise<void> {
     throw new Error(`Unsafe redirect host '${redirectHost}'.`)
   }
 
-  const pkce = cfg.usePkce === true ? await generatePkce() : null
+  const pkce = cfg.usePkce === true ? await generatePkcePair() : null
   const requestedState = cfg.useState === true ? crypto.randomUUID() : undefined
 
   const auth = await convexRun<OAuthAuthResponse>("plugins/oauth:getOAuthUrl", {

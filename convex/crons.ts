@@ -18,6 +18,13 @@ crons.cron(
 )
 
 crons.cron(
+  "service oauth attempt sweep hourly",
+  "20 * * * *",
+  internal.integrations.serviceAccountConnect.purgeExpiredAttempts,
+  {}
+)
+
+crons.cron(
   "sponsor auction schedule + email repair",
   "*/15 * * * *",
   internal.plugins.sponsor.admin.auctions.lifecycle.repairSchedules,

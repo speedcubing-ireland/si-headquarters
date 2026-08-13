@@ -53,6 +53,9 @@ import type * as integrations_jsonBoundary from "../integrations/jsonBoundary.js
 import type * as integrations_linkObjectResource from "../integrations/linkObjectResource.js";
 import type * as integrations_objectResources from "../integrations/objectResources.js";
 import type * as integrations_objectResourcesModel from "../integrations/objectResourcesModel.js";
+import type * as integrations_serviceAccountAttempts from "../integrations/serviceAccountAttempts.js";
+import type * as integrations_serviceAccountConnect from "../integrations/serviceAccountConnect.js";
+import type * as integrations_serviceAccountPaths from "../integrations/serviceAccountPaths.js";
 import type * as integrations_taskIntegrations_constants from "../integrations/taskIntegrations/constants.js";
 import type * as integrations_taskIntegrations_mutations from "../integrations/taskIntegrations/mutations.js";
 import type * as integrations_taskIntegrations_pluginContract from "../integrations/taskIntegrations/pluginContract.js";
@@ -122,6 +125,7 @@ import type * as plugins_google_oauth from "../plugins/google/oauth.js";
 import type * as plugins_oauth from "../plugins/oauth.js";
 import type * as plugins_oauthProvider from "../plugins/oauthProvider.js";
 import type * as plugins_oauthRegistry from "../plugins/oauthRegistry.js";
+import type * as plugins_pkce from "../plugins/pkce.js";
 import type * as plugins_refunds_actions from "../plugins/refunds/actions.js";
 import type * as plugins_refunds_api from "../plugins/refunds/api.js";
 import type * as plugins_refunds_logic from "../plugins/refunds/logic.js";
@@ -365,6 +369,9 @@ declare const fullApi: ApiFromModules<{
   "integrations/linkObjectResource": typeof integrations_linkObjectResource;
   "integrations/objectResources": typeof integrations_objectResources;
   "integrations/objectResourcesModel": typeof integrations_objectResourcesModel;
+  "integrations/serviceAccountAttempts": typeof integrations_serviceAccountAttempts;
+  "integrations/serviceAccountConnect": typeof integrations_serviceAccountConnect;
+  "integrations/serviceAccountPaths": typeof integrations_serviceAccountPaths;
   "integrations/taskIntegrations/constants": typeof integrations_taskIntegrations_constants;
   "integrations/taskIntegrations/mutations": typeof integrations_taskIntegrations_mutations;
   "integrations/taskIntegrations/pluginContract": typeof integrations_taskIntegrations_pluginContract;
@@ -434,6 +441,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/oauth": typeof plugins_oauth;
   "plugins/oauthProvider": typeof plugins_oauthProvider;
   "plugins/oauthRegistry": typeof plugins_oauthRegistry;
+  "plugins/pkce": typeof plugins_pkce;
   "plugins/refunds/actions": typeof plugins_refunds_actions;
   "plugins/refunds/api": typeof plugins_refunds_api;
   "plugins/refunds/logic": typeof plugins_refunds_logic;

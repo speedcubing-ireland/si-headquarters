@@ -24,6 +24,7 @@
   "include": [
     "**/*.ts",
     "../convex/envConfig.ts",
+    "../convex/plugins/pkce.ts",
     "../convex/plugins/canva/definition.ts",
     "../convex/plugins/discord/definition.ts",
     "../convex/plugins/google/definition.ts",

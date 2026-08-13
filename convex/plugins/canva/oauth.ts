@@ -13,6 +13,7 @@ const SCOPE = [
 export const meta = {
   id: "canva",
   service: "canva",
+  localhostRedirectHostname: "127.0.0.1",
   cli: {
     providerDisplayName: "Canva",
     providerArg: "canva",
