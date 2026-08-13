@@ -6,7 +6,7 @@
       "name": "si-headquarters",
       "dependencies": {
         "@auth/core": "0.41.2",
-        "@autoform/react": "^4.0.0",
+        "@autoform/react": "^5.0.0",
         "@autoform/zod": "^5.0.0",
         "@base-ui/react": "^1.6.0",
         "@chenglou/pretext": "^0.0.8",
@@ -113,9 +113,9 @@
 
     "@auth/core": ["@auth/core@0.41.2", "", { "dependencies": { "@panva/hkdf": "^1.2.1", "jose": "^6.0.6", "oauth4webapi": "^3.3.0", "preact": "10.24.3", "preact-render-to-string": "6.5.11" }, "peerDependencies": { "@simplewebauthn/browser": "^9.0.1", "@simplewebauthn/server": "^9.0.2", "nodemailer": "^7.0.7" }, "optionalPeers": ["@simplewebauthn/browser", "@simplewebauthn/server", "nodemailer"] }, "sha512-Hx5MNBxN2fJTbJKGUKAA0wca43D0Akl3TvufY54Gn8lop7F+34vU1zA1pn0vQfIoVuLIrpfc2nkyjwIaPJMW7w=="],
 
-    "@autoform/core": ["@autoform/core@3.0.0", "", {}, "sha512-wBBJgqhw2lDc8VCf4Om/ONZH7RyvaLoqkAcNaU+c8Qo+U5kfY7Fke1mltW6CV0njoWMLarQ+0ZKnWdPRulDpgA=="],
+    "@autoform/core": ["@autoform/core@4.0.0", "", {}, "sha512-tzsI15WyRwYMkJArRWFRq/6PJOt6aheHvJNB79P4aEBbOx87Vkqk51iDlcFR157e078BSNSW8P9awPutlgDR4w=="],
 
-    "@autoform/react": ["@autoform/react@4.0.0", "", { "dependencies": { "@autoform/core": "*" }, "peerDependencies": { "@hookform/resolvers": "^3.9.0", "react": "^16.8.0 || ^17 || ^18 || ^19", "react-hook-form": "^7" } }, "sha512-OVYRY7u+KnNxEZY6RF4tOmKgO3R68Y0amqyourU9vrFL/mi/4bW/6mi6hkWK8HwHK6a8C7clSm73/4nGQPSuaw=="],
+    "@autoform/react": ["@autoform/react@5.0.0", "", { "dependencies": { "@autoform/core": "^4.0.0" }, "peerDependencies": { "@hookform/resolvers": "^3.9.0 || ^4 || ^5", "@tanstack/react-form": "^1", "react": "^17 || ^18 || ^19", "react-hook-form": "^7" }, "optionalPeers": ["@hookform/resolvers", "@tanstack/react-form", "react-hook-form"] }, "sha512-wjlhqOGrybReBjIBgOVLecv8wQSshywH3/MjGSWOo7U95bAJ6hUe8bU6ap7fW7C3g3hVChJ6BPPee4q71t2Blg=="],
 
     "@autoform/zod": ["@autoform/zod@5.0.0", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-n9mxQAVbaPS3uP6Laxn/36lDv74pmkoRS4nIOKEohFg5me3nLFXrnOnrSk4aENjYpolhB5JuGWUMIwgEzRK8fg=="],
 
@@ -221,7 +221,7 @@
 
     "@convex-dev/workpool": ["@convex-dev/workpool@0.4.7", "", { "peerDependencies": { "convex": "^1.31.7", "convex-helpers": "^0.1.94" } }, "sha512-4O3VKcJXqYZ9icDgKdVPxjDGUAFK3oG0hbUwLcyYMYgsvVKlZDhvZRmczqSBZHLyrCGPpf925byh0dBigCfAGA=="],
 
-    "@convex/reactions": ["@convex/reactions@github:get-convex/reactions#33f8cb5", { "peerDependencies": { "convex": "^1.24.8", "react": "^18.3.1 || ^19.0.0" } }, "get-convex-reactions-33f8cb5", "sha512-k96C2yXpE7zsXKORwaQbX7x6g9XgggtNCR8PlLu5ssOZxbaw5iLjcCVhHnxbFmqSKBnLZSOL7RuslF9uadl3EQ=="],
+    "@convex/reactions": ["@convex/reactions@github:get-convex/reactions#33f8cb5", { "peerDependencies": { "convex": "^1.24.8", "react": "^18.3.1 || ^19.0.0" } }, "get-convex-reactions-33f8cb5"],
 
     "@date-fns/tz": ["@date-fns/tz@1.5.0", "", {}, "sha512-lwYN/vDPeNRULcepoE/LO2Pgx+7/RV+S9ARfbc9lr2DtGkOD7pAiruHvbR1RX3Qyf6ja47EWJDMsNK5vK08DJg=="],
 
@@ -342,8 +342,6 @@
     "@hey-api/types": ["@hey-api/types@0.1.4", "", {}, "sha512-thWfawrDIP7wSI9ioT13I5soaaqB5vAPIiZmgD8PbeEVKNrkonc0N/Sjj97ezl7oQgusZmaNphGdMKipPO6IBg=="],
 
     "@hono/node-server": ["@hono/node-server@1.19.14", "", { "peerDependencies": { "hono": "^4" } }, "sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw=="],
-
-    "@hookform/resolvers": ["@hookform/resolvers@3.10.0", "", { "peerDependencies": { "react-hook-form": "^7.0.0" } }, "sha512-79Dv+3mDF7i+2ajj7SkypSKHhl1cbln1OGavqrsF7p6mbUv11xpqpacPsGDCTRvCSjEEIez2ef1NveSVL3b0Ag=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.2", "", { "dependencies": { "@humanfs/types": "^0.15.0" } }, "sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA=="],
 
