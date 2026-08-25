@@ -54,10 +54,3 @@ export function resolveTeamSidebarPages(team: {
     projects: !disabledPages.has("projects"),
   }
 }
-
-export function isTeamSidebarPageEnabled(
-  team: { disabledSidebarPages?: TeamSidebarPage[] },
-  page: TeamSidebarPage
-): boolean {
-  return !(team.disabledSidebarPages ?? []).includes(page)
-}

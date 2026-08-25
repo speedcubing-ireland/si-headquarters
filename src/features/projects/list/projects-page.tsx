@@ -149,10 +149,7 @@ export function ProjectsPage() {
 }
 
 export function TeamProjectsPage({ teamId }: { teamId: Id<"teams"> }) {
-  const team = useQuery(api.teams.queries.getForPage, {
-    teamId,
-    page: "projects",
-  })
+  const team = useQuery(api.teams.queries.getAccessible, { teamId })
 
   if (team === undefined) {
     return <Page.Status variant="loading" message="Loading team projects…" />

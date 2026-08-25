@@ -14,10 +14,8 @@ import {
   userCanAccessTeam,
 } from "@/convex/teams/model"
 import {
-  isTeamSidebarPageEnabled,
   resolveTeamSidebarPages,
   teamNavigationSummary,
-  teamSidebarPage,
   teamSummary,
 } from "@/convex/teams/validators"
 import { v } from "convex/values"
@@ -70,11 +68,8 @@ export const listForTaskFilters = query({
   },
 })
 
-export const getForPage = query({
-  args: {
-    teamId: v.id("teams"),
-    page: teamSidebarPage,
-  },
+export const getAccessible = query({
+  args: { teamId: v.id("teams") },
   returns: v.union(teamSummary, v.null()),
   handler: async (ctx, args) => {
     const principal = await requirePrincipal(ctx)
@@ -90,10 +85,6 @@ export const getForPage = query({
       principal.teamNames
     )
     if (!allowed) {
-      return null
-    }
-
-    if (!isTeamSidebarPageEnabled(team, args.page)) {
       return null
     }
 

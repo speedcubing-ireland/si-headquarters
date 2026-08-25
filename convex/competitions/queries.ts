@@ -3,6 +3,7 @@ import { query } from "@/convex/_generated/server"
 import { requireCompetitionForRead } from "@/convex/competitions/access"
 import {
   canPerform,
+  isDirector,
   requireCan,
   requirePrincipal,
 } from "@/convex/permissions/principal"
@@ -47,7 +48,10 @@ export const getPageRoot = query({
       return null
     }
     requireCan(principal, "read", "Competition", competition)
-    return competition
+    return {
+      ...competition,
+      canDelete: isDirector(principal),
+    }
   },
 })
 

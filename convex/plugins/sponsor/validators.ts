@@ -66,6 +66,9 @@ export const sponsorTables = {
       "state",
     ])
     .index("by_competition", ["competitionId"])
+    .index("by_customOffering_associatedCompetitionId", [
+      "customOffering.associatedCompetitionId",
+    ])
     .index("by_wcaCompetitionId", ["wcaCompetitionId"])
     .index("by_state_and_end", ["state", "endsAt"])
     .index("by_state_and_start", ["state", "startsAt"])

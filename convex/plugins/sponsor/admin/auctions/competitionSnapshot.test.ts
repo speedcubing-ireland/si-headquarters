@@ -271,4 +271,55 @@ describe("refreshCompetitionSnapshot WCA failures", () => {
       wcaCompetitionId: replacementWcaCompetitionId,
     })
   })
+
+  test("does not store a successful response for a stale WCA link", async () => {
+    const staleWcaCompetitionId = "OldComp2026"
+    const replacementWcaCompetitionId = "ReplacementComp2026"
+    const { t, directorId, auctionId, competitionId } =
+      await seedLinkedCompetitionAuction(staleWcaCompetitionId)
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      await t.mutation(
+        internal.plugins.wca.competitionLink.saveCompetitionLink,
+        {
+          competitionId,
+          wcaCompetitionId: replacementWcaCompetitionId,
+          name: "Replacement Competition",
+          url: `https://www.worldcubeassociation.org/competitions/${replacementWcaCompetitionId}`,
+        }
+      )
+      return Response.json({
+        id: staleWcaCompetitionId,
+        name: "Old Competition",
+        city: "Dublin",
+        country_iso2: "IE",
+        start_date: "2026-06-01",
+        end_date: "2026-06-02",
+        event_ids: ["333"],
+        competitor_limit: 100,
+        venue: "Old venue",
+        venue_address: "",
+        latitude_degrees: null,
+        longitude_degrees: null,
+      })
+    })
+
+    const result = await t
+      .withIdentity({ subject: directorId })
+      .action(
+        api.plugins.sponsor.admin.auctions.competitionSnapshot
+          .refreshCompetitionSnapshot,
+        { auctionId }
+      )
+
+    expect(result.status).toBe("fetch_failed")
+    expect(result.message).toContain("changed while refreshing")
+    const state = await t.run(async (ctx) => ({
+      auction: await ctx.db.get("sponsorshipAuctions", auctionId),
+      competition: await ctx.db.get("competitions", competitionId),
+    }))
+    expect(state.competition?.wcaCompetitionId).toBe(
+      replacementWcaCompetitionId
+    )
+    expect(state.auction?.competitionSnapshot?.source).not.toBe("wca")
+  })
 })

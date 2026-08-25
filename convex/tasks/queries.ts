@@ -8,6 +8,7 @@ import type { QueryCtx } from "@/convex/_generated/server"
 import { collectAll } from "@/convex/utils"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
+  canManageTask,
   requireTaskManageAccess,
   requireTaskReadAccess,
 } from "@/convex/tasks/access"
@@ -304,11 +305,12 @@ export const getPageRoot = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const { task } = await requireTaskReadAccess(ctx, args.id)
+    const { principal, task } = await requireTaskReadAccess(ctx, args.id)
 
     return {
       taskId: task._id,
       kind: task.kind,
+      canDelete: await canManageTask(ctx, task, principal),
       breadcrumbs: await getTaskBreadcrumbs(ctx, args.id),
     }
   },

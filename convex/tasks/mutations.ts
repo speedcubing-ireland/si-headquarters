@@ -39,14 +39,22 @@ import {
   requireValidCreationParent,
   subtaskViewOwner,
 } from "@/convex/tasks/subtaskView"
+import {
+  collectTaskTreeForDeletion,
+  executeTaskDeletion,
+  prepareTaskDeletion,
+} from "@/convex/tasks/deletion"
+import {
+  createDeletionBudget,
+  requireDeletionHeadroom,
+} from "@/convex/deletion/budget"
 import { objectRefKey } from "@/convex/utils"
 import { v } from "convex/values"
 import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing"
 
-const MAX_TASK_DELETE_TREE_SIZE = 200
+const MAX_TASK_TREE_MUTATION_SIZE = 200
 const MAX_TASK_REORDER_ITEMS = 200
 const MAX_TASK_REORDER_SECTIONS = 50
-const MAX_TASK_SCOPED_ROWS = 200
 
 async function getNextTaskOrder(ctx: MutationCtx, parent: TaskParentRef) {
   const siblings =
@@ -104,11 +112,6 @@ async function requireExistingLabels(
 
 function parentsMatch(left: TaskParentRef, right: TaskParentRef) {
   return left.type === right.type && left.id === right.id
-}
-
-function assertWithinLimit<T>(rows: T[], limit: number, message: string) {
-  if (rows.length > limit) throw new Error(message)
-  return rows
 }
 
 async function assertTaskCanMoveToParent(
@@ -176,182 +179,6 @@ async function getDirectParentChildren(
   return children
 }
 
-async function deleteTaskScopedRows(ctx: MutationCtx, taskId: Id<"tasks">) {
-  const [
-    labelAssignments,
-    reviewers,
-    reviewOverrides,
-    blockingEdges,
-    blockedEdges,
-    reminders,
-    nudgeCooldowns,
-    subscriptions,
-    integrations,
-  ] = await Promise.all([
-    ctx.db
-      .query("taskLabelAssignments")
-      .withIndex("by_taskId_and_labelId", (q) => q.eq("taskId", taskId))
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskReviewers")
-      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskReviewOverrides")
-      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskBlockers")
-      .withIndex("by_blockingTaskId_and_blockedTaskId", (q) =>
-        q.eq("blockingTaskId", taskId)
-      )
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskBlockers")
-      .withIndex("by_blockedTaskId_and_blockingTaskId", (q) =>
-        q.eq("blockedTaskId", taskId)
-      )
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskReminders")
-      .withIndex(
-        "by_taskId_and_userId_and_cancelledAt_and_sentAt_and_remindAt",
-        (q) => q.eq("taskId", taskId)
-      )
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskNudgeCooldowns")
-      .withIndex("by_taskId_and_assigneeId", (q) => q.eq("taskId", taskId))
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("subscriptions")
-      .withIndex("by_object_type_and_object_id_and_userId", (q) =>
-        q.eq("object.type", "tasks").eq("object.id", taskId)
-      )
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-    ctx.db
-      .query("taskIntegrations")
-      .withIndex("by_taskId", (q) => q.eq("taskId", taskId))
-      .take(MAX_TASK_SCOPED_ROWS + 1),
-  ])
-
-  assertWithinLimit(
-    labelAssignments,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many label assignments to delete at once"
-  )
-  assertWithinLimit(
-    reviewers,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many reviewers to delete at once"
-  )
-  assertWithinLimit(
-    reviewOverrides,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many review overrides to delete at once"
-  )
-  assertWithinLimit(
-    blockingEdges,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many blocker edges to delete at once"
-  )
-  assertWithinLimit(
-    blockedEdges,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many blocked-by edges to delete at once"
-  )
-  assertWithinLimit(
-    reminders,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many reminders to delete at once"
-  )
-  assertWithinLimit(
-    nudgeCooldowns,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many nudge cooldowns to delete at once"
-  )
-  assertWithinLimit(
-    subscriptions,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many subscriptions to delete at once"
-  )
-  assertWithinLimit(
-    integrations,
-    MAX_TASK_SCOPED_ROWS,
-    "Task has too many integrations to delete at once"
-  )
-
-  await Promise.all(
-    reminders.map(async (reminder) => {
-      if (reminder.scheduledFunctionId !== null) {
-        try {
-          await ctx.scheduler.cancel(reminder.scheduledFunctionId)
-        } catch {
-          void 0
-        }
-      }
-    })
-  )
-
-  const blockerEdges = new Map(
-    [...blockingEdges, ...blockedEdges].map((edge) => [edge._id, edge])
-  )
-
-  await Promise.all([
-    ...labelAssignments.map((row) =>
-      ctx.db.delete("taskLabelAssignments", row._id)
-    ),
-    ...reviewers.map((row) => ctx.db.delete("taskReviewers", row._id)),
-    ...reviewOverrides.map((row) =>
-      ctx.db.delete("taskReviewOverrides", row._id)
-    ),
-    ...[...blockerEdges.values()].map((row) =>
-      ctx.db.delete("taskBlockers", row._id)
-    ),
-    ...reminders.map((row) => ctx.db.delete("taskReminders", row._id)),
-    ...nudgeCooldowns.map((row) =>
-      ctx.db.delete("taskNudgeCooldowns", row._id)
-    ),
-    ...subscriptions.map((row) => ctx.db.delete("subscriptions", row._id)),
-    ...integrations.map((row) => ctx.db.delete("taskIntegrations", row._id)),
-  ])
-}
-
-async function collectTaskTreeForDeletion(
-  ctx: MutationCtx,
-  rootTaskId: Id<"tasks">
-) {
-  const orderedTaskIds: Id<"tasks">[] = []
-  const stack = [rootTaskId]
-  const visited = new Set<Id<"tasks">>()
-
-  while (stack.length > 0) {
-    const taskId = stack.pop()
-    if (taskId === undefined || visited.has(taskId)) continue
-    visited.add(taskId)
-    orderedTaskIds.push(taskId)
-
-    if (orderedTaskIds.length > MAX_TASK_DELETE_TREE_SIZE) {
-      throw new Error(
-        `Task delete would remove more than ${String(
-          MAX_TASK_DELETE_TREE_SIZE
-        )} tasks`
-      )
-    }
-
-    const children = await getDirectTaskChildren(
-      ctx,
-      taskId,
-      MAX_TASK_DELETE_TREE_SIZE
-    )
-    for (const child of children) {
-      stack.push(child._id)
-    }
-  }
-
-  return orderedTaskIds.reverse()
-}
-
 async function patchDescendantRootContext(
   ctx: MutationCtx,
   rootTaskId: Id<"tasks">,
@@ -364,10 +191,10 @@ async function patchDescendantRootContext(
     const taskId = stack.pop()
     if (taskId === undefined || visited.has(taskId)) continue
     visited.add(taskId)
-    if (visited.size > MAX_TASK_DELETE_TREE_SIZE) {
+    if (visited.size > MAX_TASK_TREE_MUTATION_SIZE) {
       throw new Error(
         `Task move would update more than ${String(
-          MAX_TASK_DELETE_TREE_SIZE
+          MAX_TASK_TREE_MUTATION_SIZE
         )} tasks`
       )
     }
@@ -375,7 +202,7 @@ async function patchDescendantRootContext(
     const children = await getDirectTaskChildren(
       ctx,
       taskId,
-      MAX_TASK_DELETE_TREE_SIZE
+      MAX_TASK_TREE_MUTATION_SIZE
     )
     for (const child of children) {
       await ctx.db.patch("tasks", child._id, taskRootPatch(root))
@@ -707,10 +534,10 @@ export const deleteTask = mutation({
     const parentTaskId = task.parent.type === "tasks" ? task.parent.id : null
     const taskIds = await collectTaskTreeForDeletion(ctx, task._id)
 
-    for (const taskId of taskIds) {
-      await deleteTaskScopedRows(ctx, taskId)
-      await ctx.db.delete("tasks", taskId)
-    }
+    const budget = createDeletionBudget()
+    const plan = await prepareTaskDeletion(ctx, taskIds, budget)
+    await requireDeletionHeadroom(ctx, budget)
+    await executeTaskDeletion(ctx, plan)
 
     if (parentTaskId !== null && !taskIds.includes(parentTaskId)) {
       const parent = await ctx.db.get("tasks", parentTaskId)

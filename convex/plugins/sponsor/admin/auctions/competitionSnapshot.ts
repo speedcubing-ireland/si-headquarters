@@ -22,12 +22,12 @@ import {
   type SponsorshipCompetitionSnapshot,
 } from "@/convex/plugins/sponsor/lib/competitionSnapshot"
 import {
-  auctionSubjectKind,
   auctionSubjectName,
   resolveAuctionSubject,
 } from "@/convex/plugins/sponsor/lib/auctionSubject"
 import { competitionStartEnd } from "@/convex/competitions/dates"
 import { unlinkCompetitionIfWcaLinkMatches } from "@/convex/plugins/wca/competitionLink"
+import { storeSnapshotIfCurrent } from "./snapshotPersistence"
 
 type MissingWcaLinkPolicy = "preserve" | "unlink"
 
@@ -46,18 +46,31 @@ const competitionSnapshotRefreshResult = v.object({
   fetchedAt: v.optional(v.number()),
 })
 
-const auctionSnapshotContext = v.object({
+const snapshotContextFields = {
   auctionId: v.id("sponsorshipAuctions"),
-  subjectKind: auctionSubjectKind,
-  competitionId: v.optional(v.id("competitions")),
-  // Effective WCA id to fetch (the competition's link for hq subjects, or the
-  // auction's id for wca subjects). Undefined for custom or unlinked hq.
-  wcaCompetitionId: v.optional(v.string()),
   fallbackName: v.string(),
   fallbackStartDate: v.string(),
   fallbackEndDate: v.string(),
   competitionSnapshot: v.optional(competitionSnapshot),
-})
+}
+
+const auctionSnapshotContext = v.union(
+  v.object({
+    ...snapshotContextFields,
+    subjectKind: v.literal("hq_competition"),
+    competitionId: v.id("competitions"),
+    wcaCompetitionId: v.optional(v.string()),
+  }),
+  v.object({
+    ...snapshotContextFields,
+    subjectKind: v.literal("wca_competition"),
+    wcaCompetitionId: v.string(),
+  }),
+  v.object({
+    ...snapshotContextFields,
+    subjectKind: v.literal("custom"),
+  })
+)
 
 function isConvexErrorWithCode(
   error: Error
@@ -179,26 +192,11 @@ export const getSnapshotContextInternal = internalQuery({
     return {
       auctionId: auction._id,
       subjectKind: subject.kind,
-      wcaCompetitionId: undefined,
       fallbackName: auctionSubjectName(auction),
       fallbackStartDate: snapshotStart,
       fallbackEndDate: snapshotEnd,
       competitionSnapshot: auction.competitionSnapshot,
     }
-  },
-})
-
-export const setSnapshotInternal = internalMutation({
-  args: {
-    auctionId: v.id("sponsorshipAuctions"),
-    snapshot: competitionSnapshot,
-  },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await ctx.db.patch("sponsorshipAuctions", args.auctionId, {
-      competitionSnapshot: args.snapshot,
-    })
-    return null
   },
 })
 
@@ -210,6 +208,14 @@ export const unlinkMissingWcaCompetitionInternal = internalMutation({
   },
   returns: v.union(competitionSnapshot, v.null()),
   handler: async (ctx, args) => {
+    const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
+    if (
+      auction === null ||
+      resolveAuctionSubject(auction).kind !== "hq_competition" ||
+      auction.competitionId !== args.competitionId
+    ) {
+      return null
+    }
     const competition = await unlinkCompetitionIfWcaLinkMatches(
       ctx,
       args.competitionId,
@@ -218,20 +224,21 @@ export const unlinkMissingWcaCompetitionInternal = internalMutation({
     if (competition === null) return null
 
     const fallbackSnapshot = buildFallbackSnapshotForCompetition(competition)
-    const auction = await ctx.db.get("sponsorshipAuctions", args.auctionId)
-    if (
-      auction !== null &&
-      resolveAuctionSubject(auction).kind === "hq_competition" &&
-      auction.competitionId === args.competitionId
-    ) {
-      await ctx.db.patch("sponsorshipAuctions", args.auctionId, {
-        competitionSnapshot: fallbackSnapshot,
-      })
-    }
+    await ctx.db.patch("sponsorshipAuctions", args.auctionId, {
+      competitionSnapshot: fallbackSnapshot,
+    })
 
     return fallbackSnapshot
   },
 })
+
+function staleSnapshotResult() {
+  return {
+    status: "fetch_failed" as const,
+    message:
+      "The auction or competition link changed while refreshing. Refresh again to use the latest details.",
+  }
+}
 
 async function runCompetitionSnapshotRefresh(
   ctx: ActionCtx,
@@ -271,14 +278,9 @@ async function runCompetitionSnapshotRefresh(
             source: "custom",
           })
     if (context.competitionSnapshot?.source !== "custom") {
-      await ctx.runMutation(
-        internal.plugins.sponsor.admin.auctions.competitionSnapshot
-          .setSnapshotInternal,
-        {
-          auctionId: context.auctionId,
-          snapshot: customSnapshot,
-        }
-      )
+      if (!(await storeSnapshotIfCurrent(ctx, context, customSnapshot))) {
+        return staleSnapshotResult()
+      }
     }
     return {
       status: "ready",
@@ -293,14 +295,9 @@ async function runCompetitionSnapshotRefresh(
     const fallbackSnapshot =
       context.competitionSnapshot ?? buildFallbackSnapshotFromContext(context)
     if (context.competitionSnapshot === undefined) {
-      await ctx.runMutation(
-        internal.plugins.sponsor.admin.auctions.competitionSnapshot
-          .setSnapshotInternal,
-        {
-          auctionId: context.auctionId,
-          snapshot: fallbackSnapshot,
-        }
-      )
+      if (!(await storeSnapshotIfCurrent(ctx, context, fallbackSnapshot))) {
+        return staleSnapshotResult()
+      }
     }
     return {
       status: "missing_wca_link",
@@ -368,14 +365,9 @@ async function runCompetitionSnapshotRefresh(
     const fallbackSnapshot =
       context.competitionSnapshot ?? buildFallbackSnapshotFromContext(context)
     if (context.competitionSnapshot === undefined) {
-      await ctx.runMutation(
-        internal.plugins.sponsor.admin.auctions.competitionSnapshot
-          .setSnapshotInternal,
-        {
-          auctionId: context.auctionId,
-          snapshot: fallbackSnapshot,
-        }
-      )
+      if (!(await storeSnapshotIfCurrent(ctx, context, fallbackSnapshot))) {
+        return staleSnapshotResult()
+      }
     }
     return {
       status: "fetch_failed",
@@ -393,14 +385,9 @@ async function runCompetitionSnapshotRefresh(
     summary: buildWcaCompetitionSummary(details),
     source: "wca",
   })
-  await ctx.runMutation(
-    internal.plugins.sponsor.admin.auctions.competitionSnapshot
-      .setSnapshotInternal,
-    {
-      auctionId: context.auctionId,
-      snapshot,
-    }
-  )
+  if (!(await storeSnapshotIfCurrent(ctx, context, snapshot))) {
+    return staleSnapshotResult()
+  }
   return {
     status: "ready",
     message: "Competition details synced from WCA.",

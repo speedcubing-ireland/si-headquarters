@@ -6,7 +6,10 @@ import {
   requireCompetitionForManage,
   requireCompetitionForUpdate,
 } from "@/convex/competitions/access"
-import { requireCompetitionManagement } from "@/convex/permissions/principal"
+import {
+  requireCompetitionManagement,
+  requireDirector,
+} from "@/convex/permissions/principal"
 import { TEAM_NAMES, type TeamName } from "@/convex/permissions/shared"
 import { isMemberOfTeam } from "@/convex/teams/model"
 import {
@@ -20,6 +23,7 @@ import {
 import { applyCompetitionTemplate } from "@/convex/templates/resolver"
 import { templateVariablesArg } from "@/convex/templates/validators"
 import { normalizeNullableText } from "@/convex/utils"
+import { deleteCompetitionRows } from "@/convex/competitions/deletion"
 import { v } from "convex/values"
 
 type People = Doc<"competitions">["people"]
@@ -225,5 +229,15 @@ export const createFromTemplate = mutation({
         },
       },
     })
+  },
+})
+
+export const deleteCompetition = mutation({
+  args: { id: v.id("competitions") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireDirector(ctx)
+    await deleteCompetitionRows(ctx, args.id)
+    return null
   },
 })

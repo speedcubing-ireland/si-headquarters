@@ -18,7 +18,10 @@ export const cleanupUpdate = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await reactions.deleteAllForTarget(ctx, args.updateId)
-    await ctx.db.delete("objectUpdates", args.updateId)
+    const update = await ctx.db.get("objectUpdates", args.updateId)
+    if (update !== null) {
+      await ctx.db.delete("objectUpdates", args.updateId)
+    }
     return null
   },
 })

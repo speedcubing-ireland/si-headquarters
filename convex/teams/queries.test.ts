@@ -48,7 +48,7 @@ describe("team page navigation and access", () => {
     }
   })
 
-  test("getForPage allows members and directors, denies outsiders and Volunteer", async () => {
+  test("getAccessible allows members and directors, denies outsiders and Volunteer", async () => {
     const t = convexTest(schema, modules)
     const { client, userId } = await withVolunteerTestClient(t)
     const { softwareTeamId, volunteerTeamId } = await t.run(async (ctx) => {
@@ -61,24 +61,21 @@ describe("team page navigation and access", () => {
       return { softwareTeamId: software._id, volunteerTeamId: volunteer._id }
     })
 
-    const memberTeam = await client.query(api.teams.queries.getForPage, {
+    const memberTeam = await client.query(api.teams.queries.getAccessible, {
       teamId: softwareTeamId,
-      page: "tasks",
     })
     expect(memberTeam?.name).toBe(TEAM_NAMES.SOFTWARE)
 
-    const volunteerPage = await client.query(api.teams.queries.getForPage, {
+    const volunteerPage = await client.query(api.teams.queries.getAccessible, {
       teamId: volunteerTeamId,
-      page: "tasks",
     })
     expect(volunteerPage).toBeNull()
 
     const directorId = await t.run(async (ctx) => seedDirectorUser(ctx))
     const directorTeam = await t
       .withIdentity({ subject: directorId })
-      .query(api.teams.queries.getForPage, {
+      .query(api.teams.queries.getAccessible, {
         teamId: softwareTeamId,
-        page: "tasks",
       })
     expect(directorTeam?.name).toBe(TEAM_NAMES.SOFTWARE)
 
@@ -87,9 +84,8 @@ describe("team page navigation and access", () => {
     )
     const denied = await t
       .withIdentity({ subject: outsiderId })
-      .query(api.teams.queries.getForPage, {
+      .query(api.teams.queries.getAccessible, {
         teamId: softwareTeamId,
-        page: "tasks",
       })
     expect(denied).toBeNull()
   })
@@ -121,15 +117,8 @@ describe("team page navigation and access", () => {
       navigation.find((team) => team._id === softwareTeamId)?.sidebarPages
     ).toEqual({ tasks: false, projects: true })
     await expect(
-      client.query(api.teams.queries.getForPage, {
+      client.query(api.teams.queries.getAccessible, {
         teamId: softwareTeamId,
-        page: "tasks",
-      })
-    ).resolves.toBeNull()
-    await expect(
-      client.query(api.teams.queries.getForPage, {
-        teamId: softwareTeamId,
-        page: "projects",
       })
     ).resolves.toMatchObject({ _id: softwareTeamId })
   })

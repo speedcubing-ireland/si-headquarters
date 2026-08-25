@@ -164,8 +164,8 @@ export function TaskListPage({
   emptyMessage?: string
 }) {
   const team = useQuery(
-    api.teams.queries.getForPage,
-    teamId !== undefined ? { teamId, page: "tasks" } : "skip"
+    api.teams.queries.getAccessible,
+    teamId !== undefined ? { teamId } : "skip"
   )
   const teamConfig = useMemo(
     () =>

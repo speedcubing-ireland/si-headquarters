@@ -8,11 +8,16 @@ import { TaskPendingReminders } from "@/features/tasks/components/task-reminders
 import { TaskPropertiesCard } from "@/features/tasks/components/task-properties-card"
 import { TaskReviewCard } from "@/features/tasks/components/task-review-card"
 import { CommentsCardContainer } from "@/features/comments/comments-card-container"
+import { DeleteObjectBar } from "@/features/shared/delete-object-bar"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { useQuery } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
+import { useNavigate } from "@tanstack/react-router"
+import { toast } from "sonner"
 
 export function Task({ taskId }: { taskId: Id<"tasks"> }) {
+  const navigate = useNavigate()
+  const deleteTask = useMutation(api.tasks.mutations.deleteTask)
   const root = useQuery(api.tasks.queries.getPageRoot, {
     id: taskId,
   })
@@ -58,6 +63,18 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
               <SubtaskView owner={{ type: "tasks", id: taskId }} />
             )}
             <CommentsCardContainer target={{ type: "tasks", id: taskId }} />
+            {root.canDelete ? (
+              <DeleteObjectBar
+                objectLabel="task"
+                description="This permanently removes the task and everything nested beneath it."
+                confirmationDescription="All subtasks, comments, reminders, reviews, blockers, and integrations belonging to it will also be deleted."
+                onDelete={async () => {
+                  await deleteTask({ id: taskId })
+                  toast.success("Task deleted")
+                  await navigate({ to: "/tasks" })
+                }}
+              />
+            ) : null}
           </div>
         )}
       </Page.EntityState>

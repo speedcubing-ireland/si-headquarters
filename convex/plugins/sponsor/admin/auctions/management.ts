@@ -48,6 +48,11 @@ import {
   defaultSponsorshipCurrency,
   formatSponsorshipAmount,
 } from "@/convex/plugins/sponsor/lib/currency"
+import {
+  createDeletionBudget,
+  requireDeletionHeadroom,
+} from "@/convex/deletion/budget"
+import { executeAuctionDeletion, prepareAuctionDeletion } from "./deletion"
 
 function normalizePositiveDurationMs(
   fieldName: string,
@@ -277,33 +282,10 @@ export const removeBeforeOpen = mutation({
       })
     }
 
-    const [invites, intents, events] = await Promise.all([
-      ctx.db
-        .query("sponsorshipAuctionInvites")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
-      ctx.db
-        .query("sponsorshipBidIntents")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
-      ctx.db
-        .query("sponsorshipBidEvents")
-        .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
-        .collect(),
-    ])
-
-    await Promise.all([
-      ...invites.map((invite) =>
-        ctx.db.delete("sponsorshipAuctionInvites", invite._id)
-      ),
-      ...intents.map((intent) =>
-        ctx.db.delete("sponsorshipBidIntents", intent._id)
-      ),
-      ...events.map((event) =>
-        ctx.db.delete("sponsorshipBidEvents", event._id)
-      ),
-    ])
-    await ctx.db.delete("sponsorshipAuctions", auction._id)
+    const budget = createDeletionBudget()
+    const plan = await prepareAuctionDeletion(ctx, auction, budget)
+    await requireDeletionHeadroom(ctx, budget)
+    await executeAuctionDeletion(ctx, plan)
     return null
   },
 })

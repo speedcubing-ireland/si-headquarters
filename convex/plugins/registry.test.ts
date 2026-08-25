@@ -4,9 +4,18 @@ import {
   TASK_INTEGRATION_IDS,
 } from "@/convex/integrations/taskIntegrations/constants"
 import { buildTaskIntegrationDefinitions } from "@/convex/integrations/taskIntegrations/registry"
-import { INTEGRATION_PLUGINS } from "@/convex/plugins/registry"
+import {
+  COMPETITION_DELETION_PLUGINS,
+  INTEGRATION_PLUGINS,
+} from "@/convex/plugins/registry"
 
 describe("backend integration registry", () => {
+  test("registers competition deletion hooks without duplicate ids", () => {
+    const ids = COMPETITION_DELETION_PLUGINS.map((plugin) => plugin.id)
+    expect(ids).toContain("sponsor")
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
   test("registers every task integration id from constants", () => {
     const registeredIds = INTEGRATION_PLUGINS.flatMap((plugin) =>
       buildTaskIntegrationDefinitions(plugin).map((ti) => ti.id)

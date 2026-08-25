@@ -15,6 +15,7 @@ import type * as admin_sponsorImpersonation from "../admin/sponsorImpersonation.
 import type * as auth from "../auth.js";
 import type * as comments_access from "../comments/access.js";
 import type * as comments_client from "../comments/client.js";
+import type * as comments_deletion from "../comments/deletion.js";
 import type * as comments_mentionTokens from "../comments/mentionTokens.js";
 import type * as comments_mentions from "../comments/mentions.js";
 import type * as comments_mutations from "../comments/mutations.js";
@@ -23,6 +24,7 @@ import type * as comments_validators from "../comments/validators.js";
 import type * as competitions_access from "../competitions/access.js";
 import type * as competitions_calendar from "../competitions/calendar.js";
 import type * as competitions_dates from "../competitions/dates.js";
+import type * as competitions_deletion from "../competitions/deletion.js";
 import type * as competitions_invites_model from "../competitions/invites/model.js";
 import type * as competitions_invites_mutations from "../competitions/invites/mutations.js";
 import type * as competitions_invites_queries from "../competitions/invites/queries.js";
@@ -35,6 +37,9 @@ import type * as competitions_weekendSlots_validators from "../competitions/week
 import type * as competitions_weekends from "../competitions/weekends.js";
 import type * as crons from "../crons.js";
 import type * as dashboard_queries from "../dashboard/queries.js";
+import type * as deletion_budget from "../deletion/budget.js";
+import type * as deletion_scheduledFunctions from "../deletion/scheduledFunctions.js";
+import type * as deletion_work from "../deletion/work.js";
 import type * as deploymentContext from "../deploymentContext.js";
 import type * as emoji from "../emoji.js";
 import type * as env from "../env.js";
@@ -141,6 +146,7 @@ import type * as plugins_socialMedia_lib_sponsorDetection from "../plugins/socia
 import type * as plugins_socialMedia_resolveHqLinks from "../plugins/socialMedia/resolveHqLinks.js";
 import type * as plugins_sponsor_admin_auctionSettings from "../plugins/sponsor/admin/auctionSettings.js";
 import type * as plugins_sponsor_admin_auctions_competitionSnapshot from "../plugins/sponsor/admin/auctions/competitionSnapshot.js";
+import type * as plugins_sponsor_admin_auctions_deletion from "../plugins/sponsor/admin/auctions/deletion.js";
 import type * as plugins_sponsor_admin_auctions_emails from "../plugins/sponsor/admin/auctions/emails.js";
 import type * as plugins_sponsor_admin_auctions_lifecycle from "../plugins/sponsor/admin/auctions/lifecycle.js";
 import type * as plugins_sponsor_admin_auctions_management from "../plugins/sponsor/admin/auctions/management.js";
@@ -148,6 +154,7 @@ import type * as plugins_sponsor_admin_auctions_migrations from "../plugins/spon
 import type * as plugins_sponsor_admin_auctions_reminders from "../plugins/sponsor/admin/auctions/reminders.js";
 import type * as plugins_sponsor_admin_auctions_scheduledFunctions from "../plugins/sponsor/admin/auctions/scheduledFunctions.js";
 import type * as plugins_sponsor_admin_auctions_shared from "../plugins/sponsor/admin/auctions/shared.js";
+import type * as plugins_sponsor_admin_auctions_snapshotPersistence from "../plugins/sponsor/admin/auctions/snapshotPersistence.js";
 import type * as plugins_sponsor_admin_contacts from "../plugins/sponsor/admin/contacts.js";
 import type * as plugins_sponsor_admin_propertyStatus from "../plugins/sponsor/admin/propertyStatus.js";
 import type * as plugins_sponsor_admin_sponsors from "../plugins/sponsor/admin/sponsors.js";
@@ -256,6 +263,7 @@ import type * as tasks_blockers_queries from "../tasks/blockers/queries.js";
 import type * as tasks_blockers_root from "../tasks/blockers/root.js";
 import type * as tasks_blockers_validators from "../tasks/blockers/validators.js";
 import type * as tasks_board from "../tasks/board.js";
+import type * as tasks_deletion from "../tasks/deletion.js";
 import type * as tasks_filterChips from "../tasks/filterChips.js";
 import type * as tasks_flowView from "../tasks/flowView.js";
 import type * as tasks_hierarchy from "../tasks/hierarchy.js";
@@ -295,6 +303,7 @@ import type * as templates_validators from "../templates/validators.js";
 import type * as testHelpers from "../testHelpers.js";
 import type * as testing_discordNotificationTestEnv from "../testing/discordNotificationTestEnv.js";
 import type * as tokens from "../tokens.js";
+import type * as updates_deletion from "../updates/deletion.js";
 import type * as updates_model from "../updates/model.js";
 import type * as updates_mutations from "../updates/mutations.js";
 import type * as updates_queries from "../updates/queries.js";
@@ -328,6 +337,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   "comments/access": typeof comments_access;
   "comments/client": typeof comments_client;
+  "comments/deletion": typeof comments_deletion;
   "comments/mentionTokens": typeof comments_mentionTokens;
   "comments/mentions": typeof comments_mentions;
   "comments/mutations": typeof comments_mutations;
@@ -336,6 +346,7 @@ declare const fullApi: ApiFromModules<{
   "competitions/access": typeof competitions_access;
   "competitions/calendar": typeof competitions_calendar;
   "competitions/dates": typeof competitions_dates;
+  "competitions/deletion": typeof competitions_deletion;
   "competitions/invites/model": typeof competitions_invites_model;
   "competitions/invites/mutations": typeof competitions_invites_mutations;
   "competitions/invites/queries": typeof competitions_invites_queries;
@@ -348,6 +359,9 @@ declare const fullApi: ApiFromModules<{
   "competitions/weekends": typeof competitions_weekends;
   crons: typeof crons;
   "dashboard/queries": typeof dashboard_queries;
+  "deletion/budget": typeof deletion_budget;
+  "deletion/scheduledFunctions": typeof deletion_scheduledFunctions;
+  "deletion/work": typeof deletion_work;
   deploymentContext: typeof deploymentContext;
   emoji: typeof emoji;
   env: typeof env;
@@ -454,6 +468,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/socialMedia/resolveHqLinks": typeof plugins_socialMedia_resolveHqLinks;
   "plugins/sponsor/admin/auctionSettings": typeof plugins_sponsor_admin_auctionSettings;
   "plugins/sponsor/admin/auctions/competitionSnapshot": typeof plugins_sponsor_admin_auctions_competitionSnapshot;
+  "plugins/sponsor/admin/auctions/deletion": typeof plugins_sponsor_admin_auctions_deletion;
   "plugins/sponsor/admin/auctions/emails": typeof plugins_sponsor_admin_auctions_emails;
   "plugins/sponsor/admin/auctions/lifecycle": typeof plugins_sponsor_admin_auctions_lifecycle;
   "plugins/sponsor/admin/auctions/management": typeof plugins_sponsor_admin_auctions_management;
@@ -461,6 +476,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/admin/auctions/reminders": typeof plugins_sponsor_admin_auctions_reminders;
   "plugins/sponsor/admin/auctions/scheduledFunctions": typeof plugins_sponsor_admin_auctions_scheduledFunctions;
   "plugins/sponsor/admin/auctions/shared": typeof plugins_sponsor_admin_auctions_shared;
+  "plugins/sponsor/admin/auctions/snapshotPersistence": typeof plugins_sponsor_admin_auctions_snapshotPersistence;
   "plugins/sponsor/admin/contacts": typeof plugins_sponsor_admin_contacts;
   "plugins/sponsor/admin/propertyStatus": typeof plugins_sponsor_admin_propertyStatus;
   "plugins/sponsor/admin/sponsors": typeof plugins_sponsor_admin_sponsors;
@@ -569,6 +585,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/blockers/root": typeof tasks_blockers_root;
   "tasks/blockers/validators": typeof tasks_blockers_validators;
   "tasks/board": typeof tasks_board;
+  "tasks/deletion": typeof tasks_deletion;
   "tasks/filterChips": typeof tasks_filterChips;
   "tasks/flowView": typeof tasks_flowView;
   "tasks/hierarchy": typeof tasks_hierarchy;
@@ -608,6 +625,7 @@ declare const fullApi: ApiFromModules<{
   testHelpers: typeof testHelpers;
   "testing/discordNotificationTestEnv": typeof testing_discordNotificationTestEnv;
   tokens: typeof tokens;
+  "updates/deletion": typeof updates_deletion;
   "updates/model": typeof updates_model;
   "updates/mutations": typeof updates_mutations;
   "updates/queries": typeof updates_queries;
