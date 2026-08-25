@@ -14,6 +14,13 @@ export default defineConfig(({ mode }) => {
   })
 
   return {
+    server: {
+      // Vite's default (`localhost`) resolves to `::1` on macOS and binds there
+      // alone, leaving `127.0.0.1` unserved. Canva refuses `localhost` in a
+      // redirect URI, so the service-account callback lands on `127.0.0.1` and
+      // has to be reachable. `::` is dual-stack, so both loopback addresses work.
+      host: "::",
+    },
     plugins: [
       tanstackRouter({
         target: "react",

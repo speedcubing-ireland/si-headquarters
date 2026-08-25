@@ -33,6 +33,7 @@ import { Route as SponsorLoginRouteImport } from './routes/sponsor/login'
 import { Route as SponsorSettingsRouteImport } from './routes/sponsor/settings'
 import { Route as TasksIndexRouteImport } from './routes/tasks/index'
 import { Route as TasksIdRouteImport } from './routes/tasks/$id'
+import { Route as AdminServiceAccountsCallbackRouteImport } from './routes/admin/service-accounts/callback'
 import { Route as SponsorAuctionsAuctionIdRouteImport } from './routes/sponsor/auctions/$auctionId'
 import { Route as PluginsSponsorshipAuctionsNewRouteImport } from './routes/plugins/sponsorship_.auctions.new'
 import { Route as TeamsTeamIdProjectsIndexRouteImport } from './routes/teams/$teamId/projects/index'
@@ -159,6 +160,12 @@ const TasksIdRoute = TasksIdRouteImport.update({
   path: '/tasks/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminServiceAccountsCallbackRoute =
+  AdminServiceAccountsCallbackRouteImport.update({
+    id: '/admin/service-accounts/callback',
+    path: '/admin/service-accounts/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SponsorAuctionsAuctionIdRoute =
   SponsorAuctionsAuctionIdRouteImport.update({
     id: '/$auctionId',
@@ -214,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/projects/': typeof ProjectsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
+  '/admin/service-accounts/callback': typeof AdminServiceAccountsCallbackRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
   '/plugins/sponsorship/auctions/new': typeof PluginsSponsorshipAuctionsNewRoute
   '/teams/$teamId/projects/': typeof TeamsTeamIdProjectsIndexRoute
@@ -245,6 +253,7 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsIndexRoute
   '/sponsor': typeof SponsorIndexRoute
   '/tasks': typeof TasksIndexRoute
+  '/admin/service-accounts/callback': typeof AdminServiceAccountsCallbackRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
   '/plugins/sponsorship/auctions/new': typeof PluginsSponsorshipAuctionsNewRoute
   '/teams/$teamId/projects': typeof TeamsTeamIdProjectsIndexRoute
@@ -277,6 +286,7 @@ export interface FileRoutesById {
   '/projects/': typeof ProjectsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
+  '/admin/service-accounts/callback': typeof AdminServiceAccountsCallbackRoute
   '/sponsor/auctions/$auctionId': typeof SponsorAuctionsAuctionIdRoute
   '/plugins/sponsorship_/auctions/new': typeof PluginsSponsorshipAuctionsNewRoute
   '/teams/$teamId/projects/': typeof TeamsTeamIdProjectsIndexRoute
@@ -310,6 +320,7 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/sponsor/'
     | '/tasks/'
+    | '/admin/service-accounts/callback'
     | '/sponsor/auctions/$auctionId'
     | '/plugins/sponsorship/auctions/new'
     | '/teams/$teamId/projects/'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/sponsor'
     | '/tasks'
+    | '/admin/service-accounts/callback'
     | '/sponsor/auctions/$auctionId'
     | '/plugins/sponsorship/auctions/new'
     | '/teams/$teamId/projects'
@@ -372,6 +384,7 @@ export interface FileRouteTypes {
     | '/projects/'
     | '/sponsor/'
     | '/tasks/'
+    | '/admin/service-accounts/callback'
     | '/sponsor/auctions/$auctionId'
     | '/plugins/sponsorship_/auctions/new'
     | '/teams/$teamId/projects/'
@@ -404,6 +417,7 @@ export interface RootRouteChildren {
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   SponsorIndexRoute: typeof SponsorIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
+  AdminServiceAccountsCallbackRoute: typeof AdminServiceAccountsCallbackRoute
   PluginsSponsorshipAuctionsNewRoute: typeof PluginsSponsorshipAuctionsNewRoute
   TeamsTeamIdProjectsIndexRoute: typeof TeamsTeamIdProjectsIndexRoute
   TeamsTeamIdTasksIndexRoute: typeof TeamsTeamIdTasksIndexRoute
@@ -580,6 +594,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/service-accounts/callback': {
+      id: '/admin/service-accounts/callback'
+      path: '/admin/service-accounts/callback'
+      fullPath: '/admin/service-accounts/callback'
+      preLoaderRoute: typeof AdminServiceAccountsCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sponsor/auctions/$auctionId': {
       id: '/sponsor/auctions/$auctionId'
       path: '/$auctionId'
@@ -655,6 +676,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsIndexRoute: ProjectsIndexRoute,
   SponsorIndexRoute: SponsorIndexRoute,
   TasksIndexRoute: TasksIndexRoute,
+  AdminServiceAccountsCallbackRoute: AdminServiceAccountsCallbackRoute,
   PluginsSponsorshipAuctionsNewRoute: PluginsSponsorshipAuctionsNewRoute,
   TeamsTeamIdProjectsIndexRoute: TeamsTeamIdProjectsIndexRoute,
   TeamsTeamIdTasksIndexRoute: TeamsTeamIdTasksIndexRoute,

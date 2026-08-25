@@ -4,6 +4,7 @@ export const serviceToken = v.object({
   accessToken: v.string(),
   refreshToken: v.string(),
   expiresAt: v.number(),
+  scope: v.optional(v.string()),
 })
 
 export type ServiceToken = Infer<typeof serviceToken>

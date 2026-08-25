@@ -65,11 +65,31 @@ when unset, the WCA button and organiser invites are hidden.
 
 All required by the wizard.
 
-| Service    | Redirect URI            | Scopes / notes                                                                                                                                                                    |
-| ---------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **WCA**    | `http://localhost:3848` | `public email manage_competitions`                                                                                                                                                |
-| **Canva**  | `http://127.0.0.1:3849` | `design:content:write design:meta:read folder:read folder:write brandtemplate:meta:read brandtemplate:content:read` — also needs certificate/lanyard template + output folder IDs |
-| **Google** | `http://localhost:3847` | enable the Sheets/Drive APIs on the project                                                                                                                                       |
+Each provider needs **two** redirect URIs registered: the admin-page one (used
+by the browser flow, the primary path) and the loopback one (used by the
+`bun run auth` CLI fallback).
+
+| Service    | Admin redirect URI                                                 | CLI redirect URI        | Scopes / notes                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **WCA**    | `{SITE_URL}/admin/service-accounts/callback`                       | `http://localhost:3848` | `public email manage_competitions`                                                                                                                                                |
+| **Canva**  | `{SITE_URL}/admin/service-accounts/callback` (`127.0.0.1` locally) | `http://127.0.0.1:3849` | `design:content:write design:meta:read folder:read folder:write brandtemplate:meta:read brandtemplate:content:read` — also needs certificate/lanyard template + output folder IDs |
+| **Google** | `{SITE_URL}/admin/service-accounts/callback`                       | `http://localhost:3847` | enable the Sheets/Drive APIs on the project                                                                                                                                       |
+
+`SITE_URL` is the deployment's frontend origin (`http://localhost:5173` by
+default). Register the admin URI for **every** environment you connect from —
+typically `http://localhost:5173/admin/service-accounts/callback` for dev and
+`https://<your-host>/admin/service-accounts/callback` for production — and make
+sure it matches `SITE_URL` exactly, including scheme and port.
+
+Locally the host differs per provider: Canva rejects `localhost` and only accepts
+`127.0.0.1`, so its admin redirect URI is
+`http://127.0.0.1:5173/admin/service-accounts/callback` while WCA and Google use
+`http://localhost:5173/admin/service-accounts/callback`. The backend applies that
+substitution itself (`localhostRedirectHostname` on the Canva plugin), and the
+callback page hops back to the `SITE_URL` origin — sessions are per-origin, so
+the token exchange has to run where you signed in. Leave `SITE_URL` as
+`http://localhost:5173`. Production is unaffected: deployed origins are not
+loopback, so all three providers share `SITE_URL` exactly.
 
 ### Discord
 
@@ -86,9 +106,29 @@ Create a bot and add it to the server.
 ## Exchanging service tokens
 
 After the wizard sets the OAuth client credentials, **deploy before exchanging
-tokens** — `bun run auth` calls OAuth functions on the deployment, so they and
-the env vars must be pushed first. Start `bun run dev` (or `bun run convex dev`)
-and leave it running, then:
+tokens** — both paths below call OAuth functions on the deployment, so those
+functions and the env vars must be pushed first.
+
+### From the admin page (primary)
+
+Sign in as a director and open **Admin → Service accounts**. Each card has
+**Connect** (or **Reconnect**), which opens the provider's consent screen and
+stores the token on return. The card shows the access-token expiry, whether a
+refresh token is present, the granted scopes, and who connected it.
+
+**Refresh** exchanges the stored refresh token without re-consenting.
+**Disconnect** deletes the stored token; the platform stops using that service
+until it is connected again. Disconnecting does not revoke the grant at the
+provider — do that in the provider's own console if a token may have leaked.
+
+Requires `SITE_URL` to be correct and the admin redirect URI registered with the
+provider (see the table above).
+
+### From the CLI (bootstrap / fallback)
+
+Still available, and the only option before the site is deployed and reachable
+at `SITE_URL`. Start `bun run dev` (or `bun run convex dev`), leave it running,
+then:
 
 ```sh
 bun run auth google   # localhost:3847
@@ -97,3 +137,6 @@ bun run auth canva    # localhost:3849
 ```
 
 For production, prefix with `CONVEX_PROD=1`, e.g. `CONVEX_PROD=1 bun run auth canva`.
+
+Tokens stored this way have no user attached, so the admin card shows the CLI as
+the connector rather than a named director.

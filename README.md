@@ -20,10 +20,10 @@ Configurable operations platform for competitions, tasks, teams, and sponsor wor
    what each one needs (and run it with `--dry-run` first to gather them).
 5. **Run it:** `bun run dev`. Starts the frontend (`:5173`), sponsor portal
    (`:5174`), and Convex sync, pushed and live.
-6. **Exchange service tokens** (only if you enabled integrations): with the
-   deployment running, `bun run auth <google|wca|canva>`. This must come after a
-   deploy — see
-   [Service setup](docs/services.md#exchanging-service-tokens).
+6. **Exchange service tokens** (only if you enabled integrations): connect each
+   service from **Admin → Service accounts**, or with the deployment running,
+   `bun run auth <google|wca|canva>`. Either way this must come after a deploy —
+   see [Service setup](docs/services.md#exchanging-service-tokens).
 7. **Bootstrap data:** Create first user as below and then run `bunx convex run seed/mutations:run`
 
 ### First user (WCA login)
@@ -94,12 +94,12 @@ scripts/
 
 ## Auth
 
-| Audience      | Mechanism                                          |
-| ------------- | -------------------------------------------------- |
-| Staff         | Convex Auth + configured provider/domain           |
-| Sponsors      | Better Auth — OTP email via `/api/sponsor-auth`    |
-| Service APIs  | OAuth CLI (`bun run auth`) — stores refresh tokens |
-| Admin testing | Impersonation tokens (admin UI)                    |
+| Audience      | Mechanism                                                    |
+| ------------- | ------------------------------------------------------------ |
+| Staff         | Convex Auth + configured provider/domain                     |
+| Sponsors      | Better Auth — OTP email via `/api/sponsor-auth`              |
+| Service APIs  | OAuth via admin UI or `bun run auth` — stores refresh tokens |
+| Admin testing | Impersonation tokens (admin UI)                              |
 
 ## Integrations
 

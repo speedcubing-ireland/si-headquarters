@@ -71,6 +71,9 @@ async function refreshStoredServiceToken(
         ? refreshed.refreshToken
         : stored.refreshToken,
     expiresAt: refreshed.expiresAt,
+    // A refresh response that omits `scope` means "unchanged", not "nothing
+    // granted", so keep whatever was recorded at connect time.
+    scope: refreshed.scope ?? stored.scope,
   }
   const saveResult = await ctx.runMutation(
     internal.integrations.tokensStore.saveRefreshedToken,
@@ -109,7 +112,7 @@ export async function resolveValidServiceToken(
   if (stored === null) {
     throw new ConvexError({
       code: "PRECONDITION_FAILED",
-      message: `${oauth.client.displayName} is not connected. Run 'bun run auth ${oauth.meta.cli.providerArg}'.`,
+      message: `${oauth.client.displayName} is not connected. Connect it from Admin → Service accounts.`,
     })
   }
 
@@ -150,7 +153,7 @@ export const refreshServiceAccount = action({
     if (stored.refreshToken === "") {
       return {
         success: false as const,
-        message: `${oauth.client.displayName} does not have a refresh token. Reconnect it from the CLI.`,
+        message: `${oauth.client.displayName} does not have a refresh token. Reconnect it from Admin → Service accounts.`,
       }
     }
 
