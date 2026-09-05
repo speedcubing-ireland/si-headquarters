@@ -636,8 +636,12 @@ export const getHome = query({
     )
     const watcherIdsByTaskId = buildTaskWatcherIdsByTaskId(tasks, subscriptions)
 
-    const readableCompetitions = competitions.filter((competition) =>
-      canPerform(principal, "read", "Competition", competition)
+    // A competition the WCA has cancelled is not active work, so it drops off
+    // the dashboard entirely rather than sitting there accruing overdue tasks.
+    const readableCompetitions = competitions.filter(
+      (competition) =>
+        competition.cancelledAt === undefined &&
+        canPerform(principal, "read", "Competition", competition)
     )
     const readableCompetitionIds = new Set(
       readableCompetitions.map((competition) => competition._id)

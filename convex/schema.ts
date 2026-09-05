@@ -11,7 +11,10 @@ import { competitionOrganiserInvitesTable } from "@/convex/competitions/invites/
 import { impersonationSessionsTable } from "@/convex/impersonation/validators"
 import { subscriptionsFields } from "@/convex/subscriptions/validators"
 import { usersFields } from "@/convex/users/validators"
-import { phasesFields } from "@/convex/phases/validators"
+import {
+  phasesFields,
+  wcaPhaseMappingsFields,
+} from "@/convex/phases/validators"
 import {
   teamDiscordChannelFields,
   teamMembershipFields,
@@ -101,6 +104,10 @@ const schema = defineSchema(
         "sortKey",
       ])
       .searchIndex("search_name", { searchField: "name" }),
+    wcaPhaseMappings: defineTable(wcaPhaseMappingsFields).index(
+      "by_templateKey",
+      ["templateKey"]
+    ),
     tasks: defineTable(tasksFields)
       .index("by_parent_type_and_parent_id_and_order", [
         "parent.type",

@@ -33,6 +33,7 @@ const config = defineOrganisationConfig({
   },
   wca: {
     scheduleTemplateCompetitionId: "TestTemplate2100",
+    countryIso2: "IE",
   },
   features: {
     google: true,

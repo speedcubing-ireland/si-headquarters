@@ -24,6 +24,7 @@ const calendarCompetitionRow = v.object({
     to: v.nullable(v.string()),
   }),
   phase: phaseSnapshotValidator,
+  cancelled: v.boolean(),
   compLead: v.union(publicUserValidator, v.null()),
   leadDelegate: v.union(publicUserValidator, v.null()),
   organisers: v.array(publicUserValidator),
@@ -53,6 +54,7 @@ interface CalendarCompetitionRow {
     name: string
     color: Doc<"phases">["color"]
   } | null
+  cancelled: boolean
   compLead: Awaited<ReturnType<typeof getPublicUser>>
   leadDelegate: Awaited<ReturnType<typeof getPublicUser>>
   organisers: NonNullable<Awaited<ReturnType<typeof getPublicUser>>>[]
@@ -81,6 +83,7 @@ async function buildCompetitionRow(
     name: competition.name,
     compDates: competition.compDates,
     phase,
+    cancelled: competition.cancelledAt !== undefined,
     compLead,
     leadDelegate,
     organisers: organisers.filter(

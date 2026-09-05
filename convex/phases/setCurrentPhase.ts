@@ -13,7 +13,8 @@ export async function setCurrentPhaseForOwner(
   args: {
     owner: CompetitionOrProjectRef
     phaseId: Id<"phases">
-    actorId: Id<"users">
+    /** Null when the change is system-driven, e.g. the WCA status sync. */
+    actorId: Id<"users"> | null
     previousPhaseId: Id<"phases"> | null
   }
 ): Promise<void> {

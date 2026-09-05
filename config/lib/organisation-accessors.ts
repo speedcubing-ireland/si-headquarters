@@ -81,11 +81,21 @@ export function createOrganisationAccessors(
     return config
   }
 
+  /**
+   * Country the organisation runs competitions in, if configured. The WCA phase
+   * sync uses it to fetch local registration dates in one request; without it
+   * the "registration closed" milestone simply never fires.
+   */
+  function competitionCountryIso2(): string | null {
+    return config.wca?.countryIso2 ?? null
+  }
+
   return {
     isFeatureEnabled,
     findLoginProvider,
     sponsorshipConfig,
     configuredSponsorshipSenderAddress,
     checkinSheetsConfig,
+    competitionCountryIso2,
   }
 }

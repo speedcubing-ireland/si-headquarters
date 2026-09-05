@@ -94,13 +94,15 @@ export async function insertCompetitionPhase(
   competitionId: Id<"competitions">,
   name: string,
   sortKey: string,
-  color: Doc<"phases">["color"] = "gray"
+  color: Doc<"phases">["color"] = "gray",
+  templateKey?: string
 ): Promise<Id<"phases">> {
   return await ctx.db.insert("phases", {
     name,
     owner: { type: "competitions", id: competitionId },
     sortKey,
     color,
+    templateKey,
   })
 }
 

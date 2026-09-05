@@ -1,11 +1,13 @@
 import type { LucideIcon } from "lucide-react"
 import type { ComponentType } from "react"
+import type { Id } from "@/convex/_generated/dataModel"
 import type { Action, Subject } from "@/features/auth/ability"
 import { eventsPlugin } from "@/plugins/events"
 import { refundsPlugin } from "@/plugins/refunds"
 import { sponsorPlugin } from "@/plugins/sponsor"
 import { socialMediaPlugin } from "@/plugins/social-media"
 import { wca2faPlugin } from "@/plugins/wca-2fa"
+import { wcaPlugin } from "@/plugins/wca/plugin"
 import { isFeatureEnabled, type FeatureId } from "@/config/lib/organisation"
 
 export interface SidebarEntry {
@@ -22,12 +24,15 @@ export interface Plugin {
   id: string
   feature: FeatureId
   nav: SidebarEntry[]
-  competitionProperties: ComponentType<{ competitionId: string }>[]
+  competitionProperties: ComponentType<{
+    competitionId: Id<"competitions">
+  }>[]
 }
 
 const ALL_PLUGINS: Plugin[] = [
   eventsPlugin,
   refundsPlugin,
+  wcaPlugin,
   wca2faPlugin,
   socialMediaPlugin,
   sponsorPlugin,

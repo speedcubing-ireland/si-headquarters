@@ -11,6 +11,7 @@ import type { TaskLabelCode } from "@/convex/tasks/labels/constants"
 import type { TaskKind } from "@/convex/tasks/kind"
 import type { TaskStatus } from "@/convex/tasks/status/validators"
 import type { TemplateVariableValue } from "@/convex/templates/validators"
+import type { WcaMilestone } from "@/convex/phases/wcaMilestones"
 
 type TemplateVariableType =
   | "text"
@@ -85,6 +86,13 @@ interface CompetitionTemplatePhaseSpec {
   key: string
   name: string
   color: Doc<"phases">["color"]
+  /**
+   * Default WCA milestone that advances a competition into this phase. This is
+   * only the default — the live mapping is org-level and editable in
+   * Admin → WCA phases (`wcaPhaseMappings`). Phases without one are never
+   * targeted by the WCA sync and stay under human control.
+   */
+  wcaMilestone?: WcaMilestone
   tasks?: readonly CompetitionTemplateTaskSpec[]
 }
 
@@ -103,7 +111,7 @@ const L = TASK_LABEL_CODES
 
 export const standardCompetitionTemplate = {
   key: "standard-competition",
-  version: 4,
+  version: 5,
   name: "Normal Competition",
   description: "Default template for competitions",
   initialPhaseKey: "concept",
@@ -134,6 +142,7 @@ export const standardCompetitionTemplate = {
       key: "pre-announcement",
       name: "Pre-Announcement",
       color: "red",
+      wcaMilestone: "submitted",
       tasks: [
         {
           key: "venue-booked",
@@ -245,6 +254,7 @@ export const standardCompetitionTemplate = {
       key: "announced",
       name: "Announced",
       color: "sky",
+      wcaMilestone: "announced",
       tasks: [
         {
           key: "social-media-promotion",
@@ -315,6 +325,7 @@ export const standardCompetitionTemplate = {
       key: "pre-competition",
       name: "Pre-Competition",
       color: "amber",
+      wcaMilestone: "registrationClosed",
       tasks: [
         {
           key: "waiting-list-emailed",
@@ -421,6 +432,7 @@ export const standardCompetitionTemplate = {
       key: "post-competition",
       name: "Post-Competition",
       color: "green",
+      wcaMilestone: "held",
       tasks: [
         {
           key: "all-expenses-submitted",
@@ -477,6 +489,7 @@ export const standardCompetitionTemplate = {
       key: "completed",
       name: "Completed",
       color: "gray",
+      wcaMilestone: "resultsPosted",
     },
   ],
 } as const satisfies CompetitionTemplateDefinition

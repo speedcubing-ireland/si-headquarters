@@ -438,6 +438,7 @@ async function applyCompetitionTemplateStructure(
       owner: { type: "competitions", id: competitionId },
       sortKey: phaseOrderKeys[index],
       color: phase.color,
+      templateKey: phase.key,
     })
     phaseIdsByKey.set(phase.key, phaseId)
     await insertTaskTree({

@@ -41,10 +41,18 @@ export function CompetitionCalendarRow({
           <Link
             to="/competitions/$id"
             params={{ id: row._id }}
-            className="truncate text-base font-semibold hover:underline"
+            className={cn(
+              "truncate text-base font-semibold hover:underline",
+              row.cancelled && "text-muted-foreground line-through"
+            )}
           >
             {row.name}
           </Link>
+          {row.cancelled ? (
+            <span className="inline-flex shrink-0 items-center rounded-full border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
+              Cancelled
+            </span>
+          ) : null}
           {row.phase ? (
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs">
               <Dot className="size-2" color={row.phase.color} />

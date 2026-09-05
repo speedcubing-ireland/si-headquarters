@@ -91,6 +91,15 @@ const sponsorshipSchema = z
 const wcaSchema = z
   .object({
     scheduleTemplateCompetitionId: nonEmptyString,
+    // Two-letter country the organisation runs competitions in. Lets the phase
+    // sync pull every local competition's registration dates in one public
+    // request instead of one per competition. Optional: without it the sync
+    // still runs, but the "registration closed" milestone never fires.
+    countryIso2: z
+      .string()
+      .trim()
+      .regex(/^[A-Z]{2}$/, "Must be a two-letter uppercase ISO 3166-1 code.")
+      .optional(),
   })
   .strict()
 

@@ -128,6 +128,12 @@ export const notificationEvent = v.union(
     nextPhaseId: v.id("phases"),
   }),
   v.object({
+    kind: v.literal("competitionCancelled"),
+    competitionId: v.id("competitions"),
+    /** False when the WCA has un-cancelled a competition. */
+    cancelled: v.boolean(),
+  }),
+  v.object({
     kind: v.literal("updatePublished"),
     object: competitionOrProjectRef,
     updateId: v.id("objectUpdates"),
