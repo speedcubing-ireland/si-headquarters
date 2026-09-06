@@ -8,7 +8,6 @@ import {
   isFeatureEnabled,
 } from "@/config/lib/organisation"
 import { resolveValidServiceToken } from "@/convex/integrations/tokens"
-import { DEFAULT_COMPETITION_TEMPLATE_KEY } from "@/convex/phases/wcaMappingModel"
 import { observeCompetition } from "@/convex/plugins/wca/competitionStatus"
 import { fetchWcaStatusSources } from "@/convex/plugins/wca/statusFetch"
 
@@ -50,10 +49,19 @@ export const syncCompetitionStatuses = internalAction({
       return { checked: 0, skipped: null }
     }
 
-    const sources = await fetchWcaStatusSources(
-      accessToken,
-      competitionCountryIso2()
-    )
+    // The mapping is org-level and identical for every competition, so it is
+    // resolved once here rather than re-read inside each transaction.
+    const [sources, mappings] = await Promise.all([
+      fetchWcaStatusSources(
+        accessToken,
+        competitionCountryIso2(),
+        args.wcaCompetitionId
+      ),
+      ctx.runQuery(
+        internal.plugins.wca.statusSyncMutations.getPhaseMappings,
+        {}
+      ),
+    ])
 
     const fetchedAt = Date.now()
     let checked = 0
@@ -76,7 +84,7 @@ export const syncCompetitionStatuses = internalAction({
             index,
             fetchedAt,
           }),
-          templateKey: DEFAULT_COMPETITION_TEMPLATE_KEY,
+          mappings,
         }
       )
       checked += 1

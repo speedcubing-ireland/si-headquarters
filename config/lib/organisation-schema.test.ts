@@ -55,6 +55,29 @@ describe("organisation configuration", () => {
     expect(() => defineOrganisationConfig(config)).not.toThrow()
   })
 
+  test("rejects a wca block without a competition country", () => {
+    // Required rather than optional: unset, it would silently disable the WCA
+    // sync's "registration closed" milestone while the sync reported success.
+    const { countryIso2, ...wcaWithoutCountry } = cloneConfig().wca ?? {}
+    void countryIso2
+
+    const result = organisationConfigSchema.safeParse({
+      ...cloneConfig(),
+      wca: wcaWithoutCountry,
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  test("rejects a malformed competition country", () => {
+    const result = organisationConfigSchema.safeParse({
+      ...cloneConfig(),
+      wca: { ...cloneConfig().wca, countryIso2: "ireland" },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   test("rejects duplicate providers", () => {
     const config = cloneConfig()
     const providers = config.auth.providers
@@ -231,6 +254,7 @@ describe("organisation configuration", () => {
         },
         wca: {
           scheduleTemplateCompetitionId: "TestTemplate2100",
+          countryIso2: "GB",
         },
         features: {
           google: false,

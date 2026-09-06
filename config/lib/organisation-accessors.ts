@@ -82,12 +82,17 @@ export function createOrganisationAccessors(
   }
 
   /**
-   * Country the organisation runs competitions in, if configured. The WCA phase
-   * sync uses it to fetch local registration dates in one request; without it
-   * the "registration closed" milestone simply never fires.
+   * Country the organisation runs competitions in. The WCA phase sync uses it
+   * to fetch local registration dates in one request.
    */
-  function competitionCountryIso2(): string | null {
-    return config.wca?.countryIso2 ?? null
+  function competitionCountryIso2(): string {
+    const countryIso2 = config.wca?.countryIso2
+    if (countryIso2 === undefined) {
+      throw new Error(
+        "WCA competition country was requested while WCA config is absent."
+      )
+    }
+    return countryIso2
   }
 
   return {

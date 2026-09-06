@@ -17,7 +17,7 @@ import {
 import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
 import { listPhasesForOwner } from "@/convex/phases/model"
 import {
-  getCompetitionTemplate,
+  getTemplateOrThrow,
   type CompetitionTemplateDefinition,
   type CompetitionTemplateTaskSpec,
 } from "@/convex/templates/registry"
@@ -64,16 +64,6 @@ async function getExistingCompetitionTemplateBlockReason(
 
 function userFacingError(message: string): never {
   throw new ConvexError({ code: "BAD_REQUEST", message })
-}
-
-function getTemplateOrThrow(
-  templateKey: string
-): CompetitionTemplateDefinition {
-  const template = getCompetitionTemplate(templateKey)
-  if (template === null) {
-    userFacingError("Competition template not found.")
-  }
-  return template
 }
 
 function isMissing(value: TemplateVariableValue | undefined): boolean {
@@ -481,7 +471,7 @@ async function applyCompetitionTemplateStructure(
     await ctx.db.patch("competitions", competitionId, {
       phaseId: initialPhaseId,
     })
-    await activatePhaseBacklogTasks(ctx, initialPhaseId)
+    await activatePhaseBacklogTasks(ctx, [initialPhaseId])
   }
 
   return competitionId

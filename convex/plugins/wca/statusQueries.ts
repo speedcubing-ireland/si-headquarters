@@ -3,10 +3,8 @@ import { query } from "@/convex/_generated/server"
 import { requireCompetitionForRead } from "@/convex/competitions/access"
 import { WCA_MILESTONES } from "@/convex/phases/wcaMilestones"
 import { wcaMilestone } from "@/convex/phases/validators"
-import {
-  DEFAULT_COMPETITION_TEMPLATE_KEY,
-  loadMappingsForTemplate,
-} from "@/convex/phases/wcaMappingModel"
+import { listPhasesForOwnerBounded } from "@/convex/phases/model"
+import { loadMappings } from "@/convex/phases/wcaMappingModel"
 import { reachedMilestones } from "@/convex/plugins/wca/competitionStatus"
 
 /**
@@ -60,16 +58,13 @@ export const getForCompetition = query({
     }
 
     const reached = reachedMilestones(status, Date.now())
-    const mappings = await loadMappingsForTemplate(
-      ctx,
-      DEFAULT_COMPETITION_TEMPLATE_KEY
-    )
-    const phases = await ctx.db
-      .query("phases")
-      .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
-        q.eq("owner.type", "competitions").eq("owner.id", args.competitionId)
-      )
-      .collect()
+    const [mappings, phases] = await Promise.all([
+      loadMappings(ctx),
+      listPhasesForOwnerBounded(ctx, {
+        type: "competitions",
+        id: args.competitionId,
+      }),
+    ])
     const templateKeys = new Set(
       phases
         .map((phase) => phase.templateKey)

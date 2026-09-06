@@ -104,10 +104,9 @@ const schema = defineSchema(
         "sortKey",
       ])
       .searchIndex("search_name", { searchField: "name" }),
-    wcaPhaseMappings: defineTable(wcaPhaseMappingsFields).index(
-      "by_templateKey",
-      ["templateKey"]
-    ),
+    wcaPhaseMappings: defineTable(wcaPhaseMappingsFields).index("by_key", [
+      "key",
+    ]),
     tasks: defineTable(tasksFields)
       .index("by_parent_type_and_parent_id_and_order", [
         "parent.type",

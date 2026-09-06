@@ -1,8 +1,7 @@
 import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { internalMutation } from "@/convex/_generated/server"
-import { DEFAULT_COMPETITION_TEMPLATE_KEY } from "@/convex/phases/wcaMappingModel"
-import { getCompetitionTemplate } from "@/convex/templates/registry"
+import { standardCompetitionTemplate } from "@/convex/templates/registry"
 
 const PHASES_PER_BATCH = 200
 
@@ -29,7 +28,6 @@ const backfillTallyValidator = v.object({
  */
 export const backfillPhaseTemplateKeys = internalMutation({
   args: {
-    templateKey: v.optional(v.string()),
     /** Report what would change without writing anything. */
     dryRun: v.optional(v.boolean()),
     /** Continuation state; omit when starting a run. */
@@ -42,14 +40,8 @@ export const backfillPhaseTemplateKeys = internalMutation({
     isDone: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const templateKey = args.templateKey ?? DEFAULT_COMPETITION_TEMPLATE_KEY
-    const template = getCompetitionTemplate(templateKey)
-    if (template === null) {
-      throw new Error(`Unknown competition template "${templateKey}".`)
-    }
-
     const keyByName = new Map(
-      template.phases.map((phase) => [
+      standardCompetitionTemplate.phases.map((phase) => [
         phase.name.trim().toLowerCase(),
         phase.key,
       ])
@@ -90,12 +82,7 @@ export const backfillPhaseTemplateKeys = internalMutation({
       await ctx.scheduler.runAfter(
         0,
         internal.phases.wcaBackfill.backfillPhaseTemplateKeys,
-        {
-          templateKey: args.templateKey,
-          dryRun: args.dryRun,
-          cursor: page.continueCursor,
-          tally,
-        }
+        { dryRun: args.dryRun, cursor: page.continueCursor, tally }
       )
     }
 

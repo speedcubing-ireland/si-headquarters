@@ -6,59 +6,45 @@ import {
   type WcaMilestone,
 } from "@/convex/phases/wcaMilestones"
 import {
-  getCompetitionTemplate,
   standardCompetitionTemplate,
+  type CompetitionTemplateDefinition,
 } from "@/convex/templates/registry"
 
 /**
- * The template competitions are created from today. The mapping is stored per
- * template so a second template can carry its own mapping later without a
- * migration.
+ * The mapping targets template phase keys, and competitions are all created
+ * from the one competition template, so it is referenced directly rather than
+ * looked up. Should a second template appear, this is the point to make the
+ * mapping per-template — and the competition would need to record which
+ * template built it, which it does not today.
  */
-export const DEFAULT_COMPETITION_TEMPLATE_KEY = standardCompetitionTemplate.key
+// Typed as the interface rather than the literal so phase specs that omit
+// `wcaMilestone` still expose it as optional.
+const TEMPLATE: CompetitionTemplateDefinition = standardCompetitionTemplate
+
+/** Single settings row, following `sponsorshipAuctionSettings`. */
+export const WCA_PHASE_MAPPING_KEY = "default"
 
 export interface WcaPhaseMapping {
   milestone: WcaMilestone
   phaseKey: string | null
 }
 
-interface TemplatePhase {
-  key: string
-  name: string
-  /** Position in the template's phase order. */
-  index: number
+/** Template phases as key → name and position, for validation and display. */
+function templatePhaseByKey() {
+  return new Map(
+    TEMPLATE.phases.map((phase, index) => [
+      phase.key,
+      { name: phase.name, index },
+    ])
+  )
 }
 
-function templatePhases(templateKey: string): TemplatePhase[] {
-  const template = getCompetitionTemplate(templateKey)
-  if (template === null) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: `Unknown competition template "${templateKey}".`,
-    })
-  }
-  return template.phases.map((phase, index) => ({
-    key: phase.key,
-    name: phase.name,
-    index,
-  }))
-}
-
-/** The mapping a template ships with, before any admin override. */
-export function defaultMappingsForTemplate(
-  templateKey: string
-): WcaPhaseMapping[] {
-  const template = getCompetitionTemplate(templateKey)
-  if (template === null) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: `Unknown competition template "${templateKey}".`,
-    })
-  }
+/** The mapping the template ships with, before any admin override. */
+export function defaultMappings(): WcaPhaseMapping[] {
   return WCA_MILESTONES.map((milestone) => ({
     milestone,
     phaseKey:
-      template.phases.find((phase) => phase.wcaMilestone === milestone)?.key ??
+      TEMPLATE.phases.find((phase) => phase.wcaMilestone === milestone)?.key ??
       null,
   }))
 }
@@ -80,18 +66,16 @@ export function normalizeMappings(
   }))
 }
 
-export async function loadMappingsForTemplate(
-  ctx: QueryCtx,
-  templateKey: string
-): Promise<WcaPhaseMapping[]> {
-  const row = await ctx.db
+export function loadMappingRow(ctx: QueryCtx) {
+  return ctx.db
     .query("wcaPhaseMappings")
-    .withIndex("by_templateKey", (q) => q.eq("templateKey", templateKey))
+    .withIndex("by_key", (q) => q.eq("key", WCA_PHASE_MAPPING_KEY))
     .unique()
-  if (row === null) {
-    return defaultMappingsForTemplate(templateKey)
-  }
-  return normalizeMappings(row.mappings)
+}
+
+export async function loadMappings(ctx: QueryCtx): Promise<WcaPhaseMapping[]> {
+  const row = await loadMappingRow(ctx)
+  return row === null ? defaultMappings() : normalizeMappings(row.mappings)
 }
 
 /**
@@ -106,13 +90,11 @@ export async function loadMappingsForTemplate(
  *   silently never advance past it.
  */
 export function assertMappingsValid(
-  templateKey: string,
   mappings: readonly WcaPhaseMapping[]
 ): void {
-  const phases = templatePhases(templateKey)
-  const phaseByKey = new Map(phases.map((phase) => [phase.key, phase]))
+  const phaseByKey = templatePhaseByKey()
 
-  const seenPhaseKeys = new Map<string, WcaMilestone>()
+  const seenPhaseKeys = new Set<string>()
   for (const mapping of mappings) {
     if (mapping.phaseKey === null) continue
 
@@ -124,14 +106,13 @@ export function assertMappingsValid(
       })
     }
 
-    const existing = seenPhaseKeys.get(mapping.phaseKey)
-    if (existing !== undefined) {
+    if (seenPhaseKeys.has(mapping.phaseKey)) {
       throw new ConvexError({
         code: "BAD_REQUEST",
         message: `${phase.name} is mapped to more than one WCA milestone. Each phase can back at most one.`,
       })
     }
-    seenPhaseKeys.set(mapping.phaseKey, mapping.milestone)
+    seenPhaseKeys.add(mapping.phaseKey)
   }
 
   // Resolve to phases up front so the ordering check works on template
@@ -153,5 +134,17 @@ export function assertMappingsValid(
         message: `${current.name} comes before ${previous.name} in the phase order, so it cannot be mapped to a later WCA milestone. Later milestones must map to later phases.`,
       })
     }
+  }
+}
+
+/** The template's phases, as the admin screen's dropdown options. */
+export function templatePhaseOptions() {
+  return {
+    templateName: TEMPLATE.name,
+    phases: TEMPLATE.phases.map((phase) => ({
+      key: phase.key,
+      name: phase.name,
+      color: phase.color,
+    })),
   }
 }

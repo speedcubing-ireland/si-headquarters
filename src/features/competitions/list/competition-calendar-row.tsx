@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge"
 import { Dot } from "@/components/data-selectors/phase-selector"
 import { PHASE_COLOR_CLASSES } from "@/components/data-selectors/phase-meta"
 import { CompetitionCalendarPeopleFields } from "@/features/competitions/competition-people-selectors"
@@ -49,9 +50,9 @@ export function CompetitionCalendarRow({
             {row.name}
           </Link>
           {row.cancelled ? (
-            <span className="inline-flex shrink-0 items-center rounded-full border border-destructive/40 px-2 py-0.5 text-xs text-destructive">
+            <Badge variant="destructive" className="shrink-0">
               Cancelled
-            </span>
+            </Badge>
           ) : null}
           {row.phase ? (
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs">

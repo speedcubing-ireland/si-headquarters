@@ -7,22 +7,15 @@ import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 import {
   insertBlankCompetition,
-  insertCompetitionPhase,
+  seedTemplateCompetition,
   withVolunteerTestClient,
+  type TemplatePhaseKey,
 } from "@/convex/testHelpers"
+import { defaultMappings } from "@/convex/phases/wcaMappingModel"
 import type { WcaCompetitionObservation } from "@/convex/plugins/wca/validators"
 
 const WCA_ID = "SpringOpen2026"
 const NOW = Date.UTC(2026, 5, 15)
-
-const TEMPLATE_PHASES = [
-  { key: "concept", name: "Concept" },
-  { key: "pre-announcement", name: "Pre-Announcement" },
-  { key: "announced", name: "Announced" },
-  { key: "pre-competition", name: "Pre-Competition" },
-  { key: "post-competition", name: "Post-Competition" },
-  { key: "completed", name: "Completed" },
-] as const
 
 function observation(
   overrides: Partial<WcaCompetitionObservation> = {}
@@ -33,7 +26,6 @@ function observation(
     cancelled: false,
     announced: true,
     resultsPosted: false,
-    reportPosted: false,
     startDate: "2026-12-05",
     endDate: "2026-12-06",
     registrationCloseAt: null,
@@ -44,26 +36,13 @@ function observation(
 
 async function seedLinkedCompetition(
   t: TestConvex<typeof schema>,
-  omit: readonly string[] = []
+  omit: readonly TemplatePhaseKey[] = []
 ): Promise<Id<"competitions">> {
-  return await t.run(async (ctx) => {
-    const competitionId = await insertBlankCompetition(ctx)
-    await ctx.db.patch("competitions", competitionId, {
-      wcaCompetitionId: WCA_ID,
-    })
-    for (const [index, phase] of TEMPLATE_PHASES.entries()) {
-      if (omit.includes(phase.key)) continue
-      await insertCompetitionPhase(
-        ctx,
-        competitionId,
-        phase.name,
-        `a${String(index)}`,
-        "gray",
-        phase.key
-      )
-    }
-    return competitionId
+  const { competitionId } = await seedTemplateCompetition(t, {
+    omit,
+    wcaCompetitionId: WCA_ID,
   })
+  return competitionId
 }
 
 describe("getForCompetition", () => {
@@ -88,7 +67,7 @@ describe("getForCompetition", () => {
 
     await t.mutation(
       internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
-      { observation: observation(), templateKey: "standard-competition" }
+      { observation: observation(), mappings: defaultMappings() }
     )
 
     const status = await client.query(
@@ -105,7 +84,7 @@ describe("getForCompetition", () => {
 
     await t.mutation(
       internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
-      { observation: observation(), templateKey: "standard-competition" }
+      { observation: observation(), mappings: defaultMappings() }
     )
 
     // The template maps nothing to `confirmed`, which is a choice rather than a
@@ -124,7 +103,7 @@ describe("getForCompetition", () => {
 
     await t.mutation(
       internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
-      { observation: observation(), templateKey: "standard-competition" }
+      { observation: observation(), mappings: defaultMappings() }
     )
 
     const status = await client.query(
@@ -143,7 +122,7 @@ describe("getForCompetition", () => {
       internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
       {
         observation: observation({ cancelled: true }),
-        templateKey: "standard-competition",
+        mappings: defaultMappings(),
       }
     )
 

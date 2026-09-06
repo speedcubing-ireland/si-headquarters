@@ -69,7 +69,6 @@ function status(
     announced: false,
     cancelled: false,
     resultsPosted: false,
-    reportPosted: false,
     startDate: "2026-06-06",
     endDate: "2026-06-07",
     registrationCloseAt: null,

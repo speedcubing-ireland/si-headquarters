@@ -2,6 +2,7 @@ import { internal } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { internalMutation } from "@/convex/_generated/server"
 import type { MutationCtx } from "@/convex/_generated/server"
+import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
 import {
   localDateOffset,
   localToday,
@@ -175,6 +176,15 @@ async function selectOverdueOwner(ctx: MutationCtx, state: OverdueScanState) {
       return
     }
     const competition = page.page[0]
+    if (isCompetitionCancelled(competition)) {
+      // A cancelled competition is not live work, so its tasks must not raise
+      // overdue notifications. Skip to the next owner.
+      await scheduleSelectOverdueOwner(ctx, {
+        ...state,
+        ownerCursor: page.continueCursor,
+      })
+      return
+    }
     owner = { type: "competitions", id: competition._id }
     phaseId = competition.phaseId
     ownerCursor = page.continueCursor

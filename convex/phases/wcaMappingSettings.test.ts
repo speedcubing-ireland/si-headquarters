@@ -4,8 +4,16 @@ import { describe, expect, test } from "vitest"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
-import { seedDirectorUser, seedVolunteerTestUser } from "@/convex/testHelpers"
-import { WCA_MILESTONES } from "@/convex/phases/wcaMilestones"
+import {
+  seedDirectorUser,
+  seedVolunteerTestUser,
+  TEMPLATE_PHASES,
+} from "@/convex/testHelpers"
+import {
+  WCA_MILESTONES,
+  type WcaMilestone,
+} from "@/convex/phases/wcaMilestones"
+import { defaultMappings } from "@/convex/phases/wcaMappingModel"
 
 async function asDirector(t: TestConvex<typeof schema>) {
   const userId = await t.run(async (ctx) => seedDirectorUser(ctx))
@@ -17,15 +25,16 @@ async function asVolunteer(t: TestConvex<typeof schema>) {
   return t.withIdentity({ subject: userId })
 }
 
-/** A valid, monotonic mapping to mutate in the failure cases. */
-const VALID_MAPPINGS = [
-  { milestone: "submitted", phaseKey: "pre-announcement" },
-  { milestone: "confirmed", phaseKey: null },
-  { milestone: "announced", phaseKey: "announced" },
-  { milestone: "registrationClosed", phaseKey: "pre-competition" },
-  { milestone: "held", phaseKey: "post-competition" },
-  { milestone: "resultsPosted", phaseKey: "completed" },
-] as const
+/**
+ * A full mapping with the named milestones overridden and the rest unmapped, so
+ * each failure case shows only the entries that are the point of the test.
+ */
+function mappingsWith(overrides: Partial<Record<WcaMilestone, string | null>>) {
+  return WCA_MILESTONES.map((milestone) => ({
+    milestone,
+    phaseKey: overrides[milestone] ?? null,
+  }))
+}
 
 describe("get", () => {
   test("returns the template defaults when nothing is stored", async () => {
@@ -35,15 +44,10 @@ describe("get", () => {
     const settings = await director.query(api.phases.wcaMappingSettings.get, {})
 
     expect(settings.isCustomised).toBe(false)
-    expect(settings.mappings).toEqual([...VALID_MAPPINGS])
-    expect(settings.phases.map((phase) => phase.key)).toEqual([
-      "concept",
-      "pre-announcement",
-      "announced",
-      "pre-competition",
-      "post-competition",
-      "completed",
-    ])
+    expect(settings.mappings).toEqual(defaultMappings())
+    expect(settings.phases.map((phase) => phase.key)).toEqual(
+      TEMPLATE_PHASES.map((phase) => phase.key)
+    )
   })
 
   test("returns one entry per milestone, in ladder order", async () => {
@@ -73,13 +77,13 @@ describe("update", () => {
     const director = await asDirector(t)
 
     await director.mutation(api.phases.wcaMappingSettings.update, {
-      mappings: VALID_MAPPINGS.map((mapping) =>
-        mapping.milestone === "confirmed"
-          ? { milestone: "confirmed" as const, phaseKey: "pre-announcement" }
-          : mapping.milestone === "submitted"
-            ? { milestone: "submitted" as const, phaseKey: null }
-            : mapping
-      ),
+      mappings: mappingsWith({
+        confirmed: "pre-announcement",
+        announced: "announced",
+        registrationClosed: "pre-competition",
+        held: "post-competition",
+        resultsPosted: "completed",
+      }),
     })
 
     const settings = await director.query(api.phases.wcaMappingSettings.get, {})
@@ -95,14 +99,10 @@ describe("update", () => {
 
     await expect(
       director.mutation(api.phases.wcaMappingSettings.update, {
-        mappings: [
-          { milestone: "submitted", phaseKey: "completed" },
-          { milestone: "confirmed", phaseKey: null },
-          { milestone: "announced", phaseKey: "announced" },
-          { milestone: "registrationClosed", phaseKey: null },
-          { milestone: "held", phaseKey: null },
-          { milestone: "resultsPosted", phaseKey: null },
-        ],
+        mappings: mappingsWith({
+          submitted: "completed",
+          announced: "announced",
+        }),
       })
     ).rejects.toThrow()
   })
@@ -113,14 +113,10 @@ describe("update", () => {
 
     await expect(
       director.mutation(api.phases.wcaMappingSettings.update, {
-        mappings: [
-          { milestone: "submitted", phaseKey: "announced" },
-          { milestone: "confirmed", phaseKey: null },
-          { milestone: "announced", phaseKey: "announced" },
-          { milestone: "registrationClosed", phaseKey: null },
-          { milestone: "held", phaseKey: null },
-          { milestone: "resultsPosted", phaseKey: null },
-        ],
+        mappings: mappingsWith({
+          submitted: "announced",
+          announced: "announced",
+        }),
       })
     ).rejects.toThrow()
   })
@@ -131,14 +127,7 @@ describe("update", () => {
 
     await expect(
       director.mutation(api.phases.wcaMappingSettings.update, {
-        mappings: [
-          { milestone: "submitted", phaseKey: "not-a-real-phase" },
-          { milestone: "confirmed", phaseKey: null },
-          { milestone: "announced", phaseKey: null },
-          { milestone: "registrationClosed", phaseKey: null },
-          { milestone: "held", phaseKey: null },
-          { milestone: "resultsPosted", phaseKey: null },
-        ],
+        mappings: mappingsWith({ submitted: "not-a-real-phase" }),
       })
     ).rejects.toThrow()
   })
@@ -148,10 +137,7 @@ describe("update", () => {
     const director = await asDirector(t)
 
     await director.mutation(api.phases.wcaMappingSettings.update, {
-      mappings: WCA_MILESTONES.map((milestone) => ({
-        milestone,
-        phaseKey: null,
-      })),
+      mappings: mappingsWith({}),
     })
 
     const settings = await director.query(api.phases.wcaMappingSettings.get, {})
@@ -164,7 +150,7 @@ describe("update", () => {
 
     await expect(
       volunteer.mutation(api.phases.wcaMappingSettings.update, {
-        mappings: [...VALID_MAPPINGS],
+        mappings: defaultMappings(),
       })
     ).rejects.toThrow()
   })
@@ -176,16 +162,13 @@ describe("resetToDefaults", () => {
     const director = await asDirector(t)
 
     await director.mutation(api.phases.wcaMappingSettings.update, {
-      mappings: WCA_MILESTONES.map((milestone) => ({
-        milestone,
-        phaseKey: null,
-      })),
+      mappings: mappingsWith({}),
     })
     await director.mutation(api.phases.wcaMappingSettings.resetToDefaults, {})
 
     const settings = await director.query(api.phases.wcaMappingSettings.get, {})
     expect(settings.isCustomised).toBe(false)
-    expect(settings.mappings).toEqual([...VALID_MAPPINGS])
+    expect(settings.mappings).toEqual(defaultMappings())
   })
 
   test("is a no-op when nothing is stored", async () => {

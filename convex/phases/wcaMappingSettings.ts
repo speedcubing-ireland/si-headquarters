@@ -4,11 +4,12 @@ import { requireDirector } from "@/convex/permissions/principal"
 import { phaseColor, wcaPhaseMappingEntry } from "@/convex/phases/validators"
 import {
   assertMappingsValid,
-  DEFAULT_COMPETITION_TEMPLATE_KEY,
-  defaultMappingsForTemplate,
-  loadMappingsForTemplate,
+  defaultMappings,
+  loadMappingRow,
+  normalizeMappings,
+  templatePhaseOptions,
+  WCA_PHASE_MAPPING_KEY,
 } from "@/convex/phases/wcaMappingModel"
-import { getCompetitionTemplate } from "@/convex/templates/registry"
 
 const templatePhaseValidator = v.object({
   key: v.string(),
@@ -23,41 +24,22 @@ const templatePhaseValidator = v.object({
  * "Reset to defaults" meaningfully.
  */
 export const get = query({
-  args: {
-    templateKey: v.optional(v.string()),
-  },
+  args: {},
   returns: v.object({
-    templateKey: v.string(),
     templateName: v.string(),
     phases: v.array(templatePhaseValidator),
     mappings: v.array(wcaPhaseMappingEntry),
-    defaults: v.array(wcaPhaseMappingEntry),
     isCustomised: v.boolean(),
     updatedAt: v.union(v.number(), v.null()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     await requireDirector(ctx)
-    const templateKey = args.templateKey ?? DEFAULT_COMPETITION_TEMPLATE_KEY
-    const template = getCompetitionTemplate(templateKey)
-    if (template === null) {
-      throw new Error(`Unknown competition template "${templateKey}".`)
-    }
-
-    const row = await ctx.db
-      .query("wcaPhaseMappings")
-      .withIndex("by_templateKey", (q) => q.eq("templateKey", templateKey))
-      .unique()
+    const row = await loadMappingRow(ctx)
 
     return {
-      templateKey,
-      templateName: template.name,
-      phases: template.phases.map((phase) => ({
-        key: phase.key,
-        name: phase.name,
-        color: phase.color,
-      })),
-      mappings: await loadMappingsForTemplate(ctx, templateKey),
-      defaults: defaultMappingsForTemplate(templateKey),
+      ...templatePhaseOptions(),
+      mappings:
+        row === null ? defaultMappings() : normalizeMappings(row.mappings),
       isCustomised: row !== null,
       updatedAt: row?.updatedAt ?? null,
     }
@@ -66,23 +48,17 @@ export const get = query({
 
 export const update = mutation({
   args: {
-    templateKey: v.optional(v.string()),
     mappings: v.array(wcaPhaseMappingEntry),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const actorId = await requireDirector(ctx)
-    const templateKey = args.templateKey ?? DEFAULT_COMPETITION_TEMPLATE_KEY
 
-    assertMappingsValid(templateKey, args.mappings)
+    assertMappingsValid(args.mappings)
 
-    const existing = await ctx.db
-      .query("wcaPhaseMappings")
-      .withIndex("by_templateKey", (q) => q.eq("templateKey", templateKey))
-      .unique()
-
+    const existing = await loadMappingRow(ctx)
     const fields = {
-      templateKey,
+      key: WCA_PHASE_MAPPING_KEY,
       mappings: args.mappings,
       updatedById: actorId,
       updatedAt: Date.now(),
@@ -100,18 +76,11 @@ export const update = mutation({
 
 /** Drops the override so the template's own defaults apply again. */
 export const resetToDefaults = mutation({
-  args: {
-    templateKey: v.optional(v.string()),
-  },
+  args: {},
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     await requireDirector(ctx)
-    const templateKey = args.templateKey ?? DEFAULT_COMPETITION_TEMPLATE_KEY
-
-    const existing = await ctx.db
-      .query("wcaPhaseMappings")
-      .withIndex("by_templateKey", (q) => q.eq("templateKey", templateKey))
-      .unique()
+    const existing = await loadMappingRow(ctx)
 
     if (existing !== null) {
       await ctx.db.delete("wcaPhaseMappings", existing._id)

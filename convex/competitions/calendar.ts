@@ -4,6 +4,7 @@ import { query } from "@/convex/_generated/server"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
 import { formatLocalDate } from "@/convex/competitions/dates"
+import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
 import {
   getSaturdayOfWeek,
   parseCompDateRange,
@@ -83,7 +84,7 @@ async function buildCompetitionRow(
     name: competition.name,
     compDates: competition.compDates,
     phase,
-    cancelled: competition.cancelledAt !== undefined,
+    cancelled: isCompetitionCancelled(competition),
     compLead,
     leadDelegate,
     organisers: organisers.filter(

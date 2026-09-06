@@ -18,12 +18,6 @@ export const WCA_MILESTONES = [
 
 export type WcaMilestone = (typeof WCA_MILESTONES)[number]
 
-const WCA_MILESTONE_SET: ReadonlySet<string> = new Set(WCA_MILESTONES)
-
-export function isWcaMilestone(value: string): value is WcaMilestone {
-  return WCA_MILESTONE_SET.has(value)
-}
-
 /** Position on the ladder. Lower means earlier in a competition's life. */
 export function milestoneRank(milestone: WcaMilestone): number {
   return WCA_MILESTONES.indexOf(milestone)

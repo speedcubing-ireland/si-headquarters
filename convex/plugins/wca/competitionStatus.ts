@@ -1,7 +1,4 @@
-import {
-  WCA_MILESTONES,
-  type WcaMilestone,
-} from "@/convex/phases/wcaMilestones"
+import type { WcaMilestone } from "@/convex/phases/wcaMilestones"
 import { parseDateOnlyToUtcMs } from "@/convex/plugins/wca/registrationsLib"
 import type {
   CompetitionIndex,
@@ -60,8 +57,6 @@ export function observeCompetition(args: {
     announced: mine?.["visible?"] ?? index !== undefined,
     resultsPosted:
       mine?.["results_posted?"] ?? index?.results_posted_at !== undefined,
-    reportPosted:
-      mine?.["report_posted?"] ?? index?.report_posted_at !== undefined,
     startDate: mine?.start_date ?? index?.start_date ?? null,
     endDate: mine?.end_date ?? index?.end_date ?? null,
     // Only the country index reports this, so it is null both when the
@@ -82,22 +77,20 @@ export function mergeObservation(
   observation: WcaCompetitionObservation
 ): WcaCompetitionStatus {
   return {
-    wcaCompetitionId: observation.wcaCompetitionId,
+    ...observation,
+    // Only the fields an absent source can leave unknown need a fallback; the
+    // rest are whatever this run observed.
     confirmed: observation.confirmed ?? previous?.confirmed ?? false,
     cancelled: observation.cancelled ?? previous?.cancelled ?? false,
-    announced: observation.announced,
-    resultsPosted: observation.resultsPosted,
-    reportPosted: observation.reportPosted,
     startDate: observation.startDate ?? previous?.startDate ?? null,
     endDate: observation.endDate ?? previous?.endDate ?? null,
     registrationCloseAt:
       observation.registrationCloseAt ?? previous?.registrationCloseAt ?? null,
-    fetchedAt: observation.fetchedAt,
   }
 }
 
 /**
- * Every milestone the competition has actually reached, in ladder order.
+ * Every milestone the competition has actually reached.
  *
  * Gaps are left as gaps rather than being filled in from a later milestone: the
  * WCA genuinely does report results for a competition whose registration-close
@@ -135,5 +128,5 @@ export function reachedMilestones(
 
   if (status.resultsPosted) reached.add("resultsPosted")
 
-  return new Set(WCA_MILESTONES.filter((milestone) => reached.has(milestone)))
+  return reached
 }

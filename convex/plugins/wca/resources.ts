@@ -45,16 +45,14 @@ export const linkCompetition = action({
     )
 
     // Pick up the competition's WCA state straight away rather than leaving it
-    // in the wrong phase until the hourly sync. Best-effort: the link itself is
-    // saved either way.
-    try {
-      await ctx.runAction(
-        internal.plugins.wca.statusSync.syncCompetitionStatuses,
-        { wcaCompetitionId }
-      )
-    } catch {
-      // The cron will retry.
-    }
+    // in the wrong phase until the hourly sync. Scheduled rather than awaited:
+    // the link is already saved, and the user should not wait on WCA round
+    // trips for work the cron would retry anyway.
+    await ctx.scheduler.runAfter(
+      0,
+      internal.plugins.wca.statusSync.syncCompetitionStatuses,
+      { wcaCompetitionId }
+    )
 
     return resourceId
   },

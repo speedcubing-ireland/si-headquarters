@@ -39,12 +39,31 @@ type TemplatePhase = MappingSettings["phases"][number]
 
 const UNMAPPED_VALUE = "__unmapped__"
 
+type DraftMapping = Record<WcaMilestone, string | null>
+
+/**
+ * Every milestone present, so the rest of the screen can index without a
+ * fallback. Seeded explicitly rather than built dynamically: adding a milestone
+ * to the ladder then fails to compile here, which is where it should be noticed.
+ */
 function toPhaseKeyByMilestone(
   mappings: MappingSettings["mappings"]
-): Record<string, string | null> {
-  return Object.fromEntries(
+): DraftMapping {
+  const byMilestone = new Map(
     mappings.map((mapping) => [mapping.milestone, mapping.phaseKey])
   )
+  const draft: DraftMapping = {
+    submitted: null,
+    confirmed: null,
+    announced: null,
+    registrationClosed: null,
+    held: null,
+    resultsPosted: null,
+  }
+  for (const milestone of WCA_MILESTONES) {
+    draft[milestone] = byMilestone.get(milestone) ?? null
+  }
+  return draft
 }
 
 function MilestoneRow({
@@ -112,7 +131,7 @@ export function AdminWcaPhasesPage() {
     api.phases.wcaMappingSettings.resetToDefaults
   )
 
-  const [draft, setDraft] = useState<Record<string, string | null> | null>(null)
+  const [draft, setDraft] = useState<DraftMapping | null>(null)
   const [busy, setBusy] = useState<"saving" | "resetting" | null>(null)
 
   const serverMapping = useMemo(
@@ -130,7 +149,8 @@ export function AdminWcaPhasesPage() {
     }
   }, [serverMapping])
 
-  if (settings === undefined || draft === null || serverMapping === null) {
+  // `serverMapping` is non-null exactly when `settings` is loaded.
+  if (settings === undefined || serverMapping === null || draft === null) {
     return <Page.Status variant="loading" message="Loading phase mapping…" />
   }
 
@@ -144,7 +164,7 @@ export function AdminWcaPhasesPage() {
       await updateMappings({
         mappings: WCA_MILESTONES.map((milestone) => ({
           milestone,
-          phaseKey: draft[milestone] ?? null,
+          phaseKey: draft[milestone],
         })),
       })
       toast.success("Phase mapping saved.")
@@ -194,14 +214,10 @@ export function AdminWcaPhasesPage() {
                 key={milestone}
                 milestone={milestone}
                 phases={settings.phases}
-                phaseKey={draft[milestone] ?? null}
+                phaseKey={draft[milestone]}
                 disabled={busy !== null}
                 onChange={(phaseKey) => {
-                  setDraft((current) =>
-                    current === null
-                      ? current
-                      : { ...current, [milestone]: phaseKey }
-                  )
+                  setDraft({ ...draft, [milestone]: phaseKey })
                 }}
               />
             ))}

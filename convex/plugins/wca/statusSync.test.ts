@@ -8,26 +8,17 @@ import { modules } from "@/convex/test.setup"
 import {
   insertBlankCompetition,
   insertCompetitionPhase,
-  insertSeedTask,
+  phasesForCompetition,
+  seedTaskPerPhase,
+  seedTemplateCompetition,
+  type TemplatePhaseKey,
 } from "@/convex/testHelpers"
+import { defaultMappings } from "@/convex/phases/wcaMappingModel"
 import { unlinkCompetitionIfWcaLinkMatches } from "@/convex/plugins/wca/competitionLink"
 import type { WcaCompetitionObservation } from "@/convex/plugins/wca/validators"
 
-const TEMPLATE_KEY = "standard-competition"
 const WCA_ID = "SpringOpen2026"
 const NOW = Date.UTC(2026, 5, 15)
-
-/** The template's phases, in order, as the resolver creates them. */
-const TEMPLATE_PHASES = [
-  { key: "concept", name: "Concept", sortKey: "a0" },
-  { key: "pre-announcement", name: "Pre-Announcement", sortKey: "a1" },
-  { key: "announced", name: "Announced", sortKey: "a2" },
-  { key: "pre-competition", name: "Pre-Competition", sortKey: "a3" },
-  { key: "post-competition", name: "Post-Competition", sortKey: "a4" },
-  { key: "completed", name: "Completed", sortKey: "a5" },
-] as const
-
-type PhaseKey = (typeof TEMPLATE_PHASES)[number]["key"]
 
 function status(
   overrides: Partial<WcaCompetitionObservation> = {}
@@ -38,7 +29,6 @@ function status(
     announced: false,
     cancelled: false,
     resultsPosted: false,
-    reportPosted: false,
     startDate: "2026-12-05",
     endDate: "2026-12-06",
     registrationCloseAt: null,
@@ -47,47 +37,18 @@ function status(
   }
 }
 
-async function seedCompetition(
+function seedCompetition(
   t: TestConvex<typeof schema>,
   options: {
-    startingPhase?: PhaseKey | null
-    /** Template phases to omit, to model a competition someone edited. */
-    omit?: readonly PhaseKey[]
+    startingPhase?: TemplatePhaseKey
+    omit?: readonly TemplatePhaseKey[]
     linked?: boolean
   } = {}
 ) {
-  return await t.run(async (ctx) => {
-    const competitionId = await insertBlankCompetition(ctx)
-    if (options.linked !== false) {
-      await ctx.db.patch("competitions", competitionId, {
-        wcaCompetitionId: WCA_ID,
-      })
-    }
-
-    const phaseIdByKey = new Map<PhaseKey, Id<"phases">>()
-    for (const phase of TEMPLATE_PHASES) {
-      if (options.omit?.includes(phase.key) === true) continue
-      phaseIdByKey.set(
-        phase.key,
-        await insertCompetitionPhase(
-          ctx,
-          competitionId,
-          phase.name,
-          phase.sortKey,
-          "gray",
-          phase.key
-        )
-      )
-    }
-
-    const starting = options.startingPhase
-    if (starting !== undefined && starting !== null) {
-      await ctx.db.patch("competitions", competitionId, {
-        phaseId: phaseIdByKey.get(starting) ?? null,
-      })
-    }
-
-    return { competitionId }
+  return seedTemplateCompetition(t, {
+    startingPhase: options.startingPhase,
+    omit: options.omit,
+    wcaCompetitionId: options.linked === false ? undefined : WCA_ID,
   })
 }
 
@@ -109,7 +70,7 @@ async function applyStatus(
 ) {
   await t.mutation(
     internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
-    { observation: next, templateKey: TEMPLATE_KEY }
+    { observation: next, mappings: defaultMappings() }
   )
 }
 
@@ -244,14 +205,8 @@ describe("multi-phase jumps", () => {
     t: TestConvex<typeof schema>,
     competitionId: Id<"competitions">
   ): Promise<Record<string, string>> {
+    const phases = await phasesForCompetition(t, competitionId)
     return await t.run(async (ctx) => {
-      const phases = await ctx.db
-        .query("phases")
-        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
-          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
-        )
-        .collect()
-
       const byKey: Record<string, string> = {}
       for (const phase of phases) {
         if (phase.templateKey === undefined) continue
@@ -274,20 +229,7 @@ describe("multi-phase jumps", () => {
       startingPhase: "concept",
     })
 
-    await t.run(async (ctx) => {
-      const phases = await ctx.db
-        .query("phases")
-        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
-          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
-        )
-        .collect()
-      for (const [index, phase] of phases.entries()) {
-        await insertSeedTask(ctx, {
-          parent: { type: "phases", id: phase._id },
-          order: `a${String(index)}`,
-        })
-      }
-    })
+    await seedTaskPerPhase(t, competitionId)
 
     // Concept -> Post-Competition, skipping three phases.
     await applyStatus(
@@ -317,20 +259,7 @@ describe("multi-phase jumps", () => {
       startingPhase: "announced",
     })
 
-    await t.run(async (ctx) => {
-      const phases = await ctx.db
-        .query("phases")
-        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
-          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
-        )
-        .collect()
-      for (const [index, phase] of phases.entries()) {
-        await insertSeedTask(ctx, {
-          parent: { type: "phases", id: phase._id },
-          order: `a${String(index)}`,
-        })
-      }
-    })
+    await seedTaskPerPhase(t, competitionId)
 
     await applyStatus(
       t,

@@ -15,6 +15,7 @@ import {
 } from "@/convex/tasks/hierarchy"
 import type { TestConvex } from "convex-test"
 import type schema from "@/convex/schema"
+import { standardCompetitionTemplate } from "@/convex/templates/registry"
 
 export interface SeedTaskInput {
   name?: string
@@ -178,4 +179,99 @@ export async function insertSeedTask(
     integrationIds: seed.integrationIds,
   })
   return taskId
+}
+
+/**
+ * The standard competition template's phases, in order, as the resolver creates
+ * them. Derived from the registry so a template change surfaces as the tests
+ * that actually care rather than a stale hardcoded list.
+ */
+export const TEMPLATE_PHASES = standardCompetitionTemplate.phases.map(
+  (phase, index) => ({
+    key: phase.key,
+    name: phase.name,
+    sortKey: `a${String(index)}`,
+  })
+)
+
+export type TemplatePhaseKey = (typeof TEMPLATE_PHASES)[number]["key"]
+
+/**
+ * A competition with the standard template's phases, as the WCA phase sync
+ * expects to find it.
+ */
+export async function seedTemplateCompetition(
+  t: TestConvex<typeof schema>,
+  options: {
+    /** Template phase to start in; omit for no phase. */
+    startingPhase?: TemplatePhaseKey
+    /** Phases to leave out, to model a competition someone edited. */
+    omit?: readonly TemplatePhaseKey[]
+    /** WCA competition id to link, or omit to leave it unlinked. */
+    wcaCompetitionId?: string
+  } = {}
+): Promise<{ competitionId: Id<"competitions"> }> {
+  return await t.run(async (ctx) => {
+    const competitionId = await insertBlankCompetition(ctx)
+    if (options.wcaCompetitionId !== undefined) {
+      await ctx.db.patch("competitions", competitionId, {
+        wcaCompetitionId: options.wcaCompetitionId,
+      })
+    }
+
+    const phaseIdByKey = new Map<string, Id<"phases">>()
+    for (const phase of TEMPLATE_PHASES) {
+      if (options.omit?.includes(phase.key) === true) continue
+      phaseIdByKey.set(
+        phase.key,
+        await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          phase.name,
+          phase.sortKey,
+          "gray",
+          phase.key
+        )
+      )
+    }
+
+    if (options.startingPhase !== undefined) {
+      await ctx.db.patch("competitions", competitionId, {
+        phaseId: phaseIdByKey.get(options.startingPhase) ?? null,
+      })
+    }
+
+    return { competitionId }
+  })
+}
+
+/** Every phase of a competition, in phase order. */
+export async function phasesForCompetition(
+  t: TestConvex<typeof schema>,
+  competitionId: Id<"competitions">
+): Promise<Doc<"phases">[]> {
+  return await t.run(async (ctx) =>
+    ctx.db
+      .query("phases")
+      .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+        q.eq("owner.type", "competitions").eq("owner.id", competitionId)
+      )
+      .collect()
+  )
+}
+
+/** One backlog task in each of a competition's phases. */
+export async function seedTaskPerPhase(
+  t: TestConvex<typeof schema>,
+  competitionId: Id<"competitions">
+): Promise<void> {
+  const phases = await phasesForCompetition(t, competitionId)
+  await t.run(async (ctx) => {
+    for (const [index, phase] of phases.entries()) {
+      await insertSeedTask(ctx, {
+        parent: { type: "phases", id: phase._id },
+        order: `a${String(index)}`,
+      })
+    }
+  })
 }

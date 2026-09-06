@@ -7,20 +7,16 @@ import { modules } from "@/convex/test.setup"
 import {
   insertBlankCompetition,
   insertCompetitionPhase,
+  TEMPLATE_PHASES,
 } from "@/convex/testHelpers"
+
+const TEMPLATE_PHASE_NAMES = TEMPLATE_PHASES.map((phase) => phase.name)
 
 /** Seeds `count` competitions of template-named phases, with no templateKey. */
 async function seedLegacyPhases(
   t: TestConvex<typeof schema>,
   count: number,
-  names: readonly string[] = [
-    "Concept",
-    "Pre-Announcement",
-    "Announced",
-    "Pre-Competition",
-    "Post-Competition",
-    "Completed",
-  ]
+  names: readonly string[] = TEMPLATE_PHASE_NAMES
 ) {
   await t.run(async (ctx) => {
     for (let index = 0; index < count; index += 1) {
@@ -57,9 +53,16 @@ describe("backfillPhaseTemplateKeys", () => {
       {}
     )
 
-    expect(result).toMatchObject({ matched: 6, alreadySet: 0, isDone: true })
+    expect(result).toMatchObject({
+      matched: TEMPLATE_PHASE_NAMES.length,
+      alreadySet: 0,
+      isDone: true,
+    })
     expect(result.unmatched).toEqual([])
-    expect(await templateKeyCounts(t)).toEqual({ total: 6, set: 6 })
+    expect(await templateKeyCounts(t)).toEqual({
+      total: TEMPLATE_PHASE_NAMES.length,
+      set: TEMPLATE_PHASE_NAMES.length,
+    })
   })
 
   test("leaves renamed phases alone and reports them once", async () => {
@@ -84,8 +87,11 @@ describe("backfillPhaseTemplateKeys", () => {
       { dryRun: true }
     )
 
-    expect(result.matched).toBe(6)
-    expect(await templateKeyCounts(t)).toEqual({ total: 6, set: 0 })
+    expect(result.matched).toBe(TEMPLATE_PHASE_NAMES.length)
+    expect(await templateKeyCounts(t)).toEqual({
+      total: TEMPLATE_PHASE_NAMES.length,
+      set: 0,
+    })
   })
 
   test("skips phases that already have a key", async () => {
@@ -98,7 +104,10 @@ describe("backfillPhaseTemplateKeys", () => {
       {}
     )
 
-    expect(second).toMatchObject({ matched: 0, alreadySet: 6 })
+    expect(second).toMatchObject({
+      matched: 0,
+      alreadySet: TEMPLATE_PHASE_NAMES.length,
+    })
   })
 
   test("pages past one batch instead of failing", async () => {
@@ -106,7 +115,9 @@ describe("backfillPhaseTemplateKeys", () => {
     // 50 competitions x 6 phases = 300 rows, more than one 200-row page. The
     // previous single-batch version threw at this size, which left templateKey
     // unset and silently reduced the whole sync to a no-op.
-    await seedLegacyPhases(t, 50)
+    const competitions = 50
+    const rows = competitions * TEMPLATE_PHASE_NAMES.length
+    await seedLegacyPhases(t, competitions)
 
     vi.useFakeTimers()
     try {
@@ -121,16 +132,6 @@ describe("backfillPhaseTemplateKeys", () => {
       vi.useRealTimers()
     }
 
-    expect(await templateKeyCounts(t)).toEqual({ total: 300, set: 300 })
-  })
-
-  test("rejects an unknown template", async () => {
-    const t = convexTest(schema, modules)
-
-    await expect(
-      t.mutation(internal.phases.wcaBackfill.backfillPhaseTemplateKeys, {
-        templateKey: "no-such-template",
-      })
-    ).rejects.toThrow()
+    expect(await templateKeyCounts(t)).toEqual({ total: rows, set: rows })
   })
 })

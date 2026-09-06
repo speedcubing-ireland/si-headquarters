@@ -2,6 +2,7 @@ import { collectAll, type CompetitionOrProjectRef } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
 import { competitionPrimaryStart } from "@/convex/competitions/dates"
+import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
 import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
 import { localToday } from "@/convex/notifications/localTime"
 import {
@@ -640,7 +641,7 @@ export const getHome = query({
     // the dashboard entirely rather than sitting there accruing overdue tasks.
     const readableCompetitions = competitions.filter(
       (competition) =>
-        competition.cancelledAt === undefined &&
+        !isCompetitionCancelled(competition) &&
         canPerform(principal, "read", "Competition", competition)
     )
     const readableCompetitionIds = new Set(

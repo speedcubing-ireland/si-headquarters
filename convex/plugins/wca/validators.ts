@@ -12,7 +12,6 @@ export const wcaCompetitionStatusFields = {
   announced: v.boolean(),
   cancelled: v.boolean(),
   resultsPosted: v.boolean(),
-  reportPosted: v.boolean(),
   startDate: v.union(v.string(), v.null()),
   endDate: v.union(v.string(), v.null()),
   registrationCloseAt: v.union(v.number(), v.null()),
@@ -33,16 +32,10 @@ export type WcaCompetitionStatus = Infer<typeof wcaCompetitionStatusValidator>
  * registration close date, so either being absent leaves a genuine gap.
  */
 export const wcaCompetitionObservationValidator = v.object({
-  wcaCompetitionId: v.string(),
+  ...wcaCompetitionStatusFields,
+  // These two, and only these two, can come back unknown.
   confirmed: v.union(v.boolean(), v.null()),
   cancelled: v.union(v.boolean(), v.null()),
-  announced: v.boolean(),
-  resultsPosted: v.boolean(),
-  reportPosted: v.boolean(),
-  startDate: v.union(v.string(), v.null()),
-  endDate: v.union(v.string(), v.null()),
-  registrationCloseAt: v.union(v.number(), v.null()),
-  fetchedAt: v.number(),
 })
 
 export type WcaCompetitionObservation = Infer<

@@ -6,9 +6,19 @@ import {
   scheduleNotificationEvent,
   scheduleTaskStatusNotifications,
 } from "@/convex/notifications/events"
-import { activatePhasesBacklogTasks } from "@/convex/tasks/status/recompute"
+import { activatePhaseBacklogTasks } from "@/convex/tasks/status/recompute"
 import { listPhasesForOwnerBounded } from "@/convex/phases/model"
 
+/**
+ * Moves an owner to a phase, notifies, and activates the backlog it enters.
+ *
+ * A system-driven move (`actorId: null`) activates every phase it passes
+ * through, because it can advance several at once and nobody is watching —
+ * otherwise those phases' tasks would sit in backlog, filtered out of every
+ * dashboard view, indefinitely. A human move activates only the target: they
+ * can see what they skipped, and `api.tasks.mutations.activatePhaseTasks` lets
+ * them activate it deliberately, which `planner.activatePhase` cannot undo.
+ */
 export async function setCurrentPhaseForOwner(
   ctx: MutationCtx,
   args: {
@@ -17,19 +27,13 @@ export async function setCurrentPhaseForOwner(
     /** Null when the change is system-driven, e.g. the WCA status sync. */
     actorId: Id<"users"> | null
     previousPhaseId: Id<"phases"> | null
-    /**
-     * Also activate the backlog of any phase jumped over, not just the target.
-     *
-     * Off by default so a human moving the phase in the UI keeps the existing
-     * behaviour — they can see what they skipped. The WCA sync turns it on:
-     * it can advance several phases at once and nobody is watching, so
-     * otherwise those phases' tasks would sit in backlog, filtered out of
-     * every dashboard view, indefinitely.
-     */
-    activateSkippedPhases?: boolean
+    /** The owner's phases, when the caller already has them loaded. */
+    phases?: readonly Doc<"phases">[]
   }
 ): Promise<void> {
-  const phase = await ctx.db.get("phases", args.phaseId)
+  const phase =
+    args.phases?.find((candidate) => candidate._id === args.phaseId) ??
+    (await ctx.db.get("phases", args.phaseId))
   if (phase === null) {
     throw new ConvexError({
       code: "NOT_FOUND",
@@ -61,16 +65,17 @@ export async function setCurrentPhaseForOwner(
     nextPhaseId: args.phaseId,
   })
 
-  const phaseIds =
-    args.activateSkippedPhases === true
-      ? await phasesEnteredBy(ctx, {
-          owner: args.owner,
-          previousPhaseId: args.previousPhaseId,
-          targetPhase: phase,
-        })
-      : [args.phaseId]
+  const isSystemMove = args.actorId === null
+  const phaseIds = isSystemMove
+    ? await phasesEnteredBy(ctx, {
+        owner: args.owner,
+        previousPhaseId: args.previousPhaseId,
+        targetPhase: phase,
+        phases: args.phases,
+      })
+    : [args.phaseId]
 
-  const result = await activatePhasesBacklogTasks(ctx, phaseIds)
+  const result = await activatePhaseBacklogTasks(ctx, phaseIds)
   await scheduleTaskStatusNotifications(ctx, result, args.actorId)
 }
 
@@ -85,9 +90,11 @@ async function phasesEnteredBy(
     owner: CompetitionOrProjectRef
     previousPhaseId: Id<"phases"> | null
     targetPhase: Doc<"phases">
+    phases: readonly Doc<"phases">[] | undefined
   }
 ): Promise<Id<"phases">[]> {
-  const phases = await listPhasesForOwnerBounded(ctx, args.owner)
+  const phases =
+    args.phases ?? (await listPhasesForOwnerBounded(ctx, args.owner))
 
   const previousSortKey =
     args.previousPhaseId === null

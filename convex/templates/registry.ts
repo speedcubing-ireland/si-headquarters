@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type {
   LinkedResourceData,
@@ -500,4 +501,22 @@ export const competitionTemplates: readonly CompetitionTemplateDefinition[] = [
 
 export function getCompetitionTemplate(key: string) {
   return competitionTemplates.find((template) => template.key === key) ?? null
+}
+
+/**
+ * The template, or a user-facing error. Every caller that cannot proceed without
+ * a template should use this rather than re-spelling the null check, so the same
+ * failure surfaces the same way everywhere.
+ */
+export function getTemplateOrThrow(
+  templateKey: string
+): CompetitionTemplateDefinition {
+  const template = getCompetitionTemplate(templateKey)
+  if (template === null) {
+    throw new ConvexError({
+      code: "NOT_FOUND",
+      message: "Competition template not found.",
+    })
+  }
+  return template
 }

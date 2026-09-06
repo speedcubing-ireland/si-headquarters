@@ -1,18 +1,20 @@
 import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
-import type { Id } from "@/convex/_generated/dataModel"
+import type { Doc } from "@/convex/_generated/dataModel"
 import {
   internalMutation,
   internalQuery,
   type MutationCtx,
 } from "@/convex/_generated/server"
+import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
 import { scheduleNotificationEvent } from "@/convex/notifications/events"
 import { listPhasesForOwnerBounded } from "@/convex/phases/model"
 import {
   ownerPhaseId,
   setCurrentPhaseForOwner,
 } from "@/convex/phases/setCurrentPhase"
-import { loadMappingsForTemplate } from "@/convex/phases/wcaMappingModel"
+import { loadMappings } from "@/convex/phases/wcaMappingModel"
+import { wcaPhaseMappingEntry } from "@/convex/phases/validators"
 import { resolveWcaPhaseAdvance } from "@/convex/phases/wcaAdvance"
 import {
   mergeObservation,
@@ -42,6 +44,17 @@ export const queueStatusSync = internalMutation({
     )
     return null
   },
+})
+
+/**
+ * The org-level mapping, resolved once per sync run — it is identical for every
+ * competition, so the per-competition transactions take it as an argument
+ * rather than each re-reading the same row.
+ */
+export const getPhaseMappings = internalQuery({
+  args: {},
+  returns: v.array(wcaPhaseMappingEntry),
+  handler: async (ctx) => await loadMappings(ctx),
 })
 
 export const getLinkedWcaCompetitionId = internalQuery({
@@ -103,7 +116,8 @@ export const listLinkedWcaCompetitionIds = internalQuery({
 export const applyCompetitionStatus = internalMutation({
   args: {
     observation: wcaCompetitionObservationValidator,
-    templateKey: v.string(),
+    /** Resolved once per run by the caller; identical for every competition. */
+    mappings: v.array(wcaPhaseMappingEntry),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -121,19 +135,16 @@ export const applyCompetitionStatus = internalMutation({
 
     if (competition === null) return null
 
-    await reconcileCancellation(ctx, competition._id, status)
+    await reconcileCancellation(ctx, competition, status)
 
     const owner = { type: "competitions", id: competition._id } as const
-    const [phases, mappings] = await Promise.all([
-      listPhasesForOwnerBounded(ctx, owner),
-      loadMappingsForTemplate(ctx, args.templateKey),
-    ])
+    const phases = await listPhasesForOwnerBounded(ctx, owner)
 
     const previousPhaseId = ownerPhaseId(competition)
     const nextPhaseId = resolveWcaPhaseAdvance({
       phases,
       currentPhaseId: previousPhaseId,
-      mappings,
+      mappings: args.mappings,
       reached: reachedMilestones(status, status.fetchedAt),
     })
 
@@ -142,13 +153,10 @@ export const applyCompetitionStatus = internalMutation({
     await setCurrentPhaseForOwner(ctx, {
       owner,
       phaseId: nextPhaseId,
-      // System-driven: no human moved this.
+      // System-driven, so this also activates the phases it passes through.
       actorId: null,
       previousPhaseId,
-      // A sync can jump several phases at once (a competition linked late may
-      // go straight to Completed). Nobody is watching, so the phases it passed
-      // through must not leave their tasks stranded in backlog.
-      activateSkippedPhases: true,
+      phases,
     })
 
     return null
@@ -184,22 +192,18 @@ async function upsertStatusSnapshot(
  */
 async function reconcileCancellation(
   ctx: MutationCtx,
-  competitionId: Id<"competitions">,
+  competition: Doc<"competitions">,
   status: WcaCompetitionStatus
 ): Promise<void> {
-  const competition = await ctx.db.get("competitions", competitionId)
-  if (competition === null) return
+  if (isCompetitionCancelled(competition) === status.cancelled) return
 
-  const wasCancelled = competition.cancelledAt !== undefined
-  if (wasCancelled === status.cancelled) return
-
-  await ctx.db.patch("competitions", competitionId, {
+  await ctx.db.patch("competitions", competition._id, {
     cancelledAt: status.cancelled ? status.fetchedAt : undefined,
   })
 
   await scheduleNotificationEvent(ctx, {
     kind: "competitionCancelled",
-    competitionId,
+    competitionId: competition._id,
     cancelled: status.cancelled,
   })
 }

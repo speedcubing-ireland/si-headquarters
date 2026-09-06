@@ -14,12 +14,12 @@ export const wcaPhaseMappingEntry = v.object({
 })
 
 /**
- * Org-level mapping from WCA milestone to template phase, one row per
- * competition template. An absent row means "use the template's own defaults",
- * so a fresh deployment works without configuration.
+ * Org-level mapping from WCA milestone to template phase. A singleton — an
+ * absent row means "use the template's own defaults", so a fresh deployment
+ * works without configuration.
  */
 export const wcaPhaseMappingsFields = {
-  templateKey: v.string(),
+  key: v.string(),
   mappings: v.array(wcaPhaseMappingEntry),
   updatedById: v.id("users"),
   updatedAt: v.number(),
