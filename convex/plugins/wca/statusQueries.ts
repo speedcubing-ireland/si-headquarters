@@ -76,11 +76,16 @@ export const getForCompetition = query({
         .filter((key): key is string => key !== undefined)
     )
 
+    // Only milestones whose mapped phase this competition is missing. A
+    // milestone deliberately left unmapped is a choice, not a problem — and
+    // since the template maps nothing to `confirmed`, reporting those would
+    // put a permanent warning on every competition.
     const unmapped = mappings
       .filter(
         (mapping) =>
           reached.has(mapping.milestone) &&
-          (mapping.phaseKey === null || !templateKeys.has(mapping.phaseKey))
+          mapping.phaseKey !== null &&
+          !templateKeys.has(mapping.phaseKey)
       )
       .map((mapping) => mapping.milestone)
 

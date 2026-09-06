@@ -25,6 +25,30 @@ export const wcaCompetitionStatusValidator = v.object(
 
 export type WcaCompetitionStatus = Infer<typeof wcaCompetitionStatusValidator>
 
+/**
+ * What one sync run actually observed, before it is merged with what we already
+ * knew. `null` means "the sources available this run could not determine this",
+ * which is different from "false" — only `/competitions/mine` knows whether a
+ * competition is confirmed or cancelled, and only the country index carries a
+ * registration close date, so either being absent leaves a genuine gap.
+ */
+export const wcaCompetitionObservationValidator = v.object({
+  wcaCompetitionId: v.string(),
+  confirmed: v.union(v.boolean(), v.null()),
+  cancelled: v.union(v.boolean(), v.null()),
+  announced: v.boolean(),
+  resultsPosted: v.boolean(),
+  reportPosted: v.boolean(),
+  startDate: v.union(v.string(), v.null()),
+  endDate: v.union(v.string(), v.null()),
+  registrationCloseAt: v.union(v.number(), v.null()),
+  fetchedAt: v.number(),
+})
+
+export type WcaCompetitionObservation = Infer<
+  typeof wcaCompetitionObservationValidator
+>
+
 export const wcaTables = {
   wcaCompetitionStatuses: defineTable(wcaCompetitionStatusFields).index(
     "by_wcaCompetitionId",

@@ -1,9 +1,16 @@
 import { v } from "convex/values"
+import { internal } from "@/convex/_generated/api"
 import { internalMutation } from "@/convex/_generated/server"
 import { DEFAULT_COMPETITION_TEMPLATE_KEY } from "@/convex/phases/wcaMappingModel"
 import { getCompetitionTemplate } from "@/convex/templates/registry"
 
-const MAX_PHASES_PER_BATCH = 500
+const PHASES_PER_BATCH = 200
+
+const backfillTallyValidator = v.object({
+  matched: v.number(),
+  unmatched: v.array(v.string()),
+  alreadySet: v.number(),
+})
 
 /**
  * Backfills `templateKey` on phase rows created before it existed, matching on
@@ -11,6 +18,11 @@ const MAX_PHASES_PER_BATCH = 500
  *
  * Run once after deploying:
  *   bunx convex run phases/wcaBackfill:backfillPhaseTemplateKeys
+ *
+ * Processes one page per invocation and reschedules itself until done, so the
+ * number of competitions is not a ceiling — the earlier single-batch version
+ * threw past ~83 competitions, which would have left `templateKey` unset and
+ * silently reduced the whole WCA sync to a no-op.
  *
  * Renamed phases stay unmatched on purpose — guessing would silently point the
  * WCA sync at the wrong phase. Those are set by hand, or left out of the sync.
@@ -20,11 +32,14 @@ export const backfillPhaseTemplateKeys = internalMutation({
     templateKey: v.optional(v.string()),
     /** Report what would change without writing anything. */
     dryRun: v.optional(v.boolean()),
+    /** Continuation state; omit when starting a run. */
+    cursor: v.optional(v.union(v.string(), v.null())),
+    tally: v.optional(backfillTallyValidator),
   },
   returns: v.object({
-    matched: v.number(),
-    unmatched: v.array(v.string()),
-    alreadySet: v.number(),
+    ...backfillTallyValidator.fields,
+    /** False when another batch has been scheduled to continue. */
+    isDone: v.boolean(),
   }),
   handler: async (ctx, args) => {
     const templateKey = args.templateKey ?? DEFAULT_COMPETITION_TEMPLATE_KEY
@@ -40,24 +55,18 @@ export const backfillPhaseTemplateKeys = internalMutation({
       ])
     )
 
-    const phases = await ctx.db
+    const page = await ctx.db
       .query("phases")
       .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
         q.eq("owner.type", "competitions")
       )
-      .take(MAX_PHASES_PER_BATCH + 1)
+      .paginate({ numItems: PHASES_PER_BATCH, cursor: args.cursor ?? null })
 
-    if (phases.length > MAX_PHASES_PER_BATCH) {
-      throw new Error(
-        "Too many phases to backfill in one batch. Raise MAX_PHASES_PER_BATCH or page this."
-      )
-    }
+    let matched = args.tally?.matched ?? 0
+    let alreadySet = args.tally?.alreadySet ?? 0
+    const unmatched = new Set(args.tally?.unmatched ?? [])
 
-    let matched = 0
-    let alreadySet = 0
-    const unmatched: string[] = []
-
-    for (const phase of phases) {
+    for (const phase of page.page) {
       if (phase.templateKey !== undefined) {
         alreadySet += 1
         continue
@@ -65,7 +74,7 @@ export const backfillPhaseTemplateKeys = internalMutation({
 
       const key = keyByName.get(phase.name.trim().toLowerCase())
       if (key === undefined) {
-        unmatched.push(phase.name)
+        unmatched.add(phase.name)
         continue
       }
 
@@ -75,6 +84,23 @@ export const backfillPhaseTemplateKeys = internalMutation({
       matched += 1
     }
 
-    return { matched, unmatched: [...new Set(unmatched)], alreadySet }
+    const tally = { matched, unmatched: [...unmatched], alreadySet }
+
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.phases.wcaBackfill.backfillPhaseTemplateKeys,
+        {
+          templateKey: args.templateKey,
+          dryRun: args.dryRun,
+          cursor: page.continueCursor,
+          tally,
+        }
+      )
+    }
+
+    // On a multi-page run the returned tally covers the batches so far; the
+    // final scheduled batch logs the complete figures.
+    return { ...tally, isDone: page.isDone }
   },
 })

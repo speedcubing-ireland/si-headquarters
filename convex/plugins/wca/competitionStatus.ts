@@ -7,7 +7,10 @@ import type {
   CompetitionIndex,
   MyCompetition,
 } from "@/convex/plugins/wca/openapiClient/types.gen"
-import type { WcaCompetitionStatus } from "@/convex/plugins/wca/validators"
+import type {
+  WcaCompetitionObservation,
+  WcaCompetitionStatus,
+} from "@/convex/plugins/wca/validators"
 
 /**
  * The WCA exposes no single competition "status". These helpers turn the flags
@@ -27,7 +30,7 @@ function parseTimestamp(value: string | undefined): number | null {
 }
 
 /**
- * Merges the two WCA sources into one status.
+ * What the two WCA sources say about a competition this run.
  *
  * `/v0/competitions/mine` is the primary source: it is the only one that sees a
  * competition before it is announced, so its flags win where both have an
@@ -35,28 +38,61 @@ function parseTimestamp(value: string | undefined): number | null {
  * `MyCompetition` does not carry, and covers announced competitions the service
  * account is not personally delegating or organising. Appearing in the index at
  * all means the WCA has announced the competition.
+ *
+ * Facts a source could not supply come back `null` rather than `false`. That
+ * distinction matters: the index includes cancelled competitions but carries no
+ * cancellation field, so asserting `cancelled: false` from the index alone would
+ * "reinstate" a competition the WCA still has cancelled.
  */
-export function toCompetitionStatus(args: {
+export function observeCompetition(args: {
   wcaCompetitionId: string
   mine: MyCompetition | undefined
   index: CompetitionIndex | undefined
   fetchedAt: number
-}): WcaCompetitionStatus {
+}): WcaCompetitionObservation {
   const { mine, index } = args
 
   return {
     wcaCompetitionId: args.wcaCompetitionId,
-    confirmed: mine?.["confirmed?"] ?? false,
+    // Only `mine` reports these two.
+    confirmed: mine?.["confirmed?"] ?? null,
+    cancelled: mine?.["cancelled?"] ?? null,
     announced: mine?.["visible?"] ?? index !== undefined,
-    cancelled: mine?.["cancelled?"] ?? false,
     resultsPosted:
       mine?.["results_posted?"] ?? index?.results_posted_at !== undefined,
     reportPosted:
       mine?.["report_posted?"] ?? index?.report_posted_at !== undefined,
     startDate: mine?.start_date ?? index?.start_date ?? null,
     endDate: mine?.end_date ?? index?.end_date ?? null,
+    // Only the country index reports this, so it is null both when the
+    // competition is absent from the index and when that request failed.
     registrationCloseAt: parseTimestamp(index?.registration_close),
     fetchedAt: args.fetchedAt,
+  }
+}
+
+/**
+ * Folds an observation onto what we already knew, so a fact this run could not
+ * determine is carried forward rather than overwritten with a guess. Without
+ * this, one sync that could not reach a source would silently drop a
+ * cancellation or a registration close date.
+ */
+export function mergeObservation(
+  previous: WcaCompetitionStatus | null,
+  observation: WcaCompetitionObservation
+): WcaCompetitionStatus {
+  return {
+    wcaCompetitionId: observation.wcaCompetitionId,
+    confirmed: observation.confirmed ?? previous?.confirmed ?? false,
+    cancelled: observation.cancelled ?? previous?.cancelled ?? false,
+    announced: observation.announced,
+    resultsPosted: observation.resultsPosted,
+    reportPosted: observation.reportPosted,
+    startDate: observation.startDate ?? previous?.startDate ?? null,
+    endDate: observation.endDate ?? previous?.endDate ?? null,
+    registrationCloseAt:
+      observation.registrationCloseAt ?? previous?.registrationCloseAt ?? null,
+    fetchedAt: observation.fetchedAt,
   }
 }
 

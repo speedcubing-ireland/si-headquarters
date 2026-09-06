@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest"
 import {
+  mergeObservation,
+  observeCompetition,
   reachedMilestones,
-  toCompetitionStatus,
 } from "@/convex/plugins/wca/competitionStatus"
 import type {
   CompetitionIndex,
@@ -77,9 +78,9 @@ function status(
   }
 }
 
-describe("toCompetitionStatus", () => {
+describe("observeCompetition", () => {
   test("takes the flags from `mine` and registration close from the index", () => {
-    const result = toCompetitionStatus({
+    const result = observeCompetition({
       wcaCompetitionId: "SpringOpen2026",
       mine: myCompetition(),
       index: competitionIndex(),
@@ -98,7 +99,7 @@ describe("toCompetitionStatus", () => {
   test("`mine` wins over the index for announcement", () => {
     // The index only lists announced competitions, but `mine` is authoritative:
     // a competition it reports as not visible has not been announced.
-    const result = toCompetitionStatus({
+    const result = observeCompetition({
       wcaCompetitionId: "SpringOpen2026",
       mine: myCompetition({ "visible?": false }),
       index: competitionIndex(),
@@ -109,7 +110,7 @@ describe("toCompetitionStatus", () => {
   })
 
   test("falls back to the index when the service account is not on the competition", () => {
-    const result = toCompetitionStatus({
+    const result = observeCompetition({
       wcaCompetitionId: "SpringOpen2026",
       mine: undefined,
       index: competitionIndex({ results_posted_at: "2026-06-09T10:00:00Z" }),
@@ -119,12 +120,14 @@ describe("toCompetitionStatus", () => {
     expect(result).toMatchObject({
       announced: true,
       resultsPosted: true,
-      confirmed: false,
+      // Only `mine` knows these, and it did not answer this run.
+      confirmed: null,
+      cancelled: null,
     })
   })
 
   test("reads cancellation from `mine`", () => {
-    const result = toCompetitionStatus({
+    const result = observeCompetition({
       wcaCompetitionId: "SpringOpen2026",
       mine: myCompetition({ "cancelled?": true }),
       index: undefined,
@@ -132,6 +135,91 @@ describe("toCompetitionStatus", () => {
     })
 
     expect(result.cancelled).toBe(true)
+  })
+
+  test("registration close is unknown without the index", () => {
+    const result = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: myCompetition(),
+      index: undefined,
+      fetchedAt: NOW,
+    })
+
+    expect(result.registrationCloseAt).toBeNull()
+  })
+})
+
+describe("mergeObservation", () => {
+  test("keeps a cancellation the current run could not confirm", () => {
+    // The index carries no cancellation field, so a competition visible only
+    // there must not be treated as reinstated.
+    const previous = status({ announced: true, cancelled: true })
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: undefined,
+      index: competitionIndex(),
+      fetchedAt: NOW,
+    })
+
+    expect(mergeObservation(previous, observation).cancelled).toBe(true)
+  })
+
+  test("applies a cancellation `mine` does report", () => {
+    const previous = status({ announced: true, cancelled: true })
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: myCompetition({ "cancelled?": false }),
+      index: undefined,
+      fetchedAt: NOW,
+    })
+
+    expect(mergeObservation(previous, observation).cancelled).toBe(false)
+  })
+
+  test("keeps a known registration close when the index is unavailable", () => {
+    const closeAt = Date.UTC(2026, 4, 20)
+    const previous = status({ announced: true, registrationCloseAt: closeAt })
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: myCompetition(),
+      index: undefined,
+      fetchedAt: NOW,
+    })
+
+    expect(mergeObservation(previous, observation).registrationCloseAt).toBe(
+      closeAt
+    )
+  })
+
+  test("defaults unknown facts to false with nothing stored", () => {
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: undefined,
+      index: competitionIndex(),
+      fetchedAt: NOW,
+    })
+
+    expect(mergeObservation(null, observation)).toMatchObject({
+      confirmed: false,
+      cancelled: false,
+      announced: true,
+    })
+  })
+
+  test("takes the observation's own values where it has them", () => {
+    const previous = status({ announced: false, resultsPosted: false })
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: myCompetition({ "results_posted?": true }),
+      index: undefined,
+      fetchedAt: NOW + 1,
+    })
+
+    expect(mergeObservation(previous, observation)).toMatchObject({
+      announced: true,
+      resultsPosted: true,
+      fetchedAt: NOW + 1,
+    })
   })
 })
 

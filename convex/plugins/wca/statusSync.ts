@@ -9,7 +9,7 @@ import {
 } from "@/config/lib/organisation"
 import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import { DEFAULT_COMPETITION_TEMPLATE_KEY } from "@/convex/phases/wcaMappingModel"
-import { toCompetitionStatus } from "@/convex/plugins/wca/competitionStatus"
+import { observeCompetition } from "@/convex/plugins/wca/competitionStatus"
 import { fetchWcaStatusSources } from "@/convex/plugins/wca/statusFetch"
 
 /**
@@ -43,11 +43,7 @@ export const syncCompetitionStatuses = internalAction({
 
     const wcaCompetitionIds =
       args.wcaCompetitionId === undefined
-        ? await ctx.runQuery(
-            internal.plugins.wca.statusSyncMutations
-              .listLinkedWcaCompetitionIds,
-            {}
-          )
+        ? await loadLinkedCompetitionIds(ctx)
         : [args.wcaCompetitionId]
 
     if (wcaCompetitionIds.length === 0) {
@@ -71,12 +67,18 @@ export const syncCompetitionStatuses = internalAction({
       // in place rather than inventing one.
       if (mine === undefined && index === undefined) continue
 
-      await applyStatus(ctx, {
-        wcaCompetitionId,
-        mine,
-        index,
-        fetchedAt,
-      })
+      await ctx.runMutation(
+        internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
+        {
+          observation: observeCompetition({
+            wcaCompetitionId,
+            mine,
+            index,
+            fetchedAt,
+          }),
+          templateKey: DEFAULT_COMPETITION_TEMPLATE_KEY,
+        }
+      )
       checked += 1
     }
 
@@ -84,15 +86,21 @@ export const syncCompetitionStatuses = internalAction({
   },
 })
 
-async function applyStatus(
-  ctx: ActionCtx,
-  args: Parameters<typeof toCompetitionStatus>[0]
-): Promise<void> {
-  await ctx.runMutation(
-    internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
-    {
-      status: toCompetitionStatus(args),
-      templateKey: DEFAULT_COMPETITION_TEMPLATE_KEY,
-    }
-  )
+/** Pages through every competition linked to the WCA. */
+async function loadLinkedCompetitionIds(ctx: ActionCtx): Promise<string[]> {
+  const ids: string[] = []
+  let cursor: string | null = null
+
+  for (;;) {
+    // Annotated because the cursor feeds back into the call that produces it,
+    // which TypeScript cannot infer through.
+    const page: { ids: string[]; cursor: string | null; isDone: boolean } =
+      await ctx.runQuery(
+        internal.plugins.wca.statusSyncMutations.listLinkedWcaCompetitionIds,
+        { cursor }
+      )
+    ids.push(...page.ids)
+    if (page.isDone) return ids
+    cursor = page.cursor
+  }
 }

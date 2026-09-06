@@ -66,6 +66,22 @@ export async function activatePhaseBacklogTasks(
   )
 }
 
+/**
+ * Activates several phases' backlog tasks in one plan. Used when a competition
+ * moves forward by more than one phase at once, so the phases it passed through
+ * don't leave their tasks stranded in backlog.
+ */
+export async function activatePhasesBacklogTasks(
+  ctx: MutationCtx,
+  phaseIds: readonly Id<"phases">[]
+) {
+  return await planTaskStatusMutation(ctx, async (planner) => {
+    for (const phaseId of phaseIds) {
+      await planner.activatePhase(phaseId)
+    }
+  })
+}
+
 export async function setTaskKindAndRecompute(
   ctx: MutationCtx,
   taskId: Id<"tasks">,

@@ -8,8 +8,10 @@ import { modules } from "@/convex/test.setup"
 import {
   insertBlankCompetition,
   insertCompetitionPhase,
+  insertSeedTask,
 } from "@/convex/testHelpers"
-import type { WcaCompetitionStatus } from "@/convex/plugins/wca/validators"
+import { unlinkCompetitionIfWcaLinkMatches } from "@/convex/plugins/wca/competitionLink"
+import type { WcaCompetitionObservation } from "@/convex/plugins/wca/validators"
 
 const TEMPLATE_KEY = "standard-competition"
 const WCA_ID = "SpringOpen2026"
@@ -28,8 +30,8 @@ const TEMPLATE_PHASES = [
 type PhaseKey = (typeof TEMPLATE_PHASES)[number]["key"]
 
 function status(
-  overrides: Partial<WcaCompetitionStatus> = {}
-): WcaCompetitionStatus {
+  overrides: Partial<WcaCompetitionObservation> = {}
+): WcaCompetitionObservation {
   return {
     wcaCompetitionId: WCA_ID,
     confirmed: false,
@@ -103,11 +105,11 @@ async function currentPhaseKey(
 
 async function applyStatus(
   t: TestConvex<typeof schema>,
-  next: WcaCompetitionStatus
+  next: WcaCompetitionObservation
 ) {
   await t.mutation(
     internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
-    { status: next, templateKey: TEMPLATE_KEY }
+    { observation: next, templateKey: TEMPLATE_KEY }
   )
 }
 
@@ -236,6 +238,163 @@ describe("WCA phase sync", () => {
   })
 })
 
+describe("multi-phase jumps", () => {
+  /** Backlog task statuses, keyed by the template key of their phase. */
+  async function taskStatusByPhaseKey(
+    t: TestConvex<typeof schema>,
+    competitionId: Id<"competitions">
+  ): Promise<Record<string, string>> {
+    return await t.run(async (ctx) => {
+      const phases = await ctx.db
+        .query("phases")
+        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
+        )
+        .collect()
+
+      const byKey: Record<string, string> = {}
+      for (const phase of phases) {
+        if (phase.templateKey === undefined) continue
+        const tasks = await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "phases").eq("parent.id", phase._id)
+          )
+          .collect()
+        if (tasks.length === 0) continue
+        byKey[phase.templateKey] = tasks[0].status
+      }
+      return byKey
+    })
+  }
+
+  test("activates the backlog of every phase passed through", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "concept",
+    })
+
+    await t.run(async (ctx) => {
+      const phases = await ctx.db
+        .query("phases")
+        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
+        )
+        .collect()
+      for (const [index, phase] of phases.entries()) {
+        await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phase._id },
+          order: `a${String(index)}`,
+        })
+      }
+    })
+
+    // Concept -> Post-Competition, skipping three phases.
+    await applyStatus(
+      t,
+      status({ confirmed: true, announced: true, endDate: "2026-06-01" })
+    )
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("post-competition")
+
+    const statuses = await taskStatusByPhaseKey(t, competitionId)
+    // Every phase entered by the jump, not just the target.
+    for (const key of [
+      "pre-announcement",
+      "announced",
+      "pre-competition",
+      "post-competition",
+    ]) {
+      expect(statuses[key]).not.toBe("backlog")
+    }
+    // Phases beyond the target are untouched.
+    expect(statuses.completed).toBe("backlog")
+  })
+
+  test("leaves phases before the starting one in backlog", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    await t.run(async (ctx) => {
+      const phases = await ctx.db
+        .query("phases")
+        .withIndex("by_owner_type_and_owner_id_and_sortKey", (q) =>
+          q.eq("owner.type", "competitions").eq("owner.id", competitionId)
+        )
+        .collect()
+      for (const [index, phase] of phases.entries()) {
+        await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phase._id },
+          order: `a${String(index)}`,
+        })
+      }
+    })
+
+    await applyStatus(
+      t,
+      status({ confirmed: true, announced: true, endDate: "2026-06-01" })
+    )
+
+    const statuses = await taskStatusByPhaseKey(t, competitionId)
+    expect(statuses.concept).toBe("backlog")
+    expect(statuses["pre-announcement"]).toBe("backlog")
+    expect(statuses["post-competition"]).not.toBe("backlog")
+  })
+})
+
+describe("linked competition scan", () => {
+  test("returns only competitions linked to the WCA", async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      // Unlinked competitions sort first on the index, so an unranged scan
+      // would spend its budget here and might never reach a linked one.
+      for (let index = 0; index < 5; index += 1) {
+        await insertBlankCompetition(ctx)
+      }
+      const linked = await insertBlankCompetition(ctx)
+      await ctx.db.patch("competitions", linked, { wcaCompetitionId: WCA_ID })
+    })
+
+    const page = await t.query(
+      internal.plugins.wca.statusSyncMutations.listLinkedWcaCompetitionIds,
+      {}
+    )
+
+    expect(page.ids).toEqual([WCA_ID])
+    expect(page.isDone).toBe(true)
+  })
+
+  test("pages rather than failing once there are many competitions", async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 250; index += 1) {
+        const id = await insertBlankCompetition(ctx)
+        await ctx.db.patch("competitions", id, {
+          wcaCompetitionId: `Comp${String(index).padStart(4, "0")}`,
+        })
+      }
+    })
+
+    const ids: string[] = []
+    let cursor: string | null = null
+    for (;;) {
+      const page: { ids: string[]; cursor: string | null; isDone: boolean } =
+        await t.query(
+          internal.plugins.wca.statusSyncMutations.listLinkedWcaCompetitionIds,
+          { cursor }
+        )
+      ids.push(...page.ids)
+      if (page.isDone) break
+      cursor = page.cursor
+    }
+
+    expect(ids).toHaveLength(250)
+    expect(new Set(ids).size).toBe(250)
+  })
+})
+
 describe("cancellation", () => {
   test("flags the competition without touching its phase", async () => {
     const t = convexTest(schema, modules)
@@ -267,6 +426,63 @@ describe("cancellation", () => {
     const competition = await t.run(async (ctx) =>
       ctx.db.get("competitions", competitionId)
     )
+    expect(competition?.cancelledAt).toBeUndefined()
+  })
+
+  test("keeps the flag when this run could not determine cancellation", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    await applyStatus(t, status({ announced: true, cancelled: true }))
+    // A run that saw the competition only in the country index, which carries
+    // no cancellation field. It must not read as a reinstatement.
+    await applyStatus(t, status({ announced: true, cancelled: null }))
+
+    const competition = await t.run(async (ctx) =>
+      ctx.db.get("competitions", competitionId)
+    )
+    expect(competition?.cancelledAt).toBe(NOW)
+  })
+
+  test("keeps a known registration close date across a run without the index", async () => {
+    const t = convexTest(schema, modules)
+    await seedCompetition(t, { startingPhase: "announced" })
+    const closeAt = Date.UTC(2026, 10, 1)
+
+    await applyStatus(
+      t,
+      status({ announced: true, registrationCloseAt: closeAt })
+    )
+    await applyStatus(t, status({ announced: true, registrationCloseAt: null }))
+
+    const stored = await t.run(async (ctx) =>
+      ctx.db
+        .query("wcaCompetitionStatuses")
+        .withIndex("by_wcaCompetitionId", (q) =>
+          q.eq("wcaCompetitionId", WCA_ID)
+        )
+        .unique()
+    )
+    expect(stored?.registrationCloseAt).toBe(closeAt)
+  })
+
+  test("unlinking clears the flag so the competition is not stranded", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    await applyStatus(t, status({ announced: true, cancelled: true }))
+    await t.run(async (ctx) =>
+      unlinkCompetitionIfWcaLinkMatches(ctx, competitionId, WCA_ID)
+    )
+
+    const competition = await t.run(async (ctx) =>
+      ctx.db.get("competitions", competitionId)
+    )
+    expect(competition?.wcaCompetitionId).toBeUndefined()
     expect(competition?.cancelledAt).toBeUndefined()
   })
 

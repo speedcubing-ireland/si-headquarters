@@ -14,17 +14,18 @@ import {
 } from "@/convex/phases/setCurrentPhase"
 import { loadMappingsForTemplate } from "@/convex/phases/wcaMappingModel"
 import { resolveWcaPhaseAdvance } from "@/convex/phases/wcaAdvance"
-import { reachedMilestones } from "@/convex/plugins/wca/competitionStatus"
 import {
-  wcaCompetitionStatusValidator,
+  mergeObservation,
+  reachedMilestones,
+} from "@/convex/plugins/wca/competitionStatus"
+import {
+  wcaCompetitionObservationValidator,
+  type WcaCompetitionObservation,
   type WcaCompetitionStatus,
 } from "@/convex/plugins/wca/validators"
 
-/**
- * Competitions can grow without bound, so the sync reads a bounded page and
- * shouts rather than silently syncing a subset.
- */
-const MAX_LINKED_COMPETITIONS = 500
+/** Linked competitions read per page; the caller pages until done. */
+const LINKED_COMPETITIONS_PAGE_SIZE = 200
 
 /**
  * Cron entry point. Crons in this codebase target internal mutations, and the
@@ -56,22 +57,39 @@ export const getLinkedWcaCompetitionId = internalQuery({
   },
 })
 
+/**
+ * One page of the competitions that are linked to the WCA.
+ *
+ * The index range matters: unlinked competitions have no `wcaCompetitionId`,
+ * and a missing field sorts before every string in Convex index order, so an
+ * unranged scan would spend its budget on unlinked rows and might never reach
+ * a linked one. `gt("")` skips both the missing field and the empty string.
+ */
 export const listLinkedWcaCompetitionIds = internalQuery({
-  args: {},
-  returns: v.array(v.string()),
-  handler: async (ctx) => {
-    const competitions = await ctx.db
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.object({
+    ids: v.array(v.string()),
+    cursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
       .query("competitions")
-      .withIndex("by_wcaCompetitionId")
-      .take(MAX_LINKED_COMPETITIONS + 1)
+      .withIndex("by_wcaCompetitionId", (q) => q.gt("wcaCompetitionId", ""))
+      .paginate({
+        numItems: LINKED_COMPETITIONS_PAGE_SIZE,
+        cursor: args.cursor ?? null,
+      })
 
-    if (competitions.length > MAX_LINKED_COMPETITIONS) {
-      throw new Error("Too many competitions to sync WCA status for at once.")
+    return {
+      ids: page.page
+        .map((competition) => competition.wcaCompetitionId)
+        .filter((id): id is string => id !== undefined && id.length > 0),
+      cursor: page.continueCursor,
+      isDone: page.isDone,
     }
-
-    return competitions
-      .map((competition) => competition.wcaCompetitionId)
-      .filter((id): id is string => id !== undefined && id.length > 0)
   },
 })
 
@@ -84,14 +102,15 @@ export const listLinkedWcaCompetitionIds = internalQuery({
  */
 export const applyCompetitionStatus = internalMutation({
   args: {
-    status: wcaCompetitionStatusValidator,
+    observation: wcaCompetitionObservationValidator,
     templateKey: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { status } = args
-
-    await upsertStatusSnapshot(ctx, status)
+    // Merge here rather than in the action: this transaction already reads the
+    // stored row, so there is no window for a concurrent sync to interleave
+    // between the read and the write.
+    const status = await upsertStatusSnapshot(ctx, args.observation)
 
     const competition = await ctx.db
       .query("competitions")
@@ -126,28 +145,36 @@ export const applyCompetitionStatus = internalMutation({
       // System-driven: no human moved this.
       actorId: null,
       previousPhaseId,
+      // A sync can jump several phases at once (a competition linked late may
+      // go straight to Completed). Nobody is watching, so the phases it passed
+      // through must not leave their tasks stranded in backlog.
+      activateSkippedPhases: true,
     })
 
     return null
   },
 })
 
+/** Folds the observation onto the stored row and returns the merged status. */
 async function upsertStatusSnapshot(
   ctx: MutationCtx,
-  status: WcaCompetitionStatus
-): Promise<void> {
+  observation: WcaCompetitionObservation
+): Promise<WcaCompetitionStatus> {
   const existing = await ctx.db
     .query("wcaCompetitionStatuses")
     .withIndex("by_wcaCompetitionId", (q) =>
-      q.eq("wcaCompetitionId", status.wcaCompetitionId)
+      q.eq("wcaCompetitionId", observation.wcaCompetitionId)
     )
     .unique()
 
+  const status = mergeObservation(existing, observation)
+
   if (existing === null) {
     await ctx.db.insert("wcaCompetitionStatuses", status)
-    return
+  } else {
+    await ctx.db.replace("wcaCompetitionStatuses", existing._id, status)
   }
-  await ctx.db.replace("wcaCompetitionStatuses", existing._id, status)
+  return status
 }
 
 /**
