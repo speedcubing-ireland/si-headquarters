@@ -560,7 +560,7 @@ export const activatePhaseTasks = mutation({
       type: "phases",
       id: args.phaseId,
     })
-    const result = await activatePhaseBacklogTasks(ctx, args.phaseId)
+    const result = await activatePhaseBacklogTasks(ctx, [args.phaseId])
     await scheduleTaskStatusNotifications(ctx, result, principal.userId)
     return null
   },

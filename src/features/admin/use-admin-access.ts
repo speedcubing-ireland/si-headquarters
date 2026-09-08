@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { useCan } from "@/features/auth/ability"
 import type { AdminTab } from "@/features/admin/types"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 
 export function useAdminAccess() {
   const userManagement = useCan("manage", "UserManagement")
@@ -17,6 +18,9 @@ export function useAdminAccess() {
     if (director.allowed) {
       available.push("teams")
       available.push("serviceAccounts")
+      if (isFeatureEnabled("wcaIntegration")) {
+        available.push("wcaPhases")
+      }
       available.push("impersonation")
     }
     return available

@@ -15,4 +15,5 @@ export const {
   sponsorshipConfig,
   configuredSponsorshipSenderAddress,
   checkinSheetsConfig,
+  competitionCountryIso2,
 } = createOrganisationAccessors(organisationConfig)

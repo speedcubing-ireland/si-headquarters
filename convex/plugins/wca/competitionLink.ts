@@ -70,6 +70,10 @@ export async function unlinkCompetitionIfWcaLinkMatches(
   }
   await ctx.db.patch("competitions", competitionId, {
     wcaCompetitionId: undefined,
+    // `cancelledAt` means "the WCA says this is cancelled", so it cannot
+    // outlive the link. Left set, it would hide the competition from the
+    // dashboard with no WCA row left in the UI to clear it from.
+    cancelledAt: undefined,
   })
   return competition
 }

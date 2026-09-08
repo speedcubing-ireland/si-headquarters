@@ -2,6 +2,7 @@ export const ADMIN_TABS = [
   "users",
   "teams",
   "serviceAccounts",
+  "wcaPhases",
   "impersonation",
 ] as const
 

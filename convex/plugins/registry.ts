@@ -14,6 +14,7 @@ import { canvaPlugin } from "@/convex/plugins/canva/backendPlugin"
 import { discordPlugin } from "@/convex/plugins/discord/definition"
 import { sheetsPlugin } from "@/convex/plugins/sheets/definition"
 import { wcaPlugin } from "@/convex/plugins/wca/definition"
+import { wcaTables } from "@/convex/plugins/wca/validators"
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { sponsorCompetitionDeletionPlugin } from "@/convex/plugins/sponsor/admin/auctions/deletion"
 
@@ -46,4 +47,5 @@ export const pluginTables = {
   ...eventsTables,
   ...refundsTables,
   ...sponsorTables,
+  ...wcaTables,
 }

@@ -18,4 +18,10 @@ export const competitionsCoreFields = {
   compDates: v.object(competitionDatesFields),
   phaseId: v.nullable(v.id("phases")),
   wcaCompetitionId: v.optional(v.string()),
+  /**
+   * Set when the WCA reports the competition as cancelled. Orthogonal to the
+   * phase: a cancelled competition keeps whatever phase it reached. Written
+   * only by the WCA status sync.
+   */
+  cancelledAt: v.optional(v.number()),
 }

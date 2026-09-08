@@ -630,6 +630,55 @@ describe("due notifications", () => {
     ).toBe(false)
   })
 
+  test("due scan skips competitions the WCA has cancelled", async () => {
+    const t = convexTest(schema, modules)
+    const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)
+    const { overdueTaskId, competitionId } = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const phaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Planning",
+        "a"
+      )
+      await ctx.db.patch("competitions", competitionId, {
+        phaseId,
+        // A cancelled competition is not live work, so its overdue tasks must
+        // not keep nagging.
+        cancelledAt: nowMs,
+      })
+      const overdueTaskId = await insertSeedTask(ctx, {
+        name: "Overdue task",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "to-do",
+      })
+      const assigneeId = await insertLinkedUser(ctx, "Assignee", "discord-user")
+      await ctx.db.patch("tasks", overdueTaskId, {
+        assigneeIds: [assigneeId],
+        dueDate: "2026-06-07",
+      })
+      return { overdueTaskId, competitionId }
+    })
+
+    await runDueScanToCompletion(t, nowMs)
+
+    const events = await getScheduledNotificationEvents(t)
+    expect(
+      events.some(
+        (event) =>
+          event.kind === "taskOverdue" && event.taskId === overdueTaskId
+      )
+    ).toBe(false)
+    expect(
+      events.some(
+        (event) =>
+          event.kind === "ownerOverdueSummary" &&
+          event.owner.id === competitionId
+      )
+    ).toBe(false)
+  })
+
   test("due scan notifies for phase carryover-only tasks", async () => {
     const t = convexTest(schema, modules)
     const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)

@@ -4,6 +4,7 @@ import { query } from "@/convex/_generated/server"
 import type { QueryCtx } from "@/convex/_generated/server"
 import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
 import { formatLocalDate } from "@/convex/competitions/dates"
+import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
 import {
   getSaturdayOfWeek,
   parseCompDateRange,
@@ -24,6 +25,7 @@ const calendarCompetitionRow = v.object({
     to: v.nullable(v.string()),
   }),
   phase: phaseSnapshotValidator,
+  cancelled: v.boolean(),
   compLead: v.union(publicUserValidator, v.null()),
   leadDelegate: v.union(publicUserValidator, v.null()),
   organisers: v.array(publicUserValidator),
@@ -53,6 +55,7 @@ interface CalendarCompetitionRow {
     name: string
     color: Doc<"phases">["color"]
   } | null
+  cancelled: boolean
   compLead: Awaited<ReturnType<typeof getPublicUser>>
   leadDelegate: Awaited<ReturnType<typeof getPublicUser>>
   organisers: NonNullable<Awaited<ReturnType<typeof getPublicUser>>>[]
@@ -81,6 +84,7 @@ async function buildCompetitionRow(
     name: competition.name,
     compDates: competition.compDates,
     phase,
+    cancelled: isCompetitionCancelled(competition),
     compLead,
     leadDelegate,
     organisers: organisers.filter(
