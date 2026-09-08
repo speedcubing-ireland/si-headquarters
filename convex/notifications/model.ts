@@ -384,6 +384,7 @@ function actorSuppressionId(event: NotificationEvent): Id<"users"> | null {
     case "sponsorSet":
     case "commentAdded":
       return event.actorId
+    case "competitionCancelled":
     case "projectWorkflowAttention":
     case "assignableTaskReady":
     case "taskUnblocked":
@@ -1029,6 +1030,32 @@ async function buildPhaseChangedDrafts(
   })
 }
 
+async function buildCompetitionCancelledDrafts(
+  ctx: ReadCtx,
+  event: Extract<NotificationEvent, { kind: "competitionCancelled" }>
+) {
+  const object = { type: "competitions", id: event.competitionId } as const
+  const owner = await getScopedObjectName(ctx, object)
+  const cancelled = event.cancelled
+  return await buildObjectFeedDrafts(ctx, object, {
+    fallbackText: cancelled
+      ? `Competition cancelled: ${owner.name}`
+      : `Competition reinstated: ${owner.name}`,
+    actorId: null,
+    color: cancelled ? EMBED_COLOR.urgent : EMBED_COLOR.success,
+    description: cancelled
+      ? `The WCA has marked ${owner.name} as cancelled. Its phase is unchanged — review outstanding tasks and commitments.`
+      : `The WCA no longer lists ${owner.name} as cancelled.`,
+    fields: [
+      embedField(
+        cancelled ? ":x:" : ":white_check_mark:",
+        cancelled ? "Cancelled on the WCA" : "Reinstated on the WCA",
+        `**${owner.name}**`
+      ),
+    ],
+  })
+}
+
 async function buildUpdatePublishedDrafts(
   ctx: ReadCtx,
   event: Extract<NotificationEvent, { kind: "updatePublished" }>
@@ -1185,6 +1212,8 @@ async function buildEventDrafts(
       return await buildNudgeDrafts(ctx, event)
     case "phaseChanged":
       return await buildPhaseChangedDrafts(ctx, event)
+    case "competitionCancelled":
+      return await buildCompetitionCancelledDrafts(ctx, event)
     case "updatePublished":
       return await buildUpdatePublishedDrafts(ctx, event)
     case "projectWorkflowAttention":

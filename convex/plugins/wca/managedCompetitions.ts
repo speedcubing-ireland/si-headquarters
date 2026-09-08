@@ -32,24 +32,36 @@ function mapManagedCompetition(
 }
 
 /**
- * Competitions managed (delegated or organised) by the connected WCA account,
- * past and future. Bookmarked competitions are intentionally excluded so the
- * report only covers our own competitions. Cancelled competitions are dropped.
+ * Raw competitions managed (delegated or organised) by the connected WCA
+ * account, past and future, cancelled ones included. Bookmarked competitions
+ * are intentionally excluded so callers only see our own competitions.
+ *
+ * Callers decide what to filter: the events report drops cancellations, the
+ * phase sync needs to see them.
  */
-export async function fetchManagedCompetitions(
+export async function listMyCompetitions(
   accessToken: string
-): Promise<ManagedWcaCompetition[]> {
+): Promise<MyCompetition[]> {
   const client = createWcaClient(accessToken)
   const response = await getMyCompetitions({ client })
   if (response.error !== undefined || response.data === undefined) {
     throw new Error("WCA managed competitions lookup failed.")
   }
-
-  const byId = new Map<string, ManagedWcaCompetition>()
-  for (const competition of [
+  return [
     ...response.data.past_competitions,
     ...response.data.future_competitions,
-  ]) {
+  ]
+}
+
+/**
+ * Managed competitions for the events report. Cancelled competitions are
+ * dropped.
+ */
+export async function fetchManagedCompetitions(
+  accessToken: string
+): Promise<ManagedWcaCompetition[]> {
+  const byId = new Map<string, ManagedWcaCompetition>()
+  for (const competition of await listMyCompetitions(accessToken)) {
     if (competition["cancelled?"]) {
       continue
     }

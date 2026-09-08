@@ -81,11 +81,26 @@ export function createOrganisationAccessors(
     return config
   }
 
+  /**
+   * Country the organisation runs competitions in. The WCA phase sync uses it
+   * to fetch local registration dates in one request.
+   */
+  function competitionCountryIso2(): string {
+    const countryIso2 = config.wca?.countryIso2
+    if (countryIso2 === undefined) {
+      throw new Error(
+        "WCA competition country was requested while WCA config is absent."
+      )
+    }
+    return countryIso2
+  }
+
   return {
     isFeatureEnabled,
     findLoginProvider,
     sponsorshipConfig,
     configuredSponsorshipSenderAddress,
     checkinSheetsConfig,
+    competitionCountryIso2,
   }
 }

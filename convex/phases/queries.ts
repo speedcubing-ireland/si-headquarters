@@ -1,4 +1,5 @@
 import { collectAll, competitionOrProjectRef } from "@/convex/utils"
+import type { Doc } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
 import { requireActiveUserId } from "@/convex/permissions/principal"
 import {
@@ -9,6 +10,33 @@ import {
 } from "@/convex/phases/model"
 import { phaseColor } from "./validators"
 import { v } from "convex/values"
+
+/**
+ * The phase fields the client is given. Phase rows carry fields the UI has no
+ * use for — `templateKey` exists only so the WCA sync can identify a phase
+ * across renames — so rows are projected through `toPhaseRow` rather than
+ * returned whole. Returning the document meant every field added to the schema
+ * broke these queries' returns validators at runtime.
+ */
+const phaseRowFields = {
+  _id: v.id("phases"),
+  _creationTime: v.number(),
+  name: v.string(),
+  color: phaseColor,
+  owner: competitionOrProjectRef,
+  sortKey: v.string(),
+}
+
+function toPhaseRow(phase: Doc<"phases">) {
+  return {
+    _id: phase._id,
+    _creationTime: phase._creationTime,
+    name: phase.name,
+    color: phase.color,
+    owner: phase.owner,
+    sortKey: phase.sortKey,
+  }
+}
 
 export const list = query({
   args: {},
@@ -36,19 +64,11 @@ export const listForOwner = query({
   args: {
     owner: competitionOrProjectRef,
   },
-  returns: v.array(
-    v.object({
-      _id: v.id("phases"),
-      _creationTime: v.number(),
-      name: v.string(),
-      color: phaseColor,
-      owner: competitionOrProjectRef,
-      sortKey: v.string(),
-    })
-  ),
+  returns: v.array(v.object(phaseRowFields)),
   handler: async (ctx, args) => {
     await requireActiveUserId(ctx)
-    return await listPhasesForOwner(ctx, args.owner)
+    const phases = await listPhasesForOwner(ctx, args.owner)
+    return phases.map(toPhaseRow)
   },
 })
 
@@ -58,12 +78,7 @@ export const listManageForOwner = query({
   },
   returns: v.array(
     v.object({
-      _id: v.id("phases"),
-      _creationTime: v.number(),
-      name: v.string(),
-      color: phaseColor,
-      owner: competitionOrProjectRef,
-      sortKey: v.string(),
+      ...phaseRowFields,
       hasTasks: v.boolean(),
       isCurrent: v.boolean(),
     })
@@ -87,7 +102,7 @@ export const listManageForOwner = query({
 
     return await Promise.all(
       phases.map(async (phase) => ({
-        ...phase,
+        ...toPhaseRow(phase),
         hasTasks: await hasPhaseTasks(ctx, phase._id),
         isCurrent: phase._id === currentPhaseId,
       }))

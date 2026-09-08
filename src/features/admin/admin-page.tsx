@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import {
   KeyRoundIcon,
+  MilestoneIcon,
   ShieldAlertIcon,
   UsersIcon,
   WorkflowIcon,
@@ -12,6 +13,7 @@ import { AdminTeamsPage } from "@/features/admin/teams"
 import { isAdminTab, type AdminTab } from "@/features/admin/types"
 import { AdminUsersPage } from "@/features/admin/users"
 import { AdminServiceAccountsPage } from "@/features/admin/service-accounts"
+import { AdminWcaPhasesPage } from "@/features/admin/wca-phases"
 import { useAdminAccess } from "@/features/admin/use-admin-access"
 import { cn } from "@/lib/utils"
 
@@ -38,6 +40,11 @@ const ADMIN_TAB_CONFIG: Record<
     label: "Service accounts",
     icon: KeyRoundIcon,
     content: () => <AdminServiceAccountsPage />,
+  },
+  wcaPhases: {
+    label: "WCA phases",
+    icon: MilestoneIcon,
+    content: () => <AdminWcaPhasesPage />,
   },
   impersonation: {
     label: "Impersonation",

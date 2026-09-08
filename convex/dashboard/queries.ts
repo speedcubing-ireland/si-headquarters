@@ -2,6 +2,7 @@ import { collectAll, type CompetitionOrProjectRef } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
 import { competitionPrimaryStart } from "@/convex/competitions/dates"
+import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
 import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
 import { localToday } from "@/convex/notifications/localTime"
 import {
@@ -636,8 +637,12 @@ export const getHome = query({
     )
     const watcherIdsByTaskId = buildTaskWatcherIdsByTaskId(tasks, subscriptions)
 
-    const readableCompetitions = competitions.filter((competition) =>
-      canPerform(principal, "read", "Competition", competition)
+    // A competition the WCA has cancelled is not active work, so it drops off
+    // the dashboard entirely rather than sitting there accruing overdue tasks.
+    const readableCompetitions = competitions.filter(
+      (competition) =>
+        !isCompetitionCancelled(competition) &&
+        canPerform(principal, "read", "Competition", competition)
     )
     const readableCompetitionIds = new Set(
       readableCompetitions.map((competition) => competition._id)

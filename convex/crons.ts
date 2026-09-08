@@ -31,4 +31,14 @@ crons.cron(
   {}
 )
 
+// The WCA has no webhooks, so competition status has to be polled. Two requests
+// per run cover every competition, so hourly is cheap; minute 40 keeps it clear
+// of the other crons.
+crons.cron(
+  "wca competition status sync hourly",
+  "40 * * * *",
+  internal.plugins.wca.statusSyncMutations.queueStatusSync,
+  {}
+)
+
 export default crons
