@@ -112,7 +112,7 @@ const L = TASK_LABEL_CODES
 
 export const standardCompetitionTemplate = {
   key: "standard-competition",
-  version: 5,
+  version: 6,
   name: "Normal Competition",
   description: "Default template for competitions",
   initialPhaseKey: "concept",
@@ -425,6 +425,13 @@ export const standardCompetitionTemplate = {
             "Write and send pre-competition information email to competitors.",
           owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
           labels: [L.registration],
+          blockedBy: ["groups-ready"],
+        },
+        {
+          key: "scrambles-generated",
+          name: "Scrambles generated",
+          description: "Generate the scrambles for the competition.",
+          owner: { type: "teamName", teamName: TEAM_NAMES.DELEGATES },
           blockedBy: ["groups-ready"],
         },
       ],
