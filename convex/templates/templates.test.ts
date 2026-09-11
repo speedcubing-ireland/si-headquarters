@@ -165,6 +165,10 @@ describe("competition templates", () => {
         preCompEmailBlockers: blockingTaskNames(
           taskByName.get("Pre-comp email written and sent")?._id ?? ""
         ),
+        scramblesGeneratedBlockers: blockingTaskNames(
+          taskByName.get("Scrambles generated")?._id ?? ""
+        ),
+        scramblesGeneratedOwner: taskByName.get("Scrambles generated")?.owner,
         taskNames: tasks.map((task) => task.name),
         venueBookedKind: venueBooked?.kind ?? null,
         venueBookedReviewers: reviewers.filter(
@@ -216,6 +220,7 @@ describe("competition templates", () => {
       "Post-Competition Social Media",
       "Discord Thread Made",
       "Groups Ready",
+      "Scrambles generated",
     ]) {
       expect(stored.taskNames).toContain(taskName)
     }
@@ -237,7 +242,9 @@ describe("competition templates", () => {
     ])
     expect(stored.printingCompleteBlockers).toEqual(["Groups Ready"])
     expect(stored.preCompEmailBlockers).toEqual(["Groups Ready"])
-    expect(stored.blockers.length).toBe(4)
+    expect(stored.scramblesGeneratedBlockers).toEqual(["Groups Ready"])
+    expect(stored.blockers.length).toBe(5)
+    expect(stored.scramblesGeneratedOwner?.type).toBe("teams")
   })
 
   test("applies a template to an existing empty competition", async () => {
