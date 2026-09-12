@@ -32,7 +32,7 @@ type ReviewerInput = NonNullable<
   CompetitionTemplateTaskSpec["reviewers"]
 >[number]
 
-export type TemplateCompetitionInput = Pick<
+type TemplateCompetitionInput = Pick<
   Doc<"competitions">,
   "name" | "description" | "compDates" | "people"
 >
@@ -292,7 +292,6 @@ function assertUniqueTaskKeys(
 }
 
 async function insertTaskTree({
-  after,
   ctx,
   competition,
   labelIdsByCode,
@@ -301,8 +300,6 @@ async function insertTaskTree({
   tasks,
   variables,
 }: {
-  /** Order key the inserted tasks must sort after, or null to start a list. */
-  after: string | null
   ctx: MutationCtx
   competition: TemplateCompetitionInput
   labelIdsByCode: Map<string, Id<"taskLabels">>
@@ -311,7 +308,7 @@ async function insertTaskTree({
   tasks: readonly CompetitionTemplateTaskSpec[]
   variables: TemplateVariables
 }) {
-  const orderKeys = generateNKeysBetween(after, null, tasks.length)
+  const orderKeys = generateNKeysBetween(null, null, tasks.length)
 
   for (const [index, task] of tasks.entries()) {
     const status = task.status ?? "backlog"
@@ -364,7 +361,6 @@ async function insertTaskTree({
     })
 
     await insertTaskTree({
-      after: null,
       ctx,
       competition,
       labelIdsByCode,
@@ -374,38 +370,6 @@ async function insertTaskTree({
       variables,
     })
   }
-}
-
-/**
- * Inserts template task specs into a phase that may already hold tasks, placing
- * them after `after`. Shared with the one-shot backfills so a task added to an
- * existing competition is built by the same code path as a freshly templated
- * one — owner resolution, labels, reviewers and integrations included.
- */
-export async function insertTemplateTasksIntoPhase(
-  ctx: MutationCtx,
-  args: {
-    after: string | null
-    competition: TemplateCompetitionInput
-    phaseId: Id<"phases">
-    tasks: readonly CompetitionTemplateTaskSpec[]
-  }
-): Promise<Map<string, Id<"tasks">>> {
-  await ensureDefaultTaskLabels(ctx)
-
-  const taskIdsByKey = new Map<string, Id<"tasks">>()
-  await insertTaskTree({
-    after: args.after,
-    ctx,
-    competition: args.competition,
-    labelIdsByCode: new Map(),
-    parent: { type: "phases", id: args.phaseId },
-    taskIdsByKey,
-    tasks: args.tasks,
-    variables: {},
-  })
-
-  return taskIdsByKey
 }
 
 async function upsertTemplateLinkedResource(
@@ -468,7 +432,6 @@ async function applyCompetitionTemplateStructure(
     })
     phaseIdsByKey.set(phase.key, phaseId)
     await insertTaskTree({
-      after: null,
       ctx,
       competition: args.competition,
       labelIdsByCode,
