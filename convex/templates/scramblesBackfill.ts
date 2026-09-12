@@ -46,9 +46,9 @@ function findTemplateTask(
 /**
  * Resolves a competition's Pre-Competition phase.
  *
- * `templateKey` is only set on rows that `phases/wcaBackfill` already matched,
- * so older competitions still need the phase-name fallback. A renamed phase
- * stays unmatched on purpose rather than being guessed at.
+ * `templateKey` is only set on rows created from the template, so older
+ * competitions still need the phase-name fallback. A renamed phase stays
+ * unmatched on purpose rather than being guessed at.
  */
 async function findPreCompetitionPhase(
   ctx: MutationCtx,

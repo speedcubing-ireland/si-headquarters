@@ -103,7 +103,6 @@ import type * as phases_queries from "../phases/queries.js";
 import type * as phases_setCurrentPhase from "../phases/setCurrentPhase.js";
 import type * as phases_validators from "../phases/validators.js";
 import type * as phases_wcaAdvance from "../phases/wcaAdvance.js";
-import type * as phases_wcaBackfill from "../phases/wcaBackfill.js";
 import type * as phases_wcaMappingModel from "../phases/wcaMappingModel.js";
 import type * as phases_wcaMappingSettings from "../phases/wcaMappingSettings.js";
 import type * as phases_wcaMilestones from "../phases/wcaMilestones.js";
@@ -443,7 +442,6 @@ declare const fullApi: ApiFromModules<{
   "phases/setCurrentPhase": typeof phases_setCurrentPhase;
   "phases/validators": typeof phases_validators;
   "phases/wcaAdvance": typeof phases_wcaAdvance;
-  "phases/wcaBackfill": typeof phases_wcaBackfill;
   "phases/wcaMappingModel": typeof phases_wcaMappingModel;
   "phases/wcaMappingSettings": typeof phases_wcaMappingSettings;
   "phases/wcaMilestones": typeof phases_wcaMilestones;
