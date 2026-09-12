@@ -32,7 +32,6 @@ import {
 import { requireTaskManagement } from "@/convex/permissions/principal"
 import {
   deriveTaskRootContextFromParent,
-  getNextTaskOrder,
   taskRootPatch,
   type TaskRootContext,
 } from "@/convex/tasks/hierarchy"
@@ -51,11 +50,39 @@ import {
 } from "@/convex/deletion/budget"
 import { objectRefKey } from "@/convex/utils"
 import { v } from "convex/values"
-import { generateNKeysBetween } from "fractional-indexing"
+import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing"
 
 const MAX_TASK_TREE_MUTATION_SIZE = 200
 const MAX_TASK_REORDER_ITEMS = 200
 const MAX_TASK_REORDER_SECTIONS = 50
+
+async function getNextTaskOrder(ctx: MutationCtx, parent: TaskParentRef) {
+  const siblings =
+    parent.type === "phases"
+      ? await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "phases").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+      : await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "tasks").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+
+  if (siblings.length === 0) return generateKeyBetween(null, null)
+
+  const previousOrder = siblings[0].order
+  try {
+    return generateKeyBetween(previousOrder, null)
+  } catch {
+    return `${previousOrder}0`
+  }
+}
 
 async function requireExistingTaskParent(
   ctx: MutationCtx,
