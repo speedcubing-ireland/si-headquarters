@@ -316,6 +316,7 @@ import type * as templates_mutations from "../templates/mutations.js";
 import type * as templates_queries from "../templates/queries.js";
 import type * as templates_registry from "../templates/registry.js";
 import type * as templates_resolver from "../templates/resolver.js";
+import type * as templates_scramblesBackfill from "../templates/scramblesBackfill.js";
 import type * as templates_validators from "../templates/validators.js";
 import type * as testHelpers from "../testHelpers.js";
 import type * as testing_discordNotificationTestEnv from "../testing/discordNotificationTestEnv.js";
@@ -655,6 +656,7 @@ declare const fullApi: ApiFromModules<{
   "templates/queries": typeof templates_queries;
   "templates/registry": typeof templates_registry;
   "templates/resolver": typeof templates_resolver;
+  "templates/scramblesBackfill": typeof templates_scramblesBackfill;
   "templates/validators": typeof templates_validators;
   testHelpers: typeof testHelpers;
   "testing/discordNotificationTestEnv": typeof testing_discordNotificationTestEnv;

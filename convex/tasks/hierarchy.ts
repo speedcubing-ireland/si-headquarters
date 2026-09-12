@@ -1,4 +1,5 @@
 import { ConvexError } from "convex/values"
+import { generateKeyBetween } from "fractional-indexing"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 
@@ -10,6 +11,48 @@ type DbCtx = Pick<QueryCtx | MutationCtx, "db">
 export interface TaskRootContext {
   rootPhase: TaskRootPhaseRef
   root: CompetitionOrProjectRef
+}
+
+/**
+ * Order key of `parent`'s last child, or null when it has none.
+ *
+ * The anchor anything appending to a task list starts from, so a single task
+ * and a whole template subtree land in the same place.
+ */
+export async function getLastTaskOrder(
+  ctx: DbCtx,
+  parent: TaskParentRef
+): Promise<string | null> {
+  const siblings =
+    parent.type === "phases"
+      ? await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "phases").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+      : await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "tasks").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+
+  return siblings[0]?.order ?? null
+}
+
+/** Order key that places one new task after every existing child of `parent`. */
+export async function getNextTaskOrder(ctx: DbCtx, parent: TaskParentRef) {
+  const previousOrder = await getLastTaskOrder(ctx, parent)
+  if (previousOrder === null) return generateKeyBetween(null, null)
+
+  try {
+    return generateKeyBetween(previousOrder, null)
+  } catch {
+    return `${previousOrder}0`
+  }
 }
 
 export function taskRootPatch(root: TaskRootContext) {
