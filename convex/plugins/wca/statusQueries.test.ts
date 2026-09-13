@@ -7,6 +7,8 @@ import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 import {
   insertBlankCompetition,
+  insertSeedTask,
+  phasesForCompetition,
   seedTemplateCompetition,
   withVolunteerTestClient,
   type TemplatePhaseKey,
@@ -46,6 +48,24 @@ async function seedLinkedCompetition(
   return competitionId
 }
 
+/** One outstanding task in the competition's Concept phase. */
+async function seedOutstandingConceptTask(
+  t: TestConvex<typeof schema>,
+  competitionId: Id<"competitions">
+): Promise<void> {
+  const phases = await phasesForCompetition(t, competitionId)
+  const concept = phases.find((phase) => phase.templateKey === "concept")
+  if (concept === undefined) throw new Error("No concept phase seeded")
+
+  await t.run(async (ctx) => {
+    await insertSeedTask(ctx, {
+      parent: { type: "phases", id: concept._id },
+      order: "a0",
+      status: "to-do",
+    })
+  })
+}
+
 describe("getForCompetition", () => {
   test("returns null for a competition with no WCA link", async () => {
     const t = convexTest(schema, modules)
@@ -65,6 +85,30 @@ describe("getForCompetition", () => {
     const t = convexTest(schema, modules)
     const { client } = await withVolunteerTestClient(t)
     const competitionId = await seedLinkedCompetition(t)
+
+    await t.mutation(
+      internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
+      { observation: observation(), mappings: defaultMappings() }
+    )
+
+    const status = await client.query(
+      api.plugins.wca.statusQueries.getForCompetition,
+      { competitionId }
+    )
+    // The seeded Concept phase has no tasks, so the concept gate is open.
+    expect(status?.reached).toEqual([
+      "submitted",
+      "conceptTasksComplete",
+      "confirmed",
+      "announced",
+    ])
+  })
+
+  test("leaves out the concept milestone while a Concept task is open", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const competitionId = await seedLinkedCompetition(t)
+    await seedOutstandingConceptTask(t, competitionId)
 
     await t.mutation(
       internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
@@ -159,6 +203,7 @@ describe("getForCompetition — refund deadline", () => {
     )
     expect(status?.reached).toEqual([
       "submitted",
+      "conceptTasksComplete",
       "confirmed",
       "announced",
       "registrationClosed",

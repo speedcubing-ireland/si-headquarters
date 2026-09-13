@@ -8,6 +8,7 @@ import { modules } from "@/convex/test.setup"
 import {
   insertBlankCompetition,
   insertCompetitionPhase,
+  insertSeedTask,
   phasesForCompetition,
   seedTaskPerPhase,
   seedTemplateCompetition,
@@ -60,6 +61,29 @@ function seedCompetition(
   })
 }
 
+/**
+ * One task in the competition's Concept phase. Seeded explicitly because
+ * `seedTemplateCompetition` creates phases but no tasks, so a Concept phase is
+ * otherwise empty — and an empty phase is a complete one.
+ */
+async function seedConceptTask(
+  t: TestConvex<typeof schema>,
+  competitionId: Id<"competitions">,
+  status: "to-do" | "done"
+): Promise<void> {
+  const phases = await phasesForCompetition(t, competitionId)
+  const concept = phases.find((phase) => phase.templateKey === "concept")
+  if (concept === undefined) throw new Error("No concept phase seeded")
+
+  await t.run(async (ctx) => {
+    await insertSeedTask(ctx, {
+      parent: { type: "phases", id: concept._id },
+      order: "a0",
+      status,
+    })
+  })
+}
+
 async function currentPhaseKey(
   t: TestConvex<typeof schema>,
   competitionId: Id<"competitions">
@@ -90,6 +114,45 @@ describe("WCA phase sync", () => {
     })
 
     await applyStatus(t, status({ confirmed: true, announced: true }))
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("announced")
+  })
+
+  test("holds a concept competition whose Concept tasks are outstanding", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "concept",
+    })
+    await seedConceptTask(t, competitionId, "to-do")
+
+    // Being on the WCA is all `submitted` needs, and nothing else is reached.
+    await applyStatus(t, status())
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("concept")
+  })
+
+  test("advances to Pre-Announcement once the Concept tasks are done", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "concept",
+    })
+    await seedConceptTask(t, competitionId, "done")
+
+    await applyStatus(t, status())
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("pre-announcement")
+  })
+
+  test("outstanding Concept tasks do not hold back a later milestone", async () => {
+    // The gate is Pre-Announcement's alone; the WCA announcing the competition
+    // still moves it on, so nothing stalls for good.
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "concept",
+    })
+    await seedConceptTask(t, competitionId, "to-do")
+
+    await applyStatus(t, status({ announced: true }))
 
     expect(await currentPhaseKey(t, competitionId)).toBe("announced")
   })

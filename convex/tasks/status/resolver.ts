@@ -25,7 +25,7 @@ import {
   type TaskStatusIntent,
 } from "@/convex/tasks/status/rules"
 
-type StatusReadCtx = QueryCtx | MutationCtx
+export type StatusReadCtx = QueryCtx | MutationCtx
 
 export type {
   FlowStepState,

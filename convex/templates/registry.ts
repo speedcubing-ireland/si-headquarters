@@ -110,15 +110,22 @@ export interface CompetitionTemplateDefinition {
 
 const L = TASK_LABEL_CODES
 
+/**
+ * The Concept phase's template key. Exported because the
+ * `conceptTasksComplete` milestone resolves the phase by this key, and a silent
+ * drift between the two would leave that milestone permanently unreachable.
+ */
+export const CONCEPT_PHASE_KEY = "concept"
+
 export const standardCompetitionTemplate = {
   key: "standard-competition",
   version: 6,
   name: "Normal Competition",
   description: "Default template for competitions",
-  initialPhaseKey: "concept",
+  initialPhaseKey: CONCEPT_PHASE_KEY,
   phases: [
     {
-      key: "concept",
+      key: CONCEPT_PHASE_KEY,
       name: "Concept",
       color: "gray",
       tasks: [
@@ -143,7 +150,10 @@ export const standardCompetitionTemplate = {
       key: "pre-announcement",
       name: "Pre-Announcement",
       color: "red",
-      wcaMilestone: "submitted",
+      // Not `submitted`: a competition can appear on the WCA while its Concept
+      // tasks are still outstanding, and advancing then would strand that work
+      // behind the current phase.
+      wcaMilestone: "conceptTasksComplete",
       tasks: [
         {
           key: "venue-booked",
