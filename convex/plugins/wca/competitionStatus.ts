@@ -2,6 +2,7 @@ import type { WcaMilestone } from "@/convex/phases/wcaMilestones"
 import { parseDateOnlyToUtcMs } from "@/convex/plugins/wca/registrationsLib"
 import type {
   CompetitionIndex,
+  CompetitionInfo,
   MyCompetition,
 } from "@/convex/plugins/wca/openapiClient/types.gen"
 import type {
@@ -24,6 +25,76 @@ function parseTimestamp(value: string | undefined): number | null {
   if (trimmed.length === 0) return null
   const parsed = Date.parse(trimmed)
   return Number.isNaN(parsed) ? null : parsed
+}
+
+/**
+ * The instant a refund deadline has actually passed.
+ *
+ * The WCA declares `refund_policy_limit_date` as a date-time but routinely
+ * returns a bare date, and a refund is still allowed *on* that day — so a
+ * date-only value shuts at the end of it, mirroring how `held` treats
+ * `end_date`. A value carrying a time is taken at that exact instant.
+ */
+export function parseDeadlinePassedAt(
+  value: string | undefined
+): number | null {
+  if (value === undefined) return null
+  const trimmed = value.trim()
+  const dateOnly = parseDateOnlyToUtcMs(trimmed)
+  if (dateOnly !== null) return dateOnly + DAY_MS
+  return parseTimestamp(trimmed)
+}
+
+/**
+ * The observation with the refund deadline the detail carries folded in.
+ *
+ * The detail is fetched only after an observation exists — the window test that
+ * decides whether it is worth fetching reads one — so this is the second half
+ * of observing, not a separate fact.
+ */
+export function withRefundDeadline(
+  observation: WcaCompetitionObservation,
+  detail: CompetitionInfo
+): WcaCompetitionObservation {
+  return {
+    ...observation,
+    refundDeadlineAt: parseDeadlinePassedAt(detail.refund_policy_limit_date),
+  }
+}
+
+/** Whether a deadline we know about is already behind us. */
+function hasPassed(instant: number | null | undefined, nowMs: number): boolean {
+  return instant !== null && instant !== undefined && instant <= nowMs
+}
+
+/** Whether a competition's end date, plus its final day, has gone by. */
+function isHeldBy(endDate: string | null, nowMs: number): boolean {
+  const endMs = endDate === null ? null : parseDateOnlyToUtcMs(endDate)
+  return endMs !== null && nowMs >= endMs + DAY_MS
+}
+
+/**
+ * Whether this competition is worth a `/v0/competitions/{id}` call to learn its
+ * refund deadline. The index and `mine` carry no refund field, so the deadline
+ * costs one request per competition — only competitions whose refund milestone
+ * can still change earn one, keeping the rest of the run at two requests total.
+ *
+ * An unknown end date counts as in-window: it cannot rule the window out, and
+ * guessing "over" would leave the competition permanently without a deadline.
+ */
+export function needsRefundDeadline(
+  observation: WcaCompetitionObservation,
+  storedDeadline: number | null,
+  nowMs: number
+): boolean {
+  if (!observation.announced) return false
+  if (observation.cancelled === true) return false
+  // The milestone cannot un-reach, so once a stored deadline has passed there
+  // is nothing left for a fetch to tell us. Without this a competition would
+  // be re-fetched every hour for the weeks between its refund window shutting
+  // and the competition being held.
+  if (hasPassed(storedDeadline, nowMs)) return false
+  return !isHeldBy(observation.endDate, nowMs)
 }
 
 /**
@@ -62,6 +133,9 @@ export function observeCompetition(args: {
     // Only the country index reports this, so it is null both when the
     // competition is absent from the index and when that request failed.
     registrationCloseAt: parseTimestamp(index?.registration_close),
+    // Neither bulk source reports this. It is filled in by
+    // `withRefundDeadline` for the competitions worth a detail request.
+    refundDeadlineAt: null,
     fetchedAt: args.fetchedAt,
   }
 }
@@ -86,6 +160,8 @@ export function mergeObservation(
     endDate: observation.endDate ?? previous?.endDate ?? null,
     registrationCloseAt:
       observation.registrationCloseAt ?? previous?.registrationCloseAt ?? null,
+    refundDeadlineAt:
+      observation.refundDeadlineAt ?? previous?.refundDeadlineAt ?? null,
   }
 }
 
@@ -109,20 +185,24 @@ export function reachedMilestones(
   reached.add("submitted")
   if (status.confirmed) reached.add("confirmed")
   if (status.announced) reached.add("announced")
-  if (
-    status.registrationCloseAt !== null &&
-    status.registrationCloseAt <= nowMs
-  ) {
+  const registrationClosed = hasPassed(status.registrationCloseAt, nowMs)
+  if (registrationClosed) {
     reached.add("registrationClosed")
+  }
+
+  // Both conditions, not either: until the refund window shuts, registrations
+  // can still be cancelled and refunded, so neither the competitor list nor the
+  // money is settled. A deadline we have not seen holds rather than advancing —
+  // nothing stalls for good, because `held` still moves the competition on.
+  if (registrationClosed && hasPassed(status.refundDeadlineAt, nowMs)) {
+    reached.add("refundDeadlinePassed")
   }
 
   // `end_date` is the competition's last day, so it is only "held" once that
   // whole day has passed — and only if the WCA announced it, so a competition
   // that never got off the ground doesn't drift into the post-competition
   // phase just because its pencilled-in date went by.
-  const endMs =
-    status.endDate === null ? null : parseDateOnlyToUtcMs(status.endDate)
-  if (status.announced && endMs !== null && nowMs >= endMs + DAY_MS) {
+  if (status.announced && isHeldBy(status.endDate, nowMs)) {
     reached.add("held")
   }
 

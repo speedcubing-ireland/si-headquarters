@@ -80,7 +80,7 @@ describe("update", () => {
       mappings: mappingsWith({
         confirmed: "pre-announcement",
         announced: "announced",
-        registrationClosed: "pre-competition",
+        refundDeadlinePassed: "pre-competition",
         held: "post-competition",
         resultsPosted: "completed",
       }),
@@ -178,5 +178,112 @@ describe("resetToDefaults", () => {
     await expect(
       director.mutation(api.phases.wcaMappingSettings.resetToDefaults, {})
     ).resolves.toBeNull()
+  })
+})
+
+describe("refund deadline default", () => {
+  const phaseKeyFor = (
+    settings: {
+      mappings: { milestone: WcaMilestone; phaseKey: string | null }[]
+    },
+    milestone: WcaMilestone
+  ) =>
+    settings.mappings.find((mapping) => mapping.milestone === milestone)
+      ?.phaseKey
+
+  test("Pre-Competition is backed by the refund deadline, not registration close", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+
+    const settings = await director.query(api.phases.wcaMappingSettings.get, {})
+    expect(phaseKeyFor(settings, "refundDeadlinePassed")).toBe(
+      "pre-competition"
+    )
+    // Left unmapped by default, like `confirmed`: registration closing is no
+    // longer enough on its own to move a competition on.
+    expect(phaseKeyFor(settings, "registrationClosed")).toBeNull()
+  })
+
+  test("a row stored before the milestone existed keeps its other entries", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+
+    // What an org that had customised the mapping already has stored: no
+    // `refundDeadlinePassed` entry at all.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("wcaPhaseMappings", {
+        key: "default",
+        mappings: [
+          { milestone: "announced", phaseKey: "announced" },
+          { milestone: "registrationClosed", phaseKey: "pre-competition" },
+          { milestone: "held", phaseKey: "post-competition" },
+        ],
+        updatedById: await seedDirectorUser(ctx),
+        updatedAt: Date.now(),
+      })
+    })
+
+    const settings = await director.query(api.phases.wcaMappingSettings.get, {})
+    // Their existing behaviour is untouched until someone edits or resets it.
+    expect(phaseKeyFor(settings, "registrationClosed")).toBe("pre-competition")
+    expect(phaseKeyFor(settings, "refundDeadlinePassed")).toBeNull()
+    expect(phaseKeyFor(settings, "held")).toBe("post-competition")
+  })
+
+  test("both milestones may be mapped, in ladder order", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+
+    await director.mutation(api.phases.wcaMappingSettings.update, {
+      mappings: mappingsWith({
+        registrationClosed: "announced",
+        refundDeadlinePassed: "pre-competition",
+      }),
+    })
+
+    const settings = await director.query(api.phases.wcaMappingSettings.get, {})
+    expect(settings.isCustomised).toBe(true)
+  })
+
+  test("rejects the refund deadline on a phase before registration close's", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+
+    await expect(
+      director.mutation(api.phases.wcaMappingSettings.update, {
+        mappings: mappingsWith({
+          registrationClosed: "pre-competition",
+          refundDeadlinePassed: "announced",
+        }),
+      })
+    ).rejects.toThrow()
+  })
+
+  test("rejects both milestones pointing at the same phase", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+
+    await expect(
+      director.mutation(api.phases.wcaMappingSettings.update, {
+        mappings: mappingsWith({
+          registrationClosed: "pre-competition",
+          refundDeadlinePassed: "pre-competition",
+        }),
+      })
+    ).rejects.toThrow()
+  })
+
+  test("reset restores the refund-deadline default", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+
+    await director.mutation(api.phases.wcaMappingSettings.update, {
+      mappings: mappingsWith({ registrationClosed: "pre-competition" }),
+    })
+    await director.mutation(api.phases.wcaMappingSettings.resetToDefaults, {})
+
+    const settings = await director.query(api.phases.wcaMappingSettings.get, {})
+    expect(settings.isCustomised).toBe(false)
+    expect(settings.mappings).toEqual(defaultMappings())
   })
 })

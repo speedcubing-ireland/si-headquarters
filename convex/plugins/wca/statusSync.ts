@@ -8,14 +8,30 @@ import {
   isFeatureEnabled,
 } from "@/config/lib/organisation"
 import { resolveValidServiceToken } from "@/convex/integrations/tokens"
-import { observeCompetition } from "@/convex/plugins/wca/competitionStatus"
-import { fetchWcaStatusSources } from "@/convex/plugins/wca/statusFetch"
+import {
+  needsRefundDeadline,
+  observeCompetition,
+  withRefundDeadline,
+} from "@/convex/plugins/wca/competitionStatus"
+import {
+  fetchCompetitionDetailOrNone,
+  fetchWcaStatusSources,
+} from "@/convex/plugins/wca/statusFetch"
+import { mapWithConcurrency } from "@/convex/plugins/events/concurrency"
+import type { WcaCompetitionObservation } from "@/convex/plugins/wca/validators"
+
+/** Parallel detail requests, matching the events plugin's fan-out budget. */
+const WCA_DETAIL_FETCH_CONCURRENCY = 6
 
 /**
  * Polls the WCA for the state of every linked competition and advances phases
- * accordingly. The WCA has no webhooks, so this runs on a schedule — but it
- * costs two requests per run no matter how many competitions we run, because
- * both WCA endpoints return everything at once.
+ * accordingly. The WCA has no webhooks, so this runs on a schedule.
+ *
+ * Two requests cover every competition, because both bulk WCA endpoints return
+ * everything at once. On top of that, a competition costs one request each run
+ * while its refund deadline is still ahead of it — that date lives only on the
+ * single-competition endpoint. That set is small: announced, uncancelled, not
+ * yet held, and not already known to be past its refund deadline.
  */
 export const syncCompetitionStatuses = internalAction({
   args: {
@@ -64,8 +80,10 @@ export const syncCompetitionStatuses = internalAction({
     ])
 
     const fetchedAt = Date.now()
-    let checked = 0
 
+    // Observe from the bulk sources first, so the refund-window test decides
+    // which competitions are worth a per-competition request at all.
+    const observed: WcaCompetitionObservation[] = []
     for (const wcaCompetitionId of wcaCompetitionIds) {
       const mine = sources.mine.get(wcaCompetitionId)
       const index = sources.index.get(wcaCompetitionId)
@@ -75,22 +93,26 @@ export const syncCompetitionStatuses = internalAction({
       // in place rather than inventing one.
       if (mine === undefined && index === undefined) continue
 
-      await ctx.runMutation(
-        internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
-        {
-          observation: observeCompetition({
-            wcaCompetitionId,
-            mine,
-            index,
-            fetchedAt,
-          }),
-          mappings,
-        }
+      observed.push(
+        observeCompetition({ wcaCompetitionId, mine, index, fetchedAt })
       )
-      checked += 1
     }
 
-    return { checked, skipped: null }
+    const observations = await addRefundDeadlines(
+      ctx,
+      accessToken,
+      observed,
+      fetchedAt
+    )
+
+    for (const observation of observations) {
+      await ctx.runMutation(
+        internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
+        { observation, mappings }
+      )
+    }
+
+    return { checked: observations.length, skipped: null }
   },
 })
 
@@ -111,4 +133,45 @@ async function loadLinkedCompetitionIds(ctx: ActionCtx): Promise<string[]> {
     if (page.isDone) return ids
     cursor = page.cursor
   }
+}
+
+/**
+ * The observations with a refund deadline filled in, for the competitions that
+ * still need one. Competitions outside the refund window are not requested at
+ * all, so the flat two-request cost still holds for them, and a competition
+ * whose request failed passes through unchanged — the merge then carries its
+ * stored deadline forward rather than erasing it.
+ */
+async function addRefundDeadlines(
+  ctx: ActionCtx,
+  accessToken: string,
+  observations: readonly WcaCompetitionObservation[],
+  nowMs: number
+): Promise<WcaCompetitionObservation[]> {
+  const stored = await ctx.runQuery(
+    internal.plugins.wca.statusSyncMutations.getStoredRefundDeadlines,
+    { wcaCompetitionIds: observations.map((o) => o.wcaCompetitionId) }
+  )
+  const storedByCompetition = new Map(
+    stored.map((row) => [row.wcaCompetitionId, row.refundDeadlineAt])
+  )
+
+  return await mapWithConcurrency(
+    observations,
+    WCA_DETAIL_FETCH_CONCURRENCY,
+    async (observation) => {
+      const storedDeadline =
+        storedByCompetition.get(observation.wcaCompetitionId) ?? null
+      if (!needsRefundDeadline(observation, storedDeadline, nowMs)) {
+        return observation
+      }
+      const detail = await fetchCompetitionDetailOrNone(
+        accessToken,
+        observation.wcaCompetitionId
+      )
+      return detail === null
+        ? observation
+        : withRefundDeadline(observation, detail)
+    }
+  )
 }

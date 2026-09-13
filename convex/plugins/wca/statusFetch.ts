@@ -2,9 +2,13 @@
 
 import { createWcaClient } from "@/convex/plugins/wca/client"
 import { listMyCompetitions } from "@/convex/plugins/wca/managedCompetitions"
-import { competitionList } from "@/convex/plugins/wca/openapiClient/sdk.gen"
+import {
+  competitionById,
+  competitionList,
+} from "@/convex/plugins/wca/openapiClient/sdk.gen"
 import type {
   CompetitionIndex,
+  CompetitionInfo,
   MyCompetition,
 } from "@/convex/plugins/wca/openapiClient/types.gen"
 
@@ -80,5 +84,34 @@ async function loadCountryIndexOrNone(
   } catch (error) {
     console.warn("WCA competition index unavailable this run", error)
     return []
+  }
+}
+
+/**
+ * One competition's full record, the only WCA source carrying
+ * `refund_policy_limit_date`. Best-effort like the country index: the caller
+ * merges onto the stored status, so a failure costs nothing already known
+ * rather than the whole sync.
+ *
+ * Deliberately not the sponsor plugin's `fetchCompetitionDetails` — that one
+ * narrows the response to a sponsorship shape and drops every refund field.
+ */
+export async function fetchCompetitionDetailOrNone(
+  accessToken: string,
+  wcaCompetitionId: string
+): Promise<CompetitionInfo | null> {
+  try {
+    const client = createWcaClient(accessToken)
+    const response = await competitionById({
+      client,
+      path: { competitionId: wcaCompetitionId },
+    })
+    return response.data ?? null
+  } catch (error) {
+    console.warn(
+      `WCA competition detail unavailable for ${wcaCompetitionId}`,
+      error
+    )
+    return null
   }
 }

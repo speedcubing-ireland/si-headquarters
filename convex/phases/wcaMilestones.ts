@@ -3,15 +3,23 @@
  * reached. The WCA has no single "status" field, so these are derived from the
  * flags and dates it does expose (see the WCA plugin's status sync).
  *
- * The ladder is monotonic: reaching a milestone implies every earlier one has
- * been reached too. `cancelled` is deliberately *not* on the ladder — it is an
- * orthogonal state recorded on `competitions.cancelledAt` rather than a phase.
+ * The ladder is an *ordering*, not an implication: it says which milestone is
+ * further along, which is what "furthest phase reached" needs. A reached set
+ * may have gaps, because the WCA really does report a later milestone without
+ * an earlier one. Where the real-world fact is conjunctive, a rung additionally
+ * requires an earlier one — `held` requires `announced`, and
+ * `refundDeadlinePassed` requires `registrationClosed` — but that is a property
+ * of those facts, not a rule the ladder imposes on every rung.
+ *
+ * `cancelled` is deliberately *not* on the ladder — it is an orthogonal state
+ * recorded on `competitions.cancelledAt` rather than a phase.
  */
 export const WCA_MILESTONES = [
   "submitted",
   "confirmed",
   "announced",
   "registrationClosed",
+  "refundDeadlinePassed",
   "held",
   "resultsPosted",
 ] as const
@@ -29,6 +37,7 @@ export const WCA_MILESTONE_LABELS: Record<WcaMilestone, string> = {
   confirmed: "Confirmed by the organiser",
   announced: "Announced (publicly visible)",
   registrationClosed: "Registration closed",
+  refundDeadlinePassed: "Refund deadline passed",
   held: "Competition held",
   resultsPosted: "Results posted",
 }
@@ -40,6 +49,8 @@ export const WCA_MILESTONE_DESCRIPTIONS: Record<WcaMilestone, string> = {
   announced:
     "The WCA has announced the competition and it is publicly visible.",
   registrationClosed: "The competition's registration close date has passed.",
+  refundDeadlinePassed:
+    "Registration has closed and the competition's refund policy limit date has passed, so the competitor list is settled.",
   held: "The competition's end date has passed.",
   resultsPosted: "The WCA has posted the competition's results.",
 }

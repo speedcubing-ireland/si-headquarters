@@ -32,10 +32,18 @@ function status(
     startDate: "2026-12-05",
     endDate: "2026-12-06",
     registrationCloseAt: null,
+    refundDeadlineAt: null,
     fetchedAt: NOW,
     ...overrides,
   }
 }
+
+/** Both conditions for Pre-Competition, met well before `NOW`. */
+const SETTLED = {
+  announced: true,
+  registrationCloseAt: Date.UTC(2026, 4, 20),
+  refundDeadlineAt: Date.UTC(2026, 4, 25),
+} as const
 
 function seedCompetition(
   t: TestConvex<typeof schema>,
@@ -427,5 +435,102 @@ describe("cancellation", () => {
     )
 
     expect(await currentPhaseKey(t, competitionId)).toBe("announced")
+  })
+})
+
+describe("WCA phase sync — refund deadline gate", () => {
+  test("registration closing alone no longer reaches Pre-Competition", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    // Registrations can still be cancelled and refunded here, so the
+    // competitor list is not settled yet.
+    await applyStatus(
+      t,
+      status({
+        ...SETTLED,
+        refundDeadlineAt: Date.UTC(2026, 11, 1),
+      })
+    )
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("announced")
+  })
+
+  test("both dates passing advances to Pre-Competition", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    await applyStatus(t, status(SETTLED))
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("pre-competition")
+  })
+
+  test("an unknown refund deadline holds the competition in Announced", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    await applyStatus(t, status({ ...SETTLED, refundDeadlineAt: null }))
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("announced")
+  })
+
+  test("an unknown refund deadline does not strand a competition once held", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    await applyStatus(
+      t,
+      status({ ...SETTLED, refundDeadlineAt: null, endDate: "2026-06-01" })
+    )
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("post-competition")
+  })
+
+  test("keeps a known refund deadline across a run that fetched no detail", async () => {
+    const t = convexTest(schema, modules)
+    await seedCompetition(t, { startingPhase: "announced" })
+
+    await applyStatus(t, status(SETTLED))
+    await applyStatus(t, status({ ...SETTLED, refundDeadlineAt: null }))
+
+    const stored = await t.run(async (ctx) =>
+      ctx.db
+        .query("wcaCompetitionStatuses")
+        .withIndex("by_wcaCompetitionId", (q) =>
+          q.eq("wcaCompetitionId", WCA_ID)
+        )
+        .unique()
+    )
+    expect(stored?.refundDeadlineAt).toBe(SETTLED.refundDeadlineAt)
+  })
+
+  test("a carried-forward deadline still advances the phase", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "announced",
+    })
+
+    // First run learns the deadline while refunds are still open.
+    await applyStatus(
+      t,
+      status({
+        ...SETTLED,
+        fetchedAt: Date.UTC(2026, 4, 21),
+      })
+    )
+    expect(await currentPhaseKey(t, competitionId)).toBe("announced")
+
+    // A later run cannot fetch the detail, but the stored deadline has passed.
+    await applyStatus(t, status({ ...SETTLED, refundDeadlineAt: null }))
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("pre-competition")
   })
 })

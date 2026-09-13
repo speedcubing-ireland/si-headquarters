@@ -1,14 +1,21 @@
 import { describe, expect, test } from "vitest"
 import {
   mergeObservation,
+  needsRefundDeadline,
   observeCompetition,
+  parseDeadlinePassedAt,
   reachedMilestones,
+  withRefundDeadline,
 } from "@/convex/plugins/wca/competitionStatus"
 import type {
   CompetitionIndex,
   MyCompetition,
 } from "@/convex/plugins/wca/openapiClient/types.gen"
-import type { WcaCompetitionStatus } from "@/convex/plugins/wca/validators"
+import { sampleCompetitionInfo } from "@/convex/plugins/wca/testFixtures"
+import type {
+  WcaCompetitionObservation,
+  WcaCompetitionStatus,
+} from "@/convex/plugins/wca/validators"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const NOW = Date.UTC(2026, 5, 15)
@@ -72,7 +79,22 @@ function status(
     startDate: "2026-06-06",
     endDate: "2026-06-07",
     registrationCloseAt: null,
+    refundDeadlineAt: null,
     fetchedAt: NOW,
+    ...overrides,
+  }
+}
+
+/** A competition observed as announced, uncancelled and yet to be held. */
+function inWindowObservation(
+  overrides: Partial<WcaCompetitionObservation> = {}
+): WcaCompetitionObservation {
+  return {
+    ...status({ announced: true, endDate: "2026-12-06" }),
+    // An observation is always built fresh, so it never omits this.
+    refundDeadlineAt: null,
+    confirmed: true,
+    cancelled: false,
     ...overrides,
   }
 }
@@ -310,5 +332,367 @@ describe("reachedMilestones", () => {
     )
 
     expect([...reached]).toEqual(["submitted", "confirmed", "announced"])
+  })
+})
+
+describe("parseDeadlinePassedAt", () => {
+  test("a date-only deadline shuts at the end of that day", () => {
+    // Refunds are still allowed *on* the limit date, so the deadline has not
+    // passed until the day itself is over.
+    expect(parseDeadlinePassedAt("2026-05-25")).toBe(
+      Date.UTC(2026, 4, 25) + DAY_MS
+    )
+  })
+
+  test("a deadline carrying a time is taken at that instant", () => {
+    expect(parseDeadlinePassedAt("2026-05-25T17:00:00Z")).toBe(
+      Date.parse("2026-05-25T17:00:00Z")
+    )
+  })
+
+  test("an offset is respected rather than treated as UTC", () => {
+    expect(parseDeadlinePassedAt("2026-05-25T18:00:00+01:00")).toBe(
+      Date.parse("2026-05-25T17:00:00Z")
+    )
+  })
+
+  test("rolls over a month boundary", () => {
+    expect(parseDeadlinePassedAt("2026-12-31")).toBe(Date.UTC(2027, 0, 1))
+  })
+
+  test("handles a leap day", () => {
+    expect(parseDeadlinePassedAt("2028-02-29")).toBe(Date.UTC(2028, 2, 1))
+  })
+
+  test("surrounding whitespace does not change the reading", () => {
+    expect(parseDeadlinePassedAt("  2026-05-25  ")).toBe(
+      Date.UTC(2026, 4, 25) + DAY_MS
+    )
+  })
+
+  test.each([
+    ["absent", undefined],
+    ["empty", ""],
+    ["whitespace only", "   "],
+    ["unparseable", "not a date"],
+  ])("%s reads as unknown", (_label, value) => {
+    expect(parseDeadlinePassedAt(value)).toBeNull()
+  })
+})
+
+describe("needsRefundDeadline", () => {
+  test("an announced competition still to be held is in window", () => {
+    expect(needsRefundDeadline(inWindowObservation(), null, NOW)).toBe(true)
+  })
+
+  test("an unannounced competition is not worth a request", () => {
+    // It has no public registration yet, so no refund window to close.
+    expect(
+      needsRefundDeadline(inWindowObservation({ announced: false }), null, NOW)
+    ).toBe(false)
+  })
+
+  test("a cancelled competition is not worth a request", () => {
+    expect(
+      needsRefundDeadline(inWindowObservation({ cancelled: true }), null, NOW)
+    ).toBe(false)
+  })
+
+  test("a competition whose cancellation is unknown is still in window", () => {
+    // `null` means the source could not say, which is not a cancellation.
+    expect(
+      needsRefundDeadline(inWindowObservation({ cancelled: null }), null, NOW)
+    ).toBe(true)
+  })
+
+  test("a competition already held is not worth a request", () => {
+    expect(
+      needsRefundDeadline(
+        inWindowObservation({ endDate: "2026-01-01" }),
+        null,
+        NOW
+      )
+    ).toBe(false)
+  })
+
+  test("the window closes only once the last day is over", () => {
+    const observation = inWindowObservation({ endDate: "2026-06-07" })
+    const lastDay = Date.UTC(2026, 5, 7)
+
+    expect(needsRefundDeadline(observation, null, lastDay + 1000)).toBe(true)
+    expect(needsRefundDeadline(observation, null, lastDay + DAY_MS)).toBe(false)
+  })
+
+  test("a stored deadline that has passed needs no further request", () => {
+    // The milestone cannot un-reach, so re-fetching would learn nothing. This
+    // is the whole gap between a refund window shutting and the competition
+    // being held — weeks of hourly requests, for most competitions.
+    expect(needsRefundDeadline(inWindowObservation(), NOW - 1, NOW)).toBe(false)
+  })
+
+  test("a stored deadline still ahead of us is re-fetched", () => {
+    // Organisers edit the refund policy limit date, so it is not final.
+    expect(needsRefundDeadline(inWindowObservation(), NOW + 1, NOW)).toBe(true)
+  })
+
+  test("an unknown end date cannot rule the window out", () => {
+    // Guessing "over" would leave the competition permanently without a
+    // deadline, and so permanently unable to reach the milestone.
+    expect(
+      needsRefundDeadline(inWindowObservation({ endDate: null }), null, NOW)
+    ).toBe(true)
+  })
+})
+
+describe("reachedMilestones — refund deadline", () => {
+  const CLOSE_AT = Date.UTC(2026, 4, 20)
+  const DEADLINE_AT = Date.UTC(2026, 4, 25)
+
+  function refundStatus(
+    registrationCloseAt: number | null,
+    refundDeadlineAt: number | null
+  ): WcaCompetitionStatus {
+    return status({
+      announced: true,
+      endDate: "2026-12-06",
+      registrationCloseAt,
+      refundDeadlineAt,
+    })
+  }
+
+  test("both conditions met reaches the milestone", () => {
+    const reached = reachedMilestones(
+      refundStatus(CLOSE_AT, DEADLINE_AT),
+      DEADLINE_AT
+    )
+
+    expect(reached.has("refundDeadlinePassed")).toBe(true)
+  })
+
+  test("registration closed but refunds still open does not", () => {
+    // The case this whole change exists for: today's behaviour would already
+    // have moved the competition into Pre-Competition here.
+    const reached = reachedMilestones(
+      refundStatus(CLOSE_AT, DEADLINE_AT),
+      DEADLINE_AT - 1
+    )
+
+    expect(reached.has("registrationClosed")).toBe(true)
+    expect(reached.has("refundDeadlinePassed")).toBe(false)
+  })
+
+  test("a refund deadline that precedes registration close does not count", () => {
+    // The WCA does not stop an organiser setting a refund limit date before
+    // registration shuts, and "either" is not what we asked for.
+    const reached = reachedMilestones(
+      refundStatus(DEADLINE_AT + DAY_MS, DEADLINE_AT),
+      DEADLINE_AT + 1
+    )
+
+    expect(reached.has("registrationClosed")).toBe(false)
+    expect(reached.has("refundDeadlinePassed")).toBe(false)
+  })
+
+  test("an unknown deadline holds rather than advancing", () => {
+    const reached = reachedMilestones(refundStatus(CLOSE_AT, null), NOW)
+
+    expect(reached.has("registrationClosed")).toBe(true)
+    expect(reached.has("refundDeadlinePassed")).toBe(false)
+  })
+
+  test("a row written before the deadline was tracked holds", () => {
+    // Rows predating the field omit it entirely rather than storing null.
+    const legacy = refundStatus(CLOSE_AT, null)
+    delete (legacy as { refundDeadlineAt?: number | null }).refundDeadlineAt
+
+    expect(reachedMilestones(legacy, NOW).has("refundDeadlinePassed")).toBe(
+      false
+    )
+  })
+
+  test("the deadline passes at the instant itself, not after it", () => {
+    const reached = (nowMs: number) =>
+      reachedMilestones(refundStatus(CLOSE_AT, DEADLINE_AT), nowMs)
+
+    expect(reached(DEADLINE_AT - 1).has("refundDeadlinePassed")).toBe(false)
+    expect(reached(DEADLINE_AT).has("refundDeadlinePassed")).toBe(true)
+  })
+
+  test("is reached in exactly the cells where both dates are known and past", () => {
+    // The whole truth table, not just the implication: asserting every cell
+    // means a rung that stops being reached at all cannot pass silently.
+    const dates = [
+      ["unknown", null],
+      ["closed", CLOSE_AT],
+      ["deadline", DEADLINE_AT],
+    ] as const
+
+    const table = dates.flatMap(([closeLabel, registrationCloseAt]) =>
+      dates.map(([refundLabel, refundDeadlineAt]) => {
+        const reached = reachedMilestones(
+          refundStatus(registrationCloseAt, refundDeadlineAt),
+          DEADLINE_AT
+        )
+        return `close=${closeLabel} refund=${refundLabel} -> ${
+          reached.has("refundDeadlinePassed") ? "reached" : "held"
+        }`
+      })
+    )
+
+    expect(table).toEqual([
+      "close=unknown refund=unknown -> held",
+      "close=unknown refund=closed -> held",
+      "close=unknown refund=deadline -> held",
+      "close=closed refund=unknown -> held",
+      "close=closed refund=closed -> reached",
+      "close=closed refund=deadline -> reached",
+      "close=deadline refund=unknown -> held",
+      "close=deadline refund=closed -> reached",
+      "close=deadline refund=deadline -> reached",
+    ])
+  })
+
+  test("sits between registration close and held on the ladder", () => {
+    const reached = reachedMilestones(
+      status({
+        confirmed: true,
+        announced: true,
+        endDate: "2026-01-01",
+        registrationCloseAt: CLOSE_AT,
+        refundDeadlineAt: DEADLINE_AT,
+      }),
+      NOW
+    )
+
+    expect([...reached]).toEqual([
+      "submitted",
+      "confirmed",
+      "announced",
+      "registrationClosed",
+      "refundDeadlinePassed",
+      "held",
+    ])
+  })
+
+  test("an unknown deadline never stalls a competition that was held", () => {
+    // `held` is reached on its own, so a competition whose detail we could
+    // never fetch still moves on to Post-Competition.
+    const reached = reachedMilestones(
+      status({
+        announced: true,
+        endDate: "2026-01-01",
+        registrationCloseAt: CLOSE_AT,
+        refundDeadlineAt: null,
+      }),
+      NOW
+    )
+
+    expect(reached.has("refundDeadlinePassed")).toBe(false)
+    expect(reached.has("held")).toBe(true)
+  })
+})
+
+describe("mergeObservation — refund deadline", () => {
+  const DEADLINE_AT = Date.UTC(2026, 4, 26)
+
+  test("keeps a known deadline through a run that fetched no detail", () => {
+    const previous = status({
+      announced: true,
+      refundDeadlineAt: DEADLINE_AT,
+    })
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: myCompetition(),
+      index: competitionIndex(),
+      fetchedAt: NOW,
+    })
+
+    expect(mergeObservation(previous, observation).refundDeadlineAt).toBe(
+      DEADLINE_AT
+    )
+  })
+
+  test("a newly observed deadline overwrites the stored one", () => {
+    // Organisers do edit the refund policy limit date after announcement.
+    const previous = status({
+      announced: true,
+      refundDeadlineAt: DEADLINE_AT,
+    })
+    const observation = withRefundDeadline(
+      observeCompetition({
+        wcaCompetitionId: "SpringOpen2026",
+        mine: myCompetition(),
+        index: competitionIndex(),
+        fetchedAt: NOW,
+      }),
+      sampleCompetitionInfo({ refund_policy_limit_date: "2026-06-01" })
+    )
+
+    expect(mergeObservation(previous, observation).refundDeadlineAt).toBe(
+      Date.UTC(2026, 5, 1) + DAY_MS
+    )
+  })
+
+  test("carries forward a row written before the deadline was tracked", () => {
+    const legacy = status({ announced: true })
+    delete (legacy as { refundDeadlineAt?: number | null }).refundDeadlineAt
+
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: myCompetition(),
+      index: competitionIndex(),
+      fetchedAt: NOW,
+    })
+
+    expect(mergeObservation(legacy, observation).refundDeadlineAt).toBeNull()
+  })
+
+  test("is null rather than undefined with nothing stored", () => {
+    const observation = observeCompetition({
+      wcaCompetitionId: "SpringOpen2026",
+      mine: myCompetition(),
+      index: competitionIndex(),
+      fetchedAt: NOW,
+    })
+
+    const merged = mergeObservation(null, observation)
+    expect(merged.refundDeadlineAt).toBeNull()
+    expect("refundDeadlineAt" in merged).toBe(true)
+  })
+})
+
+describe("withRefundDeadline", () => {
+  test("folds the detail's deadline onto an observation", () => {
+    const observation = inWindowObservation()
+
+    expect(
+      withRefundDeadline(
+        observation,
+        sampleCompetitionInfo({ refund_policy_limit_date: "2026-05-25" })
+      ).refundDeadlineAt
+    ).toBe(Date.UTC(2026, 4, 25) + DAY_MS)
+  })
+
+  test("leaves every other observed fact alone", () => {
+    const observation = inWindowObservation({ resultsPosted: true })
+    const { refundDeadlineAt: _ignored, ...rest } = observation
+
+    expect(
+      withRefundDeadline(observation, sampleCompetitionInfo())
+    ).toMatchObject(rest)
+  })
+
+  test("a blank limit date clears back to unknown", () => {
+    // The merge then carries the stored deadline forward rather than erasing it.
+    const observation = inWindowObservation({
+      refundDeadlineAt: Date.UTC(2026, 4, 25),
+    })
+
+    expect(
+      withRefundDeadline(
+        observation,
+        sampleCompetitionInfo({ refund_policy_limit_date: "" })
+      ).refundDeadlineAt
+    ).toBeNull()
   })
 })

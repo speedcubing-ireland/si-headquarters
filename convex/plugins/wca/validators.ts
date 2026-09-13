@@ -3,8 +3,9 @@ import { v, type Infer } from "convex/values"
 
 /**
  * Last known WCA state for a linked competition. Raw facts rather than derived
- * milestones, because two of the milestones (`registrationClosed`, `held`) are
- * time-dependent and would go stale in storage.
+ * milestones, because three of the milestones (`registrationClosed`,
+ * `refundDeadlinePassed`, `held`) are time-dependent and would go stale in
+ * storage.
  */
 export const wcaCompetitionStatusFields = {
   wcaCompetitionId: v.string(),
@@ -15,6 +16,17 @@ export const wcaCompetitionStatusFields = {
   startDate: v.union(v.string(), v.null()),
   endDate: v.union(v.string(), v.null()),
   registrationCloseAt: v.union(v.number(), v.null()),
+  /**
+   * Instant the refund window shuts, or null when the WCA has not told us.
+   * Only `/v0/competitions/{id}` carries it, and that is fetched only for
+   * competitions whose refund milestone can still change, so a gap is normal.
+   *
+   * Optional rather than nullable because rows written before the refund
+   * deadline was tracked omit it entirely. Absent and `null` both mean
+   * unknown; writes always set one or the other, so only reads of stored rows
+   * need to allow for the gap.
+   */
+  refundDeadlineAt: v.optional(v.union(v.number(), v.null())),
   fetchedAt: v.number(),
 }
 
@@ -36,6 +48,9 @@ export const wcaCompetitionObservationValidator = v.object({
   // These two, and only these two, can come back unknown.
   confirmed: v.union(v.boolean(), v.null()),
   cancelled: v.union(v.boolean(), v.null()),
+  // An observation is always built fresh, so unlike the stored row it never
+  // omits this — `null` there means "no detail fetched this run".
+  refundDeadlineAt: v.union(v.number(), v.null()),
 })
 
 export type WcaCompetitionObservation = Infer<
