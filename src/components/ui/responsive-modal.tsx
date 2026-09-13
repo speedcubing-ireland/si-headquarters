@@ -190,7 +190,7 @@ function Content({
       className={cn(
         "group/responsive-modal flex max-h-[calc(100dvh-2rem)] min-h-0 flex-col gap-0 overflow-hidden p-0",
         isMobile &&
-          "top-(--responsive-modal-viewport-top) left-(--responsive-modal-viewport-left) h-(--responsive-modal-viewport-height) max-h-none w-(--responsive-modal-viewport-width) max-w-none translate-x-0 translate-y-0 rounded-none ring-0 duration-0 data-open:zoom-in-100 data-closed:zoom-out-100",
+          "top-(--responsive-modal-viewport-top) left-(--responsive-modal-viewport-left) h-(--responsive-modal-viewport-height) max-h-none w-(--responsive-modal-viewport-width) max-w-none translate-x-0 translate-y-0 rounded-none ring-0 duration-0 data-open:zoom-in-100 data-closed:zoom-out-100 [&_input]:text-base [&_select]:text-base [&_textarea]:text-base [&_[contenteditable=true]]:text-base",
         className,
         isMobile ? mobileClassName : desktopClassName
       )}

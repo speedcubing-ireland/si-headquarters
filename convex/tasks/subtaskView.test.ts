@@ -18,12 +18,15 @@ import type {
 } from "@/convex/tasks/status/resolver"
 import { withVolunteerTestClient } from "@/convex/testHelpers"
 
+const TEST_TODAY = "2026-06-08"
+
 interface TaskSeed {
   name: string
   parent: Doc<"tasks">["parent"]
   order: string
   kind?: TaskKind
   status?: TaskStatus
+  dueDate?: string
 }
 
 async function insertCompetition(ctx: MutationCtx) {
@@ -72,7 +75,7 @@ async function insertTask(ctx: MutationCtx, seed: TaskSeed) {
     order: seed.order,
     assigneeIds: null,
     owner: null,
-    dueDate: null,
+    dueDate: seed.dueDate ?? null,
     kind: seed.kind ?? "standard",
     status,
     statusIntent,
@@ -131,6 +134,7 @@ describe("subtask view", () => {
 
     const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
+      today: TEST_TODAY,
     })
 
     expect(view.owner).toEqual({ type: "tasks", id: parentId })
@@ -213,6 +217,7 @@ describe("subtask view", () => {
 
     const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "competitions", id: competitionId },
+      today: TEST_TODAY,
     })
 
     expect(view.owner).toEqual({ type: "competitions", id: competitionId })
@@ -288,6 +293,7 @@ describe("subtask view", () => {
 
     const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "competitions", id: competitionId },
+      today: TEST_TODAY,
     })
 
     expect(
@@ -299,6 +305,38 @@ describe("subtask view", () => {
       { title: "Concept", overdueCount: 1 },
       { title: "Pre-Announcement", overdueCount: 0 },
     ])
+  })
+
+  test("uses the supplied date as the overdue boundary", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const competitionId = await t.run(async (ctx) => {
+      const competitionId = await insertCompetition(ctx)
+      const phaseId = await insertPhase(ctx, competitionId, "Operations", "a")
+      await ctx.db.patch("competitions", competitionId, { phaseId })
+      await insertTask(ctx, {
+        name: "Due yesterday",
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+        status: "to-do",
+        dueDate: "2026-06-07",
+      })
+      await insertTask(ctx, {
+        name: "Due today",
+        parent: { type: "phases", id: phaseId },
+        order: "b",
+        status: "to-do",
+        dueDate: TEST_TODAY,
+      })
+      return competitionId
+    })
+
+    const view = await client.query(api.tasks.queries.getSubtaskView, {
+      owner: { type: "competitions", id: competitionId },
+      today: TEST_TODAY,
+    })
+
+    expect(view.sections[0]?.overdueCount).toBe(1)
   })
 
   test("flow, done, and cancelled tasks do not contribute nested subtask rows", async () => {
@@ -372,6 +410,7 @@ describe("subtask view", () => {
 
     const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
+      today: TEST_TODAY,
     })
 
     expect(view.sections).toHaveLength(1)
@@ -440,6 +479,7 @@ describe("project subtask view", () => {
 
     const view = await client.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "projects", id: projectId },
+      today: TEST_TODAY,
     })
 
     expect(view.owner).toEqual({ type: "projects", id: projectId })

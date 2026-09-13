@@ -21,6 +21,8 @@ import {
 } from "@/convex/tasks/hierarchy"
 import { modules } from "@/convex/test.setup"
 
+const TEST_TODAY = "2026-06-08"
+
 async function insertTask(
   ctx: MutationCtx,
   input: {
@@ -224,7 +226,9 @@ describe("dashboard home", () => {
       }
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
     const actionsByTaskId = new Map(
       [...home.actionNeeded, ...home.assignedWork].map((item) => [
         item.task.task._id,
@@ -303,7 +307,9 @@ describe("dashboard home", () => {
       return teamTaskId
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
     const teamReviewAction = home.actionNeeded.find(
       (item) => item.task.task._id === teamReviewTaskId
     )
@@ -312,6 +318,52 @@ describe("dashboard home", () => {
       reason: "review",
       primaryAction: "view",
     })
+  })
+
+  test("uses the supplied date as the overdue boundary", async () => {
+    const t = convexTest(schema, modules)
+    const { client, userId } = await withVolunteerTestClient(t)
+
+    const { overdueTaskId, dueTodayTaskId } = await t.run(async (ctx) => {
+      const { phaseId } = await insertCompetitionWithPhase(ctx, {
+        name: "Date Boundary Open",
+        from: "2999-01-01",
+        sortKey: "a",
+      })
+      const overdueTaskId = await insertTask(ctx, {
+        name: "Due yesterday",
+        phaseId,
+        order: "a",
+        status: "to-do",
+        assigneeIds: [userId],
+        dueDate: "2026-06-07",
+      })
+      const dueTodayTaskId = await insertTask(ctx, {
+        name: "Due today",
+        phaseId,
+        order: "b",
+        status: "to-do",
+        assigneeIds: [userId],
+        dueDate: TEST_TODAY,
+      })
+      return { overdueTaskId, dueTodayTaskId }
+    })
+
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
+
+    expect(
+      home.actionNeeded.find((item) => item.task.task._id === overdueTaskId)
+        ?.reason
+    ).toBe("overdue")
+    expect(
+      home.actionNeeded.some((item) => item.task.task._id === dueTodayTaskId)
+    ).toBe(false)
+    expect(
+      home.assignedWork.find((item) => item.task.task._id === dueTodayTaskId)
+        ?.reason
+    ).toBe("assigned-todo")
   })
 
   test("shows only competitions with active work and sorts by date then risk", async () => {
@@ -381,7 +433,9 @@ describe("dashboard home", () => {
       })
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
 
     expect(
       home.competitionsWithWork.map((competition) => competition.name)
@@ -417,7 +471,9 @@ describe("dashboard home", () => {
       }
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
 
     expect(home.actionNeeded).toHaveLength(0)
     expect(home.assignedWork).toHaveLength(10)
@@ -450,7 +506,9 @@ describe("dashboard home", () => {
       return earlyReviewTaskId
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
 
     expect(
       home.actionNeeded.some(
@@ -501,7 +559,9 @@ describe("dashboard home", () => {
       return { ownedBacklogTaskId, blockingBacklogTaskId }
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
     const actionNeededIds = new Set(
       home.actionNeeded.map((item) => item.task.task._id)
     )
@@ -545,7 +605,9 @@ describe("dashboard home", () => {
       return carryOverTaskId
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
     const action = home.actionNeeded.find(
       (item) => item.task.task._id === carryOverTaskId
     )
@@ -588,7 +650,7 @@ describe("dashboard home", () => {
 
     const home = await t
       .withIdentity({ subject: compLeadId })
-      .query(api.dashboard.queries.getHome, {})
+      .query(api.dashboard.queries.getHome, { today: TEST_TODAY })
 
     expect(home.stewardOverdue.map((item) => item.task.task._id)).toContain(
       overdueTaskId
@@ -625,7 +687,7 @@ describe("dashboard home", () => {
 
     const home = await t
       .withIdentity({ subject: projectLeadId })
-      .query(api.dashboard.queries.getHome, {})
+      .query(api.dashboard.queries.getHome, { today: TEST_TODAY })
 
     expect(home.stewardOverdue.map((item) => item.task.task._id)).toContain(
       overdueTaskId
@@ -666,7 +728,9 @@ describe("dashboard home", () => {
       })
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
     expect(home.projectsWithWork.map((project) => project.name)).toContain(
       "Active Project"
     )
@@ -731,7 +795,9 @@ describe("dashboard home", () => {
       })
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
     const competition = home.competitionsWithWork.find(
       (entry) => entry.name === "Phase Scoped"
     )
@@ -761,7 +827,9 @@ describe("dashboard home", () => {
       })
     })
 
-    const home = await client.query(api.dashboard.queries.getHome, {})
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
 
     expect(home.actionNeeded).toEqual([])
     expect(home.assignedWork).toEqual([])

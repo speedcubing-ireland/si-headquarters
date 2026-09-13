@@ -387,16 +387,17 @@ export const getFlowView = query({
 export const getSubtaskView = query({
   args: {
     owner: subtaskViewOwner,
+    today: v.string(),
   },
   returns: taskSubtaskView,
   handler: async (ctx, args) => {
     if (args.owner.type === "tasks") {
       await requireTaskReadAccess(ctx, args.owner.id)
-      return await getTaskSubtaskView(ctx, args.owner.id)
+      return await getTaskSubtaskView(ctx, args.owner.id, args.today)
     }
 
     await requireScopedObjectForRead(ctx, args.owner)
-    return await getOwnerSubtaskView(ctx, args.owner)
+    return await getOwnerSubtaskView(ctx, args.owner, args.today)
   },
 })
 

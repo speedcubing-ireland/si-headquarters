@@ -17,6 +17,8 @@ import {
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
 
+const TEST_TODAY = "2026-06-08"
+
 interface TaskSeed {
   name: string
   parent: Doc<"tasks">["parent"]
@@ -338,6 +340,7 @@ describe("task blockers", () => {
 
     const initial = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
+      today: TEST_TODAY,
     })
 
     const childRow = initial.sections[0]?.rows.find(
@@ -360,6 +363,7 @@ describe("task blockers", () => {
 
     const afterDone = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
+      today: TEST_TODAY,
     })
 
     const updatedRow = afterDone.sections[0]?.rows.find(
@@ -454,6 +458,7 @@ describe("task blockers", () => {
 
     const view = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
+      today: TEST_TODAY,
     })
 
     const childRow = view.sections[0]?.rows.find(
@@ -605,6 +610,7 @@ describe("task blockers", () => {
 
     const view = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
+      today: TEST_TODAY,
     })
 
     const blockedRow = view.sections[0]?.rows.find(
@@ -674,6 +680,7 @@ describe("task blockers", () => {
 
     const view = await actor.query(api.tasks.queries.getSubtaskView, {
       owner: { type: "tasks", id: parentId },
+      today: TEST_TODAY,
     })
 
     const middleRow = view.sections[0]?.rows.find(

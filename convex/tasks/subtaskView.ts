@@ -20,7 +20,6 @@ import {
   TaskStatusLoader,
   type TaskWithStatusView,
 } from "@/convex/tasks/status/resolver"
-import { localToday } from "@/convex/notifications/localTime"
 import { listPhasesForOwnerBounded } from "@/convex/phases/model"
 import {
   buildPhaseSortKeyById,
@@ -271,14 +270,14 @@ function createSubtaskDisplayReaderContext(
 
 export async function getTaskSubtaskView(
   ctx: QueryCtx,
-  taskId: Id<"tasks">
+  taskId: Id<"tasks">,
+  today: string
 ): Promise<TaskSubtaskView> {
   const task = await ctx.db.get("tasks", taskId)
   if (!task) throw new Error("Task not found")
 
   const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const taskViews = await getTaskSubtaskViews(loader, task)
-  const today = localToday()
   const phaseSortKeyById = buildPhaseSortKeyById([])
 
   return {
@@ -306,7 +305,8 @@ export async function getTaskSubtaskView(
 
 export async function getOwnerSubtaskView(
   ctx: QueryCtx,
-  owner: Extract<SubtaskViewOwner, { type: "competitions" | "projects" }>
+  owner: Extract<SubtaskViewOwner, { type: "competitions" | "projects" }>,
+  today: string
 ): Promise<TaskSubtaskView> {
   const doc = await ctx.db.get(owner.type, owner.id)
   if (doc === null) {
@@ -320,6 +320,7 @@ export async function getOwnerSubtaskView(
   return await getPhaseOwnerSubtaskView(ctx, {
     currentPhaseId: doc.phaseId,
     owner,
+    today,
   })
 }
 
@@ -328,15 +329,16 @@ async function getPhaseOwnerSubtaskView(
   {
     currentPhaseId,
     owner,
+    today,
   }: {
     currentPhaseId: Id<"phases"> | null
     owner: Extract<SubtaskViewOwner, { type: "competitions" | "projects" }>
+    today: string
   }
 ): Promise<TaskSubtaskView> {
   const phases = await listPhasesForOwnerBounded(ctx, owner)
   const { displayReader, loader } = createSubtaskDisplayReaderContext(ctx)
   const currentPhase = phases.find((phase) => phase._id === currentPhaseId)
-  const today = localToday()
   const phaseSortKeyById = buildPhaseSortKeyById(phases)
   const defaultParent =
     currentPhase === undefined

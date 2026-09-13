@@ -10,6 +10,7 @@ import {
 } from "@/features/competitions/competition-date-range-display"
 import { TaskRootLink } from "@/features/tasks/components/task-root-link"
 import { cn } from "@/lib/utils"
+import { useConfiguredToday } from "@/hooks/use-configured-today"
 import { Link } from "@tanstack/react-router"
 import { useMutation, useQuery } from "convex/react"
 import type { FunctionReturnType } from "convex/server"
@@ -475,7 +476,8 @@ function HomeContent({ data }: { data: HomeData }) {
 }
 
 export function HomePage() {
-  const data = useQuery(api.dashboard.queries.getHome, {})
+  const today = useConfiguredToday()
+  const data = useQuery(api.dashboard.queries.getHome, { today })
 
   return (
     <Page.Shell title="Home" contentClassName={PAGE_CONTENT_PADDING_SCROLL}>

@@ -24,6 +24,7 @@ import type { TaskInlineRow } from "@/features/tasks/task-inline-row"
 import { cn } from "@/lib/utils"
 import { useEffect, useState, type ReactNode } from "react"
 import { EditTasksDialog } from "@/features/subtasks/edit-tasks-dialog"
+import { useConfiguredToday } from "@/hooks/use-configured-today"
 
 type SubtaskViewOwner = TaskSubtaskView["owner"]
 type SubtaskViewSection = TaskSubtaskView["sections"][number]
@@ -132,7 +133,8 @@ export function SubtaskView({
   toolbarActions?: ReactNode
 }) {
   const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
-  const view = useQuery(api.tasks.queries.getSubtaskView, { owner })
+  const today = useConfiguredToday()
+  const view = useQuery(api.tasks.queries.getSubtaskView, { owner, today })
   const [displayOptions, setDisplayOptions] = useState(
     readSubtaskDisplayOptions
   )

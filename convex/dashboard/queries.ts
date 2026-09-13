@@ -4,7 +4,6 @@ import { query } from "@/convex/_generated/server"
 import { competitionPrimaryStart } from "@/convex/competitions/dates"
 import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
 import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
-import { localToday } from "@/convex/notifications/localTime"
 import {
   canPerform,
   isCompetitionSteward,
@@ -594,7 +593,9 @@ function buildCompetitionWorkSummary(
 }
 
 export const getHome = query({
-  args: {},
+  args: {
+    today: v.string(),
+  },
   returns: v.object({
     actionNeeded: v.array(taskActionValidator),
     assignedWork: v.array(taskActionValidator),
@@ -602,11 +603,10 @@ export const getHome = query({
     competitionsWithWork: v.array(competitionWorkSummaryValidator),
     projectsWithWork: v.array(projectWorkSummaryValidator),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const principal = await requirePrincipal(ctx)
-    const today = localToday()
     const [
-      taskRows,
+      tasks,
       competitions,
       projects,
       phases,
@@ -614,9 +614,8 @@ export const getHome = query({
       taskReviewers,
       taskBlockers,
       subscriptions,
-      tasks,
     ] = await Promise.all([
-      buildTaskBoardRows(ctx),
+      collectAll(ctx, "tasks"),
       collectAll(ctx, "competitions"),
       collectAll(ctx, "projects"),
       collectAll(ctx, "phases"),
@@ -624,8 +623,13 @@ export const getHome = query({
       collectAll(ctx, "taskReviewers"),
       collectAll(ctx, "taskBlockers"),
       collectAll(ctx, "subscriptions"),
-      collectAll(ctx, "tasks"),
     ])
+    const taskRows = await buildTaskBoardRows(ctx, {
+      tasks,
+      competitions,
+      projects,
+      phases,
+    })
     const teamIds = teamIdsForTeamNames(teams, new Set(principal.teamNames))
     const { competitionPhaseById, projectPhaseById, phaseSortKeyById } =
       buildOwnerPhaseScanContext(competitions, projects, phases)
@@ -690,7 +694,7 @@ export const getHome = query({
           competitionPhaseById,
           projectPhaseById,
           phaseSortKeyById,
-          today
+          args.today
         )
         if (action === null) return []
         return [{ ...action, task: row }]
@@ -726,7 +730,7 @@ export const getHome = query({
             competitionPhaseById,
             projectPhaseById,
             phaseSortKeyById,
-            today
+            args.today
           )
         ) {
           return []
@@ -742,7 +746,7 @@ export const getHome = query({
         competitionPhaseById,
         projectPhaseById,
         phaseSortKeyById,
-        today
+        args.today
       )
     const {
       activeTaskCounts: projectActiveTaskCounts,
@@ -754,7 +758,7 @@ export const getHome = query({
       competitionPhaseById,
       projectPhaseById,
       phaseSortKeyById,
-      today
+      args.today
     )
     const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
     const competitionsWithWork = sortCompetitionsWithWork(

@@ -54,7 +54,7 @@ export function MarkdownEditorField({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "h-40 min-h-40 resize-none border-0 bg-transparent p-3 font-mono text-sm shadow-none focus-visible:ring-0 sm:h-[min(42svh,20rem)] sm:min-h-48",
+            "h-40 min-h-40 resize-none border-0 bg-transparent p-3 font-mono shadow-none focus-visible:ring-0 sm:h-[min(42svh,20rem)] sm:min-h-48",
             preview && "hidden"
           )}
         />
