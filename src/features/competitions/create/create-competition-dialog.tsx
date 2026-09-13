@@ -225,7 +225,6 @@ export function CreateCompetitionDialog({
                     id="competition-name"
                     value={name}
                     disabled={isCreating}
-                    autoFocus
                     required
                     onChange={(event) => {
                       setName(event.currentTarget.value)

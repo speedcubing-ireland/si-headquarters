@@ -164,7 +164,6 @@ export function AddTaskDialog({
                     value={name}
                     placeholder="Book venue deposit"
                     disabled={isSubmitting}
-                    autoFocus
                     required
                     onChange={(event) => {
                       setName(event.currentTarget.value)
