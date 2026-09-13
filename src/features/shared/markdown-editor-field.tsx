@@ -27,7 +27,7 @@ export function MarkdownEditorField({
   const previewId = `${id}-preview`
 
   return (
-    <div className="grid min-h-0 gap-2">
+    <div className="grid min-h-0 min-w-0 gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
         <Label
@@ -44,7 +44,7 @@ export function MarkdownEditorField({
         </Label>
       </div>
 
-      <div className="min-h-0 rounded-lg border bg-background shadow-xs">
+      <div className="min-h-0 min-w-0 rounded-lg border bg-background shadow-xs">
         <Textarea
           id={id}
           value={value}
@@ -60,12 +60,12 @@ export function MarkdownEditorField({
         />
         <ScrollArea
           className={cn(
-            "h-40 min-h-40 p-3 sm:h-[min(42svh,20rem)] sm:min-h-48",
+            "h-40 min-h-40 min-w-0 p-3 sm:h-[min(42svh,20rem)] sm:min-h-48",
             !preview && "hidden"
           )}
         >
           {value.trim() ? (
-            <Streamdown>{value}</Streamdown>
+            <Streamdown className="wrap-anywhere">{value}</Streamdown>
           ) : (
             <p className="text-sm text-muted-foreground">
               Nothing to preview yet.

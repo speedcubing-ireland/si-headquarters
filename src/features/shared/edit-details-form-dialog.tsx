@@ -83,7 +83,7 @@ export function EditDetailsFormDialog({
           onSubmit={(event) => {
             void handleSubmit(event)
           }}
-          className="grid min-h-0 gap-4"
+          className="grid min-h-0 min-w-0 gap-4"
         >
           <DialogHeader className="pr-8">
             <DialogTitle>{title}</DialogTitle>
