@@ -11,6 +11,7 @@ export function CompetitionPeopleFormFields({
   compLeadId,
   leadDelegateId,
   organiserIds,
+  disabled,
   onCompLeadChange,
   onLeadDelegateChange,
   onOrganisersChange,
@@ -21,18 +22,21 @@ export function CompetitionPeopleFormFields({
   compLeadId: Id<"users"> | null
   leadDelegateId: Id<"users"> | null
   organiserIds: Id<"users">[]
+  disabled?: boolean
   onCompLeadChange: (userId: Id<"users"> | null) => void
   onLeadDelegateChange: (userId: Id<"users"> | null) => void
   onOrganisersChange: (organiserIds: Id<"users">[]) => void
 }) {
   return (
-    <div className="grid gap-4 @md/main:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-3">
       <Field>
         <FieldLabel>Competition Lead</FieldLabel>
         <UserSelector.SinglePropertyButton
           selectedUser={compLead}
           teamName={TEAM_NAMES.COMPETITIONS}
           value={compLeadId}
+          disabled={disabled}
+          className="w-full"
           onChange={onCompLeadChange}
         />
       </Field>
@@ -42,6 +46,8 @@ export function CompetitionPeopleFormFields({
           selectedUser={leadDelegate}
           teamName={TEAM_NAMES.DELEGATES}
           value={leadDelegateId}
+          disabled={disabled}
+          className="w-full"
           onChange={onLeadDelegateChange}
         />
       </Field>
@@ -50,6 +56,8 @@ export function CompetitionPeopleFormFields({
         <UserSelector.MultiPropertyButton
           selectedUsers={organisers}
           value={organiserIds}
+          disabled={disabled}
+          className="w-full"
           onChange={onOrganisersChange}
         />
       </Field>

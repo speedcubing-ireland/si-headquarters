@@ -18,6 +18,7 @@ import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import * as React from "react"
 import type { DateRange } from "react-day-picker"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface DateRangeSelectorProps extends Omit<
   React.ComponentProps<typeof SelectorButton>,
@@ -44,6 +45,7 @@ export function Button({
   variant,
   ...props
 }: DateRangeSelectorProps) {
+  const isMobile = useIsMobile()
   const selectedRange = toDateRange(value.from, value.to)
   const [isOpen, setIsOpen] = React.useState(false)
   const [pickerDate, setPickerDate] = React.useState(selectedRange)
@@ -82,7 +84,7 @@ export function Button({
           defaultMonth={pickerDate?.from}
           selected={pickerDate}
           onSelect={setDate}
-          numberOfMonths={2}
+          numberOfMonths={isMobile ? 1 : 2}
         />
       </PopoverContent>
     </Popover>
