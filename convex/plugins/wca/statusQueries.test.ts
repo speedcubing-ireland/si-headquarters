@@ -29,6 +29,7 @@ function observation(
     startDate: "2026-12-05",
     endDate: "2026-12-06",
     registrationCloseAt: null,
+    refundDeadlineAt: null,
     fetchedAt: NOW,
     ...overrides,
   }
@@ -131,5 +132,65 @@ describe("getForCompetition", () => {
       { competitionId }
     )
     expect(status).toMatchObject({ cancelled: true, fetchedAt: NOW })
+  })
+})
+
+describe("getForCompetition — refund deadline", () => {
+  test("reports the milestone in ladder order between close and held", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const competitionId = await seedLinkedCompetition(t)
+
+    await t.mutation(
+      internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
+      {
+        observation: observation({
+          endDate: "2026-06-01",
+          registrationCloseAt: Date.UTC(2026, 4, 20),
+          refundDeadlineAt: Date.UTC(2026, 4, 25),
+        }),
+        mappings: defaultMappings(),
+      }
+    )
+
+    const status = await client.query(
+      api.plugins.wca.statusQueries.getForCompetition,
+      { competitionId }
+    )
+    expect(status?.reached).toEqual([
+      "submitted",
+      "confirmed",
+      "announced",
+      "registrationClosed",
+      "refundDeadlinePassed",
+      "held",
+    ])
+  })
+
+  test("registration close alone shows without the refund milestone", async () => {
+    const t = convexTest(schema, modules)
+    const { client } = await withVolunteerTestClient(t)
+    const competitionId = await seedLinkedCompetition(t)
+
+    await t.mutation(
+      internal.plugins.wca.statusSyncMutations.applyCompetitionStatus,
+      {
+        observation: observation({
+          registrationCloseAt: Date.UTC(2026, 4, 20),
+          refundDeadlineAt: null,
+        }),
+        mappings: defaultMappings(),
+      }
+    )
+
+    const status = await client.query(
+      api.plugins.wca.statusQueries.getForCompetition,
+      { competitionId }
+    )
+    expect(status?.reached).toContain("registrationClosed")
+    expect(status?.reached).not.toContain("refundDeadlinePassed")
+    // `registrationClosed` is unmapped by default, which is a choice rather
+    // than a problem — same reasoning as `confirmed`.
+    expect(status?.unmapped).toEqual([])
   })
 })

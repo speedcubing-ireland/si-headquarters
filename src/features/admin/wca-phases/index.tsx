@@ -57,6 +57,7 @@ function toPhaseKeyByMilestone(
     confirmed: null,
     announced: null,
     registrationClosed: null,
+    refundDeadlinePassed: null,
     held: null,
     resultsPosted: null,
   }

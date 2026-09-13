@@ -326,7 +326,10 @@ export const standardCompetitionTemplate = {
       key: "pre-competition",
       name: "Pre-Competition",
       color: "amber",
-      wcaMilestone: "registrationClosed",
+      // Not `registrationClosed`: registrations can still be cancelled and
+      // refunded after registration shuts, so the competitor list and the money
+      // are only settled once the refund window has closed too.
+      wcaMilestone: "refundDeadlinePassed",
       tasks: [
         {
           key: "waiting-list-emailed",

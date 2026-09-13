@@ -10,8 +10,15 @@ import { modules } from "@/convex/test.setup"
 import { ensureTeamByName } from "@/convex/teams/model"
 import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
-import { competitionTemplates } from "@/convex/templates/registry"
-import type { CompetitionTemplateTaskSpec } from "@/convex/templates/registry"
+import {
+  competitionTemplates,
+  standardCompetitionTemplate,
+} from "@/convex/templates/registry"
+import { milestoneRank, type WcaMilestone } from "@/convex/phases/wcaMilestones"
+import type {
+  CompetitionTemplateDefinition,
+  CompetitionTemplateTaskSpec,
+} from "@/convex/templates/registry"
 
 const STANDARD_TEMPLATE = {
   templateKey: "standard-competition" as const,
@@ -316,5 +323,49 @@ describe("competition templates", () => {
         ...STANDARD_TEMPLATE,
       })
     ).rejects.toThrow(/Remove all phases/)
+  })
+})
+
+describe("competition template WCA milestones", () => {
+  // Typed as the interface rather than the literal so phase specs that omit
+  // `wcaMilestone` still expose it as optional, as `wcaMappingModel` does.
+  const template: CompetitionTemplateDefinition = standardCompetitionTemplate
+  const phases = template.phases
+
+  const declaredMilestones = (specs: typeof phases) =>
+    specs
+      .map((phase) => phase.wcaMilestone)
+      .filter((milestone): milestone is WcaMilestone => milestone !== undefined)
+
+  test("Pre-Competition waits for the refund deadline", () => {
+    // Registration closing is not enough on its own: registrations can still
+    // be cancelled and refunded until the refund window shuts.
+    expect(
+      phases.find((phase) => phase.key === "pre-competition")?.wcaMilestone
+    ).toBe("refundDeadlinePassed")
+  })
+
+  test("no phase is still backed by registration close alone", () => {
+    expect(
+      phases.filter((phase) => phase.wcaMilestone === "registrationClosed")
+    ).toEqual([])
+  })
+
+  test("milestones run in the same order as the phases they back", () => {
+    // `assertMappingsValid` enforces this for admin overrides; the template's
+    // own defaults have to satisfy it too, or a fresh deployment is invalid.
+    const ranks = phases.flatMap((phase) =>
+      phase.wcaMilestone === undefined
+        ? []
+        : [milestoneRank(phase.wcaMilestone)]
+    )
+
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b))
+  })
+
+  test("no milestone backs two phases", () => {
+    const declared = declaredMilestones(phases)
+
+    expect(new Set(declared).size).toBe(declared.length)
   })
 })

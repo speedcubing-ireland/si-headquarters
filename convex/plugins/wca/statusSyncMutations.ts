@@ -57,6 +57,39 @@ export const getPhaseMappings = internalQuery({
   handler: async (ctx) => await loadMappings(ctx),
 })
 
+/**
+ * Refund deadlines we already know, so the run can skip a detail request for a
+ * competition whose refund window has demonstrably shut. Resolved once per run
+ * like the mapping above: one indexed read beats one HTTP request per
+ * competition per hour for the weeks between the refund window closing and the
+ * competition being held.
+ */
+export const getStoredRefundDeadlines = internalQuery({
+  args: { wcaCompetitionIds: v.array(v.string()) },
+  returns: v.array(
+    v.object({
+      wcaCompetitionId: v.string(),
+      refundDeadlineAt: v.union(v.number(), v.null()),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const deadlines = []
+    for (const wcaCompetitionId of args.wcaCompetitionIds) {
+      const status = await ctx.db
+        .query("wcaCompetitionStatuses")
+        .withIndex("by_wcaCompetitionId", (q) =>
+          q.eq("wcaCompetitionId", wcaCompetitionId)
+        )
+        .unique()
+      deadlines.push({
+        wcaCompetitionId,
+        refundDeadlineAt: status?.refundDeadlineAt ?? null,
+      })
+    }
+    return deadlines
+  },
+})
+
 export const getLinkedWcaCompetitionId = internalQuery({
   args: { competitionId: v.id("competitions") },
   returns: v.union(v.string(), v.null()),
