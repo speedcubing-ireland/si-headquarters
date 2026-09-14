@@ -94,6 +94,17 @@ interface CompetitionTemplatePhaseSpec {
    * targeted by the WCA sync and stay under human control.
    */
   wcaMilestone?: WcaMilestone
+  /**
+   * Template key of a phase whose tasks must all be settled before the WCA sync
+   * may move a competition into this one. Human phase changes are unaffected —
+   * this only constrains the sync.
+   *
+   * The named phase must come earlier in `phases` (asserted in the template
+   * tests). A competition that does not have it — never created from the
+   * template, or deleted since — is treated as complete, so the gate never
+   * strands such a competition.
+   */
+  requiresPhaseComplete?: string
   tasks?: readonly CompetitionTemplateTaskSpec[]
 }
 
@@ -110,22 +121,15 @@ export interface CompetitionTemplateDefinition {
 
 const L = TASK_LABEL_CODES
 
-/**
- * The Concept phase's template key. Exported because the
- * `conceptTasksComplete` milestone resolves the phase by this key, and a silent
- * drift between the two would leave that milestone permanently unreachable.
- */
-export const CONCEPT_PHASE_KEY = "concept"
-
 export const standardCompetitionTemplate = {
   key: "standard-competition",
   version: 6,
   name: "Normal Competition",
   description: "Default template for competitions",
-  initialPhaseKey: CONCEPT_PHASE_KEY,
+  initialPhaseKey: "concept",
   phases: [
     {
-      key: CONCEPT_PHASE_KEY,
+      key: "concept",
       name: "Concept",
       color: "gray",
       tasks: [
@@ -150,10 +154,11 @@ export const standardCompetitionTemplate = {
       key: "pre-announcement",
       name: "Pre-Announcement",
       color: "red",
-      // Not `submitted`: a competition can appear on the WCA while its Concept
-      // tasks are still outstanding, and advancing then would strand that work
-      // behind the current phase.
-      wcaMilestone: "conceptTasksComplete",
+      wcaMilestone: "submitted",
+      // A competition can appear on the WCA while its Concept tasks are still
+      // outstanding; the sync must not move in and strand that work behind the
+      // current phase. `announced` maps further on, so nothing stalls for good.
+      requiresPhaseComplete: "concept",
       tasks: [
         {
           key: "venue-booked",

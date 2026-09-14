@@ -367,6 +367,23 @@ export async function buildSubtasksWithStatusViews(
   return applyFlowPositions(parentTask, subtasks, statusViews)
 }
 
+/**
+ * Status views for every task directly under a phase.
+ *
+ * Only direct children, because a parent task's `effectiveStatus` already folds
+ * its subtasks in: a parent with outstanding children resolves to
+ * `in-progress`, never `done`.
+ */
+export async function buildPhaseTaskStatusViews(
+  loader: TaskStatusLoader,
+  phaseId: Id<"phases">
+): Promise<TaskStatusView[]> {
+  const tasks = await loader.getPhaseTasks(phaseId)
+  return await Promise.all(
+    tasks.map((task) => buildTaskStatusView(loader, task))
+  )
+}
+
 export function getEffectiveTaskStatus(
   task: Doc<"tasks">,
   review: TaskReviewState,

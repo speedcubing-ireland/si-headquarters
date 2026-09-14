@@ -54,7 +54,6 @@ function toPhaseKeyByMilestone(
   )
   const draft: DraftMapping = {
     submitted: null,
-    conceptTasksComplete: null,
     confirmed: null,
     announced: null,
     registrationClosed: null,

@@ -4,7 +4,6 @@ import { requireCompetitionForRead } from "@/convex/competitions/access"
 import { WCA_MILESTONES } from "@/convex/phases/wcaMilestones"
 import { wcaMilestone } from "@/convex/phases/validators"
 import { listPhasesForOwnerBounded } from "@/convex/phases/model"
-import { resolveMilestoneGates } from "@/convex/phases/milestoneGates"
 import { loadMappings } from "@/convex/phases/wcaMappingModel"
 import { reachedMilestones } from "@/convex/plugins/wca/competitionStatus"
 
@@ -58,6 +57,7 @@ export const getForCompetition = query({
       }
     }
 
+    const reached = reachedMilestones(status, Date.now())
     const [mappings, phases] = await Promise.all([
       loadMappings(ctx),
       listPhasesForOwnerBounded(ctx, {
@@ -65,15 +65,6 @@ export const getForCompetition = query({
         id: args.competitionId,
       }),
     ])
-
-    // The phases have to be loaded first: one milestone gates on this
-    // competition's own tasks, not on anything the WCA told us.
-    const reached = reachedMilestones(
-      status,
-      Date.now(),
-      await resolveMilestoneGates(ctx, phases)
-    )
-
     const templateKeys = new Set(
       phases
         .map((phase) => phase.templateKey)

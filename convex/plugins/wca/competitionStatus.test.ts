@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest"
-import type { MilestoneGates } from "@/convex/phases/milestoneGates"
 import {
   mergeObservation,
   needsRefundDeadline,
@@ -20,14 +19,6 @@ import type {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const NOW = Date.UTC(2026, 5, 15)
-
-/**
- * The gates every test about the WCA's own facts uses. Held rather than open so
- * those tests keep asserting exactly the milestones the WCA accounts for, and
- * `conceptTasksComplete` stays the subject of its own tests below.
- */
-const CONCEPT_HELD: MilestoneGates = { conceptTasksComplete: false }
-const CONCEPT_DONE: MilestoneGates = { conceptTasksComplete: true }
 
 function myCompetition(overrides: Partial<MyCompetition> = {}): MyCompetition {
   return {
@@ -255,54 +246,7 @@ describe("mergeObservation", () => {
 
 describe("reachedMilestones", () => {
   test("a competition we can see at all counts as submitted", () => {
-    expect([...reachedMilestones(status(), NOW, CONCEPT_HELD)]).toEqual([
-      "submitted",
-    ])
-  })
-
-  test("being on the WCA is not enough for the concept tasks milestone", () => {
-    // The whole point of the rung: the competition exists on the WCA, but the
-    // concept work behind it is still outstanding.
-    const reached = reachedMilestones(status(), NOW, CONCEPT_HELD)
-
-    expect(reached.has("submitted")).toBe(true)
-    expect(reached.has("conceptTasksComplete")).toBe(false)
-  })
-
-  test("the concept tasks milestone needs both the WCA and the tasks", () => {
-    expect([...reachedMilestones(status(), NOW, CONCEPT_DONE)]).toEqual([
-      "submitted",
-      "conceptTasksComplete",
-    ])
-  })
-
-  test("the concept gate holds only its own rung", () => {
-    // A held gate must not hold back a competition the WCA has already taken
-    // further — those rungs are the WCA's facts, not ours.
-    const wcaState = status({
-      confirmed: true,
-      announced: true,
-      resultsPosted: true,
-    })
-
-    const held = reachedMilestones(wcaState, NOW, CONCEPT_HELD)
-    const done = reachedMilestones(wcaState, NOW, CONCEPT_DONE)
-
-    expect([...held]).toEqual([
-      "submitted",
-      "confirmed",
-      "announced",
-      "held",
-      "resultsPosted",
-    ])
-    expect([...done]).toEqual([
-      "submitted",
-      "conceptTasksComplete",
-      "confirmed",
-      "announced",
-      "held",
-      "resultsPosted",
-    ])
+    expect([...reachedMilestones(status(), NOW)]).toEqual(["submitted"])
   })
 
   test("reports only what the WCA actually says, gaps included", () => {
@@ -311,8 +255,7 @@ describe("reachedMilestones", () => {
     // shows this set to a human.
     const reached = reachedMilestones(
       status({ confirmed: false, announced: true, endDate: "2026-01-01" }),
-      NOW,
-      CONCEPT_HELD
+      NOW
     )
 
     expect([...reached]).toEqual(["submitted", "announced", "held"])
@@ -321,8 +264,7 @@ describe("reachedMilestones", () => {
   test("returns milestones in ladder order regardless of how they were set", () => {
     const reached = reachedMilestones(
       status({ confirmed: true, announced: true, resultsPosted: true }),
-      NOW,
-      CONCEPT_HELD
+      NOW
     )
 
     expect([...reached]).toEqual([
@@ -340,16 +282,14 @@ describe("reachedMilestones", () => {
     expect(
       reachedMilestones(
         status({ announced: true, registrationCloseAt: closeAt }),
-        closeAt - 1,
-        CONCEPT_HELD
+        closeAt - 1
       ).has("registrationClosed")
     ).toBe(false)
 
     expect(
       reachedMilestones(
         status({ announced: true, registrationCloseAt: closeAt }),
-        closeAt,
-        CONCEPT_HELD
+        closeAt
       ).has("registrationClosed")
     ).toBe(true)
   })
@@ -359,28 +299,21 @@ describe("reachedMilestones", () => {
     const lastDay = Date.UTC(2026, 5, 7)
 
     // Still the final day of the competition.
-    expect(
-      reachedMilestones(held, lastDay + 1000, CONCEPT_HELD).has("held")
-    ).toBe(false)
-    expect(
-      reachedMilestones(held, lastDay + DAY_MS, CONCEPT_HELD).has("held")
-    ).toBe(true)
+    expect(reachedMilestones(held, lastDay + 1000).has("held")).toBe(false)
+    expect(reachedMilestones(held, lastDay + DAY_MS).has("held")).toBe(true)
   })
 
   test("a competition still to be held has not reached `held`", () => {
     const upcoming = status({ announced: true, endDate: "2026-12-06" })
 
-    expect(reachedMilestones(upcoming, NOW, CONCEPT_HELD).has("held")).toBe(
-      false
-    )
+    expect(reachedMilestones(upcoming, NOW).has("held")).toBe(false)
   })
 
   test("a competition the WCA never announced is not treated as held", () => {
     // Its pencilled-in date passing is not the same as it having happened.
     const reached = reachedMilestones(
       status({ announced: false, endDate: "2026-01-01" }),
-      NOW,
-      CONCEPT_HELD
+      NOW
     )
 
     expect(reached.has("held")).toBe(false)
@@ -395,8 +328,7 @@ describe("reachedMilestones", () => {
         cancelled: true,
         endDate: "2026-12-01",
       }),
-      NOW,
-      CONCEPT_HELD
+      NOW
     )
 
     expect([...reached]).toEqual(["submitted", "confirmed", "announced"])
@@ -531,8 +463,7 @@ describe("reachedMilestones — refund deadline", () => {
   test("both conditions met reaches the milestone", () => {
     const reached = reachedMilestones(
       refundStatus(CLOSE_AT, DEADLINE_AT),
-      DEADLINE_AT,
-      CONCEPT_HELD
+      DEADLINE_AT
     )
 
     expect(reached.has("refundDeadlinePassed")).toBe(true)
@@ -543,8 +474,7 @@ describe("reachedMilestones — refund deadline", () => {
     // have moved the competition into Pre-Competition here.
     const reached = reachedMilestones(
       refundStatus(CLOSE_AT, DEADLINE_AT),
-      DEADLINE_AT - 1,
-      CONCEPT_HELD
+      DEADLINE_AT - 1
     )
 
     expect(reached.has("registrationClosed")).toBe(true)
@@ -556,8 +486,7 @@ describe("reachedMilestones — refund deadline", () => {
     // registration shuts, and "either" is not what we asked for.
     const reached = reachedMilestones(
       refundStatus(DEADLINE_AT + DAY_MS, DEADLINE_AT),
-      DEADLINE_AT + 1,
-      CONCEPT_HELD
+      DEADLINE_AT + 1
     )
 
     expect(reached.has("registrationClosed")).toBe(false)
@@ -565,11 +494,7 @@ describe("reachedMilestones — refund deadline", () => {
   })
 
   test("an unknown deadline holds rather than advancing", () => {
-    const reached = reachedMilestones(
-      refundStatus(CLOSE_AT, null),
-      NOW,
-      CONCEPT_HELD
-    )
+    const reached = reachedMilestones(refundStatus(CLOSE_AT, null), NOW)
 
     expect(reached.has("registrationClosed")).toBe(true)
     expect(reached.has("refundDeadlinePassed")).toBe(false)
@@ -580,18 +505,14 @@ describe("reachedMilestones — refund deadline", () => {
     const legacy = refundStatus(CLOSE_AT, null)
     delete (legacy as { refundDeadlineAt?: number | null }).refundDeadlineAt
 
-    expect(
-      reachedMilestones(legacy, NOW, CONCEPT_HELD).has("refundDeadlinePassed")
-    ).toBe(false)
+    expect(reachedMilestones(legacy, NOW).has("refundDeadlinePassed")).toBe(
+      false
+    )
   })
 
   test("the deadline passes at the instant itself, not after it", () => {
     const reached = (nowMs: number) =>
-      reachedMilestones(
-        refundStatus(CLOSE_AT, DEADLINE_AT),
-        nowMs,
-        CONCEPT_HELD
-      )
+      reachedMilestones(refundStatus(CLOSE_AT, DEADLINE_AT), nowMs)
 
     expect(reached(DEADLINE_AT - 1).has("refundDeadlinePassed")).toBe(false)
     expect(reached(DEADLINE_AT).has("refundDeadlinePassed")).toBe(true)
@@ -610,8 +531,7 @@ describe("reachedMilestones — refund deadline", () => {
       dates.map(([refundLabel, refundDeadlineAt]) => {
         const reached = reachedMilestones(
           refundStatus(registrationCloseAt, refundDeadlineAt),
-          DEADLINE_AT,
-          CONCEPT_HELD
+          DEADLINE_AT
         )
         return `close=${closeLabel} refund=${refundLabel} -> ${
           reached.has("refundDeadlinePassed") ? "reached" : "held"
@@ -641,8 +561,7 @@ describe("reachedMilestones — refund deadline", () => {
         registrationCloseAt: CLOSE_AT,
         refundDeadlineAt: DEADLINE_AT,
       }),
-      NOW,
-      CONCEPT_HELD
+      NOW
     )
 
     expect([...reached]).toEqual([
@@ -665,8 +584,7 @@ describe("reachedMilestones — refund deadline", () => {
         registrationCloseAt: CLOSE_AT,
         refundDeadlineAt: null,
       }),
-      NOW,
-      CONCEPT_HELD
+      NOW
     )
 
     expect(reached.has("refundDeadlinePassed")).toBe(false)

@@ -1,4 +1,3 @@
-import type { MilestoneGates } from "@/convex/phases/milestoneGates"
 import type { WcaMilestone } from "@/convex/phases/wcaMilestones"
 import { parseDateOnlyToUtcMs } from "@/convex/plugins/wca/registrationsLib"
 import type {
@@ -175,26 +174,15 @@ export function mergeObservation(
  * the competition's state on the competition page. Nothing downstream needs the
  * gaps filled — the phase sync takes the *furthest* unlocked phase, and the
  * mapping is validated to keep later milestones on later phases.
- *
- * `gates` carries the inputs that are not the WCA's, resolved from the database
- * by the caller so this stays pure (see `resolveMilestoneGates`).
  */
 export function reachedMilestones(
   status: WcaCompetitionStatus,
-  nowMs: number,
-  gates: MilestoneGates
+  nowMs: number
 ): Set<WcaMilestone> {
   const reached = new Set<WcaMilestone>()
 
   // A status row only exists for a competition we found on the WCA at all.
   reached.add("submitted")
-
-  // Both conditions, not either: being on the WCA says nothing about whether
-  // the concept work is settled, and advancing out of Concept with its tasks
-  // still outstanding would strand them behind the current phase. Holding here
-  // never stalls a competition for good — `announced` still moves it on.
-  if (gates.conceptTasksComplete) reached.add("conceptTasksComplete")
-
   if (status.confirmed) reached.add("confirmed")
   if (status.announced) reached.add("announced")
   const registrationClosed = hasPassed(status.registrationCloseAt, nowMs)
