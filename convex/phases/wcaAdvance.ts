@@ -17,6 +17,12 @@ export function resolveWcaPhaseAdvance(args: {
   currentPhaseId: Id<"phases"> | null
   mappings: readonly WcaPhaseMapping[]
   reached: ReadonlySet<WcaMilestone>
+  /**
+   * Phases the sync may not move into yet, because work they depend on is
+   * outstanding (see `resolveBlockedPhaseIds`). Removing a phase from the
+   * candidates does not hold back the ones after it.
+   */
+  blockedPhaseIds: ReadonlySet<Id<"phases">>
 }): Id<"phases"> | null {
   const phaseByTemplateKey = new Map<string, Doc<"phases">>()
   for (const phase of args.phases) {
@@ -33,7 +39,7 @@ export function resolveWcaPhaseAdvance(args: {
     if (mapping.phaseKey === null) continue
     if (!args.reached.has(mapping.milestone)) continue
     const phase = phaseByTemplateKey.get(mapping.phaseKey)
-    if (phase !== undefined) {
+    if (phase !== undefined && !args.blockedPhaseIds.has(phase._id)) {
       unlocked.push(phase)
     }
   }

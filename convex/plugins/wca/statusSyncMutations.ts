@@ -13,6 +13,7 @@ import {
   ownerPhaseId,
   setCurrentPhaseForOwner,
 } from "@/convex/phases/setCurrentPhase"
+import { resolveBlockedPhaseIds } from "@/convex/phases/entryGates"
 import { loadMappings } from "@/convex/phases/wcaMappingModel"
 import { wcaPhaseMappingEntry } from "@/convex/phases/validators"
 import { resolveWcaPhaseAdvance } from "@/convex/phases/wcaAdvance"
@@ -174,11 +175,19 @@ export const applyCompetitionStatus = internalMutation({
     const phases = await listPhasesForOwnerBounded(ctx, owner)
 
     const previousPhaseId = ownerPhaseId(competition)
+    // Resolved per competition rather than per run: unlike the mapping, this
+    // depends on the competition's own tasks.
+    const blockedPhaseIds = await resolveBlockedPhaseIds(
+      ctx,
+      phases,
+      previousPhaseId
+    )
     const nextPhaseId = resolveWcaPhaseAdvance({
       phases,
       currentPhaseId: previousPhaseId,
       mappings: args.mappings,
       reached: reachedMilestones(status, status.fetchedAt),
+      blockedPhaseIds,
     })
 
     if (nextPhaseId === null) return null

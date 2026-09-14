@@ -9,6 +9,7 @@ import {
   insertBlankCompetition,
   insertCompetitionPhase,
   phasesForCompetition,
+  seedPhaseTasks,
   seedTaskPerPhase,
   seedTemplateCompetition,
   type TemplatePhaseKey,
@@ -90,6 +91,45 @@ describe("WCA phase sync", () => {
     })
 
     await applyStatus(t, status({ confirmed: true, announced: true }))
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("announced")
+  })
+
+  test("holds a concept competition whose Concept tasks are outstanding", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "concept",
+    })
+    await seedPhaseTasks(t, competitionId, "concept", ["to-do"])
+
+    // Being on the WCA is all `submitted` needs, and nothing else is reached.
+    await applyStatus(t, status())
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("concept")
+  })
+
+  test("advances to Pre-Announcement once the Concept tasks are done", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "concept",
+    })
+    await seedPhaseTasks(t, competitionId, "concept", ["done"])
+
+    await applyStatus(t, status())
+
+    expect(await currentPhaseKey(t, competitionId)).toBe("pre-announcement")
+  })
+
+  test("outstanding Concept tasks do not hold back a later milestone", async () => {
+    // The gate is Pre-Announcement's alone; the WCA announcing the competition
+    // still moves it on, so nothing stalls for good.
+    const t = convexTest(schema, modules)
+    const { competitionId } = await seedCompetition(t, {
+      startingPhase: "concept",
+    })
+    await seedPhaseTasks(t, competitionId, "concept", ["to-do"])
+
+    await applyStatus(t, status({ announced: true }))
 
     expect(await currentPhaseKey(t, competitionId)).toBe("announced")
   })

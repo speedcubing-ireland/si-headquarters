@@ -260,6 +260,35 @@ export async function phasesForCompetition(
   )
 }
 
+/**
+ * Tasks in one of a competition's template phases, given as their statuses, in
+ * order. Returns the new task ids so a caller can hang subtasks off them.
+ */
+export async function seedPhaseTasks(
+  t: TestConvex<typeof schema>,
+  competitionId: Id<"competitions">,
+  phaseKey: TemplatePhaseKey,
+  statuses: readonly TaskStatus[]
+): Promise<Id<"tasks">[]> {
+  const phases = await phasesForCompetition(t, competitionId)
+  const phase = phases.find((candidate) => candidate.templateKey === phaseKey)
+  if (phase === undefined) throw new Error(`No ${phaseKey} phase seeded`)
+
+  return await t.run(async (ctx) => {
+    const ids: Id<"tasks">[] = []
+    for (const [index, status] of statuses.entries()) {
+      ids.push(
+        await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phase._id },
+          order: `a${String(index)}`,
+          status,
+        })
+      )
+    }
+    return ids
+  })
+}
+
 /** One backlog task in each of a competition's phases. */
 export async function seedTaskPerPhase(
   t: TestConvex<typeof schema>,

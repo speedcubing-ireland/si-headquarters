@@ -94,6 +94,17 @@ interface CompetitionTemplatePhaseSpec {
    * targeted by the WCA sync and stay under human control.
    */
   wcaMilestone?: WcaMilestone
+  /**
+   * Template key of a phase whose tasks must all be settled before the WCA sync
+   * may move a competition into this one. Human phase changes are unaffected —
+   * this only constrains the sync.
+   *
+   * The named phase must come earlier in `phases` (asserted in the template
+   * tests). A competition that does not have it — never created from the
+   * template, or deleted since — is treated as complete, so the gate never
+   * strands such a competition.
+   */
+  requiresPhaseComplete?: string
   tasks?: readonly CompetitionTemplateTaskSpec[]
 }
 
@@ -144,6 +155,10 @@ export const standardCompetitionTemplate = {
       name: "Pre-Announcement",
       color: "red",
       wcaMilestone: "submitted",
+      // A competition can appear on the WCA while its Concept tasks are still
+      // outstanding; the sync must not move in and strand that work behind the
+      // current phase. `announced` maps further on, so nothing stalls for good.
+      requiresPhaseComplete: "concept",
       tasks: [
         {
           key: "venue-booked",

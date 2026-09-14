@@ -3,8 +3,9 @@ import type { QueryCtx } from "@/convex/_generated/server"
 import { phaseColor } from "@/convex/phases/validators"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
-  buildTaskStatusView,
+  buildPhaseTaskStatusViews,
   TaskStatusLoader,
+  type StatusReadCtx,
 } from "@/convex/tasks/status/resolver"
 import {
   getProgress,
@@ -70,6 +71,24 @@ export async function buildCurrentPhaseProgress(
   }
 }
 
+/**
+ * Whether every task directly under a phase is settled.
+ *
+ * "Settled" is the codebase's existing definition — `done` or `cancelled`
+ * (`isTerminalComplete`) — so a cancelled task does not hold a phase open. A
+ * phase with no tasks is complete, matching `getProgress([])`.
+ */
+export async function isPhaseComplete(
+  ctx: StatusReadCtx,
+  phaseId: Id<"phases">
+): Promise<boolean> {
+  const views = await buildPhaseTaskStatusViews(
+    new TaskStatusLoader(ctx),
+    phaseId
+  )
+  return getProgress(views.map((view) => view.effectiveStatus)).incomplete === 0
+}
+
 export async function getPhaseProgressWithBlockers(
   ctx: QueryCtx,
   phaseId: Id<"phases">
@@ -77,9 +96,7 @@ export async function getPhaseProgressWithBlockers(
   const statusLoader = new TaskStatusLoader(ctx)
   const blockersLoader = new TaskBlockersLoader(ctx)
   const tasks = await statusLoader.getPhaseTasks(phaseId)
-  const statusViews = await Promise.all(
-    tasks.map((task) => buildTaskStatusView(statusLoader, task))
-  )
+  const statusViews = await buildPhaseTaskStatusViews(statusLoader, phaseId)
   const statuses = statusViews.map((view) => view.effectiveStatus)
   const progress = getProgress(statuses)
 

@@ -337,6 +337,34 @@ describe("competition template WCA milestones", () => {
       .map((phase) => phase.wcaMilestone)
       .filter((milestone): milestone is WcaMilestone => milestone !== undefined)
 
+  test("Pre-Announcement is unlocked by submission to the WCA", () => {
+    expect(
+      phases.find((phase) => phase.key === "pre-announcement")?.wcaMilestone
+    ).toBe("submitted")
+  })
+
+  test("Pre-Announcement waits for the Concept phase's tasks", () => {
+    // Existing on the WCA is not enough on its own: moving out of Concept with
+    // its tasks outstanding would strand that work behind the phase.
+    expect(
+      phases.find((phase) => phase.key === "pre-announcement")
+        ?.requiresPhaseComplete
+    ).toBe("concept")
+  })
+
+  test("every entry gate names an earlier phase", () => {
+    // A gate on a later phase could never open, silently pinning the
+    // competition where it is.
+    const indexByKey = new Map(phases.map((phase, index) => [phase.key, index]))
+
+    for (const [index, phase] of phases.entries()) {
+      if (phase.requiresPhaseComplete === undefined) continue
+      const requiredIndex = indexByKey.get(phase.requiresPhaseComplete)
+      expect(requiredIndex).toBeDefined()
+      expect(requiredIndex).toBeLessThan(index)
+    }
+  })
+
   test("Pre-Competition waits for the refund deadline", () => {
     // Registration closing is not enough on its own: registrations can still
     // be cancelled and refunded until the refund window shuts.
