@@ -30,9 +30,9 @@ export interface HelpSection {
   feature?: FeatureId
   /**
    * When the prose was last checked against the app. Sections drift as the UI
-   * changes, and a reader deserves to know how much to trust them — including
-   * the generated ones, which restate a template's shipped defaults rather than
-   * whatever this deployment has since been configured to do.
+   * changes, and a reader deserves to know how much to trust them. Sections
+   * generated from the template drift too: they restate what the code ships
+   * with, which is only part of what a deployment can be configured to do.
    */
   lastReviewed: string
   topics: readonly HelpTopic[]

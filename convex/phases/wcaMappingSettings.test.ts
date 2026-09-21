@@ -287,3 +287,101 @@ describe("refund deadline default", () => {
     expect(settings.mappings).toEqual(defaultMappings())
   })
 })
+
+/**
+ * The mapping this deployment actually runs, as of the report that prompted
+ * `getEffective` to exist. It differs from the template defaults in exactly the
+ * ways the help page was getting wrong: `held` moves nothing, and it is
+ * `resultsPosted` rather than `held` that reaches Post-Competition.
+ */
+const PRODUCTION_MAPPINGS = mappingsWith({
+  submitted: "pre-announcement",
+  announced: "announced",
+  refundDeadlinePassed: "pre-competition",
+  resultsPosted: "post-competition",
+})
+
+describe("getEffective", () => {
+  test("is readable by a non-director, unlike get", async () => {
+    const t = convexTest(schema, modules)
+    const volunteer = await asVolunteer(t)
+
+    const settings = await volunteer.query(
+      api.phases.wcaMappingSettings.getEffective,
+      {}
+    )
+
+    expect(settings.mappings).toEqual(defaultMappings())
+    expect(settings.isCustomised).toBe(false)
+  })
+
+  test("is refused without an identity", async () => {
+    const t = convexTest(schema, modules)
+
+    await expect(
+      t.query(api.phases.wcaMappingSettings.getEffective, {})
+    ).rejects.toThrow()
+  })
+
+  test("shows a reader the director's override, not the template", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+    const volunteer = await asVolunteer(t)
+
+    await director.mutation(api.phases.wcaMappingSettings.update, {
+      mappings: PRODUCTION_MAPPINGS,
+    })
+
+    const settings = await volunteer.query(
+      api.phases.wcaMappingSettings.getEffective,
+      {}
+    )
+    const phaseFor = (milestone: WcaMilestone) =>
+      settings.mappings.find((mapping) => mapping.milestone === milestone)
+        ?.phaseKey
+
+    expect(settings.isCustomised).toBe(true)
+    expect(phaseFor("held")).toBeNull()
+    expect(phaseFor("resultsPosted")).toBe("post-competition")
+  })
+
+  test("agrees with get, so the two views cannot drift", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+    const volunteer = await asVolunteer(t)
+
+    await director.mutation(api.phases.wcaMappingSettings.update, {
+      mappings: PRODUCTION_MAPPINGS,
+    })
+
+    const adminView = await director.query(
+      api.phases.wcaMappingSettings.get,
+      {}
+    )
+    const readerView = await volunteer.query(
+      api.phases.wcaMappingSettings.getEffective,
+      {}
+    )
+
+    expect(readerView.mappings).toEqual(adminView.mappings)
+    expect(readerView.isCustomised).toBe(adminView.isCustomised)
+  })
+
+  test("withholds updatedAt, which stays director-only", async () => {
+    const t = convexTest(schema, modules)
+    const director = await asDirector(t)
+    const volunteer = await asVolunteer(t)
+
+    await director.mutation(api.phases.wcaMappingSettings.update, {
+      mappings: PRODUCTION_MAPPINGS,
+    })
+
+    const settings = await volunteer.query(
+      api.phases.wcaMappingSettings.getEffective,
+      {}
+    )
+
+    expect(settings).not.toHaveProperty("updatedAt")
+    expect(settings).not.toHaveProperty("updatedById")
+  })
+})

@@ -1,13 +1,14 @@
 import { v } from "convex/values"
 import { mutation, query } from "@/convex/_generated/server"
-import { requireDirector } from "@/convex/permissions/principal"
+import {
+  requireActiveUserId,
+  requireDirector,
+} from "@/convex/permissions/principal"
 import { phaseColor, wcaPhaseMappingEntry } from "@/convex/phases/validators"
 import {
   assertMappingsValid,
-  defaultMappings,
+  effectiveMappingSettings,
   loadMappingRow,
-  normalizeMappings,
-  templatePhaseOptions,
   WCA_PHASE_MAPPING_KEY,
 } from "@/convex/phases/wcaMappingModel"
 
@@ -34,15 +35,33 @@ export const get = query({
   }),
   handler: async (ctx) => {
     await requireDirector(ctx)
-    const row = await loadMappingRow(ctx)
 
-    return {
-      ...templatePhaseOptions(),
-      mappings:
-        row === null ? defaultMappings() : normalizeMappings(row.mappings),
-      isCustomised: row !== null,
-      updatedAt: row?.updatedAt ?? null,
-    }
+    return await effectiveMappingSettings(ctx)
+  },
+})
+
+/**
+ * The effective mapping as an ordinary reader needs it, for the help page.
+ *
+ * The help page documents what this deployment actually does, which is a fact
+ * about configuration rather than about the template, so it must not be
+ * answered from `standardCompetitionTemplate`. Readable by any active user:
+ * it describes product behaviour, not who configured it. `get` stays
+ * director-only because it additionally reports when the override last
+ * changed, which is administrative.
+ */
+export const getEffective = query({
+  args: {},
+  returns: v.object({
+    mappings: v.array(wcaPhaseMappingEntry),
+    isCustomised: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    await requireActiveUserId(ctx)
+
+    const { mappings, isCustomised } = await effectiveMappingSettings(ctx)
+
+    return { mappings, isCustomised }
   },
 })
 

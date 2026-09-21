@@ -1,5 +1,7 @@
 import { ConvexError } from "convex/values"
+import type { Doc } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
+import type { PhaseColor } from "@/convex/phases/colors"
 import {
   milestoneRank,
   WCA_MILESTONES,
@@ -73,9 +75,19 @@ export function loadMappingRow(ctx: QueryCtx) {
     .unique()
 }
 
-export async function loadMappings(ctx: QueryCtx): Promise<WcaPhaseMapping[]> {
-  const row = await loadMappingRow(ctx)
+/**
+ * What a stored row means: its own entries, or the template defaults when
+ * there is no row. The one place "the effective mapping" is defined, so the
+ * sync and the two read views cannot drift apart on it.
+ */
+function mappingsFromRow(
+  row: Doc<"wcaPhaseMappings"> | null
+): WcaPhaseMapping[] {
   return row === null ? defaultMappings() : normalizeMappings(row.mappings)
+}
+
+export async function loadMappings(ctx: QueryCtx): Promise<WcaPhaseMapping[]> {
+  return mappingsFromRow(await loadMappingRow(ctx))
 }
 
 /**
@@ -146,5 +158,40 @@ export function templatePhaseOptions() {
       name: phase.name,
       color: phase.color,
     })),
+  }
+}
+
+export interface EffectiveWcaMappingSettings {
+  templateName: string
+  phases: { key: string; name: string; color: PhaseColor }[]
+  mappings: WcaPhaseMapping[]
+  /**
+   * A director has saved a mapping, so an override row is in force. Not the
+   * same as the mapping differing from the template defaults — saving the
+   * defaults unchanged still counts — so anything user-facing should say that
+   * a mapping was saved rather than that it was changed.
+   */
+  isCustomised: boolean
+  updatedAt: number | null
+}
+
+/**
+ * The mapping this deployment actually runs on: the stored override merged over
+ * the template defaults, plus the template's phases to name them by.
+ *
+ * Shared by the director-only admin view and the reader-level view the help
+ * page uses, so the two can never disagree about what the app is configured to
+ * do. Does no auth of its own — each query gates itself.
+ */
+export async function effectiveMappingSettings(
+  ctx: QueryCtx
+): Promise<EffectiveWcaMappingSettings> {
+  const row = await loadMappingRow(ctx)
+
+  return {
+    ...templatePhaseOptions(),
+    mappings: mappingsFromRow(row),
+    isCustomised: row !== null,
+    updatedAt: row?.updatedAt ?? null,
   }
 }

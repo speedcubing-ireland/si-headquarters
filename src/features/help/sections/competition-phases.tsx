@@ -1,43 +1,36 @@
+import { useQuery } from "convex/react"
+import type { ReactNode } from "react"
 import { Dot } from "@/components/data-selectors/phase-selector"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { api } from "@/convex/_generated/api"
 import {
   WCA_MILESTONE_DESCRIPTIONS,
   WCA_MILESTONE_LABELS,
   WCA_MILESTONES,
-  type WcaMilestone,
 } from "@/convex/phases/wcaMilestones"
-import {
-  standardCompetitionTemplate,
-  type CompetitionTemplateDefinition,
-  type CompetitionTemplateTaskSpec,
-} from "@/convex/templates/registry"
 import { Bullets, Note, Prose, Ui } from "@/features/help/help-prose"
+import {
+  countTasks,
+  milestoneForPhase,
+  milestoneTarget,
+  personOnlyPhases,
+  phaseByKey,
+  TEMPLATE,
+  type LiveMappings,
+  type MilestoneTarget,
+  type TemplatePhase,
+} from "@/features/help/sections/competition-phase-model"
 
 /**
- * This section is generated from the same definitions the app runs on, rather
- * than written out by hand, so it cannot describe a ladder the product no
- * longer has. Adding a phase or a milestone updates the help page with it.
- *
- * Typed as the interface rather than the literal, matching `entryGates`, so the
- * optional fields read as optional here.
+ * Renders the phases section. What it knows — the template's ladder, and how a
+ * live mapping resolves against it — lives in `competition-phase-model`; the
+ * views take that as a prop so they can be tested without a Convex provider.
  */
-const TEMPLATE: CompetitionTemplateDefinition = standardCompetitionTemplate
 
-type TemplatePhase = CompetitionTemplateDefinition["phases"][number]
-
-function countTasks(tasks: readonly CompetitionTemplateTaskSpec[]): number {
-  return tasks.reduce(
-    (total, task) => total + 1 + countTasks(task.subtasks ?? []),
-    0
-  )
-}
-
-function phaseByKey(key: string): TemplatePhase | undefined {
-  return TEMPLATE.phases.find((phase) => phase.key === key)
-}
-
-function phaseForMilestone(milestone: WcaMilestone): TemplatePhase | undefined {
-  return TEMPLATE.phases.find((phase) => phase.wcaMilestone === milestone)
+/** `undefined` until the subscription delivers. */
+function useEffectiveMapping() {
+  return useQuery(api.phases.wcaMappingSettings.getEffective, {})
 }
 
 function PhaseName({ phase }: { phase: TemplatePhase }) {
@@ -49,12 +42,32 @@ function PhaseName({ phase }: { phase: TemplatePhase }) {
   )
 }
 
-export function PhaseLadder() {
+/** Phase names as part of a sentence: "Concept", "A and B", "A, B, and C". */
+function PhaseList({ phases }: { phases: readonly TemplatePhase[] }) {
+  return (
+    <>
+      {phases.map((phase, index) => (
+        <span key={phase.key}>
+          {index > 0 && (index === phases.length - 1 ? " and " : ", ")}
+          <PhaseName phase={phase} />
+        </span>
+      ))}
+    </>
+  )
+}
+
+export function PhaseLadderView({ mappings }: { mappings: LiveMappings }) {
   return (
     <Prose>
       <p>
         Competitions created from <Ui>{TEMPLATE.name}</Ui> move through these
         phases in order. Each one arrives with its own tasks already in place.
+      </p>
+      <p>
+        Which WCA milestone reaches each phase is whatever this deployment is
+        configured to do, and is read from the app as you look at it. Phases are
+        named as the template creates them — a particular competition's phases
+        may have been renamed since.
       </p>
       <ol className="flex flex-col gap-3">
         {TEMPLATE.phases.map((phase, index) => {
@@ -63,6 +76,10 @@ export function PhaseLadder() {
             phase.requiresPhaseComplete === undefined
               ? undefined
               : phaseByKey(phase.requiresPhaseComplete)
+          const milestone =
+            mappings === undefined
+              ? undefined
+              : milestoneForPhase(mappings, phase.key)
 
           return (
             <li
@@ -83,18 +100,18 @@ export function PhaseLadder() {
                     : `${String(taskCount)} tasks and subtasks`}
                 </span>
               </div>
-              {phase.wcaMilestone === undefined ? (
+              {mappings === undefined ? (
+                <Skeleton className="h-4 w-64" />
+              ) : milestone === undefined ? (
                 <p className="text-sm">
-                  Only a person can move a competition into this phase — the WCA
-                  sync never targets it.
+                  No WCA milestone moves a competition into this phase, so only
+                  a person can.
                 </p>
               ) : (
                 <p className="text-sm">
                   Reached when the competition is{" "}
-                  <Ui>
-                    {WCA_MILESTONE_LABELS[phase.wcaMilestone].toLowerCase()}
-                  </Ui>{" "}
-                  on the WCA.
+                  <Ui>{WCA_MILESTONE_LABELS[milestone].toLowerCase()}</Ui> on
+                  the WCA.
                 </p>
               )}
               {gate !== undefined && (
@@ -111,7 +128,43 @@ export function PhaseLadder() {
   )
 }
 
-export function MilestoneMapping() {
+export function PhaseLadder() {
+  const settings = useEffectiveMapping()
+
+  return <PhaseLadderView mappings={settings?.mappings} />
+}
+
+function MilestoneOutcome({ target }: { target: MilestoneTarget }): ReactNode {
+  switch (target.kind) {
+    case "unmapped":
+      return (
+        <span className="text-muted-foreground">
+          Does not move the competition on by itself.
+        </span>
+      )
+    case "missing":
+      return (
+        <span className="text-muted-foreground">
+          Set to a phase this template no longer has, so it moves nothing. A
+          director should pick a phase again in <Ui>Admin → WCA phases</Ui>.
+        </span>
+      )
+    case "phase":
+      return (
+        <>
+          Moves the competition to <PhaseName phase={target.phase} />.
+        </>
+      )
+  }
+}
+
+export function MilestoneMappingView({
+  mappings,
+  isCustomised,
+}: {
+  mappings: LiveMappings
+  isCustomised: boolean | undefined
+}) {
   return (
     <Prose>
       <p>
@@ -121,47 +174,63 @@ export function MilestoneMapping() {
         phase it moves a competition into.
       </p>
       <div className="flex flex-col gap-3">
-        {WCA_MILESTONES.map((milestone) => {
-          const phase = phaseForMilestone(milestone)
-
-          return (
-            <div
-              key={milestone}
-              className="grid gap-1 rounded-lg border bg-card p-3 sm:grid-cols-2 sm:gap-6"
-            >
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  {WCA_MILESTONE_LABELS[milestone]}
-                </p>
-                <p className="text-xs">
-                  {WCA_MILESTONE_DESCRIPTIONS[milestone]}
-                </p>
-              </div>
-              <p className="text-sm sm:self-center">
-                {phase === undefined ? (
-                  <span className="text-muted-foreground">
-                    Does not move the competition on by itself.
-                  </span>
-                ) : (
-                  <>
-                    Moves the competition to <PhaseName phase={phase} />.
-                  </>
-                )}
+        {WCA_MILESTONES.map((milestone) => (
+          <div
+            key={milestone}
+            className="grid gap-1 rounded-lg border bg-card p-3 sm:grid-cols-2 sm:gap-6"
+          >
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                {WCA_MILESTONE_LABELS[milestone]}
               </p>
+              <p className="text-xs">{WCA_MILESTONE_DESCRIPTIONS[milestone]}</p>
             </div>
-          )
-        })}
+            {mappings === undefined ? (
+              <Skeleton className="h-4 w-48 sm:self-center" />
+            ) : (
+              <p className="text-sm sm:self-center">
+                <MilestoneOutcome
+                  target={milestoneTarget(mappings, milestone)}
+                />
+              </p>
+            )}
+          </div>
+        ))}
       </div>
       <Note>
-        This is the mapping the template ships with. A director can change it in{" "}
-        <Ui>Admin → WCA phases</Ui>, and if they have, what your competitions
-        actually do will follow that instead.
+        This is the mapping your organisation actually runs on, read from the
+        app as you look at it.{" "}
+        {isCustomised === undefined ? null : isCustomised ? (
+          <>
+            A director has saved it in <Ui>Admin → WCA phases</Ui>, so it may
+            differ from the one the template ships with.
+          </>
+        ) : (
+          <>
+            Nothing has been saved over it, so it is the mapping the template
+            ships with. A director can change it in <Ui>Admin → WCA phases</Ui>,
+            and this page will follow.
+          </>
+        )}
       </Note>
     </Prose>
   )
 }
 
-export function WhyItDidNotMove() {
+export function MilestoneMapping() {
+  const settings = useEffectiveMapping()
+
+  return (
+    <MilestoneMappingView
+      mappings={settings?.mappings}
+      isCustomised={settings?.isCustomised}
+    />
+  )
+}
+
+export function WhyItDidNotMoveView({ mappings }: { mappings: LiveMappings }) {
+  const personOnly = mappings === undefined ? [] : personOnlyPhases(mappings)
+
   return (
     <Prose>
       <p>
@@ -187,11 +256,14 @@ export function WhyItDidNotMove() {
           further ahead than you expected. Nothing stalls permanently as a
           result.
         </li>
-        <li>
-          <Ui>Nothing maps to that phase.</Ui> Phases without a milestone are
-          only ever set by a person, from <Ui>Edit phases</Ui> on the
-          competition.
-        </li>
+        {personOnly.length > 0 && (
+          <li>
+            <Ui>Nothing maps to that phase.</Ui> No milestone currently reaches{" "}
+            <PhaseList phases={personOnly} />, so only a person moves a
+            competition into {personOnly.length === 1 ? "it" : "them"}, from{" "}
+            <Ui>Edit phases</Ui> on the competition.
+          </li>
+        )}
       </Bullets>
       <p>
         Cancelling a competition is separate from all of this. It is recorded on
@@ -204,4 +276,10 @@ export function WhyItDidNotMove() {
       </p>
     </Prose>
   )
+}
+
+export function WhyItDidNotMove() {
+  const settings = useEffectiveMapping()
+
+  return <WhyItDidNotMoveView mappings={settings?.mappings} />
 }
