@@ -86,6 +86,35 @@ describe("PhaseLadderView", () => {
     expect(textAfter(html, "Completed")).toContain("results posted")
   })
 
+  /**
+   * A gate is not a queue: `resolveBlockedPhaseIds` drops a blocked phase from
+   * the candidates and the sync takes the furthest one left, so a competition
+   * whose later milestones have landed never arrives at the gated phase. Copy
+   * that says the sync "waits until" the gate clears would be a promise the
+   * sync does not keep.
+   */
+  test("says a gated phase is skipped, not waited at", () => {
+    const html = renderToStaticMarkup(
+      <PhaseLadderView mappings={PRODUCTION_MAPPINGS} />
+    )
+
+    const gated = textAfter(html, "Pre-Announcement", 400)
+
+    expect(gated).toContain("Concept")
+    expect(gated).toContain("finished or cancelled")
+    expect(gated).toContain("skips this phase rather than waiting")
+  })
+
+  test("states the gate even before the mapping arrives", () => {
+    // The gate is template data, so withholding it while the mapping loads
+    // would hide the commonest reason a competition has not moved.
+    const html = renderToStaticMarkup(<PhaseLadderView mappings={undefined} />)
+
+    expect(textAfter(html, "Pre-Announcement", 400)).toContain(
+      "skips this phase rather than waiting"
+    )
+  })
+
   test("claims nothing about mappings while they are loading", () => {
     const html = renderToStaticMarkup(<PhaseLadderView mappings={undefined} />)
 
@@ -110,6 +139,37 @@ describe("MilestoneMappingView", () => {
     expect(textAfter(html, "Competition held")).toContain(
       "Does not move the competition on by itself."
     )
+  })
+
+  test("qualifies a milestone whose target phase is gated", () => {
+    const html = renderToStaticMarkup(
+      <MilestoneMappingView
+        mappings={PRODUCTION_MAPPINGS}
+        isCustomised={true}
+      />
+    )
+
+    // `submitted` reaches Pre-Announcement only once Concept is settled, so
+    // this row cannot state the move unconditionally.
+    const outcome = textAfter(html, "Submitted to the WCA", 300)
+
+    expect(outcome).toContain("Pre-Announcement")
+    expect(outcome).toContain("Concept")
+    expect(outcome).toContain("skips the phase")
+  })
+
+  test("leaves an ungated milestone unqualified", () => {
+    const html = renderToStaticMarkup(
+      <MilestoneMappingView
+        mappings={PRODUCTION_MAPPINGS}
+        isCustomised={true}
+      />
+    )
+
+    const outcome = textAfter(html, "Announced (publicly visible)", 250)
+
+    expect(outcome).toContain("Moves the competition to Announced.")
+    expect(outcome).not.toContain("finished or cancelled")
   })
 
   test("flags a mapping pointing at a phase the template no longer has", () => {

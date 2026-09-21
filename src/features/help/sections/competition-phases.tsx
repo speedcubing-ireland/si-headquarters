@@ -15,7 +15,7 @@ import {
   milestoneForPhase,
   milestoneTarget,
   personOnlyPhases,
-  phaseByKey,
+  phaseGate,
   TEMPLATE,
   type LiveMappings,
   type MilestoneTarget,
@@ -72,10 +72,7 @@ export function PhaseLadderView({ mappings }: { mappings: LiveMappings }) {
       <ol className="flex flex-col gap-3">
         {TEMPLATE.phases.map((phase, index) => {
           const taskCount = countTasks(phase.tasks ?? [])
-          const gate =
-            phase.requiresPhaseComplete === undefined
-              ? undefined
-              : phaseByKey(phase.requiresPhaseComplete)
+          const gate = phaseGate(phase)
           const milestone =
             mappings === undefined
               ? undefined
@@ -116,8 +113,11 @@ export function PhaseLadderView({ mappings }: { mappings: LiveMappings }) {
               )}
               {gate !== undefined && (
                 <p className="text-sm">
-                  The sync will not move a competition in here until everything
-                  in <PhaseName phase={gate} /> is finished or cancelled.
+                  The sync only moves a competition in here once everything in{" "}
+                  <PhaseName phase={gate} /> is finished or cancelled. Until
+                  then it skips this phase rather than waiting at it, so a
+                  competition that has already reached a later milestone goes
+                  straight past and does not come back.
                 </p>
               )}
             </li>
@@ -149,12 +149,23 @@ function MilestoneOutcome({ target }: { target: MilestoneTarget }): ReactNode {
           director should pick a phase again in <Ui>Admin → WCA phases</Ui>.
         </span>
       )
-    case "phase":
+    case "phase": {
+      const gate = phaseGate(target.phase)
+
       return (
         <>
           Moves the competition to <PhaseName phase={target.phase} />.
+          {gate !== undefined && (
+            <>
+              {" "}
+              Only once everything in <PhaseName phase={gate} /> is finished or
+              cancelled, though — until then this milestone skips the phase
+              rather than waiting at it.
+            </>
+          )}
         </>
       )
+    }
   }
 }
 

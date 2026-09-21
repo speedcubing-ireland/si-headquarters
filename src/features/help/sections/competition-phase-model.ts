@@ -49,6 +49,22 @@ export function phaseByKey(key: string): TemplatePhase | undefined {
 }
 
 /**
+ * The phase that must be settled before the sync will move a competition into
+ * this one (`requiresPhaseComplete`). A fact about the template rather than
+ * the mapping, so it holds whichever milestone is pointed at the phase.
+ *
+ * Worth stating wherever the phase is described as reachable: a gate is not a
+ * queue. `resolveBlockedPhaseIds` drops a blocked phase from the candidates
+ * and the sync takes the furthest one left, so a competition whose later
+ * milestones have landed passes the gated phase by rather than waiting at it.
+ */
+export function phaseGate(phase: TemplatePhase): TemplatePhase | undefined {
+  return phase.requiresPhaseComplete === undefined
+    ? undefined
+    : phaseByKey(phase.requiresPhaseComplete)
+}
+
+/**
  * Where a milestone sends a competition.
  *
  * Three outcomes, deliberately distinct: the milestone moves nothing, it moves
