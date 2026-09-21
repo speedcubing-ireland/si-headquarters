@@ -104,20 +104,19 @@ export function PhaseLadderView({ mappings }: { mappings: LiveMappings }) {
                   No WCA milestone moves a competition into this phase, so only
                   a person can.
                 </p>
+              ) : gate === undefined ? (
+                <p className="text-sm">
+                  Reached at the <Ui>{WCA_MILESTONE_LABELS[milestone]}</Ui>{" "}
+                  milestone.
+                </p>
               ) : (
                 <p className="text-sm">
-                  Reached when the competition is{" "}
-                  <Ui>{WCA_MILESTONE_LABELS[milestone].toLowerCase()}</Ui> on
-                  the WCA.
-                </p>
-              )}
-              {gate !== undefined && (
-                <p className="text-sm">
-                  The sync only moves a competition in here once everything in{" "}
-                  <PhaseName phase={gate} /> is finished or cancelled. Until
-                  then it skips this phase rather than waiting at it, so a
-                  competition that has already reached a later milestone goes
-                  straight past and does not come back.
+                  Reached at the <Ui>{WCA_MILESTONE_LABELS[milestone]}</Ui>{" "}
+                  milestone, and only once everything in{" "}
+                  <PhaseName phase={gate} /> is finished or cancelled. The
+                  milestone on its own is not enough: if it arrives first, the
+                  sync skips this phase rather than waiting at it, and a
+                  competition that has moved past does not come back.
                 </p>
               )}
             </li>
@@ -152,17 +151,15 @@ function MilestoneOutcome({ target }: { target: MilestoneTarget }): ReactNode {
     case "phase": {
       const gate = phaseGate(target.phase)
 
-      return (
+      return gate === undefined ? (
         <>
           Moves the competition to <PhaseName phase={target.phase} />.
-          {gate !== undefined && (
-            <>
-              {" "}
-              Only once everything in <PhaseName phase={gate} /> is finished or
-              cancelled, though — until then this milestone skips the phase
-              rather than waiting at it.
-            </>
-          )}
+        </>
+      ) : (
+        <>
+          Moves the competition to <PhaseName phase={target.phase} />, but only
+          once everything in <PhaseName phase={gate} /> is finished or cancelled
+          — until then it skips that phase rather than waiting at it.
         </>
       )
     }

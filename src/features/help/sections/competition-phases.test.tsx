@@ -65,8 +65,8 @@ describe("PhaseLadderView", () => {
 
     // The template says `held` reaches Post-Competition; production says
     // `resultsPosted` does. The page must follow production.
-    expect(textAfter(html, "Post-Competition")).toContain("results posted")
-    expect(text(html)).not.toContain("competition held")
+    expect(textAfter(html, "Post-Competition")).toContain("Results posted")
+    expect(text(html)).not.toContain("Competition held")
   })
 
   test("reports a phase no milestone reaches as person-only", () => {
@@ -82,37 +82,42 @@ describe("PhaseLadderView", () => {
       <PhaseLadderView mappings={TEMPLATE_DEFAULT_MAPPINGS} />
     )
 
-    expect(textAfter(html, "Post-Competition")).toContain("competition held")
-    expect(textAfter(html, "Completed")).toContain("results posted")
+    expect(textAfter(html, "Post-Competition")).toContain("Competition held")
+    expect(textAfter(html, "Completed")).toContain("Results posted")
   })
 
   /**
-   * A gate is not a queue: `resolveBlockedPhaseIds` drops a blocked phase from
-   * the candidates and the sync takes the furthest one left, so a competition
-   * whose later milestones have landed never arrives at the gated phase. Copy
-   * that says the sync "waits until" the gate clears would be a promise the
-   * sync does not keep.
+   * The gate is *additional* to the milestone, and a gate is not a queue:
+   * `resolveBlockedPhaseIds` drops a blocked phase from the candidates and the
+   * sync takes the furthest one left. So the two conditions have to be stated
+   * as one rule — as separate sentences the milestone reads as sufficient —
+   * and the copy must not promise the sync waits for the gate to clear.
    */
-  test("says a gated phase is skipped, not waited at", () => {
+  test("states a gated phase's milestone and gate as one condition", () => {
     const html = renderToStaticMarkup(
       <PhaseLadderView mappings={PRODUCTION_MAPPINGS} />
     )
 
     const gated = textAfter(html, "Pre-Announcement", 400)
 
-    expect(gated).toContain("Concept")
-    expect(gated).toContain("finished or cancelled")
+    expect(gated).toContain(
+      "Reached at the Submitted to the WCA milestone, and only once everything in Concept is finished or cancelled"
+    )
+    expect(gated).toContain("The milestone on its own is not enough")
     expect(gated).toContain("skips this phase rather than waiting")
   })
 
-  test("states the gate even before the mapping arrives", () => {
-    // The gate is template data, so withholding it while the mapping loads
-    // would hide the commonest reason a competition has not moved.
-    const html = renderToStaticMarkup(<PhaseLadderView mappings={undefined} />)
-
-    expect(textAfter(html, "Pre-Announcement", 400)).toContain(
-      "skips this phase rather than waiting"
+  test("says nothing of a gate on a phase no milestone reaches", () => {
+    // A gate only constrains the sync, so on a phase the sync never enters it
+    // is noise — and the person moving it there is not bound by it.
+    const html = renderToStaticMarkup(
+      <PhaseLadderView mappings={mappingsWith({ announced: "announced" })} />
     )
+
+    const gated = textAfter(html, "Pre-Announcement", 400)
+
+    expect(gated).toContain("only a person can")
+    expect(gated).not.toContain("finished or cancelled")
   })
 
   test("claims nothing about mappings while they are loading", () => {
@@ -122,7 +127,7 @@ describe("PhaseLadderView", () => {
     expect(text(html)).toContain("Concept")
     expect(text(html)).toContain("Post-Competition")
     // ...but no mapping claim is made either way.
-    expect(text(html)).not.toContain("Reached when")
+    expect(text(html)).not.toContain("Reached at")
     expect(text(html)).not.toContain("only a person can")
   })
 })
@@ -153,9 +158,10 @@ describe("MilestoneMappingView", () => {
     // this row cannot state the move unconditionally.
     const outcome = textAfter(html, "Submitted to the WCA", 300)
 
-    expect(outcome).toContain("Pre-Announcement")
-    expect(outcome).toContain("Concept")
-    expect(outcome).toContain("skips the phase")
+    expect(outcome).toContain(
+      "Moves the competition to Pre-Announcement, but only once everything in Concept is finished or cancelled"
+    )
+    expect(outcome).toContain("skips that phase rather than waiting")
   })
 
   test("leaves an ungated milestone unqualified", () => {
