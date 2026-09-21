@@ -82,6 +82,21 @@ export function createOrganisationAccessors(
   }
 
   /**
+   * Walkthrough recording for the help area, or null when the organisation has
+   * not published one. Absence is a normal state rather than a misconfiguration
+   * — the written guide stands on its own — so this returns null instead of
+   * throwing the way the feature-gated accessors do.
+   *
+   * Callers go through here rather than reading `organisationConfig.help`
+   * because the exported manifest is `as const`, so its type is this fork's
+   * literal data. Reading it directly would make the absent case look
+   * impossible to the compiler and quietly delete the fallback.
+   */
+  function gettingStartedVideoUrl(): string | null {
+    return config.help?.gettingStartedVideoUrl ?? null
+  }
+
+  /**
    * Country the organisation runs competitions in. The WCA phase sync uses it
    * to fetch local registration dates in one request.
    */
@@ -102,5 +117,6 @@ export function createOrganisationAccessors(
     configuredSponsorshipSenderAddress,
     checkinSheetsConfig,
     competitionCountryIso2,
+    gettingStartedVideoUrl,
   }
 }

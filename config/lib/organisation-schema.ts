@@ -88,6 +88,17 @@ const sponsorshipSchema = z
   })
   .strict()
 
+// Walkthrough videos are hosted wherever the organisation already keeps them
+// (an unlisted YouTube or Vimeo upload, say) rather than uploaded here — the
+// app has no file storage, and a screencast is not worth introducing one for.
+// This goes straight into an iframe `src`, so it must be the host's embed URL
+// (`youtube.com/embed/<id>`), not the share link you get from the share button.
+const helpSchema = z
+  .object({
+    gettingStartedVideoUrl: z.url(),
+  })
+  .strict()
+
 const wcaSchema = z
   .object({
     scheduleTemplateCompetitionId: nonEmptyString,
@@ -156,6 +167,8 @@ export const organisationConfigSchema = z
       .strict(),
 
     sponsorship: sponsorshipSchema.optional(),
+
+    help: helpSchema.optional(),
 
     wca: wcaSchema.optional(),
 

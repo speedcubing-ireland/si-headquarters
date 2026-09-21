@@ -30,6 +30,9 @@ const organisationConfig = {
     productionHost: "sponsors.speedcubingireland.com",
     defaultCurrency: "EUR",
   },
+  help: {
+    gettingStartedVideoUrl: "https://www.youtube.com/embed/NOPMOq2mAP0",
+  },
   wca: {
     scheduleTemplateCompetitionId: "IrelandTemplate2100",
     countryIso2: "IE",

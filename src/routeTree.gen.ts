@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EventsRouteImport } from './routes/events'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminRefundsRouteImport } from './routes/admin/refunds'
 import { Route as AuthWcaRouteImport } from './routes/auth/wca'
@@ -53,6 +54,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const EventsRoute = EventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
+  '/help': typeof HelpRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
+  '/help': typeof HelpRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
@@ -265,6 +273,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
+  '/help': typeof HelpRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/events'
+    | '/help'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
@@ -331,6 +341,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/events'
+    | '/help'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/events'
+    | '/help'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
@@ -396,6 +408,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   EventsRoute: typeof EventsRoute
+  HelpRoute: typeof HelpRoute
   AdminRefundsRoute: typeof AdminRefundsRoute
   AuthWcaRoute: typeof AuthWcaRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -655,6 +675,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   EventsRoute: EventsRoute,
+  HelpRoute: HelpRoute,
   AdminRefundsRoute: AdminRefundsRoute,
   AuthWcaRoute: AuthWcaRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,

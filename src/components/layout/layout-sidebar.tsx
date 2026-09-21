@@ -1,6 +1,7 @@
 import * as React from "react"
 import {
   BlocksIcon,
+  CircleQuestionMarkIcon,
   FolderKanbanIcon,
   HomeIcon,
   LayoutDashboardIcon,
@@ -201,6 +202,19 @@ function SidebarProjectLinks() {
   )
 }
 
+/**
+ * Lives in the footer rather than the navigation groups: help is a utility you
+ * reach for when stuck, alongside the theme toggle and the user menu, not a
+ * place in the product you navigate to as part of the work.
+ */
+function SidebarHelpLink() {
+  return (
+    <SidebarMenu>
+      <SidebarNavLink label="Help" to="/help" icon={CircleQuestionMarkIcon} />
+    </SidebarMenu>
+  )
+}
+
 function SidebarThemeToggle() {
   const { isMobile } = useSidebar()
 
@@ -242,6 +256,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarAdminLinks />
       </SidebarContent>
       <SidebarFooter>
+        <SidebarHelpLink />
         <SidebarThemeToggle />
         <SidebarUser />
       </SidebarFooter>

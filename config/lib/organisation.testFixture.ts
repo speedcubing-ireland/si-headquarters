@@ -1,3 +1,5 @@
+import type * as FixtureModule from "./organisation.testFixture"
+import type * as RealOrganisationModule from "./organisation"
 import { createOrganisationAccessors } from "./organisation-accessors"
 import {
   defineOrganisationConfig,
@@ -69,7 +71,22 @@ export const {
   sponsorshipConfig,
   configuredSponsorshipSenderAddress,
   checkinSheetsConfig,
+  competitionCountryIso2,
+  gettingStartedVideoUrl,
 } = createOrganisationAccessors(config)
+
+// Tests alias "@/config/lib/organisation" to this file, so anything the real
+// module exports and this one does not becomes `undefined` at run time — in a
+// test, not at the call site that needed it. Re-exporting is hand-written, so
+// this guard makes the omission a typecheck failure instead.
+type MissingFixtureExports = Exclude<
+  keyof typeof RealOrganisationModule,
+  keyof typeof FixtureModule
+>
+const _noMissingFixtureExports: MissingFixtureExports extends never
+  ? true
+  : MissingFixtureExports = true
+void _noMissingFixtureExports
 
 export type {
   FeatureId,
