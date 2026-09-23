@@ -105,7 +105,7 @@
     "@tanstack/router-plugin": "^1.168.37",
     "@trestleinc/convex-oxlint": "^0.2.0",
     "@types/bun": "^1.4.2",
-    "@types/node": "^25.9.6",
+    "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
