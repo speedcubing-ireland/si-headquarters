@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 import {
   Bullets,
   Definitions,
@@ -236,6 +237,15 @@ export function WorkingOnATask() {
           },
         ]}
       />
+      {isFeatureEnabled("sponsors") ? (
+        <Note>
+          When a sponsorship auction opens for a competition, the{" "}
+          <Ui>Sponsorship</Ui> task's due date is moved to the day after the
+          auction ends, replacing any date already set. Closing the auction does
+          not change the task — mark the steps done yourself once the sponsor is
+          confirmed.
+        </Note>
+      ) : null}
       <p>
         The task description takes Markdown, with a preview toggle, so links and
         checklists render properly. Below the properties you will also find
