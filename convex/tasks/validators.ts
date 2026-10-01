@@ -39,4 +39,10 @@ export const tasksFields = {
   kind: taskKindType,
   status: taskStatusType,
   statusIntent: taskStatusIntentType,
+  /**
+   * Key of the template task this row was created from. Tasks can be freely
+   * renamed, so this is the only stable identifier automations (e.g. the
+   * sponsorship auction) can target. Absent on hand-created tasks.
+   */
+  templateKey: v.optional(v.string()),
 }
