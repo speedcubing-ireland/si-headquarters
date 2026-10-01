@@ -114,6 +114,11 @@ const schema = defineSchema(
         "order",
       ])
       .index("by_root_type_and_root_id", ["root.type", "root.id"])
+      .index("by_root_type_and_root_id_and_templateKey", [
+        "root.type",
+        "root.id",
+        "templateKey",
+      ])
       .index("by_rootPhase_id", ["rootPhase.id"])
       .index("by_owner_type_and_owner_id", ["owner.type", "owner.id"])
       .index("by_dueDate", ["dueDate"])

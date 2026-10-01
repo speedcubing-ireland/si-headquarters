@@ -31,6 +31,7 @@ import {
   syncAuctionActiveReminders,
 } from "./reminders"
 import { isExpectedPendingSchedule } from "./scheduledFunctions"
+import { syncSponsorshipTaskDueDate } from "./sponsorshipTask"
 
 function buildReadinessSnapshot(
   competition: Doc<"competitions">
@@ -208,6 +209,7 @@ async function runAuctionActivationEffects(
   auction: Doc<"sponsorshipAuctions">
 ): Promise<void> {
   await sendAuctionStartedEmails(ctx, auction)
+  await syncSponsorshipTaskDueDate(ctx, auction)
   await syncAuctionActiveReminders(ctx, auction, { createMissing: true })
   await scheduleAuctionClosure(ctx, auction)
 }

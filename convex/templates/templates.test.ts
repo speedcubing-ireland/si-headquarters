@@ -12,6 +12,7 @@ import { convexTest } from "convex-test"
 import { describe, expect, test } from "vitest"
 import {
   competitionTemplates,
+  SPONSORSHIP_TASK_TEMPLATE_KEY,
   standardCompetitionTemplate,
 } from "@/convex/templates/registry"
 import { milestoneRank, type WcaMilestone } from "@/convex/phases/wcaMilestones"
@@ -163,6 +164,7 @@ describe("competition templates", () => {
         phaseTasks,
         reviewerCount: reviewers.length,
         scheduleTask: taskByName.get("Schedule made"),
+        sponsorshipTemplateKey: taskByName.get("Sponsorship")?.templateKey,
         sponsorshipBlockers: blockingTaskNames(
           taskByName.get("Sponsorship")?._id ?? ""
         ),
@@ -199,6 +201,8 @@ describe("competition templates", () => {
         ?.status
     ).toBe("to-do")
     expect(stored.scheduleTask?.name).toBe("Schedule made")
+    expect(stored.scheduleTask?.templateKey).toBe("schedule-made")
+    expect(stored.sponsorshipTemplateKey).toBe(SPONSORSHIP_TASK_TEMPLATE_KEY)
     expect(stored.venueBookedKind).toBe("flow")
     expect(stored.venueBookedReviewers).toBeGreaterThan(0)
     expect(stored.reviewerCount).toBeGreaterThan(0)

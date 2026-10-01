@@ -121,6 +121,12 @@ export interface CompetitionTemplateDefinition {
 
 const L = TASK_LABEL_CODES
 
+/**
+ * Template key of the competition's Sponsorship task. The sponsor plugin moves
+ * its due date when an auction for the competition opens.
+ */
+export const SPONSORSHIP_TASK_TEMPLATE_KEY = "sponsorship"
+
 export const standardCompetitionTemplate = {
   key: "standard-competition",
   version: 6,
@@ -201,7 +207,7 @@ export const standardCompetitionTemplate = {
           integrationIds: ["sheet.transfer-schedule-to-wca"],
         },
         {
-          key: "sponsorship",
+          key: SPONSORSHIP_TASK_TEMPLATE_KEY,
           name: "Sponsorship",
           description: "Secure sponsors and update sponsorship details.",
           kind: "flow",

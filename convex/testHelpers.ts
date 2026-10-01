@@ -24,6 +24,7 @@ export interface SeedTaskInput {
   kind?: TaskKind
   status?: TaskStatus
   integrationIds?: readonly TaskIntegrationId[]
+  templateKey?: string
 }
 
 export async function ensureVolunteerMembership(
@@ -174,6 +175,7 @@ export async function insertSeedTask(
     kind: seed.kind ?? "standard",
     status,
     statusIntent,
+    templateKey: seed.templateKey,
   })
   await attachConfiguredIntegrationsForTask(ctx, taskId, {
     integrationIds: seed.integrationIds,

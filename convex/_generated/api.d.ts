@@ -166,6 +166,7 @@ import type * as plugins_sponsor_admin_auctions_reminders from "../plugins/spons
 import type * as plugins_sponsor_admin_auctions_scheduledFunctions from "../plugins/sponsor/admin/auctions/scheduledFunctions.js";
 import type * as plugins_sponsor_admin_auctions_shared from "../plugins/sponsor/admin/auctions/shared.js";
 import type * as plugins_sponsor_admin_auctions_snapshotPersistence from "../plugins/sponsor/admin/auctions/snapshotPersistence.js";
+import type * as plugins_sponsor_admin_auctions_sponsorshipTask from "../plugins/sponsor/admin/auctions/sponsorshipTask.js";
 import type * as plugins_sponsor_admin_contacts from "../plugins/sponsor/admin/contacts.js";
 import type * as plugins_sponsor_admin_propertyStatus from "../plugins/sponsor/admin/propertyStatus.js";
 import type * as plugins_sponsor_admin_sponsors from "../plugins/sponsor/admin/sponsors.js";
@@ -305,6 +306,7 @@ import type * as tasks_status_resolver from "../tasks/status/resolver.js";
 import type * as tasks_status_rules from "../tasks/status/rules.js";
 import type * as tasks_status_validators from "../tasks/status/validators.js";
 import type * as tasks_subtaskView from "../tasks/subtaskView.js";
+import type * as tasks_templateTasks from "../tasks/templateTasks.js";
 import type * as tasks_validators from "../tasks/validators.js";
 import type * as tasks_view from "../tasks/view.js";
 import type * as tasks_watchers from "../tasks/watchers.js";
@@ -313,6 +315,7 @@ import type * as teams_model from "../teams/model.js";
 import type * as teams_mutations from "../teams/mutations.js";
 import type * as teams_queries from "../teams/queries.js";
 import type * as teams_validators from "../teams/validators.js";
+import type * as templates_migrations from "../templates/migrations.js";
 import type * as templates_mutations from "../templates/mutations.js";
 import type * as templates_queries from "../templates/queries.js";
 import type * as templates_registry from "../templates/registry.js";
@@ -506,6 +509,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/sponsor/admin/auctions/scheduledFunctions": typeof plugins_sponsor_admin_auctions_scheduledFunctions;
   "plugins/sponsor/admin/auctions/shared": typeof plugins_sponsor_admin_auctions_shared;
   "plugins/sponsor/admin/auctions/snapshotPersistence": typeof plugins_sponsor_admin_auctions_snapshotPersistence;
+  "plugins/sponsor/admin/auctions/sponsorshipTask": typeof plugins_sponsor_admin_auctions_sponsorshipTask;
   "plugins/sponsor/admin/contacts": typeof plugins_sponsor_admin_contacts;
   "plugins/sponsor/admin/propertyStatus": typeof plugins_sponsor_admin_propertyStatus;
   "plugins/sponsor/admin/sponsors": typeof plugins_sponsor_admin_sponsors;
@@ -645,6 +649,7 @@ declare const fullApi: ApiFromModules<{
   "tasks/status/rules": typeof tasks_status_rules;
   "tasks/status/validators": typeof tasks_status_validators;
   "tasks/subtaskView": typeof tasks_subtaskView;
+  "tasks/templateTasks": typeof tasks_templateTasks;
   "tasks/validators": typeof tasks_validators;
   "tasks/view": typeof tasks_view;
   "tasks/watchers": typeof tasks_watchers;
@@ -653,6 +658,7 @@ declare const fullApi: ApiFromModules<{
   "teams/mutations": typeof teams_mutations;
   "teams/queries": typeof teams_queries;
   "teams/validators": typeof teams_validators;
+  "templates/migrations": typeof templates_migrations;
   "templates/mutations": typeof templates_mutations;
   "templates/queries": typeof templates_queries;
   "templates/registry": typeof templates_registry;

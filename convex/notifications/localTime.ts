@@ -33,7 +33,12 @@ function utcDateForLocalYmd(ymd: string) {
 }
 
 export function localToday(nowMs = Date.now()) {
-  const parts = partsFor(new Date(nowMs))
+  return localDateOf(nowMs)
+}
+
+/** The configured-timezone calendar date (YYYY-MM-DD) of a timestamp. */
+export function localDateOf(timestampMs: number) {
+  const parts = partsFor(new Date(timestampMs))
   return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`
 }
 

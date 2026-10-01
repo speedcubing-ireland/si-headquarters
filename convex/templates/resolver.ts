@@ -329,6 +329,7 @@ async function insertTaskTree({
       kind: task.kind ?? "standard",
       status,
       statusIntent: { type: "manual", status },
+      templateKey: task.key,
     })
     taskIdsByKey.set(task.key, taskId)
 
