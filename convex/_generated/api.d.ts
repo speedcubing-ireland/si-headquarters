@@ -315,7 +315,6 @@ import type * as teams_model from "../teams/model.js";
 import type * as teams_mutations from "../teams/mutations.js";
 import type * as teams_queries from "../teams/queries.js";
 import type * as teams_validators from "../teams/validators.js";
-import type * as templates_migrations from "../templates/migrations.js";
 import type * as templates_mutations from "../templates/mutations.js";
 import type * as templates_queries from "../templates/queries.js";
 import type * as templates_registry from "../templates/registry.js";
@@ -658,7 +657,6 @@ declare const fullApi: ApiFromModules<{
   "teams/mutations": typeof teams_mutations;
   "teams/queries": typeof teams_queries;
   "teams/validators": typeof teams_validators;
-  "templates/migrations": typeof templates_migrations;
   "templates/mutations": typeof templates_mutations;
   "templates/queries": typeof templates_queries;
   "templates/registry": typeof templates_registry;
