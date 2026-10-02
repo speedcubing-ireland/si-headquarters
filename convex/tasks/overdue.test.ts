@@ -89,6 +89,42 @@ describe("task overdue helpers", () => {
     ).toBe(false)
   })
 
+  test("an upcoming due date keeps a left-behind task from being overdue", () => {
+    const carryOver = {
+      effectiveStatus: "to-do" as const,
+      phaseId: phaseA,
+      subtaskTitleId: null,
+      competitionId,
+      projectId: null,
+      ownerCurrentPhaseId: phaseB,
+      phaseSortKeyById,
+      today,
+    }
+    const row = {
+      task: { dueDate: null },
+      statusView: { effectiveStatus: "to-do" },
+      path: { depth: 0, subtaskTitleId: null },
+    } as TaskInlineRow
+    const rowContext = {
+      sectionPhaseId: phaseA,
+      ownerCurrentPhaseId: phaseB,
+      phaseSortKeyById,
+      today,
+    }
+
+    for (const dueDate of [today, "2999-01-01"]) {
+      expect(isTaskOverdue({ ...carryOver, dueDate })).toBe(false)
+      expect(
+        isSubtaskRowOverdue({
+          ...rowContext,
+          row: { ...row, task: { ...row.task, dueDate } } as TaskInlineRow,
+        })
+      ).toBe(false)
+    }
+
+    expect(isTaskOverdue({ ...carryOver, dueDate: "2000-01-01" })).toBe(true)
+  })
+
   test("subtask rows use section phase for carry-over on direct phase tasks", () => {
     const row = {
       task: {
