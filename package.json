@@ -31,7 +31,7 @@
     "@autoform/zod": "^5.0.0",
     "@base-ui/react": "^1.8.0",
     "@chenglou/pretext": "^0.0.8",
-    "@convex-dev/auth": "^0.0.94",
+    "@convex-dev/auth": "^0.0.95",
     "@convex-dev/better-auth": "^0.12.5",
     "@convex-dev/resend": "^0.2.8",
     "@convex/reactions": "github:get-convex/reactions",
