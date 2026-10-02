@@ -159,7 +159,9 @@ export function PhaseSections() {
         </li>
         <li>
           An <Ui>Overdue</Ui> badge counting tasks in that phase past their due
-          date.
+          date. Once the competition has moved past a phase, its unfinished
+          tasks with no due date count as overdue too; a task due later is left
+          alone until its date passes.
         </li>
         <li>
           A count on the right, like <Ui>7/12</Ui>, meaning seven of twelve

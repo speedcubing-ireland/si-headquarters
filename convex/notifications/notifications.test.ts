@@ -331,6 +331,45 @@ describe("notification drafts", () => {
     )
   })
 
+  test.each([
+    ["no due date", null],
+    ["a due date moved into the future", "2026-06-10"],
+  ])(
+    "overdue task drafts with %s explain the phase carry-over",
+    async (_label, dueDate) => {
+      const t = convexTest(schema, modules)
+      const { taskId } = await t.run(async (ctx) => {
+        const { taskId } = await seedTaskInCompetition(ctx)
+        const assigneeId = await insertLinkedUser(
+          ctx,
+          "Assignee",
+          "discord-assignee"
+        )
+        await ctx.db.patch("tasks", taskId, {
+          assigneeIds: [assigneeId],
+          dueDate,
+        })
+        return { taskId }
+      })
+
+      const drafts = await t.query(
+        internal.notifications.model.resolveEventDrafts,
+        {
+          event: {
+            kind: "taskOverdue",
+            taskId,
+            today: "2026-06-08",
+          },
+        }
+      )
+
+      const value = drafts[0]?.embeds[0]?.fields?.[0]?.value
+      expect(value).toBe(
+        "This task is still open in a phase that has already been moved past."
+      )
+    }
+  )
+
   test("overdue task drafts fan out to assignees and subscribers", async () => {
     const t = convexTest(schema, modules)
     const { taskId } = await t.run(async (ctx) => {
@@ -735,6 +774,57 @@ describe("due notifications", () => {
         }),
       ])
     )
+  })
+
+  test.each([
+    ["later", "2026-10-08"],
+    ["today", "2026-06-08"],
+  ])("due scan skips carryover tasks due %s", async (_label, dueDate) => {
+    const t = convexTest(schema, modules)
+    const nowMs = Date.UTC(2026, 5, 8, 7, 0, 0)
+    const { carryoverTaskId, competitionId } = await t.run(async (ctx) => {
+      const competitionId = await insertBlankCompetition(ctx)
+      const planningPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Planning",
+        "a"
+      )
+      const executionPhaseId = await insertCompetitionPhase(
+        ctx,
+        competitionId,
+        "Execution",
+        "b"
+      )
+      await ctx.db.patch("competitions", competitionId, {
+        phaseId: executionPhaseId,
+      })
+      const carryoverTaskId = await insertSeedTask(ctx, {
+        name: "Carryover task",
+        parent: { type: "phases", id: planningPhaseId },
+        order: "a",
+        status: "to-do",
+      })
+      await ctx.db.patch("tasks", carryoverTaskId, { dueDate })
+      return { carryoverTaskId, competitionId }
+    })
+
+    await runDueScanToCompletion(t, nowMs)
+    const events = await getScheduledNotificationEvents(t)
+
+    expect(
+      events.some(
+        (event) =>
+          event.kind === "taskOverdue" && event.taskId === carryoverTaskId
+      )
+    ).toBe(false)
+    expect(
+      events.some(
+        (event) =>
+          event.kind === "ownerOverdueSummary" &&
+          event.owner.id === competitionId
+      )
+    ).toBe(false)
   })
 
   test("due scan does not treat nested subtasks as phase carryover", async () => {

@@ -9,6 +9,7 @@ import {
   isConfiguredLocalTimeInWindow,
 } from "@/convex/notifications/localTime"
 import { scheduleNotificationEvent } from "@/convex/notifications/events"
+import { hasUpcomingDueDate } from "@/convex/tasks/overdue"
 import { isTerminalComplete } from "@/convex/tasks/status/rules"
 import { competitionOrProjectRef } from "@/convex/utils"
 import { v, type Infer } from "convex/values"
@@ -99,7 +100,11 @@ async function taskIsOverdue(
   if (task.dueDate !== null && task.dueDate < today) {
     return true
   }
-  if (currentPhaseSortKey === null || task.parent.type !== "phases") {
+  if (
+    hasUpcomingDueDate(task.dueDate, today) ||
+    currentPhaseSortKey === null ||
+    task.parent.type !== "phases"
+  ) {
     return false
   }
 

@@ -80,6 +80,15 @@ export function isEarlierPhase(
   return phaseSortKey < currentSortKey
 }
 
+/**
+ * A task due today or later is on schedule, so leaving its phase behind does
+ * not make it overdue — it only becomes overdue once that date passes. Phase
+ * carry-over only flags left-behind tasks that have no due date to go by.
+ */
+export function hasUpcomingDueDate(dueDate: string | null, today: string) {
+  return dueDate !== null && dueDate >= today
+}
+
 function isDateOverdue(
   dueDate: string | null,
   today: string,
@@ -105,6 +114,8 @@ function isDirectPhaseScopedTask(input: {
 
 function isPhaseCarryOver(input: {
   effectiveStatus: TaskStatus
+  dueDate: string | null
+  today: string
   phaseId: Id<"phases"> | null
   subtaskTitleId: Id<"tasks"> | null
   competitionId: Id<"competitions"> | null
@@ -113,6 +124,7 @@ function isPhaseCarryOver(input: {
   phaseSortKeyById: Map<Id<"phases">, string>
 }) {
   if (isTerminalComplete(input.effectiveStatus)) return false
+  if (hasUpcomingDueDate(input.dueDate, input.today)) return false
   if (
     !isDirectPhaseScopedTask({
       phaseId: input.phaseId,
@@ -147,6 +159,8 @@ export function isTaskOverdue(
 
   return isPhaseCarryOver({
     effectiveStatus: input.effectiveStatus,
+    dueDate: input.dueDate,
+    today: input.today,
     phaseId: input.phaseId,
     subtaskTitleId: input.subtaskTitleId,
     competitionId: input.competitionId,
@@ -195,6 +209,7 @@ export function isSubtaskRowOverdue(input: {
   }
 
   if (isTerminalComplete(row.statusView.effectiveStatus)) return false
+  if (hasUpcomingDueDate(row.task.dueDate, today)) return false
   if (row.path.depth !== 0) return false
   if (row.path.subtaskTitleId !== null) return false
   if (sectionPhaseId === null) return false

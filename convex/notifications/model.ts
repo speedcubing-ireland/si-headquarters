@@ -738,10 +738,12 @@ async function buildDueTaskDrafts(
     })
   }
 
+  // Only a past due date reads as "was due"; anything else got here through
+  // phase carry-over (or had its date moved since the scan).
   const dueValue =
-    task.dueDate !== null
+    task.dueDate !== null && task.dueDate < event.today
       ? `This task was due ${overdueLabel(task.dueDate, event.today)}.`
-      : "This task is overdue and still needs attention."
+      : "This task is still open in a phase that has already been moved past."
 
   return taskWatcherDrafts(ctx, task, null, {
     fallbackText: `Overdue: ${task.name}`,
