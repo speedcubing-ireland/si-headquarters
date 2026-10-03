@@ -24,6 +24,36 @@ export class TaskBlockersLoader {
     this.ctx = ctx
   }
 
+  /**
+   * Seed both edge caches for `taskIds` from already-loaded blocker rows, so
+   * bulk readers do not issue two indexed reads per task. Every listed task is
+   * primed, including those with no edges.
+   */
+  primeEdges(taskIds: Iterable<Id<"tasks">>, edges: Doc<"taskBlockers">[]) {
+    const blockersOf = new Map<Id<"tasks">, Doc<"taskBlockers">[]>()
+    const blockedBy = new Map<Id<"tasks">, Doc<"taskBlockers">[]>()
+    for (const edge of edges) {
+      const incoming = blockersOf.get(edge.blockedTaskId) ?? []
+      incoming.push(edge)
+      blockersOf.set(edge.blockedTaskId, incoming)
+
+      const outgoing = blockedBy.get(edge.blockingTaskId) ?? []
+      outgoing.push(edge)
+      blockedBy.set(edge.blockingTaskId, outgoing)
+    }
+
+    for (const taskId of taskIds) {
+      this.blockersOfCache.set(
+        taskId,
+        Promise.resolve(blockersOf.get(taskId) ?? [])
+      )
+      this.blockedByCache.set(
+        taskId,
+        Promise.resolve(blockedBy.get(taskId) ?? [])
+      )
+    }
+  }
+
   async getBlockersOf(taskId: Id<"tasks">): Promise<Doc<"taskBlockers">[]> {
     const existing = this.blockersOfCache.get(taskId)
     if (existing) return await existing

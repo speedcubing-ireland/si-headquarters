@@ -2,7 +2,10 @@ import { collectAll, type CompetitionOrProjectRef } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
 import { competitionPrimaryStart } from "@/convex/competitions/dates"
-import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
+import {
+  isCompetitionCancelled,
+  isCompetitionComplete,
+} from "@/convex/competitions/lifecycle"
 import { phaseSnapshot, phaseSnapshotValidator } from "@/convex/phases/progress"
 import {
   canPerform,
@@ -12,7 +15,11 @@ import {
 } from "@/convex/permissions/principal"
 import { canReadProject, isProjectLead } from "@/convex/projects/access"
 import { teamIdsForTeamNames } from "@/convex/teams/model"
-import { buildTaskBoardRows, taskBoardRow } from "@/convex/tasks/board"
+import {
+  buildTaskBoardRows,
+  listTasksForRoots,
+  taskBoardRow,
+} from "@/convex/tasks/board"
 import {
   buildOwnerPhaseScanContext,
   currentPhaseIdForOwner,
@@ -606,8 +613,7 @@ export const getHome = query({
   handler: async (ctx, args) => {
     const principal = await requirePrincipal(ctx)
     const [
-      tasks,
-      competitions,
+      allCompetitions,
       projects,
       phases,
       teams,
@@ -615,7 +621,6 @@ export const getHome = query({
       taskBlockers,
       subscriptions,
     ] = await Promise.all([
-      collectAll(ctx, "tasks"),
       collectAll(ctx, "competitions"),
       collectAll(ctx, "projects"),
       collectAll(ctx, "phases"),
@@ -624,11 +629,29 @@ export const getHome = query({
       collectAll(ctx, "taskBlockers"),
       collectAll(ctx, "subscriptions"),
     ])
+    const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
+    // A competition the WCA has cancelled, or one that has reached its
+    // Completed phase, is not active work, so it drops off the dashboard
+    // entirely rather than sitting there accruing overdue tasks. Its tasks are
+    // not even loaded, which keeps this query's reads proportional to the
+    // competitions still in flight.
+    const competitions = allCompetitions.filter(
+      (competition) =>
+        !isCompetitionCancelled(competition) &&
+        !isCompetitionComplete(competition, phaseById)
+    )
+    const tasks = await listTasksForRoots(
+      ctx,
+      competitions.map((competition) => competition._id),
+      projects.map((project) => project._id)
+    )
     const taskRows = await buildTaskBoardRows(ctx, {
       tasks,
       competitions,
       projects,
       phases,
+      taskReviewers,
+      taskBlockers,
     })
     const teamIds = teamIdsForTeamNames(teams, new Set(principal.teamNames))
     const { competitionPhaseById, projectPhaseById, phaseSortKeyById } =
@@ -641,12 +664,8 @@ export const getHome = query({
     )
     const watcherIdsByTaskId = buildTaskWatcherIdsByTaskId(tasks, subscriptions)
 
-    // A competition the WCA has cancelled is not active work, so it drops off
-    // the dashboard entirely rather than sitting there accruing overdue tasks.
-    const readableCompetitions = competitions.filter(
-      (competition) =>
-        !isCompetitionCancelled(competition) &&
-        canPerform(principal, "read", "Competition", competition)
+    const readableCompetitions = competitions.filter((competition) =>
+      canPerform(principal, "read", "Competition", competition)
     )
     const readableCompetitionIds = new Set(
       readableCompetitions.map((competition) => competition._id)
@@ -760,7 +779,6 @@ export const getHome = query({
       phaseSortKeyById,
       args.today
     )
-    const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
     const competitionsWithWork = sortCompetitionsWithWork(
       readableCompetitions.filter(
         (competition) => (activeTaskCounts.get(competition._id) ?? 0) > 0
