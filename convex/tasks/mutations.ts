@@ -58,14 +58,7 @@ const MAX_TASK_REORDER_ITEMS = 200
 const MAX_TASK_REORDER_SECTIONS = 50
 
 async function getNextTaskOrder(ctx: MutationCtx, parent: TaskParentRef) {
-  const previousOrder = await getLastTaskOrder(ctx, parent)
-  if (previousOrder === null) return generateKeyBetween(null, null)
-
-  try {
-    return generateKeyBetween(previousOrder, null)
-  } catch {
-    return `${previousOrder}0`
-  }
+  return generateKeyBetween(await getLastTaskOrder(ctx, parent), null)
 }
 
 async function requireExistingTaskParent(

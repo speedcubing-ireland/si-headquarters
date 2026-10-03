@@ -85,6 +85,31 @@ describe("addPayVenueBalanceTask", () => {
     expect(tasks[1].owner?.type).toBe("teams")
   })
 
+  test("adds the task after a last task whose order key ends in zero", async () => {
+    const t = convexTest(schema, modules)
+    const { phaseId } = await seedCompetitionMissingTask(t)
+    // The kind of key the old "append 0" order fallback produced.
+    await t.run(async (ctx) => {
+      await insertSeedTask(ctx, {
+        name: "Legacy task",
+        order: "a00",
+        parent: { type: "phases", id: phaseId },
+      })
+    })
+
+    await t.mutation(
+      internal.templates.payVenueBalanceBackfill.addPayVenueBalanceTask,
+      {}
+    )
+
+    const tasks = await readPhaseTasks(t, phaseId)
+    expect(tasks.map((task) => task.name)).toEqual([
+      EXISTING_TASK_NAME,
+      "Legacy task",
+      PAY_VENUE_TASK_NAME,
+    ])
+  })
+
   test("adds the task as to-do when the competition is in Post-Competition", async () => {
     const t = convexTest(schema, modules)
     const { phaseId } = await seedCompetitionMissingTask(t, "post-competition")
