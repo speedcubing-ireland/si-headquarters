@@ -129,7 +129,7 @@ export const SPONSORSHIP_TASK_TEMPLATE_KEY = "sponsorship"
 
 export const standardCompetitionTemplate = {
   key: "standard-competition",
-  version: 6,
+  version: 7,
   name: "Normal Competition",
   description: "Default template for competitions",
   initialPhaseKey: "concept",
@@ -470,6 +470,13 @@ export const standardCompetitionTemplate = {
           key: "all-expenses-submitted",
           name: "All expenses submitted",
           description: "Collect and submit all competition-related expenses.",
+          owner: { type: "teamName", teamName: TEAM_NAMES.FINANCE },
+          labels: [L.budget],
+        },
+        {
+          key: "pay-venue-balance",
+          name: "Pay Venue Balance",
+          description: "Pay the outstanding balance owed to the venue.",
           owner: { type: "teamName", teamName: TEAM_NAMES.FINANCE },
           labels: [L.budget],
         },

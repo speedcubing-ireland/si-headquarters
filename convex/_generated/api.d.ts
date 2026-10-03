@@ -316,6 +316,7 @@ import type * as teams_mutations from "../teams/mutations.js";
 import type * as teams_queries from "../teams/queries.js";
 import type * as teams_validators from "../teams/validators.js";
 import type * as templates_mutations from "../templates/mutations.js";
+import type * as templates_payVenueBalanceBackfill from "../templates/payVenueBalanceBackfill.js";
 import type * as templates_queries from "../templates/queries.js";
 import type * as templates_registry from "../templates/registry.js";
 import type * as templates_resolver from "../templates/resolver.js";
@@ -658,6 +659,7 @@ declare const fullApi: ApiFromModules<{
   "teams/queries": typeof teams_queries;
   "teams/validators": typeof teams_validators;
   "templates/mutations": typeof templates_mutations;
+  "templates/payVenueBalanceBackfill": typeof templates_payVenueBalanceBackfill;
   "templates/queries": typeof templates_queries;
   "templates/registry": typeof templates_registry;
   "templates/resolver": typeof templates_resolver;

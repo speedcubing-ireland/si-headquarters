@@ -32,6 +32,7 @@ import {
 import { requireTaskManagement } from "@/convex/permissions/principal"
 import {
   deriveTaskRootContextFromParent,
+  getLastTaskOrder,
   taskRootPatch,
   type TaskRootContext,
 } from "@/convex/tasks/hierarchy"
@@ -57,26 +58,9 @@ const MAX_TASK_REORDER_ITEMS = 200
 const MAX_TASK_REORDER_SECTIONS = 50
 
 async function getNextTaskOrder(ctx: MutationCtx, parent: TaskParentRef) {
-  const siblings =
-    parent.type === "phases"
-      ? await ctx.db
-          .query("tasks")
-          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
-            q.eq("parent.type", "phases").eq("parent.id", parent.id)
-          )
-          .order("desc")
-          .take(1)
-      : await ctx.db
-          .query("tasks")
-          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
-            q.eq("parent.type", "tasks").eq("parent.id", parent.id)
-          )
-          .order("desc")
-          .take(1)
+  const previousOrder = await getLastTaskOrder(ctx, parent)
+  if (previousOrder === null) return generateKeyBetween(null, null)
 
-  if (siblings.length === 0) return generateKeyBetween(null, null)
-
-  const previousOrder = siblings[0].order
   try {
     return generateKeyBetween(previousOrder, null)
   } catch {

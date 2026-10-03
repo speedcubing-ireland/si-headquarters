@@ -12,6 +12,36 @@ export interface TaskRootContext {
   root: CompetitionOrProjectRef
 }
 
+/**
+ * Order key of `parent`'s last child, or null when it has none.
+ *
+ * The anchor anything appending to a task list starts from, so a single task
+ * and a whole template subtree land in the same place.
+ */
+export async function getLastTaskOrder(
+  ctx: DbCtx,
+  parent: TaskParentRef
+): Promise<string | null> {
+  const siblings =
+    parent.type === "phases"
+      ? await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "phases").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+      : await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "tasks").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+
+  return siblings[0]?.order ?? null
+}
+
 export function taskRootPatch(root: TaskRootContext) {
   return {
     rootPhase: root.rootPhase,
