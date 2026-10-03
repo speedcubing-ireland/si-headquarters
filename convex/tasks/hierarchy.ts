@@ -1,4 +1,5 @@
 import { ConvexError } from "convex/values"
+import { generateKeyBetween } from "fractional-indexing"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "@/convex/_generated/server"
 
@@ -10,6 +11,59 @@ type DbCtx = Pick<QueryCtx | MutationCtx, "db">
 export interface TaskRootContext {
   rootPhase: TaskRootPhaseRef
   root: CompetitionOrProjectRef
+}
+
+/**
+ * Order key of `parent`'s last child, or null when it has none.
+ *
+ * The anchor anything appending to a task list starts from, so a single task
+ * and a whole template subtree land in the same place. Always a key
+ * `fractional-indexing` accepts as a lower bound: see `toValidOrderAnchor`.
+ */
+export async function getLastTaskOrder(
+  ctx: DbCtx,
+  parent: TaskParentRef
+): Promise<string | null> {
+  const siblings =
+    parent.type === "phases"
+      ? await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "phases").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+      : await ctx.db
+          .query("tasks")
+          .withIndex("by_parent_type_and_parent_id_and_order", (q) =>
+            q.eq("parent.type", "tasks").eq("parent.id", parent.id)
+          )
+          .order("desc")
+          .take(1)
+
+  return siblings.length === 0 ? null : toValidOrderAnchor(siblings[0].order)
+}
+
+/**
+ * Task creation used to fall back to appending "0" to a key that
+ * `fractional-indexing` rejected, which only produces more rejected keys (a
+ * fractional part may not end in "0"), and seeded tasks can carry short keys
+ * such as "a". Extend such a key with "1"s until it is valid: the result
+ * starts with the original key, so it and every key generated after it still
+ * sort after the original.
+ */
+function toValidOrderAnchor(order: string): string {
+  // The longest integer part is 27 characters, so this many "1"s always
+  // completes it.
+  for (let key = order; key.length <= order.length + 27; key += "1") {
+    try {
+      generateKeyBetween(key, null)
+      return key
+    } catch {
+      // Not a valid lower bound yet.
+    }
+  }
+  throw new Error(`Task order key "${order}" cannot be appended after.`)
 }
 
 export function taskRootPatch(root: TaskRootContext) {

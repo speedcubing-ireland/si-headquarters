@@ -226,6 +226,7 @@ describe("competition templates", () => {
       "Submit competition",
       "Podium Certificates",
       "Printing Complete",
+      "Pay Venue Balance",
       "Report submitted",
       "Refund volunteers",
       "Post-Competition Social Media",
