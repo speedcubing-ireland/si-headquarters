@@ -120,6 +120,28 @@ describe("addPayVenueBalanceTask", () => {
     expect(tasks.map((task) => task.name)).toEqual([EXISTING_TASK_NAME])
   })
 
+  test("skips cancelled competitions", async () => {
+    const t = convexTest(schema, modules)
+    const { competitionId, phaseId } = await seedCompetitionMissingTask(t)
+    await t.run(async (ctx) => {
+      await ctx.db.patch("competitions", competitionId, {
+        cancelledAt: Date.now(),
+      })
+    })
+
+    const result = await t.mutation(
+      internal.templates.payVenueBalanceBackfill.addPayVenueBalanceTask,
+      {}
+    )
+
+    expect(result).toEqual({
+      added: [],
+      skipped: [{ competitionId, reason: "competition is cancelled" }],
+    })
+    const tasks = await readPhaseTasks(t, phaseId)
+    expect(tasks.map((task) => task.name)).toEqual([EXISTING_TASK_NAME])
+  })
+
   test("only touches the given competitions", async () => {
     const t = convexTest(schema, modules)
     const first = await seedCompetitionMissingTask(t)

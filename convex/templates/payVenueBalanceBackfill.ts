@@ -94,7 +94,7 @@ async function hasTask(
  * that were created before it was part of the standard template.
  *
  * With no `competitionIds`, every competition that is not already in its
- * Completed phase is considered. Run it from the Convex dashboard (Functions →
+ * Completed phase is considered; cancelled competitions are skipped. Run it from the Convex dashboard (Functions →
  * templates/payVenueBalanceBackfill:addPayVenueBalanceTask), first with
  * `{"dryRun": true}` to see what would change, then with `{}`.
  *
@@ -138,6 +138,11 @@ export const addPayVenueBalanceTask = internalMutation({
     for (const competition of competitions) {
       if (competition === null) continue
       const competitionId = competition._id
+
+      if (competition.cancelledAt !== undefined) {
+        skipped.push({ competitionId, reason: "competition is cancelled" })
+        continue
+      }
 
       const phases = await listPhasesForOwnerBounded(ctx, {
         type: "competitions",
