@@ -366,6 +366,71 @@ describe("dashboard home", () => {
     ).toBe("assigned-todo")
   })
 
+  test("leaves out work from competitions in their Completed phase", async () => {
+    const t = convexTest(schema, modules)
+    const { client, userId } = await withVolunteerTestClient(t)
+
+    const { liveCompetitionId, liveTaskId, completedTaskId } = await t.run(
+      async (ctx) => {
+        const live = await insertCompetitionWithPhase(ctx, {
+          name: "Still Running",
+          from: "2999-01-01",
+          sortKey: "a",
+        })
+        const liveTaskId = await insertTask(ctx, {
+          name: "Live overdue",
+          phaseId: live.phaseId,
+          order: "a",
+          status: "to-do",
+          assigneeIds: [userId],
+          dueDate: "2026-06-01",
+        })
+
+        const completedCompetitionId = await insertBlankCompetition(ctx)
+        const completedPhaseId = await insertCompetitionPhase(
+          ctx,
+          completedCompetitionId,
+          "Wrapped Up",
+          "a",
+          "gray",
+          "completed"
+        )
+        await ctx.db.patch("competitions", completedCompetitionId, {
+          phaseId: completedPhaseId,
+        })
+        const completedTaskId = await insertTask(ctx, {
+          name: "Left-behind overdue",
+          phaseId: completedPhaseId,
+          order: "a",
+          status: "to-do",
+          assigneeIds: [userId],
+          dueDate: "2026-06-01",
+        })
+
+        return {
+          liveCompetitionId: live.competitionId,
+          liveTaskId,
+          completedTaskId,
+        }
+      }
+    )
+
+    const home = await client.query(api.dashboard.queries.getHome, {
+      today: TEST_TODAY,
+    })
+    const surfacedTaskIds = [
+      ...home.actionNeeded,
+      ...home.assignedWork,
+      ...home.stewardOverdue,
+    ].map((item) => item.task.task._id)
+
+    expect(surfacedTaskIds).toContain(liveTaskId)
+    expect(surfacedTaskIds).not.toContain(completedTaskId)
+    expect(home.competitionsWithWork.map((summary) => summary._id)).toEqual([
+      liveCompetitionId,
+    ])
+  })
+
   test("shows only competitions with active work and sorts by date then risk", async () => {
     const t = convexTest(schema, modules)
     const { client } = await withVolunteerTestClient(t)

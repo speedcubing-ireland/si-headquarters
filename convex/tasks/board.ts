@@ -1,4 +1,4 @@
-import { collectAll } from "@/convex/utils"
+import { collectAll, type CompetitionOrProjectRef } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query, type QueryCtx } from "@/convex/_generated/server"
 import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
@@ -7,7 +7,6 @@ import {
   buildFlatTaskInlinePath,
   taskInlineRow,
 } from "@/convex/tasks/inlineRow"
-import { listRootTaskIds } from "@/convex/tasks/blockers/root"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
   buildSubtasksWithStatusViews,
@@ -223,40 +222,67 @@ export const listForBoard = query({
   },
 })
 
-async function listTasksForRoots(
+/**
+ * Every task under the given competitions and projects, one indexed read per
+ * root. Each task records its `root`, so the root index alone is complete.
+ */
+export async function listTasksForRoots(
   ctx: QueryCtx,
   competitionIds: Id<"competitions">[],
   projectIds: Id<"projects">[]
-) {
-  const roots = [
+): Promise<Doc<"tasks">[]> {
+  const roots: CompetitionOrProjectRef[] = [
     ...competitionIds.map((id) => ({ type: "competitions", id }) as const),
     ...projectIds.map((id) => ({ type: "projects", id }) as const),
   ]
-  const taskIdSets = await Promise.all(
-    roots.map((root) => listRootTaskIds(ctx, root))
+  const tasksByRoot = await Promise.all(
+    roots.map((root) =>
+      ctx.db
+        .query("tasks")
+        .withIndex("by_root_type_and_root_id", (q) =>
+          q.eq("root.type", root.type).eq("root.id", root.id)
+        )
+        .collect()
+    )
   )
-  const taskIds = new Set(taskIdSets.flat())
-
-  const tasks = await Promise.all(
-    [...taskIds].map((taskId) => ctx.db.get("tasks", taskId))
-  )
-  return tasks.filter((task): task is Doc<"tasks"> => task !== null)
+  return tasksByRoot.flat()
 }
 
 export async function buildTaskBoardRows(
   ctx: QueryCtx,
   input?: {
+    /** Must hold every task of each root it touches; see `primeTasks`. */
     tasks?: Doc<"tasks">[]
     phases?: Doc<"phases">[]
     competitions?: Doc<"competitions">[]
     projects?: Doc<"projects">[]
+    taskReviewers?: Doc<"taskReviewers">[]
+    taskBlockers?: Doc<"taskBlockers">[]
   }
 ) {
-  const [tasks, phases, competitions, projects] = await Promise.all([
+  // Load each related table once and resolve per-task lookups in memory: a
+  // read per task per relation exceeds Convex's per-function read limit once
+  // there are a few hundred tasks.
+  const [
+    tasks,
+    phases,
+    competitions,
+    projects,
+    taskReviewers,
+    taskReviewOverrides,
+    taskBlockers,
+    labelAssignments,
+    labels,
+  ] = await Promise.all([
     input?.tasks ?? collectAll(ctx, "tasks"),
     input?.phases ?? collectAll(ctx, "phases"),
     input?.competitions ?? collectAll(ctx, "competitions"),
     input?.projects ?? collectAll(ctx, "projects"),
+    input?.taskReviewers ?? collectAll(ctx, "taskReviewers"),
+    collectAll(ctx, "taskReviewOverrides"),
+    input?.taskBlockers ?? collectAll(ctx, "taskBlockers"),
+    collectAll(ctx, "taskLabelAssignments"),
+    collectAll(ctx, "taskLabels"),
   ])
   const taskById = new Map(tasks.map((task) => [task._id, task]))
   const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
@@ -265,10 +291,18 @@ export async function buildTaskBoardRows(
   )
   const projectById = new Map(projects.map((project) => [project._id, project]))
   const statusLoader = new TaskStatusLoader(ctx)
+  statusLoader.primeTasks(tasks)
+  statusLoader.primeReviewParts(
+    taskById.keys(),
+    taskReviewers,
+    taskReviewOverrides
+  )
   const blockersLoader = new TaskBlockersLoader(ctx)
+  blockersLoader.primeEdges(taskById.keys(), taskBlockers)
   const displayReader = createTaskViewDisplayReader(ctx, {
     blockersLoader,
     statusLoader,
+    preloadedLabels: { assignments: labelAssignments, labels },
   })
   const childrenByParentId = groupDirectChildrenByParentId(tasks)
   const directSubtaskViewsByParentId = await buildDirectSubtaskViewsByParentId(

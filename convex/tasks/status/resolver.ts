@@ -116,6 +116,72 @@ export class TaskStatusLoader {
     this.getPendingPatch = getPendingPatch
   }
 
+  /**
+   * Seed the task, direct-subtask and phase-task caches from tasks the caller
+   * has already loaded, so bulk readers (the board, the home dashboard) do not
+   * issue one indexed read per task. `tasks` must hold every task of each root
+   * it touches: a task's children and its phase siblings share its root, so a
+   * whole-root load makes the child and phase lists complete.
+   */
+  primeTasks(tasks: Doc<"tasks">[]) {
+    const childrenByParentId = new Map<Id<"tasks">, Doc<"tasks">[]>()
+    const tasksByPhaseId = new Map<Id<"phases">, Doc<"tasks">[]>()
+
+    for (const task of tasks) {
+      this.taskCache.set(task._id, Promise.resolve(task))
+      if (!childrenByParentId.has(task._id)) {
+        childrenByParentId.set(task._id, [])
+      }
+
+      if (task.parent.type === "tasks") {
+        const siblings = childrenByParentId.get(task.parent.id) ?? []
+        siblings.push(task)
+        childrenByParentId.set(task.parent.id, siblings)
+      } else {
+        const siblings = tasksByPhaseId.get(task.parent.id) ?? []
+        siblings.push(task)
+        tasksByPhaseId.set(task.parent.id, siblings)
+      }
+    }
+
+    for (const [taskId, children] of childrenByParentId) {
+      this.childCache.set(taskId, Promise.resolve(children))
+    }
+    for (const [phaseId, phaseTasks] of tasksByPhaseId) {
+      this.phaseTaskCache.set(phaseId, Promise.resolve(phaseTasks))
+    }
+  }
+
+  /**
+   * Seed the review cache for `taskIds` from already-loaded reviewer and
+   * override rows. Every listed task is primed, including those with no rows.
+   */
+  primeReviewParts(
+    taskIds: Iterable<Id<"tasks">>,
+    reviewers: Doc<"taskReviewers">[],
+    overrides: Doc<"taskReviewOverrides">[]
+  ) {
+    const reviewersByTaskId = new Map<Id<"tasks">, Doc<"taskReviewers">[]>()
+    for (const reviewer of reviewers) {
+      const taskReviewers = reviewersByTaskId.get(reviewer.taskId) ?? []
+      taskReviewers.push(reviewer)
+      reviewersByTaskId.set(reviewer.taskId, taskReviewers)
+    }
+    const overrideByTaskId = new Map(
+      overrides.map((override) => [override.taskId, override])
+    )
+
+    for (const taskId of taskIds) {
+      this.reviewCache.set(
+        taskId,
+        Promise.resolve({
+          reviewers: reviewersByTaskId.get(taskId) ?? [],
+          override: overrideByTaskId.get(taskId) ?? null,
+        })
+      )
+    }
+  }
+
   async getTask(taskId: Id<"tasks">): Promise<Doc<"tasks"> | null> {
     const existing = this.taskCache.get(taskId)
     if (existing)

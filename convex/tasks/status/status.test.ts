@@ -18,6 +18,7 @@ import {
 import { modules } from "@/convex/test.setup"
 import {
   buildTaskStatusView,
+  buildTaskStatusViewWithFlowPosition,
   previewFlowReopenForTask,
   TaskStatusLoader,
   type TaskStatus,
@@ -3346,6 +3347,43 @@ describe("Regression coverage", () => {
 
       expect(stats.childReads).toBe(1)
       expect(stats.reviewReads).toBe(1)
+    })
+
+    test("primed status loader builds views without reading the database", async () => {
+      const t = convexTest(schema, modules)
+      const { stats, statusView } = await t.run(async (ctx) => {
+        const parentId = await seedPhaseTask(ctx, {
+          order: "a",
+          status: "to-do",
+        })
+        const childId = await insertTask(ctx, {
+          parent: { type: "tasks", id: parentId },
+          order: "a",
+          status: "done",
+        })
+        const tasks = await ctx.db.query("tasks").collect()
+        const parent = tasks.find((task) => task._id === parentId)
+        if (!parent) throw new Error("Missing parent")
+
+        const loader = new TaskStatusLoader(ctx)
+        loader.primeTasks(tasks)
+        loader.primeReviewParts([parentId, childId], [], [])
+        const statusView = await buildTaskStatusViewWithFlowPosition(
+          loader,
+          parent
+        )
+
+        return { stats: loader.stats, statusView }
+      })
+
+      expect(stats).toEqual({
+        taskReads: 0,
+        childReads: 0,
+        phaseTaskReads: 0,
+        reviewReads: 0,
+      })
+      expect(statusView.progress.total).toBe(1)
+      expect(statusView.progress.done).toBe(1)
     })
 
     test("recompute fails loudly instead of looping through a parent cycle", async () => {

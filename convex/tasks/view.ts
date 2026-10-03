@@ -218,20 +218,46 @@ export function getCurrentEditableStepIndex(steps: HydratedTaskView[]) {
   return index === -1 ? null : index
 }
 
+function groupLabelAssignmentsByTaskId(
+  assignments: Doc<"taskLabelAssignments">[]
+) {
+  const byTaskId = new Map<Id<"tasks">, Doc<"taskLabelAssignments">[]>()
+  for (const assignment of assignments) {
+    const taskAssignments = byTaskId.get(assignment.taskId) ?? []
+    taskAssignments.push(assignment)
+    byTaskId.set(assignment.taskId, taskAssignments)
+  }
+  return byTaskId
+}
+
 export interface TaskViewDisplayReaderOptions {
   blockersLoader?: TaskBlockersLoader
   statusLoader?: TaskStatusLoader
+  /**
+   * Every label and label assignment, already loaded by a bulk reader. When
+   * given, labels are resolved in memory instead of with one read per task.
+   */
+  preloadedLabels?: {
+    assignments: Doc<"taskLabelAssignments">[]
+    labels: Doc<"taskLabels">[]
+  }
 }
 
 export function createTaskViewDisplayReader(
   ctx: QueryCtx,
   options: TaskViewDisplayReaderOptions = {}
 ) {
-  const { blockersLoader, statusLoader } = options
+  const { blockersLoader, statusLoader, preloadedLabels } = options
   const labelCache = new Map<
     Id<"taskLabels">,
     Promise<Doc<"taskLabels"> | null>
   >()
+  const preloadedAssignmentsByTaskId = preloadedLabels
+    ? groupLabelAssignmentsByTaskId(preloadedLabels.assignments)
+    : null
+  for (const label of preloadedLabels?.labels ?? []) {
+    labelCache.set(label._id, Promise.resolve(label))
+  }
   const userCache = new Map<Id<"users">, Promise<PublicUser | null>>()
   const teamCache = new Map<Id<"teams">, Promise<Doc<"teams"> | null>>()
   const subtaskSummaryCache = new Map<
@@ -252,10 +278,12 @@ export function createTaskViewDisplayReader(
     cached(teamCache, teamId, () => ctx.db.get("teams", teamId))
 
   async function getLabels(taskId: Id<"tasks">): Promise<Doc<"taskLabels">[]> {
-    const assignments = await ctx.db
-      .query("taskLabelAssignments")
-      .withIndex("by_taskId_and_labelId", (q) => q.eq("taskId", taskId))
-      .take(MAX_TASK_LABELS_FOR_VIEW + 1)
+    const assignments = preloadedAssignmentsByTaskId
+      ? (preloadedAssignmentsByTaskId.get(taskId) ?? [])
+      : await ctx.db
+          .query("taskLabelAssignments")
+          .withIndex("by_taskId_and_labelId", (q) => q.eq("taskId", taskId))
+          .take(MAX_TASK_LABELS_FOR_VIEW + 1)
 
     if (assignments.length > MAX_TASK_LABELS_FOR_VIEW) {
       throw new Error(
