@@ -127,12 +127,6 @@ const L = TASK_LABEL_CODES
  */
 export const SPONSORSHIP_TASK_TEMPLATE_KEY = "sponsorship"
 
-/**
- * Template key of the Groups Ready subtask that links to the competition's
- * badges on SI Achievements. It replaced the "Check-in sheet ready" subtask.
- */
-export const BADGES_READY_TASK_TEMPLATE_KEY = "badges-ready"
-
 export const standardCompetitionTemplate = {
   key: "standard-competition",
   version: 8,
@@ -395,7 +389,7 @@ export const standardCompetitionTemplate = {
               labels: [L.registration],
             },
             {
-              key: BADGES_READY_TASK_TEMPLATE_KEY,
+              key: "badges-ready",
               name: "Badges ready",
               description:
                 "Generate and print competitor badges from SI Achievements.",

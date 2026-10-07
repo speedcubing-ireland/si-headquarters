@@ -213,7 +213,7 @@ describe("task integrations", () => {
     ).rejects.toThrow(/already running/)
   })
 
-  describe("link and legacy rows", () => {
+  describe("link integrations", () => {
     async function seedOrganiserTask(t: ReturnType<typeof convexTest>) {
       return await t.run(async (ctx) => {
         const userId = await insertTestUser(ctx, "Organiser")
@@ -254,36 +254,6 @@ describe("task integrations", () => {
           id,
         })
       ).rejects.toThrow(/is a link and cannot be run/)
-    })
-
-    test("hides legacy integration rows and refuses to run them", async () => {
-      const t = convexTest(schema, modules)
-      const { userId, taskId } = await seedOrganiserTask(t)
-      const legacyId = await t.run(
-        async (ctx) =>
-          await ctx.db.insert("taskIntegrations", {
-            taskId,
-            integrationId: "sheet.populate-checkin",
-            status: "completed",
-            lastMessage: null,
-            lastRunAt: null,
-            runId: null,
-            output: { kind: "checkin_populate", rowsWritten: 3 },
-          })
-      )
-      const asOrganiser = t.withIdentity({ subject: userId })
-
-      expect(
-        await asOrganiser.query(
-          api.integrations.taskIntegrations.queries.listForTask,
-          { taskId }
-        )
-      ).toEqual([])
-      await expect(
-        asOrganiser.mutation(api.integrations.taskIntegrations.mutations.run, {
-          id: legacyId,
-        })
-      ).rejects.toThrow(/has been removed/)
     })
   })
 

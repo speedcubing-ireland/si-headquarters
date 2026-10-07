@@ -13,14 +13,6 @@ export const TASK_INTEGRATION_IDS = [
 ] as const
 
 /**
- * Integration ids that can no longer be attached or run but may still be
- * stored on old tasks. Only the `taskIntegrations` table accepts them; queries
- * filter them out. `templates/badgesReadyBackfill` deletes the remaining rows,
- * after which an id can be dropped from this list.
- */
-export const LEGACY_TASK_INTEGRATION_IDS = ["sheet.populate-checkin"] as const
-
-/**
  * How a task integration is used: `run` integrations do work through their
  * plugin's runner, `link` integrations only point somewhere and have no runner.
  */

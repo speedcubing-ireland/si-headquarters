@@ -3,7 +3,6 @@ import { query } from "@/convex/_generated/server"
 import { requireTaskIntegrationAccess } from "@/convex/access/authorize"
 import {
   getIntegrationDefinition,
-  isCurrentTaskIntegrationId,
   listIntegrationDefinitions,
   toIntegrationDefinitionMeta,
 } from "@/convex/integrations/taskIntegrations/registry"
@@ -41,21 +40,11 @@ export const listForTask = query({
       .query("taskIntegrations")
       .withIndex("by_taskId", (q) => q.eq("taskId", args.taskId))
       .collect()
-    return rows.flatMap(({ integrationId, output, ...row }) =>
-      // Legacy integrations have no definition or card, so they are hidden.
-      isCurrentTaskIntegrationId(integrationId) &&
-      output?.kind !== "checkin_populate"
-        ? [
-            {
-              ...row,
-              integrationId,
-              output,
-              definition: toIntegrationDefinitionMeta(
-                getIntegrationDefinition(integrationId)
-              ),
-            },
-          ]
-        : []
-    )
+    return rows.map((row) => ({
+      ...row,
+      definition: toIntegrationDefinitionMeta(
+        getIntegrationDefinition(row.integrationId)
+      ),
+    }))
   },
 })
