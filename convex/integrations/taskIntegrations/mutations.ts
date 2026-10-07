@@ -5,7 +5,10 @@ import {
   authorizeTaskRun,
   requireTaskIntegrationAccess,
 } from "@/convex/access/authorize"
-import { getIntegrationDefinition } from "@/convex/integrations/taskIntegrations/registry"
+import {
+  getIntegrationDefinition,
+  getRunnableIntegrationDefinition,
+} from "@/convex/integrations/taskIntegrations/registry"
 import type { TaskIntegrationId } from "@/convex/integrations/taskIntegrations/validators"
 import { requireCompetitionScopedTask } from "@/convex/tasks/hierarchy"
 import {
@@ -95,6 +98,7 @@ export const run = mutation({
       })
     }
     await authorizeTaskRun(ctx, row.taskId)
+    getRunnableIntegrationDefinition(row.integrationId)
 
     if (row.status === "running") {
       throw new ConvexError({

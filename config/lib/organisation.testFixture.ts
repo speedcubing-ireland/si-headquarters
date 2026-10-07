@@ -24,7 +24,6 @@ const config = defineOrganisationConfig({
     reminderHour: 8,
   },
   contacts: {
-    checkinShareEmail: "checkin@example.com",
     sponsorshipTeamEmail: "sponsor@example.com",
     sponsorshipTeamName: "Sponsor Team",
   },
@@ -70,7 +69,7 @@ export const {
   findLoginProvider,
   sponsorshipConfig,
   configuredSponsorshipSenderAddress,
-  checkinSheetsConfig,
+  scheduleTransferConfig,
   competitionCountryIso2,
   gettingStartedVideoUrl,
 } = createOrganisationAccessors(config)

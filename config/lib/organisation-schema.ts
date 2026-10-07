@@ -38,7 +38,7 @@ const featureSchema = z.object(featureSchemaShape).strict()
 
 export type FeatureConfig = z.infer<typeof featureSchema>
 
-export const checkinSheetsEnabled = (features: FeatureConfig) =>
+export const scheduleTransferEnabled = (features: FeatureConfig) =>
   features.google && features.wcaIntegration
 
 export const sponsorshipEnabled = (features: FeatureConfig) => features.sponsors
@@ -160,7 +160,6 @@ export const organisationConfigSchema = z
 
     contacts: z
       .object({
-        checkinShareEmail: z.email().optional(),
         sponsorshipTeamEmail: z.email().optional(),
         sponsorshipTeamName: nonEmptyString.optional(),
       })
@@ -233,26 +232,19 @@ export const organisationConfigSchema = z
       })
     }
 
-    if (checkinSheetsEnabled(config.features)) {
-      requireConfig(
-        ctx,
-        config.contacts.checkinShareEmail,
-        ["contacts", "checkinShareEmail"],
-        "Check-in sheets require a check-in share email."
-      )
-
+    if (scheduleTransferEnabled(config.features)) {
       requireConfig(
         ctx,
         config.wca,
         ["wca"],
-        "Check-in sheets require WCA configuration."
+        "Schedule transfer requires WCA configuration."
       )
 
       requireConfig(
         ctx,
         config.wca?.scheduleTemplateCompetitionId,
         ["wca", "scheduleTemplateCompetitionId"],
-        "Check-in sheets require a WCA schedule template competition ID."
+        "Schedule transfer requires a WCA schedule template competition ID."
       )
     }
 
@@ -297,8 +289,7 @@ export interface SponsorshipConfigRequirements {
   sponsorship: NonNullable<OrganisationConfig["sponsorship"]>
 }
 
-export interface CheckinSheetsConfigRequirements {
-  contacts: { checkinShareEmail: string }
+export interface ScheduleTransferConfigRequirements {
   wca: NonNullable<OrganisationConfig["wca"]>
 }
 
@@ -309,7 +300,7 @@ type FeatureConfigRequirements<F extends FeatureConfig> =
   (F["sponsors"] extends true ? SponsorshipConfigRequirements : object) &
     (F["google"] extends true
       ? F["wcaIntegration"] extends true
-        ? CheckinSheetsConfigRequirements
+        ? ScheduleTransferConfigRequirements
         : object
       : object)
 

@@ -152,11 +152,11 @@ describe("competition templates", () => {
 
       const venueBooked = taskByName.get("Venue booked")
       const lanyardsDesigned = taskByName.get("Lanyards designed")
-      const checkInSheetReady = taskByName.get("Check-in sheet ready")
+      const badgesReady = taskByName.get("Badges ready")
 
       return {
         blockers,
-        checkInSheetReadyTaskId: checkInSheetReady?._id ?? null,
+        badgesReadyTaskId: badgesReady?._id ?? null,
         competition,
         integrations,
         lanyardsDesignedTaskId: lanyardsDesigned?._id ?? null,
@@ -209,8 +209,8 @@ describe("competition templates", () => {
     expect(stored.integrations.map((row) => row.integrationId).sort()).toEqual([
       "canva.certificates",
       "canva.lanyards",
-      "sheet.populate-checkin",
       "sheet.transfer-schedule-to-wca",
+      "wca.achievements-badges",
     ])
     expect(
       stored.integrations.find((row) => row.integrationId === "canva.lanyards")
@@ -218,9 +218,9 @@ describe("competition templates", () => {
     ).toBe(stored.lanyardsDesignedTaskId)
     expect(
       stored.integrations.find(
-        (row) => row.integrationId === "sheet.populate-checkin"
+        (row) => row.integrationId === "wca.achievements-badges"
       )?.taskId
-    ).toBe(stored.checkInSheetReadyTaskId)
+    ).toBe(stored.badgesReadyTaskId)
 
     for (const taskName of [
       "Submit competition",
@@ -232,6 +232,7 @@ describe("competition templates", () => {
       "Post-Competition Social Media",
       "Discord Thread Made",
       "Groups Ready",
+      "Badges ready",
       "Scrambles generated",
     ]) {
       expect(stored.taskNames).toContain(taskName)
@@ -242,6 +243,7 @@ describe("competition templates", () => {
       "Final budget filled out",
       "Podium photos posted",
       "Check-in sheet ready for registration",
+      "Check-in sheet ready",
       "Groups and printing done",
       "Certificates ready",
     ]) {

@@ -1,7 +1,9 @@
 import { v, type Infer } from "convex/values"
 import {
+  LEGACY_TASK_INTEGRATION_IDS,
   MANUAL_TASK_INTEGRATION_STATUSES,
   TASK_INTEGRATION_IDS,
+  TASK_INTEGRATION_KINDS,
   TASK_INTEGRATION_STATUSES,
 } from "@/convex/integrations/taskIntegrations/constants"
 import { linkedResourceData } from "@/convex/integrations/validators"
@@ -12,6 +14,14 @@ export const taskIntegrationRunInput = v.object({
 })
 
 export const taskIntegrationId = literalUnion(TASK_INTEGRATION_IDS)
+
+/** Every id the `taskIntegrations` table accepts, legacy ones included. */
+export const storedTaskIntegrationId = literalUnion([
+  ...TASK_INTEGRATION_IDS,
+  ...LEGACY_TASK_INTEGRATION_IDS,
+])
+
+export const taskIntegrationKind = literalUnion(TASK_INTEGRATION_KINDS)
 
 export const taskIntegrationStatus = literalUnion(TASK_INTEGRATION_STATUSES)
 
@@ -26,10 +36,6 @@ export const taskIntegrationOutput = v.union(
     wcaUrl: v.optional(v.string()),
   }),
   v.object({
-    kind: v.literal("checkin_populate"),
-    rowsWritten: v.optional(v.number()),
-  }),
-  v.object({
     kind: v.literal("canva_design"),
     designId: v.string(),
     designUrl: v.string(),
@@ -39,10 +45,23 @@ export const taskIntegrationOutput = v.union(
   v.null()
 )
 
+/**
+ * Output stored on `taskIntegrations` rows, including what legacy integrations
+ * wrote before they were removed.
+ */
+export const storedTaskIntegrationOutput = v.union(
+  ...taskIntegrationOutput.members,
+  v.object({
+    kind: v.literal("checkin_populate"),
+    rowsWritten: v.optional(v.number()),
+  })
+)
+
 export const taskIntegrationDefinitionMeta = v.object({
   id: taskIntegrationId,
   label: v.string(),
   pluginId: v.string(),
+  kind: taskIntegrationKind,
 })
 
 export const loadedRunContext = v.object({
@@ -71,6 +90,7 @@ export const taskIntegrationListRow = v.object({
 
 export type LoadedRunContext = Infer<typeof loadedRunContext>
 export type TaskIntegrationId = Infer<typeof taskIntegrationId>
+export type StoredTaskIntegrationId = Infer<typeof storedTaskIntegrationId>
 export type TaskIntegrationStatus = Infer<typeof taskIntegrationStatus>
 export type ManualTaskIntegrationStatus = Infer<
   typeof manualTaskIntegrationStatus

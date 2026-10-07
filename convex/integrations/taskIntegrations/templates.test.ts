@@ -10,9 +10,9 @@ describe("resolveTaskSpecIntegrationIds", () => {
   test("returns validated integration ids", () => {
     expect(
       resolveTaskSpecIntegrationIds({
-        integrationIds: ["canva.certificates", "sheet.populate-checkin"],
+        integrationIds: ["canva.certificates", "wca.achievements-badges"],
       })
-    ).toEqual(["canva.certificates", "sheet.populate-checkin"])
+    ).toEqual(["canva.certificates", "wca.achievements-badges"])
   })
 
   test("throws for unknown integration ids", () => {

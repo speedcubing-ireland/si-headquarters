@@ -18,10 +18,7 @@ export const sheetsIntegrationPlugin = {
   resourceHref: (data) =>
     data.resourceType === "googleSheet" ? data.url : undefined,
   LinkResourceAction: LinkGoogleSheetButton,
-  taskIntegrationIds: [
-    "sheet.transfer-schedule-to-wca",
-    "sheet.populate-checkin",
-  ],
+  taskIntegrationIds: ["sheet.transfer-schedule-to-wca"],
   DefaultTaskIntegrationCard: SheetRunCard,
   taskIntegrationCards: {
     "sheet.transfer-schedule-to-wca": TransferScheduleCard,

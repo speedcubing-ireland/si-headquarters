@@ -37,7 +37,7 @@ export interface TaskIntegrationRunContext {
   input: TaskIntegrationRunInput
 }
 
-export interface TaskIntegrationDefinition {
+interface TaskIntegrationDefinitionBase {
   id: TaskIntegrationId
   label: string
   pluginId: PluginId
@@ -45,8 +45,14 @@ export interface TaskIntegrationDefinition {
     resourceType: LinkedResourceType
     resourceKey: string
   }[]
-  run: TaskIntegrationRunner
 }
+
+export type TaskIntegrationDefinition = TaskIntegrationDefinitionBase &
+  (
+    | { kind: "run"; run: TaskIntegrationRunner }
+    // Link integrations only point somewhere; their card renders the link.
+    | { kind: "link" }
+  )
 
 export interface BackendIntegrationPlugin {
   id: PluginId

@@ -2,6 +2,7 @@ import { CANVA_DEFINITION } from "@/convex/plugins/canva/definition"
 import { DISCORD_DEFINITION } from "@/convex/plugins/discord/definition"
 import { GOOGLE_DEFINITION } from "@/convex/plugins/google/definition"
 import {
+  ACHIEVEMENTS_DEFINITION,
   WCA_2FA_DEFINITION,
   WCA_DEFINITION,
 } from "@/convex/plugins/wca/definition"
@@ -200,6 +201,7 @@ export const ALL_ENV_SETUP = uniqueByKey([
   ...GOOGLE_DEFINITION.setup,
   ...WCA_DEFINITION.setup,
   ...WCA_2FA_DEFINITION.setup,
+  ...ACHIEVEMENTS_DEFINITION.setup,
   ...CANVA_DEFINITION.setup,
   ...DISCORD_DEFINITION.setup,
   ...EMAIL_ENV_SETUP,
@@ -226,6 +228,7 @@ export function buildRequiredEnvSetup(
     ...(config.features.google ? GOOGLE_DEFINITION.setup : []),
     ...(config.features.wcaIntegration ? WCA_DEFINITION.setup : []),
     ...(config.features.wca2fa ? WCA_2FA_DEFINITION.setup : []),
+    ...(config.features.wcaIntegration ? ACHIEVEMENTS_DEFINITION.setup : []),
     ...(config.features.canva ? CANVA_DEFINITION.setup : []),
     ...(config.features.discord ? DISCORD_DEFINITION.setup : []),
     ...(config.features.sponsors ? EMAIL_ENV_SETUP : []),

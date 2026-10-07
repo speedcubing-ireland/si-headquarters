@@ -25,6 +25,7 @@ import type { DataModel } from "./dataModel.js";
  * Typesafe environment variables declared in `convex.config.ts`.
  */
 type Env = {
+  readonly ACHIEVEMENTS_SITE_URL: string | undefined;
   readonly AUTH_GOOGLE_ID: string;
   readonly AUTH_GOOGLE_SECRET: string;
   readonly AUTH_WCA_ID: string;

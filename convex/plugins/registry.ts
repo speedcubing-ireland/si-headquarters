@@ -21,7 +21,7 @@ import { sponsorCompetitionDeletionPlugin } from "@/convex/plugins/sponsor/admin
 type BackendPlugin = BackendIntegrationPlugin & BackendProjectWorkflowPlugin
 
 export const INTEGRATION_PLUGINS = [
-  // Sheets integrations (schedule transfer + check-in) need both a Google sheet
+  // The Sheets schedule transfer integration needs both a Google sheet
   // and a WCA competition, so the plugin is only useful when both are enabled.
   ...(isFeatureEnabled("google") && isFeatureEnabled("wcaIntegration")
     ? [sheetsPlugin]

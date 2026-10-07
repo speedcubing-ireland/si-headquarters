@@ -1,66 +1,22 @@
 import { v } from "convex/values"
-import type { Doc, Id } from "@/convex/_generated/dataModel"
+import type { Id } from "@/convex/_generated/dataModel"
 import { internalMutation, type MutationCtx } from "@/convex/_generated/server"
-import { listPhasesForOwnerBounded } from "@/convex/phases/model"
 import { getLastTaskOrder } from "@/convex/tasks/hierarchy"
 import { manualIntent } from "@/convex/tasks/status/rules"
 import {
-  getTemplateOrThrow,
-  type CompetitionTemplateTaskSpec,
-} from "@/convex/templates/registry"
+  backfillOutcomeValidator,
+  findTemplatePhase,
+  findTemplateTask,
+  loadBackfillCompetitions,
+  loadInFlightCompetitionPhases,
+  matchesTemplatePhase,
+  normalizeName,
+  type BackfillOutcome,
+} from "@/convex/templates/backfillHelpers"
 import { insertTemplateTasksIntoPhase } from "@/convex/templates/resolver"
 
-const TEMPLATE_KEY = "standard-competition"
 const PHASE_KEY = "post-competition"
-const COMPLETED_PHASE_KEY = "completed"
 const TASK_KEY = "pay-venue-balance"
-
-const outcomeValidator = v.object({
-  competitionId: v.id("competitions"),
-  /** Why nothing was added. */
-  reason: v.string(),
-})
-
-function normalizeName(name: string): string {
-  return name.trim().toLowerCase()
-}
-
-function findTemplatePhase(key: string) {
-  const template = getTemplateOrThrow(TEMPLATE_KEY)
-  const phase = template.phases.find((candidate) => candidate.key === key)
-  if (phase === undefined) {
-    throw new Error(`Template phase "${key}" no longer exists.`)
-  }
-  return phase
-}
-
-function findTemplateTask(
-  phase: ReturnType<typeof findTemplatePhase>
-): CompetitionTemplateTaskSpec {
-  const task = phase.tasks?.find((candidate) => candidate.key === TASK_KEY)
-  if (task === undefined) {
-    throw new Error(`Template task "${TASK_KEY}" no longer exists.`)
-  }
-  return task
-}
-
-/**
- * Matches a competition phase to a template phase.
- *
- * `templateKey` is only set on rows that `phases/wcaBackfill` already matched,
- * so older competitions still need the phase-name fallback. A renamed phase
- * stays unmatched on purpose rather than being guessed at.
- */
-function matchesTemplatePhase(
-  phase: Doc<"phases">,
-  templatePhase: { key: string; name: string }
-): boolean {
-  return (
-    phase.templateKey === templatePhase.key ||
-    (phase.templateKey === undefined &&
-      normalizeName(phase.name) === normalizeName(templatePhase.name))
-  )
-}
 
 async function hasTask(
   ctx: MutationCtx,
@@ -110,53 +66,28 @@ export const addPayVenueBalanceTask = internalMutation({
   },
   returns: v.object({
     added: v.array(v.id("competitions")),
-    skipped: v.array(outcomeValidator),
+    skipped: v.array(backfillOutcomeValidator),
   }),
   handler: async (ctx, args) => {
     const templatePhase = findTemplatePhase(PHASE_KEY)
-    const completedPhase = findTemplatePhase(COMPLETED_PHASE_KEY)
-    const templateTask = findTemplateTask(templatePhase)
+    const templateTask = findTemplateTask(templatePhase, TASK_KEY)
 
     const added: Id<"competitions">[] = []
-    const skipped: { competitionId: Id<"competitions">; reason: string }[] = []
+    const skipped: BackfillOutcome[] = []
 
-    const competitions: (Doc<"competitions"> | null)[] = []
-    if (args.competitionIds === undefined) {
-      for await (const competition of ctx.db.query("competitions")) {
-        competitions.push(competition)
-      }
-    } else {
-      for (const competitionId of args.competitionIds) {
-        const competition = await ctx.db.get("competitions", competitionId)
-        if (competition === null) {
-          skipped.push({ competitionId, reason: "competition not found" })
-        }
-        competitions.push(competition)
-      }
-    }
-
-    for (const competition of competitions) {
-      if (competition === null) continue
+    for (const competition of await loadBackfillCompetitions(
+      ctx,
+      args.competitionIds,
+      skipped
+    )) {
       const competitionId = competition._id
 
-      if (competition.cancelledAt !== undefined) {
-        skipped.push({ competitionId, reason: "competition is cancelled" })
+      const inFlight = await loadInFlightCompetitionPhases(ctx, competition)
+      if (inFlight.skipReason !== null) {
+        skipped.push({ competitionId, reason: inFlight.skipReason })
         continue
       }
-
-      const phases = await listPhasesForOwnerBounded(ctx, {
-        type: "competitions",
-        id: competitionId,
-      })
-      const currentPhase =
-        phases.find((phase) => phase._id === competition.phaseId) ?? null
-      if (
-        currentPhase !== null &&
-        matchesTemplatePhase(currentPhase, completedPhase)
-      ) {
-        skipped.push({ competitionId, reason: "competition is completed" })
-        continue
-      }
+      const { phases } = inFlight
 
       const phase =
         phases.find((candidate) =>

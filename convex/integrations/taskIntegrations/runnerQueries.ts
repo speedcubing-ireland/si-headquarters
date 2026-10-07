@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values"
 import { internalQuery } from "@/convex/_generated/server"
 import { getRequiredObjectResource } from "@/convex/integrations/objectResources"
-import { getIntegrationDefinition } from "@/convex/integrations/taskIntegrations/registry"
+import { getRunnableIntegrationDefinition } from "@/convex/integrations/taskIntegrations/registry"
 import { loadedRunContext } from "@/convex/integrations/taskIntegrations/validators"
 export { requireRunResource } from "@/convex/integrations/taskIntegrations/runResource"
 import type { LinkedResourceData } from "@/convex/integrations/validators"
@@ -46,7 +46,7 @@ export const loadRunContext = internalQuery({
       })
     }
 
-    const definition = getIntegrationDefinition(row.integrationId)
+    const definition = getRunnableIntegrationDefinition(row.integrationId)
     const resources: Record<string, LinkedResourceData> = {}
 
     for (const required of definition.requiredResources) {
@@ -64,7 +64,7 @@ export const loadRunContext = internalQuery({
     }
 
     return {
-      integrationId: row.integrationId,
+      integrationId: definition.id,
       competitionId,
       competitionName: competition.name,
       resources,

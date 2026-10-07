@@ -9,8 +9,8 @@ import {
   projectWorkflowRunFields,
 } from "@/convex/projectWorkflows/validators"
 import {
-  taskIntegrationId,
-  taskIntegrationOutput,
+  storedTaskIntegrationId,
+  storedTaskIntegrationOutput,
   taskIntegrationStatus,
 } from "@/convex/integrations/taskIntegrations/validators"
 
@@ -65,12 +65,12 @@ export const integrationPluginTables = {
     ]),
   taskIntegrations: defineTable({
     taskId: v.id("tasks"),
-    integrationId: taskIntegrationId,
+    integrationId: storedTaskIntegrationId,
     status: taskIntegrationStatus,
     lastMessage: v.union(v.string(), v.null()),
     lastRunAt: v.union(v.number(), v.null()),
     runId: v.union(v.string(), v.null()),
-    output: taskIntegrationOutput,
+    output: storedTaskIntegrationOutput,
   })
     .index("by_taskId", ["taskId"])
     .index("by_taskId_and_integrationId", ["taskId", "integrationId"]),

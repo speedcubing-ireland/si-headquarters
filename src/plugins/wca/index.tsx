@@ -1,5 +1,6 @@
 import { GlobeIcon } from "lucide-react"
 import type { IntegrationPlugin } from "@/plugins/integrations/registry"
+import { AchievementsBadgesCard } from "@/plugins/wca/achievements-badges-card"
 import { LinkWcaCompetitionButton } from "@/plugins/wca/link-wca-competition-button"
 
 export const wcaIntegrationPlugin = {
@@ -16,4 +17,6 @@ export const wcaIntegrationPlugin = {
   resourceHref: (data) =>
     data.resourceType === "wcaCompetition" ? data.url : undefined,
   LinkResourceAction: LinkWcaCompetitionButton,
+  taskIntegrationIds: ["wca.achievements-badges"],
+  DefaultTaskIntegrationCard: AchievementsBadgesCard,
 } satisfies IntegrationPlugin

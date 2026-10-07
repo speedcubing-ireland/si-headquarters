@@ -1,11 +1,14 @@
 import type {
-  CheckinSheetsConfigRequirements,
   FeatureId,
   LoginProviderConfig,
   OrganisationConfigDefinition,
+  ScheduleTransferConfigRequirements,
   SponsorshipConfigRequirements,
 } from "./organisation-schema"
-import { checkinSheetsEnabled, sponsorshipEnabled } from "./organisation-schema"
+import {
+  scheduleTransferEnabled,
+  sponsorshipEnabled,
+} from "./organisation-schema"
 
 type SponsorshipEnabledConfig = OrganisationConfigDefinition &
   SponsorshipConfigRequirements
@@ -29,23 +32,20 @@ function assertSponsorshipEnabled(
   }
 }
 
-type CheckinSheetsEnabledConfig = OrganisationConfigDefinition &
-  CheckinSheetsConfigRequirements
+type ScheduleTransferEnabledConfig = OrganisationConfigDefinition &
+  ScheduleTransferConfigRequirements
 
-function assertCheckinSheetsEnabled(
+function assertScheduleTransferEnabled(
   config: OrganisationConfigDefinition
-): asserts config is CheckinSheetsEnabledConfig {
-  if (!checkinSheetsEnabled(config.features)) {
+): asserts config is ScheduleTransferEnabledConfig {
+  if (!scheduleTransferEnabled(config.features)) {
     throw new Error(
-      "Check-in sheets config was requested while Google or WCA integration is disabled."
+      "Schedule transfer config was requested while Google or WCA integration is disabled."
     )
   }
 
-  if (
-    config.contacts.checkinShareEmail === undefined ||
-    config.wca === undefined
-  ) {
-    throw new Error("Check-in sheets config is incomplete.")
+  if (config.wca === undefined) {
+    throw new Error("Schedule transfer config is incomplete.")
   }
 }
 
@@ -76,8 +76,8 @@ export function createOrganisationAccessors(
     return `${sponsorship.contacts.sponsorshipTeamName} <${sponsorship.contacts.sponsorshipTeamEmail}>`
   }
 
-  function checkinSheetsConfig(): CheckinSheetsEnabledConfig {
-    assertCheckinSheetsEnabled(config)
+  function scheduleTransferConfig(): ScheduleTransferEnabledConfig {
+    assertScheduleTransferEnabled(config)
     return config
   }
 
@@ -115,7 +115,7 @@ export function createOrganisationAccessors(
     findLoginProvider,
     sponsorshipConfig,
     configuredSponsorshipSenderAddress,
-    checkinSheetsConfig,
+    scheduleTransferConfig,
     competitionCountryIso2,
     gettingStartedVideoUrl,
   }

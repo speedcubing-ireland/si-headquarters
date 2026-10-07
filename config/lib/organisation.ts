@@ -14,7 +14,7 @@ export const {
   findLoginProvider,
   sponsorshipConfig,
   configuredSponsorshipSenderAddress,
-  checkinSheetsConfig,
+  scheduleTransferConfig,
   competitionCountryIso2,
   gettingStartedVideoUrl,
 } = createOrganisationAccessors(organisationConfig)

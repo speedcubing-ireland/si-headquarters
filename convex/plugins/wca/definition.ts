@@ -25,6 +25,24 @@ export const WCA_2FA_DEFINITION = {
   ],
 } as const satisfies EnvServiceManifest
 
+export const ACHIEVEMENTS_SITE_URL_ENV = "ACHIEVEMENTS_SITE_URL" as const
+
+// Differs per deployment (prod and demo each have their own SI Achievements
+// site), so it lives in Convex env rather than the organisation config.
+export const ACHIEVEMENTS_DEFINITION = {
+  env: [ACHIEVEMENTS_SITE_URL_ENV] as const,
+  setup: [
+    {
+      key: ACHIEVEMENTS_SITE_URL_ENV,
+      group: "URLs",
+      kind: "prompt",
+      description:
+        "SI Achievements site origin; badges link to <url>/competitions/<wcaCompetitionId>. Leave blank to hide the link.",
+      optional: true,
+    },
+  ],
+} as const satisfies EnvServiceManifest
+
 export const WCA_DEFINITION = {
   env: WCA_OAUTH_ENV_KEYS_LITERAL,
   oauth: WCA_OAUTH_ENV,

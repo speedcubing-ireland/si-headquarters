@@ -105,8 +105,8 @@ scripts/
 
 | Plugin      | Purpose                                                           |
 | ----------- | ----------------------------------------------------------------- |
-| **Sheets**  | Schedule transfer and check-in population via Google Sheets/Drive |
-| **WCA**     | Competition API + 2FA code generation                             |
+| **Sheets**  | Schedule transfer via Google Sheets/Drive                         |
+| **WCA**     | Competition API, 2FA code generation, SI Achievements badges link |
 | **Canva**   | Certificate and lanyard exports from brand templates              |
 | **Discord** | Guild member lookup for account linking                           |
 | **Sponsor** | Auction portal, admin tooling, transactional email (Resend)       |

@@ -21,7 +21,6 @@ const organisationConfig = {
     reminderHour: 8,
   },
   contacts: {
-    checkinShareEmail: "laptop@speedcubingireland.com",
     sponsorshipTeamEmail: "sponsorship@speedcubingireland.com",
     sponsorshipTeamName: "Sponsorship Team",
   },

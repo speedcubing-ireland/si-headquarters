@@ -49,7 +49,7 @@ export interface IntegrationPlugin {
 }
 
 export const INTEGRATION_PLUGINS: IntegrationPlugin[] = [
-  // Sheets integrations (schedule transfer + check-in) and the linked Google
+  // The Sheets schedule transfer integration and the linked Google
   // sheet resource are only useful when both Google and WCA are enabled.
   ...(isFeatureEnabled("google") && isFeatureEnabled("wcaIntegration")
     ? [sheetsIntegrationPlugin]

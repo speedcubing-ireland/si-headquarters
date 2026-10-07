@@ -60,6 +60,7 @@ describe("task integrations", () => {
       id: "canva.certificates",
       label: "Certificate designs",
       pluginId: "canva",
+      kind: "run",
     })
 
     await asOrganiser.mutation(
@@ -162,8 +163,8 @@ describe("task integrations", () => {
       [
         "canva.certificates",
         "canva.lanyards",
-        "sheet.populate-checkin",
         "sheet.transfer-schedule-to-wca",
+        "wca.achievements-badges",
       ].sort()
     )
   })
@@ -210,6 +211,80 @@ describe("task integrations", () => {
           id: integrationRowId,
         })
     ).rejects.toThrow(/already running/)
+  })
+
+  describe("link and legacy rows", () => {
+    async function seedOrganiserTask(t: ReturnType<typeof convexTest>) {
+      return await t.run(async (ctx) => {
+        const userId = await insertTestUser(ctx, "Organiser")
+        const competitionId = await insertBlankCompetition(ctx)
+        await ctx.db.patch("competitions", competitionId, {
+          people: {
+            compLead: null,
+            leadDelegate: null,
+            organisers: [userId],
+          },
+        })
+        const phaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Ops",
+          "a"
+        )
+        const taskId = await insertSeedTask(ctx, {
+          name: "Badges ready",
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+        })
+        return { userId, competitionId, taskId }
+      })
+    }
+
+    test("rejects running a link integration", async () => {
+      const t = convexTest(schema, modules)
+      const { userId, taskId } = await seedOrganiserTask(t)
+      const asOrganiser = t.withIdentity({ subject: userId })
+      const id = await asOrganiser.mutation(
+        api.integrations.taskIntegrations.mutations.attach,
+        { taskId, integrationId: "wca.achievements-badges" }
+      )
+
+      await expect(
+        asOrganiser.mutation(api.integrations.taskIntegrations.mutations.run, {
+          id,
+        })
+      ).rejects.toThrow(/is a link and cannot be run/)
+    })
+
+    test("hides legacy integration rows and refuses to run them", async () => {
+      const t = convexTest(schema, modules)
+      const { userId, taskId } = await seedOrganiserTask(t)
+      const legacyId = await t.run(
+        async (ctx) =>
+          await ctx.db.insert("taskIntegrations", {
+            taskId,
+            integrationId: "sheet.populate-checkin",
+            status: "completed",
+            lastMessage: null,
+            lastRunAt: null,
+            runId: null,
+            output: { kind: "checkin_populate", rowsWritten: 3 },
+          })
+      )
+      const asOrganiser = t.withIdentity({ subject: userId })
+
+      expect(
+        await asOrganiser.query(
+          api.integrations.taskIntegrations.queries.listForTask,
+          { taskId }
+        )
+      ).toEqual([])
+      await expect(
+        asOrganiser.mutation(api.integrations.taskIntegrations.mutations.run, {
+          id: legacyId,
+        })
+      ).rejects.toThrow(/has been removed/)
+    })
   })
 
   test("attaches configured template integrations when tasks are created", async () => {

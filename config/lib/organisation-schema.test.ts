@@ -162,7 +162,7 @@ describe("organisation configuration", () => {
     ).toThrow(/require sponsorship configuration/)
   })
 
-  test("requires check-in sheet config when Google and WCA integration are enabled", () => {
+  test("requires schedule transfer config when Google and WCA integration are enabled", () => {
     const config = cloneConfig()
     config.features = {
       ...config.features,
@@ -170,9 +170,8 @@ describe("organisation configuration", () => {
       wcaIntegration: true,
     }
     delete config.wca
-    delete config.contacts.checkinShareEmail
     expect(() => defineOrganisationConfig(config)).toThrow(
-      /require WCA configuration/
+      /requires WCA configuration/
     )
   })
 
@@ -188,7 +187,7 @@ describe("organisation configuration", () => {
     )
   })
 
-  test("allows omitting sponsor and check-in config when features are disabled", () => {
+  test("allows omitting sponsor and schedule transfer config when features are disabled", () => {
     expect(() =>
       defineOrganisationConfig({
         organisation: { name: "UKCA", productName: "UKCA Panel" },
@@ -243,7 +242,6 @@ describe("organisation configuration", () => {
           reminderHour: 8,
         },
         contacts: {
-          checkinShareEmail: "checkin@example.com",
           sponsorshipTeamEmail: "sponsor@example.com",
           sponsorshipTeamName: "Sponsor Team",
         },

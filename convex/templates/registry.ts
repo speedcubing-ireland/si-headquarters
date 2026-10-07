@@ -127,9 +127,15 @@ const L = TASK_LABEL_CODES
  */
 export const SPONSORSHIP_TASK_TEMPLATE_KEY = "sponsorship"
 
+/**
+ * Template key of the Groups Ready subtask that links to the competition's
+ * badges on SI Achievements. It replaced the "Check-in sheet ready" subtask.
+ */
+export const BADGES_READY_TASK_TEMPLATE_KEY = "badges-ready"
+
 export const standardCompetitionTemplate = {
   key: "standard-competition",
-  version: 7,
+  version: 8,
   name: "Normal Competition",
   description: "Default template for competitions",
   initialPhaseKey: "concept",
@@ -366,7 +372,7 @@ export const standardCompetitionTemplate = {
           description: `Finalize groups and prepare registration materials:
 - Adjust the schedule based on final registrations and event load
 - Generate final groups using approved grouping tools
-- Prepare check-in sheets for registration desk operations`,
+- Prepare badges from SI Achievements`,
           kind: "flow",
           owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
           labels: [L.registration],
@@ -389,13 +395,13 @@ export const standardCompetitionTemplate = {
               labels: [L.registration],
             },
             {
-              key: "check-in-sheet-ready",
-              name: "Check-in sheet ready",
+              key: BADGES_READY_TASK_TEMPLATE_KEY,
+              name: "Badges ready",
               description:
-                "Prepare check-in sheets for registration desk operations.",
+                "Generate and print competitor badges from SI Achievements.",
               owner: { type: "teamName", teamName: TEAM_NAMES.COMPETITIONS },
               labels: [L.registration],
-              integrationIds: ["sheet.populate-checkin"],
+              integrationIds: ["wca.achievements-badges"],
             },
           ],
         },

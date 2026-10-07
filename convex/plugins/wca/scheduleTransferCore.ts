@@ -2,11 +2,9 @@
 
 import { fromZonedTime } from "date-fns-tz"
 import type {
-  RegistrationDataV2,
   WcifActivity as Activity,
   WcifAdvancementCondition,
   WcifEvent as Event,
-  WcifPerson,
   WcifRound as Round,
   WcifSchedule as Schedule,
   WcifVenue as Venue,
@@ -14,19 +12,12 @@ import type {
   WcifTimeLimit,
 } from "@/convex/plugins/wca/openapiClient/types.gen"
 import { createWcaClient } from "@/convex/plugins/wca/client"
-import {
-  competitionById,
-  getRegistrationsAdmin,
-} from "@/convex/plugins/wca/openapiClient/sdk.gen"
+import { competitionById } from "@/convex/plugins/wca/openapiClient/sdk.gen"
 import {
   loadCompetitionWcif,
   patchCompetitionWcif,
 } from "@/convex/plugins/wca/wcifCompetition"
-import {
-  clearSheetRange,
-  fetchSchedule,
-  writeSheetRange,
-} from "@/convex/plugins/sheets/googleApi"
+import { fetchSchedule } from "@/convex/plugins/sheets/googleApi"
 import {
   normalizeScheduleName,
   parseProgressionRows,
@@ -35,68 +26,18 @@ import {
   type ScheduleReadResult,
 } from "@/convex/plugins/sheets/schedule"
 import {
-  getRegistrationStatus,
-  isAcceptedRegistration,
-} from "@/convex/plugins/wca/registrationsLib"
-import {
-  checkinSheetsConfig,
   organisationConfig,
+  scheduleTransferConfig,
 } from "@/config/lib/organisation"
 
 type WcaApiClient = ReturnType<typeof createWcaClient>
-type GoogleSheetCellValue = string | null
-
-async function clearGoogleSheetValues(args: {
-  accessToken: string
-  spreadsheetId: string
-  range: string
-}): Promise<void> {
-  await clearSheetRange(args.accessToken, args.spreadsheetId, args.range)
-}
-
-async function updateGoogleSheetValues(args: {
-  accessToken: string
-  spreadsheetId: string
-  range: string
-  values: GoogleSheetCellValue[][]
-}): Promise<void> {
-  const normalized = args.values.map((row) => row.map((cell) => cell ?? ""))
-  await writeSheetRange(
-    args.accessToken,
-    args.spreadsheetId,
-    args.range,
-    normalized
-  )
-}
-
-const WCA_DATA_CLEAR_RANGE = "WCA Data!A3:U"
-const WCA_DATA_WRITE_RANGE = "WCA Data!A3"
 const SCHEDULE_TIMEZONE = organisationConfig.regional.timeZone
 
 function scheduleTemplateCompetitionId(): string {
-  return checkinSheetsConfig().wca.scheduleTemplateCompetitionId
+  return scheduleTransferConfig().wca.scheduleTemplateCompetitionId
 }
 const PERCENT_75_THRESHOLD_MIN = 72
 const PERCENT_75_THRESHOLD_MAX = 78
-const CHECKIN_EVENT_COLUMNS = [
-  "333",
-  "222",
-  "444",
-  "555",
-  "666",
-  "777",
-  "333bf",
-  "333fm",
-  "clock",
-  "pyram",
-  "skewb",
-  "333mbf",
-] as const
-const REGION_DISPLAY_NAMES =
-  typeof Intl.DisplayNames === "function"
-    ? new Intl.DisplayNames(["en"], { type: "region" })
-    : null
-
 export const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"])
 
 interface OtherActivityDef {
@@ -246,101 +187,6 @@ function parseScheduleRows(schedule: ScheduleReadResult): {
     saturday: parseSheetRows(schedule.saturday),
     sunday: parseSheetRows(schedule.sunday),
   }
-}
-
-function firstNameFromFullName(name: string): string {
-  const [firstName = ""] = name.trim().split(/\s+/)
-  return firstName
-}
-
-function buildWcifPersonLookup(persons: WcifPerson[] | undefined) {
-  const byUserId = new Map<number, WcifPerson>()
-  const byRegistrantId = new Map<number, WcifPerson>()
-
-  for (const person of persons ?? []) {
-    if (person.wcaUserId) {
-      byUserId.set(person.wcaUserId, person)
-    }
-    if (person.registrantId) {
-      byRegistrantId.set(person.registrantId, person)
-    }
-  }
-
-  return { byUserId, byRegistrantId }
-}
-
-function resolvePersonForRegistration(
-  registration: RegistrationDataV2,
-  lookup: ReturnType<typeof buildWcifPersonLookup>
-): WcifPerson | undefined {
-  return (
-    lookup.byUserId.get(registration.user_id) ??
-    lookup.byRegistrantId.get(registration.registrant_id)
-  )
-}
-
-function countryIso2ToName(countryIso2: string): string {
-  const normalized = countryIso2.trim().toUpperCase()
-  if (!normalized) return ""
-  if (!REGION_DISPLAY_NAMES) return normalized
-  return REGION_DISPLAY_NAMES.of(normalized) ?? normalized
-}
-function blankToNull(value: string | null | undefined): string | null {
-  const normalized = (value ?? "").trim()
-  return normalized ? normalized : null
-}
-
-export function buildCheckinSheetRows(
-  registrations: RegistrationDataV2[],
-  wcifPersons: WcifPerson[] | undefined
-): GoogleSheetCellValue[][] {
-  const collator = new Intl.Collator(undefined, { sensitivity: "base" })
-  const personLookup = buildWcifPersonLookup(wcifPersons)
-
-  const rows = registrations
-    .filter(isAcceptedRegistration)
-    .map((registration) => {
-      const registrationStatus = getRegistrationStatus(registration)
-      const name = registration.user.name.trim()
-      const firstName = firstNameFromFullName(name)
-      const eventIds = new Set(registration.competing.event_ids)
-      const person = resolvePersonForRegistration(registration, personLookup)
-
-      return {
-        firstName,
-        name,
-        sortKey: `${firstName} ${name}`.trim(),
-        registrantId: registration.registrant_id,
-        row: [
-          blankToNull(registrationStatus),
-          blankToNull(name),
-          blankToNull(countryIso2ToName(registration.user.country_iso2.trim())),
-          blankToNull(registration.user.wca_id),
-          blankToNull(person?.birthdate),
-          blankToNull(registration.user.gender),
-          ...CHECKIN_EVENT_COLUMNS.map((eventId) =>
-            eventIds.has(eventId) ? ("1" as const) : null
-          ),
-          blankToNull(person?.email),
-          typeof registration.guests === "number"
-            ? String(registration.guests)
-            : null,
-          null,
-        ],
-      }
-    })
-
-  rows.sort((a, b) => {
-    const firstNameCmp = collator.compare(a.firstName, b.firstName)
-    if (firstNameCmp !== 0) return firstNameCmp
-    const nameCmp = collator.compare(a.name, b.name)
-    if (nameCmp !== 0) return nameCmp
-    const sortKeyCmp = collator.compare(a.sortKey, b.sortKey)
-    if (sortKeyCmp !== 0) return sortKeyCmp
-    return a.registrantId - b.registrantId
-  })
-
-  return rows.map((entry) => entry.row)
 }
 
 function formatScheduleTime(
@@ -757,66 +603,4 @@ export async function executePushScheduleToWca(input: {
   }
 
   return { success: true, activitiesCreated: allActivities.length }
-}
-
-export async function executePopulateCheckin(input: {
-  googleAccessToken: string
-  wcaAccessToken: string
-  sheetId: string
-  wcaCompetitionId: string
-}): Promise<
-  { success: true; rowsWritten: number } | { success: false; error: string }
-> {
-  const wcaClient = createWcaClient(input.wcaAccessToken)
-
-  const registrationsResponse = await getRegistrationsAdmin({
-    client: wcaClient,
-    path: { competitionId: input.wcaCompetitionId },
-  })
-  if (registrationsResponse.error !== undefined) {
-    return {
-      success: false,
-      error: `Failed to fetch admin competition registrations: ${JSON.stringify(registrationsResponse.error)}`,
-    }
-  }
-
-  const registrations = Array.isArray(registrationsResponse.data)
-    ? registrationsResponse.data
-    : []
-  const hasStatusFields = registrations.some(
-    (registration) => getRegistrationStatus(registration) !== ""
-  )
-  if (registrations.length > 0 && !hasStatusFields) {
-    return {
-      success: false,
-      error:
-        "WCA admin registrations are missing status fields. Ensure your WCA token has organizer/delegate access for this competition.",
-    }
-  }
-
-  const wcif = await loadCompetitionWcif(wcaClient, input.wcaCompetitionId)
-  const rows = buildCheckinSheetRows(registrations, wcif?.persons)
-
-  try {
-    await clearGoogleSheetValues({
-      accessToken: input.googleAccessToken,
-      spreadsheetId: input.sheetId,
-      range: WCA_DATA_CLEAR_RANGE,
-    })
-    if (rows.length > 0) {
-      await updateGoogleSheetValues({
-        accessToken: input.googleAccessToken,
-        spreadsheetId: input.sheetId,
-        range: WCA_DATA_WRITE_RANGE,
-        values: rows,
-      })
-    }
-  } catch (err) {
-    return {
-      success: false,
-      error: `Failed to update check-in sheet: ${err instanceof Error ? err.message : "Unknown error"}`,
-    }
-  }
-
-  return { success: true, rowsWritten: rows.length }
 }

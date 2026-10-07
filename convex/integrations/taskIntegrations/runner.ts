@@ -4,7 +4,7 @@ import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { internalAction } from "@/convex/_generated/server"
 import { unknownErrorMessage } from "@/convex/integrations/errorPayload"
-import { getIntegrationDefinition } from "@/convex/integrations/taskIntegrations/registry"
+import { getRunnableIntegrationDefinition } from "@/convex/integrations/taskIntegrations/registry"
 import type { LoadedRunContext } from "@/convex/integrations/taskIntegrations/validators"
 import type { TaskIntegrationRunResult } from "@/convex/integrations/taskIntegrations/pluginContract"
 import { taskIntegrationRunInput } from "@/convex/integrations/taskIntegrations/validators"
@@ -26,7 +26,9 @@ export const runIntegration = internalAction({
           runId: args.runId,
         }
       )
-      const definition = getIntegrationDefinition(runContext.integrationId)
+      const definition = getRunnableIntegrationDefinition(
+        runContext.integrationId
+      )
       result = await definition.run(ctx, {
         competitionId: runContext.competitionId,
         competitionName: runContext.competitionName,
