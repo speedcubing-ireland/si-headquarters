@@ -10,7 +10,7 @@ import {
 import { api } from "@/convex/_generated/api"
 import { TaskInlineIndicators } from "@/features/subtasks/task-inline-indicators"
 import type { FunctionReturnType } from "convex/server"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import { CornerDownRightIcon } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
@@ -73,8 +73,15 @@ function ParentLink({ parent }: { parent: TaskDetails["parent"] }) {
   )
 }
 
-export function TaskDetailsCard({ taskId }: { taskId: Id<"tasks"> }) {
-  const taskDetails = useQuery(api.tasks.queries.getDetails, { id: taskId })
+export function TaskDetailsCard({
+  taskId,
+  taskDetails,
+}: {
+  taskId: Id<"tasks">
+  taskDetails:
+    | FunctionReturnType<typeof api.tasks.queries.getDetails>
+    | undefined
+}) {
   const setDueDate = useMutation(api.tasks.mutations.setTaskDueDate)
   const updateDetails = useMutation(api.tasks.mutations.setTaskDetails)
 

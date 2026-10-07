@@ -22,6 +22,9 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
     id: taskId,
   })
 
+  const taskDetails = useQuery(api.tasks.queries.getDetails, { id: taskId })
+  const properties = useQuery(api.tasks.queries.getProperties, { id: taskId })
+
   const breadcrumbs = root?.breadcrumbs
   const header =
     breadcrumbs && breadcrumbs.length > 0 ? (
@@ -52,9 +55,9 @@ export function Task({ taskId }: { taskId: Id<"tasks"> }) {
         {(root) => (
           <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 @sm/main:grid-cols-2">
             <TaskPendingReminders taskId={taskId} />
-            <TaskDetailsCard taskId={taskId} />
+            <TaskDetailsCard taskId={taskId} taskDetails={taskDetails} />
             <TaskIntegrationsSection taskId={taskId} />
-            <TaskPropertiesCard taskId={taskId} />
+            <TaskPropertiesCard taskId={taskId} properties={properties} />
             <TaskBlockersCard taskId={taskId} />
             <TaskReviewCard taskId={taskId} />
             {root.kind === "flow" ? (

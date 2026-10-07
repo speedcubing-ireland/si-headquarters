@@ -1,7 +1,8 @@
+import type { FunctionReturnType } from "convex/server"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { PhasePropertyRow } from "@/features/shared/phase-property-row"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import { InfoIcon } from "lucide-react"
 import { ObjectLinkedResourcesFooter } from "@/features/integrations/object-linked-resources-footer"
 import {
@@ -13,12 +14,13 @@ import { PLUGINS } from "@/plugins/registry"
 
 export function CompetitionPropertiesCard({
   competitionId,
+  properties,
 }: {
   competitionId: Id<"competitions">
+  properties:
+    | FunctionReturnType<typeof api.competitions.queries.getProperties>
+    | undefined
 }) {
-  const properties = useQuery(api.competitions.queries.getProperties, {
-    id: competitionId,
-  })
   const setCompPhase = useMutation(api.competitions.mutations.setCompPhase)
 
   if (properties === undefined) {

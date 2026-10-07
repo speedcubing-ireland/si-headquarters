@@ -19,6 +19,12 @@ import {
   sponsorshipConfig,
 } from "@/config/lib/organisation"
 
+export {
+  formatEmailDateTime,
+  formatMoney,
+  formatRecipientSubtitle,
+} from "./format"
+
 export const emailBrandTokens = {
   primary: "#2f9e64",
   primaryFg: "#fafffe",
@@ -142,24 +148,6 @@ export function SponsorshipEmailShell(props: SponsorshipEmailShellProps) {
   )
 }
 
-export function formatEmailDateTime(timestamp: number): string {
-  const { locale, timeZone, timeZoneLabel } = organisationConfig.regional
-  const date = new Date(timestamp)
-  const formatted = date.toLocaleString(locale, {
-    dateStyle: "full",
-    timeStyle: "short",
-    timeZone,
-  })
-  const timeZoneName =
-    new Intl.DateTimeFormat(locale, {
-      timeZone,
-      timeZoneName: "longGeneric",
-    })
-      .formatToParts(date)
-      .find((part) => part.type === "timeZoneName")?.value ?? timeZoneLabel
-  return `${formatted} (${timeZoneName})`
-}
-
 export function SponsorshipInfoBlock(props: {
   label: string
   value: string
@@ -186,22 +174,4 @@ export function SponsorshipInfoBlock(props: {
       </Text>
     </Section>
   )
-}
-
-export function formatMoney(
-  cents: number,
-  currency = sponsorshipConfig().sponsorship.defaultCurrency
-): string {
-  return `${currency} ${(cents / 100).toFixed(2)}`
-}
-
-export function formatRecipientSubtitle(
-  recipientName: string | undefined,
-  messageForNamed: (name: string) => string,
-  messageAnonymous: string
-): string {
-  if (recipientName !== undefined && recipientName.length > 0) {
-    return messageForNamed(recipientName)
-  }
-  return messageAnonymous
 }

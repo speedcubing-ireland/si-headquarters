@@ -25,7 +25,7 @@ import {
   buildPhaseSortKeyById,
   countOverdueInSection,
 } from "@/convex/tasks/overdue"
-import { getProgress } from "@/convex/tasks/status/rules"
+import { getProgress, isTerminalComplete } from "@/convex/tasks/status/rules"
 import { objectRef } from "@/convex/utils"
 import { v, type Infer } from "convex/values"
 
@@ -144,54 +144,54 @@ async function buildSubtaskRows({
   rows: TaskSubtaskView["sections"][number]["rows"]
   statuses: TaskStatus[]
 }> {
-  const rows: TaskSubtaskView["sections"][number]["rows"] = []
-  const statuses: TaskStatus[] = []
+  const branches = await Promise.all(
+    taskViews.map(async (taskView) => {
+      const rows: TaskSubtaskView["sections"][number]["rows"] = []
+      const statuses: TaskStatus[] = []
+      const childTaskViews = await getTaskSubtaskViews(loader, taskView.task)
+      const row = await displayReader.hydrateTaskDetails({
+        ...taskView,
+        directSubtaskViews: childTaskViews,
+      })
+      const subtaskTitle = hideParentTitleForDirect ? "" : parentTitle
+      rows.push({
+        ...row,
+        path: {
+          taskTitle: row.task.name,
+          subtaskTitle,
+          subtaskIndicator: getSubtaskIndicatorFromProgress(
+            row.statusView.progress
+          ),
+          taskTitleId: row.task._id,
+          subtaskTitleId: hideParentTitleForDirect ? null : parentTaskId,
+          depth,
+        },
+      })
 
-  for (const taskView of taskViews) {
-    const childTaskViews = await getTaskSubtaskViews(loader, taskView.task)
-    const row = await displayReader.hydrateTaskDetails({
-      ...taskView,
-      directSubtaskViews: childTaskViews,
+      const rowStatus = taskView.statusView.effectiveStatus
+      statuses.push(rowStatus)
+
+      if (taskView.task.kind === "flow" || isTerminalComplete(rowStatus))
+        return { rows, statuses }
+
+      if (childTaskViews.length === 0) return { rows, statuses }
+
+      const childResult = await buildSubtaskRows({
+        depth: depth + 1,
+        displayReader,
+        loader,
+        hideParentTitleForDirect: false,
+        parentTitle: row.task.name,
+        parentTaskId: row.task._id,
+        taskViews: childTaskViews,
+      })
+      rows.push(...childResult.rows)
+      statuses.push(...childResult.statuses)
+      return { rows, statuses }
     })
-    const subtaskTitle = hideParentTitleForDirect ? "" : parentTitle
-    rows.push({
-      ...row,
-      path: {
-        taskTitle: row.task.name,
-        subtaskTitle,
-        subtaskIndicator: getSubtaskIndicatorFromProgress(
-          row.statusView.progress
-        ),
-        taskTitleId: row.task._id,
-        subtaskTitleId: hideParentTitleForDirect ? null : parentTaskId,
-        depth,
-      },
-    })
-
-    const rowStatus = taskView.statusView.effectiveStatus
-    statuses.push(rowStatus)
-
-    if (
-      taskView.task.kind === "flow" ||
-      rowStatus === "done" ||
-      rowStatus === "cancelled"
-    )
-      continue
-
-    if (childTaskViews.length === 0) continue
-
-    const childResult = await buildSubtaskRows({
-      depth: depth + 1,
-      displayReader,
-      loader,
-      hideParentTitleForDirect: false,
-      parentTitle: row.task.name,
-      parentTaskId: row.task._id,
-      taskViews: childTaskViews,
-    })
-    rows.push(...childResult.rows)
-    statuses.push(...childResult.statuses)
-  }
+  )
+  const rows = branches.flatMap((branch) => branch.rows)
+  const statuses = branches.flatMap((branch) => branch.statuses)
 
   return { rows, statuses }
 }

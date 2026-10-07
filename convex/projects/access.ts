@@ -85,11 +85,11 @@ export async function canReadProject(
     return true
   }
 
-  if (await isProjectMember(ctx, project._id, principal)) {
+  if (project.scope.type === "global" && isVolunteer(principal)) {
     return true
   }
 
-  if (project.scope.type === "global" && isVolunteer(principal)) {
+  if (await isProjectMember(ctx, project._id, principal)) {
     return true
   }
 

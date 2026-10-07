@@ -1,7 +1,6 @@
 import { collectAll } from "@/convex/utils"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { query } from "@/convex/_generated/server"
-import type { QueryCtx } from "@/convex/_generated/server"
 import { canPerform, requirePrincipal } from "@/convex/permissions/principal"
 import { formatLocalDate } from "@/convex/competitions/dates"
 import { isCompetitionCancelled } from "@/convex/competitions/lifecycle"
@@ -62,16 +61,14 @@ interface CalendarCompetitionRow {
 }
 
 async function buildCompetitionRow(
-  ctx: QueryCtx,
   competition: Doc<"competitions">,
-  phaseById: Map<Id<"phases">, Doc<"phases">>
+  phaseById: Map<Id<"phases">, Doc<"phases">>,
+  readUser: (id: Id<"users"> | null) => ReturnType<typeof getPublicUser>
 ): Promise<CalendarCompetitionRow> {
   const [compLead, leadDelegate, ...organisers] = await Promise.all([
-    getPublicUser(ctx, competition.people.compLead),
-    getPublicUser(ctx, competition.people.leadDelegate),
-    ...competition.people.organisers.map((userId) =>
-      getPublicUser(ctx, userId)
-    ),
+    readUser(competition.people.compLead),
+    readUser(competition.people.leadDelegate),
+    ...competition.people.organisers.map((userId) => readUser(userId)),
   ])
 
   const phase = phaseSnapshot(
@@ -113,9 +110,8 @@ export const listForYear = query({
   }),
   handler: async (ctx, args) => {
     const principal = await requirePrincipal(ctx)
-    const [allCompetitions, phases, slots] = await Promise.all([
+    const [allCompetitions, slots] = await Promise.all([
       collectAll(ctx, "competitions"),
-      collectAll(ctx, "phases"),
       ctx.db
         .query("competitionWeekendSlots")
         .withIndex("by_year", (q) => q.eq("year", args.year))
@@ -125,7 +121,29 @@ export const listForYear = query({
       canPerform(principal, "read", "Competition", competition)
     )
 
-    const phaseById = new Map(phases.map((phase) => [phase._id, phase]))
+    const phaseIds = new Set(
+      competitions.flatMap((competition) =>
+        competition.phaseId === null ? [] : [competition.phaseId]
+      )
+    )
+    const phases = await Promise.all(
+      [...phaseIds].map((id) => ctx.db.get("phases", id))
+    )
+    const phaseById = new Map(
+      phases.flatMap((phase) =>
+        phase === null ? [] : [[phase._id, phase] as const]
+      )
+    )
+    // Cache promises so overlapping leads and organisers share a single read.
+    const users = new Map<Id<"users">, ReturnType<typeof getPublicUser>>()
+    const readUser = (id: Id<"users"> | null) => {
+      if (id === null) return Promise.resolve(null)
+      const existing = users.get(id)
+      if (existing) return existing
+      const user = getPublicUser(ctx, id)
+      users.set(id, user)
+      return user
+    }
     const slotByWeekend = new Map(
       slots.map((slot) => [slot.weekendStart, slot])
     )
@@ -172,7 +190,7 @@ export const listForYear = query({
         .map(async (competition) => {
           competitionRows.set(
             competition._id,
-            await buildCompetitionRow(ctx, competition, phaseById)
+            await buildCompetitionRow(competition, phaseById, readUser)
           )
         })
     )

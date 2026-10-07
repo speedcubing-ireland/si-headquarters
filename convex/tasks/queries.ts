@@ -8,7 +8,7 @@ import type { QueryCtx } from "@/convex/_generated/server"
 import { collectAll } from "@/convex/utils"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
-  canManageTask,
+  canManageTaskWithRoots,
   requireTaskManageAccess,
   requireTaskReadAccess,
 } from "@/convex/tasks/access"
@@ -213,10 +213,7 @@ async function getTaskParentDetails(
   }
 }
 
-async function getTaskBreadcrumbs(ctx: QueryCtx, id: Id<"tasks">) {
-  const task = await ctx.db.get("tasks", id)
-  if (!task) return
-
+async function getTaskBreadcrumbs(ctx: QueryCtx, task: Doc<"tasks">) {
   const chain: BreadcrumbChain = [
     {
       id: task._id,
@@ -305,13 +302,17 @@ export const getPageRoot = query({
     id: v.id("tasks"),
   },
   handler: async (ctx, args) => {
-    const { principal, task } = await requireTaskReadAccess(ctx, args.id)
+    const { principal, task, rootCompetition, rootProject } =
+      await requireTaskReadAccess(ctx, args.id)
 
     return {
       taskId: task._id,
       kind: task.kind,
-      canDelete: await canManageTask(ctx, task, principal),
-      breadcrumbs: await getTaskBreadcrumbs(ctx, args.id),
+      canDelete: await canManageTaskWithRoots(ctx, principal, {
+        rootCompetition,
+        rootProject,
+      }),
+      breadcrumbs: await getTaskBreadcrumbs(ctx, task),
     }
   },
 })

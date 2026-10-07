@@ -9,7 +9,7 @@ import {
   formatEmailDateTime,
   formatMoney,
   formatRecipientSubtitle,
-} from "./_design"
+} from "./format"
 import type { EmailCopyContext, EmailInfoRow, EmailTemplateCopy } from "./types"
 import {
   organisationConfig,

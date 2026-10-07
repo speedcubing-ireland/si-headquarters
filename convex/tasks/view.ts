@@ -126,19 +126,12 @@ export const taskViewTaskDetails = v.object({
   subtaskSummary: v.array(taskViewSubtaskSummaryItem),
 })
 
-export const taskViewDisplayFields = v.object({
-  taskId: v.id("tasks"),
-  dueDate: v.nullable(v.string()),
-  labels: v.array(taskViewLabel),
-  owner: taskViewOwner,
-  assignees: taskViewAssignees,
-  blockers: blockerCounts,
-  subtaskSummary: v.array(taskViewSubtaskSummaryItem),
-})
-
 export type TaskViewProgress = Infer<typeof taskViewProgress>
 export type TaskViewTaskDetails = Infer<typeof taskViewTaskDetails>
-export type TaskViewDisplayFields = Infer<typeof taskViewDisplayFields>
+export type TaskViewTaskSummary = Omit<
+  TaskViewTaskDetails,
+  "labels" | "subtaskSummary"
+>
 export type TaskViewSubtaskSummary = Infer<typeof taskViewSubtaskSummaryItem>[]
 
 type TaskViewOwner = Infer<typeof taskViewOwner>
@@ -390,26 +383,20 @@ export function createTaskViewDisplayReader(
     })
   }
 
-  async function hydrateTaskDetails({
+  async function hydrateTaskSummary({
     task,
     statusView,
-    directSubtaskViews,
-  }: HydratedTaskView): Promise<TaskViewTaskDetails> {
-    const [
-      labels,
-      owner,
-      assignees,
-      blockers,
-      pendingReviewerTeams,
-      subtaskSummary,
-    ] = await Promise.all([
-      getLabels(task._id),
-      getOwner(task.owner),
-      getAssignees(task.assigneeIds),
-      getBlockerCounts(task._id),
-      getPendingReviewerTeams(task._id),
-      getSubtaskSummary(task, directSubtaskViews),
-    ])
+  }: Pick<
+    HydratedTaskView,
+    "task" | "statusView"
+  >): Promise<TaskViewTaskSummary> {
+    const [owner, assignees, blockers, pendingReviewerTeams] =
+      await Promise.all([
+        getOwner(task.owner),
+        getAssignees(task.assigneeIds),
+        getBlockerCounts(task._id),
+        getPendingReviewerTeams(task._id),
+      ])
 
     return {
       task: {
@@ -421,7 +408,6 @@ export function createTaskViewDisplayReader(
         status: task.status,
         statusIntent: task.statusIntent,
       },
-      labels: labels.map(toTaskViewLabel),
       owner,
       assignees,
       statusView: toTaskViewStatusView(statusView),
@@ -431,35 +417,30 @@ export function createTaskViewDisplayReader(
         statusView.effectiveStatus
       ),
       pendingReviewerTeams,
-      subtaskSummary,
     }
   }
 
-  async function hydrateTaskDisplay({
+  async function getTaskDisplayDetails({
     task,
     directSubtaskViews,
-  }: {
-    task: Doc<"tasks">
-    directSubtaskViews?: TaskWithStatusView[]
-  }): Promise<TaskViewDisplayFields> {
-    const [labels, owner, assignees, blockers, subtaskSummary] =
-      await Promise.all([
-        getLabels(task._id),
-        getOwner(task.owner),
-        getAssignees(task.assigneeIds),
-        getBlockerCounts(task._id),
-        getSubtaskSummary(task, directSubtaskViews),
-      ])
+  }: Pick<HydratedTaskView, "task" | "directSubtaskViews">): Promise<
+    Pick<TaskViewTaskDetails, "labels" | "subtaskSummary">
+  > {
+    const [labels, subtaskSummary] = await Promise.all([
+      getLabels(task._id),
+      getSubtaskSummary(task, directSubtaskViews),
+    ])
+    return { labels: labels.map(toTaskViewLabel), subtaskSummary }
+  }
 
-    return {
-      taskId: task._id,
-      dueDate: task.dueDate,
-      labels: labels.map(toTaskViewLabel),
-      owner,
-      assignees,
-      blockers,
-      subtaskSummary,
-    }
+  async function hydrateTaskDetails(
+    input: HydratedTaskView
+  ): Promise<TaskViewTaskDetails> {
+    const [summary, display] = await Promise.all([
+      hydrateTaskSummary(input),
+      getTaskDisplayDetails(input),
+    ])
+    return { ...summary, ...display }
   }
 
   return {
@@ -468,6 +449,7 @@ export function createTaskViewDisplayReader(
     getLabels,
     getOwner,
     hydrateTaskDetails,
-    hydrateTaskDisplay,
+    hydrateTaskSummary,
+    getTaskDisplayDetails,
   }
 }

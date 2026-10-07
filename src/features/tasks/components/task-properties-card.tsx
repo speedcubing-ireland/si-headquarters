@@ -1,3 +1,4 @@
+import type { FunctionReturnType } from "convex/server"
 import * as TaskDateSelector from "@/components/data-selectors/task-date-selector"
 import * as TaskAssigneeSelector from "@/components/data-selectors/task-assignee-selector"
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
@@ -13,7 +14,7 @@ import {
 } from "@/components/page-card"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import {
   CastleIcon,
   InfoIcon,
@@ -23,8 +24,15 @@ import {
   UserIcon,
 } from "lucide-react"
 
-export function TaskPropertiesCard({ taskId }: { taskId: Id<"tasks"> }) {
-  const properties = useQuery(api.tasks.queries.getProperties, { id: taskId })
+export function TaskPropertiesCard({
+  taskId,
+  properties,
+}: {
+  taskId: Id<"tasks">
+  properties:
+    | FunctionReturnType<typeof api.tasks.queries.getProperties>
+    | undefined
+}) {
   const setStatus = useMutation(api.tasks.mutations.setTaskStatus)
   const setAssignees = useMutation(api.tasks.mutations.setTaskAssignees)
   const setOwner = useMutation(api.tasks.mutations.setTaskOwner)

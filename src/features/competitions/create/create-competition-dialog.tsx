@@ -34,13 +34,16 @@ export function CreateCompetitionDialog({
   children?: ReactNode
 }) {
   const navigate = useNavigate()
-  const templates = useQuery(api.templates.queries.listCompetitionTemplates, {})
-  const users = useQuery(api.users.queries.list, {})
+  const [open, setOpen] = useState(false)
+  const templates = useQuery(
+    api.templates.queries.listCompetitionTemplates,
+    open ? {} : "skip"
+  )
+  const users = useQuery(api.users.queries.list, open ? {} : "skip")
   const createCompetition = useMutation(
     api.competitions.mutations.createFromTemplate
   )
 
-  const [open, setOpen] = useState(false)
   const [templateKey, setTemplateKey] = useState("")
   const [variableValuesByTemplate, setVariableValuesByTemplate] = useState<
     Record<string, TemplateVariableFormValues>
@@ -186,11 +189,16 @@ export function CreateCompetitionDialog({
                 <NativeSelect
                   id="competition-template"
                   value={activeTemplateKey}
-                  disabled={isCreating}
+                  disabled={isCreating || templates === undefined}
                   onChange={(event) => {
                     selectTemplateKey(event.currentTarget.value)
                   }}
                 >
+                  {templates === undefined ? (
+                    <NativeSelectOption value="">
+                      Loading templates…
+                    </NativeSelectOption>
+                  ) : null}
                   {(templates ?? []).map((template) => (
                     <NativeSelectOption key={template.key} value={template.key}>
                       {template.name}

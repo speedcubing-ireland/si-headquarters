@@ -26,7 +26,15 @@ function KanbanColumn<TItem>({
       <div className="flex min-h-24 flex-col gap-2 px-2 pb-2">
         {group.items.length > 0 ? (
           group.items.map((item) => (
-            <div key={getItemKey(item)}>{renderCard(item)}</div>
+            <div
+              key={getItemKey(item)}
+              style={{
+                contentVisibility: "auto",
+                containIntrinsicSize: "auto 144px",
+              }}
+            >
+              {renderCard(item)}
+            </div>
           ))
         ) : (
           <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed px-2 py-6 text-center text-xs text-muted-foreground">

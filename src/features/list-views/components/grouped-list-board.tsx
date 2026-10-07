@@ -21,6 +21,10 @@ function InsetListRows<TItem>({
       {items.map((item) => (
         <div
           key={getRowKey(item)}
+          style={{
+            contentVisibility: "auto",
+            containIntrinsicSize: "auto 48px",
+          }}
           className="border-b border-border last:border-b-0"
         >
           {renderRow(item)}

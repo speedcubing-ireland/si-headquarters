@@ -1,3 +1,4 @@
+import { taskBoardQueryFilters } from "@/features/tasks/list/task-board-query-filters"
 import { Page } from "@/components/layout/page"
 import { PageListMessage } from "@/components/layout/page-list-message"
 import { GroupedListBoard } from "@/features/list-views/components/grouped-list-board"
@@ -125,6 +126,45 @@ function TaskListPageBody({
   )
 }
 
+function TaskListPageData({ emptyMessage }: { emptyMessage: string }) {
+  const { config, viewFilters, viewMatchMode } = useTaskListPage()
+  const currentUser = useQuery(api.users.queries.currentUser)
+  const rows = useQuery(
+    api.tasks.board.listForBoard,
+    currentUser === undefined
+      ? "skip"
+      : {
+          ...taskBoardQueryFilters(
+            viewFilters,
+            viewMatchMode,
+            currentUser?._id ?? null
+          ),
+          ...(config.scope.type === "team"
+            ? { teamId: config.scope.teamId }
+            : {}),
+        }
+  )
+
+  useEffect(() => {
+    document.title = productPageTitle(config.title)
+  }, [config.title])
+
+  return (
+    <TaskListPageLayout
+      header={<TaskListNavbar />}
+      filtersRow={
+        <TaskListFilterBar
+          filterPopover={<TasksFilterPopover rows={rows} />}
+          filterChips={<TasksFilterChips rows={rows} />}
+          columnOptions={[...TASK_DISPLAY_OPTIONS]}
+        />
+      }
+    >
+      <TaskListPageBody emptyMessage={emptyMessage} rows={rows} />
+    </TaskListPageLayout>
+  )
+}
+
 function TaskListPageContent({
   config,
   emptyMessage = "No tasks match your filters.",
@@ -132,26 +172,9 @@ function TaskListPageContent({
   config: TaskListPageConfig
   emptyMessage?: string
 }) {
-  const rows = useQuery(api.tasks.board.listForBoard)
-
-  useEffect(() => {
-    document.title = productPageTitle(config.title)
-  }, [config.title])
-
   return (
     <TaskListProvider key={config.pageId} config={config}>
-      <TaskListPageLayout
-        header={<TaskListNavbar />}
-        filtersRow={
-          <TaskListFilterBar
-            filterPopover={<TasksFilterPopover rows={rows} />}
-            filterChips={<TasksFilterChips rows={rows} />}
-            columnOptions={[...TASK_DISPLAY_OPTIONS]}
-          />
-        }
-      >
-        <TaskListPageBody emptyMessage={emptyMessage} rows={rows} />
-      </TaskListPageLayout>
+      <TaskListPageData emptyMessage={emptyMessage} />
     </TaskListProvider>
   )
 }

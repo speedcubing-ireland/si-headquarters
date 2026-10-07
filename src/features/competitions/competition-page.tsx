@@ -1,9 +1,11 @@
+import { useChildQuery } from "@/hooks/convex/use-child-query"
+import { useConfiguredToday } from "@/hooks/use-configured-today"
 import { Page, PAGE_CONTENT_PADDING_SCROLL } from "@/components/layout/page"
 import { CompetitionDetailsCard } from "@/features/competitions/components/details-card"
 import { CompetitionPeopleCard } from "@/features/competitions/components/people-card"
 import { CompetitionPropertiesCard } from "@/features/competitions/components/properties-card"
 import { EditPhasesButton } from "@/features/phases/edit-phases-dialog"
-import { SubtaskView } from "@/features/subtasks/subtask-view"
+import { SubtaskViewContent } from "@/features/subtasks/subtask-view"
 import { CurrentUpdateCard } from "@/features/updates/current-update-card"
 import { CommentsCardContainer } from "@/features/comments/comments-card-container"
 import { ObjectPageGrid } from "@/features/shared/object-page-grid"
@@ -19,6 +21,7 @@ export function CompetitionPage({
 }: {
   competitionId: Id<"competitions">
 }) {
+  const today = useConfiguredToday()
   const navigate = useNavigate()
   const deleteCompetition = useMutation(
     api.competitions.mutations.deleteCompetition
@@ -26,6 +29,30 @@ export function CompetitionPage({
   const comp = useQuery(api.competitions.queries.getPageRoot, {
     id: competitionId,
   })
+
+  const subtaskView = useChildQuery(
+    api.tasks.queries.getSubtaskView,
+    {
+      owner: { type: "competitions", id: competitionId },
+      today,
+    },
+    comp
+  )
+
+  const properties = useChildQuery(
+    api.competitions.queries.getProperties,
+    {
+      id: competitionId,
+    },
+    comp
+  )
+  const peopleDetails = useChildQuery(
+    api.competitions.queries.getPeople,
+    {
+      id: competitionId,
+    },
+    comp
+  )
 
   return (
     <Page.Shell
@@ -40,13 +67,20 @@ export function CompetitionPage({
         {(comp) => (
           <ObjectPageGrid>
             <CompetitionDetailsCard comp={comp} competitionId={competitionId} />
-            <CompetitionPropertiesCard competitionId={competitionId} />
-            <CompetitionPeopleCard competitionId={competitionId} />
+            <CompetitionPropertiesCard
+              competitionId={competitionId}
+              properties={properties}
+            />
+            <CompetitionPeopleCard
+              competitionId={competitionId}
+              peopleDetails={peopleDetails}
+            />
             <CurrentUpdateCard
               object={{ type: "competitions", id: competitionId }}
               title="Competition update"
             />
-            <SubtaskView
+            <SubtaskViewContent
+              view={subtaskView}
               owner={{ type: "competitions", id: competitionId }}
               toolbarActions={
                 <EditPhasesButton

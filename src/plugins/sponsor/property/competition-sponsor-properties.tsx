@@ -10,7 +10,6 @@ import {
   useCompetitionSponsorOverride,
   useCompetitionSponsorPropertyRow,
 } from "@/plugins/sponsor/hooks/competition-sponsor-property"
-import { useSponsors } from "@/plugins/sponsor/hooks/use-sponsorship"
 import {
   competitionPropertyStatusLabel,
   formatEuroFromCents,
@@ -28,7 +27,6 @@ export function SponsorPropertyRow({
   const { allowed: canManageSponsor } = useCan("access", "SponsorPortalAdmin")
   const { competitionConvexId, property, isLoading } =
     useCompetitionSponsorPropertyRow(competitionId)
-  const { sponsors, isLoading: sponsorsLoading } = useSponsors(canManageSponsor)
   const { setCompetitionSponsorOverride } = useCompetitionSponsorOverride()
 
   if (isLoading || property === null) {
@@ -60,10 +58,8 @@ export function SponsorPropertyRow({
         ) : null}
         {canManageSponsor && competitionConvexId !== null ? (
           <SponsorPropertySelector
-            disabled={sponsorsLoading}
             displayLabel={displayLabel}
             isManualOverride={property.isManualOverride}
-            sponsors={sponsors}
             status={property.status}
             winnerSponsorId={property.winnerSponsorId}
             onChange={(override) =>

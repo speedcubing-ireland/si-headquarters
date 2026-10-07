@@ -106,6 +106,10 @@ function PhaseSection({
             visible.rows.map((row) => (
               <div
                 key={row.task._id}
+                style={{
+                  contentVisibility: "auto",
+                  containIntrinsicSize: "auto 48px",
+                }}
                 className={cn(
                   "grid min-h-12 min-w-0 items-center gap-x-1 overflow-hidden border-b px-4 py-2 last:border-b-0",
                   SUBTASK_LIST_GRID_CLASS
@@ -132,9 +136,27 @@ export function SubtaskView({
   owner: SubtaskViewOwner
   toolbarActions?: ReactNode
 }) {
-  const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
   const today = useConfiguredToday()
   const view = useQuery(api.tasks.queries.getSubtaskView, { owner, today })
+  return (
+    <SubtaskViewContent
+      owner={owner}
+      view={view}
+      toolbarActions={toolbarActions}
+    />
+  )
+}
+
+export function SubtaskViewContent({
+  owner,
+  view,
+  toolbarActions,
+}: {
+  owner: SubtaskViewOwner
+  view: TaskSubtaskView | undefined
+  toolbarActions?: ReactNode
+}) {
+  const setTaskKind = useMutation(api.tasks.mutations.setTaskKind)
   const [displayOptions, setDisplayOptions] = useState(
     readSubtaskDisplayOptions
   )

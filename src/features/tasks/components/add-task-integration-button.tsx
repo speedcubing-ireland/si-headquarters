@@ -33,14 +33,12 @@ export function AddTaskIntegrationButton({
   disabled,
   ...buttonProps
 }: AddTaskIntegrationButtonProps) {
+  const [open, setOpen] = useState(false)
   const available = useQuery(
     api.integrations.taskIntegrations.queries.listAvailableForTask,
-    {
-      taskId,
-    }
+    open ? { taskId } : "skip"
   )
   const attach = useMutation(api.integrations.taskIntegrations.mutations.attach)
-  const [open, setOpen] = useState(false)
   const [pendingId, setPendingId] = useState<string | null>(null)
 
   const isLoading = available === undefined
@@ -52,19 +50,6 @@ export function AddTaskIntegrationButton({
       Add Integration
     </>
   )
-
-  if (isLoading || options.length === 0) {
-    return (
-      <Button
-        {...buttonProps}
-        variant={variant}
-        type="button"
-        disabled={disabled ?? (isLoading || options.length === 0)}
-      >
-        {label}
-      </Button>
-    )
-  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -82,7 +67,11 @@ export function AddTaskIntegrationButton({
         <Command>
           <CommandInput placeholder="Search integrations..." />
           <CommandList>
-            <CommandEmpty>No integrations available.</CommandEmpty>
+            <CommandEmpty>
+              {isLoading
+                ? "Loading integrations…"
+                : "No integrations available."}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((def) => {
                 const plugin = INTEGRATION_PLUGINS.find(

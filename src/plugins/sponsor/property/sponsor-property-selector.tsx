@@ -6,6 +6,7 @@ import { useSingleDataSelector } from "@/components/data-selectors/data-selector
 import * as SelectorFace from "@/components/data-selectors/selector-face"
 import type { CompetitionSponsorOverride } from "@/plugins/sponsor/hooks/competition-sponsor-property"
 import type { CompetitionSponsorPropertyStatus } from "@/convex/plugins/sponsor/lib/competitionSponsorStatus"
+import { useSponsors } from "@/plugins/sponsor/hooks/use-sponsorship"
 
 export interface SponsorListItem {
   id: Id<"sponsors">
@@ -67,7 +68,6 @@ export function SponsorPropertySelector({
   displayLabel,
   isManualOverride,
   onChange,
-  sponsors,
   status,
   winnerSponsorId,
 }: {
@@ -77,11 +77,11 @@ export function SponsorPropertySelector({
   onChange: (
     override: CompetitionSponsorOverride | null
   ) => void | Promise<void>
-  sponsors: SponsorListItem[]
   status: CompetitionSponsorPropertyStatus
   winnerSponsorId: Id<"sponsors"> | undefined
 }) {
   const [open, setOpen] = useState(false)
+  const { sponsors, isLoading } = useSponsors(open)
 
   const selectorValue = selectorValueForProperty({
     isManualOverride,
@@ -109,7 +109,7 @@ export function SponsorPropertySelector({
     getValue: (item) =>
       item.id === MANUAL_NO_SPONSOR ? MANUAL_NO_SPONSOR : item.id,
     getValueKey: (value) => value,
-    items,
+    items: isLoading ? undefined : items,
     renderItem: (item) => <span className="truncate">{item.name}</span>,
     selectedItem,
     value: selectorValue,
@@ -144,6 +144,7 @@ export function SponsorPropertySelector({
       <DataSelector.Content
         align="start"
         clearLabel="Use auction result"
+        loading={isLoading}
         model={model}
         objectNoun="sponsors"
         searchable

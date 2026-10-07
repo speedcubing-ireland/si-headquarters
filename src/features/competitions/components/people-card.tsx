@@ -1,3 +1,4 @@
+import type { FunctionReturnType } from "convex/server"
 import { CompetitionPeopleCardFields } from "@/features/competitions/competition-people-selectors"
 import { OrganiserInviteButton } from "@/features/competitions/components/organiser-invite-button"
 import { api } from "@/convex/_generated/api"
@@ -14,12 +15,13 @@ import { isFeatureEnabled } from "@/config/lib/organisation"
 
 export function CompetitionPeopleCard({
   competitionId,
+  peopleDetails,
 }: {
   competitionId: Id<"competitions">
+  peopleDetails:
+    | FunctionReturnType<typeof api.competitions.queries.getPeople>
+    | undefined
 }) {
-  const peopleDetails = useQuery(api.competitions.queries.getPeople, {
-    id: competitionId,
-  })
   const wcaLoginConfigured = useQuery(
     api.wcaLogin.queries.wcaLoginConfigured,
     isFeatureEnabled("organiserInvites") ? {} : "skip"

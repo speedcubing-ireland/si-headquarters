@@ -23,7 +23,11 @@
     "set-convex-env": "bun scripts/set-convex-env.ts",
     "test": "vitest",
     "test:once": "vitest run",
-    "typecheck": "tsgo -p tsconfig.app.json --noEmit & tsgo -p tsconfig.node.json --noEmit & tsgo -p convex/tsconfig.json --noEmit & tsgo -p scripts/tsconfig.json --noEmit & wait"
+    "typecheck": "bun run --parallel typecheck:app typecheck:node typecheck:convex typecheck:scripts",
+    "typecheck:app": "tsgo -p tsconfig.app.json --noEmit",
+    "typecheck:convex": "tsgo -p convex/tsconfig.json --noEmit",
+    "typecheck:node": "tsgo -p tsconfig.node.json --noEmit",
+    "typecheck:scripts": "tsgo -p scripts/tsconfig.json --noEmit"
   },
   "dependencies": {
     "@auth/core": "0.41.2",
