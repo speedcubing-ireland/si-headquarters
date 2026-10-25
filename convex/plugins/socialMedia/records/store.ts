@@ -25,7 +25,8 @@ const MAX_ROWS_PER_RANGE = 1000
  * Upserts one sync's records by WCA Live's record id, and deletes stored records
  * WCA Live has since dropped — usually a corrected result — while their
  * competition is still well inside the feed's window. Records from competitions
- * that have aged out of the feed stay as they were last seen.
+ * that have aged out of the feed stay as they were last seen, and records the
+ * WCA's posted results have settled are never touched again.
  */
 export const saveSync = internalMutation({
   args: { records: v.array(wcaRecordValidator), syncedAt: v.number() },
@@ -42,7 +43,7 @@ export const saveSync = internalMutation({
         .unique()
       if (existing === null) {
         await ctx.db.insert("wcaRecords", record)
-      } else {
+      } else if (existing.status === "live") {
         await ctx.db.replace("wcaRecords", existing._id, record)
       }
     }
@@ -62,7 +63,11 @@ export const saveSync = internalMutation({
       )
       .take(MAX_ROWS_PER_RANGE)
     for (const row of recent) {
-      if (row.competitionStartDate >= feedFrom && !seen.has(row.liveRecordId)) {
+      if (
+        row.status === "live" &&
+        row.competitionStartDate >= feedFrom &&
+        !seen.has(row.liveRecordId)
+      ) {
         await ctx.db.delete("wcaRecords", row._id)
       }
     }
@@ -72,7 +77,8 @@ export const saveSync = internalMutation({
 
 /**
  * Records set by the organisation's competitors at competitions that ended in
- * the week starting on `weekStart`: what the weekly email reports.
+ * the week starting on `weekStart`, leaving out any the WCA's posted results
+ * dropped: what the weekly email reports.
  */
 export const forWeek = internalQuery({
   args: { weekStart: v.string() },
@@ -87,7 +93,10 @@ export const forWeek = internalQuery({
           .lt("competitionEndDate", localDateOffset(args.weekStart, 7))
       )
       .take(MAX_ROWS_PER_RANGE)
-    return rows.filter((row) => row.personCountryIso2 === countryIso2)
+    return rows.filter(
+      (row) =>
+        row.personCountryIso2 === countryIso2 && row.status !== "notRecord"
+    )
   },
 })
 

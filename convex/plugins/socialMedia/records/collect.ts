@@ -86,6 +86,8 @@ export interface CompetitionRecords<R extends WcaRecord = WcaRecord> {
   wcaCompetitionId: string
   competitionName: string
   competitionEndDate: string
+  /** Whether the WCA has posted the results, so no record is still `live`. */
+  resultsPosted: boolean
   records: R[]
 }
 
@@ -129,11 +131,12 @@ export function toStoredRecords(
           (venue) => venue.country.iso2 === countryIso2
         )
     )
-    .map(({ id, tag, type, attemptResult, result }) => {
+    .map(({ id, tag, type, attemptResult, result }): WcaRecord => {
       const { person, round } = result
       const { competition, event } = round.competitionEvent
       return {
         liveRecordId: id,
+        status: "live",
         tag,
         type,
         attemptResult,
@@ -187,9 +190,11 @@ export function groupByCompetition<R extends WcaRecord>(
       wcaCompetitionId: record.wcaCompetitionId,
       competitionName: record.competitionName,
       competitionEndDate: record.competitionEndDate,
+      resultsPosted: true,
       records: [],
     }
     group.records.push(record)
+    if (record.status === "live") group.resultsPosted = false
     competitions.set(record.liveCompetitionId, group)
   }
 

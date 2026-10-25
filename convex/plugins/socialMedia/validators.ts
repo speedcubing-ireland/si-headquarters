@@ -1,18 +1,25 @@
 import { defineTable } from "convex/server"
 import { v, type Infer } from "convex/values"
 import {
+  RECORD_STATUSES,
   RECORD_TAGS,
   RECORD_TYPES,
 } from "@/convex/plugins/socialMedia/records/kinds"
 
 /**
- * A record as WCA Live entered it, before the WCA posts the results. Only the
- * records Headquarters cares about are kept: those set by competitors from the
+ * A record as WCA Live entered it, until the WCA posts the results and the
+ * daily confirmation replaces it with the WCA's version. Only the records
+ * Headquarters cares about are kept: those set by competitors from the
  * organisation's country, or set at a competition held there.
  */
 export const wcaRecordFields = {
   /** WCA Live's id for the record; a sync updates rather than duplicates it. */
   liveRecordId: v.string(),
+  /**
+   * `live` until the WCA posts the competition's results; then `confirmed`,
+   * with the WCA's values, or `notRecord`. Syncs leave the last two alone.
+   */
+  status: v.union(...RECORD_STATUSES.map((status) => v.literal(status))),
   tag: v.union(...RECORD_TAGS.map((tag) => v.literal(tag))),
   type: v.union(...RECORD_TYPES.map((type) => v.literal(type))),
   attemptResult: v.number(),
@@ -20,7 +27,10 @@ export const wcaRecordFields = {
   roundName: v.string(),
   roundNumber: v.number(),
   personName: v.string(),
-  /** Null for a newcomer, who has no WCA ID until results are posted. */
+  /**
+   * Null for a newcomer, who has no WCA ID until results are posted; the
+   * confirmation fills it in.
+   */
   wcaId: v.union(v.string(), v.null()),
   personCountryIso2: v.string(),
   /** WCA Live's id, for linking to the live results. */
@@ -73,5 +83,9 @@ export const socialMediaTables = {
   ),
   wcaRecords: defineTable(wcaRecordFields)
     .index("by_liveRecordId", ["liveRecordId"])
-    .index("by_competitionEndDate", ["competitionEndDate"]),
+    .index("by_competitionEndDate", ["competitionEndDate"])
+    .index("by_status_and_competitionEndDate", [
+      "status",
+      "competitionEndDate",
+    ]),
 }

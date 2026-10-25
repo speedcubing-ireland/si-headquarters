@@ -74,6 +74,32 @@ describe("saveSync", () => {
     ])
   })
 
+  test("leaves records the WCA's results have settled alone", async () => {
+    const t = convexTest(schema, modules)
+    const confirmed = wcaRecord({ eventId: "222" })
+    const notRecord = wcaRecord({ eventId: "333" })
+    await saveSync(t, [confirmed, notRecord], NOW - HOUR)
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("wcaRecords").collect()) {
+        await ctx.db.patch("wcaRecords", row._id, {
+          status: row.eventId === "222" ? "confirmed" : "notRecord",
+          attemptResult: 900,
+        })
+      }
+    })
+
+    // WCA Live still has one, at its own value, and has dropped the other.
+    await saveSync(t, [confirmed], NOW)
+
+    const rows = await storedRows(t)
+    expect(
+      rows.map((row) => [row.eventId, row.status, row.attemptResult]).sort()
+    ).toEqual([
+      ["222", "confirmed", 900],
+      ["333", "notRecord", 900],
+    ])
+  })
+
   test("keeps records whose competition has aged out of the feed", async () => {
     const t = convexTest(schema, modules)
     const agedOut = wcaRecord({
@@ -119,6 +145,7 @@ describe("forWeek", () => {
       wcaRecord({ personName: "Before", competitionEndDate: "2026-10-18" }),
       wcaRecord({ personName: "After", competitionEndDate: "2026-10-26" }),
       wcaRecord({ personName: "Visitor", personCountryIso2: "GB" }),
+      wcaRecord({ personName: "Dropped", status: "notRecord" }),
     ])
 
     const rows = await t.query(

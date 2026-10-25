@@ -79,6 +79,25 @@ describe("groupByCompetition", () => {
       ],
     ])
   })
+
+  test("counts a competition's results as posted once no record is live", () => {
+    const grouped = groupByCompetition([
+      wcaRecord({ status: "confirmed" }),
+      wcaRecord({ status: "notRecord", eventId: "222" }),
+      wcaRecord({ liveCompetitionId: "202", status: "confirmed" }),
+      wcaRecord({ liveCompetitionId: "202", eventId: "222" }),
+    ])
+
+    expect(
+      grouped.map((competition) => [
+        competition.liveCompetitionId,
+        competition.resultsPosted,
+      ])
+    ).toEqual([
+      ["101", true],
+      ["202", false],
+    ])
+  })
 })
 
 describe("fetchRecentRecords", () => {
