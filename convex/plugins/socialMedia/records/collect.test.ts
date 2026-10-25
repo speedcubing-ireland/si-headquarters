@@ -54,7 +54,7 @@ describe("selectRecordsPostedInWindow", () => {
       WEEK
     )
 
-    expect(selected.map((record) => record.competitionId)).toEqual([
+    expect(selected.map((competition) => competition.competitionId)).toEqual([
       "PostedThisWeek2026",
     ])
   })
@@ -86,8 +86,9 @@ describe("selectRecordsPostedInWindow", () => {
       WEEK
     )
 
+    expect(selected).toHaveLength(1)
     expect(
-      selected.map(({ eventId, type, marker, value }) => ({
+      selected[0]?.records.map(({ eventId, type, marker, value }) => ({
         eventId,
         type,
         marker,
@@ -118,11 +119,13 @@ describe("selectRecordsPostedInWindow", () => {
     )
 
     expect(
-      selected.map((record) => [record.competitionId, record.roundTypeId])
+      selected.map((competition) => [
+        competition.competitionName,
+        competition.records.map((record) => record.roundTypeId),
+      ])
     ).toEqual([
-      ["CorkOpen2026", "f"],
-      ["DublinOpen2026", "1"],
-      ["DublinOpen2026", "f"],
+      ["Cork Open 2026", ["f"]],
+      ["Dublin Open 2026", ["1", "f"]],
     ])
   })
 })

@@ -18,6 +18,11 @@ import { RECORD_DIGEST_MAX_ATTEMPTS } from "@/convex/plugins/socialMedia/records
 import { wcaRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
 import type { Record as WcaRecord } from "@/convex/plugins/wca/openapiClient/types.gen"
 
+vi.mock(
+  "@/config/lib/organisation",
+  () => import("@/config/lib/organisation.testFixture")
+)
+
 // Monday 26 Oct 2026, reporting on the week of 19–25 Oct. The clocks went back
 // on the 25th, so local time is UTC again.
 const MONDAY = Date.UTC(2026, 9, 26)
@@ -162,13 +167,13 @@ describe("weekly records email", () => {
     expect(email).toMatchObject({
       from: "HQ <noreply@example.com>",
       to: ["social@example.com", "design@example.com"],
-      subject: "Irish records: 19–25 Oct 2026 (1)",
+      subject: "Records for Ireland: 19–25 Oct 2026 (1)",
     })
     expect(email.text).toContain("Aoife Murphy")
     expect(email.text).not.toContain("OLD NEWS 2026")
     expect(await getRun(t)).toMatchObject({
       status: "sent",
-      attempts: 1,
+      failures: 0,
       emailId: "email-1",
       recordCount: 1,
     })
@@ -181,7 +186,9 @@ describe("weekly records email", () => {
     await tick(t, at(8))
 
     expect(sendEmail).toHaveBeenCalledTimes(1)
-    expect(sentEmail().subject).toBe("No new Irish records: 19–25 Oct 2026")
+    expect(sentEmail().subject).toBe(
+      "No new records for Ireland: 19–25 Oct 2026"
+    )
     expect(await getRun(t)).toMatchObject({ status: "sent", recordCount: 0 })
   })
 
@@ -193,7 +200,7 @@ describe("weekly records email", () => {
     expect(sendEmail).not.toHaveBeenCalled()
     expect(await getRun(t)).toMatchObject({
       status: "failed",
-      attempts: 1,
+      failures: 1,
       lastError: "WCA record history lookup failed.",
     })
 
@@ -202,61 +209,61 @@ describe("weekly records email", () => {
     await tick(t, at(9))
 
     expect(sendEmail).toHaveBeenCalledTimes(1)
-    expect(await getRun(t)).toMatchObject({ status: "sent", attempts: 2 })
+    expect(await getRun(t)).toMatchObject({ status: "sent", failures: 1 })
   })
 
   test("gives up after the last attempt", async () => {
     const t = convexTest(schema, modules)
-    stubWca({ history: [], failHistory: true })
+    const fetchMock = stubWca({ history: [], failHistory: true })
 
-    for (let hour = 8; hour < 8 + RECORD_DIGEST_MAX_ATTEMPTS + 2; hour += 1) {
+    for (let hour = 8; hour < 8 + RECORD_DIGEST_MAX_ATTEMPTS; hour += 1) {
       await tick(t, at(hour))
     }
-
     expect(await getRun(t)).toMatchObject({
       status: "failed",
-      attempts: RECORD_DIGEST_MAX_ATTEMPTS,
+      failures: RECORD_DIGEST_MAX_ATTEMPTS,
     })
+
+    fetchMock.mockClear()
+    await tick(t, at(8 + RECORD_DIGEST_MAX_ATTEMPTS))
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  test("skips the week when no recipients are configured", async () => {
-    vi.stubEnv("SOCIAL_MEDIA_RECORDS_EMAIL_TO", "")
+  test("does nothing while the records email feature is off", async () => {
+    const organisation = await import("@/config/lib/organisation")
+    vi.spyOn(organisation, "isFeatureEnabled").mockImplementation(
+      (feature) => feature !== "recordsEmail"
+    )
     const t = convexTest(schema, modules)
     const fetchMock = stubWca({ history: [] })
 
     await tick(t, at(8))
-    await tick(t, at(9))
 
     expect(fetchMock).not.toHaveBeenCalled()
     expect(sendEmail).not.toHaveBeenCalled()
-    const run = await getRun(t)
-    expect(run).toMatchObject({ status: "skipped", attempts: 1 })
-    expect(run?.lastError).toContain("SOCIAL_MEDIA_RECORDS_EMAIL_TO")
+    expect(await getRun(t)).toBeNull()
   })
 
-  test("a superseded attempt cannot send", async () => {
+  test("never sends a week twice, even from overlapping runs", async () => {
     const t = convexTest(schema, modules)
-    await t.run(async (ctx) => {
-      await ctx.db.insert("socialMediaRecordDigestRuns", {
-        weekStart: WEEK_START,
-        status: "running",
-        attempts: 2,
-        startedAt: at(9),
-      })
-    })
-
-    await t.mutation(internal.plugins.socialMedia.records.digestState.deliver, {
+    const email = {
       weekStart: WEEK_START,
-      attempt: 1,
-      from: "HQ <noreply@example.com>",
-      to: ["social@example.com"],
-      subject: "Stale",
-      html: "<p>Stale</p>",
-      text: "Stale",
+      subject: "Records",
+      html: "<p>Records</p>",
+      text: "Records",
       recordCount: 0,
-    })
+    }
 
-    expect(sendEmail).not.toHaveBeenCalled()
-    expect(await getRun(t)).toMatchObject({ status: "running", attempts: 2 })
+    await t.mutation(
+      internal.plugins.socialMedia.records.digestState.deliver,
+      email
+    )
+    await t.mutation(
+      internal.plugins.socialMedia.records.digestState.deliver,
+      email
+    )
+
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+    expect(await getRun(t)).toMatchObject({ status: "sent", failures: 0 })
   })
 })

@@ -1,13 +1,16 @@
 import { localDateOffset } from "@/convex/notifications/localTime"
 import { mapWithConcurrency } from "@/convex/plugins/events/concurrency"
 import type { WcaClient } from "@/convex/plugins/wca/client"
-import { WCA_EVENT_LABELS } from "@/convex/plugins/wca/eventLabels"
+import { WCA_EVENT_ORDER } from "@/convex/plugins/wca/eventLabels"
 import {
   competitionList,
   getRecords2,
 } from "@/convex/plugins/wca/openapiClient/sdk.gen"
 import type { Record as WcaRecord } from "@/convex/plugins/wca/openapiClient/types.gen"
-import type { RecordType } from "@/convex/plugins/socialMedia/records/format"
+import {
+  roundOrder,
+  type RecordType,
+} from "@/convex/plugins/socialMedia/records/format"
 import type { WeekWindow } from "@/convex/plugins/socialMedia/records/window"
 
 /**
@@ -21,8 +24,6 @@ export const RESULTS_POSTING_LOOKBACK_DAYS = 120
 const COMPETITION_LOOKUP_CONCURRENCY = 6
 
 export interface WeeklyRecord {
-  competitionId: string
-  competitionName: string
   personId: string
   personName: string
   eventId: string
@@ -31,6 +32,13 @@ export interface WeeklyRecord {
   value: number
   /** The WCA's marker: "NR", "WR", or a continental code such as "ER". */
   marker: string
+}
+
+export interface CompetitionRecords {
+  competitionId: string
+  competitionName: string
+  /** In the order they were set. */
+  records: WeeklyRecord[]
 }
 
 /**
@@ -86,8 +94,8 @@ export async function fetchResultsPostedAt(
 function recordType(record: WcaRecord): RecordType {
   if (record.type === "average") return "average"
   if (record.type === "single") return "single"
-  // Not documented as always present; an entry without it can only be read
-  // from which marker is set.
+  // Typed as an optional plain string by the WCA, so an entry without it (or
+  // with a value we do not know) can only be read from which marker is set.
   return record.regional_single_record === null ? "average" : "single"
 }
 
@@ -114,46 +122,52 @@ export function candidateRecords(
   )
 }
 
-const EVENT_ORDER = new Map(
-  Object.keys(WCA_EVENT_LABELS).map((eventId, index) => [eventId, index])
+const EVENT_INDEX = new Map(
+  WCA_EVENT_ORDER.map((eventId, index) => [eventId, index])
 )
 
-// The WCA's round type ids in the order rounds are held; combined (cutoff)
-// rounds sit beside their plain counterparts.
-const ROUND_ORDER = new Map(
-  ["0", "h", "1", "d", "2", "e", "3", "g", "b", "f", "c"].map(
-    (roundTypeId, index) => [roundTypeId, index]
-  )
-)
+function eventOrder(eventId: string): number {
+  return EVENT_INDEX.get(eventId) ?? WCA_EVENT_ORDER.length
+}
 
 function compareRecords(a: WeeklyRecord, b: WeeklyRecord): number {
   return (
-    a.competitionName.localeCompare(b.competitionName) ||
-    (EVENT_ORDER.get(a.eventId) ?? EVENT_ORDER.size) -
-      (EVENT_ORDER.get(b.eventId) ?? EVENT_ORDER.size) ||
-    (ROUND_ORDER.get(a.roundTypeId) ?? ROUND_ORDER.size) -
-      (ROUND_ORDER.get(b.roundTypeId) ?? ROUND_ORDER.size) ||
+    eventOrder(a.eventId) - eventOrder(b.eventId) ||
+    roundOrder(a.roundTypeId) - roundOrder(b.roundTypeId) ||
     (a.type === b.type ? 0 : a.type === "single" ? -1 : 1) ||
     a.personName.localeCompare(b.personName)
   )
 }
 
+function postedInWindow(
+  resultsPostedAt: ReadonlyMap<string, string | null>,
+  window: WeekWindow
+): Set<string> {
+  const posted = new Set<string>()
+  for (const [competitionId, postedAt] of resultsPostedAt) {
+    if (postedAt === null) continue
+    const postedAtMs = Date.parse(postedAt)
+    if (postedAtMs >= window.startMs && postedAtMs < window.endMs) {
+      posted.add(competitionId)
+    }
+  }
+  return posted
+}
+
 /**
  * The records from competitions whose results were posted inside the window,
- * grouped by competition and in the order they were set. Every record is kept,
- * including one broken again later in the same competition.
+ * grouped by competition (by name) and in the order they were set. Every record
+ * is kept, including one broken again later in the same competition.
  */
 export function selectRecordsPostedInWindow(
   records: readonly WcaRecord[],
   resultsPostedAt: ReadonlyMap<string, string | null>,
   window: WeekWindow
-): WeeklyRecord[] {
-  const selected: WeeklyRecord[] = []
+): CompetitionRecords[] {
+  const posted = postedInWindow(resultsPostedAt, window)
+  const competitions = new Map<string, CompetitionRecords>()
   for (const record of records) {
-    const postedAt = resultsPostedAt.get(record.competition_id) ?? null
-    if (postedAt === null) continue
-    const postedAtMs = Date.parse(postedAt)
-    if (!(postedAtMs >= window.startMs && postedAtMs < window.endMs)) continue
+    if (!posted.has(record.competition_id)) continue
 
     const type = recordType(record)
     const marker =
@@ -162,9 +176,12 @@ export function selectRecordsPostedInWindow(
         : record.regional_average_record
     if (marker === null || marker === "") continue
 
-    selected.push({
+    const competition = competitions.get(record.competition_id) ?? {
       competitionId: record.competition_id,
       competitionName: record.competition_name,
+      records: [],
+    }
+    competition.records.push({
       personId: record.person_id,
       personName: record.person_name,
       eventId: record.event_id,
@@ -173,8 +190,14 @@ export function selectRecordsPostedInWindow(
       value: record.value,
       marker,
     })
+    competitions.set(record.competition_id, competition)
   }
-  return selected.sort(compareRecords)
+
+  const grouped = [...competitions.values()]
+  for (const competition of grouped) competition.records.sort(compareRecords)
+  return grouped.sort((a, b) =>
+    a.competitionName.localeCompare(b.competitionName)
+  )
 }
 
 /**
@@ -185,7 +208,7 @@ export async function collectWeeklyRecords(
   client: WcaClient,
   countryId: string,
   window: WeekWindow
-): Promise<WeeklyRecord[]> {
+): Promise<CompetitionRecords[]> {
   const history = await fetchRecordHistory(client, countryId)
   const candidates = candidateRecords(history, countryId, window)
   const competitionIds = [

@@ -6,6 +6,7 @@ export const FEATURE_IDS = [
   "discord",
   "sponsors",
   "socialMedia",
+  "recordsEmail",
   "wcaIntegration",
   "wca2fa",
   "organiserInvites",
@@ -27,6 +28,7 @@ const featureSchemaShape = {
   discord: z.boolean(),
   sponsors: z.boolean(),
   socialMedia: z.boolean(),
+  recordsEmail: z.boolean(),
   wcaIntegration: z.boolean(),
   wca2fa: z.boolean(),
   organiserInvites: z.boolean(),
@@ -112,8 +114,8 @@ const wcaSchema = z
       .trim()
       .regex(/^[A-Z]{2}$/, "Must be a two-letter uppercase ISO 3166-1 code."),
     // The WCA's own id for that country (e.g. "Ireland"), which its records
-    // endpoint takes as `region` instead of the ISO code. Only the social media
-    // weekly records email needs it, so it is optional.
+    // endpoint takes as `region` instead of the ISO code. Required by the
+    // `recordsEmail` feature, which is the only thing that reads it.
     countryId: nonEmptyString.optional(),
   })
   .strict()
@@ -252,6 +254,24 @@ export const organisationConfigSchema = z
       )
     }
 
+    if (config.features.recordsEmail) {
+      if (!config.features.socialMedia) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "The weekly records email requires the social media feature.",
+          path: ["features", "recordsEmail"],
+        })
+      }
+
+      requireConfig(
+        ctx,
+        config.wca?.countryId,
+        ["wca", "countryId"],
+        "The weekly records email requires the WCA country id."
+      )
+    }
+
     if (sponsorshipEnabled(config.features)) {
       requireConfig(
         ctx,
@@ -297,11 +317,16 @@ export interface ScheduleTransferConfigRequirements {
   wca: NonNullable<OrganisationConfig["wca"]>
 }
 
+export interface RecordsEmailConfigRequirements {
+  wca: { countryId: string }
+}
+
 // `object` is the intersection identity for a config (Config & object = Config),
 // so disabled features add no requirements. The constraint only fires for
 // literal-`true` flags, i.e. real `as const` manifests.
 type FeatureConfigRequirements<F extends FeatureConfig> =
   (F["sponsors"] extends true ? SponsorshipConfigRequirements : object) &
+    (F["recordsEmail"] extends true ? RecordsEmailConfigRequirements : object) &
     (F["google"] extends true
       ? F["wcaIntegration"] extends true
         ? ScheduleTransferConfigRequirements

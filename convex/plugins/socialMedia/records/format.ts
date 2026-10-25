@@ -19,23 +19,39 @@ export function recordLabel(marker: string): string {
   return kind === "CR" ? `CR (${marker})` : kind
 }
 
-// Combined (cutoff) rounds share their plain counterpart's name, as on the WCA.
-const ROUND_LABELS: Partial<Record<string, string>> = {
-  "0": "Qualification",
-  h: "Qualification",
-  "1": "First round",
-  d: "First round",
-  "2": "Second round",
-  e: "Second round",
-  "3": "Semi-final",
-  g: "Semi-final",
-  b: "B Final",
-  f: "Final",
-  c: "Final",
-}
+/**
+ * The WCA's round types in the order rounds are held. Combined (cutoff) rounds
+ * sit beside, and share the name of, their plain counterparts, as on the WCA.
+ */
+const ROUND_TYPES: readonly { id: string; label: string }[] = [
+  { id: "0", label: "Qualification" },
+  { id: "h", label: "Qualification" },
+  { id: "1", label: "First round" },
+  { id: "d", label: "First round" },
+  { id: "2", label: "Second round" },
+  { id: "e", label: "Second round" },
+  { id: "3", label: "Semi-final" },
+  { id: "g", label: "Semi-final" },
+  { id: "b", label: "B Final" },
+  { id: "f", label: "Final" },
+  { id: "c", label: "Final" },
+]
+
+const ROUND_LABELS = new Map(
+  ROUND_TYPES.map((round) => [round.id, round.label])
+)
+
+const ROUND_INDEX = new Map(
+  ROUND_TYPES.map((round, index) => [round.id, index])
+)
 
 export function roundLabel(roundTypeId: string): string {
-  return ROUND_LABELS[roundTypeId] ?? "Round"
+  return ROUND_LABELS.get(roundTypeId) ?? "Round"
+}
+
+/** Position of a round type in the order rounds are held; unknown ids last. */
+export function roundOrder(roundTypeId: string): number {
+  return ROUND_INDEX.get(roundTypeId) ?? ROUND_TYPES.length
 }
 
 function pad2(value: number): string {

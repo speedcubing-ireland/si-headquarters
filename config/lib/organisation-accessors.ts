@@ -112,8 +112,8 @@ export function createOrganisationAccessors(
 
   /**
    * The WCA's id for the organisation's country (e.g. "Ireland"), used to ask
-   * the WCA for its national record history. Null when not configured, which
-   * the weekly records email reports as a skipped run rather than a failure.
+   * the WCA for its national record history. The schema requires it whenever
+   * the `recordsEmail` feature is on.
    */
   function wcaCountryId(): string | null {
     return config.wca?.countryId ?? null

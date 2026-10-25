@@ -1,7 +1,11 @@
 import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
-import { internalMutation, type MutationCtx } from "@/convex/_generated/server"
+import {
+  env,
+  internalMutation,
+  type MutationCtx,
+} from "@/convex/_generated/server"
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { isConfiguredLocalTimeInWindow } from "@/convex/notifications/localTime"
 import { resend } from "@/convex/sendEmails"
@@ -13,29 +17,16 @@ import {
 /** Local hour on Monday from which the email may go out. */
 export const RECORD_DIGEST_SEND_HOUR = 8
 
-/** Attempts per week before the run is left failed for someone to look at. */
+/** Failed attempts per week before the run is left for someone to look at. */
 export const RECORD_DIGEST_MAX_ATTEMPTS = 5
-
-/**
- * How long a claimed run may go without finishing before the next tick treats
- * its action as lost and claims it again. Each attempt carries its number, so
- * a slow original that finishes after being superseded cannot send as well.
- */
-export const RECORD_DIGEST_RUN_LEASE_MS = 30 * 60 * 1000
 
 type DigestRun = Doc<"socialMediaRecordDigestRuns">
 
-function canClaim(run: DigestRun, nowMs: number): boolean {
-  if (run.attempts >= RECORD_DIGEST_MAX_ATTEMPTS) return false
-  switch (run.status) {
-    case "sent":
-    case "skipped":
-      return false
-    case "running":
-      return nowMs - run.startedAt >= RECORD_DIGEST_RUN_LEASE_MS
-    case "failed":
-      return true
-  }
+function parseRecipients(value: string): string[] {
+  return value
+    .split(",")
+    .map((address) => address.trim())
+    .filter((address) => address.length > 0)
 }
 
 async function getRun(
@@ -48,27 +39,31 @@ async function getRun(
     .unique()
 }
 
-/** The run, if `attempt` is still the attempt in flight for it. */
-async function getCurrentAttempt(
+async function upsertRun(
   ctx: MutationCtx,
   weekStart: string,
-  attempt: number
-): Promise<DigestRun | null> {
-  const run = await getRun(ctx, weekStart)
-  return run?.status === "running" && run.attempts === attempt ? run : null
+  run: DigestRun | null,
+  fields: Omit<DigestRun, "_id" | "_creationTime" | "weekStart">
+): Promise<void> {
+  if (run === null) {
+    await ctx.db.insert("socialMediaRecordDigestRuns", { weekStart, ...fields })
+  } else {
+    await ctx.db.patch("socialMediaRecordDigestRuns", run._id, fields)
+  }
 }
 
 /**
- * Cron entry point, ticking hourly on Mondays because 08:00 in Dublin is a
- * different UTC hour in summer and winter. Claims the previous week's run once
- * the local send hour is reached and queues the action that builds and sends
- * the email; later ticks that day only act to retry a failed or lost attempt.
+ * Cron entry point, ticking hourly so the local-time gate alone decides when the
+ * email goes out, whatever the configured timezone. From the send hour on a
+ * local Monday, queues the action that builds and sends the previous week's
+ * email until a run is sent or has failed too often. Overlapping actions are
+ * harmless: `deliver` is the one place that sends, and it sends a week once.
  */
 export const queueWeeklyDigest = internalMutation({
   args: { nowMs: v.optional(v.number()) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!isFeatureEnabled("socialMedia")) return null
+    if (!isFeatureEnabled("recordsEmail")) return null
 
     const nowMs = args.nowMs ?? Date.now()
     if (
@@ -80,43 +75,29 @@ export const queueWeeklyDigest = internalMutation({
 
     const { weekStart } = previousWeekWindow(nowMs)
     const run = await getRun(ctx, weekStart)
-    if (run !== null && !canClaim(run, nowMs)) return null
-
-    const attempt = (run?.attempts ?? 0) + 1
-    if (run === null) {
-      await ctx.db.insert("socialMediaRecordDigestRuns", {
-        weekStart,
-        status: "running",
-        attempts: attempt,
-        startedAt: nowMs,
-      })
-    } else {
-      await ctx.db.patch("socialMediaRecordDigestRuns", run._id, {
-        status: "running",
-        attempts: attempt,
-        startedAt: nowMs,
-      })
+    if (
+      run?.status === "sent" ||
+      (run?.failures ?? 0) >= RECORD_DIGEST_MAX_ATTEMPTS
+    ) {
+      return null
     }
 
     await ctx.scheduler.runAfter(
       0,
       internal.plugins.socialMedia.records.digest.sendWeeklyRecordsDigest,
-      { weekStart, attempt }
+      { weekStart }
     )
     return null
   },
 })
 
 /**
- * Hands the email to Resend and marks the run sent in one transaction, so a run
- * is never marked sent without its email queued, or the other way round.
+ * Hands the email to Resend and marks the week sent in one transaction, so a
+ * week is never marked sent without its email queued, or sent twice.
  */
 export const deliver = internalMutation({
   args: {
     weekStart: v.string(),
-    attempt: v.number(),
-    from: v.string(),
-    to: v.array(v.string()),
     subject: v.string(),
     html: v.string(),
     text: v.string(),
@@ -124,18 +105,19 @@ export const deliver = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const run = await getCurrentAttempt(ctx, args.weekStart, args.attempt)
-    if (run === null) return null
+    const run = await getRun(ctx, args.weekStart)
+    if (run?.status === "sent") return null
 
     const emailId = await resend.sendEmail(ctx, {
-      from: args.from,
-      to: args.to,
+      from: env.SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS,
+      to: parseRecipients(env.SOCIAL_MEDIA_RECORDS_EMAIL_TO),
       subject: args.subject,
       html: args.html,
       text: args.text,
     })
-    await ctx.db.patch("socialMediaRecordDigestRuns", run._id, {
+    await upsertRun(ctx, args.weekStart, run, {
       status: "sent",
+      failures: run?.failures ?? 0,
       sentAt: Date.now(),
       emailId,
       recordCount: args.recordCount,
@@ -145,21 +127,17 @@ export const deliver = internalMutation({
   },
 })
 
-/** Ends the attempt without sending: `failed` is retried, `skipped` is not. */
-export const finishWithoutSending = internalMutation({
-  args: {
-    weekStart: v.string(),
-    attempt: v.number(),
-    status: v.union(v.literal("failed"), v.literal("skipped")),
-    reason: v.string(),
-  },
+/** Counts a failed attempt; the cron retries until the budget runs out. */
+export const recordFailure = internalMutation({
+  args: { weekStart: v.string(), reason: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const run = await getCurrentAttempt(ctx, args.weekStart, args.attempt)
-    if (run === null) return null
+    const run = await getRun(ctx, args.weekStart)
+    if (run?.status === "sent") return null
 
-    await ctx.db.patch("socialMediaRecordDigestRuns", run._id, {
-      status: args.status,
+    await upsertRun(ctx, args.weekStart, run, {
+      status: "failed",
+      failures: (run?.failures ?? 0) + 1,
       lastError: args.reason,
     })
     return null

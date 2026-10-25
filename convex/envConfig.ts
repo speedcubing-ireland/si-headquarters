@@ -155,7 +155,7 @@ const EMAIL_CORE_ENV_SETUP = [
     key: "RESEND_API_KEY",
     group: "Email",
     kind: "prompt",
-    description: "Resend API key for sponsor and social media emails.",
+    description: "Resend API key for sponsor and weekly records emails.",
     sensitive: true,
   },
   {
@@ -168,20 +168,21 @@ const EMAIL_CORE_ENV_SETUP = [
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
-export const EMAIL_ENV_SETUP: readonly EnvSetupSpec[] = [
-  ...EMAIL_CORE_ENV_SETUP,
-  ...(isFeatureEnabled("sponsors")
-    ? [
-        {
-          key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
-          group: "Email",
-          kind: "prompt",
-          description: "From address for sponsorship emails.",
-          defaultValue: configuredSponsorshipSenderAddress(),
-        } satisfies EnvSetupSpec,
-      ]
-    : []),
-]
+// Gated on the live config because its default reads the sponsorship contacts,
+// which only exist when sponsors are on.
+const SPONSOR_EMAIL_ENV_SETUP: readonly EnvSetupSpec[] = isFeatureEnabled(
+  "sponsors"
+)
+  ? [
+      {
+        key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
+        group: "Email",
+        kind: "prompt",
+        description: "From address for sponsorship emails.",
+        defaultValue: configuredSponsorshipSenderAddress(),
+      },
+    ]
+  : []
 
 function uniqueByKey(specs: readonly EnvSetupSpec[]): EnvSetupSpec[] {
   const seen = new Set<string>()
@@ -205,7 +206,8 @@ export const ALL_ENV_SETUP = uniqueByKey([
   ...ACHIEVEMENTS_DEFINITION.setup,
   ...CANVA_DEFINITION.setup,
   ...DISCORD_DEFINITION.setup,
-  ...EMAIL_ENV_SETUP,
+  ...EMAIL_CORE_ENV_SETUP,
+  ...SPONSOR_EMAIL_ENV_SETUP,
   ...SOCIAL_MEDIA_RECORDS_DEFINITION.setup,
 ])
 
@@ -213,7 +215,7 @@ export const ALL_ENV_SETUP = uniqueByKey([
 export function emailEnabled(
   features: OrganisationConfigDefinition["features"]
 ) {
-  return features.sponsors || features.socialMedia
+  return features.sponsors || features.recordsEmail
 }
 
 export function buildRequiredEnvSetup(
@@ -222,9 +224,7 @@ export function buildRequiredEnvSetup(
   const providerIds = new Set(
     config.auth.providers.map((provider) => provider.id)
   )
-  // Sponsors and social media both need the Resend core keys; dedupe so the
-  // wizard asks for them once when both are on.
-  return uniqueByKey([
+  return [
     ...AUTH_ENV_SETUP,
     ...APP_SECRET_ENV_SETUP.filter(
       (spec) =>
@@ -242,11 +242,12 @@ export function buildRequiredEnvSetup(
     ...(config.features.wcaIntegration ? ACHIEVEMENTS_DEFINITION.setup : []),
     ...(config.features.canva ? CANVA_DEFINITION.setup : []),
     ...(config.features.discord ? DISCORD_DEFINITION.setup : []),
-    ...(config.features.sponsors ? EMAIL_ENV_SETUP : []),
-    ...(config.features.socialMedia
-      ? [...EMAIL_CORE_ENV_SETUP, ...SOCIAL_MEDIA_RECORDS_DEFINITION.setup]
+    ...(emailEnabled(config.features) ? EMAIL_CORE_ENV_SETUP : []),
+    ...(config.features.sponsors ? SPONSOR_EMAIL_ENV_SETUP : []),
+    ...(config.features.recordsEmail
+      ? SOCIAL_MEDIA_RECORDS_DEFINITION.setup
       : []),
-  ])
+  ]
 }
 
 export const REQUIRED_ENV_SETUP = buildRequiredEnvSetup(organisationConfig)

@@ -4,6 +4,7 @@ import {
   recordKind,
   recordLabel,
   roundLabel,
+  roundOrder,
 } from "@/convex/plugins/socialMedia/records/format"
 
 describe("formatWcaResult", () => {
@@ -51,5 +52,11 @@ describe("record labels", () => {
     expect(roundLabel("1")).toBe("First round")
     expect(roundLabel("d")).toBe("First round")
     expect(roundLabel("?")).toBe("Round")
+  })
+
+  test("orders rounds as they are held, unknown ones last", () => {
+    expect(roundOrder("1")).toBeLessThan(roundOrder("d"))
+    expect(roundOrder("d")).toBeLessThan(roundOrder("2"))
+    expect(roundOrder("c")).toBeLessThan(roundOrder("?"))
   })
 })

@@ -8,14 +8,19 @@ import {
   Preview,
   Section,
   Text,
-  render,
 } from "@react-email/components"
 import { organisationConfig } from "@/config/lib/organisation"
 import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
+import { emailBrandTokens as colors } from "@/convex/emails/brand"
+import { renderEmailFormats } from "@/convex/emails/render"
 import { formatWcaEventLabel } from "@/convex/plugins/wca/eventLabels"
-import type { WeeklyRecord } from "@/convex/plugins/socialMedia/records/collect"
+import type {
+  CompetitionRecords,
+  WeeklyRecord,
+} from "@/convex/plugins/socialMedia/records/collect"
 import {
   formatWcaResult,
+  type RecordKind,
   recordKind,
   recordLabel,
   roundLabel,
@@ -25,38 +30,10 @@ import {
   type WeekWindow,
 } from "@/convex/plugins/socialMedia/records/window"
 
-const colors = {
-  bg: "#fafafa",
-  surface: "#ffffff",
-  foreground: "#18181b",
-  muted: "#71717a",
-  border: "#e4e4e7",
-  NR: "#2f9e64",
-  CR: "#d97706",
-  WR: "#dc2626",
-} as const
-
-interface CompetitionRecords {
-  competitionId: string
-  competitionName: string
-  records: WeeklyRecord[]
-}
-
-/** Records arrive sorted by competition, so grouping keeps that order. */
-function groupByCompetition(
-  records: readonly WeeklyRecord[]
-): CompetitionRecords[] {
-  const groups = new Map<string, CompetitionRecords>()
-  for (const record of records) {
-    const group = groups.get(record.competitionId) ?? {
-      competitionId: record.competitionId,
-      competitionName: record.competitionName,
-      records: [],
-    }
-    group.records.push(record)
-    groups.set(record.competitionId, group)
-  }
-  return [...groups.values()]
+const RECORD_COLORS: Record<RecordKind, string> = {
+  NR: colors.primary,
+  CR: colors.warning,
+  WR: colors.destructive,
 }
 
 function competitionResultsUrl(competitionId: string): string {
@@ -77,7 +54,7 @@ function RecordLine({ record }: { record: WeeklyRecord }) {
     <Text style={{ margin: "0 0 8px", fontSize: "14px", lineHeight: "20px" }}>
       <span
         style={{
-          color: colors[recordKind(record.marker)],
+          color: RECORD_COLORS[recordKind(record.marker)],
           fontWeight: 700,
         }}
       >
@@ -95,17 +72,19 @@ function RecordLine({ record }: { record: WeeklyRecord }) {
 }
 
 export function WeeklyRecordsEmail({
-  records,
+  competitions,
+  countryId,
   weekLabel,
 }: {
-  records: readonly WeeklyRecord[]
+  competitions: readonly CompetitionRecords[]
+  countryId: string
   weekLabel: string
 }) {
   const footer = organisationConfig.branding.notificationFooterText
   const intro =
-    records.length === 0
-      ? `No Irish competitor set an NR, CR or WR at a competition whose results were posted in the week of ${weekLabel}.`
-      : `Irish records from competitions whose results were posted in the week of ${weekLabel}:`
+    competitions.length === 0
+      ? `No competitor from ${countryId} set an NR, CR or WR at a competition whose results were posted in the week of ${weekLabel}.`
+      : `Records for ${countryId} from competitions whose results were posted in the week of ${weekLabel}:`
 
   return (
     <Html lang="en">
@@ -129,12 +108,12 @@ export function WeeklyRecordsEmail({
           }}
         >
           <Heading as="h1" style={{ fontSize: "20px", margin: "0 0 12px" }}>
-            {records.length === 0
-              ? "No new Irish records this week"
-              : "New Irish records"}
+            {competitions.length === 0
+              ? `No new records for ${countryId} this week`
+              : `New records for ${countryId}`}
           </Heading>
           <Text style={{ fontSize: "14px", margin: "0 0 16px" }}>{intro}</Text>
-          {groupByCompetition(records).map((group) => (
+          {competitions.map((group) => (
             <Section key={group.competitionId} style={{ marginBottom: "16px" }}>
               <Heading as="h2" style={{ fontSize: "16px", margin: "0 0 8px" }}>
                 <Link
@@ -173,19 +152,32 @@ export interface RenderedEmail {
   text: string
 }
 
+export function countRecords(
+  competitions: readonly CompetitionRecords[]
+): number {
+  return competitions.reduce(
+    (total, competition) => total + competition.records.length,
+    0
+  )
+}
+
 export async function renderWeeklyRecordsEmail(
-  records: readonly WeeklyRecord[],
+  competitions: readonly CompetitionRecords[],
+  countryId: string,
   window: WeekWindow
 ): Promise<RenderedEmail> {
   const weekLabel = formatWeekLabel(window)
+  const recordCount = countRecords(competitions)
   const subject =
-    records.length === 0
-      ? `No new Irish records: ${weekLabel}`
-      : `Irish records: ${weekLabel} (${String(records.length)})`
-  const element = <WeeklyRecordsEmail records={records} weekLabel={weekLabel} />
-  const [html, text] = await Promise.all([
-    render(element),
-    render(element, { plainText: true }),
-  ])
-  return { subject, html, text }
+    recordCount === 0
+      ? `No new records for ${countryId}: ${weekLabel}`
+      : `Records for ${countryId}: ${weekLabel} (${String(recordCount)})`
+  const { html, plainText } = await renderEmailFormats(
+    <WeeklyRecordsEmail
+      competitions={competitions}
+      countryId={countryId}
+      weekLabel={weekLabel}
+    />
+  )
+  return { subject, html, text: plainText }
 }

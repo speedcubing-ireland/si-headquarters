@@ -41,13 +41,13 @@ crons.cron(
   {}
 )
 
-// The Social Media Team's Monday 08:00 email of last week's Irish records.
-// 08:00 in Dublin is 07:00 UTC in summer and 08:00 UTC in winter, so this ticks
-// hourly on Mondays (UTC) and the target gates on local time, claims the week
-// once, and retries a failed attempt on a later tick.
+// The Social Media Team's Monday 08:00 email of last week's records. Ticks
+// hourly so the target's local-time gate alone decides when it goes out, in
+// whatever timezone the organisation is configured for; later ticks that day
+// only act to retry a failed attempt.
 crons.cron(
   "social media weekly records email",
-  "50 * * * 1",
+  "50 * * * *",
   internal.plugins.socialMedia.records.digestState.queueWeeklyDigest,
   {}
 )

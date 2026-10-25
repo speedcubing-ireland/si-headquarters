@@ -20,6 +20,27 @@ export const WCA_EVENT_LABELS: Record<string, string> = {
   "333mbf": "3x3x3 Multi-Blind",
 }
 
+/** The order events are listed in, for sorting results consistently. */
+export const WCA_EVENT_ORDER: readonly string[] = [
+  "222",
+  "333",
+  "444",
+  "555",
+  "666",
+  "777",
+  "333bf",
+  "333fm",
+  "333oh",
+  "clock",
+  "minx",
+  "pyram",
+  "skewb",
+  "sq1",
+  "444bf",
+  "555bf",
+  "333mbf",
+]
+
 export function formatWcaEventLabel(eventId: string): string {
   if (eventId in WCA_EVENT_LABELS) {
     return WCA_EVENT_LABELS[eventId]

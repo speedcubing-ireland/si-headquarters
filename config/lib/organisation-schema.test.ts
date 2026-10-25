@@ -43,6 +43,7 @@ describe("organisation configuration", () => {
       discord: false,
       sponsors: false,
       socialMedia: false,
+      recordsEmail: false,
       wcaIntegration: false,
       wca2fa: false,
       organiserInvites: false,
@@ -117,6 +118,31 @@ describe("organisation configuration", () => {
     )
   })
 
+  test("requires the WCA country id when the records email is enabled", () => {
+    const config = cloneConfig()
+    const { countryId, ...wcaWithoutCountryId } = config.wca ?? {}
+    void countryId
+
+    const result = organisationConfigSchema.safeParse({
+      ...config,
+      wca: wcaWithoutCountryId,
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual(["wca", "countryId"])
+  })
+
+  test("requires the social media feature when the records email is enabled", () => {
+    const config = cloneConfig()
+    const result = organisationConfigSchema.safeParse({
+      ...config,
+      features: { ...config.features, socialMedia: false, recordsEmail: true },
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual(["features", "recordsEmail"])
+  })
+
   test("requires sponsorship config when sponsors are enabled", () => {
     const config = cloneConfig()
     config.features = { ...config.features, sponsors: true }
@@ -145,6 +171,7 @@ describe("organisation configuration", () => {
         discord: false,
         sponsors: true,
         socialMedia: false,
+        recordsEmail: false,
         wcaIntegration: true,
         wca2fa: false,
         organiserInvites: false,
@@ -208,6 +235,7 @@ describe("organisation configuration", () => {
           discord: false,
           sponsors: false,
           socialMedia: false,
+          recordsEmail: false,
           wcaIntegration: true,
           wca2fa: false,
           organiserInvites: false,
@@ -260,6 +288,7 @@ describe("organisation configuration", () => {
           discord: false,
           sponsors: false,
           socialMedia: false,
+          recordsEmail: false,
           wcaIntegration: false,
           wca2fa: false,
           organiserInvites: false,

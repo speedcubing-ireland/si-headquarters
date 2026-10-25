@@ -94,6 +94,7 @@ describe("set-convex-env metadata", () => {
       discord: false,
       sponsors: false,
       socialMedia: false,
+      recordsEmail: false,
       wcaIntegration: false,
       wca2fa: false,
       organiserInvites: false,
@@ -115,21 +116,51 @@ describe("set-convex-env metadata", () => {
     expect(keys).not.toContain("RESEND_API_KEY")
   })
 
-  test("social media alone needs Resend and offers the records email keys", () => {
+  test("the records email alone needs Resend and its own keys", () => {
     const config = organisationConfigSchema.parse(
       structuredClone(organisationConfig)
     )
-    config.features = { ...config.features, sponsors: false, socialMedia: true }
+    config.features = {
+      ...config.features,
+      sponsors: false,
+      socialMedia: true,
+      recordsEmail: true,
+    }
     const specs = buildRequiredEnvSetup(config)
     const byKey = new Map(specs.map((spec) => [spec.key, spec]))
 
     expect(byKey.get("RESEND_API_KEY")?.optional).toBeUndefined()
-    expect(byKey.get("SOCIAL_MEDIA_RECORDS_EMAIL_TO")?.optional).toBe(true)
-    expect(byKey.get("SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS")?.optional).toBe(true)
+    expect(byKey.get("SOCIAL_MEDIA_RECORDS_EMAIL_TO")?.optional).toBeUndefined()
+    expect(
+      byKey.get("SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS")?.optional
+    ).toBeUndefined()
     expect(byKey.has("SPONSORSHIP_EMAIL_SENDER_ADDRESS")).toBe(false)
-    expect(specs.filter((spec) => spec.key === "RESEND_API_KEY")).toHaveLength(
-      1
+  })
+
+  test("asks for each key once when sponsors and the records email are on", () => {
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
     )
+    config.features = { ...config.features, sponsors: true, recordsEmail: true }
+    const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
+
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  test("the social media dashboard alone needs no email keys", () => {
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
+    )
+    config.features = {
+      ...config.features,
+      sponsors: false,
+      socialMedia: true,
+      recordsEmail: false,
+    }
+    const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
+
+    expect(keys).not.toContain("RESEND_API_KEY")
+    expect(keys).not.toContain("SOCIAL_MEDIA_RECORDS_EMAIL_TO")
   })
 
   test("generated wizard entries receive generated values", () => {
