@@ -47,20 +47,34 @@ export function previousWeekWindow(nowMs: number): WeekWindow {
   return weekWindowStartingOn(localDateOffset(thisMonday, -7))
 }
 
-/** "13–19 Oct 2026", or "29 Sept – 5 Oct 2026" across a month boundary. */
+/**
+ * "19–25 Oct 2026", "28 Sep – 4 Oct 2026" or "28 Dec 2026 – 3 Jan 2027".
+ *
+ * Composed by hand rather than with `Intl.DateTimeFormat.formatRange`, whose
+ * spacing around the dash differs between ICU builds — the email subject would
+ * otherwise change with whichever Node the runtime ships.
+ */
 export function formatWeekLabel(window: WeekWindow): string {
-  const { locale } = organisationConfig.regional
-  const toDate = (ymd: string) => {
-    const [year, month, day] = ymd.split("-").map(Number)
-    return new Date(Date.UTC(year, month - 1, day))
-  }
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).formatRange(
-    toDate(window.weekStart),
-    toDate(localDateOffset(window.weekStart, 6))
+  const monthFormat = new Intl.DateTimeFormat(
+    organisationConfig.regional.locale,
+    { month: "short", timeZone: "UTC" }
   )
+  const parts = (ymd: string) => {
+    const [year, month, day] = ymd.split("-").map(Number)
+    return {
+      year: String(year),
+      month: monthFormat.format(new Date(Date.UTC(year, month - 1, day))),
+      day: String(day),
+    }
+  }
+  const first = parts(window.weekStart)
+  const last = parts(localDateOffset(window.weekStart, 6))
+
+  if (first.year !== last.year) {
+    return `${first.day} ${first.month} ${first.year} – ${last.day} ${last.month} ${last.year}`
+  }
+  if (first.month !== last.month) {
+    return `${first.day} ${first.month} – ${last.day} ${last.month} ${last.year}`
+  }
+  return `${first.day}–${last.day} ${last.month} ${last.year}`
 }

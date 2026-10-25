@@ -59,8 +59,10 @@ describe("formatWeekLabel", () => {
       "19–25 Oct 2026"
     )
     expect(formatWeekLabel(weekWindowStartingOn("2026-09-28"))).toMatch(
-      // ICU spaces a cross-month range with thin spaces.
-      /^28 Sept?\s–\s4 Oct 2026$/
+      /^28 Sept? – 4 Oct 2026$/
+    )
+    expect(formatWeekLabel(weekWindowStartingOn("2026-12-28"))).toBe(
+      "28 Dec 2026 – 3 Jan 2027"
     )
   })
 })
