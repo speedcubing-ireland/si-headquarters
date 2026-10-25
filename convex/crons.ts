@@ -52,4 +52,13 @@ crons.cron(
   {}
 )
 
+// Saves WCA Live's recent records for the organisation's country, for the
+// Social Media page and the weekly records email.
+crons.cron(
+  "social media records sync",
+  "20 * * * *",
+  internal.plugins.socialMedia.records.store.sync,
+  {}
+)
+
 export default crons

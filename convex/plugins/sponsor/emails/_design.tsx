@@ -26,8 +26,6 @@ export {
   formatRecipientSubtitle,
 } from "./format"
 
-export { emailBrandTokens }
-
 const emailTailwindConfig = {
   presets: [pixelBasedPreset],
   theme: {

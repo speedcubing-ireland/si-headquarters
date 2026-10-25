@@ -1,9 +1,9 @@
 import {
   formatWcaEventLabel,
-  WCA_EVENT_LABELS,
+  wcaEventOrder,
 } from "@/convex/plugins/wca/eventLabels"
 
-export { formatWcaEventLabel, WCA_EVENT_LABELS }
+export { formatWcaEventLabel, wcaEventOrder }
 
 const WCA_EVENT_SHORT_LABELS: Record<string, string> = {
   "222": "2x2",

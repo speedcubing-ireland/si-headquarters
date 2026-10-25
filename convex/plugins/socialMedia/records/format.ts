@@ -1,6 +1,5 @@
-export type RecordKind = "NR" | "CR" | "WR"
-
-export type RecordType = "single" | "average"
+import { formatWcaEventLabel } from "@/convex/plugins/wca/eventLabels"
+import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0")
@@ -49,7 +48,7 @@ function formatMultiBlind(value: number): string {
  */
 export function formatWcaResult(
   eventId: string,
-  type: RecordType,
+  type: WcaRecord["type"],
   value: number
 ): string {
   if (value === -1) return "DNF"
@@ -61,4 +60,16 @@ export function formatWcaResult(
   }
   if (eventId === "333mbf") return formatMultiBlind(value)
   return formatCentiseconds(value)
+}
+
+/** "3x3x3 Cube single 9.87 (Final)", worded the same in the email and HQ. */
+export function describeRecord(
+  record: Pick<WcaRecord, "eventId" | "type" | "attemptResult" | "roundName">
+): string {
+  const result = formatWcaResult(
+    record.eventId,
+    record.type,
+    record.attemptResult
+  )
+  return `${formatWcaEventLabel(record.eventId)} ${record.type} ${result} (${record.roundName})`
 }

@@ -7,7 +7,7 @@ export const SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS_ENV =
 
 // Kept in Convex env rather than the organisation config so the team can change
 // who receives the weekly records email without a deploy. Required whenever the
-// `recordsEmail` feature is on.
+// `records` feature is on.
 export const SOCIAL_MEDIA_RECORDS_DEFINITION = {
   env: [
     SOCIAL_MEDIA_RECORDS_EMAIL_TO_ENV,

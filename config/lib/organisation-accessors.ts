@@ -98,8 +98,8 @@ export function createOrganisationAccessors(
 
   /**
    * Country the organisation runs competitions in. The WCA phase sync uses it
-   * to fetch local registration dates in one request, and the weekly records
-   * email to ask for the country's record history.
+   * to fetch local registration dates in one request, and the records sync to
+   * pick out the country's records from WCA Live.
    */
   function competitionCountryIso2(): string {
     const countryIso2 = config.wca?.countryIso2

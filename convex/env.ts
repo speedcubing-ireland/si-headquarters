@@ -1,10 +1,7 @@
 import { v } from "convex/values"
-import {
-  emailEnabled,
-  OPTIONAL_ENV_KEYS,
-  REQUIRED_ENV_KEYS,
-} from "@/convex/envConfig"
+import { OPTIONAL_ENV_KEYS, REQUIRED_ENV_KEYS } from "@/convex/envConfig"
 import { organisationConfig } from "@/config/lib/organisation"
+import { emailEnabled } from "@/config/lib/organisation-schema"
 
 function requiredStrings(keys: readonly string[]) {
   return Object.fromEntries(keys.map((key) => [key, v.string()]))

@@ -10,60 +10,39 @@ import {
   Text,
 } from "@react-email/components"
 import { organisationConfig } from "@/config/lib/organisation"
-import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 import { emailBrandTokens as colors } from "@/convex/emails/brand"
 import { renderEmailFormats } from "@/convex/emails/render"
-import { formatWcaEventLabel } from "@/convex/plugins/wca/eventLabels"
+import type { CompetitionRecords } from "@/convex/plugins/socialMedia/records/collect"
+import { describeRecord } from "@/convex/plugins/socialMedia/records/format"
 import {
-  type CompetitionRecords,
-  WCA_LIVE_URL,
-  type WeeklyRecord,
-} from "@/convex/plugins/socialMedia/records/collect"
-import {
-  formatWcaResult,
-  type RecordKind,
-} from "@/convex/plugins/socialMedia/records/format"
-import {
-  formatWeekLabel,
-  type WeekWindow,
-} from "@/convex/plugins/socialMedia/records/window"
+  liveCompetitionUrl,
+  wcaPersonUrl,
+} from "@/convex/plugins/socialMedia/records/links"
+import { formatWeekLabel } from "@/convex/plugins/socialMedia/records/window"
+import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
-const RECORD_COLORS: Record<RecordKind, string> = {
+const RECORD_COLORS: Record<WcaRecord["tag"], string> = {
   NR: colors.primary,
   CR: colors.warning,
   WR: colors.destructive,
 }
 
-/** WCA Live, as the WCA has no results for the competition until they are posted. */
-function liveCompetitionUrl(liveCompetitionId: string): string {
-  return `${WCA_LIVE_URL}/competitions/${encodeURIComponent(liveCompetitionId)}`
-}
-
-function personUrl(wcaId: string): string {
-  return `${resolveWcaBaseUrl()}/persons/${encodeURIComponent(wcaId)}`
-}
-
-function describeRecord(record: WeeklyRecord): string {
-  const result = formatWcaResult(record.eventId, record.type, record.value)
-  return `${formatWcaEventLabel(record.eventId)} ${record.type} ${result} (${record.roundName})`
-}
-
-function RecordLine({ record }: { record: WeeklyRecord }) {
+function RecordLine({ record }: { record: WcaRecord }) {
   return (
     <Text style={{ margin: "0 0 8px", fontSize: "14px", lineHeight: "20px" }}>
       <span
         style={{
-          color: RECORD_COLORS[record.marker],
+          color: RECORD_COLORS[record.tag],
           fontWeight: 700,
         }}
       >
-        {record.marker}
+        {record.tag}
       </span>{" "}
       {record.wcaId === null ? (
         <span style={{ fontWeight: 600 }}>{record.personName}</span>
       ) : (
         <Link
-          href={personUrl(record.wcaId)}
+          href={wcaPersonUrl(record.wcaId)}
           style={{ color: colors.foreground, fontWeight: 600 }}
         >
           {record.personName}
@@ -130,10 +109,7 @@ export function WeeklyRecordsEmail({
                 </Link>
               </Heading>
               {group.records.map((record) => (
-                <RecordLine
-                  key={`${record.personName}:${record.eventId}:${String(record.roundNumber)}:${record.type}`}
-                  record={record}
-                />
+                <RecordLine key={record.liveRecordId} record={record} />
               ))}
             </Section>
           ))}
@@ -157,11 +133,10 @@ export interface RenderedEmail {
   subject: string
   html: string
   text: string
+  recordCount: number
 }
 
-export function countRecords(
-  competitions: readonly CompetitionRecords[]
-): number {
+function countRecords(competitions: readonly CompetitionRecords[]): number {
   return competitions.reduce(
     (total, competition) => total + competition.records.length,
     0
@@ -180,10 +155,10 @@ function countryNameOf(countryIso2: string): string {
 export async function renderWeeklyRecordsEmail(
   competitions: readonly CompetitionRecords[],
   countryIso2: string,
-  window: WeekWindow
+  weekStart: string
 ): Promise<RenderedEmail> {
   const countryName = countryNameOf(countryIso2)
-  const weekLabel = formatWeekLabel(window)
+  const weekLabel = formatWeekLabel(weekStart)
   const recordCount = countRecords(competitions)
   const subject =
     recordCount === 0
@@ -196,5 +171,5 @@ export async function renderWeeklyRecordsEmail(
       weekLabel={weekLabel}
     />
   )
-  return { subject, html, text: plainText }
+  return { subject, html, text: plainText, recordCount }
 }

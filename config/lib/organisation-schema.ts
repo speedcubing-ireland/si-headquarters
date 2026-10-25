@@ -6,7 +6,7 @@ export const FEATURE_IDS = [
   "discord",
   "sponsors",
   "socialMedia",
-  "recordsEmail",
+  "records",
   "wcaIntegration",
   "wca2fa",
   "organiserInvites",
@@ -28,7 +28,7 @@ const featureSchemaShape = {
   discord: z.boolean(),
   sponsors: z.boolean(),
   socialMedia: z.boolean(),
-  recordsEmail: z.boolean(),
+  records: z.boolean(),
   wcaIntegration: z.boolean(),
   wca2fa: z.boolean(),
   organiserInvites: z.boolean(),
@@ -44,6 +44,10 @@ export const scheduleTransferEnabled = (features: FeatureConfig) =>
   features.google && features.wcaIntegration
 
 export const sponsorshipEnabled = (features: FeatureConfig) => features.sponsors
+
+/** Features that send email through Resend and so need its API key. */
+export const emailEnabled = (features: FeatureConfig) =>
+  features.sponsors || features.records
 
 // This provider must have the hostedDomain, this is what gates users when logging in not any of our own checks
 // (i.e. any user with their company email can make an account)
@@ -250,13 +254,12 @@ export const organisationConfigSchema = z
       )
     }
 
-    if (config.features.recordsEmail) {
+    if (config.features.records) {
       if (!config.features.socialMedia) {
         ctx.addIssue({
           code: "custom",
-          message:
-            "The weekly records email requires the social media feature.",
-          path: ["features", "recordsEmail"],
+          message: "Records require the social media feature.",
+          path: ["features", "records"],
         })
       }
 
@@ -264,7 +267,7 @@ export const organisationConfigSchema = z
         ctx,
         config.wca,
         ["wca"],
-        "The weekly records email requires WCA configuration."
+        "Records require WCA configuration."
       )
     }
 
@@ -313,7 +316,7 @@ export interface ScheduleTransferConfigRequirements {
   wca: NonNullable<OrganisationConfig["wca"]>
 }
 
-export interface RecordsEmailConfigRequirements {
+export interface RecordsConfigRequirements {
   wca: NonNullable<OrganisationConfig["wca"]>
 }
 
@@ -322,7 +325,7 @@ export interface RecordsEmailConfigRequirements {
 // literal-`true` flags, i.e. real `as const` manifests.
 type FeatureConfigRequirements<F extends FeatureConfig> =
   (F["sponsors"] extends true ? SponsorshipConfigRequirements : object) &
-    (F["recordsEmail"] extends true ? RecordsEmailConfigRequirements : object) &
+    (F["records"] extends true ? RecordsConfigRequirements : object) &
     (F["google"] extends true
       ? F["wcaIntegration"] extends true
         ? ScheduleTransferConfigRequirements

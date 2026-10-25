@@ -162,6 +162,10 @@ import type * as plugins_socialMedia_records_digest from "../plugins/socialMedia
 import type * as plugins_socialMedia_records_digestState from "../plugins/socialMedia/records/digestState.js";
 import type * as plugins_socialMedia_records_email from "../plugins/socialMedia/records/email.js";
 import type * as plugins_socialMedia_records_format from "../plugins/socialMedia/records/format.js";
+import type * as plugins_socialMedia_records_kinds from "../plugins/socialMedia/records/kinds.js";
+import type * as plugins_socialMedia_records_links from "../plugins/socialMedia/records/links.js";
+import type * as plugins_socialMedia_records_queries from "../plugins/socialMedia/records/queries.js";
+import type * as plugins_socialMedia_records_store from "../plugins/socialMedia/records/store.js";
 import type * as plugins_socialMedia_records_testFixtures from "../plugins/socialMedia/records/testFixtures.js";
 import type * as plugins_socialMedia_records_window from "../plugins/socialMedia/records/window.js";
 import type * as plugins_socialMedia_resolveHqLinks from "../plugins/socialMedia/resolveHqLinks.js";
@@ -520,6 +524,10 @@ declare const fullApi: ApiFromModules<{
   "plugins/socialMedia/records/digestState": typeof plugins_socialMedia_records_digestState;
   "plugins/socialMedia/records/email": typeof plugins_socialMedia_records_email;
   "plugins/socialMedia/records/format": typeof plugins_socialMedia_records_format;
+  "plugins/socialMedia/records/kinds": typeof plugins_socialMedia_records_kinds;
+  "plugins/socialMedia/records/links": typeof plugins_socialMedia_records_links;
+  "plugins/socialMedia/records/queries": typeof plugins_socialMedia_records_queries;
+  "plugins/socialMedia/records/store": typeof plugins_socialMedia_records_store;
   "plugins/socialMedia/records/testFixtures": typeof plugins_socialMedia_records_testFixtures;
   "plugins/socialMedia/records/window": typeof plugins_socialMedia_records_window;
   "plugins/socialMedia/resolveHqLinks": typeof plugins_socialMedia_resolveHqLinks;

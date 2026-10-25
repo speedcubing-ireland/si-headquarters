@@ -94,7 +94,7 @@ describe("set-convex-env metadata", () => {
       discord: false,
       sponsors: false,
       socialMedia: false,
-      recordsEmail: false,
+      records: false,
       wcaIntegration: false,
       wca2fa: false,
       organiserInvites: false,
@@ -124,7 +124,7 @@ describe("set-convex-env metadata", () => {
       ...config.features,
       sponsors: false,
       socialMedia: true,
-      recordsEmail: true,
+      records: true,
     }
     const specs = buildRequiredEnvSetup(config)
     const byKey = new Map(specs.map((spec) => [spec.key, spec]))
@@ -141,7 +141,7 @@ describe("set-convex-env metadata", () => {
     const config = organisationConfigSchema.parse(
       structuredClone(organisationConfig)
     )
-    config.features = { ...config.features, sponsors: true, recordsEmail: true }
+    config.features = { ...config.features, sponsors: true, records: true }
     const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
 
     expect(new Set(keys).size).toBe(keys.length)
@@ -155,7 +155,7 @@ describe("set-convex-env metadata", () => {
       ...config.features,
       sponsors: false,
       socialMedia: true,
-      recordsEmail: false,
+      records: false,
     }
     const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
 

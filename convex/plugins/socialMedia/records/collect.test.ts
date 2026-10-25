@@ -1,88 +1,72 @@
 import { afterEach, describe, expect, test, vi } from "vitest"
 import {
   fetchRecentRecords,
-  selectWeeklyRecords,
+  groupByCompetition,
+  toStoredRecords,
 } from "@/convex/plugins/socialMedia/records/collect"
-import { recentRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
-import { weekWindowStartingOn } from "@/convex/plugins/socialMedia/records/window"
-
-const WEEK = weekWindowStartingOn("2026-10-19")
+import {
+  recentRecord,
+  wcaRecord,
+} from "@/convex/plugins/socialMedia/records/testFixtures"
 
 afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe("selectWeeklyRecords", () => {
-  test("keeps the country's records from competitions that ended that week", () => {
-    const records = [
-      recentRecord({
-        competitionName: "First Day",
-        liveCompetitionId: "1",
-        endDate: "2026-10-19",
-      }),
-      recentRecord({
-        competitionName: "Last Day",
-        liveCompetitionId: "2",
-        endDate: "2026-10-25",
-      }),
-      recentRecord({
-        competitionName: "Week Before",
-        liveCompetitionId: "3",
-        endDate: "2026-10-18",
-      }),
-      recentRecord({
-        competitionName: "Week After",
-        liveCompetitionId: "4",
-        endDate: "2026-10-26",
-      }),
-      recentRecord({
-        competitionName: "Abroad",
-        liveCompetitionId: "5",
-        countryIso2: "GB",
-      }),
+describe("toStoredRecords", () => {
+  test("keeps records by the country's competitors or at its competitions", () => {
+    const feed = [
+      recentRecord({ personName: "Home", personCountryIso2: "IE" }),
+      recentRecord({ personName: "Visitor", personCountryIso2: "GB" }, [
+        "FR",
+        "IE",
+      ]),
+      recentRecord({ personName: "Abroad", personCountryIso2: "IE" }, ["FR"]),
+      recentRecord({ personName: "Elsewhere", personCountryIso2: "GB" }, [
+        "FR",
+      ]),
     ]
 
     expect(
-      selectWeeklyRecords(records, "IE", WEEK).map(
-        (competition) => competition.competitionName
-      )
-    ).toEqual(["First Day", "Last Day"])
+      toStoredRecords(feed, "IE").map((record) => record.personName)
+    ).toEqual(["Home", "Visitor", "Abroad"])
   })
 
-  test("orders records by event, round and type, and competitions by name", () => {
-    const selected = selectWeeklyRecords(
-      [
-        recentRecord({
-          eventId: "333",
-          roundName: "Final",
-          roundNumber: 2,
-          type: "average",
-        }),
-        recentRecord({
-          eventId: "333",
-          roundName: "First Round",
-          roundNumber: 1,
-        }),
-        recentRecord({ eventId: "222", tag: "WR" }),
-        recentRecord({ eventId: "333", roundName: "Final", roundNumber: 2 }),
-        recentRecord({
-          competitionName: "Cork Open 2026",
-          liveCompetitionId: "202",
-        }),
-      ],
-      "IE",
-      WEEK
-    )
+  test("maps WCA Live's record to the stored shape", () => {
+    const record = wcaRecord({ wcaId: null, tag: "CR" })
+
+    expect(toStoredRecords([recentRecord(record)], "IE")).toEqual([record])
+  })
+})
+
+describe("groupByCompetition", () => {
+  test("orders competitions by end date then name, records by event, round and type", () => {
+    const grouped = groupByCompetition([
+      wcaRecord({ eventId: "333", roundNumber: 2, type: "average" }),
+      wcaRecord({ eventId: "333", roundName: "First Round", roundNumber: 1 }),
+      wcaRecord({ eventId: "222", tag: "WR" }),
+      wcaRecord({ eventId: "333", roundNumber: 2 }),
+      wcaRecord({
+        competitionName: "Cork Open 2026",
+        liveCompetitionId: "202",
+      }),
+      wcaRecord({
+        competitionName: "Galway Open 2026",
+        liveCompetitionId: "303",
+        competitionEndDate: "2026-10-19",
+      }),
+    ])
 
     expect(
-      selected.map((competition) => [
+      grouped.map((competition) => [
         competition.competitionName,
         competition.records.map(
           (record) =>
-            `${record.marker} ${record.eventId} ${record.roundName} ${record.type}`
+            `${record.tag} ${record.eventId} ${record.roundName} ${record.type}`
         ),
       ])
     ).toEqual([
+      ["Galway Open 2026", ["NR 333 Final single"]],
       ["Cork Open 2026", ["NR 333 Final single"]],
       [
         "Dublin Open 2026",
@@ -94,19 +78,6 @@ describe("selectWeeklyRecords", () => {
         ],
       ],
     ])
-  })
-
-  test("keeps a newcomer who has no WCA ID yet", () => {
-    const selected = selectWeeklyRecords(
-      [recentRecord({ wcaId: null, personName: "New Comer" })],
-      "IE",
-      WEEK
-    )
-
-    expect(selected[0]?.records[0]).toMatchObject({
-      wcaId: null,
-      personName: "New Comer",
-    })
   })
 })
 

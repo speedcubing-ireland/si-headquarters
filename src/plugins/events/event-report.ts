@@ -1,7 +1,7 @@
 import { format, parseISO, subMonths } from "date-fns"
 import type { EventReportRow } from "@/convex/plugins/events/validators"
 import { competitionPrimaryEnd } from "@/convex/competitions/dates"
-import { WCA_EVENT_LABELS } from "@/lib/wca-events"
+import { wcaEventOrder } from "@/lib/wca-events"
 
 export type EventReportScope = "current" | "past"
 
@@ -9,10 +9,6 @@ export type EventReportScope = "current" | "past"
 const CURRENT_WINDOW_MONTHS = 4
 /** "Past" reaches back at most this many months. */
 const PAST_WINDOW_MONTHS = 14
-
-const EVENT_ORDER = new Map(
-  Object.keys(WCA_EVENT_LABELS).map((eventId, index) => [eventId, index])
-)
 
 function monthsBefore(today: string, months: number): string {
   return format(subMonths(parseISO(today), months), "yyyy-MM-dd")
@@ -49,9 +45,7 @@ export function buildEventColumns(rows: EventReportRow[]): string[] {
   }
   return [...seen].sort(
     (left, right) =>
-      (EVENT_ORDER.get(left) ?? Number.MAX_SAFE_INTEGER) -
-        (EVENT_ORDER.get(right) ?? Number.MAX_SAFE_INTEGER) ||
-      left.localeCompare(right)
+      wcaEventOrder(left) - wcaEventOrder(right) || left.localeCompare(right)
   )
 }
 

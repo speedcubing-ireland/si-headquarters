@@ -1,18 +1,17 @@
 import { z } from "zod"
-import { localDateOffset } from "@/convex/notifications/localTime"
-import { WCA_EVENT_ORDER } from "@/convex/plugins/wca/eventLabels"
-import type {
-  RecordKind,
-  RecordType,
-} from "@/convex/plugins/socialMedia/records/format"
-import type { WeekWindow } from "@/convex/plugins/socialMedia/records/window"
+import { internal } from "@/convex/_generated/api"
+import type { ActionCtx } from "@/convex/_generated/server"
+import { competitionCountryIso2 } from "@/config/lib/organisation"
+import { wcaEventOrder } from "@/convex/plugins/wca/eventLabels"
+import { WCA_LIVE_URL } from "@/convex/plugins/socialMedia/records/links"
+import {
+  RECORD_TAGS,
+  RECORD_TYPES,
+} from "@/convex/plugins/socialMedia/records/kinds"
+import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
-/**
- * WCA Live's public GraphQL endpoint. It has no staging instance, so every
- * deployment reads production whatever `DEPLOYMENT_CONTEXT` says; the query is
- * public and read-only, so that is safe.
- */
-export const WCA_LIVE_URL = "https://live.worldcubeassociation.org"
+/** How far back, by competition start date, WCA Live's recent records reach. */
+export const RECENT_RECORDS_DAYS = 10
 
 /**
  * The records WCA Live shows as "Recent records": every WR, CR and NR from
@@ -20,6 +19,7 @@ export const WCA_LIVE_URL = "https://live.worldcubeassociation.org"
  */
 const RECENT_RECORDS_QUERY = `{
   recentRecords {
+    id
     tag
     type
     attemptResult
@@ -30,7 +30,14 @@ const RECENT_RECORDS_QUERY = `{
         number
         competitionEvent {
           event { id }
-          competition { id name endDate }
+          competition {
+            id
+            wcaId
+            name
+            startDate
+            endDate
+            venues { country { iso2 } }
+          }
         }
       }
     }
@@ -38,8 +45,9 @@ const RECENT_RECORDS_QUERY = `{
 }`
 
 const recentRecordSchema = z.object({
-  tag: z.enum(["NR", "CR", "WR"]),
-  type: z.enum(["single", "average"]),
+  id: z.string(),
+  tag: z.enum(RECORD_TAGS),
+  type: z.enum(RECORD_TYPES),
   attemptResult: z.number(),
   result: z.object({
     person: z.object({
@@ -54,8 +62,13 @@ const recentRecordSchema = z.object({
         event: z.object({ id: z.string() }),
         competition: z.object({
           id: z.string(),
+          wcaId: z.string(),
           name: z.string(),
+          startDate: z.string(),
           endDate: z.string(),
+          venues: z.array(
+            z.object({ country: z.object({ iso2: z.string() }) })
+          ),
         }),
       }),
     }),
@@ -68,23 +81,12 @@ const recentRecordsResponseSchema = z.object({
 
 export type RecentRecord = z.infer<typeof recentRecordSchema>
 
-export interface WeeklyRecord {
-  /** Null for a newcomer, who has no WCA ID until results are posted. */
-  wcaId: string | null
-  personName: string
-  eventId: string
-  roundName: string
-  roundNumber: number
-  type: RecordType
-  value: number
-  marker: RecordKind
-}
-
-export interface CompetitionRecords {
-  /** WCA Live's id, for linking to the live results. */
+export interface CompetitionRecords<R extends WcaRecord = WcaRecord> {
   liveCompetitionId: string
+  wcaCompetitionId: string
   competitionName: string
-  records: WeeklyRecord[]
+  competitionEndDate: string
+  records: R[]
 }
 
 export async function fetchRecentRecords(): Promise<RecentRecord[]> {
@@ -111,17 +113,60 @@ export async function fetchRecentRecords(): Promise<RecentRecord[]> {
   return parsed.data.data.recentRecords
 }
 
-const EVENT_INDEX = new Map(
-  WCA_EVENT_ORDER.map((eventId, index) => [eventId, index])
-)
-
-function eventOrder(eventId: string): number {
-  return EVENT_INDEX.get(eventId) ?? WCA_EVENT_ORDER.length
+/**
+ * The feed's records worth keeping: those set by competitors from
+ * `countryIso2`, or set at a competition with a venue there.
+ */
+export function toStoredRecords(
+  feed: readonly RecentRecord[],
+  countryIso2: string
+): WcaRecord[] {
+  return feed
+    .filter(
+      ({ result }) =>
+        result.person.country.iso2 === countryIso2 ||
+        result.round.competitionEvent.competition.venues.some(
+          (venue) => venue.country.iso2 === countryIso2
+        )
+    )
+    .map(({ id, tag, type, attemptResult, result }) => {
+      const { person, round } = result
+      const { competition, event } = round.competitionEvent
+      return {
+        liveRecordId: id,
+        tag,
+        type,
+        attemptResult,
+        eventId: event.id,
+        roundName: round.name,
+        roundNumber: round.number,
+        personName: person.name,
+        wcaId: person.wcaId,
+        personCountryIso2: person.country.iso2,
+        liveCompetitionId: competition.id,
+        wcaCompetitionId: competition.wcaId,
+        competitionName: competition.name,
+        competitionStartDate: competition.startDate,
+        competitionEndDate: competition.endDate,
+      }
+    })
 }
 
-function compareRecords(a: WeeklyRecord, b: WeeklyRecord): number {
+/** Saves WCA Live's current recent records for the organisation's country. */
+export async function syncRecentRecords(ctx: ActionCtx): Promise<void> {
+  const records = toStoredRecords(
+    await fetchRecentRecords(),
+    competitionCountryIso2()
+  )
+  await ctx.runMutation(internal.plugins.socialMedia.records.store.saveSync, {
+    records,
+    syncedAt: Date.now(),
+  })
+}
+
+function compareRecords(a: WcaRecord, b: WcaRecord): number {
   return (
-    eventOrder(a.eventId) - eventOrder(b.eventId) ||
+    wcaEventOrder(a.eventId) - wcaEventOrder(b.eventId) ||
     a.roundNumber - b.roundNumber ||
     (a.type === b.type ? 0 : a.type === "single" ? -1 : 1) ||
     a.personName.localeCompare(b.personName)
@@ -129,62 +174,30 @@ function compareRecords(a: WeeklyRecord, b: WeeklyRecord): number {
 }
 
 /**
- * The records set by competitors from `countryIso2` at competitions that ended
- * inside the window, grouped by competition (by name) and in the order they were
- * set. Counting a competition in the week it ends reports each one once, after
- * it has finished.
+ * Records grouped by competition, the competitions in the order they ended
+ * (then by name) and each one's records by event, round and type.
  */
-export function selectWeeklyRecords(
-  records: readonly RecentRecord[],
-  countryIso2: string,
-  window: WeekWindow
-): CompetitionRecords[] {
-  const weekEnd = localDateOffset(window.weekStart, 7)
-  const competitions = new Map<string, CompetitionRecords>()
+export function groupByCompetition<R extends WcaRecord>(
+  records: readonly R[]
+): CompetitionRecords<R>[] {
+  const competitions = new Map<string, CompetitionRecords<R>>()
   for (const record of records) {
-    const { person, round } = record.result
-    const { competition, event } = round.competitionEvent
-    if (person.country.iso2 !== countryIso2) continue
-    if (
-      competition.endDate < window.weekStart ||
-      competition.endDate >= weekEnd
-    )
-      continue
-
-    const group = competitions.get(competition.id) ?? {
-      liveCompetitionId: competition.id,
-      competitionName: competition.name,
+    const group = competitions.get(record.liveCompetitionId) ?? {
+      liveCompetitionId: record.liveCompetitionId,
+      wcaCompetitionId: record.wcaCompetitionId,
+      competitionName: record.competitionName,
+      competitionEndDate: record.competitionEndDate,
       records: [],
     }
-    group.records.push({
-      wcaId: person.wcaId,
-      personName: person.name,
-      eventId: event.id,
-      roundName: round.name,
-      roundNumber: round.number,
-      type: record.type,
-      value: record.attemptResult,
-      marker: record.tag,
-    })
-    competitions.set(competition.id, group)
+    group.records.push(record)
+    competitions.set(record.liveCompetitionId, group)
   }
 
   const grouped = [...competitions.values()]
   for (const competition of grouped) competition.records.sort(compareRecords)
-  return grouped.sort((a, b) =>
-    a.competitionName.localeCompare(b.competitionName)
+  return grouped.sort(
+    (a, b) =>
+      a.competitionEndDate.localeCompare(b.competitionEndDate) ||
+      a.competitionName.localeCompare(b.competitionName)
   )
-}
-
-/**
- * The week's records for `countryIso2`, from one WCA Live request. Its window
- * reaches back 10 days by start date, so a Monday run covers every competition
- * that ended the week before unless it started more than three days before
- * that week.
- */
-export async function collectWeeklyRecords(
-  countryIso2: string,
-  window: WeekWindow
-): Promise<CompetitionRecords[]> {
-  return selectWeeklyRecords(await fetchRecentRecords(), countryIso2, window)
 }

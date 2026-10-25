@@ -1,49 +1,36 @@
 // Shared by the frontend (re-exported from `src/lib/wca-events`) and backend
-// emails, so both name events the same way.
-export const WCA_EVENT_LABELS: Record<string, string> = {
-  "222": "2x2x2 Cube",
-  "333": "3x3x3 Cube",
-  "444": "4x4x4 Cube",
-  "555": "5x5x5 Cube",
-  "666": "6x6x6 Cube",
-  "777": "7x7x7 Cube",
-  "333bf": "3x3x3 Blindfolded",
-  "333fm": "3x3x3 Fewest Moves",
-  "333oh": "3x3x3 One-Handed",
-  clock: "Clock",
-  minx: "Megaminx",
-  pyram: "Pyraminx",
-  skewb: "Skewb",
-  sq1: "Square-1",
-  "444bf": "4x4x4 Blindfolded",
-  "555bf": "5x5x5 Blindfolded",
-  "333mbf": "3x3x3 Multi-Blind",
-}
+// emails, so both name and order events the same way.
 
-/** The order events are listed in, for sorting results consistently. */
-export const WCA_EVENT_ORDER: readonly string[] = [
-  "222",
-  "333",
-  "444",
-  "555",
-  "666",
-  "777",
-  "333bf",
-  "333fm",
-  "333oh",
-  "clock",
-  "minx",
-  "pyram",
-  "skewb",
-  "sq1",
-  "444bf",
-  "555bf",
-  "333mbf",
+/** The WCA's events, in the WCA's order. */
+const WCA_EVENTS: readonly { id: string; label: string }[] = [
+  { id: "222", label: "2x2x2 Cube" },
+  { id: "333", label: "3x3x3 Cube" },
+  { id: "444", label: "4x4x4 Cube" },
+  { id: "555", label: "5x5x5 Cube" },
+  { id: "666", label: "6x6x6 Cube" },
+  { id: "777", label: "7x7x7 Cube" },
+  { id: "333bf", label: "3x3x3 Blindfolded" },
+  { id: "333fm", label: "3x3x3 Fewest Moves" },
+  { id: "333oh", label: "3x3x3 One-Handed" },
+  { id: "clock", label: "Clock" },
+  { id: "minx", label: "Megaminx" },
+  { id: "pyram", label: "Pyraminx" },
+  { id: "skewb", label: "Skewb" },
+  { id: "sq1", label: "Square-1" },
+  { id: "444bf", label: "4x4x4 Blindfolded" },
+  { id: "555bf", label: "5x5x5 Blindfolded" },
+  { id: "333mbf", label: "3x3x3 Multi-Blind" },
 ]
 
+const EVENTS_BY_ID = new Map(
+  WCA_EVENTS.map((event, index) => [event.id, { ...event, index }])
+)
+
+/** An event's position in the WCA's event order; unknown events sort last. */
+export function wcaEventOrder(eventId: string): number {
+  return EVENTS_BY_ID.get(eventId)?.index ?? WCA_EVENTS.length
+}
+
 export function formatWcaEventLabel(eventId: string): string {
-  if (eventId in WCA_EVENT_LABELS) {
-    return WCA_EVENT_LABELS[eventId]
-  }
-  return eventId.toUpperCase()
+  return EVENTS_BY_ID.get(eventId)?.label ?? eventId.toUpperCase()
 }

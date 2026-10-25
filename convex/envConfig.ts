@@ -12,7 +12,10 @@ import {
   isFeatureEnabled,
   organisationConfig,
 } from "@/config/lib/organisation"
-import type { OrganisationConfigDefinition } from "@/config/lib/organisation-schema"
+import {
+  emailEnabled,
+  type OrganisationConfigDefinition,
+} from "@/config/lib/organisation-schema"
 
 export type EnvSetupGroup =
   | "Staff auth"
@@ -211,13 +214,6 @@ export const ALL_ENV_SETUP = uniqueByKey([
   ...SOCIAL_MEDIA_RECORDS_DEFINITION.setup,
 ])
 
-/** Features that send email through Resend and so need its API key. */
-export function emailEnabled(
-  features: OrganisationConfigDefinition["features"]
-) {
-  return features.sponsors || features.recordsEmail
-}
-
 export function buildRequiredEnvSetup(
   config: OrganisationConfigDefinition
 ): EnvSetupSpec[] {
@@ -244,9 +240,7 @@ export function buildRequiredEnvSetup(
     ...(config.features.discord ? DISCORD_DEFINITION.setup : []),
     ...(emailEnabled(config.features) ? EMAIL_CORE_ENV_SETUP : []),
     ...(config.features.sponsors ? SPONSOR_EMAIL_ENV_SETUP : []),
-    ...(config.features.recordsEmail
-      ? SOCIAL_MEDIA_RECORDS_DEFINITION.setup
-      : []),
+    ...(config.features.records ? SOCIAL_MEDIA_RECORDS_DEFINITION.setup : []),
   ]
 }
 

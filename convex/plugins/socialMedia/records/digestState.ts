@@ -1,3 +1,4 @@
+import type { WithoutSystemFields } from "convex/server"
 import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
@@ -9,10 +10,7 @@ import {
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { isConfiguredLocalTimeInWindow } from "@/convex/notifications/localTime"
 import { resend } from "@/convex/sendEmails"
-import {
-  isLocalMonday,
-  previousWeekWindow,
-} from "@/convex/plugins/socialMedia/records/window"
+import { weekToReport } from "@/convex/plugins/socialMedia/records/window"
 
 /** Local hour on Monday from which the email may go out. */
 export const RECORD_DIGEST_SEND_HOUR = 8
@@ -39,16 +37,16 @@ async function getRun(
     .unique()
 }
 
-async function upsertRun(
+/** Writes the week's row whole, so a sent run keeps no stale failure fields. */
+async function saveRun(
   ctx: MutationCtx,
-  weekStart: string,
   run: DigestRun | null,
-  fields: Omit<DigestRun, "_id" | "_creationTime" | "weekStart">
+  fields: WithoutSystemFields<DigestRun>
 ): Promise<void> {
   if (run === null) {
-    await ctx.db.insert("socialMediaRecordDigestRuns", { weekStart, ...fields })
+    await ctx.db.insert("socialMediaRecordDigestRuns", fields)
   } else {
-    await ctx.db.patch("socialMediaRecordDigestRuns", run._id, fields)
+    await ctx.db.replace("socialMediaRecordDigestRuns", run._id, fields)
   }
 }
 
@@ -63,17 +61,17 @@ export const queueWeeklyDigest = internalMutation({
   args: { nowMs: v.optional(v.number()) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    if (!isFeatureEnabled("recordsEmail")) return null
+    if (!isFeatureEnabled("records")) return null
 
     const nowMs = args.nowMs ?? Date.now()
+    const weekStart = weekToReport(nowMs)
     if (
-      !isLocalMonday(nowMs) ||
+      weekStart === null ||
       !isConfiguredLocalTimeInWindow(RECORD_DIGEST_SEND_HOUR, 24, nowMs)
     ) {
       return null
     }
 
-    const { weekStart } = previousWeekWindow(nowMs)
     const run = await getRun(ctx, weekStart)
     if (
       run?.status === "sent" ||
@@ -115,13 +113,13 @@ export const deliver = internalMutation({
       html: args.html,
       text: args.text,
     })
-    await upsertRun(ctx, args.weekStart, run, {
+    await saveRun(ctx, run, {
+      weekStart: args.weekStart,
       status: "sent",
       failures: run?.failures ?? 0,
       sentAt: Date.now(),
       emailId,
       recordCount: args.recordCount,
-      lastError: undefined,
     })
     return null
   },
@@ -135,7 +133,8 @@ export const recordFailure = internalMutation({
     const run = await getRun(ctx, args.weekStart)
     if (run?.status === "sent") return null
 
-    await upsertRun(ctx, args.weekStart, run, {
+    await saveRun(ctx, run, {
+      weekStart: args.weekStart,
       status: "failed",
       failures: (run?.failures ?? 0) + 1,
       lastError: args.reason,

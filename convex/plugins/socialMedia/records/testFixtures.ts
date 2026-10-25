@@ -1,41 +1,73 @@
 import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
+import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
-/** A record as WCA Live's `recentRecords` query returns it. */
-export function recentRecord(
-  overrides: {
-    tag?: RecentRecord["tag"]
-    type?: RecentRecord["type"]
-    attemptResult?: number
-    personName?: string
-    wcaId?: string | null
-    countryIso2?: string
-    roundName?: string
-    roundNumber?: number
-    eventId?: string
-    liveCompetitionId?: string
-    competitionName?: string
-    endDate?: string
-  } = {}
-): RecentRecord {
+/** A record as it is stored, with every field overridable. */
+export function wcaRecord(overrides: Partial<WcaRecord> = {}): WcaRecord {
+  const record: WcaRecord = {
+    liveRecordId: "",
+    tag: "NR",
+    type: "single",
+    attemptResult: 987,
+    eventId: "333",
+    roundName: "Final",
+    roundNumber: 2,
+    personName: "Aoife Murphy",
+    wcaId: "2015MURP01",
+    personCountryIso2: "IE",
+    liveCompetitionId: "101",
+    wcaCompetitionId: "DublinOpen2026",
+    competitionName: "Dublin Open 2026",
+    competitionStartDate: "2026-10-24",
+    competitionEndDate: "2026-10-25",
+    ...overrides,
+  }
+  // Distinct records get distinct ids unless a test pins one.
   return {
-    tag: overrides.tag ?? "NR",
-    type: overrides.type ?? "single",
-    attemptResult: overrides.attemptResult ?? 987,
+    ...record,
+    liveRecordId:
+      overrides.liveRecordId ??
+      [
+        record.liveCompetitionId,
+        record.eventId,
+        String(record.roundNumber),
+        record.personName,
+        record.type,
+      ].join(":"),
+  }
+}
+
+/**
+ * A record as WCA Live's `recentRecords` query returns it, at a competition
+ * with venues in `venueCountries`.
+ */
+export function recentRecord(
+  overrides: Partial<WcaRecord> = {},
+  venueCountries: readonly string[] = ["IE"]
+): RecentRecord {
+  const record = wcaRecord(overrides)
+  return {
+    id: record.liveRecordId,
+    tag: record.tag,
+    type: record.type,
+    attemptResult: record.attemptResult,
     result: {
       person: {
-        name: overrides.personName ?? "Aoife Murphy",
-        wcaId: overrides.wcaId === undefined ? "2015MURP01" : overrides.wcaId,
-        country: { iso2: overrides.countryIso2 ?? "IE" },
+        name: record.personName,
+        wcaId: record.wcaId,
+        country: { iso2: record.personCountryIso2 },
       },
       round: {
-        name: overrides.roundName ?? "Final",
-        number: overrides.roundNumber ?? 2,
+        name: record.roundName,
+        number: record.roundNumber,
         competitionEvent: {
-          event: { id: overrides.eventId ?? "333" },
+          event: { id: record.eventId },
           competition: {
-            id: overrides.liveCompetitionId ?? "101",
-            name: overrides.competitionName ?? "Dublin Open 2026",
-            endDate: overrides.endDate ?? "2026-10-25",
+            id: record.liveCompetitionId,
+            wcaId: record.wcaCompetitionId,
+            name: record.competitionName,
+            startDate: record.competitionStartDate,
+            endDate: record.competitionEndDate,
+            venues: venueCountries.map((iso2) => ({ country: { iso2 } })),
           },
         },
       },

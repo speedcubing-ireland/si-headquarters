@@ -16,7 +16,10 @@ import { modules } from "@/convex/test.setup"
 import { resend } from "@/convex/sendEmails"
 import { RECORD_DIGEST_MAX_ATTEMPTS } from "@/convex/plugins/socialMedia/records/digestState"
 import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
-import { recentRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
+import {
+  recentRecord,
+  wcaRecord,
+} from "@/convex/plugins/socialMedia/records/testFixtures"
 
 vi.mock(
   "@/config/lib/organisation",
@@ -110,7 +113,8 @@ describe("weekly records email", () => {
         recentRecord({
           liveCompetitionId: "99",
           competitionName: "Old News 2026",
-          endDate: "2026-10-18",
+          competitionStartDate: "2026-10-17",
+          competitionEndDate: "2026-10-18",
         }),
       ],
     })
@@ -133,6 +137,29 @@ describe("weekly records email", () => {
       emailId: "email-1",
       recordCount: 1,
     })
+  })
+
+  test("includes a week's records synced before they left WCA Live's feed", async () => {
+    const t = convexTest(schema, modules)
+    // Started before the Monday run's feed reaches back to, so only an earlier
+    // sync saw it.
+    await t.mutation(internal.plugins.socialMedia.records.store.saveSync, {
+      records: [
+        wcaRecord({
+          liveCompetitionId: "77",
+          competitionName: "Long Weekend 2026",
+          competitionStartDate: "2026-10-15",
+          competitionEndDate: "2026-10-19",
+        }),
+      ],
+      syncedAt: Date.UTC(2026, 9, 20),
+    })
+    stubWcaLive({ records: [] })
+
+    await tick(t, at(8))
+
+    expect(sentEmail().subject).toBe("Records for Ireland: 19–25 Oct 2026 (1)")
+    expect(sentEmail().text).toContain("LONG WEEKEND 2026")
   })
 
   test("says nothing happened when there were no records", async () => {
@@ -188,7 +215,7 @@ describe("weekly records email", () => {
   test("does nothing while the records email feature is off", async () => {
     const organisation = await import("@/config/lib/organisation")
     vi.spyOn(organisation, "isFeatureEnabled").mockImplementation(
-      (feature) => feature !== "recordsEmail"
+      (feature) => feature !== "records"
     )
     const t = convexTest(schema, modules)
     const fetchMock = stubWcaLive({ records: [] })
