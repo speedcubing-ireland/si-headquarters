@@ -42,6 +42,7 @@ const organisationConfig = {
     discord: true,
     sponsors: true,
     socialMedia: true,
+    records: true,
     wcaIntegration: true,
     wca2fa: true,
     organiserInvites: true,

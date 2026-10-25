@@ -1,6 +1,7 @@
 import { CANVA_DEFINITION } from "@/convex/plugins/canva/definition"
 import { DISCORD_DEFINITION } from "@/convex/plugins/discord/definition"
 import { GOOGLE_DEFINITION } from "@/convex/plugins/google/definition"
+import { SOCIAL_MEDIA_RECORDS_DEFINITION } from "@/convex/plugins/socialMedia/definition"
 import {
   ACHIEVEMENTS_DEFINITION,
   WCA_2FA_DEFINITION,
@@ -11,7 +12,10 @@ import {
   isFeatureEnabled,
   organisationConfig,
 } from "@/config/lib/organisation"
-import type { OrganisationConfigDefinition } from "@/config/lib/organisation-schema"
+import {
+  emailEnabled,
+  type OrganisationConfigDefinition,
+} from "@/config/lib/organisation-schema"
 
 export type EnvSetupGroup =
   | "Staff auth"
@@ -154,7 +158,7 @@ const EMAIL_CORE_ENV_SETUP = [
     key: "RESEND_API_KEY",
     group: "Email",
     kind: "prompt",
-    description: "Resend API key for sponsor emails.",
+    description: "Resend API key for sponsor and weekly records emails.",
     sensitive: true,
   },
   {
@@ -167,20 +171,21 @@ const EMAIL_CORE_ENV_SETUP = [
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
-export const EMAIL_ENV_SETUP: readonly EnvSetupSpec[] = [
-  ...EMAIL_CORE_ENV_SETUP,
-  ...(isFeatureEnabled("sponsors")
-    ? [
-        {
-          key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
-          group: "Email",
-          kind: "prompt",
-          description: "From address for sponsorship emails.",
-          defaultValue: configuredSponsorshipSenderAddress(),
-        } satisfies EnvSetupSpec,
-      ]
-    : []),
-]
+// Gated on the live config because its default reads the sponsorship contacts,
+// which only exist when sponsors are on.
+const SPONSOR_EMAIL_ENV_SETUP: readonly EnvSetupSpec[] = isFeatureEnabled(
+  "sponsors"
+)
+  ? [
+      {
+        key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
+        group: "Email",
+        kind: "prompt",
+        description: "From address for sponsorship emails.",
+        defaultValue: configuredSponsorshipSenderAddress(),
+      },
+    ]
+  : []
 
 function uniqueByKey(specs: readonly EnvSetupSpec[]): EnvSetupSpec[] {
   const seen = new Set<string>()
@@ -204,7 +209,9 @@ export const ALL_ENV_SETUP = uniqueByKey([
   ...ACHIEVEMENTS_DEFINITION.setup,
   ...CANVA_DEFINITION.setup,
   ...DISCORD_DEFINITION.setup,
-  ...EMAIL_ENV_SETUP,
+  ...EMAIL_CORE_ENV_SETUP,
+  ...SPONSOR_EMAIL_ENV_SETUP,
+  ...SOCIAL_MEDIA_RECORDS_DEFINITION.setup,
 ])
 
 export function buildRequiredEnvSetup(
@@ -231,7 +238,9 @@ export function buildRequiredEnvSetup(
     ...(config.features.wcaIntegration ? ACHIEVEMENTS_DEFINITION.setup : []),
     ...(config.features.canva ? CANVA_DEFINITION.setup : []),
     ...(config.features.discord ? DISCORD_DEFINITION.setup : []),
-    ...(config.features.sponsors ? EMAIL_ENV_SETUP : []),
+    ...(emailEnabled(config.features) ? EMAIL_CORE_ENV_SETUP : []),
+    ...(config.features.sponsors ? SPONSOR_EMAIL_ENV_SETUP : []),
+    ...(config.features.records ? SOCIAL_MEDIA_RECORDS_DEFINITION.setup : []),
   ]
 }
 

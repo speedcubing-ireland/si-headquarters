@@ -1,5 +1,6 @@
 import { render } from "@react-email/components"
 import type { ReactElement } from "react"
+import { renderEmailFormats } from "@/convex/emails/render"
 import type { SponsorPortalOtpEmailProps } from "@/convex/plugins/sponsor/lib/validators"
 import type { SponsorshipEmailType } from "@/convex/plugins/sponsor/lib/validators"
 import { buildElement as buildAuctionActiveReminder } from "./auction_active_reminder"
@@ -53,17 +54,6 @@ async function renderBuiltEmail(
   return render(element, options)
 }
 
-async function renderBothFormats(element: ReactElement): Promise<{
-  html: string
-  plainText: string
-}> {
-  const [html, plainText] = await Promise.all([
-    render(element),
-    render(element, { plainText: true }),
-  ])
-  return { html, plainText }
-}
-
 export function buildSponsorshipEmailHtml(
   input: BuildEmailInput
 ): Promise<string> {
@@ -79,5 +69,5 @@ export function buildSponsorshipEmailPlainText(
 export function buildSponsorPortalOtpEmail(
   props: SponsorPortalOtpEmailProps
 ): Promise<{ html: string; plainText: string }> {
-  return renderBothFormats(<OtpSignInEmail {...props} />)
+  return renderEmailFormats(<OtpSignInEmail {...props} />)
 }

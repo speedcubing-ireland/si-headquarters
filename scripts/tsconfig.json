@@ -28,6 +28,7 @@
     "../convex/plugins/canva/definition.ts",
     "../convex/plugins/discord/definition.ts",
     "../convex/plugins/google/definition.ts",
+    "../convex/plugins/socialMedia/definition.ts",
     "../convex/plugins/wca/definition.ts",
     "../config/*.ts",
     "../config/lib/*.ts"

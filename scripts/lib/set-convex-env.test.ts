@@ -94,6 +94,7 @@ describe("set-convex-env metadata", () => {
       discord: false,
       sponsors: false,
       socialMedia: false,
+      records: false,
       wcaIntegration: false,
       wca2fa: false,
       organiserInvites: false,
@@ -113,6 +114,53 @@ describe("set-convex-env metadata", () => {
     expect(keys).not.toContain("SPONSOR_BETTER_AUTH_SECRET")
     expect(keys).not.toContain("SPONSOR_SITE_URL")
     expect(keys).not.toContain("RESEND_API_KEY")
+  })
+
+  test("the records email alone needs Resend and its own keys", () => {
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
+    )
+    config.features = {
+      ...config.features,
+      sponsors: false,
+      socialMedia: true,
+      records: true,
+    }
+    const specs = buildRequiredEnvSetup(config)
+    const byKey = new Map(specs.map((spec) => [spec.key, spec]))
+
+    expect(byKey.get("RESEND_API_KEY")?.optional).toBeUndefined()
+    expect(byKey.get("SOCIAL_MEDIA_RECORDS_EMAIL_TO")?.optional).toBeUndefined()
+    expect(
+      byKey.get("SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS")?.optional
+    ).toBeUndefined()
+    expect(byKey.has("SPONSORSHIP_EMAIL_SENDER_ADDRESS")).toBe(false)
+  })
+
+  test("asks for each key once when sponsors and the records email are on", () => {
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
+    )
+    config.features = { ...config.features, sponsors: true, records: true }
+    const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
+
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  test("the social media dashboard alone needs no email keys", () => {
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
+    )
+    config.features = {
+      ...config.features,
+      sponsors: false,
+      socialMedia: true,
+      records: false,
+    }
+    const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
+
+    expect(keys).not.toContain("RESEND_API_KEY")
+    expect(keys).not.toContain("SOCIAL_MEDIA_RECORDS_EMAIL_TO")
   })
 
   test("generated wizard entries receive generated values", () => {

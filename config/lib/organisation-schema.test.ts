@@ -43,6 +43,7 @@ describe("organisation configuration", () => {
       discord: false,
       sponsors: false,
       socialMedia: false,
+      records: false,
       wcaIntegration: false,
       wca2fa: false,
       organiserInvites: false,
@@ -117,6 +118,37 @@ describe("organisation configuration", () => {
     )
   })
 
+  test("requires WCA config when records are enabled", () => {
+    const config = cloneConfig()
+    config.features = {
+      ...config.features,
+      google: false,
+      wcaIntegration: false,
+      organiserInvites: false,
+      events: false,
+    }
+    config.auth.providers = config.auth.providers.filter(
+      (provider) => provider.id !== "wca"
+    )
+    delete config.wca
+
+    const result = organisationConfigSchema.safeParse(config)
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([["wca"]])
+  })
+
+  test("requires the social media feature when records are enabled", () => {
+    const config = cloneConfig()
+    const result = organisationConfigSchema.safeParse({
+      ...config,
+      features: { ...config.features, socialMedia: false, records: true },
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.path).toEqual(["features", "records"])
+  })
+
   test("requires sponsorship config when sponsors are enabled", () => {
     const config = cloneConfig()
     config.features = { ...config.features, sponsors: true }
@@ -145,6 +177,7 @@ describe("organisation configuration", () => {
         discord: false,
         sponsors: true,
         socialMedia: false,
+        records: false,
         wcaIntegration: true,
         wca2fa: false,
         organiserInvites: false,
@@ -208,6 +241,7 @@ describe("organisation configuration", () => {
           discord: false,
           sponsors: false,
           socialMedia: false,
+          records: false,
           wcaIntegration: true,
           wca2fa: false,
           organiserInvites: false,
@@ -260,6 +294,7 @@ describe("organisation configuration", () => {
           discord: false,
           sponsors: false,
           socialMedia: false,
+          records: false,
           wcaIntegration: false,
           wca2fa: false,
           organiserInvites: false,

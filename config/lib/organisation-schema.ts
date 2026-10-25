@@ -6,6 +6,7 @@ export const FEATURE_IDS = [
   "discord",
   "sponsors",
   "socialMedia",
+  "records",
   "wcaIntegration",
   "wca2fa",
   "organiserInvites",
@@ -27,6 +28,7 @@ const featureSchemaShape = {
   discord: z.boolean(),
   sponsors: z.boolean(),
   socialMedia: z.boolean(),
+  records: z.boolean(),
   wcaIntegration: z.boolean(),
   wca2fa: z.boolean(),
   organiserInvites: z.boolean(),
@@ -42,6 +44,10 @@ export const scheduleTransferEnabled = (features: FeatureConfig) =>
   features.google && features.wcaIntegration
 
 export const sponsorshipEnabled = (features: FeatureConfig) => features.sponsors
+
+/** Features that send email through Resend and so need its API key. */
+export const emailEnabled = (features: FeatureConfig) =>
+  features.sponsors || features.records
 
 // This provider must have the hostedDomain, this is what gates users when logging in not any of our own checks
 // (i.e. any user with their company email can make an account)
@@ -248,6 +254,23 @@ export const organisationConfigSchema = z
       )
     }
 
+    if (config.features.records) {
+      if (!config.features.socialMedia) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Records require the social media feature.",
+          path: ["features", "records"],
+        })
+      }
+
+      requireConfig(
+        ctx,
+        config.wca,
+        ["wca"],
+        "Records require WCA configuration."
+      )
+    }
+
     if (sponsorshipEnabled(config.features)) {
       requireConfig(
         ctx,
@@ -293,11 +316,16 @@ export interface ScheduleTransferConfigRequirements {
   wca: NonNullable<OrganisationConfig["wca"]>
 }
 
+export interface RecordsConfigRequirements {
+  wca: NonNullable<OrganisationConfig["wca"]>
+}
+
 // `object` is the intersection identity for a config (Config & object = Config),
 // so disabled features add no requirements. The constraint only fires for
 // literal-`true` flags, i.e. real `as const` manifests.
 type FeatureConfigRequirements<F extends FeatureConfig> =
   (F["sponsors"] extends true ? SponsorshipConfigRequirements : object) &
+    (F["records"] extends true ? RecordsConfigRequirements : object) &
     (F["google"] extends true
       ? F["wcaIntegration"] extends true
         ? ScheduleTransferConfigRequirements

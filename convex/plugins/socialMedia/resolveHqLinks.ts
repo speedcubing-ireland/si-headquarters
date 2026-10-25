@@ -1,5 +1,5 @@
 import { v, type Infer } from "convex/values"
-import { internalQuery } from "@/convex/_generated/server"
+import { internalQuery, type QueryCtx } from "@/convex/_generated/server"
 
 export const hqLinkValidator = v.object({
   wcaCompetitionId: v.string(),
@@ -8,6 +8,27 @@ export const hqLinkValidator = v.object({
 })
 
 export type HqLink = Infer<typeof hqLinkValidator>
+
+/** The HQ competition linked to a WCA competition id, if there is one. */
+export async function findHqLink(
+  ctx: QueryCtx,
+  wcaCompetitionId: string
+): Promise<HqLink | null> {
+  const trimmed = wcaCompetitionId.trim()
+  if (trimmed === "") return null
+
+  const competition = await ctx.db
+    .query("competitions")
+    .withIndex("by_wcaCompetitionId", (q) => q.eq("wcaCompetitionId", trimmed))
+    .first()
+  if (competition === null) return null
+
+  return {
+    wcaCompetitionId: trimmed,
+    competitionId: competition._id,
+    name: competition.name,
+  }
+}
 
 export const resolve = internalQuery({
   args: {
@@ -18,23 +39,8 @@ export const resolve = internalQuery({
     const links: HqLink[] = []
 
     for (const wcaCompetitionId of args.wcaCompetitionIds) {
-      const trimmed = wcaCompetitionId.trim()
-      if (trimmed === "") continue
-
-      const competition = await ctx.db
-        .query("competitions")
-        .withIndex("by_wcaCompetitionId", (q) =>
-          q.eq("wcaCompetitionId", trimmed)
-        )
-        .first()
-
-      if (competition === null) continue
-
-      links.push({
-        wcaCompetitionId: trimmed,
-        competitionId: competition._id,
-        name: competition.name,
-      })
+      const link = await findHqLink(ctx, wcaCompetitionId)
+      if (link !== null) links.push(link)
     }
 
     return links

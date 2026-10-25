@@ -41,4 +41,24 @@ crons.cron(
   {}
 )
 
+// The Social Media Team's Monday 08:00 email of last week's records. Ticks
+// hourly so the target's local-time gate alone decides when it goes out, in
+// whatever timezone the organisation is configured for; later ticks that day
+// only act to retry a failed attempt.
+crons.cron(
+  "social media weekly records email",
+  "50 * * * *",
+  internal.plugins.socialMedia.records.digestState.queueWeeklyDigest,
+  {}
+)
+
+// Saves WCA Live's recent records for the organisation's country, for the
+// Social Media page and the weekly records email.
+crons.cron(
+  "social media records sync",
+  "20 * * * *",
+  internal.plugins.socialMedia.records.store.sync,
+  {}
+)
+
 export default crons
