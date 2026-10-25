@@ -111,6 +111,10 @@ const wcaSchema = z
       .string()
       .trim()
       .regex(/^[A-Z]{2}$/, "Must be a two-letter uppercase ISO 3166-1 code."),
+    // The WCA's own id for that country (e.g. "Ireland"), which its records
+    // endpoint takes as `region` instead of the ISO code. Only the social media
+    // weekly records email needs it, so it is optional.
+    countryId: nonEmptyString.optional(),
   })
   .strict()
 

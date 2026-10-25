@@ -35,6 +35,7 @@ const organisationConfig = {
   wca: {
     scheduleTemplateCompetitionId: "IrelandTemplate2100",
     countryIso2: "IE",
+    countryId: "Ireland",
   },
   features: {
     google: true,

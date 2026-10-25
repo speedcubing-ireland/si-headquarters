@@ -53,6 +53,8 @@ type Env = {
   readonly SERVICE_WCA_ID: string;
   readonly SERVICE_WCA_SECRET: string;
   readonly SITE_URL: string;
+  readonly SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS: string | undefined;
+  readonly SOCIAL_MEDIA_RECORDS_EMAIL_TO: string | undefined;
   readonly SPONSORSHIP_EMAIL_SENDER_ADDRESS: string;
   readonly SPONSOR_BETTER_AUTH_SECRET: string;
   readonly SPONSOR_SITE_URL: string;

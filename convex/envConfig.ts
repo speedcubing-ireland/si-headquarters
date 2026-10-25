@@ -1,6 +1,7 @@
 import { CANVA_DEFINITION } from "@/convex/plugins/canva/definition"
 import { DISCORD_DEFINITION } from "@/convex/plugins/discord/definition"
 import { GOOGLE_DEFINITION } from "@/convex/plugins/google/definition"
+import { SOCIAL_MEDIA_RECORDS_DEFINITION } from "@/convex/plugins/socialMedia/definition"
 import {
   ACHIEVEMENTS_DEFINITION,
   WCA_2FA_DEFINITION,
@@ -154,7 +155,7 @@ const EMAIL_CORE_ENV_SETUP = [
     key: "RESEND_API_KEY",
     group: "Email",
     kind: "prompt",
-    description: "Resend API key for sponsor emails.",
+    description: "Resend API key for sponsor and social media emails.",
     sensitive: true,
   },
   {
@@ -205,7 +206,15 @@ export const ALL_ENV_SETUP = uniqueByKey([
   ...CANVA_DEFINITION.setup,
   ...DISCORD_DEFINITION.setup,
   ...EMAIL_ENV_SETUP,
+  ...SOCIAL_MEDIA_RECORDS_DEFINITION.setup,
 ])
+
+/** Features that send email through Resend and so need its API key. */
+export function emailEnabled(
+  features: OrganisationConfigDefinition["features"]
+) {
+  return features.sponsors || features.socialMedia
+}
 
 export function buildRequiredEnvSetup(
   config: OrganisationConfigDefinition
@@ -213,7 +222,9 @@ export function buildRequiredEnvSetup(
   const providerIds = new Set(
     config.auth.providers.map((provider) => provider.id)
   )
-  return [
+  // Sponsors and social media both need the Resend core keys; dedupe so the
+  // wizard asks for them once when both are on.
+  return uniqueByKey([
     ...AUTH_ENV_SETUP,
     ...APP_SECRET_ENV_SETUP.filter(
       (spec) =>
@@ -232,7 +243,10 @@ export function buildRequiredEnvSetup(
     ...(config.features.canva ? CANVA_DEFINITION.setup : []),
     ...(config.features.discord ? DISCORD_DEFINITION.setup : []),
     ...(config.features.sponsors ? EMAIL_ENV_SETUP : []),
-  ]
+    ...(config.features.socialMedia
+      ? [...EMAIL_CORE_ENV_SETUP, ...SOCIAL_MEDIA_RECORDS_DEFINITION.setup]
+      : []),
+  ])
 }
 
 export const REQUIRED_ENV_SETUP = buildRequiredEnvSetup(organisationConfig)

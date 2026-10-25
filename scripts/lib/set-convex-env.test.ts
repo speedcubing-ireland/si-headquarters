@@ -115,6 +115,23 @@ describe("set-convex-env metadata", () => {
     expect(keys).not.toContain("RESEND_API_KEY")
   })
 
+  test("social media alone needs Resend and offers the records email keys", () => {
+    const config = organisationConfigSchema.parse(
+      structuredClone(organisationConfig)
+    )
+    config.features = { ...config.features, sponsors: false, socialMedia: true }
+    const specs = buildRequiredEnvSetup(config)
+    const byKey = new Map(specs.map((spec) => [spec.key, spec]))
+
+    expect(byKey.get("RESEND_API_KEY")?.optional).toBeUndefined()
+    expect(byKey.get("SOCIAL_MEDIA_RECORDS_EMAIL_TO")?.optional).toBe(true)
+    expect(byKey.get("SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS")?.optional).toBe(true)
+    expect(byKey.has("SPONSORSHIP_EMAIL_SENDER_ADDRESS")).toBe(false)
+    expect(specs.filter((spec) => spec.key === "RESEND_API_KEY")).toHaveLength(
+      1
+    )
+  })
+
   test("generated wizard entries receive generated values", () => {
     const generated = {
       CLI_AUTH_TOKEN: "cli-token",

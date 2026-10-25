@@ -276,7 +276,10 @@
       "plugins": ["typescript"]
     },
     {
-      "files": ["convex/plugins/sponsor/emails/**/*.{ts,tsx}"],
+      "files": [
+        "convex/plugins/sponsor/emails/**/*.{ts,tsx}",
+        "convex/plugins/socialMedia/records/**/*.tsx"
+      ],
       "rules": {
         "react/only-export-components": "off"
       },

@@ -16,5 +16,6 @@ export const {
   configuredSponsorshipSenderAddress,
   scheduleTransferConfig,
   competitionCountryIso2,
+  wcaCountryId,
   gettingStartedVideoUrl,
 } = createOrganisationAccessors(organisationConfig)
