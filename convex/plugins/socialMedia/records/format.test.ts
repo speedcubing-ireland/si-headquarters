@@ -1,11 +1,5 @@
 import { describe, expect, test } from "vitest"
-import {
-  formatWcaResult,
-  recordKind,
-  recordLabel,
-  roundLabel,
-  roundOrder,
-} from "@/convex/plugins/socialMedia/records/format"
+import { formatWcaResult } from "@/convex/plugins/socialMedia/records/format"
 
 describe("formatWcaResult", () => {
   test("prints times the way the WCA does", () => {
@@ -31,32 +25,5 @@ describe("formatWcaResult", () => {
     expect(formatWcaResult("333", "single", -1)).toBe("DNF")
     expect(formatWcaResult("333", "single", -2)).toBe("DNS")
     expect(formatWcaResult("333", "single", 0)).toBe("")
-  })
-})
-
-describe("record labels", () => {
-  test("treats every continental marker as a CR and keeps the continent", () => {
-    expect(recordKind("NR")).toBe("NR")
-    expect(recordKind("WR")).toBe("WR")
-    for (const marker of ["ER", "AsR", "NAR", "SAR", "AfR", "OcR"]) {
-      expect(recordKind(marker)).toBe("CR")
-    }
-    expect(recordLabel("NR")).toBe("NR")
-    expect(recordLabel("WR")).toBe("WR")
-    expect(recordLabel("ER")).toBe("CR (ER)")
-  })
-
-  test("names combined rounds like their plain counterparts", () => {
-    expect(roundLabel("f")).toBe("Final")
-    expect(roundLabel("c")).toBe("Final")
-    expect(roundLabel("1")).toBe("First round")
-    expect(roundLabel("d")).toBe("First round")
-    expect(roundLabel("?")).toBe("Round")
-  })
-
-  test("orders rounds as they are held, unknown ones last", () => {
-    expect(roundOrder("1")).toBeLessThan(roundOrder("d"))
-    expect(roundOrder("d")).toBeLessThan(roundOrder("2"))
-    expect(roundOrder("c")).toBeLessThan(roundOrder("?"))
   })
 })

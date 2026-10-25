@@ -15,8 +15,8 @@ import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 import { resend } from "@/convex/sendEmails"
 import { RECORD_DIGEST_MAX_ATTEMPTS } from "@/convex/plugins/socialMedia/records/digestState"
-import { wcaRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
-import type { Record as WcaRecord } from "@/convex/plugins/wca/openapiClient/types.gen"
+import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
+import { recentRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
 
 vi.mock(
   "@/config/lib/organisation",
@@ -28,56 +28,15 @@ vi.mock(
 const MONDAY = Date.UTC(2026, 9, 26)
 const at = (hour: number, minute = 50) => MONDAY + (hour * 60 + minute) * 60_000
 const WEEK_START = "2026-10-19"
-const POSTED_IN_WEEK = "2026-10-21T15:00:00.000Z"
 
-function requestUrl(input: unknown): URL {
-  if (typeof input === "string") return new URL(input)
-  if (input instanceof URL) return input
-  if (input instanceof Request) return new URL(input.url)
-  throw new Error("Unexpected fetch input")
-}
-
-function byEvent(history: readonly WcaRecord[]): Record<string, WcaRecord[]> {
-  const records: Record<string, WcaRecord[]> = {}
-  for (const record of history) {
-    ;(records[record.event_id] ??= []).push(record)
-  }
-  return records
-}
-
-/** Routes the two public WCA endpoints the digest calls. */
-function stubWca(options: {
-  history: WcaRecord[]
-  postedAt?: Partial<Record<string, string>>
-  failHistory?: boolean
-}) {
+/** Answers the WCA Live records query the digest makes. */
+function stubWcaLive(options: { records: RecentRecord[]; fail?: boolean }) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-    const url = requestUrl(input)
-    if (url.pathname.endsWith("/v0/results/records")) {
-      if (options.failHistory === true) {
-        return Response.json({ error: "unavailable" }, { status: 503 })
-      }
-      expect(url.searchParams.get("region")).toBe("IE")
-      expect(url.searchParams.get("show")).toBe("history")
-      return Response.json({
-        records: byEvent(options.history),
-        timestamp: "2026-10-26",
-      })
+    expect(input).toBe("https://live.worldcubeassociation.org/api")
+    if (options.fail === true) {
+      return Response.json({ error: "unavailable" }, { status: 503 })
     }
-    if (url.pathname.endsWith("/v0/competition_index")) {
-      const id = url.searchParams.get("q") ?? ""
-      const postedAt = options.postedAt?.[id]
-      // `q` is a substring search, so a longer id that contains it comes back
-      // too; the digest must pick the exact one.
-      return Response.json([
-        { id: `${id}Extra`, results_posted_at: POSTED_IN_WEEK },
-        {
-          id,
-          ...(postedAt === undefined ? {} : { results_posted_at: postedAt }),
-        },
-      ])
-    }
-    throw new Error(`Unexpected fetch to ${url.href}`)
+    return Response.json({ data: { recentRecords: options.records } })
   })
 }
 
@@ -133,7 +92,7 @@ afterEach(() => {
 describe("weekly records email", () => {
   test("waits for 08:00 local time on a Monday", async () => {
     const t = convexTest(schema, modules)
-    const fetchMock = stubWca({ history: [] })
+    const fetchMock = stubWcaLive({ records: [] })
 
     await tick(t, at(7))
     await tick(t, at(7) + 24 * 60 * 60_000)
@@ -145,18 +104,15 @@ describe("weekly records email", () => {
 
   test("sends last week's records once", async () => {
     const t = convexTest(schema, modules)
-    stubWca({
-      history: [
-        wcaRecord({ competition_id: "DublinOpen2026" }),
-        wcaRecord({
-          competition_id: "OldNews2026",
-          competition_name: "Old News 2026",
+    stubWcaLive({
+      records: [
+        recentRecord(),
+        recentRecord({
+          liveCompetitionId: "99",
+          competitionName: "Old News 2026",
+          endDate: "2026-10-18",
         }),
       ],
-      postedAt: {
-        DublinOpen2026: POSTED_IN_WEEK,
-        OldNews2026: "2026-10-12T15:00:00.000Z",
-      },
     })
 
     await tick(t, at(8))
@@ -181,7 +137,7 @@ describe("weekly records email", () => {
 
   test("says nothing happened when there were no records", async () => {
     const t = convexTest(schema, modules)
-    stubWca({ history: [] })
+    stubWcaLive({ records: [] })
 
     await tick(t, at(8))
 
@@ -194,18 +150,18 @@ describe("weekly records email", () => {
 
   test("retries a failed run on a later tick", async () => {
     const t = convexTest(schema, modules)
-    const fetchMock = stubWca({ history: [], failHistory: true })
+    const fetchMock = stubWcaLive({ records: [], fail: true })
 
     await tick(t, at(8))
     expect(sendEmail).not.toHaveBeenCalled()
     expect(await getRun(t)).toMatchObject({
       status: "failed",
       failures: 1,
-      lastError: "WCA record history lookup failed.",
+      lastError: "WCA Live recent records lookup failed (HTTP 503).",
     })
 
     fetchMock.mockRestore()
-    stubWca({ history: [] })
+    stubWcaLive({ records: [] })
     await tick(t, at(9))
 
     expect(sendEmail).toHaveBeenCalledTimes(1)
@@ -214,7 +170,7 @@ describe("weekly records email", () => {
 
   test("gives up after the last attempt", async () => {
     const t = convexTest(schema, modules)
-    const fetchMock = stubWca({ history: [], failHistory: true })
+    const fetchMock = stubWcaLive({ records: [], fail: true })
 
     for (let hour = 8; hour < 8 + RECORD_DIGEST_MAX_ATTEMPTS; hour += 1) {
       await tick(t, at(hour))
@@ -235,7 +191,7 @@ describe("weekly records email", () => {
       (feature) => feature !== "recordsEmail"
     )
     const t = convexTest(schema, modules)
-    const fetchMock = stubWca({ history: [] })
+    const fetchMock = stubWcaLive({ records: [] })
 
     await tick(t, at(8))
 

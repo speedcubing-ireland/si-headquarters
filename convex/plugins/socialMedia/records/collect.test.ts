@@ -1,126 +1,146 @@
-import { describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 import {
-  candidateRecords,
-  RESULTS_POSTING_LOOKBACK_DAYS,
-  selectRecordsPostedInWindow,
+  fetchRecentRecords,
+  selectWeeklyRecords,
 } from "@/convex/plugins/socialMedia/records/collect"
-import { wcaRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
+import { recentRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
 import { weekWindowStartingOn } from "@/convex/plugins/socialMedia/records/window"
-import { localDateOffset } from "@/convex/notifications/localTime"
 
 const WEEK = weekWindowStartingOn("2026-10-19")
-const INSIDE = "2026-10-21T15:00:00.000Z"
 
-describe("candidateRecords", () => {
-  test("keeps only records recent enough to have been posted that week", () => {
-    const recent = wcaRecord({ start_date: "2026-10-17" })
-    const atLookback = wcaRecord({
-      start_date: localDateOffset("2026-10-19", -RESULTS_POSTING_LOOKBACK_DAYS),
-    })
-    const tooOld = wcaRecord({
-      start_date: localDateOffset(
-        "2026-10-19",
-        -RESULTS_POSTING_LOOKBACK_DAYS - 1
-      ),
-    })
-    const afterWeek = wcaRecord({ start_date: "2026-10-26" })
-
-    expect(
-      candidateRecords([recent, atLookback, tooOld, afterWeek], WEEK)
-    ).toEqual([recent, atLookback])
-  })
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
-describe("selectRecordsPostedInWindow", () => {
-  test("keeps records from competitions posted inside the week only", () => {
-    const posted = wcaRecord({ competition_id: "PostedThisWeek2026" })
-    const earlier = wcaRecord({ competition_id: "PostedLastWeek2026" })
-    const onEnd = wcaRecord({ competition_id: "PostedAtMidnight2026" })
-    const unposted = wcaRecord({ competition_id: "NotPosted2026" })
+describe("selectWeeklyRecords", () => {
+  test("keeps the country's records from competitions that ended that week", () => {
+    const records = [
+      recentRecord({
+        competitionName: "First Day",
+        liveCompetitionId: "1",
+        endDate: "2026-10-19",
+      }),
+      recentRecord({
+        competitionName: "Last Day",
+        liveCompetitionId: "2",
+        endDate: "2026-10-25",
+      }),
+      recentRecord({
+        competitionName: "Week Before",
+        liveCompetitionId: "3",
+        endDate: "2026-10-18",
+      }),
+      recentRecord({
+        competitionName: "Week After",
+        liveCompetitionId: "4",
+        endDate: "2026-10-26",
+      }),
+      recentRecord({
+        competitionName: "Abroad",
+        liveCompetitionId: "5",
+        countryIso2: "GB",
+      }),
+    ]
 
-    const selected = selectRecordsPostedInWindow(
-      [posted, earlier, onEnd, unposted],
-      new Map([
-        ["PostedThisWeek2026", INSIDE],
-        ["PostedLastWeek2026", "2026-10-18T22:59:59.000Z"],
-        ["PostedAtMidnight2026", new Date(WEEK.endMs).toISOString()],
-        ["NotPosted2026", null],
-      ]),
-      WEEK
-    )
-
-    expect(selected.map((competition) => competition.competitionId)).toEqual([
-      "PostedThisWeek2026",
-    ])
-  })
-
-  test("reads the marker matching each record's type", () => {
-    const single = wcaRecord({
-      type: "single",
-      regional_single_record: "ER",
-      regional_average_record: "NR",
-      value: 512,
-    })
-    const average = wcaRecord({
-      type: "average",
-      regional_single_record: "ER",
-      regional_average_record: "NR",
-      value: 640,
-    })
-    const untyped = wcaRecord({
-      type: undefined,
-      event_id: "222",
-      regional_single_record: null,
-      regional_average_record: "WR",
-      value: 101,
-    })
-
-    const selected = selectRecordsPostedInWindow(
-      [average, untyped, single],
-      new Map([["DublinOpen2026", INSIDE]]),
-      WEEK
-    )
-
-    expect(selected).toHaveLength(1)
     expect(
-      selected[0]?.records.map(({ eventId, type, marker, value }) => ({
-        eventId,
-        type,
-        marker,
-        value,
-      }))
-    ).toEqual([
-      { eventId: "222", type: "average", marker: "WR", value: 101 },
-      { eventId: "333", type: "single", marker: "ER", value: 512 },
-      { eventId: "333", type: "average", marker: "NR", value: 640 },
-    ])
+      selectWeeklyRecords(records, "IE", WEEK).map(
+        (competition) => competition.competitionName
+      )
+    ).toEqual(["First Day", "Last Day"])
   })
 
-  test("lists every record from a competition in the order they were set", () => {
-    const final = wcaRecord({ round_type_id: "f", value: 950 })
-    const firstRound = wcaRecord({ round_type_id: "1", value: 980 })
-    const otherComp = wcaRecord({
-      competition_id: "CorkOpen2026",
-      competition_name: "Cork Open 2026",
-    })
-
-    const selected = selectRecordsPostedInWindow(
-      [final, otherComp, firstRound],
-      new Map([
-        ["DublinOpen2026", INSIDE],
-        ["CorkOpen2026", INSIDE],
-      ]),
+  test("orders records by event, round and type, and competitions by name", () => {
+    const selected = selectWeeklyRecords(
+      [
+        recentRecord({
+          eventId: "333",
+          roundName: "Final",
+          roundNumber: 2,
+          type: "average",
+        }),
+        recentRecord({
+          eventId: "333",
+          roundName: "First Round",
+          roundNumber: 1,
+        }),
+        recentRecord({ eventId: "222", tag: "WR" }),
+        recentRecord({ eventId: "333", roundName: "Final", roundNumber: 2 }),
+        recentRecord({
+          competitionName: "Cork Open 2026",
+          liveCompetitionId: "202",
+        }),
+      ],
+      "IE",
       WEEK
     )
 
     expect(
       selected.map((competition) => [
         competition.competitionName,
-        competition.records.map((record) => record.roundTypeId),
+        competition.records.map(
+          (record) =>
+            `${record.marker} ${record.eventId} ${record.roundName} ${record.type}`
+        ),
       ])
     ).toEqual([
-      ["Cork Open 2026", ["f"]],
-      ["Dublin Open 2026", ["1", "f"]],
+      ["Cork Open 2026", ["NR 333 Final single"]],
+      [
+        "Dublin Open 2026",
+        [
+          "WR 222 Final single",
+          "NR 333 First Round single",
+          "NR 333 Final single",
+          "NR 333 Final average",
+        ],
+      ],
     ])
+  })
+
+  test("keeps a newcomer who has no WCA ID yet", () => {
+    const selected = selectWeeklyRecords(
+      [recentRecord({ wcaId: null, personName: "New Comer" })],
+      "IE",
+      WEEK
+    )
+
+    expect(selected[0]?.records[0]).toMatchObject({
+      wcaId: null,
+      personName: "New Comer",
+    })
+  })
+})
+
+describe("fetchRecentRecords", () => {
+  test("asks WCA Live for its recent records", async () => {
+    const record = recentRecord()
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(Response.json({ data: { recentRecords: [record] } }))
+
+    expect(await fetchRecentRecords()).toEqual([record])
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://live.worldcubeassociation.org/api",
+      expect.objectContaining({ method: "POST" })
+    )
+  })
+
+  test("fails on an HTTP error", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("unavailable", { status: 503 })
+    )
+
+    await expect(fetchRecentRecords()).rejects.toThrow(
+      "WCA Live recent records lookup failed (HTTP 503)."
+    )
+  })
+
+  test("fails on a GraphQL error rather than reporting no records", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ data: null, errors: [{ message: "boom" }] })
+    )
+
+    await expect(fetchRecentRecords()).rejects.toThrow(
+      "WCA Live recent records lookup returned an invalid response."
+    )
   })
 })

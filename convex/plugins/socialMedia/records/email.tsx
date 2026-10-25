@@ -14,16 +14,14 @@ import { resolveWcaBaseUrl } from "@/convex/deploymentContext"
 import { emailBrandTokens as colors } from "@/convex/emails/brand"
 import { renderEmailFormats } from "@/convex/emails/render"
 import { formatWcaEventLabel } from "@/convex/plugins/wca/eventLabels"
-import type {
-  CompetitionRecords,
-  WeeklyRecord,
+import {
+  type CompetitionRecords,
+  WCA_LIVE_URL,
+  type WeeklyRecord,
 } from "@/convex/plugins/socialMedia/records/collect"
 import {
   formatWcaResult,
   type RecordKind,
-  recordKind,
-  recordLabel,
-  roundLabel,
 } from "@/convex/plugins/socialMedia/records/format"
 import {
   formatWeekLabel,
@@ -36,17 +34,18 @@ const RECORD_COLORS: Record<RecordKind, string> = {
   WR: colors.destructive,
 }
 
-function competitionResultsUrl(competitionId: string): string {
-  return `${resolveWcaBaseUrl()}/competitions/${encodeURIComponent(competitionId)}/results/all`
+/** WCA Live, as the WCA has no results for the competition until they are posted. */
+function liveCompetitionUrl(liveCompetitionId: string): string {
+  return `${WCA_LIVE_URL}/competitions/${encodeURIComponent(liveCompetitionId)}`
 }
 
-function personUrl(personId: string): string {
-  return `${resolveWcaBaseUrl()}/persons/${encodeURIComponent(personId)}`
+function personUrl(wcaId: string): string {
+  return `${resolveWcaBaseUrl()}/persons/${encodeURIComponent(wcaId)}`
 }
 
 function describeRecord(record: WeeklyRecord): string {
   const result = formatWcaResult(record.eventId, record.type, record.value)
-  return `${formatWcaEventLabel(record.eventId)} ${record.type} ${result} (${roundLabel(record.roundTypeId)})`
+  return `${formatWcaEventLabel(record.eventId)} ${record.type} ${result} (${record.roundName})`
 }
 
 function RecordLine({ record }: { record: WeeklyRecord }) {
@@ -54,18 +53,22 @@ function RecordLine({ record }: { record: WeeklyRecord }) {
     <Text style={{ margin: "0 0 8px", fontSize: "14px", lineHeight: "20px" }}>
       <span
         style={{
-          color: RECORD_COLORS[recordKind(record.marker)],
+          color: RECORD_COLORS[record.marker],
           fontWeight: 700,
         }}
       >
-        {recordLabel(record.marker)}
+        {record.marker}
       </span>{" "}
-      <Link
-        href={personUrl(record.personId)}
-        style={{ color: colors.foreground, fontWeight: 600 }}
-      >
-        {record.personName}
-      </Link>{" "}
+      {record.wcaId === null ? (
+        <span style={{ fontWeight: 600 }}>{record.personName}</span>
+      ) : (
+        <Link
+          href={personUrl(record.wcaId)}
+          style={{ color: colors.foreground, fontWeight: 600 }}
+        >
+          {record.personName}
+        </Link>
+      )}{" "}
       — {describeRecord(record)}
     </Text>
   )
@@ -83,8 +86,8 @@ export function WeeklyRecordsEmail({
   const footer = organisationConfig.branding.notificationFooterText
   const intro =
     competitions.length === 0
-      ? `No competitor from ${countryName} set an NR, CR or WR at a competition whose results were posted in the week of ${weekLabel}.`
-      : `Records for ${countryName} from competitions whose results were posted in the week of ${weekLabel}:`
+      ? `No competitor from ${countryName} set an NR, CR or WR at a competition that ended in the week of ${weekLabel}.`
+      : `Records for ${countryName} from competitions that ended in the week of ${weekLabel}:`
 
   return (
     <Html lang="en">
@@ -114,10 +117,13 @@ export function WeeklyRecordsEmail({
           </Heading>
           <Text style={{ fontSize: "14px", margin: "0 0 16px" }}>{intro}</Text>
           {competitions.map((group) => (
-            <Section key={group.competitionId} style={{ marginBottom: "16px" }}>
+            <Section
+              key={group.liveCompetitionId}
+              style={{ marginBottom: "16px" }}
+            >
               <Heading as="h2" style={{ fontSize: "16px", margin: "0 0 8px" }}>
                 <Link
-                  href={competitionResultsUrl(group.competitionId)}
+                  href={liveCompetitionUrl(group.liveCompetitionId)}
                   style={{ color: colors.foreground }}
                 >
                   {group.competitionName}
@@ -125,7 +131,7 @@ export function WeeklyRecordsEmail({
               </Heading>
               {group.records.map((record) => (
                 <RecordLine
-                  key={`${record.personId}:${record.eventId}:${record.roundTypeId}:${record.type}`}
+                  key={`${record.personName}:${record.eventId}:${String(record.roundNumber)}:${record.type}`}
                   record={record}
                 />
               ))}
@@ -138,7 +144,8 @@ export function WeeklyRecordsEmail({
               margin: "24px 0 0",
             }}
           >
-            Sent every Monday by {footer}.
+            Records as entered on WCA Live; they become official once the WCA
+            posts the results. Sent every Monday by {footer}.
           </Text>
         </Container>
       </Body>

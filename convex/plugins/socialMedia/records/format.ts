@@ -2,58 +2,6 @@ export type RecordKind = "NR" | "CR" | "WR"
 
 export type RecordType = "single" | "average"
 
-/**
- * The WCA marks continental records with the continent's own code (ER, AsR,
- * NAR, ...). The social team only needs to know it is a continental record, so
- * everything that is neither NR nor WR is a CR.
- */
-export function recordKind(marker: string): RecordKind {
-  if (marker === "NR") return "NR"
-  if (marker === "WR") return "WR"
-  return "CR"
-}
-
-/** "NR", "WR", or "CR (ER)" — the continent kept so nobody has to look it up. */
-export function recordLabel(marker: string): string {
-  const kind = recordKind(marker)
-  return kind === "CR" ? `CR (${marker})` : kind
-}
-
-/**
- * The WCA's round types in the order rounds are held. Combined (cutoff) rounds
- * sit beside, and share the name of, their plain counterparts, as on the WCA.
- */
-const ROUND_TYPES: readonly { id: string; label: string }[] = [
-  { id: "0", label: "Qualification" },
-  { id: "h", label: "Qualification" },
-  { id: "1", label: "First round" },
-  { id: "d", label: "First round" },
-  { id: "2", label: "Second round" },
-  { id: "e", label: "Second round" },
-  { id: "3", label: "Semi-final" },
-  { id: "g", label: "Semi-final" },
-  { id: "b", label: "B Final" },
-  { id: "f", label: "Final" },
-  { id: "c", label: "Final" },
-]
-
-const ROUND_LABELS = new Map(
-  ROUND_TYPES.map((round) => [round.id, round.label])
-)
-
-const ROUND_INDEX = new Map(
-  ROUND_TYPES.map((round, index) => [round.id, index])
-)
-
-export function roundLabel(roundTypeId: string): string {
-  return ROUND_LABELS.get(roundTypeId) ?? "Round"
-}
-
-/** Position of a round type in the order rounds are held; unknown ids last. */
-export function roundOrder(roundTypeId: string): number {
-  return ROUND_INDEX.get(roundTypeId) ?? ROUND_TYPES.length
-}
-
 function pad2(value: number): string {
   return String(value).padStart(2, "0")
 }

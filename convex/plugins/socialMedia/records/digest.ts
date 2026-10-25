@@ -4,7 +4,6 @@ import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { internalAction } from "@/convex/_generated/server"
 import { competitionCountryIso2 } from "@/config/lib/organisation"
-import { createPublicWcaClient } from "@/convex/plugins/wca/client"
 import { collectWeeklyRecords } from "@/convex/plugins/socialMedia/records/collect"
 import {
   countRecords,
@@ -14,13 +13,13 @@ import { weekWindowStartingOn } from "@/convex/plugins/socialMedia/records/windo
 
 /**
  * Builds and sends the Social Media Team's email of the NRs, CRs and WRs set by
- * competitors from the organisation's country at competitions whose results the
- * WCA posted in the week starting on `weekStart`, or an email saying there were
- * none.
+ * competitors from the organisation's country at competitions that ended in the
+ * week starting on `weekStart`, or an email saying there were none. Records come
+ * from WCA Live as entered, before the WCA posts the results.
  *
  * Queued by `digestState.queueWeeklyDigest`; to send a week by hand, run that
- * mutation with a Monday `nowMs`. Only the WCA's public endpoints are used, so a
- * disconnected WCA service account does not stop it.
+ * mutation with a Monday `nowMs`. WCA Live's API is public, so a disconnected WCA
+ * service account does not stop it.
  */
 export const sendWeeklyRecordsDigest = internalAction({
   args: { weekStart: v.string() },
@@ -29,11 +28,7 @@ export const sendWeeklyRecordsDigest = internalAction({
     try {
       const countryIso2 = competitionCountryIso2()
       const window = weekWindowStartingOn(args.weekStart)
-      const competitions = await collectWeeklyRecords(
-        createPublicWcaClient(),
-        countryIso2,
-        window
-      )
+      const competitions = await collectWeeklyRecords(countryIso2, window)
       const email = await renderWeeklyRecordsEmail(
         competitions,
         countryIso2,

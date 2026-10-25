@@ -1,125 +1,114 @@
+import { z } from "zod"
 import { localDateOffset } from "@/convex/notifications/localTime"
-import { mapWithConcurrency } from "@/convex/plugins/events/concurrency"
-import type { WcaClient } from "@/convex/plugins/wca/client"
 import { WCA_EVENT_ORDER } from "@/convex/plugins/wca/eventLabels"
-import {
-  competitionList,
-  getRecords2,
-} from "@/convex/plugins/wca/openapiClient/sdk.gen"
-import type { Record as WcaRecord } from "@/convex/plugins/wca/openapiClient/types.gen"
-import {
-  roundOrder,
-  type RecordType,
+import type {
+  RecordKind,
+  RecordType,
 } from "@/convex/plugins/socialMedia/records/format"
 import type { WeekWindow } from "@/convex/plugins/socialMedia/records/window"
 
 /**
- * How far before the week a competition may have started and still have its
- * results posted during it. The WCA usually posts within days; this only bounds
- * how many competitions are looked up, so it errs well on the generous side.
+ * WCA Live's public GraphQL endpoint. It has no staging instance, so every
+ * deployment reads production whatever `DEPLOYMENT_CONTEXT` says; the query is
+ * public and read-only, so that is safe.
  */
-export const RESULTS_POSTING_LOOKBACK_DAYS = 120
+export const WCA_LIVE_URL = "https://live.worldcubeassociation.org"
 
-/** Parallel competition lookups, matching the WCA status sync's budget. */
-const COMPETITION_LOOKUP_CONCURRENCY = 6
+/**
+ * The records WCA Live shows as "Recent records": every WR, CR and NR from
+ * competitions that started in the last 10 days, worldwide.
+ */
+const RECENT_RECORDS_QUERY = `{
+  recentRecords {
+    tag
+    type
+    attemptResult
+    result {
+      person { name wcaId country { iso2 } }
+      round {
+        name
+        number
+        competitionEvent {
+          event { id }
+          competition { id name endDate }
+        }
+      }
+    }
+  }
+}`
+
+const recentRecordSchema = z.object({
+  tag: z.enum(["NR", "CR", "WR"]),
+  type: z.enum(["single", "average"]),
+  attemptResult: z.number(),
+  result: z.object({
+    person: z.object({
+      name: z.string(),
+      wcaId: z.string().nullable(),
+      country: z.object({ iso2: z.string() }),
+    }),
+    round: z.object({
+      name: z.string(),
+      number: z.number(),
+      competitionEvent: z.object({
+        event: z.object({ id: z.string() }),
+        competition: z.object({
+          id: z.string(),
+          name: z.string(),
+          endDate: z.string(),
+        }),
+      }),
+    }),
+  }),
+})
+
+const recentRecordsResponseSchema = z.object({
+  data: z.object({ recentRecords: z.array(recentRecordSchema) }),
+})
+
+export type RecentRecord = z.infer<typeof recentRecordSchema>
 
 export interface WeeklyRecord {
-  personId: string
+  /** Null for a newcomer, who has no WCA ID until results are posted. */
+  wcaId: string | null
   personName: string
   eventId: string
-  roundTypeId: string
+  roundName: string
+  roundNumber: number
   type: RecordType
   value: number
-  /** The WCA's marker: "NR", "WR", or a continental code such as "ER". */
-  marker: string
+  marker: RecordKind
 }
 
 export interface CompetitionRecords {
-  competitionId: string
+  /** WCA Live's id, for linking to the live results. */
+  liveCompetitionId: string
   competitionName: string
-  /** In the order they were set. */
   records: WeeklyRecord[]
 }
 
-/**
- * Every record ever set by a competitor from `countryIso2`, wherever the
- * competition was held: national records and any continental or world records,
- * which the WCA marks with the higher record only. Each entry is one record, so
- * a result that broke both the single and the average record appears twice,
- * once per `type`.
- *
- * `region` must be the two-letter code: the WCA matches it against continents
- * and ISO codes, and anything else silently returns the world records instead.
- */
-export async function fetchRecordHistory(
-  client: WcaClient,
-  countryIso2: string
-): Promise<WcaRecord[]> {
-  const response = await getRecords2({
-    client,
-    query: { region: countryIso2, show: "history" },
+export async function fetchRecentRecords(): Promise<RecentRecord[]> {
+  const response = await fetch(`${WCA_LIVE_URL}/api`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ query: RECENT_RECORDS_QUERY }),
   })
-  if (response.error !== undefined || response.data === undefined) {
-    throw new Error("WCA record history lookup failed.")
+  if (!response.ok) {
+    throw new Error(
+      `WCA Live recent records lookup failed (HTTP ${String(response.status)}).`
+    )
   }
-  return Object.values(response.data.records).flat()
-}
-
-/**
- * When each competition's results were posted, or null while they are not.
- * Throws rather than guessing when a lookup fails: a run that cannot tell is
- * retried, where a guess could tell the team that nothing happened.
- */
-export async function fetchResultsPostedAt(
-  client: WcaClient,
-  competitionIds: readonly string[]
-): Promise<Map<string, string | null>> {
-  const postedAt = await mapWithConcurrency(
-    competitionIds,
-    COMPETITION_LOOKUP_CONCURRENCY,
-    async (competitionId): Promise<[string, string | null]> => {
-      // `q` is a substring search, so pick the exact id out of the matches.
-      const response = await competitionList({
-        client,
-        query: { q: competitionId, include_cancelled: true },
-      })
-      if (response.error !== undefined || response.data === undefined) {
-        throw new Error(`WCA competition lookup failed for ${competitionId}.`)
-      }
-      const competition = response.data.find(
-        (candidate) => candidate.id === competitionId
-      )
-      return [competitionId, competition?.results_posted_at ?? null]
-    }
-  )
-  return new Map(postedAt)
-}
-
-function recordType(record: WcaRecord): RecordType {
-  if (record.type === "average") return "average"
-  if (record.type === "single") return "single"
-  // Typed as an optional plain string by the WCA, so an entry without it (or
-  // with a value we do not know) can only be read from which marker is set.
-  return record.regional_single_record === null ? "average" : "single"
-}
-
-/**
- * Entries recent enough that their results could have been posted during the
- * week, and so worth a competition lookup.
- */
-export function candidateRecords(
-  history: readonly WcaRecord[],
-  window: WeekWindow
-): WcaRecord[] {
-  const earliestStart = localDateOffset(
-    window.weekStart,
-    -RESULTS_POSTING_LOOKBACK_DAYS
-  )
-  const latestStart = localDateOffset(window.weekStart, 7)
-  return history.filter(
-    (record) =>
-      record.start_date >= earliestStart && record.start_date < latestStart
-  )
+  // GraphQL reports errors with a 200 and no `data`, which fails the parse.
+  const parsed = recentRecordsResponseSchema.safeParse(await response.json())
+  if (!parsed.success) {
+    throw new Error(
+      "WCA Live recent records lookup returned an invalid response."
+    )
+  }
+  return parsed.data.data.recentRecords
 }
 
 const EVENT_INDEX = new Map(
@@ -133,64 +122,51 @@ function eventOrder(eventId: string): number {
 function compareRecords(a: WeeklyRecord, b: WeeklyRecord): number {
   return (
     eventOrder(a.eventId) - eventOrder(b.eventId) ||
-    roundOrder(a.roundTypeId) - roundOrder(b.roundTypeId) ||
+    a.roundNumber - b.roundNumber ||
     (a.type === b.type ? 0 : a.type === "single" ? -1 : 1) ||
     a.personName.localeCompare(b.personName)
   )
 }
 
-function postedInWindow(
-  resultsPostedAt: ReadonlyMap<string, string | null>,
-  window: WeekWindow
-): Set<string> {
-  const posted = new Set<string>()
-  for (const [competitionId, postedAt] of resultsPostedAt) {
-    if (postedAt === null) continue
-    const postedAtMs = Date.parse(postedAt)
-    if (postedAtMs >= window.startMs && postedAtMs < window.endMs) {
-      posted.add(competitionId)
-    }
-  }
-  return posted
-}
-
 /**
- * The records from competitions whose results were posted inside the window,
- * grouped by competition (by name) and in the order they were set. Every record
- * is kept, including one broken again later in the same competition.
+ * The records set by competitors from `countryIso2` at competitions that ended
+ * inside the window, grouped by competition (by name) and in the order they were
+ * set. Counting a competition in the week it ends reports each one once, after
+ * it has finished.
  */
-export function selectRecordsPostedInWindow(
-  records: readonly WcaRecord[],
-  resultsPostedAt: ReadonlyMap<string, string | null>,
+export function selectWeeklyRecords(
+  records: readonly RecentRecord[],
+  countryIso2: string,
   window: WeekWindow
 ): CompetitionRecords[] {
-  const posted = postedInWindow(resultsPostedAt, window)
+  const weekEnd = localDateOffset(window.weekStart, 7)
   const competitions = new Map<string, CompetitionRecords>()
   for (const record of records) {
-    if (!posted.has(record.competition_id)) continue
+    const { person, round } = record.result
+    const { competition, event } = round.competitionEvent
+    if (person.country.iso2 !== countryIso2) continue
+    if (
+      competition.endDate < window.weekStart ||
+      competition.endDate >= weekEnd
+    )
+      continue
 
-    const type = recordType(record)
-    const marker =
-      type === "single"
-        ? record.regional_single_record
-        : record.regional_average_record
-    if (marker === null || marker === "") continue
-
-    const competition = competitions.get(record.competition_id) ?? {
-      competitionId: record.competition_id,
-      competitionName: record.competition_name,
+    const group = competitions.get(competition.id) ?? {
+      liveCompetitionId: competition.id,
+      competitionName: competition.name,
       records: [],
     }
-    competition.records.push({
-      personId: record.person_id,
-      personName: record.person_name,
-      eventId: record.event_id,
-      roundTypeId: record.round_type_id,
-      type,
-      value: record.value,
-      marker,
+    group.records.push({
+      wcaId: person.wcaId,
+      personName: person.name,
+      eventId: event.id,
+      roundName: round.name,
+      roundNumber: round.number,
+      type: record.type,
+      value: record.attemptResult,
+      marker: record.tag,
     })
-    competitions.set(record.competition_id, competition)
+    competitions.set(competition.id, group)
   }
 
   const grouped = [...competitions.values()]
@@ -201,19 +177,14 @@ export function selectRecordsPostedInWindow(
 }
 
 /**
- * The week's records for `countryIso2`: one request for the record history, then
- * one per competition recent enough to have had its results posted that week.
+ * The week's records for `countryIso2`, from one WCA Live request. Its window
+ * reaches back 10 days by start date, so a Monday run covers every competition
+ * that ended the week before unless it started more than three days before
+ * that week.
  */
 export async function collectWeeklyRecords(
-  client: WcaClient,
   countryIso2: string,
   window: WeekWindow
 ): Promise<CompetitionRecords[]> {
-  const history = await fetchRecordHistory(client, countryIso2)
-  const candidates = candidateRecords(history, window)
-  const competitionIds = [
-    ...new Set(candidates.map((record) => record.competition_id)),
-  ]
-  const resultsPostedAt = await fetchResultsPostedAt(client, competitionIds)
-  return selectRecordsPostedInWindow(candidates, resultsPostedAt, window)
+  return selectWeeklyRecords(await fetchRecentRecords(), countryIso2, window)
 }

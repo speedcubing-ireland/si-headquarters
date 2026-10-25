@@ -1,37 +1,44 @@
-import type { Record as WcaRecord } from "@/convex/plugins/wca/openapiClient/types.gen"
+import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
 
-let nextResultId = 1
-
-/** A record-history entry as `/v0/results/records?show=history` returns it. */
-export function wcaRecord(overrides: Partial<WcaRecord> = {}): WcaRecord {
-  const id = nextResultId
-  nextResultId += 1
+/** A record as WCA Live's `recentRecords` query returns it. */
+export function recentRecord(
+  overrides: {
+    tag?: RecentRecord["tag"]
+    type?: RecentRecord["type"]
+    attemptResult?: number
+    personName?: string
+    wcaId?: string | null
+    countryIso2?: string
+    roundName?: string
+    roundNumber?: number
+    eventId?: string
+    liveCompetitionId?: string
+    competitionName?: string
+    endDate?: string
+  } = {}
+): RecentRecord {
   return {
-    type: "single",
-    id,
-    pos: 1,
-    person_id: "2015MURP01",
-    person_name: "Aoife Murphy",
-    country_id: "Ireland",
-    competition_country_id: "Ireland",
-    competition_id: "DublinOpen2026",
-    competition_name: "Dublin Open 2026",
-    event_id: "333",
-    round_type_id: "f",
-    round_id: null,
-    format_id: "a",
-    value1: 987,
-    value2: 1012,
-    value3: 1103,
-    value4: 995,
-    value5: 1040,
-    best: 987,
-    average: 1016,
-    regional_single_record: "NR",
-    regional_average_record: null,
-    updated_at: "2026-10-20T10:00:00.000Z",
-    start_date: "2026-10-17",
-    value: 987,
-    ...overrides,
+    tag: overrides.tag ?? "NR",
+    type: overrides.type ?? "single",
+    attemptResult: overrides.attemptResult ?? 987,
+    result: {
+      person: {
+        name: overrides.personName ?? "Aoife Murphy",
+        wcaId: overrides.wcaId === undefined ? "2015MURP01" : overrides.wcaId,
+        country: { iso2: overrides.countryIso2 ?? "IE" },
+      },
+      round: {
+        name: overrides.roundName ?? "Final",
+        number: overrides.roundNumber ?? 2,
+        competitionEvent: {
+          event: { id: overrides.eventId ?? "333" },
+          competition: {
+            id: overrides.liveCompetitionId ?? "101",
+            name: overrides.competitionName ?? "Dublin Open 2026",
+            endDate: overrides.endDate ?? "2026-10-25",
+          },
+        },
+      },
+    },
   }
 }
