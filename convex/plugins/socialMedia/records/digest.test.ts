@@ -57,7 +57,7 @@ function stubWca(options: {
       if (options.failHistory === true) {
         return Response.json({ error: "unavailable" }, { status: 503 })
       }
-      expect(url.searchParams.get("region")).toBe("Ireland")
+      expect(url.searchParams.get("region")).toBe("IE")
       expect(url.searchParams.get("show")).toBe("history")
       return Response.json({
         records: byEvent(options.history),

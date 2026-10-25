@@ -12,7 +12,7 @@ const WEEK = weekWindowStartingOn("2026-10-19")
 const INSIDE = "2026-10-21T15:00:00.000Z"
 
 describe("candidateRecords", () => {
-  test("keeps the country's recent records only", () => {
+  test("keeps only records recent enough to have been posted that week", () => {
     const recent = wcaRecord({ start_date: "2026-10-17" })
     const atLookback = wcaRecord({
       start_date: localDateOffset("2026-10-19", -RESULTS_POSTING_LOOKBACK_DAYS),
@@ -24,14 +24,9 @@ describe("candidateRecords", () => {
       ),
     })
     const afterWeek = wcaRecord({ start_date: "2026-10-26" })
-    const otherCountry = wcaRecord({ country_id: "United Kingdom" })
 
     expect(
-      candidateRecords(
-        [recent, atLookback, tooOld, afterWeek, otherCountry],
-        "Ireland",
-        WEEK
-      )
+      candidateRecords([recent, atLookback, tooOld, afterWeek], WEEK)
     ).toEqual([recent, atLookback])
   })
 })

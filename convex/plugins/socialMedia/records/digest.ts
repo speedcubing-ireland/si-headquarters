@@ -3,7 +3,7 @@
 import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import { internalAction } from "@/convex/_generated/server"
-import { wcaCountryId } from "@/config/lib/organisation"
+import { competitionCountryIso2 } from "@/config/lib/organisation"
 import { createPublicWcaClient } from "@/convex/plugins/wca/client"
 import { collectWeeklyRecords } from "@/convex/plugins/socialMedia/records/collect"
 import {
@@ -27,20 +27,16 @@ export const sendWeeklyRecordsDigest = internalAction({
   returns: v.null(),
   handler: async (ctx, args) => {
     try {
-      const countryId = wcaCountryId()
-      if (countryId === null) {
-        // The organisation schema requires it whenever the feature is on.
-        throw new Error("wca.countryId is not configured.")
-      }
+      const countryIso2 = competitionCountryIso2()
       const window = weekWindowStartingOn(args.weekStart)
       const competitions = await collectWeeklyRecords(
         createPublicWcaClient(),
-        countryId,
+        countryIso2,
         window
       )
       const email = await renderWeeklyRecordsEmail(
         competitions,
-        countryId,
+        countryIso2,
         window
       )
       await ctx.runMutation(

@@ -98,7 +98,8 @@ export function createOrganisationAccessors(
 
   /**
    * Country the organisation runs competitions in. The WCA phase sync uses it
-   * to fetch local registration dates in one request.
+   * to fetch local registration dates in one request, and the weekly records
+   * email to ask for the country's record history.
    */
   function competitionCountryIso2(): string {
     const countryIso2 = config.wca?.countryIso2
@@ -110,15 +111,6 @@ export function createOrganisationAccessors(
     return countryIso2
   }
 
-  /**
-   * The WCA's id for the organisation's country (e.g. "Ireland"), used to ask
-   * the WCA for its national record history. The schema requires it whenever
-   * the `recordsEmail` feature is on.
-   */
-  function wcaCountryId(): string | null {
-    return config.wca?.countryId ?? null
-  }
-
   return {
     isFeatureEnabled,
     findLoginProvider,
@@ -126,7 +118,6 @@ export function createOrganisationAccessors(
     configuredSponsorshipSenderAddress,
     scheduleTransferConfig,
     competitionCountryIso2,
-    wcaCountryId,
     gettingStartedVideoUrl,
   }
 }

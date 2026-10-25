@@ -42,18 +42,22 @@ export interface CompetitionRecords {
 }
 
 /**
- * Every record ever set by a competitor from `countryId`: national records and
- * any continental or world records, which the WCA marks with the higher record
- * only. Each entry is one record, so a result that broke both the single and
- * the average record appears twice, once per `type`.
+ * Every record ever set by a competitor from `countryIso2`, wherever the
+ * competition was held: national records and any continental or world records,
+ * which the WCA marks with the higher record only. Each entry is one record, so
+ * a result that broke both the single and the average record appears twice,
+ * once per `type`.
+ *
+ * `region` must be the two-letter code: the WCA matches it against continents
+ * and ISO codes, and anything else silently returns the world records instead.
  */
 export async function fetchRecordHistory(
   client: WcaClient,
-  countryId: string
+  countryIso2: string
 ): Promise<WcaRecord[]> {
   const response = await getRecords2({
     client,
-    query: { region: countryId, show: "history" },
+    query: { region: countryIso2, show: "history" },
   })
   if (response.error !== undefined || response.data === undefined) {
     throw new Error("WCA record history lookup failed.")
@@ -101,12 +105,10 @@ function recordType(record: WcaRecord): RecordType {
 
 /**
  * Entries recent enough that their results could have been posted during the
- * week, and so worth a competition lookup. Restricted to `countryId` too, in
- * case the WCA ever widens `region` to cover where the competition was held.
+ * week, and so worth a competition lookup.
  */
 export function candidateRecords(
   history: readonly WcaRecord[],
-  countryId: string,
   window: WeekWindow
 ): WcaRecord[] {
   const earliestStart = localDateOffset(
@@ -116,9 +118,7 @@ export function candidateRecords(
   const latestStart = localDateOffset(window.weekStart, 7)
   return history.filter(
     (record) =>
-      record.country_id === countryId &&
-      record.start_date >= earliestStart &&
-      record.start_date < latestStart
+      record.start_date >= earliestStart && record.start_date < latestStart
   )
 }
 
@@ -201,16 +201,16 @@ export function selectRecordsPostedInWindow(
 }
 
 /**
- * The week's records for `countryId`: one request for the record history, then
+ * The week's records for `countryIso2`: one request for the record history, then
  * one per competition recent enough to have had its results posted that week.
  */
 export async function collectWeeklyRecords(
   client: WcaClient,
-  countryId: string,
+  countryIso2: string,
   window: WeekWindow
 ): Promise<CompetitionRecords[]> {
-  const history = await fetchRecordHistory(client, countryId)
-  const candidates = candidateRecords(history, countryId, window)
+  const history = await fetchRecordHistory(client, countryIso2)
+  const candidates = candidateRecords(history, window)
   const competitionIds = [
     ...new Set(candidates.map((record) => record.competition_id)),
   ]

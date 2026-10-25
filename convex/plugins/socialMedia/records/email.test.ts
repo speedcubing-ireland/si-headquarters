@@ -38,7 +38,7 @@ describe("renderWeeklyRecordsEmail", () => {
           ],
         },
       ],
-      "Ireland",
+      "IE",
       WEEK
     )
 
@@ -56,7 +56,7 @@ describe("renderWeeklyRecordsEmail", () => {
   })
 
   test("says so when there were no records", async () => {
-    const email = await renderWeeklyRecordsEmail([], "Ireland", WEEK)
+    const email = await renderWeeklyRecordsEmail([], "IE", WEEK)
 
     expect(email.subject).toBe("No new records for Ireland: 19–25 Oct 2026")
     expect(email.text).toContain(

@@ -73,18 +73,18 @@ function RecordLine({ record }: { record: WeeklyRecord }) {
 
 export function WeeklyRecordsEmail({
   competitions,
-  countryId,
+  countryName,
   weekLabel,
 }: {
   competitions: readonly CompetitionRecords[]
-  countryId: string
+  countryName: string
   weekLabel: string
 }) {
   const footer = organisationConfig.branding.notificationFooterText
   const intro =
     competitions.length === 0
-      ? `No competitor from ${countryId} set an NR, CR or WR at a competition whose results were posted in the week of ${weekLabel}.`
-      : `Records for ${countryId} from competitions whose results were posted in the week of ${weekLabel}:`
+      ? `No competitor from ${countryName} set an NR, CR or WR at a competition whose results were posted in the week of ${weekLabel}.`
+      : `Records for ${countryName} from competitions whose results were posted in the week of ${weekLabel}:`
 
   return (
     <Html lang="en">
@@ -109,8 +109,8 @@ export function WeeklyRecordsEmail({
         >
           <Heading as="h1" style={{ fontSize: "20px", margin: "0 0 12px" }}>
             {competitions.length === 0
-              ? `No new records for ${countryId} this week`
-              : `New records for ${countryId}`}
+              ? `No new records for ${countryName} this week`
+              : `New records for ${countryName}`}
           </Heading>
           <Text style={{ fontSize: "14px", margin: "0 0 16px" }}>{intro}</Text>
           {competitions.map((group) => (
@@ -161,21 +161,31 @@ export function countRecords(
   )
 }
 
+/** "Ireland" for "IE", in the organisation's locale. */
+function countryNameOf(countryIso2: string): string {
+  return (
+    new Intl.DisplayNames(organisationConfig.regional.locale, {
+      type: "region",
+    }).of(countryIso2) ?? countryIso2
+  )
+}
+
 export async function renderWeeklyRecordsEmail(
   competitions: readonly CompetitionRecords[],
-  countryId: string,
+  countryIso2: string,
   window: WeekWindow
 ): Promise<RenderedEmail> {
+  const countryName = countryNameOf(countryIso2)
   const weekLabel = formatWeekLabel(window)
   const recordCount = countRecords(competitions)
   const subject =
     recordCount === 0
-      ? `No new records for ${countryId}: ${weekLabel}`
-      : `Records for ${countryId}: ${weekLabel} (${String(recordCount)})`
+      ? `No new records for ${countryName}: ${weekLabel}`
+      : `Records for ${countryName}: ${weekLabel} (${String(recordCount)})`
   const { html, plainText } = await renderEmailFormats(
     <WeeklyRecordsEmail
       competitions={competitions}
-      countryId={countryId}
+      countryName={countryName}
       weekLabel={weekLabel}
     />
   )

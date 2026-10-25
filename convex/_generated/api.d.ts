@@ -44,6 +44,8 @@ import type * as deletion_budget from "../deletion/budget.js";
 import type * as deletion_scheduledFunctions from "../deletion/scheduledFunctions.js";
 import type * as deletion_work from "../deletion/work.js";
 import type * as deploymentContext from "../deploymentContext.js";
+import type * as emails_brand from "../emails/brand.js";
+import type * as emails_render from "../emails/render.js";
 import type * as emoji from "../emoji.js";
 import type * as env from "../env.js";
 import type * as envConfig from "../envConfig.js";
@@ -400,6 +402,8 @@ declare const fullApi: ApiFromModules<{
   "deletion/scheduledFunctions": typeof deletion_scheduledFunctions;
   "deletion/work": typeof deletion_work;
   deploymentContext: typeof deploymentContext;
+  "emails/brand": typeof emails_brand;
+  "emails/render": typeof emails_render;
   emoji: typeof emoji;
   env: typeof env;
   envConfig: typeof envConfig;

@@ -113,10 +113,6 @@ const wcaSchema = z
       .string()
       .trim()
       .regex(/^[A-Z]{2}$/, "Must be a two-letter uppercase ISO 3166-1 code."),
-    // The WCA's own id for that country (e.g. "Ireland"), which its records
-    // endpoint takes as `region` instead of the ISO code. Required by the
-    // `recordsEmail` feature, which is the only thing that reads it.
-    countryId: nonEmptyString.optional(),
   })
   .strict()
 
@@ -266,9 +262,9 @@ export const organisationConfigSchema = z
 
       requireConfig(
         ctx,
-        config.wca?.countryId,
-        ["wca", "countryId"],
-        "The weekly records email requires the WCA country id."
+        config.wca,
+        ["wca"],
+        "The weekly records email requires WCA configuration."
       )
     }
 
@@ -318,7 +314,7 @@ export interface ScheduleTransferConfigRequirements {
 }
 
 export interface RecordsEmailConfigRequirements {
-  wca: { countryId: string }
+  wca: NonNullable<OrganisationConfig["wca"]>
 }
 
 // `object` is the intersection identity for a config (Config & object = Config),

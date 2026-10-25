@@ -35,7 +35,6 @@ const config = defineOrganisationConfig({
   wca: {
     scheduleTemplateCompetitionId: "TestTemplate2100",
     countryIso2: "IE",
-    countryId: "Ireland",
   },
   features: {
     google: true,
@@ -73,7 +72,6 @@ export const {
   configuredSponsorshipSenderAddress,
   scheduleTransferConfig,
   competitionCountryIso2,
-  wcaCountryId,
   gettingStartedVideoUrl,
 } = createOrganisationAccessors(config)
 

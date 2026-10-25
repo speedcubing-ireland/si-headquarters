@@ -118,18 +118,24 @@ describe("organisation configuration", () => {
     )
   })
 
-  test("requires the WCA country id when the records email is enabled", () => {
+  test("requires WCA config when the records email is enabled", () => {
     const config = cloneConfig()
-    const { countryId, ...wcaWithoutCountryId } = config.wca ?? {}
-    void countryId
+    config.features = {
+      ...config.features,
+      google: false,
+      wcaIntegration: false,
+      organiserInvites: false,
+      events: false,
+    }
+    config.auth.providers = config.auth.providers.filter(
+      (provider) => provider.id !== "wca"
+    )
+    delete config.wca
 
-    const result = organisationConfigSchema.safeParse({
-      ...config,
-      wca: wcaWithoutCountryId,
-    })
+    const result = organisationConfigSchema.safeParse(config)
 
     expect(result.success).toBe(false)
-    expect(result.error?.issues[0]?.path).toEqual(["wca", "countryId"])
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([["wca"]])
   })
 
   test("requires the social media feature when the records email is enabled", () => {
