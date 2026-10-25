@@ -15,7 +15,7 @@ import { renderEmailFormats } from "@/convex/emails/render"
 import type { CompetitionRecords } from "@/convex/plugins/socialMedia/records/collect"
 import { describeRecord } from "@/convex/plugins/socialMedia/records/format"
 import {
-  liveCompetitionUrl,
+  competitionResultsUrl,
   wcaPersonUrl,
 } from "@/convex/plugins/socialMedia/records/links"
 import { formatWeekLabel } from "@/convex/plugins/socialMedia/records/window"
@@ -102,7 +102,7 @@ export function WeeklyRecordsEmail({
             >
               <Heading as="h2" style={{ fontSize: "16px", margin: "0 0 8px" }}>
                 <Link
-                  href={liveCompetitionUrl(group.liveCompetitionId)}
+                  href={competitionResultsUrl(group)}
                   style={{ color: colors.foreground }}
                 >
                   {group.competitionName}
@@ -120,8 +120,8 @@ export function WeeklyRecordsEmail({
               margin: "24px 0 0",
             }}
           >
-            Records as entered on WCA Live; they become official once the WCA
-            posts the results. Sent every Monday by {footer}.
+            Records are as entered on WCA Live until the WCA posts the results,
+            which can still change them. Sent every Monday by {footer}.
           </Text>
         </Container>
       </Body>

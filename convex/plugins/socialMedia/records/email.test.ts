@@ -39,7 +39,20 @@ describe("renderWeeklyRecordsEmail", () => {
     expect(email.html).toContain(
       "https://live.worldcubeassociation.org/competitions/101"
     )
-    expect(email.text).toContain("Records as entered on WCA Live")
+    expect(email.text).toContain("as entered on WCA Live")
+  })
+
+  test("links a competition to the WCA once its results are posted", async () => {
+    const email = await renderWeeklyRecordsEmail(
+      groupByCompetition([wcaRecord({ status: "confirmed" })]),
+      "IE",
+      WEEK
+    )
+
+    expect(email.html).toContain(
+      "https://www.worldcubeassociation.org/competitions/DublinOpen2026/results/all"
+    )
+    expect(email.html).not.toContain("live.worldcubeassociation.org")
   })
 
   test("says so when there were no records", async () => {

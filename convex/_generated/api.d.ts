@@ -158,6 +158,7 @@ import type * as plugins_socialMedia_definition from "../plugins/socialMedia/def
 import type * as plugins_socialMedia_lib_fetchFromWca from "../plugins/socialMedia/lib/fetchFromWca.js";
 import type * as plugins_socialMedia_lib_sponsorDetection from "../plugins/socialMedia/lib/sponsorDetection.js";
 import type * as plugins_socialMedia_records_collect from "../plugins/socialMedia/records/collect.js";
+import type * as plugins_socialMedia_records_confirm from "../plugins/socialMedia/records/confirm.js";
 import type * as plugins_socialMedia_records_digest from "../plugins/socialMedia/records/digest.js";
 import type * as plugins_socialMedia_records_digestState from "../plugins/socialMedia/records/digestState.js";
 import type * as plugins_socialMedia_records_email from "../plugins/socialMedia/records/email.js";
@@ -520,6 +521,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/socialMedia/lib/fetchFromWca": typeof plugins_socialMedia_lib_fetchFromWca;
   "plugins/socialMedia/lib/sponsorDetection": typeof plugins_socialMedia_lib_sponsorDetection;
   "plugins/socialMedia/records/collect": typeof plugins_socialMedia_records_collect;
+  "plugins/socialMedia/records/confirm": typeof plugins_socialMedia_records_confirm;
   "plugins/socialMedia/records/digest": typeof plugins_socialMedia_records_digest;
   "plugins/socialMedia/records/digestState": typeof plugins_socialMedia_records_digestState;
   "plugins/socialMedia/records/email": typeof plugins_socialMedia_records_email;

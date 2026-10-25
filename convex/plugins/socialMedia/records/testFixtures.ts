@@ -5,6 +5,7 @@ import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 export function wcaRecord(overrides: Partial<WcaRecord> = {}): WcaRecord {
   const record: WcaRecord = {
     liveRecordId: "",
+    status: "live",
     tag: "NR",
     type: "single",
     attemptResult: 987,

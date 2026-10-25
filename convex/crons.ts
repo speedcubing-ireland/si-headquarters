@@ -61,4 +61,14 @@ crons.cron(
   {}
 )
 
+// Settles each record once the WCA posts its competition's results: confirmed
+// with the WCA's values, or marked as no longer a record. Daily, as posting
+// takes days.
+crons.cron(
+  "social media records confirmation daily",
+  "30 6 * * *",
+  internal.plugins.socialMedia.records.confirm.confirm,
+  {}
+)
+
 export default crons

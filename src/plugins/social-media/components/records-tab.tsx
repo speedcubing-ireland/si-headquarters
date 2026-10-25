@@ -20,11 +20,12 @@ import { api } from "@/convex/_generated/api"
 import { localDateOffset, localToday } from "@/convex/notifications/localTime"
 import { describeRecord } from "@/convex/plugins/socialMedia/records/format"
 import {
-  liveCompetitionUrl,
+  competitionResultsUrl,
   wcaPersonUrl,
 } from "@/convex/plugins/socialMedia/records/links"
 import { RECORD_TAGS } from "@/convex/plugins/socialMedia/records/kinds"
 import { formatDate } from "@/lib/format/dates"
+import { cn } from "@/lib/utils"
 import { competitionCountryIso2 } from "@/config/lib/organisation"
 
 type RecordsCompetition = FunctionReturnType<
@@ -32,12 +33,19 @@ type RecordsCompetition = FunctionReturnType<
 >[number]
 type StoredRecord = RecordsCompetition["records"][number]
 type RecordTag = StoredRecord["tag"]
+type RecordStatus = StoredRecord["status"]
 
 const TAG_BADGE_VARIANT = {
   NR: "default",
   CR: "secondary",
   WR: "destructive",
 } as const satisfies Record<RecordTag, string>
+
+const STATUS_LABELS = {
+  live: "Provisional",
+  confirmed: "Confirmed",
+  notRecord: "No longer a record",
+} as const satisfies Record<RecordStatus, string>
 
 const PERIODS = [
   { days: 28, label: "Last 4 weeks" },
@@ -180,10 +188,12 @@ function CompetitionRecordsCard({
           </CardTitle>
           <Button variant="ghost" size="icon-sm" asChild>
             <a
-              href={liveCompetitionUrl(competition.liveCompetitionId)}
+              href={competitionResultsUrl(competition)}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Open ${competition.competitionName} on WCA Live`}
+              aria-label={`Open ${competition.competitionName}'s results on ${
+                competition.resultsPosted ? "the WCA website" : "WCA Live"
+              }`}
             >
               <ExternalLink className="size-4" />
             </a>
@@ -222,8 +232,10 @@ function RecordRow({
     }
   }
 
+  const notRecord = record.status === "notRecord"
+
   return (
-    <div className="flex items-start gap-2">
+    <div className={cn("flex items-start gap-2", notRecord && "opacity-60")}>
       <Badge variant={TAG_BADGE_VARIANT[record.tag]}>{record.tag}</Badge>
       <div className="min-w-0 flex-1 text-sm">
         {record.wcaId === null ? (
@@ -241,19 +253,26 @@ function RecordRow({
         <span className="text-muted-foreground">
           ({record.personCountryIso2})
         </span>
-        <div className="text-muted-foreground">{describeRecord(record)}</div>
+        <div
+          className={cn("text-muted-foreground", notRecord && "line-through")}
+        >
+          {describeRecord(record)}
+        </div>
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={`Copy a caption for ${record.personName}'s ${record.tag}`}
-        onClick={() => {
-          void copyCaption()
-        }}
-      >
-        <Copy className="size-3.5" />
-      </Button>
+      <Badge variant="outline">{STATUS_LABELS[record.status]}</Badge>
+      {!notRecord && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Copy a caption for ${record.personName}'s ${record.tag}`}
+          onClick={() => {
+            void copyCaption()
+          }}
+        >
+          <Copy className="size-3.5" />
+        </Button>
+      )}
     </div>
   )
 }

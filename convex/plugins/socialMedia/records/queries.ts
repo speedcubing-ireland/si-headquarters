@@ -13,6 +13,7 @@ const recordsCompetitionValidator = v.object({
   wcaCompetitionId: v.string(),
   competitionName: v.string(),
   competitionEndDate: v.string(),
+  resultsPosted: v.boolean(),
   hqCompetitionId: v.union(v.id("competitions"), v.null()),
   records: v.array(wcaRecordDocValidator),
 })
