@@ -11,8 +11,7 @@ import {
  * daily confirmation replaces it with the WCA's version. Only the records
  * Headquarters cares about are kept: those set by competitors from the
  * organisation's country, or set at a competition held there. Older records
- * come from the WCA's records history, imported by
- * `scripts/backfill-records.ts`.
+ * were imported once from the WCA's records history.
  */
 export const wcaRecordFields = {
   /**
