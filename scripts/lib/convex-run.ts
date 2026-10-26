@@ -1,23 +1,18 @@
-import type { Value } from "convex/values"
 import { resolve, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 
-export type ConvexArgs = Record<string, Value | undefined>
+export type ConvexArgs = Record<string, string | undefined>
 
-/**
- * Runs a Convex function on the dev deployment, on production with
- * `CONVEX_PROD=1`, or on `deployment`: any reference `convex run --deployment`
- * accepts, such as `team-slug:project-slug:prod` for another team's project.
- */
 export async function convexRun<T>(
   functionPath: string,
-  args: ConvexArgs,
-  deployment?: string
+  args: ConvexArgs
 ): Promise<T> {
   const filteredArgs = Object.fromEntries(
-    Object.entries(args).filter((entry) => entry[1] !== undefined)
+    Object.entries(args).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined
+    )
   )
   const prod =
     process.env.CONVEX_PROD === "1" || process.env.CONVEX_PROD === "true"
@@ -26,11 +21,7 @@ export async function convexRun<T>(
       "bunx",
       "convex",
       "run",
-      ...(deployment !== undefined
-        ? ["--deployment", deployment]
-        : prod
-          ? ["--prod"]
-          : []),
+      ...(prod ? ["--prod"] : []),
       functionPath,
       JSON.stringify(filteredArgs),
     ],

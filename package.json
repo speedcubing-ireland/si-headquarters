@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "auth": "bun scripts/auth.ts",
-    "backfill-records": "bun scripts/backfill-records.ts",
     "build": "tsc -b && vite build",
     "build:deploy": "bunx convex deploy --cmd 'bun run build'",
     "dev": "bun run --parallel dev:frontend dev:sponsor dev:backend",

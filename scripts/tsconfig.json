@@ -29,9 +29,6 @@
     "../convex/plugins/discord/definition.ts",
     "../convex/plugins/google/definition.ts",
     "../convex/plugins/socialMedia/definition.ts",
-    "../convex/plugins/socialMedia/records/history.ts",
-    "../convex/plugins/socialMedia/records/kinds.ts",
-    "../convex/plugins/socialMedia/validators.ts",
     "../convex/plugins/wca/definition.ts",
     "../config/*.ts",
     "../config/lib/*.ts"
