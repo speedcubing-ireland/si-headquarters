@@ -5,12 +5,18 @@ import type { Doc } from "@/convex/_generated/dataModel"
 import {
   env,
   internalMutation,
+  internalQuery,
   type MutationCtx,
 } from "@/convex/_generated/server"
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { isConfiguredLocalTimeInWindow } from "@/convex/notifications/localTime"
 import { resend } from "@/convex/sendEmails"
+import {
+  confirmedBetween,
+  recordsForWeek,
+} from "@/convex/plugins/socialMedia/records/store"
 import { weekToReport } from "@/convex/plugins/socialMedia/records/window"
+import { wcaRecordDocValidator } from "@/convex/plugins/socialMedia/validators"
 
 /** Local hour on Monday from which the email may go out. */
 export const RECORD_DIGEST_SEND_HOUR = 8
@@ -100,6 +106,7 @@ export const deliver = internalMutation({
     html: v.string(),
     text: v.string(),
     recordCount: v.number(),
+    confirmedThrough: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -120,8 +127,51 @@ export const deliver = internalMutation({
       sentAt: Date.now(),
       emailId,
       recordCount: args.recordCount,
+      confirmedThrough: args.confirmedThrough,
     })
     return null
+  },
+})
+
+/**
+ * What the email for the week starting on `weekStart` lists. Confirmed holds
+ * the week's confirmed records and those the WCA confirmed after the last email
+ * sent before that week and up to `until`, so a record first reported as
+ * provisional is reported again once confirmed, whichever week its competition
+ * ended in. A week that failed to send leaves its confirmations to the next
+ * email that does. Provisional holds the week's records still as WCA Live
+ * entered them.
+ */
+export const recordsForEmail = internalQuery({
+  args: { weekStart: v.string(), until: v.number() },
+  returns: v.object({
+    confirmed: v.array(wcaRecordDocValidator),
+    provisional: v.array(wcaRecordDocValidator),
+  }),
+  handler: async (ctx, args) => {
+    // From the start when no email was sent yet; records never confirmed here
+    // have no `confirmedAt`, which sorts before every number.
+    let since = 0
+    for await (const run of ctx.db
+      .query("socialMediaRecordDigestRuns")
+      .withIndex("by_weekStart", (q) => q.lt("weekStart", args.weekStart))
+      .order("desc")) {
+      if (run.status === "sent") {
+        since = run.confirmedThrough ?? run.sentAt
+        break
+      }
+    }
+
+    const week = await recordsForWeek(ctx, args.weekStart)
+    const weekConfirmed = week.filter((row) => row.status === "confirmed")
+    const weekIds = new Set(weekConfirmed.map((row) => row._id))
+    const earlier = (await confirmedBetween(ctx, since, args.until)).filter(
+      (row) => !weekIds.has(row._id)
+    )
+    return {
+      confirmed: [...weekConfirmed, ...earlier],
+      provisional: week.filter((row) => row.status === "live"),
+    }
   },
 })
 

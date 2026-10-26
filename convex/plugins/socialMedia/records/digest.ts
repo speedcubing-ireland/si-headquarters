@@ -13,9 +13,11 @@ import { renderWeeklyRecordsEmail } from "@/convex/plugins/socialMedia/records/e
 /**
  * Builds and sends the Social Media Team's email of the NRs, CRs and WRs set by
  * competitors from the organisation's country at competitions that ended in the
- * week starting on `weekStart`, or an email saying there were none. Records come
- * from WCA Live as entered, before the WCA posts the results, and are synced
- * first so the email includes the last hour.
+ * week starting on `weekStart`, or an email saying there were none. Records the
+ * WCA has confirmed are listed apart from those still as WCA Live entered them,
+ * which are synced first so the email includes the last hour. A provisional
+ * record is listed again as confirmed in the first email after the WCA posts
+ * its competition's results, whichever week that competition ended in.
  *
  * Queued by `digestState.queueWeeklyDigest`; to send a week by hand, run that
  * mutation with a Monday `nowMs`. WCA Live's API is public, so a disconnected WCA
@@ -27,18 +29,22 @@ export const sendWeeklyRecordsDigest = internalAction({
   handler: async (ctx, args) => {
     try {
       await syncRecentRecords(ctx)
-      const records = await ctx.runQuery(
-        internal.plugins.socialMedia.records.store.forWeek,
-        { weekStart: args.weekStart }
+      const confirmedThrough = Date.now()
+      const { confirmed, provisional } = await ctx.runQuery(
+        internal.plugins.socialMedia.records.digestState.recordsForEmail,
+        { weekStart: args.weekStart, until: confirmedThrough }
       )
       const email = await renderWeeklyRecordsEmail(
-        groupByCompetition(records),
+        {
+          confirmed: groupByCompetition(confirmed),
+          provisional: groupByCompetition(provisional),
+        },
         competitionCountryIso2(),
         args.weekStart
       )
       await ctx.runMutation(
         internal.plugins.socialMedia.records.digestState.deliver,
-        { weekStart: args.weekStart, ...email }
+        { weekStart: args.weekStart, confirmedThrough, ...email }
       )
     } catch (error) {
       // Recorded rather than rethrown: the next hourly tick retries a failed

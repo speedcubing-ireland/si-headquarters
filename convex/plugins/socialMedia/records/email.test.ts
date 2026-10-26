@@ -1,24 +1,47 @@
 import { describe, expect, test } from "vitest"
 import { groupByCompetition } from "@/convex/plugins/socialMedia/records/collect"
-import { renderWeeklyRecordsEmail } from "@/convex/plugins/socialMedia/records/email"
-import { wcaRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
+import {
+  renderWeeklyRecordsEmail,
+  type WeeklyRecords,
+} from "@/convex/plugins/socialMedia/records/email"
+import {
+  listText,
+  wcaRecord,
+} from "@/convex/plugins/socialMedia/records/testFixtures"
+import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
 const WEEK = "2026-10-19"
+
+/** Weekly records grouped by competition, with either list left empty. */
+function weekly({
+  confirmed = [],
+  provisional = [],
+}: {
+  confirmed?: WcaRecord[]
+  provisional?: WcaRecord[]
+}): WeeklyRecords {
+  return {
+    confirmed: groupByCompetition(confirmed),
+    provisional: groupByCompetition(provisional),
+  }
+}
 
 describe("renderWeeklyRecordsEmail", () => {
   test("lists each record with its competitor, result and record", async () => {
     const email = await renderWeeklyRecordsEmail(
-      groupByCompetition([
-        wcaRecord(),
-        wcaRecord({
-          wcaId: null,
-          personName: "Seán Kelly",
-          eventId: "333fm",
-          type: "average",
-          attemptResult: 2433,
-          tag: "CR",
-        }),
-      ]),
+      weekly({
+        provisional: [
+          wcaRecord(),
+          wcaRecord({
+            wcaId: null,
+            personName: "Seán Kelly",
+            eventId: "333fm",
+            type: "average",
+            attemptResult: 2433,
+            tag: "CR",
+          }),
+        ],
+      }),
       "IE",
       WEEK
     )
@@ -39,12 +62,12 @@ describe("renderWeeklyRecordsEmail", () => {
     expect(email.html).toContain(
       "https://live.worldcubeassociation.org/competitions/101"
     )
-    expect(email.text).toContain("as entered on WCA Live")
+    expect(email.text).toContain("As entered on WCA Live")
   })
 
   test("links a competition to the WCA once its results are posted", async () => {
     const email = await renderWeeklyRecordsEmail(
-      groupByCompetition([wcaRecord({ status: "confirmed" })]),
+      weekly({ confirmed: [wcaRecord({ status: "confirmed" })] }),
       "IE",
       WEEK
     )
@@ -55,8 +78,49 @@ describe("renderWeeklyRecordsEmail", () => {
     expect(email.html).not.toContain("live.worldcubeassociation.org")
   })
 
+  test("lists confirmed records apart from provisional ones", async () => {
+    const email = await renderWeeklyRecordsEmail(
+      weekly({
+        confirmed: [
+          wcaRecord({
+            status: "confirmed",
+            personName: "Ciara Byrne",
+            liveCompetitionId: "88",
+            competitionName: "Cork Open 2026",
+            competitionStartDate: "2026-10-17",
+            competitionEndDate: "2026-10-18",
+          }),
+        ],
+        provisional: [wcaRecord()],
+      }),
+      "IE",
+      WEEK
+    )
+
+    expect(email.subject).toBe("Records for Ireland: 19–25 Oct 2026 (2)")
+    expect(email.recordCount).toBe(2)
+    expect(email.text.indexOf("CONFIRMED")).toBeLessThan(
+      email.text.indexOf("PROVISIONAL")
+    )
+    expect(listText(email, "CONFIRMED")).toContain("Ciara Byrne")
+    expect(listText(email, "CONFIRMED")).not.toContain("Aoife Murphy")
+    expect(listText(email, "PROVISIONAL")).toContain("Aoife Murphy")
+    expect(listText(email, "PROVISIONAL")).not.toContain("Ciara Byrne")
+  })
+
+  test("leaves out a list with no records", async () => {
+    const email = await renderWeeklyRecordsEmail(
+      weekly({ provisional: [wcaRecord()] }),
+      "IE",
+      WEEK
+    )
+
+    expect(email.text).toContain("PROVISIONAL")
+    expect(email.text).not.toContain("CONFIRMED")
+  })
+
   test("says so when there were no records", async () => {
-    const email = await renderWeeklyRecordsEmail([], "IE", WEEK)
+    const email = await renderWeeklyRecordsEmail(weekly({}), "IE", WEEK)
 
     expect(email.subject).toBe("No new records for Ireland: 19–25 Oct 2026")
     expect(email.text).toContain(

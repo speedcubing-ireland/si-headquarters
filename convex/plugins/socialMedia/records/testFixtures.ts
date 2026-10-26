@@ -84,3 +84,16 @@ export function recentRecord(
     },
   }
 }
+
+/** The text of an email's list under `title`, up to the next list or footer. */
+export function listText(
+  email: { text?: string },
+  title: "CONFIRMED" | "PROVISIONAL"
+): string {
+  const text = email.text ?? ""
+  const start = text.indexOf(title)
+  if (start === -1) return ""
+  const rest = text.slice(start)
+  const end = rest.search(/\nPROVISIONAL|\nSent every Monday/)
+  return end === -1 ? rest : rest.slice(0, end)
+}

@@ -121,25 +121,50 @@ export const saveSync = internalMutation({
  * the week starting on `weekStart`, leaving out any the WCA's posted results
  * dropped: what the weekly email reports.
  */
+export async function recordsForWeek(
+  ctx: QueryCtx,
+  weekStart: string
+): Promise<Doc<"wcaRecords">[]> {
+  const countryIso2 = competitionCountryIso2()
+  const rows = await ctx.db
+    .query("wcaRecords")
+    .withIndex("by_competitionEndDate", (q) =>
+      q
+        .gte("competitionEndDate", weekStart)
+        .lt("competitionEndDate", localDateOffset(weekStart, 7))
+    )
+    .take(MAX_ROWS_PER_RANGE)
+  return rows.filter(
+    (row) => row.personCountryIso2 === countryIso2 && row.status !== "notRecord"
+  )
+}
+
 export const forWeek = internalQuery({
   args: { weekStart: v.string() },
   returns: v.array(wcaRecordDocValidator),
-  handler: async (ctx, args) => {
-    const countryIso2 = competitionCountryIso2()
-    const rows = await ctx.db
-      .query("wcaRecords")
-      .withIndex("by_competitionEndDate", (q) =>
-        q
-          .gte("competitionEndDate", args.weekStart)
-          .lt("competitionEndDate", localDateOffset(args.weekStart, 7))
-      )
-      .take(MAX_ROWS_PER_RANGE)
-    return rows.filter(
-      (row) =>
-        row.personCountryIso2 === countryIso2 && row.status !== "notRecord"
-    )
-  },
+  handler: async (ctx, args) => await recordsForWeek(ctx, args.weekStart),
 })
+
+/**
+ * Records of the organisation's competitors that the daily confirmation
+ * confirmed after `since` and up to `until`. Records imported already confirmed
+ * have no `confirmedAt`, so they are never among them.
+ */
+export async function confirmedBetween(
+  ctx: QueryCtx,
+  since: number,
+  until: number
+): Promise<Doc<"wcaRecords">[]> {
+  return await ctx.db
+    .query("wcaRecords")
+    .withIndex("by_personCountryIso2_and_confirmedAt", (q) =>
+      q
+        .eq("personCountryIso2", competitionCountryIso2())
+        .gt("confirmedAt", since)
+        .lte("confirmedAt", until)
+    )
+    .take(MAX_ROWS_PER_RANGE)
+}
 
 /**
  * Cron entry point. Hourly, so the records page keeps up through a competition

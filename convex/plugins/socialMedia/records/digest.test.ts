@@ -17,6 +17,7 @@ import { resend } from "@/convex/sendEmails"
 import { RECORD_DIGEST_MAX_ATTEMPTS } from "@/convex/plugins/socialMedia/records/digestState"
 import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
 import {
+  listText,
   recentRecord,
   wcaRecord,
 } from "@/convex/plugins/socialMedia/records/testFixtures"
@@ -43,7 +44,9 @@ function stubWcaLive(options: { records: RecentRecord[]; fail?: boolean }) {
   })
 }
 
+/** A tick with the clock at `nowMs`, which confirmations are timed by. */
 async function tick(t: TestConvex<typeof schema>, nowMs: number) {
+  vi.setSystemTime(nowMs)
   await t.mutation(
     internal.plugins.socialMedia.records.digestState.queueWeeklyDigest,
     { nowMs }
@@ -162,6 +165,110 @@ describe("weekly records email", () => {
     expect(sentEmail().text).toContain("LONG WEEKEND 2026")
   })
 
+  test("lists the week's confirmed records apart from its provisional ones", async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "wcaRecords",
+        wcaRecord({
+          status: "confirmed",
+          personName: "Ciara Byrne",
+          liveCompetitionId: "88",
+          competitionName: "Cork Open 2026",
+          competitionStartDate: "2026-10-20",
+          competitionEndDate: "2026-10-20",
+        })
+      )
+    })
+    stubWcaLive({ records: [recentRecord()] })
+
+    await tick(t, at(8))
+
+    const email = sentEmail()
+    expect(email.subject).toBe("Records for Ireland: 19–25 Oct 2026 (2)")
+    expect(listText(email, "CONFIRMED")).toContain("Ciara Byrne")
+    expect(listText(email, "CONFIRMED")).not.toContain("Aoife Murphy")
+    expect(listText(email, "PROVISIONAL")).toContain("Aoife Murphy")
+    expect(listText(email, "PROVISIONAL")).not.toContain("Ciara Byrne")
+  })
+
+  test("lists a provisional record as confirmed in the next email after it is confirmed, once", async () => {
+    const t = convexTest(schema, modules)
+    const galway = {
+      liveCompetitionId: "55",
+      competitionName: "Galway Open 2026",
+      competitionStartDate: "2026-10-17",
+      competitionEndDate: "2026-10-18",
+    }
+    const fetchMock = stubWcaLive({ records: [recentRecord(galway)] })
+    const week = 7 * 24 * 60 * 60_000
+
+    // Reported as provisional on the Monday after the competition.
+    await tick(t, at(8) - week)
+    expect(listText(sentEmail(0), "PROVISIONAL")).toContain("GALWAY OPEN 2026")
+    expect(listText(sentEmail(0), "CONFIRMED")).toBe("")
+
+    // The WCA posts the results midweek.
+    vi.setSystemTime(Date.UTC(2026, 9, 21, 9))
+    const [row] = await t.run(
+      async (ctx) => await ctx.db.query("wcaRecords").collect()
+    )
+    await t.mutation(
+      internal.plugins.socialMedia.records.confirm.applyConfirmations,
+      {
+        confirmations: [
+          {
+            id: row._id,
+            confirmation: {
+              status: "confirmed",
+              tag: "NR",
+              attemptResult: 987,
+              wcaId: "2015MURP01",
+              personName: "Aoife Murphy",
+            },
+          },
+        ],
+      }
+    )
+
+    fetchMock.mockRestore()
+    stubWcaLive({ records: [] })
+    await tick(t, at(8))
+    expect(sentEmail(1).subject).toBe("Records for Ireland: 19–25 Oct 2026 (1)")
+    expect(listText(sentEmail(1), "CONFIRMED")).toContain("GALWAY OPEN 2026")
+    expect(listText(sentEmail(1), "PROVISIONAL")).toBe("")
+
+    await tick(t, at(8) + week)
+    expect(sentEmail(2).subject).toBe(
+      "No new records for Ireland: 26 Oct – 1 Nov 2026"
+    )
+  })
+
+  test("leaves out earlier records imported already confirmed", async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "wcaRecords",
+        wcaRecord({
+          liveRecordId: "wca:1:single",
+          status: "confirmed",
+          liveCompetitionId: null,
+          wcaCompetitionId: "Limerick2026",
+          competitionName: "Limerick 2026",
+          competitionStartDate: "2026-10-10",
+          competitionEndDate: "2026-10-11",
+        })
+      )
+    })
+    stubWcaLive({ records: [] })
+
+    await tick(t, at(8))
+
+    expect(sentEmail().subject).toBe(
+      "No new records for Ireland: 19–25 Oct 2026"
+    )
+  })
+
   test("says nothing happened when there were no records", async () => {
     const t = convexTest(schema, modules)
     stubWcaLive({ records: [] })
@@ -235,6 +342,7 @@ describe("weekly records email", () => {
       html: "<p>Records</p>",
       text: "Records",
       recordCount: 0,
+      confirmedThrough: at(8),
     }
 
     await t.mutation(

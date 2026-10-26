@@ -151,11 +151,18 @@ export const applyConfirmations = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const confirmedAt = Date.now()
     for (const { id, confirmation } of args.confirmations) {
       const row = await ctx.db.get("wcaRecords", id)
       // Gone or already settled since the action read it.
       if (row?.status !== "live") continue
-      await ctx.db.patch("wcaRecords", id, confirmation)
+      await ctx.db.patch(
+        "wcaRecords",
+        id,
+        confirmation.status === "confirmed"
+          ? { ...confirmation, confirmedAt }
+          : confirmation
+      )
     }
     return null
   },
