@@ -114,6 +114,36 @@ describe("saveSync", () => {
   })
 })
 
+describe("saveSync and imported records", () => {
+  const imported = wcaRecord({
+    liveRecordId: "wca:42:single",
+    status: "confirmed",
+    liveCompetitionId: null,
+  })
+
+  test("does not add a WCA Live record already imported from the WCA's history", async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("wcaRecords", imported)
+    })
+
+    await saveSync(t, [wcaRecord()])
+
+    expect(await storedRows(t)).toMatchObject([imported])
+  })
+
+  test("adds a WCA Live record re-entered under a new id", async () => {
+    const t = convexTest(schema, modules)
+    const first = wcaRecord({ liveRecordId: "1" })
+    const reentered = wcaRecord({ liveRecordId: "2" })
+
+    await saveSync(t, [first], NOW - HOUR)
+    await saveSync(t, [reentered], NOW)
+
+    expect((await storedRows(t)).map((row) => row.liveRecordId)).toEqual(["2"])
+  })
+})
+
 describe("sync", () => {
   test("stores the organisation's records from WCA Live's feed", async () => {
     const t = convexTest(schema, modules)
@@ -186,9 +216,9 @@ describe("list", () => {
     ])
     const { client } = await withVolunteerTestClient(t)
 
-    const competitions = await client.query(
+    const { competitions } = await client.query(
       api.plugins.socialMedia.records.queries.list,
-      { since: "2026-10-01" }
+      { from: "2026-10-01" }
     )
 
     expect(
@@ -215,14 +245,63 @@ describe("list", () => {
     ])
     const { client } = await withVolunteerTestClient(t)
 
-    const competitions = await client.query(
+    const { competitions } = await client.query(
       api.plugins.socialMedia.records.queries.list,
-      { since: "2026-10-01" }
+      { from: "2026-10-01" }
     )
 
     expect(
       competitions.map((competition) => competition.competitionName)
     ).toEqual(["Cork Open", "Galway Open", "Athlone Open"])
+  })
+
+  test("lists only competitions that ended within the range", async () => {
+    const t = convexTest(schema, modules)
+    await saveSync(t, [
+      wcaRecord({ liveCompetitionId: "1", competitionEndDate: "2026-10-04" }),
+      wcaRecord({ liveCompetitionId: "2", competitionEndDate: "2026-10-11" }),
+      wcaRecord({ liveCompetitionId: "3", competitionEndDate: "2026-10-18" }),
+    ])
+    const { client } = await withVolunteerTestClient(t)
+
+    const result = await client.query(
+      api.plugins.socialMedia.records.queries.list,
+      { from: "2026-10-05", to: "2026-10-11" }
+    )
+
+    expect(result.truncated).toBe(false)
+    expect(
+      result.competitions.map((competition) => competition.liveCompetitionId)
+    ).toEqual(["2"])
+  })
+
+  test("shows imported and WCA Live records from one competition together", async () => {
+    const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "wcaRecords",
+        wcaRecord({
+          liveRecordId: "wca:42:single",
+          status: "confirmed",
+          liveCompetitionId: null,
+          eventId: "222",
+        })
+      )
+    })
+    await saveSync(t, [wcaRecord({ status: "confirmed" })])
+    const { client } = await withVolunteerTestClient(t)
+
+    const { competitions } = await client.query(
+      api.plugins.socialMedia.records.queries.list,
+      {}
+    )
+
+    expect(competitions).toHaveLength(1)
+    expect(competitions[0]).toMatchObject({
+      liveCompetitionId: "101",
+      resultsPosted: true,
+    })
+    expect(competitions[0]?.records).toHaveLength(2)
   })
 
   test("refuses users without Social Media Dashboard access", async () => {
@@ -233,7 +312,7 @@ describe("list", () => {
       t
         .withIdentity({ subject: userId })
         .query(api.plugins.socialMedia.records.queries.list, {
-          since: "2026-10-01",
+          from: "2026-10-01",
         })
     ).rejects.toThrow()
   })

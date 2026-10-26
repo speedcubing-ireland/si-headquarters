@@ -10,6 +10,7 @@ import {
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { localToday } from "@/convex/notifications/localTime"
 import { mapWithConcurrency } from "@/convex/plugins/events/concurrency"
+import { recordTag } from "@/convex/plugins/socialMedia/records/kinds"
 import { WCA_URL } from "@/convex/plugins/socialMedia/records/links"
 import {
   wcaRecordDocValidator,
@@ -82,12 +83,6 @@ export async function fetchPostedResults(
   const competition = await fetchWcaJson(path, competitionSchema)
   if (competition.results_posted_at === null) return null
   return await fetchWcaJson(`${path}/results`, z.array(wcaResultSchema))
-}
-
-function recordTag(marker: string): WcaRecord["tag"] {
-  if (marker === "NR" || marker === "WR") return marker
-  // WCA Live calls every continental record a CR.
-  return "CR"
 }
 
 /**

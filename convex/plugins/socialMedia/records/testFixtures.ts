@@ -22,9 +22,18 @@ export function wcaRecord(overrides: Partial<WcaRecord> = {}): WcaRecord {
     competitionEndDate: "2026-10-25",
     ...overrides,
   }
-  // Distinct records get distinct ids unless a test pins one.
+  // Distinct records get distinct ids, and another WCA Live competition is
+  // another WCA competition, unless a test pins one.
+  const otherCompetition =
+    typeof overrides.liveCompetitionId === "string" &&
+    overrides.liveCompetitionId !== "101"
   return {
     ...record,
+    wcaCompetitionId:
+      overrides.wcaCompetitionId ??
+      (otherCompetition
+        ? `Competition${record.liveCompetitionId ?? ""}`
+        : record.wcaCompetitionId),
     liveRecordId:
       overrides.liveRecordId ??
       [
@@ -63,7 +72,7 @@ export function recentRecord(
         competitionEvent: {
           event: { id: record.eventId },
           competition: {
-            id: record.liveCompetitionId,
+            id: record.liveCompetitionId ?? "",
             wcaId: record.wcaCompetitionId,
             name: record.competitionName,
             startDate: record.competitionStartDate,

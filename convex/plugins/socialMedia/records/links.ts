@@ -25,10 +25,10 @@ export function wcaCompetitionResultsUrl(wcaCompetitionId: string): string {
 /** The WCA's results once they are posted, WCA Live's until then. */
 export function competitionResultsUrl(competition: {
   resultsPosted: boolean
-  liveCompetitionId: string
+  liveCompetitionId: string | null
   wcaCompetitionId: string
 }): string {
-  return competition.resultsPosted
+  return competition.resultsPosted || competition.liveCompetitionId === null
     ? wcaCompetitionResultsUrl(competition.wcaCompetitionId)
     : liveCompetitionUrl(competition.liveCompetitionId)
 }

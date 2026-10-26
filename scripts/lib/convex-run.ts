@@ -1,18 +1,17 @@
+import type { Value } from "convex/values"
 import { resolve, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 
-export type ConvexArgs = Record<string, string | undefined>
+export type ConvexArgs = Record<string, Value | undefined>
 
 export async function convexRun<T>(
   functionPath: string,
   args: ConvexArgs
 ): Promise<T> {
   const filteredArgs = Object.fromEntries(
-    Object.entries(args).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined
-    )
+    Object.entries(args).filter((entry) => entry[1] !== undefined)
   )
   const prod =
     process.env.CONVEX_PROD === "1" || process.env.CONVEX_PROD === "true"
