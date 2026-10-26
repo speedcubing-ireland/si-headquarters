@@ -10,10 +10,15 @@ import {
  * A record as WCA Live entered it, until the WCA posts the results and the
  * daily confirmation replaces it with the WCA's version. Only the records
  * Headquarters cares about are kept: those set by competitors from the
- * organisation's country, or set at a competition held there.
+ * organisation's country, or set at a competition held there. Older records
+ * come from the WCA's records history, imported by
+ * `scripts/backfill-records.ts`.
  */
 export const wcaRecordFields = {
-  /** WCA Live's id for the record; a sync updates rather than duplicates it. */
+  /**
+   * WCA Live's id for the record; a sync updates rather than duplicates it.
+   * An imported record has `wca:<result id>:<type>` instead.
+   */
   liveRecordId: v.string(),
   /**
    * `live` until the WCA posts the competition's results; then `confirmed`,
@@ -33,8 +38,11 @@ export const wcaRecordFields = {
    */
   wcaId: v.union(v.string(), v.null()),
   personCountryIso2: v.string(),
-  /** WCA Live's id, for linking to the live results. */
-  liveCompetitionId: v.string(),
+  /**
+   * WCA Live's id, for linking to the live results. Null for an imported
+   * record, whose results the WCA had already posted.
+   */
+  liveCompetitionId: v.union(v.string(), v.null()),
   /** Joins to `competitions.wcaCompetitionId` for the HQ competition. */
   wcaCompetitionId: v.string(),
   competitionName: v.string(),
@@ -84,6 +92,7 @@ export const socialMediaTables = {
   wcaRecords: defineTable(wcaRecordFields)
     .index("by_liveRecordId", ["liveRecordId"])
     .index("by_competitionEndDate", ["competitionEndDate"])
+    .index("by_wcaCompetitionId_and_eventId", ["wcaCompetitionId", "eventId"])
     .index("by_status_and_competitionEndDate", [
       "status",
       "competitionEndDate",

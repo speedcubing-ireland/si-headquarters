@@ -1,8 +1,10 @@
 import { v } from "convex/values"
+import type { Doc } from "@/convex/_generated/dataModel"
 import {
   internalAction,
   internalMutation,
   internalQuery,
+  type QueryCtx,
 } from "@/convex/_generated/server"
 import {
   competitionCountryIso2,
@@ -16,17 +18,51 @@ import {
 import {
   wcaRecordDocValidator,
   wcaRecordValidator,
+  type WcaRecord,
 } from "@/convex/plugins/socialMedia/validators"
 
 /** Far more rows than a few weeks of one country's records reach. */
 const MAX_ROWS_PER_RANGE = 1000
 
 /**
+ * A stored record for the same result as `record`, whichever source it came
+ * from: WCA Live and the WCA's history have different ids for one record. A
+ * competitor can set the same record twice in an event, so the result is
+ * compared too.
+ */
+export async function findSameRecord(
+  ctx: QueryCtx,
+  record: WcaRecord
+): Promise<Doc<"wcaRecords"> | null> {
+  for await (const row of ctx.db
+    .query("wcaRecords")
+    .withIndex("by_wcaCompetitionId_and_eventId", (q) =>
+      q
+        .eq("wcaCompetitionId", record.wcaCompetitionId)
+        .eq("eventId", record.eventId)
+    )) {
+    if (
+      row.type === record.type &&
+      row.attemptResult === record.attemptResult &&
+      // A newcomer only gets a WCA ID once the results are posted.
+      (record.wcaId === null || row.wcaId === null
+        ? row.personName === record.personName &&
+          row.personCountryIso2 === record.personCountryIso2
+        : row.wcaId === record.wcaId)
+    ) {
+      return row
+    }
+  }
+  return null
+}
+
+/**
  * Upserts one sync's records by WCA Live's record id, and deletes stored records
  * WCA Live has since dropped — usually a corrected result — while their
  * competition is still well inside the feed's window. Records from competitions
  * that have aged out of the feed stay as they were last seen, and records the
- * WCA's posted results have settled are never touched again.
+ * WCA's posted results have settled are never touched again. A record already
+ * imported from the WCA's history is not added a second time.
  */
 export const saveSync = internalMutation({
   args: { records: v.array(wcaRecordValidator), syncedAt: v.number() },
@@ -42,7 +78,12 @@ export const saveSync = internalMutation({
         )
         .unique()
       if (existing === null) {
-        await ctx.db.insert("wcaRecords", record)
+        // A live match is one WCA Live re-entered under a new id, which the
+        // pruning below drops, so only a settled match stands in for it.
+        const same = await findSameRecord(ctx, record)
+        if (same === null || same.status === "live") {
+          await ctx.db.insert("wcaRecords", record)
+        }
       } else if (existing.status === "live") {
         await ctx.db.replace("wcaRecords", existing._id, record)
       }

@@ -97,7 +97,7 @@ export function WeeklyRecordsEmail({
           <Text style={{ fontSize: "14px", margin: "0 0 16px" }}>{intro}</Text>
           {competitions.map((group) => (
             <Section
-              key={group.liveCompetitionId}
+              key={group.wcaCompetitionId}
               style={{ marginBottom: "16px" }}
             >
               <Heading as="h2" style={{ fontSize: "16px", margin: "0 0 8px" }}>

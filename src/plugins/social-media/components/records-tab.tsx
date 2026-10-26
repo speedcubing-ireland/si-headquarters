@@ -17,22 +17,37 @@ import {
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { api } from "@/convex/_generated/api"
-import { localDateOffset, localToday } from "@/convex/notifications/localTime"
 import { describeRecord } from "@/convex/plugins/socialMedia/records/format"
 import {
   competitionResultsUrl,
   wcaPersonUrl,
 } from "@/convex/plugins/socialMedia/records/links"
-import { RECORD_TAGS } from "@/convex/plugins/socialMedia/records/kinds"
+import {
+  RECORD_TAGS,
+  RECORD_TYPES,
+} from "@/convex/plugins/socialMedia/records/kinds"
+import {
+  formatWcaEventLabel,
+  wcaEventOrder,
+} from "@/convex/plugins/wca/eventLabels"
 import { formatDate } from "@/lib/format/dates"
 import { cn } from "@/lib/utils"
 import { competitionCountryIso2 } from "@/config/lib/organisation"
+import {
+  defaultRecordsPeriod,
+  recordsPersonKey,
+  type RecordsPeriod,
+  type RecordsPerson,
+} from "@/plugins/social-media/components/records-filters"
+import { RecordsPeriodFilter } from "@/plugins/social-media/components/records-period-filter"
+import { RecordsPersonFilter } from "@/plugins/social-media/components/records-person-filter"
 
 type RecordsCompetition = FunctionReturnType<
   typeof api.plugins.socialMedia.records.queries.list
->[number]
+>["competitions"][number]
 type StoredRecord = RecordsCompetition["records"][number]
 type RecordTag = StoredRecord["tag"]
+type RecordType = StoredRecord["type"]
 type RecordStatus = StoredRecord["status"]
 
 const TAG_BADGE_VARIANT = {
@@ -47,11 +62,12 @@ const STATUS_LABELS = {
   notRecord: "No longer a record",
 } as const satisfies Record<RecordStatus, string>
 
-const PERIODS = [
-  { days: 28, label: "Last 4 weeks" },
-  { days: 91, label: "Last 3 months" },
-  { days: 365, label: "Last 12 months" },
-] as const
+const TYPE_LABELS = {
+  single: "Single",
+  average: "Average",
+} as const satisfies Record<RecordType, string>
+
+const ALL_EVENTS = "all"
 
 const AUDIENCES = {
   all: "Everyone",
@@ -78,20 +94,48 @@ function recordCaption(
   return `New ${record.tag}! ${record.personName} — ${describeRecord(record)} at ${competition.competitionName}`
 }
 
+/** The events with records in the period, plus the chosen one, in WCA order. */
+function eventOptions(records: StoredRecord[], selected: string): string[] {
+  const events = new Set(records.map((record) => record.eventId))
+  if (selected !== ALL_EVENTS) events.add(selected)
+  return [...events].sort((a, b) => wcaEventOrder(a) - wcaEventOrder(b))
+}
+
+/** The people with records in the period, by name. */
+function peopleOptions(records: StoredRecord[]): RecordsPerson[] {
+  const people = new Map<string, RecordsPerson>()
+  for (const record of records) {
+    const key = recordsPersonKey(record)
+    if (!people.has(key)) people.set(key, { key, name: record.personName })
+  }
+  return [...people.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
 export function RecordsTab() {
-  const [days, setDays] = useState<number>(PERIODS[0].days)
+  const [period, setPeriod] = useState<RecordsPeriod>(defaultRecordsPeriod)
   const [tags, setTags] = useState<RecordTag[]>([...RECORD_TAGS])
+  const [types, setTypes] = useState<RecordType[]>([...RECORD_TYPES])
+  const [eventId, setEventId] = useState<string>(ALL_EVENTS)
+  const [person, setPerson] = useState<RecordsPerson | null>(null)
   const [audience, setAudience] = useState<Audience>("all")
-  const competitions = useQuery(api.plugins.socialMedia.records.queries.list, {
-    since: localDateOffset(localToday(), -days),
+  const result = useQuery(api.plugins.socialMedia.records.queries.list, {
+    from: period.from ?? undefined,
+    to: period.to ?? undefined,
   })
 
-  const visible = (competitions ?? [])
+  const inPeriod = (result?.competitions ?? []).flatMap(
+    (competition) => competition.records
+  )
+  const visible = (result?.competitions ?? [])
     .map((competition) => ({
       ...competition,
       records: competition.records.filter(
         (record) =>
-          tags.includes(record.tag) && matchesAudience(record, audience)
+          tags.includes(record.tag) &&
+          types.includes(record.type) &&
+          (eventId === ALL_EVENTS || record.eventId === eventId) &&
+          (person === null || recordsPersonKey(record) === person.key) &&
+          matchesAudience(record, audience)
       ),
     }))
     .filter((competition) => competition.records.length > 0)
@@ -99,19 +143,26 @@ export function RecordsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
+        <RecordsPeriodFilter value={period} onChange={setPeriod} />
         <NativeSelect
-          aria-label="Period"
-          value={String(days)}
+          aria-label="Event"
+          value={eventId}
           onChange={(event) => {
-            setDays(Number(event.currentTarget.value))
+            setEventId(event.currentTarget.value)
           }}
         >
-          {PERIODS.map((period) => (
-            <NativeSelectOption key={period.days} value={String(period.days)}>
-              {period.label}
+          <NativeSelectOption value={ALL_EVENTS}>All events</NativeSelectOption>
+          {eventOptions(inPeriod, eventId).map((id) => (
+            <NativeSelectOption key={id} value={id}>
+              {formatWcaEventLabel(id)}
             </NativeSelectOption>
           ))}
         </NativeSelect>
+        <RecordsPersonFilter
+          people={peopleOptions(inPeriod)}
+          value={person}
+          onChange={setPerson}
+        />
         <NativeSelect
           aria-label="Competitors"
           value={audience}
@@ -129,6 +180,21 @@ export function RecordsTab() {
         <ToggleGroup
           type="multiple"
           variant="outline"
+          aria-label="Single or average"
+          value={types}
+          onValueChange={(value) => {
+            setTypes(RECORD_TYPES.filter((type) => value.includes(type)))
+          }}
+        >
+          {RECORD_TYPES.map((type) => (
+            <ToggleGroupItem key={type} value={type}>
+              {TYPE_LABELS[type]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <ToggleGroup
+          type="multiple"
+          variant="outline"
           aria-label="Record types"
           value={tags}
           onValueChange={(value) => {
@@ -143,7 +209,14 @@ export function RecordsTab() {
         </ToggleGroup>
       </div>
 
-      {competitions === undefined ? (
+      {result?.truncated === true && (
+        <p className="text-sm text-muted-foreground">
+          Showing only the latest records in this period; pick a shorter one to
+          see the rest.
+        </p>
+      )}
+
+      {result === undefined ? (
         <Page.Status variant="loading" message="Loading records…" />
       ) : visible.length === 0 ? (
         <Page.Status
@@ -154,7 +227,7 @@ export function RecordsTab() {
         <div className="grid gap-4 lg:grid-cols-2">
           {visible.map((competition) => (
             <CompetitionRecordsCard
-              key={competition.liveCompetitionId}
+              key={competition.wcaCompetitionId}
               competition={competition}
             />
           ))}
