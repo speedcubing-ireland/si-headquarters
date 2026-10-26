@@ -53,20 +53,79 @@ function RecordLine({ record }: { record: WcaRecord }) {
   )
 }
 
-export function WeeklyRecordsEmail({
+function CompetitionList({
   competitions,
+}: {
+  competitions: readonly CompetitionRecords[]
+}) {
+  return competitions.map((group) => (
+    <Section key={group.wcaCompetitionId} style={{ marginBottom: "16px" }}>
+      <Heading as="h3" style={{ fontSize: "15px", margin: "0 0 8px" }}>
+        <Link
+          href={competitionResultsUrl(group)}
+          style={{ color: colors.foreground }}
+        >
+          {group.competitionName}
+        </Link>
+      </Heading>
+      {group.records.map((record) => (
+        <RecordLine key={record.liveRecordId} record={record} />
+      ))}
+    </Section>
+  ))
+}
+
+/** One of the email's lists, left out when it has no records. */
+function RecordsSection({
+  title,
+  note,
+  competitions,
+}: {
+  title: string
+  note: string
+  competitions: readonly CompetitionRecords[]
+}) {
+  if (competitions.length === 0) return null
+  return (
+    <Section style={{ marginTop: "8px" }}>
+      <Heading as="h2" style={{ fontSize: "17px", margin: "0 0 4px" }}>
+        {title}
+      </Heading>
+      <Text
+        style={{ color: colors.muted, fontSize: "13px", margin: "0 0 12px" }}
+      >
+        {note}
+      </Text>
+      <CompetitionList competitions={competitions} />
+    </Section>
+  )
+}
+
+export interface WeeklyRecords {
+  /**
+   * Records the WCA's posted results confirmed: the week's, and earlier weeks'
+   * confirmed since the last email.
+   */
+  confirmed: readonly CompetitionRecords[]
+  /** The week's records still as WCA Live entered them. */
+  provisional: readonly CompetitionRecords[]
+}
+
+export function WeeklyRecordsEmail({
+  records,
   countryName,
   weekLabel,
 }: {
-  competitions: readonly CompetitionRecords[]
+  records: WeeklyRecords
   countryName: string
   weekLabel: string
 }) {
   const footer = organisationConfig.branding.notificationFooterText
-  const intro =
-    competitions.length === 0
-      ? `No competitor from ${countryName} set an NR, CR or WR at a competition that ended in the week of ${weekLabel}.`
-      : `Records for ${countryName} from competitions that ended in the week of ${weekLabel}:`
+  const empty =
+    records.confirmed.length === 0 && records.provisional.length === 0
+  const intro = empty
+    ? `No competitor from ${countryName} set an NR, CR or WR at a competition that ended in the week of ${weekLabel}.`
+    : `Records for ${countryName} from competitions that ended in the week of ${weekLabel}, and any the WCA has confirmed since the last email:`
 
   return (
     <Html lang="en">
@@ -90,29 +149,21 @@ export function WeeklyRecordsEmail({
           }}
         >
           <Heading as="h1" style={{ fontSize: "20px", margin: "0 0 12px" }}>
-            {competitions.length === 0
+            {empty
               ? `No new records for ${countryName} this week`
               : `New records for ${countryName}`}
           </Heading>
           <Text style={{ fontSize: "14px", margin: "0 0 16px" }}>{intro}</Text>
-          {competitions.map((group) => (
-            <Section
-              key={group.wcaCompetitionId}
-              style={{ marginBottom: "16px" }}
-            >
-              <Heading as="h2" style={{ fontSize: "16px", margin: "0 0 8px" }}>
-                <Link
-                  href={competitionResultsUrl(group)}
-                  style={{ color: colors.foreground }}
-                >
-                  {group.competitionName}
-                </Link>
-              </Heading>
-              {group.records.map((record) => (
-                <RecordLine key={record.liveRecordId} record={record} />
-              ))}
-            </Section>
-          ))}
+          <RecordsSection
+            title="Confirmed"
+            note="Confirmed by the results the WCA has posted, including records sent as provisional in an earlier email."
+            competitions={records.confirmed}
+          />
+          <RecordsSection
+            title="Provisional"
+            note="As entered on WCA Live. The WCA's posted results can still change them; each is sent again once confirmed."
+            competitions={records.provisional}
+          />
           <Text
             style={{
               color: colors.muted,
@@ -120,8 +171,7 @@ export function WeeklyRecordsEmail({
               margin: "24px 0 0",
             }}
           >
-            Records are as entered on WCA Live until the WCA posts the results,
-            which can still change them. Sent every Monday by {footer}.
+            Sent every Monday by {footer}.
           </Text>
         </Container>
       </Body>
@@ -153,20 +203,21 @@ function countryNameOf(countryIso2: string): string {
 }
 
 export async function renderWeeklyRecordsEmail(
-  competitions: readonly CompetitionRecords[],
+  records: WeeklyRecords,
   countryIso2: string,
   weekStart: string
 ): Promise<RenderedEmail> {
   const countryName = countryNameOf(countryIso2)
   const weekLabel = formatWeekLabel(weekStart)
-  const recordCount = countRecords(competitions)
+  const recordCount =
+    countRecords(records.confirmed) + countRecords(records.provisional)
   const subject =
     recordCount === 0
       ? `No new records for ${countryName}: ${weekLabel}`
       : `Records for ${countryName}: ${weekLabel} (${String(recordCount)})`
   const { html, plainText } = await renderEmailFormats(
     <WeeklyRecordsEmail
-      competitions={competitions}
+      records={records}
       countryName={countryName}
       weekLabel={weekLabel}
     />

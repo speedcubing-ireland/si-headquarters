@@ -194,6 +194,20 @@ describe("confirm", () => {
       Failing2026: ["live", 987],
       Ongoing2026: ["live", 987],
     })
+    // Only a confirmed record is timed, for the next weekly email to pick up.
+    const confirmedAt = Object.fromEntries(
+      (
+        await t.run(async (ctx) => await ctx.db.query("wcaRecords").collect())
+      ).map((row) => [row.wcaCompetitionId, row.confirmedAt])
+    )
+    expect(typeof confirmedAt.Posted2026).toBe("number")
+    expect(confirmedAt).toEqual({
+      Posted2026: confirmedAt.Posted2026,
+      Dropped2026: undefined,
+      Unposted2026: undefined,
+      Failing2026: undefined,
+      Ongoing2026: undefined,
+    })
     // A competition still under way is not looked up at all.
     expect(
       fetchSpy.mock.calls.some(([input]) =>

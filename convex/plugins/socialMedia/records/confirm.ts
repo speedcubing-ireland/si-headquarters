@@ -155,7 +155,13 @@ export const applyConfirmations = internalMutation({
       const row = await ctx.db.get("wcaRecords", id)
       // Gone or already settled since the action read it.
       if (row?.status !== "live") continue
-      await ctx.db.patch("wcaRecords", id, confirmation)
+      await ctx.db.patch(
+        "wcaRecords",
+        id,
+        confirmation.status === "confirmed"
+          ? { ...confirmation, confirmedAt: Date.now() }
+          : confirmation
+      )
     }
     return null
   },

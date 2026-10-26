@@ -48,6 +48,12 @@ export const wcaRecordFields = {
   competitionName: v.string(),
   competitionStartDate: v.string(),
   competitionEndDate: v.string(),
+  /**
+   * When the daily confirmation confirmed a record WCA Live entered, so the
+   * next weekly email lists it as confirmed. Absent on a record imported
+   * already confirmed from the WCA's history.
+   */
+  confirmedAt: v.optional(v.number()),
 }
 
 export const wcaRecordValidator = v.object(wcaRecordFields)
@@ -74,6 +80,12 @@ export const recordDigestRunFields = v.union(
     sentAt: v.number(),
     emailId: v.string(),
     recordCount: v.number(),
+    /**
+     * The confirmation time up to which this email listed confirmed records;
+     * the next email lists those confirmed after it. Absent on runs sent
+     * before records were split into confirmed and provisional.
+     */
+    confirmedThrough: v.optional(v.number()),
   }),
   v.object({
     weekStart: v.string(),
@@ -93,8 +105,6 @@ export const socialMediaTables = {
     .index("by_liveRecordId", ["liveRecordId"])
     .index("by_competitionEndDate", ["competitionEndDate"])
     .index("by_wcaCompetitionId_and_eventId", ["wcaCompetitionId", "eventId"])
-    .index("by_status_and_competitionEndDate", [
-      "status",
-      "competitionEndDate",
-    ]),
+    .index("by_status_and_competitionEndDate", ["status", "competitionEndDate"])
+    .index("by_confirmedAt", ["confirmedAt"]),
 }
