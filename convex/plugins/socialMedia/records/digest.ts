@@ -30,27 +30,14 @@ export const sendWeeklyRecordsDigest = internalAction({
     try {
       await syncRecentRecords(ctx)
       const confirmedThrough = Date.now()
-      const weekRecords = await ctx.runQuery(
-        internal.plugins.socialMedia.records.store.forWeek,
-        { weekStart: args.weekStart }
-      )
-      const newlyConfirmed = await ctx.runQuery(
-        internal.plugins.socialMedia.records.digestState
-          .confirmedSinceLastEmail,
+      const { confirmed, provisional } = await ctx.runQuery(
+        internal.plugins.socialMedia.records.digestState.recordsForEmail,
         { weekStart: args.weekStart, until: confirmedThrough }
-      )
-      const confirmed = new Map(
-        [
-          ...weekRecords.filter((record) => record.status === "confirmed"),
-          ...newlyConfirmed,
-        ].map((record) => [record._id, record])
       )
       const email = await renderWeeklyRecordsEmail(
         {
-          confirmed: groupByCompetition([...confirmed.values()]),
-          provisional: groupByCompetition(
-            weekRecords.filter((record) => record.status === "live")
-          ),
+          confirmed: groupByCompetition(confirmed),
+          provisional: groupByCompetition(provisional),
         },
         competitionCountryIso2(),
         args.weekStart

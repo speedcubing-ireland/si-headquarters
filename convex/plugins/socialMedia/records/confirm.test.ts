@@ -198,15 +198,14 @@ describe("confirm", () => {
     const confirmedAt = Object.fromEntries(
       (
         await t.run(async (ctx) => await ctx.db.query("wcaRecords").collect())
-      ).map((row) => [row.wcaCompetitionId, row.confirmedAt])
+      ).map((row) => [row.wcaCompetitionId, typeof row.confirmedAt])
     )
-    expect(typeof confirmedAt.Posted2026).toBe("number")
     expect(confirmedAt).toEqual({
-      Posted2026: confirmedAt.Posted2026,
-      Dropped2026: undefined,
-      Unposted2026: undefined,
-      Failing2026: undefined,
-      Ongoing2026: undefined,
+      Posted2026: "number",
+      Dropped2026: "undefined",
+      Unposted2026: "undefined",
+      Failing2026: "undefined",
+      Ongoing2026: "undefined",
     })
     // A competition still under way is not looked up at all.
     expect(

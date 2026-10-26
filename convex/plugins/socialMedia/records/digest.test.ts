@@ -17,6 +17,7 @@ import { resend } from "@/convex/sendEmails"
 import { RECORD_DIGEST_MAX_ATTEMPTS } from "@/convex/plugins/socialMedia/records/digestState"
 import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
 import {
+  listText,
   recentRecord,
   wcaRecord,
 } from "@/convex/plugins/socialMedia/records/testFixtures"
@@ -43,31 +44,14 @@ function stubWcaLive(options: { records: RecentRecord[]; fail?: boolean }) {
   })
 }
 
+/** A tick with the clock at `nowMs`, which confirmations are timed by. */
 async function tick(t: TestConvex<typeof schema>, nowMs: number) {
+  vi.setSystemTime(nowMs)
   await t.mutation(
     internal.plugins.socialMedia.records.digestState.queueWeeklyDigest,
     { nowMs }
   )
   await t.finishAllScheduledFunctions(() => vi.runAllTimers())
-}
-
-/** A tick with the clock at `nowMs`, which confirmations are timed by. */
-async function tickAt(t: TestConvex<typeof schema>, nowMs: number) {
-  vi.setSystemTime(nowMs)
-  await tick(t, nowMs)
-}
-
-/** The text of an email's list under `title`, up to the next list or footer. */
-function listText(
-  email: SendEmailOptions,
-  title: "CONFIRMED" | "PROVISIONAL"
-): string {
-  const text = email.text ?? ""
-  const start = text.indexOf(title)
-  if (start === -1) return ""
-  const rest = text.slice(start)
-  const end = rest.search(/\nPROVISIONAL|\nSent every Monday/)
-  return end === -1 ? rest : rest.slice(0, end)
 }
 
 async function getRun(t: TestConvex<typeof schema>) {
@@ -198,7 +182,7 @@ describe("weekly records email", () => {
     })
     stubWcaLive({ records: [recentRecord()] })
 
-    await tickAt(t, at(8))
+    await tick(t, at(8))
 
     const email = sentEmail()
     expect(email.subject).toBe("Records for Ireland: 19–25 Oct 2026 (2)")
@@ -220,7 +204,7 @@ describe("weekly records email", () => {
     const week = 7 * 24 * 60 * 60_000
 
     // Reported as provisional on the Monday after the competition.
-    await tickAt(t, at(8) - week)
+    await tick(t, at(8) - week)
     expect(listText(sentEmail(0), "PROVISIONAL")).toContain("GALWAY OPEN 2026")
     expect(listText(sentEmail(0), "CONFIRMED")).toBe("")
 
@@ -249,12 +233,12 @@ describe("weekly records email", () => {
 
     fetchMock.mockRestore()
     stubWcaLive({ records: [] })
-    await tickAt(t, at(8))
+    await tick(t, at(8))
     expect(sentEmail(1).subject).toBe("Records for Ireland: 19–25 Oct 2026 (1)")
     expect(listText(sentEmail(1), "CONFIRMED")).toContain("GALWAY OPEN 2026")
     expect(listText(sentEmail(1), "PROVISIONAL")).toBe("")
 
-    await tickAt(t, at(8) + week)
+    await tick(t, at(8) + week)
     expect(sentEmail(2).subject).toBe(
       "No new records for Ireland: 26 Oct – 1 Nov 2026"
     )
@@ -278,7 +262,7 @@ describe("weekly records email", () => {
     })
     stubWcaLive({ records: [] })
 
-    await tickAt(t, at(8))
+    await tick(t, at(8))
 
     expect(sentEmail().subject).toBe(
       "No new records for Ireland: 19–25 Oct 2026"

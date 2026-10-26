@@ -8,12 +8,13 @@ import {
   internalQuery,
   type MutationCtx,
 } from "@/convex/_generated/server"
-import {
-  competitionCountryIso2,
-  isFeatureEnabled,
-} from "@/config/lib/organisation"
+import { isFeatureEnabled } from "@/config/lib/organisation"
 import { isConfiguredLocalTimeInWindow } from "@/convex/notifications/localTime"
 import { resend } from "@/convex/sendEmails"
+import {
+  confirmedBetween,
+  recordsForWeek,
+} from "@/convex/plugins/socialMedia/records/store"
 import { weekToReport } from "@/convex/plugins/socialMedia/records/window"
 import { wcaRecordDocValidator } from "@/convex/plugins/socialMedia/validators"
 
@@ -22,9 +23,6 @@ export const RECORD_DIGEST_SEND_HOUR = 8
 
 /** Failed attempts per week before the run is left for someone to look at. */
 export const RECORD_DIGEST_MAX_ATTEMPTS = 5
-
-/** Far more records than the WCA confirms for one country between emails. */
-const MAX_CONFIRMED_ROWS = 1000
 
 type DigestRun = Doc<"socialMediaRecordDigestRuns">
 
@@ -136,15 +134,20 @@ export const deliver = internalMutation({
 })
 
 /**
- * Records of the organisation's competitors that the WCA confirmed after the
- * last email sent before the week starting on `weekStart` and up to `until`, so
- * a record first reported as provisional is reported again once confirmed,
- * whichever week its competition ended in. A week that failed to send leaves
- * its confirmations to the next email that does.
+ * What the email for the week starting on `weekStart` lists. Confirmed holds
+ * the week's confirmed records and those the WCA confirmed after the last email
+ * sent before that week and up to `until`, so a record first reported as
+ * provisional is reported again once confirmed, whichever week its competition
+ * ended in. A week that failed to send leaves its confirmations to the next
+ * email that does. Provisional holds the week's records still as WCA Live
+ * entered them.
  */
-export const confirmedSinceLastEmail = internalQuery({
+export const recordsForEmail = internalQuery({
   args: { weekStart: v.string(), until: v.number() },
-  returns: v.array(wcaRecordDocValidator),
+  returns: v.object({
+    confirmed: v.array(wcaRecordDocValidator),
+    provisional: v.array(wcaRecordDocValidator),
+  }),
   handler: async (ctx, args) => {
     // From the start when no email was sent yet; records never confirmed here
     // have no `confirmedAt`, which sorts before every number.
@@ -159,17 +162,16 @@ export const confirmedSinceLastEmail = internalQuery({
       }
     }
 
-    const countryIso2 = competitionCountryIso2()
-    const rows = await ctx.db
-      .query("wcaRecords")
-      .withIndex("by_confirmedAt", (q) =>
-        q.gt("confirmedAt", since).lte("confirmedAt", args.until)
-      )
-      .take(MAX_CONFIRMED_ROWS)
-    return rows.filter(
-      (row) =>
-        row.personCountryIso2 === countryIso2 && row.status === "confirmed"
+    const week = await recordsForWeek(ctx, args.weekStart)
+    const weekConfirmed = week.filter((row) => row.status === "confirmed")
+    const weekIds = new Set(weekConfirmed.map((row) => row._id))
+    const earlier = (await confirmedBetween(ctx, since, args.until)).filter(
+      (row) => !weekIds.has(row._id)
     )
+    return {
+      confirmed: [...weekConfirmed, ...earlier],
+      provisional: week.filter((row) => row.status === "live"),
+    }
   },
 })
 

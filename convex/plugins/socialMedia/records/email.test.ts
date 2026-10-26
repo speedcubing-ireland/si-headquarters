@@ -4,30 +4,44 @@ import {
   renderWeeklyRecordsEmail,
   type WeeklyRecords,
 } from "@/convex/plugins/socialMedia/records/email"
-import { wcaRecord } from "@/convex/plugins/socialMedia/records/testFixtures"
+import {
+  listText,
+  wcaRecord,
+} from "@/convex/plugins/socialMedia/records/testFixtures"
 import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
 const WEEK = "2026-10-19"
 
-/** Weekly records with only provisional ones. */
-function provisional(records: WcaRecord[]): WeeklyRecords {
-  return { confirmed: [], provisional: groupByCompetition(records) }
+/** Weekly records grouped by competition, with either list left empty. */
+function weekly({
+  confirmed = [],
+  provisional = [],
+}: {
+  confirmed?: WcaRecord[]
+  provisional?: WcaRecord[]
+}): WeeklyRecords {
+  return {
+    confirmed: groupByCompetition(confirmed),
+    provisional: groupByCompetition(provisional),
+  }
 }
 
 describe("renderWeeklyRecordsEmail", () => {
   test("lists each record with its competitor, result and record", async () => {
     const email = await renderWeeklyRecordsEmail(
-      provisional([
-        wcaRecord(),
-        wcaRecord({
-          wcaId: null,
-          personName: "Seán Kelly",
-          eventId: "333fm",
-          type: "average",
-          attemptResult: 2433,
-          tag: "CR",
-        }),
-      ]),
+      weekly({
+        provisional: [
+          wcaRecord(),
+          wcaRecord({
+            wcaId: null,
+            personName: "Seán Kelly",
+            eventId: "333fm",
+            type: "average",
+            attemptResult: 2433,
+            tag: "CR",
+          }),
+        ],
+      }),
       "IE",
       WEEK
     )
@@ -53,10 +67,7 @@ describe("renderWeeklyRecordsEmail", () => {
 
   test("links a competition to the WCA once its results are posted", async () => {
     const email = await renderWeeklyRecordsEmail(
-      {
-        confirmed: groupByCompetition([wcaRecord({ status: "confirmed" })]),
-        provisional: [],
-      },
+      weekly({ confirmed: [wcaRecord({ status: "confirmed" })] }),
       "IE",
       WEEK
     )
@@ -69,8 +80,8 @@ describe("renderWeeklyRecordsEmail", () => {
 
   test("lists confirmed records apart from provisional ones", async () => {
     const email = await renderWeeklyRecordsEmail(
-      {
-        confirmed: groupByCompetition([
+      weekly({
+        confirmed: [
           wcaRecord({
             status: "confirmed",
             personName: "Ciara Byrne",
@@ -79,28 +90,27 @@ describe("renderWeeklyRecordsEmail", () => {
             competitionStartDate: "2026-10-17",
             competitionEndDate: "2026-10-18",
           }),
-        ]),
-        provisional: groupByCompetition([wcaRecord()]),
-      },
+        ],
+        provisional: [wcaRecord()],
+      }),
       "IE",
       WEEK
     )
 
     expect(email.subject).toBe("Records for Ireland: 19–25 Oct 2026 (2)")
     expect(email.recordCount).toBe(2)
-    const confirmedAt = email.text.indexOf("CONFIRMED")
-    const provisionalAt = email.text.indexOf("PROVISIONAL")
-    expect(confirmedAt).toBeGreaterThanOrEqual(0)
-    expect(provisionalAt).toBeGreaterThan(confirmedAt)
-    const ciara = email.text.indexOf("Ciara Byrne")
-    expect(ciara).toBeGreaterThan(confirmedAt)
-    expect(ciara).toBeLessThan(provisionalAt)
-    expect(email.text.indexOf("Aoife Murphy")).toBeGreaterThan(provisionalAt)
+    expect(email.text.indexOf("CONFIRMED")).toBeLessThan(
+      email.text.indexOf("PROVISIONAL")
+    )
+    expect(listText(email, "CONFIRMED")).toContain("Ciara Byrne")
+    expect(listText(email, "CONFIRMED")).not.toContain("Aoife Murphy")
+    expect(listText(email, "PROVISIONAL")).toContain("Aoife Murphy")
+    expect(listText(email, "PROVISIONAL")).not.toContain("Ciara Byrne")
   })
 
   test("leaves out a list with no records", async () => {
     const email = await renderWeeklyRecordsEmail(
-      provisional([wcaRecord()]),
+      weekly({ provisional: [wcaRecord()] }),
       "IE",
       WEEK
     )
@@ -110,11 +120,7 @@ describe("renderWeeklyRecordsEmail", () => {
   })
 
   test("says so when there were no records", async () => {
-    const email = await renderWeeklyRecordsEmail(
-      { confirmed: [], provisional: [] },
-      "IE",
-      WEEK
-    )
+    const email = await renderWeeklyRecordsEmail(weekly({}), "IE", WEEK)
 
     expect(email.subject).toBe("No new records for Ireland: 19–25 Oct 2026")
     expect(email.text).toContain(

@@ -106,5 +106,8 @@ export const socialMediaTables = {
     .index("by_competitionEndDate", ["competitionEndDate"])
     .index("by_wcaCompetitionId_and_eventId", ["wcaCompetitionId", "eventId"])
     .index("by_status_and_competitionEndDate", ["status", "competitionEndDate"])
-    .index("by_confirmedAt", ["confirmedAt"]),
+    .index("by_personCountryIso2_and_confirmedAt", [
+      "personCountryIso2",
+      "confirmedAt",
+    ]),
 }
