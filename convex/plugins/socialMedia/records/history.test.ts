@@ -86,6 +86,15 @@ describe("toHistoryRecords", () => {
     )
   })
 
+  test("explains that the current records are not the history", () => {
+    const { record_name: _, start_date: __, ...current } = historyRow()
+    const json = { records: { "333fm": [current] }, timestamp: "2026-10-26" }
+
+    expect(() => toHistoryRecords(JSON.stringify(json), "IE")).toThrow(
+      /show=history/
+    )
+  })
+
   test("refuses a file that is not a records history", () => {
     expect(() =>
       toHistoryRecords(JSON.stringify({ records: [] }), "IE")

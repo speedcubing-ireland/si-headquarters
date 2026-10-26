@@ -33,6 +33,17 @@ const historySchema = z.object({
   records: z.record(z.string(), z.array(historyRowSchema)),
 })
 
+/**
+ * The same endpoint without `show=history`: only the current records, without
+ * the dates or record names a history row has.
+ */
+const currentRecordsSchema = z.object({
+  records: z.record(
+    z.string(),
+    z.array(z.object({ id: z.number(), start_date: z.undefined().optional() }))
+  ),
+})
+
 type HistoryRow = z.infer<typeof historyRowSchema>
 
 /**
@@ -95,6 +106,11 @@ export function toHistoryRecords(
 ): WcaRecord[] {
   const parsed = historySchema.safeParse(JSON.parse(text))
   if (!parsed.success) {
+    if (currentRecordsSchema.safeParse(JSON.parse(text)).success) {
+      throw new Error(
+        `This file has only the current records. Save the history instead, with show=history in the URL (region=${countryIso2}&show=history).`
+      )
+    }
     throw new Error(
       `Not a WCA records history: ${z.prettifyError(parsed.error)}`
     )
