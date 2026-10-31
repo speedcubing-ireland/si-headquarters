@@ -64,6 +64,20 @@ async function getRun(t: TestConvex<typeof schema>) {
   )
 }
 
+/** A deployment whose Admin → Settings has the records email configured. */
+async function convexWithRecipients() {
+  const t = convexTest(schema, modules)
+  await t.run(async (ctx) => {
+    await ctx.db.insert("appSettings", {
+      key: "recordsEmail",
+      recipients: ["social@example.com", "design@example.com"],
+      senderAddress: "HQ <noreply@example.com>",
+      updatedAt: 0,
+    })
+  })
+  return t
+}
+
 let sendEmail: MockInstance<typeof resend.sendEmail>
 
 /** The options of the `index`th email handed to Resend. */
@@ -79,11 +93,6 @@ function sentEmail(index = 0): SendEmailOptions {
 
 beforeEach(() => {
   vi.useFakeTimers()
-  vi.stubEnv(
-    "SOCIAL_MEDIA_RECORDS_EMAIL_TO",
-    "social@example.com, design@example.com"
-  )
-  vi.stubEnv("SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS", "HQ <noreply@example.com>")
   sendEmail = vi
     .spyOn(resend, "sendEmail")
     .mockResolvedValue("email-1" as EmailId)
@@ -91,13 +100,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
-  vi.unstubAllEnvs()
   vi.restoreAllMocks()
 })
 
 describe("weekly records email", () => {
   test("waits for 08:00 local time on a Monday", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     const fetchMock = stubWcaLive({ records: [] })
 
     await tick(t, at(7))
@@ -109,7 +117,7 @@ describe("weekly records email", () => {
   })
 
   test("sends last week's records once", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     stubWcaLive({
       records: [
         recentRecord(),
@@ -143,7 +151,7 @@ describe("weekly records email", () => {
   })
 
   test("includes a week's records synced before they left WCA Live's feed", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     // Started before the Monday run's feed reaches back to, so only an earlier
     // sync saw it.
     await t.mutation(internal.plugins.socialMedia.records.store.saveSync, {
@@ -166,7 +174,7 @@ describe("weekly records email", () => {
   })
 
   test("lists the week's confirmed records apart from its provisional ones", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     await t.run(async (ctx) => {
       await ctx.db.insert(
         "wcaRecords",
@@ -193,7 +201,7 @@ describe("weekly records email", () => {
   })
 
   test("lists a provisional record as confirmed in the next email after it is confirmed, once", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     const galway = {
       liveCompetitionId: "55",
       competitionName: "Galway Open 2026",
@@ -245,7 +253,7 @@ describe("weekly records email", () => {
   })
 
   test("leaves out earlier records imported already confirmed", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     await t.run(async (ctx) => {
       await ctx.db.insert(
         "wcaRecords",
@@ -270,7 +278,7 @@ describe("weekly records email", () => {
   })
 
   test("says nothing happened when there were no records", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     stubWcaLive({ records: [] })
 
     await tick(t, at(8))
@@ -283,7 +291,7 @@ describe("weekly records email", () => {
   })
 
   test("retries a failed run on a later tick", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     const fetchMock = stubWcaLive({ records: [], fail: true })
 
     await tick(t, at(8))
@@ -303,7 +311,7 @@ describe("weekly records email", () => {
   })
 
   test("gives up after the last attempt", async () => {
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     const fetchMock = stubWcaLive({ records: [], fail: true })
 
     for (let hour = 8; hour < 8 + RECORD_DIGEST_MAX_ATTEMPTS; hour += 1) {
@@ -324,7 +332,7 @@ describe("weekly records email", () => {
     vi.spyOn(organisation, "isFeatureEnabled").mockImplementation(
       (feature) => feature !== "records"
     )
-    const t = convexTest(schema, modules)
+    const t = await convexWithRecipients()
     const fetchMock = stubWcaLive({ records: [] })
 
     await tick(t, at(8))
@@ -334,8 +342,22 @@ describe("weekly records email", () => {
     expect(await getRun(t)).toBeNull()
   })
 
-  test("never sends a week twice, even from overlapping runs", async () => {
+  test("records a failure naming Admin → Settings while no recipients are configured", async () => {
     const t = convexTest(schema, modules)
+    stubWcaLive({ records: [] })
+
+    await tick(t, at(8))
+
+    expect(sendEmail).not.toHaveBeenCalled()
+    const run = await getRun(t)
+    expect(run).toMatchObject({ status: "failed", failures: 1 })
+    expect(run?.status === "failed" ? run.lastError : null).toMatch(
+      /Configure it in Admin → Settings/
+    )
+  })
+
+  test("never sends a week twice, even from overlapping runs", async () => {
+    const t = await convexWithRecipients()
     const email = {
       weekStart: WEEK_START,
       subject: "Records",

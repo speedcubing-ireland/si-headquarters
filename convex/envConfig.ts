@@ -1,27 +1,23 @@
 import { CANVA_DEFINITION } from "@/convex/plugins/canva/definition"
 import { DISCORD_DEFINITION } from "@/convex/plugins/discord/definition"
 import { GOOGLE_DEFINITION } from "@/convex/plugins/google/definition"
-import { SOCIAL_MEDIA_RECORDS_DEFINITION } from "@/convex/plugins/socialMedia/definition"
 import {
-  ACHIEVEMENTS_DEFINITION,
   WCA_2FA_DEFINITION,
   WCA_DEFINITION,
 } from "@/convex/plugins/wca/definition"
-import {
-  configuredSponsorshipSenderAddress,
-  isFeatureEnabled,
-  organisationConfig,
-} from "@/config/lib/organisation"
+import { organisationConfig } from "@/config/lib/organisation"
 import {
   emailEnabled,
   type OrganisationConfigDefinition,
 } from "@/config/lib/organisation-schema"
 
+// Non-secret operational settings (Canva templates, email recipients and
+// senders, the SI Achievements site) are not env vars: directors edit them in
+// Admin → Settings, stored in the `appSettings` table (`convex/settings`).
 export type EnvSetupGroup =
   | "Staff auth"
   | "App secrets"
   | "Service OAuth"
-  | "Canva"
   | "Discord"
   | "Email"
   | "URLs"
@@ -171,22 +167,6 @@ const EMAIL_CORE_ENV_SETUP = [
   },
 ] as const satisfies readonly EnvSetupSpec[]
 
-// Gated on the live config because its default reads the sponsorship contacts,
-// which only exist when sponsors are on.
-const SPONSOR_EMAIL_ENV_SETUP: readonly EnvSetupSpec[] = isFeatureEnabled(
-  "sponsors"
-)
-  ? [
-      {
-        key: "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
-        group: "Email",
-        kind: "prompt",
-        description: "From address for sponsorship emails.",
-        defaultValue: configuredSponsorshipSenderAddress(),
-      },
-    ]
-  : []
-
 function uniqueByKey(specs: readonly EnvSetupSpec[]): EnvSetupSpec[] {
   const seen = new Set<string>()
   return specs.filter((spec) => {
@@ -206,12 +186,9 @@ export const ALL_ENV_SETUP = uniqueByKey([
   ...GOOGLE_DEFINITION.setup,
   ...WCA_DEFINITION.setup,
   ...WCA_2FA_DEFINITION.setup,
-  ...ACHIEVEMENTS_DEFINITION.setup,
   ...CANVA_DEFINITION.setup,
   ...DISCORD_DEFINITION.setup,
   ...EMAIL_CORE_ENV_SETUP,
-  ...SPONSOR_EMAIL_ENV_SETUP,
-  ...SOCIAL_MEDIA_RECORDS_DEFINITION.setup,
 ])
 
 export function buildRequiredEnvSetup(
@@ -235,12 +212,9 @@ export function buildRequiredEnvSetup(
     ...(config.features.google ? GOOGLE_DEFINITION.setup : []),
     ...(config.features.wcaIntegration ? WCA_DEFINITION.setup : []),
     ...(config.features.wca2fa ? WCA_2FA_DEFINITION.setup : []),
-    ...(config.features.wcaIntegration ? ACHIEVEMENTS_DEFINITION.setup : []),
     ...(config.features.canva ? CANVA_DEFINITION.setup : []),
     ...(config.features.discord ? DISCORD_DEFINITION.setup : []),
     ...(emailEnabled(config.features) ? EMAIL_CORE_ENV_SETUP : []),
-    ...(config.features.sponsors ? SPONSOR_EMAIL_ENV_SETUP : []),
-    ...(config.features.records ? SOCIAL_MEDIA_RECORDS_DEFINITION.setup : []),
   ]
 }
 

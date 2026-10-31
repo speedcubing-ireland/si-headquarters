@@ -59,6 +59,10 @@ function createCtx() {
         Object.assign(dispatch, patch)
       },
       query: (table: string) => {
+        if (table === "appSettings") {
+          // No sender override in Admin → Settings: the manifest address.
+          return { withIndex: () => ({ unique: async () => null }) }
+        }
         if (table !== "sponsorshipEmailDispatches") {
           throw new Error(`Unexpected query table: ${table}`)
         }

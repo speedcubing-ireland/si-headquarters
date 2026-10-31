@@ -69,11 +69,11 @@ Each provider needs **two** redirect URIs registered: the admin-page one (used
 by the browser flow, the primary path) and the loopback one (used by the
 `bun run auth` CLI fallback).
 
-| Service    | Admin redirect URI                                                 | CLI redirect URI        | Scopes / notes                                                                                                                                                                    |
-| ---------- | ------------------------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **WCA**    | `{SITE_URL}/admin/service-accounts/callback`                       | `http://localhost:3848` | `public email manage_competitions`                                                                                                                                                |
-| **Canva**  | `{SITE_URL}/admin/service-accounts/callback` (`127.0.0.1` locally) | `http://127.0.0.1:3849` | `design:content:write design:meta:read folder:read folder:write brandtemplate:meta:read brandtemplate:content:read` — also needs certificate/lanyard template + output folder IDs |
-| **Google** | `{SITE_URL}/admin/service-accounts/callback`                       | `http://localhost:3847` | enable the Sheets/Drive APIs on the project                                                                                                                                       |
+| Service    | Admin redirect URI                                                 | CLI redirect URI        | Scopes / notes                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **WCA**    | `{SITE_URL}/admin/service-accounts/callback`                       | `http://localhost:3848` | `public email manage_competitions`                                                                                                                                                                |
+| **Canva**  | `{SITE_URL}/admin/service-accounts/callback` (`127.0.0.1` locally) | `http://127.0.0.1:3849` | `design:content:write design:meta:read folder:read folder:write brandtemplate:meta:read brandtemplate:content:read` — certificate/lanyard template + output folder IDs go in **Admin → Settings** |
+| **Google** | `{SITE_URL}/admin/service-accounts/callback`                       | `http://localhost:3847` | enable the Sheets/Drive APIs on the project                                                                                                                                                       |
 
 `SITE_URL` is the deployment's frontend origin (`http://localhost:5173` by
 default). Register the admin URI for **every** environment you connect from —
@@ -102,6 +102,38 @@ Create a bot and add it to the server.
 - Set the portal's **Interactions Endpoint URL** to
   `https://{CONVEX_SITE_URL}/discord/interactions`. Discord verifies the URL, so
   the project must be deployed first.
+
+## Admin settings
+
+Some configuration is not secret and changes while the organisation runs, so it
+lives in the database and directors edit it from **Admin → Settings** instead of
+the Convex environment. Each card only appears when its feature is enabled:
+
+| Card                 | Feature          | What it holds                                                                                |
+| -------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| Canva                | `canva`          | Brand template ID and output folder ID for the certificate and lanyard integrations          |
+| Weekly records email | `records`        | Recipients and sender of Monday's records email (required before it can send)                |
+| Sponsorship emails   | `sponsors`       | Sender for sponsor emails and portal sign-in codes; empty falls back to the manifest address |
+| SI Achievements      | `wcaIntegration` | Site the badges link on tasks points to; empty hides the link                                |
+
+Senders must be on a domain verified in Resend, as a bare address or
+`Name <address>`.
+
+### Upgrading a deployment that still has these as env vars
+
+Earlier versions read these from `CANVA_CERT_TEMPLATE_ID`,
+`CANVA_CERT_OUTPUT_FOLDER_ID`, `CANVA_LANYARD_TEMPLATE_ID`,
+`CANVA_LANYARD_OUTPUT_FOLDER_ID`, `SOCIAL_MEDIA_RECORDS_EMAIL_TO`,
+`SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS`, `SPONSORSHIP_EMAIL_SENDER_ADDRESS` and
+`ACHIEVEMENTS_SITE_URL`. After deploying, copy them into the database once, then
+unset them:
+
+```sh
+bunx convex run settings/migrations:importFromEnv            # dev
+bunx convex run --prod settings/migrations:importFromEnv     # production
+```
+
+It only fills settings that have not been saved yet, so it is safe to re-run.
 
 ## Exchanging service tokens
 

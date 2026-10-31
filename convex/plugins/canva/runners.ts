@@ -1,5 +1,6 @@
 "use node"
 
+import { internal } from "@/convex/_generated/api"
 import type { ActionCtx } from "@/convex/_generated/server"
 import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import type {
@@ -10,7 +11,7 @@ import { autofillBrandTemplate } from "@/convex/plugins/canva/api"
 import {
   buildCanvaOutputTitle,
   getCanvaPreset,
-  resolveCanvaPresetEnv,
+  requireCanvaPresetSettings,
   type CanvaPreset,
 } from "@/convex/plugins/canva/presets"
 
@@ -20,7 +21,12 @@ async function runCanvaAutofill(
   preset: CanvaPreset
 ): Promise<TaskIntegrationRunResult> {
   const { sourceBrandTemplateId, destinationFolderId } =
-    resolveCanvaPresetEnv(preset)
+    requireCanvaPresetSettings(
+      preset,
+      await ctx.runQuery(internal.settings.appSettings.getCanvaPresetSettings, {
+        presetKey: preset.settingsKey,
+      })
+    )
 
   const accessToken = await resolveValidServiceToken(ctx, "canva")
 

@@ -37,6 +37,7 @@ import {
   taskReminderFields,
 } from "@/convex/notifications/validators"
 import { objectUpdatesFields } from "@/convex/updates/validators"
+import { appSettingsTable } from "@/convex/settings/validators"
 
 const schema = defineSchema(
   {
@@ -163,6 +164,7 @@ const schema = defineSchema(
       .index("by_owner_entity_page", ["ownerId", "entity", "pageId"])
       .index("by_visibility_entity_page", ["visibility", "entity", "pageId"]),
     impersonationSessions: impersonationSessionsTable,
+    appSettings: appSettingsTable,
     ...pluginTables,
   },
   {

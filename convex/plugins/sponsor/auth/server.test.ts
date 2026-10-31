@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "vitest"
+import { describe, expect, test } from "vitest"
 import {
   trimTrailingSlash,
   uniqueOrigins,
@@ -189,50 +189,6 @@ describe("createSponsorAuthOptions", () => {
       restoreEnv("SPONSOR_BETTER_AUTH_SECRET", savedSponsorSecret)
       restoreEnv("BETTER_AUTH_SECRET", savedBetterAuthSecret)
     }
-  })
-})
-
-describe("buildSponsorOtpEmail sender address", () => {
-  const saved = process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS
-
-  afterEach(() => {
-    if (saved !== undefined)
-      process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = saved
-    else delete process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS
-  })
-
-  test("uses SPONSORSHIP_EMAIL_SENDER_ADDRESS env var when set", async () => {
-    process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = "custom@example.com"
-    const result = await buildSponsorOtpEmail({
-      email: "user@example.com",
-      otp: "123456",
-      type: "sign-in",
-    })
-    expect(result.senderAddress).toBe("custom@example.com")
-  })
-
-  test("falls back to configured sender when env unset", async () => {
-    delete process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS
-    const result = await buildSponsorOtpEmail({
-      email: "user@example.com",
-      otp: "123456",
-      type: "sign-in",
-    })
-    expect(result.senderAddress).toBe(
-      sponsorshipConfig().contacts.sponsorshipTeamEmail
-    )
-  })
-
-  test("falls back to default when env var is whitespace", async () => {
-    process.env.SPONSORSHIP_EMAIL_SENDER_ADDRESS = "   "
-    const result = await buildSponsorOtpEmail({
-      email: "user@example.com",
-      otp: "123456",
-      type: "sign-in",
-    })
-    expect(result.senderAddress).toBe(
-      sponsorshipConfig().contacts.sponsorshipTeamEmail
-    )
   })
 })
 

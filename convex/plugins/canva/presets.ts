@@ -1,5 +1,8 @@
-import { env } from "@/convex/_generated/server"
-import { requireConvexEnv, type ConvexEnvSource } from "@/convex/envTypes"
+import { SETTINGS_LOCATION } from "@/convex/settings/model"
+import type {
+  CanvaPresetSettings,
+  CanvaSettingsPresetKey,
+} from "@/convex/settings/validators"
 import {
   TASK_INTEGRATION_DEFINITIONS,
   type TaskIntegrationIdFromDefinitions,
@@ -10,18 +13,10 @@ const CANVA_PRESET_IDS = [
   "canva.lanyards",
 ] as const satisfies readonly TaskIntegrationIdFromDefinitions[]
 
-type CanvaPresetDefinition =
-  (typeof TASK_INTEGRATION_DEFINITIONS)[(typeof CANVA_PRESET_IDS)[number]]
-
-export type CanvaEnvKey =
-  | CanvaPresetDefinition["canva"]["sourceBrandTemplateEnv"]
-  | CanvaPresetDefinition["canva"]["destinationFolderEnv"]
-
 export interface CanvaPreset {
   id: (typeof CANVA_PRESET_IDS)[number]
   label: string
-  sourceBrandTemplateEnv: CanvaEnvKey
-  destinationFolderEnv: CanvaEnvKey
+  settingsKey: CanvaSettingsPresetKey
   naming: { outputSuffix: string }
 }
 
@@ -30,15 +25,12 @@ export const CANVA_PRESETS = CANVA_PRESET_IDS.map((id) => {
   return {
     id,
     label: definition.label,
-    sourceBrandTemplateEnv: definition.canva.sourceBrandTemplateEnv,
-    destinationFolderEnv: definition.canva.destinationFolderEnv,
+    settingsKey: definition.canva.settingsKey,
     naming: definition.canva.naming,
   }
 }) satisfies readonly CanvaPreset[]
 
 export type CanvaPresetId = (typeof CANVA_PRESETS)[number]["id"]
-
-export type CanvaEnvSource = ConvexEnvSource<CanvaEnvKey>
 
 const presetById = new Map<string, CanvaPreset>(
   CANVA_PRESETS.map((preset) => [preset.id, preset])
@@ -52,36 +44,25 @@ export function getCanvaPreset(integrationId: string): CanvaPreset {
   return preset
 }
 
-export function requireCanvaEnv(
-  envKey: CanvaEnvKey,
+/**
+ * The preset's template and output folder from Admin → Settings, or a clear
+ * error naming where to configure them.
+ */
+export function requireCanvaPresetSettings(
   preset: CanvaPreset,
-  source: CanvaEnvSource = env
-): string {
-  return requireConvexEnv(
-    envKey,
-    `Canva preset "${preset.id}" requires Convex env ${envKey} to be set.`,
-    source
-  )
-}
-
-export function resolveCanvaPresetEnv(
-  preset: CanvaPreset,
-  source?: CanvaEnvSource
+  settings: CanvaPresetSettings | null
 ): {
   sourceBrandTemplateId: string
   destinationFolderId: string
 } {
+  if (settings === null) {
+    throw new Error(
+      `Canva preset "${preset.id}" has no brand template or output folder. Configure them in ${SETTINGS_LOCATION}.`
+    )
+  }
   return {
-    sourceBrandTemplateId: requireCanvaEnv(
-      preset.sourceBrandTemplateEnv,
-      preset,
-      source
-    ),
-    destinationFolderId: requireCanvaEnv(
-      preset.destinationFolderEnv,
-      preset,
-      source
-    ),
+    sourceBrandTemplateId: settings.brandTemplateId,
+    destinationFolderId: settings.outputFolderId,
   }
 }
 
