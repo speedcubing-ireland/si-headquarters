@@ -152,7 +152,7 @@ export async function requireRecordsEmailSettings(ctx: QueryCtx): Promise<{
   return { recipients: row.recipients, senderAddress: row.senderAddress }
 }
 
-export async function configuredSponsorshipSenderAddress(
+export async function sponsorshipSenderOverride(
   ctx: QueryCtx
 ): Promise<string | null> {
   const row = await loadAppSetting(ctx, "sponsorshipEmail")

@@ -109,12 +109,12 @@ Some configuration is not secret and changes while the organisation runs, so it
 lives in the database and directors edit it from **Admin → Settings** instead of
 the Convex environment. Each card only appears when its feature is enabled:
 
-| Card                 | Feature          | What it holds                                                                                |
-| -------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
-| Canva                | `canva`          | Brand template ID and output folder ID for the certificate and lanyard integrations          |
-| Weekly records email | `records`        | Recipients and sender of Monday's records email (required before it can send)                |
-| Sponsorship emails   | `sponsors`       | Sender for sponsor emails and portal sign-in codes; empty falls back to the manifest address |
-| SI Achievements      | `wcaIntegration` | Site the badges link on tasks points to; empty hides the link                                |
+| Card                 | Feature          | What it holds                                                                                                |
+| -------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| Canva                | `canva`          | Brand template ID and output folder ID for the certificate and lanyard integrations                          |
+| Weekly records email | `records`        | Recipients and sender of Monday's records email (required before it can send)                                |
+| Sponsorship emails   | `sponsors`       | Sender for sponsor emails and portal sign-in codes; empty falls back to the manifest's team name and address |
+| SI Achievements      | `wcaIntegration` | Site the badges link on tasks points to; empty hides the link                                                |
 
 Senders must be on a domain verified in Resend, as a bare address or
 `Name <address>`.

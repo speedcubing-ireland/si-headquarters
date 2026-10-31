@@ -7,7 +7,7 @@ import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 import { resend } from "@/convex/sendEmails"
 import { seedDirectorUser, seedVolunteerTestUser } from "@/convex/testHelpers"
-import { sponsorshipConfig } from "@/config/lib/organisation"
+import { configuredSponsorshipSenderAddress } from "@/config/lib/organisation"
 
 async function asDirector(t: TestConvex<typeof schema>) {
   const userId = await t.run(async (ctx) => seedDirectorUser(ctx))
@@ -34,7 +34,7 @@ describe("get", () => {
       recordsEmail: { recipients: [], senderAddress: null, updatedAt: null },
       sponsorshipEmail: {
         senderAddress: null,
-        defaultSenderAddress: sponsorshipConfig().contacts.sponsorshipTeamEmail,
+        defaultSenderAddress: configuredSponsorshipSenderAddress(),
         updatedAt: null,
       },
       achievements: { siteUrl: null, updatedAt: null },
@@ -210,7 +210,7 @@ describe("sponsorship sender", () => {
       })
     ).toEqual([
       "Sponsorship <sponsors@example.com>",
-      sponsorshipConfig().contacts.sponsorshipTeamEmail,
+      configuredSponsorshipSenderAddress(),
     ])
   })
 })
