@@ -68,8 +68,6 @@ bun run build:deploy   # convex deploy + frontend build
 
 On Vercel, also set `CONVEX_DEPLOY_KEY`.
 
-
-
 ## Scripts
 
 | Command                           | What it does                            |
