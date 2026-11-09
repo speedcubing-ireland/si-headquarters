@@ -19,6 +19,5 @@ export const convexEnv = {
     ? v.union(v.literal("true"), v.literal("false"))
     : v.optional(v.union(v.literal("true"), v.literal("false"))),
   BETTER_AUTH_SECRET: v.optional(v.string()),
-  VITE_SITE_URL: v.optional(v.string()),
   CORS_ALLOWED_ORIGINS: v.optional(v.string()),
 }

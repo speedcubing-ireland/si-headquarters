@@ -237,7 +237,7 @@ export const deliverSponsorshipEmailDispatch = internalMutation({
       (address) => address.length > 0 && address !== dispatch.recipientEmail
     )
     const emailId = await resend.sendEmail(ctx, {
-      from: getSponsorshipSenderAddress(),
+      from: await getSponsorshipSenderAddress(ctx),
       to: dispatch.recipientEmail,
       ...(cc.length > 0 ? { cc } : {}),
       subject: dispatch.subject,
@@ -316,9 +316,9 @@ export const recordSponsorshipEmailDispatchFailure = internalMutation({
   },
 })
 
+/** Sends from the configured sponsorship sender (Admin → Settings). */
 export const deliverSponsorshipEmail = internalMutation({
   args: {
-    from: v.string(),
     to: v.string(),
     cc: v.optional(v.array(v.string())),
     subject: v.string(),
@@ -328,7 +328,7 @@ export const deliverSponsorshipEmail = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await resend.sendEmail(ctx, {
-      from: args.from,
+      from: await getSponsorshipSenderAddress(ctx),
       to: args.to,
       ...(args.cc && args.cc.length > 0 ? { cc: args.cc } : {}),
       subject: args.subject,

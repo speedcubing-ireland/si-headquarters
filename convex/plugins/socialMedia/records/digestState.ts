@@ -3,7 +3,6 @@ import { v } from "convex/values"
 import { internal } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import {
-  env,
   internalMutation,
   internalQuery,
   type MutationCtx,
@@ -11,6 +10,7 @@ import {
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { isConfiguredLocalTimeInWindow } from "@/convex/notifications/localTime"
 import { resend } from "@/convex/sendEmails"
+import { requireRecordsEmailSettings } from "@/convex/settings/model"
 import {
   confirmedBetween,
   recordsForWeek,
@@ -25,13 +25,6 @@ export const RECORD_DIGEST_SEND_HOUR = 8
 export const RECORD_DIGEST_MAX_ATTEMPTS = 5
 
 type DigestRun = Doc<"socialMediaRecordDigestRuns">
-
-function parseRecipients(value: string): string[] {
-  return value
-    .split(",")
-    .map((address) => address.trim())
-    .filter((address) => address.length > 0)
-}
 
 async function getRun(
   ctx: MutationCtx,
@@ -97,7 +90,9 @@ export const queueWeeklyDigest = internalMutation({
 
 /**
  * Hands the email to Resend and marks the week sent in one transaction, so a
- * week is never marked sent without its email queued, or sent twice.
+ * week is never marked sent without its email queued, or sent twice. Throws
+ * while Admin → Settings has no recipients, which the action records as the
+ * run's failure.
  */
 export const deliver = internalMutation({
   args: {
@@ -113,9 +108,10 @@ export const deliver = internalMutation({
     const run = await getRun(ctx, args.weekStart)
     if (run?.status === "sent") return null
 
+    const { recipients, senderAddress } = await requireRecordsEmailSettings(ctx)
     const emailId = await resend.sendEmail(ctx, {
-      from: env.SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS,
-      to: parseRecipients(env.SOCIAL_MEDIA_RECORDS_EMAIL_TO),
+      from: senderAddress,
+      to: recipients,
       subject: args.subject,
       html: args.html,
       text: args.text,

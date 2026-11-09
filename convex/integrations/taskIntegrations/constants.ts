@@ -1,4 +1,4 @@
-import type { StringConvexEnvName } from "@/convex/envTypes"
+import type { CanvaSettingsPresetKey } from "@/convex/settings/validators"
 import {
   DEFAULT_RESOURCE_KEYS,
   type LinkedResourceTypeId,
@@ -46,8 +46,8 @@ interface TaskIntegrationCatalogEntry {
     resourceKey: string
   }[]
   canva?: {
-    sourceBrandTemplateEnv: StringConvexEnvName
-    destinationFolderEnv: StringConvexEnvName
+    /** Which template + output folder pair in Admin → Settings it uses. */
+    settingsKey: CanvaSettingsPresetKey
     naming: { outputSuffix: string }
   }
 }
@@ -74,8 +74,7 @@ export const TASK_INTEGRATION_DEFINITIONS = {
     kind: "run",
     requiredResources: [],
     canva: {
-      sourceBrandTemplateEnv: "CANVA_CERT_TEMPLATE_ID",
-      destinationFolderEnv: "CANVA_CERT_OUTPUT_FOLDER_ID",
+      settingsKey: "certificates",
       naming: { outputSuffix: "Certificates" },
     },
   },
@@ -85,8 +84,7 @@ export const TASK_INTEGRATION_DEFINITIONS = {
     kind: "run",
     requiredResources: [],
     canva: {
-      sourceBrandTemplateEnv: "CANVA_LANYARD_TEMPLATE_ID",
-      destinationFolderEnv: "CANVA_LANYARD_OUTPUT_FOLDER_ID",
+      settingsKey: "lanyards",
       naming: { outputSuffix: "Lanyards" },
     },
   },

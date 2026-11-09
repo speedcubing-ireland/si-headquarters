@@ -116,7 +116,7 @@ describe("set-convex-env metadata", () => {
     expect(keys).not.toContain("RESEND_API_KEY")
   })
 
-  test("the records email alone needs Resend and its own keys", () => {
+  test("the records email alone needs Resend, but no env for its recipients", () => {
     const config = organisationConfigSchema.parse(
       structuredClone(organisationConfig)
     )
@@ -130,10 +130,9 @@ describe("set-convex-env metadata", () => {
     const byKey = new Map(specs.map((spec) => [spec.key, spec]))
 
     expect(byKey.get("RESEND_API_KEY")?.optional).toBeUndefined()
-    expect(byKey.get("SOCIAL_MEDIA_RECORDS_EMAIL_TO")?.optional).toBeUndefined()
-    expect(
-      byKey.get("SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS")?.optional
-    ).toBeUndefined()
+    // Recipients and senders are Admin → Settings, not env.
+    expect(byKey.has("SOCIAL_MEDIA_RECORDS_EMAIL_TO")).toBe(false)
+    expect(byKey.has("SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS")).toBe(false)
     expect(byKey.has("SPONSORSHIP_EMAIL_SENDER_ADDRESS")).toBe(false)
   })
 
@@ -160,7 +159,25 @@ describe("set-convex-env metadata", () => {
     const keys = buildRequiredEnvSetup(config).map((spec) => spec.key)
 
     expect(keys).not.toContain("RESEND_API_KEY")
-    expect(keys).not.toContain("SOCIAL_MEDIA_RECORDS_EMAIL_TO")
+  })
+
+  test("never asks for settings that live in Admin → Settings", () => {
+    const keys = buildRequiredEnvSetup(
+      organisationConfigSchema.parse(structuredClone(organisationConfig))
+    ).map((spec) => spec.key)
+
+    for (const key of [
+      "CANVA_CERT_TEMPLATE_ID",
+      "CANVA_CERT_OUTPUT_FOLDER_ID",
+      "CANVA_LANYARD_TEMPLATE_ID",
+      "CANVA_LANYARD_OUTPUT_FOLDER_ID",
+      "SOCIAL_MEDIA_RECORDS_EMAIL_TO",
+      "SOCIAL_MEDIA_EMAIL_SENDER_ADDRESS",
+      "SPONSORSHIP_EMAIL_SENDER_ADDRESS",
+      "ACHIEVEMENTS_SITE_URL",
+    ]) {
+      expect(keys).not.toContain(key)
+    }
   })
 
   test("generated wizard entries receive generated values", () => {

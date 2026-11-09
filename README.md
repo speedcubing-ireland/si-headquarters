@@ -43,9 +43,18 @@ Then add yourself to the Volunteer team (and any others) in the admin panel
 
 ## Configuration
 
-`config/organisation-config.ts` is the non-secret manifest: branding, regional
-defaults, contact addresses, sponsor portal defaults, enabled features, and
-login providers. Secrets live in the deployment environment, not the manifest.
+Configuration lives in three places:
+
+- **Manifest** — `config/organisation-config.ts`, committed: branding, regional
+  defaults, contact addresses, sponsor portal defaults, enabled features, and
+  login providers.
+- **Convex environment** — set with `bun run set-convex-env`: secrets, OAuth
+  clients, signing keys, and the URLs that identify the deployment
+  (`SITE_URL`, `SPONSOR_SITE_URL`, `DEPLOYMENT_CONTEXT`, …).
+- **Admin → Settings** — stored in the database, edited by directors at
+  runtime: Canva brand templates and output folders, weekly records email
+  recipients and sender, the sponsorship email sender, and the SI Achievements
+  site.
 
 To change the appearance of emails, you will need to modify `convex/plugins/sponsor/emails/_design.tsx`
 

@@ -1,12 +1,25 @@
-import { env } from "@/convex/_generated/server"
-import { sponsorshipConfig } from "@/config/lib/organisation"
+import type { QueryCtx } from "@/convex/_generated/server"
+import {
+  configuredSponsorshipSenderAddress,
+  isFeatureEnabled,
+} from "@/config/lib/organisation"
+import { sponsorshipSenderOverride } from "@/convex/settings/model"
 
-export function getSponsorshipSenderAddress(
-  source: { SPONSORSHIP_EMAIL_SENDER_ADDRESS?: string | undefined } = env
-): string {
-  const configured = source.SPONSORSHIP_EMAIL_SENDER_ADDRESS?.trim()
-  if (configured !== undefined && configured.length > 0) {
-    return configured
-  }
-  return sponsorshipConfig().contacts.sponsorshipTeamEmail
+/**
+ * The manifest's sponsorship team, as `Name <address>`, used when Admin →
+ * Settings has no sender override. Null when the sponsors feature is off.
+ */
+export function defaultSponsorshipSenderAddress(): string | null {
+  if (!isFeatureEnabled("sponsors")) return null
+  return configuredSponsorshipSenderAddress()
+}
+
+/** Throws (via the manifest) when the sponsors feature is off. */
+export async function getSponsorshipSenderAddress(
+  ctx: QueryCtx
+): Promise<string> {
+  return (
+    (await sponsorshipSenderOverride(ctx)) ??
+    configuredSponsorshipSenderAddress()
+  )
 }

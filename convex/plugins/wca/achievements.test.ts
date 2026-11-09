@@ -1,10 +1,9 @@
 import { convexTest } from "convex-test"
-import { afterEach, describe, expect, test, vi } from "vitest"
+import { describe, expect, test } from "vitest"
 import { api } from "@/convex/_generated/api"
 import schema from "@/convex/schema"
 import { modules } from "@/convex/test.setup"
 import { achievementsCompetitionUrl } from "@/convex/plugins/wca/achievements"
-import { ACHIEVEMENTS_SITE_URL_ENV } from "@/convex/plugins/wca/definition"
 import {
   insertBlankCompetition,
   insertCompetitionPhase,
@@ -37,10 +36,6 @@ describe("achievementsCompetitionUrl", () => {
 })
 
 describe("getBadgesLinkForTask", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs()
-  })
-
   async function seedOrganiserTask(t: ReturnType<typeof convexTest>) {
     return await t.run(async (ctx) => {
       const userId = await insertTestUser(ctx, "Organiser")
@@ -64,8 +59,14 @@ describe("getBadgesLinkForTask", () => {
   }
 
   test("links to the competition's SI Achievements page once WCA is linked", async () => {
-    vi.stubEnv(ACHIEVEMENTS_SITE_URL_ENV, "https://achievements.example.com/")
     const t = convexTest(schema, modules)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("appSettings", {
+        key: "achievements",
+        siteUrl: "https://achievements.example.com/",
+        updatedAt: 0,
+      })
+    })
     const { userId, competitionId, taskId } = await seedOrganiserTask(t)
     const asOrganiser = t.withIdentity({ subject: userId })
 
@@ -93,8 +94,7 @@ describe("getBadgesLinkForTask", () => {
     })
   })
 
-  test("has no link when the deployment has no SI Achievements site", async () => {
-    vi.stubEnv(ACHIEVEMENTS_SITE_URL_ENV, undefined)
+  test("has no link when Admin → Settings has no SI Achievements site", async () => {
     const t = convexTest(schema, modules)
     const { userId, competitionId, taskId } = await seedOrganiserTask(t)
     await t.run(async (ctx) => {

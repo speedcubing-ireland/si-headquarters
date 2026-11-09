@@ -13,7 +13,6 @@ import {
   sponsorOtpPurposeFromAuthType,
 } from "../emails/copy"
 import { buildSponsorPortalOtpEmail } from "../emails/render"
-import { getSponsorshipSenderAddress } from "@/convex/plugins/sponsor/emails/sender"
 import {
   resolveSponsorPortalOriginForAuth,
   sponsorPortalLoginUrl,
@@ -41,7 +40,6 @@ export interface SponsorAuthRuntimeConfig {
   readonly secret: string
   readonly siteUrl: string | undefined
   readonly sponsorSiteUrl: string | undefined
-  readonly nextPublicSiteUrl: string | undefined
 }
 
 export const SPONSOR_AUTH_ANALYSIS_CONFIG = {
@@ -50,7 +48,6 @@ export const SPONSOR_AUTH_ANALYSIS_CONFIG = {
   secret: SPONSOR_AUTH_DEV_SECRET,
   siteUrl: undefined,
   sponsorSiteUrl: undefined,
-  nextPublicSiteUrl: undefined,
 } as const satisfies SponsorAuthRuntimeConfig
 
 export function trimTrailingSlash(value: string): string {
@@ -100,7 +97,6 @@ export function resolveSponsorAuthRuntimeConfig(options?: {
     secret: resolveSponsorAuthSecret(options?.requireConfiguredSecret ?? false),
     siteUrl: env.SITE_URL,
     sponsorSiteUrl: env.SPONSOR_SITE_URL,
-    nextPublicSiteUrl: process.env.NEXT_PUBLIC_SITE_URL,
   }
 }
 
@@ -121,7 +117,6 @@ export async function buildSponsorOtpEmail(args: {
     })
   return {
     recipientEmail: args.email,
-    senderAddress: getSponsorshipSenderAddress(),
     subject: sponsorOtpAuthEmailSubject(args.type),
     htmlBody,
     plainTextBody,
@@ -142,7 +137,6 @@ export function createSponsorAuthOptions(
   const trustedOrigins = uniqueOrigins([
     config.sponsorSiteUrl,
     config.siteUrl,
-    config.nextPublicSiteUrl,
     config.sponsorSiteOrigin,
     "http://localhost:5173",
     "http://localhost:5174",
@@ -191,7 +185,6 @@ export function createSponsorAuthOptions(
           await ctx.runMutation(
             internal.plugins.sponsor.emails.send.deliverSponsorshipEmail,
             {
-              from: otpEmail.senderAddress,
               to: otpEmail.recipientEmail,
               subject: otpEmail.subject,
               html: otpEmail.htmlBody,

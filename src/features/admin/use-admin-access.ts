@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { useCan } from "@/features/auth/ability"
 import type { AdminTab } from "@/features/admin/types"
 import { isFeatureEnabled } from "@/config/lib/organisation"
+import { hasAdminSettings } from "@/features/admin/settings/availability"
 
 export function useAdminAccess() {
   const userManagement = useCan("manage", "UserManagement")
@@ -20,6 +21,9 @@ export function useAdminAccess() {
       available.push("serviceAccounts")
       if (isFeatureEnabled("wcaIntegration")) {
         available.push("wcaPhases")
+      }
+      if (hasAdminSettings()) {
+        available.push("settings")
       }
       available.push("impersonation")
     }

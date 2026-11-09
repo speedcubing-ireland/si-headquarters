@@ -1,16 +1,16 @@
 import { v } from "convex/values"
-import { env, query } from "@/convex/_generated/server"
+import { query } from "@/convex/_generated/server"
 import { requireTaskIntegrationAccess } from "@/convex/access/authorize"
-import { ACHIEVEMENTS_SITE_URL_ENV } from "@/convex/plugins/wca/definition"
+import { achievementsSiteUrl } from "@/convex/settings/model"
 import { getCompetitionForTask } from "@/convex/tasks/hierarchy"
 
 /**
  * SI Achievements page for a WCA competition, where its badges are made, or
- * null when the deployment has no `ACHIEVEMENTS_SITE_URL`.
+ * null when Admin → Settings has no SI Achievements site.
  */
 export function achievementsCompetitionUrl(
   wcaCompetitionId: string,
-  siteUrl: string | undefined
+  siteUrl: string | null | undefined
 ): string | null {
   const base = siteUrl?.trim().replace(/\/+$/, "") ?? ""
   if (base === "") return null
@@ -39,7 +39,7 @@ export const getBadgesLinkForTask = query({
           ? null
           : achievementsCompetitionUrl(
               wcaCompetitionId,
-              env[ACHIEVEMENTS_SITE_URL_ENV]
+              await achievementsSiteUrl(ctx)
             ),
     }
   },

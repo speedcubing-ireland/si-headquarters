@@ -3,10 +3,8 @@ import { TASK_INTEGRATION_IDS } from "@/convex/integrations/taskIntegrations/con
 import {
   buildCanvaOutputTitle,
   CANVA_PRESETS,
-  type CanvaEnvSource,
   getCanvaPreset,
-  requireCanvaEnv,
-  resolveCanvaPresetEnv,
+  requireCanvaPresetSettings,
 } from "@/convex/plugins/canva/presets"
 
 describe("canva presets", () => {
@@ -19,13 +17,11 @@ describe("canva presets", () => {
   test("known Canva integration ids resolve to the correct preset", () => {
     expect(getCanvaPreset("canva.certificates")).toMatchObject({
       id: "canva.certificates",
-      sourceBrandTemplateEnv: "CANVA_CERT_TEMPLATE_ID",
-      destinationFolderEnv: "CANVA_CERT_OUTPUT_FOLDER_ID",
+      settingsKey: "certificates",
     })
     expect(getCanvaPreset("canva.lanyards")).toMatchObject({
       id: "canva.lanyards",
-      sourceBrandTemplateEnv: "CANVA_LANYARD_TEMPLATE_ID",
-      destinationFolderEnv: "CANVA_LANYARD_OUTPUT_FOLDER_ID",
+      settingsKey: "lanyards",
     })
   })
 
@@ -35,38 +31,20 @@ describe("canva presets", () => {
     )
   })
 
-  test("missing env vars name the preset and env key", () => {
-    const preset = getCanvaPreset("canva.certificates")
-    const source: CanvaEnvSource = {
-      CANVA_CERT_TEMPLATE_ID: undefined,
-      CANVA_LANYARD_TEMPLATE_ID: "tpl-lanyard",
-      CANVA_CERT_OUTPUT_FOLDER_ID: "folder-cert",
-      CANVA_LANYARD_OUTPUT_FOLDER_ID: "folder-lanyard",
-    }
-
+  test("missing settings name the preset and where to configure it", () => {
     expect(() =>
-      requireCanvaEnv("CANVA_CERT_TEMPLATE_ID", preset, source)
+      requireCanvaPresetSettings(getCanvaPreset("canva.certificates"), null)
     ).toThrow(
-      /Canva preset "canva\.certificates" requires Convex env CANVA_CERT_TEMPLATE_ID/
+      /Canva preset "canva\.certificates" has no brand template or output folder\. Configure them in Admin → Settings/
     )
   })
 
-  test("resolveCanvaPresetEnv reads template and folder from env", () => {
-    const source: CanvaEnvSource = {
-      CANVA_CERT_TEMPLATE_ID: "tpl-cert",
-      CANVA_LANYARD_TEMPLATE_ID: "tpl-lanyard",
-      CANVA_CERT_OUTPUT_FOLDER_ID: "folder-cert",
-      CANVA_LANYARD_OUTPUT_FOLDER_ID: "folder-lanyard",
-    }
-
+  test("requireCanvaPresetSettings maps the stored template and folder", () => {
     expect(
-      resolveCanvaPresetEnv(getCanvaPreset("canva.certificates"), source)
-    ).toEqual({
-      sourceBrandTemplateId: "tpl-cert",
-      destinationFolderId: "folder-cert",
-    })
-    expect(
-      resolveCanvaPresetEnv(getCanvaPreset("canva.lanyards"), source)
+      requireCanvaPresetSettings(getCanvaPreset("canva.lanyards"), {
+        brandTemplateId: "tpl-lanyard",
+        outputFolderId: "folder-lanyard",
+      })
     ).toEqual({
       sourceBrandTemplateId: "tpl-lanyard",
       destinationFolderId: "folder-lanyard",
