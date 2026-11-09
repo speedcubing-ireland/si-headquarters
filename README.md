@@ -66,7 +66,7 @@ Credentials and per-service setup: **[docs/services.md](docs/services.md)**.
 bun run build:deploy   # convex deploy + frontend build
 ```
 
-On Vercel, also set `CONVEX_DEPLOY_KEY`.
+On Vercel, also set `CONVEX_DEPLOY_KEY`. 
 
 ## Scripts
 
