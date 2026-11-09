@@ -15,6 +15,7 @@ jobs:
   deploy:
     needs: check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -39,5 +40,12 @@ jobs:
       - name: Build
         run: vercel build --prod --token=$VERCEL_TOKEN
 
+      # Deploy from a copy of the build output outside the git checkout so the
+      # CLI sends no commit metadata. Otherwise Vercel checks the commit author,
+      # and merges made on GitHub (authored by the private noreply address) get
+      # blocked silently at "Building…".
       - name: Deploy
-        run: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+        run: |
+          deploy_dir="$(mktemp -d)"
+          cp -r .vercel "$deploy_dir/"
+          vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN --cwd "$deploy_dir"
