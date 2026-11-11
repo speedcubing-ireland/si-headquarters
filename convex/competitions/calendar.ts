@@ -121,19 +121,6 @@ export const listForYear = query({
       canPerform(principal, "read", "Competition", competition)
     )
 
-    const phaseIds = new Set(
-      competitions.flatMap((competition) =>
-        competition.phaseId === null ? [] : [competition.phaseId]
-      )
-    )
-    const phases = await Promise.all(
-      [...phaseIds].map((id) => ctx.db.get("phases", id))
-    )
-    const phaseById = new Map(
-      phases.flatMap((phase) =>
-        phase === null ? [] : [[phase._id, phase] as const]
-      )
-    )
     // Cache promises so overlapping leads and organisers share a single read.
     const users = new Map<Id<"users">, ReturnType<typeof getPublicUser>>()
     const readUser = (id: Id<"users"> | null) => {
@@ -167,6 +154,10 @@ export const listForYear = query({
         continue
       }
 
+      if (range.start.getFullYear() !== args.year) {
+        continue
+      }
+
       const weekendStart = formatLocalDate(getSaturdayOfWeek(range.start))
       if (yearWeekends.includes(weekendStart)) {
         assignCompetitionToWeekend(assignments, weekendStart, competition._id)
@@ -184,15 +175,30 @@ export const listForYear = query({
       ...unscheduled,
     ])
 
+    const displayedCompetitions = competitions.filter((competition) =>
+      neededIds.has(competition._id)
+    )
+    const phaseIds = new Set(
+      displayedCompetitions.flatMap((competition) =>
+        competition.phaseId === null ? [] : [competition.phaseId]
+      )
+    )
+    const phases = await Promise.all(
+      [...phaseIds].map((id) => ctx.db.get("phases", id))
+    )
+    const phaseById = new Map(
+      phases.flatMap((phase) =>
+        phase === null ? [] : [[phase._id, phase] as const]
+      )
+    )
+
     await Promise.all(
-      competitions
-        .filter((competition) => neededIds.has(competition._id))
-        .map(async (competition) => {
-          competitionRows.set(
-            competition._id,
-            await buildCompetitionRow(competition, phaseById, readUser)
-          )
-        })
+      displayedCompetitions.map(async (competition) => {
+        competitionRows.set(
+          competition._id,
+          await buildCompetitionRow(competition, phaseById, readUser)
+        )
+      })
     )
 
     const rows: (
@@ -207,7 +213,7 @@ export const listForYear = query({
         }
     )[] = []
 
-    for (const weekendStart of saturdaysInYear(args.year)) {
+    for (const weekendStart of yearWeekends) {
       const competitionIds = assignments.get(weekendStart) ?? []
 
       if (competitionIds.length > 0) {

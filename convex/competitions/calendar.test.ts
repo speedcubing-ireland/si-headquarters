@@ -51,6 +51,40 @@ describe("competition calendar", () => {
     expect(springOpen).toBeDefined()
   })
 
+  test("only includes dated competitions starting in the selected year", async () => {
+    const t = convexTest(schema, modules)
+    const viewerId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", { name: "Viewer" })
+      await ensureVolunteerMembership(ctx, userId)
+      for (const [name, from, to] of [
+        ["Previous year", "2024-06-15", "2024-06-16"],
+        ["Previous year boundary", "2024-12-30", "2025-01-01"],
+        ["Selected year", "2025-03-15", "2025-03-16"],
+        ["Selected year boundary", "2025-12-31", "2026-01-01"],
+        ["Next year", "2026-06-13", "2026-06-14"],
+        ["No date", null, null],
+      ] as const) {
+        await ctx.db.insert("competitions", {
+          name,
+          description: null,
+          people: { compLead: null, leadDelegate: null, organisers: [] },
+          compDates: { from, to },
+          phaseId: null,
+        })
+      }
+      return userId
+    })
+
+    const { rows, unscheduledCount } = await t
+      .withIdentity({ subject: viewerId })
+      .query(api.competitions.calendar.listForYear, { year: 2025 })
+
+    expect(
+      rows.filter((row) => row.kind === "competition").map((row) => row.name)
+    ).toEqual(["Selected year", "Selected year boundary", "No date"])
+    expect(unscheduledCount).toBe(2)
+  })
+
   test("weekend placeholder includes slot flags", async () => {
     const t = convexTest(schema, modules)
     const viewerId = await t.run(async (ctx) => {
