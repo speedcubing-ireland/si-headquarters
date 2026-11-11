@@ -99,6 +99,11 @@ describe("user selector eligibility", () => {
       return { viewer, owner, unrelated, task, otherCompetition }
     })
     const viewer = t.withIdentity({ subject: ids.viewer })
+    await expect(
+      viewer.query(api.users.queries.listScopeOrganisers, {
+        scope: { type: "tasks", id: ids.task },
+      })
+    ).rejects.toThrow()
     expect(
       await viewer.query(api.users.queries.getSelected, {
         scope: { type: "tasks", id: ids.task },
@@ -197,7 +202,7 @@ describe("user selector eligibility", () => {
     ).rejects.toThrow()
   })
 
-  test("competition options add only that competition's enabled organisers and deduplicate volunteers", async () => {
+  test("directory membership and competition organisers remain separate and exclude disabled users", async () => {
     const t = convexTest(schema, modules)
     const ids = await t.run(async (ctx) => {
       const actor = await seedVolunteerTestUser(ctx)
@@ -218,16 +223,30 @@ describe("user selector eligibility", () => {
       await ctx.db.patch("competitions", otherCompetitionId, {
         people: { compLead: null, leadDelegate: null, organisers: [unrelated] },
       })
-      return { actor, organiser, competitionId }
+      return { actor, organiser, unrelated, competitionId }
     })
     const client = t.withIdentity({ subject: ids.actor })
     const users = await client.query(api.users.queries.list, {
       scope: { type: "competitions", id: ids.competitionId },
       paginationOpts: { numItems: 50, cursor: null },
     })
-    expect(users.page.map((user) => user._id).sort()).toEqual(
-      [ids.actor, ids.organiser].sort()
-    )
+    expect(users.page.map((user) => user._id)).toEqual([ids.actor])
+    expect(
+      (
+        await client.query(api.users.queries.listScopeOrganisers, {
+          scope: { type: "competitions", id: ids.competitionId },
+        })
+      )
+        .map((user) => user._id)
+        .sort()
+    ).toEqual([ids.actor, ids.organiser].sort())
+    await expect(
+      t
+        .withIdentity({ subject: ids.unrelated })
+        .query(api.users.queries.listScopeOrganisers, {
+          scope: { type: "competitions", id: ids.competitionId },
+        })
+    ).rejects.toThrow()
     expect(
       (
         await client.query(api.users.queries.list, {

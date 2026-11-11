@@ -1,11 +1,9 @@
 import { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
-import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { PublicUser } from "@/convex/users/validators"
-import { useCan } from "@/features/auth"
 import { objectRefKey } from "@/lib/utils"
-import { useQuery } from "convex/react"
+import { useAssignmentTeams } from "./use-assignment-teams"
 import { UsersRoundIcon } from "lucide-react"
 import { useMemo, useState, type ComponentProps } from "react"
 import { useUserItems } from "./user-selector-model"
@@ -141,31 +139,20 @@ export function MultiPropertyButton({
   variant,
 }: MultiUserTeamSelectorProps) {
   const [open, setOpen] = useState(false)
-  const { allowed: canReadTeams, isLoading: teamAccessLoading } = useCan(
-    "read",
-    "Team"
-  )
-  const projectOptions = useQuery(
-    api.projects.queries.listMemberTeams,
-    open && projectId !== undefined ? { id: projectId } : "skip"
-  )
-  const globalTeams = useQuery(
-    api.teams.queries.listForTaskFilters,
-    open && projectId === undefined && !teamAccessLoading && canReadTeams
-      ? {}
-      : "skip"
-  )
+  const scope =
+    projectId === undefined
+      ? undefined
+      : { type: "projects" as const, id: projectId }
+  const teams = useAssignmentTeams(open, scope)
   const users = useUserItems({
     open,
-    scope:
-      projectId === undefined ? undefined : { type: "projects", id: projectId },
+    scope,
     selectedIds: value.flatMap((ref) => (ref.type === "users" ? [ref.id] : [])),
     selectedUsers: selectedMembers.filter(
       (member): member is PublicUser & { type: "users" } =>
         member.type === "users"
     ),
   })
-  const teams = projectId === undefined ? globalTeams : projectOptions
   const groups = useMemo<SelectorGroup<MemberOption, ProjectMemberRef>[]>(
     () => [
       {

@@ -75,6 +75,18 @@ export async function getPublicUsers(
     .map(toPublicUser)
 }
 
+async function getEnabledPublicUsers(
+  ctx: QueryCtx,
+  ids: Iterable<Id<"users">>
+) {
+  const users = await Promise.all(
+    [...new Set(ids)].map((id) => ctx.db.get("users", id))
+  )
+  return users.flatMap((user) =>
+    user === null || user.disabled === true ? [] : [toPublicUser(user)]
+  )
+}
+
 async function requireSelectorEditAccess(
   ctx: QueryCtx,
   scope: CommentTargetRef | undefined
@@ -153,10 +165,7 @@ export const list = query({
   },
   returns: paginationResultValidator(publicUserValidator),
   handler: async (ctx, args) => {
-    const { principal, competition } = await requireSelectorEditAccess(
-      ctx,
-      args.scope
-    )
+    const { principal } = await requireSelectorEditAccess(ctx, args.scope)
     const team = await getTeamByName(ctx, args.teamName ?? TEAM_NAMES.VOLUNTEER)
     const memberships =
       team === null
@@ -169,28 +178,33 @@ export const list = query({
               numItems: Math.min(args.paginationOpts.numItems, 100),
             })
     const ids = new Set(memberships.page.map((membership) => membership.userId))
-    if (args.paginationOpts.cursor === null) {
-      // Include yourself on the first page even when your membership sorts
-      // later. Role-specific pickers still require membership in that role.
-      if (
-        team !== null &&
-        (await getMembership(ctx, team._id, principal.userId)) !== null
-      ) {
-        ids.add(principal.userId)
-      }
-      if (args.teamName === undefined && competition !== null) {
-        for (const id of competition.people.organisers) ids.add(id)
-      }
+    // Include yourself on the first page even when your membership sorts later.
+    // Role-specific pickers still require membership in that role.
+    if (
+      args.paginationOpts.cursor === null &&
+      team !== null &&
+      (await getMembership(ctx, team._id, principal.userId)) !== null
+    ) {
+      ids.add(principal.userId)
     }
-    const users = await Promise.all(
-      [...ids].map((id) => ctx.db.get("users", id))
-    )
     return {
       ...memberships,
-      page: users.flatMap((user) =>
-        user === null || user.disabled === true ? [] : [toPublicUser(user)]
-      ),
+      page: await getEnabledPublicUsers(ctx, ids),
     }
+  },
+})
+
+// Keep competition-specific additions separate so ordinary directory pages
+// can be shared across tasks and projects by callers with directory access.
+export const listScopeOrganisers = query({
+  args: { scope: commentTargetRef },
+  returns: v.array(publicUserValidator),
+  handler: async (ctx, { scope }) => {
+    const { competition } = await requireSelectorEditAccess(ctx, scope)
+    return await getEnabledPublicUsers(
+      ctx,
+      competition?.people.organisers ?? []
+    )
   },
 })
 

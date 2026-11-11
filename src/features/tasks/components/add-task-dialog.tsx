@@ -4,6 +4,7 @@ import type { TaskLabelOption } from "@/components/data-selectors/task-label-dis
 import * as TaskLabelSelector from "@/components/data-selectors/task-label-selector"
 import * as TaskParentSelector from "@/components/data-selectors/task-parent-selector"
 import * as TaskOwnerSelector from "@/components/data-selectors/task-owner-selector"
+import { useAssignmentTeams } from "@/components/data-selectors/use-assignment-teams"
 import {
   resolveSelectedTaskOwner,
   toTaskViewAssignees,
@@ -56,10 +57,7 @@ export function AddTaskDialog({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const teams = useQuery(
-    api.tasks.queries.listAssignmentTeams,
-    open ? { scope: parentScope } : "skip"
-  )
+  const teams = useAssignmentTeams(open, parentScope)
   const labels = useQuery(api.tasks.labels.queries.list, open ? {} : "skip")
 
   const selectedLabels = useMemo((): TaskLabelOption[] => {

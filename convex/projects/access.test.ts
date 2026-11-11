@@ -172,14 +172,18 @@ describe("project access", () => {
     await expect(
       t
         .withIdentity({ subject: volunteerId })
-        .query(api.projects.queries.listMemberTeams, { id: projectId })
+        .query(api.tasks.queries.listAssignmentTeams, {
+          scope: { type: "projects", id: projectId },
+        })
     ).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
     })
 
     const options = await t
       .withIdentity({ subject: memberId })
-      .query(api.projects.queries.listMemberTeams, { id: projectId })
+      .query(api.tasks.queries.listAssignmentTeams, {
+        scope: { type: "projects", id: projectId },
+      })
 
     expect(Array.isArray(options)).toBe(true)
   })

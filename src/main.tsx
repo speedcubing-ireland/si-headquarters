@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ConvexAuthProvider } from "@convex-dev/auth/react"
+import { ConvexQueryCacheProvider } from "convex-helpers/react/cache"
 import { convex } from "@/lib/convex-client"
 import { shouldHandleAuthCode } from "@/lib/auth-code-paths"
 import { isSponsorSite } from "@/lib/sponsor-site"
@@ -47,12 +48,14 @@ createRoot(root).render(
         router.history.replace(url)
       }}
     >
-      <ThemeProvider>
-        <TooltipProvider>
-          <RouterProvider router={router} />
-        </TooltipProvider>
-        <Toaster />
-      </ThemeProvider>
+      <ConvexQueryCacheProvider expiration={60_000} maxIdleEntries={32}>
+        <ThemeProvider>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+          <Toaster />
+        </ThemeProvider>
+      </ConvexQueryCacheProvider>
     </ConvexAuthProvider>
   </StrictMode>
 )

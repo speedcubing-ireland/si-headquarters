@@ -7,7 +7,11 @@ import { resolveUserItems } from "./user-items"
 import type { TeamName } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
 import { useCan } from "@/features/auth"
-import { usePaginatedQuery, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
+import {
+  usePaginatedQuery,
+  useQuery as useCachedQuery,
+} from "convex-helpers/react/cache"
 import { useEffect, useState } from "react"
 
 export type UserFaceAppearance = "property" | "compact" | "icon"
@@ -43,8 +47,16 @@ export function useUserItems({
   const enabled = scope !== undefined || (!isLoading && canReadUsers)
   const { results, status, loadMore } = usePaginatedQuery(
     api.users.queries.list,
-    open && enabled ? { scope, teamName } : "skip",
+    open && !isLoading && enabled
+      ? { scope: canReadUsers ? undefined : scope, teamName }
+      : "skip",
     { initialNumItems: PAGE_SIZE }
+  )
+  const needsOrganisers =
+    scope !== undefined && scope.type !== "projects" && teamName === undefined
+  const organisers = useCachedQuery(
+    api.users.queries.listScopeOrganisers,
+    open && needsOrganisers ? { scope } : "skip"
   )
   // Search filters the client-side options. Continue bounded membership pages
   // while searching so a name beyond the first page can still be found.
@@ -66,7 +78,10 @@ export function useUserItems({
     users: PublicUser[]
   }>({ key, users: [] })
   const resolved = resolveUserItems({
-    available: open && status !== "LoadingFirstPage" ? results : undefined,
+    available:
+      open && status !== "LoadingFirstPage"
+        ? [...results, ...(organisers ?? [])]
+        : undefined,
     knownUsers: [
       ...(retained.key === key && selected === undefined ? retained.users : []),
       ...(selected ?? []),
@@ -97,6 +112,7 @@ export function useUserItems({
     loading:
       open &&
       (status === "LoadingFirstPage" ||
+        (needsOrganisers && organisers === undefined) ||
         (searchQuery.trim().length > 0 && status !== "Exhausted")),
     pagination:
       status === "CanLoadMore" || status === "LoadingMore"

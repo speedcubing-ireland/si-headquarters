@@ -453,8 +453,13 @@ describe("task reviews", () => {
       ])
     )
     expect(new Set(users.page.map((user) => user._id))).toEqual(
-      new Set([actorId, userId])
+      new Set([userId])
     )
+    const organisers = await actor.query(
+      api.users.queries.listScopeOrganisers,
+      { scope }
+    )
+    expect(organisers.map((user) => user._id)).toEqual([actorId])
     expect(teams.map((team) => team.name)).not.toContain(TEAM_NAMES.VOLUNTEER)
     await expect(
       t.withIdentity({ subject: unrelatedId }).query(api.users.queries.list, {

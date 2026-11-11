@@ -1,5 +1,6 @@
 import { ObjectAvatar } from "@/components/object-avatar"
 import { useUserItems } from "@/components/data-selectors/user-selector-model"
+import { useAssignmentTeams } from "@/components/data-selectors/use-assignment-teams"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -16,7 +17,7 @@ import type { Id } from "@/convex/_generated/dataModel"
 import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
 import type { TeamSummary } from "@/convex/teams/validators"
 import type { PublicUser } from "@/convex/users/validators"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import { StampIcon } from "lucide-react"
 import { type ComponentProps, useState } from "react"
 
@@ -49,10 +50,7 @@ export function AddTaskReviewerButton({
   const [open, setOpen] = useState(false)
   const scope = { type: "tasks", id: taskId } as const
   const users = useUserItems({ open, scope, selectedIds: [] })
-  const teams = useQuery(
-    api.tasks.queries.listAssignmentTeams,
-    open ? { scope } : "skip"
-  )
+  const teams = useAssignmentTeams(open, scope)
   const addReviewer = useMutation(api.tasks.reviews.mutations.addReviewer)
 
   const handleOpenChange = (nextOpen: boolean) => {

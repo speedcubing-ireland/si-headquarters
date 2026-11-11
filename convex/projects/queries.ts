@@ -1,13 +1,11 @@
 import { query, type QueryCtx } from "@/convex/_generated/server"
 import type { Doc } from "@/convex/_generated/dataModel"
-import { requireCan, requirePrincipal } from "@/convex/permissions/principal"
+import { requirePrincipal } from "@/convex/permissions/principal"
 import {
   canReadProject,
   canUpdateProject,
   requireProjectForRead,
-  requireProjectForUpdate,
 } from "@/convex/projects/access"
-import { listAllApplicationTeamSummaries } from "@/convex/teams/model"
 import {
   buildCurrentPhaseProgress,
   NO_CURRENT_PHASE_PROGRESS,
@@ -181,14 +179,5 @@ export const getPeople = query({
       lead,
       members,
     }
-  },
-})
-
-export const listMemberTeams = query({
-  args: { id: v.id("projects") },
-  handler: async (ctx, args) => {
-    const { principal } = await requireProjectForUpdate(ctx, args.id)
-    requireCan(principal, "read", "Team")
-    return await listAllApplicationTeamSummaries(ctx)
   },
 })

@@ -1,12 +1,10 @@
 import { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar } from "@/components/ui/avatar"
-import { api } from "@/convex/_generated/api"
 import type { Doc } from "@/convex/_generated/dataModel"
 import type { SelectedTaskOwner as SelectedOwner } from "@/components/data-selectors/task-selector-model"
 import type { SubtaskViewOwner } from "@/convex/tasks/queries"
-import { useCan } from "@/features/auth"
 import { objectRefKey } from "@/lib/utils"
-import { useQuery } from "convex/react"
+import { useAssignmentTeams } from "./use-assignment-teams"
 import { CastleIcon } from "lucide-react"
 import { useMemo, useState, type ComponentProps } from "react"
 import { useUserItems } from "./user-selector-model"
@@ -146,20 +144,7 @@ function OwnerSelectorControl({
   appearance: OwnerFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const { allowed: canReadTeams, isLoading: teamAccessLoading } = useCan(
-    "read",
-    "Team"
-  )
-  const teams = useQuery(
-    api.teams.queries.listForTaskFilters,
-    open && scope === undefined && !teamAccessLoading && canReadTeams
-      ? {}
-      : "skip"
-  )
-  const scopedOptions = useQuery(
-    api.tasks.queries.listAssignmentTeams,
-    open && scope !== undefined ? { scope } : "skip"
-  )
+  const ownerTeams = useAssignmentTeams(open, scope)
   const fallbackItem = selectedOwner ? toOwnerOption(selectedOwner) : null
   const resolvedValue =
     value === undefined ? (fallbackItem?.value ?? null) : value
@@ -173,7 +158,6 @@ function OwnerSelectorControl({
     resolvedValue?.type === "users"
       ? toOwnerOption({ ...users.selectedUsers[0], type: "users" })
       : fallbackItem
-  const ownerTeams = scope === undefined ? teams : scopedOptions
   const ownerGroups = useMemo<SelectorGroup<OwnerOption, OwnerValue>[]>(
     () => [
       {

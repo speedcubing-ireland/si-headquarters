@@ -121,9 +121,12 @@ describe("task access", () => {
       scope,
       paginationOpts: { numItems: 50, cursor: null },
     })
-    expect(options.page.map((user) => user._id)).toEqual(
-      expect.arrayContaining([assignableUserId, organiserId])
+    expect(options.page.map((user) => user._id)).toEqual([assignableUserId])
+    const organisers = await organiser.query(
+      api.users.queries.listScopeOrganisers,
+      { scope }
     )
+    expect(organisers.map((user) => user._id)).toEqual([organiserId])
     expect(options.page.map((user) => user._id)).not.toContain(outsiderId)
     const teams = await organiser.query(api.tasks.queries.listAssignmentTeams, {
       scope,
