@@ -5,7 +5,6 @@ import {
 import { query } from "@/convex/_generated/server"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { QueryCtx } from "@/convex/_generated/server"
-import { collectAll } from "@/convex/utils"
 import { TaskBlockersLoader } from "@/convex/tasks/blockers/loader"
 import {
   canManageTaskWithRoots,
@@ -41,8 +40,6 @@ import {
 import { taskParentRef } from "@/convex/tasks/validators"
 import { listAllApplicationTeamSummaries } from "@/convex/teams/model"
 import { teamSummary } from "@/convex/teams/validators"
-import { toPublicUser } from "@/convex/users/queries"
-import { publicUserValidator } from "@/convex/users/validators"
 import { v } from "convex/values"
 
 type TaskParentDetails =
@@ -270,30 +267,16 @@ export const listCreationTargets = query({
   },
 })
 
-export const listAssignmentOptions = query({
-  args: {
-    scope: subtaskViewOwner,
-  },
-  returns: v.object({
-    users: v.array(publicUserValidator),
-    teams: v.array(teamSummary),
-  }),
+export const listAssignmentTeams = query({
+  args: { scope: subtaskViewOwner },
+  returns: v.array(teamSummary),
   handler: async (ctx, args) => {
     if (args.scope.type === "tasks") {
       await requireTaskManageAccess(ctx, args.scope.id)
     } else {
       await requireScopedObjectForUpdate(ctx, args.scope)
     }
-
-    const [users, teams] = await Promise.all([
-      collectAll(ctx, "users"),
-      listAllApplicationTeamSummaries(ctx),
-    ])
-
-    return {
-      users: users.map(toPublicUser),
-      teams,
-    }
+    return await listAllApplicationTeamSummaries(ctx)
   },
 })
 

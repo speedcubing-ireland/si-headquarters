@@ -76,7 +76,7 @@ function CompetitionPeopleSelectors({
           {...buttonProps}
           selectedUser={compLead}
           teamName={TEAM_NAMES.COMPETITIONS}
-          competitionId={competitionId}
+          scope={{ type: "competitions", id: competitionId }}
           value={compLeadId}
           onChange={onCompLeadChange}
         />
@@ -86,7 +86,7 @@ function CompetitionPeopleSelectors({
           {...buttonProps}
           selectedUser={leadDelegate}
           teamName={TEAM_NAMES.DELEGATES}
-          competitionId={competitionId}
+          scope={{ type: "competitions", id: competitionId }}
           value={leadDelegateId}
           onChange={onLeadDelegateChange}
         />
@@ -96,7 +96,7 @@ function CompetitionPeopleSelectors({
           {...buttonProps}
           maxAvatars={singleAppearance === "icon" ? 3 : undefined}
           selectedUsers={organisers}
-          competitionId={competitionId}
+          scope={{ type: "competitions", id: competitionId }}
           value={organiserIds}
           onChange={onOrganisersChange}
         />
@@ -258,7 +258,7 @@ export function CompetitionPeopleCardFields({
         <UserSelector.SinglePropertyButton
           selectedUser={compLead}
           teamName={TEAM_NAMES.COMPETITIONS}
-          competitionId={competitionId}
+          scope={{ type: "competitions", id: competitionId }}
           value={compLeadId}
           onChange={mutations.onCompLeadChange}
         />
@@ -267,7 +267,7 @@ export function CompetitionPeopleCardFields({
         <UserSelector.SinglePropertyButton
           selectedUser={leadDelegate}
           teamName={TEAM_NAMES.DELEGATES}
-          competitionId={competitionId}
+          scope={{ type: "competitions", id: competitionId }}
           value={leadDelegateId}
           onChange={mutations.onLeadDelegateChange}
         />
@@ -275,7 +275,7 @@ export function CompetitionPeopleCardFields({
       <PageCardRow icon={<UsersIcon className="size-4" />} label="Organisers">
         <UserSelector.MultiPropertyButton
           selectedUsers={organisers}
-          competitionId={competitionId}
+          scope={{ type: "competitions", id: competitionId }}
           value={organiserIds}
           onChange={mutations.onOrganisersChange}
         />

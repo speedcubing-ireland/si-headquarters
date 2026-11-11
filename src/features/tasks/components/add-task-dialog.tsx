@@ -56,13 +56,11 @@ export function AddTaskDialog({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const assignmentOptions = useQuery(
-    api.tasks.queries.listAssignmentOptions,
+  const teams = useQuery(
+    api.tasks.queries.listAssignmentTeams,
     open ? { scope: parentScope } : "skip"
   )
   const labels = useQuery(api.tasks.labels.queries.list, open ? {} : "skip")
-  const users = assignmentOptions?.users
-  const teams = assignmentOptions?.teams
 
   const selectedLabels = useMemo((): TaskLabelOption[] => {
     const labelById = new Map(labels?.map((label) => [label._id, label]))
@@ -74,12 +72,12 @@ export function AddTaskDialog({
     return selected
   }, [labelIds, labels])
   const assigneeState = useMemo(
-    () => toTaskViewAssignees(assigneeIds, users),
-    [assigneeIds, users]
+    () => toTaskViewAssignees(assigneeIds, undefined),
+    [assigneeIds]
   )
   const selectedOwner = useMemo(
-    () => resolveSelectedTaskOwner(owner, users, teams),
-    [owner, teams, users]
+    () => resolveSelectedTaskOwner(owner, undefined, teams),
+    [owner, teams]
   )
 
   const resetForm = () => {

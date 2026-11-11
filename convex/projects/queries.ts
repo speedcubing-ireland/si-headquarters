@@ -1,4 +1,3 @@
-import { collectAll } from "@/convex/utils"
 import { query, type QueryCtx } from "@/convex/_generated/server"
 import type { Doc } from "@/convex/_generated/dataModel"
 import { requireCan, requirePrincipal } from "@/convex/permissions/principal"
@@ -18,7 +17,6 @@ import {
   hydrateProjectLead,
   hydrateProjectMembers,
 } from "@/convex/projects/model"
-import { toPublicUser } from "@/convex/users/queries"
 import { v } from "convex/values"
 
 const MAX_PROJECT_CARDS = 200
@@ -186,29 +184,11 @@ export const getPeople = query({
   },
 })
 
-export const listMemberOptions = query({
-  args: {
-    id: v.id("projects"),
-  },
+export const listMemberTeams = query({
+  args: { id: v.id("projects") },
   handler: async (ctx, args) => {
     const { principal } = await requireProjectForUpdate(ctx, args.id)
-    requireCan(principal, "read", "User")
     requireCan(principal, "read", "Team")
-
-    const [users, teams] = await Promise.all([
-      collectAll(ctx, "users"),
-      listAllApplicationTeamSummaries(ctx),
-    ])
-
-    return {
-      users: users.map((user) => ({
-        ...toPublicUser(user),
-        type: "users" as const,
-      })),
-      teams: teams.map((team) => ({
-        ...team,
-        type: "teams" as const,
-      })),
-    }
+    return await listAllApplicationTeamSummaries(ctx)
   },
 })

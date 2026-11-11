@@ -2,12 +2,8 @@ import * as UserSelector from "@/components/data-selectors/user-selector"
 import { Field, FieldLabel } from "@/components/ui/field"
 import type { Id } from "@/convex/_generated/dataModel"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
-import type { PublicUser } from "@/convex/users/validators"
 
 export function CompetitionPeopleFormFields({
-  compLead,
-  leadDelegate,
-  organisers,
   compLeadId,
   leadDelegateId,
   organiserIds,
@@ -16,9 +12,6 @@ export function CompetitionPeopleFormFields({
   onLeadDelegateChange,
   onOrganisersChange,
 }: {
-  compLead: PublicUser | null
-  leadDelegate: PublicUser | null
-  organisers: PublicUser[]
   compLeadId: Id<"users"> | null
   leadDelegateId: Id<"users"> | null
   organiserIds: Id<"users">[]
@@ -32,7 +25,6 @@ export function CompetitionPeopleFormFields({
       <Field>
         <FieldLabel>Competition Lead</FieldLabel>
         <UserSelector.SinglePropertyButton
-          selectedUser={compLead}
           teamName={TEAM_NAMES.COMPETITIONS}
           value={compLeadId}
           disabled={disabled}
@@ -43,7 +35,6 @@ export function CompetitionPeopleFormFields({
       <Field>
         <FieldLabel>Lead Delegate</FieldLabel>
         <UserSelector.SinglePropertyButton
-          selectedUser={leadDelegate}
           teamName={TEAM_NAMES.DELEGATES}
           value={leadDelegateId}
           disabled={disabled}
@@ -54,7 +45,6 @@ export function CompetitionPeopleFormFields({
       <Field>
         <FieldLabel>Organisers</FieldLabel>
         <UserSelector.MultiPropertyButton
-          selectedUsers={organisers}
           value={organiserIds}
           disabled={disabled}
           className="w-full"

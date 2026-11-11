@@ -43,6 +43,7 @@ export function ProjectPeopleCard({
           label="Project lead"
         >
           <UserSelector.SinglePropertyButton
+            scope={{ type: "projects", id: projectId }}
             selectedUser={lead}
             value={project.leadUserId}
             disabled={!canUpdate}

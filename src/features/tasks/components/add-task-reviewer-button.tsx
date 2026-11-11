@@ -1,4 +1,5 @@
 import { ObjectAvatar } from "@/components/object-avatar"
+import { useUserItems } from "@/components/data-selectors/user-selector-model"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -12,21 +13,18 @@ import {
 } from "@/components/ui/command"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import type {
-  PotentialTaskReviewers,
-  TaskReviewerRef,
-} from "@/convex/tasks/reviews/validators"
+import type { TaskReviewerRef } from "@/convex/tasks/reviews/validators"
+import type { TeamSummary } from "@/convex/teams/validators"
+import type { PublicUser } from "@/convex/users/validators"
 import { useMutation, useQuery } from "convex/react"
 import { StampIcon } from "lucide-react"
 import { type ComponentProps, useState } from "react"
 
-type ReviewerType = TaskReviewerRef["type"]
-type PotentialReviewer = PotentialTaskReviewers[ReviewerType][number]
 type SelectReviewer = (reviewer: TaskReviewerRef) => void | Promise<void>
 
 interface ReviewerOption {
   reviewer: TaskReviewerRef
-  object: PotentialReviewer
+  object: PublicUser | TeamSummary
   name: string
 }
 
@@ -49,15 +47,22 @@ export function AddTaskReviewerButton({
   ...buttonProps
 }: AddTaskReviewerButtonProps) {
   const [open, setOpen] = useState(false)
-  const potentialReviewers = useQuery(
-    api.tasks.reviews.queries.listPotentialReviewers,
-    open ? {} : "skip"
+  const scope = { type: "tasks", id: taskId } as const
+  const users = useUserItems({ open, scope, selectedIds: [] })
+  const teams = useQuery(
+    api.tasks.queries.listAssignmentTeams,
+    open ? { scope } : "skip"
   )
   const addReviewer = useMutation(api.tasks.reviews.mutations.addReviewer)
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) users.search.onSearchChange("")
+  }
+
   const addTaskReviewer = async (reviewer: TaskReviewerRef) => {
     await addReviewer({ taskId, reviewer })
-    setOpen(false)
+    handleOpenChange(false)
   }
 
   return (
@@ -80,18 +85,22 @@ export function AddTaskReviewerButton({
         title="Add reviewer"
         description="Search teams and people"
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={handleOpenChange}
       >
         <Command>
-          <CommandInput placeholder="Search reviewers..." />
+          <CommandInput
+            placeholder="Search reviewers..."
+            value={users.search.searchQuery}
+            onValueChange={users.search.onSearchChange}
+          />
           <CommandList>
             <CommandEmpty>
-              {potentialReviewers === undefined
+              {users.loading || teams === undefined
                 ? "Loading reviewers..."
                 : "No reviewers found."}
             </CommandEmpty>
             <CommandGroup heading="Teams">
-              {(potentialReviewers?.teams ?? []).map((team) => (
+              {(teams ?? []).map((team) => (
                 <ReviewerOptionItem
                   key={team._id}
                   option={{
@@ -105,7 +114,7 @@ export function AddTaskReviewerButton({
             </CommandGroup>
             <CommandSeparator />
             <CommandGroup heading="People">
-              {(potentialReviewers?.users ?? []).map((user) => (
+              {(users.items ?? []).map((user) => (
                 <ReviewerOptionItem
                   key={user._id}
                   option={{
@@ -118,6 +127,18 @@ export function AddTaskReviewerButton({
               ))}
             </CommandGroup>
           </CommandList>
+          {users.pagination !== undefined ? (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={users.pagination.loading}
+              onClick={users.pagination.onLoadMore}
+            >
+              {users.pagination.loading
+                ? "Loading more people..."
+                : "Load more people"}
+            </Button>
+          ) : null}
         </Command>
       </CommandDialog>
     </>

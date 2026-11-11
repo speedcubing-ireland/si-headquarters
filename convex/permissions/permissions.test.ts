@@ -6,6 +6,7 @@ import {
   insertBlankCompetition,
   insertBlankProject,
   insertTestUser,
+  seedVolunteerTestUser,
 } from "@/convex/testHelpers"
 import {
   deriveTaskRootContextFromParent,
@@ -169,7 +170,7 @@ describe("permissions", () => {
     const { managerId, competitionId, otherUserId } = await t.run(
       async (ctx) => {
         const managerId = await insertTestUser(ctx, "Manager")
-        const otherUserId = await insertTestUser(ctx, "Other")
+        const otherUserId = await seedVolunteerTestUser(ctx, "Other")
         await addUserToTeam(ctx, managerId, TEAM_NAMES.COMPETITIONS)
         const competitionId = await insertBlankCompetition(ctx)
         return { managerId, competitionId, otherUserId }
@@ -178,9 +179,12 @@ describe("permissions", () => {
 
     const users = await t
       .withIdentity({ subject: managerId })
-      .query(api.users.queries.listForCompetition, { competitionId })
+      .query(api.users.queries.list, {
+        scope: { type: "competitions", id: competitionId },
+        paginationOpts: { numItems: 50, cursor: null },
+      })
 
-    expect(users.map((user) => user._id)).toContain(otherUserId)
+    expect(users.page.map((user) => user._id)).toContain(otherUserId)
   })
 
   test("project user members can read and update projects", async () => {
@@ -275,7 +279,9 @@ describe("permissions", () => {
     })
 
     await expect(
-      t.withIdentity({ subject: organiserId }).query(api.users.queries.list, {})
+      t.withIdentity({ subject: organiserId }).query(api.users.queries.list, {
+        paginationOpts: { numItems: 50, cursor: null },
+      })
     ).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
     })

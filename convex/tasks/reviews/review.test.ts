@@ -14,6 +14,9 @@ import {
 } from "@/convex/tasks/hierarchy"
 import {
   linkOwnerDiscordChannel,
+  insertBlankCompetition,
+  insertCompetitionPhase,
+  insertSeedTask,
   seedVolunteerTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
@@ -401,23 +404,47 @@ describe("task reviews", () => {
     })
   })
 
-  test("lists potential reviewers grouped as teams and users", async () => {
+  test("reviewer choices use the scoped directory without the old account cap", async () => {
     const t = convexTest(schema, modules)
-    const { actorId, teamId, userId } = await t.run(async (ctx) => {
-      const actorId = await seedVolunteerTestUser(ctx, "Actor")
-      const userId = await insertUser(ctx, "Reviewer")
-      const teamId = await insertTeam(ctx, "Competitions Team")
-
-      return { actorId, teamId, userId }
-    })
+    const { actorId, teamId, userId, disabledId, unrelatedId, taskId } =
+      await t.run(async (ctx) => {
+        const actorId = await insertUser(ctx, "Competition organiser")
+        const unrelatedId = await insertUser(ctx, "Unrelated organiser")
+        const disabledId = await seedVolunteerTestUser(
+          ctx,
+          "Disabled volunteer"
+        )
+        await ctx.db.patch("users", disabledId, { disabled: true })
+        for (let index = 0; index < 100; index++)
+          await insertUser(ctx, `Organiser ${String(index)}`)
+        const userId = await seedVolunteerTestUser(ctx, "Reviewer")
+        const teamId = await insertTeam(ctx, "Competitions Team")
+        const competitionId = await insertBlankCompetition(ctx)
+        await ctx.db.patch("competitions", competitionId, {
+          people: { compLead: null, leadDelegate: null, organisers: [actorId] },
+        })
+        const phaseId = await insertCompetitionPhase(
+          ctx,
+          competitionId,
+          "Setup",
+          "a"
+        )
+        const taskId = await insertSeedTask(ctx, {
+          parent: { type: "phases", id: phaseId },
+          order: "a",
+        })
+        return { actorId, teamId, userId, disabledId, unrelatedId, taskId }
+      })
     const actor = t.withIdentity({ subject: actorId })
-
-    const reviewers = await actor.query(
-      api.tasks.reviews.queries.listPotentialReviewers,
-      {}
-    )
-
-    expect(reviewers.teams).toEqual(
+    const scope = { type: "tasks", id: taskId } as const
+    const teams = await actor.query(api.tasks.queries.listAssignmentTeams, {
+      scope,
+    })
+    const users = await actor.query(api.users.queries.list, {
+      scope,
+      paginationOpts: { numItems: 50, cursor: null },
+    })
+    expect(teams).toEqual(
       expect.arrayContaining([
         {
           _id: teamId,
@@ -425,20 +452,49 @@ describe("task reviews", () => {
         },
       ])
     )
-    expect(reviewers.users).toEqual(
+    expect(new Set(users.page.map((user) => user._id))).toEqual(
+      new Set([actorId, userId])
+    )
+    expect(teams.map((team) => team.name)).not.toContain(TEAM_NAMES.VOLUNTEER)
+    await expect(
+      t.withIdentity({ subject: unrelatedId }).query(api.users.queries.list, {
+        scope,
+        paginationOpts: { numItems: 50, cursor: null },
+      })
+    ).rejects.toThrow()
+    await actor.mutation(api.tasks.reviews.mutations.addReviewer, {
+      taskId,
+      reviewer: { type: "users", id: userId },
+    })
+    // Existing disabled reviewers remain visible so they can still be removed.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("taskReviewers", {
+        taskId,
+        reviewer: { type: "users", id: disabledId },
+        approvedAt: null,
+        approvedBy: null,
+      })
+    })
+    const details = await actor.query(
+      api.tasks.reviews.queries.getReviewerDetailsForTask,
+      { taskId }
+    )
+    expect(details.reviewers.map((reviewer) => reviewer.reviewer)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          _id: actorId,
-          name: "Actor",
-        }),
-        expect.objectContaining({
-          _id: userId,
-          name: "Reviewer",
-        }),
+        { type: "users", id: userId },
+        { type: "users", id: disabledId },
       ])
     )
-    expect(reviewers.teams.map((team) => team.name)).not.toContain(
-      TEAM_NAMES.VOLUNTEER
+    await actor.mutation(api.tasks.reviews.mutations.removeReviewer, {
+      taskId,
+      reviewer: { type: "users", id: disabledId },
+    })
+    const afterRemoval = await actor.query(
+      api.tasks.reviews.queries.getReviewerDetailsForTask,
+      { taskId }
+    )
+    expect(afterRemoval.reviewers.map((reviewer) => reviewer.reviewer)).toEqual(
+      [{ type: "users", id: userId }]
     )
   })
 

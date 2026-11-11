@@ -8,6 +8,8 @@ import {
   insertBlankProject,
   insertTestUser,
   seedVolunteerTestUser,
+  insertProjectPhase,
+  insertSeedTask,
 } from "@/convex/testHelpers"
 import { TEAM_NAMES } from "@/convex/permissions/shared"
 
@@ -33,6 +35,20 @@ describe("project access", () => {
       _id: projectId,
       canUpdate: false,
     })
+
+    const viewer = t.withIdentity({ subject: volunteerId })
+    expect(
+      await viewer.query(api.users.queries.getSelected, {
+        scope: { type: "projects", id: projectId },
+        userIds: [memberId],
+      })
+    ).toEqual([expect.objectContaining({ _id: memberId })])
+    await expect(
+      viewer.query(api.users.queries.list, {
+        scope: { type: "projects", id: projectId },
+        paginationOpts: { numItems: 50, cursor: null },
+      })
+    ).rejects.toMatchObject({ data: { code: "FORBIDDEN" } })
 
     await expect(
       t
@@ -156,16 +172,49 @@ describe("project access", () => {
     await expect(
       t
         .withIdentity({ subject: volunteerId })
-        .query(api.projects.queries.listMemberOptions, { id: projectId })
+        .query(api.projects.queries.listMemberTeams, { id: projectId })
     ).rejects.toMatchObject({
       data: { code: "FORBIDDEN" },
     })
 
     const options = await t
       .withIdentity({ subject: memberId })
-      .query(api.projects.queries.listMemberOptions, { id: projectId })
+      .query(api.projects.queries.listMemberTeams, { id: projectId })
 
-    expect(options.users.length).toBeGreaterThan(0)
-    expect(Array.isArray(options.teams)).toBe(true)
+    expect(Array.isArray(options)).toBe(true)
+  })
+
+  test("project member and task options exclude organiser-only and disabled users", async () => {
+    const t = convexTest(schema, modules)
+    const ids = await t.run(async (ctx) => {
+      const actor = await seedVolunteerTestUser(ctx, "Project lead")
+      const disabled = await seedVolunteerTestUser(ctx, "Disabled")
+      await ctx.db.patch("users", disabled, { disabled: true })
+      await insertTestUser(ctx, "Organiser only")
+      const projectId = await insertBlankProject(ctx)
+      await ctx.db.patch("projects", projectId, { leadUserId: actor })
+      const phaseId = await insertProjectPhase(ctx, projectId, "Setup", "a")
+      const taskId = await insertSeedTask(ctx, {
+        parent: { type: "phases", id: phaseId },
+        order: "a",
+      })
+      return { actor, disabled, projectId, taskId }
+    })
+    const client = t.withIdentity({ subject: ids.actor })
+    for (const scope of [
+      { type: "projects", id: ids.projectId },
+      { type: "tasks", id: ids.taskId },
+    ] as const) {
+      const assignments = await client.query(api.users.queries.list, {
+        scope,
+        paginationOpts: { numItems: 50, cursor: null },
+      })
+      expect(assignments.page.map((user) => user._id)).toEqual([ids.actor])
+      const selected = await client.query(api.users.queries.getSelected, {
+        scope,
+        userIds: [ids.disabled],
+      })
+      expect(selected.map((user) => user._id)).toEqual([ids.disabled])
+    }
   })
 })

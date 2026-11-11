@@ -8,6 +8,7 @@ import { objectRefKey } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { UsersRoundIcon } from "lucide-react"
 import { useMemo, useState, type ComponentProps } from "react"
+import { useUserItems } from "./user-selector-model"
 import * as DataSelector from "./data-selector"
 import { useMultipleDataSelector } from "./data-selector-model"
 import * as SelectorFace from "./selector-face"
@@ -140,23 +141,13 @@ export function MultiPropertyButton({
   variant,
 }: MultiUserTeamSelectorProps) {
   const [open, setOpen] = useState(false)
-  const { allowed: canReadUsers, isLoading: userAccessLoading } = useCan(
-    "read",
-    "User"
-  )
   const { allowed: canReadTeams, isLoading: teamAccessLoading } = useCan(
     "read",
     "Team"
   )
   const projectOptions = useQuery(
-    api.projects.queries.listMemberOptions,
+    api.projects.queries.listMemberTeams,
     open && projectId !== undefined ? { id: projectId } : "skip"
-  )
-  const globalUsers = useQuery(
-    api.users.queries.list,
-    open && projectId === undefined && !userAccessLoading && canReadUsers
-      ? {}
-      : "skip"
   )
   const globalTeams = useQuery(
     api.teams.queries.listForTaskFilters,
@@ -164,8 +155,17 @@ export function MultiPropertyButton({
       ? {}
       : "skip"
   )
-  const users = projectOptions?.users ?? globalUsers
-  const teams = projectOptions?.teams ?? globalTeams
+  const users = useUserItems({
+    open,
+    scope:
+      projectId === undefined ? undefined : { type: "projects", id: projectId },
+    selectedIds: value.flatMap((ref) => (ref.type === "users" ? [ref.id] : [])),
+    selectedUsers: selectedMembers.filter(
+      (member): member is PublicUser & { type: "users" } =>
+        member.type === "users"
+    ),
+  })
+  const teams = projectId === undefined ? globalTeams : projectOptions
   const groups = useMemo<SelectorGroup<MemberOption, ProjectMemberRef>[]>(
     () => [
       {
@@ -179,18 +179,24 @@ export function MultiPropertyButton({
       {
         key: "users",
         label: "Users",
-        items: users?.map((user) => toOption({ ...user, type: "users" })),
+        items: users.items?.map((user) => toOption({ ...user, type: "users" })),
         getLabel: (option) => option.label,
         getValue: (option) => option.value,
         renderItem: renderMemberItem,
       },
     ],
-    [teams, users]
+    [teams, users.items]
   )
   const model = useMultipleDataSelector<MemberOption, ProjectMemberRef>({
     getValueKey: objectRefKey,
     groups,
-    selectedItems: selectedMembers.map(toOption),
+    selectedItems: [
+      ...selectedMembers.filter((member) => member.type === "teams"),
+      ...users.selectedUsers.map((user) => ({
+        ...user,
+        type: "users" as const,
+      })),
+    ].map(toOption),
     values: value,
   })
 
@@ -199,6 +205,7 @@ export function MultiPropertyButton({
       model={model}
       open={open}
       searchable
+      {...users.search}
       onOpenChange={setOpen}
       onValueChange={onChange}
     >
@@ -214,7 +221,13 @@ export function MultiPropertyButton({
           members={model.selectedItems.map((option) => option.member)}
         />
       </DataSelector.ButtonTrigger>
-      <DataSelector.Content model={model} objectNoun="members" searchable />
+      <DataSelector.Content
+        model={model}
+        loading={users.loading}
+        pagination={users.pagination}
+        objectNoun="members"
+        searchable
+      />
     </DataSelector.MultipleRoot>
   )
 }

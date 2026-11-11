@@ -12,6 +12,7 @@ import {
   insertCompetitionPhase,
   insertSeedTask,
   insertTestUser,
+  seedVolunteerTestUser,
   withVolunteerTestClient,
 } from "@/convex/testHelpers"
 
@@ -76,7 +77,7 @@ describe("task access", () => {
     const { assignableUserId, competitionId, organiserId, outsiderId, taskId } =
       await t.run(async (ctx) => {
         const organiserId = await insertTestUser(ctx, "Organiser")
-        const assignableUserId = await insertTestUser(ctx, "Assignable")
+        const assignableUserId = await seedVolunteerTestUser(ctx, "Assignable")
         const outsiderId = await insertTestUser(ctx, "Outsider")
         await addUserToTeam(ctx, assignableUserId, TEAM_NAMES.GRAPHICS)
         const competitionId = await insertBlankCompetition(ctx)
@@ -109,25 +110,42 @@ describe("task access", () => {
 
     const organiser = t.withIdentity({ subject: organiserId })
 
-    await expect(organiser.query(api.users.queries.list, {})).rejects.toThrow()
+    await expect(
+      organiser.query(api.users.queries.list, {
+        paginationOpts: { numItems: 50, cursor: null },
+      })
+    ).rejects.toThrow()
 
-    const options = await organiser.query(
-      api.tasks.queries.listAssignmentOptions,
-      { scope: { type: "tasks", id: taskId } }
-    )
-    expect(options.users.map((user) => user._id)).toEqual(
+    const scope = { type: "tasks", id: taskId } as const
+    const options = await organiser.query(api.users.queries.list, {
+      scope,
+      paginationOpts: { numItems: 50, cursor: null },
+    })
+    expect(options.page.map((user) => user._id)).toEqual(
       expect.arrayContaining([assignableUserId, organiserId])
     )
-    expect(options.teams.map((team) => team.name)).toContain(
-      TEAM_NAMES.GRAPHICS
-    )
-
+    expect(options.page.map((user) => user._id)).not.toContain(outsiderId)
+    const teams = await organiser.query(api.tasks.queries.listAssignmentTeams, {
+      scope,
+    })
+    expect(teams.map((team) => team.name)).toContain(TEAM_NAMES.GRAPHICS)
+    await expect(
+      t.withIdentity({ subject: outsiderId }).query(api.users.queries.list, {
+        scope: { type: "competitions", id: competitionId },
+        paginationOpts: { numItems: 50, cursor: null },
+      })
+    ).rejects.toThrow()
+    // Selected labels use the same scoped permission, independently of pages.
+    expect(
+      await organiser.query(api.users.queries.getSelected, {
+        scope,
+        userIds: [organiserId],
+      })
+    ).toEqual([expect.objectContaining({ _id: organiserId })])
     await expect(
       t
         .withIdentity({ subject: outsiderId })
-        .query(api.tasks.queries.listAssignmentOptions, {
-          scope: { type: "competitions", id: competitionId },
-        })
+        .query(api.users.queries.getSelected, { scope, userIds: [organiserId] })
     ).rejects.toThrow()
   })
 

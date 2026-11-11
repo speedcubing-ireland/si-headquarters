@@ -1,6 +1,7 @@
 import { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import type { Id } from "@/convex/_generated/dataModel"
+import type { CommentTargetRef } from "@/convex/utils"
 import type { TeamName } from "@/convex/permissions/shared"
 import type { PublicUser } from "@/convex/users/validators"
 import { UserRoundIcon } from "lucide-react"
@@ -31,7 +32,7 @@ interface UserSelectorBaseProps extends Pick<
   avatarProps?: ObjectAvatarProps
   maxAvatars?: number
   teamName?: TeamName
-  competitionId?: Id<"competitions">
+  scope?: CommentTargetRef
 }
 
 interface SingleUserSelectorProps extends UserSelectorBaseProps {
@@ -135,21 +136,27 @@ function SingleUserSelectorControl({
   selectedUser,
   size,
   teamName,
-  competitionId,
+  scope,
   value,
   variant,
 }: SingleUserSelectorProps & {
   appearance?: UserFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const users = useUserItems(open, teamName, competitionId)
+  const users = useUserItems({
+    open,
+    scope,
+    teamName,
+    selectedIds: value === null ? [] : [value],
+    selectedUsers: selectedUser ? [selectedUser] : [],
+  })
   const model = useSingleDataSelector<User, UserId>({
     getLabel: getUserName,
     getValue: (user) => user._id,
     getValueKey: (id) => id,
-    items: users,
+    items: users.items,
     renderItem: renderUserItem,
-    selectedItem: selectedUser,
+    selectedItem: users.selectedUsers[0],
     value,
   })
 
@@ -158,10 +165,9 @@ function SingleUserSelectorControl({
       model={model}
       open={open}
       searchable
+      {...users.search}
       onOpenChange={setOpen}
-      onValueChange={(userId) => {
-        onChange(userId)
-      }}
+      onValueChange={onChange}
     >
       <DataSelector.ButtonTrigger
         className={className}
@@ -180,6 +186,8 @@ function SingleUserSelectorControl({
       <DataSelector.Content
         clearLabel="None"
         model={model}
+        loading={users.loading}
+        pagination={users.pagination}
         objectNoun="users"
         searchable
       />
@@ -197,21 +205,27 @@ function MultipleUserSelectorControl({
   selectedUsers,
   size,
   teamName,
-  competitionId,
+  scope,
   value,
   variant,
 }: MultipleUserSelectorProps & {
   appearance: UserFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const users = useUserItems(open, teamName, competitionId)
+  const users = useUserItems({
+    open,
+    scope,
+    teamName,
+    selectedIds: value,
+    selectedUsers,
+  })
   const model = useMultipleDataSelector<User, UserId>({
     getLabel: getUserName,
     getValue: (user) => user._id,
     getValueKey: (id) => id,
-    items: users,
+    items: users.items,
     renderItem: renderUserItem,
-    selectedItems: selectedUsers,
+    selectedItems: users.selectedUsers,
     values: value,
   })
 
@@ -220,10 +234,9 @@ function MultipleUserSelectorControl({
       model={model}
       open={open}
       searchable
+      {...users.search}
       onOpenChange={setOpen}
-      onValueChange={(userIds) => {
-        onChange(userIds)
-      }}
+      onValueChange={onChange}
     >
       <DataSelector.ButtonTrigger
         className={className}
@@ -239,7 +252,13 @@ function MultipleUserSelectorControl({
           users={model.selectedItems}
         />
       </DataSelector.ButtonTrigger>
-      <DataSelector.Content model={model} objectNoun="users" searchable />
+      <DataSelector.Content
+        model={model}
+        loading={users.loading}
+        pagination={users.pagination}
+        objectNoun="users"
+        searchable
+      />
     </DataSelector.MultipleRoot>
   )
 }

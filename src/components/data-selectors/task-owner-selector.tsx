@@ -9,6 +9,7 @@ import { objectRefKey } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { CastleIcon } from "lucide-react"
 import { useMemo, useState, type ComponentProps } from "react"
+import { useUserItems } from "./user-selector-model"
 import * as DataSelector from "./data-selector"
 import { useSingleDataSelector } from "./data-selector-model"
 import * as SelectorFace from "./selector-face"
@@ -145,19 +146,9 @@ function OwnerSelectorControl({
   appearance: OwnerFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const { allowed: canReadUsers, isLoading: userAccessLoading } = useCan(
-    "read",
-    "User"
-  )
   const { allowed: canReadTeams, isLoading: teamAccessLoading } = useCan(
     "read",
     "Team"
-  )
-  const users = useQuery(
-    api.users.queries.list,
-    open && scope === undefined && !userAccessLoading && canReadUsers
-      ? {}
-      : "skip"
   )
   const teams = useQuery(
     api.teams.queries.listForTaskFilters,
@@ -166,12 +157,23 @@ function OwnerSelectorControl({
       : "skip"
   )
   const scopedOptions = useQuery(
-    api.tasks.queries.listAssignmentOptions,
+    api.tasks.queries.listAssignmentTeams,
     open && scope !== undefined ? { scope } : "skip"
   )
-  const ownerUsers = scope === undefined ? users : scopedOptions?.users
-  const ownerTeams = scope === undefined ? teams : scopedOptions?.teams
-  const selectedItem = selectedOwner ? toOwnerOption(selectedOwner) : null
+  const fallbackItem = selectedOwner ? toOwnerOption(selectedOwner) : null
+  const resolvedValue =
+    value === undefined ? (fallbackItem?.value ?? null) : value
+  const users = useUserItems({
+    open,
+    scope,
+    selectedIds: resolvedValue?.type === "users" ? [resolvedValue.id] : [],
+    selectedUsers: selectedOwner?.type === "users" ? [selectedOwner] : [],
+  })
+  const selectedItem =
+    resolvedValue?.type === "users"
+      ? toOwnerOption({ ...users.selectedUsers[0], type: "users" })
+      : fallbackItem
+  const ownerTeams = scope === undefined ? teams : scopedOptions
   const ownerGroups = useMemo<SelectorGroup<OwnerOption, OwnerValue>[]>(
     () => [
       {
@@ -187,7 +189,7 @@ function OwnerSelectorControl({
       {
         key: "users",
         label: "Users",
-        items: ownerUsers?.map((user) =>
+        items: users.items?.map((user) =>
           toOwnerOption({ ...user, type: "users" })
         ),
         getLabel: (owner) => owner.label,
@@ -195,13 +197,13 @@ function OwnerSelectorControl({
         renderItem: renderOwnerItem,
       },
     ],
-    [ownerTeams, ownerUsers]
+    [ownerTeams, users.items]
   )
   const model = useSingleDataSelector<OwnerOption, OwnerValue>({
     getValueKey: objectRefKey,
     groups: ownerGroups,
     selectedItem,
-    value: value ?? selectedItem?.value ?? null,
+    value: resolvedValue,
   })
 
   return (
@@ -209,10 +211,9 @@ function OwnerSelectorControl({
       model={model}
       open={open}
       searchable
+      {...users.search}
       onOpenChange={setOpen}
-      onValueChange={(ownerRef) => {
-        onChange(ownerRef)
-      }}
+      onValueChange={onChange}
     >
       <DataSelector.ButtonTrigger
         className={className}
@@ -230,6 +231,8 @@ function OwnerSelectorControl({
       <DataSelector.Content
         clearLabel="None"
         model={model}
+        loading={users.loading}
+        pagination={users.pagination}
         objectNoun="owners"
         searchable
       />

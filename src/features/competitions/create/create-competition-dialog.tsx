@@ -39,7 +39,6 @@ export function CreateCompetitionDialog({
     api.templates.queries.listCompetitionTemplates,
     open ? {} : "skip"
   )
-  const users = useQuery(api.users.queries.list, open ? {} : "skip")
   const createCompetition = useMutation(
     api.competitions.mutations.createFromTemplate
   )
@@ -80,18 +79,6 @@ export function CreateCompetitionDialog({
     variables,
     variableValues
   )
-
-  const userById = useMemo(
-    () => new Map(users?.map((user) => [user._id, user]) ?? []),
-    [users]
-  )
-  const compLead = compLeadId ? (userById.get(compLeadId) ?? null) : null
-  const leadDelegate = leadDelegateId
-    ? (userById.get(leadDelegateId) ?? null)
-    : null
-  const organisers = organiserIds
-    .map((id) => userById.get(id))
-    .filter((user): user is NonNullable<typeof user> => user !== undefined)
 
   const canSubmit =
     selectedTemplate !== undefined &&
@@ -265,9 +252,6 @@ export function CreateCompetitionDialog({
               </Field>
 
               <CompetitionPeopleFormFields
-                compLead={compLead}
-                leadDelegate={leadDelegate}
-                organisers={organisers}
                 compLeadId={compLeadId}
                 leadDelegateId={leadDelegateId}
                 organiserIds={organiserIds}

@@ -11,6 +11,7 @@ import {
   ComboboxSeparator,
   ComboboxTrigger,
 } from "@/components/ui/combobox"
+import { Button } from "@/components/ui/button"
 import { CheckIcon } from "lucide-react"
 import type { ComponentProps, ReactNode } from "react"
 import {
@@ -109,16 +110,20 @@ export function MultipleRoot<TItem, TValue>({
   children,
   model,
   onOpenChange,
+  onSearchChange,
   onValueChange,
   open,
   searchable,
+  searchQuery,
 }: {
   children: ReactNode
   model: MultipleSelectorModel<TItem, TValue>
   onOpenChange?: (open: boolean) => void
+  onSearchChange?: (query: string) => void
   onValueChange: (value: TValue[]) => void
   open?: boolean
   searchable?: boolean
+  searchQuery?: string
 }) {
   return (
     <Combobox<SelectorOption<TItem, TValue>, true>
@@ -127,9 +132,9 @@ export function MultipleRoot<TItem, TValue>({
       itemToStringLabel={getSelectorOptionLabel}
       isItemEqualToValue={isSelectorOptionEqual}
       open={open}
-      inputValue={searchable === true ? undefined : ""}
+      inputValue={searchable === true ? searchQuery : ""}
       onInputValueChange={
-        searchable === true ? undefined : ignoreInputValueChange
+        searchable === true ? onSearchChange : ignoreInputValueChange
       }
       value={model.selectedOptions}
       onOpenChange={onOpenChange}
@@ -234,6 +239,11 @@ export function PickContent<TItem, TValue>({
   )
 }
 
+export interface SelectorPagination {
+  loading: boolean
+  onLoadMore: () => void
+}
+
 export function Content<TItem, TValue>({
   align = "end",
   clearLabel,
@@ -241,6 +251,7 @@ export function Content<TItem, TValue>({
   loading,
   model,
   objectNoun,
+  pagination,
   searchable,
 }: {
   align?: SelectorContentAlign
@@ -249,6 +260,7 @@ export function Content<TItem, TValue>({
   loading?: boolean
   model: BuiltSelectorOptions<TItem, TValue>
   objectNoun: string
+  pagination?: SelectorPagination
   searchable?: boolean
 }) {
   const hasHeaderActions =
@@ -266,6 +278,7 @@ export function Content<TItem, TValue>({
       loading={loading}
       model={model}
       objectNoun={objectNoun}
+      pagination={pagination}
       searchable={searchable}
       showLoadingState
     />
@@ -281,6 +294,7 @@ function OptionsContent<TItem, TValue>({
   loading,
   model,
   objectNoun,
+  pagination,
   searchable,
   showLoadingState,
 }: {
@@ -292,6 +306,7 @@ function OptionsContent<TItem, TValue>({
   loading?: boolean
   model: BuiltSelectorOptions<TItem, TValue>
   objectNoun: string
+  pagination?: SelectorPagination
   searchable?: boolean
   showLoadingState?: boolean
 }) {
@@ -337,6 +352,20 @@ function OptionsContent<TItem, TValue>({
           ) : null}
           {shouldRenderOptions ? <OptionsCollection model={model} /> : null}
         </ComboboxList>
+      ) : null}
+      {pagination !== undefined ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full rounded-none border-t"
+          disabled={pagination.loading}
+          onClick={pagination.onLoadMore}
+        >
+          {pagination.loading
+            ? `Loading more ${objectNoun}...`
+            : `Load more ${objectNoun}`}
+        </Button>
       ) : null}
     </ComboboxContent>
   )

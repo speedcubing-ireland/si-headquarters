@@ -6,21 +6,16 @@ import {
 } from "@/convex/tasks/reviews/reviewState"
 import { previewReviewChangeImpact } from "@/convex/tasks/reviews/preview"
 import {
-  potentialTaskReviewers,
   reviewPreviewOperation,
   taskReviewerDetailsForTask,
   type TaskReviewerDetails,
 } from "@/convex/tasks/reviews/validators"
-import { requireCan, requirePrincipal } from "@/convex/permissions/principal"
 import {
   requireTaskManageAccess,
   requireTaskReadAccess,
 } from "@/convex/tasks/access"
-import { takeApplicationTeamSummaries } from "@/convex/teams/model"
 import { toPublicUser } from "@/convex/users/queries"
 import { v } from "convex/values"
-
-const MAX_POTENTIAL_REVIEWER_OPTIONS = 100
 
 export const getForTask = query({
   args: {
@@ -91,22 +86,6 @@ export const getReviewerDetailsForTask = query({
           }
         : null,
     }
-  },
-})
-
-export const listPotentialReviewers = query({
-  args: {},
-  returns: potentialTaskReviewers,
-  handler: async (ctx) => {
-    const principal = await requirePrincipal(ctx)
-    requireCan(principal, "manage", "Task")
-
-    const [teams, users] = await Promise.all([
-      takeApplicationTeamSummaries(ctx, MAX_POTENTIAL_REVIEWER_OPTIONS),
-      ctx.db.query("users").take(MAX_POTENTIAL_REVIEWER_OPTIONS),
-    ])
-
-    return { teams, users: users.map(toPublicUser) }
   },
 })
 

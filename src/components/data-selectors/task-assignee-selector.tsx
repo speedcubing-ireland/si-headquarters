@@ -10,12 +10,10 @@ import {
 } from "@/components/data-selectors/user-selector-model"
 import type { ObjectAvatar } from "@/components/object-avatar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { api } from "@/convex/_generated/api"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 import type { SubtaskViewOwner } from "@/convex/tasks/queries"
 import type { TaskViewAssignees } from "@/convex/tasks/view"
 import type { PublicUser } from "@/convex/users/validators"
-import { useQuery } from "convex/react"
 import { useMemo, useState, type ComponentProps } from "react"
 
 type AssigneeValue = Doc<"tasks">["assigneeIds"]
@@ -91,19 +89,19 @@ function TaskAssigneeSelectorControl({
   appearance: UserFaceAppearance
 }) {
   const [open, setOpen] = useState(false)
-  const scopedOptions = useQuery(
-    api.tasks.queries.listAssignmentOptions,
-    open && scope !== undefined ? { scope } : "skip"
-  )
-  const globalUsers = useUserItems(open && scope === undefined)
-  const users = scope === undefined ? globalUsers : scopedOptions?.users
+  const users = useUserItems({
+    open,
+    scope,
+    selectedIds: assignees.userIds,
+    selectedUsers: assignees.users,
+  })
   const model = useMultipleDataSelector<PublicUser, Id<"users">>({
     getLabel: getUserName,
     getValue: (user) => user._id,
     getValueKey: (id) => id,
-    items: users,
+    items: users.items,
     renderItem: renderUserItem,
-    selectedItems: assignees.users,
+    selectedItems: users.selectedUsers,
     values: assignees.userIds,
   })
 
@@ -136,10 +134,9 @@ function TaskAssigneeSelectorControl({
       model={model}
       open={open}
       searchable
+      {...users.search}
       onOpenChange={setOpen}
-      onValueChange={(userIds) => {
-        onChange(userIds)
-      }}
+      onValueChange={onChange}
     >
       <DataSelector.ButtonTrigger
         className={className}
@@ -150,7 +147,7 @@ function TaskAssigneeSelectorControl({
       >
         <AssigneeFace
           appearance={appearance}
-          assignees={assignees}
+          assignees={{ ...assignees, users: model.selectedItems }}
           avatarProps={avatarProps}
           maxAvatars={maxAvatars}
         />
@@ -158,6 +155,8 @@ function TaskAssigneeSelectorControl({
       <DataSelector.Content
         headerActions={headerActions}
         model={model}
+        loading={users.loading}
+        pagination={users.pagination}
         objectNoun="users"
         searchable
       />

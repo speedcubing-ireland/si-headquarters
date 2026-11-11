@@ -12,21 +12,24 @@ import {
   type TemplateVariableFormValues,
 } from "@/features/competitions/create/template-variable-schema"
 import { ZodProvider } from "@autoform/zod"
+import { z } from "zod/v3"
 import { useQuery } from "convex/react"
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { UseFormReturn } from "react-hook-form"
 import { useFormContext } from "react-hook-form"
 
+const userIdValue = z.custom<Id<"users">>(
+  (value) => typeof value === "string" && value.length > 0
+)
+const userIdsValue = userIdValue.array()
+
 function UserVariableField({ path, value }: AutoFormFieldProps) {
   const form = useFormContext<TemplateVariableFormValues>()
-  const users = useQuery(api.users.queries.list, {})
-  const rawUserId = typeof value === "string" ? value : ""
-  const selectedUser = users?.find((user) => user._id === rawUserId) ?? null
-  const userId = selectedUser?._id ?? null
+  const parsed = userIdValue.safeParse(value)
+  const userId = parsed.success ? parsed.data : null
 
   return (
     <UserSelector.SinglePropertyButton
-      selectedUser={selectedUser}
       value={userId}
       onChange={(nextUserId) => {
         form.setValue(path.join("."), nextUserId ?? "", {
@@ -41,22 +44,11 @@ function UserVariableField({ path, value }: AutoFormFieldProps) {
 
 function UsersVariableField({ path, value }: AutoFormFieldProps) {
   const form = useFormContext<TemplateVariableFormValues>()
-  const rawUserIds = Array.isArray(value)
-    ? value.filter(
-        (entry): entry is Id<"users"> =>
-          typeof entry === "string" && entry.length > 0
-      )
-    : []
-  const users = useQuery(api.users.queries.list, {})
-  const userById = new Map(users?.map((user) => [user._id, user]) ?? [])
-  const selectedUsers = rawUserIds
-    .map((id) => userById.get(id))
-    .filter((user): user is NonNullable<typeof user> => user !== undefined)
-  const userIds = selectedUsers.map((user) => user._id)
+  const parsed = userIdsValue.safeParse(value)
+  const userIds = parsed.success ? parsed.data : []
 
   return (
     <UserSelector.MultiPropertyButton
-      selectedUsers={selectedUsers}
       value={userIds}
       onChange={(nextUserIds) => {
         form.setValue(path.join("."), nextUserIds, {

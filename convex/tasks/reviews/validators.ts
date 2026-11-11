@@ -1,5 +1,4 @@
 import { v, type Infer } from "convex/values"
-import { teamSummary } from "@/convex/teams/validators"
 import { publicUserValidator } from "@/convex/users/validators"
 import { objectRef } from "@/convex/utils"
 
@@ -50,11 +49,6 @@ export const taskReviewerDetailsForTask = v.object({
   override: v.union(taskReviewOverrideDetails, v.null()),
 })
 
-export const potentialTaskReviewers = v.object({
-  teams: v.array(teamSummary),
-  users: v.array(publicUserValidator),
-})
-
 export const reviewPreviewOperation = v.union(
   v.object({
     type: v.literal("add-reviewer"),
@@ -86,5 +80,4 @@ export type TaskReviewOverrideDetails = Infer<typeof taskReviewOverrideDetails>
 export type TaskReviewerDetailsForTask = Infer<
   typeof taskReviewerDetailsForTask
 >
-export type PotentialTaskReviewers = Infer<typeof potentialTaskReviewers>
 export type ReviewPreviewOperation = Infer<typeof reviewPreviewOperation>

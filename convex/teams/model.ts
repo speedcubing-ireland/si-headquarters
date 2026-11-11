@@ -88,15 +88,6 @@ export function isApplicationTeam(name: string): boolean {
   return !NON_APPLICATION_TEAM_NAME_SET.has(name)
 }
 
-export function applicationTeamSummaries(
-  teams: readonly Pick<Doc<"teams">, "_id" | "name">[]
-): TeamSummary[] {
-  return teams
-    .filter((team) => isApplicationTeam(team.name))
-    .map(toTeamSummary)
-    .sort(compareTeamSummariesByName)
-}
-
 export function applicationTeams(teams: readonly Doc<"teams">[]) {
   return teams
     .filter((team) => isApplicationTeam(team.name))
@@ -131,13 +122,6 @@ export async function listAllApplicationTeamSummaries(ctx: TeamCtx) {
 
 export async function listAllApplicationTeams(ctx: TeamCtx) {
   return applicationTeams(await collectAll(ctx, "teams"))
-}
-
-export async function takeApplicationTeamSummaries(
-  ctx: TeamCtx,
-  limit: number
-) {
-  return applicationTeamSummaries(await ctx.db.query("teams").take(limit))
 }
 
 async function listTeamsForUser(ctx: TeamCtx, userId: Id<"users">) {
