@@ -6,9 +6,17 @@ import {
   readNumber,
   readRecord,
   readString,
+  tryParseJsonObject,
 } from "@/convex/integrations/jsonBoundary"
 
 describe("jsonBoundary", () => {
+  test("tryParseJsonObject returns null instead of throwing", () => {
+    expect(tryParseJsonObject('{"error":"bad"}')).toEqual({ error: "bad" })
+    expect(tryParseJsonObject("<html>")).toBeNull()
+    expect(tryParseJsonObject("[1]")).toBeNull()
+    expect(tryParseJsonObject("")).toBeNull()
+  })
+
   test("readString returns only string fields", () => {
     const record = { name: "Spring Open", count: 3 }
     expect(readString(record, "name")).toBe("Spring Open")

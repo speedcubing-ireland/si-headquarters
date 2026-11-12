@@ -106,6 +106,18 @@ export function readObjectArray(
   )
 }
 
+/** Like `readJsonObject` on raw text, but `null` instead of throwing on bad JSON. */
+export function tryParseJsonObject(text: string): JsonRecord | null {
+  if (text.trim() === "") {
+    return null
+  }
+  try {
+    return parseJsonObject(text)
+  } catch {
+    return null
+  }
+}
+
 export async function readJsonObject(
   response: Response
 ): Promise<JsonRecord | null> {

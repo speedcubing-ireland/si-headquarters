@@ -20,6 +20,7 @@ const WCA_EVENTS: readonly { id: string; label: string }[] = [
   { id: "444bf", label: "4x4x4 Blindfolded" },
   { id: "555bf", label: "5x5x5 Blindfolded" },
   { id: "333mbf", label: "3x3x3 Multi-Blind" },
+  { id: "fto", label: "Face-Turning Octahedron" },
 ]
 
 const EVENTS_BY_ID = new Map(

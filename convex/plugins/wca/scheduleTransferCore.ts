@@ -12,6 +12,7 @@ import type {
   WcifTimeLimit,
 } from "@/convex/plugins/wca/openapiClient/types.gen"
 import { createWcaClient } from "@/convex/plugins/wca/client"
+import { formatWcaEventLabel } from "@/convex/plugins/wca/eventLabels"
 import { competitionById } from "@/convex/plugins/wca/openapiClient/sdk.gen"
 import {
   loadCompetitionWcif,
@@ -39,6 +40,41 @@ function scheduleTemplateCompetitionId(): string {
 const PERCENT_75_THRESHOLD_MIN = 72
 const PERCENT_75_THRESHOLD_MAX = 78
 export const MULTI_ATTEMPT_EVENTS = new Set(["333fm", "333mbf"])
+
+/**
+ * Events this transfer can send that have not yet been seen to succeed in a
+ * WCIF upload. A rejected upload that adds one names it as the likely cause.
+ * Remove an event once an upload including it has worked.
+ */
+const UNVERIFIED_WCIF_EVENTS: ReadonlySet<string> = new Set(["fto"])
+
+/** Statuses the WCA uses when it rejects the WCIF's contents, not the request. */
+const WCIF_VALIDATION_STATUSES: ReadonlySet<number> = new Set([400, 422])
+
+/**
+ * The error to show for a rejected WCIF upload. When the WCA rejected the
+ * contents and the upload adds events it has not accepted from here before,
+ * it points at them as the likely cause. Events already on the competition
+ * have been accepted, so they are not suspects.
+ */
+export function rejectedWcifUploadError(
+  rejection: { status: number; error: string },
+  sentEvents: Event[],
+  existingEvents: Event[]
+): string {
+  if (!WCIF_VALIDATION_STATUSES.has(rejection.status)) {
+    return rejection.error
+  }
+  const existingIds = new Set(existingEvents.map((event) => event.id))
+  const unverified = sentEvents
+    .map((event) => event.id)
+    .filter((id) => UNVERIFIED_WCIF_EVENTS.has(id) && !existingIds.has(id))
+  if (unverified.length === 0) {
+    return rejection.error
+  }
+  const labels = unverified.map(formatWcaEventLabel).join(", ")
+  return `${rejection.error} This upload includes events that have not been uploaded to the WCA from here before (${labels}) and may be the cause. Remove their rows from the schedule sheet and retry, then add them on the WCA website by hand.`
+}
 
 interface OtherActivityDef {
   activityCode: string
@@ -599,7 +635,10 @@ export async function executePushScheduleToWca(input: {
   )
 
   if (!result.success) {
-    return result
+    return {
+      success: false,
+      error: rejectedWcifUploadError(result, events, wcif.events),
+    }
   }
 
   return { success: true, activitiesCreated: allActivities.length }

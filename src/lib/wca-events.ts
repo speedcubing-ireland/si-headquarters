@@ -23,6 +23,7 @@ const WCA_EVENT_SHORT_LABELS: Record<string, string> = {
   "444bf": "4BLD",
   "555bf": "5BLD",
   "333mbf": "MBLD",
+  fto: "FTO",
 }
 
 export function formatWcaEventShortLabel(eventId: string): string {

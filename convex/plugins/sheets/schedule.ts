@@ -42,6 +42,8 @@ export const EVENT_NAME_TO_ID: Readonly<Partial<Record<string, string>>> = {
   "4x4 blindfolded": "444bf",
   "5x5 blindfolded": "555bf",
   "3x3 multi-blind": "333mbf",
+  fto: "fto",
+  "face-turning octahedron": "fto",
 }
 
 export function normalizeScheduleName(name: string): string {

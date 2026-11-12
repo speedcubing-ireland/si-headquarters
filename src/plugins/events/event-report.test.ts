@@ -79,6 +79,18 @@ describe("event report", () => {
     expect(totalRounds(rows[0])).toBe(7)
   })
 
+  test("orders FTO after the other WCA events and before unknown ones", () => {
+    const rows = [
+      reportRow("One", null, null, [
+        { eventId: "zzz", rounds: 1 },
+        { eventId: "fto", rounds: 2 },
+        { eventId: "333mbf", rounds: 1 },
+      ]),
+    ]
+
+    expect(buildEventColumns(rows)).toEqual(["333mbf", "fto", "zzz"])
+  })
+
   test("sums round counts per column and overall for the footer", () => {
     const rows = [
       reportRow("One", null, null, [

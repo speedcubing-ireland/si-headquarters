@@ -60,6 +60,15 @@ describe("parseScheduleEventRounds", () => {
     ).toEqual([{ eventId: "333", rounds: 4 }])
   })
 
+  test("recognises FTO by its short and full names", () => {
+    expect(parseScheduleEventRounds([["FTO", "2"]])).toEqual([
+      { eventId: "fto", rounds: 2 },
+    ])
+    expect(
+      parseScheduleEventRounds([[" Face-Turning Octahedron ", "1"]])
+    ).toEqual([{ eventId: "fto", rounds: 1 }])
+  })
+
   test("rejects duplicate event rows", () => {
     expect(() =>
       parseScheduleEventRounds([

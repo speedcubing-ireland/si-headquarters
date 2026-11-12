@@ -8,11 +8,11 @@ import { resolveWcaApiBaseUrl } from "@/convex/deploymentContext"
 import {
   isPlainObject,
   type JsonRecord,
-  readJsonObject,
   readNumber,
   readObjectArray,
   readRecord,
   readString,
+  tryParseJsonObject,
 } from "@/convex/integrations/jsonBoundary"
 import type { WcaClient } from "@/convex/plugins/wca/client"
 import { getCompetitionWcif } from "@/convex/plugins/wca/openapiClient/sdk.gen"
@@ -113,7 +113,9 @@ export async function patchCompetitionWcif(
   accessToken: string,
   competitionId: string,
   payload: Pick<CompetitionWcif, "id" | "events" | "schedule">
-): Promise<{ success: true } | { success: false; error: string }> {
+): Promise<
+  { success: true } | { success: false; status: number; error: string }
+> {
   const response = await fetch(
     `${resolveWcaApiBaseUrl()}/v0/competitions/${encodeURIComponent(competitionId)}/wcif`,
     {
@@ -126,11 +128,37 @@ export async function patchCompetitionWcif(
     }
   )
   if (!response.ok) {
-    const errorBody = await readJsonObject(response)
     return {
       success: false,
-      error: `WCA rejected WCIF update (HTTP ${String(response.status)}): ${JSON.stringify(errorBody)}`,
+      status: response.status,
+      error: `WCA rejected the WCIF update (HTTP ${String(response.status)}): ${describeWcaErrorBody(await response.text())}`,
     }
   }
   return { success: true }
+}
+
+const MAX_ERROR_DETAIL_LENGTH = 500
+
+/**
+ * A readable reason from a WCA error response. The WCA reports WCIF failures
+ * as `{ "error": "..." }`, but proxies and outages can return HTML or plain
+ * text instead, which must not crash the caller or flood the UI.
+ */
+export function describeWcaErrorBody(text: string): string {
+  const trimmed = text.trim()
+  if (trimmed === "") {
+    return "no details given"
+  }
+  const body = tryParseJsonObject(trimmed)
+  let detail: string
+  if (body !== null) {
+    detail = readString(body, "error") ?? JSON.stringify(body)
+  } else if (trimmed.startsWith("<")) {
+    return "the WCA returned an unexpected HTML page"
+  } else {
+    detail = trimmed
+  }
+  return detail.length > MAX_ERROR_DETAIL_LENGTH
+    ? `${detail.slice(0, MAX_ERROR_DETAIL_LENGTH)}…`
+    : detail
 }
