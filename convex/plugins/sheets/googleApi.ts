@@ -67,17 +67,23 @@ export async function readSheetRanges(
   if (body === null) {
     throw new Error("Google Sheets read returned an invalid response.")
   }
+  // Results come back in request order, keyed by the requested range. The
+  // `range` Google echoes is resolved against the sheet (an open-ended
+  // `Schedule!A2:F` comes back as `Schedule!A2:F1000`), so it cannot be used
+  // to look results up.
   const valueRanges = readObjectArray(body, "valueRanges") ?? []
-  const result: Record<string, string[][]> = {}
-  for (const entry of valueRanges) {
-    if (!isPlainObject(entry)) {
-      continue
-    }
-    const range = readString(entry, "range")
-    if (range !== undefined) {
-      result[range] = matrixFromValueRange(entry) ?? []
-    }
+  if (valueRanges.length !== ranges.length) {
+    throw new Error(
+      `Google Sheets returned ${String(valueRanges.length)} ranges for ${String(ranges.length)} requested.`
+    )
   }
+  const result: Record<string, string[][]> = {}
+  ranges.forEach((range, index) => {
+    const entry = valueRanges[index]
+    result[range] = isPlainObject(entry)
+      ? (matrixFromValueRange(entry) ?? [])
+      : []
+  })
   return result
 }
 
