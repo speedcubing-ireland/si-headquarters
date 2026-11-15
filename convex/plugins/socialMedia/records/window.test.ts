@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest"
 import {
+  formatDateRange,
   formatWeekLabel,
   weekToReport,
 } from "@/convex/plugins/socialMedia/records/window"
@@ -24,6 +25,16 @@ describe("weekToReport", () => {
     // 23:30 UTC on Sunday is already Monday in summer time.
     expect(weekToReport(Date.UTC(2026, 9, 18, 23, 30))).toBe("2026-10-12")
     expect(weekToReport(Date.UTC(2026, 9, 18, 22, 30))).toBeNull()
+  })
+})
+
+describe("formatDateRange", () => {
+  test("names a single day once", () => {
+    expect(formatDateRange("2026-11-14", "2026-11-14")).toBe("14 Nov 2026")
+  })
+
+  test("names the first and last day of several", () => {
+    expect(formatDateRange("2026-11-07", "2026-11-08")).toBe("7–8 Nov 2026")
   })
 })
 

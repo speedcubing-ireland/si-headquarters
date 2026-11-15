@@ -18,7 +18,10 @@ import {
   competitionResultsUrl,
   wcaPersonUrl,
 } from "@/convex/plugins/socialMedia/records/links"
-import { formatWeekLabel } from "@/convex/plugins/socialMedia/records/window"
+import {
+  formatDateRange,
+  formatWeekLabel,
+} from "@/convex/plugins/socialMedia/records/window"
 import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
 const RECORD_COLORS: Record<WcaRecord["tag"], string> = {
@@ -60,7 +63,7 @@ function CompetitionList({
 }) {
   return competitions.map((group) => (
     <Section key={group.wcaCompetitionId} style={{ marginBottom: "16px" }}>
-      <Heading as="h3" style={{ fontSize: "15px", margin: "0 0 8px" }}>
+      <Heading as="h3" style={{ fontSize: "15px", margin: "0 0 2px" }}>
         <Link
           href={competitionResultsUrl(group)}
           style={{ color: colors.foreground }}
@@ -68,6 +71,11 @@ function CompetitionList({
           {group.competitionName}
         </Link>
       </Heading>
+      <Text
+        style={{ color: colors.muted, fontSize: "13px", margin: "0 0 8px" }}
+      >
+        {formatDateRange(group.competitionStartDate, group.competitionEndDate)}
+      </Text>
       {group.records.map((record) => (
         <RecordLine key={record.liveRecordId} record={record} />
       ))}

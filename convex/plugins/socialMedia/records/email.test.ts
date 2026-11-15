@@ -50,6 +50,7 @@ describe("renderWeeklyRecordsEmail", () => {
     expect(email.recordCount).toBe(2)
     // Plain text renders headings in capitals.
     expect(email.text).toContain("DUBLIN OPEN 2026")
+    expect(email.text).toContain("24–25 Oct 2026")
     expect(email.text).toContain("Aoife Murphy")
     expect(email.text).toContain("NR")
     expect(email.text).toContain("3x3x3 Cube single 9.87 (Final)")

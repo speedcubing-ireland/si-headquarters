@@ -86,6 +86,7 @@ export interface CompetitionRecords<R extends WcaRecord = WcaRecord> {
   liveCompetitionId: string | null
   wcaCompetitionId: string
   competitionName: string
+  competitionStartDate: string
   competitionEndDate: string
   /** Whether the WCA has posted the results, so no record is still `live`. */
   resultsPosted: boolean
@@ -191,6 +192,7 @@ export function groupByCompetition<R extends WcaRecord>(
       liveCompetitionId: record.liveCompetitionId,
       wcaCompetitionId: record.wcaCompetitionId,
       competitionName: record.competitionName,
+      competitionStartDate: record.competitionStartDate,
       competitionEndDate: record.competitionEndDate,
       resultsPosted: true,
       records: [],

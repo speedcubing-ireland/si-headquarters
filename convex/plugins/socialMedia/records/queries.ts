@@ -12,6 +12,7 @@ const recordsCompetitionValidator = v.object({
   liveCompetitionId: v.union(v.string(), v.null()),
   wcaCompetitionId: v.string(),
   competitionName: v.string(),
+  competitionStartDate: v.string(),
   competitionEndDate: v.string(),
   resultsPosted: v.boolean(),
   hqCompetitionId: v.union(v.id("competitions"), v.null()),
