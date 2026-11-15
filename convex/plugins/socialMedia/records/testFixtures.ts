@@ -1,4 +1,8 @@
 import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
+import type {
+  WcaCompetition,
+  WcaResult,
+} from "@/convex/plugins/socialMedia/records/wcaResults"
 import type { WcaRecord } from "@/convex/plugins/socialMedia/validators"
 
 /** A record as it is stored, with every field overridable. */
@@ -82,6 +86,76 @@ export function recentRecord(
         },
       },
     },
+  }
+}
+
+/** The fixture record's competition as the WCA lists it, results posted. */
+export function wcaCompetition(
+  overrides: Partial<WcaCompetition> = {}
+): WcaCompetition {
+  return {
+    id: "DublinOpen2026",
+    name: "Dublin Open 2026",
+    start_date: "2026-10-24",
+    end_date: "2026-10-25",
+    country_iso2: "IE",
+    results_posted_at: "2026-10-26T00:00:00.000Z",
+    cancelled_at: null,
+    ...overrides,
+  }
+}
+
+/** The fixture record's result as the WCA posts it: round 2 of 3x3x3. */
+export function wcaResult(overrides: Partial<WcaResult> = {}): WcaResult {
+  return {
+    id: 5000,
+    round_id: 20,
+    round_type_id: "f",
+    event_id: "333",
+    name: "Aoife Murphy",
+    wca_id: "2015MURP01",
+    country_iso2: "IE",
+    best: 987,
+    average: 1123,
+    regional_single_record: "NR",
+    regional_average_record: null,
+    ...overrides,
+  }
+}
+
+/**
+ * Answers the WCA and WCA Live as the records code calls them: WCA Live's feed
+ * with `records`, the WCA's competitions with `competitions` (all listed,
+ * unless `listed` names fewer), and each competition's results from `results`.
+ * A competition the WCA does not have is one whose results are not posted.
+ */
+export function wcaResponder(options: {
+  records?: RecentRecord[]
+  competitions?: WcaCompetition[]
+  listed?: WcaCompetition[]
+  results?: Record<string, WcaResult[]>
+  failing?: string[]
+}): (input: Parameters<typeof fetch>[0]) => Response {
+  const api = "https://www.worldcubeassociation.org/api/v0/competitions"
+  return (input) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    if (url === "https://live.worldcubeassociation.org/api") {
+      return Response.json({ data: { recentRecords: options.records ?? [] } })
+    }
+    if (url.startsWith(`${api}?`)) {
+      const page = new URL(url).searchParams.get("page")
+      const listed = options.listed ?? options.competitions ?? []
+      return Response.json(page === "1" ? listed : [])
+    }
+    const [id, rest] = url.slice(api.length + 1).split("/")
+    if (options.failing?.includes(id) === true) {
+      return Response.json({ error: "unavailable" }, { status: 503 })
+    }
+    if (rest === "results") return Response.json(options.results?.[id] ?? [])
+    return Response.json(
+      options.competitions?.find((competition) => competition.id === id) ??
+        wcaCompetition({ id, results_posted_at: null })
+    )
   }
 }
 

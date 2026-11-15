@@ -53,7 +53,7 @@ crons.cron(
 )
 
 // Saves WCA Live's recent records for the organisation's country, for the
-// Social Media page and the weekly records email.
+// Social Media page and the weekly records email, before the WCA posts them.
 crons.cron(
   "social media records sync",
   "20 * * * *",
@@ -61,12 +61,13 @@ crons.cron(
   {}
 )
 
-// Settles each record once the WCA posts its competition's results: confirmed
-// with the WCA's values, or marked as no longer a record. Daily, as posting
-// takes days.
+// Reads the WCA's posted results: settles each WCA Live record, confirmed with
+// the WCA's values or marked as no longer a record, and adds the records of
+// competitions WCA Live never had, such as those scored with the WCA's own live
+// results. Every 3 hours, as those are often posted the same evening.
 crons.cron(
-  "social media records confirmation daily",
-  "30 6 * * *",
+  "social media records from posted results",
+  "30 */3 * * *",
   internal.plugins.socialMedia.records.confirm.confirm,
   {}
 )

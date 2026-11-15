@@ -82,7 +82,7 @@ const recentRecordsResponseSchema = z.object({
 export type RecentRecord = z.infer<typeof recentRecordSchema>
 
 export interface CompetitionRecords<R extends WcaRecord = WcaRecord> {
-  /** Null when every record was imported from the WCA's history. */
+  /** Null when no record came from WCA Live. */
   liveCompetitionId: string | null
   wcaCompetitionId: string
   competitionName: string
@@ -186,7 +186,7 @@ export function groupByCompetition<R extends WcaRecord>(
 ): CompetitionRecords<R>[] {
   const competitions = new Map<string, CompetitionRecords<R>>()
   for (const record of records) {
-    // By the WCA's id, as imported records have no WCA Live id.
+    // By the WCA's id, as records from posted results have no WCA Live id.
     const group = competitions.get(record.wcaCompetitionId) ?? {
       liveCompetitionId: record.liveCompetitionId,
       wcaCompetitionId: record.wcaCompetitionId,

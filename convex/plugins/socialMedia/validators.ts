@@ -7,16 +7,20 @@ import {
 } from "@/convex/plugins/socialMedia/records/kinds"
 
 /**
- * A record as WCA Live entered it, until the WCA posts the results and the
- * daily confirmation replaces it with the WCA's version. Only the records
- * Headquarters cares about are kept: those set by competitors from the
- * organisation's country, or set at a competition held there. Older records
- * were imported once from the WCA's records history.
+ * A record from one of two sources. WCA Live's feed gives one early, as WCA
+ * Live entered it, until the WCA posts the results and the confirmation
+ * replaces it with the WCA's version. The WCA's posted results give the rest,
+ * already confirmed: competitions scored with the WCA's own live results or
+ * any other tool never reach WCA Live. Only the records Headquarters cares
+ * about are kept: those set by competitors from the organisation's country, or
+ * set at a competition held there. Older records were imported once from the
+ * WCA's records history.
  */
 export const wcaRecordFields = {
   /**
    * WCA Live's id for the record; a sync updates rather than duplicates it.
-   * An imported record has `wca:<result id>:<type>` instead.
+   * A record taken from the WCA's posted results or imported from its history
+   * has `wca:<result id>:<type>` instead.
    */
   liveRecordId: v.string(),
   /**
@@ -38,8 +42,8 @@ export const wcaRecordFields = {
   wcaId: v.union(v.string(), v.null()),
   personCountryIso2: v.string(),
   /**
-   * WCA Live's id, for linking to the live results. Null for an imported
-   * record, whose results the WCA had already posted.
+   * WCA Live's id, for linking to the live results. Null for a record taken
+   * from the WCA's posted results or its history.
    */
   liveCompetitionId: v.union(v.string(), v.null()),
   /** Joins to `competitions.wcaCompetitionId` for the HQ competition. */
@@ -48,9 +52,9 @@ export const wcaRecordFields = {
   competitionStartDate: v.string(),
   competitionEndDate: v.string(),
   /**
-   * When the daily confirmation confirmed a record WCA Live entered, so the
-   * next weekly email lists it as confirmed. Absent on a record imported
-   * already confirmed from the WCA's history.
+   * When the confirmation confirmed a record WCA Live entered, or found it in
+   * the WCA's posted results, so the next weekly email lists it as confirmed.
+   * Absent on a record imported from the WCA's history.
    */
   confirmedAt: v.optional(v.number()),
 }
@@ -95,6 +99,19 @@ export const recordDigestRunFields = v.union(
   })
 )
 
+/**
+ * A competition whose posted results the confirmation has read for records,
+ * so it is read again only if the WCA posts them anew. Deleted once the
+ * competition ends before the scan's window.
+ */
+export const wcaRecordScanFields = {
+  wcaCompetitionId: v.string(),
+  /** The WCA's `results_posted_at` when the results were read. */
+  resultsPostedAt: v.string(),
+  competitionEndDate: v.string(),
+  scannedAt: v.number(),
+}
+
 export const socialMediaTables = {
   socialMediaRecordDigestRuns: defineTable(recordDigestRunFields).index(
     "by_weekStart",
@@ -109,4 +126,7 @@ export const socialMediaTables = {
       "personCountryIso2",
       "confirmedAt",
     ]),
+  wcaRecordScans: defineTable(wcaRecordScanFields)
+    .index("by_wcaCompetitionId", ["wcaCompetitionId"])
+    .index("by_competitionEndDate", ["competitionEndDate"]),
 }

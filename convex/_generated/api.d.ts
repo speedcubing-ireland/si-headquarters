@@ -167,6 +167,7 @@ import type * as plugins_socialMedia_records_links from "../plugins/socialMedia/
 import type * as plugins_socialMedia_records_queries from "../plugins/socialMedia/records/queries.js";
 import type * as plugins_socialMedia_records_store from "../plugins/socialMedia/records/store.js";
 import type * as plugins_socialMedia_records_testFixtures from "../plugins/socialMedia/records/testFixtures.js";
+import type * as plugins_socialMedia_records_wcaResults from "../plugins/socialMedia/records/wcaResults.js";
 import type * as plugins_socialMedia_records_window from "../plugins/socialMedia/records/window.js";
 import type * as plugins_socialMedia_resolveHqLinks from "../plugins/socialMedia/resolveHqLinks.js";
 import type * as plugins_socialMedia_validators from "../plugins/socialMedia/validators.js";
@@ -533,6 +534,7 @@ declare const fullApi: ApiFromModules<{
   "plugins/socialMedia/records/queries": typeof plugins_socialMedia_records_queries;
   "plugins/socialMedia/records/store": typeof plugins_socialMedia_records_store;
   "plugins/socialMedia/records/testFixtures": typeof plugins_socialMedia_records_testFixtures;
+  "plugins/socialMedia/records/wcaResults": typeof plugins_socialMedia_records_wcaResults;
   "plugins/socialMedia/records/window": typeof plugins_socialMedia_records_window;
   "plugins/socialMedia/resolveHqLinks": typeof plugins_socialMedia_resolveHqLinks;
   "plugins/socialMedia/validators": typeof plugins_socialMedia_validators;

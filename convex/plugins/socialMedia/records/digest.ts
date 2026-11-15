@@ -8,14 +8,19 @@ import {
   groupByCompetition,
   syncRecentRecords,
 } from "@/convex/plugins/socialMedia/records/collect"
-import { renderWeeklyRecordsEmail } from "@/convex/plugins/socialMedia/records/email"
+import { settlePostedResults } from "@/convex/plugins/socialMedia/records/confirm"
+import {
+  renderWeeklyRecordsEmail,
+  type RenderedEmail,
+} from "@/convex/plugins/socialMedia/records/email"
 
 /**
  * Builds and sends the Social Media Team's email of the NRs, CRs and WRs set by
  * competitors from the organisation's country at competitions that ended in the
  * week starting on `weekStart`, or an email saying there were none. Records the
- * WCA has confirmed are listed apart from those still as WCA Live entered them,
- * which are synced first so the email includes the last hour. A provisional
+ * WCA has confirmed are listed apart from those still as WCA Live entered them.
+ * WCA Live and the WCA's posted results are both read first, so the email
+ * includes the last hour, and competitions WCA Live never had. A provisional
  * record is listed again as confirmed in the first email after the WCA posts
  * its competition's results, whichever week that competition ended in.
  *
@@ -29,6 +34,7 @@ export const sendWeeklyRecordsDigest = internalAction({
   handler: async (ctx, args) => {
     try {
       await syncRecentRecords(ctx)
+      await settlePostedResults(ctx)
       const confirmedThrough = Date.now()
       const { confirmed, provisional } = await ctx.runQuery(
         internal.plugins.socialMedia.records.digestState.recordsForEmail,
@@ -59,5 +65,36 @@ export const sendWeeklyRecordsDigest = internalAction({
       )
     }
     return null
+  },
+})
+
+/**
+ * Builds the email for the week starting on `weekStart` as
+ * `sendWeeklyRecordsDigest` would, without sending it or recording the run.
+ * For checking an upcoming email by hand with `npx convex run`.
+ */
+export const previewWeeklyRecordsDigest = internalAction({
+  args: { weekStart: v.string() },
+  returns: v.object({
+    subject: v.string(),
+    html: v.string(),
+    text: v.string(),
+    recordCount: v.number(),
+  }),
+  handler: async (ctx, args): Promise<RenderedEmail> => {
+    await syncRecentRecords(ctx)
+    await settlePostedResults(ctx)
+    const { confirmed, provisional } = await ctx.runQuery(
+      internal.plugins.socialMedia.records.digestState.recordsForEmail,
+      { weekStart: args.weekStart, until: Date.now() }
+    )
+    return await renderWeeklyRecordsEmail(
+      {
+        confirmed: groupByCompetition(confirmed),
+        provisional: groupByCompetition(provisional),
+      },
+      competitionCountryIso2(),
+      args.weekStart
+    )
   },
 })

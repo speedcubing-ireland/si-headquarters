@@ -26,9 +26,9 @@ const MAX_ROWS_PER_RANGE = 1000
 
 /**
  * A stored record for the same result as `record`, whichever source it came
- * from: WCA Live and the WCA's history have different ids for one record. A
- * competitor can set the same record twice in an event, so the result is
- * compared too.
+ * from: WCA Live and the WCA's posted results have different ids for one
+ * record. A competitor can set the same record twice in an event, so the result
+ * is compared too.
  */
 export async function findSameRecord(
   ctx: QueryCtx,
@@ -62,7 +62,7 @@ export async function findSameRecord(
  * competition is still well inside the feed's window. Records from competitions
  * that have aged out of the feed stay as they were last seen, and records the
  * WCA's posted results have settled are never touched again. A record already
- * imported from the WCA's history is not added a second time.
+ * stored from the WCA's posted results is not added a second time.
  */
 export const saveSync = internalMutation({
   args: { records: v.array(wcaRecordValidator), syncedAt: v.number() },

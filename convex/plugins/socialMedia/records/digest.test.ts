@@ -19,8 +19,15 @@ import type { RecentRecord } from "@/convex/plugins/socialMedia/records/collect"
 import {
   listText,
   recentRecord,
+  wcaCompetition,
   wcaRecord,
+  wcaResponder,
+  wcaResult,
 } from "@/convex/plugins/socialMedia/records/testFixtures"
+import type {
+  WcaCompetition,
+  WcaResult,
+} from "@/convex/plugins/socialMedia/records/wcaResults"
 
 vi.mock(
   "@/config/lib/organisation",
@@ -33,14 +40,22 @@ const MONDAY = Date.UTC(2026, 9, 26)
 const at = (hour: number, minute = 50) => MONDAY + (hour * 60 + minute) * 60_000
 const WEEK_START = "2026-10-19"
 
-/** Answers the WCA Live records query the digest makes. */
-function stubWcaLive(options: { records: RecentRecord[]; fail?: boolean }) {
+/**
+ * Answers the WCA Live records query the digest makes, and the WCA's posted
+ * results it reads after, with only `competitions` posted.
+ */
+function stubWcaLive(options: {
+  records: RecentRecord[]
+  fail?: boolean
+  competitions?: WcaCompetition[]
+  results?: Record<string, WcaResult[]>
+}) {
+  const respond = wcaResponder(options)
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-    expect(input).toBe("https://live.worldcubeassociation.org/api")
     if (options.fail === true) {
       return Response.json({ error: "unavailable" }, { status: 503 })
     }
-    return Response.json({ data: { recentRecords: options.records } })
+    return respond(input)
   })
 }
 
@@ -222,8 +237,15 @@ describe("weekly records email", () => {
       async (ctx) => await ctx.db.query("wcaRecords").collect()
     )
     await t.mutation(
-      internal.plugins.socialMedia.records.confirm.applyConfirmations,
+      internal.plugins.socialMedia.records.confirm.applyPostedResults,
       {
+        scan: {
+          wcaCompetitionId: row.wcaCompetitionId,
+          resultsPostedAt: "2026-10-21T08:00:00.000Z",
+          competitionEndDate: row.competitionEndDate,
+          scannedAt: Date.now(),
+        },
+        records: [],
         confirmations: [
           {
             id: row._id,
@@ -250,6 +272,51 @@ describe("weekly records email", () => {
     expect(sentEmail(2).subject).toBe(
       "No new records for Ireland: 26 Oct – 1 Nov 2026"
     )
+  })
+
+  test("lists the records of a competition WCA Live never had as confirmed", async () => {
+    const t = await convexWithRecipients()
+    const thurles = wcaCompetition({
+      id: "Thurles2026",
+      name: "Thurles 2026",
+      start_date: "2026-10-24",
+      end_date: "2026-10-25",
+      results_posted_at: "2026-10-25T21:36:13.000Z",
+    })
+    stubWcaLive({
+      records: [],
+      competitions: [thurles],
+      results: { Thurles2026: [wcaResult({ name: "Colm McCarthy" })] },
+    })
+
+    await tick(t, at(8))
+
+    expect(sentEmail().subject).toBe("Records for Ireland: 19–25 Oct 2026 (1)")
+    expect(listText(sentEmail(), "CONFIRMED")).toContain("Colm McCarthy")
+  })
+
+  test("lists a record whose results were posted after its week's email", async () => {
+    const t = await convexWithRecipients()
+    const week = 7 * 24 * 60 * 60_000
+    const fetchMock = stubWcaLive({ records: [] })
+    await tick(t, at(8) - week)
+
+    fetchMock.mockRestore()
+    stubWcaLive({
+      records: [],
+      competitions: [
+        wcaCompetition({
+          id: "Late2026",
+          name: "Late 2026",
+          start_date: "2026-10-17",
+          end_date: "2026-10-18",
+        }),
+      ],
+      results: { Late2026: [wcaResult()] },
+    })
+    await tick(t, at(8))
+
+    expect(listText(sentEmail(1), "CONFIRMED")).toContain("LATE 2026")
   })
 
   test("leaves out earlier records imported already confirmed", async () => {
