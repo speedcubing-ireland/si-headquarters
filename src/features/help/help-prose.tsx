@@ -1,5 +1,9 @@
 import { Link } from "@tanstack/react-router"
 import { helpTopicAnchor } from "@/features/help/help-anchors"
+import type {
+  HelpSectionSlug,
+  HelpTopicRefs,
+} from "@/features/help/help-content"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
 
@@ -71,16 +75,19 @@ export function Definitions({
 }
 
 /**
- * A link to another help topic. Sections live on their own pages, so a bare
- * `#anchor` only works within one; this always names the section too.
+ * The one way to link into help: to a section's page, or to a topic on it.
+ * Sections live on their own pages, so a bare `#anchor` only works within one;
+ * this always names the section too.
  */
-export function HelpTopicLink({
+export function HelpLink({
   section,
   topic,
+  className,
   children,
 }: {
   section: string
   topic?: string
+  className?: string
   children: ReactNode
 }) {
   return (
@@ -88,10 +95,29 @@ export function HelpTopicLink({
       to="/help/$section"
       params={{ section }}
       hash={topic === undefined ? undefined : helpTopicAnchor(section, topic)}
-      activeOptions={{ exact: true, includeHash: true }}
-      className="text-foreground underline underline-offset-4"
+      // Every topic shares its section's path, so a topic link also matches the
+      // hash; otherwise the router would mark all of them as the current page.
+      activeOptions={{ exact: true, includeHash: topic !== undefined }}
+      className={className}
     >
       {children}
     </Link>
+  )
+}
+
+/**
+ * A link from one topic's prose to another. Slugs and topic ids are checked
+ * against the registry, so renaming a topic breaks the build, not the link.
+ */
+export function HelpTopicLink<S extends HelpSectionSlug>(props: {
+  section: S
+  topic?: HelpTopicRefs[S]
+  children: ReactNode
+}) {
+  return (
+    <HelpLink
+      {...props}
+      className="text-foreground underline underline-offset-4"
+    />
   )
 }

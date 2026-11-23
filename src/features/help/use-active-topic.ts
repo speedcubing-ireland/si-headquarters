@@ -12,41 +12,39 @@ const READING_BAND = "-20% 0px -75% 0px"
 /**
  * The topic the reader is looking at, for highlighting in the contents. Starts
  * on the first topic so the contents never highlight nothing, and holds the
- * last one seen while the band is between topics.
+ * last one seen while the band is between topics. The page is keyed by section,
+ * so moving to another section starts this afresh.
  */
 export function useActiveTopic(
   section: HelpSection | undefined
 ): string | undefined {
-  const [active, setActive] = useState<{ slug: string; topicId: string }>()
+  const [active, setActive] = useState<string>()
 
   useEffect(() => {
     if (section === undefined) return
 
-    const elements = section.topics.flatMap((topic) => {
-      const element = document.getElementById(
-        helpTopicAnchor(section.slug, topic.id)
-      )
-      return element === null ? [] : [{ topicId: topic.id, element }]
-    })
-
     const observer = new IntersectionObserver(
       (entries) => {
         const crossing = entries.find((entry) => entry.isIntersecting)
-        const topic = elements.find((item) => item.element === crossing?.target)
-        if (topic !== undefined) {
-          setActive({ slug: section.slug, topicId: topic.topicId })
-        }
+        const topic = section.topics.find(
+          (item) =>
+            helpTopicAnchor(section.slug, item.id) === crossing?.target.id
+        )
+        if (topic !== undefined) setActive(topic.id)
       },
       { rootMargin: READING_BAND }
     )
-    for (const { element } of elements) observer.observe(element)
+    for (const topic of section.topics) {
+      const element = document.getElementById(
+        helpTopicAnchor(section.slug, topic.id)
+      )
+      if (element !== null) observer.observe(element)
+    }
 
     return () => {
       observer.disconnect()
     }
   }, [section])
 
-  return active?.slug === section?.slug
-    ? active?.topicId
-    : section?.topics[0]?.id
+  return active ?? section?.topics[0]?.id
 }

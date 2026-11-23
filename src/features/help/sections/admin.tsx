@@ -1,5 +1,10 @@
 import { Link } from "@tanstack/react-router"
+import type { ReactNode } from "react"
 import { isFeatureEnabled } from "@/config/lib/organisation"
+import {
+  ADMIN_SETTINGS_FEATURES,
+  type AdminSettingsFeature,
+} from "@/features/admin/settings/availability"
 import {
   Definitions,
   HelpTopicLink,
@@ -9,39 +14,47 @@ import {
 } from "@/features/help/help-prose"
 
 /**
- * The Admin → Settings cards, each shown only when the feature it configures
- * is on, matching `hasAdminSettings` and the cards themselves.
+ * What each Admin → Settings card holds. Keyed by the feature it configures, so
+ * a new card cannot ship without help describing it.
  */
+const SETTINGS_CARDS: Record<
+  AdminSettingsFeature,
+  { term: string; description: ReactNode }
+> = {
+  canva: {
+    term: "Canva",
+    description:
+      "The brand template each Canva integration fills in, such as certificates or lanyards, and the folder the new design is saved to. Leave a preset empty to turn that integration off.",
+  },
+  records: {
+    term: "Weekly records email",
+    description: (
+      <>
+        Who receives the{" "}
+        <HelpTopicLink section="records" topic="weekly-email">
+          Monday records email
+        </HelpTopicLink>
+        , and who it comes from.
+      </>
+    ),
+  },
+  sponsors: {
+    term: "Sponsorship emails",
+    description:
+      "The sender of sponsor portal sign-in codes and sponsorship emails. Left empty, it falls back to the sponsorship team's name and address.",
+  },
+  wcaIntegration: {
+    term: "SI Achievements",
+    description:
+      "Where the badges link on competition tasks points. Leave it empty to hide the link.",
+  },
+}
+
+/** The cards this deployment shows, the same way Admin → Settings picks them. */
 function settingsCards() {
-  return [
-    isFeatureEnabled("canva") && {
-      term: "Canva",
-      description:
-        "The brand template each Canva integration fills in, such as certificates or lanyards, and the folder the new design is saved to. Leave a preset empty to turn that integration off.",
-    },
-    isFeatureEnabled("records") && {
-      term: "Weekly records email",
-      description: (
-        <>
-          Who receives the{" "}
-          <HelpTopicLink section="records" topic="weekly-email">
-            Monday records email
-          </HelpTopicLink>
-          , and who it comes from.
-        </>
-      ),
-    },
-    isFeatureEnabled("sponsors") && {
-      term: "Sponsorship emails",
-      description:
-        "The sender of sponsor portal sign-in codes and sponsorship emails. Left empty, it falls back to the sponsorship team's name and address.",
-    },
-    isFeatureEnabled("wcaIntegration") && {
-      term: "SI Achievements",
-      description:
-        "Where the badges link on competition tasks points. Leave it empty to hide the link.",
-    },
-  ].filter((card) => card !== false)
+  return ADMIN_SETTINGS_FEATURES.filter((feature) =>
+    isFeatureEnabled(feature)
+  ).map((feature) => SETTINGS_CARDS[feature])
 }
 
 export function AdminSettings() {

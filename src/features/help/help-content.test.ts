@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest"
 import {
-  ALL_HELP_SECTIONS,
-  findHelpSection,
-  HELP_SECTIONS,
+  HELP_ANCHOR_SEPARATOR,
   helpTopicAnchor,
   legacyHelpHashTarget,
+} from "@/features/help/help-anchors"
+import {
+  ALL_HELP_SECTIONS,
+  findHelpSection,
+  type HelpSection,
+  HELP_SECTIONS,
   visibleHelpSections,
 } from "@/features/help/help-content"
 
@@ -31,9 +35,9 @@ describe("help content", () => {
 
   it("keeps slugs and topic ids free of the anchor separator", () => {
     for (const section of ALL_HELP_SECTIONS) {
-      expect(section.slug).not.toContain("--")
+      expect(section.slug).not.toContain(HELP_ANCHOR_SEPARATOR)
       for (const topic of section.topics) {
-        expect(topic.id).not.toContain("--")
+        expect(topic.id).not.toContain(HELP_ANCHOR_SEPARATOR)
       }
     }
   })
@@ -53,19 +57,40 @@ describe("help content", () => {
 })
 
 describe("visibleHelpSections", () => {
-  it("shows director sections only to directors", () => {
-    const forDirectors = visibleHelpSections(ALL_HELP_SECTIONS, {
-      isDirector: true,
-    })
-    const forOthers = visibleHelpSections(ALL_HELP_SECTIONS, {
-      isDirector: false,
-    })
+  const sections: readonly HelpSection[] = ALL_HELP_SECTIONS
+  const topicIds = (visible: readonly HelpSection[]) =>
+    visible.flatMap((section) => section.topics.map((topic) => topic.id))
+  const admin = (visible: readonly HelpSection[]) =>
+    findHelpSection(visible, "admin")
 
-    expect(forDirectors).toEqual(ALL_HELP_SECTIONS)
-    expect(forOthers.some((section) => section.audience === "directors")).toBe(
-      false
+  it("hides Admin topics from readers who cannot open those tabs", () => {
+    const visible = visibleHelpSections(sections, [])
+
+    expect(admin(visible)).toBeUndefined()
+    expect(
+      visible.every((section) =>
+        section.topics.every((topic) => topic.adminTab === undefined)
+      )
+    ).toBe(true)
+  })
+
+  it("shows each Admin topic only with its tab", () => {
+    expect(admin(visibleHelpSections(sections, ["settings"]))?.topics).toEqual([
+      expect.objectContaining({ id: "settings" }),
+    ])
+    expect(
+      admin(visibleHelpSections(sections, ["settings", "wcaPhases"]))?.topics
+    ).toHaveLength(2)
+  })
+
+  it("leaves sections untouched when nothing in them is hidden", () => {
+    const visible = visibleHelpSections(sections, ["settings", "wcaPhases"])
+
+    expect(visible).toEqual(sections)
+    expect(topicIds(visible)).toEqual(topicIds(sections))
+    expect(findHelpSection(visible, "records")).toBe(
+      findHelpSection(sections, "records")
     )
-    expect(forOthers.length).toBeLessThan(forDirectors.length)
   })
 })
 

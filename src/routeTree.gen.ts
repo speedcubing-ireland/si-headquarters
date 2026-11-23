@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EventsRouteImport } from './routes/events'
+import { Route as HelpRouteRouteImport } from './routes/help/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminRefundsRouteImport } from './routes/admin/refunds'
 import { Route as AuthWcaRouteImport } from './routes/auth/wca'
@@ -57,6 +58,11 @@ const EventsRoute = EventsRouteImport.update({
   path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRouteRoute = HelpRouteRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -83,14 +89,14 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpIndexRoute = HelpIndexRouteImport.update({
-  id: '/help/',
-  path: '/help/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => HelpRouteRoute,
 } as any)
 const HelpSectionRoute = HelpSectionRouteImport.update({
-  id: '/help/$section',
-  path: '/help/$section',
-  getParentRoute: () => rootRouteImport,
+  id: '/$section',
+  path: '/$section',
+  getParentRoute: () => HelpRouteRoute,
 } as any)
 const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
   id: '/impersonate/user',
@@ -210,6 +216,7 @@ const PluginsSponsorshipAuctionsAuctionIdEditRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/help': typeof HelpRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
   '/admin/refunds': typeof AdminRefundsRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/help': typeof HelpRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
   '/admin/refunds': typeof AdminRefundsRoute
@@ -315,6 +323,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/help'
     | '/dashboard'
     | '/events'
     | '/admin/refunds'
@@ -383,6 +392,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/help'
     | '/dashboard'
     | '/events'
     | '/admin/refunds'
@@ -418,12 +428,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HelpRouteRoute: typeof HelpRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   EventsRoute: typeof EventsRoute
   AdminRefundsRoute: typeof AdminRefundsRoute
   AuthWcaRoute: typeof AuthWcaRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
-  HelpSectionRoute: typeof HelpSectionRoute
   ImpersonateUserRoute: typeof ImpersonateUserRoute
   InviteOrganiserRoute: typeof InviteOrganiserRoute
   PluginsSocialMediaRoute: typeof PluginsSocialMediaRoute
@@ -439,7 +449,6 @@ export interface RootRouteChildren {
   TasksIdRoute: typeof TasksIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   CompetitionsIndexRoute: typeof CompetitionsIndexRoute
-  HelpIndexRoute: typeof HelpIndexRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   SponsorIndexRoute: typeof SponsorIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
@@ -471,6 +480,13 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -510,17 +526,17 @@ declare module '@tanstack/react-router' {
     }
     '/help/': {
       id: '/help/'
-      path: '/help'
+      path: '/'
       fullPath: '/help/'
       preLoaderRoute: typeof HelpIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HelpRouteRoute
     }
     '/help/$section': {
       id: '/help/$section'
-      path: '/help/$section'
+      path: '/$section'
       fullPath: '/help/$section'
       preLoaderRoute: typeof HelpSectionRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HelpRouteRoute
     }
     '/impersonate/user': {
       id: '/impersonate/user'
@@ -679,6 +695,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface HelpRouteRouteChildren {
+  HelpSectionRoute: typeof HelpSectionRoute
+  HelpIndexRoute: typeof HelpIndexRoute
+}
+
+const HelpRouteRouteChildren: HelpRouteRouteChildren = {
+  HelpSectionRoute: HelpSectionRoute,
+  HelpIndexRoute: HelpIndexRoute,
+}
+
+const HelpRouteRouteWithChildren = HelpRouteRoute._addFileChildren(
+  HelpRouteRouteChildren,
+)
+
 interface SponsorAuctionsRouteChildren {
   SponsorAuctionsAuctionIdRoute: typeof SponsorAuctionsAuctionIdRoute
 }
@@ -693,12 +723,12 @@ const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HelpRouteRoute: HelpRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   EventsRoute: EventsRoute,
   AdminRefundsRoute: AdminRefundsRoute,
   AuthWcaRoute: AuthWcaRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,
-  HelpSectionRoute: HelpSectionRoute,
   ImpersonateUserRoute: ImpersonateUserRoute,
   InviteOrganiserRoute: InviteOrganiserRoute,
   PluginsSocialMediaRoute: PluginsSocialMediaRoute,
@@ -714,7 +744,6 @@ const rootRouteChildren: RootRouteChildren = {
   TasksIdRoute: TasksIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   CompetitionsIndexRoute: CompetitionsIndexRoute,
-  HelpIndexRoute: HelpIndexRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   SponsorIndexRoute: SponsorIndexRoute,
   TasksIndexRoute: TasksIndexRoute,

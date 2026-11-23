@@ -1,7 +1,6 @@
 import { createFileRoute, Navigate, useLocation } from "@tanstack/react-router"
-import { legacyHelpHashTarget } from "@/features/help/help-content"
-import { HelpOverview } from "@/features/help/help-page"
-import { HelpErrorPage } from "./-help-error"
+import { legacyHelpHashTarget } from "@/features/help/help-anchors"
+import { HelpOverview } from "@/features/help/help-overview"
 
 /**
  * Help used to be one page, so older links point at `/help#<topic>`. Send them
@@ -25,5 +24,4 @@ function HelpIndexRoute() {
 
 export const Route = createFileRoute("/help/")({
   component: HelpIndexRoute,
-  errorComponent: HelpErrorPage,
 })
