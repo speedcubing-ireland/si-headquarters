@@ -16,6 +16,7 @@ import { helpTopicAnchor } from "@/features/help/help-anchors"
 import { findHelpSection, type HelpSection } from "@/features/help/help-content"
 import { HelpLink } from "@/features/help/help-prose"
 import { useActiveTopic } from "@/features/help/use-active-topic"
+import { VisibleHelpSectionsContext } from "@/features/help/help-visibility"
 import { useHelpSections } from "@/features/help/use-help-sections"
 import { formatDate } from "@/lib/format/dates"
 import { cn } from "@/lib/utils"
@@ -282,7 +283,9 @@ export function HelpSectionPage({ slug }: { slug: string }) {
           <Contents {...contents} />
         </nav>
         <div className="flex min-w-0 flex-col gap-10">
-          <SectionBody section={section} />
+          <VisibleHelpSectionsContext value={sections}>
+            <SectionBody section={section} />
+          </VisibleHelpSectionsContext>
           <PreviousNext
             previous={sections[index - 1]}
             next={sections[index + 1]}

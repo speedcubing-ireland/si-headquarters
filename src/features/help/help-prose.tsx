@@ -4,6 +4,7 @@ import type {
   HelpSectionSlug,
   HelpTopicRefs,
 } from "@/features/help/help-content"
+import { useIsHelpTargetVisible } from "@/features/help/help-visibility"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
 
@@ -108,12 +109,18 @@ export function HelpLink({
 /**
  * A link from one topic's prose to another. Slugs and topic ids are checked
  * against the registry, so renaming a topic breaks the build, not the link.
+ * When the target is hidden from this reader, the words stay but the link
+ * goes, rather than leading to a page they cannot see.
  */
 export function HelpTopicLink<S extends HelpSectionSlug>(props: {
   section: S
   topic?: HelpTopicRefs[S]
   children: ReactNode
 }) {
+  const visible = useIsHelpTargetVisible(props.section, props.topic)
+
+  if (!visible) return <Ui>{props.children}</Ui>
+
   return (
     <HelpLink
       {...props}

@@ -11,7 +11,12 @@ export const ADMIN_SETTINGS_FEATURES = [
 
 export type AdminSettingsFeature = (typeof ADMIN_SETTINGS_FEATURES)[number]
 
+/** The Admin → Settings cards this deployment shows, in order. */
+export function enabledAdminSettingsFeatures(): AdminSettingsFeature[] {
+  return ADMIN_SETTINGS_FEATURES.filter((feature) => isFeatureEnabled(feature))
+}
+
 /** Whether any feature with a card on Admin → Settings is enabled. */
 export function hasAdminSettings(): boolean {
-  return ADMIN_SETTINGS_FEATURES.some((feature) => isFeatureEnabled(feature))
+  return enabledAdminSettingsFeatures().length > 0
 }

@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router"
 import type { ReactNode } from "react"
-import { isFeatureEnabled } from "@/config/lib/organisation"
 import {
-  ADMIN_SETTINGS_FEATURES,
   type AdminSettingsFeature,
+  enabledAdminSettingsFeatures,
 } from "@/features/admin/settings/availability"
 import {
   Definitions,
@@ -50,11 +49,11 @@ const SETTINGS_CARDS: Record<
   },
 }
 
-/** The cards this deployment shows, the same way Admin → Settings picks them. */
+/** The cards this deployment shows, from the list Admin → Settings renders. */
 function settingsCards() {
-  return ADMIN_SETTINGS_FEATURES.filter((feature) =>
-    isFeatureEnabled(feature)
-  ).map((feature) => SETTINGS_CARDS[feature])
+  return enabledAdminSettingsFeatures().map(
+    (feature) => SETTINGS_CARDS[feature]
+  )
 }
 
 export function AdminSettings() {
