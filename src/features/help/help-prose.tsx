@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router"
+import { helpTopicAnchor } from "@/features/help/help-anchors"
 import { cn } from "@/lib/utils"
 import type { ReactNode } from "react"
 
@@ -65,5 +67,31 @@ export function Definitions({
         </div>
       ))}
     </dl>
+  )
+}
+
+/**
+ * A link to another help topic. Sections live on their own pages, so a bare
+ * `#anchor` only works within one; this always names the section too.
+ */
+export function HelpTopicLink({
+  section,
+  topic,
+  children,
+}: {
+  section: string
+  topic?: string
+  children: ReactNode
+}) {
+  return (
+    <Link
+      to="/help/$section"
+      params={{ section }}
+      hash={topic === undefined ? undefined : helpTopicAnchor(section, topic)}
+      activeOptions={{ exact: true, includeHash: true }}
+      className="text-foreground underline underline-offset-4"
+    >
+      {children}
+    </Link>
   )
 }

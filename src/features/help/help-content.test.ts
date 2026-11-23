@@ -1,28 +1,98 @@
 import { describe, expect, it } from "vitest"
-import { HELP_SECTIONS, helpTopicAnchor } from "@/features/help/help-content"
+import {
+  ALL_HELP_SECTIONS,
+  findHelpSection,
+  HELP_SECTIONS,
+  helpTopicAnchor,
+  legacyHelpHashTarget,
+  visibleHelpSections,
+} from "@/features/help/help-content"
 
 /**
  * Anchors are what contextual `?` links from the rest of the app point at, so a
  * duplicate quietly sends readers to the wrong place rather than failing.
+ * Checked across every section, not just the enabled ones, so a clash cannot
+ * hide behind a feature flag until some deployment turns it on.
  */
 describe("help content", () => {
   it("gives every section a unique slug", () => {
-    const slugs = HELP_SECTIONS.map((section) => section.slug)
+    const slugs = ALL_HELP_SECTIONS.map((section) => section.slug)
 
     expect(new Set(slugs).size).toBe(slugs.length)
   })
 
   it("gives every topic a unique anchor", () => {
-    const anchors = HELP_SECTIONS.flatMap((section) =>
+    const anchors = ALL_HELP_SECTIONS.flatMap((section) =>
       section.topics.map((topic) => helpTopicAnchor(section.slug, topic.id))
     )
 
     expect(new Set(anchors).size).toBe(anchors.length)
   })
 
+  it("keeps slugs and topic ids free of the anchor separator", () => {
+    for (const section of ALL_HELP_SECTIONS) {
+      expect(section.slug).not.toContain("--")
+      for (const topic of section.topics) {
+        expect(topic.id).not.toContain("--")
+      }
+    }
+  })
+
   it("has no empty sections", () => {
     for (const section of HELP_SECTIONS) {
       expect(section.topics.length).toBeGreaterThan(0)
     }
+  })
+
+  it("finds each section by its slug", () => {
+    for (const section of HELP_SECTIONS) {
+      expect(findHelpSection(HELP_SECTIONS, section.slug)).toBe(section)
+    }
+    expect(findHelpSection(HELP_SECTIONS, "no-such-section")).toBeUndefined()
+  })
+})
+
+describe("visibleHelpSections", () => {
+  it("shows director sections only to directors", () => {
+    const forDirectors = visibleHelpSections(ALL_HELP_SECTIONS, {
+      isDirector: true,
+    })
+    const forOthers = visibleHelpSections(ALL_HELP_SECTIONS, {
+      isDirector: false,
+    })
+
+    expect(forDirectors).toEqual(ALL_HELP_SECTIONS)
+    expect(forOthers.some((section) => section.audience === "directors")).toBe(
+      false
+    )
+    expect(forOthers.length).toBeLessThan(forDirectors.length)
+  })
+})
+
+describe("legacyHelpHashTarget", () => {
+  it("sends a topic anchor to its section page, keeping the anchor", () => {
+    expect(legacyHelpHashTarget("#competition-phases--not-moving")).toEqual({
+      section: "competition-phases",
+      hash: "competition-phases--not-moving",
+    })
+  })
+
+  it("accepts a hash without its leading #", () => {
+    expect(legacyHelpHashTarget("getting-started--status")).toEqual({
+      section: "getting-started",
+      hash: "getting-started--status",
+    })
+  })
+
+  it("sends a section anchor to the top of its page", () => {
+    expect(legacyHelpHashTarget("#records")).toEqual({
+      section: "records",
+      hash: undefined,
+    })
+  })
+
+  it("leaves the overview alone without a hash", () => {
+    expect(legacyHelpHashTarget("")).toBeNull()
+    expect(legacyHelpHashTarget("#")).toBeNull()
   })
 })

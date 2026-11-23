@@ -3,6 +3,7 @@ import { isFeatureEnabled } from "@/config/lib/organisation"
 import {
   Bullets,
   Definitions,
+  HelpTopicLink,
   Note,
   Prose,
   Ui,
@@ -118,8 +119,17 @@ export function TheCompetitionPage() {
           },
           {
             term: "People",
-            description:
-              "Competition lead, lead delegate, and organisers. Task assignment draws on this list, so keep it current.",
+            description: (
+              <>
+                Competition lead, lead delegate, and organisers. Organisers are
+                always offered when assigning the competition's tasks, so keep
+                the list current.{" "}
+                <HelpTopicLink section="getting-started" topic="people-pickers">
+                  Who you can pick
+                </HelpTopicLink>{" "}
+                explains who else appears.
+              </>
+            ),
           },
           {
             term: "Competition update",
@@ -259,6 +269,48 @@ export function WorkingOnATask() {
         the task with a date and a short message. You will be notified then, and
         you can cancel it in the meantime.
       </p>
+    </Prose>
+  )
+}
+
+export function PeoplePickers() {
+  return (
+    <Prose>
+      <p>
+        Every place you choose a person — assignee, owner, reviewer, or the
+        people on a competition — draws from the same directory, narrowed to the
+        people who can actually take the work on:
+      </p>
+      <Bullets>
+        <li>
+          Pickers list active members of the <Ui>Volunteer</Ui> team. Someone
+          who has not been added to it will not appear, however long they have
+          had an account.
+        </li>
+        <li>
+          On a competition and its tasks, the competition's organisers are
+          offered as well. You are listed first whenever you are in the list at
+          all.
+        </li>
+        <li>
+          Role-specific pickers list only that team: the competition lead comes
+          from the <Ui>Competitions Team</Ui> and the lead delegate from{" "}
+          <Ui>Delegates</Ui>.
+        </li>
+        <li>
+          Disabled accounts are left out of every picker. Anyone already chosen
+          stays chosen, so disabling an account never quietly unassigns their
+          work — reassign it when you are ready.
+        </li>
+        <li>
+          The list loads in pages. Typing a name keeps loading until it finds
+          them, so search rather than scroll.
+        </li>
+      </Bullets>
+      <Note>
+        If someone is missing, ask an admin to add them to the Volunteer team,
+        or to re-enable their account.
+      </Note>
     </Prose>
   )
 }
