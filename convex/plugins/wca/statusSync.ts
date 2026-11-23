@@ -152,8 +152,14 @@ export const syncCompetitionStatuses = internalAction({
  * the rename changes its id, so the old link points at nothing and the sync
  * would otherwise skip it in silence forever.
  *
- * Only competitions not yet held are checked, and only these few ids cost a
- * request each, so a normal run still makes no extra requests at all.
+ * A 404 cannot tell a deleted id from an unannounced competition the WCA
+ * account does not manage, so the record says which it may be.
+ *
+ * Only competitions not yet held are checked, one request each. Usually that is
+ * none: only an id in another country that the account does not manage, or any
+ * id the account does not manage when the country index failed this run, gets
+ * here while still existing. An id the check finds has its issue cleared, as
+ * `applyCompetitionStatus` would do for one the bulk sources return.
  */
 async function reportMissingCompetitions(
   ctx: ActionCtx,
@@ -178,9 +184,20 @@ async function reportMissingCompetitions(
       result: await probeCompetitionExists(input.accessToken, wcaCompetitionId),
     })
   )
-  const missing = probed
-    .filter((probe) => probe.result === "missing")
-    .map((probe) => probe.wcaCompetitionId)
+  const idsWithResult = (result: (typeof probed)[number]["result"]) =>
+    probed
+      .filter((probe) => probe.result === result)
+      .map((probe) => probe.wcaCompetitionId)
+
+  const found = idsWithResult("exists")
+  if (found.length > 0) {
+    await ctx.runMutation(
+      internal.plugins.wca.statusSyncMutations.clearLinkIssuesForWcaIds,
+      { wcaCompetitionIds: found }
+    )
+  }
+
+  const missing = idsWithResult("missing")
   if (missing.length === 0) return []
 
   const options = renameOptions(input.sources, input.nowMs)

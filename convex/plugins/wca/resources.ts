@@ -104,7 +104,7 @@ export const syncCompetitionStatus = action({
     if (result.missing.includes(wcaCompetitionId)) {
       throw new ConvexError({
         code: "BAD_REQUEST",
-        message: `${wcaCompetitionId} no longer exists on the WCA. It was probably renamed, which changes its WCA ID. Relink this competition to the new one.`,
+        message: `The WCA cannot find ${wcaCompetitionId}. It was probably renamed there, which changes its WCA ID, or the connected WCA account cannot see it. See the warning on this competition for how to fix it.`,
       })
     }
     return null

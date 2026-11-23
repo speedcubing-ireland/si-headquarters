@@ -48,6 +48,26 @@ async function seedLinked(
   return competitionId
 }
 
+async function seedStoredStatus(
+  t: TestConvex<typeof schema>,
+  announced: boolean
+) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert("wcaCompetitionStatuses", {
+      wcaCompetitionId: OLD_ID,
+      confirmed: true,
+      announced,
+      cancelled: false,
+      resultsPosted: false,
+      startDate: DATES.from,
+      endDate: DATES.to,
+      registrationCloseAt: null,
+      refundDeadlineAt: null,
+      fetchedAt: NOW,
+    })
+  })
+}
+
 function recordMissing(
   t: TestConvex<typeof schema>,
   options: WcaRenameOption[] = [option()]
@@ -134,6 +154,7 @@ describe("broken WCA links", () => {
       wcaCompetitionId: OLD_ID,
       detectedAt: NOW,
       renameCandidate: { id: NEW_ID },
+      mayBeHidden: true,
     })
     const events = await brokenLinkEvents(t)
     expect(events).toHaveLength(1)
@@ -142,7 +163,29 @@ describe("broken WCA links", () => {
       competitionId,
       wcaCompetitionId: OLD_ID,
       renameCandidate: { id: NEW_ID },
+      mayBeHidden: true,
     })
+  })
+
+  test("treats a 404 for an unannounced competition as possibly hidden", async () => {
+    const t = convexTest(schema, modules)
+    await seedLinked(t)
+    await seedStoredStatus(t, false)
+
+    await recordMissing(t)
+
+    expect((await listIssues(t))[0]?.mayBeHidden).toBe(true)
+  })
+
+  test("treats a 404 for an announced competition as gone", async () => {
+    const t = convexTest(schema, modules)
+    await seedLinked(t)
+    await seedStoredStatus(t, true)
+
+    await recordMissing(t)
+
+    expect((await listIssues(t))[0]?.mayBeHidden).toBe(false)
+    expect((await brokenLinkEvents(t))[0]?.mayBeHidden).toBe(false)
   })
 
   test("does not suggest a competition another HQ competition links to", async () => {
@@ -259,6 +302,7 @@ describe("broken WCA links", () => {
             name: option().name,
             url: option().url,
           },
+          mayBeHidden: false,
         },
       }
     )
@@ -272,6 +316,42 @@ describe("broken WCA links", () => {
       `\`${OLD_ID}\``,
       `[${option().name}](${option().url})`,
     ])
+  })
+
+  test("says the competition may only be hidden when that is possible", async () => {
+    const t = convexTest(schema, modules)
+    const competitionId = await seedLinked(t)
+    await t.run(async (ctx) => {
+      await ctx.db.insert("objectLinkedResources", {
+        object: { type: "competitions", id: competitionId },
+        resourceType: "discordChannel",
+        resourceKey: "default",
+        data: {
+          resourceType: "discordChannel",
+          channelId: "comp-channel",
+          channelName: "newbridge",
+          guildId: "guild-1",
+        },
+      })
+    })
+
+    const drafts = await t.query(
+      internal.notifications.model.resolveEventDrafts,
+      {
+        event: {
+          kind: "wcaLinkBroken",
+          competitionId,
+          wcaCompetitionId: OLD_ID,
+          renameCandidate: null,
+          mayBeHidden: true,
+        },
+      }
+    )
+
+    const description = drafts[0]?.embeds[0]?.description
+    expect(description).toContain(`The WCA cannot find \`${OLD_ID}\``)
+    expect(description).toContain("does not manage it")
+    expect(description).toContain("connect a WCA account that manages it")
   })
 })
 
@@ -326,6 +406,9 @@ describe("WCA status sync with a renamed competition", () => {
         }
         if (url.includes("/competition_index")) return Response.json([])
         if (url.includes(`/competitions/${OLD_ID}`)) {
+          if (detailStatus === 200) {
+            return Response.json({ id: OLD_ID, name: "Still here" })
+          }
           return Response.json(
             { error: "Not found", data: { model: "Competition", id: OLD_ID } },
             { status: detailStatus }
@@ -356,6 +439,20 @@ describe("WCA status sync with a renamed competition", () => {
 
   test("does not flag the link when the WCA fails for another reason", async () => {
     const { t } = await seedSync(500)
+
+    const result = await t.action(
+      internal.plugins.wca.statusSync.syncCompetitionStatuses,
+      {}
+    )
+
+    expect(result.missing).toEqual([])
+    expect(await listIssues(t)).toEqual([])
+  })
+
+  test("clears the issue when only the per-competition check finds it", async () => {
+    const { t } = await seedSync(200)
+    await recordMissing(t)
+    expect(await listIssues(t)).toHaveLength(1)
 
     const result = await t.action(
       internal.plugins.wca.statusSync.syncCompetitionStatuses,

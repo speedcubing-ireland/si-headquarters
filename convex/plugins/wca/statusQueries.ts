@@ -31,15 +31,17 @@ export const getForCompetition = query({
        */
       unmapped: v.array(wcaMilestone),
       /**
-       * Set when the WCA says the linked id does not exist, usually because
-       * the competition was renamed there. The other fields then describe the
-       * last time the link worked.
+       * Set when the WCA answers 404 for the linked id, usually because the
+       * competition was renamed there. `mayBeHidden` says whether it may
+       * instead be hidden from the connected WCA account. The other fields
+       * then describe the last time the link worked.
        */
       linkIssue: v.union(
         v.null(),
         v.object({
           detectedAt: v.number(),
           renameCandidate: v.union(wcaRenameCandidateValidator, v.null()),
+          mayBeHidden: v.boolean(),
         })
       ),
     })
@@ -69,6 +71,7 @@ export const getForCompetition = query({
         : {
             detectedAt: issue.detectedAt,
             renameCandidate: issue.renameCandidate,
+            mayBeHidden: issue.mayBeHidden,
           }
 
     if (status === null) {

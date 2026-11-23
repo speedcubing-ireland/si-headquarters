@@ -1066,15 +1066,20 @@ async function buildWcaLinkBrokenDrafts(
   const object = { type: "competitions", id: event.competitionId } as const
   const owner = await getScopedObjectName(ctx, object)
   const candidate = event.renameCandidate
+  const cause = event.mayBeHidden
+    ? `The WCA cannot find \`${event.wcaCompetitionId}\`. Either the competition was renamed there, which changes its WCA ID, or it is not announced yet and the WCA account connected to HQ does not manage it, so cannot see it.`
+    : `\`${event.wcaCompetitionId}\` no longer exists on the WCA, usually because the competition was renamed there, which changes its WCA ID.`
   const fixHint =
-    candidate === null
-      ? "Open the competition in HQ and link it to the right WCA competition."
-      : "Open the competition in HQ to relink it in one click."
+    candidate !== null
+      ? "Open the competition in HQ to relink it in one click."
+      : event.mayBeHidden
+        ? "Open the competition in HQ and link it to the right WCA competition, or connect a WCA account that manages it."
+        : "Open the competition in HQ and link it to the right WCA competition."
   return await buildObjectFeedDrafts(ctx, object, {
     fallbackText: `WCA link broken: ${owner.name}`,
     actorId: null,
     color: EMBED_COLOR.warning,
-    description: `\`${event.wcaCompetitionId}\` no longer exists on the WCA, usually because the competition was renamed there, which changes its WCA ID. Until it is relinked, HQ cannot follow its WCA status, so phases will not move on by themselves. ${fixHint}`,
+    description: `${cause} Until this is fixed, HQ cannot follow its WCA status, so phases will not move on by themselves. ${fixHint}`,
     fields: [
       embedField(
         ":warning:",

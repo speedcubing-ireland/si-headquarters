@@ -136,13 +136,15 @@ export const notificationEvent = v.union(
   v.object({
     kind: v.literal("wcaLinkBroken"),
     competitionId: v.id("competitions"),
-    /** The linked id the WCA no longer knows. */
+    /** The linked id the WCA answered 404 for. */
     wcaCompetitionId: v.string(),
     /** The competition it was most likely renamed to, when one stands out. */
     renameCandidate: v.union(
       v.object({ id: v.string(), name: v.string(), url: v.string() }),
       v.null()
     ),
+    /** Whether the 404 may only mean the WCA account cannot see it. */
+    mayBeHidden: v.boolean(),
   }),
   v.object({
     kind: v.literal("updatePublished"),

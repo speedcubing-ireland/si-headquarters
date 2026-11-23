@@ -315,6 +315,11 @@ export const recordMissingWcaCompetition = internalMutation({
       if (linked !== null) linkedOptionIds.add(option.id)
     }
 
+    // The WCA hides an unannounced competition from anyone who does not manage
+    // it, behind the same 404 as a missing one. Only a competition last seen
+    // announced is visible to everyone, so only its 404 means the id is gone.
+    const mayBeHidden = status?.announced !== true
+
     for (const competition of competitions) {
       const dates = competitionDates(competition, status)
       if (isHeldBy(dates.endDate, args.detectedAt)) continue
@@ -326,8 +331,29 @@ export const recordMissingWcaCompetition = internalMutation({
       await upsertLinkIssue(ctx, {
         competition,
         renameCandidate,
+        mayBeHidden,
         detectedAt: args.detectedAt,
       })
+    }
+    return null
+  },
+})
+
+/**
+ * Clears the broken-link issues of competitions linked to these ids, for ids
+ * the WCA has found again. `applyCompetitionStatus` does the same for ids the
+ * bulk sources return, but an id only the per-competition request finds (one
+ * in another country that the WCA account does not manage) never reaches it.
+ */
+export const clearLinkIssuesForWcaIds = internalMutation({
+  args: { wcaCompetitionIds: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    for (const wcaCompetitionId of args.wcaCompetitionIds) {
+      const competitions = await listCompetitionsLinkedTo(ctx, wcaCompetitionId)
+      for (const competition of competitions) {
+        await clearLinkIssues(ctx, competition._id)
+      }
     }
     return null
   },
@@ -343,10 +369,11 @@ async function upsertLinkIssue(
   input: {
     competition: Doc<"competitions">
     renameCandidate: WcaRenameCandidate | null
+    mayBeHidden: boolean
     detectedAt: number
   }
 ): Promise<void> {
-  const { competition, renameCandidate } = input
+  const { competition, renameCandidate, mayBeHidden } = input
   const wcaCompetitionId = competition.wcaCompetitionId
   if (wcaCompetitionId === undefined) return
 
@@ -361,8 +388,14 @@ async function upsertLinkIssue(
   )
 
   if (current !== undefined) {
-    if (!sameCandidate(current.renameCandidate, renameCandidate)) {
-      await ctx.db.patch("wcaLinkIssues", current._id, { renameCandidate })
+    if (
+      !sameCandidate(current.renameCandidate, renameCandidate) ||
+      current.mayBeHidden !== mayBeHidden
+    ) {
+      await ctx.db.patch("wcaLinkIssues", current._id, {
+        renameCandidate,
+        mayBeHidden,
+      })
     }
     return
   }
@@ -374,12 +407,14 @@ async function upsertLinkIssue(
     wcaCompetitionId,
     detectedAt: input.detectedAt,
     renameCandidate,
+    mayBeHidden,
   })
   await scheduleNotificationEvent(ctx, {
     kind: "wcaLinkBroken",
     competitionId: competition._id,
     wcaCompetitionId,
     renameCandidate,
+    mayBeHidden,
   })
 }
 

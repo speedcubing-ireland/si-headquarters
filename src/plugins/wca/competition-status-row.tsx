@@ -126,11 +126,31 @@ export function WcaCompetitionStatusRow({
             WCA competition not found
           </AlertTitle>
           <AlertDescription>
-            <code>{status.wcaCompetitionId}</code> no longer exists on the WCA.
-            This usually means the competition was renamed there, which changes
-            its WCA ID. Until it is relinked, the phase will not follow the WCA.
+            {linkIssue.mayBeHidden ? (
+              <>
+                The WCA cannot find <code>{status.wcaCompetitionId}</code>.
+                Either the competition was renamed there, which changes its WCA
+                ID, or it is not announced yet and the WCA account connected to
+                HQ does not manage it, so cannot see it.
+              </>
+            ) : (
+              <>
+                <code>{status.wcaCompetitionId}</code> no longer exists on the
+                WCA. This usually means the competition was renamed there, which
+                changes its WCA ID.
+              </>
+            )}{" "}
+            Until this is fixed, the phase will not follow the WCA.
             {candidate === null ? (
-              <> Remove the WCA link below and link the competition again.</>
+              linkIssue.mayBeHidden ? (
+                <>
+                  {" "}
+                  Remove the WCA link below and link the competition again, or
+                  connect a WCA account that manages it.
+                </>
+              ) : (
+                <> Remove the WCA link below and link the competition again.</>
+              )
             ) : (
               <>
                 {" "}
