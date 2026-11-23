@@ -134,6 +134,17 @@ export const notificationEvent = v.union(
     cancelled: v.boolean(),
   }),
   v.object({
+    kind: v.literal("wcaLinkBroken"),
+    competitionId: v.id("competitions"),
+    /** The linked id the WCA no longer knows. */
+    wcaCompetitionId: v.string(),
+    /** The competition it was most likely renamed to, when one stands out. */
+    renameCandidate: v.union(
+      v.object({ id: v.string(), name: v.string(), url: v.string() }),
+      v.null()
+    ),
+  }),
+  v.object({
     kind: v.literal("updatePublished"),
     object: competitionOrProjectRef,
     updateId: v.id("objectUpdates"),

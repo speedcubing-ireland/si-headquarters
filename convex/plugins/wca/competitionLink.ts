@@ -2,6 +2,7 @@ import { v } from "convex/values"
 import { DEFAULT_RESOURCE_KEYS } from "@/convex/integrations/constants"
 import { upsertObjectLinkedResource } from "@/convex/integrations/objectResourcesModel"
 import { internalMutation, type MutationCtx } from "@/convex/_generated/server"
+import { clearLinkIssues } from "@/convex/plugins/wca/linkIssues"
 import type { Doc, Id } from "@/convex/_generated/dataModel"
 
 export const saveCompetitionLink = internalMutation({
@@ -27,6 +28,9 @@ export const saveCompetitionLink = internalMutation({
     await ctx.db.patch("competitions", args.competitionId, {
       wcaCompetitionId: args.wcaCompetitionId,
     })
+    // `linkCompetition` has just checked the new id with the WCA, so any
+    // broken-link issue belongs to the old link.
+    await clearLinkIssues(ctx, args.competitionId)
     return resourceId
   },
 })
@@ -75,5 +79,6 @@ export async function unlinkCompetitionIfWcaLinkMatches(
     // dashboard with no WCA row left in the UI to clear it from.
     cancelledAt: undefined,
   })
+  await clearLinkIssues(ctx, competitionId)
   return competition
 }

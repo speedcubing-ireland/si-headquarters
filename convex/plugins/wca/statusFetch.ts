@@ -115,3 +115,28 @@ export async function fetchCompetitionDetailOrNone(
     return null
   }
 }
+
+/**
+ * Whether a competition id still exists on the WCA.
+ *
+ * Only an HTTP 404 counts as `"missing"`. Every other failure (an outage, a
+ * timeout, a rate limit) is `"unknown"`, so a bad hour at the WCA cannot flag a
+ * working link as broken.
+ */
+export async function probeCompetitionExists(
+  accessToken: string,
+  wcaCompetitionId: string
+): Promise<"exists" | "missing" | "unknown"> {
+  try {
+    const client = createWcaClient(accessToken)
+    const response = await competitionById({
+      client,
+      path: { competitionId: wcaCompetitionId },
+    })
+    if (response.data !== undefined) return "exists"
+    return response.response?.status === 404 ? "missing" : "unknown"
+  } catch (error) {
+    console.warn(`WCA existence check failed for ${wcaCompetitionId}`, error)
+    return "unknown"
+  }
+}

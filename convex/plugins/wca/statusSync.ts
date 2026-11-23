@@ -9,6 +9,7 @@ import {
 } from "@/config/lib/organisation"
 import { resolveValidServiceToken } from "@/convex/integrations/tokens"
 import {
+  isHeldBy,
   needsRefundDeadline,
   observeCompetition,
   withRefundDeadline,
@@ -16,9 +17,22 @@ import {
 import {
   fetchCompetitionDetailOrNone,
   fetchWcaStatusSources,
+  probeCompetitionExists,
+  type WcaStatusSources,
 } from "@/convex/plugins/wca/statusFetch"
+import { mapManagedCompetition } from "@/convex/plugins/wca/managedCompetitions"
 import { mapWithConcurrency } from "@/convex/plugins/events/concurrency"
-import type { WcaCompetitionObservation } from "@/convex/plugins/wca/validators"
+import type {
+  WcaCompetitionObservation,
+  WcaRenameOption,
+} from "@/convex/plugins/wca/validators"
+
+interface SyncResult {
+  checked: number
+  skipped: string | null
+  /** Linked ids the WCA answered 404 for this run. */
+  missing: string[]
+}
 
 /** Parallel detail requests, matching the events plugin's fan-out budget. */
 const WCA_DETAIL_FETCH_CONCURRENCY = 6
@@ -41,10 +55,15 @@ export const syncCompetitionStatuses = internalAction({
   returns: v.object({
     checked: v.number(),
     skipped: v.union(v.string(), v.null()),
+    missing: v.array(v.string()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SyncResult> => {
     if (!isFeatureEnabled("wcaIntegration")) {
-      return { checked: 0, skipped: "WCA integration is disabled." }
+      return {
+        checked: 0,
+        skipped: "WCA integration is disabled.",
+        missing: [],
+      }
     }
 
     let accessToken: string
@@ -53,7 +72,7 @@ export const syncCompetitionStatuses = internalAction({
     } catch {
       // Not connected, or the token cannot be refreshed. The next run picks it
       // up once an admin reconnects; nothing here is worth failing the cron for.
-      return { checked: 0, skipped: "WCA is not connected." }
+      return { checked: 0, skipped: "WCA is not connected.", missing: [] }
     }
 
     const wcaCompetitionIds =
@@ -62,7 +81,7 @@ export const syncCompetitionStatuses = internalAction({
         : [args.wcaCompetitionId]
 
     if (wcaCompetitionIds.length === 0) {
-      return { checked: 0, skipped: null }
+      return { checked: 0, skipped: null, missing: [] }
     }
 
     // The mapping is org-level and identical for every competition, so it is
@@ -84,19 +103,30 @@ export const syncCompetitionStatuses = internalAction({
     // Observe from the bulk sources first, so the refund-window test decides
     // which competitions are worth a per-competition request at all.
     const observed: WcaCompetitionObservation[] = []
+    const unseen: string[] = []
     for (const wcaCompetitionId of wcaCompetitionIds) {
       const mine = sources.mine.get(wcaCompetitionId)
       const index = sources.index.get(wcaCompetitionId)
 
-      // Neither source knows this competition: it may be private to another
-      // delegate's account, or the id may be wrong. Leave the last known status
-      // in place rather than inventing one.
-      if (mine === undefined && index === undefined) continue
+      // Neither source knows this competition. It may be private to another
+      // delegate's account, or the id may no longer exist. Leave the last known
+      // status in place rather than inventing one, and check which it is below.
+      if (mine === undefined && index === undefined) {
+        unseen.push(wcaCompetitionId)
+        continue
+      }
 
       observed.push(
         observeCompetition({ wcaCompetitionId, mine, index, fetchedAt })
       )
     }
+
+    const missing = await reportMissingCompetitions(ctx, {
+      accessToken,
+      unseen,
+      sources,
+      nowMs: fetchedAt,
+    })
 
     const observations = await addRefundDeadlines(
       ctx,
@@ -112,9 +142,77 @@ export const syncCompetitionStatuses = internalAction({
       )
     }
 
-    return { checked: observations.length, skipped: null }
+    return { checked: observations.length, skipped: null, missing }
   },
 })
+
+/**
+ * Checks the linked ids neither bulk source returned, and records the ones the
+ * WCA says do not exist. This is what catches a competition renamed on the WCA:
+ * the rename changes its id, so the old link points at nothing and the sync
+ * would otherwise skip it in silence forever.
+ *
+ * Only competitions not yet held are checked, and only these few ids cost a
+ * request each, so a normal run still makes no extra requests at all.
+ */
+async function reportMissingCompetitions(
+  ctx: ActionCtx,
+  input: {
+    accessToken: string
+    unseen: readonly string[]
+    sources: WcaStatusSources
+    nowMs: number
+  }
+): Promise<string[]> {
+  if (input.unseen.length === 0) return []
+
+  const upcoming = await ctx.runQuery(
+    internal.plugins.wca.statusSyncMutations.listUpcomingLinkedIds,
+    { wcaCompetitionIds: [...input.unseen], nowMs: input.nowMs }
+  )
+  const probed = await mapWithConcurrency(
+    upcoming,
+    WCA_DETAIL_FETCH_CONCURRENCY,
+    async (wcaCompetitionId) => ({
+      wcaCompetitionId,
+      result: await probeCompetitionExists(input.accessToken, wcaCompetitionId),
+    })
+  )
+  const missing = probed
+    .filter((probe) => probe.result === "missing")
+    .map((probe) => probe.wcaCompetitionId)
+  if (missing.length === 0) return []
+
+  const options = renameOptions(input.sources, input.nowMs)
+  for (const wcaCompetitionId of missing) {
+    await ctx.runMutation(
+      internal.plugins.wca.statusSyncMutations.recordMissingWcaCompetition,
+      { wcaCompetitionId, options, detectedAt: input.nowMs }
+    )
+  }
+  return missing
+}
+
+/**
+ * The competitions a vanished link could have been renamed to: upcoming,
+ * uncancelled competitions the connected WCA account manages. A renamed
+ * competition is still managed by the same people, so `mine` is where it shows
+ * up, under its new id.
+ */
+function renameOptions(
+  sources: WcaStatusSources,
+  nowMs: number
+): WcaRenameOption[] {
+  const options: WcaRenameOption[] = []
+  for (const competition of sources.mine.values()) {
+    if (competition["cancelled?"]) continue
+    if (isHeldBy(competition.end_date, nowMs)) continue
+    const { id, name, url, startDate, endDate } =
+      mapManagedCompetition(competition)
+    options.push({ id, name, url, startDate, endDate })
+  }
+  return options
+}
 
 /** Pages through every competition linked to the WCA. */
 async function loadLinkedCompetitionIds(ctx: ActionCtx): Promise<string[]> {

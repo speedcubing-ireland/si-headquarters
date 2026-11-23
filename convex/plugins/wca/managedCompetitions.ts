@@ -15,7 +15,7 @@ export interface ManagedWcaCompetition {
   isPublic: boolean
 }
 
-function mapManagedCompetition(
+export function mapManagedCompetition(
   competition: MyCompetition
 ): ManagedWcaCompetition {
   return {

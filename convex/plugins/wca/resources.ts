@@ -97,10 +97,16 @@ export const syncCompetitionStatus = action({
         message: "Link this competition to the WCA before syncing it.",
       })
     }
-    await ctx.runAction(
+    const result = await ctx.runAction(
       internal.plugins.wca.statusSync.syncCompetitionStatuses,
       { wcaCompetitionId }
     )
+    if (result.missing.includes(wcaCompetitionId)) {
+      throw new ConvexError({
+        code: "BAD_REQUEST",
+        message: `${wcaCompetitionId} no longer exists on the WCA. It was probably renamed, which changes its WCA ID. Relink this competition to the new one.`,
+      })
+    }
     return null
   },
 })

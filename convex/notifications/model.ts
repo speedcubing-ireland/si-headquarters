@@ -385,6 +385,7 @@ function actorSuppressionId(event: NotificationEvent): Id<"users"> | null {
     case "commentAdded":
       return event.actorId
     case "competitionCancelled":
+    case "wcaLinkBroken":
     case "projectWorkflowAttention":
     case "assignableTaskReady":
     case "taskUnblocked":
@@ -1058,6 +1059,41 @@ async function buildCompetitionCancelledDrafts(
   })
 }
 
+async function buildWcaLinkBrokenDrafts(
+  ctx: ReadCtx,
+  event: Extract<NotificationEvent, { kind: "wcaLinkBroken" }>
+) {
+  const object = { type: "competitions", id: event.competitionId } as const
+  const owner = await getScopedObjectName(ctx, object)
+  const candidate = event.renameCandidate
+  const fixHint =
+    candidate === null
+      ? "Open the competition in HQ and link it to the right WCA competition."
+      : "Open the competition in HQ to relink it in one click."
+  return await buildObjectFeedDrafts(ctx, object, {
+    fallbackText: `WCA link broken: ${owner.name}`,
+    actorId: null,
+    color: EMBED_COLOR.warning,
+    description: `\`${event.wcaCompetitionId}\` no longer exists on the WCA, usually because the competition was renamed there, which changes its WCA ID. Until it is relinked, HQ cannot follow its WCA status, so phases will not move on by themselves. ${fixHint}`,
+    fields: [
+      embedField(
+        ":warning:",
+        "WCA competition not found",
+        `\`${event.wcaCompetitionId}\``
+      ),
+      ...(candidate === null
+        ? []
+        : [
+            embedField(
+              ":mag:",
+              "Possible match",
+              `[${candidate.name}](${candidate.url})`
+            ),
+          ]),
+    ],
+  })
+}
+
 async function buildUpdatePublishedDrafts(
   ctx: ReadCtx,
   event: Extract<NotificationEvent, { kind: "updatePublished" }>
@@ -1216,6 +1252,8 @@ async function buildEventDrafts(
       return await buildPhaseChangedDrafts(ctx, event)
     case "competitionCancelled":
       return await buildCompetitionCancelledDrafts(ctx, event)
+    case "wcaLinkBroken":
+      return await buildWcaLinkBrokenDrafts(ctx, event)
     case "updatePublished":
       return await buildUpdatePublishedDrafts(ctx, event)
     case "projectWorkflowAttention":
