@@ -8,6 +8,8 @@ import type {
 import type {
   WcaCompetitionObservation,
   WcaCompetitionStatus,
+  WcaRenameCandidate,
+  WcaRenameOption,
 } from "@/convex/plugins/wca/validators"
 
 /**
@@ -68,7 +70,7 @@ function hasPassed(instant: number | null | undefined, nowMs: number): boolean {
 }
 
 /** Whether a competition's end date, plus its final day, has gone by. */
-function isHeldBy(endDate: string | null, nowMs: number): boolean {
+export function isHeldBy(endDate: string | null, nowMs: number): boolean {
   const endMs = endDate === null ? null : parseDateOnlyToUtcMs(endDate)
   return endMs !== null && nowMs >= endMs + DAY_MS
 }
@@ -209,4 +211,35 @@ export function reachedMilestones(
   if (status.resultsPosted) reached.add("resultsPosted")
 
   return reached
+}
+
+/**
+ * The competition a vanished WCA link most likely moved to.
+ *
+ * Renaming a competition on the WCA changes its id, and the old id stops
+ * existing, so the link breaks. The dates are the one thing a rename leaves
+ * alone, so the match is on dates: any upcoming competition the WCA account
+ * manages with the same start and end date, and not already linked to an HQ
+ * competition. The suggestion is only made when exactly one competition
+ * matches. With two or more, a person has to choose, and a guess would point
+ * them at the wrong one.
+ */
+export function pickRenameCandidate(args: {
+  startDate: string | null
+  endDate: string | null
+  options: readonly WcaRenameOption[]
+  isLinked: (wcaCompetitionId: string) => boolean
+}): WcaRenameCandidate | null {
+  const { startDate, endDate } = args
+  if (startDate === null || endDate === null) return null
+
+  const matches = args.options.filter(
+    (option) =>
+      option.startDate === startDate &&
+      option.endDate === endDate &&
+      !args.isLinked(option.id)
+  )
+  if (matches.length !== 1) return null
+  const { id, name, url } = matches[0]
+  return { id, name, url }
 }

@@ -57,9 +57,64 @@ export type WcaCompetitionObservation = Infer<
   typeof wcaCompetitionObservationValidator
 >
 
+/**
+ * A WCA competition HQ could link to instead, shown when the linked one is gone.
+ */
+export const wcaRenameCandidateValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  url: v.string(),
+})
+
+export type WcaRenameCandidate = Infer<typeof wcaRenameCandidateValidator>
+
+/**
+ * An upcoming competition from `/competitions/mine` that might be the renamed
+ * version of a linked competition that disappeared. Only the fields the match
+ * needs are kept.
+ */
+export const wcaRenameOptionValidator = v.object({
+  ...wcaRenameCandidateValidator.fields,
+  startDate: v.string(),
+  endDate: v.string(),
+})
+
+export type WcaRenameOption = Infer<typeof wcaRenameOptionValidator>
+
+/**
+ * A linked WCA id the WCA answered 404 for. Usually the competition was renamed
+ * on the WCA, which changes its id. But the WCA gives the same 404 for a
+ * competition that exists and is hidden from the caller: before it is
+ * announced, only the people who manage it can see it. See `mayBeHidden`.
+ *
+ * Kept apart from `wcaCompetitionStatuses`: a status row records what the WCA
+ * told us about a competition that exists, and its milestones assume exactly
+ * that. A row is keyed by both ids, so relinking the competition makes it stale
+ * at once, even before the cleanup deletes it.
+ */
+export const wcaLinkIssueFields = {
+  competitionId: v.id("competitions"),
+  wcaCompetitionId: v.string(),
+  /** When the WCA first answered 404 for this id. */
+  detectedAt: v.number(),
+  /** The one upcoming competition that matches on dates, if there is exactly one. */
+  renameCandidate: v.union(wcaRenameCandidateValidator, v.null()),
+  /**
+   * False only when HQ last saw the competition announced. The WCA shows an
+   * announced competition to everyone, so its 404 means the id is gone. Any
+   * other 404 could also mean the competition is unannounced and the
+   * connected WCA account does not manage it, for example after WCA was
+   * reconnected with a different account.
+   */
+  mayBeHidden: v.boolean(),
+}
+
 export const wcaTables = {
   wcaCompetitionStatuses: defineTable(wcaCompetitionStatusFields).index(
     "by_wcaCompetitionId",
     ["wcaCompetitionId"]
   ),
+  wcaLinkIssues: defineTable(wcaLinkIssueFields).index("by_competitionId", [
+    "competitionId",
+  ]),
 }

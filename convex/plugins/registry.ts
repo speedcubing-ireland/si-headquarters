@@ -18,6 +18,7 @@ import { wcaPlugin } from "@/convex/plugins/wca/definition"
 import { wcaTables } from "@/convex/plugins/wca/validators"
 import { isFeatureEnabled } from "@/config/lib/organisation"
 import { sponsorCompetitionDeletionPlugin } from "@/convex/plugins/sponsor/admin/auctions/deletion"
+import { wcaCompetitionDeletionPlugin } from "@/convex/plugins/wca/linkIssues"
 
 type BackendPlugin = BackendIntegrationPlugin & BackendProjectWorkflowPlugin
 
@@ -39,6 +40,9 @@ export const BACKEND_PLUGINS: readonly BackendPlugin[] = [
 
 export const COMPETITION_DELETION_PLUGINS = [
   ...(isFeatureEnabled("sponsors") ? [sponsorCompetitionDeletionPlugin] : []),
+  // Not gated on the feature: rows written while it was on must still go when
+  // a competition is deleted after it has been turned off.
+  wcaCompetitionDeletionPlugin,
 ] as const satisfies readonly CompetitionDeletionPlugin[]
 
 export const pluginTables = {
