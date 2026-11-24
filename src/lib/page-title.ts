@@ -28,6 +28,9 @@ export function getPageTitle(pathname: string): string {
   if (pageName !== undefined) {
     return productPageTitle(pageName)
   }
+  if (normalized.startsWith("/help/")) {
+    return productPageTitle("Help")
+  }
   if (/^\/teams\/[^/]+\/tasks$/.test(normalized)) {
     return productPageTitle("Team Tasks")
   }

@@ -12,12 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EventsRouteImport } from './routes/events'
-import { Route as HelpRouteImport } from './routes/help'
+import { Route as HelpRouteRouteImport } from './routes/help/route'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminRefundsRouteImport } from './routes/admin/refunds'
 import { Route as AuthWcaRouteImport } from './routes/auth/wca'
 import { Route as CompetitionsIndexRouteImport } from './routes/competitions/index'
 import { Route as CompetitionsIdRouteImport } from './routes/competitions/$id'
+import { Route as HelpIndexRouteImport } from './routes/help/index'
+import { Route as HelpSectionRouteImport } from './routes/help/$section'
 import { Route as ImpersonateUserRouteImport } from './routes/impersonate/user'
 import { Route as InviteOrganiserRouteImport } from './routes/invite/organiser'
 import { Route as PluginsSocialMediaRouteImport } from './routes/plugins/social-media'
@@ -56,7 +58,7 @@ const EventsRoute = EventsRouteImport.update({
   path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HelpRoute = HelpRouteImport.update({
+const HelpRouteRoute = HelpRouteRouteImport.update({
   id: '/help',
   path: '/help',
   getParentRoute: () => rootRouteImport,
@@ -85,6 +87,16 @@ const CompetitionsIdRoute = CompetitionsIdRouteImport.update({
   id: '/competitions/$id',
   path: '/competitions/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const HelpIndexRoute = HelpIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HelpRouteRoute,
+} as any)
+const HelpSectionRoute = HelpSectionRouteImport.update({
+  id: '/$section',
+  path: '/$section',
+  getParentRoute: () => HelpRouteRoute,
 } as any)
 const ImpersonateUserRoute = ImpersonateUserRouteImport.update({
   id: '/impersonate/user',
@@ -204,12 +216,13 @@ const PluginsSponsorshipAuctionsAuctionIdEditRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/help': typeof HelpRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
-  '/help': typeof HelpRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/help/$section': typeof HelpSectionRoute
   '/impersonate/user': typeof ImpersonateUserRoute
   '/invite/organiser': typeof InviteOrganiserRoute
   '/plugins/social-media': typeof PluginsSocialMediaRoute
@@ -225,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/tasks/$id': typeof TasksIdRoute
   '/admin/': typeof AdminIndexRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/help/': typeof HelpIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
@@ -239,10 +253,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
-  '/help': typeof HelpRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/help/$section': typeof HelpSectionRoute
   '/impersonate/user': typeof ImpersonateUserRoute
   '/invite/organiser': typeof InviteOrganiserRoute
   '/plugins/social-media': typeof PluginsSocialMediaRoute
@@ -258,6 +272,7 @@ export interface FileRoutesByTo {
   '/tasks/$id': typeof TasksIdRoute
   '/admin': typeof AdminIndexRoute
   '/competitions': typeof CompetitionsIndexRoute
+  '/help': typeof HelpIndexRoute
   '/projects': typeof ProjectsIndexRoute
   '/sponsor': typeof SponsorIndexRoute
   '/tasks': typeof TasksIndexRoute
@@ -271,12 +286,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/help': typeof HelpRouteRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/events': typeof EventsRoute
-  '/help': typeof HelpRoute
   '/admin/refunds': typeof AdminRefundsRoute
   '/auth/wca': typeof AuthWcaRoute
   '/competitions/$id': typeof CompetitionsIdRoute
+  '/help/$section': typeof HelpSectionRoute
   '/impersonate/user': typeof ImpersonateUserRoute
   '/invite/organiser': typeof InviteOrganiserRoute
   '/plugins/social-media': typeof PluginsSocialMediaRoute
@@ -292,6 +308,7 @@ export interface FileRoutesById {
   '/tasks/$id': typeof TasksIdRoute
   '/admin/': typeof AdminIndexRoute
   '/competitions/': typeof CompetitionsIndexRoute
+  '/help/': typeof HelpIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/sponsor/': typeof SponsorIndexRoute
   '/tasks/': typeof TasksIndexRoute
@@ -306,12 +323,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/help'
     | '/dashboard'
     | '/events'
-    | '/help'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
+    | '/help/$section'
     | '/impersonate/user'
     | '/invite/organiser'
     | '/plugins/social-media'
@@ -327,6 +345,7 @@ export interface FileRouteTypes {
     | '/tasks/$id'
     | '/admin/'
     | '/competitions/'
+    | '/help/'
     | '/projects/'
     | '/sponsor/'
     | '/tasks/'
@@ -341,10 +360,10 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/events'
-    | '/help'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
+    | '/help/$section'
     | '/impersonate/user'
     | '/invite/organiser'
     | '/plugins/social-media'
@@ -360,6 +379,7 @@ export interface FileRouteTypes {
     | '/tasks/$id'
     | '/admin'
     | '/competitions'
+    | '/help'
     | '/projects'
     | '/sponsor'
     | '/tasks'
@@ -372,12 +392,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/help'
     | '/dashboard'
     | '/events'
-    | '/help'
     | '/admin/refunds'
     | '/auth/wca'
     | '/competitions/$id'
+    | '/help/$section'
     | '/impersonate/user'
     | '/invite/organiser'
     | '/plugins/social-media'
@@ -393,6 +414,7 @@ export interface FileRouteTypes {
     | '/tasks/$id'
     | '/admin/'
     | '/competitions/'
+    | '/help/'
     | '/projects/'
     | '/sponsor/'
     | '/tasks/'
@@ -406,9 +428,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HelpRouteRoute: typeof HelpRouteRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   EventsRoute: typeof EventsRoute
-  HelpRoute: typeof HelpRoute
   AdminRefundsRoute: typeof AdminRefundsRoute
   AuthWcaRoute: typeof AuthWcaRoute
   CompetitionsIdRoute: typeof CompetitionsIdRoute
@@ -464,7 +486,7 @@ declare module '@tanstack/react-router' {
       id: '/help'
       path: '/help'
       fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
+      preLoaderRoute: typeof HelpRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -501,6 +523,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/competitions/$id'
       preLoaderRoute: typeof CompetitionsIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/help/': {
+      id: '/help/'
+      path: '/'
+      fullPath: '/help/'
+      preLoaderRoute: typeof HelpIndexRouteImport
+      parentRoute: typeof HelpRouteRoute
+    }
+    '/help/$section': {
+      id: '/help/$section'
+      path: '/$section'
+      fullPath: '/help/$section'
+      preLoaderRoute: typeof HelpSectionRouteImport
+      parentRoute: typeof HelpRouteRoute
     }
     '/impersonate/user': {
       id: '/impersonate/user'
@@ -659,6 +695,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface HelpRouteRouteChildren {
+  HelpSectionRoute: typeof HelpSectionRoute
+  HelpIndexRoute: typeof HelpIndexRoute
+}
+
+const HelpRouteRouteChildren: HelpRouteRouteChildren = {
+  HelpSectionRoute: HelpSectionRoute,
+  HelpIndexRoute: HelpIndexRoute,
+}
+
+const HelpRouteRouteWithChildren = HelpRouteRoute._addFileChildren(
+  HelpRouteRouteChildren,
+)
+
 interface SponsorAuctionsRouteChildren {
   SponsorAuctionsAuctionIdRoute: typeof SponsorAuctionsAuctionIdRoute
 }
@@ -673,9 +723,9 @@ const SponsorAuctionsRouteWithChildren = SponsorAuctionsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HelpRouteRoute: HelpRouteRouteWithChildren,
   DashboardRoute: DashboardRoute,
   EventsRoute: EventsRoute,
-  HelpRoute: HelpRoute,
   AdminRefundsRoute: AdminRefundsRoute,
   AuthWcaRoute: AuthWcaRoute,
   CompetitionsIdRoute: CompetitionsIdRoute,

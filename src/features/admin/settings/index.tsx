@@ -26,9 +26,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
-import { isFeatureEnabled } from "@/config/lib/organisation"
 import { api } from "@/convex/_generated/api"
 import { unknownErrorMessage } from "@/convex/integrations/errorPayload"
+import {
+  type AdminSettingsFeature,
+  enabledAdminSettingsFeatures,
+} from "@/features/admin/settings/availability"
 import { formatDateTime } from "@/lib/format/dates"
 
 type AppSettings = FunctionReturnType<typeof api.settings.appSettings.get>
@@ -390,18 +393,31 @@ export function AdminSettingsPage() {
           URLs are set in the Convex environment instead.
         </p>
       </div>
-      {isFeatureEnabled("canva") ? (
-        <CanvaSettingsCard settings={settings.canva} />
-      ) : null}
-      {isFeatureEnabled("records") ? (
-        <RecordsEmailSettingsCard settings={settings.recordsEmail} />
-      ) : null}
-      {isFeatureEnabled("sponsors") ? (
-        <SponsorshipEmailSettingsCard settings={settings.sponsorshipEmail} />
-      ) : null}
-      {isFeatureEnabled("wcaIntegration") ? (
-        <AchievementsSettingsCard settings={settings.achievements} />
-      ) : null}
+      {enabledAdminSettingsFeatures().map((feature) => {
+        const SettingsCardFor = SETTINGS_CARDS[feature]
+        return <SettingsCardFor key={feature} settings={settings} />
+      })}
     </div>
   )
+}
+
+/**
+ * The card for each feature on this page. Keyed by the same list Help reads,
+ * so the page, its tab, and its help topic cannot disagree about which cards
+ * exist.
+ */
+const SETTINGS_CARDS: Record<
+  AdminSettingsFeature,
+  (props: { settings: AppSettings }) => ReactNode
+> = {
+  canva: ({ settings }) => <CanvaSettingsCard settings={settings.canva} />,
+  records: ({ settings }) => (
+    <RecordsEmailSettingsCard settings={settings.recordsEmail} />
+  ),
+  sponsors: ({ settings }) => (
+    <SponsorshipEmailSettingsCard settings={settings.sponsorshipEmail} />
+  ),
+  wcaIntegration: ({ settings }) => (
+    <AchievementsSettingsCard settings={settings.achievements} />
+  ),
 }

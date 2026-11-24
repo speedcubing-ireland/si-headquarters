@@ -11,6 +11,7 @@ describe("getPageTitle", () => {
     ["/tasks", productPageTitle("Tasks")],
     ["/help", productPageTitle("Help")],
     ["/help/", productPageTitle("Help")],
+    ["/help/records", productPageTitle("Help")],
     ["/events", productPageTitle("Events")],
     ["/dashboard", productPageTitle("Dashboard")],
     ["/teams/abc123/tasks", productPageTitle("Team Tasks")],

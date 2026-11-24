@@ -225,6 +225,20 @@ describe("MilestoneMappingView", () => {
 })
 
 describe("WhyItDidNotMoveView", () => {
+  test("explains a broken WCA link, in the words the competition page uses", () => {
+    const html = renderToStaticMarkup(
+      <WhyItDidNotMoveView mappings={PRODUCTION_MAPPINGS} />
+    )
+
+    expect(text(html)).toContain("The WCA link is broken.")
+    expect(textAfter(html, "The WCA link is broken.", 400)).toContain(
+      "Link broken"
+    )
+    expect(textAfter(html, "The WCA link is broken.", 400)).toContain(
+      "WCA competition not found"
+    )
+  })
+
   test("names the phases no milestone currently reaches", () => {
     const html = renderToStaticMarkup(
       <WhyItDidNotMoveView mappings={PRODUCTION_MAPPINGS} />

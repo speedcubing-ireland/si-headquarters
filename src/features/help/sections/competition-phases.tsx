@@ -264,6 +264,18 @@ export function WhyItDidNotMoveView({ mappings }: { mappings: LiveMappings }) {
           further ahead than you expected. Nothing stalls permanently as a
           result.
         </li>
+        <li>
+          <Ui>The WCA link is broken.</Ui> Renaming a competition on the WCA
+          changes its WCA ID, so a competition linked under the old ID stops
+          syncing. The <Ui>WCA status</Ui> row under Properties then shows a{" "}
+          <Ui>Link broken</Ui> badge and a <Ui>WCA competition not found</Ui>{" "}
+          alert, and the competition's Discord channel gets a warning. Where the
+          renamed competition can be identified, the alert offers{" "}
+          <Ui>Relink</Ui> to it in one click; otherwise remove the WCA link and
+          link the competition again. A competition that is not announced yet
+          can look the same when the WCA account connected to Headquarters does
+          not manage it.
+        </li>
         {personOnly.length > 0 && (
           <li>
             <Ui>Nothing maps to that phase.</Ui> No milestone currently reaches{" "}
@@ -277,6 +289,12 @@ export function WhyItDidNotMoveView({ mappings }: { mappings: LiveMappings }) {
         Cancelling a competition is separate from all of this. It is recorded on
         the competition itself rather than as a phase, so a cancelled
         competition keeps whatever phase it had reached.
+      </p>
+      <p>
+        The sync runs every hour. To pull in a change straight away, use the
+        refresh button on the <Ui>WCA status</Ui> row, which also reports a
+        broken link instead of claiming success. Hover the milestone shown there
+        to see when the competition was last synced.
       </p>
       <p>
         You can always set the phase by hand. Gates constrain the sync, not
