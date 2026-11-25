@@ -28,6 +28,7 @@ import {
 import { SidebarTeamsNav } from "./sidebar-teams-nav"
 import { SidebarUser } from "./layout-sidebar-user"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { env } from "@/env"
 import { UserImpersonationBanner } from "@/features/impersonation/impersonation-banner"
 import { PLUGINS } from "@/plugins/registry"
 import { Can } from "@/features/auth"
@@ -241,6 +242,17 @@ function SidebarThemeToggle() {
   )
 }
 
+function SidebarBuildVersion() {
+  const gitSha = env.VITE_GIT_SHA
+  if (gitSha === undefined) return null
+
+  return (
+    <div className="px-2 text-center text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+      {gitSha.slice(0, 7)}
+    </div>
+  )
+}
+
 export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -259,6 +271,7 @@ export function LayoutSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarHelpLink />
         <SidebarThemeToggle />
         <SidebarUser />
+        <SidebarBuildVersion />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
