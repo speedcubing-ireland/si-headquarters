@@ -21,6 +21,7 @@ export interface ClientRuntimeEnv {
   readonly VITE_CONVEX_URL: string | undefined
   readonly VITE_CONVEX_SITE_URL: string | undefined
   readonly VITE_SPONSOR_SITE: string | undefined
+  readonly VITE_GIT_SHA: string | undefined
 }
 
 export function createClientEnv(runtimeEnv: ClientRuntimeEnv) {
@@ -30,11 +31,14 @@ export function createClientEnv(runtimeEnv: ClientRuntimeEnv) {
       VITE_CONVEX_URL: z.url(),
       VITE_CONVEX_SITE_URL: z.url(),
       VITE_SPONSOR_SITE: booleanFlag,
+      // Commit SHA set by the deploy workflow at build time, shown in the sidebar footer.
+      VITE_GIT_SHA: z.string().min(1).optional(),
     },
     runtimeEnvStrict: {
       VITE_CONVEX_URL: runtimeEnv.VITE_CONVEX_URL,
       VITE_CONVEX_SITE_URL: runtimeEnv.VITE_CONVEX_SITE_URL,
       VITE_SPONSOR_SITE: runtimeEnv.VITE_SPONSOR_SITE,
+      VITE_GIT_SHA: runtimeEnv.VITE_GIT_SHA,
     },
     emptyStringAsUndefined: true,
   })

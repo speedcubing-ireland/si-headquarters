@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
     VITE_CONVEX_URL: loadedEnv.VITE_CONVEX_URL,
     VITE_CONVEX_SITE_URL: loadedEnv.VITE_CONVEX_SITE_URL,
     VITE_SPONSOR_SITE: loadedEnv.VITE_SPONSOR_SITE,
+    VITE_GIT_SHA: loadedEnv.VITE_GIT_SHA,
   })
 
   return {

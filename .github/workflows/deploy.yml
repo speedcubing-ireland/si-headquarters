@@ -39,6 +39,9 @@ jobs:
 
       - name: Build
         run: vercel build --prod --token=$VERCEL_TOKEN
+        env:
+          # Shown in the app's sidebar footer so you can tell which commit is live.
+          VITE_GIT_SHA: ${{ github.sha }}
 
       # Deploy from a copy of the build output outside the git checkout so the
       # CLI sends no commit metadata. Otherwise Vercel checks the commit author,
